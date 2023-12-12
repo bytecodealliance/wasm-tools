@@ -5,7 +5,7 @@
     (local $x f32) (local $result f32)
     f32.const 0x1p+0 (;=1;)
     local.set $x
-    loop $loop ;; label = @1
+    loop $loop
       local.get $x
       local.tee $result
       f32.const 0x1p-1 (;=0.5;)
@@ -15,7 +15,7 @@
       f32.add
       f32.const 0x1p+0 (;=1;)
       f32.gt
-      br_if 0 (;@1;)
+      br_if $loop
     end
     local.get $result
   )
@@ -23,7 +23,7 @@
     (local $x f64) (local $result f64)
     f64.const 0x1p+0 (;=1;)
     local.set $x
-    loop $loop ;; label = @1
+    loop $loop
       local.get $x
       local.tee $result
       f64.const 0x1p-1 (;=0.5;)
@@ -33,7 +33,7 @@
       f64.add
       f64.const 0x1p+0 (;=1;)
       f64.gt
-      br_if 0 (;@1;)
+      br_if $loop
     end
     local.get $result
   )

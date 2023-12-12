@@ -117,10 +117,10 @@
     end
   )
   (func (;13;) (type 4) (param i32) (result i32)
-    block $l0 (result i32) ;; label = @1
+    block $l0 (result i32)
       local.get 0
       i32.const 1
-      br_if 0 (;@1;)
+      br_if $l0
     end
   )
   (func (;14;) (type 4) (param i32) (result i32)

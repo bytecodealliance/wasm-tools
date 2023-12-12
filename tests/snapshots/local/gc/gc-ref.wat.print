@@ -27,10 +27,10 @@
     block (result (ref 1)) ;; label = @1
       unreachable
     end
-    block $f1 (type $f1) (param (ref 0)) ;; label = @1
+    block $f1 (type $f1) (param (ref 0))
       unreachable
     end
-    block $f2 (result (ref 1)) ;; label = @1
+    block $f2 (result (ref 1))
       unreachable
     end
     loop (type $f1) (param (ref 0)) ;; label = @1
@@ -39,10 +39,10 @@
     loop (result (ref 1)) ;; label = @1
       unreachable
     end
-    loop $f1 (type $f1) (param (ref 0)) ;; label = @1
+    loop $f1 (type $f1) (param (ref 0))
       unreachable
     end
-    loop $f2 (result (ref 1)) ;; label = @1
+    loop $f2 (result (ref 1))
       unreachable
     end
     drop
@@ -57,12 +57,12 @@
       unreachable
     end
     drop
-    if $f1 (type $f1) (param (ref 0)) ;; label = @1
+    if $f1 (type $f1) (param (ref 0))
       unreachable
     else
       unreachable
     end
-    if $f2 (result (ref 1)) ;; label = @1
+    if $f2 (result (ref 1))
       unreachable
     else
       unreachable

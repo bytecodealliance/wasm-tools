@@ -14,7 +14,7 @@
   (func (;1;) (type $block-sig-1)
     block ;; label = @1
     end
-    block $l ;; label = @1
+    block $l
     end
   )
   (func (;2;) (type $block-sig-2) (result i32)

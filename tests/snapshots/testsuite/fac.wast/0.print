@@ -67,13 +67,13 @@
     local.set $i
     i64.const 1
     local.set $res
-    block $done ;; label = @1
-      loop $loop ;; label = @2
+    block $done
+      loop $loop
         local.get $i
         i64.const 0
         i64.eq
         if ;; label = @3
-          br 2 (;@1;)
+          br $done
         else
           local.get $i
           local.get $res
@@ -84,7 +84,7 @@
           i64.sub
           local.set $i
         end
-        br 0 (;@2;)
+        br $loop
       end
     end
     local.get $res
@@ -127,7 +127,7 @@
   (func (;7;) (type 0) (param i64) (result i64)
     i64.const 1
     local.get 0
-    loop $l (type 3) (param i64 i64) (result i64) ;; label = @1
+    loop $l (type 3) (param i64 i64) (result i64)
       call $pick1
       call $pick1
       i64.mul
@@ -137,7 +137,7 @@
       call $pick0
       i64.const 0
       i64.gt_u
-      br_if 0 (;@1;)
+      br_if $l
       drop
       return
     end

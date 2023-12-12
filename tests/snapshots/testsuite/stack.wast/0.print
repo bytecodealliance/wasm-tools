@@ -8,13 +8,13 @@
     local.set $i
     i64.const 1
     local.set $res
-    block $done ;; label = @1
-      loop $loop ;; label = @2
+    block $done
+      loop $loop
         local.get $i
         i64.const 0
         i64.eq
         if ;; label = @3
-          br 2 (;@1;)
+          br $done
         else
           local.get $i
           local.get $res
@@ -25,7 +25,7 @@
           i64.sub
           local.set $i
         end
-        br 0 (;@2;)
+        br $loop
       end
     end
     local.get $res
@@ -36,13 +36,13 @@
     local.set $i
     i64.const 1
     local.set $res
-    block $done ;; label = @1
-      loop $loop ;; label = @2
+    block $done
+      loop $loop
         local.get $i
         i64.const 0
         i64.eq
         if ;; label = @3
-          br 2 (;@1;)
+          br $done
         else
           local.get $i
           local.get $res
@@ -53,7 +53,7 @@
           i64.sub
           local.set $i
         end
-        br 0 (;@2;)
+        br $loop
       end
     end
     local.get $res
@@ -64,13 +64,13 @@
     local.set $i
     i64.const 1
     local.set $res
-    block $done ;; label = @1
-      loop $loop ;; label = @2
+    block $done
+      loop $loop
         local.get $i
         i64.const 0
         i64.eq
-        if $body ;; label = @3
-          br 2 (;@1;)
+        if $body
+          br $done
         else
           local.get $i
           local.get $res
@@ -81,7 +81,7 @@
           i64.sub
           local.set $i
         end
-        br 0 (;@2;)
+        br $loop
       end
     end
     local.get $res
@@ -92,13 +92,13 @@
     local.set $i
     i64.const 1
     local.set $res
-    block $done ;; label = @1
-      loop $loop ;; label = @2
+    block $done
+      loop $loop
         local.get $i
         i64.const 0
         i64.eq
         if ;; label = @3
-          br 2 (;@1;)
+          br $done
         else
           local.get $i
           local.get $res
@@ -109,7 +109,7 @@
           i64.sub
           local.set $i
         end
-        br 0 (;@2;)
+        br $loop
       end
     end
     local.get $res
@@ -120,13 +120,13 @@
     local.set $i
     i64.const 1
     local.set $res
-    block $done ;; label = @1
-      loop $loop ;; label = @2
+    block $done
+      loop $loop
         local.get $i
         i64.const 0
         i64.eq
         if ;; label = @3
-          br 2 (;@1;)
+          br $done
         else
           local.get $i
           local.get $res
@@ -137,7 +137,7 @@
           i64.sub
           local.set $i
         end
-        br 0 (;@2;)
+        br $loop
       end
     end
     local.get $res

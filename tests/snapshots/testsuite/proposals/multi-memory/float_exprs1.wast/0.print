@@ -2,8 +2,8 @@
   (type (;0;) (func (param i32 i32) (result f32)))
   (func (;0;) (type 0) (param $p i32) (param $n i32) (result f32)
     (local $sum f32) (local $c f32) (local $t f32)
-    block $exit ;; label = @1
-      loop $top ;; label = @2
+    block $exit
+      loop $top
         local.get $c
         local.get $p
         f32.load $m
@@ -27,15 +27,15 @@
         i32.const -1
         i32.add
         local.tee $n
-        br_if 0 (;@2;)
+        br_if $top
       end
     end
     local.get $sum
   )
   (func (;1;) (type 0) (param $p i32) (param $n i32) (result f32)
     (local $sum f32)
-    block $exit ;; label = @1
-      loop $top ;; label = @2
+    block $exit
+      loop $top
         local.get $sum
         local.get $p
         f32.load $m
@@ -50,7 +50,7 @@
         i32.add
         local.set $n
         local.get $n
-        br_if 0 (;@2;)
+        br_if $top
       end
     end
     local.get $sum

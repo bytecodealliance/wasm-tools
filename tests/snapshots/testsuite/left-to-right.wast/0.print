@@ -958,12 +958,12 @@
     end
   )
   (func (;129;) (type 5) (result i32)
-    block $a (result i32) ;; label = @1
+    block $a (result i32)
       call $reset
-      block $b (result i32) ;; label = @2
+      block $b (result i32)
         call $i32_left
         call $i32_right
-        br_table 1 (;@1;) 0 (;@2;)
+        br_table $a $b
       end
       drop
       call $get

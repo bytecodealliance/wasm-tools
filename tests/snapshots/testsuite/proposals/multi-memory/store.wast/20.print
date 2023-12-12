@@ -14,7 +14,7 @@
     (local $i i32)
     i32.const 20
     local.set $i
-    loop $cont ;; label = @1
+    loop $cont
       local.get $i
       i32.const 23
       i32.eq
@@ -27,14 +27,14 @@
       i32.const 1
       i32.add
       local.set $i
-      br 0 (;@1;)
+      br $cont
     end
   )
   (func (;3;) (type 1)
     (local $i i32)
     i32.const 50
     local.set $i
-    loop $cont ;; label = @1
+    loop $cont
       local.get $i
       i32.const 54
       i32.eq
@@ -47,7 +47,7 @@
       i32.const 1
       i32.add
       local.set $i
-      br 0 (;@1;)
+      br $cont
     end
   )
   (memory $mem2 (;1;) 3)

@@ -763,11 +763,11 @@
     end
   )
   (func (;69;) (type 8) (param i32 externref) (result externref)
-    block $l1 (result externref) ;; label = @1
-      block $l2 (result externref) ;; label = @2
+    block $l1 (result externref)
+      block $l2 (result externref)
         local.get 1
         local.get 0
-        br_table 1 (;@1;) 0 (;@2;) 1 (;@1;)
+        br_table $l1 $l2 $l1
       end
     end
   )
@@ -785,61 +785,61 @@
   )
   (func $tf (;71;) (type $t))
   (func (;72;) (type 9) (param i32) (result funcref)
-    block $l1 (result funcref) ;; label = @1
-      block $l2 (result (ref null 1)) ;; label = @2
+    block $l1 (result funcref)
+      block $l2 (result (ref null 1))
         i32.const 0
         table.get $t
         local.get 0
-        br_table 1 (;@1;) 1 (;@1;) 0 (;@2;)
+        br_table $l1 $l1 $l2
       end
     end
   )
   (func (;73;) (type 9) (param i32) (result funcref)
-    block $l1 (result funcref) ;; label = @1
-      block $l2 (result (ref null 1)) ;; label = @2
+    block $l1 (result funcref)
+      block $l2 (result (ref null 1))
         i32.const 0
         table.get $t
         local.get 0
-        br_table 0 (;@2;) 0 (;@2;) 1 (;@1;)
+        br_table $l2 $l2 $l1
       end
     end
   )
   (func (;74;) (type 9) (param i32) (result funcref)
-    block $l1 (result funcref) ;; label = @1
-      block $l2 (result (ref null 1)) ;; label = @2
+    block $l1 (result funcref)
+      block $l2 (result (ref null 1))
         i32.const 0
         table.get $t
         local.get 0
-        br_table 0 (;@2;) 1 (;@1;) 0 (;@2;)
+        br_table $l2 $l1 $l2
       end
     end
   )
   (func (;75;) (type 9) (param i32) (result funcref)
-    block $l1 (result funcref) ;; label = @1
-      block $l2 (result (ref null 1)) ;; label = @2
+    block $l1 (result funcref)
+      block $l2 (result (ref null 1))
         i32.const 0
         table.get $t
         local.get 0
-        br_table 1 (;@1;) 0 (;@2;) 1 (;@1;)
+        br_table $l1 $l2 $l1
       end
     end
   )
   (func (;76;) (type 9) (param i32) (result funcref)
-    block $l1 (result funcref) ;; label = @1
-      block $l2 (result (ref null 1)) ;; label = @2
+    block $l1 (result funcref)
+      block $l2 (result (ref null 1))
         ref.null 1
         local.get 0
-        br_table 1 (;@1;) 0 (;@2;) 1 (;@1;)
+        br_table $l1 $l2 $l1
       end
     end
   )
   (func (;77;) (type 9) (param i32) (result funcref)
-    block $l1 (result funcref) ;; label = @1
-      block $l2 (result (ref null 1)) ;; label = @2
-        block $l3 (result (ref 1)) ;; label = @3
+    block $l1 (result funcref)
+      block $l2 (result (ref null 1))
+        block $l3 (result (ref 1))
           ref.func $tf
           local.get 0
-          br_table 0 (;@3;) 1 (;@2;) 2 (;@1;)
+          br_table $l3 $l2 $l1
         end
       end
     end
