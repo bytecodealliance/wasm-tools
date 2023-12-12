@@ -136,34 +136,8 @@ fn find_tests() -> Vec<PathBuf> {
 /// Note that this is used to skip tests for all crates, not just one at a
 /// time. There's further filters applied while testing.
 fn skip_test(test: &Path, contents: &[u8]) -> bool {
-    let broken = &[
-        // I don't really have any idea what's going on with the expected syntax
-        // errors and expected error messages in these tests. They seem like
-        // they're from left field considering other conventions, so let's just
-        // ignore these until the proposal is further along.
-        "exception-handling/try_delegate.wast",
-        "exception-handling/try_catch.wast",
-        "exception-handling/throw.wast",
-        // This is an empty file which currently doesn't parse
-        "multi-memory/memory_copy1.wast",
-    ];
-    let test_path = test.to_str().unwrap().replace("\\", "/"); // for windows paths
-    if broken.iter().any(|x| test_path.contains(x)) {
-        return true;
-    }
-
-    if let Ok(contents) = str::from_utf8(contents) {
-        // Skip tests that are supposed to fail
-        if contents.contains(";; ERROR") {
-            return true;
-        }
-        // These tests are acually ones that run with the `*.wast` files from the
-        // official test suite, and we slurp those up elsewhere anyway.
-        if contents.contains("STDIN_FILE") {
-            return true;
-        }
-    }
-
+    // currently no tests are skipped
+    let _ = (test, contents);
     false
 }
 
@@ -171,29 +145,30 @@ fn skip_validation(test: &Path) -> bool {
     let broken = &[
         "gc/gc-array.wat",
         "gc/gc-struct.wat",
-        "/proposals/gc/array.wast",
-        "/proposals/gc/array_copy.wast",
-        "/proposals/gc/array_fill.wast",
-        "/proposals/gc/array_init_data.wast",
-        "/proposals/gc/array_init_elem.wast",
-        "/proposals/gc/br_on_cast.wast",
-        "/proposals/gc/br_on_cast_fail.wast",
-        "/proposals/gc/extern.wast",
-        "/proposals/gc/ref_cast.wast",
-        "/proposals/gc/ref_eq.wast",
-        "/proposals/gc/ref_test.wast",
-        "/proposals/gc/struct.wast",
-        "/proposals/gc/type-subtyping.wast",
-        "/proposals/exception-handling/try_table.wast",
-        "/proposals/exception-handling/throw_ref.wast",
-        "/proposals/exception-handling/ref_null.wast",
-        "/exnref/exnref.wast",
-        "/exnref/throw_ref.wast",
-        "/exnref/try_table.wast",
-        "obsolete-keywords.wast",
+        "proposals/gc/array.wast",
+        "proposals/gc/array_copy.wast",
+        "proposals/gc/array_fill.wast",
+        "proposals/gc/array_init_data.wast",
+        "proposals/gc/array_init_elem.wast",
+        "proposals/gc/br_on_cast.wast",
+        "proposals/gc/br_on_cast_fail.wast",
+        "proposals/gc/extern.wast",
+        "proposals/gc/ref_cast.wast",
+        "proposals/gc/ref_eq.wast",
+        "proposals/gc/ref_test.wast",
+        "proposals/gc/struct.wast",
+        "proposals/gc/type-subtyping.wast",
+        "exnref/exnref.wast",
+        "exnref/throw_ref.wast",
+        "exnref/try_table.wast",
+        "exception-handling/ref_null.wast",
+        "exception-handling/throw.wast",
+        "exception-handling/throw_ref.wast",
+        "exception-handling/try_catch.wast",
+        "exception-handling/try_delegate.wast",
+        "exception-handling/try_table.wast",
     ];
-    let test_path = test.to_str().unwrap().replace("\\", "/"); // for windows paths
-    if broken.iter().any(|x| test_path.contains(x)) {
+    if broken.iter().any(|x| test.ends_with(x)) {
         return true;
     }
 
@@ -852,6 +827,10 @@ fn error_matches(error: &str, message: &str) -> bool {
 
     if message == "sub type" {
         return error.contains("subtype");
+    }
+
+    if message.starts_with("unknown operator") {
+        return error.starts_with("unknown operator") || error.starts_with("unexpected token");
     }
 
     return false;
