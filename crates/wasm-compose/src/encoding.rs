@@ -362,9 +362,9 @@ impl<'a> TypeEncoder<'a> {
                 };
                 EntityType::Function(idx)
             }
-            wasmparser::types::EntityType::Table(ty) => EntityType::Table(Self::table_type(ty)),
-            wasmparser::types::EntityType::Memory(ty) => EntityType::Memory(Self::memory_type(ty)),
-            wasmparser::types::EntityType::Global(ty) => EntityType::Global(Self::global_type(ty)),
+            wasmparser::types::EntityType::Table(ty) => EntityType::Table(ty.try_into().unwrap()),
+            wasmparser::types::EntityType::Memory(ty) => EntityType::Memory(ty.try_into().unwrap()),
+            wasmparser::types::EntityType::Global(ty) => EntityType::Global(ty.try_into().unwrap()),
             wasmparser::types::EntityType::Tag(id) => {
                 let ty = &self.0.types[id];
                 let idx = match types.entry(ComponentCoreTypeId::Sub(id).into()) {
@@ -427,77 +427,7 @@ impl<'a> TypeEncoder<'a> {
     }
 
     fn val_type(ty: wasmparser::ValType) -> ValType {
-        match ty {
-            wasmparser::ValType::I32 => ValType::I32,
-            wasmparser::ValType::I64 => ValType::I64,
-            wasmparser::ValType::F32 => ValType::F32,
-            wasmparser::ValType::F64 => ValType::F64,
-            wasmparser::ValType::V128 => ValType::V128,
-            wasmparser::ValType::Ref(ty) => ValType::Ref(Self::ref_type(ty)),
-        }
-    }
-
-    fn ref_type(ty: wasmparser::RefType) -> RefType {
-        RefType {
-            nullable: ty.is_nullable(),
-            heap_type: match ty.heap_type() {
-                wasmparser::HeapType::Func => HeapType::Func,
-                wasmparser::HeapType::Extern => HeapType::Extern,
-                wasmparser::HeapType::Any => HeapType::Any,
-                wasmparser::HeapType::None => HeapType::None,
-                wasmparser::HeapType::NoExtern => HeapType::NoExtern,
-                wasmparser::HeapType::NoFunc => HeapType::NoFunc,
-                wasmparser::HeapType::Eq => HeapType::Eq,
-                wasmparser::HeapType::Struct => HeapType::Struct,
-                wasmparser::HeapType::Array => HeapType::Array,
-                wasmparser::HeapType::I31 => HeapType::I31,
-                wasmparser::HeapType::Concrete(i) => {
-                    HeapType::Concrete(i.as_module_index().unwrap())
-                }
-            },
-        }
-    }
-
-    fn table_type(ty: wasmparser::TableType) -> TableType {
-        TableType {
-            element_type: Self::ref_type(ty.element_type),
-            minimum: ty.initial,
-            maximum: ty.maximum,
-        }
-    }
-
-    fn memory_type(ty: wasmparser::MemoryType) -> MemoryType {
-        MemoryType {
-            minimum: ty.initial,
-            maximum: ty.maximum,
-            memory64: ty.memory64,
-            shared: ty.shared,
-        }
-    }
-
-    fn global_type(ty: wasmparser::GlobalType) -> GlobalType {
-        GlobalType {
-            val_type: Self::val_type(ty.content_type),
-            mutable: ty.mutable,
-        }
-    }
-
-    fn primitive(ty: wasmparser::PrimitiveValType) -> PrimitiveValType {
-        match ty {
-            wasmparser::PrimitiveValType::Bool => PrimitiveValType::Bool,
-            wasmparser::PrimitiveValType::S8 => PrimitiveValType::S8,
-            wasmparser::PrimitiveValType::U8 => PrimitiveValType::U8,
-            wasmparser::PrimitiveValType::S16 => PrimitiveValType::S16,
-            wasmparser::PrimitiveValType::U16 => PrimitiveValType::U16,
-            wasmparser::PrimitiveValType::S32 => PrimitiveValType::S32,
-            wasmparser::PrimitiveValType::U32 => PrimitiveValType::U32,
-            wasmparser::PrimitiveValType::S64 => PrimitiveValType::S64,
-            wasmparser::PrimitiveValType::U64 => PrimitiveValType::U64,
-            wasmparser::PrimitiveValType::Float32 => PrimitiveValType::Float32,
-            wasmparser::PrimitiveValType::Float64 => PrimitiveValType::Float64,
-            wasmparser::PrimitiveValType::Char => PrimitiveValType::Char,
-            wasmparser::PrimitiveValType::String => PrimitiveValType::String,
-        }
+        ty.try_into().unwrap()
     }
 
     fn module_type(&self, state: &mut TypeState<'a>, id: ComponentCoreModuleTypeId) -> u32 {
@@ -700,7 +630,7 @@ impl<'a> TypeEncoder<'a> {
     ) -> ComponentValType {
         match ty {
             wasmparser::types::ComponentValType::Primitive(ty) => {
-                ComponentValType::Primitive(Self::primitive(ty))
+                ComponentValType::Primitive(ty.into())
             }
             wasmparser::types::ComponentValType::Type(id) => {
                 ComponentValType::Type(self.ty(state, ComponentAnyTypeId::from(id).into()))
@@ -719,7 +649,7 @@ impl<'a> TypeEncoder<'a> {
                     .encodable
                     .ty()
                     .defined_type()
-                    .primitive(Self::primitive(*ty));
+                    .primitive((*ty).into());
                 index
             }
             wasmparser::types::ComponentDefinedType::Record(r) => self.record(state, r),
