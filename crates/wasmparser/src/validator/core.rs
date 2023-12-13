@@ -596,7 +596,7 @@ impl Module {
                 bail!(offset, "sub type cannot have a final super type");
             }
             if !types.matches(id, sup_id) {
-                bail!(offset, "subtype must match supertype");
+                bail!(offset, "sub type must match super type");
             }
         }
 

@@ -1,7 +1,7 @@
 use super::{Printer, State};
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 use std::fmt::Write;
-use wasmparser::{BlockType, BrTable, MemArg, VisitOperator};
+use wasmparser::{BlockType, BrTable, MemArg, RefType, VisitOperator};
 
 pub struct PrintOperator<'a, 'b> {
     pub(super) printer: &'a mut Printer,
@@ -315,6 +315,30 @@ macro_rules! define_visit {
                 chunk[0],
             )?;
         }
+    );
+    (payload $self:ident RefTestNonNull $hty:ident) => (
+        $self.push_str(" ");
+        let rty = RefType::new(false, $hty)
+            .ok_or_else(|| anyhow!("implementation limit: type index too large"))?;
+        $self.printer.print_reftype(rty)?;
+    );
+    (payload $self:ident RefTestNullable $hty:ident) => (
+        $self.push_str(" ");
+        let rty = RefType::new(true, $hty)
+            .ok_or_else(|| anyhow!("implementation limit: type index too large"))?;
+        $self.printer.print_reftype(rty)?;
+    );
+    (payload $self:ident RefCastNonNull $hty:ident) => (
+        $self.push_str(" ");
+        let rty = RefType::new(false, $hty)
+            .ok_or_else(|| anyhow!("implementation limit: type index too large"))?;
+        $self.printer.print_reftype(rty)?;
+    );
+    (payload $self:ident RefCastNullable $hty:ident) => (
+        $self.push_str(" ");
+        let rty = RefType::new(true, $hty)
+            .ok_or_else(|| anyhow!("implementation limit: type index too large"))?;
+        $self.printer.print_reftype(rty)?;
     );
     (payload $self:ident $op:ident $($arg:ident)*) => (
         $(
@@ -861,6 +885,10 @@ macro_rules! define_visit {
     (name I16x8RelaxedQ15mulrS) => ("i16x8.relaxed_q15mulr_s");
     (name I16x8RelaxedDotI8x16I7x16S) => ("i16x8.relaxed_dot_i8x16_i7x16_s");
     (name I32x4RelaxedDotI8x16I7x16AddS) => ("i32x4.relaxed_dot_i8x16_i7x16_add_s");
+    (name RefTestNonNull) => ("ref.test");
+    (name RefTestNullable) => ("ref.test");
+    (name RefCastNonNull) => ("ref.cast");
+    (name RefCastNullable) => ("ref.cast");
     (name RefI31) => ("ref.i31");
     (name I31GetS) => ("i31.get_s");
     (name I31GetU) => ("i31.get_u");

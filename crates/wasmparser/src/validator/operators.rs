@@ -970,6 +970,50 @@ where
         Ok(())
     }
 
+    /// Common helper for `ref.test` and `ref.cast` downcasting/checking
+    /// instructions. Returns the given `heap_type` as a `ValType`.
+    fn check_downcast(&mut self, nullable: bool, mut heap_type: HeapType) -> Result<ValType> {
+        self.resources
+            .check_heap_type(&mut heap_type, self.offset)?;
+
+        let sub_ty = RefType::new(nullable, heap_type)
+            .map(ValType::from)
+            .ok_or_else(|| {
+                BinaryReaderError::new("implementation limit: type index too large", self.offset)
+            })?;
+
+        let sup_ty = match self.pop_ref()? {
+            None => bail!(
+                self.offset,
+                "type mismatch: expected (ref null? ...), found bottom"
+            ),
+            Some(ty) => ty,
+        };
+
+        if !self.resources.is_subtype(sub_ty, sup_ty.into()) {
+            bail!(
+                self.offset,
+                "ref.test's heap type must be a sub type of the type on the stack"
+            );
+        }
+
+        Ok(sub_ty)
+    }
+
+    /// Common helper for both nullable and non-nullable variants of `ref.test`
+    /// instructions.
+    fn check_ref_test(&mut self, nullable: bool, heap_type: HeapType) -> Result<()> {
+        self.check_downcast(nullable, heap_type)?;
+        self.push_operand(ValType::I32)
+    }
+
+    /// Common helper for both nullable and non-nullable variants of `ref.cast`
+    /// instructions.
+    fn check_ref_cast(&mut self, nullable: bool, heap_type: HeapType) -> Result<()> {
+        let sub_ty = self.check_downcast(nullable, heap_type)?;
+        self.push_operand(sub_ty)
+    }
+
     fn func_type_at(&self, at: u32) -> Result<&'resources R::FuncType> {
         self.resources
             .func_type_at(at)
@@ -3386,6 +3430,18 @@ where
         self.pop_operand(Some(ty))?;
         self.pop_operand(Some(ValType::I32))?;
         Ok(())
+    }
+    fn visit_ref_test_non_null(&mut self, heap_type: HeapType) -> Self::Output {
+        self.check_ref_test(false, heap_type)
+    }
+    fn visit_ref_test_nullable(&mut self, heap_type: HeapType) -> Self::Output {
+        self.check_ref_test(true, heap_type)
+    }
+    fn visit_ref_cast_non_null(&mut self, heap_type: HeapType) -> Self::Output {
+        self.check_ref_cast(false, heap_type)
+    }
+    fn visit_ref_cast_nullable(&mut self, heap_type: HeapType) -> Self::Output {
+        self.check_ref_cast(true, heap_type)
     }
     fn visit_ref_i31(&mut self) -> Self::Output {
         self.pop_operand(Some(ValType::I32))?;
