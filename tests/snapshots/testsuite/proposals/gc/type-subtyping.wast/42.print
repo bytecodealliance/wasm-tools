@@ -1,0 +1,46 @@
+(module
+  (rec
+    (type $f11 (;0;) (sub (func (result (ref func)))))
+    (type $f12 (;1;) (sub $f11 (;0;) (func (result (ref 0)))))
+  )
+  (rec
+    (type $f21 (;2;) (sub (func (result (ref func)))))
+    (type $f22 (;3;) (sub $f21 (;2;) (func (result (ref 2)))))
+  )
+  (rec
+    (type $g11 (;4;) (sub $f11 (;0;) (func (result (ref func)))))
+    (type $g12 (;5;) (sub $g11 (;4;) (func (result (ref 4)))))
+  )
+  (rec
+    (type $g21 (;6;) (sub $f21 (;2;) (func (result (ref func)))))
+    (type $g22 (;7;) (sub $g21 (;6;) (func (result (ref 6)))))
+  )
+  (type (;8;) (func (result i32 i32 i32 i32 i32 i32 i32 i32)))
+  (func $g11 (;0;) (type $g11) (result (ref func))
+    unreachable
+  )
+  (func $g12 (;1;) (type $g12) (result (ref 4))
+    unreachable
+  )
+  (func (;2;) (type 8) (result i32 i32 i32 i32 i32 i32 i32 i32)
+    ref.func $g11
+    ref.test (ref 0)
+    ref.func $g11
+    ref.test (ref 2)
+    ref.func $g12
+    ref.test (ref 0)
+    ref.func $g12
+    ref.test (ref 2)
+    ref.func $g11
+    ref.test (ref 4)
+    ref.func $g11
+    ref.test (ref 6)
+    ref.func $g12
+    ref.test (ref 5)
+    ref.func $g12
+    ref.test (ref 7)
+  )
+  (export "run" (func 2))
+  (elem (;0;) declare func $g11)
+  (elem (;1;) declare func $g12)
+)

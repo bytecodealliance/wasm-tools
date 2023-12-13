@@ -280,6 +280,9 @@ mod tests {
         fn check_heap_type(&self, _t: &mut HeapType, _offset: usize) -> Result<()> {
             Ok(())
         }
+        fn top_type(&self, _heap_type: &HeapType) -> HeapType {
+            todo!()
+        }
         fn element_type_at(&self, _at: u32) -> Option<crate::RefType> {
             todo!()
         }

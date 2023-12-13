@@ -271,6 +271,9 @@ pub trait WasmModuleResources {
         offset: usize,
     ) -> Result<(), BinaryReaderError>;
 
+    /// Get the top type for the given heap type.
+    fn top_type(&self, heap_type: &HeapType) -> HeapType;
+
     /// Returns the number of elements.
     fn element_count(&self) -> u32;
 
@@ -311,6 +314,9 @@ where
     }
     fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<(), BinaryReaderError> {
         T::check_heap_type(self, t, offset)
+    }
+    fn top_type(&self, heap_type: &HeapType) -> HeapType {
+        T::top_type(self, heap_type)
     }
     fn element_type_at(&self, at: u32) -> Option<RefType> {
         T::element_type_at(self, at)
@@ -366,6 +372,10 @@ where
 
     fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<(), BinaryReaderError> {
         T::check_heap_type(self, t, offset)
+    }
+
+    fn top_type(&self, heap_type: &HeapType) -> HeapType {
+        T::top_type(self, heap_type)
     }
 
     fn element_type_at(&self, at: u32) -> Option<RefType> {

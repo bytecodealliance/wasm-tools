@@ -972,7 +972,12 @@ where
 
     /// Common helper for `ref.test` and `ref.cast` downcasting/checking
     /// instructions. Returns the given `heap_type` as a `ValType`.
-    fn check_downcast(&mut self, nullable: bool, mut heap_type: HeapType) -> Result<ValType> {
+    fn check_downcast(
+        &mut self,
+        nullable: bool,
+        mut heap_type: HeapType,
+        inst_name: &str,
+    ) -> Result<ValType> {
         self.resources
             .check_heap_type(&mut heap_type, self.offset)?;
 
@@ -989,11 +994,17 @@ where
             ),
             Some(ty) => ty,
         };
+        let sup_ty = RefType::new(
+            sup_ty.is_nullable(),
+            self.resources.top_type(&sup_ty.heap_type()),
+        )
+        .unwrap();
 
         if !self.resources.is_subtype(sub_ty, sup_ty.into()) {
             bail!(
                 self.offset,
-                "ref.test's heap type must be a sub type of the type on the stack"
+                "{inst_name}'s heap type must be a sub type of the type on the stack: \
+                 {sub_ty} is not a sub type of {sup_ty}"
             );
         }
 
@@ -1003,14 +1014,14 @@ where
     /// Common helper for both nullable and non-nullable variants of `ref.test`
     /// instructions.
     fn check_ref_test(&mut self, nullable: bool, heap_type: HeapType) -> Result<()> {
-        self.check_downcast(nullable, heap_type)?;
+        self.check_downcast(nullable, heap_type, "ref.test")?;
         self.push_operand(ValType::I32)
     }
 
     /// Common helper for both nullable and non-nullable variants of `ref.cast`
     /// instructions.
     fn check_ref_cast(&mut self, nullable: bool, heap_type: HeapType) -> Result<()> {
-        let sub_ty = self.check_downcast(nullable, heap_type)?;
+        let sub_ty = self.check_downcast(nullable, heap_type, "ref.cast")?;
         self.push_operand(sub_ty)
     }
 

@@ -1196,6 +1196,10 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
         self.module.check_heap_type(t, offset)
     }
 
+    fn top_type(&self, heap_type: &HeapType) -> HeapType {
+        self.types.top_type(heap_type)
+    }
+
     fn element_type_at(&self, at: u32) -> Option<RefType> {
         self.module.element_types.get(at as usize).cloned()
     }
@@ -1266,6 +1270,10 @@ impl WasmModuleResources for ValidatorResources {
 
     fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<()> {
         self.0.check_heap_type(t, offset)
+    }
+
+    fn top_type(&self, heap_type: &HeapType) -> HeapType {
+        self.0.snapshot.as_ref().unwrap().top_type(heap_type)
     }
 
     fn element_type_at(&self, at: u32) -> Option<RefType> {

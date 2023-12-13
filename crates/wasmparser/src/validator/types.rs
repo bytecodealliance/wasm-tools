@@ -2727,6 +2727,27 @@ impl TypeList {
         }
     }
 
+    /// Get the top type of the given heap type.
+    ///
+    /// Concrete types must have had their indices canonicalized to core type
+    /// ids, otherwise this method will panic.
+    pub fn top_type(&self, heap_type: &HeapType) -> HeapType {
+        match *heap_type {
+            HeapType::Concrete(idx) => match self[idx.as_core_type_id().unwrap()].composite_type {
+                CompositeType::Func(_) => HeapType::Func,
+                CompositeType::Array(_) | CompositeType::Struct(_) => HeapType::Any,
+            },
+            HeapType::Func | HeapType::NoFunc => HeapType::Func,
+            HeapType::Extern | HeapType::NoExtern => HeapType::Extern,
+            HeapType::Any
+            | HeapType::Eq
+            | HeapType::Struct
+            | HeapType::Array
+            | HeapType::I31
+            | HeapType::None => HeapType::Any,
+        }
+    }
+
     fn checkpoint(&self) -> TypeListCheckpoint {
         let TypeList {
             alias_mappings: _,
