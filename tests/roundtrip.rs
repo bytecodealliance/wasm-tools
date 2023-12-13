@@ -157,7 +157,6 @@ fn skip_validation(test: &Path) -> bool {
         "proposals/gc/ref_eq.wast",
         "proposals/gc/ref_test.wast",
         "proposals/gc/struct.wast",
-        "proposals/gc/type-subtyping.wast",
         "exnref/exnref.wast",
         "exnref/throw_ref.wast",
         "exnref/try_table.wast",

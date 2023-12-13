@@ -1,0 +1,15 @@
+(module
+  (rec
+    (type $f1 (;0;) (sub (func)))
+    (type $s1 (;1;) (sub (struct (field (ref 0)))))
+  )
+  (rec
+    (type $f2 (;2;) (sub (func)))
+    (type $s2 (;3;) (sub (struct (field (ref 2)))))
+  )
+  (rec
+    (type $g1 (;4;) (sub $f1 (;0;) (func)))
+    (type (;5;) (sub $s1 (;1;) (struct (field (ref 0)) (field (ref 0)) (field (ref 2)) (field (ref 2)) (field (ref 4)))))
+  )
+  (import "M4" "g" (func (;0;) (type $g1)))
+)
