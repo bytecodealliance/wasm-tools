@@ -217,6 +217,12 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         self.printer.print_core_type_ref(self.state, idx)
     }
 
+    /// Like `self.type_index` but without the `(type ..)` wrapper.
+    fn type_index_no_type(&mut self, idx: u32) -> Result<()> {
+        self.push_str(" ");
+        self.printer.print_idx(&self.state.core.type_names, idx)
+    }
+
     fn data_index(&mut self, idx: u32) -> Result<()> {
         self.printer.print_idx(&self.state.core.data_names, idx)
     }
@@ -417,6 +423,12 @@ macro_rules! define_visit {
                 chunk[0],
             )?;
         }
+    );
+    (payload $self:ident StructNewDefault $type_index: ident) => (
+        $self.type_index_no_type($type_index)?;
+    );
+    (payload $self:ident ArrayNewDefault $type_index: ident) => (
+        $self.type_index_no_type($type_index)?;
     );
     (payload $self:ident RefTestNonNull $hty:ident) => (
         $self.push_str(" ");
@@ -987,6 +999,10 @@ macro_rules! define_visit {
     (name I16x8RelaxedQ15mulrS) => ("i16x8.relaxed_q15mulr_s");
     (name I16x8RelaxedDotI8x16I7x16S) => ("i16x8.relaxed_dot_i8x16_i7x16_s");
     (name I32x4RelaxedDotI8x16I7x16AddS) => ("i32x4.relaxed_dot_i8x16_i7x16_add_s");
+    (name StructNewDefault) => ("struct.new_default");
+    (name ArrayNewDefault) => ("array.new_default");
+    (name AnyConvertExtern) => ("any.convert_extern");
+    (name ExternConvertAny) => ("extern.convert_any");
     (name RefTestNonNull) => ("ref.test");
     (name RefTestNullable) => ("ref.test");
     (name RefCastNonNull) => ("ref.cast");

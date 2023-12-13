@@ -409,6 +409,24 @@ pub struct SubType {
     pub composite_type: CompositeType,
 }
 
+impl std::fmt::Display for SubType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_final && self.supertype_idx.is_none() {
+            std::fmt::Display::fmt(&self.composite_type, f)
+        } else {
+            write!(f, "(sub ")?;
+            if self.is_final {
+                write!(f, "final ")?;
+            }
+            if let Some(idx) = self.supertype_idx {
+                write!(f, "{idx} ")?;
+            }
+            std::fmt::Display::fmt(&self.composite_type, f)?;
+            write!(f, ")")
+        }
+    }
+}
+
 impl SubType {
     /// Unwrap an `ArrayType` or panic.
     ///
@@ -470,6 +488,16 @@ pub enum CompositeType {
     Array(ArrayType),
     /// The type is for a struct.
     Struct(StructType),
+}
+
+impl std::fmt::Display for CompositeType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Self::Array(_) => write!(f, "(array ...)"),
+            Self::Func(_) => write!(f, "(func ...)"),
+            Self::Struct(_) => write!(f, "(struct ...)"),
+        }
+    }
 }
 
 impl CompositeType {
@@ -627,6 +655,17 @@ pub enum StorageType {
     I16,
     /// The storage type is a value type.
     Val(ValType),
+}
+
+impl StorageType {
+    /// Unpack this storage type into the valtype that it is represented as on
+    /// the operand stack.
+    pub fn unpack(&self) -> ValType {
+        match *self {
+            Self::Val(ty) => ty,
+            Self::I8 | Self::I16 => ValType::I32,
+        }
+    }
 }
 
 /// Represents a type of a struct in a WebAssembly module.

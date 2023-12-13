@@ -13,12 +13,38 @@
  * limitations under the License.
  */
 
-use crate::types::CoreTypeId;
 use crate::{
-    BinaryReaderError, FuncType, GlobalType, HeapType, MemoryType, RefType, TableType, ValType,
-    WasmFeatures,
+    types::CoreTypeId, ArrayType, BinaryReaderError, CompositeType, FuncType, GlobalType, HeapType,
+    MemoryType, RefType, StructType, SubType, TableType, ValType, WasmFeatures,
 };
 use std::ops::Range;
+
+/// Types that qualify as Wasm sub types for validation purposes.
+pub trait WasmSubType: Clone + std::fmt::Display {
+    /// The associated array type.
+    type ArrayType: WasmArrayType;
+
+    /// The associated function type.
+    type FuncType: WasmFuncType;
+
+    /// The associated struct type.
+    type StructType: WasmStructType;
+
+    /// Get the underlying array type, if any.
+    fn as_array_type(&self) -> Option<&Self::ArrayType>;
+
+    /// Get the underlying func type, if any.
+    fn as_func_type(&self) -> Option<&Self::FuncType>;
+
+    /// Get the underlying struct type, if any.
+    fn as_struct_type(&self) -> Option<&Self::StructType>;
+}
+
+/// Types that qualify as Wasm array types for validation purposes.
+pub trait WasmArrayType: Clone {
+    /// Get the array's field type.
+    fn field_type(&self) -> crate::FieldType;
+}
 
 /// Types that qualify as Wasm function types for validation purposes.
 pub trait WasmFuncType: Clone {
@@ -71,6 +97,15 @@ pub trait WasmFuncType: Clone {
             range,
         }
     }
+}
+
+/// Types that qualify as Wasm struct types for validation purposes.
+pub trait WasmStructType: Clone {
+    /// Get the number of fields in this struct.
+    fn len_fields(&self) -> usize;
+
+    /// Get the field at the given index.
+    fn field_at(&self, at: u32) -> Option<crate::FieldType>;
 }
 
 impl<T> WasmFuncType for &'_ T
@@ -192,6 +227,9 @@ where
 /// structure while parsing and also validate at the same time without
 /// the need of an additional parsing or validation step or copying data around.
 pub trait WasmModuleResources {
+    /// The sub type used for validation.
+    type SubType: WasmSubType<FuncType = Self::FuncType>;
+
     /// The function type used for validation.
     type FuncType: WasmFuncType;
 
@@ -213,10 +251,10 @@ pub trait WasmModuleResources {
     /// The global's value type must be canonicalized.
     fn global_at(&self, at: u32) -> Option<GlobalType>;
 
-    /// Returns the `FuncType` associated with the given type index.
+    /// Returns the `SubType` associated with the given type index.
     ///
-    /// The function type must be canonicalized.
-    fn func_type_at(&self, type_idx: u32) -> Option<&Self::FuncType>;
+    /// The sub type must be canonicalized.
+    fn sub_type_at(&self, type_index: u32) -> Option<&Self::SubType>;
 
     /// Returns the type id associated with the given function
     /// index.
@@ -289,6 +327,7 @@ impl<T> WasmModuleResources for &'_ T
 where
     T: ?Sized + WasmModuleResources,
 {
+    type SubType = T::SubType;
     type FuncType = T::FuncType;
 
     fn table_at(&self, at: u32) -> Option<TableType> {
@@ -303,8 +342,8 @@ where
     fn global_at(&self, at: u32) -> Option<GlobalType> {
         T::global_at(self, at)
     }
-    fn func_type_at(&self, at: u32) -> Option<&Self::FuncType> {
-        T::func_type_at(self, at)
+    fn sub_type_at(&self, at: u32) -> Option<&Self::SubType> {
+        T::sub_type_at(self, at)
     }
     fn type_id_of_function(&self, func_idx: u32) -> Option<CoreTypeId> {
         T::type_id_of_function(self, func_idx)
@@ -340,6 +379,7 @@ impl<T> WasmModuleResources for std::sync::Arc<T>
 where
     T: WasmModuleResources,
 {
+    type SubType = T::SubType;
     type FuncType = T::FuncType;
 
     fn table_at(&self, at: u32) -> Option<TableType> {
@@ -358,8 +398,8 @@ where
         T::global_at(self, at)
     }
 
-    fn func_type_at(&self, type_idx: u32) -> Option<&Self::FuncType> {
-        T::func_type_at(self, type_idx)
+    fn sub_type_at(&self, type_idx: u32) -> Option<&Self::SubType> {
+        T::sub_type_at(self, type_idx)
     }
 
     fn type_id_of_function(&self, func_idx: u32) -> Option<CoreTypeId> {
@@ -399,6 +439,39 @@ where
     }
 }
 
+impl WasmSubType for SubType {
+    type ArrayType = ArrayType;
+    type FuncType = FuncType;
+    type StructType = StructType;
+
+    fn as_array_type(&self) -> Option<&Self::ArrayType> {
+        match &self.composite_type {
+            CompositeType::Array(a) => Some(a),
+            _ => None,
+        }
+    }
+
+    fn as_func_type(&self) -> Option<&Self::FuncType> {
+        match &self.composite_type {
+            CompositeType::Func(f) => Some(f),
+            _ => None,
+        }
+    }
+
+    fn as_struct_type(&self) -> Option<&Self::StructType> {
+        match &self.composite_type {
+            CompositeType::Struct(s) => Some(s),
+            _ => None,
+        }
+    }
+}
+
+impl WasmArrayType for ArrayType {
+    fn field_type(&self) -> crate::FieldType {
+        self.0
+    }
+}
+
 impl WasmFuncType for FuncType {
     fn len_inputs(&self) -> usize {
         self.params().len()
@@ -414,5 +487,15 @@ impl WasmFuncType for FuncType {
 
     fn output_at(&self, at: u32) -> Option<ValType> {
         self.results().get(at as usize).copied()
+    }
+}
+
+impl WasmStructType for StructType {
+    fn len_fields(&self) -> usize {
+        self.fields.len()
+    }
+
+    fn field_at(&self, at: u32) -> Option<crate::FieldType> {
+        self.fields.get(usize::try_from(at).unwrap()).copied()
     }
 }
