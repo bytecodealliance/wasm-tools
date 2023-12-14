@@ -2,7 +2,7 @@
   (type (;0;) (func (param f32 f32) (result f32)))
   (type (;1;) (func (param f64 f64) (result f64)))
   (func (;0;) (type 0) (param $0 f32) (param $1 f32) (result f32)
-    loop $label$0 ;; label = @1
+    loop $label$0
       local.get $0
       local.get $0
       f32.add
@@ -15,9 +15,9 @@
       f32.add
       f32.const 0x0p+0 (;=0;)
       f32.eq
-      br_if 0 (;@1;)
+      br_if $label$0
     end
-    loop $label$2 ;; label = @1
+    loop $label$2
       local.get $0
       local.get $1
       f32.const 0x1p+0 (;=1;)
@@ -30,12 +30,12 @@
       f32.sub
       f32.const 0x0p+0 (;=0;)
       f32.ne
-      br_if 0 (;@1;)
+      br_if $label$2
     end
     local.get $1
   )
   (func (;1;) (type 1) (param $0 f64) (param $1 f64) (result f64)
-    loop $label$0 ;; label = @1
+    loop $label$0
       local.get $0
       local.get $0
       f64.add
@@ -48,9 +48,9 @@
       f64.add
       f64.const 0x0p+0 (;=0;)
       f64.eq
-      br_if 0 (;@1;)
+      br_if $label$0
     end
-    loop $label$2 ;; label = @1
+    loop $label$2
       local.get $0
       local.get $1
       f64.const 0x1p+0 (;=1;)
@@ -63,7 +63,7 @@
       f64.sub
       f64.const 0x0p+0 (;=0;)
       f64.ne
-      br_if 0 (;@1;)
+      br_if $label$2
     end
     local.get $1
   )

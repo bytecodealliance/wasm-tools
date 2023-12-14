@@ -16,7 +16,7 @@
     memory.copy
   )
   (func (;1;) (type 1) (param $from i32) (param $to i32) (param $expected i32) (result i32)
-    loop $cont ;; label = @1
+    loop $cont
       local.get $from
       local.get $to
       i32.eq
@@ -33,7 +33,7 @@
         i32.const 1
         i32.add
         local.set $from
-        br 1 (;@1;)
+        br $cont
       end
     end
     local.get $from

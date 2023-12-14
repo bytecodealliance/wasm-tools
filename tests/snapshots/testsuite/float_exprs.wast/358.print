@@ -8,8 +8,8 @@
   )
   (func (;1;) (type 0) (param $n i32) (param $z f32)
     (local $i i32)
-    block $exit ;; label = @1
-      loop $cont ;; label = @2
+    block $exit
+      loop $cont
         local.get $i
         local.get $i
         f32.load
@@ -23,7 +23,7 @@
         local.get $i
         local.get $n
         i32.lt_u
-        br_if 0 (;@2;)
+        br_if $cont
       end
     end
   )

@@ -174,16 +174,16 @@
       i32.sub
       global.set $hangLimit
     end
-    block $label$0 (result i64) ;; label = @1
+    block $label$0 (result i64)
       nop
-      block $label$1 (result i64) ;; label = @2
+      block $label$1 (result i64)
         i32.const -2147483647
         if (result i32) ;; label = @3
           local.get $0
         else
-          block $label$4 (result i32) ;; label = @4
-            block $label$5 (result i32) ;; label = @5
-              loop $label$6 (result i32) ;; label = @6
+          block $label$4 (result i32)
+            block $label$5 (result i32)
+              loop $label$6 (result i32)
                 block ;; label = @7
                   global.get $hangLimit
                   i32.eqz
@@ -200,13 +200,13 @@
                   nop
                   i32.const 8388608
                   i32.eqz
-                  br_if 1 (;@6;)
+                  br_if $label$6
                   local.get $0
                 end
               end
               i32.eqz
               if (result f32) ;; label = @6
-                block $label$7 (result f32) ;; label = @7
+                block $label$7 (result f32)
                   f32.const -nan:0x7fffda (;=NaN;)
                 end
               else
@@ -222,7 +222,7 @@
             end
             global.get $global$0
             i32.eqz
-            br_if 0 (;@4;)
+            br_if $label$4
           end
         end
         local.tee $0

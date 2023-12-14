@@ -4,13 +4,13 @@
     (local f32 f32)
     f32.const 0x1.4p+3 (;=10;)
     local.set 1
-    block $4 ;; label = @1
-      block $2 ;; label = @2
-        block $1 ;; label = @3
-          block $default ;; label = @4
-            block $0 ;; label = @5
+    block $4
+      block $2
+        block $1
+          block $default
+            block $0
               local.get 0
-              br_table 0 (;@5;) 1 (;@4;) 2 (;@3;) 3 (;@2;) 4 (;@1;)
+              br_table $0 $default $1 $2 $4
             end
             i32.const 0
             local.get 1
@@ -18,7 +18,7 @@
             i32.const 0
             f32.load $mem1
             local.set 2
-            br 3 (;@1;)
+            br $4
           end
           i32.const 0
           local.get 1
@@ -26,7 +26,7 @@
           i32.const 0
           f32.load $mem1 align=1
           local.set 2
-          br 2 (;@1;)
+          br $4
         end
         i32.const 0
         local.get 1
@@ -34,7 +34,7 @@
         i32.const 0
         f32.load $mem1 align=2
         local.set 2
-        br 1 (;@1;)
+        br $4
       end
       i32.const 0
       local.get 1

@@ -176,11 +176,11 @@ fn label_shadowing_block() {
       (module
         (type (;0;) (func))
         (func (;0;) (type 0)
-          block $a ;; label = @1
-            br 0 (;@1;)
+          block $a
+            br $a
           end
-          block $a ;; label = @1
-            br 0 (;@1;)
+          block $a
+            br $a
           end
         )
       )
@@ -200,8 +200,8 @@ fn label_shadowing_block_confusion() {
       (module
         (type (;0;) (func))
         (func (;0;) (type 0)
-          block $a ;; label = @1
-            block $a ;; label = @2
+          block $a
+            block $a
               br 1 (;@1;)
             end
           end

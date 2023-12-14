@@ -3,18 +3,18 @@
   (type (;1;) (func (param (ref 0)) (result i32)))
   (type (;2;) (func (param (ref null 0)) (result i32)))
   (func $nn (;0;) (type 1) (param $r (ref 0)) (result i32)
-    block $l (result (ref 0)) ;; label = @1
+    block $l (result (ref 0))
       local.get $r
-      br_on_non_null 0 (;@1;)
+      br_on_non_null $l
       i32.const -1
       return
     end
     call_ref $t
   )
   (func $n (;1;) (type 2) (param $r (ref null 0)) (result i32)
-    block $l (result (ref 0)) ;; label = @1
+    block $l (result (ref 0))
       local.get $r
-      br_on_non_null 0 (;@1;)
+      br_on_non_null $l
       i32.const -1
       return
     end
@@ -36,9 +36,9 @@
     call $n
   )
   (func (;6;) (type $t) (result i32)
-    block $l (result (ref 0)) ;; label = @1
+    block $l (result (ref 0))
       unreachable
-      br_on_non_null 0 (;@1;)
+      br_on_non_null $l
       i32.const -1
       return
     end

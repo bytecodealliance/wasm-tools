@@ -7,6 +7,8 @@ pub struct PrintOperator<'a, 'b> {
     pub(super) printer: &'a mut Printer,
     nesting_start: u32,
     state: &'b mut State,
+    label: u32,
+    label_indices: Vec<u32>,
 }
 
 impl<'a, 'b> PrintOperator<'a, 'b> {
@@ -15,6 +17,8 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
             nesting_start: printer.nesting,
             printer,
             state,
+            label: 0,
+            label_indices: Vec::new(),
         }
     }
 
@@ -26,47 +30,96 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         &mut self.printer.result
     }
 
+    /// This is called after every instruction and is used to manage the
+    /// `label_indices` stack.
+    fn update_label_stack(&mut self, kind: OpKind) {
+        match kind {
+            OpKind::Normal => {}
+
+            // The previous label was just defined, so add it to the stack.
+            OpKind::BlockStart => {
+                self.label_indices.push(self.label - 1);
+            }
+
+            // The previous label is being defined at the same depth as the
+            // latest label, meaning it's overwriting its entry.
+            OpKind::BlockMid | OpKind::Delegate => {
+                if let Some(last) = self.label_indices.last_mut() {
+                    *last = self.label - 1;
+                }
+            }
+
+            // Label is out of scope so remove it from the stack.
+            OpKind::End => {
+                self.label_indices.pop();
+            }
+        }
+    }
+
     fn blockty(&mut self, ty: BlockType) -> Result<()> {
-        if let Some(name) = self
+        // This boolean is a little unfortunate. The block type is a payload on
+        // all instructions so printing prints the instruction name, then a
+        // space, then calls this method. We're guaranteed to print something
+        // here, but it's a bit confusing as to when depending on whether this
+        // block is named or not. If this block is named then we'll print the
+        // name and then optionally the type. If the block isn't named then
+        // we'll print the type and then a comment with a pseudo-name. The type
+        // may or may not print something.
+        //
+        // Add all that up and the best way I can use to keep track of this and
+        // not emit trailing whitespace at the end of a line is this boolean.
+        let mut preceding_space = true;
+
+        let has_name = if let Some(name) = self
             .state
             .core
             .label_names
-            .get(&(self.state.core.funcs, self.state.core.labels))
+            .get(&(self.state.core.funcs, self.label))
         {
             name.write(&mut self.printer.result);
-            self.printer.result.push(' ');
-        }
+            preceding_space = false;
+            true
+        } else {
+            false
+        };
         match ty {
             BlockType::Empty => {}
             BlockType::Type(t) => {
+                if !preceding_space {
+                    self.push_str(" ");
+                }
                 self.push_str("(result ");
                 self.printer.print_valtype(t)?;
-                self.push_str(") ");
+                self.push_str(")");
+                preceding_space = false;
             }
             BlockType::FuncType(idx) => {
+                if !preceding_space {
+                    self.push_str(" ");
+                }
                 self.printer
                     .print_core_functype_idx(self.state, idx, None)?;
-                self.printer.result.push(' ');
+                preceding_space = false;
             }
         }
-        // Note that 1 is added to the current depth here since if a block type
-        // is being printed then a block is being created which will increase
-        // the label depth of the block itself.
-        let depth = self.cur_depth();
-        write!(self.result(), ";; label = @{}", depth + 1)?;
-        self.state.core.labels += 1;
+
+        if !has_name {
+            let depth = self.cur_depth();
+            if !preceding_space {
+                self.push_str(" ");
+            }
+            // Note that 1 is added to the current depth here since if a block
+            // type is being printed then a block is being created which will
+            // increase the label depth of the block itself.
+            write!(self.result(), ";; label = @{}", depth + 1)?;
+        }
+
+        self.label += 1;
         Ok(())
     }
 
     fn cur_depth(&self) -> u32 {
         self.printer.nesting - self.nesting_start
-    }
-
-    fn label(&self, relative: u32) -> String {
-        match self.cur_depth().checked_sub(relative) {
-            Some(i) => format!("@{}", i),
-            None => " INVALID ".to_string(),
-        }
     }
 
     fn tag_index(&mut self, index: u32) -> Result<()> {
@@ -75,8 +128,52 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
     }
 
     fn relative_depth(&mut self, depth: u32) -> Result<()> {
-        let label = self.label(depth);
-        write!(self.result(), "{depth} (;{label};)")?;
+        match self.cur_depth().checked_sub(depth) {
+            // If this relative depth is in-range relative to the current depth,
+            // then try to print a name for this label. Label names are tracked
+            // as a stack where the depth matches `cur_depth` roughly, but label
+            // names don't account for the function name so offset by one more
+            // here.
+            Some(i) => {
+                let name = i
+                    .checked_sub(1)
+                    .and_then(|idx| self.label_indices.get(idx as usize).copied())
+                    .and_then(|label_idx| {
+                        let key = (self.state.core.funcs, label_idx);
+                        self.state.core.label_names.get(&key)
+                    });
+
+                // This is a bit tricky, but if there's a shallower label than
+                // this target which shares the same name then we can't print
+                // the name-based version. Names resolve to the nearest label
+                // in the case of shadowing, which would be the wrong behavior
+                // here. All that can be done is to print the index down below
+                // instead.
+                let name = name.and_then(|name| {
+                    for other_label in self.label_indices[i as usize..].iter() {
+                        let key = (self.state.core.funcs, *other_label);
+                        if let Some(other) = self.state.core.label_names.get(&key) {
+                            if name.name == other.name {
+                                return None;
+                            }
+                        }
+                    }
+                    Some(name)
+                });
+
+                match name {
+                    Some(name) => name.write(&mut self.printer.result),
+
+                    // If this label has some name also print its pseudo-name as
+                    // `@N` to help match things up in the text format.
+                    None => write!(self.result(), "{depth} (;@{i};)")?,
+                }
+            }
+
+            // This branch is out of range. Print the raw integer and then leave
+            // a hopefully-helpful comment indicating that it's going nowhere.
+            None => write!(self.result(), "{depth} (; INVALID ;)")?,
+        }
         Ok(())
     }
 
@@ -168,6 +265,7 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
     }
 }
 
+#[derive(PartialEq, Copy, Clone)]
 pub enum OpKind {
     BlockStart,
     BlockMid,
@@ -188,7 +286,11 @@ macro_rules! define_visit {
             $(
                 define_visit!(payload self $op $($arg)*);
             )?
-            Ok(define_visit!(kind $op))
+            let kind = define_visit!(kind $op);
+            if kind != OpKind::Normal {
+                self.update_label_stack(kind);
+            }
+            Ok(kind)
         }
     )*);
 

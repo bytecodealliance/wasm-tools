@@ -7,13 +7,13 @@
     (local f32 f32)
     f32.const 0x1.4p+3 (;=10;)
     local.set 1
-    block $4 ;; label = @1
-      block $2 ;; label = @2
-        block $1 ;; label = @3
-          block $default ;; label = @4
-            block $0 ;; label = @5
+    block $4
+      block $2
+        block $1
+          block $default
+            block $0
               local.get 0
-              br_table 0 (;@5;) 1 (;@4;) 2 (;@3;) 3 (;@2;) 4 (;@1;)
+              br_table $0 $default $1 $2 $4
             end
             i64.const 0
             local.get 1
@@ -21,7 +21,7 @@
             i64.const 0
             f32.load
             local.set 2
-            br 3 (;@1;)
+            br $4
           end
           i64.const 0
           local.get 1
@@ -29,7 +29,7 @@
           i64.const 0
           f32.load align=1
           local.set 2
-          br 2 (;@1;)
+          br $4
         end
         i64.const 0
         local.get 1
@@ -37,7 +37,7 @@
         i64.const 0
         f32.load align=2
         local.set 2
-        br 1 (;@1;)
+        br $4
       end
       i64.const 0
       local.get 1
@@ -52,14 +52,14 @@
     (local f64 f64)
     f64.const 0x1.4p+3 (;=10;)
     local.set 1
-    block $8 ;; label = @1
-      block $4 ;; label = @2
-        block $2 ;; label = @3
-          block $1 ;; label = @4
-            block $default ;; label = @5
-              block $0 ;; label = @6
+    block $8
+      block $4
+        block $2
+          block $1
+            block $default
+              block $0
                 local.get 0
-                br_table 0 (;@6;) 1 (;@5;) 2 (;@4;) 3 (;@3;) 4 (;@2;) 5 (;@1;)
+                br_table $0 $default $1 $2 $4 $8
               end
               i64.const 0
               local.get 1
@@ -67,7 +67,7 @@
               i64.const 0
               f64.load
               local.set 2
-              br 4 (;@1;)
+              br $8
             end
             i64.const 0
             local.get 1
@@ -75,7 +75,7 @@
             i64.const 0
             f64.load align=1
             local.set 2
-            br 3 (;@1;)
+            br $8
           end
           i64.const 0
           local.get 1
@@ -83,7 +83,7 @@
           i64.const 0
           f64.load align=2
           local.set 2
-          br 2 (;@1;)
+          br $8
         end
         i64.const 0
         local.get 1
@@ -91,7 +91,7 @@
         i64.const 0
         f64.load align=4
         local.set 2
-        br 1 (;@1;)
+        br $8
       end
       i64.const 0
       local.get 1
@@ -106,14 +106,14 @@
     (local i32 i32)
     i32.const 10
     local.set 2
-    block $32 ;; label = @1
-      block $16u ;; label = @2
-        block $16s ;; label = @3
-          block $8u ;; label = @4
-            block $8s ;; label = @5
-              block $0 ;; label = @6
+    block $32
+      block $16u
+        block $16s
+          block $8u
+            block $8s
+              block $0
                 local.get 0
-                br_table 0 (;@6;) 1 (;@5;) 2 (;@4;) 3 (;@3;) 4 (;@2;) 5 (;@1;)
+                br_table $0 $8s $8u $16s $16u $32
               end
               local.get 1
               i32.const 0
@@ -137,7 +137,7 @@
                 i32.load8_s
                 local.set 3
               end
-              br 4 (;@1;)
+              br $32
             end
             local.get 1
             i32.const 0
@@ -161,7 +161,7 @@
               i32.load8_u
               local.set 3
             end
-            br 3 (;@1;)
+            br $32
           end
           local.get 1
           i32.const 0
@@ -196,7 +196,7 @@
             i32.load16_s
             local.set 3
           end
-          br 2 (;@1;)
+          br $32
         end
         local.get 1
         i32.const 0
@@ -231,7 +231,7 @@
           i32.load16_u
           local.set 3
         end
-        br 1 (;@1;)
+        br $32
       end
       local.get 1
       i32.const 0
@@ -284,16 +284,16 @@
     (local i64 i64)
     i64.const 10
     local.set 2
-    block $64 ;; label = @1
-      block $32u ;; label = @2
-        block $32s ;; label = @3
-          block $16u ;; label = @4
-            block $16s ;; label = @5
-              block $8u ;; label = @6
-                block $8s ;; label = @7
-                  block $0 ;; label = @8
+    block $64
+      block $32u
+        block $32s
+          block $16u
+            block $16s
+              block $8u
+                block $8s
+                  block $0
                     local.get 0
-                    br_table 0 (;@8;) 1 (;@7;) 2 (;@6;) 3 (;@5;) 4 (;@4;) 5 (;@3;) 6 (;@2;) 7 (;@1;)
+                    br_table $0 $8s $8u $16s $16u $32s $32u $64
                   end
                   local.get 1
                   i32.const 0
@@ -317,7 +317,7 @@
                     i64.load8_s
                     local.set 3
                   end
-                  br 6 (;@1;)
+                  br $64
                 end
                 local.get 1
                 i32.const 0
@@ -341,7 +341,7 @@
                   i64.load8_u
                   local.set 3
                 end
-                br 5 (;@1;)
+                br $64
               end
               local.get 1
               i32.const 0
@@ -376,7 +376,7 @@
                 i64.load16_s
                 local.set 3
               end
-              br 4 (;@1;)
+              br $64
             end
             local.get 1
             i32.const 0
@@ -411,7 +411,7 @@
               i64.load16_u
               local.set 3
             end
-            br 3 (;@1;)
+            br $64
           end
           local.get 1
           i32.const 0
@@ -457,7 +457,7 @@
             i64.load32_s
             local.set 3
           end
-          br 2 (;@1;)
+          br $64
         end
         local.get 1
         i32.const 0
@@ -503,7 +503,7 @@
           i64.load32_u
           local.set 3
         end
-        br 1 (;@1;)
+        br $64
       end
       local.get 1
       i32.const 0

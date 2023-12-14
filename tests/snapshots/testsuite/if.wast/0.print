@@ -25,10 +25,10 @@
     else
     end
     local.get 0
-    if $l ;; label = @1
+    if $l
     end
     local.get 0
-    if $l ;; label = @1
+    if $l
     else
     end
   )
