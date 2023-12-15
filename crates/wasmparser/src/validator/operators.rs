@@ -3487,6 +3487,7 @@ where
         }
 
         let mut heap_ty = HeapType::Concrete(UnpackedIndex::Module(type_index));
+        // Call `check_heap_type` to canonicalize the module index into an id.
         self.resources.check_heap_type(&mut heap_ty, self.offset)?;
 
         let ref_ty = RefType::new(false, heap_ty).ok_or_else(|| {
@@ -3507,6 +3508,7 @@ where
         }
 
         let mut heap_ty = HeapType::Concrete(UnpackedIndex::Module(type_index));
+        // Call `check_heap_type` to canonicalize the module index into an id.
         self.resources.check_heap_type(&mut heap_ty, self.offset)?;
 
         let ref_ty = RefType::new(false, heap_ty).ok_or_else(|| {
