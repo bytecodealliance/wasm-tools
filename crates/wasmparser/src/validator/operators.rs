@@ -23,9 +23,9 @@
 // the various methods here.
 
 use crate::{
-    limits::MAX_WASM_FUNCTION_LOCALS, BinaryReaderError, BlockType, BrTable, HeapType, Ieee32,
-    Ieee64, MemArg, RefType, Result, UnpackedIndex, ValType, VisitOperator, WasmArrayType,
-    WasmFeatures, WasmFuncType, WasmModuleResources, WasmStructType, WasmSubType, V128,
+    limits::MAX_WASM_FUNCTION_LOCALS, ArrayType, BinaryReaderError, BlockType, BrTable,
+    CompositeType, FuncType, HeapType, Ieee32, Ieee64, MemArg, RefType, Result, StructType,
+    SubType, UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources, V128,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -253,9 +253,9 @@ impl OperatorValidator {
             resources,
         }
         .func_type_at(ty)?
-        .inputs();
+        .params();
         for ty in params {
-            ret.locals.define(1, ty);
+            ret.locals.define(1, *ty);
             ret.local_inits.push(true);
         }
         Ok(ret)
@@ -758,12 +758,12 @@ where
         self.check_call_ty(ty)
     }
 
-    fn check_call_ty(&mut self, ty: &R::FuncType) -> Result<()> {
-        for ty in ty.inputs().rev() {
+    fn check_call_ty(&mut self, ty: &FuncType) -> Result<()> {
+        for &ty in ty.params().iter().rev() {
             debug_assert_type_indices_are_ids(ty);
             self.pop_operand(Some(ty))?;
         }
-        for ty in ty.outputs() {
+        for &ty in ty.results() {
             debug_assert_type_indices_are_ids(ty);
             self.push_operand(ty)?;
         }
@@ -790,11 +790,11 @@ where
         }
         let ty = self.func_type_at(index)?;
         self.pop_operand(Some(ValType::I32))?;
-        for ty in ty.clone().inputs().rev() {
-            self.pop_operand(Some(ty))?;
+        for ty in ty.clone().params().iter().rev() {
+            self.pop_operand(Some(*ty))?;
         }
-        for ty in ty.outputs() {
-            self.push_operand(ty)?;
+        for ty in ty.results() {
+            self.push_operand(*ty)?;
         }
         Ok(())
     }
@@ -1026,18 +1026,15 @@ where
         self.push_operand(sub_ty)
     }
 
-    fn sub_type_at(&self, at: u32) -> Result<&'resources R::SubType> {
+    fn sub_type_at(&self, at: u32) -> Result<&'resources SubType> {
         self.resources
             .sub_type_at(at)
             .ok_or_else(|| format_err!(self.offset, "unknown type: type index out of bounds"))
     }
 
-    fn struct_type_at(
-        &self,
-        at: u32,
-    ) -> Result<&'resources <R::SubType as WasmSubType>::StructType> {
+    fn struct_type_at(&self, at: u32) -> Result<&'resources StructType> {
         let sub_ty = self.sub_type_at(at)?;
-        if let Some(struct_ty) = sub_ty.as_struct_type() {
+        if let CompositeType::Struct(struct_ty) = &sub_ty.composite_type {
             Ok(struct_ty)
         } else {
             bail!(
@@ -1047,9 +1044,9 @@ where
         }
     }
 
-    fn array_type_at(&self, at: u32) -> Result<&'resources <R::SubType as WasmSubType>::ArrayType> {
+    fn array_type_at(&self, at: u32) -> Result<&'resources ArrayType> {
         let sub_ty = self.sub_type_at(at)?;
-        if let Some(array_ty) = sub_ty.as_array_type() {
+        if let CompositeType::Array(array_ty) = &sub_ty.composite_type {
             Ok(array_ty)
         } else {
             bail!(
@@ -1059,9 +1056,9 @@ where
         }
     }
 
-    fn func_type_at(&self, at: u32) -> Result<&'resources R::FuncType> {
+    fn func_type_at(&self, at: u32) -> Result<&'resources FuncType> {
         let sub_ty = self.sub_type_at(at)?;
-        if let Some(func_ty) = sub_ty.as_func_type() {
+        if let CompositeType::Func(func_ty) = &sub_ty.composite_type {
             Ok(func_ty)
         } else {
             bail!(
@@ -1071,7 +1068,7 @@ where
         }
     }
 
-    fn tag_at(&self, at: u32) -> Result<&'resources R::FuncType> {
+    fn tag_at(&self, at: u32) -> Result<&'resources FuncType> {
         self.resources
             .tag_at(at)
             .ok_or_else(|| format_err!(self.offset, "unknown tag {}: tag index out of bounds", at))
@@ -1080,7 +1077,7 @@ where
     fn params(&self, ty: BlockType) -> Result<impl PreciseIterator<Item = ValType> + 'resources> {
         Ok(match ty {
             BlockType::Empty | BlockType::Type(_) => Either::B(None.into_iter()),
-            BlockType::FuncType(t) => Either::A(self.func_type_at(t)?.inputs()),
+            BlockType::FuncType(t) => Either::A(self.func_type_at(t)?.params().iter().copied()),
         })
     }
 
@@ -1088,7 +1085,7 @@ where
         Ok(match ty {
             BlockType::Empty => Either::B(None.into_iter()),
             BlockType::Type(t) => Either::B(Some(t).into_iter()),
-            BlockType::FuncType(t) => Either::A(self.func_type_at(t)?.outputs()),
+            BlockType::FuncType(t) => Either::A(self.func_type_at(t)?.results().iter().copied()),
         })
     }
 
@@ -1260,18 +1257,18 @@ where
         });
         // Push exception argument types.
         let ty = self.tag_at(index)?;
-        for ty in ty.inputs() {
-            self.push_operand(ty)?;
+        for ty in ty.params() {
+            self.push_operand(*ty)?;
         }
         Ok(())
     }
     fn visit_throw(&mut self, index: u32) -> Self::Output {
         // Check values associated with the exception.
         let ty = self.tag_at(index)?;
-        for ty in ty.clone().inputs().rev() {
-            self.pop_operand(Some(ty))?;
+        for ty in ty.clone().params().iter().rev() {
+            self.pop_operand(Some(*ty))?;
         }
-        if ty.outputs().len() > 0 {
+        if ty.results().len() > 0 {
             bail!(
                 self.offset,
                 "result type expected to be empty for exception"
@@ -3484,8 +3481,7 @@ where
     }
     fn visit_struct_new_default(&mut self, type_index: u32) -> Self::Output {
         let ty = self.struct_type_at(type_index)?;
-        for i in 0..u32::try_from(ty.len_fields()).unwrap() {
-            let field = ty.field_at(i).unwrap();
+        for field in ty.fields.iter() {
             let val_ty = field.element_type.unpack();
             if !val_ty.is_defaultable() {
                 bail!(
@@ -3507,8 +3503,7 @@ where
     }
     fn visit_array_new_default(&mut self, type_index: u32) -> Self::Output {
         let ty = self.array_type_at(type_index)?;
-        let field = ty.field_type();
-        let val_ty = field.element_type.unpack();
+        let val_ty = ty.0.element_type.unpack();
         if !val_ty.is_defaultable() {
             bail!(
                 self.offset,
