@@ -727,6 +727,14 @@ impl ValType {
         matches!(self, ValType::Ref(_))
     }
 
+    /// Get the underlying reference type, if any.
+    pub fn as_reference_type(&self) -> Option<RefType> {
+        match *self {
+            ValType::Ref(r) => Some(r),
+            ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => None,
+        }
+    }
+
     /// Whether the type is defaultable, i.e. it is not a non-nullable reference
     /// type.
     pub fn is_defaultable(&self) -> bool {
@@ -1056,7 +1064,7 @@ impl RefType {
         Self::from_u32(self.as_u32() & !Self::NULLABLE_BIT)
     }
 
-    /// Get the non-nullable version of this ref type.
+    /// Get the nullable version of this ref type.
     pub const fn nullable(&self) -> Self {
         Self::from_u32(self.as_u32() | Self::NULLABLE_BIT)
     }

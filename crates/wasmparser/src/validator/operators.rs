@@ -180,6 +180,15 @@ impl From<RefType> for MaybeType {
     }
 }
 
+impl MaybeType {
+    fn as_type(&self) -> Option<ValType> {
+        match *self {
+            Self::Type(ty) => Some(ty),
+            Self::Bot | Self::HeapBot => None,
+        }
+    }
+}
+
 impl OperatorValidator {
     fn new(features: &WasmFeatures, allocs: OperatorValidatorAllocations) -> Self {
         let OperatorValidatorAllocations {
@@ -3519,33 +3528,19 @@ where
         self.push_operand(ref_ty)
     }
     fn visit_any_convert_extern(&mut self) -> Self::Output {
-        let extern_ref = match self.pop_ref()? {
-            Some(r) if self.resources.top_type(&r.heap_type()) == HeapType::Extern => r,
-            Some(r) => bail!(
-                self.offset,
-                "type mismatch: expected (ref null? extern), found {r}"
-            ),
-            None => bail!(
-                self.offset,
-                "type mismatch: expected (ref null? extern), found bottom"
-            ),
-        };
-        let any_ref = RefType::new(extern_ref.is_nullable(), HeapType::Any).unwrap();
+        let extern_ref = self.pop_operand(Some(RefType::EXTERNREF.into()))?;
+        let is_nullable = extern_ref
+            .as_type()
+            .map_or(false, |ty| ty.as_reference_type().unwrap().is_nullable());
+        let any_ref = RefType::new(is_nullable, HeapType::Any).unwrap();
         self.push_operand(any_ref)
     }
     fn visit_extern_convert_any(&mut self) -> Self::Output {
-        let any_ref = match self.pop_ref()? {
-            Some(r) if self.resources.top_type(&r.heap_type()) == HeapType::Any => r,
-            Some(r) => bail!(
-                self.offset,
-                "type mismatch: expected (ref null? any), found {r}"
-            ),
-            None => bail!(
-                self.offset,
-                "type mismatch: expected (ref null? any), found bottom"
-            ),
-        };
-        let extern_ref = RefType::new(any_ref.is_nullable(), HeapType::Extern).unwrap();
+        let any_ref = self.pop_operand(Some(RefType::ANY.nullable().into()))?;
+        let is_nullable = any_ref
+            .as_type()
+            .map_or(false, |ty| ty.as_reference_type().unwrap().is_nullable());
+        let extern_ref = RefType::new(is_nullable, HeapType::Extern).unwrap();
         self.push_operand(extern_ref)
     }
     fn visit_ref_test_non_null(&mut self, heap_type: HeapType) -> Self::Output {
