@@ -249,33 +249,40 @@ impl<T: WasmModuleResources> FuncValidator<T> {
 mod tests {
     use super::*;
     use crate::types::CoreTypeId;
-    use crate::{HeapType, WasmArrayType, WasmFuncType, WasmStructType, WasmSubType};
+    use crate::HeapType;
 
-    struct EmptyResources;
+    struct EmptyResources(crate::SubType);
+
+    impl Default for EmptyResources {
+        fn default() -> Self {
+            EmptyResources(crate::SubType {
+                supertype_idx: None,
+                is_final: true,
+                composite_type: crate::CompositeType::Func(crate::FuncType::new([], [])),
+            })
+        }
+    }
 
     impl WasmModuleResources for EmptyResources {
-        type SubType = EmptySubType;
-        type FuncType = EmptySubType;
-
         fn table_at(&self, _at: u32) -> Option<crate::TableType> {
             todo!()
         }
         fn memory_at(&self, _at: u32) -> Option<crate::MemoryType> {
             todo!()
         }
-        fn tag_at(&self, _at: u32) -> Option<&Self::FuncType> {
+        fn tag_at(&self, _at: u32) -> Option<&crate::FuncType> {
             todo!()
         }
         fn global_at(&self, _at: u32) -> Option<crate::GlobalType> {
             todo!()
         }
-        fn sub_type_at(&self, _type_idx: u32) -> Option<&Self::FuncType> {
-            Some(&EmptySubType)
+        fn sub_type_at(&self, _type_idx: u32) -> Option<&crate::SubType> {
+            Some(&self.0)
         }
         fn type_id_of_function(&self, _at: u32) -> Option<CoreTypeId> {
             todo!()
         }
-        fn type_of_function(&self, _func_idx: u32) -> Option<&Self::FuncType> {
+        fn type_of_function(&self, _func_idx: u32) -> Option<&crate::FuncType> {
             todo!()
         }
         fn check_heap_type(&self, _t: &mut HeapType, _offset: usize) -> Result<()> {
@@ -301,64 +308,9 @@ mod tests {
         }
     }
 
-    #[derive(Clone, Debug)]
-    struct EmptySubType;
-
-    impl std::fmt::Display for EmptySubType {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            std::fmt::Debug::fmt(self, f)
-        }
-    }
-
-    impl WasmSubType for EmptySubType {
-        type ArrayType = Self;
-        type FuncType = Self;
-        type StructType = Self;
-
-        fn as_array_type(&self) -> Option<&Self::ArrayType> {
-            Some(self)
-        }
-        fn as_func_type(&self) -> Option<&Self::FuncType> {
-            Some(self)
-        }
-        fn as_struct_type(&self) -> Option<&Self::StructType> {
-            Some(self)
-        }
-    }
-
-    impl WasmArrayType for EmptySubType {
-        fn field_type(&self) -> crate::FieldType {
-            todo!()
-        }
-    }
-
-    impl WasmFuncType for EmptySubType {
-        fn len_inputs(&self) -> usize {
-            0
-        }
-        fn len_outputs(&self) -> usize {
-            0
-        }
-        fn input_at(&self, _at: u32) -> Option<ValType> {
-            todo!()
-        }
-        fn output_at(&self, _at: u32) -> Option<ValType> {
-            todo!()
-        }
-    }
-
-    impl WasmStructType for EmptySubType {
-        fn len_fields(&self) -> usize {
-            0
-        }
-        fn field_at(&self, _at: u32) -> Option<crate::FieldType> {
-            todo!()
-        }
-    }
-
     #[test]
     fn operand_stack_height() {
-        let mut v = FuncToValidate::new(0, 0, EmptyResources, &Default::default())
+        let mut v = FuncToValidate::new(0, 0, EmptyResources::default(), &Default::default())
             .into_validator(Default::default());
 
         // Initially zero values on the stack.
