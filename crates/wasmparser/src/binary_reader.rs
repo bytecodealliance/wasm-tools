@@ -1001,10 +1001,23 @@ impl<'a> BinaryReader<'a> {
     {
         let code = self.read_var_u32()?;
         Ok(match code {
+            0x01 => {
+                let type_index = self.read_var_u32()?;
+                visitor.visit_struct_new_default(type_index)
+            }
+
+            0x07 => {
+                let type_index = self.read_var_u32()?;
+                visitor.visit_array_new_default(type_index)
+            }
+
             0x14 => visitor.visit_ref_test_non_null(self.read()?),
             0x15 => visitor.visit_ref_test_nullable(self.read()?),
             0x16 => visitor.visit_ref_cast_non_null(self.read()?),
             0x17 => visitor.visit_ref_cast_nullable(self.read()?),
+
+            0x1a => visitor.visit_any_convert_extern(),
+            0x1b => visitor.visit_extern_convert_any(),
 
             0x1c => visitor.visit_ref_i31(),
             0x1d => visitor.visit_i31_get_s(),

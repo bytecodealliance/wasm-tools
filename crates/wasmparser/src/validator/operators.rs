@@ -24,8 +24,8 @@
 
 use crate::{
     limits::MAX_WASM_FUNCTION_LOCALS, BinaryReaderError, BlockType, BrTable, HeapType, Ieee32,
-    Ieee64, MemArg, RefType, Result, UnpackedIndex, ValType, VisitOperator, WasmFeatures,
-    WasmFuncType, WasmModuleResources, V128,
+    Ieee64, MemArg, RefType, Result, UnpackedIndex, ValType, VisitOperator, WasmArrayType,
+    WasmFeatures, WasmFuncType, WasmModuleResources, WasmStructType, WasmSubType, V128,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -177,6 +177,15 @@ impl From<RefType> for MaybeType {
     fn from(ty: RefType) -> MaybeType {
         let ty: ValType = ty.into();
         ty.into()
+    }
+}
+
+impl MaybeType {
+    fn as_type(&self) -> Option<ValType> {
+        match *self {
+            Self::Type(ty) => Some(ty),
+            Self::Bot | Self::HeapBot => None,
+        }
     }
 }
 
@@ -745,15 +754,7 @@ where
     }
 
     fn check_call_type_index(&mut self, type_index: u32) -> Result<()> {
-        let ty = match self.resources.func_type_at(type_index) {
-            Some(i) => i,
-            None => {
-                bail!(
-                    self.offset,
-                    "unknown type {type_index}: type index out of bounds",
-                );
-            }
-        };
+        let ty = self.func_type_at(type_index)?;
         self.check_call_ty(ty)
     }
 
@@ -1025,10 +1026,49 @@ where
         self.push_operand(sub_ty)
     }
 
-    fn func_type_at(&self, at: u32) -> Result<&'resources R::FuncType> {
+    fn sub_type_at(&self, at: u32) -> Result<&'resources R::SubType> {
         self.resources
-            .func_type_at(at)
+            .sub_type_at(at)
             .ok_or_else(|| format_err!(self.offset, "unknown type: type index out of bounds"))
+    }
+
+    fn struct_type_at(
+        &self,
+        at: u32,
+    ) -> Result<&'resources <R::SubType as WasmSubType>::StructType> {
+        let sub_ty = self.sub_type_at(at)?;
+        if let Some(struct_ty) = sub_ty.as_struct_type() {
+            Ok(struct_ty)
+        } else {
+            bail!(
+                self.offset,
+                "expected struct type at index {at}, found {sub_ty}"
+            )
+        }
+    }
+
+    fn array_type_at(&self, at: u32) -> Result<&'resources <R::SubType as WasmSubType>::ArrayType> {
+        let sub_ty = self.sub_type_at(at)?;
+        if let Some(array_ty) = sub_ty.as_array_type() {
+            Ok(array_ty)
+        } else {
+            bail!(
+                self.offset,
+                "expected array type at index {at}, found {sub_ty}"
+            )
+        }
+    }
+
+    fn func_type_at(&self, at: u32) -> Result<&'resources R::FuncType> {
+        let sub_ty = self.sub_type_at(at)?;
+        if let Some(func_ty) = sub_ty.as_func_type() {
+            Ok(func_ty)
+        } else {
+            bail!(
+                self.offset,
+                "expected func type at index {at}, found {sub_ty}"
+            )
+        }
     }
 
     fn tag_at(&self, at: u32) -> Result<&'resources R::FuncType> {
@@ -3441,6 +3481,67 @@ where
         self.pop_operand(Some(ty))?;
         self.pop_operand(Some(ValType::I32))?;
         Ok(())
+    }
+    fn visit_struct_new_default(&mut self, type_index: u32) -> Self::Output {
+        let ty = self.struct_type_at(type_index)?;
+        for i in 0..u32::try_from(ty.len_fields()).unwrap() {
+            let field = ty.field_at(i).unwrap();
+            let val_ty = field.element_type.unpack();
+            if !val_ty.is_defaultable() {
+                bail!(
+                    self.offset,
+                    "invalid `struct.new_default`: {val_ty} field is not defaultable"
+                );
+            }
+        }
+
+        let mut heap_ty = HeapType::Concrete(UnpackedIndex::Module(type_index));
+        // Call `check_heap_type` to canonicalize the module index into an id.
+        self.resources.check_heap_type(&mut heap_ty, self.offset)?;
+
+        let ref_ty = RefType::new(false, heap_ty).ok_or_else(|| {
+            format_err!(self.offset, "implementation limit: type index too large")
+        })?;
+
+        self.push_operand(ref_ty)
+    }
+    fn visit_array_new_default(&mut self, type_index: u32) -> Self::Output {
+        let ty = self.array_type_at(type_index)?;
+        let field = ty.field_type();
+        let val_ty = field.element_type.unpack();
+        if !val_ty.is_defaultable() {
+            bail!(
+                self.offset,
+                "invalid `array.new_default`: {val_ty} field is not defaultable"
+            );
+        }
+
+        let mut heap_ty = HeapType::Concrete(UnpackedIndex::Module(type_index));
+        // Call `check_heap_type` to canonicalize the module index into an id.
+        self.resources.check_heap_type(&mut heap_ty, self.offset)?;
+
+        let ref_ty = RefType::new(false, heap_ty).ok_or_else(|| {
+            format_err!(self.offset, "implementation limit: type index too large")
+        })?;
+
+        self.pop_operand(Some(ValType::I32))?;
+        self.push_operand(ref_ty)
+    }
+    fn visit_any_convert_extern(&mut self) -> Self::Output {
+        let extern_ref = self.pop_operand(Some(RefType::EXTERNREF.into()))?;
+        let is_nullable = extern_ref
+            .as_type()
+            .map_or(false, |ty| ty.as_reference_type().unwrap().is_nullable());
+        let any_ref = RefType::new(is_nullable, HeapType::Any).unwrap();
+        self.push_operand(any_ref)
+    }
+    fn visit_extern_convert_any(&mut self) -> Self::Output {
+        let any_ref = self.pop_operand(Some(RefType::ANY.nullable().into()))?;
+        let is_nullable = any_ref
+            .as_type()
+            .map_or(false, |ty| ty.as_reference_type().unwrap().is_nullable());
+        let extern_ref = RefType::new(is_nullable, HeapType::Extern).unwrap();
+        self.push_operand(extern_ref)
     }
     fn visit_ref_test_non_null(&mut self, heap_type: HeapType) -> Self::Output {
         self.check_ref_test(false, heap_type)

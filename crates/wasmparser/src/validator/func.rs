@@ -249,12 +249,13 @@ impl<T: WasmModuleResources> FuncValidator<T> {
 mod tests {
     use super::*;
     use crate::types::CoreTypeId;
-    use crate::{HeapType, WasmFuncType};
+    use crate::{HeapType, WasmArrayType, WasmFuncType, WasmStructType, WasmSubType};
 
     struct EmptyResources;
 
     impl WasmModuleResources for EmptyResources {
-        type FuncType = EmptyFuncType;
+        type SubType = EmptySubType;
+        type FuncType = EmptySubType;
 
         fn table_at(&self, _at: u32) -> Option<crate::TableType> {
             todo!()
@@ -268,8 +269,8 @@ mod tests {
         fn global_at(&self, _at: u32) -> Option<crate::GlobalType> {
             todo!()
         }
-        fn func_type_at(&self, _type_idx: u32) -> Option<&Self::FuncType> {
-            Some(&EmptyFuncType)
+        fn sub_type_at(&self, _type_idx: u32) -> Option<&Self::FuncType> {
+            Some(&EmptySubType)
         }
         fn type_id_of_function(&self, _at: u32) -> Option<CoreTypeId> {
             todo!()
@@ -300,10 +301,38 @@ mod tests {
         }
     }
 
-    #[derive(Clone)]
-    struct EmptyFuncType;
+    #[derive(Clone, Debug)]
+    struct EmptySubType;
 
-    impl WasmFuncType for EmptyFuncType {
+    impl std::fmt::Display for EmptySubType {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            std::fmt::Debug::fmt(self, f)
+        }
+    }
+
+    impl WasmSubType for EmptySubType {
+        type ArrayType = Self;
+        type FuncType = Self;
+        type StructType = Self;
+
+        fn as_array_type(&self) -> Option<&Self::ArrayType> {
+            Some(self)
+        }
+        fn as_func_type(&self) -> Option<&Self::FuncType> {
+            Some(self)
+        }
+        fn as_struct_type(&self) -> Option<&Self::StructType> {
+            Some(self)
+        }
+    }
+
+    impl WasmArrayType for EmptySubType {
+        fn field_type(&self) -> crate::FieldType {
+            todo!()
+        }
+    }
+
+    impl WasmFuncType for EmptySubType {
         fn len_inputs(&self) -> usize {
             0
         }
@@ -314,6 +343,15 @@ mod tests {
             todo!()
         }
         fn output_at(&self, _at: u32) -> Option<ValType> {
+            todo!()
+        }
+    }
+
+    impl WasmStructType for EmptySubType {
+        fn len_fields(&self) -> usize {
+            0
+        }
+        fn field_at(&self, _at: u32) -> Option<crate::FieldType> {
             todo!()
         }
     }

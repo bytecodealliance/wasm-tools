@@ -409,6 +409,24 @@ pub struct SubType {
     pub composite_type: CompositeType,
 }
 
+impl std::fmt::Display for SubType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.is_final && self.supertype_idx.is_none() {
+            std::fmt::Display::fmt(&self.composite_type, f)
+        } else {
+            write!(f, "(sub ")?;
+            if self.is_final {
+                write!(f, "final ")?;
+            }
+            if let Some(idx) = self.supertype_idx {
+                write!(f, "{idx} ")?;
+            }
+            std::fmt::Display::fmt(&self.composite_type, f)?;
+            write!(f, ")")
+        }
+    }
+}
+
 impl SubType {
     /// Unwrap an `ArrayType` or panic.
     ///
@@ -470,6 +488,16 @@ pub enum CompositeType {
     Array(ArrayType),
     /// The type is for a struct.
     Struct(StructType),
+}
+
+impl std::fmt::Display for CompositeType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Self::Array(_) => write!(f, "(array ...)"),
+            Self::Func(_) => write!(f, "(func ...)"),
+            Self::Struct(_) => write!(f, "(struct ...)"),
+        }
+    }
 }
 
 impl CompositeType {
@@ -629,6 +657,17 @@ pub enum StorageType {
     Val(ValType),
 }
 
+impl StorageType {
+    /// Unpack this storage type into the valtype that it is represented as on
+    /// the operand stack.
+    pub fn unpack(&self) -> ValType {
+        match *self {
+            Self::Val(ty) => ty,
+            Self::I8 | Self::I16 => ValType::I32,
+        }
+    }
+}
+
 /// Represents a type of a struct in a WebAssembly module.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct StructType {
@@ -686,6 +725,14 @@ impl ValType {
     /// instructions. Current reference types include `funcref` and `externref`.
     pub fn is_reference_type(&self) -> bool {
         matches!(self, ValType::Ref(_))
+    }
+
+    /// Get the underlying reference type, if any.
+    pub fn as_reference_type(&self) -> Option<RefType> {
+        match *self {
+            ValType::Ref(r) => Some(r),
+            ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => None,
+        }
     }
 
     /// Whether the type is defaultable, i.e. it is not a non-nullable reference
@@ -1017,7 +1064,7 @@ impl RefType {
         Self::from_u32(self.as_u32() & !Self::NULLABLE_BIT)
     }
 
-    /// Get the non-nullable version of this ref type.
+    /// Get the nullable version of this ref type.
     pub const fn nullable(&self) -> Self {
         Self::from_u32(self.as_u32() | Self::NULLABLE_BIT)
     }

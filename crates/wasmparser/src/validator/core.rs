@@ -9,12 +9,12 @@ use super::{
     operators::{ty_to_str, OperatorValidator, OperatorValidatorAllocations},
     types::{CoreTypeId, EntityType, RecGroupId, TypeAlloc, TypeList},
 };
-use crate::validator::types::TypeIdentifier;
 use crate::{
-    limits::*, BinaryReaderError, CompositeType, ConstExpr, Data, DataKind, Element, ElementKind,
-    ExternalKind, FuncType, Global, GlobalType, HeapType, MemoryType, PackedIndex, RecGroup,
-    RefType, Result, StorageType, SubType, Table, TableInit, TableType, TagType, TypeRef,
-    UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources,
+    limits::*, validator::types::TypeIdentifier, BinaryReaderError, CompositeType, ConstExpr, Data,
+    DataKind, Element, ElementKind, ExternalKind, FuncType, Global, GlobalType, HeapType,
+    MemoryType, PackedIndex, RecGroup, RefType, Result, StorageType, SubType, Table, TableInit,
+    TableType, TagType, TypeRef, UnpackedIndex, ValType, VisitOperator, WasmFeatures,
+    WasmModuleResources, WasmSubType,
 };
 use indexmap::IndexMap;
 use std::mem;
@@ -1155,6 +1155,7 @@ struct OperatorValidatorResources<'a> {
 }
 
 impl WasmModuleResources for OperatorValidatorResources<'_> {
+    type SubType = crate::SubType;
     type FuncType = crate::FuncType;
 
     fn table_at(&self, at: u32) -> Option<TableType> {
@@ -1174,12 +1175,9 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
         self.module.globals.get(at as usize).cloned()
     }
 
-    fn func_type_at(&self, at: u32) -> Option<&Self::FuncType> {
+    fn sub_type_at(&self, at: u32) -> Option<&Self::SubType> {
         let id = *self.module.types.get(at as usize)?;
-        match &self.types[id].composite_type {
-            CompositeType::Func(f) => Some(f),
-            _ => None,
-        }
+        Some(&self.types[id])
     }
 
     fn type_id_of_function(&self, at: u32) -> Option<CoreTypeId> {
@@ -1189,7 +1187,7 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
 
     fn type_of_function(&self, at: u32) -> Option<&Self::FuncType> {
         let type_index = self.module.functions.get(at as usize)?;
-        self.func_type_at(*type_index)
+        self.sub_type_at(*type_index)?.as_func_type()
     }
 
     fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<()> {
@@ -1226,6 +1224,7 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
 pub struct ValidatorResources(pub(crate) Arc<Module>);
 
 impl WasmModuleResources for ValidatorResources {
+    type SubType = crate::SubType;
     type FuncType = crate::FuncType;
 
     fn table_at(&self, at: u32) -> Option<TableType> {
@@ -1249,13 +1248,10 @@ impl WasmModuleResources for ValidatorResources {
         self.0.globals.get(at as usize).cloned()
     }
 
-    fn func_type_at(&self, at: u32) -> Option<&Self::FuncType> {
+    fn sub_type_at(&self, at: u32) -> Option<&Self::SubType> {
         let id = *self.0.types.get(at as usize)?;
         let types = self.0.snapshot.as_ref().unwrap();
-        match &types[id].composite_type {
-            CompositeType::Func(f) => Some(f),
-            _ => None,
-        }
+        Some(&types[id])
     }
 
     fn type_id_of_function(&self, at: u32) -> Option<CoreTypeId> {
@@ -1265,7 +1261,7 @@ impl WasmModuleResources for ValidatorResources {
 
     fn type_of_function(&self, at: u32) -> Option<&Self::FuncType> {
         let type_index = *self.0.functions.get(at as usize)?;
-        self.func_type_at(type_index)
+        self.sub_type_at(type_index)?.as_func_type()
     }
 
     fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<()> {

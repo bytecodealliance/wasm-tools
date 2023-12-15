@@ -316,13 +316,17 @@ macro_rules! for_each_operator {
             // 0xFB prefixed operators
             // Garbage Collection
             // http://github.com/WebAssembly/gc
-            @gc RefI31 => visit_ref_i31
-            @gc I31GetS => visit_i31_get_s
-            @gc I31GetU => visit_i31_get_u
+            @gc StructNewDefault { type_index: u32 } => visit_struct_new_default
+            @gc ArrayNewDefault { type_index: u32 } => visit_array_new_default
             @gc RefTestNonNull { hty: $crate::HeapType } => visit_ref_test_non_null
             @gc RefTestNullable { hty: $crate::HeapType } => visit_ref_test_nullable
             @gc RefCastNonNull { hty: $crate::HeapType } => visit_ref_cast_non_null
             @gc RefCastNullable { hty: $crate::HeapType } => visit_ref_cast_nullable
+            @gc AnyConvertExtern => visit_any_convert_extern
+            @gc ExternConvertAny => visit_extern_convert_any
+            @gc RefI31 => visit_ref_i31
+            @gc I31GetS => visit_i31_get_s
+            @gc I31GetU => visit_i31_get_u
 
             // 0xFC operators
             // Non-trapping Float-to-int Conversions
