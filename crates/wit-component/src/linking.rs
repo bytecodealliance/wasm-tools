@@ -323,7 +323,11 @@ fn make_env_module<'a>(
     }
 
     let mut memory_offset = stack_size_bytes;
-    let mut table_offset = 0;
+
+    // Table offset 0 is reserved for the null function pointer.
+    // This convention follows wasm-ld's table layout:
+    // https://github.com/llvm/llvm-project/blob/913622d012f72edb5ac3a501cef8639d0ebe471b/lld/wasm/Driver.cpp#L581-L584
+    let mut table_offset = 1;
     let mut globals = GlobalSection::new();
     let mut exports = ExportSection::new();
 
