@@ -358,7 +358,7 @@ impl WasmFeatures {
                 if self.exceptions {
                     Ok(())
                 } else {
-                    Err("heap types not supported without the gc feature")
+                    Err("exception refs not supported without the exception handling feature")
                 }
             }
         }
