@@ -455,6 +455,18 @@ impl ModuleState {
 
             // These are valid const expressions with the gc proposal is
             // enabled.
+            (@visit $self:ident visit_array_new $type_index:ident) => {{
+                $self.validate_gc("array.new")?;
+                $self.validator().visit_array_new($type_index)
+            }};
+            (@visit $self:ident visit_array_new_default $type_index:ident) => {{
+                $self.validate_gc("array.new_default")?;
+                $self.validator().visit_array_new_default($type_index)
+            }};
+            (@visit $self:ident visit_array_new_fixed $type_index:ident $n:ident) => {{
+                $self.validate_gc("array.new_fixed")?;
+                $self.validator().visit_array_new_fixed($type_index, $n)
+            }};
             (@visit $self:ident visit_ref_i31) => {{
                 $self.validate_gc("ref.i31")?;
                 $self.validator().visit_ref_i31()

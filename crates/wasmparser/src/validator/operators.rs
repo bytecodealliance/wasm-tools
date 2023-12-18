@@ -437,6 +437,34 @@ where
         Ok(())
     }
 
+    fn push_concrete_ref(&mut self, nullable: bool, type_index: u32) -> Result<()> {
+        let mut heap_ty = HeapType::Concrete(UnpackedIndex::Module(type_index));
+
+        // Canonicalize the module index into an id.
+        self.resources.check_heap_type(&mut heap_ty, self.offset)?;
+        debug_assert!(matches!(heap_ty, HeapType::Concrete(UnpackedIndex::Id(_))));
+
+        let ref_ty = RefType::new(nullable, heap_ty).ok_or_else(|| {
+            format_err!(self.offset, "implementation limit: type index too large")
+        })?;
+
+        self.push_operand(ref_ty)
+    }
+
+    fn pop_concrete_ref(&mut self, nullable: bool, type_index: u32) -> Result<MaybeType> {
+        let mut heap_ty = HeapType::Concrete(UnpackedIndex::Module(type_index));
+
+        // Canonicalize the module index into an id.
+        self.resources.check_heap_type(&mut heap_ty, self.offset)?;
+        debug_assert!(matches!(heap_ty, HeapType::Concrete(UnpackedIndex::Id(_))));
+
+        let ref_ty = RefType::new(nullable, heap_ty).ok_or_else(|| {
+            format_err!(self.offset, "implementation limit: type index too large")
+        })?;
+
+        self.pop_operand(Some(ref_ty.into()))
+    }
+
     /// Attempts to pop a type from the operand stack.
     ///
     /// This function is used to remove types from the operand stack. The
@@ -1024,6 +1052,17 @@ where
     fn check_ref_cast(&mut self, nullable: bool, heap_type: HeapType) -> Result<()> {
         let sub_ty = self.check_downcast(nullable, heap_type, "ref.cast")?;
         self.push_operand(sub_ty)
+    }
+
+    fn element_type_at(&self, elem_index: u32) -> Result<RefType> {
+        match self.resources.element_type_at(elem_index) {
+            Some(ty) => Ok(ty),
+            None => bail!(
+                self.offset,
+                "unknown elem segment {}: segment index out of bounds",
+                elem_index
+            ),
+        }
     }
 
     fn sub_type_at(&self, at: u32) -> Result<&'resources SubType> {
@@ -3380,14 +3419,7 @@ where
                 table
             ),
         };
-        let segment_ty = match self.resources.element_type_at(segment) {
-            Some(ty) => ty,
-            None => bail!(
-                self.offset,
-                "unknown elem segment {}: segment index out of bounds",
-                segment
-            ),
-        };
+        let segment_ty = self.element_type_at(segment)?;
         if !self
             .resources
             .is_subtype(ValType::Ref(segment_ty), ValType::Ref(table.element_type))
@@ -3501,6 +3533,12 @@ where
 
         self.push_operand(ref_ty)
     }
+    fn visit_array_new(&mut self, type_index: u32) -> Self::Output {
+        let array_ty = self.array_type_at(type_index)?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(array_ty.0.element_type.unpack()))?;
+        self.push_concrete_ref(false, type_index)
+    }
     fn visit_array_new_default(&mut self, type_index: u32) -> Self::Output {
         let ty = self.array_type_at(type_index)?;
         let val_ty = ty.0.element_type.unpack();
@@ -3510,17 +3548,112 @@ where
                 "invalid `array.new_default`: {val_ty} field is not defaultable"
             );
         }
-
-        let mut heap_ty = HeapType::Concrete(UnpackedIndex::Module(type_index));
-        // Call `check_heap_type` to canonicalize the module index into an id.
-        self.resources.check_heap_type(&mut heap_ty, self.offset)?;
-
-        let ref_ty = RefType::new(false, heap_ty).ok_or_else(|| {
-            format_err!(self.offset, "implementation limit: type index too large")
-        })?;
-
         self.pop_operand(Some(ValType::I32))?;
-        self.push_operand(ref_ty)
+        self.push_concrete_ref(false, type_index)
+    }
+    fn visit_array_new_fixed(&mut self, type_index: u32, n: u32) -> Self::Output {
+        let array_ty = self.array_type_at(type_index)?;
+        let elem_ty = array_ty.0.element_type.unpack();
+        for _ in 0..n {
+            self.pop_operand(Some(elem_ty))?;
+        }
+        self.push_concrete_ref(false, type_index)
+    }
+    fn visit_array_new_data(&mut self, type_index: u32, data_index: u32) -> Self::Output {
+        let array_ty = self.array_type_at(type_index)?;
+        let elem_ty = array_ty.0.element_type.unpack();
+        match elem_ty {
+            ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => {}
+            ValType::Ref(_) => bail!(
+                self.offset,
+                "array.new_data can only create arrays with numeric and vector elements"
+            ),
+        }
+        match self.resources.data_count() {
+            None => bail!(self.offset, "data count section required"),
+            Some(count) if data_index < count => {}
+            Some(_) => bail!(self.offset, "unknown data segment {}", data_index),
+        }
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.push_concrete_ref(false, type_index)
+    }
+    fn visit_array_new_elem(&mut self, type_index: u32, elem_index: u32) -> Self::Output {
+        let array_ty = self.array_type_at(type_index)?;
+        let array_ref_ty = match array_ty.0.element_type.unpack() {
+            ValType::Ref(rt) => rt,
+            ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => bail!(
+                self.offset,
+                "array.new_elem can only create arrays with reference elements"
+            ),
+        };
+        let elem_ref_ty = self.element_type_at(elem_index)?;
+        if !self
+            .resources
+            .is_subtype(elem_ref_ty.into(), array_ref_ty.into())
+        {
+            bail!(
+                self.offset,
+                "invalid array.new_elem instruction: element segment {elem_index} type mismatch: \
+                 expected {array_ref_ty}, found {elem_ref_ty}"
+            )
+        }
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.push_concrete_ref(false, type_index)
+    }
+    fn visit_array_get(&mut self, type_index: u32) -> Self::Output {
+        let array_ty = self.array_type_at(type_index)?;
+        let elem_ty = array_ty.0.element_type;
+        if elem_ty.is_packed() {
+            bail!(
+                self.offset,
+                "cannot use array.get with packed storage types"
+            )
+        }
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_concrete_ref(true, type_index)?;
+        self.push_operand(elem_ty.unpack())
+    }
+    fn visit_array_get_s(&mut self, type_index: u32) -> Self::Output {
+        let array_ty = self.array_type_at(type_index)?;
+        let elem_ty = array_ty.0.element_type;
+        if !elem_ty.is_packed() {
+            bail!(
+                self.offset,
+                "cannot use array.get_s with non-packed storage types"
+            )
+        }
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_concrete_ref(true, type_index)?;
+        self.push_operand(elem_ty.unpack())
+    }
+    fn visit_array_get_u(&mut self, type_index: u32) -> Self::Output {
+        let array_ty = self.array_type_at(type_index)?;
+        let elem_ty = array_ty.0.element_type;
+        if !elem_ty.is_packed() {
+            bail!(
+                self.offset,
+                "cannot use array.get_u with non-packed storage types"
+            )
+        }
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_concrete_ref(true, type_index)?;
+        self.push_operand(elem_ty.unpack())
+    }
+    fn visit_array_set(&mut self, type_index: u32) -> Self::Output {
+        let array_ty = self.array_type_at(type_index)?;
+        if !array_ty.0.mutable {
+            bail!(self.offset, "invalid array.set: array is immutable")
+        }
+        self.pop_operand(Some(array_ty.0.element_type.unpack()))?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_concrete_ref(true, type_index)?;
+        Ok(())
+    }
+    fn visit_array_len(&mut self) -> Self::Output {
+        self.pop_operand(Some(RefType::ARRAY.nullable().into()))?;
+        self.push_operand(ValType::I32)
     }
     fn visit_any_convert_extern(&mut self) -> Self::Output {
         let extern_ref = self.pop_operand(Some(RefType::EXTERNREF.into()))?;

@@ -362,6 +362,7 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
         (map $arg:ident value) => ($arg);
         (map $arg:ident lane) => (*$arg);
         (map $arg:ident lanes) => (*$arg);
+        (map $arg:ident n) => ($arg);
 
         // This case takes the arguments of a wasmparser instruction and creates
         // a wasm-encoder instruction. There are a few special cases for where
@@ -385,6 +386,13 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
         });
         (build MemoryGrow $mem:ident $_:ident) => (I::MemoryGrow($mem));
         (build MemorySize $mem:ident $_:ident) => (I::MemorySize($mem));
+        (build ArrayNewFixed $type_index:ident $n:ident) => (I::ArrayNewFixed($type_index, *$n));
+        (build ArrayNewData $type_index:ident $data_index:ident) => (I::ArrayNewData($type_index, $data_index));
+        (build ArrayNewElem $type_index:ident $elem_index:ident) => (I::ArrayNewElem($type_index, $elem_index));
+        (build ArrayGet $type_index:ident) => (I::ArrayGet($type_index));
+        (build ArrayGetS $type_index:ident) => (I::ArrayGetS($type_index));
+        (build ArrayGetU $type_index:ident) => (I::ArrayGetU($type_index));
+        (build ArraySet $type_index:ident) => (I::ArraySet($type_index));
         (build $op:ident $($arg:ident)*) => (I::$op { $($arg),* });
     }
 

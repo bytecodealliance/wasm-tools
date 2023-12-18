@@ -1026,6 +1026,7 @@ macro_rules! define_visit {
     (mark_live $self:ident $arg:ident targets) => {};
     (mark_live $self:ident $arg:ident data_index) => {};
     (mark_live $self:ident $arg:ident elem_index) => {};
+    (mark_live $self:ident $arg:ident n) => {};
 }
 
 impl<'a> VisitOperator<'a> for Module<'a> {
@@ -1175,6 +1176,13 @@ macro_rules! define_encode {
     (mk F32Const $v:ident) => (F32Const(f32::from_bits($v.bits())));
     (mk F64Const $v:ident) => (F64Const(f64::from_bits($v.bits())));
     (mk V128Const $v:ident) => (V128Const($v.i128()));
+    (mk ArrayNewFixed $type_index:ident $n:ident) => (ArrayNewFixed($type_index, $n));
+    (mk ArrayNewData $type_index:ident $data_index:ident) => (ArrayNewFixed($type_index, $data_index));
+    (mk ArrayNewElem $type_index:ident $elem_index:ident) => (ArrayNewFixed($type_index, $elem_index));
+    (mk ArrayGet $type_index:ident) => (ArrayGet($type_index));
+    (mk ArrayGetS $type_index:ident) => (ArrayGetS($type_index));
+    (mk ArrayGetU $type_index:ident) => (ArrayGetU($type_index));
+    (mk ArraySet $type_index:ident) => (ArraySet($type_index));
 
     // Catch-all for the translation of one payload argument which is typically
     // represented as a tuple-enum in wasm-encoder.
@@ -1210,6 +1218,7 @@ macro_rules! define_encode {
     (map $self:ident $arg:ident table_byte) => {$arg};
     (map $self:ident $arg:ident mem_byte) => {$arg};
     (map $self:ident $arg:ident value) => {$arg};
+    (map $self:ident $arg:ident n) => {$arg};
     (map $self:ident $arg:ident targets) => ((
         $arg.targets().map(|i| i.unwrap()).collect::<Vec<_>>().into(),
         $arg.default(),
