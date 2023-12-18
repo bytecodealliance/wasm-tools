@@ -10,16 +10,16 @@
     (type (;0;) (func (param i32) (result i32)))
     (func (;0;) (type 0) (param i32) (result i32)
       local.get 0
-      i32.const 0
+      i32.const 1
       call_indirect (type 0)
     )
-    (table (;0;) 1 funcref)
+    (table (;0;) 2 funcref)
     (memory (;0;) 17)
     (global (;0;) (mut i32) i32.const 1048576)
     (global (;1;) i32 i32.const 1048592)
-    (global (;2;) i32 i32.const 0)
+    (global (;2;) i32 i32.const 1)
     (global (;3;) i32 i32.const 1048592)
-    (global (;4;) i32 i32.const 0)
+    (global (;4;) i32 i32.const 1)
     (global (;5;) (mut i32) i32.const 1048592)
     (global (;6;) (mut i32) i32.const 1114112)
     (export "__stack_pointer" (global 0))
@@ -72,8 +72,8 @@
     (import "foo" "foo" (func (;0;) (type 2)))
     (func (;1;) (type 0))
     (start 1)
-    (elem (;0;) (i32.const 0) func)
-    (elem (;1;) (i32.const 0) func 0)
+    (elem (;0;) (i32.const 1) func)
+    (elem (;1;) (i32.const 1) func 0)
     (data (;0;) (i32.const 1048576) "\00\00\00\00\00\00\10\00")
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
