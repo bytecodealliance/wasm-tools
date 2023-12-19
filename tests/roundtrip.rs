@@ -144,9 +144,6 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
 fn skip_validation(test: &Path) -> bool {
     let broken = &[
         "gc/gc-struct.wat",
-        "proposals/gc/array_fill.wast",
-        "proposals/gc/array_init_data.wast",
-        "proposals/gc/array_init_elem.wast",
         "proposals/gc/br_on_cast.wast",
         "proposals/gc/br_on_cast_fail.wast",
         "proposals/gc/extern.wast",

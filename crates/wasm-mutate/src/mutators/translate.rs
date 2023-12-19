@@ -396,6 +396,7 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
         (build ArrayGetS $type_index:ident) => (I::ArrayGetS($type_index));
         (build ArrayGetU $type_index:ident) => (I::ArrayGetU($type_index));
         (build ArraySet $type_index:ident) => (I::ArraySet($type_index));
+        (build ArrayFill $type_index:ident) => (I::ArrayFill($type_index));
         (build $op:ident $($arg:ident)*) => (I::$op { $($arg),* });
     }
 

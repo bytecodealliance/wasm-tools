@@ -1027,7 +1027,10 @@ macro_rules! define_visit {
     (name ArrayGetU) => ("array.get_u");
     (name ArraySet) => ("array.set");
     (name ArrayLen) => ("array.len");
+    (name ArrayFill) => ("array.fill");
     (name ArrayCopy) => ("array.copy");
+    (name ArrayInitData) => ("array.init_data");
+    (name ArrayInitElem) => ("array.init_elem");
     (name AnyConvertExtern) => ("any.convert_extern");
     (name ExternConvertAny) => ("extern.convert_any");
     (name RefTestNonNull) => ("ref.test");

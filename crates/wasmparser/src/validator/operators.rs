@@ -3567,7 +3567,7 @@ where
             ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => {}
             ValType::Ref(_) => bail!(
                 self.offset,
-                "array.new_data can only create arrays with numeric and vector elements"
+                "type mismatch: array.new_data can only create arrays with numeric and vector elements"
             ),
         }
         match self.resources.data_count() {
@@ -3585,7 +3585,7 @@ where
             ValType::Ref(rt) => rt,
             ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => bail!(
                 self.offset,
-                "array.new_elem can only create arrays with reference elements"
+                "type mismatch: array.new_elem can only create arrays with reference elements"
             ),
         };
         let elem_ref_ty = self.element_type_at(elem_index)?;
@@ -3656,6 +3656,17 @@ where
         self.pop_operand(Some(RefType::ARRAY.nullable().into()))?;
         self.push_operand(ValType::I32)
     }
+    fn visit_array_fill(&mut self, array_type_index: u32) -> Self::Output {
+        let array_ty = self.array_type_at(array_type_index)?;
+        if !array_ty.0.mutable {
+            bail!(self.offset, "invalid array.fill: array is immutable");
+        }
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(array_ty.0.element_type.unpack()))?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_concrete_ref(true, array_type_index)?;
+        Ok(())
+    }
     fn visit_array_copy(&mut self, type_index_dst: u32, type_index_src: u32) -> Self::Output {
         let array_ty_dst = self.array_type_at(type_index_dst)?;
         if !array_ty_dst.0.mutable {
@@ -3696,6 +3707,63 @@ where
         self.pop_concrete_ref(true, type_index_src)?;
         self.pop_operand(Some(ValType::I32))?;
         self.pop_concrete_ref(true, type_index_dst)?;
+        Ok(())
+    }
+    fn visit_array_init_data(
+        &mut self,
+        array_type_index: u32,
+        array_data_index: u32,
+    ) -> Self::Output {
+        let array_ty = self.array_type_at(array_type_index)?;
+        if !array_ty.0.mutable {
+            bail!(self.offset, "invalid array.init_data: array is immutable");
+        }
+        let val_ty = array_ty.0.element_type.unpack();
+        match val_ty {
+            ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => {}
+            ValType::Ref(_) => bail!(
+                self.offset,
+                "invalid array.init_data: array type is not numeric or vector"
+            ),
+        }
+        match self.resources.data_count() {
+            None => bail!(self.offset, "data count section required"),
+            Some(count) if array_data_index < count => {}
+            Some(_) => bail!(self.offset, "unknown data segment {}", array_data_index),
+        }
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_concrete_ref(true, array_type_index)?;
+        Ok(())
+    }
+    fn visit_array_init_elem(&mut self, type_index: u32, elem_index: u32) -> Self::Output {
+        let array_ty = self.array_type_at(type_index)?;
+        if !array_ty.0.mutable {
+            bail!(self.offset, "invalid array.init_data: array is immutable");
+        }
+        let array_ref_ty = match array_ty.0.element_type.unpack() {
+            ValType::Ref(rt) => rt,
+            ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => bail!(
+                self.offset,
+                "type mismatch: array.init_elem can only create arrays with reference elements"
+            ),
+        };
+        let elem_ref_ty = self.element_type_at(elem_index)?;
+        if !self
+            .resources
+            .is_subtype(elem_ref_ty.into(), array_ref_ty.into())
+        {
+            bail!(
+                self.offset,
+                "invalid array.init_elem instruction: element segment {elem_index} type mismatch: \
+                 expected {array_ref_ty}, found {elem_ref_ty}"
+            )
+        }
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_concrete_ref(true, type_index)?;
         Ok(())
     }
     fn visit_any_convert_extern(&mut self) -> Self::Output {
