@@ -26,10 +26,6 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         self.printer.result.push_str(s);
     }
 
-    fn print_u32(&mut self, n: u32) {
-        write!(&mut self.printer.result, " {n}").unwrap();
-    }
-
     fn result(&mut self) -> &mut String {
         &mut self.printer.result
     }
@@ -221,9 +217,16 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         self.printer.print_core_type_ref(self.state, idx)
     }
 
-    /// Like `self.type_index` but without the `(type ..)` wrapper.
-    fn type_index_no_type(&mut self, idx: u32) -> Result<()> {
-        self.push_str(" ");
+    fn array_type_index(&mut self, idx: u32) -> Result<()> {
+        self.printer.print_idx(&self.state.core.type_names, idx)
+    }
+
+    fn array_size(&mut self, array_size: u32) -> Result<()> {
+        write!(&mut self.printer.result, "{array_size}")?;
+        Ok(())
+    }
+
+    fn struct_type_index(&mut self, idx: u32) -> Result<()> {
         self.printer.print_idx(&self.state.core.type_names, idx)
     }
 
@@ -231,9 +234,7 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         self.printer.print_idx(&self.state.core.data_names, idx)
     }
 
-    /// Like `self.data_index` but without the `(data ..)` wrapper.
-    fn data_index_no_data(&mut self, idx: u32) -> Result<()> {
-        self.push_str(" ");
+    fn array_data_index(&mut self, idx: u32) -> Result<()> {
         self.printer.print_idx(&self.state.core.data_names, idx)
     }
 
@@ -241,9 +242,7 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         self.printer.print_idx(&self.state.core.element_names, idx)
     }
 
-    /// Like `self.elem_index` but without the `(elem ..)` wrapper.
-    fn elem_index_no_elem(&mut self, idx: u32) -> Result<()> {
-        self.push_str(" ");
+    fn array_elem_index(&mut self, idx: u32) -> Result<()> {
         self.printer.print_idx(&self.state.core.element_names, idx)
     }
 
@@ -439,39 +438,6 @@ macro_rules! define_visit {
                 chunk[0],
             )?;
         }
-    );
-    (payload $self:ident StructNewDefault $type_index:ident) => (
-        $self.type_index_no_type($type_index)?;
-    );
-    (payload $self:ident ArrayNew $type_index:ident) => (
-        $self.type_index_no_type($type_index)?;
-    );
-    (payload $self:ident ArrayNewDefault $type_index:ident) => (
-        $self.type_index_no_type($type_index)?;
-    );
-    (payload $self:ident ArrayNewFixed $type_index:ident $n:ident) => (
-        $self.type_index_no_type($type_index)?;
-        $self.print_u32($n);
-    );
-    (payload $self:ident ArrayNewData $type_index:ident $data_index:ident) => (
-        $self.type_index_no_type($type_index)?;
-        $self.data_index_no_data($data_index)?;
-    );
-    (payload $self:ident ArrayNewElem $type_index:ident $elem_index:ident) => (
-        $self.type_index_no_type($type_index)?;
-        $self.elem_index_no_elem($elem_index)?;
-    );
-    (payload $self:ident ArrayGet $type_index:ident) => (
-        $self.type_index_no_type($type_index)?;
-    );
-    (payload $self:ident ArrayGetS $type_index:ident) => (
-        $self.type_index_no_type($type_index)?;
-    );
-    (payload $self:ident ArrayGetU $type_index:ident) => (
-        $self.type_index_no_type($type_index)?;
-    );
-    (payload $self:ident ArraySet $type_index:ident) => (
-        $self.type_index_no_type($type_index)?;
     );
     (payload $self:ident RefTestNonNull $hty:ident) => (
         $self.push_str(" ");

@@ -1000,6 +1000,8 @@ macro_rules! define_visit {
     };
 
     (mark_live $self:ident $arg:ident type_index) => {$self.ty($arg);};
+    (mark_live $self:ident $arg:ident array_type_index) => {$self.ty($arg);};
+    (mark_live $self:ident $arg:ident struct_type_index) => {$self.ty($arg);};
     (mark_live $self:ident $arg:ident src_table) => {$self.table($arg);};
     (mark_live $self:ident $arg:ident dst_table) => {$self.table($arg);};
     (mark_live $self:ident $arg:ident table_index) => {$self.table($arg);};
@@ -1025,8 +1027,10 @@ macro_rules! define_visit {
     (mark_live $self:ident $arg:ident tag_index) => {};
     (mark_live $self:ident $arg:ident targets) => {};
     (mark_live $self:ident $arg:ident data_index) => {};
+    (mark_live $self:ident $arg:ident array_data_index) => {};
     (mark_live $self:ident $arg:ident elem_index) => {};
-    (mark_live $self:ident $arg:ident n) => {};
+    (mark_live $self:ident $arg:ident array_elem_index) => {};
+    (mark_live $self:ident $arg:ident array_size) => {};
 }
 
 impl<'a> VisitOperator<'a> for Module<'a> {
@@ -1176,13 +1180,6 @@ macro_rules! define_encode {
     (mk F32Const $v:ident) => (F32Const(f32::from_bits($v.bits())));
     (mk F64Const $v:ident) => (F64Const(f64::from_bits($v.bits())));
     (mk V128Const $v:ident) => (V128Const($v.i128()));
-    (mk ArrayNewFixed $type_index:ident $n:ident) => (ArrayNewFixed($type_index, $n));
-    (mk ArrayNewData $type_index:ident $data_index:ident) => (ArrayNewFixed($type_index, $data_index));
-    (mk ArrayNewElem $type_index:ident $elem_index:ident) => (ArrayNewFixed($type_index, $elem_index));
-    (mk ArrayGet $type_index:ident) => (ArrayGet($type_index));
-    (mk ArrayGetS $type_index:ident) => (ArrayGetS($type_index));
-    (mk ArrayGetU $type_index:ident) => (ArrayGetU($type_index));
-    (mk ArraySet $type_index:ident) => (ArraySet($type_index));
 
     // Catch-all for the translation of one payload argument which is typically
     // represented as a tuple-enum in wasm-encoder.
@@ -1209,16 +1206,20 @@ macro_rules! define_encode {
     (map $self:ident $arg:ident src_table) => {$self.tables.remap($arg)};
     (map $self:ident $arg:ident dst_table) => {$self.tables.remap($arg)};
     (map $self:ident $arg:ident type_index) => {$self.types.remap($arg)};
+    (map $self:ident $arg:ident array_type_index) => {$self.types.remap($arg)};
+    (map $self:ident $arg:ident struct_type_index) => {$self.types.remap($arg)};
     (map $self:ident $arg:ident ty) => {$self.valty($arg)};
     (map $self:ident $arg:ident local_index) => {$arg};
     (map $self:ident $arg:ident lane) => {$arg};
     (map $self:ident $arg:ident lanes) => {$arg};
     (map $self:ident $arg:ident elem_index) => {$arg};
     (map $self:ident $arg:ident data_index) => {$arg};
+    (map $self:ident $arg:ident array_elem_index) => {$arg};
+    (map $self:ident $arg:ident array_data_index) => {$arg};
     (map $self:ident $arg:ident table_byte) => {$arg};
     (map $self:ident $arg:ident mem_byte) => {$arg};
     (map $self:ident $arg:ident value) => {$arg};
-    (map $self:ident $arg:ident n) => {$arg};
+    (map $self:ident $arg:ident array_size) => {$arg};
     (map $self:ident $arg:ident targets) => ((
         $arg.targets().map(|i| i.unwrap()).collect::<Vec<_>>().into(),
         $arg.default(),

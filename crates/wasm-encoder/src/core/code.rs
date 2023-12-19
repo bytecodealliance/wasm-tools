@@ -323,10 +323,16 @@ pub enum Instruction<'a> {
     Return,
     Call(u32),
     CallRef(u32),
-    CallIndirect { ty: u32, table: u32 },
+    CallIndirect {
+        ty: u32,
+        table: u32,
+    },
     ReturnCallRef(u32),
     ReturnCall(u32),
-    ReturnCallIndirect { ty: u32, table: u32 },
+    ReturnCallIndirect {
+        ty: u32,
+        table: u32,
+    },
     Throw(u32),
     Rethrow(u32),
 
@@ -367,9 +373,15 @@ pub enum Instruction<'a> {
     I64Store32(MemArg),
     MemorySize(u32),
     MemoryGrow(u32),
-    MemoryInit { mem: u32, data_index: u32 },
+    MemoryInit {
+        mem: u32,
+        data_index: u32,
+    },
     DataDrop(u32),
-    MemoryCopy { src_mem: u32, dst_mem: u32 },
+    MemoryCopy {
+        src_mem: u32,
+        dst_mem: u32,
+    },
     MemoryFill(u32),
     MemoryDiscard(u32),
 
@@ -533,9 +545,18 @@ pub enum Instruction<'a> {
 
     ArrayNew(u32),
     ArrayNewDefault(u32),
-    ArrayNewFixed(u32, u32),
-    ArrayNewData(u32, u32),
-    ArrayNewElem(u32, u32),
+    ArrayNewFixed {
+        array_type_index: u32,
+        array_size: u32,
+    },
+    ArrayNewData {
+        array_type_index: u32,
+        array_data_index: u32,
+    },
+    ArrayNewElem {
+        array_type_index: u32,
+        array_elem_index: u32,
+    },
     ArrayGet(u32),
     ArrayGetS(u32),
     ArrayGetU(u32),
@@ -558,14 +579,20 @@ pub enum Instruction<'a> {
     I31GetU,
 
     // Bulk memory instructions.
-    TableInit { elem_index: u32, table: u32 },
+    TableInit {
+        elem_index: u32,
+        table: u32,
+    },
     ElemDrop(u32),
     TableFill(u32),
     TableSet(u32),
     TableGet(u32),
     TableGrow(u32),
     TableSize(u32),
-    TableCopy { src_table: u32, dst_table: u32 },
+    TableCopy {
+        src_table: u32,
+        dst_table: u32,
+    },
 
     // SIMD instructions.
     V128Load(MemArg),
@@ -582,14 +609,38 @@ pub enum Instruction<'a> {
     V128Load32Zero(MemArg),
     V128Load64Zero(MemArg),
     V128Store(MemArg),
-    V128Load8Lane { memarg: MemArg, lane: Lane },
-    V128Load16Lane { memarg: MemArg, lane: Lane },
-    V128Load32Lane { memarg: MemArg, lane: Lane },
-    V128Load64Lane { memarg: MemArg, lane: Lane },
-    V128Store8Lane { memarg: MemArg, lane: Lane },
-    V128Store16Lane { memarg: MemArg, lane: Lane },
-    V128Store32Lane { memarg: MemArg, lane: Lane },
-    V128Store64Lane { memarg: MemArg, lane: Lane },
+    V128Load8Lane {
+        memarg: MemArg,
+        lane: Lane,
+    },
+    V128Load16Lane {
+        memarg: MemArg,
+        lane: Lane,
+    },
+    V128Load32Lane {
+        memarg: MemArg,
+        lane: Lane,
+    },
+    V128Load64Lane {
+        memarg: MemArg,
+        lane: Lane,
+    },
+    V128Store8Lane {
+        memarg: MemArg,
+        lane: Lane,
+    },
+    V128Store16Lane {
+        memarg: MemArg,
+        lane: Lane,
+    },
+    V128Store32Lane {
+        memarg: MemArg,
+        lane: Lane,
+    },
+    V128Store64Lane {
+        memarg: MemArg,
+        lane: Lane,
+    },
     V128Const(i128),
     I8x16Shuffle([Lane; 16]),
     I8x16ExtractLaneS(Lane),
@@ -1396,23 +1447,32 @@ impl Encode for Instruction<'_> {
                 sink.push(0x07);
                 type_index.encode(sink);
             }
-            Instruction::ArrayNewFixed(type_index, size) => {
+            Instruction::ArrayNewFixed {
+                array_type_index,
+                array_size,
+            } => {
                 sink.push(0xfb);
                 sink.push(0x08);
-                type_index.encode(sink);
-                size.encode(sink);
+                array_type_index.encode(sink);
+                array_size.encode(sink);
             }
-            Instruction::ArrayNewData(type_index, data_index) => {
+            Instruction::ArrayNewData {
+                array_type_index,
+                array_data_index,
+            } => {
                 sink.push(0xfb);
                 sink.push(0x09);
-                type_index.encode(sink);
-                data_index.encode(sink);
+                array_type_index.encode(sink);
+                array_data_index.encode(sink);
             }
-            Instruction::ArrayNewElem(type_index, elem_index) => {
+            Instruction::ArrayNewElem {
+                array_type_index,
+                array_elem_index,
+            } => {
                 sink.push(0xfb);
                 sink.push(0x0a);
-                type_index.encode(sink);
-                elem_index.encode(sink);
+                array_type_index.encode(sink);
+                array_elem_index.encode(sink);
             }
             Instruction::ArrayGet(type_index) => {
                 sink.push(0xfb);
