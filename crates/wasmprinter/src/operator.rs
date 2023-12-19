@@ -221,6 +221,14 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         self.printer.print_idx(&self.state.core.type_names, idx)
     }
 
+    fn array_type_index_dst(&mut self, idx: u32) -> Result<()> {
+        self.printer.print_idx(&self.state.core.type_names, idx)
+    }
+
+    fn array_type_index_src(&mut self, idx: u32) -> Result<()> {
+        self.printer.print_idx(&self.state.core.type_names, idx)
+    }
+
     fn array_size(&mut self, array_size: u32) -> Result<()> {
         write!(&mut self.printer.result, "{array_size}")?;
         Ok(())
@@ -1019,6 +1027,7 @@ macro_rules! define_visit {
     (name ArrayGetU) => ("array.get_u");
     (name ArraySet) => ("array.set");
     (name ArrayLen) => ("array.len");
+    (name ArrayCopy) => ("array.copy");
     (name AnyConvertExtern) => ("any.convert_extern");
     (name ExternConvertAny) => ("extern.convert_any");
     (name RefTestNonNull) => ("ref.test");

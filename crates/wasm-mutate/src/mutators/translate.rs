@@ -338,6 +338,8 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
         (map $arg:ident src_table) => (t.remap(Item::Table, *$arg)?);
         (map $arg:ident type_index) => (t.remap(Item::Type, *$arg)?);
         (map $arg:ident array_type_index) => (t.remap(Item::Type, *$arg)?);
+        (map $arg:ident array_type_index_dst) => (t.remap(Item::Type, *$arg)?);
+        (map $arg:ident array_type_index_src) => (t.remap(Item::Type, *$arg)?);
         (map $arg:ident struct_type_index) => (t.remap(Item::Type, *$arg)?);
         (map $arg:ident global_index) => (t.remap(Item::Global, *$arg)?);
         (map $arg:ident mem) => (t.remap(Item::Memory, *$arg)?);

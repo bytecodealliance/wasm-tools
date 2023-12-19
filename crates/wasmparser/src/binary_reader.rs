@@ -1047,6 +1047,12 @@ impl<'a> BinaryReader<'a> {
             }
             0x0f => visitor.visit_array_len(),
 
+            0x11 => {
+                let type_index_dst = self.read_var_u32()?;
+                let type_index_src = self.read_var_u32()?;
+                visitor.visit_array_copy(type_index_dst, type_index_src)
+            }
+
             0x14 => visitor.visit_ref_test_non_null(self.read()?),
             0x15 => visitor.visit_ref_test_nullable(self.read()?),
             0x16 => visitor.visit_ref_cast_non_null(self.read()?),
