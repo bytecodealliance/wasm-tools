@@ -657,6 +657,16 @@ pub enum StorageType {
     Val(ValType),
 }
 
+impl std::fmt::Display for StorageType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::I8 => write!(f, "i8"),
+            Self::I16 => write!(f, "i16"),
+            Self::Val(v) => std::fmt::Display::fmt(v, f),
+        }
+    }
+}
+
 impl StorageType {
     /// Is this a packed storage type, i.e. one that must be sign- or
     /// zero-extended when converted to a `ValType`?

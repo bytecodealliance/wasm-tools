@@ -24,8 +24,9 @@
 
 use crate::{
     limits::MAX_WASM_FUNCTION_LOCALS, ArrayType, BinaryReaderError, BlockType, BrTable,
-    CompositeType, FuncType, HeapType, Ieee32, Ieee64, MemArg, RefType, Result, StructType,
-    SubType, UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources, V128,
+    CompositeType, FuncType, HeapType, Ieee32, Ieee64, MemArg, RefType, Result, StorageType,
+    StructType, SubType, UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources,
+    V128,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -3654,6 +3655,48 @@ where
     fn visit_array_len(&mut self) -> Self::Output {
         self.pop_operand(Some(RefType::ARRAY.nullable().into()))?;
         self.push_operand(ValType::I32)
+    }
+    fn visit_array_copy(&mut self, type_index_dst: u32, type_index_src: u32) -> Self::Output {
+        let array_ty_dst = self.array_type_at(type_index_dst)?;
+        if !array_ty_dst.0.mutable {
+            bail!(
+                self.offset,
+                "invalid array.copy: destination array is immutable"
+            );
+        }
+        let array_ty_src = self.array_type_at(type_index_src)?;
+        match (array_ty_dst.0.element_type, array_ty_src.0.element_type) {
+            (StorageType::I8, StorageType::I8) => {}
+            (StorageType::I8, ty) => bail!(
+                self.offset,
+                "array types do not match: expected i8, found {ty}"
+            ),
+            (StorageType::I16, StorageType::I16) => {}
+            (StorageType::I16, ty) => bail!(
+                self.offset,
+                "array types do not match: expected i16, found {ty}"
+            ),
+            (StorageType::Val(dst), StorageType::Val(src)) => {
+                if !self.resources.is_subtype(src, dst) {
+                    bail!(
+                        self.offset,
+                        "array types do not match: expected {dst}, found {src}"
+                    )
+                }
+            }
+            (StorageType::Val(dst), src) => {
+                bail!(
+                    self.offset,
+                    "array types do not match: expected {dst}, found {src}"
+                )
+            }
+        }
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_concrete_ref(true, type_index_src)?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_concrete_ref(true, type_index_dst)?;
+        Ok(())
     }
     fn visit_any_convert_extern(&mut self) -> Self::Output {
         let extern_ref = self.pop_operand(Some(RefType::EXTERNREF.into()))?;

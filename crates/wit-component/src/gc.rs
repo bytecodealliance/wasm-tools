@@ -1001,6 +1001,8 @@ macro_rules! define_visit {
 
     (mark_live $self:ident $arg:ident type_index) => {$self.ty($arg);};
     (mark_live $self:ident $arg:ident array_type_index) => {$self.ty($arg);};
+    (mark_live $self:ident $arg:ident array_type_index_dst) => {$self.ty($arg);};
+    (mark_live $self:ident $arg:ident array_type_index_src) => {$self.ty($arg);};
     (mark_live $self:ident $arg:ident struct_type_index) => {$self.ty($arg);};
     (mark_live $self:ident $arg:ident src_table) => {$self.table($arg);};
     (mark_live $self:ident $arg:ident dst_table) => {$self.table($arg);};
@@ -1207,6 +1209,8 @@ macro_rules! define_encode {
     (map $self:ident $arg:ident dst_table) => {$self.tables.remap($arg)};
     (map $self:ident $arg:ident type_index) => {$self.types.remap($arg)};
     (map $self:ident $arg:ident array_type_index) => {$self.types.remap($arg)};
+    (map $self:ident $arg:ident array_type_index_dst) => {$self.types.remap($arg)};
+    (map $self:ident $arg:ident array_type_index_src) => {$self.types.remap($arg)};
     (map $self:ident $arg:ident struct_type_index) => {$self.types.remap($arg)};
     (map $self:ident $arg:ident ty) => {$self.valty($arg)};
     (map $self:ident $arg:ident local_index) => {$arg};

@@ -563,7 +563,10 @@ pub enum Instruction<'a> {
     ArraySet(u32),
     ArrayLen,
     ArrayFill(u32),
-    ArrayCopy(u32, u32),
+    ArrayCopy {
+        array_type_index_dst: u32,
+        array_type_index_src: u32,
+    },
     ArrayInitData(u32, u32),
     ArrayInitElem(u32, u32),
 
@@ -1503,11 +1506,14 @@ impl Encode for Instruction<'_> {
                 sink.push(0x10);
                 type_index.encode(sink);
             }
-            Instruction::ArrayCopy(dst_type_index, src_type_index) => {
+            Instruction::ArrayCopy {
+                array_type_index_dst,
+                array_type_index_src,
+            } => {
                 sink.push(0xfb);
                 sink.push(0x11);
-                dst_type_index.encode(sink);
-                src_type_index.encode(sink);
+                array_type_index_dst.encode(sink);
+                array_type_index_src.encode(sink);
             }
             Instruction::ArrayInitData(type_index, data_index) => {
                 sink.push(0xfb);

@@ -1,49 +1,38 @@
-;; --enable-gc
-
 (module
-  (type $a (array i32))
-  (type $b (array (mut i32)))
-  (type $c (array (mut (ref null func))))
-
-  (data $data "\\0\\1\\2\\3")
-  (elem $elem func $func)
-
-  (func $func)
-  (func (param (ref $a) (ref $b))
+  (type $a (;0;) (array i32))
+  (type $b (;1;) (array (mut i32)))
+  (type $c (;2;) (array (mut funcref)))
+  (type (;3;) (func))
+  (type (;4;) (func (param (ref 0) (ref 1))))
+  (func $func (;0;) (type 3))
+  (func (;1;) (type 4) (param (ref 0) (ref 1))
     i32.const 1
     i32.const 1
     array.new $a
     drop
-
     i32.const 1
     array.new_default $a
     drop
-
     local.get 0
     i32.const 1
     array.get $a
     drop
-
     local.get 1
     i32.const 2
     i32.const 3
     array.set $b
-
     i32.const 1
     i32.const 1
     array.new_fixed $a 2
     drop
-
     i32.const 0
     i32.const 4
     array.new_data $a $data
     drop
-
     i32.const 0
     i32.const 1
     array.new_elem $c $elem
     drop
-
     local.get 1
     i32.const 0
     local.get 1
@@ -51,4 +40,6 @@
     i32.const 1
     array.copy $b $b
   )
+  (elem $elem (;0;) func $func)
+  (data $data (;0;) "\5c0\5c1\5c2\5c3")
 )
