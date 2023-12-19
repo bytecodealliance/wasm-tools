@@ -1006,10 +1006,46 @@ impl<'a> BinaryReader<'a> {
                 visitor.visit_struct_new_default(type_index)
             }
 
+            0x06 => {
+                let type_index = self.read_var_u32()?;
+                visitor.visit_array_new(type_index)
+            }
             0x07 => {
                 let type_index = self.read_var_u32()?;
                 visitor.visit_array_new_default(type_index)
             }
+            0x08 => {
+                let type_index = self.read_var_u32()?;
+                let n = self.read_var_u32()?;
+                visitor.visit_array_new_fixed(type_index, n)
+            }
+            0x09 => {
+                let type_index = self.read_var_u32()?;
+                let data_index = self.read_var_u32()?;
+                visitor.visit_array_new_data(type_index, data_index)
+            }
+            0x0a => {
+                let type_index = self.read_var_u32()?;
+                let elem_index = self.read_var_u32()?;
+                visitor.visit_array_new_elem(type_index, elem_index)
+            }
+            0x0b => {
+                let type_index = self.read_var_u32()?;
+                visitor.visit_array_get(type_index)
+            }
+            0x0c => {
+                let type_index = self.read_var_u32()?;
+                visitor.visit_array_get_s(type_index)
+            }
+            0x0d => {
+                let type_index = self.read_var_u32()?;
+                visitor.visit_array_get_u(type_index)
+            }
+            0x0e => {
+                let type_index = self.read_var_u32()?;
+                visitor.visit_array_set(type_index)
+            }
+            0x0f => visitor.visit_array_len(),
 
             0x14 => visitor.visit_ref_test_non_null(self.read()?),
             0x15 => visitor.visit_ref_test_nullable(self.read()?),

@@ -658,6 +658,15 @@ pub enum StorageType {
 }
 
 impl StorageType {
+    /// Is this a packed storage type, i.e. one that must be sign- or
+    /// zero-extended when converted to a `ValType`?
+    pub fn is_packed(&self) -> bool {
+        match self {
+            Self::I8 | Self::I16 => true,
+            Self::Val(_) => false,
+        }
+    }
+
     /// Unpack this storage type into the valtype that it is represented as on
     /// the operand stack.
     pub fn unpack(&self) -> ValType {

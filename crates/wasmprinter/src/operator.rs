@@ -217,9 +217,16 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         self.printer.print_core_type_ref(self.state, idx)
     }
 
-    /// Like `self.type_index` but without the `(type ..)` wrapper.
-    fn type_index_no_type(&mut self, idx: u32) -> Result<()> {
-        self.push_str(" ");
+    fn array_type_index(&mut self, idx: u32) -> Result<()> {
+        self.printer.print_idx(&self.state.core.type_names, idx)
+    }
+
+    fn array_size(&mut self, array_size: u32) -> Result<()> {
+        write!(&mut self.printer.result, "{array_size}")?;
+        Ok(())
+    }
+
+    fn struct_type_index(&mut self, idx: u32) -> Result<()> {
         self.printer.print_idx(&self.state.core.type_names, idx)
     }
 
@@ -227,7 +234,15 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         self.printer.print_idx(&self.state.core.data_names, idx)
     }
 
+    fn array_data_index(&mut self, idx: u32) -> Result<()> {
+        self.printer.print_idx(&self.state.core.data_names, idx)
+    }
+
     fn elem_index(&mut self, idx: u32) -> Result<()> {
+        self.printer.print_idx(&self.state.core.element_names, idx)
+    }
+
+    fn array_elem_index(&mut self, idx: u32) -> Result<()> {
         self.printer.print_idx(&self.state.core.element_names, idx)
     }
 
@@ -423,12 +438,6 @@ macro_rules! define_visit {
                 chunk[0],
             )?;
         }
-    );
-    (payload $self:ident StructNewDefault $type_index: ident) => (
-        $self.type_index_no_type($type_index)?;
-    );
-    (payload $self:ident ArrayNewDefault $type_index: ident) => (
-        $self.type_index_no_type($type_index)?;
     );
     (payload $self:ident RefTestNonNull $hty:ident) => (
         $self.push_str(" ");
@@ -1000,7 +1009,16 @@ macro_rules! define_visit {
     (name I16x8RelaxedDotI8x16I7x16S) => ("i16x8.relaxed_dot_i8x16_i7x16_s");
     (name I32x4RelaxedDotI8x16I7x16AddS) => ("i32x4.relaxed_dot_i8x16_i7x16_add_s");
     (name StructNewDefault) => ("struct.new_default");
+    (name ArrayNew) => ("array.new");
     (name ArrayNewDefault) => ("array.new_default");
+    (name ArrayNewFixed) => ("array.new_fixed");
+    (name ArrayNewData) => ("array.new_data");
+    (name ArrayNewElem) => ("array.new_elem");
+    (name ArrayGet) => ("array.get");
+    (name ArrayGetS) => ("array.get_s");
+    (name ArrayGetU) => ("array.get_u");
+    (name ArraySet) => ("array.set");
+    (name ArrayLen) => ("array.len");
     (name AnyConvertExtern) => ("any.convert_extern");
     (name ExternConvertAny) => ("extern.convert_any");
     (name RefTestNonNull) => ("ref.test");

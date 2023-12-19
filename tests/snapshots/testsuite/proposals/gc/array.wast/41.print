@@ -1,0 +1,20 @@
+(module
+  (type $t (;0;) (array (mut i32)))
+  (type (;1;) (func))
+  (func (;0;) (type 1)
+    (local (ref null 0))
+    local.get 0
+    i32.const 0
+    array.get $t
+    drop
+  )
+  (func (;1;) (type 1)
+    (local (ref null 0))
+    local.get 0
+    i32.const 0
+    i32.const 0
+    array.set $t
+  )
+  (export "array.get-null" (func 0))
+  (export "array.set-null" (func 1))
+)

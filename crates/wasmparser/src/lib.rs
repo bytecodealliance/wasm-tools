@@ -316,8 +316,17 @@ macro_rules! for_each_operator {
             // 0xFB prefixed operators
             // Garbage Collection
             // http://github.com/WebAssembly/gc
-            @gc StructNewDefault { type_index: u32 } => visit_struct_new_default
-            @gc ArrayNewDefault { type_index: u32 } => visit_array_new_default
+            @gc StructNewDefault { struct_type_index: u32 } => visit_struct_new_default
+            @gc ArrayNew { array_type_index: u32 } => visit_array_new
+            @gc ArrayNewDefault { array_type_index: u32 } => visit_array_new_default
+            @gc ArrayNewFixed { array_type_index: u32, array_size: u32 } => visit_array_new_fixed
+            @gc ArrayNewData { array_type_index: u32, array_data_index: u32 } => visit_array_new_data
+            @gc ArrayNewElem { array_type_index: u32, array_elem_index: u32 } => visit_array_new_elem
+            @gc ArrayGet { array_type_index: u32 } => visit_array_get
+            @gc ArrayGetS { array_type_index: u32 } => visit_array_get_s
+            @gc ArrayGetU { array_type_index: u32 } => visit_array_get_u
+            @gc ArraySet { array_type_index: u32 } => visit_array_set
+            @gc ArrayLen => visit_array_len
             @gc RefTestNonNull { hty: $crate::HeapType } => visit_ref_test_non_null
             @gc RefTestNullable { hty: $crate::HeapType } => visit_ref_test_nullable
             @gc RefCastNonNull { hty: $crate::HeapType } => visit_ref_cast_non_null
