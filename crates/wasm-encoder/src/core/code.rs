@@ -567,8 +567,14 @@ pub enum Instruction<'a> {
         array_type_index_dst: u32,
         array_type_index_src: u32,
     },
-    ArrayInitData(u32, u32),
-    ArrayInitElem(u32, u32),
+    ArrayInitData {
+        array_type_index: u32,
+        array_data_index: u32,
+    },
+    ArrayInitElem {
+        array_type_index: u32,
+        array_elem_index: u32,
+    },
 
     RefTestNonNull(HeapType),
     RefTestNullable(HeapType),
@@ -1515,17 +1521,23 @@ impl Encode for Instruction<'_> {
                 array_type_index_dst.encode(sink);
                 array_type_index_src.encode(sink);
             }
-            Instruction::ArrayInitData(type_index, data_index) => {
+            Instruction::ArrayInitData {
+                array_type_index,
+                array_data_index,
+            } => {
                 sink.push(0xfb);
                 sink.push(0x12);
-                type_index.encode(sink);
-                data_index.encode(sink);
+                array_type_index.encode(sink);
+                array_data_index.encode(sink);
             }
-            Instruction::ArrayInitElem(type_index, elem_index) => {
+            Instruction::ArrayInitElem {
+                array_type_index,
+                array_elem_index,
+            } => {
                 sink.push(0xfb);
                 sink.push(0x13);
-                type_index.encode(sink);
-                elem_index.encode(sink);
+                array_type_index.encode(sink);
+                array_elem_index.encode(sink);
             }
             Instruction::RefTestNonNull(heap_type) => {
                 sink.push(0xfb);

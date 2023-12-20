@@ -327,7 +327,10 @@ macro_rules! for_each_operator {
             @gc ArrayGetU { array_type_index: u32 } => visit_array_get_u
             @gc ArraySet { array_type_index: u32 } => visit_array_set
             @gc ArrayLen => visit_array_len
+            @gc ArrayFill { array_type_index: u32 } => visit_array_fill
             @gc ArrayCopy { array_type_index_dst: u32, array_type_index_src: u32 } => visit_array_copy
+            @gc ArrayInitData { array_type_index: u32, array_data_index: u32 } => visit_array_init_data
+            @gc ArrayInitElem { array_type_index: u32, array_elem_index: u32 } => visit_array_init_elem
             @gc RefTestNonNull { hty: $crate::HeapType } => visit_ref_test_non_null
             @gc RefTestNullable { hty: $crate::HeapType } => visit_ref_test_nullable
             @gc RefCastNonNull { hty: $crate::HeapType } => visit_ref_cast_non_null
