@@ -538,10 +538,22 @@ pub enum Instruction<'a> {
     // GC types instructions.
     StructNew(u32),
     StructNewDefault(u32),
-    StructGet(u32, u32),
-    StructGetS(u32, u32),
-    StructGetU(u32, u32),
-    StructSet(u32, u32),
+    StructGet {
+        struct_type_index: u32,
+        field_index: u32,
+    },
+    StructGetS {
+        struct_type_index: u32,
+        field_index: u32,
+    },
+    StructGetU {
+        struct_type_index: u32,
+        field_index: u32,
+    },
+    StructSet {
+        struct_type_index: u32,
+        field_index: u32,
+    },
 
     ArrayNew(u32),
     ArrayNewDefault(u32),
@@ -575,11 +587,24 @@ pub enum Instruction<'a> {
         array_type_index: u32,
         array_elem_index: u32,
     },
-
     RefTestNonNull(HeapType),
     RefTestNullable(HeapType),
     RefCastNonNull(HeapType),
     RefCastNullable(HeapType),
+    BrOnCast {
+        relative_depth: u32,
+        from_type_nullable: bool,
+        from_heap_type: HeapType,
+        to_type_nullable: bool,
+        to_heap_type: HeapType,
+    },
+    BrOnCastFail {
+        relative_depth: u32,
+        from_type_nullable: bool,
+        from_heap_type: HeapType,
+        to_type_nullable: bool,
+        to_heap_type: HeapType,
+    },
     AnyConvertExtern,
     ExternConvertAny,
 
@@ -1422,28 +1447,40 @@ impl Encode for Instruction<'_> {
                 sink.push(0x01);
                 type_index.encode(sink);
             }
-            Instruction::StructGet(type_index, field_index) => {
+            Instruction::StructGet {
+                struct_type_index,
+                field_index,
+            } => {
                 sink.push(0xfb);
                 sink.push(0x02);
-                type_index.encode(sink);
+                struct_type_index.encode(sink);
                 field_index.encode(sink);
             }
-            Instruction::StructGetS(type_index, field_index) => {
+            Instruction::StructGetS {
+                struct_type_index,
+                field_index,
+            } => {
                 sink.push(0xfb);
                 sink.push(0x03);
-                type_index.encode(sink);
+                struct_type_index.encode(sink);
                 field_index.encode(sink);
             }
-            Instruction::StructGetU(type_index, field_index) => {
+            Instruction::StructGetU {
+                struct_type_index,
+                field_index,
+            } => {
                 sink.push(0xfb);
                 sink.push(0x04);
-                type_index.encode(sink);
+                struct_type_index.encode(sink);
                 field_index.encode(sink);
             }
-            Instruction::StructSet(type_index, field_index) => {
+            Instruction::StructSet {
+                struct_type_index,
+                field_index,
+            } => {
                 sink.push(0xfb);
                 sink.push(0x05);
-                type_index.encode(sink);
+                struct_type_index.encode(sink);
                 field_index.encode(sink);
             }
             Instruction::ArrayNew(type_index) => {
@@ -1558,6 +1595,36 @@ impl Encode for Instruction<'_> {
                 sink.push(0xfb);
                 sink.push(0x17);
                 heap_type.encode(sink);
+            }
+            Instruction::BrOnCast {
+                relative_depth,
+                from_type_nullable,
+                from_heap_type,
+                to_type_nullable,
+                to_heap_type,
+            } => {
+                sink.push(0xfb);
+                sink.push(0x18);
+                let cast_flags = (from_type_nullable as u8) | ((to_type_nullable as u8) << 1);
+                relative_depth.encode(sink);
+                sink.push(cast_flags);
+                from_heap_type.encode(sink);
+                to_heap_type.encode(sink);
+            }
+            Instruction::BrOnCastFail {
+                relative_depth,
+                from_type_nullable,
+                from_heap_type,
+                to_type_nullable,
+                to_heap_type,
+            } => {
+                sink.push(0xfb);
+                sink.push(0x19);
+                let cast_flags = (from_type_nullable as u8) | ((to_type_nullable as u8) << 1);
+                relative_depth.encode(sink);
+                sink.push(cast_flags);
+                from_heap_type.encode(sink);
+                to_heap_type.encode(sink);
             }
             Instruction::AnyConvertExtern => {
                 sink.push(0xfb);

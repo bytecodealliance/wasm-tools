@@ -1001,11 +1001,34 @@ impl<'a> BinaryReader<'a> {
     {
         let code = self.read_var_u32()?;
         Ok(match code {
+            0x0 => {
+                let type_index = self.read_var_u32()?;
+                visitor.visit_struct_new(type_index)
+            }
             0x01 => {
                 let type_index = self.read_var_u32()?;
                 visitor.visit_struct_new_default(type_index)
             }
-
+            0x02 => {
+                let type_index = self.read_var_u32()?;
+                let field_index = self.read_var_u32()?;
+                visitor.visit_struct_get(type_index, field_index)
+            }
+            0x03 => {
+                let type_index = self.read_var_u32()?;
+                let field_index = self.read_var_u32()?;
+                visitor.visit_struct_get_s(type_index, field_index)
+            }
+            0x04 => {
+                let type_index = self.read_var_u32()?;
+                let field_index = self.read_var_u32()?;
+                visitor.visit_struct_get_u(type_index, field_index)
+            }
+            0x05 => {
+                let type_index = self.read_var_u32()?;
+                let field_index = self.read_var_u32()?;
+                visitor.visit_struct_set(type_index, field_index)
+            }
             0x06 => {
                 let type_index = self.read_var_u32()?;
                 visitor.visit_array_new(type_index)
@@ -1069,6 +1092,48 @@ impl<'a> BinaryReader<'a> {
             0x15 => visitor.visit_ref_test_nullable(self.read()?),
             0x16 => visitor.visit_ref_cast_non_null(self.read()?),
             0x17 => visitor.visit_ref_cast_nullable(self.read()?),
+            0x18 => {
+                let pos = self.original_position();
+                let cast_flags = self.read_u8()?;
+                let relative_depth = self.read_var_u32()?;
+                let (from_type_nullable, to_type_nullable) = match cast_flags {
+                    0 => (false, false),
+                    1 => (true, false),
+                    2 => (false, true),
+                    3 => (true, true),
+                    _ => bail!(pos, "invalid cast flags: {cast_flags:08b}"),
+                };
+                let from_heap_type = self.read()?;
+                let to_heap_type = self.read()?;
+                visitor.visit_br_on_cast(
+                    relative_depth,
+                    from_type_nullable,
+                    from_heap_type,
+                    to_type_nullable,
+                    to_heap_type,
+                )
+            }
+            0x19 => {
+                let pos = self.original_position();
+                let cast_flags = self.read_u8()?;
+                let relative_depth = self.read_var_u32()?;
+                let (from_type_nullable, to_type_nullable) = match cast_flags {
+                    0 => (false, false),
+                    1 => (true, false),
+                    2 => (false, true),
+                    3 => (true, true),
+                    _ => bail!(pos, "invalid cast flags: {cast_flags:08b}"),
+                };
+                let from_heap_type = self.read()?;
+                let to_heap_type = self.read()?;
+                visitor.visit_br_on_cast_fail(
+                    relative_depth,
+                    from_type_nullable,
+                    from_heap_type,
+                    to_type_nullable,
+                    to_heap_type,
+                )
+            }
 
             0x1a => visitor.visit_any_convert_extern(),
             0x1b => visitor.visit_extern_convert_any(),

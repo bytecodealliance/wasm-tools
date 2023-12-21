@@ -1028,6 +1028,21 @@ impl RefType {
         }
     }
 
+    /// Compute the [type difference] between the two given ref types.
+    ///
+    /// [type difference]: https://webassembly.github.io/gc/core/valid/conventions.html#aux-reftypediff
+    pub fn difference(a: RefType, b: RefType) -> RefType {
+        RefType::new(
+            if b.is_nullable() {
+                false
+            } else {
+                a.is_nullable()
+            },
+            a.heap_type(),
+        )
+        .unwrap()
+    }
+
     /// Is this a reference to an concrete type?
     pub const fn is_concrete_type_ref(&self) -> bool {
         self.as_u32() & Self::CONCRETE_BIT != 0
