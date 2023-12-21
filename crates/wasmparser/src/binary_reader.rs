@@ -978,6 +978,7 @@ impl<'a> BinaryReader<'a> {
             0xd0 => visitor.visit_ref_null(self.read()?),
             0xd1 => visitor.visit_ref_is_null(),
             0xd2 => visitor.visit_ref_func(self.read_var_u32()?),
+            0xd3 => visitor.visit_ref_eq(),
             0xd4 => visitor.visit_ref_as_non_null(),
             0xd5 => visitor.visit_br_on_null(self.read_var_u32()?),
             0xd6 => visitor.visit_br_on_non_null(self.read_var_u32()?),

@@ -143,8 +143,6 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
 
 fn skip_validation(test: &Path) -> bool {
     let broken = &[
-        "proposals/gc/extern.wast",
-        "proposals/gc/ref_eq.wast",
         "exnref/exnref.wast",
         "exnref/throw_ref.wast",
         "exnref/try_table.wast",

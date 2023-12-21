@@ -592,6 +592,7 @@ macro_rules! define_visit {
     (name TableGrow) => ("table.grow");
     (name RefAsNonNull) => ("ref.as_non_null");
     (name RefNull) => ("ref.null");
+    (name RefEq) => ("ref.eq");
     (name RefIsNull) => ("ref.is_null");
     (name RefFunc) => ("ref.func");
     (name I32Const) => ("i32.const");

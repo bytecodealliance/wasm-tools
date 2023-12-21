@@ -184,6 +184,7 @@ macro_rules! for_each_operator {
             @reference_types RefNull { hty: $crate::HeapType } => visit_ref_null
             @reference_types RefIsNull => visit_ref_is_null
             @reference_types RefFunc { function_index: u32 } => visit_ref_func
+            @gc RefEq => visit_ref_eq
             @mvp I32Eqz => visit_i32_eqz
             @mvp I32Eq => visit_i32_eq
             @mvp I32Ne => visit_i32_ne

@@ -2496,6 +2496,11 @@ where
         self.push_operand(ty)?;
         Ok(())
     }
+    fn visit_ref_eq(&mut self) -> Self::Output {
+        self.pop_operand(Some(RefType::EQ.nullable().into()))?;
+        self.pop_operand(Some(RefType::EQ.nullable().into()))?;
+        self.push_operand(ValType::I32)
+    }
     fn visit_v128_load(&mut self, memarg: MemArg) -> Self::Output {
         let ty = self.check_memarg(memarg)?;
         self.pop_operand(Some(ty))?;
