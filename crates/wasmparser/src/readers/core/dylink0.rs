@@ -12,21 +12,6 @@ const WASM_DYLINK_NEEDED: u8 = 2;
 const WASM_DYLINK_EXPORT_INFO: u8 = 3;
 const WASM_DYLINK_IMPORT_INFO: u8 = 4;
 
-/// A flag indicating that this is a weak symbol.
-pub const WASM_SYM_BINDING_WEAK: u32 = 1 << 0;
-/// A flag indicating that this is a local symbol (this is exclusive with [WASM_SYM_BINDING_WEAK]).
-pub const WASM_SYM_BINDING_LOCAL: u32 = 1 << 1;
-/// A flag indicating that this is a hidden symbol.
-pub const WASM_SYM_VISIBILITY_HIDDEN: u32 = 1 << 2;
-/// A flag indicating that this symbol is not defined.
-pub const WASM_SYM_UNDEFINED: u32 = 1 << 4;
-/// A flag indiciating that this symbol is intended to be exported from the wasm module to the host environment
-pub const WASM_SYM_EXPORTED: u32 = 1 << 5;
-/// A flag indiciating that this symbol uses an explicit symbol name, rather than reusing the name from a wasm import.
-pub const WASM_SYM_EXPLICIT_NAME: u32 = 1 << 6;
-/// A flag indicating that this symbol is intended to be included in the linker output, regardless of whether it is used by the program.
-pub const WASM_SYM_NO_STRIP: u32 = 1 << 7;
-
 /// Represents a `WASM_DYLINK_MEM_INFO` field
 #[derive(Debug, Copy, Clone)]
 pub struct MemInfo {

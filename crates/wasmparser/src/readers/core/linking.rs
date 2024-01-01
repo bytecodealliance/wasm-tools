@@ -1,8 +1,22 @@
 use crate::{
     BinaryReader, BinaryReaderError, FromReader, Result, SectionLimited, Subsection, Subsections,
-    WASM_SYM_EXPLICIT_NAME, WASM_SYM_UNDEFINED,
 };
 use std::ops::Range;
+
+/// A flag indicating that this is a weak symbol.
+pub const WASM_SYM_BINDING_WEAK: u32 = 1 << 0;
+/// A flag indicating that this is a local symbol (this is exclusive with [WASM_SYM_BINDING_WEAK]).
+pub const WASM_SYM_BINDING_LOCAL: u32 = 1 << 1;
+/// A flag indicating that this is a hidden symbol.
+pub const WASM_SYM_VISIBILITY_HIDDEN: u32 = 1 << 2;
+/// A flag indicating that this symbol is not defined.
+pub const WASM_SYM_UNDEFINED: u32 = 1 << 4;
+/// A flag indiciating that this symbol is intended to be exported from the wasm module to the host environment
+pub const WASM_SYM_EXPORTED: u32 = 1 << 5;
+/// A flag indiciating that this symbol uses an explicit symbol name, rather than reusing the name from a wasm import.
+pub const WASM_SYM_EXPLICIT_NAME: u32 = 1 << 6;
+/// A flag indicating that this symbol is intended to be included in the linker output, regardless of whether it is used by the program.
+pub const WASM_SYM_NO_STRIP: u32 = 1 << 7;
 
 /// A reader for the linking custom section of a WebAssembly module.
 ///
