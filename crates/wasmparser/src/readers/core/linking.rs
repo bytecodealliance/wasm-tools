@@ -18,7 +18,7 @@ pub const WASM_SYM_EXPLICIT_NAME: u32 = 1 << 6;
 /// A flag indicating that this symbol is intended to be included in the linker output, regardless of whether it is used by the program.
 pub const WASM_SYM_NO_STRIP: u32 = 1 << 7;
 
-/// A reader for the linking custom section of a WebAssembly module.
+/// A reader for the `linking` custom section of a WebAssembly module.
 ///
 /// This format is currently defined upstream at
 /// <https://github.com/WebAssembly/tool-conventions/blob/main/Linking.md>.
@@ -385,6 +385,13 @@ impl<'a> LinkingSectionReader<'a> {
     /// wasm binary.
     pub fn range(&self) -> Range<usize> {
         self.range.clone()
+    }
+
+    /// Returns the iterator for advancing through the subsections.
+    ///
+    /// You can also use [`IntoIterator::into_iter`] directly on this type.
+    pub fn subsections(&mut self) -> &mut Subsections<'a, Linking<'a>> {
+        &mut self.subsections
     }
 }
 
