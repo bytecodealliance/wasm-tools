@@ -39,5 +39,12 @@
     drop
     drop
   )
+  (func $mix-old-and-new (;3;) (type 2)
+    try_table ;; label = @1
+      try ;; label = @2
+      catch_all
+      end
+    end
+  )
   (tag (;1;) (type 1) (param i32))
 )

@@ -40,4 +40,11 @@
     drop
     drop
   )
+  (func $mix-old-and-new
+    try_table
+      try
+      catch_all
+      end
+    end
+  )
 )

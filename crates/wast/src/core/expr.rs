@@ -1104,10 +1104,11 @@ impl<'a> Parse<'a> for TryTable<'a> {
         let block = parser.parse()?;
 
         let mut catches = Vec::new();
-        while parser.peek2::<kw::catch>()?
-            || parser.peek2::<kw::catch_ref>()?
-            || parser.peek2::<kw::catch_all>()?
-            || parser.peek2::<kw::catch_all_ref>()?
+        while parser.peek::<LParen>()?
+            && (parser.peek2::<kw::catch>()?
+                || parser.peek2::<kw::catch_ref>()?
+                || parser.peek2::<kw::catch_all>()?
+                || parser.peek2::<kw::catch_all_ref>()?)
         {
             catches.push(parser.parens(|p| {
                 let kind = if parser.peek::<kw::catch_ref>()? {
