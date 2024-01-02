@@ -333,6 +333,13 @@ pub enum Instruction<'a> {
     Throw(u32),
     ThrowRef,
 
+    // Deprecated exception-handling instructions
+    Try(BlockType),
+    Delegate(u32),
+    Catch(u32),
+    CatchAll,
+    Rethrow(u32),
+
     // Parametric instructions.
     Drop,
     Select,
@@ -994,9 +1001,21 @@ impl Encode for Instruction<'_> {
                 bt.encode(sink);
             }
             Instruction::Else => sink.push(0x05),
+            Instruction::Try(bt) => {
+                sink.push(0x06);
+                bt.encode(sink);
+            }
+            Instruction::Catch(t) => {
+                sink.push(0x07);
+                t.encode(sink);
+            }
             Instruction::Throw(t) => {
                 sink.push(0x08);
                 t.encode(sink);
+            }
+            Instruction::Rethrow(l) => {
+                sink.push(0x09);
+                l.encode(sink);
             }
             Instruction::ThrowRef => {
                 sink.push(0x0A);
@@ -1050,6 +1069,13 @@ impl Encode for Instruction<'_> {
                 sink.push(0x13);
                 ty.encode(sink);
                 table.encode(sink);
+            }
+            Instruction::Delegate(l) => {
+                sink.push(0x18);
+                l.encode(sink);
+            }
+            Instruction::CatchAll => {
+                sink.push(0x19);
             }
 
             // Parametric instructions.

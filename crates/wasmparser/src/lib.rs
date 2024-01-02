@@ -132,6 +132,12 @@ macro_rules! for_each_operator {
             @exceptions TryTable { try_table: $crate::TryTable } => visit_try_table
             @exceptions Throw { tag_index: u32 } => visit_throw
             @exceptions ThrowRef => visit_throw_ref
+            // Deprecated old instructions from the exceptions proposal
+            @exceptions Try { blockty: $crate::BlockType } => visit_try
+            @exceptions Catch { tag_index: u32 } => visit_catch
+            @exceptions Rethrow { relative_depth: u32 } => visit_rethrow
+            @exceptions Delegate { relative_depth: u32 } => visit_delegate
+            @exceptions CatchAll => visit_catch_all
             @mvp End => visit_end
             @mvp Br { relative_depth: u32 } => visit_br
             @mvp BrIf { relative_depth: u32 } => visit_br_if

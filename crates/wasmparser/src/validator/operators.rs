@@ -1373,6 +1373,21 @@ where
         self.unreachable()?;
         Ok(())
     }
+    fn visit_try(&mut self, _: BlockType) -> Self::Output {
+        bail!(self.offset, "unimplemented validation of deprecated opcode")
+    }
+    fn visit_catch(&mut self, _: u32) -> Self::Output {
+        bail!(self.offset, "unimplemented validation of deprecated opcode")
+    }
+    fn visit_rethrow(&mut self, _: u32) -> Self::Output {
+        bail!(self.offset, "unimplemented validation of deprecated opcode")
+    }
+    fn visit_delegate(&mut self, _: u32) -> Self::Output {
+        bail!(self.offset, "unimplemented validation of deprecated opcode")
+    }
+    fn visit_catch_all(&mut self) -> Self::Output {
+        bail!(self.offset, "unimplemented validation of deprecated opcode")
+    }
     fn visit_end(&mut self) -> Self::Output {
         let mut frame = self.pop_ctrl()?;
 

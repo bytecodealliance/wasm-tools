@@ -662,7 +662,8 @@ fn error_matches(error: &str, message: &str) -> bool {
     {
         return error.contains("expected ")
             || error.contains("constant out of range")
-            || error.contains("extra tokens remaining");
+            || error.contains("extra tokens remaining")
+            || error.contains("unimplemented validation of deprecated opcode");
     }
 
     if message == "illegal character" {

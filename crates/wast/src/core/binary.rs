@@ -932,6 +932,7 @@ fn find_names<'a>(
                         Instruction::If(block)
                         | Instruction::Block(block)
                         | Instruction::Loop(block)
+                        | Instruction::Try(block)
                         | Instruction::TryTable(TryTable { block, .. })
                         | Instruction::Let(LetType { block, .. }) => {
                             if let Some(name) = get_name(&block.label, &block.label_name) {

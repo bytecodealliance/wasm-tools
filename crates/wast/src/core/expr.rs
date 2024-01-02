@@ -1011,9 +1011,16 @@ instructions! {
         F64x2PromoteLowF32x4 : [0xfd, 95] : "f64x2.promote_low_f32x4",
 
         // Exception handling proposal
-        Throw(Index<'a>) : [0x08] : "throw",
         ThrowRef : [0x0a] : "throw_ref",
         TryTable(TryTable<'a>) : [0x1f] : "try_table",
+        Throw(Index<'a>) : [0x08] : "throw",
+
+        // Deprecated exception handling optocdes
+        Try(Box<BlockType<'a>>) : [0x06] : "try",
+        Catch(Index<'a>) : [0x07] : "catch",
+        Rethrow(Index<'a>) : [0x09] : "rethrow",
+        Delegate(Index<'a>) : [0x18] : "delegate",
+        CatchAll : [0x19] : "catch_all",
 
         // Relaxed SIMD proposal
         I8x16RelaxedSwizzle : [0xfd, 0x100]: "i8x16.relaxed_swizzle",

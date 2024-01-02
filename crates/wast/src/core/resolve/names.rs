@@ -514,7 +514,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.resolve_block_type(&mut t.block)?;
             }
 
-            Block(bt) | If(bt) | Loop(bt) => {
+            Block(bt) | If(bt) | Loop(bt) | Try(bt) => {
                 self.blocks.push(ExprBlock {
                     label: bt.label,
                     pushed_scope: false,
@@ -580,8 +580,19 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.resolve_label(&mut i.default)?;
             }
 
-            Throw(i) => {
+            Throw(i) | Catch(i) => {
                 self.resolver.resolve(i, Ns::Tag)?;
+            }
+
+            Rethrow(i) => {
+                self.resolve_label(i)?;
+            }
+
+            Delegate(i) => {
+                // Since a delegate starts counting one layer out from the
+                // current try-delegate block, we pop before we resolve labels.
+                self.blocks.pop();
+                self.resolve_label(i)?;
             }
 
             Select(s) => {

@@ -50,7 +50,7 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
             }
 
             // Label is out of scope so remove it from the stack.
-            OpKind::End => {
+            OpKind::End | OpKind::Delegate => {
                 self.label_indices.pop();
             }
         }
@@ -341,6 +341,7 @@ pub enum OpKind {
     BlockStart,
     BlockMid,
     End,
+    Delegate,
     Normal,
 }
 
@@ -370,7 +371,11 @@ macro_rules! define_visit {
     (kind Block) => (OpKind::BlockStart);
     (kind Loop) => (OpKind::BlockStart);
     (kind If) => (OpKind::BlockStart);
+    (kind Try) => (OpKind::BlockStart);
     (kind TryTable) => (OpKind::BlockStart);
+    (kind Catch) => (OpKind::BlockMid);
+    (kind CatchAll) => (OpKind::BlockMid);
+    (kind Delegate) => (OpKind::Delegate);
     (kind Else) => (OpKind::BlockMid);
     (kind End) => (OpKind::End);
     (kind $other:tt) => (OpKind::Normal);
@@ -1029,9 +1034,6 @@ macro_rules! define_visit {
     (name F64x2ConvertLowI32x4U) => ("f64x2.convert_low_i32x4_u");
     (name F32x4DemoteF64x2Zero) => ("f32x4.demote_f64x2_zero");
     (name F64x2PromoteLowF32x4) => ("f64x2.promote_low_f32x4");
-    (name TryTable) => ("try_table");
-    (name Throw) => ("throw");
-    (name ThrowRef) => ("throw_ref");
     (name I8x16RelaxedSwizzle) => ("i8x16.relaxed_swizzle");
     (name I32x4RelaxedTruncF32x4S) => ("i32x4.relaxed_trunc_f32x4_s");
     (name I32x4RelaxedTruncF32x4U) => ("i32x4.relaxed_trunc_f32x4_u");
@@ -1083,6 +1085,14 @@ macro_rules! define_visit {
     (name RefI31) => ("ref.i31");
     (name I31GetS) => ("i31.get_s");
     (name I31GetU) => ("i31.get_u");
+    (name TryTable) => ("try_table");
+    (name Throw) => ("throw");
+    (name ThrowRef) => ("throw_ref");
+    (name Rethrow) => ("rethrow");
+    (name Try) => ("try");
+    (name Catch) => ("catch");
+    (name CatchAll) => ("catch_all");
+    (name Delegate) => ("delegate");
 }
 
 impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {

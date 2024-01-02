@@ -1193,7 +1193,9 @@ impl Printer {
 
                 // Exiting a block prints `end` at the previous indentation
                 // level.
-                operator::OpKind::End if op_printer.printer.nesting > nesting_start => {
+                operator::OpKind::End | operator::OpKind::Delegate
+                    if op_printer.printer.nesting > nesting_start =>
+                {
                     op_printer.printer.nesting -= 1;
                     op_printer.printer.newline(offset);
                 }
