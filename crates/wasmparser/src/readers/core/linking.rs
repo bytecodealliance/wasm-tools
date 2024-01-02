@@ -390,8 +390,8 @@ impl<'a> LinkingSectionReader<'a> {
     /// Returns the iterator for advancing through the subsections.
     ///
     /// You can also use [`IntoIterator::into_iter`] directly on this type.
-    pub fn subsections(&mut self) -> &mut Subsections<'a, Linking<'a>> {
-        &mut self.subsections
+    pub fn subsections(&self) -> Subsections<'a, Linking<'a>> {
+        self.subsections.clone()
     }
 }
 
