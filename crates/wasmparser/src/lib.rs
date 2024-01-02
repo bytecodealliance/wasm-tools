@@ -343,17 +343,13 @@ macro_rules! for_each_operator {
             @gc RefCastNullable { hty: $crate::HeapType } => visit_ref_cast_nullable
             @gc BrOnCast {
                 relative_depth: u32,
-                from_type_nullable: bool,
-                from_heap_type: $crate::HeapType,
-                to_type_nullable: bool,
-                to_heap_type: $crate::HeapType
+                from_ref_type: $crate::RefType,
+                to_ref_type: $crate::RefType
             } => visit_br_on_cast
             @gc BrOnCastFail {
                 relative_depth: u32,
-                from_type_nullable: bool,
-                from_heap_type: $crate::HeapType,
-                to_type_nullable: bool,
-                to_heap_type: $crate::HeapType
+                from_ref_type: $crate::RefType,
+                to_ref_type: $crate::RefType
             } => visit_br_on_cast_fail
             @gc AnyConvertExtern => visit_any_convert_extern
             @gc ExternConvertAny => visit_extern_convert_any

@@ -243,6 +243,14 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         Ok(())
     }
 
+    fn from_ref_type(&mut self, ref_ty: RefType) -> Result<()> {
+        self.printer.print_reftype(ref_ty)
+    }
+
+    fn to_ref_type(&mut self, ref_ty: RefType) -> Result<()> {
+        self.printer.print_reftype(ref_ty)
+    }
+
     fn data_index(&mut self, idx: u32) -> Result<()> {
         self.printer.print_idx(&self.state.core.data_names, idx)
     }
@@ -475,48 +483,6 @@ macro_rules! define_visit {
         let rty = RefType::new(true, $hty)
             .ok_or_else(|| anyhow!("implementation limit: type index too large"))?;
         $self.printer.print_reftype(rty)?;
-    );
-    (
-        payload
-        $self:ident
-        BrOnCast
-        $relative_depth:ident
-        $from_type_nullable:ident
-        $from_heap_type:ident
-        $to_type_nullable:ident
-        $to_heap_type:ident
-    ) => (
-        $self.push_str(" ");
-        $self.relative_depth($relative_depth)?;
-        $self.push_str(" ");
-        let from_ty = RefType::new($from_type_nullable, $from_heap_type)
-            .ok_or_else(|| anyhow!("implementation limit: type index too large"))?;
-        $self.printer.print_reftype(from_ty)?;
-        $self.push_str(" ");
-        let to_ty = RefType::new($to_type_nullable, $to_heap_type)
-            .ok_or_else(|| anyhow!("implementation limit: type index too large"))?;
-        $self.printer.print_reftype(to_ty)?;
-    );
-    (
-        payload
-        $self:ident
-        BrOnCastFail
-        $relative_depth:ident
-        $from_type_nullable:ident
-        $from_heap_type:ident
-        $to_type_nullable:ident
-        $to_heap_type:ident
-    ) => (
-        $self.push_str(" ");
-        $self.relative_depth($relative_depth)?;
-        $self.push_str(" ");
-        let from_ty = RefType::new($from_type_nullable, $from_heap_type)
-            .ok_or_else(|| anyhow!("implementation limit: type index too large"))?;
-        $self.printer.print_reftype(from_ty)?;
-        $self.push_str(" ");
-        let to_ty = RefType::new($to_type_nullable, $to_heap_type)
-            .ok_or_else(|| anyhow!("implementation limit: type index too large"))?;
-        $self.printer.print_reftype(to_ty)?;
     );
     (payload $self:ident $op:ident $($arg:ident)*) => (
         $(

@@ -1095,9 +1095,12 @@ where
     }
 
     fn struct_field_at(&self, struct_type_index: u32, field_index: u32) -> Result<FieldType> {
+        let field_index = usize::try_from(field_index).map_err(|_| {
+            BinaryReaderError::new("unknown field: field index out of bounds", self.offset)
+        })?;
         self.struct_type_at(struct_type_index)?
             .fields
-            .get(usize::try_from(field_index).unwrap())
+            .get(field_index)
             .copied()
             .ok_or_else(|| {
                 BinaryReaderError::new("unknown field: field index out of bounds", self.offset)
@@ -3864,25 +3867,21 @@ where
     fn visit_br_on_cast(
         &mut self,
         relative_depth: u32,
-        from_type_nullable: bool,
-        from_heap_type: HeapType,
-        to_type_nullable: bool,
-        to_heap_type: HeapType,
+        mut from_ref_type: RefType,
+        mut to_ref_type: RefType,
     ) -> Self::Output {
-        let mut from_ty = RefType::new(from_type_nullable, from_heap_type).ok_or_else(|| {
-            BinaryReaderError::new("implementation limit: type index too large", self.offset)
-        })?;
-        self.resources.check_ref_type(&mut from_ty, self.offset)?;
+        self.resources
+            .check_ref_type(&mut from_ref_type, self.offset)?;
+        self.resources
+            .check_ref_type(&mut to_ref_type, self.offset)?;
 
-        let mut to_ty = RefType::new(to_type_nullable, to_heap_type).ok_or_else(|| {
-            BinaryReaderError::new("implementation limit: type index too large", self.offset)
-        })?;
-        self.resources.check_ref_type(&mut to_ty, self.offset)?;
-
-        if !self.resources.is_subtype(to_ty.into(), from_ty.into()) {
+        if !self
+            .resources
+            .is_subtype(to_ref_type.into(), from_ref_type.into())
+        {
             bail!(
                 self.offset,
-                "type mismatch: expected {from_ty}, found {to_ty}"
+                "type mismatch: expected {from_ref_type}, found {to_ref_type}"
             );
         }
 
@@ -3890,14 +3889,14 @@ where
         let result_tys = self.results(block_ty)?;
         for (i, ty) in result_tys.clone().rev().enumerate() {
             if i == 0 {
-                if !self.resources.is_subtype(to_ty.into(), ty) {
+                if !self.resources.is_subtype(to_ref_type.into(), ty) {
                     bail!(
                         self.offset,
-                        "type mismatch: casting to type {to_ty}, but it does not match label \
-                         result type {ty}"
+                        "type mismatch: casting to type {to_ref_type}, but it does not match \
+                         label result type {ty}"
                     )
                 }
-                self.pop_operand(Some(from_ty.into()))?;
+                self.pop_operand(Some(from_ref_type.into()))?;
             } else {
                 self.pop_operand(Some(ty))?;
             }
@@ -3905,39 +3904,35 @@ where
         for ty in result_tys.clone().take(result_tys.len().saturating_sub(1)) {
             self.push_operand(ty)?;
         }
-        let diff_ty = RefType::difference(from_ty, to_ty);
+        let diff_ty = RefType::difference(from_ref_type, to_ref_type);
         self.push_operand(diff_ty)?;
         Ok(())
     }
     fn visit_br_on_cast_fail(
         &mut self,
         relative_depth: u32,
-        from_type_nullable: bool,
-        from_heap_type: HeapType,
-        to_type_nullable: bool,
-        to_heap_type: HeapType,
+        mut from_ref_type: RefType,
+        mut to_ref_type: RefType,
     ) -> Self::Output {
-        let mut from_ty = RefType::new(from_type_nullable, from_heap_type).ok_or_else(|| {
-            BinaryReaderError::new("implementation limit: type index too large", self.offset)
-        })?;
-        self.resources.check_ref_type(&mut from_ty, self.offset)?;
+        self.resources
+            .check_ref_type(&mut from_ref_type, self.offset)?;
+        self.resources
+            .check_ref_type(&mut to_ref_type, self.offset)?;
 
-        let mut to_ty = RefType::new(to_type_nullable, to_heap_type).ok_or_else(|| {
-            BinaryReaderError::new("implementation limit: type index too large", self.offset)
-        })?;
-        self.resources.check_ref_type(&mut to_ty, self.offset)?;
-
-        if !self.resources.is_subtype(to_ty.into(), from_ty.into()) {
+        if !self
+            .resources
+            .is_subtype(to_ref_type.into(), from_ref_type.into())
+        {
             bail!(
                 self.offset,
-                "type mismatch: expected {from_ty}, found {to_ty}"
+                "type mismatch: expected {from_ref_type}, found {to_ref_type}"
             );
         }
 
         let (block_ty, _frame_kind) = self.jump(relative_depth)?;
         let result_tys = self.results(block_ty)?;
 
-        let diff_ty = RefType::difference(from_ty, to_ty);
+        let diff_ty = RefType::difference(from_ref_type, to_ref_type);
         let Some(result_ref_ty) = result_tys.clone().last() else {
             bail!(
                 self.offset,
@@ -3953,7 +3948,7 @@ where
 
         for (i, ty) in result_tys.clone().rev().enumerate() {
             if i == 0 {
-                self.pop_operand(Some(from_ty.into()))?;
+                self.pop_operand(Some(from_ref_type.into()))?;
             } else {
                 self.pop_operand(Some(ty))?;
             }
@@ -3961,7 +3956,7 @@ where
         for ty in result_tys.clone().take(result_tys.len().saturating_sub(1)) {
             self.push_operand(ty)?;
         }
-        self.push_operand(to_ty)?;
+        self.push_operand(to_ref_type)?;
         Ok(())
     }
     fn visit_ref_i31(&mut self) -> Self::Output {

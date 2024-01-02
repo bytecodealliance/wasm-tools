@@ -1,4 +1,4 @@
-use crate::{encode_section, Encode, HeapType, Section, SectionId, ValType};
+use crate::{encode_section, Encode, HeapType, RefType, Section, SectionId, ValType};
 use std::borrow::Cow;
 
 /// An encoder for the code section.
@@ -593,17 +593,13 @@ pub enum Instruction<'a> {
     RefCastNullable(HeapType),
     BrOnCast {
         relative_depth: u32,
-        from_type_nullable: bool,
-        from_heap_type: HeapType,
-        to_type_nullable: bool,
-        to_heap_type: HeapType,
+        from_ref_type: RefType,
+        to_ref_type: RefType,
     },
     BrOnCastFail {
         relative_depth: u32,
-        from_type_nullable: bool,
-        from_heap_type: HeapType,
-        to_type_nullable: bool,
-        to_heap_type: HeapType,
+        from_ref_type: RefType,
+        to_ref_type: RefType,
     },
     AnyConvertExtern,
     ExternConvertAny,
@@ -1598,33 +1594,31 @@ impl Encode for Instruction<'_> {
             }
             Instruction::BrOnCast {
                 relative_depth,
-                from_type_nullable,
-                from_heap_type,
-                to_type_nullable,
-                to_heap_type,
+                from_ref_type,
+                to_ref_type,
             } => {
                 sink.push(0xfb);
                 sink.push(0x18);
-                let cast_flags = (from_type_nullable as u8) | ((to_type_nullable as u8) << 1);
+                let cast_flags =
+                    (from_ref_type.nullable as u8) | ((to_ref_type.nullable as u8) << 1);
                 relative_depth.encode(sink);
                 sink.push(cast_flags);
-                from_heap_type.encode(sink);
-                to_heap_type.encode(sink);
+                from_ref_type.heap_type.encode(sink);
+                to_ref_type.heap_type.encode(sink);
             }
             Instruction::BrOnCastFail {
                 relative_depth,
-                from_type_nullable,
-                from_heap_type,
-                to_type_nullable,
-                to_heap_type,
+                from_ref_type,
+                to_ref_type,
             } => {
                 sink.push(0xfb);
                 sink.push(0x19);
-                let cast_flags = (from_type_nullable as u8) | ((to_type_nullable as u8) << 1);
+                let cast_flags =
+                    (from_ref_type.nullable as u8) | ((to_ref_type.nullable as u8) << 1);
                 relative_depth.encode(sink);
                 sink.push(cast_flags);
-                from_heap_type.encode(sink);
-                to_heap_type.encode(sink);
+                from_ref_type.heap_type.encode(sink);
+                to_ref_type.heap_type.encode(sink);
             }
             Instruction::AnyConvertExtern => {
                 sink.push(0xfb);

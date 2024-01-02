@@ -363,8 +363,8 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
         (map $arg:ident flags) => (());
         (map $arg:ident ty) => (t.translate_ty($arg)?);
         (map $arg:ident hty) => (t.translate_heapty($arg)?);
-        (map $arg:ident from_heap_type) => (t.translate_heapty($arg)?);
-        (map $arg:ident to_heap_type) => (t.translate_heapty($arg)?);
+        (map $arg:ident from_ref_type) => (t.translate_refty($arg)?);
+        (map $arg:ident to_ref_type) => (t.translate_refty($arg)?);
         (map $arg:ident memarg) => (t.translate_memarg($arg)?);
         (map $arg:ident local_index) => (*$arg);
         (map $arg:ident value) => ($arg);

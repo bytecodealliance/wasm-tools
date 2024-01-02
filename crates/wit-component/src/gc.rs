@@ -475,9 +475,13 @@ impl<'a> Module<'a> {
 
     fn valty(&mut self, ty: ValType) {
         match ty {
-            ValType::Ref(r) => self.heapty(r.heap_type()),
+            ValType::Ref(r) => self.refty(r),
             ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => {}
         }
+    }
+
+    fn refty(&mut self, ty: RefType) {
+        self.heapty(ty.heap_type())
     }
 
     fn heapty(&mut self, ty: HeapType) {
@@ -1018,8 +1022,8 @@ macro_rules! define_visit {
     (mark_live $self:ident $arg:ident blockty) => {$self.blockty($arg);};
     (mark_live $self:ident $arg:ident ty) => {$self.valty($arg)};
     (mark_live $self:ident $arg:ident hty) => {$self.heapty($arg)};
-    (mark_live $self:ident $arg:ident from_heap_type) => {$self.heapty($arg);};
-    (mark_live $self:ident $arg:ident to_heap_type) => {$self.heapty($arg);};
+    (mark_live $self:ident $arg:ident from_ref_type) => {$self.refty($arg);};
+    (mark_live $self:ident $arg:ident to_ref_type) => {$self.refty($arg);};
     (mark_live $self:ident $arg:ident lane) => {};
     (mark_live $self:ident $arg:ident lanes) => {};
     (mark_live $self:ident $arg:ident flags) => {};
@@ -1201,8 +1205,8 @@ macro_rules! define_encode {
     (map $self:ident $arg:ident memarg) => {$self.memarg($arg)};
     (map $self:ident $arg:ident blockty) => {$self.blockty($arg)};
     (map $self:ident $arg:ident hty) => {$self.heapty($arg)};
-    (map $self:ident $arg:ident from_heap_type) => {$self.heapty($arg)};
-    (map $self:ident $arg:ident to_heap_type) => {$self.heapty($arg)};
+    (map $self:ident $arg:ident from_ref_type) => {$self.refty($arg)};
+    (map $self:ident $arg:ident to_ref_type) => {$self.refty($arg)};
     (map $self:ident $arg:ident tag_index) => {$arg};
     (map $self:ident $arg:ident relative_depth) => {$arg};
     (map $self:ident $arg:ident function_index) => {$self.funcs.remap($arg)};
