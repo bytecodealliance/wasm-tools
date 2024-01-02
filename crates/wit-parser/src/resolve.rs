@@ -27,7 +27,7 @@ use std::path::{Path, PathBuf};
 ///
 /// Each item in a `Resolve` has a parent link to trace it back to the original
 /// package as necessary.
-#[derive(Default, Clone, Serialize)]
+#[derive(Default, Clone, Debug, Serialize)]
 pub struct Resolve {
     /// All knowns worlds within this `Resolve`.
     ///
@@ -68,7 +68,7 @@ pub struct Resolve {
 /// A package is a collection of interfaces and worlds. Packages additionally
 /// have a unique identifier that affects generated components and uniquely
 /// identifiers this particular package.
-#[derive(Clone, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Package {
     /// A unique name corresponding to this package.
     pub name: PackageName,
