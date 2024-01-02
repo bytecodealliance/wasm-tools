@@ -184,6 +184,7 @@ macro_rules! for_each_operator {
             @reference_types RefNull { hty: $crate::HeapType } => visit_ref_null
             @reference_types RefIsNull => visit_ref_is_null
             @reference_types RefFunc { function_index: u32 } => visit_ref_func
+            @gc RefEq => visit_ref_eq
             @mvp I32Eqz => visit_i32_eqz
             @mvp I32Eq => visit_i32_eq
             @mvp I32Ne => visit_i32_ne
@@ -316,7 +317,12 @@ macro_rules! for_each_operator {
             // 0xFB prefixed operators
             // Garbage Collection
             // http://github.com/WebAssembly/gc
+            @gc StructNew { struct_type_index: u32 } => visit_struct_new
             @gc StructNewDefault { struct_type_index: u32 } => visit_struct_new_default
+            @gc StructGet { struct_type_index: u32, field_index: u32 } => visit_struct_get
+            @gc StructGetS { struct_type_index: u32, field_index: u32 } => visit_struct_get_s
+            @gc StructGetU { struct_type_index: u32, field_index: u32 } => visit_struct_get_u
+                @gc StructSet { struct_type_index: u32, field_index: u32 } => visit_struct_set
             @gc ArrayNew { array_type_index: u32 } => visit_array_new
             @gc ArrayNewDefault { array_type_index: u32 } => visit_array_new_default
             @gc ArrayNewFixed { array_type_index: u32, array_size: u32 } => visit_array_new_fixed
@@ -335,6 +341,16 @@ macro_rules! for_each_operator {
             @gc RefTestNullable { hty: $crate::HeapType } => visit_ref_test_nullable
             @gc RefCastNonNull { hty: $crate::HeapType } => visit_ref_cast_non_null
             @gc RefCastNullable { hty: $crate::HeapType } => visit_ref_cast_nullable
+            @gc BrOnCast {
+                relative_depth: u32,
+                from_ref_type: $crate::RefType,
+                to_ref_type: $crate::RefType
+            } => visit_br_on_cast
+            @gc BrOnCastFail {
+                relative_depth: u32,
+                from_ref_type: $crate::RefType,
+                to_ref_type: $crate::RefType
+            } => visit_br_on_cast_fail
             @gc AnyConvertExtern => visit_any_convert_extern
             @gc ExternConvertAny => visit_extern_convert_any
             @gc RefI31 => visit_ref_i31

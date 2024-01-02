@@ -1,0 +1,9 @@
+(module
+  (rec
+    (type $s0 (;0;) (struct (field (ref 0)) (field (ref 1)) (field (ref 0)) (field (ref 1))))
+    (type $s1 (;1;) (struct (field (ref 0)) (field (ref 1)) (field (ref 0)) (field (ref 1))))
+  )
+  (type $forward (;2;) (struct))
+  (type (;3;) (func (param (ref 2))))
+  (func (;0;) (type 3) (param (ref 2)))
+)

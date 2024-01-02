@@ -455,6 +455,14 @@ impl ModuleState {
 
             // These are valid const expressions with the gc proposal is
             // enabled.
+            (@visit $self:ident visit_struct_new $type_index:ident) => {{
+                $self.validate_gc("struct.new")?;
+                $self.validator().visit_struct_new($type_index)
+            }};
+            (@visit $self:ident visit_struct_new_default $type_index:ident) => {{
+                $self.validate_gc("struct.new_default")?;
+                $self.validator().visit_struct_new_default($type_index)
+            }};
             (@visit $self:ident visit_array_new $type_index:ident) => {{
                 $self.validate_gc("array.new")?;
                 $self.validator().visit_array_new($type_index)

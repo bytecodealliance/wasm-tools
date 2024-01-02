@@ -1,0 +1,18 @@
+(module
+  (type $t (;0;) (struct (field i32) (field (mut i32))))
+  (type (;1;) (func))
+  (func (;0;) (type 1)
+    (local (ref null 0))
+    local.get 0
+    struct.get $t 1
+    drop
+  )
+  (func (;1;) (type 1)
+    (local (ref null 0))
+    local.get 0
+    i32.const 0
+    struct.set $t 1
+  )
+  (export "struct.get-null" (func 0))
+  (export "struct.set-null" (func 1))
+)

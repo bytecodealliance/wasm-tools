@@ -82,15 +82,22 @@ pub trait WasmModuleResources {
             .check_value_type(*t)
             .map_err(|s| BinaryReaderError::new(s, offset))?;
         match t {
-            ValType::Ref(r) => {
-                let nullable = r.is_nullable();
-                let mut hty = r.heap_type();
-                self.check_heap_type(&mut hty, offset)?;
-                *r = RefType::new(nullable, hty).unwrap();
-                Ok(())
-            }
+            ValType::Ref(r) => self.check_ref_type(r, offset),
             ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => Ok(()),
         }
+    }
+
+    /// Check and canonicalize a reference type.
+    fn check_ref_type(
+        &self,
+        ref_type: &mut RefType,
+        offset: usize,
+    ) -> Result<(), BinaryReaderError> {
+        let is_nullable = ref_type.is_nullable();
+        let mut heap_ty = ref_type.heap_type();
+        self.check_heap_type(&mut heap_ty, offset)?;
+        *ref_type = RefType::new(is_nullable, heap_ty).unwrap();
+        Ok(())
     }
 
     /// Checks that a `HeapType` is valid and then additionally place it in its

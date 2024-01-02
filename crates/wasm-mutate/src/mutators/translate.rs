@@ -363,12 +363,17 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
         (map $arg:ident flags) => (());
         (map $arg:ident ty) => (t.translate_ty($arg)?);
         (map $arg:ident hty) => (t.translate_heapty($arg)?);
+        (map $arg:ident from_ref_type) => (t.translate_refty($arg)?);
+        (map $arg:ident to_ref_type) => (t.translate_refty($arg)?);
         (map $arg:ident memarg) => (t.translate_memarg($arg)?);
         (map $arg:ident local_index) => (*$arg);
         (map $arg:ident value) => ($arg);
         (map $arg:ident lane) => (*$arg);
         (map $arg:ident lanes) => (*$arg);
         (map $arg:ident array_size) => (*$arg);
+        (map $arg:ident field_index) => (*$arg);
+        (map $arg:ident from_type_nullable) => (*$arg);
+        (map $arg:ident to_type_nullable) => (*$arg);
 
         // This case takes the arguments of a wasmparser instruction and creates
         // a wasm-encoder instruction. There are a few special cases for where
@@ -392,6 +397,7 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
         });
         (build MemoryGrow $mem:ident $_:ident) => (I::MemoryGrow($mem));
         (build MemorySize $mem:ident $_:ident) => (I::MemorySize($mem));
+        (build StructNew $type_index:ident) => (I::StructNew($type_index));
         (build ArrayGet $type_index:ident) => (I::ArrayGet($type_index));
         (build ArrayGetS $type_index:ident) => (I::ArrayGetS($type_index));
         (build ArrayGetU $type_index:ident) => (I::ArrayGetU($type_index));

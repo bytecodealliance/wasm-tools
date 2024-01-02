@@ -1,0 +1,85 @@
+(module
+  (type $s (;0;) (struct (field i8) (field (mut i8)) (field i16) (field (mut i16))))
+  (type (;1;) (func (result i32 i32)))
+  (type (;2;) (func (param i32) (result i32 i32)))
+  (func (;0;) (type 1) (result i32 i32)
+    global.get 0
+    struct.get_s $s 0
+    global.get 0
+    struct.get_u $s 0
+  )
+  (func (;1;) (type 1) (result i32 i32)
+    global.get 1
+    struct.get_s $s 0
+    global.get 1
+    struct.get_u $s 0
+  )
+  (func (;2;) (type 1) (result i32 i32)
+    global.get 0
+    struct.get_s $s 1
+    global.get 0
+    struct.get_u $s 1
+  )
+  (func (;3;) (type 1) (result i32 i32)
+    global.get 1
+    struct.get_s $s 1
+    global.get 1
+    struct.get_u $s 1
+  )
+  (func (;4;) (type 1) (result i32 i32)
+    global.get 0
+    struct.get_s $s 2
+    global.get 0
+    struct.get_u $s 2
+  )
+  (func (;5;) (type 1) (result i32 i32)
+    global.get 1
+    struct.get_s $s 2
+    global.get 1
+    struct.get_u $s 2
+  )
+  (func (;6;) (type 1) (result i32 i32)
+    global.get 0
+    struct.get_s $s 3
+    global.get 0
+    struct.get_u $s 3
+  )
+  (func (;7;) (type 1) (result i32 i32)
+    global.get 1
+    struct.get_s $s 3
+    global.get 1
+    struct.get_u $s 3
+  )
+  (func (;8;) (type 2) (param i32) (result i32 i32)
+    global.get 0
+    local.get 0
+    struct.set $s 1
+    global.get 0
+    struct.get_s $s 1
+    global.get 0
+    struct.get_u $s 1
+  )
+  (func (;9;) (type 2) (param i32) (result i32 i32)
+    global.get 0
+    local.get 0
+    struct.set $s 3
+    global.get 0
+    struct.get_s $s 3
+    global.get 0
+    struct.get_u $s 3
+  )
+  (global (;0;) (ref 0) i32.const 0 i32.const 1 i32.const 2 i32.const 3 struct.new $s)
+  (global (;1;) (ref 0) i32.const 254 i32.const 255 i32.const 65534 i32.const 65535 struct.new $s)
+  (export "g0" (global 0))
+  (export "g1" (global 1))
+  (export "get_packed_g0_0" (func 0))
+  (export "get_packed_g1_0" (func 1))
+  (export "get_packed_g0_1" (func 2))
+  (export "get_packed_g1_1" (func 3))
+  (export "get_packed_g0_2" (func 4))
+  (export "get_packed_g1_2" (func 5))
+  (export "get_packed_g0_3" (func 6))
+  (export "get_packed_g1_3" (func 7))
+  (export "set_get_packed_g0_1" (func 8))
+  (export "set_get_packed_g0_3" (func 9))
+)

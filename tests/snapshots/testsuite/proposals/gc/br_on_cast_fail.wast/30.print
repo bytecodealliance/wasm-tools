@@ -1,0 +1,23 @@
+(module
+  (type $t (;0;) (struct))
+  (type (;1;) (func (param (ref any)) (result (ref any))))
+  (type (;2;) (func (param anyref) (result anyref)))
+  (func (;0;) (type 1) (param (ref any)) (result (ref any))
+    block (result (ref 0)) ;; label = @1
+      local.get 0
+      br_on_cast_fail 1 (;@0;) (ref any) (ref 0)
+    end
+  )
+  (func (;1;) (type 2) (param anyref) (result anyref)
+    block (result (ref 0)) ;; label = @1
+      local.get 0
+      br_on_cast_fail 1 (;@0;) anyref (ref 0)
+    end
+  )
+  (func (;2;) (type 2) (param anyref) (result anyref)
+    block (result (ref null 0)) ;; label = @1
+      local.get 0
+      br_on_cast_fail 1 (;@0;) anyref (ref null 0)
+    end
+  )
+)
