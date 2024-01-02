@@ -141,14 +141,7 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
     false
 }
 
-fn skip_validation(test: &Path) -> bool {
-    let broken = &[
-    //..
-    ];
-    if broken.iter().any(|x| test.ends_with(x)) {
-        return true;
-    }
-
+fn skip_validation(_test: &Path) -> bool {
     false
 }
 
