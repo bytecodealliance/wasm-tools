@@ -28,7 +28,7 @@ mod encode;
 /// The `Arbitrary` implementation uses the [`Config::default()`][crate::Config]
 /// configuration. If you want to customize the shape of generated components,
 /// create your own [`Config`][crate::Config] instance and pass it to
-/// [`Component::new`][crate::ConfiguredComponent].
+/// [`Component::new`][crate::Component::new].
 #[derive(Debug)]
 pub struct Component {
     sections: Vec<Section>,

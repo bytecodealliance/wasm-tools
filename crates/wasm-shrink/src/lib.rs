@@ -1,7 +1,7 @@
 //! Shrink a Wasm file while maintaining a property of interest (such as
 //! triggering a compiler bug).
 //!
-//! See the [`WasmShrink`][WasmShrink] type for details.
+//! See the [`WasmShrink`] type for details.
 
 use std::collections::HashSet;
 
