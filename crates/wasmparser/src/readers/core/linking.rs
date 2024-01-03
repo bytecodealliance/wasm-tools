@@ -31,11 +31,30 @@ bitflags::bitflags! {
         /// The symbol represents an absolute address.
         const ABSOLUTE = 1 << 9;
     }
+
+    /// Flags for WebAssembly segments.
+    ///
+    /// These flags are defined by implementation at the time of writing:
+    /// <https://github.com/llvm/llvm-project/blob/llvmorg-17.0.6/llvm/include/llvm/BinaryFormat/Wasm.h#L391-L394>
+    #[repr(transparent)]
+    #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+    pub struct SegmentFlags: u32 {
+        /// The segment contains only null-terminated strings, which allows the linker to perform merging.
+        const STRINGS = 0x1;
+        /// The segment contains thread-local data.
+        const TLS = 0x2;
+    }
 }
 
 impl<'a> FromReader<'a> for SymbolFlags {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        Ok(SymbolFlags::from_bits_retain(reader.read_var_u32()?))
+        Ok(Self::from_bits_retain(reader.read_var_u32()?))
+    }
+}
+
+impl<'a> FromReader<'a> for SegmentFlags {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        Ok(Self::from_bits_retain(reader.read_var_u32()?))
     }
 }
 
@@ -64,14 +83,14 @@ pub struct Segment<'a> {
     /// The required alignment of the segment, encoded as a power of 2.
     pub alignment: u32,
     /// The flags for the segment.
-    pub flags: u32,
+    pub flags: SegmentFlags,
 }
 
 impl<'a> FromReader<'a> for Segment<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let name = reader.read_string()?;
         let alignment = reader.read_var_u32()?;
-        let flags = reader.read_var_u32()?;
+        let flags = reader.read()?;
         Ok(Self {
             name,
             alignment,
