@@ -623,6 +623,9 @@ name = "flagset"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d52a7e408202050813e6f1d9addadcaafef3dca7530c7ddfb005d4081cce6779"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "flate2"
@@ -1810,7 +1813,9 @@ dependencies = [
 name = "wasm-smith"
 version = "0.13.1"
 dependencies = [
+ "anyhow",
  "arbitrary",
+ "clap 4.4.8",
  "criterion",
  "flagset",
  "indexmap 2.1.0",

@@ -7,7 +7,7 @@
 #![allow(non_snake_case, non_camel_case_types, non_upper_case_globals)]
 
 use arbitrary::{Error, Unstructured};
-use wasm_smith::{DefaultConfig, Module};
+use wasm_smith::{Config, Module};
 
 #[repr(C)]
 pub struct wasm_tools_byte_vec_t {
@@ -50,7 +50,7 @@ pub unsafe extern "C" fn wasm_smith_create(
 
     bytes.data = std::ptr::null_mut();
     let mut u = Unstructured::new(seed_bytes);
-    match Module::new(DefaultConfig::default(), &mut u) {
+    match Module::new(Config::default(), &mut u) {
         Ok(module) => {
             let mut wasm_buffer = module.to_bytes().into_boxed_slice();
             bytes.data = wasm_buffer.as_mut_ptr();

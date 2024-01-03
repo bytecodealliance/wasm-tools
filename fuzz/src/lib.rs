@@ -1,6 +1,6 @@
 use libfuzzer_sys::arbitrary::{Result, Unstructured};
 use std::fmt::Debug;
-use wasm_smith::{Component, Module, SwarmConfig};
+use wasm_smith::{Component, Config, Module};
 
 pub mod incremental_parse;
 pub mod mutate;
@@ -14,9 +14,9 @@ pub mod validate_valid_module;
 
 pub fn generate_valid_module(
     u: &mut Unstructured,
-    configure: impl FnOnce(&mut SwarmConfig, &mut Unstructured<'_>) -> Result<()>,
-) -> Result<(Vec<u8>, SwarmConfig)> {
-    let mut config: SwarmConfig = u.arbitrary()?;
+    configure: impl FnOnce(&mut Config, &mut Unstructured<'_>) -> Result<()>,
+) -> Result<(Vec<u8>, Config)> {
+    let mut config: Config = u.arbitrary()?;
 
     // These are disabled in the swarm config by default, but we want to test
     // them. Use the input data to determine whether these features are enabled.
@@ -49,9 +49,9 @@ pub fn generate_valid_module(
 
 pub fn generate_valid_component(
     u: &mut Unstructured,
-    configure: impl FnOnce(&mut SwarmConfig, &mut Unstructured<'_>) -> Result<()>,
-) -> Result<(Vec<u8>, SwarmConfig)> {
-    let mut config: SwarmConfig = u.arbitrary()?;
+    configure: impl FnOnce(&mut Config, &mut Unstructured<'_>) -> Result<()>,
+) -> Result<(Vec<u8>, Config)> {
+    let mut config: Config = u.arbitrary()?;
 
     // These are disabled in the swarm config by default, but we want to test
     // them. Use the input data to determine whether these features are enabled.
