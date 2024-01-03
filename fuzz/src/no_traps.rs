@@ -1,5 +1,4 @@
 use arbitrary::{Result, Unstructured};
-use wasm_smith::Config;
 #[cfg(feature = "wasmtime")]
 use wasmtime::*;
 
@@ -30,7 +29,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     #[cfg(feature = "wasmtime")]
     {
         // Configure the engine, module, and store
-        let mut eng_conf = Config::new();
+        let mut eng_conf = wasmtime::Config::new();
         eng_conf.wasm_memory64(true);
         eng_conf.wasm_multi_memory(true);
         eng_conf.consume_fuel(true);
@@ -99,7 +98,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     Ok(())
 }
 
-fn validate_module(config: Config, wasm_bytes: &Vec<u8>) {
+fn validate_module(config: wasm_smith::Config, wasm_bytes: &Vec<u8>) {
     // Validate the module or component and assert that it passes validation.
     let mut validator = wasmparser::Validator::new_with_features(wasmparser::WasmFeatures {
         component_model: false,
