@@ -2666,6 +2666,7 @@ impl Printer {
                 }
             )*})
         }
+        // N.B.: Keep in sync with `parse_sym_flags` in `crates/wast/src/core/custom.rs`.
         print_flag! {
             BINDING_WEAK = "binding-weak"
             BINDING_LOCAL = "binding-local"

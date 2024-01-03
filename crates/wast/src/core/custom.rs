@@ -360,6 +360,7 @@ fn parse_sym_flags(parser: Parser<'_>) -> Result<u32> {
                 }
             })*};
         }
+        // N.B.: Keep in sync with `print_dylink0_flags` in `crates/wasmprinter/src/lib.rs`.
         parse_flags! {
             "binding-weak" = 1 << 0,
             "binding-local" = 1 << 1,

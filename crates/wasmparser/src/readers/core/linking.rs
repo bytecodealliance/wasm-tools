@@ -12,6 +12,10 @@ bitflags::bitflags! {
     #[repr(transparent)]
     #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub struct SymbolFlags: u32 {
+        /* N.B.:
+            Newly added flags should be keep in sync with `print_dylink0_flags`
+            in `crates/wasmprinter/src/lib.rs`.
+        */
         /// This is a weak symbol.
         const BINDING_WEAK = 1 << 0;
         /// This is a local symbol (this is exclusive with [BINDING_WEAK]).
