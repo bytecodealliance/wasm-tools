@@ -368,6 +368,8 @@ fn parse_sym_flags(parser: Parser<'_>) -> Result<u32> {
             "exported" = 1 << 5,
             "explicit-name" = 1 << 6,
             "no-strip" = 1 << 7,
+            "tls" = 1 << 8,
+            "absolute" = 1 << 9,
         }
         return Err(l.error());
     }

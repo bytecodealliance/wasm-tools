@@ -2674,6 +2674,8 @@ impl Printer {
             EXPORTED = "exported"
             EXPLICIT_NAME = "explicit-name"
             NO_STRIP = "no-strip"
+            TLS = "tls"
+            ABSOLUTE = "absolute"
         }
         if !flags.is_empty() {
             write!(self.result, " {:#x}", flags)?;

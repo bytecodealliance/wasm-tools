@@ -26,6 +26,10 @@ bitflags::bitflags! {
         const EXPLICIT_NAME = 1 << 6;
         /// This symbol is intended to be included in the linker output, regardless of whether it is used by the program.
         const NO_STRIP = 1 << 7;
+        /// The symbol resides in thread local storage.
+        const TLS = 1 << 8;
+        /// The symbol represents an absolute address.
+        const ABSOLUTE = 1 << 9;
     }
 }
 
