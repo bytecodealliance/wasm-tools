@@ -12,21 +12,6 @@ const WASM_DYLINK_NEEDED: u8 = 2;
 const WASM_DYLINK_EXPORT_INFO: u8 = 3;
 const WASM_DYLINK_IMPORT_INFO: u8 = 4;
 
-#[allow(missing_docs)]
-pub const WASM_SYM_BINDING_WEAK: u32 = 1 << 0;
-#[allow(missing_docs)]
-pub const WASM_SYM_BINDING_LOCAL: u32 = 1 << 1;
-#[allow(missing_docs)]
-pub const WASM_SYM_VISIBILITY_HIDDEN: u32 = 1 << 2;
-#[allow(missing_docs)]
-pub const WASM_SYM_UNDEFINED: u32 = 1 << 4;
-#[allow(missing_docs)]
-pub const WASM_SYM_EXPORTED: u32 = 1 << 5;
-#[allow(missing_docs)]
-pub const WASM_SYM_EXPLICIT_NAME: u32 = 1 << 6;
-#[allow(missing_docs)]
-pub const WASM_SYM_NO_STRIP: u32 = 1 << 7;
-
 /// Represents a `WASM_DYLINK_MEM_INFO` field
 #[derive(Debug, Copy, Clone)]
 pub struct MemInfo {
