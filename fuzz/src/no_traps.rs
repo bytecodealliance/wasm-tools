@@ -1,5 +1,5 @@
 use arbitrary::{Result, Unstructured};
-use wasm_smith::SwarmConfig;
+use wasm_smith::Config;
 #[cfg(feature = "wasmtime")]
 use wasmtime::*;
 
@@ -98,7 +98,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     Ok(())
 }
 
-fn validate_module(config: SwarmConfig, wasm_bytes: &Vec<u8>) {
+fn validate_module(config: Config, wasm_bytes: &Vec<u8>) {
     // Validate the module or component and assert that it passes validation.
     let mut validator = wasmparser::Validator::new_with_features(wasmparser::WasmFeatures {
         component_model: false,

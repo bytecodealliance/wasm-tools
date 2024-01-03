@@ -16,7 +16,9 @@ name = "corpus"
 harness = false
 
 [dependencies]
+anyhow = { workspace = true, optional = true }
 arbitrary = { workspace = true, features = ["derive"] }
+clap = { workspace = true, optional = true }
 flagset = "0.4"
 indexmap = { workspace = true }
 leb128 = { workspace = true }
@@ -24,6 +26,7 @@ serde = { workspace = true, optional = true }
 serde_derive = { workspace = true, optional = true }
 wasm-encoder = { workspace = true, features = ['wasmparser'] }
 wasmparser = { workspace = true, optional = true }
+wat = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
@@ -36,4 +39,4 @@ wat = { path = "../wat" }
 libfuzzer-sys = { workspace = true }
 
 [features]
-_internal_cli = ["serde", "serde_derive", "wasmparser"]
+_internal_cli = ["anyhow", "clap", "flagset/serde", "serde", "serde_derive", "wasmparser", "wat"]
