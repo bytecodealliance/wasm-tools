@@ -39,7 +39,7 @@ use {
         Instruction as Ins, MemArg, MemorySection, MemoryType, Module, RawCustomSection, RefType,
         StartSection, TableSection, TableType, TypeSection, ValType,
     },
-    wasmparser::WASM_SYM_BINDING_WEAK,
+    wasmparser::SymbolFlags,
 };
 
 mod metadata;
@@ -892,7 +892,7 @@ fn resolve_symbols<'a>(
                             mutable: false,
                         }),
                     },
-                    flags: 0,
+                    flags: SymbolFlags::empty(),
                 },
             );
         }
@@ -924,7 +924,7 @@ fn resolve_symbols<'a>(
                                 results: Vec::new(),
                             }),
                         },
-                        flags: 0,
+                        flags: SymbolFlags::empty(),
                     },
                 ));
             }
@@ -1321,7 +1321,7 @@ impl Linker {
                 && (self.stub_missing_functions
                     || missing
                         .iter()
-                        .all(|(_, export)| 0 != (export.flags & WASM_SYM_BINDING_WEAK)))
+                        .all(|(_, export)| export.flags.contains(SymbolFlags::BINDING_WEAK)))
             {
                 self.stub_missing_functions = false;
                 self.libraries.push((
@@ -1335,7 +1335,7 @@ impl Linker {
                     "unresolved symbol(s):\n{}",
                     missing
                         .iter()
-                        .filter(|(_, export)| 0 == (export.flags & WASM_SYM_BINDING_WEAK))
+                        .filter(|(_, export)| !export.flags.contains(SymbolFlags::BINDING_WEAK))
                         .map(|(importer, export)| { format!("\t{importer} needs {}", export.key) })
                         .collect::<Vec<_>>()
                         .join("\n")

@@ -9,7 +9,7 @@ use {
     },
     wasmparser::{
         BinaryReader, BinaryReaderError, ExternalKind, FuncType, Parser, Payload, RefType,
-        Subsection, Subsections, TableType, TypeRef, ValType,
+        Subsection, Subsections, SymbolFlags, TableType, TypeRef, ValType,
     },
 };
 
@@ -131,7 +131,7 @@ pub struct Import<'a> {
     pub module: &'a str,
     pub name: &'a str,
     pub ty: Type,
-    pub flags: u32,
+    pub flags: SymbolFlags,
 }
 
 /// Represents a core Wasm export
@@ -151,7 +151,7 @@ impl<'a> fmt::Display for ExportKey<'a> {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Export<'a> {
     pub key: ExportKey<'a>,
-    pub flags: u32,
+    pub flags: SymbolFlags,
 }
 
 /// Represents a `WASM_DYLINK_MEM_INFO` value
@@ -212,7 +212,7 @@ pub struct Metadata<'a> {
     pub has_component_exports: bool,
 
     /// The functions imported from the `env` module, if any
-    pub env_imports: BTreeSet<(&'a str, (FunctionType, u32))>,
+    pub env_imports: BTreeSet<(&'a str, (FunctionType, SymbolFlags))>,
 
     /// The memory addresses imported from `GOT.mem`, if any
     pub memory_address_imports: BTreeSet<&'a str>,
@@ -230,14 +230,14 @@ pub struct Metadata<'a> {
 #[derive(Debug)]
 struct ExportInfo<'a> {
     name: &'a str,
-    flags: u32,
+    flags: SymbolFlags,
 }
 
 #[derive(Debug)]
 struct ImportInfo<'a> {
     module: &'a str,
     field: &'a str,
-    flags: u32,
+    flags: SymbolFlags,
 }
 
 #[derive(Debug)]
@@ -270,7 +270,7 @@ impl<'a> Subsection<'a> for DylinkSubsection<'a> {
                     .map(|_| {
                         Ok(ExportInfo {
                             name: reader.read_string()?,
-                            flags: reader.read_var_u32()?,
+                            flags: reader.read()?,
                         })
                     })
                     .collect::<Result<_, _>>()?,
@@ -281,7 +281,7 @@ impl<'a> Subsection<'a> for DylinkSubsection<'a> {
                         Ok(ImportInfo {
                             module: reader.read_string()?,
                             field: reader.read_string()?,
-                            flags: reader.read_var_u32()?,
+                            flags: reader.read()?,
                         })
                     })
                     .collect::<Result<_, _>>()?,
@@ -413,7 +413,10 @@ impl<'a> Metadata<'a> {
                                             FunctionType::try_from(
                                                 &types[usize::try_from(ty).unwrap()],
                                             )?,
-                                            *import_info.get(&("env", name)).unwrap_or(&0),
+                                            import_info
+                                                .get(&("env", name))
+                                                .copied()
+                                                .unwrap_or_default(),
                                         ),
                                     ));
                                 } else {
@@ -463,7 +466,10 @@ impl<'a> Metadata<'a> {
                                         bail!("unsupported import kind for {module}.{name}: {ty:?}",)
                                     }
                                 };
-                                let flags = *import_info.get(&(module, name)).unwrap_or(&0);
+                                let flags = import_info
+                                    .get(&(module, name))
+                                    .copied()
+                                    .unwrap_or_default();
                                 result.imports.insert(Import {
                                     module,
                                     name,
@@ -523,7 +529,8 @@ impl<'a> Metadata<'a> {
                                         )
                                     }
                                 };
-                                let flags = *export_info.get(&export.name).unwrap_or(&0);
+                                let flags =
+                                    export_info.get(&export.name).copied().unwrap_or_default();
                                 result.exports.insert(Export {
                                     key: ExportKey {
                                         name: export.name,

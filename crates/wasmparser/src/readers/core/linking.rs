@@ -3,20 +3,37 @@ use crate::{
 };
 use std::ops::Range;
 
-/// A flag indicating that this is a weak symbol.
-pub const WASM_SYM_BINDING_WEAK: u32 = 1 << 0;
-/// A flag indicating that this is a local symbol (this is exclusive with [WASM_SYM_BINDING_WEAK]).
-pub const WASM_SYM_BINDING_LOCAL: u32 = 1 << 1;
-/// A flag indicating that this is a hidden symbol.
-pub const WASM_SYM_VISIBILITY_HIDDEN: u32 = 1 << 2;
-/// A flag indicating that this symbol is not defined.
-pub const WASM_SYM_UNDEFINED: u32 = 1 << 4;
-/// A flag indiciating that this symbol is intended to be exported from the wasm module to the host environment
-pub const WASM_SYM_EXPORTED: u32 = 1 << 5;
-/// A flag indiciating that this symbol uses an explicit symbol name, rather than reusing the name from a wasm import.
-pub const WASM_SYM_EXPLICIT_NAME: u32 = 1 << 6;
-/// A flag indicating that this symbol is intended to be included in the linker output, regardless of whether it is used by the program.
-pub const WASM_SYM_NO_STRIP: u32 = 1 << 7;
+bitflags::bitflags! {
+    /// Flags for WebAssembly symbols.
+    ///
+    /// These flags correspond to those described in
+    /// <https://github.com/WebAssembly/tool-conventions/blob/main/Linking.md>
+    /// with the `WASM_SYM_*` prefix.
+    #[repr(transparent)]
+    #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct SymbolFlags: u32 {
+        /// This is a weak symbol.
+        const BINDING_WEAK = 1 << 0;
+        /// This is a local symbol (this is exclusive with [BINDING_WEAK]).
+        const BINDING_LOCAL = 1 << 1;
+        /// This is a hidden symbol.
+        const VISIBILITY_HIDDEN = 1 << 2;
+        /// This symbol is intended to be exported from the wasm module to the host environment.
+        const UNDEFINED = 1 << 4;
+        /// This symbol uses an explicit symbol name, rather than reusing the name from a wasm import.
+        const EXPORTED = 1 << 5;
+        /// This symbol uses an explicit symbol name, rather than reusing the name from a wasm import.
+        const EXPLICIT_NAME = 1 << 6;
+        /// This symbol is intended to be included in the linker output, regardless of whether it is used by the program.
+        const NO_STRIP = 1 << 7;
+    }
+}
+
+impl<'a> FromReader<'a> for SymbolFlags {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        Ok(SymbolFlags::from_bits_retain(reader.read_var_u32()?))
+    }
+}
 
 /// A reader for the `linking` custom section of a WebAssembly module.
 ///
@@ -175,7 +192,7 @@ pub enum SymbolInfo<'a> {
     /// The symbol is a function.
     Func {
         /// The flags for the symbol.
-        flags: u32,
+        flags: SymbolFlags,
         /// The index of the function corresponding to this symbol.
         index: u32,
         /// The name for the function, if it is defined or uses an explicit name.
@@ -184,7 +201,7 @@ pub enum SymbolInfo<'a> {
     /// The symbol is a data symbol.
     Data {
         /// The flags for the symbol.
-        flags: u32,
+        flags: SymbolFlags,
         /// The name for the symbol.
         name: &'a str,
         /// The definition of the data symbol, if it is defined.
@@ -193,7 +210,7 @@ pub enum SymbolInfo<'a> {
     /// The symbol is a global.
     Global {
         /// The flags for the symbol.
-        flags: u32,
+        flags: SymbolFlags,
         /// The index of the global corresponding to this symbol.
         index: u32,
         /// The name for the global, if it is defined or uses an explicit name.
@@ -202,14 +219,14 @@ pub enum SymbolInfo<'a> {
     /// The symbol is a section.
     Section {
         /// The flags for the symbol.
-        flags: u32,
+        flags: SymbolFlags,
         /// The index of the function corresponding to this symbol.
         section: u32,
     },
     /// The symbol is an event.
     Event {
         /// The flags for the symbol.
-        flags: u32,
+        flags: SymbolFlags,
         /// The index of the event corresponding to this symbol.
         index: u32,
         /// The name for the event, if it is defined or uses an explicit name.
@@ -218,7 +235,7 @@ pub enum SymbolInfo<'a> {
     /// The symbol is a table.
     Table {
         /// The flags for the symbol.
-        flags: u32,
+        flags: SymbolFlags,
         /// The index of the table corresponding to this symbol.
         index: u32,
         /// The name for the table, if it is defined or uses an explicit name.
@@ -230,10 +247,10 @@ impl<'a> FromReader<'a> for SymbolInfo<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let offset = reader.original_position();
         let kind = reader.read_u8()?;
-        let flags = reader.read_var_u32()?;
+        let flags: SymbolFlags = reader.read()?;
 
-        let defined = (flags & WASM_SYM_UNDEFINED) == 0;
-        let explicit_name = (flags & WASM_SYM_EXPLICIT_NAME) != 0;
+        let defined = !flags.contains(SymbolFlags::UNDEFINED);
+        let explicit_name = flags.contains(SymbolFlags::EXPLICIT_NAME);
 
         const SYMTAB_FUNCTION: u8 = 0;
         const SYMTAB_DATA: u8 = 1;
