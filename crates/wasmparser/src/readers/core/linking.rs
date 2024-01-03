@@ -323,7 +323,7 @@ impl<'a> FromReader<'a> for SymbolInfo<'a> {
     }
 }
 
-/// Represents a data symbol.
+/// Represents the metadata about a data symbol defined in the wasm file.
 #[derive(Debug, Copy, Clone)]
 pub struct DefinedDataSymbol {
     /// The index of the data segment.
