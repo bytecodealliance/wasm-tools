@@ -2,7 +2,6 @@
 
 use crate::InstructionKinds;
 use arbitrary::{Arbitrary, Result, Unstructured};
-use std::path::PathBuf;
 
 macro_rules! define_config {
     (
@@ -75,7 +74,7 @@ macro_rules! define_config {
             /// WebAssembly module. `wasm-smith` will panic if the module cannot
             /// be parsed.
             #[cfg_attr(feature = "clap", clap(long))]
-            available_imports: Option<PathBuf>,
+            available_imports: Option<std::path::PathBuf>,
 
             $(
                 $(#[$field_attr])*
