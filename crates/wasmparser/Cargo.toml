@@ -13,6 +13,7 @@ edition.workspace = true
 exclude = ["benches/*.wasm"]
 
 [dependencies]
+bitflags = "2.4.1"
 indexmap = { workspace = true }
 semver = { workspace = true }
 

@@ -2657,25 +2657,28 @@ impl Printer {
         Ok(())
     }
 
-    fn print_dylink0_flags(&mut self, mut flags: u32) -> Result<()> {
+    fn print_dylink0_flags(&mut self, mut flags: SymbolFlags) -> Result<()> {
         macro_rules! print_flag {
             ($($name:ident = $text:tt)*) => ({$(
-                if flags & wasmparser::$name != 0 {
-                    flags &= !wasmparser::$name;
+                if flags.contains(SymbolFlags::$name) {
+                    flags.remove(SymbolFlags::$name);
                     self.result.push_str(concat!(" ", $text));
                 }
             )*})
         }
+        // N.B.: Keep in sync with `parse_sym_flags` in `crates/wast/src/core/custom.rs`.
         print_flag! {
-            WASM_SYM_BINDING_WEAK = "binding-weak"
-            WASM_SYM_BINDING_LOCAL = "binding-local"
-            WASM_SYM_VISIBILITY_HIDDEN = "visibility-hidden"
-            WASM_SYM_UNDEFINED = "undefined"
-            WASM_SYM_EXPORTED = "exported"
-            WASM_SYM_EXPLICIT_NAME = "explicit-name"
-            WASM_SYM_NO_STRIP = "no-strip"
+            BINDING_WEAK = "binding-weak"
+            BINDING_LOCAL = "binding-local"
+            VISIBILITY_HIDDEN = "visibility-hidden"
+            UNDEFINED = "undefined"
+            EXPORTED = "exported"
+            EXPLICIT_NAME = "explicit-name"
+            NO_STRIP = "no-strip"
+            TLS = "tls"
+            ABSOLUTE = "absolute"
         }
-        if flags != 0 {
+        if !flags.is_empty() {
             write!(self.result, " {:#x}", flags)?;
         }
         Ok(())

@@ -1925,6 +1925,7 @@ name = "wasmparser"
 version = "0.118.1"
 dependencies = [
  "anyhow",
+ "bitflags 2.4.1",
  "criterion",
  "env_logger",
  "indexmap 2.1.0",

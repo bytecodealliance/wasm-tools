@@ -1,4 +1,4 @@
-use crate::{BinaryReader, Result, Subsection, Subsections};
+use crate::{BinaryReader, Result, Subsection, Subsections, SymbolFlags};
 use std::ops::Range;
 
 /// Parser for the dynamic linking `dylink.0` custom section.
@@ -36,11 +36,7 @@ pub struct MemInfo {
 #[derive(Debug)]
 pub struct ExportInfo<'a> {
     pub name: &'a str,
-
-    /// Note that these flags correspond to those described in
-    /// <https://github.com/WebAssembly/tool-conventions/blob/main/Linking.md>
-    /// with the `WASM_SYM_*` prefix.
-    pub flags: u32,
+    pub flags: SymbolFlags,
 }
 
 #[allow(missing_docs)]
@@ -48,11 +44,7 @@ pub struct ExportInfo<'a> {
 pub struct ImportInfo<'a> {
     pub module: &'a str,
     pub field: &'a str,
-
-    /// Note that these flags correspond to those described in
-    /// <https://github.com/WebAssembly/tool-conventions/blob/main/Linking.md>
-    /// with the `WASM_SYM_*` prefix.
-    pub flags: u32,
+    pub flags: SymbolFlags,
 }
 
 /// Possible subsections of the `dylink.0` custom section.
@@ -91,7 +83,7 @@ impl<'a> Subsection<'a> for Dylink0Subsection<'a> {
                     .map(|_| {
                         Ok(ExportInfo {
                             name: reader.read_string()?,
-                            flags: reader.read_var_u32()?,
+                            flags: reader.read()?,
                         })
                     })
                     .collect::<Result<_, _>>()?,
@@ -102,7 +94,7 @@ impl<'a> Subsection<'a> for Dylink0Subsection<'a> {
                         Ok(ImportInfo {
                             module: reader.read_string()?,
                             field: reader.read_string()?,
-                            flags: reader.read_var_u32()?,
+                            flags: reader.read()?,
                         })
                     })
                     .collect::<Result<_, _>>()?,
