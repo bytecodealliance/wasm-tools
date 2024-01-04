@@ -9,8 +9,10 @@ interface types {
   type t6 = s16;
   type t7 = s32;
   type t8 = s64;
-  type t9 = float32;
-  type t10 = float64;
+  type t9a = float32;
+  type t9b = f32;
+  type t10a = float64;
+  type t10b = f64;
   type t11 = char;
   type t12 = list<char>;
   type t13 = string;
