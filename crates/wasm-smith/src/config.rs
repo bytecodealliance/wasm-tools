@@ -9,7 +9,7 @@ macro_rules! define_config {
         pub struct Config {
             $(
                 $(#[$field_attr:meta])*
-                pub $field:ident : $field_ty:ty,
+                pub $field:ident : $field_ty:ty = $default:expr,
             )*
         }
     ) => {
@@ -53,6 +53,18 @@ macro_rules! define_config {
                 $(#[$field_attr])*
                 pub $field: $field_ty,
             )*
+        }
+
+        impl Default for Config {
+            fn default() -> Config {
+                Config {
+                    available_imports: None,
+
+                    $(
+                        $field: $default,
+                    )*
+                }
+            }
         }
 
         #[cfg(feature = "_internal_cli")]
@@ -145,7 +157,7 @@ define_config! {
     #[derive(Clone, Debug)]
     pub struct Config {
         /// Determines whether a `start` export may be included. Defaults to `true`.
-        pub allow_start_export: bool,
+        pub allow_start_export: bool = true,
 
         /// The kinds of instructions allowed in the generated wasm
         /// programs. Defaults to all.
@@ -160,13 +172,13 @@ define_config! {
         /// `allowed_instruction()` does not include vector instructions, the
         /// generated programs will not include these instructions but could
         /// contain vector types.
-        pub allowed_instructions: InstructionKinds,
+        pub allowed_instructions: InstructionKinds = InstructionKinds::all(),
 
         /// Determines whether the bulk memory proposal is enabled for
         /// generating instructions.
         ///
         /// Defaults to `false`.
-        pub bulk_memory_enabled: bool,
+        pub bulk_memory_enabled: bool = false,
 
         /// Returns whether NaN values are canonicalized after all f32/f64
         /// operation. Defaults to false.
@@ -177,7 +189,7 @@ define_config! {
         /// representation for all instructions which have visible side effects,
         /// for example writing floats to memory or float-to-int bitcast
         /// instructions.
-        pub canonicalize_nans: bool,
+        pub canonicalize_nans: bool = false,
 
         /// Returns whether we should avoid generating code that will possibly
         /// trap.
@@ -196,70 +208,70 @@ define_config! {
         /// the call stack to be exhausted.
         ///
         /// Defaults to `false`.
-        pub disallow_traps: bool,
+        pub disallow_traps: bool = false,
 
         /// Determines whether the exception-handling proposal is enabled for
         /// generating instructions.
         ///
         /// Defaults to `false`.
-        pub exceptions_enabled: bool,
+        pub exceptions_enabled: bool = false,
 
         /// Export all WebAssembly objects in the module. Defaults to false.
         ///
         /// This overrides [`Config::min_exports`] and [`Config::max_exports`].
-        pub export_everything: bool,
+        pub export_everything: bool = false,
 
         /// Returns whether we should generate custom sections or not. Defaults
         /// to false.
-        pub generate_custom_sections: bool,
+        pub generate_custom_sections: bool = false,
 
         /// Returns the maximal size of the `alias` section. Defaults to 1000.
-        pub max_aliases: usize,
+        pub max_aliases: usize = 1000,
 
         /// The maximum number of components to use. Defaults to 10.
         ///
         /// This includes imported components.
         ///
         /// Note that this is only relevant for components.
-        pub max_components: usize,
+        pub max_components: usize = 10,
 
         /// The maximum number of data segments to generate. Defaults to 100.
-        pub max_data_segments: usize,
+        pub max_data_segments: usize = 100,
 
         /// The maximum number of element segments to generate. Defaults to 100.
-        pub max_element_segments: usize,
+        pub max_element_segments: usize = 100,
 
         /// The maximum number of elements within a segment to
         /// generate. Defaults to 100.
-        pub max_elements: usize,
+        pub max_elements: usize = 100,
 
         /// The maximum number of exports to generate. Defaults to 100.
-        pub max_exports: usize,
+        pub max_exports: usize = 100,
 
         /// The maximum number of functions to generate. Defaults to 100.  This
         /// includes imported functions.
-        pub max_funcs: usize,
+        pub max_funcs: usize = 100,
 
         /// The maximum number of globals to generate. Defaults to 100.  This
         /// includes imported globals.
-        pub max_globals: usize,
+        pub max_globals: usize = 100,
 
         /// The maximum number of imports to generate. Defaults to 100.
-        pub max_imports: usize,
+        pub max_imports: usize = 100,
 
         /// The maximum number of instances to use. Defaults to 10.
         ///
         /// This includes imported instances.
         ///
         /// Note that this is only relevant for components.
-        pub max_instances: usize,
+        pub max_instances: usize = 10,
 
         /// The maximum number of instructions to generate in a function
         /// body. Defaults to 100.
         ///
         /// Note that some additional `end`s, `else`s, and `unreachable`s may be
         /// appended to the function body to finish block scopes.
-        pub max_instructions: usize,
+        pub max_instructions: usize = 100,
 
         /// The maximum number of memories to use. Defaults to 1.
         ///
@@ -267,34 +279,34 @@ define_config! {
         ///
         /// Note that more than one memory is in the realm of the multi-memory
         /// wasm proposal.
-        pub max_memories: usize,
+        pub max_memories: usize = 1,
 
         /// The maximum, in 64k Wasm pages, of any 32-bit memory's initial or
         /// maximum size.
         ///
         /// Defaults to 2^16.
-        pub max_memory32_pages: u64,
+        pub max_memory32_pages: u64 = 1 << 16,
 
         /// The maximum, in 64k Wasm pages, of any 64-bit memory's initial or
         /// maximum size.
         ///
         /// Defaults to 2^48.
-        pub max_memory64_pages: u64,
+        pub max_memory64_pages: u64 = 1 << 48,
 
         /// The maximum number of modules to use. Defaults to 10.
         ///
         /// This includes imported modules.
         ///
         /// Note that this is only relevant for components.
-        pub max_modules: usize,
+        pub max_modules: usize = 10,
 
         /// Returns the maximal nesting depth of modules with the component
         /// model proposal. Defaults to 10.
-        pub max_nesting_depth: usize,
+        pub max_nesting_depth: usize = 10,
 
         /// The maximum, elements, of any table's initial or maximum
         /// size. Defaults to 1 million.
-        pub max_table_elements: u32,
+        pub max_table_elements: u32 = 1_000_000,
 
         /// The maximum number of tables to use. Defaults to 1.
         ///
@@ -302,10 +314,10 @@ define_config! {
         ///
         /// Note that more than one table is in the realm of the reference types
         /// proposal.
-        pub max_tables: usize,
+        pub max_tables: usize = 1,
 
         /// The maximum number of tags to generate. Defaults to 100.
-        pub max_tags: usize,
+        pub max_tags: usize = 100,
 
         /// Returns the maximal effective size of any type generated by
         /// wasm-smith.
@@ -319,55 +331,55 @@ define_config! {
         /// intended to be very precise.
         ///
         /// Defaults to 1000.
-        pub max_type_size: u32,
+        pub max_type_size: u32 = 1000,
 
         /// The maximum number of types to generate. Defaults to 100.
-        pub max_types: usize,
+        pub max_types: usize = 100,
 
         /// The maximum number of values to use. Defaults to 10.
         ///
         /// This includes imported values.
         ///
         /// Note that this is irrelevant unless value model support is enabled.
-        pub max_values: usize,
+        pub max_values: usize = 10,
 
         /// Returns whether 64-bit memories are allowed. Defaults to false.
         ///
         /// Note that this is the gate for the memory64 proposal to WebAssembly.
-        pub memory64_enabled: bool,
+        pub memory64_enabled: bool = false,
 
         /// Whether every Wasm memory must have a maximum size
         /// specified. Defaults to `false`.
-        pub memory_max_size_required: bool,
+        pub memory_max_size_required: bool = false,
 
         /// Control the probability of generating memory offsets that are in
         /// bounds vs. potentially out of bounds.
         ///
         /// See the `MemoryOffsetChoices` struct for details.
-        pub memory_offset_choices: MemoryOffsetChoices,
+        pub memory_offset_choices: MemoryOffsetChoices = MemoryOffsetChoices::default(),
 
         /// The minimum number of data segments to generate. Defaults to 0.
-        pub min_data_segments: usize,
+        pub min_data_segments: usize = 0,
 
         /// The minimum number of element segments to generate. Defaults to 0.
-        pub min_element_segments: usize,
+        pub min_element_segments: usize = 0,
 
         /// The minimum number of elements within a segment to
         /// generate. Defaults to 0.
-        pub min_elements: usize,
+        pub min_elements: usize = 0,
 
         /// The minimum number of exports to generate. Defaults to 0.
-        pub min_exports: usize,
+        pub min_exports: usize = 0,
 
         /// The minimum number of functions to generate. Defaults to 0.
         ///
         /// This includes imported functions.
-        pub min_funcs: usize,
+        pub min_funcs: usize = 0,
 
         /// The minimum number of globals to generate. Defaults to 0.
         ///
         /// This includes imported globals.
-        pub min_globals: usize,
+        pub min_globals: usize = 0,
 
         /// The minimum number of imports to generate. Defaults to 0.
         ///
@@ -383,23 +395,23 @@ define_config! {
         /// maximum number of imports that can be created due to max-constraints
         /// is `sum(min(num_func_types, max_funcs), max_tables, max_globals,
         /// max_memories)`.
-        pub min_imports: usize,
+        pub min_imports: usize = 0,
 
         /// The minimum number of memories to use. Defaults to 0.
         ///
         /// This includes imported memories.
-        pub min_memories: u32,
+        pub min_memories: u32 = 0,
 
         /// The minimum number of tables to use. Defaults to 0.
         ///
         /// This includes imported tables.
-        pub min_tables: u32,
+        pub min_tables: u32 = 0,
 
         /// The minimum number of tags to generate. Defaults to 0.
-        pub min_tags: usize,
+        pub min_tags: usize = 0,
 
         /// The minimum number of types to generate. Defaults to 0.
-        pub min_types: usize,
+        pub min_types: usize = 0,
 
         /// The minimum size, in bytes, of all leb-encoded integers. Defaults to
         /// 1.
@@ -408,51 +420,51 @@ define_config! {
         /// decoded as such rather than as simply one byte. This will forcibly
         /// extend leb integers with an over-long encoding in some locations if
         /// the size would otherwise be smaller than number returned here.
-        pub min_uleb_size: u8,
+        pub min_uleb_size: u8 = 1,
 
         /// Determines whether the multi-value results are enabled.
         ///
         /// Defaults to `true`.
-        pub multi_value_enabled: bool,
+        pub multi_value_enabled: bool = true,
 
         /// Determines whether the reference types proposal is enabled for
         /// generating instructions.
         ///
         /// Defaults to `false`.
-        pub reference_types_enabled: bool,
+        pub reference_types_enabled: bool = false,
 
         /// Determines whether the Relaxed SIMD proposal is enabled for
         /// generating instructions.
         ///
         /// Defaults to `false`.
-        pub relaxed_simd_enabled: bool,
+        pub relaxed_simd_enabled: bool = false,
 
         /// Determines whether the nontrapping-float-to-int-conversions propsal
         /// is enabled.
         ///
         /// Defaults to `true`.
-        pub saturating_float_to_int_enabled: bool,
+        pub saturating_float_to_int_enabled: bool = true,
 
         /// Determines whether the sign-extension-ops propsal is enabled.
         ///
         /// Defaults to `true`.
-        pub sign_extension_ops_enabled: bool,
+        pub sign_extension_ops_enabled: bool = true,
 
         /// Determines whether the SIMD proposal is enabled for generating
         /// instructions.
         ///
         /// Defaults to `false`.
-        pub simd_enabled: bool,
+        pub simd_enabled: bool = false,
 
         /// Determines whether the tail calls proposal is enabled for generating
         /// instructions.
         ///
         /// Defaults to `false`.
-        pub tail_call_enabled: bool,
+        pub tail_call_enabled: bool = false,
 
         /// Whether every Wasm table must have a maximum size
         /// specified. Defaults to `false`.
-        pub table_max_size_required: bool,
+        pub table_max_size_required: bool = false,
 
         /// Determines whether the threads proposal is enabled.
         ///
@@ -462,7 +474,7 @@ define_config! {
         /// [threads proposal]: https://github.com/WebAssembly/threads/blob/master/proposals/threads/Overview.md
         ///
         /// Defaults to `false`.
-        pub threads_enabled: bool,
+        pub threads_enabled: bool = false,
     }
 }
 
@@ -519,68 +531,6 @@ impl std::str::FromStr for MemoryOffsetChoices {
             return Err("found more than 3 comma separated values".to_string());
         }
         Ok(MemoryOffsetChoices(a, b, c))
-    }
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Config {
-            allow_start_export: true,
-            allowed_instructions: InstructionKinds::all(),
-            available_imports: None,
-            bulk_memory_enabled: false,
-            canonicalize_nans: false,
-            disallow_traps: false,
-            exceptions_enabled: false,
-            export_everything: false,
-            generate_custom_sections: false,
-            max_aliases: 1000,
-            max_components: 10,
-            max_data_segments: 100,
-            max_element_segments: 100,
-            max_elements: 100,
-            max_exports: 100,
-            max_funcs: 100,
-            max_globals: 100,
-            max_imports: 100,
-            max_instances: 10,
-            max_instructions: 100,
-            max_memories: 1,
-            max_memory32_pages: 1 << 16,
-            max_memory64_pages: 1 << 48,
-            max_modules: 10,
-            max_nesting_depth: 10,
-            max_tables: 1,
-            max_tags: 100,
-            max_type_size: 1000,
-            max_types: 100,
-            max_values: 10,
-            memory64_enabled: false,
-            memory_max_size_required: false,
-            memory_offset_choices: MemoryOffsetChoices::default(),
-            min_data_segments: 0,
-            min_element_segments: 0,
-            min_elements: 0,
-            min_exports: 0,
-            min_funcs: 0,
-            min_globals: 0,
-            min_imports: 0,
-            min_memories: 0,
-            max_table_elements: 1_000_000,
-            min_tables: 0,
-            min_tags: 0,
-            min_types: 0,
-            min_uleb_size: 1,
-            multi_value_enabled: true,
-            reference_types_enabled: false,
-            relaxed_simd_enabled: false,
-            saturating_float_to_int_enabled: true,
-            sign_extension_ops_enabled: true,
-            simd_enabled: false,
-            table_max_size_required: false,
-            tail_call_enabled: false,
-            threads_enabled: false,
-        }
     }
 }
 
