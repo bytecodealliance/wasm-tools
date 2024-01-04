@@ -96,3 +96,27 @@ $ wasm-tools component wit demo.component.wasm
 
 Here the `demo.component.wasm` can now be shipped to a component runtime or
 embedded into hosts.
+
+## Building a component from C/C++ using `wasm-tools component new`
+
+Use [wasi-sdk] to build a C/C++ application. Currently this produces a
+preview1 core wasm binary. To convert it to a preview2 component, first
+obtain a preview1-to-preview2 adapter module, such as by downloading a
+pre-built version from the [jco] repository, which has adpaters at
+[lib/wasi_snapshot_preview1.command.wasm].
+
+Then, run `wasm-tools component new` and pass it your preview1 core wasm
+application module and the adapter:
+
+```sh
+$ wasm-tools component new my-application.wasm --adapt=path/to/jco/lib/wasi_snapshot_preview1.command.wasm -o component.wasm
+```
+
+This produces a preview2 component. Currently it's necessary to ensure
+that the WASI version of the adapter matches the WASI version of the
+host. If you use jco's adapter, it can at least be run in that version
+of jco.
+
+[wasi-sdk]: https://github.com/WebAssembly/wasi-sdk/
+[jco]: https://github.com/bytecodealliance/jco
+[lib/lib/wasi_snapshot_preview1.command.wasm]: https://github.com/bytecodealliance/jco/blob/main/lib/wasi_snapshot_preview1.command.wasm
