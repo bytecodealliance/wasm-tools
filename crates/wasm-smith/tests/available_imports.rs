@@ -33,14 +33,16 @@ fn smoke_test_imports_config() {
             for payload in Parser::new(0).parse_all(&wasm_bytes) {
                 let payload = payload.unwrap();
                 if let wasmparser::Payload::TypeSection(rdr) = payload {
-                    // Gather the signature types to later check function types against.
+                    // Gather the signature types to later check function types
+                    // against.
                     for ty in rdr.into_iter_err_on_gc_types() {
                         sig_types.push(ty.unwrap());
                     }
                 } else if let wasmparser::Payload::ImportSection(rdr) = payload {
-                    // Read out imports, checking that they all are within the list of expected
-                    // imports (i.e. we don't generate arbitrary ones), and that we handle the
-                    // logic correctly (i.e. signature types are as expected)
+                    // Read out imports, checking that they all are within the
+                    // list of expected imports (i.e. we don't generate
+                    // arbitrary ones), and that we handle the logic correctly
+                    // (i.e. signature types are as expected)
                     for import in rdr {
                         let import = import.unwrap();
                         use AvailableImportKind as I;
@@ -82,9 +84,10 @@ fn smoke_test_imports_config() {
                 }
             }
 
-            // Verify that we have seen both instances with partial imports (i.e. we don't always
-            // just copy over all the imports from the example module) and also that we eventually
-            // observe all of the imports being used (i.e. selection is reasonably random)
+            // Verify that we have seen both instances with partial imports
+            // (i.e. we don't always just copy over all the imports from the
+            // example module) and also that we eventually observe all of the
+            // imports being used (i.e. selection is reasonably random)
             for (m, f, _) in &available[..] {
                 let seen = imports_seen[&(*m, *f)];
                 let global_seen = global_imports_seen
@@ -117,6 +120,7 @@ fn import_config(
     Vec<(&'static str, &'static str, AvailableImportKind)>,
 ) {
     let mut config = Config::arbitrary(u).expect("arbitrary swarm");
+    config.gc_enabled = false;
     config.exceptions_enabled = u.arbitrary().expect("exceptions enabled for swarm");
     let available = {
         use {AvailableImportKind::*, ValType::*};
@@ -192,5 +196,5 @@ fn validate(validator: &mut Validator, bytes: &[u8]) {
     if let Ok(text) = wasmprinter::print_bytes(bytes) {
         drop(std::fs::write("test.wat", &text));
     }
-    panic!("wasm failed to validate {:?}", err);
+    panic!("wasm failed to validate: {}", err);
 }

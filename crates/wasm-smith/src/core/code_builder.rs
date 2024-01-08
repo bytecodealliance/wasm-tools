@@ -859,7 +859,12 @@ impl CodeBuilder<'_> {
     fn arbitrary_block_type(&self, u: &mut Unstructured, module: &Module) -> Result<BlockType> {
         let mut options: Vec<Box<dyn Fn(&mut Unstructured) -> Result<BlockType>>> = vec![
             Box::new(|_| Ok(BlockType::Empty)),
-            Box::new(|u| Ok(BlockType::Result(module.arbitrary_valtype(u)?))),
+            Box::new(|u| {
+                Ok(BlockType::Result(module.arbitrary_valtype(
+                    u,
+                    u32::try_from(module.types.len()).unwrap(),
+                )?))
+            }),
         ];
         if module.config.multi_value_enabled {
             for (i, ty) in module.func_types() {

@@ -33,13 +33,50 @@ impl Module {
         }
 
         let mut section = wasm_encoder::TypeSection::new();
-        for ty in &self.types {
-            match ty {
-                Type::Func(ty) => {
-                    section.function(ty.params.iter().cloned(), ty.results.iter().cloned());
-                }
+
+        for group in &self.rec_groups {
+            if group.end - group.start == 1 {
+                let ty = &self.types[group.start];
+                section.subtype(&wasm_encoder::SubType {
+                    is_final: ty.is_final,
+                    supertype_idx: ty.supertype,
+                    composite_type: match &ty.composite_type {
+                        CompositeType::Array(a) => wasm_encoder::CompositeType::Array(a.clone()),
+                        CompositeType::Func(f) => {
+                            wasm_encoder::CompositeType::Func(wasm_encoder::FuncType::new(
+                                f.params.iter().cloned(),
+                                f.results.iter().cloned(),
+                            ))
+                        }
+                        CompositeType::Struct(s) => wasm_encoder::CompositeType::Struct(s.clone()),
+                    },
+                });
+            } else {
+                section.rec(
+                    self.types[group.clone()]
+                        .iter()
+                        .map(|ty| wasm_encoder::SubType {
+                            is_final: ty.is_final,
+                            supertype_idx: ty.supertype,
+                            composite_type: match &ty.composite_type {
+                                CompositeType::Array(a) => {
+                                    wasm_encoder::CompositeType::Array(a.clone())
+                                }
+                                CompositeType::Func(f) => {
+                                    wasm_encoder::CompositeType::Func(wasm_encoder::FuncType::new(
+                                        f.params.iter().cloned(),
+                                        f.results.iter().cloned(),
+                                    ))
+                                }
+                                CompositeType::Struct(s) => {
+                                    wasm_encoder::CompositeType::Struct(s.clone())
+                                }
+                            },
+                        }),
+                );
             }
         }
+
         module.section(&section);
     }
 
