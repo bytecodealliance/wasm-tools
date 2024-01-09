@@ -94,7 +94,7 @@ const INDIRECT_TABLE_NAME: &str = "$imports";
 
 pub mod docs;
 mod wit;
-pub use wit::{encode, encode_component, encode_world};
+pub use wit::{encode, encode_world};
 
 mod types;
 use types::{InstanceTypeEncoder, RootTypeEncoder, ValtypeEncoder};
