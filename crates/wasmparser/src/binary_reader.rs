@@ -681,7 +681,7 @@ impl<'a> BinaryReader<'a> {
         Ok(self.buffer[self.position])
     }
 
-    fn read_block_type(&mut self) -> Result<BlockType> {
+    pub(crate) fn read_block_type(&mut self) -> Result<BlockType> {
         let b = self.peek()?;
 
         // Check for empty block
@@ -770,6 +770,7 @@ impl<'a> BinaryReader<'a> {
             0x07 => visitor.visit_catch(self.read_var_u32()?),
             0x08 => visitor.visit_throw(self.read_var_u32()?),
             0x09 => visitor.visit_rethrow(self.read_var_u32()?),
+            0x0a => visitor.visit_throw_ref(),
             0x0b => visitor.visit_end(),
             0x0c => visitor.visit_br(self.read_var_u32()?),
             0x0d => visitor.visit_br_if(self.read_var_u32()?),
@@ -799,6 +800,7 @@ impl<'a> BinaryReader<'a> {
                 }
                 visitor.visit_typed_select(self.read()?)
             }
+            0x1f => visitor.visit_try_table(self.read()?),
 
             0x20 => visitor.visit_local_get(self.read_var_u32()?),
             0x21 => visitor.visit_local_set(self.read_var_u32()?),

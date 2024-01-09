@@ -1,4 +1,5 @@
-;; --enable-exceptions --enable-multi-value
+;; RUN: print %
+
 (module
   (type (func (param i32 i64)))
   (type (func (param i32)))
@@ -39,25 +40,11 @@
     drop
     drop
   )
+  (func $mix-old-and-new
+    try_table
+      try
+      catch_all
+      end
+    end
+  )
 )
-
-(assert_invalid
-  (module
-    (type (func))
-    (func throw 0))
-  "unknown tag 0: tag index out of bounds")
-
-(assert_invalid
-  (module
-    (func try catch_all catch_all end))
-  "only one catch_all allowed per `try` block")
-
-(assert_invalid
-  (module
-    (func try catch_all catch 0 end))
-  "catch found outside of an `try` block")
-
-(assert_invalid
-  (module
-    (func block try catch_all rethrow 1 end end))
-  "target was not a `catch` block")

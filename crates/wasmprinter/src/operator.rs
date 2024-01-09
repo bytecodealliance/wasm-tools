@@ -1,7 +1,7 @@
 use super::{Printer, State};
 use anyhow::{anyhow, bail, Result};
 use std::fmt::Write;
-use wasmparser::{BlockType, BrTable, MemArg, RefType, VisitOperator};
+use wasmparser::{BlockType, BrTable, Catch, MemArg, RefType, TryTable, VisitOperator};
 
 pub struct PrintOperator<'a, 'b> {
     pub(super) printer: &'a mut Printer,
@@ -43,41 +43,34 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
 
             // The previous label is being defined at the same depth as the
             // latest label, meaning it's overwriting its entry.
-            OpKind::BlockMid | OpKind::Delegate => {
+            OpKind::BlockMid => {
                 if let Some(last) = self.label_indices.last_mut() {
                     *last = self.label - 1;
                 }
             }
 
             // Label is out of scope so remove it from the stack.
-            OpKind::End => {
+            OpKind::End | OpKind::Delegate => {
                 self.label_indices.pop();
             }
         }
     }
 
     fn blockty(&mut self, ty: BlockType) -> Result<()> {
-        // This boolean is a little unfortunate. The block type is a payload on
-        // all instructions so printing prints the instruction name, then a
-        // space, then calls this method. We're guaranteed to print something
-        // here, but it's a bit confusing as to when depending on whether this
-        // block is named or not. If this block is named then we'll print the
-        // name and then optionally the type. If the block isn't named then
-        // we'll print the type and then a comment with a pseudo-name. The type
-        // may or may not print something.
-        //
-        // Add all that up and the best way I can use to keep track of this and
-        // not emit trailing whitespace at the end of a line is this boolean.
-        let mut preceding_space = true;
+        let has_name = self.blockty_without_label_comment(ty)?;
+        self.maybe_blockty_label_comment(has_name)
+    }
 
-        let has_name = if let Some(name) = self
-            .state
-            .core
-            .label_names
-            .get(&(self.state.core.funcs, self.label))
-        {
+    fn blockty_without_label_comment(&mut self, ty: BlockType) -> Result<bool> {
+        // Trim the trailing space, if any.
+        if self.result().ends_with(" ") {
+            self.result().pop();
+        }
+
+        let key = (self.state.core.funcs, self.label);
+        let has_name = if let Some(name) = self.state.core.label_names.get(&key) {
+            self.printer.result.push_str(" ");
             name.write(&mut self.printer.result);
-            preceding_space = false;
             true
         } else {
             false
@@ -85,29 +78,23 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         match ty {
             BlockType::Empty => {}
             BlockType::Type(t) => {
-                if !preceding_space {
-                    self.push_str(" ");
-                }
-                self.push_str("(result ");
+                self.push_str(" (result ");
                 self.printer.print_valtype(t)?;
                 self.push_str(")");
-                preceding_space = false;
             }
             BlockType::FuncType(idx) => {
-                if !preceding_space {
-                    self.push_str(" ");
-                }
+                self.push_str(" ");
                 self.printer
                     .print_core_functype_idx(self.state, idx, None)?;
-                preceding_space = false;
             }
         }
+        Ok(has_name)
+    }
 
+    fn maybe_blockty_label_comment(&mut self, has_name: bool) -> Result<()> {
         if !has_name {
             let depth = self.cur_depth();
-            if !preceding_space {
-                self.push_str(" ");
-            }
+            self.push_str(" ");
             // Note that 1 is added to the current depth here since if a block
             // type is being printed then a block is being created which will
             // increase the label depth of the block itself.
@@ -123,7 +110,7 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
     }
 
     fn tag_index(&mut self, index: u32) -> Result<()> {
-        write!(self.result(), "{index}")?;
+        self.printer.print_idx(&self.state.core.tag_names, index)?;
         Ok(())
     }
 
@@ -305,6 +292,48 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         }
         Ok(())
     }
+
+    fn try_table(&mut self, table: TryTable) -> Result<()> {
+        let has_name = self.blockty_without_label_comment(table.ty)?;
+
+        // Nesting has already been incremented but labels for catch start above
+        // this `try_table` not at the `try_table`. Temporarily decrement this
+        // nesting count and increase it below after printing catch clauses.
+        self.printer.nesting -= 1;
+
+        for catch in table.catches {
+            self.result().push(' ');
+            match catch {
+                Catch::One { tag, label } => {
+                    self.printer.start_group("catch ");
+                    self.tag_index(tag)?;
+                    self.result().push(' ');
+                    self.relative_depth(label)?;
+                    self.printer.end_group();
+                }
+                Catch::OneRef { tag, label } => {
+                    self.printer.start_group("catch_ref ");
+                    self.tag_index(tag)?;
+                    self.result().push(' ');
+                    self.relative_depth(label)?;
+                    self.printer.end_group();
+                }
+                Catch::All { label } => {
+                    self.printer.start_group("catch_all ");
+                    self.relative_depth(label)?;
+                    self.printer.end_group();
+                }
+                Catch::AllRef { label } => {
+                    self.printer.start_group("catch_all_ref ");
+                    self.relative_depth(label)?;
+                    self.printer.end_group();
+                }
+            }
+        }
+        self.printer.nesting += 1;
+        self.maybe_blockty_label_comment(has_name)?;
+        Ok(())
+    }
 }
 
 #[derive(PartialEq, Copy, Clone)]
@@ -343,11 +372,12 @@ macro_rules! define_visit {
     (kind Loop) => (OpKind::BlockStart);
     (kind If) => (OpKind::BlockStart);
     (kind Try) => (OpKind::BlockStart);
-    (kind Else) => (OpKind::BlockMid);
+    (kind TryTable) => (OpKind::BlockStart);
     (kind Catch) => (OpKind::BlockMid);
     (kind CatchAll) => (OpKind::BlockMid);
-    (kind End) => (OpKind::End);
     (kind Delegate) => (OpKind::Delegate);
+    (kind Else) => (OpKind::BlockMid);
+    (kind End) => (OpKind::End);
     (kind $other:tt) => (OpKind::Normal);
 
     // How to print the payload of an instruction. There are a number of
@@ -1004,12 +1034,6 @@ macro_rules! define_visit {
     (name F64x2ConvertLowI32x4U) => ("f64x2.convert_low_i32x4_u");
     (name F32x4DemoteF64x2Zero) => ("f32x4.demote_f64x2_zero");
     (name F64x2PromoteLowF32x4) => ("f64x2.promote_low_f32x4");
-    (name Try) => ("try");
-    (name Catch) => ("catch");
-    (name Throw) => ("throw");
-    (name Rethrow) => ("rethrow");
-    (name Delegate) => ("delegate");
-    (name CatchAll) => ("catch_all");
     (name I8x16RelaxedSwizzle) => ("i8x16.relaxed_swizzle");
     (name I32x4RelaxedTruncF32x4S) => ("i32x4.relaxed_trunc_f32x4_s");
     (name I32x4RelaxedTruncF32x4U) => ("i32x4.relaxed_trunc_f32x4_u");
@@ -1061,6 +1085,14 @@ macro_rules! define_visit {
     (name RefI31) => ("ref.i31");
     (name I31GetS) => ("i31.get_s");
     (name I31GetU) => ("i31.get_u");
+    (name TryTable) => ("try_table");
+    (name Throw) => ("throw");
+    (name ThrowRef) => ("throw_ref");
+    (name Rethrow) => ("rethrow");
+    (name Try) => ("try");
+    (name Catch) => ("catch");
+    (name CatchAll) => ("catch_all");
+    (name Delegate) => ("delegate");
 }
 
 impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {

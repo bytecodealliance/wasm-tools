@@ -495,7 +495,8 @@ impl<'a> Module<'a> {
             | HeapType::Eq
             | HeapType::Struct
             | HeapType::Array
-            | HeapType::I31 => {}
+            | HeapType::I31
+            | HeapType::Exn => {}
             HeapType::Concrete(i) => self.ty(i.as_module_index().unwrap()),
         }
     }
@@ -1042,6 +1043,7 @@ macro_rules! define_visit {
     (mark_live $self:ident $arg:ident field_index) => {};
     (mark_live $self:ident $arg:ident from_type_nullable) => {};
     (mark_live $self:ident $arg:ident to_type_nullable) => {};
+    (mark_live $self:ident $arg:ident try_table) => {unimplemented!();};
 }
 
 impl<'a> VisitOperator<'a> for Module<'a> {
@@ -1130,6 +1132,7 @@ impl Encoder {
             HeapType::Struct => wasm_encoder::HeapType::Struct,
             HeapType::Array => wasm_encoder::HeapType::Array,
             HeapType::I31 => wasm_encoder::HeapType::I31,
+            HeapType::Exn => wasm_encoder::HeapType::Exn,
             HeapType::Concrete(idx) => {
                 wasm_encoder::HeapType::Concrete(self.types.remap(idx.as_module_index().unwrap()))
             }
@@ -1186,6 +1189,10 @@ macro_rules! define_encode {
         let _ = $mem_byte;
         MemoryGrow($mem)
     });
+    (mk TryTable $try_table:ident) => ({
+        let _ = $try_table;
+        unimplemented_try_table()
+    });
     (mk I32Const $v:ident) => (I32Const($v));
     (mk I64Const $v:ident) => (I64Const($v));
     (mk F32Const $v:ident) => (F32Const(f32::from_bits($v.bits())));
@@ -1238,10 +1245,15 @@ macro_rules! define_encode {
     (map $self:ident $arg:ident field_index) => {$arg};
     (map $self:ident $arg:ident from_type_nullable) => {$arg};
     (map $self:ident $arg:ident to_type_nullable) => {$arg};
+    (map $self:ident $arg:ident try_table) => {$arg};
     (map $self:ident $arg:ident targets) => ((
         $arg.targets().map(|i| i.unwrap()).collect::<Vec<_>>().into(),
         $arg.default(),
     ));
+}
+
+fn unimplemented_try_table() -> wasm_encoder::Instruction<'static> {
+    unimplemented!()
 }
 
 impl<'a> VisitOperator<'a> for Encoder {

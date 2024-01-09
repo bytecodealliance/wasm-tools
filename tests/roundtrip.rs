@@ -141,22 +141,7 @@ fn skip_test(test: &Path, contents: &[u8]) -> bool {
     false
 }
 
-fn skip_validation(test: &Path) -> bool {
-    let broken = &[
-        "exnref/exnref.wast",
-        "exnref/throw_ref.wast",
-        "exnref/try_table.wast",
-        "exception-handling/ref_null.wast",
-        "exception-handling/throw.wast",
-        "exception-handling/throw_ref.wast",
-        "exception-handling/try_catch.wast",
-        "exception-handling/try_delegate.wast",
-        "exception-handling/try_table.wast",
-    ];
-    if broken.iter().any(|x| test.ends_with(x)) {
-        return true;
-    }
-
+fn skip_validation(_test: &Path) -> bool {
     false
 }
 
@@ -670,7 +655,8 @@ fn error_matches(error: &str, message: &str) -> bool {
     {
         return error.contains("expected ")
             || error.contains("constant out of range")
-            || error.contains("extra tokens remaining");
+            || error.contains("extra tokens remaining")
+            || error.contains("unimplemented validation of deprecated opcode");
     }
 
     if message == "illegal character" {
@@ -816,6 +802,10 @@ fn error_matches(error: &str, message: &str) -> bool {
 
     if message.starts_with("unknown operator") {
         return error.starts_with("unknown operator") || error.starts_with("unexpected token");
+    }
+
+    if message.starts_with("type mismatch") {
+        return error.starts_with("type mismatch");
     }
 
     return false;

@@ -210,6 +210,7 @@ pub fn heapty(t: &mut dyn Translator, ty: &wasmparser::HeapType) -> Result<HeapT
         wasmparser::HeapType::Struct => Ok(HeapType::Struct),
         wasmparser::HeapType::Array => Ok(HeapType::Array),
         wasmparser::HeapType::I31 => Ok(HeapType::I31),
+        wasmparser::HeapType::Exn => Ok(HeapType::Exn),
         wasmparser::HeapType::Concrete(i) => Ok(HeapType::Concrete(
             t.remap(Item::Type, i.as_module_index().unwrap())?,
         )),
@@ -374,6 +375,7 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
         (map $arg:ident field_index) => (*$arg);
         (map $arg:ident from_type_nullable) => (*$arg);
         (map $arg:ident to_type_nullable) => (*$arg);
+        (map $arg:ident try_table) => ($arg);
 
         // This case takes the arguments of a wasmparser instruction and creates
         // a wasm-encoder instruction. There are a few special cases for where
@@ -386,6 +388,7 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
         (build F32Const $arg:ident) => (I::F32Const(f32::from_bits($arg.bits())));
         (build F64Const $arg:ident) => (I::F64Const(f64::from_bits($arg.bits())));
         (build V128Const $arg:ident) => (I::V128Const($arg.i128()));
+        (build TryTable $table:ident) => (unimplemented_try_table());
         (build $op:ident $arg:ident) => (I::$op($arg));
         (build CallIndirect $ty:ident $table:ident $_:ident) => (I::CallIndirect {
             ty: $ty,
@@ -407,6 +410,10 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
     }
 
     wasmparser::for_each_operator!(translate)
+}
+
+fn unimplemented_try_table() -> wasm_encoder::Instruction<'static> {
+    unimplemented!()
 }
 
 pub fn block_type(t: &mut dyn Translator, ty: &wasmparser::BlockType) -> Result<BlockType> {
