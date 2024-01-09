@@ -1,8 +1,8 @@
 (module
   (type $s (;0;) (sub (struct)))
-  (type $s' (;1;) (sub $s (;0;) (struct)))
+  (type $s' (;1;) (sub $s (struct)))
   (type $f1 (;2;) (sub (func (param (ref 1)) (result anyref))))
-  (type $f2 (;3;) (sub $f1 (;2;) (func (param (ref 0)) (result (ref any)))))
-  (type $f3 (;4;) (sub $f2 (;3;) (func (param (ref null 0)) (result (ref 0)))))
-  (type $f4 (;5;) (sub $f3 (;4;) (func (param structref) (result (ref 1)))))
+  (type $f2 (;3;) (sub $f1 (func (param (ref 0)) (result (ref any)))))
+  (type $f3 (;4;) (sub $f2 (func (param (ref null 0)) (result (ref 0)))))
+  (type $f4 (;5;) (sub $f3 (func (param structref) (result (ref 1)))))
 )

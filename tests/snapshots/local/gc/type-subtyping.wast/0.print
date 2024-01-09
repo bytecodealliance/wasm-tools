@@ -1,9 +1,9 @@
 (module
   (type $e0 (;0;) (sub (array i32)))
-  (type $e1 (;1;) (sub $e0 (;0;) (array i32)))
+  (type $e1 (;1;) (sub $e0 (array i32)))
   (type $e2 (;2;) (sub (array anyref)))
   (type $e3 (;3;) (sub (array (ref null 0))))
   (type $e4 (;4;) (sub (array (ref 1))))
   (type $m1 (;5;) (sub (array (mut i32))))
-  (type $m2 (;6;) (sub $m1 (;5;) (array (mut i32))))
+  (type $m2 (;6;) (sub $m1 (array (mut i32))))
 )

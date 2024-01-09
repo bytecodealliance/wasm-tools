@@ -8,15 +8,15 @@
     (type $s2 (;3;) (sub (struct (field (ref 2)))))
   )
   (rec
-    (type $g1 (;4;) (sub $f1 (;0;) (func)))
-    (type (;5;) (sub $s1 (;1;) (struct (field (ref 0)) (field (ref 0)) (field (ref 2)) (field (ref 2)) (field (ref 4)))))
+    (type $g1 (;4;) (sub $f1 (func)))
+    (type (;5;) (sub $s1 (struct (field (ref 0)) (field (ref 0)) (field (ref 2)) (field (ref 2)) (field (ref 4)))))
   )
   (rec
-    (type $g2 (;6;) (sub $f2 (;2;) (func)))
-    (type (;7;) (sub $s2 (;3;) (struct (field (ref 0)) (field (ref 2)) (field (ref 0)) (field (ref 2)) (field (ref 6)))))
+    (type $g2 (;6;) (sub $f2 (func)))
+    (type (;7;) (sub $s2 (struct (field (ref 0)) (field (ref 2)) (field (ref 0)) (field (ref 2)) (field (ref 6)))))
   )
   (rec
-    (type $h (;8;) (sub $g2 (;6;) (func)))
+    (type $h (;8;) (sub $g2 (func)))
     (type (;9;) (struct))
   )
   (func $h (;0;) (type $h))

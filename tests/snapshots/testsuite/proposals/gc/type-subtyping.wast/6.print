@@ -1,8 +1,8 @@
 (module
   (rec
     (type $t1 (;0;) (sub (func (param i32 (ref 2)))))
-    (type $t2 (;1;) (sub $t1 (;0;) (func (param i32 (ref 1)))))
-    (type $t3 (;2;) (sub $t2 (;1;) (func (param i32 (ref 0)))))
+    (type $t2 (;1;) (sub $t1 (func (param i32 (ref 1)))))
+    (type $t3 (;2;) (sub $t2 (func (param i32 (ref 0)))))
   )
   (type (;3;) (func (param (ref 0))))
   (type (;4;) (func (param (ref 1))))

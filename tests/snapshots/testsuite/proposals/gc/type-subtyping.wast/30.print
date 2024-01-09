@@ -8,11 +8,11 @@
     (type (;3;) (struct (field (ref 2))))
   )
   (rec
-    (type $g1 (;4;) (sub $f1 (;0;) (func)))
+    (type $g1 (;4;) (sub $f1 (func)))
     (type (;5;) (struct))
   )
   (rec
-    (type $g2 (;6;) (sub $f2 (;2;) (func)))
+    (type $g2 (;6;) (sub $f2 (func)))
     (type (;7;) (struct))
   )
   (type (;8;) (func (result i32)))

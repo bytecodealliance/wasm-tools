@@ -27,15 +27,15 @@
   )
   (rec
     (type $a (;12;) (sub (func)))
-    (type (;13;) (sub $a (;12;) (func)))
+    (type (;13;) (sub $a (func)))
   )
   (rec
-    (type (;14;) (sub $a (;12;) (func)))
+    (type (;14;) (sub $a (func)))
   )
   (rec
-    (type (;15;) (sub final $a (;12;) (func)))
+    (type (;15;) (sub final $a (func)))
   )
-  (type (;16;) (sub $a (;12;) (func)))
+  (type (;16;) (sub $a (func)))
   (rec
     (type $t1 (;17;) (struct (field (ref 18))))
     (type $t2 (;18;) (sub (struct (field (ref 17)))))
