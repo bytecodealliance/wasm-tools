@@ -1282,7 +1282,9 @@ impl<'a> Resolver<'a> {
         for doc in doc.docs.iter() {
             // Comments which are not doc-comments are silently ignored
             if let Some(doc) = doc.strip_prefix("/// ") {
-                lines.push(doc);
+                lines.push(doc.trim_end());
+            } else if doc == "///\n" {
+                lines.push("");
             }
         }
         let contents = if lines.is_empty() {

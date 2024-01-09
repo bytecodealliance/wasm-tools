@@ -523,7 +523,7 @@
         "interface": 0
       },
       "docs": {
-        "contents": "Error codes returned by functions.\nNot all of these error codes are returned by the functions provided by this\nAPI/ some are used in higher-level library layers, and others are provided\nmerely for alignment with POSIX."
+        "contents": "Error codes returned by functions.\n\nNot all of these error codes are returned by the functions provided by this\nAPI/ some are used in higher-level library layers, and others are provided\nmerely for alignment with POSIX."
       }
     }
   ],

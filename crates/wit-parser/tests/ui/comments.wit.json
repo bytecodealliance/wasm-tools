@@ -9,7 +9,7 @@
       },
       "functions": {},
       "docs": {
-        "contents": "hello\nworld\nwhy, yes\nthis is a comment\n* this too */\n* is a comment */\n* this /* is /* a */ nested */ comment */"
+        "contents": "and this is a documentation comment"
       },
       "package": 0
     }
