@@ -6,7 +6,7 @@ use wit_parser::*;
 
 // NB: keep in sync with `crates/wit-parser/src/ast/lex.rs`
 const PRINT_SEMICOLONS_DEFAULT: bool = true;
-const PRINT_F32_F64_DEFAULT: bool = true;
+const PRINT_F32_F64_DEFAULT: bool = false;
 
 /// A utility for printing WebAssembly interface definitions to a string.
 pub struct WitPrinter {

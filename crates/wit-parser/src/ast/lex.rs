@@ -119,7 +119,7 @@ pub enum Error {
 
 // NB: keep in sync with `crates/wit-component/src/printing.rs`.
 const REQUIRE_SEMICOLONS_BY_DEFAULT: bool = true;
-const REQUIRE_F32_F64_BY_DEFAULT: bool = true;
+const REQUIRE_F32_F64_BY_DEFAULT: bool = false;
 
 impl<'a> Tokenizer<'a> {
     pub fn new(
@@ -665,7 +665,7 @@ fn test_validate_id() {
 #[test]
 fn test_tokenizer() {
     fn collect(s: &str) -> Result<Vec<Token>> {
-        let mut t = Tokenizer::new(s, 0, Some(true))?;
+        let mut t = Tokenizer::new(s, 0, Some(true), None)?;
         let mut tokens = Vec::new();
         while let Some(token) = t.next()? {
             tokens.push(token.1);
