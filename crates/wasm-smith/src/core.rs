@@ -676,7 +676,7 @@ impl Module {
             HT::Extern => {
                 choices.push(HT::NoExtern);
             }
-            HT::None | HT::NoExtern | HT::NoFunc => {}
+            HT::Exn | HT::None | HT::NoExtern | HT::NoFunc => {}
         }
         Ok(*u.choose(&choices)?)
     }
@@ -791,7 +791,7 @@ impl Module {
             HT::Eq => {
                 choices.push(HT::Any);
             }
-            HT::Any | HT::Func | HT::Extern => {}
+            HT::Exn | HT::Any | HT::Func | HT::Extern => {}
         }
         Ok(*u.choose(&choices)?)
     }
