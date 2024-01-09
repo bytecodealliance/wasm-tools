@@ -27,7 +27,9 @@ pub fn generate_valid_module(
     config.exceptions_enabled = u.arbitrary()?;
     config.canonicalize_nans = u.arbitrary()?;
     config.tail_call_enabled = u.arbitrary()?;
+
     config.gc_enabled = u.arbitrary()?;
+    config.reference_types_enabled = config.reference_types_enabled || config.gc_enabled;
 
     configure(&mut config, u)?;
 

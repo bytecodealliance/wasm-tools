@@ -30,12 +30,13 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         multi_value: config.multi_value_enabled,
         multi_memory: config.max_memories > 1,
         bulk_memory: config.bulk_memory_enabled,
-        reference_types: config.reference_types_enabled,
+        reference_types: config.gc_enabled || config.reference_types_enabled,
         simd: config.simd_enabled,
         relaxed_simd: config.relaxed_simd_enabled,
         memory64: config.memory64_enabled,
         threads: config.threads_enabled,
         exceptions: config.exceptions_enabled,
+        function_references: config.gc_enabled,
         gc: config.gc_enabled,
         ..wasmparser::WasmFeatures::default()
     });
