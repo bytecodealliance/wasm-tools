@@ -13,6 +13,7 @@ pub struct Tokenizer<'a> {
     span_offset: u32,
     chars: CrlfFold<'a>,
     require_semicolons: bool,
+    require_f32_f64: bool,
 }
 
 #[derive(Clone)]
@@ -118,12 +119,14 @@ pub enum Error {
 
 // NB: keep in sync with `crates/wit-component/src/printing.rs`.
 const REQUIRE_SEMICOLONS_BY_DEFAULT: bool = true;
+const REQUIRE_F32_F64_BY_DEFAULT: bool = false;
 
 impl<'a> Tokenizer<'a> {
     pub fn new(
         input: &'a str,
         span_offset: u32,
         require_semicolons: Option<bool>,
+        require_f32_f64: Option<bool>,
     ) -> Result<Tokenizer<'a>> {
         detect_invalid_input(input)?;
 
@@ -137,6 +140,12 @@ impl<'a> Tokenizer<'a> {
                 match std::env::var("WIT_REQUIRE_SEMICOLONS") {
                     Ok(s) => s == "1",
                     Err(_) => REQUIRE_SEMICOLONS_BY_DEFAULT,
+                }
+            }),
+            require_f32_f64: require_f32_f64.unwrap_or_else(|| {
+                match std::env::var("WIT_REQUIRE_F32_F64") {
+                    Ok(s) => s == "1",
+                    Err(_) => REQUIRE_F32_F64_BY_DEFAULT,
                 }
             }),
         };
@@ -285,8 +294,10 @@ impl<'a> Tokenizer<'a> {
                     "s16" => S16,
                     "s32" => S32,
                     "s64" => S64,
-                    "f32" | "float32" => Float32,
-                    "f64" | "float64" => Float64,
+                    "f32" => Float32,
+                    "f64" => Float64,
+                    "float32" if !self.require_f32_f64 => Float32,
+                    "float64" if !self.require_f32_f64 => Float64,
                     "char" => Char,
                     "resource" => Resource,
                     "own" => Own,
@@ -654,7 +665,7 @@ fn test_validate_id() {
 #[test]
 fn test_tokenizer() {
     fn collect(s: &str) -> Result<Vec<Token>> {
-        let mut t = Tokenizer::new(s, 0, Some(true))?;
+        let mut t = Tokenizer::new(s, 0, Some(true), None)?;
         let mut tokens = Vec::new();
         while let Some(token) = t.next()? {
             tokens.push(token.1);

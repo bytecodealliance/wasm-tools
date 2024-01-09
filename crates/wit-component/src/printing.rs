@@ -6,6 +6,7 @@ use wit_parser::*;
 
 // NB: keep in sync with `crates/wit-parser/src/ast/lex.rs`
 const PRINT_SEMICOLONS_DEFAULT: bool = true;
+const PRINT_F32_F64_DEFAULT: bool = false;
 
 /// A utility for printing WebAssembly interface definitions to a string.
 pub struct WitPrinter {
@@ -19,6 +20,7 @@ pub struct WitPrinter {
     emit_docs: bool,
 
     print_semicolons: bool,
+    print_f32_f64: bool,
 }
 
 impl Default for WitPrinter {
@@ -30,6 +32,10 @@ impl Default for WitPrinter {
             print_semicolons: match std::env::var("WIT_REQUIRE_SEMICOLONS") {
                 Ok(s) => s == "1",
                 Err(_) => PRINT_SEMICOLONS_DEFAULT,
+            },
+            print_f32_f64: match std::env::var("WIT_REQUIRE_F32_F64") {
+                Ok(s) => s == "1",
+                Err(_) => PRINT_F32_F64_DEFAULT,
             },
         }
     }
@@ -437,8 +443,20 @@ impl WitPrinter {
             Type::S16 => self.output.push_str("s16"),
             Type::S32 => self.output.push_str("s32"),
             Type::S64 => self.output.push_str("s64"),
-            Type::Float32 => self.output.push_str("float32"),
-            Type::Float64 => self.output.push_str("float64"),
+            Type::Float32 => {
+                if self.print_f32_f64 {
+                    self.output.push_str("f32")
+                } else {
+                    self.output.push_str("float32")
+                }
+            }
+            Type::Float64 => {
+                if self.print_f32_f64 {
+                    self.output.push_str("f64")
+                } else {
+                    self.output.push_str("float64")
+                }
+            }
             Type::Char => self.output.push_str("char"),
             Type::String => self.output.push_str("string"),
 

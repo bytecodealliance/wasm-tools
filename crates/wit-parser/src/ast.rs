@@ -1160,6 +1160,7 @@ pub struct SourceMap {
     sources: Vec<Source>,
     offset: u32,
     require_semicolons: Option<bool>,
+    require_f32_f64: Option<bool>,
 }
 
 #[derive(Clone)]
@@ -1178,6 +1179,11 @@ impl SourceMap {
     #[doc(hidden)] // NB: only here for a transitionary period
     pub fn set_require_semicolons(&mut self, enable: bool) {
         self.require_semicolons = Some(enable);
+    }
+
+    #[doc(hidden)] // NB: only here for a transitionary period
+    pub fn set_require_f32_f64(&mut self, enable: bool) {
+        self.require_f32_f64 = Some(enable);
     }
 
     /// Reads the file `path` on the filesystem and appends its contents to this
@@ -1214,8 +1220,13 @@ impl SourceMap {
             let mut srcs = self.sources.iter().collect::<Vec<_>>();
             srcs.sort_by_key(|src| &src.path);
             for src in srcs {
-                let mut tokens = Tokenizer::new(&src.contents, src.offset, self.require_semicolons)
-                    .with_context(|| format!("failed to tokenize path: {}", src.path.display()))?;
+                let mut tokens = Tokenizer::new(
+                    &src.contents,
+                    src.offset,
+                    self.require_semicolons,
+                    self.require_f32_f64,
+                )
+                .with_context(|| format!("failed to tokenize path: {}", src.path.display()))?;
                 let ast = Ast::parse(&mut tokens)?;
                 resolver.push(ast).with_context(|| {
                     format!("failed to start resolving path: {}", src.path.display())
@@ -1324,7 +1335,7 @@ pub(crate) enum AstUsePath {
 }
 
 pub(crate) fn parse_use_path(s: &str) -> Result<AstUsePath> {
-    let mut tokens = Tokenizer::new(s, 0, Some(true))?;
+    let mut tokens = Tokenizer::new(s, 0, Some(true), None)?;
     let path = UsePath::parse(&mut tokens)?;
     if tokens.next()?.is_some() {
         bail!("trailing tokens in path specifier");
