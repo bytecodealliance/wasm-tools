@@ -1280,10 +1280,9 @@ impl<'a> Resolver<'a> {
     fn docs(&mut self, doc: &super::Docs<'_>) -> Docs {
         let mut lines = vec![];
         for doc in doc.docs.iter() {
-            if let Some(doc) = doc.strip_prefix("/**") {
-                lines.push(doc.strip_suffix("*/").unwrap().trim());
-            } else {
-                lines.push(doc.trim_start_matches('/').trim());
+            // Comments which are not doc-comments are silently ignored
+            if let Some(doc) = doc.strip_prefix("/// ") {
+                lines.push(doc);
             }
         }
         let contents = if lines.is_empty() {
