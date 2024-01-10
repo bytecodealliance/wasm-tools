@@ -1614,8 +1614,8 @@ impl Encode for Instruction<'_> {
                 sink.push(0x18);
                 let cast_flags =
                     (from_ref_type.nullable as u8) | ((to_ref_type.nullable as u8) << 1);
-                relative_depth.encode(sink);
                 sink.push(cast_flags);
+                relative_depth.encode(sink);
                 from_ref_type.heap_type.encode(sink);
                 to_ref_type.heap_type.encode(sink);
             }
@@ -1628,8 +1628,8 @@ impl Encode for Instruction<'_> {
                 sink.push(0x19);
                 let cast_flags =
                     (from_ref_type.nullable as u8) | ((to_ref_type.nullable as u8) << 1);
-                relative_depth.encode(sink);
                 sink.push(cast_flags);
+                relative_depth.encode(sink);
                 from_ref_type.heap_type.encode(sink);
                 to_ref_type.heap_type.encode(sink);
             }

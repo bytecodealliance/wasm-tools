@@ -249,11 +249,48 @@ pub(crate) struct SubType {
     pub(crate) composite_type: CompositeType,
 }
 
+impl SubType {
+    fn unwrap_struct(&self) -> &StructType {
+        self.composite_type.unwrap_struct()
+    }
+
+    fn unwrap_func(&self) -> &Rc<FuncType> {
+        self.composite_type.unwrap_func()
+    }
+
+    fn unwrap_array(&self) -> &ArrayType {
+        self.composite_type.unwrap_array()
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum CompositeType {
     Array(ArrayType),
     Func(Rc<FuncType>),
     Struct(StructType),
+}
+
+impl CompositeType {
+    fn unwrap_struct(&self) -> &StructType {
+        match self {
+            CompositeType::Struct(s) => s,
+            _ => panic!("not a struct"),
+        }
+    }
+
+    fn unwrap_func(&self) -> &Rc<FuncType> {
+        match self {
+            CompositeType::Func(f) => f,
+            _ => panic!("not a func"),
+        }
+    }
+
+    fn unwrap_array(&self) -> &ArrayType {
+        match self {
+            CompositeType::Array(a) => a,
+            _ => panic!("not an array"),
+        }
+    }
 }
 
 /// A function signature.
@@ -390,6 +427,96 @@ impl Module {
         self.arbitrary_data(u)?;
         self.arbitrary_code(u, allow_invalid)?;
         Ok(())
+    }
+
+    #[inline]
+    fn val_type_is_sub_type(&self, a: ValType, b: ValType) -> bool {
+        match (a, b) {
+            (a, b) if a == b => true,
+            (ValType::Ref(a), ValType::Ref(b)) => self.ref_type_is_sub_type(a, b),
+            _ => false,
+        }
+    }
+
+    /// Is `a` a subtype of `b`?
+    fn ref_type_is_sub_type(&self, a: RefType, b: RefType) -> bool {
+        if a == b {
+            return true;
+        }
+
+        if a.nullable && !b.nullable {
+            return false;
+        }
+
+        self.heap_type_is_sub_type(a.heap_type, b.heap_type)
+    }
+
+    fn heap_type_is_sub_type(&self, a: HeapType, b: HeapType) -> bool {
+        use HeapType as HT;
+        match (a, b) {
+            (a, b) if a == b => true,
+
+            (HT::Eq | HT::I31 | HT::Struct | HT::Array | HT::None, HT::Any) => true,
+            (HT::I31 | HT::Struct | HT::Array | HT::None, HT::Eq) => true,
+            (HT::NoExtern, HT::Extern) => true,
+            (HT::NoFunc, HT::Func) => true,
+            (HT::None, HT::I31 | HT::Array | HT::Struct) => true,
+
+            (HT::Concrete(a), HT::Eq | HT::Any) => matches!(
+                self.ty(a).composite_type,
+                CompositeType::Array(_) | CompositeType::Struct(_)
+            ),
+
+            (HT::Concrete(a), HT::Struct) => {
+                matches!(self.ty(a).composite_type, CompositeType::Struct(_))
+            }
+
+            (HT::Concrete(a), HT::Array) => {
+                matches!(self.ty(a).composite_type, CompositeType::Array(_))
+            }
+
+            (HT::Concrete(a), HT::Func) => {
+                matches!(self.ty(a).composite_type, CompositeType::Func(_))
+            }
+
+            (HT::Concrete(mut a), HT::Concrete(b)) => loop {
+                if a == b {
+                    return true;
+                }
+                if let Some(supertype) = self.ty(a).supertype {
+                    a = supertype;
+                } else {
+                    return false;
+                }
+            },
+
+            (HT::None, HT::Concrete(b)) => matches!(
+                self.ty(b).composite_type,
+                CompositeType::Array(_) | CompositeType::Struct(_)
+            ),
+
+            (HT::NoFunc, HT::Concrete(b)) => {
+                matches!(self.ty(b).composite_type, CompositeType::Func(_))
+            }
+
+            // Nothing else matches. (Avoid full wildcard matches so that
+            // adding/modifying variants is easier in the future.)
+            (HT::Concrete(_), _)
+            | (HT::Func, _)
+            | (HT::Extern, _)
+            | (HT::Any, _)
+            | (HT::None, _)
+            | (HT::NoExtern, _)
+            | (HT::NoFunc, _)
+            | (HT::Eq, _)
+            | (HT::Struct, _)
+            | (HT::Array, _)
+            | (HT::I31, _) => false,
+
+            // TODO: `exn` probably will be its own type hierarchy and will
+            // probably get `noexn` as well.
+            (HT::Exn, _) => false,
+        }
     }
 
     fn arbitrary_types(&mut self, u: &mut Unstructured) -> Result<()> {
@@ -601,28 +728,17 @@ impl Module {
         }
     }
 
-    fn arbitrary_matching_ref_type(
-        &mut self,
-        u: &mut Unstructured,
-        ty: RefType,
-    ) -> Result<RefType> {
+    fn arbitrary_matching_ref_type(&self, u: &mut Unstructured, ty: RefType) -> Result<RefType> {
         Ok(RefType {
-            // TODO: For now, only create allow nullable reference
-            // types. Eventually we should support non-nullable reference types,
-            // but this means that we will also need to recognize when it is
-            // impossible to create an instance of the reference (eg `(ref
-            // nofunc)` has no instances, and self-referential types that
-            // contain a non-null self-reference are also impossible to create).
-            nullable: true,
+            nullable: ty.nullable,
             heap_type: self.arbitrary_matching_heap_type(u, ty.heap_type)?,
         })
     }
 
-    fn arbitrary_matching_heap_type(
-        &mut self,
-        u: &mut Unstructured,
-        ty: HeapType,
-    ) -> Result<HeapType> {
+    fn arbitrary_matching_heap_type(&self, u: &mut Unstructured, ty: HeapType) -> Result<HeapType> {
+        if !self.config.gc_enabled {
+            return Ok(ty);
+        }
         use HeapType as HT;
         let mut choices = vec![ty];
         match ty {
@@ -716,7 +832,7 @@ impl Module {
     }
 
     fn arbitrary_super_type_of_ref_type(
-        &mut self,
+        &self,
         u: &mut Unstructured,
         ty: RefType,
     ) -> Result<RefType> {
@@ -733,10 +849,13 @@ impl Module {
     }
 
     fn arbitrary_super_type_of_heap_type(
-        &mut self,
+        &self,
         u: &mut Unstructured,
         ty: HeapType,
     ) -> Result<HeapType> {
+        if !self.config.gc_enabled {
+            return Ok(ty);
+        }
         use HeapType as HT;
         let mut choices = vec![ty];
         match ty {
@@ -858,6 +977,45 @@ impl Module {
             2 => Ok(StorageType::Val(self.arbitrary_valtype(u, type_ref_limit)?)),
             _ => unreachable!(),
         }
+    }
+
+    fn arbitrary_ref_type(&self, u: &mut Unstructured) -> Result<RefType> {
+        Ok(RefType {
+            nullable: true,
+            heap_type: self.arbitrary_heap_type(u)?,
+        })
+    }
+
+    fn arbitrary_heap_type(&self, u: &mut Unstructured) -> Result<HeapType> {
+        assert!(self.config.reference_types_enabled);
+
+        if self.config.gc_enabled && !self.types.is_empty() && u.arbitrary()? {
+            let type_ref_limit = u32::try_from(self.types.len()).unwrap();
+            let idx = u.int_in_range(0..=type_ref_limit)?;
+            return Ok(HeapType::Concrete(idx));
+        }
+
+        let mut choices = vec![HeapType::Func, HeapType::Extern];
+        if self.config.exceptions_enabled {
+            choices.push(HeapType::Exn);
+        }
+        if self.config.gc_enabled {
+            choices.extend(
+                [
+                    HeapType::Any,
+                    HeapType::None,
+                    HeapType::NoExtern,
+                    HeapType::NoFunc,
+                    HeapType::Eq,
+                    HeapType::Struct,
+                    HeapType::Array,
+                    HeapType::I31,
+                ]
+                .iter()
+                .copied(),
+            );
+        }
+        u.choose(&choices).copied()
     }
 
     fn arbitrary_func_type(
@@ -2212,6 +2370,7 @@ flags! {
         Table,
         Memory,
         Control,
+        Aggregate,
     }
 }
 

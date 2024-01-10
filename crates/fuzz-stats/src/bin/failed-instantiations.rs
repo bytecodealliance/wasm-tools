@@ -103,7 +103,7 @@ impl State {
         config.allow_start_export = false;
 
         // Wasmtime doesn't support this proposal yet.
-        config.tail_call_enabled = false;
+        config.gc_enabled = false;
 
         let mut wasm = wasm_smith::Module::new(config, &mut u)?;
         wasm.ensure_termination(10_000);

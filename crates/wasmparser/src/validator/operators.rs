@@ -38,8 +38,9 @@ pub(crate) struct OperatorValidator {
     // instructions.
     pub(crate) features: WasmFeatures,
 
-    // Temporary storage used during the validation of `br_table`.
-    br_table_tmp: Vec<MaybeType>,
+    // Temporary storage used during `pop_push_label_types` and various
+    // branching instructions.
+    popped_types_tmp: Vec<MaybeType>,
 
     /// The `control` list is the list of blocks that we're currently in.
     control: Vec<Frame>,
@@ -129,7 +130,7 @@ struct OperatorValidatorTemp<'validator, 'resources, T> {
 
 #[derive(Default)]
 pub struct OperatorValidatorAllocations {
-    br_table_tmp: Vec<MaybeType>,
+    popped_types_tmp: Vec<MaybeType>,
     control: Vec<Frame>,
     operands: Vec<MaybeType>,
     local_inits: Vec<bool>,
@@ -186,12 +187,19 @@ impl MaybeType {
             Self::Bot | Self::HeapBot => None,
         }
     }
+
+    fn or(self, alternative: impl Into<MaybeType>) -> MaybeType {
+        match self {
+            Self::Type(_) => self,
+            Self::Bot | Self::HeapBot => alternative.into(),
+        }
+    }
 }
 
 impl OperatorValidator {
     fn new(features: &WasmFeatures, allocs: OperatorValidatorAllocations) -> Self {
         let OperatorValidatorAllocations {
-            br_table_tmp,
+            popped_types_tmp,
             control,
             operands,
             local_inits,
@@ -199,7 +207,7 @@ impl OperatorValidator {
             locals_first,
             locals_all,
         } = allocs;
-        debug_assert!(br_table_tmp.is_empty());
+        debug_assert!(popped_types_tmp.is_empty());
         debug_assert!(control.is_empty());
         debug_assert!(operands.is_empty());
         debug_assert!(local_inits.is_empty());
@@ -215,7 +223,7 @@ impl OperatorValidator {
             local_inits,
             inits,
             features: *features,
-            br_table_tmp,
+            popped_types_tmp,
             operands,
             control,
             end_which_emptied_control: None,
@@ -372,18 +380,18 @@ impl OperatorValidator {
     }
 
     pub fn into_allocations(self) -> OperatorValidatorAllocations {
-        fn truncate<T>(mut tmp: Vec<T>) -> Vec<T> {
-            tmp.truncate(0);
+        fn clear<T>(mut tmp: Vec<T>) -> Vec<T> {
+            tmp.clear();
             tmp
         }
         OperatorValidatorAllocations {
-            br_table_tmp: truncate(self.br_table_tmp),
-            control: truncate(self.control),
-            operands: truncate(self.operands),
-            local_inits: truncate(self.local_inits),
-            inits: truncate(self.inits),
-            locals_first: truncate(self.locals.first),
-            locals_all: truncate(self.locals.all),
+            popped_types_tmp: clear(self.popped_types_tmp),
+            control: clear(self.control),
+            operands: clear(self.operands),
+            local_inits: clear(self.local_inits),
+            inits: clear(self.inits),
+            locals_first: clear(self.locals.first),
+            locals_all: clear(self.locals.all),
         }
     }
 }
@@ -399,6 +407,11 @@ impl<R> DerefMut for OperatorValidatorTemp<'_, '_, R> {
     fn deref_mut(&mut self) -> &mut OperatorValidator {
         self.inner
     }
+}
+
+enum PopPushBottomBehavior {
+    PushBottom,
+    OrExpected,
 }
 
 impl<'resources, R> OperatorValidatorTemp<'_, 'resources, R>
@@ -462,6 +475,50 @@ where
         })?;
 
         self.pop_operand(Some(ref_ty.into()))
+    }
+
+    /// Pop the given label types, checking that they are indeed present on the
+    /// stack, and then push them back on again.
+    fn pop_push_label_types(
+        &mut self,
+        label_types: impl PreciseIterator<Item = ValType>,
+        bottom_behavior: PopPushBottomBehavior,
+    ) -> Result<()> {
+        // When popping off the expected types from the stack for a branch
+        // label, the actual types might be subtypes of those expected types,
+        // and we don't want to accidentally erase that type information by
+        // pushing the label's expected types, so we have to save the actual
+        // popped types.
+
+        debug_assert!(self.popped_types_tmp.is_empty());
+        self.popped_types_tmp.reserve(label_types.len());
+        for expected_ty in label_types.rev() {
+            let actual_ty = self.pop_operand(Some(expected_ty))?;
+
+            let actual_ty = match bottom_behavior {
+                // However, in addition, if we pop bottom, then we generally
+                // don't want to push bottom again! That would allow for the
+                // "same" stack slot to be used as an `i32` in one unreachable
+                // instruction and as an `i64` in a different unreachable
+                // instruction, which leads to invalid test cases to be treated
+                // as valid.
+                PopPushBottomBehavior::OrExpected => actual_ty.or(expected_ty),
+                // The only exception to the above is when we are handling
+                // `br_table` and we aren't logically pushing the *same* value
+                // back to the stack again, but instead resetting the stack to
+                // its previous state, as if we didn't branch to the previous
+                // target. In this case, we can interpret bottom as `i32` for
+                // one branch target, and as `i64` for another branch target, so
+                // we really do want to re-push bottom again.
+                PopPushBottomBehavior::PushBottom => actual_ty,
+            };
+
+            self.popped_types_tmp.push(actual_ty);
+        }
+        for ty in self.inner.popped_types_tmp.drain(..).rev() {
+            self.inner.operands.push(ty.into());
+        }
+        Ok(())
     }
 
     /// Attempts to pop a type from the operand stack.
@@ -1015,18 +1072,10 @@ where
                 BinaryReaderError::new("implementation limit: type index too large", self.offset)
             })?;
 
-        let sup_ty = match self.pop_ref()? {
-            None => bail!(
-                self.offset,
-                "type mismatch: expected (ref null? ...), found bottom"
-            ),
-            Some(ty) => ty,
-        };
-        let sup_ty = RefType::new(
-            sup_ty.is_nullable(),
-            self.resources.top_type(&sup_ty.heap_type()),
-        )
-        .unwrap();
+        let sup_ty = self
+            .pop_ref()?
+            .unwrap_or_else(|| sub_ty.as_reference_type().unwrap());
+        let sup_ty = RefType::new(true, self.resources.top_type(&sup_ty.heap_type())).unwrap();
 
         if !self.resources.is_subtype(sub_ty, sup_ty.into()) {
             bail!(
@@ -1420,13 +1469,8 @@ where
     fn visit_br_if(&mut self, relative_depth: u32) -> Self::Output {
         self.pop_operand(Some(ValType::I32))?;
         let (ty, kind) = self.jump(relative_depth)?;
-        let types = self.label_types(ty, kind)?;
-        for ty in types.clone().rev() {
-            self.pop_operand(Some(ty))?;
-        }
-        for ty in types {
-            self.push_operand(ty)?;
-        }
+        let label_types = self.label_types(ty, kind)?;
+        self.pop_push_label_types(label_types, PopPushBottomBehavior::OrExpected)?;
         Ok(())
     }
     fn visit_br_table(&mut self, table: BrTable) -> Self::Output {
@@ -1436,21 +1480,14 @@ where
         for element in table.targets() {
             let relative_depth = element?;
             let block = self.jump(relative_depth)?;
-            let tys = self.label_types(block.0, block.1)?;
-            if tys.len() != default_types.len() {
+            let label_tys = self.label_types(block.0, block.1)?;
+            if label_tys.len() != default_types.len() {
                 bail!(
                     self.offset,
                     "type mismatch: br_table target labels have different number of types"
                 );
             }
-            debug_assert!(self.br_table_tmp.is_empty());
-            for ty in tys.rev() {
-                let ty = self.pop_operand(Some(ty))?;
-                self.br_table_tmp.push(ty);
-            }
-            for ty in self.inner.br_table_tmp.drain(..).rev() {
-                self.inner.operands.push(ty);
-            }
+            self.pop_push_label_types(label_tys, PopPushBottomBehavior::PushBottom)?;
         }
         for ty in default_types.rev() {
             self.pop_operand(Some(ty))?;
@@ -1582,14 +1619,14 @@ where
         Ok(())
     }
     fn visit_local_tee(&mut self, local_index: u32) -> Self::Output {
-        let ty = self.local(local_index)?;
-        self.pop_operand(Some(ty))?;
+        let expected_ty = self.local(local_index)?;
+        let actual_ty = self.pop_operand(Some(expected_ty))?;
         if !self.local_inits[local_index as usize] {
             self.local_inits[local_index as usize] = true;
             self.inits.push(local_index);
         }
 
-        self.push_operand(ty)?;
+        self.push_operand(actual_ty)?;
         Ok(())
     }
     fn visit_global_get(&mut self, global_index: u32) -> Self::Output {
@@ -2425,25 +2462,22 @@ where
         Ok(())
     }
     fn visit_br_on_null(&mut self, relative_depth: u32) -> Self::Output {
-        let ty = match self.pop_ref()? {
+        let ref_ty = match self.pop_ref()? {
             None => MaybeType::HeapBot,
             Some(ty) => MaybeType::Type(ValType::Ref(ty.as_non_null())),
         };
         let (ft, kind) = self.jump(relative_depth)?;
-        for ty in self.label_types(ft, kind)?.rev() {
-            self.pop_operand(Some(ty))?;
-        }
-        for ty in self.label_types(ft, kind)? {
-            self.push_operand(ty)?;
-        }
-        self.push_operand(ty)?;
+        let label_types = self.label_types(ft, kind)?;
+        self.pop_push_label_types(label_types, PopPushBottomBehavior::OrExpected)?;
+        self.push_operand(ref_ty)?;
         Ok(())
     }
     fn visit_br_on_non_null(&mut self, relative_depth: u32) -> Self::Output {
         let ty = self.pop_ref()?;
         let (ft, kind) = self.jump(relative_depth)?;
-        let mut lts = self.label_types(ft, kind)?;
-        match (lts.next_back(), ty) {
+
+        let mut label_types = self.label_types(ft, kind)?;
+        match (label_types.next_back(), ty) {
             (None, _) => bail!(
                 self.offset,
                 "type mismatch: br_on_non_null target has no label types",
@@ -2468,12 +2502,8 @@ where
                 "type mismatch: br_on_non_null target does not end with heap type",
             ),
         }
-        for ty in self.label_types(ft, kind)?.rev().skip(1) {
-            self.pop_operand(Some(ty))?;
-        }
-        for ty in lts {
-            self.push_operand(ty)?;
-        }
+
+        self.pop_push_label_types(label_types, PopPushBottomBehavior::OrExpected)?;
         Ok(())
     }
     fn visit_ref_is_null(&mut self) -> Self::Output {
@@ -3889,25 +3919,25 @@ where
             );
         }
 
-        let (block_ty, _frame_kind) = self.jump(relative_depth)?;
-        let result_tys = self.results(block_ty)?;
-        for (i, ty) in result_tys.clone().rev().enumerate() {
-            if i == 0 {
-                if !self.resources.is_subtype(to_ref_type.into(), ty) {
-                    bail!(
-                        self.offset,
-                        "type mismatch: casting to type {to_ref_type}, but it does not match \
-                         label result type {ty}"
-                    )
-                }
+        let (block_ty, frame_kind) = self.jump(relative_depth)?;
+        let mut label_types = self.label_types(block_ty, frame_kind)?;
+
+        match label_types.next_back() {
+            Some(label_ty) if self.resources.is_subtype(to_ref_type.into(), label_ty) => {
                 self.pop_operand(Some(from_ref_type.into()))?;
-            } else {
-                self.pop_operand(Some(ty))?;
             }
-        }
-        for ty in result_tys.clone().take(result_tys.len().saturating_sub(1)) {
-            self.push_operand(ty)?;
-        }
+            Some(label_ty) => bail!(
+                self.offset,
+                "type mismatch: casting to type {to_ref_type}, but it does not match \
+                 label result type {label_ty}"
+            ),
+            None => bail!(
+                self.offset,
+                "type mismtach: br_on_cast to label with empty types, must have a reference type"
+            ),
+        };
+
+        self.pop_push_label_types(label_types, PopPushBottomBehavior::OrExpected)?;
         let diff_ty = RefType::difference(from_ref_type, to_ref_type);
         self.push_operand(diff_ty)?;
         Ok(())
@@ -3933,33 +3963,25 @@ where
             );
         }
 
-        let (block_ty, _frame_kind) = self.jump(relative_depth)?;
-        let result_tys = self.results(block_ty)?;
+        let (block_ty, frame_kind) = self.jump(relative_depth)?;
+        let mut label_tys = self.label_types(block_ty, frame_kind)?;
 
         let diff_ty = RefType::difference(from_ref_type, to_ref_type);
-        let Some(result_ref_ty) = result_tys.clone().last() else {
-            bail!(
+        match label_tys.next_back() {
+            Some(label_ty) if self.resources.is_subtype(diff_ty.into(), label_ty) => {
+                self.pop_operand(Some(from_ref_type.into()))?;
+            }
+            Some(label_ty) => bail!(
+                self.offset,
+                "type mismatch: expected label result type {label_ty}, found {diff_ty}"
+            ),
+            None => bail!(
                 self.offset,
                 "type mismatch: expected a reference type, found nothing"
-            )
-        };
-        if !self.resources.is_subtype(diff_ty.into(), result_ref_ty) {
-            bail!(
-                self.offset,
-                "type mismatch: expected label result type {result_ref_ty}, found {diff_ty}"
-            )
+            ),
         }
 
-        for (i, ty) in result_tys.clone().rev().enumerate() {
-            if i == 0 {
-                self.pop_operand(Some(from_ref_type.into()))?;
-            } else {
-                self.pop_operand(Some(ty))?;
-            }
-        }
-        for ty in result_tys.clone().take(result_tys.len().saturating_sub(1)) {
-            self.push_operand(ty)?;
-        }
+        self.pop_push_label_types(label_tys, PopPushBottomBehavior::OrExpected)?;
         self.push_operand(to_ref_type)?;
         Ok(())
     }
@@ -3968,26 +3990,20 @@ where
         self.push_operand(ValType::Ref(RefType::I31))
     }
     fn visit_i31_get_s(&mut self) -> Self::Output {
-        match self.pop_ref()? {
-            Some(ref_type) => match ref_type.heap_type() {
-                HeapType::I31 => self.push_operand(ValType::I32),
-                _ => bail!(self.offset, "ref heap type mismatch: expected i31"),
-            },
-            _ => bail!(self.offset, "type mismatch: expected (ref null? i31)"),
-        }
+        self.pop_operand(Some(ValType::Ref(
+            RefType::new(true, HeapType::I31).unwrap(),
+        )))?;
+        self.push_operand(ValType::I32)
     }
     fn visit_i31_get_u(&mut self) -> Self::Output {
-        match self.pop_ref()? {
-            Some(ref_type) => match ref_type.heap_type() {
-                HeapType::I31 => self.push_operand(ValType::I32),
-                _ => bail!(self.offset, "ref heap type mismatch: expected i31"),
-            },
-            _ => bail!(self.offset, "type mismatch: expected (ref null? i31)"),
-        }
+        self.pop_operand(Some(ValType::Ref(
+            RefType::new(true, HeapType::I31).unwrap(),
+        )))?;
+        self.push_operand(ValType::I32)
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum Either<A, B> {
     A(A),
     B(B),
@@ -4033,8 +4049,8 @@ where
     }
 }
 
-trait PreciseIterator: ExactSizeIterator + DoubleEndedIterator + Clone {}
-impl<T: ExactSizeIterator + DoubleEndedIterator + Clone> PreciseIterator for T {}
+trait PreciseIterator: ExactSizeIterator + DoubleEndedIterator + Clone + std::fmt::Debug {}
+impl<T: ExactSizeIterator + DoubleEndedIterator + Clone + std::fmt::Debug> PreciseIterator for T {}
 
 impl Locals {
     /// Defines another group of `count` local variables of type `ty`.
