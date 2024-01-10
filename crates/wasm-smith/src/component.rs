@@ -542,12 +542,14 @@ impl ComponentBuilder {
         let ty = match u.int_in_range::<u8>(0..=1)? {
             0 => CoreType::Func(crate::core::arbitrary_func_type(
                 u,
+                &self.config,
                 &self.core_valtypes,
                 if self.config.multi_value_enabled {
                     None
                 } else {
                     Some(1)
                 },
+                0,
             )?),
             1 => CoreType::Module(self.arbitrary_module_type(u, type_fuel)?),
             _ => unreachable!(),
@@ -711,7 +713,7 @@ impl ComponentBuilder {
             });
             let ty_idx = u32::try_from(types.len()).unwrap();
             types.push(realloc_ty.clone());
-            defs.push(ModuleTypeDef::TypeDef(crate::core::Type::Func(
+            defs.push(ModuleTypeDef::TypeDef(crate::core::CompositeType::Func(
                 realloc_ty.clone(),
             )));
             defs.push(ModuleTypeDef::Export(
@@ -734,7 +736,7 @@ impl ComponentBuilder {
             });
             let ty_idx = u32::try_from(types.len()).unwrap();
             types.push(free_ty.clone());
-            defs.push(ModuleTypeDef::TypeDef(crate::core::Type::Func(
+            defs.push(ModuleTypeDef::TypeDef(crate::core::CompositeType::Func(
                 free_ty.clone(),
             )));
             defs.push(ModuleTypeDef::Export(
@@ -819,15 +821,17 @@ impl ComponentBuilder {
                 2 => {
                     let ty = crate::core::arbitrary_func_type(
                         u,
+                        &self.config,
                         &self.core_valtypes,
                         if self.config.multi_value_enabled {
                             None
                         } else {
                             Some(1)
                         },
+                        0,
                     )?;
                     types.push(ty.clone());
-                    defs.push(ModuleTypeDef::TypeDef(crate::core::Type::Func(ty)));
+                    defs.push(ModuleTypeDef::TypeDef(crate::core::CompositeType::Func(ty)));
                 }
 
                 // Alias
@@ -1900,7 +1904,7 @@ struct ModuleType {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum ModuleTypeDef {
-    TypeDef(crate::core::Type),
+    TypeDef(crate::core::CompositeType),
     Import(crate::core::Import),
     OuterAlias {
         count: u32,

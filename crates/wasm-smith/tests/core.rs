@@ -119,6 +119,25 @@ fn smoke_test_no_trapping_mode() {
     }
 }
 
+#[test]
+fn smoke_test_wasm_gc() {
+    let mut rng = SmallRng::seed_from_u64(0);
+    let mut buf = vec![0; 2048];
+    for _ in 0..1024 {
+        rng.fill_bytes(&mut buf);
+        let mut u = Unstructured::new(&buf);
+        let config = Config {
+            gc_enabled: true,
+            ..Config::default()
+        };
+        if let Ok(module) = Module::new(config, &mut u) {
+            let wasm_bytes = module.to_bytes();
+            let mut validator = Validator::new_with_features(wasm_features());
+            validate(&mut validator, &wasm_bytes);
+        }
+    }
+}
+
 fn wasm_features() -> WasmFeatures {
     WasmFeatures {
         multi_memory: true,
@@ -126,6 +145,8 @@ fn wasm_features() -> WasmFeatures {
         memory64: true,
         exceptions: true,
         tail_call: true,
+        function_references: true,
+        gc: true,
         ..WasmFeatures::default()
     }
 }
@@ -166,5 +187,5 @@ fn validate(validator: &mut Validator, bytes: &[u8]) {
     if let Ok(text) = wasmprinter::print_bytes(bytes) {
         drop(std::fs::write("test.wat", &text));
     }
-    panic!("wasm failed to validate {:?}", err);
+    panic!("wasm failed to validate: {}", err);
 }

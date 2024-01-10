@@ -4,7 +4,7 @@
     (type (;1;) (struct (field (ref 0))))
   )
   (rec
-    (type $g2 (;2;) (sub $f2 (;0;) (func)))
+    (type $g2 (;2;) (sub $f2 (func)))
     (type (;3;) (struct))
   )
   (func (;0;) (type $g2))

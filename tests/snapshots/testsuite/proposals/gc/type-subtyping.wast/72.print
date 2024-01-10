@@ -8,11 +8,11 @@
     (type $s2 (;3;) (sub (struct (field (ref 2)))))
   )
   (rec
-    (type $g1 (;4;) (sub $f1 (;0;) (func)))
-    (type (;5;) (sub $s1 (;1;) (struct (field (ref 0)) (field (ref 0)) (field (ref 2)) (field (ref 2)) (field (ref 4)))))
+    (type $g1 (;4;) (sub $f1 (func)))
+    (type (;5;) (sub $s1 (struct (field (ref 0)) (field (ref 0)) (field (ref 2)) (field (ref 2)) (field (ref 4)))))
   )
   (rec
-    (type $h (;6;) (sub $g1 (;4;) (func)))
+    (type $h (;6;) (sub $g1 (func)))
     (type (;7;) (struct))
   )
   (import "M7" "h" (func (;0;) (type $f1)))

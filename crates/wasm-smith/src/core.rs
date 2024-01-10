@@ -8,12 +8,15 @@ use crate::{arbitrary_loop, limited_string, unique_string, Config};
 use arbitrary::{Arbitrary, Result, Unstructured};
 use code_builder::CodeBuilderAllocations;
 use flagset::{flags, FlagSet};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::ops::Range;
 use std::rc::Rc;
 use std::str::{self, FromStr};
-use wasm_encoder::{BlockType, ConstExpr, ExportKind, HeapType, RefType, ValType};
+use wasm_encoder::{
+    ArrayType, BlockType, ConstExpr, ExportKind, FieldType, HeapType, RefType, StorageType,
+    StructType, ValType,
+};
 pub(crate) use wasm_encoder::{GlobalType, MemoryType, TableType};
 
 // NB: these constants are used to control the rate at which various events
@@ -47,7 +50,18 @@ pub struct Module {
 
     /// All types locally defined in this module (available in the type index
     /// space).
-    types: Vec<Type>,
+    types: Vec<SubType>,
+
+    /// Non-overlapping ranges within `types` that belong to the same rec
+    /// group. All of `types` is covered by these ranges. When GC is not
+    /// enabled, these are all single-element ranges.
+    rec_groups: Vec<Range<usize>>,
+
+    /// A map from a super type to all of its sub types.
+    super_to_sub_types: HashMap<u32, Vec<u32>>,
+
+    /// Indices within `types` that are not final types.
+    can_subtype: Vec<u32>,
 
     /// Whether we should encode a types section, even if `self.types` is empty.
     should_encode_types: bool,
@@ -61,8 +75,14 @@ pub struct Module {
     /// empty.
     should_encode_imports: bool,
 
+    /// Indices within `types` that are array types.
+    array_types: Vec<u32>,
+
     /// Indices within `types` that are function types.
     func_types: Vec<u32>,
+
+    /// Indices within `types that are struct types.
+    struct_types: Vec<u32>,
 
     /// Number of imported items into this module.
     num_imports: usize,
@@ -162,10 +182,15 @@ impl Module {
             duplicate_imports_behavior,
             valtypes: Vec::new(),
             types: Vec::new(),
+            rec_groups: Vec::new(),
+            can_subtype: Vec::new(),
+            super_to_sub_types: HashMap::new(),
             should_encode_types: false,
             imports: Vec::new(),
             should_encode_imports: false,
+            array_types: Vec::new(),
             func_types: Vec::new(),
+            struct_types: Vec::new(),
             num_imports: 0,
             num_defined_tags: 0,
             num_defined_funcs: 0,
@@ -213,8 +238,22 @@ impl<'a> Arbitrary<'a> for MaybeInvalidModule {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub(crate) enum Type {
+pub(crate) struct RecGroup {
+    pub(crate) types: Vec<SubType>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct SubType {
+    pub(crate) is_final: bool,
+    pub(crate) supertype: Option<u32>,
+    pub(crate) composite_type: CompositeType,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub(crate) enum CompositeType {
+    Array(ArrayType),
     Func(Rc<FuncType>),
+    Struct(StructType),
 }
 
 /// A function signature.
@@ -354,40 +393,488 @@ impl Module {
     }
 
     fn arbitrary_types(&mut self, u: &mut Unstructured) -> Result<()> {
-        // NB: It isn't guaranteed that `self.types.is_empty()` because when
-        // available imports are configured, we may add eagerly specigfic types
-        // for the available imports before generating arbitrary types here.
-        let min = self.config.min_types.saturating_sub(self.types.len());
-        let max = self.config.max_types.saturating_sub(self.types.len());
-        arbitrary_loop(u, min, max, |u| {
-            let ty = self.arbitrary_type(u)?;
-            self.record_type(&ty);
-            self.types.push(ty);
-            Ok(true)
-        })?;
+        assert!(self.config.min_types <= self.config.max_types);
+        while self.types.len() < self.config.min_types {
+            self.arbitrary_rec_group(u)?;
+        }
+        while self.types.len() < self.config.max_types {
+            let keep_going = u.arbitrary().unwrap_or(false);
+            if !keep_going {
+                break;
+            }
+            self.arbitrary_rec_group(u)?;
+        }
         Ok(())
     }
 
-    fn record_type(&mut self, ty: &Type) {
-        let list = match &ty {
-            Type::Func(_) => &mut self.func_types,
+    fn add_type(&mut self, ty: SubType) -> u32 {
+        let index = u32::try_from(self.types.len()).unwrap();
+
+        if let Some(supertype) = ty.supertype {
+            self.super_to_sub_types
+                .entry(supertype)
+                .or_default()
+                .push(index);
+        }
+
+        let list = match &ty.composite_type {
+            CompositeType::Array(_) => &mut self.array_types,
+            CompositeType::Func(_) => &mut self.func_types,
+            CompositeType::Struct(_) => &mut self.struct_types,
         };
-        list.push(self.types.len() as u32);
+        list.push(index);
+
+        if !ty.is_final {
+            self.can_subtype.push(index);
+        }
+
+        self.types.push(ty);
+        index
     }
 
-    fn arbitrary_type(&mut self, u: &mut Unstructured) -> Result<Type> {
-        Ok(Type::Func(self.arbitrary_func_type(u)?))
+    fn arbitrary_rec_group(&mut self, u: &mut Unstructured) -> Result<()> {
+        let rec_group_start = self.types.len();
+
+        if self.config.gc_enabled {
+            // With small probability, clone an existing rec group.
+            if self.clonable_rec_groups().next().is_some() && u.ratio(1, u8::MAX)? {
+                return self.clone_rec_group(u);
+            }
+
+            // Otherwise, create a new rec group with multiple types inside.
+            let max_rec_group_size = self.config.max_types - self.types.len();
+            let rec_group_size = u.int_in_range(0..=max_rec_group_size)?;
+            let type_ref_limit = u32::try_from(self.types.len() + rec_group_size).unwrap();
+            for _ in 0..rec_group_size {
+                let ty = self.arbitrary_sub_type(u, type_ref_limit)?;
+                self.add_type(ty);
+            }
+        } else {
+            let type_ref_limit = u32::try_from(self.types.len()).unwrap();
+            let ty = self.arbitrary_sub_type(u, type_ref_limit)?;
+            self.add_type(ty);
+        }
+
+        self.rec_groups.push(rec_group_start..self.types.len());
+        Ok(())
     }
 
-    fn arbitrary_func_type(&mut self, u: &mut Unstructured) -> Result<Rc<FuncType>> {
+    /// Returns an iterator of rec groups that we could currently clone while
+    /// still staying within the max types limit.
+    fn clonable_rec_groups(&self) -> impl Iterator<Item = Range<usize>> + '_ {
+        self.rec_groups
+            .iter()
+            .filter(|r| r.end - r.start <= self.config.max_types.saturating_sub(self.types.len()))
+            .cloned()
+    }
+
+    fn clone_rec_group(&mut self, u: &mut Unstructured) -> Result<()> {
+        // NB: this does *not* guarantee that the cloned rec group will
+        // canonicalize the same as the original rec group and be
+        // deduplicated. That would reqiure a second pass over the cloned types
+        // to rewrite references within the original rec group to be references
+        // into the new rec group. That might make sense to do one day, but for
+        // now we don't do it. That also means that we can't mark the new types
+        // as "subtypes" of the old types and vice versa.
+        let candidates: Vec<_> = self.clonable_rec_groups().collect();
+        let group = u.choose(&candidates)?.clone();
+        let new_rec_group_start = self.types.len();
+        for index in group {
+            let orig_ty_index = u32::try_from(index).unwrap();
+            let ty = self.ty(orig_ty_index).clone();
+            self.add_type(ty);
+        }
+        self.rec_groups.push(new_rec_group_start..self.types.len());
+        Ok(())
+    }
+
+    fn arbitrary_sub_type(
+        &mut self,
+        u: &mut Unstructured,
+        // NB: Types can be referenced up to (but not including)
+        // `type_ref_limit`. It is an exclusive bound to avoid an option: to
+        // disallow any reference to a concrete type (e.g. `(ref $type)`) you
+        // can simply pass `0` here.
+        type_ref_limit: u32,
+    ) -> Result<SubType> {
+        if !self.config.gc_enabled {
+            debug_assert_eq!(type_ref_limit, u32::try_from(self.types.len()).unwrap());
+            return Ok(SubType {
+                is_final: true,
+                supertype: None,
+                composite_type: CompositeType::Func(self.arbitrary_func_type(u, type_ref_limit)?),
+            });
+        }
+
+        if !self.can_subtype.is_empty() && u.ratio(1, 32_u8)? {
+            self.arbitrary_sub_type_of_super_type(u, type_ref_limit)
+        } else {
+            Ok(SubType {
+                is_final: u.arbitrary()?,
+                supertype: None,
+                composite_type: self.arbitrary_composite_type(u, type_ref_limit)?,
+            })
+        }
+    }
+
+    fn arbitrary_sub_type_of_super_type(
+        &mut self,
+        u: &mut Unstructured,
+        type_ref_limit: u32,
+    ) -> Result<SubType> {
+        let supertype = *u.choose(&self.can_subtype)?;
+        let mut composite_type = self.types[usize::try_from(supertype).unwrap()]
+            .composite_type
+            .clone();
+        match &mut composite_type {
+            CompositeType::Array(a) => {
+                a.0 = self.arbitrary_matching_field_type(u, a.0)?;
+            }
+            CompositeType::Func(f) => {
+                *f = self.arbitrary_matching_func_type(u, f)?;
+            }
+            CompositeType::Struct(s) => {
+                *s = self.arbitrary_matching_struct_type(u, s, type_ref_limit)?;
+            }
+        }
+        Ok(SubType {
+            is_final: u.arbitrary()?,
+            supertype: Some(supertype),
+            composite_type,
+        })
+    }
+
+    fn arbitrary_matching_struct_type(
+        &mut self,
+        u: &mut Unstructured,
+        ty: &StructType,
+        type_ref_limit: u32,
+    ) -> Result<StructType> {
+        let len_extra_fields = u.int_in_range(0..=5)?;
+        let mut fields = Vec::with_capacity(ty.fields.len() + len_extra_fields);
+        for field in ty.fields.iter() {
+            fields.push(self.arbitrary_matching_field_type(u, *field)?);
+        }
+        for _ in 0..len_extra_fields {
+            fields.push(self.arbitrary_field_type(u, type_ref_limit)?);
+        }
+        Ok(StructType {
+            fields: fields.into_boxed_slice(),
+        })
+    }
+
+    fn arbitrary_matching_field_type(
+        &mut self,
+        u: &mut Unstructured,
+        ty: FieldType,
+    ) -> Result<FieldType> {
+        Ok(FieldType {
+            element_type: self.arbitrary_matching_storage_type(u, ty.element_type)?,
+            mutable: if ty.mutable { u.arbitrary()? } else { false },
+        })
+    }
+
+    fn arbitrary_matching_storage_type(
+        &mut self,
+        u: &mut Unstructured,
+        ty: StorageType,
+    ) -> Result<StorageType> {
+        match ty {
+            StorageType::I8 => Ok(StorageType::I8),
+            StorageType::I16 => Ok(StorageType::I16),
+            StorageType::Val(ty) => Ok(StorageType::Val(self.arbitrary_matching_val_type(u, ty)?)),
+        }
+    }
+
+    fn arbitrary_matching_val_type(
+        &mut self,
+        u: &mut Unstructured,
+        ty: ValType,
+    ) -> Result<ValType> {
+        match ty {
+            ValType::I32 => Ok(ValType::I32),
+            ValType::I64 => Ok(ValType::I64),
+            ValType::F32 => Ok(ValType::F32),
+            ValType::F64 => Ok(ValType::F64),
+            ValType::V128 => Ok(ValType::V128),
+            ValType::Ref(ty) => Ok(ValType::Ref(self.arbitrary_matching_ref_type(u, ty)?)),
+        }
+    }
+
+    fn arbitrary_matching_ref_type(
+        &mut self,
+        u: &mut Unstructured,
+        ty: RefType,
+    ) -> Result<RefType> {
+        Ok(RefType {
+            // TODO: For now, only create allow nullable reference
+            // types. Eventually we should support non-nullable reference types,
+            // but this means that we will also need to recognize when it is
+            // impossible to create an instance of the reference (eg `(ref
+            // nofunc)` has no instances, and self-referential types that
+            // contain a non-null self-reference are also impossible to create).
+            nullable: true,
+            heap_type: self.arbitrary_matching_heap_type(u, ty.heap_type)?,
+        })
+    }
+
+    fn arbitrary_matching_heap_type(
+        &mut self,
+        u: &mut Unstructured,
+        ty: HeapType,
+    ) -> Result<HeapType> {
+        use HeapType as HT;
+        let mut choices = vec![ty];
+        match ty {
+            HT::Any => {
+                choices.extend([HT::Eq, HT::Struct, HT::Array, HT::I31, HT::None]);
+                choices.extend(self.array_types.iter().copied().map(HT::Concrete));
+                choices.extend(self.struct_types.iter().copied().map(HT::Concrete));
+            }
+            HT::Eq => {
+                choices.extend([HT::Struct, HT::Array, HT::I31, HT::None]);
+                choices.extend(self.array_types.iter().copied().map(HT::Concrete));
+                choices.extend(self.struct_types.iter().copied().map(HT::Concrete));
+            }
+            HT::Struct => {
+                choices.extend([HT::Struct, HT::None]);
+                choices.extend(self.struct_types.iter().copied().map(HT::Concrete));
+            }
+            HT::Array => {
+                choices.extend([HT::Array, HT::None]);
+                choices.extend(self.array_types.iter().copied().map(HT::Concrete));
+            }
+            HT::I31 => {
+                choices.push(HT::None);
+            }
+            HT::Concrete(idx) => {
+                if let Some(subs) = self.super_to_sub_types.get(&idx) {
+                    choices.extend(subs.iter().copied().map(HT::Concrete));
+                }
+                match self
+                    .types
+                    .get(usize::try_from(idx).unwrap())
+                    .map(|ty| &ty.composite_type)
+                {
+                    Some(CompositeType::Array(_)) | Some(CompositeType::Struct(_)) => {
+                        choices.push(HT::None)
+                    }
+                    Some(CompositeType::Func(_)) => choices.push(HT::NoFunc),
+                    None => {
+                        // The referenced type might be part of this same rec
+                        // group we are currently generating, but not generated
+                        // yet. In this case, leave `choices` as it is, and we
+                        // will just end up choosing the original type again
+                        // down below, which is fine.
+                    }
+                }
+            }
+            HT::Func => {
+                choices.extend(self.func_types.iter().copied().map(HT::Concrete));
+                choices.push(HT::NoFunc);
+            }
+            HT::Extern => {
+                choices.push(HT::NoExtern);
+            }
+            HT::Exn | HT::None | HT::NoExtern | HT::NoFunc => {}
+        }
+        Ok(*u.choose(&choices)?)
+    }
+
+    fn arbitrary_matching_func_type(
+        &mut self,
+        u: &mut Unstructured,
+        ty: &FuncType,
+    ) -> Result<Rc<FuncType>> {
+        // Note: parameters are contravariant, results are covariant. See
+        // https://github.com/bytecodealliance/wasm-tools/blob/0616ef196a183cf137ee06b4a5993b7d590088bf/crates/wasmparser/src/readers/core/types/matches.rs#L137-L174
+        // for details.
+        let mut params = Vec::with_capacity(ty.params.len());
+        for param in &ty.params {
+            params.push(self.arbitrary_super_type_of_val_type(u, *param)?);
+        }
+        let mut results = Vec::with_capacity(ty.results.len());
+        for result in &ty.results {
+            results.push(self.arbitrary_matching_val_type(u, *result)?);
+        }
+        Ok(Rc::new(FuncType { params, results }))
+    }
+
+    fn arbitrary_super_type_of_val_type(
+        &mut self,
+        u: &mut Unstructured,
+        ty: ValType,
+    ) -> Result<ValType> {
+        match ty {
+            ValType::I32 => Ok(ValType::I32),
+            ValType::I64 => Ok(ValType::I64),
+            ValType::F32 => Ok(ValType::F32),
+            ValType::F64 => Ok(ValType::F64),
+            ValType::V128 => Ok(ValType::V128),
+            ValType::Ref(ty) => Ok(ValType::Ref(self.arbitrary_super_type_of_ref_type(u, ty)?)),
+        }
+    }
+
+    fn arbitrary_super_type_of_ref_type(
+        &mut self,
+        u: &mut Unstructured,
+        ty: RefType,
+    ) -> Result<RefType> {
+        Ok(RefType {
+            // TODO: For now, only create allow nullable reference
+            // types. Eventually we should support non-nullable reference types,
+            // but this means that we will also need to recognize when it is
+            // impossible to create an instance of the reference (eg `(ref
+            // nofunc)` has no instances, and self-referential types that
+            // contain a non-null self-reference are also impossible to create).
+            nullable: true,
+            heap_type: self.arbitrary_super_type_of_heap_type(u, ty.heap_type)?,
+        })
+    }
+
+    fn arbitrary_super_type_of_heap_type(
+        &mut self,
+        u: &mut Unstructured,
+        ty: HeapType,
+    ) -> Result<HeapType> {
+        use HeapType as HT;
+        let mut choices = vec![ty];
+        match ty {
+            HT::None => {
+                choices.extend([HT::Any, HT::Eq, HT::Struct, HT::Array, HT::I31]);
+                choices.extend(self.array_types.iter().copied().map(HT::Concrete));
+                choices.extend(self.struct_types.iter().copied().map(HT::Concrete));
+            }
+            HT::NoExtern => {
+                choices.push(HT::Extern);
+            }
+            HT::NoFunc => {
+                choices.extend(self.func_types.iter().copied().map(HT::Concrete));
+                choices.push(HT::Func);
+            }
+            HT::Concrete(mut idx) => {
+                match &self
+                    .types
+                    .get(usize::try_from(idx).unwrap())
+                    .map(|ty| &ty.composite_type)
+                {
+                    Some(CompositeType::Array(_)) => {
+                        choices.extend([HT::Any, HT::Eq, HT::Array]);
+                    }
+                    Some(CompositeType::Func(_)) => {
+                        choices.push(HT::Func);
+                    }
+                    Some(CompositeType::Struct(_)) => {
+                        choices.extend([HT::Any, HT::Eq, HT::Struct]);
+                    }
+                    None => {
+                        // Same as in `arbitrary_matching_heap_type`: this was a
+                        // forward reference to a concrete type that is part of
+                        // this same rec group we are generating right now, and
+                        // therefore we haven't generated that type yet. Just
+                        // leave `choices` as it is and we will choose the
+                        // original type again down below.
+                    }
+                }
+                while let Some(supertype) = self
+                    .types
+                    .get(usize::try_from(idx).unwrap())
+                    .and_then(|ty| ty.supertype)
+                {
+                    choices.push(HT::Concrete(supertype));
+                    idx = supertype;
+                }
+            }
+            HT::Struct | HT::Array | HT::I31 => {
+                choices.extend([HT::Any, HT::Eq]);
+            }
+            HT::Eq => {
+                choices.push(HT::Any);
+            }
+            HT::Exn | HT::Any | HT::Func | HT::Extern => {}
+        }
+        Ok(*u.choose(&choices)?)
+    }
+
+    fn arbitrary_composite_type(
+        &mut self,
+        u: &mut Unstructured,
+        type_ref_limit: u32,
+    ) -> Result<CompositeType> {
+        if !self.config.gc_enabled {
+            return Ok(CompositeType::Func(
+                self.arbitrary_func_type(u, type_ref_limit)?,
+            ));
+        }
+
+        match u.int_in_range(0..=2)? {
+            0 => Ok(CompositeType::Array(ArrayType(
+                self.arbitrary_field_type(u, type_ref_limit)?,
+            ))),
+            1 => Ok(CompositeType::Func(
+                self.arbitrary_func_type(u, type_ref_limit)?,
+            )),
+            2 => Ok(CompositeType::Struct(
+                self.arbitrary_struct_type(u, type_ref_limit)?,
+            )),
+            _ => unreachable!(),
+        }
+    }
+
+    fn arbitrary_struct_type(
+        &mut self,
+        u: &mut Unstructured,
+        type_ref_limit: u32,
+    ) -> Result<StructType> {
+        let len = u.int_in_range(0..=20)?;
+        let mut fields = Vec::with_capacity(len);
+        for _ in 0..len {
+            fields.push(self.arbitrary_field_type(u, type_ref_limit)?);
+        }
+        Ok(StructType {
+            fields: fields.into_boxed_slice(),
+        })
+    }
+
+    fn arbitrary_field_type(
+        &mut self,
+        u: &mut Unstructured,
+        type_ref_limit: u32,
+    ) -> Result<FieldType> {
+        Ok(FieldType {
+            element_type: self.arbitrary_storage_type(u, type_ref_limit)?,
+            mutable: u.arbitrary()?,
+        })
+    }
+
+    fn arbitrary_storage_type(
+        &mut self,
+        u: &mut Unstructured,
+        type_ref_limit: u32,
+    ) -> Result<StorageType> {
+        match u.int_in_range(0..=2)? {
+            0 => Ok(StorageType::I8),
+            1 => Ok(StorageType::I16),
+            2 => Ok(StorageType::Val(self.arbitrary_valtype(u, type_ref_limit)?)),
+            _ => unreachable!(),
+        }
+    }
+
+    fn arbitrary_func_type(
+        &mut self,
+        u: &mut Unstructured,
+        type_ref_limit: u32,
+    ) -> Result<Rc<FuncType>> {
         arbitrary_func_type(
             u,
+            &self.config,
             &self.valtypes,
             if !self.config.multi_value_enabled {
                 Some(1)
             } else {
                 None
             },
+            type_ref_limit,
         )
     }
 
@@ -510,8 +997,9 @@ impl Module {
 
     /// Generate some arbitrary imports from the list of available imports.
     ///
-    /// Returns `true` if there was a list of available imports configured. Otherwise `false` and
-    /// the caller should generate arbitrary imports.
+    /// Returns `true` if there was a list of available imports
+    /// configured. Otherwise `false` and the caller should generate arbitrary
+    /// imports.
     fn arbitrary_imports_from_available(&mut self, u: &mut Unstructured) -> Result<bool> {
         let example_module = if let Some(wasm) = self.config.available_imports.take() {
             wasm
@@ -576,7 +1064,7 @@ impl Module {
         let multi_value_enabled = self.config.multi_value_enabled;
         let mut new_imports = Vec::with_capacity(available_imports.len());
         let first_type_index = self.types.len();
-        let mut new_types = Vec::<Type>::new();
+        let mut new_types = Vec::<SubType>::new();
 
         // Returns the index to the translated type in the to-be type section, and the reference to
         // the type itself.
@@ -603,12 +1091,17 @@ impl Module {
                             .collect(),
                     });
                     index_store.replace(new_index as u32);
-                    new_types.push(Type::Func(Rc::clone(&func_type)));
+                    new_types.push(SubType {
+                        is_final: true,
+                        supertype: None,
+                        composite_type: CompositeType::Func(Rc::clone(&func_type)),
+                    });
                     new_index
                 }
             };
-            match &new_types[serialized_sig_idx - first_type_index] {
-                Type::Func(f) => Some((serialized_sig_idx as u32, Rc::clone(f))),
+            match &new_types[serialized_sig_idx - first_type_index].composite_type {
+                CompositeType::Func(f) => Some((serialized_sig_idx as u32, Rc::clone(f))),
+                _ => unimplemented!(),
             }
         };
 
@@ -695,7 +1188,10 @@ impl Module {
         }
 
         // Finally, add the entities we just generated.
-        self.types.extend(new_types);
+        for ty in new_types {
+            self.rec_groups.push(self.types.len()..self.types.len() + 1);
+            self.add_type(ty);
+        }
         self.imports.extend(new_imports);
 
         Ok(())
@@ -714,7 +1210,7 @@ impl Module {
         }
     }
 
-    fn ty(&self, idx: u32) -> &Type {
+    fn ty(&self, idx: u32) -> &SubType {
         &self.types[idx as usize]
     }
 
@@ -726,8 +1222,9 @@ impl Module {
     }
 
     fn func_type(&self, idx: u32) -> &Rc<FuncType> {
-        match self.ty(idx) {
-            Type::Func(f) => f,
+        match &self.ty(idx).composite_type {
+            CompositeType::Func(f) => f,
+            _ => panic!("types[{idx}] is not a func type"),
         }
     }
 
@@ -756,13 +1253,13 @@ impl Module {
             .filter(move |i| self.func_type(*i).results.is_empty())
     }
 
-    fn arbitrary_valtype(&self, u: &mut Unstructured) -> Result<ValType> {
-        Ok(*u.choose(&self.valtypes)?)
+    fn arbitrary_valtype(&self, u: &mut Unstructured, type_ref_limit: u32) -> Result<ValType> {
+        arbitrary_valtype(u, &self.config, &self.valtypes, type_ref_limit)
     }
 
     fn arbitrary_global_type(&self, u: &mut Unstructured) -> Result<GlobalType> {
         Ok(GlobalType {
-            val_type: self.arbitrary_valtype(u)?,
+            val_type: self.arbitrary_valtype(u, u32::try_from(self.types.len()).unwrap())?,
             mutable: u.arbitrary()?,
         })
     }
@@ -1175,7 +1672,7 @@ impl Module {
     fn arbitrary_locals(&self, u: &mut Unstructured) -> Result<Vec<ValType>> {
         let mut ret = Vec::new();
         arbitrary_loop(u, 0, 100, |u| {
-            ret.push(self.arbitrary_valtype(u)?);
+            ret.push(self.arbitrary_valtype(u, u32::try_from(self.types.len()).unwrap())?);
             Ok(true)
         })?;
         Ok(ret)
@@ -1346,7 +1843,7 @@ pub(crate) fn arbitrary_limits64(
 }
 
 pub(crate) fn configured_valtypes(config: &Config) -> Vec<ValType> {
-    let mut valtypes = Vec::with_capacity(7);
+    let mut valtypes = Vec::with_capacity(25);
     valtypes.push(ValType::I32);
     valtypes.push(ValType::I64);
     valtypes.push(ValType::F32);
@@ -1354,7 +1851,35 @@ pub(crate) fn configured_valtypes(config: &Config) -> Vec<ValType> {
     if config.simd_enabled {
         valtypes.push(ValType::V128);
     }
-    if config.reference_types_enabled {
+    if config.gc_enabled {
+        for nullable in [
+            // TODO: For now, only create allow nullable reference
+            // types. Eventually we should support non-nullable reference types,
+            // but this means that we will also need to recognize when it is
+            // impossible to create an instance of the reference (eg `(ref
+            // nofunc)` has no instances, and self-referential types that
+            // contain a non-null self-reference are also impossible to create).
+            true,
+        ] {
+            for heap_type in [
+                HeapType::Any,
+                HeapType::Eq,
+                HeapType::I31,
+                HeapType::Array,
+                HeapType::Struct,
+                HeapType::None,
+                HeapType::Func,
+                HeapType::NoFunc,
+                HeapType::Extern,
+                HeapType::NoExtern,
+            ] {
+                valtypes.push(ValType::Ref(RefType {
+                    nullable,
+                    heap_type,
+                }));
+            }
+        }
+    } else if config.reference_types_enabled {
         valtypes.push(ValType::EXTERNREF);
         valtypes.push(ValType::FUNCREF);
     }
@@ -1363,24 +1888,44 @@ pub(crate) fn configured_valtypes(config: &Config) -> Vec<ValType> {
 
 pub(crate) fn arbitrary_func_type(
     u: &mut Unstructured,
+    config: &Config,
     valtypes: &[ValType],
     max_results: Option<usize>,
+    type_ref_limit: u32,
 ) -> Result<Rc<FuncType>> {
     let mut params = vec![];
     let mut results = vec![];
     arbitrary_loop(u, 0, 20, |u| {
-        params.push(arbitrary_valtype(u, valtypes)?);
+        params.push(arbitrary_valtype(u, config, valtypes, type_ref_limit)?);
         Ok(true)
     })?;
     arbitrary_loop(u, 0, max_results.unwrap_or(20), |u| {
-        results.push(arbitrary_valtype(u, valtypes)?);
+        results.push(arbitrary_valtype(u, config, valtypes, type_ref_limit)?);
         Ok(true)
     })?;
     Ok(Rc::new(FuncType { params, results }))
 }
 
-fn arbitrary_valtype(u: &mut Unstructured, valtypes: &[ValType]) -> Result<ValType> {
-    Ok(*u.choose(valtypes)?)
+fn arbitrary_valtype(
+    u: &mut Unstructured,
+    config: &Config,
+    valtypes: &[ValType],
+    type_ref_limit: u32,
+) -> Result<ValType> {
+    if config.gc_enabled && type_ref_limit > 0 && u.ratio(1, 20)? {
+        Ok(ValType::Ref(RefType {
+            // TODO: For now, only create allow nullable reference
+            // types. Eventually we should support non-nullable reference types,
+            // but this means that we will also need to recognize when it is
+            // impossible to create an instance of the reference (eg `(ref
+            // nofunc)` has no instances, and self-referential types that
+            // contain a non-null self-reference are also impossible to create).
+            nullable: true,
+            heap_type: HeapType::Concrete(u.int_in_range(0..=type_ref_limit - 1)?),
+        }))
+    } else {
+        Ok(*u.choose(valtypes)?)
+    }
 }
 
 pub(crate) fn arbitrary_table_type(u: &mut Unstructured, config: &Config) -> Result<TableType> {

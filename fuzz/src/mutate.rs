@@ -13,6 +13,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     let mut preserve_semantics = false;
     let (wasm, config) = crate::generate_valid_module(u, |config, u| {
         config.exceptions_enabled = false;
+        config.gc_enabled = false;
         seed = u.arbitrary()?;
         preserve_semantics = u.arbitrary()?;
         Ok(())

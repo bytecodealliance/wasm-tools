@@ -4,7 +4,7 @@
     (type (;1;) (struct (field (ref 0))))
   )
   (rec
-    (type $g1 (;2;) (sub $f1 (;0;) (func)))
+    (type $g1 (;2;) (sub $f1 (func)))
     (type (;3;) (struct))
   )
   (import "M3" "g" (func (;0;) (type $g1)))

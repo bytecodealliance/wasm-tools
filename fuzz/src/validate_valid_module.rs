@@ -36,6 +36,12 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         memory64: config.memory64_enabled,
         threads: config.threads_enabled,
         exceptions: config.exceptions_enabled,
+        // TODO: determine our larger story for function-references in
+        // wasm-tools and whether we should just have a Wasm GC flag since
+        // function-references is effectively part of the Wasm GC proposal at
+        // this point.
+        function_references: config.gc_enabled,
+        gc: config.gc_enabled,
         ..wasmparser::WasmFeatures::default()
     });
     if let Err(e) = validator.validate_all(&wasm_bytes) {
@@ -55,18 +61,28 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
             e
         )
     });
+
     let wasm_bytes = wat::parse_str(&wat_string).unwrap_or_else(|e| {
         panic!(
             "failed to assemble wat into Wasm with `wat::parse_str`: {}",
             e
         )
     });
+    if log::log_enabled!(log::Level::Debug) {
+        log::debug!("Writing roundtripped wasm to `test2.wasm`...");
+        std::fs::write("test2.wasm", &wasm_bytes).unwrap();
+    }
+
     let wat_string2 = wasmprinter::print_bytes(&wasm_bytes).unwrap_or_else(|e| {
         panic!(
             "failed second disassembly of Wasm into wat with `wasmprinter::print_bytes`: {}",
             e
         )
     });
+    if log::log_enabled!(log::Level::Debug) {
+        log::debug!("Writing round tripped text format to `test2.wat`...");
+        std::fs::write("test2.wat", &wat_string2).unwrap();
+    }
 
     if wat_string != wat_string2 {
         panic!("failed to roundtrip valid module");

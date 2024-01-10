@@ -14,6 +14,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         config.disallow_traps = true;
         config.threads_enabled = false;
         config.exceptions_enabled = false;
+        config.gc_enabled = false;
         config.max_memory32_pages = config.max_memory32_pages.min(100);
         config.max_memory64_pages = config.max_memory64_pages.min(100);
         Ok(())

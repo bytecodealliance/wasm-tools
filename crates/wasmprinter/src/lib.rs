@@ -848,7 +848,7 @@ impl Printer {
             self.result.push_str("final ");
         }
         for idx in &ty.supertype_idx {
-            self.print_name(&state.core.type_names, idx.as_module_index().unwrap())?;
+            self.print_idx(&state.core.type_names, idx.as_module_index().unwrap())?;
             self.result.push(' ');
         }
         Ok(0)

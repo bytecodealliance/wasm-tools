@@ -28,6 +28,9 @@ pub fn generate_valid_module(
     config.canonicalize_nans = u.arbitrary()?;
     config.tail_call_enabled = u.arbitrary()?;
 
+    config.gc_enabled = u.arbitrary()?;
+    config.reference_types_enabled = config.reference_types_enabled || config.gc_enabled;
+
     configure(&mut config, u)?;
 
     // Use wasm-smith to generate an arbitrary module and convert it to wasm
