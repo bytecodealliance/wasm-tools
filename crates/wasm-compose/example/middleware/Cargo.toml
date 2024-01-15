@@ -6,7 +6,7 @@ publish = false
 
 [dependencies]
 flate2 = "1.0.24"
-cargo-component-bindings = "0.4.0"
+cargo-component-bindings = "0.6.0"
 
 [lib]
 crate-type = ["cdylib"]

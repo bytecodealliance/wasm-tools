@@ -7,6 +7,3 @@ instantiations:
       example:service/handler@0.1.0:
         instance: svc
         export: example:service/handler@0.1.0
-      example:service/logging@0.1.0:
-        instance: svc
-        export: example:service/logging@0.1.0
