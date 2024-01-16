@@ -72,6 +72,7 @@ subcommands! {
     (metadata, "metadata")
     (wit_smith, "wit-smith")
     (addr2line, "addr2line")
+    (completion, "completion")
 }
 
 fn main() -> ExitCode {
