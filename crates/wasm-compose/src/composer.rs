@@ -407,15 +407,7 @@ impl<'a> CompositionGraphBuilder<'a> {
         let count = queue.len();
 
         // Push a dependency for every instance import
-        'outer: for (import, name, ty) in component.imports() {
-            match ty {
-                ComponentTypeRef::Instance(_) => {}
-                _ => bail!(
-                    "component `{path}` has a non-instance import named `{name}`",
-                    path = component.path().unwrap().display()
-                ),
-            }
-
+        'outer: for (import, name, _) in component.imports() {
             log::debug!("adding dependency for argument `{name}` (import index {import}) from instance `{instance_name}` to the queue", import = import.0);
 
             // Search for a matching definition export for this import
