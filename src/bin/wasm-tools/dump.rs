@@ -48,6 +48,7 @@ struct Indices {
     core_tags: u32,
     core_modules: u32,
     core_instances: u32,
+    rec_groups: u32,
 
     // Component indexes
     types: u32,
@@ -101,8 +102,17 @@ impl<'a> Dump<'a> {
                     write!(self.state, "version {} ({:?})", num, encoding)?;
                     self.color_print(range.end)?;
                 }
-                Payload::TypeSection(s) => self.section(s, "type", |me, end, t| {
-                    write!(me.state, "[type {}] {:?}", inc(&mut i.core_types), t)?;
+                Payload::TypeSection(s) => self.section(s, "type", |me, end, rec_group| {
+                    let rec_group_index = inc(&mut i.rec_groups);
+                    let explicit = rec_group.is_explicit_rec_group();
+                    let kind = if explicit { "explicit" } else { "implicit" };
+                    writeln!(me.dst, "--- rec group {rec_group_index} ({kind}) ---")?;
+                    for (offset, ty) in rec_group.into_types_and_offsets() {
+                        if explicit {
+                            me.print(offset)?;
+                        }
+                        write!(me.state, "[type {}] {ty:?}", inc(&mut i.core_types))?;
+                    }
                     me.print(end)
                 })?,
                 Payload::ImportSection(s) => self.section(s, "import", |me, end, imp| {

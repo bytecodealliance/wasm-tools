@@ -306,13 +306,13 @@ pub struct RecGroup {
 
 #[derive(Debug, Clone)]
 enum RecGroupInner {
-    Implicit(SubType),
-    Explicit(Vec<SubType>),
+    Implicit((usize, SubType)),
+    Explicit(Vec<(usize, SubType)>),
 }
 
 impl RecGroup {
     /// Create an explicit `RecGroup` for the given types.
-    pub(crate) fn explicit(types: Vec<SubType>) -> Self {
+    pub(crate) fn explicit(types: Vec<(usize, SubType)>) -> Self {
         RecGroup {
             inner: RecGroupInner::Explicit(types),
         }
@@ -320,51 +320,59 @@ impl RecGroup {
 
     /// Create an implicit `RecGroup` for a type that was not contained
     /// in a `(rec ...)`.
-    pub(crate) fn implicit(ty: SubType) -> Self {
+    pub(crate) fn implicit(offset: usize, ty: SubType) -> Self {
         RecGroup {
-            inner: RecGroupInner::Implicit(ty),
+            inner: RecGroupInner::Implicit((offset, ty)),
         }
     }
 
     /// Is this an explicit recursion group?
     pub fn is_explicit_rec_group(&self) -> bool {
-        matches!(self.inner, RecGroupInner::Explicit(_))
+        matches!(self.inner, RecGroupInner::Explicit(..))
     }
 
     /// Returns the list of subtypes in the recursive type group.
-    pub fn types(&self) -> &[SubType] {
-        match &self.inner {
+    pub fn types(&self) -> impl ExactSizeIterator<Item = &SubType> + '_ {
+        let types = match &self.inner {
             RecGroupInner::Implicit(ty) => std::slice::from_ref(ty),
             RecGroupInner::Explicit(types) => types,
-        }
+        };
+        types.iter().map(|(_, ty)| ty)
     }
 
     /// Return a mutable borrow of the list of subtypes in this
     /// recursive type group.
-    pub(crate) fn types_mut(&mut self) -> &mut [SubType] {
-        match &mut self.inner {
+    pub(crate) fn types_mut(&mut self) -> impl ExactSizeIterator<Item = &mut SubType> + '_ {
+        let types = match &mut self.inner {
             RecGroupInner::Implicit(ty) => std::slice::from_mut(ty),
             RecGroupInner::Explicit(types) => types,
-        }
+        };
+        types.iter_mut().map(|(_, ty)| ty)
     }
 
     /// Returns an owning iterator of all subtypes in this recursion
     /// group.
     pub fn into_types(self) -> impl ExactSizeIterator<Item = SubType> {
+        self.into_types_and_offsets().map(|(_, ty)| ty)
+    }
+
+    /// Returns an owning iterator of all subtypes in this recursion
+    /// group, along with their offset.
+    pub fn into_types_and_offsets(self) -> impl ExactSizeIterator<Item = (usize, SubType)> {
         return match self.inner {
-            RecGroupInner::Implicit(ty) => Iter::Implicit(Some(ty)),
+            RecGroupInner::Implicit(tup) => Iter::Implicit(Some(tup)),
             RecGroupInner::Explicit(types) => Iter::Explicit(types.into_iter()),
         };
 
         enum Iter {
-            Implicit(Option<SubType>),
-            Explicit(std::vec::IntoIter<SubType>),
+            Implicit(Option<(usize, SubType)>),
+            Explicit(std::vec::IntoIter<(usize, SubType)>),
         }
 
         impl Iterator for Iter {
-            type Item = SubType;
+            type Item = (usize, SubType);
 
-            fn next(&mut self) -> Option<SubType> {
+            fn next(&mut self) -> Option<(usize, SubType)> {
                 match self {
                     Self::Implicit(ty) => ty.take(),
                     Self::Explicit(types) => types.next(),
@@ -386,13 +394,19 @@ impl RecGroup {
 
 impl Hash for RecGroup {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
-        self.types().hash(hasher)
+        let types = self.types();
+        types.len().hash(hasher);
+        for ty in types {
+            ty.hash(hasher);
+        }
     }
 }
 
 impl PartialEq for RecGroup {
     fn eq(&self, other: &RecGroup) -> bool {
-        self.types() == other.types()
+        let self_tys = self.types();
+        let other_tys = other.types();
+        self_tys.len() == other_tys.len() && self_tys.zip(other_tys).all(|(a, b)| a == b)
     }
 }
 
@@ -1533,10 +1547,19 @@ impl<'a> FromReader<'a> for RecGroup {
         match reader.peek()? {
             0x4e => {
                 reader.read_u8()?;
-                let types = reader.read_iter(MAX_WASM_TYPES, "rec group types")?;
-                Ok(RecGroup::explicit(types.collect::<Result<_>>()?))
+                let mut iter = reader.read_iter(MAX_WASM_TYPES, "rec group types")?;
+                let mut types = Vec::with_capacity(iter.size_hint().0);
+                let mut offset = iter.reader.original_position();
+                while let Some(ty) = iter.next() {
+                    types.push((offset, ty?));
+                    offset = iter.reader.original_position();
+                }
+                Ok(RecGroup::explicit(types))
             }
-            _ => Ok(RecGroup::implicit(reader.read()?)),
+            _ => Ok(RecGroup::implicit(
+                reader.original_position(),
+                reader.read()?,
+            )),
         }
     }
 }

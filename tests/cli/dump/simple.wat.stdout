@@ -2,8 +2,10 @@
       | 01 00 00 00
   0x8 | 01 08       | type section
   0xa | 02          | 2 count
-  0xb | 60 01 7f 00 | [type 0] RecGroup { inner: Implicit(SubType { is_final: true, supertype_idx: None, composite_type: Func(FuncType { params: [I32], results: [] }) }) }
-  0xf | 60 00 00    | [type 1] RecGroup { inner: Implicit(SubType { is_final: true, supertype_idx: None, composite_type: Func(FuncType { params: [], results: [] }) }) }
+--- rec group 0 (implicit) ---
+  0xb | 60 01 7f 00 | [type 0] SubType { is_final: true, supertype_idx: None, composite_type: Func(FuncType { params: [I32], results: [] }) }
+--- rec group 1 (implicit) ---
+  0xf | 60 00 00    | [type 1] SubType { is_final: true, supertype_idx: None, composite_type: Func(FuncType { params: [], results: [] }) }
  0x12 | 02 07       | import section
  0x14 | 01          | 1 count
  0x15 | 01 6d 01 6e | import [func 0] Import { module: "m", name: "n", ty: Func(0) }
