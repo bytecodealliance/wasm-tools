@@ -150,9 +150,9 @@ impl<'a> TypeCanonicalizer<'a> {
         self.rec_group_start = u32::try_from(self.module.types.len()).unwrap();
         self.rec_group_len = u32::try_from(rec_group.types().len()).unwrap();
 
-        for (rec_group_index, ty) in rec_group.types_mut().iter_mut().enumerate() {
-            let rec_group_index = u32::try_from(rec_group_index).unwrap();
-            let type_index = self.rec_group_start + rec_group_index;
+        for (rec_group_local_index, ty) in rec_group.types_mut().enumerate() {
+            let rec_group_local_index = u32::try_from(rec_group_local_index).unwrap();
+            let type_index = self.rec_group_start + rec_group_local_index;
 
             if let Some(sup) = ty.supertype_idx.as_mut() {
                 if sup.as_module_index().map_or(false, |i| i >= type_index) {

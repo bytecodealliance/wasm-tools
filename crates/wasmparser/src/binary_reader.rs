@@ -1809,7 +1809,7 @@ impl<'a> VisitOperator<'a> for OperatorFactory<'a> {
 /// Iterator returned from [`BinaryReader::read_iter`].
 pub struct BinaryReaderIter<'a, 'me, T: FromReader<'a>> {
     remaining: usize,
-    reader: &'me mut BinaryReader<'a>,
+    pub(crate) reader: &'me mut BinaryReader<'a>,
     _marker: marker::PhantomData<T>,
 }
 
