@@ -353,36 +353,7 @@ impl RecGroup {
     /// Returns an owning iterator of all subtypes in this recursion
     /// group.
     pub fn into_types(self) -> impl ExactSizeIterator<Item = SubType> {
-        return match self.inner {
-            RecGroupInner::Implicit((_, ty)) => Iter::Implicit(Some(ty)),
-            RecGroupInner::Explicit(types) => Iter::Explicit(types.into_iter()),
-        };
-
-        enum Iter {
-            Implicit(Option<SubType>),
-            Explicit(std::vec::IntoIter<(usize, SubType)>),
-        }
-
-        impl Iterator for Iter {
-            type Item = SubType;
-
-            fn next(&mut self) -> Option<SubType> {
-                match self {
-                    Self::Implicit(ty) => ty.take(),
-                    Self::Explicit(types) => types.next().map(|(_, ty)| ty),
-                }
-            }
-
-            fn size_hint(&self) -> (usize, Option<usize>) {
-                match self {
-                    Self::Implicit(None) => (0, Some(0)),
-                    Self::Implicit(Some(_)) => (1, Some(1)),
-                    Self::Explicit(types) => types.size_hint(),
-                }
-            }
-        }
-
-        impl ExactSizeIterator for Iter {}
+        self.into_types_and_offsets().map(|(_, ty)| ty)
     }
 
     /// Returns an owning iterator of all subtypes in this recursion

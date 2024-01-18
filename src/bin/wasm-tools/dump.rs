@@ -111,7 +111,7 @@ impl<'a> Dump<'a> {
                         if explicit {
                             me.print(offset)?;
                         }
-                        write!(me.state, "[type {}] {ty:#?}", inc(&mut i.core_types))?;
+                        write!(me.state, "[type {}] {ty:?}", inc(&mut i.core_types))?;
                     }
                     me.print(end)
                 })?,
