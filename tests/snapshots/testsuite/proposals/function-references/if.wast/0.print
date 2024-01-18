@@ -862,6 +862,17 @@
     drop
     drop
   )
+  (func (;52;) (type $block-sig-1)
+    i32.const 0
+    if ;; label = @1
+    else
+    end
+    i32.const 1
+    i32.eqz
+    if ;; label = @1
+    else
+    end
+  )
   (table (;0;) 1 1 funcref)
   (memory (;0;) 1)
   (global $a (;0;) (mut i32) i32.const 10)
@@ -914,5 +925,6 @@
   (export "add64_u_with_carry" (func $add64_u_with_carry))
   (export "add64_u_saturated" (func $add64_u_saturated))
   (export "type-use" (func 51))
+  (export "atypical-condition" (func 52))
   (elem (;0;) (i32.const 0) func $func)
 )
