@@ -1,8 +1,10 @@
-(module $Mgim2
+(module $Mgim1
   (type (;0;) (func (result i32)))
-  (import "grown-imported-memory" "memory" (memory (;0;) 3))
+  (import "grown-memory" "memory" (memory (;0;) 2))
   (func (;0;) (type 0) (result i32)
-    memory.size
+    i32.const 1
+    memory.grow
   )
-  (export "size" (func 0))
+  (export "memory" (memory 0))
+  (export "grow" (func 0))
 )
