@@ -119,6 +119,11 @@ jobs:
       - run: cargo check --no-default-features --features metadata
       - run: cargo check --no-default-features --features wit-smith
       - run: cargo check --no-default-features --features addr2line
+      - run: |
+          if cargo tree -p wasm-smith --no-default-features -e no-dev | grep wasmparser; then
+            echo wasm-smith without default features should not depend on wasmparser
+            exit 1
+          fi
 
   doc:
     runs-on: ubuntu-latest
