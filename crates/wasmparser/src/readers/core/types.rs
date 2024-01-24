@@ -941,6 +941,33 @@ impl RefType {
     /// `externref`.
     pub const EXTERNREF: Self = RefType::EXTERN.nullable();
 
+    /// A nullable reference to any object aka `(ref null any)` aka `anyref`.
+    pub const ANYREF: Self = RefType::ANY.nullable();
+
+    /// A nullable reference to no object aka `(ref null none)` aka `nullref`.
+    pub const NULLREF: Self = RefType::NONE.nullable();
+
+    /// A nullable reference to a noextern object aka `(ref null noextern)` aka
+    /// `nullexternref`.
+    pub const NULLEXTERNREF: Self = RefType::NOEXTERN.nullable();
+
+    /// A nullable reference to a nofunc object aka `(ref null nofunc)` aka
+    /// `nullfuncref`.
+    pub const NULLFUNCREF: Self = RefType::NOFUNC.nullable();
+
+    /// A nullable reference to an eq object aka `(ref null eq)` aka `eqref`.
+    pub const EQREF: Self = RefType::EQ.nullable();
+
+    /// A nullable reference to a struct aka `(ref null struct)` aka
+    /// `structref`.
+    pub const STRUCTREF: Self = RefType::STRUCT.nullable();
+
+    /// A nullable reference to an array aka `(ref null array)` aka `arrayref`.
+    pub const ARRAYREF: Self = RefType::ARRAY.nullable();
+
+    /// A nullable reference to an i31 object aka `(ref null i31)` aka `i31ref`.
+    pub const I31REF: Self = RefType::I31.nullable();
+
     /// A nullable reference to an exception object aka `(ref null exn)` aka
     /// `exnref`.
     pub const EXNREF: Self = RefType::EXN.nullable();

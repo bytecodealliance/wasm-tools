@@ -1,17 +1,20 @@
 use super::{
-    Elements, FuncType, GlobalInitExpr, Instruction, InstructionKind::*, InstructionKinds, Module,
-    ValType,
+    CompositeType, Elements, FuncType, GlobalInitExpr, Instruction, InstructionKind::*,
+    InstructionKinds, Module, ValType,
 };
 use crate::{unique_string, MemoryOffsetChoices};
 use arbitrary::{Result, Unstructured};
 use std::collections::{BTreeMap, BTreeSet};
 use std::convert::TryFrom;
 use std::rc::Rc;
-use wasm_encoder::{BlockType, Catch, ConstExpr, ExportKind, GlobalType, MemArg, RefType};
+use wasm_encoder::{
+    ArrayType, BlockType, Catch, ConstExpr, ExportKind, FieldType, GlobalType, HeapType, MemArg,
+    RefType, StorageType, StructType,
+};
 mod no_traps;
 
 macro_rules! instructions {
-	(
+    (
         $(
             ($predicate:expr, $generator_fn:ident, $instruction_kind:ident $(, $cost:tt)?),
         )*
@@ -61,7 +64,7 @@ macro_rules! instructions {
                 .unwrap_or_else(|i| i - 1);
             Some(builder.allocs.options[idx].0)
         }
-	};
+    };
 
     ( @count; ) => {
         0
@@ -103,11 +106,17 @@ instructions! {
     (Some(br_table_valid), br_table, Control),
     (Some(return_valid), r#return, Control, 900),
     (Some(call_valid), call, Control),
+    (Some(call_ref_valid), call_ref, Control),
     (Some(call_indirect_valid), call_indirect, Control),
     (Some(return_call_valid), return_call, Control),
+    (Some(return_call_ref_valid), return_call_ref, Control),
     (Some(return_call_indirect_valid), return_call_indirect, Control),
     (Some(throw_valid), throw, Control, 850),
     (Some(throw_ref_valid), throw_ref, Control, 850),
+    (Some(br_on_null_valid), br_on_null, Control),
+    (Some(br_on_non_null_valid), br_on_non_null, Control),
+    (Some(br_on_cast_valid), br_on_cast, Control),
+    (Some(br_on_cast_fail_valid), br_on_cast_fail, Control),
     // Parametric instructions.
     (Some(drop_valid), drop, Parametric, 990),
     (Some(select_valid), select, Parametric),
@@ -288,9 +297,13 @@ instructions! {
     (Some(nontrapping_f32_on_stack), i64_trunc_sat_f32_u, Numeric),
     (Some(nontrapping_f64_on_stack), i64_trunc_sat_f64_s, Numeric),
     (Some(nontrapping_f64_on_stack), i64_trunc_sat_f64_u, Numeric),
-    // reference types proposal
+    // Reference instructions.
     (Some(ref_null_valid), ref_null, Reference),
     (Some(ref_func_valid), ref_func, Reference),
+    (Some(ref_as_non_null_valid), ref_as_non_null, Reference),
+    (Some(ref_eq_valid), ref_eq, Reference),
+    (Some(ref_test_valid), ref_test, Reference),
+    (Some(ref_cast_valid), ref_cast, Reference),
     (Some(ref_is_null_valid), ref_is_null, Reference),
     (Some(table_fill_valid), table_fill, Reference),
     (Some(table_set_valid), table_set, Reference),
@@ -300,6 +313,27 @@ instructions! {
     (Some(table_copy_valid), table_copy, Reference),
     (Some(table_init_valid), table_init, Reference),
     (Some(elem_drop_valid), elem_drop, Reference),
+    // Aggregate instructions.
+    (Some(struct_new_valid), struct_new, Aggregate),
+    (Some(struct_new_default_valid), struct_new_default, Aggregate),
+    (Some(struct_get_valid), struct_get, Aggregate),
+    (Some(struct_set_valid), struct_set, Aggregate),
+    (Some(array_new_valid), array_new, Aggregate),
+    (Some(array_new_fixed_valid), array_new_fixed, Aggregate),
+    (Some(array_new_default_valid), array_new_default, Aggregate),
+    (Some(array_new_data_valid), array_new_data, Aggregate),
+    (Some(array_new_elem_valid), array_new_elem, Aggregate),
+    (Some(array_get_valid), array_get, Aggregate),
+    (Some(array_set_valid), array_set, Aggregate),
+    (Some(array_len_valid), array_len, Aggregate),
+    (Some(array_fill_valid), array_fill, Aggregate),
+    (Some(array_copy_valid), array_copy, Aggregate),
+    (Some(array_init_data_valid), array_init_data, Aggregate),
+    (Some(array_init_elem_valid), array_init_elem, Aggregate),
+    (Some(ref_i31_valid), ref_i31, Aggregate),
+    (Some(i31_get_valid), i31_get, Aggregate),
+    (Some(any_convert_extern_valid), any_convert_extern, Aggregate),
+    (Some(extern_convert_any_valid), extern_convert_any, Aggregate),
     // SIMD instructions.
     (Some(simd_have_memory_and_offset), v128_load, Vector),
     (Some(simd_have_memory_and_offset), v128_load8x8s, Vector),
@@ -811,48 +845,242 @@ impl CodeBuilderAllocations {
 }
 
 impl CodeBuilder<'_> {
+    fn pop_control(&mut self) -> Control {
+        let control = self.allocs.controls.pop().unwrap();
+
+        // Pop the actual types on the stack (which could be subtypes of the
+        // declared types) and then push the declared types. This avoids us
+        // accidentally generating code that relies on erased subtypes.
+        for _ in &control.results {
+            self.pop_operand();
+        }
+        for ty in &control.results {
+            self.push_operand(Some(*ty));
+        }
+
+        control
+    }
+
+    fn push_control(
+        &mut self,
+        kind: ControlKind,
+        params: impl Into<Vec<ValType>>,
+        results: impl Into<Vec<ValType>>,
+    ) {
+        let params = params.into();
+        let results = results.into();
+
+        // Similar to in `pop_control`, we want to pop the actual argument types
+        // off the stack (which could be subtypes of the declared parameter
+        // types) and then push the parameter types. This effectively does type
+        // erasure of any subtyping that exists so that we don't accidentally
+        // generate code that relies on the specific subtypes.
+        for _ in &params {
+            self.pop_operand();
+        }
+        self.push_operands(&params);
+
+        let height = self.allocs.operands.len() - params.len();
+        self.allocs.controls.push(Control {
+            kind,
+            params,
+            results,
+            height,
+        });
+    }
+
     /// Get the operands that are in-scope within the current control frame.
+    #[inline]
     fn operands(&self) -> &[Option<ValType>] {
         let height = self.allocs.controls.last().map_or(0, |c| c.height);
         &self.allocs.operands[height..]
     }
 
-    fn pop_operands(&mut self, to_pop: &[ValType]) {
-        debug_assert!(self.types_on_stack(to_pop));
+    /// Pop a single operand from the stack, regardless of expected type.
+    #[inline]
+    fn pop_operand(&mut self) -> Option<ValType> {
+        self.allocs.operands.pop().unwrap()
+    }
+
+    #[inline]
+    fn pop_operands(&mut self, module: &Module, to_pop: &[ValType]) {
+        debug_assert!(self.types_on_stack(module, to_pop));
         self.allocs
             .operands
             .truncate(self.allocs.operands.len() - to_pop.len());
     }
 
+    #[inline]
     fn push_operands(&mut self, to_push: &[ValType]) {
         self.allocs
             .operands
             .extend(to_push.iter().copied().map(Some));
     }
 
-    fn label_types_on_stack(&self, to_check: &Control) -> bool {
-        self.types_on_stack(to_check.label_types())
+    #[inline]
+    fn push_operand(&mut self, ty: Option<ValType>) {
+        self.allocs.operands.push(ty);
     }
 
-    fn type_on_stack(&self, ty: ValType) -> bool {
-        match self.operands().last() {
-            None => false,
-            Some(None) => true,
-            Some(Some(x)) => *x == ty,
+    fn label_types_on_stack(&self, module: &Module, to_check: &Control) -> bool {
+        self.types_on_stack(module, to_check.label_types())
+    }
+
+    /// Is the given type on top of the stack?
+    #[inline]
+    fn type_on_stack(&self, module: &Module, ty: ValType) -> bool {
+        self.type_on_stack_at(module, 0, ty)
+    }
+
+    /// Is the given type on the stack at the given index (indexing from the top
+    /// of the stack towards the bottom).
+    #[inline]
+    fn type_on_stack_at(&self, module: &Module, at: usize, expected: ValType) -> bool {
+        let operands = self.operands();
+        if at >= operands.len() {
+            return false;
+        }
+        match operands[operands.len() - 1 - at] {
+            None => true,
+            Some(actual) => module.val_type_is_sub_type(actual, expected),
         }
     }
 
-    fn types_on_stack(&self, types: &[ValType]) -> bool {
+    /// Are the given types on top of the stack?
+    #[inline]
+    fn types_on_stack(&self, module: &Module, types: &[ValType]) -> bool {
         self.operands().len() >= types.len()
-            && self
-                .operands()
+            && types
                 .iter()
                 .rev()
-                .zip(types.iter().rev())
-                .all(|(a, b)| match (a, b) {
-                    (None, _) => true,
-                    (Some(x), y) => x == y,
-                })
+                .enumerate()
+                .all(|(idx, ty)| self.type_on_stack_at(module, idx, *ty))
+    }
+
+    /// Are the given field types on top of the stack?
+    #[inline]
+    fn field_types_on_stack(&self, module: &Module, types: &[FieldType]) -> bool {
+        self.operands().len() >= types.len()
+            && types
+                .iter()
+                .rev()
+                .enumerate()
+                .all(|(idx, ty)| self.type_on_stack_at(module, idx, ty.element_type.unpack()))
+    }
+
+    /// Is the given field type on top of the stack?
+    #[inline]
+    fn field_type_on_stack(&self, module: &Module, ty: FieldType) -> bool {
+        self.type_on_stack(module, ty.element_type.unpack())
+    }
+
+    /// Is the given field type on the stack at the given position (indexed from
+    /// the top of the stack)?
+    #[inline]
+    fn field_type_on_stack_at(&self, module: &Module, at: usize, ty: FieldType) -> bool {
+        self.type_on_stack_at(module, at, ty.element_type.unpack())
+    }
+
+    /// Get the ref type on the top of the operand stack, if any.
+    ///
+    /// * `None` means no reftype on the stack.
+    /// * `Some(None)` means that the stack is polymorphic.
+    /// * `Some(Some(r))` means that `r` is the ref type on top of the stack.
+    fn ref_type_on_stack(&self) -> Option<Option<RefType>> {
+        match self.operands().last().copied()? {
+            Some(ValType::Ref(r)) => Some(Some(r)),
+            Some(_) => None,
+            None => Some(None),
+        }
+    }
+
+    /// Is there a `(ref null? <index>)` on the stack at the given position? If
+    /// so return its nullability and type index.
+    fn concrete_ref_type_on_stack_at(&self, at: usize) -> Option<(bool, u32)> {
+        match self.operands().iter().copied().rev().nth(at)?? {
+            ValType::Ref(RefType {
+                nullable,
+                heap_type: HeapType::Concrete(ty),
+            }) => Some((nullable, ty)),
+            _ => None,
+        }
+    }
+
+    /// Is there a `(ref null? <index>)` at the given stack position that
+    /// references a concrete array type?
+    fn concrete_array_ref_type_on_stack_at(
+        &self,
+        module: &Module,
+        at: usize,
+    ) -> Option<(bool, u32, ArrayType)> {
+        let (nullable, ty) = self.concrete_ref_type_on_stack_at(at)?;
+        match &module.ty(ty).composite_type {
+            CompositeType::Array(a) => Some((nullable, ty, *a)),
+            _ => None,
+        }
+    }
+
+    /// Is there a `(ref null? <index>)` at the given stack position that
+    /// references a concrete struct type?
+    fn concrete_struct_ref_type_on_stack_at<'a>(
+        &self,
+        module: &'a Module,
+        at: usize,
+    ) -> Option<(bool, u32, &'a StructType)> {
+        let (nullable, ty) = self.concrete_ref_type_on_stack_at(at)?;
+        match &module.ty(ty).composite_type {
+            CompositeType::Struct(s) => Some((nullable, ty, s)),
+            _ => None,
+        }
+    }
+
+    /// Pop a reference type from the stack and return it.
+    ///
+    /// When in unreachable code and the stack is polymorphic, returns `None`.
+    fn pop_ref_type(&mut self) -> Option<RefType> {
+        let ref_ty = self.ref_type_on_stack().unwrap();
+        self.pop_operand();
+        ref_ty
+    }
+
+    /// Pops a `(ref null? <index>)` from the stack and return its nullability
+    /// and type index.
+    fn pop_concrete_ref_type(&mut self) -> (bool, u32) {
+        let ref_ty = self.pop_ref_type().unwrap();
+        match ref_ty.heap_type {
+            HeapType::Concrete(i) => (ref_ty.nullable, i),
+            _ => panic!("not a concrete ref type"),
+        }
+    }
+
+    /// Get the `(ref null? <index>)` type on the top of the stack that
+    /// references a function type, if any.
+    fn concrete_funcref_on_stack(&self, module: &Module) -> Option<RefType> {
+        match self.operands().last().copied()?? {
+            ValType::Ref(r) => match r.heap_type {
+                HeapType::Concrete(idx) => match &module.ty(idx).composite_type {
+                    CompositeType::Func(_) => Some(r),
+                    CompositeType::Struct(_) | CompositeType::Array(_) => None,
+                },
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    /// Is there a `(ref null? <index>)` on the top of the stack that references
+    /// a struct type with at least one field?
+    fn non_empty_struct_ref_on_stack(&self, module: &Module, allow_null_refs: bool) -> bool {
+        match self.operands().last() {
+            Some(Some(ValType::Ref(RefType {
+                nullable,
+                heap_type: HeapType::Concrete(idx),
+            }))) => match &module.ty(*idx).composite_type {
+                CompositeType::Struct(s) => !s.fields.is_empty() && (!nullable || allow_null_refs),
+                _ => false,
+            },
+            _ => false,
+        }
     }
 
     #[inline(never)]
@@ -868,7 +1096,7 @@ impl CodeBuilder<'_> {
         ];
         if module.config.multi_value_enabled {
             for (i, ty) in module.func_types() {
-                if self.types_on_stack(&ty.params) {
+                if self.types_on_stack(module, &ty.params) {
                     options.push(Box::new(move |_| Ok(BlockType::FunctionType(i as u32))));
                 }
             }
@@ -887,10 +1115,14 @@ impl CodeBuilder<'_> {
         let mut instructions = vec![];
 
         while !self.allocs.controls.is_empty() {
-            let keep_going = instructions.len() < max_instructions
-                && u.arbitrary().map_or(false, |b: u8| b != 0);
+            let keep_going = instructions.len() < max_instructions && u.arbitrary::<u8>()? != 0;
             if !keep_going {
-                self.end_active_control_frames(u, &mut instructions, module.config.disallow_traps)?;
+                self.end_active_control_frames(
+                    u,
+                    module,
+                    &mut instructions,
+                    module.config.disallow_traps,
+                )?;
                 break;
             }
 
@@ -905,6 +1137,7 @@ impl CodeBuilder<'_> {
                 None => {
                     self.end_active_control_frames(
                         u,
+                        module,
                         &mut instructions,
                         module.config.disallow_traps,
                     )?;
@@ -1049,13 +1282,14 @@ impl CodeBuilder<'_> {
     fn end_active_control_frames(
         &mut self,
         u: &mut Unstructured<'_>,
+        module: &Module,
         instructions: &mut Vec<Instruction>,
         disallow_traps: bool,
     ) -> Result<()> {
         while !self.allocs.controls.is_empty() {
             // Ensure that this label is valid by placing the right types onto
             // the operand stack for the end of the label.
-            self.guarantee_label_results(u, instructions, disallow_traps)?;
+            self.guarantee_label_results(u, module, instructions, disallow_traps)?;
 
             // Remove the label and clear the operand stack since the label has
             // been removed.
@@ -1071,7 +1305,7 @@ impl CodeBuilder<'_> {
                 self.allocs
                     .operands
                     .extend(label.params.into_iter().map(Some));
-                self.guarantee_label_results(u, instructions, disallow_traps)?;
+                self.guarantee_label_results(u, module, instructions, disallow_traps)?;
                 self.allocs.controls.pop();
                 self.allocs.operands.truncate(label.height);
             }
@@ -1096,6 +1330,7 @@ impl CodeBuilder<'_> {
     fn guarantee_label_results(
         &mut self,
         u: &mut Unstructured<'_>,
+        module: &Module,
         instructions: &mut Vec<Instruction>,
         disallow_traps: bool,
     ) -> Result<()> {
@@ -1103,7 +1338,7 @@ impl CodeBuilder<'_> {
         let label = self.allocs.controls.last().unwrap();
 
         // Already done, yay!
-        if label.results.len() == operands.len() && self.types_on_stack(&label.results) {
+        if label.results.len() == operands.len() && self.types_on_stack(module, &label.results) {
             return Ok(());
         }
 
@@ -1294,13 +1529,7 @@ fn block(
 ) -> Result<()> {
     let block_ty = builder.arbitrary_block_type(u, module)?;
     let (params, results) = module.params_results(&block_ty);
-    let height = builder.allocs.operands.len() - params.len();
-    builder.allocs.controls.push(Control {
-        kind: ControlKind::Block,
-        params,
-        results,
-        height,
-    });
+    builder.push_control(ControlKind::Block, params, results);
     instructions.push(Instruction::Block(block_ty));
     Ok(())
 }
@@ -1310,32 +1539,34 @@ fn try_table_valid(module: &Module, _: &mut CodeBuilder) -> bool {
     module.config.exceptions_enabled
 }
 
-fn try_table<'m>(
+fn try_table(
     u: &mut Unstructured,
     module: &Module,
-    builder: &'m mut CodeBuilder,
+    builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
     let block_ty = builder.arbitrary_block_type(u, module)?;
 
-    let mut catch_options: Vec<Box<dyn Fn(&mut Unstructured<'_>) -> Result<Catch> + 'm>> =
-        Vec::new();
+    let mut catch_options: Vec<
+        Box<dyn Fn(&mut Unstructured<'_>, &mut CodeBuilder<'_>) -> Result<Catch>>,
+    > = Vec::new();
 
     for (i, ctrl) in builder.allocs.controls.iter().rev().enumerate() {
         let i = i as u32;
 
         let label_types = ctrl.label_types();
         if label_types.is_empty() {
-            catch_options.push(Box::new(move |_| Ok(Catch::All { label: i })));
+            catch_options.push(Box::new(move |_, _| Ok(Catch::All { label: i })));
         }
         if label_types == [ValType::EXNREF] {
-            catch_options.push(Box::new(move |_| Ok(Catch::AllRef { label: i })));
+            catch_options.push(Box::new(move |_, _| Ok(Catch::AllRef { label: i })));
         }
 
-        if let Some(tags) = builder.allocs.tags.get(label_types) {
-            catch_options.push(Box::new(move |u| {
+        if builder.allocs.tags.contains_key(label_types) {
+            let label_types = label_types.to_vec();
+            catch_options.push(Box::new(move |u, builder| {
                 Ok(Catch::One {
-                    tag: *u.choose(&tags)?,
+                    tag: *u.choose(&builder.allocs.tags[&label_types])?,
                     label: i,
                 })
             }));
@@ -1343,10 +1574,10 @@ fn try_table<'m>(
 
         let mut label_types_with_exnref = label_types.to_vec();
         label_types_with_exnref.push(ValType::EXNREF);
-        if let Some(tags) = builder.allocs.tags.get(&label_types_with_exnref) {
-            catch_options.push(Box::new(move |u| {
+        if builder.allocs.tags.contains_key(&label_types_with_exnref) {
+            catch_options.push(Box::new(move |u, builder| {
                 Ok(Catch::OneRef {
-                    tag: *u.choose(&tags)?,
+                    tag: *u.choose(&builder.allocs.tags[&label_types_with_exnref])?,
                     label: i,
                 })
             }));
@@ -1356,18 +1587,13 @@ fn try_table<'m>(
     let mut catches = Vec::new();
     if catch_options.len() > 0 {
         for _ in 0..u.int_in_range(0..=10)? {
-            catches.push(u.choose(&mut catch_options)?(u)?);
+            catches.push(u.choose(&mut catch_options)?(u, builder)?);
         }
     }
 
     let (params, results) = module.params_results(&block_ty);
-    let height = builder.allocs.operands.len() - params.len();
-    builder.allocs.controls.push(Control {
-        kind: ControlKind::TryTable,
-        params,
-        results,
-        height,
-    });
+    builder.push_control(ControlKind::TryTable, params, results);
+
     instructions.push(Instruction::TryTable(block_ty, catches.into()));
     Ok(())
 }
@@ -1380,20 +1606,14 @@ fn r#loop(
 ) -> Result<()> {
     let block_ty = builder.arbitrary_block_type(u, module)?;
     let (params, results) = module.params_results(&block_ty);
-    let height = builder.allocs.operands.len() - params.len();
-    builder.allocs.controls.push(Control {
-        kind: ControlKind::Loop,
-        params,
-        results,
-        height,
-    });
+    builder.push_control(ControlKind::Loop, params, results);
     instructions.push(Instruction::Loop(block_ty));
     Ok(())
 }
 
 #[inline]
-fn if_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
-    builder.type_on_stack(ValType::I32)
+fn if_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    builder.type_on_stack(module, ValType::I32)
 }
 
 fn r#if(
@@ -1402,48 +1622,38 @@ fn r#if(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
-
+    builder.pop_operands(module, &[ValType::I32]);
     let block_ty = builder.arbitrary_block_type(u, module)?;
     let (params, results) = module.params_results(&block_ty);
-    let height = builder.allocs.operands.len() - params.len();
-    builder.allocs.controls.push(Control {
-        kind: ControlKind::If,
-        params,
-        results,
-        height,
-    });
+    builder.push_control(ControlKind::If, params, results);
     instructions.push(Instruction::If(block_ty));
     Ok(())
 }
 
 #[inline]
-fn else_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
+fn else_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     let last_control = builder.allocs.controls.last().unwrap();
     last_control.kind == ControlKind::If
         && builder.operands().len() == last_control.results.len()
-        && builder.types_on_stack(&last_control.results)
+        && builder.types_on_stack(module, &last_control.results)
 }
 
 fn r#else(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let control = builder.allocs.controls.pop().unwrap();
-    builder.pop_operands(&control.results);
+    let control = builder.pop_control();
+    builder.pop_operands(module, &control.results);
     builder.push_operands(&control.params);
-    builder.allocs.controls.push(Control {
-        kind: ControlKind::Block,
-        ..control
-    });
+    builder.push_control(ControlKind::Block, control.params, control.results);
     instructions.push(Instruction::Else);
     Ok(())
 }
 
 #[inline]
-fn end_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
+fn end_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     // Note: first control frame is the function return's control frame, which
     // does not have an associated `end`.
     if builder.allocs.controls.len() <= 1 {
@@ -1451,7 +1661,7 @@ fn end_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
     }
     let control = builder.allocs.controls.last().unwrap();
     builder.operands().len() == control.results.len()
-        && builder.types_on_stack(&control.results)
+        && builder.types_on_stack(module, &control.results)
         // `if`s that don't leave the stack as they found it must have an
         // `else`.
         && !(control.kind == ControlKind::If && control.params != control.results)
@@ -1463,23 +1673,23 @@ fn end(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.allocs.controls.pop();
+    builder.pop_control();
     instructions.push(Instruction::End);
     Ok(())
 }
 
 #[inline]
-fn br_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
+fn br_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     builder
         .allocs
         .controls
         .iter()
-        .any(|l| builder.label_types_on_stack(l))
+        .any(|l| builder.label_types_on_stack(module, l))
 }
 
 fn br(
     u: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
@@ -1487,7 +1697,7 @@ fn br(
         .allocs
         .controls
         .iter()
-        .filter(|l| builder.label_types_on_stack(l))
+        .filter(|l| builder.label_types_on_stack(module, l))
         .count();
     debug_assert!(n > 0);
     let i = u.int_in_range(0..=n - 1)?;
@@ -1497,19 +1707,19 @@ fn br(
         .iter()
         .rev()
         .enumerate()
-        .filter(|(_, l)| builder.label_types_on_stack(l))
+        .filter(|(_, l)| builder.label_types_on_stack(module, l))
         .nth(i)
         .unwrap();
     let control = &builder.allocs.controls[builder.allocs.controls.len() - 1 - target];
     let tys = control.label_types().to_vec();
-    builder.pop_operands(&tys);
+    builder.pop_operands(module, &tys);
     instructions.push(Instruction::Br(target as u32));
     Ok(())
 }
 
 #[inline]
-fn br_if_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
-    if !builder.type_on_stack(ValType::I32) {
+fn br_if_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    if !builder.type_on_stack(module, ValType::I32) {
         return false;
     }
     let ty = builder.allocs.operands.pop().unwrap();
@@ -1517,24 +1727,24 @@ fn br_if_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
         .allocs
         .controls
         .iter()
-        .any(|l| builder.label_types_on_stack(l));
+        .any(|l| builder.label_types_on_stack(module, l));
     builder.allocs.operands.push(ty);
     is_valid
 }
 
 fn br_if(
     u: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32]);
 
     let n = builder
         .allocs
         .controls
         .iter()
-        .filter(|l| builder.label_types_on_stack(l))
+        .filter(|l| builder.label_types_on_stack(module, l))
         .count();
     debug_assert!(n > 0);
     let i = u.int_in_range(0..=n - 1)?;
@@ -1544,7 +1754,7 @@ fn br_if(
         .iter()
         .rev()
         .enumerate()
-        .filter(|(_, l)| builder.label_types_on_stack(l))
+        .filter(|(_, l)| builder.label_types_on_stack(module, l))
         .nth(i)
         .unwrap();
     instructions.push(Instruction::BrIf(target as u32));
@@ -1553,7 +1763,7 @@ fn br_if(
 
 #[inline]
 fn br_table_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    if !builder.type_on_stack(ValType::I32) {
+    if !builder.type_on_stack(module, ValType::I32) {
         return false;
     }
     let ty = builder.allocs.operands.pop().unwrap();
@@ -1564,17 +1774,17 @@ fn br_table_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
 
 fn br_table(
     u: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32]);
 
     let n = builder
         .allocs
         .controls
         .iter()
-        .filter(|l| builder.label_types_on_stack(l))
+        .filter(|l| builder.label_types_on_stack(module, l))
         .count();
     debug_assert!(n > 0);
 
@@ -1585,7 +1795,7 @@ fn br_table(
         .iter()
         .rev()
         .enumerate()
-        .filter(|(_, l)| builder.label_types_on_stack(l))
+        .filter(|(_, l)| builder.label_types_on_stack(module, l))
         .nth(i)
         .unwrap();
     let control = &builder.allocs.controls[builder.allocs.controls.len() - 1 - default_target];
@@ -1601,36 +1811,36 @@ fn br_table(
         .collect();
 
     let tys = control.label_types().to_vec();
-    builder.pop_operands(&tys);
+    builder.pop_operands(module, &tys);
 
     instructions.push(Instruction::BrTable(targets, default_target as u32));
     Ok(())
 }
 
 #[inline]
-fn return_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
-    builder.label_types_on_stack(&builder.allocs.controls[0])
+fn return_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    builder.label_types_on_stack(module, &builder.allocs.controls[0])
 }
 
 fn r#return(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
     let results = builder.allocs.controls[0].results.clone();
-    builder.pop_operands(&results);
+    builder.pop_operands(module, &results);
     instructions.push(Instruction::Return);
     Ok(())
 }
 
 #[inline]
-fn call_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
+fn call_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     builder
         .allocs
         .functions
         .keys()
-        .any(|func_ty| builder.types_on_stack(&func_ty.params))
+        .any(|func_ty| builder.types_on_stack(module, &func_ty.params))
 }
 
 fn call(
@@ -1643,21 +1853,69 @@ fn call(
         .allocs
         .functions
         .iter()
-        .filter(|(func_ty, _)| builder.types_on_stack(&func_ty.params))
+        .filter(|(func_ty, _)| builder.types_on_stack(module, &func_ty.params))
         .flat_map(|(_, v)| v.iter().copied())
         .collect::<Vec<_>>();
     assert!(candidates.len() > 0);
     let i = u.int_in_range(0..=candidates.len() - 1)?;
     let (func_idx, ty) = module.funcs().nth(candidates[i] as usize).unwrap();
-    builder.pop_operands(&ty.params);
+    builder.pop_operands(module, &ty.params);
     builder.push_operands(&ty.results);
     instructions.push(Instruction::Call(func_idx as u32));
     Ok(())
 }
 
 #[inline]
+fn call_ref_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    if !module.config.gc_enabled {
+        return false;
+    }
+    let funcref = match builder.concrete_funcref_on_stack(module) {
+        Some(f) => f,
+        None => return false,
+    };
+    if module.config.disallow_traps && funcref.nullable {
+        return false;
+    }
+    match funcref.heap_type {
+        HeapType::Concrete(idx) => {
+            let ty = builder.allocs.operands.pop().unwrap();
+            let params = &module.ty(idx).unwrap_func().params;
+            let valid = builder.types_on_stack(module, params);
+            builder.allocs.operands.push(ty);
+            valid
+        }
+        _ => unreachable!(),
+    }
+}
+
+fn call_ref(
+    _u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    let heap_ty = match builder.pop_operand() {
+        Some(ValType::Ref(r)) => r.heap_type,
+        _ => unreachable!(),
+    };
+    let idx = match heap_ty {
+        HeapType::Concrete(idx) => idx,
+        _ => unreachable!(),
+    };
+    let func_ty = match &module.ty(idx).composite_type {
+        CompositeType::Func(f) => f,
+        _ => unreachable!(),
+    };
+    builder.pop_operands(module, &func_ty.params);
+    builder.push_operands(&func_ty.results);
+    instructions.push(Instruction::CallRef(idx));
+    Ok(())
+}
+
+#[inline]
 fn call_indirect_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    if builder.allocs.funcref_tables.is_empty() || !builder.type_on_stack(ValType::I32) {
+    if builder.allocs.funcref_tables.is_empty() || !builder.type_on_stack(module, ValType::I32) {
         return false;
     }
     if module.config.disallow_traps {
@@ -1670,7 +1928,7 @@ fn call_indirect_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     let ty = builder.allocs.operands.pop().unwrap();
     let is_valid = module
         .func_types()
-        .any(|(_, ty)| builder.types_on_stack(&ty.params));
+        .any(|(_, ty)| builder.types_on_stack(module, &ty.params));
     builder.allocs.operands.push(ty);
     is_valid
 }
@@ -1681,14 +1939,14 @@ fn call_indirect(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32]);
 
     let choices = module
         .func_types()
-        .filter(|(_, ty)| builder.types_on_stack(&ty.params))
+        .filter(|(_, ty)| builder.types_on_stack(module, &ty.params))
         .collect::<Vec<_>>();
     let (type_idx, ty) = u.choose(&choices)?;
-    builder.pop_operands(&ty.params);
+    builder.pop_operands(module, &ty.params);
     builder.push_operands(&ty.results);
     let table = *u.choose(&builder.allocs.funcref_tables)?;
     instructions.push(Instruction::CallIndirect {
@@ -1705,7 +1963,7 @@ fn return_call_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     }
 
     builder.allocs.functions.keys().any(|func_ty| {
-        builder.types_on_stack(&func_ty.params)
+        builder.types_on_stack(module, &func_ty.params)
             && builder.allocs.controls[0].label_types() == &func_ty.results
     })
 }
@@ -1721,7 +1979,7 @@ fn return_call(
         .functions
         .iter()
         .filter(|(func_ty, _)| {
-            builder.types_on_stack(&func_ty.params)
+            builder.types_on_stack(module, &func_ty.params)
                 && builder.allocs.controls[0].label_types() == &func_ty.results
         })
         .flat_map(|(_, v)| v.iter().copied())
@@ -1729,9 +1987,61 @@ fn return_call(
     assert!(candidates.len() > 0);
     let i = u.int_in_range(0..=candidates.len() - 1)?;
     let (func_idx, ty) = module.funcs().nth(candidates[i] as usize).unwrap();
-    builder.pop_operands(&ty.params);
+    builder.pop_operands(module, &ty.params);
     builder.push_operands(&ty.results);
     instructions.push(Instruction::ReturnCall(func_idx as u32));
+    Ok(())
+}
+
+#[inline]
+fn return_call_ref_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    if !module.config.gc_enabled {
+        return false;
+    }
+
+    let ref_ty = match builder.concrete_funcref_on_stack(module) {
+        None => return false,
+        Some(r) if r.nullable && module.config.disallow_traps => return false,
+        Some(r) => r,
+    };
+
+    let idx = match ref_ty.heap_type {
+        HeapType::Concrete(idx) => idx,
+        _ => unreachable!(),
+    };
+    let func_ty = match &module.ty(idx).composite_type {
+        CompositeType::Func(f) => f,
+        CompositeType::Array(_) | CompositeType::Struct(_) => return false,
+    };
+
+    let ty = builder.allocs.operands.pop().unwrap();
+    let valid = builder.types_on_stack(module, &func_ty.params)
+        && builder.func_ty.results == func_ty.results;
+    builder.allocs.operands.push(ty);
+    valid
+}
+
+fn return_call_ref(
+    _u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    let heap_ty = match builder.pop_operand() {
+        Some(ValType::Ref(r)) => r.heap_type,
+        _ => unreachable!(),
+    };
+    let idx = match heap_ty {
+        HeapType::Concrete(idx) => idx,
+        _ => unreachable!(),
+    };
+    let func_ty = match &module.ty(idx).composite_type {
+        CompositeType::Func(f) => f,
+        _ => unreachable!(),
+    };
+    builder.pop_operands(module, &func_ty.params);
+    builder.push_operands(&func_ty.results);
+    instructions.push(Instruction::ReturnCallRef(idx));
     Ok(())
 }
 
@@ -1739,7 +2049,7 @@ fn return_call(
 fn return_call_indirect_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     if !module.config.tail_call_enabled
         || builder.allocs.funcref_tables.is_empty()
-        || !builder.type_on_stack(ValType::I32)
+        || !builder.type_on_stack(module, ValType::I32)
     {
         return false;
     }
@@ -1751,7 +2061,7 @@ fn return_call_indirect_valid(module: &Module, builder: &mut CodeBuilder) -> boo
 
     let ty = builder.allocs.operands.pop().unwrap();
     let is_valid = module.func_types().any(|(_, ty)| {
-        builder.types_on_stack(&ty.params)
+        builder.types_on_stack(module, &ty.params)
             && builder.allocs.controls[0].label_types() == &ty.results
     });
     builder.allocs.operands.push(ty);
@@ -1764,17 +2074,17 @@ fn return_call_indirect(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32]);
 
     let choices = module
         .func_types()
         .filter(|(_, ty)| {
-            builder.types_on_stack(&ty.params)
+            builder.types_on_stack(module, &ty.params)
                 && builder.allocs.controls[0].label_types() == &ty.results
         })
         .collect::<Vec<_>>();
     let (type_idx, ty) = u.choose(&choices)?;
-    builder.pop_operands(&ty.params);
+    builder.pop_operands(module, &ty.params);
     builder.push_operands(&ty.results);
     let table = *u.choose(&builder.allocs.funcref_tables)?;
     instructions.push(Instruction::ReturnCallIndirect {
@@ -1791,7 +2101,7 @@ fn throw_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
             .allocs
             .tags
             .keys()
-            .any(|k| builder.types_on_stack(k))
+            .any(|k| builder.types_on_stack(module, k))
 }
 
 fn throw(
@@ -1804,7 +2114,7 @@ fn throw(
         .allocs
         .tags
         .iter()
-        .filter(|(k, _)| builder.types_on_stack(k))
+        .filter(|(k, _)| builder.types_on_stack(module, k))
         .flat_map(|(_, v)| v.iter().copied())
         .collect::<Vec<_>>();
     assert!(candidates.len() > 0);
@@ -1812,46 +2122,364 @@ fn throw(
     let (tag_idx, tag_type) = module.tags().nth(candidates[i] as usize).unwrap();
     // Tags have no results, throwing cannot return
     assert!(tag_type.func_type.results.len() == 0);
-    builder.pop_operands(&tag_type.func_type.params);
+    builder.pop_operands(module, &tag_type.func_type.params);
     instructions.push(Instruction::Throw(tag_idx as u32));
     Ok(())
 }
 
 #[inline]
 fn throw_ref_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.exceptions_enabled && builder.types_on_stack(&[ValType::EXNREF])
+    module.config.exceptions_enabled && builder.types_on_stack(module, &[ValType::EXNREF])
 }
 
 fn throw_ref(
     _u: &mut Unstructured,
-    _module: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::EXNREF]);
+    builder.pop_operands(module, &[ValType::EXNREF]);
     instructions.push(Instruction::ThrowRef);
     Ok(())
 }
 
 #[inline]
-fn drop_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
+fn br_on_null_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    if !module.config.gc_enabled {
+        return false;
+    }
+    if builder.ref_type_on_stack().is_none() {
+        return false;
+    }
+    let ty = builder.allocs.operands.pop().unwrap();
+    let valid = br_valid(module, builder);
+    builder.allocs.operands.push(ty);
+    valid
+}
+
+fn br_on_null(
+    u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    let heap_type = match builder.pop_ref_type() {
+        Some(r) => r.heap_type,
+        None => {
+            if !module.types.is_empty() && u.arbitrary()? {
+                HeapType::Concrete(u.int_in_range(0..=u32::try_from(module.types.len()).unwrap())?)
+            } else {
+                *u.choose(&[
+                    HeapType::Func,
+                    HeapType::Extern,
+                    HeapType::Any,
+                    HeapType::None,
+                    HeapType::NoExtern,
+                    HeapType::NoFunc,
+                    HeapType::Eq,
+                    HeapType::Struct,
+                    HeapType::Array,
+                    HeapType::I31,
+                ])?
+            }
+        }
+    };
+
+    let n = builder
+        .allocs
+        .controls
+        .iter()
+        .filter(|l| builder.label_types_on_stack(module, l))
+        .count();
+    debug_assert!(n > 0);
+
+    let i = u.int_in_range(0..=n - 1)?;
+    let (target, _) = builder
+        .allocs
+        .controls
+        .iter()
+        .rev()
+        .enumerate()
+        .filter(|(_, l)| builder.label_types_on_stack(module, l))
+        .nth(i)
+        .unwrap();
+
+    builder.push_operands(&[ValType::Ref(RefType {
+        nullable: false,
+        heap_type,
+    })]);
+
+    instructions.push(Instruction::BrOnNull(u32::try_from(target).unwrap()));
+    Ok(())
+}
+
+fn is_valid_br_on_non_null_control(
+    module: &Module,
+    control: &Control,
+    builder: &CodeBuilder,
+) -> bool {
+    let ref_ty = match control.label_types().last() {
+        Some(ValType::Ref(r)) => *r,
+        Some(_) | None => return false,
+    };
+    let nullable_ref_ty = RefType {
+        nullable: true,
+        ..ref_ty
+    };
+    builder.type_on_stack(module, ValType::Ref(nullable_ref_ty))
+        && control
+            .label_types()
+            .iter()
+            .rev()
+            .enumerate()
+            .skip(1)
+            .all(|(idx, ty)| builder.type_on_stack_at(module, idx, *ty))
+}
+
+#[inline]
+fn br_on_non_null_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.gc_enabled
+        && builder
+            .allocs
+            .controls
+            .iter()
+            .any(|l| is_valid_br_on_non_null_control(module, l, builder))
+}
+
+fn br_on_non_null(
+    u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    let n = builder
+        .allocs
+        .controls
+        .iter()
+        .filter(|l| is_valid_br_on_non_null_control(module, l, builder))
+        .count();
+    debug_assert!(n > 0);
+
+    let i = u.int_in_range(0..=n - 1)?;
+    let (target, _) = builder
+        .allocs
+        .controls
+        .iter()
+        .rev()
+        .enumerate()
+        .filter(|(_, l)| is_valid_br_on_non_null_control(module, l, builder))
+        .nth(i)
+        .unwrap();
+
+    builder.pop_ref_type();
+    instructions.push(Instruction::BrOnNonNull(u32::try_from(target).unwrap()));
+    Ok(())
+}
+
+fn is_valid_br_on_cast_control(
+    module: &Module,
+    builder: &CodeBuilder,
+    control: &Control,
+    from_ref_ty: Option<RefType>,
+) -> bool {
+    // The last label type is a sub type of the type we are casting from...
+    let to_ref_ty = match control.label_types().last() {
+        Some(ValType::Ref(r)) => *r,
+        _ => return false,
+    };
+    if let Some(from_ty) = from_ref_ty {
+        if !module.ref_type_is_sub_type(to_ref_ty, from_ty) {
+            return false;
+        }
+    }
+    // ... and the rest of the label types are on the stack.
+    control
+        .label_types()
+        .iter()
+        .rev()
+        .enumerate()
+        .skip(1)
+        .all(|(idx, ty)| builder.type_on_stack_at(module, idx, *ty))
+}
+
+#[inline]
+fn br_on_cast_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    let from_ref_ty = match builder.ref_type_on_stack() {
+        None => return false,
+        Some(r) => r,
+    };
+    module.config.gc_enabled
+        && builder
+            .allocs
+            .controls
+            .iter()
+            .any(|l| is_valid_br_on_cast_control(module, builder, l, from_ref_ty))
+}
+
+/// Compute the [type difference] between the two given ref types.
+///
+/// [type difference]: https://webassembly.github.io/gc/core/valid/conventions.html#aux-reftypediff
+fn ref_type_difference(a: RefType, b: RefType) -> RefType {
+    RefType {
+        nullable: if b.nullable { false } else { a.nullable },
+        heap_type: a.heap_type,
+    }
+}
+
+fn br_on_cast(
+    u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    let from_ref_type = builder.ref_type_on_stack().unwrap();
+
+    let n = builder
+        .allocs
+        .controls
+        .iter()
+        .filter(|l| is_valid_br_on_cast_control(module, builder, l, from_ref_type))
+        .count();
+    debug_assert!(n > 0);
+
+    let i = u.int_in_range(0..=n - 1)?;
+    let (relative_depth, control) = builder
+        .allocs
+        .controls
+        .iter()
+        .rev()
+        .enumerate()
+        .filter(|(_, l)| is_valid_br_on_cast_control(module, builder, l, from_ref_type))
+        .nth(i)
+        .unwrap();
+    let relative_depth = u32::try_from(relative_depth).unwrap();
+
+    let to_ref_type = match control.label_types().last() {
+        Some(ValType::Ref(r)) => *r,
+        _ => unreachable!(),
+    };
+
+    let to_ref_type = module.arbitrary_matching_ref_type(u, to_ref_type)?;
+    let from_ref_type = from_ref_type.unwrap_or(to_ref_type);
+    let from_ref_type = module.arbitrary_super_type_of_ref_type(u, from_ref_type)?;
+
+    builder.pop_operand();
+    builder.push_operands(&[ValType::Ref(ref_type_difference(
+        from_ref_type,
+        to_ref_type,
+    ))]);
+
+    instructions.push(Instruction::BrOnCast {
+        from_ref_type,
+        to_ref_type,
+        relative_depth,
+    });
+    Ok(())
+}
+
+fn is_valid_br_on_cast_fail_control(
+    module: &Module,
+    builder: &CodeBuilder,
+    control: &Control,
+    from_ref_type: Option<RefType>,
+) -> bool {
+    control
+        .label_types()
+        .last()
+        .map_or(false, |label_ty| match (label_ty, from_ref_type) {
+            (ValType::Ref(label_ty), Some(from_ty)) => {
+                module.ref_type_is_sub_type(from_ty, *label_ty)
+            }
+            (ValType::Ref(_), None) => true,
+            _ => false,
+        })
+        && control
+            .label_types()
+            .iter()
+            .rev()
+            .enumerate()
+            .skip(1)
+            .all(|(idx, ty)| builder.type_on_stack_at(module, idx, *ty))
+}
+
+#[inline]
+fn br_on_cast_fail_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    let from_ref_ty = match builder.ref_type_on_stack() {
+        None => return false,
+        Some(r) => r,
+    };
+    module.config.gc_enabled
+        && builder
+            .allocs
+            .controls
+            .iter()
+            .any(|l| is_valid_br_on_cast_fail_control(module, builder, l, from_ref_ty))
+}
+
+fn br_on_cast_fail(
+    u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    let from_ref_type = builder.ref_type_on_stack().unwrap();
+
+    let n = builder
+        .allocs
+        .controls
+        .iter()
+        .filter(|l| is_valid_br_on_cast_fail_control(module, builder, l, from_ref_type))
+        .count();
+    debug_assert!(n > 0);
+
+    let i = u.int_in_range(0..=n - 1)?;
+    let (target, control) = builder
+        .allocs
+        .controls
+        .iter()
+        .rev()
+        .enumerate()
+        .filter(|(_, l)| is_valid_br_on_cast_fail_control(module, builder, l, from_ref_type))
+        .nth(i)
+        .unwrap();
+
+    let from_ref_type =
+        from_ref_type.unwrap_or_else(|| match control.label_types().last().unwrap() {
+            ValType::Ref(r) => *r,
+            _ => unreachable!(),
+        });
+    let to_ref_type = module.arbitrary_matching_ref_type(u, from_ref_type)?;
+
+    builder.pop_operand();
+    builder.push_operand(Some(ValType::Ref(to_ref_type)));
+
+    instructions.push(Instruction::BrOnCastFail {
+        from_ref_type,
+        to_ref_type,
+        relative_depth: u32::try_from(target).unwrap(),
+    });
+    Ok(())
+}
+
+#[inline]
+fn drop_valid(_module: &Module, builder: &mut CodeBuilder) -> bool {
     !builder.operands().is_empty()
 }
 
 fn drop(
     u: &mut Unstructured,
-    _: &Module,
+    _module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let ty = builder.allocs.operands.pop().unwrap();
+    let ty = builder.pop_operand();
     builder.drop_operand(u, ty, instructions)?;
     Ok(())
 }
 
 #[inline]
-fn select_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
-    if !(builder.operands().len() >= 3 && builder.type_on_stack(ValType::I32)) {
+fn select_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    if !(builder.operands().len() >= 3 && builder.type_on_stack(module, ValType::I32)) {
         return false;
     }
     let t = builder.operands()[builder.operands().len() - 2];
@@ -1861,13 +2489,13 @@ fn select_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
 
 fn select(
     _: &mut Unstructured,
-    _: &Module,
+    _module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.allocs.operands.pop();
-    let t = builder.allocs.operands.pop().unwrap();
-    let u = builder.allocs.operands.pop().unwrap();
+    builder.pop_operand();
+    let t = builder.pop_operand();
+    let u = builder.pop_operand();
     let ty = t.or(u);
     builder.allocs.operands.push(ty);
     match ty {
@@ -1879,13 +2507,13 @@ fn select(
 }
 
 #[inline]
-fn local_get_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
+fn local_get_valid(_module: &Module, builder: &mut CodeBuilder) -> bool {
     !builder.func_ty.params.is_empty() || !builder.locals.is_empty()
 }
 
 fn local_get(
     u: &mut Unstructured,
-    _: &Module,
+    _module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
@@ -1903,18 +2531,18 @@ fn local_get(
 }
 
 #[inline]
-fn local_set_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
+fn local_set_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     builder
         .func_ty
         .params
         .iter()
         .chain(builder.locals.iter())
-        .any(|ty| builder.type_on_stack(*ty))
+        .any(|ty| builder.type_on_stack(module, *ty))
 }
 
 fn local_set(
     u: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
@@ -1923,7 +2551,7 @@ fn local_set(
         .params
         .iter()
         .chain(builder.locals.iter())
-        .filter(|ty| builder.type_on_stack(**ty))
+        .filter(|ty| builder.type_on_stack(module, **ty))
         .count();
     debug_assert!(n > 0);
     let i = u.int_in_range(0..=n - 1)?;
@@ -1933,7 +2561,7 @@ fn local_set(
         .iter()
         .chain(builder.locals.iter())
         .enumerate()
-        .filter(|(_, ty)| builder.type_on_stack(**ty))
+        .filter(|(_, ty)| builder.type_on_stack(module, **ty))
         .nth(i)
         .unwrap();
     builder.allocs.operands.pop();
@@ -1943,7 +2571,7 @@ fn local_set(
 
 fn local_tee(
     u: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
@@ -1952,7 +2580,7 @@ fn local_tee(
         .params
         .iter()
         .chain(builder.locals.iter())
-        .filter(|ty| builder.type_on_stack(**ty))
+        .filter(|ty| builder.type_on_stack(module, **ty))
         .count();
     debug_assert!(n > 0);
     let i = u.int_in_range(0..=n - 1)?;
@@ -1962,7 +2590,7 @@ fn local_tee(
         .iter()
         .chain(builder.locals.iter())
         .enumerate()
-        .filter(|(_, ty)| builder.type_on_stack(**ty))
+        .filter(|(_, ty)| builder.type_on_stack(module, **ty))
         .nth(i)
         .unwrap();
     instructions.push(Instruction::LocalTee(j as u32));
@@ -1991,17 +2619,17 @@ fn global_get(
 }
 
 #[inline]
-fn global_set_valid(_: &Module, builder: &mut CodeBuilder) -> bool {
+fn global_set_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     builder
         .allocs
         .mutable_globals
         .iter()
-        .any(|(ty, _)| builder.type_on_stack(*ty))
+        .any(|(ty, _)| builder.type_on_stack(module, *ty))
 }
 
 fn global_set(
     u: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
@@ -2009,7 +2637,7 @@ fn global_set(
         .allocs
         .mutable_globals
         .iter()
-        .find(|(ty, _)| builder.type_on_stack(**ty))
+        .find(|(ty, _)| builder.type_on_stack(module, **ty))
         .unwrap()
         .1;
     let i = u.int_in_range(0..=candidates.len() - 1)?;
@@ -2024,9 +2652,9 @@ fn have_memory(module: &Module, _: &mut CodeBuilder) -> bool {
 }
 
 #[inline]
-fn have_memory_and_offset(_module: &Module, builder: &mut CodeBuilder) -> bool {
-    (builder.allocs.memory32.len() > 0 && builder.type_on_stack(ValType::I32))
-        || (builder.allocs.memory64.len() > 0 && builder.type_on_stack(ValType::I64))
+fn have_memory_and_offset(module: &Module, builder: &mut CodeBuilder) -> bool {
+    (builder.allocs.memory32.len() > 0 && builder.type_on_stack(module, ValType::I32))
+        || (builder.allocs.memory64.len() > 0 && builder.type_on_stack(module, ValType::I64))
 }
 
 #[inline]
@@ -2309,9 +2937,10 @@ fn i64_load_32_u(
 }
 
 #[inline]
-fn store_valid(_module: &Module, builder: &mut CodeBuilder, f: impl Fn() -> ValType) -> bool {
-    (builder.allocs.memory32.len() > 0 && builder.types_on_stack(&[ValType::I32, f()]))
-        || (builder.allocs.memory64.len() > 0 && builder.types_on_stack(&[ValType::I64, f()]))
+fn store_valid(module: &Module, builder: &mut CodeBuilder, f: impl Fn() -> ValType) -> bool {
+    (builder.allocs.memory32.len() > 0 && builder.types_on_stack(module, &[ValType::I32, f()]))
+        || (builder.allocs.memory64.len() > 0
+            && builder.types_on_stack(module, &[ValType::I64, f()]))
 }
 
 #[inline]
@@ -2325,7 +2954,7 @@ fn i32_store(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32]);
     let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
     if module.config.disallow_traps {
         no_traps::store(Instruction::I32Store(memarg), module, builder, instructions);
@@ -2346,7 +2975,7 @@ fn i64_store(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64]);
     let memarg = mem_arg(u, module, builder, &[0, 1, 2, 3])?;
     if module.config.disallow_traps {
         no_traps::store(Instruction::I64Store(memarg), module, builder, instructions);
@@ -2367,7 +2996,7 @@ fn f32_store(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32]);
     let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
     if module.config.disallow_traps {
         no_traps::store(Instruction::F32Store(memarg), module, builder, instructions);
@@ -2388,7 +3017,7 @@ fn f64_store(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64]);
     let memarg = mem_arg(u, module, builder, &[0, 1, 2, 3])?;
     if module.config.disallow_traps {
         no_traps::store(Instruction::F64Store(memarg), module, builder, instructions);
@@ -2404,7 +3033,7 @@ fn i32_store_8(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32]);
     let memarg = mem_arg(u, module, builder, &[0])?;
     if module.config.disallow_traps {
         no_traps::store(
@@ -2425,7 +3054,7 @@ fn i32_store_16(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32]);
     let memarg = mem_arg(u, module, builder, &[0, 1])?;
     if module.config.disallow_traps {
         no_traps::store(
@@ -2446,7 +3075,7 @@ fn i64_store_8(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64]);
     let memarg = mem_arg(u, module, builder, &[0])?;
     if module.config.disallow_traps {
         no_traps::store(
@@ -2467,7 +3096,7 @@ fn i64_store_16(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64]);
     let memarg = mem_arg(u, module, builder, &[0, 1])?;
     if module.config.disallow_traps {
         no_traps::store(
@@ -2488,7 +3117,7 @@ fn i64_store_32(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64]);
     let memarg = mem_arg(u, module, builder, &[0, 1, 2])?;
     if module.config.disallow_traps {
         no_traps::store(
@@ -2521,24 +3150,24 @@ fn memory_size(
 }
 
 #[inline]
-fn memory_grow_valid(_module: &Module, builder: &mut CodeBuilder) -> bool {
-    (builder.allocs.memory32.len() > 0 && builder.type_on_stack(ValType::I32))
-        || (builder.allocs.memory64.len() > 0 && builder.type_on_stack(ValType::I64))
+fn memory_grow_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    (builder.allocs.memory32.len() > 0 && builder.type_on_stack(module, ValType::I32))
+        || (builder.allocs.memory64.len() > 0 && builder.type_on_stack(module, ValType::I64))
 }
 
 fn memory_grow(
     u: &mut Unstructured,
-    _module: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let ty = if builder.type_on_stack(ValType::I32) {
+    let ty = if builder.type_on_stack(module, ValType::I32) {
         ValType::I32
     } else {
         ValType::I64
     };
     let index = memory_index(u, builder, ty)?;
-    builder.pop_operands(&[ty]);
+    builder.pop_operands(module, &[ty]);
     builder.push_operands(&[ty]);
     instructions.push(Instruction::MemoryGrow(index));
     Ok(())
@@ -2550,9 +3179,9 @@ fn memory_init_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
         && have_data(module, builder)
         && !module.config.disallow_traps // Non-trapping memory init not yet implemented
         && (builder.allocs.memory32.len() > 0
-            && builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
+            && builder.types_on_stack(module, &[ValType::I32, ValType::I32, ValType::I32])
             || (builder.allocs.memory64.len() > 0
-                && builder.types_on_stack(&[ValType::I64, ValType::I32, ValType::I32])))
+                && builder.types_on_stack(module, &[ValType::I64, ValType::I32, ValType::I32])))
 }
 
 fn memory_init(
@@ -2561,15 +3190,15 @@ fn memory_init(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
-    let ty = if builder.type_on_stack(ValType::I32) {
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
+    let ty = if builder.type_on_stack(module, ValType::I32) {
         ValType::I32
     } else {
         ValType::I64
     };
     let mem = memory_index(u, builder, ty)?;
     let data_index = data_index(u, module)?;
-    builder.pop_operands(&[ty]);
+    builder.pop_operands(module, &[ty]);
     instructions.push(Instruction::MemoryInit { mem, data_index });
     Ok(())
 }
@@ -2579,24 +3208,24 @@ fn memory_fill_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.bulk_memory_enabled
         && !module.config.disallow_traps // Non-trapping memory fill generation not yet implemented
         && (builder.allocs.memory32.len() > 0
-            && builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
+            && builder.types_on_stack(module, &[ValType::I32, ValType::I32, ValType::I32])
             || (builder.allocs.memory64.len() > 0
-                && builder.types_on_stack(&[ValType::I64, ValType::I32, ValType::I64])))
+                && builder.types_on_stack(module, &[ValType::I64, ValType::I32, ValType::I64])))
 }
 
 fn memory_fill(
     u: &mut Unstructured,
-    _module: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let ty = if builder.type_on_stack(ValType::I32) {
+    let ty = if builder.type_on_stack(module, ValType::I32) {
         ValType::I32
     } else {
         ValType::I64
     };
     let mem = memory_index(u, builder, ty)?;
-    builder.pop_operands(&[ty, ValType::I32, ty]);
+    builder.pop_operands(module, &[ty, ValType::I32, ty]);
     instructions.push(Instruction::MemoryFill(mem));
     Ok(())
 }
@@ -2613,23 +3242,23 @@ fn memory_copy_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
         return false;
     }
 
-    if builder.types_on_stack(&[ValType::I64, ValType::I64, ValType::I64])
+    if builder.types_on_stack(module, &[ValType::I64, ValType::I64, ValType::I64])
         && builder.allocs.memory64.len() > 0
     {
         return true;
     }
-    if builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
+    if builder.types_on_stack(module, &[ValType::I32, ValType::I32, ValType::I32])
         && builder.allocs.memory32.len() > 0
     {
         return true;
     }
-    if builder.types_on_stack(&[ValType::I64, ValType::I32, ValType::I32])
+    if builder.types_on_stack(module, &[ValType::I64, ValType::I32, ValType::I32])
         && builder.allocs.memory32.len() > 0
         && builder.allocs.memory64.len() > 0
     {
         return true;
     }
-    if builder.types_on_stack(&[ValType::I32, ValType::I64, ValType::I32])
+    if builder.types_on_stack(module, &[ValType::I32, ValType::I64, ValType::I32])
         && builder.allocs.memory32.len() > 0
         && builder.allocs.memory64.len() > 0
     {
@@ -2640,38 +3269,38 @@ fn memory_copy_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
 
 fn memory_copy(
     u: &mut Unstructured,
-    _module: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let (src_mem, dst_mem) = if builder.types_on_stack(&[ValType::I64, ValType::I64, ValType::I64])
-    {
-        builder.pop_operands(&[ValType::I64, ValType::I64, ValType::I64]);
-        (
-            memory_index(u, builder, ValType::I64)?,
-            memory_index(u, builder, ValType::I64)?,
-        )
-    } else if builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32]) {
-        builder.pop_operands(&[ValType::I32, ValType::I32, ValType::I32]);
-        (
-            memory_index(u, builder, ValType::I32)?,
-            memory_index(u, builder, ValType::I32)?,
-        )
-    } else if builder.types_on_stack(&[ValType::I64, ValType::I32, ValType::I32]) {
-        builder.pop_operands(&[ValType::I64, ValType::I32, ValType::I32]);
-        (
-            memory_index(u, builder, ValType::I32)?,
-            memory_index(u, builder, ValType::I64)?,
-        )
-    } else if builder.types_on_stack(&[ValType::I32, ValType::I64, ValType::I32]) {
-        builder.pop_operands(&[ValType::I32, ValType::I64, ValType::I32]);
-        (
-            memory_index(u, builder, ValType::I64)?,
-            memory_index(u, builder, ValType::I32)?,
-        )
-    } else {
-        unreachable!()
-    };
+    let (src_mem, dst_mem) =
+        if builder.types_on_stack(module, &[ValType::I64, ValType::I64, ValType::I64]) {
+            builder.pop_operands(module, &[ValType::I64, ValType::I64, ValType::I64]);
+            (
+                memory_index(u, builder, ValType::I64)?,
+                memory_index(u, builder, ValType::I64)?,
+            )
+        } else if builder.types_on_stack(module, &[ValType::I32, ValType::I32, ValType::I32]) {
+            builder.pop_operands(module, &[ValType::I32, ValType::I32, ValType::I32]);
+            (
+                memory_index(u, builder, ValType::I32)?,
+                memory_index(u, builder, ValType::I32)?,
+            )
+        } else if builder.types_on_stack(module, &[ValType::I64, ValType::I32, ValType::I32]) {
+            builder.pop_operands(module, &[ValType::I64, ValType::I32, ValType::I32]);
+            (
+                memory_index(u, builder, ValType::I32)?,
+                memory_index(u, builder, ValType::I64)?,
+            )
+        } else if builder.types_on_stack(module, &[ValType::I32, ValType::I64, ValType::I32]) {
+            builder.pop_operands(module, &[ValType::I32, ValType::I64, ValType::I32]);
+            (
+                memory_index(u, builder, ValType::I64)?,
+                memory_index(u, builder, ValType::I32)?,
+            )
+        } else {
+            unreachable!()
+        };
     instructions.push(Instruction::MemoryCopy { dst_mem, src_mem });
     Ok(())
 }
@@ -2693,7 +3322,7 @@ fn data_drop(
 
 fn i32_const(
     u: &mut Unstructured,
-    _: &Module,
+    _module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
@@ -2705,7 +3334,7 @@ fn i32_const(
 
 fn i64_const(
     u: &mut Unstructured,
-    _: &Module,
+    _module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
@@ -2717,7 +3346,7 @@ fn i64_const(
 
 fn f32_const(
     u: &mut Unstructured,
-    _: &Module,
+    _module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
@@ -2729,7 +3358,7 @@ fn f32_const(
 
 fn f64_const(
     u: &mut Unstructured,
-    _: &Module,
+    _module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
@@ -2740,34 +3369,34 @@ fn f64_const(
 }
 
 #[inline]
-fn i32_on_stack(_: &Module, builder: &mut CodeBuilder) -> bool {
-    builder.type_on_stack(ValType::I32)
+fn i32_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
+    builder.type_on_stack(module, ValType::I32)
 }
 
 fn i32_eqz(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32Eqz);
     Ok(())
 }
 
 #[inline]
-fn i32_i32_on_stack(_: &Module, builder: &mut CodeBuilder) -> bool {
-    builder.types_on_stack(&[ValType::I32, ValType::I32])
+fn i32_i32_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
+    builder.types_on_stack(module, &[ValType::I32, ValType::I32])
 }
 
 fn i32_eq(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32Eq);
     Ok(())
@@ -2775,11 +3404,11 @@ fn i32_eq(
 
 fn i32_ne(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32Ne);
     Ok(())
@@ -2787,11 +3416,11 @@ fn i32_ne(
 
 fn i32_lt_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32LtS);
     Ok(())
@@ -2799,11 +3428,11 @@ fn i32_lt_s(
 
 fn i32_lt_u(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32LtU);
     Ok(())
@@ -2811,11 +3440,11 @@ fn i32_lt_u(
 
 fn i32_gt_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32GtS);
     Ok(())
@@ -2823,11 +3452,11 @@ fn i32_gt_s(
 
 fn i32_gt_u(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32GtU);
     Ok(())
@@ -2835,11 +3464,11 @@ fn i32_gt_u(
 
 fn i32_le_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32LeS);
     Ok(())
@@ -2847,11 +3476,11 @@ fn i32_le_s(
 
 fn i32_le_u(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32LeU);
     Ok(())
@@ -2859,11 +3488,11 @@ fn i32_le_u(
 
 fn i32_ge_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32GeS);
     Ok(())
@@ -2871,45 +3500,45 @@ fn i32_ge_s(
 
 fn i32_ge_u(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32GeU);
     Ok(())
 }
 
 #[inline]
-fn i64_on_stack(_: &Module, builder: &mut CodeBuilder) -> bool {
-    builder.types_on_stack(&[ValType::I64])
+fn i64_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
+    builder.types_on_stack(module, &[ValType::I64])
 }
 
 fn i64_eqz(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I64Eqz);
     Ok(())
 }
 
 #[inline]
-fn i64_i64_on_stack(_: &Module, builder: &mut CodeBuilder) -> bool {
-    builder.types_on_stack(&[ValType::I64, ValType::I64])
+fn i64_i64_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
+    builder.types_on_stack(module, &[ValType::I64, ValType::I64])
 }
 
 fn i64_eq(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I64Eq);
     Ok(())
@@ -2917,11 +3546,11 @@ fn i64_eq(
 
 fn i64_ne(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I64Ne);
     Ok(())
@@ -2929,11 +3558,11 @@ fn i64_ne(
 
 fn i64_lt_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I64LtS);
     Ok(())
@@ -2941,11 +3570,11 @@ fn i64_lt_s(
 
 fn i64_lt_u(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I64LtU);
     Ok(())
@@ -2953,11 +3582,11 @@ fn i64_lt_u(
 
 fn i64_gt_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I64GtS);
     Ok(())
@@ -2965,11 +3594,11 @@ fn i64_gt_s(
 
 fn i64_gt_u(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I64GtU);
     Ok(())
@@ -2977,11 +3606,11 @@ fn i64_gt_u(
 
 fn i64_le_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I64LeS);
     Ok(())
@@ -2989,11 +3618,11 @@ fn i64_le_s(
 
 fn i64_le_u(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I64LeU);
     Ok(())
@@ -3001,11 +3630,11 @@ fn i64_le_u(
 
 fn i64_ge_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I64GeS);
     Ok(())
@@ -3013,27 +3642,27 @@ fn i64_ge_s(
 
 fn i64_ge_u(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I64GeU);
     Ok(())
 }
 
-fn f32_f32_on_stack(_: &Module, builder: &mut CodeBuilder) -> bool {
-    builder.types_on_stack(&[ValType::F32, ValType::F32])
+fn f32_f32_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
+    builder.types_on_stack(module, &[ValType::F32, ValType::F32])
 }
 
 fn f32_eq(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32, ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::F32Eq);
     Ok(())
@@ -3041,11 +3670,11 @@ fn f32_eq(
 
 fn f32_ne(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32, ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::F32Ne);
     Ok(())
@@ -3053,11 +3682,11 @@ fn f32_ne(
 
 fn f32_lt(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32, ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::F32Lt);
     Ok(())
@@ -3065,11 +3694,11 @@ fn f32_lt(
 
 fn f32_gt(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32, ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::F32Gt);
     Ok(())
@@ -3077,11 +3706,11 @@ fn f32_gt(
 
 fn f32_le(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32, ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::F32Le);
     Ok(())
@@ -3089,27 +3718,27 @@ fn f32_le(
 
 fn f32_ge(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32, ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::F32Ge);
     Ok(())
 }
 
-fn f64_f64_on_stack(_: &Module, builder: &mut CodeBuilder) -> bool {
-    builder.types_on_stack(&[ValType::F64, ValType::F64])
+fn f64_f64_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
+    builder.types_on_stack(module, &[ValType::F64, ValType::F64])
 }
 
 fn f64_eq(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64, ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::F64Eq);
     Ok(())
@@ -3117,11 +3746,11 @@ fn f64_eq(
 
 fn f64_ne(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64, ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::F64Ne);
     Ok(())
@@ -3129,11 +3758,11 @@ fn f64_ne(
 
 fn f64_lt(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64, ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::F64Lt);
     Ok(())
@@ -3141,11 +3770,11 @@ fn f64_lt(
 
 fn f64_gt(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64, ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::F64Gt);
     Ok(())
@@ -3153,11 +3782,11 @@ fn f64_gt(
 
 fn f64_le(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64, ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::F64Le);
     Ok(())
@@ -3165,11 +3794,11 @@ fn f64_le(
 
 fn f64_ge(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64, ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::F64Ge);
     Ok(())
@@ -3177,11 +3806,11 @@ fn f64_ge(
 
 fn i32_clz(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32Clz);
     Ok(())
@@ -3189,11 +3818,11 @@ fn i32_clz(
 
 fn i32_ctz(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32Ctz);
     Ok(())
@@ -3201,11 +3830,11 @@ fn i32_ctz(
 
 fn i32_popcnt(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32Popcnt);
     Ok(())
@@ -3213,11 +3842,11 @@ fn i32_popcnt(
 
 fn i32_add(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32Add);
     Ok(())
@@ -3225,11 +3854,11 @@ fn i32_add(
 
 fn i32_sub(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32Sub);
     Ok(())
@@ -3237,11 +3866,11 @@ fn i32_sub(
 
 fn i32_mul(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32Mul);
     Ok(())
@@ -3253,7 +3882,7 @@ fn i32_div_s(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     if module.config.disallow_traps {
         no_traps::signed_div_rem(Instruction::I32DivS, builder, instructions);
@@ -3269,7 +3898,7 @@ fn i32_div_u(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     if module.config.disallow_traps {
         no_traps::unsigned_div_rem(Instruction::I32DivU, builder, instructions);
@@ -3285,7 +3914,7 @@ fn i32_rem_s(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     if module.config.disallow_traps {
         no_traps::signed_div_rem(Instruction::I32RemS, builder, instructions);
@@ -3301,7 +3930,7 @@ fn i32_rem_u(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     if module.config.disallow_traps {
         no_traps::unsigned_div_rem(Instruction::I32RemU, builder, instructions);
@@ -3313,11 +3942,11 @@ fn i32_rem_u(
 
 fn i32_and(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32And);
     Ok(())
@@ -3325,11 +3954,11 @@ fn i32_and(
 
 fn i32_or(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32Or);
     Ok(())
@@ -3337,11 +3966,11 @@ fn i32_or(
 
 fn i32_xor(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32Xor);
     Ok(())
@@ -3349,11 +3978,11 @@ fn i32_xor(
 
 fn i32_shl(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32Shl);
     Ok(())
@@ -3361,11 +3990,11 @@ fn i32_shl(
 
 fn i32_shr_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32ShrS);
     Ok(())
@@ -3373,11 +4002,11 @@ fn i32_shr_s(
 
 fn i32_shr_u(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32ShrU);
     Ok(())
@@ -3385,11 +4014,11 @@ fn i32_shr_u(
 
 fn i32_rotl(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32Rotl);
     Ok(())
@@ -3397,11 +4026,11 @@ fn i32_rotl(
 
 fn i32_rotr(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32Rotr);
     Ok(())
@@ -3409,11 +4038,11 @@ fn i32_rotr(
 
 fn i64_clz(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64Clz);
     Ok(())
@@ -3421,11 +4050,11 @@ fn i64_clz(
 
 fn i64_ctz(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64Ctz);
     Ok(())
@@ -3433,11 +4062,11 @@ fn i64_ctz(
 
 fn i64_popcnt(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64Popcnt);
     Ok(())
@@ -3445,11 +4074,11 @@ fn i64_popcnt(
 
 fn i64_add(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64Add);
     Ok(())
@@ -3457,11 +4086,11 @@ fn i64_add(
 
 fn i64_sub(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64Sub);
     Ok(())
@@ -3469,11 +4098,11 @@ fn i64_sub(
 
 fn i64_mul(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64Mul);
     Ok(())
@@ -3485,7 +4114,7 @@ fn i64_div_s(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     if module.config.disallow_traps {
         no_traps::signed_div_rem(Instruction::I64DivS, builder, instructions);
@@ -3501,7 +4130,7 @@ fn i64_div_u(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     if module.config.disallow_traps {
         no_traps::unsigned_div_rem(Instruction::I64DivU, builder, instructions);
@@ -3517,7 +4146,7 @@ fn i64_rem_s(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     if module.config.disallow_traps {
         no_traps::signed_div_rem(Instruction::I64RemS, builder, instructions);
@@ -3533,7 +4162,7 @@ fn i64_rem_u(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     if module.config.disallow_traps {
         no_traps::unsigned_div_rem(Instruction::I64RemU, builder, instructions);
@@ -3545,11 +4174,11 @@ fn i64_rem_u(
 
 fn i64_and(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64And);
     Ok(())
@@ -3557,11 +4186,11 @@ fn i64_and(
 
 fn i64_or(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64Or);
     Ok(())
@@ -3569,11 +4198,11 @@ fn i64_or(
 
 fn i64_xor(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64Xor);
     Ok(())
@@ -3581,11 +4210,11 @@ fn i64_xor(
 
 fn i64_shl(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64Shl);
     Ok(())
@@ -3593,11 +4222,11 @@ fn i64_shl(
 
 fn i64_shr_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64ShrS);
     Ok(())
@@ -3605,11 +4234,11 @@ fn i64_shr_s(
 
 fn i64_shr_u(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64ShrU);
     Ok(())
@@ -3617,11 +4246,11 @@ fn i64_shr_u(
 
 fn i64_rotl(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64Rotl);
     Ok(())
@@ -3629,28 +4258,28 @@ fn i64_rotl(
 
 fn i64_rotr(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64, ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64, ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64Rotr);
     Ok(())
 }
 
 #[inline]
-fn f32_on_stack(_: &Module, builder: &mut CodeBuilder) -> bool {
-    builder.types_on_stack(&[ValType::F32])
+fn f32_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
+    builder.types_on_stack(module, &[ValType::F32])
 }
 
 fn f32_abs(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     instructions.push(Instruction::F32Abs);
     Ok(())
@@ -3658,11 +4287,11 @@ fn f32_abs(
 
 fn f32_neg(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     instructions.push(Instruction::F32Neg);
     Ok(())
@@ -3670,11 +4299,11 @@ fn f32_neg(
 
 fn f32_ceil(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     instructions.push(Instruction::F32Ceil);
     Ok(())
@@ -3682,11 +4311,11 @@ fn f32_ceil(
 
 fn f32_floor(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     instructions.push(Instruction::F32Floor);
     Ok(())
@@ -3694,11 +4323,11 @@ fn f32_floor(
 
 fn f32_trunc(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     instructions.push(Instruction::F32Trunc);
     Ok(())
@@ -3706,11 +4335,11 @@ fn f32_trunc(
 
 fn f32_nearest(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     instructions.push(Instruction::F32Nearest);
     Ok(())
@@ -3718,11 +4347,11 @@ fn f32_nearest(
 
 fn f32_sqrt(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     instructions.push(Instruction::F32Sqrt);
     Ok(())
@@ -3730,11 +4359,11 @@ fn f32_sqrt(
 
 fn f32_add(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32, ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     instructions.push(Instruction::F32Add);
     Ok(())
@@ -3742,11 +4371,11 @@ fn f32_add(
 
 fn f32_sub(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32, ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     instructions.push(Instruction::F32Sub);
     Ok(())
@@ -3754,11 +4383,11 @@ fn f32_sub(
 
 fn f32_mul(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32, ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     instructions.push(Instruction::F32Mul);
     Ok(())
@@ -3766,11 +4395,11 @@ fn f32_mul(
 
 fn f32_div(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32, ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     instructions.push(Instruction::F32Div);
     Ok(())
@@ -3778,11 +4407,11 @@ fn f32_div(
 
 fn f32_min(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32, ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     instructions.push(Instruction::F32Min);
     Ok(())
@@ -3790,11 +4419,11 @@ fn f32_min(
 
 fn f32_max(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32, ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     instructions.push(Instruction::F32Max);
     Ok(())
@@ -3802,28 +4431,28 @@ fn f32_max(
 
 fn f32_copysign(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32, ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32, ValType::F32]);
     builder.push_operands(&[ValType::F32]);
     instructions.push(Instruction::F32Copysign);
     Ok(())
 }
 
 #[inline]
-fn f64_on_stack(_: &Module, builder: &mut CodeBuilder) -> bool {
-    builder.types_on_stack(&[ValType::F64])
+fn f64_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
+    builder.types_on_stack(module, &[ValType::F64])
 }
 
 fn f64_abs(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     instructions.push(Instruction::F64Abs);
     Ok(())
@@ -3831,11 +4460,11 @@ fn f64_abs(
 
 fn f64_neg(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     instructions.push(Instruction::F64Neg);
     Ok(())
@@ -3843,11 +4472,11 @@ fn f64_neg(
 
 fn f64_ceil(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     instructions.push(Instruction::F64Ceil);
     Ok(())
@@ -3855,11 +4484,11 @@ fn f64_ceil(
 
 fn f64_floor(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     instructions.push(Instruction::F64Floor);
     Ok(())
@@ -3867,11 +4496,11 @@ fn f64_floor(
 
 fn f64_trunc(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     instructions.push(Instruction::F64Trunc);
     Ok(())
@@ -3879,11 +4508,11 @@ fn f64_trunc(
 
 fn f64_nearest(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     instructions.push(Instruction::F64Nearest);
     Ok(())
@@ -3891,11 +4520,11 @@ fn f64_nearest(
 
 fn f64_sqrt(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     instructions.push(Instruction::F64Sqrt);
     Ok(())
@@ -3903,11 +4532,11 @@ fn f64_sqrt(
 
 fn f64_add(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64, ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     instructions.push(Instruction::F64Add);
     Ok(())
@@ -3915,11 +4544,11 @@ fn f64_add(
 
 fn f64_sub(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64, ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     instructions.push(Instruction::F64Sub);
     Ok(())
@@ -3927,11 +4556,11 @@ fn f64_sub(
 
 fn f64_mul(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64, ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     instructions.push(Instruction::F64Mul);
     Ok(())
@@ -3939,11 +4568,11 @@ fn f64_mul(
 
 fn f64_div(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64, ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     instructions.push(Instruction::F64Div);
     Ok(())
@@ -3951,11 +4580,11 @@ fn f64_div(
 
 fn f64_min(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64, ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     instructions.push(Instruction::F64Min);
     Ok(())
@@ -3963,11 +4592,11 @@ fn f64_min(
 
 fn f64_max(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64, ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     instructions.push(Instruction::F64Max);
     Ok(())
@@ -3975,11 +4604,11 @@ fn f64_max(
 
 fn f64_copysign(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64, ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64, ValType::F64]);
     builder.push_operands(&[ValType::F64]);
     instructions.push(Instruction::F64Copysign);
     Ok(())
@@ -3987,11 +4616,11 @@ fn f64_copysign(
 
 fn i32_wrap_i64(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32WrapI64);
     Ok(())
@@ -4007,7 +4636,7 @@ fn i32_trunc_f32_s(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32]);
     builder.push_operands(&[ValType::I32]);
     if module.config.disallow_traps {
         no_traps::trunc(Instruction::I32TruncF32S, builder, instructions);
@@ -4023,7 +4652,7 @@ fn i32_trunc_f32_u(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32]);
     builder.push_operands(&[ValType::I32]);
     if module.config.disallow_traps {
         no_traps::trunc(Instruction::I32TruncF32U, builder, instructions);
@@ -4043,7 +4672,7 @@ fn i32_trunc_f64_s(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64]);
     builder.push_operands(&[ValType::I32]);
     if module.config.disallow_traps {
         no_traps::trunc(Instruction::I32TruncF64S, builder, instructions);
@@ -4059,7 +4688,7 @@ fn i32_trunc_f64_u(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64]);
     builder.push_operands(&[ValType::I32]);
     if module.config.disallow_traps {
         no_traps::trunc(Instruction::I32TruncF64U, builder, instructions);
@@ -4071,11 +4700,11 @@ fn i32_trunc_f64_u(
 
 fn i64_extend_i32_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64ExtendI32S);
     Ok(())
@@ -4083,11 +4712,11 @@ fn i64_extend_i32_s(
 
 fn i64_extend_i32_u(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64ExtendI32U);
     Ok(())
@@ -4099,7 +4728,7 @@ fn i64_trunc_f32_s(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32]);
     builder.push_operands(&[ValType::I64]);
     if module.config.disallow_traps {
         no_traps::trunc(Instruction::I64TruncF32S, builder, instructions);
@@ -4115,7 +4744,7 @@ fn i64_trunc_f32_u(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32]);
     builder.push_operands(&[ValType::I64]);
     if module.config.disallow_traps {
         no_traps::trunc(Instruction::I64TruncF32U, builder, instructions);
@@ -4131,7 +4760,7 @@ fn i64_trunc_f64_s(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64]);
     builder.push_operands(&[ValType::I64]);
     if module.config.disallow_traps {
         no_traps::trunc(Instruction::I64TruncF64S, builder, instructions);
@@ -4147,7 +4776,7 @@ fn i64_trunc_f64_u(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64]);
     builder.push_operands(&[ValType::I64]);
     if module.config.disallow_traps {
         no_traps::trunc(Instruction::I64TruncF64U, builder, instructions);
@@ -4159,11 +4788,11 @@ fn i64_trunc_f64_u(
 
 fn f32_convert_i32_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32]);
     builder.push_operands(&[ValType::F32]);
     instructions.push(Instruction::F32ConvertI32S);
     Ok(())
@@ -4171,11 +4800,11 @@ fn f32_convert_i32_s(
 
 fn f32_convert_i32_u(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32]);
     builder.push_operands(&[ValType::F32]);
     instructions.push(Instruction::F32ConvertI32U);
     Ok(())
@@ -4183,11 +4812,11 @@ fn f32_convert_i32_u(
 
 fn f32_convert_i64_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64]);
     builder.push_operands(&[ValType::F32]);
     instructions.push(Instruction::F32ConvertI64S);
     Ok(())
@@ -4195,11 +4824,11 @@ fn f32_convert_i64_s(
 
 fn f32_convert_i64_u(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64]);
     builder.push_operands(&[ValType::F32]);
     instructions.push(Instruction::F32ConvertI64U);
     Ok(())
@@ -4207,11 +4836,11 @@ fn f32_convert_i64_u(
 
 fn f32_demote_f64(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64]);
     builder.push_operands(&[ValType::F32]);
     instructions.push(Instruction::F32DemoteF64);
     Ok(())
@@ -4219,11 +4848,11 @@ fn f32_demote_f64(
 
 fn f64_convert_i32_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32]);
     builder.push_operands(&[ValType::F64]);
     instructions.push(Instruction::F64ConvertI32S);
     Ok(())
@@ -4231,11 +4860,11 @@ fn f64_convert_i32_s(
 
 fn f64_convert_i32_u(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32]);
     builder.push_operands(&[ValType::F64]);
     instructions.push(Instruction::F64ConvertI32U);
     Ok(())
@@ -4243,11 +4872,11 @@ fn f64_convert_i32_u(
 
 fn f64_convert_i64_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64]);
     builder.push_operands(&[ValType::F64]);
     instructions.push(Instruction::F64ConvertI64S);
     Ok(())
@@ -4255,11 +4884,11 @@ fn f64_convert_i64_s(
 
 fn f64_convert_i64_u(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64]);
     builder.push_operands(&[ValType::F64]);
     instructions.push(Instruction::F64ConvertI64U);
     Ok(())
@@ -4267,11 +4896,11 @@ fn f64_convert_i64_u(
 
 fn f64_promote_f32(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32]);
     builder.push_operands(&[ValType::F64]);
     instructions.push(Instruction::F64PromoteF32);
     Ok(())
@@ -4279,11 +4908,11 @@ fn f64_promote_f32(
 
 fn i32_reinterpret_f32(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32ReinterpretF32);
     Ok(())
@@ -4291,11 +4920,11 @@ fn i32_reinterpret_f32(
 
 fn i64_reinterpret_f64(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64ReinterpretF64);
     Ok(())
@@ -4303,11 +4932,11 @@ fn i64_reinterpret_f64(
 
 fn f32_reinterpret_i32(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32]);
     builder.push_operands(&[ValType::F32]);
     instructions.push(Instruction::F32ReinterpretI32);
     Ok(())
@@ -4315,11 +4944,11 @@ fn f32_reinterpret_i32(
 
 fn f64_reinterpret_i64(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64]);
     builder.push_operands(&[ValType::F64]);
     instructions.push(Instruction::F64ReinterpretI64);
     Ok(())
@@ -4331,11 +4960,11 @@ fn extendable_i32_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
 
 fn i32_extend_8_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32Extend8S);
     Ok(())
@@ -4343,11 +4972,11 @@ fn i32_extend_8_s(
 
 fn i32_extend_16_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32Extend16S);
     Ok(())
@@ -4359,11 +4988,11 @@ fn extendable_i64_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
 
 fn i64_extend_8_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64Extend8S);
     Ok(())
@@ -4371,11 +5000,11 @@ fn i64_extend_8_s(
 
 fn i64_extend_16_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64Extend16S);
     Ok(())
@@ -4383,11 +5012,11 @@ fn i64_extend_16_s(
 
 fn i64_extend_32_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I64]);
+    builder.pop_operands(module, &[ValType::I64]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64Extend32S);
     Ok(())
@@ -4395,11 +5024,11 @@ fn i64_extend_32_s(
 
 fn i32_trunc_sat_f32_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32TruncSatF32S);
     Ok(())
@@ -4407,11 +5036,11 @@ fn i32_trunc_sat_f32_s(
 
 fn i32_trunc_sat_f32_u(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32TruncSatF32U);
     Ok(())
@@ -4419,11 +5048,11 @@ fn i32_trunc_sat_f32_u(
 
 fn i32_trunc_sat_f64_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32TruncSatF64S);
     Ok(())
@@ -4431,11 +5060,11 @@ fn i32_trunc_sat_f64_s(
 
 fn i32_trunc_sat_f64_u(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64]);
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::I32TruncSatF64U);
     Ok(())
@@ -4443,11 +5072,11 @@ fn i32_trunc_sat_f64_u(
 
 fn i64_trunc_sat_f32_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64TruncSatF32S);
     Ok(())
@@ -4455,11 +5084,11 @@ fn i64_trunc_sat_f32_s(
 
 fn i64_trunc_sat_f32_u(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F32]);
+    builder.pop_operands(module, &[ValType::F32]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64TruncSatF32U);
     Ok(())
@@ -4467,11 +5096,11 @@ fn i64_trunc_sat_f32_u(
 
 fn i64_trunc_sat_f64_s(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64TruncSatF64S);
     Ok(())
@@ -4479,11 +5108,11 @@ fn i64_trunc_sat_f64_s(
 
 fn i64_trunc_sat_f64_u(
     _: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::F64]);
+    builder.pop_operands(module, &[ValType::F64]);
     builder.push_operands(&[ValType::I64]);
     instructions.push(Instruction::I64TruncSatF64U);
     Ok(())
@@ -4545,11 +5174,11 @@ fn mem_arg(
     builder: &mut CodeBuilder,
     alignments: &[u32],
 ) -> Result<MemArg> {
-    let memory_index = if builder.type_on_stack(ValType::I32) {
-        builder.pop_operands(&[ValType::I32]);
+    let memory_index = if builder.type_on_stack(module, ValType::I32) {
+        builder.pop_operands(module, &[ValType::I32]);
         memory_index(u, builder, ValType::I32)?
     } else {
-        builder.pop_operands(&[ValType::I64]);
+        builder.pop_operands(module, &[ValType::I64]);
         memory_index(u, builder, ValType::I64)?
     };
     let offset = memory_offset(u, module, memory_index)?;
@@ -4586,12 +5215,34 @@ fn ref_null_valid(module: &Module, _: &mut CodeBuilder) -> bool {
 
 fn ref_null(
     u: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let ty = *u.choose(&[RefType::EXTERNREF, RefType::FUNCREF])?;
-    builder.push_operands(&[ty.into()]);
+    let mut choices = vec![RefType::EXTERNREF, RefType::FUNCREF];
+    if module.config.exceptions_enabled {
+        choices.push(RefType::EXNREF);
+    }
+    if module.config.gc_enabled {
+        let r = |heap_type| RefType {
+            nullable: true,
+            heap_type,
+        };
+        choices.push(r(HeapType::Any));
+        choices.push(r(HeapType::Eq));
+        choices.push(r(HeapType::Array));
+        choices.push(r(HeapType::Struct));
+        choices.push(r(HeapType::I31));
+        choices.push(r(HeapType::None));
+        choices.push(r(HeapType::NoFunc));
+        choices.push(r(HeapType::NoExtern));
+        for i in 0..module.types.len() {
+            let i = u32::try_from(i).unwrap();
+            choices.push(r(HeapType::Concrete(i)));
+        }
+    }
+    let ty = *u.choose(&choices)?;
+    builder.push_operand(Some(ty.into()));
     instructions.push(Instruction::RefNull(ty.heap_type));
     Ok(())
 }
@@ -4603,29 +5254,144 @@ fn ref_func_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
 
 fn ref_func(
     u: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
     let i = *u.choose(&builder.allocs.referenced_functions)?;
-    builder.push_operands(&[ValType::FUNCREF]);
+    let ty = module.funcs[usize::try_from(i).unwrap()].0;
+    builder.push_operand(Some(ValType::Ref(if module.config.gc_enabled {
+        RefType {
+            nullable: false,
+            heap_type: HeapType::Concrete(ty),
+        }
+    } else {
+        RefType::FUNCREF
+    })));
     instructions.push(Instruction::RefFunc(i));
+    Ok(())
+}
+
+#[inline]
+fn ref_as_non_null_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.gc_enabled && builder.ref_type_on_stack().is_some()
+}
+
+fn ref_as_non_null(
+    u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    let ref_ty = match builder.pop_ref_type() {
+        Some(r) => r,
+        None => module.arbitrary_ref_type(u)?,
+    };
+    builder.push_operand(Some(ValType::Ref(RefType {
+        nullable: false,
+        heap_type: ref_ty.heap_type,
+    })));
+    instructions.push(Instruction::RefAsNonNull);
+    Ok(())
+}
+
+#[inline]
+fn ref_eq_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    let eq_ref = ValType::Ref(RefType {
+        nullable: true,
+        heap_type: HeapType::Eq,
+    });
+    module.config.gc_enabled && builder.types_on_stack(module, &[eq_ref, eq_ref])
+}
+
+fn ref_eq(
+    _u: &mut Unstructured,
+    _module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    builder.pop_operand();
+    builder.pop_operand();
+    builder.push_operand(Some(ValType::I32));
+    instructions.push(Instruction::RefEq);
+    Ok(())
+}
+
+#[inline]
+fn ref_test_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.gc_enabled && builder.ref_type_on_stack().is_some()
+}
+
+fn ref_test(
+    u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    let ref_ty = match builder.pop_ref_type() {
+        Some(r) => r,
+        None => module.arbitrary_ref_type(u)?,
+    };
+    builder.push_operand(Some(ValType::I32));
+
+    let sub_ty = module.arbitrary_matching_heap_type(u, ref_ty.heap_type)?;
+    instructions.push(if !ref_ty.nullable || u.arbitrary()? {
+        Instruction::RefTestNonNull(sub_ty)
+    } else {
+        Instruction::RefTestNullable(sub_ty)
+    });
+    Ok(())
+}
+
+#[inline]
+fn ref_cast_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    !module.config.disallow_traps
+        && module.config.gc_enabled
+        && builder.ref_type_on_stack().is_some()
+}
+
+fn ref_cast(
+    u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    let ref_ty = match builder.pop_ref_type() {
+        Some(r) => r,
+        None => module.arbitrary_ref_type(u)?,
+    };
+    let sub_ty = RefType {
+        nullable: if !ref_ty.nullable {
+            false
+        } else {
+            u.arbitrary()?
+        },
+        heap_type: module.arbitrary_matching_heap_type(u, ref_ty.heap_type)?,
+    };
+    builder.push_operand(Some(ValType::Ref(sub_ty)));
+
+    instructions.push(if !sub_ty.nullable {
+        Instruction::RefCastNonNull(sub_ty.heap_type)
+    } else {
+        Instruction::RefCastNullable(sub_ty.heap_type)
+    });
     Ok(())
 }
 
 #[inline]
 fn ref_is_null_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled
-        && (builder.type_on_stack(ValType::EXTERNREF) || builder.type_on_stack(ValType::FUNCREF))
+        && (builder.type_on_stack(module, ValType::EXTERNREF)
+            || builder.type_on_stack(module, ValType::FUNCREF))
 }
 
 fn ref_is_null(
     _: &mut Unstructured,
-    _: &Module,
+    _module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    pop_reference_type(builder);
+    builder.pop_ref_type();
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::RefIsNull);
     Ok(())
@@ -4637,8 +5403,10 @@ fn table_fill_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
         && module.config.bulk_memory_enabled
         && !module.config.disallow_traps // Non-trapping table fill generation not yet implemented
         && [ValType::EXTERNREF, ValType::FUNCREF].iter().any(|ty| {
-            builder.types_on_stack(&[ValType::I32, *ty, ValType::I32])
-                && module.tables.iter().any(|t| *ty == t.element_type.into())
+            builder.types_on_stack(module, &[ValType::I32, *ty, ValType::I32])
+                && module.tables.iter().any(|t| {
+                    module.val_type_is_sub_type(*ty, t.element_type.into())
+                })
         })
 }
 
@@ -4648,10 +5416,14 @@ fn table_fill(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
-    let ty = pop_reference_type(builder);
-    builder.pop_operands(&[ValType::I32]);
-    let table = table_index(ty, u, module)?;
+    builder.pop_operands(module, &[ValType::I32]);
+    let table = match builder.pop_ref_type() {
+        Some(ty) => table_index(ty, u, module)?,
+        // Stack polymorphic, can choose any reference type we have a table for,
+        // so just choose the table directly.
+        None => u.int_in_range(0..=u32::try_from(module.tables.len()).unwrap())?,
+    };
+    builder.pop_operands(module, &[ValType::I32]);
     instructions.push(Instruction::TableFill(table));
     Ok(())
 }
@@ -4661,8 +5433,10 @@ fn table_set_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled
     && !module.config.disallow_traps // Non-trapping table.set generation not yet implemented
         && [ValType::EXTERNREF, ValType::FUNCREF].iter().any(|ty| {
-            builder.types_on_stack(&[ValType::I32, *ty])
-                && module.tables.iter().any(|t| *ty == t.element_type.into())
+            builder.types_on_stack(module, &[ValType::I32, *ty])
+                && module.tables.iter().any(|t| {
+                    module.val_type_is_sub_type(*ty, t.element_type.into())
+                })
         })
 }
 
@@ -4672,9 +5446,13 @@ fn table_set(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let ty = pop_reference_type(builder);
-    builder.pop_operands(&[ValType::I32]);
-    let table = table_index(ty, u, module)?;
+    let table = match builder.pop_ref_type() {
+        Some(ty) => table_index(ty, u, module)?,
+        // Stack polymorphic, can choose any reference type we have a table for,
+        // so just choose the table directly.
+        None => u.int_in_range(0..=u32::try_from(module.tables.len()).unwrap())?,
+    };
+    builder.pop_operands(module, &[ValType::I32]);
     instructions.push(Instruction::TableSet(table));
     Ok(())
 }
@@ -4683,7 +5461,7 @@ fn table_set(
 fn table_get_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled
     && !module.config.disallow_traps // Non-trapping table.get generation not yet implemented
-        && builder.type_on_stack(ValType::I32)
+        && builder.type_on_stack(module, ValType::I32)
         && module.tables.len() > 0
 }
 
@@ -4693,7 +5471,7 @@ fn table_get(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32]);
     let idx = u.int_in_range(0..=module.tables.len() - 1)?;
     let ty = module.tables[idx].element_type;
     builder.push_operands(&[ty.into()]);
@@ -4722,8 +5500,11 @@ fn table_size(
 fn table_grow_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled
         && [ValType::EXTERNREF, ValType::FUNCREF].iter().any(|ty| {
-            builder.types_on_stack(&[*ty, ValType::I32])
-                && module.tables.iter().any(|t| *ty == t.element_type.into())
+            builder.types_on_stack(module, &[*ty, ValType::I32])
+                && module
+                    .tables
+                    .iter()
+                    .any(|t| module.val_type_is_sub_type(*ty, t.element_type.into()))
         })
 }
 
@@ -4733,9 +5514,13 @@ fn table_grow(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32]);
-    let ty = pop_reference_type(builder);
-    let table = table_index(ty, u, module)?;
+    builder.pop_operands(module, &[ValType::I32]);
+    let table = match builder.pop_ref_type() {
+        Some(ty) => table_index(ty, u, module)?,
+        // Stack polymorphic, can choose any reference type we have a table for,
+        // so just choose the table directly.
+        None => u.int_in_range(0..=u32::try_from(module.tables.len()).unwrap())?,
+    };
     builder.push_operands(&[ValType::I32]);
     instructions.push(Instruction::TableGrow(table));
     Ok(())
@@ -4746,7 +5531,7 @@ fn table_copy_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.bulk_memory_enabled
     && !module.config.disallow_traps // Non-trapping table.copy generation not yet implemented
         && module.tables.len() > 0
-        && builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
+        && builder.types_on_stack(module, &[ValType::I32, ValType::I32, ValType::I32])
 }
 
 fn table_copy(
@@ -4755,7 +5540,7 @@ fn table_copy(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32, ValType::I32]);
     let src_table = u.int_in_range(0..=module.tables.len() - 1)? as u32;
     let dst_table = table_index(module.tables[src_table as usize].element_type, u, module)?;
     instructions.push(Instruction::TableCopy {
@@ -4770,7 +5555,7 @@ fn table_init_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.bulk_memory_enabled
     && !module.config.disallow_traps // Non-trapping table.init generation not yet implemented.
         && builder.allocs.table_init_possible
-        && builder.types_on_stack(&[ValType::I32, ValType::I32, ValType::I32])
+        && builder.types_on_stack(module, &[ValType::I32, ValType::I32, ValType::I32])
 }
 
 fn table_init(
@@ -4779,7 +5564,7 @@ fn table_init(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::I32, ValType::I32, ValType::I32]);
+    builder.pop_operands(module, &[ValType::I32, ValType::I32, ValType::I32]);
     let segments = module
         .elems
         .iter()
@@ -4812,14 +5597,851 @@ fn elem_drop(
     Ok(())
 }
 
-fn pop_reference_type(builder: &mut CodeBuilder) -> RefType {
-    if builder.type_on_stack(ValType::EXTERNREF) {
-        builder.pop_operands(&[ValType::EXTERNREF]);
-        RefType::EXTERNREF
-    } else {
-        builder.pop_operands(&[ValType::FUNCREF]);
-        RefType::FUNCREF
+#[inline]
+fn struct_new_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.gc_enabled
+        && module
+            .struct_types
+            .iter()
+            .copied()
+            .any(|i| builder.field_types_on_stack(module, &module.ty(i).unwrap_struct().fields))
+}
+
+fn struct_new(
+    u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    let n = module
+        .struct_types
+        .iter()
+        .filter(|i| builder.field_types_on_stack(module, &module.ty(**i).unwrap_struct().fields))
+        .count();
+    debug_assert!(n > 0);
+    let i = u.int_in_range(0..=n - 1)?;
+    let ty = module
+        .struct_types
+        .iter()
+        .copied()
+        .filter(|i| builder.field_types_on_stack(module, &module.ty(*i).unwrap_struct().fields))
+        .nth(i)
+        .unwrap();
+
+    for _ in module.ty(ty).unwrap_struct().fields.iter() {
+        builder.pop_operand();
     }
+    builder.push_operand(Some(ValType::Ref(RefType {
+        nullable: false,
+        heap_type: HeapType::Concrete(ty),
+    })));
+
+    instructions.push(Instruction::StructNew(ty));
+    Ok(())
+}
+
+#[inline]
+fn struct_new_default_valid(module: &Module, _builder: &mut CodeBuilder) -> bool {
+    module.config.gc_enabled
+        && module.struct_types.iter().copied().any(|i| {
+            module
+                .ty(i)
+                .unwrap_struct()
+                .fields
+                .iter()
+                .all(|f| f.element_type.is_defaultable())
+        })
+}
+
+fn struct_new_default(
+    u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    let n = module
+        .struct_types
+        .iter()
+        .filter(|i| {
+            module
+                .ty(**i)
+                .unwrap_struct()
+                .fields
+                .iter()
+                .all(|f| f.element_type.is_defaultable())
+        })
+        .count();
+    debug_assert!(n > 0);
+    let i = u.int_in_range(0..=n - 1)?;
+    let ty = module
+        .struct_types
+        .iter()
+        .copied()
+        .filter(|i| {
+            module
+                .ty(*i)
+                .unwrap_struct()
+                .fields
+                .iter()
+                .all(|f| f.element_type.is_defaultable())
+        })
+        .nth(i)
+        .unwrap();
+
+    builder.push_operand(Some(ValType::Ref(RefType {
+        nullable: false,
+        heap_type: HeapType::Concrete(ty),
+    })));
+
+    instructions.push(Instruction::StructNewDefault(ty));
+    Ok(())
+}
+
+#[inline]
+fn struct_get_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.gc_enabled
+        && !module.config.disallow_traps
+        && builder.non_empty_struct_ref_on_stack(module, !module.config.disallow_traps)
+}
+
+fn struct_get(
+    u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    let (_, struct_type_index) = builder.pop_concrete_ref_type();
+    let struct_ty = module.ty(struct_type_index).unwrap_struct();
+    let num_fields = u32::try_from(struct_ty.fields.len()).unwrap();
+    debug_assert!(num_fields > 0);
+    let field_index = u.int_in_range(0..=num_fields - 1)?;
+    let (val_ty, ext) = match struct_ty.fields[usize::try_from(field_index).unwrap()].element_type {
+        StorageType::I8 | StorageType::I16 => (ValType::I32, Some(u.arbitrary()?)),
+        StorageType::Val(v) => (v, None),
+    };
+    builder.push_operand(Some(val_ty));
+    instructions.push(match ext {
+        None => Instruction::StructGet {
+            struct_type_index,
+            field_index,
+        },
+        Some(true) => Instruction::StructGetS {
+            struct_type_index,
+            field_index,
+        },
+        Some(false) => Instruction::StructGetU {
+            struct_type_index,
+            field_index,
+        },
+    });
+    Ok(())
+}
+
+#[inline]
+fn struct_set_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    if !module.config.gc_enabled {
+        return false;
+    }
+    match builder.concrete_struct_ref_type_on_stack_at(module, 1) {
+        None => return false,
+        Some((true, _, _)) if module.config.disallow_traps => return false,
+        Some((_, _, ty)) => ty
+            .fields
+            .iter()
+            .any(|f| f.mutable && builder.type_on_stack(module, f.element_type.unpack())),
+    }
+}
+
+fn struct_set(
+    u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    let val_ty = builder.pop_operand();
+    let (_, struct_type_index) = builder.pop_concrete_ref_type();
+    let struct_ty = module.ty(struct_type_index).unwrap_struct();
+
+    let valid_field = |f: &FieldType| -> bool {
+        match val_ty {
+            None => f.mutable,
+            Some(val_ty) => {
+                f.mutable && module.val_type_is_sub_type(val_ty, f.element_type.unpack())
+            }
+        }
+    };
+
+    let n = struct_ty.fields.iter().filter(|f| valid_field(f)).count();
+    debug_assert!(n > 0);
+    let i = u.int_in_range(0..=n - 1)?;
+    let (field_index, _) = struct_ty
+        .fields
+        .iter()
+        .enumerate()
+        .filter(|(_, f)| valid_field(f))
+        .nth(i)
+        .unwrap();
+    let field_index = u32::try_from(field_index).unwrap();
+
+    instructions.push(Instruction::StructSet {
+        struct_type_index,
+        field_index,
+    });
+    Ok(())
+}
+
+#[inline]
+fn array_new_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.gc_enabled
+        && builder.type_on_stack(module, ValType::I32)
+        && module
+            .array_types
+            .iter()
+            .any(|i| builder.field_type_on_stack_at(module, 1, module.ty(*i).unwrap_array().0))
+}
+
+fn array_new(
+    u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    let n = module
+        .array_types
+        .iter()
+        .filter(|i| builder.field_type_on_stack_at(module, 1, module.ty(**i).unwrap_array().0))
+        .count();
+    debug_assert!(n > 0);
+    let i = u.int_in_range(0..=n - 1)?;
+    let ty = module
+        .array_types
+        .iter()
+        .copied()
+        .filter(|i| builder.field_type_on_stack_at(module, 1, module.ty(*i).unwrap_array().0))
+        .nth(i)
+        .unwrap();
+
+    builder.pop_operand();
+    builder.pop_operand();
+    builder.push_operand(Some(ValType::Ref(RefType {
+        nullable: false,
+        heap_type: HeapType::Concrete(ty),
+    })));
+
+    instructions.push(Instruction::ArrayNew(ty));
+    Ok(())
+}
+
+#[inline]
+fn array_new_fixed_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.gc_enabled
+        && module
+            .array_types
+            .iter()
+            .any(|i| builder.field_type_on_stack(module, module.ty(*i).unwrap_array().0))
+}
+
+fn array_new_fixed(
+    u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    let n = module
+        .array_types
+        .iter()
+        .filter(|i| builder.field_type_on_stack(module, module.ty(**i).unwrap_array().0))
+        .count();
+    debug_assert!(n > 0);
+    let i = u.int_in_range(0..=n - 1)?;
+    let array_type_index = module
+        .array_types
+        .iter()
+        .copied()
+        .filter(|i| builder.field_type_on_stack(module, module.ty(*i).unwrap_array().0))
+        .nth(i)
+        .unwrap();
+    let elem_ty = module
+        .ty(array_type_index)
+        .unwrap_array()
+        .0
+        .element_type
+        .unpack();
+
+    let m = (0..builder.operands().len())
+        .take_while(|i| builder.type_on_stack_at(module, *i, elem_ty))
+        .count();
+    debug_assert!(m > 0);
+    let array_size = u.int_in_range(0..=m - 1)?;
+    let array_size = u32::try_from(array_size).unwrap();
+
+    for _ in 0..array_size {
+        builder.pop_operand();
+    }
+    builder.push_operand(Some(ValType::Ref(RefType {
+        nullable: false,
+        heap_type: HeapType::Concrete(array_type_index),
+    })));
+
+    instructions.push(Instruction::ArrayNewFixed {
+        array_type_index,
+        array_size,
+    });
+    Ok(())
+}
+
+#[inline]
+fn array_new_default_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.gc_enabled
+        && builder.type_on_stack(module, ValType::I32)
+        && module
+            .array_types
+            .iter()
+            .any(|i| module.ty(*i).unwrap_array().0.element_type.is_defaultable())
+}
+
+fn array_new_default(
+    u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    let n = module
+        .array_types
+        .iter()
+        .filter(|i| {
+            module
+                .ty(**i)
+                .unwrap_array()
+                .0
+                .element_type
+                .is_defaultable()
+        })
+        .count();
+    debug_assert!(n > 0);
+    let i = u.int_in_range(0..=n - 1)?;
+    let array_type_index = module
+        .array_types
+        .iter()
+        .copied()
+        .filter(|i| module.ty(*i).unwrap_array().0.element_type.is_defaultable())
+        .nth(i)
+        .unwrap();
+
+    builder.pop_operand();
+    builder.push_operand(Some(ValType::Ref(RefType {
+        nullable: false,
+        heap_type: HeapType::Concrete(array_type_index),
+    })));
+    instructions.push(Instruction::ArrayNewDefault(array_type_index));
+    Ok(())
+}
+
+#[inline]
+fn array_new_data_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.gc_enabled
+        && module.config.bulk_memory_enabled // Requires data count section
+        && !module.config.disallow_traps
+        && !module.data.is_empty()
+        && builder.types_on_stack(module, &[ValType::I32, ValType::I32])
+        && module.array_types.iter().any(|i| {
+            let ty = module.ty(*i).unwrap_array().0.element_type.unpack();
+            ty.is_numeric() | ty.is_vector()
+        })
+}
+
+fn array_new_data(
+    u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    let n = module
+        .array_types
+        .iter()
+        .filter(|i| {
+            let ty = module.ty(**i).unwrap_array().0.element_type.unpack();
+            ty.is_numeric() | ty.is_vector()
+        })
+        .count();
+    debug_assert!(n > 0);
+    let i = u.int_in_range(0..=n - 1)?;
+    let array_type_index = module
+        .array_types
+        .iter()
+        .copied()
+        .filter(|i| {
+            let ty = module.ty(*i).unwrap_array().0.element_type.unpack();
+            ty.is_numeric() | ty.is_vector()
+        })
+        .nth(i)
+        .unwrap();
+
+    let m = module.data.len();
+    debug_assert!(m > 0);
+    let array_data_index = u.int_in_range(0..=m - 1)?;
+    let array_data_index = u32::try_from(array_data_index).unwrap();
+
+    builder.pop_operand();
+    builder.pop_operand();
+    builder.push_operand(Some(ValType::Ref(RefType {
+        nullable: false,
+        heap_type: HeapType::Concrete(array_type_index),
+    })));
+    instructions.push(Instruction::ArrayNewData {
+        array_type_index,
+        array_data_index,
+    });
+    Ok(())
+}
+
+fn module_has_elem_segment_of_array_type(module: &Module, ty: &ArrayType) -> bool {
+    module
+        .elems
+        .iter()
+        .any(|elem| module.val_type_is_sub_type(ValType::Ref(elem.ty), ty.0.element_type.unpack()))
+}
+
+#[inline]
+fn array_new_elem_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.gc_enabled
+        && !module.config.disallow_traps
+        && builder.types_on_stack(module, &[ValType::I32, ValType::I32])
+        && module
+            .array_types
+            .iter()
+            .any(|i| module_has_elem_segment_of_array_type(module, module.ty(*i).unwrap_array()))
+}
+
+fn array_new_elem(
+    u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    let n = module
+        .array_types
+        .iter()
+        .filter(|i| module_has_elem_segment_of_array_type(module, module.ty(**i).unwrap_array()))
+        .count();
+    debug_assert!(n > 0);
+    let i = u.int_in_range(0..=n - 1)?;
+    let array_type_index = module
+        .array_types
+        .iter()
+        .copied()
+        .filter(|i| module_has_elem_segment_of_array_type(module, module.ty(*i).unwrap_array()))
+        .nth(i)
+        .unwrap();
+    let elem_ty = module
+        .ty(array_type_index)
+        .unwrap_array()
+        .0
+        .element_type
+        .unpack();
+
+    let m = module
+        .elems
+        .iter()
+        .filter(|elem| module.val_type_is_sub_type(ValType::Ref(elem.ty), elem_ty))
+        .count();
+    debug_assert!(m > 0);
+    let j = u.int_in_range(0..=m - 1)?;
+    let (array_elem_index, _) = module
+        .elems
+        .iter()
+        .enumerate()
+        .filter(|(_, elem)| module.val_type_is_sub_type(ValType::Ref(elem.ty), elem_ty))
+        .nth(j)
+        .unwrap();
+    let array_elem_index = u32::try_from(array_elem_index).unwrap();
+
+    builder.pop_operand();
+    builder.pop_operand();
+    builder.push_operand(Some(ValType::Ref(RefType {
+        nullable: false,
+        heap_type: HeapType::Concrete(array_type_index),
+    })));
+
+    instructions.push(Instruction::ArrayNewElem {
+        array_type_index,
+        array_elem_index,
+    });
+    Ok(())
+}
+
+#[inline]
+fn array_get_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.gc_enabled
+        && !module.config.disallow_traps // TODO: add support for disallowing traps
+        && builder.type_on_stack(module, ValType::I32)
+        && builder.concrete_array_ref_type_on_stack_at(module, 1).is_some()
+}
+
+fn array_get(
+    u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    builder.pop_operand();
+    let (_, array_type_index) = builder.pop_concrete_ref_type();
+    let elem_ty = module.ty(array_type_index).unwrap_array().0.element_type;
+    builder.push_operand(Some(elem_ty.unpack()));
+    instructions.push(match elem_ty {
+        StorageType::I8 | StorageType::I16 => {
+            if u.arbitrary()? {
+                Instruction::ArrayGetS(array_type_index)
+            } else {
+                Instruction::ArrayGetU(array_type_index)
+            }
+        }
+        StorageType::Val(_) => Instruction::ArrayGet(array_type_index),
+    });
+    Ok(())
+}
+
+#[inline]
+fn array_set_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    if !module.config.gc_enabled
+        // TODO: implement disallowing traps.
+        || module.config.disallow_traps
+        || !builder.type_on_stack_at(module, 1, ValType::I32)
+    {
+        return false;
+    }
+    match builder.concrete_array_ref_type_on_stack_at(module, 2) {
+        None => false,
+        Some((_nullable, _idx, array_ty)) => {
+            array_ty.0.mutable && builder.field_type_on_stack(module, array_ty.0)
+        }
+    }
+}
+
+fn array_set(
+    _u: &mut Unstructured,
+    _module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    builder.pop_operand();
+    builder.pop_operand();
+    let (_, ty) = builder.pop_concrete_ref_type();
+    instructions.push(Instruction::ArraySet(ty));
+    Ok(())
+}
+
+#[inline]
+fn array_len_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.gc_enabled
+        && builder.type_on_stack(
+            module,
+            ValType::Ref(RefType {
+                nullable: true,
+                heap_type: HeapType::Array,
+            }),
+        )
+}
+
+fn array_len(
+    _u: &mut Unstructured,
+    _module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    builder.pop_operand();
+    builder.push_operand(Some(ValType::I32));
+    instructions.push(Instruction::ArrayLen);
+    Ok(())
+}
+
+#[inline]
+fn array_fill_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    if !module.config.gc_enabled
+        // TODO: add support for disallowing traps
+        || module.config.disallow_traps
+        || !builder.type_on_stack_at(module, 0, ValType::I32)
+        || !builder.type_on_stack_at(module, 2, ValType::I32)
+    {
+        return false;
+    }
+    match builder.concrete_array_ref_type_on_stack_at(module, 3) {
+        None => return false,
+        Some((_, _, array_ty)) => {
+            array_ty.0.mutable && builder.field_type_on_stack_at(module, 1, array_ty.0)
+        }
+    }
+}
+
+fn array_fill(
+    _u: &mut Unstructured,
+    _module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    builder.pop_operand();
+    builder.pop_operand();
+    builder.pop_operand();
+    let (_, ty) = builder.pop_concrete_ref_type();
+    instructions.push(Instruction::ArrayFill(ty));
+    Ok(())
+}
+
+#[inline]
+fn array_copy_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    if !module.config.gc_enabled
+        // TODO: add support for disallowing traps
+        || module.config.disallow_traps
+        || !builder.type_on_stack_at(module, 0, ValType::I32)
+        || !builder.type_on_stack_at(module, 1, ValType::I32)
+        || !builder.type_on_stack_at(module, 3, ValType::I32)
+    {
+        return false;
+    }
+    let x = match builder.concrete_array_ref_type_on_stack_at(module, 4) {
+        None => return false,
+        Some((_, _, x)) => x,
+    };
+    if !x.0.mutable {
+        return false;
+    }
+    let y = match builder.concrete_array_ref_type_on_stack_at(module, 2) {
+        None => return false,
+        Some((_, _, y)) => y,
+    };
+    match (x.0.element_type, y.0.element_type) {
+        (StorageType::I8, StorageType::I8) => true,
+        (StorageType::I8, _) => false,
+        (StorageType::I16, StorageType::I16) => true,
+        (StorageType::I16, _) => false,
+        (StorageType::Val(x), StorageType::Val(y)) => module.val_type_is_sub_type(y, x),
+        (StorageType::Val(_), _) => false,
+    }
+}
+
+fn array_copy(
+    _u: &mut Unstructured,
+    _module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    builder.pop_operand();
+    builder.pop_operand();
+    let (_, array_type_index_src) = builder.pop_concrete_ref_type();
+    builder.pop_operand();
+    let (_, array_type_index_dst) = builder.pop_concrete_ref_type();
+    instructions.push(Instruction::ArrayCopy {
+        array_type_index_dst,
+        array_type_index_src,
+    });
+    Ok(())
+}
+
+#[inline]
+fn array_init_data_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    if !module.config.gc_enabled
+        || !module.config.bulk_memory_enabled // Requires data count section
+        || module.config.disallow_traps
+        || module.data.is_empty()
+        || !builder.types_on_stack(module, &[ValType::I32, ValType::I32, ValType::I32])
+    {
+        return false;
+    }
+    match builder.concrete_array_ref_type_on_stack_at(module, 3) {
+        None => return false,
+        Some((_, _, ty)) => {
+            let elem_ty = ty.0.element_type.unpack();
+            ty.0.mutable && (elem_ty.is_numeric() || elem_ty.is_vector())
+        }
+    }
+}
+
+fn array_init_data(
+    u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    builder.pop_operand();
+    builder.pop_operand();
+    builder.pop_operand();
+    let (_, array_type_index) = builder.pop_concrete_ref_type();
+
+    let n = module.data.len();
+    debug_assert!(n > 0);
+    let array_data_index = u.int_in_range(0..=n - 1)?;
+    let array_data_index = u32::try_from(array_data_index).unwrap();
+
+    instructions.push(Instruction::ArrayInitData {
+        array_type_index,
+        array_data_index,
+    });
+    Ok(())
+}
+
+#[inline]
+fn array_init_elem_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    if !module.config.gc_enabled
+        || module.config.disallow_traps
+        || !builder.types_on_stack(module, &[ValType::I32, ValType::I32, ValType::I32])
+    {
+        return false;
+    }
+    match builder.concrete_array_ref_type_on_stack_at(module, 3) {
+        None => return false,
+        Some((_, _, array_ty)) => {
+            array_ty.0.mutable && module_has_elem_segment_of_array_type(module, &array_ty)
+        }
+    }
+}
+
+fn array_init_elem(
+    u: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    builder.pop_operand();
+    builder.pop_operand();
+    builder.pop_operand();
+    let (_, array_type_index) = builder.pop_concrete_ref_type();
+
+    let elem_ty = module
+        .ty(array_type_index)
+        .unwrap_array()
+        .0
+        .element_type
+        .unpack();
+
+    let n = module
+        .elems
+        .iter()
+        .filter(|elem| module.val_type_is_sub_type(ValType::Ref(elem.ty), elem_ty))
+        .count();
+    debug_assert!(n > 0);
+    let j = u.int_in_range(0..=n - 1)?;
+    let (array_elem_index, _) = module
+        .elems
+        .iter()
+        .enumerate()
+        .filter(|(_, elem)| module.val_type_is_sub_type(ValType::Ref(elem.ty), elem_ty))
+        .nth(j)
+        .unwrap();
+    let array_elem_index = u32::try_from(array_elem_index).unwrap();
+
+    instructions.push(Instruction::ArrayInitElem {
+        array_type_index,
+        array_elem_index,
+    });
+    Ok(())
+}
+
+#[inline]
+fn ref_i31_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.gc_enabled && builder.type_on_stack(module, ValType::I32)
+}
+
+fn ref_i31(
+    _u: &mut Unstructured,
+    _module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    builder.pop_operand();
+    builder.push_operand(Some(ValType::Ref(RefType {
+        nullable: false,
+        heap_type: HeapType::I31,
+    })));
+    instructions.push(Instruction::RefI31);
+    Ok(())
+}
+
+#[inline]
+fn i31_get_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.gc_enabled
+        && builder.type_on_stack(
+            module,
+            ValType::Ref(RefType {
+                nullable: true,
+                heap_type: HeapType::I31,
+            }),
+        )
+}
+
+fn i31_get(
+    u: &mut Unstructured,
+    _module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    builder.pop_operand();
+    builder.push_operand(Some(ValType::I32));
+    instructions.push(if u.arbitrary()? {
+        Instruction::I31GetS
+    } else {
+        Instruction::I31GetU
+    });
+    Ok(())
+}
+
+#[inline]
+fn any_convert_extern_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.gc_enabled
+        && builder.type_on_stack(
+            module,
+            ValType::Ref(RefType {
+                nullable: true,
+                heap_type: HeapType::Extern,
+            }),
+        )
+}
+
+fn any_convert_extern(
+    u: &mut Unstructured,
+    _module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    let nullable = match builder.pop_ref_type() {
+        None => u.arbitrary()?,
+        Some(r) => r.nullable,
+    };
+    builder.push_operand(Some(ValType::Ref(RefType {
+        nullable,
+        heap_type: HeapType::Any,
+    })));
+    instructions.push(Instruction::AnyConvertExtern);
+    Ok(())
+}
+
+#[inline]
+fn extern_convert_any_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.gc_enabled
+        && builder.type_on_stack(
+            module,
+            ValType::Ref(RefType {
+                nullable: true,
+                heap_type: HeapType::Any,
+            }),
+        )
+}
+
+fn extern_convert_any(
+    u: &mut Unstructured,
+    _module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    let nullable = match builder.pop_ref_type() {
+        None => u.arbitrary()?,
+        Some(r) => r.nullable,
+    };
+    builder.push_operand(Some(ValType::Ref(RefType {
+        nullable,
+        heap_type: HeapType::Extern,
+    })));
+    instructions.push(Instruction::ExternConvertAny);
+    Ok(())
 }
 
 fn table_index(ty: RefType, u: &mut Unstructured, module: &Module) -> Result<u32> {
@@ -4827,7 +6449,7 @@ fn table_index(ty: RefType, u: &mut Unstructured, module: &Module) -> Result<u32
         .tables
         .iter()
         .enumerate()
-        .filter(|(_, t)| t.element_type == ty)
+        .filter(|(_, t)| module.ref_type_is_sub_type(ty, t.element_type))
         .map(|t| t.0 as u32)
         .collect::<Vec<_>>();
     Ok(*u.choose(&tables)?)
@@ -4841,98 +6463,98 @@ fn lane_index(u: &mut Unstructured, number_of_lanes: u8) -> Result<u8> {
 fn simd_v128_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     !module.config.disallow_traps
         && module.config.simd_enabled
-        && builder.types_on_stack(&[ValType::V128])
+        && builder.types_on_stack(module, &[ValType::V128])
 }
 
 #[inline]
 fn simd_v128_on_stack_relaxed(module: &Module, builder: &mut CodeBuilder) -> bool {
     !module.config.disallow_traps
         && module.config.relaxed_simd_enabled
-        && builder.types_on_stack(&[ValType::V128])
+        && builder.types_on_stack(module, &[ValType::V128])
 }
 
 #[inline]
 fn simd_v128_v128_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     !module.config.disallow_traps
         && module.config.simd_enabled
-        && builder.types_on_stack(&[ValType::V128, ValType::V128])
+        && builder.types_on_stack(module, &[ValType::V128, ValType::V128])
 }
 
 #[inline]
 fn simd_v128_v128_on_stack_relaxed(module: &Module, builder: &mut CodeBuilder) -> bool {
     !module.config.disallow_traps
         && module.config.relaxed_simd_enabled
-        && builder.types_on_stack(&[ValType::V128, ValType::V128])
+        && builder.types_on_stack(module, &[ValType::V128, ValType::V128])
 }
 
 #[inline]
 fn simd_v128_v128_v128_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     !module.config.disallow_traps
         && module.config.simd_enabled
-        && builder.types_on_stack(&[ValType::V128, ValType::V128, ValType::V128])
+        && builder.types_on_stack(module, &[ValType::V128, ValType::V128, ValType::V128])
 }
 
 #[inline]
 fn simd_v128_v128_v128_on_stack_relaxed(module: &Module, builder: &mut CodeBuilder) -> bool {
     !module.config.disallow_traps
         && module.config.relaxed_simd_enabled
-        && builder.types_on_stack(&[ValType::V128, ValType::V128, ValType::V128])
+        && builder.types_on_stack(module, &[ValType::V128, ValType::V128, ValType::V128])
 }
 
 #[inline]
 fn simd_v128_i32_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     !module.config.disallow_traps
         && module.config.simd_enabled
-        && builder.types_on_stack(&[ValType::V128, ValType::I32])
+        && builder.types_on_stack(module, &[ValType::V128, ValType::I32])
 }
 
 #[inline]
 fn simd_v128_i64_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     !module.config.disallow_traps
         && module.config.simd_enabled
-        && builder.types_on_stack(&[ValType::V128, ValType::I64])
+        && builder.types_on_stack(module, &[ValType::V128, ValType::I64])
 }
 
 #[inline]
 fn simd_v128_f32_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     !module.config.disallow_traps
         && module.config.simd_enabled
-        && builder.types_on_stack(&[ValType::V128, ValType::F32])
+        && builder.types_on_stack(module, &[ValType::V128, ValType::F32])
 }
 
 #[inline]
 fn simd_v128_f64_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     !module.config.disallow_traps
         && module.config.simd_enabled
-        && builder.types_on_stack(&[ValType::V128, ValType::F64])
+        && builder.types_on_stack(module, &[ValType::V128, ValType::F64])
 }
 
 #[inline]
 fn simd_i32_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     !module.config.disallow_traps
         && module.config.simd_enabled
-        && builder.type_on_stack(ValType::I32)
+        && builder.type_on_stack(module, ValType::I32)
 }
 
 #[inline]
 fn simd_i64_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     !module.config.disallow_traps
         && module.config.simd_enabled
-        && builder.type_on_stack(ValType::I64)
+        && builder.type_on_stack(module, ValType::I64)
 }
 
 #[inline]
 fn simd_f32_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     !module.config.disallow_traps
         && module.config.simd_enabled
-        && builder.type_on_stack(ValType::F32)
+        && builder.type_on_stack(module, ValType::F32)
 }
 
 #[inline]
 fn simd_f64_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     !module.config.disallow_traps
         && module.config.simd_enabled
-        && builder.type_on_stack(ValType::F64)
+        && builder.type_on_stack(module, ValType::F64)
 }
 
 #[inline]
@@ -5019,7 +6641,7 @@ fn v128_store(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::V128]);
+    builder.pop_operands(module, &[ValType::V128]);
     let memarg = mem_arg(u, module, builder, &[0, 1, 2, 3, 4])?;
     if module.config.disallow_traps {
         no_traps::store(
@@ -5042,7 +6664,7 @@ macro_rules! simd_load_lane {
             builder: &mut CodeBuilder,
             instructions: &mut Vec<Instruction>,
         ) -> Result<()> {
-            builder.pop_operands(&[ValType::V128]);
+            builder.pop_operands(module, &[ValType::V128]);
             let memarg = mem_arg(u, module, builder, $alignments)?;
             builder.push_operands(&[ValType::V128]);
             instructions.push(Instruction::$instruction {
@@ -5067,7 +6689,7 @@ macro_rules! simd_store_lane {
             builder: &mut CodeBuilder,
             instructions: &mut Vec<Instruction>,
         ) -> Result<()> {
-            builder.pop_operands(&[ValType::V128]);
+            builder.pop_operands(module, &[ValType::V128]);
             let memarg = mem_arg(u, module, builder, $alignments)?;
             instructions.push(Instruction::$instruction {
                 memarg,
@@ -5085,7 +6707,7 @@ simd_store_lane!(V128Store64Lane, v128_store64_lane, &[0, 1, 2, 3], 2);
 
 fn v128_const(
     u: &mut Unstructured,
-    _: &Module,
+    _module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
@@ -5097,11 +6719,11 @@ fn v128_const(
 
 fn i8x16_shuffle(
     u: &mut Unstructured,
-    _: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    builder.pop_operands(&[ValType::V128, ValType::V128]);
+    builder.pop_operands(module, &[ValType::V128, ValType::V128]);
     builder.push_operands(&[ValType::V128]);
     let mut lanes = [0; 16];
     for i in 0..16 {
@@ -5115,11 +6737,11 @@ macro_rules! simd_lane_access {
     ($instruction:ident, $generator_fn_name:ident, $in_types:expr => $out_types:expr, $number_of_lanes:expr) => {
         fn $generator_fn_name(
             u: &mut Unstructured,
-            _: &Module,
+            module: &Module,
             builder: &mut CodeBuilder,
             instructions: &mut Vec<Instruction>,
         ) -> Result<()> {
-            builder.pop_operands($in_types);
+            builder.pop_operands(module, $in_types);
             builder.push_operands($out_types);
             instructions.push(Instruction::$instruction(lane_index(u, $number_of_lanes)?));
             Ok(())
@@ -5146,12 +6768,12 @@ macro_rules! simd_binop {
     ($instruction:ident, $generator_fn_name:ident) => {
         fn $generator_fn_name(
             _: &mut Unstructured,
-            _: &Module,
+            module: &Module,
             builder: &mut CodeBuilder,
 
             instructions: &mut Vec<Instruction>,
         ) -> Result<()> {
-            builder.pop_operands(&[ValType::V128, ValType::V128]);
+            builder.pop_operands(module, &[ValType::V128, ValType::V128]);
             builder.push_operands(&[ValType::V128]);
             instructions.push(Instruction::$instruction);
             Ok(())
@@ -5167,11 +6789,11 @@ macro_rules! simd_unop {
     ($instruction:ident, $generator_fn_name:ident, $in_type:ident -> $out_type:ident) => {
         fn $generator_fn_name(
             _: &mut Unstructured,
-            _: &Module,
+            module: &Module,
             builder: &mut CodeBuilder,
 
        instructions: &mut Vec<Instruction>, ) -> Result<()> {
-            builder.pop_operands(&[ValType::$in_type]);
+            builder.pop_operands(module, &[ValType::$in_type]);
             builder.push_operands(&[ValType::$out_type]);
             instructions.push(Instruction::$instruction);
             Ok(())
@@ -5183,12 +6805,12 @@ macro_rules! simd_ternop {
     ($instruction:ident, $generator_fn_name:ident) => {
         fn $generator_fn_name(
             _: &mut Unstructured,
-            _: &Module,
+            module: &Module,
             builder: &mut CodeBuilder,
 
             instructions: &mut Vec<Instruction>,
         ) -> Result<()> {
-            builder.pop_operands(&[ValType::V128, ValType::V128, ValType::V128]);
+            builder.pop_operands(module, &[ValType::V128, ValType::V128, ValType::V128]);
             builder.push_operands(&[ValType::V128]);
             instructions.push(Instruction::$instruction);
             Ok(())
@@ -5200,12 +6822,12 @@ macro_rules! simd_shift {
     ($instruction:ident, $generator_fn_name:ident) => {
         fn $generator_fn_name(
             _: &mut Unstructured,
-            _: &Module,
+            module: &Module,
             builder: &mut CodeBuilder,
 
             instructions: &mut Vec<Instruction>,
         ) -> Result<()> {
-            builder.pop_operands(&[ValType::V128, ValType::I32]);
+            builder.pop_operands(module, &[ValType::V128, ValType::I32]);
             builder.push_operands(&[ValType::V128]);
             instructions.push(Instruction::$instruction);
             Ok(())

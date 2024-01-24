@@ -174,14 +174,14 @@ fn parser_features_from_config(config: &Config) -> WasmFeatures {
         exceptions: config.exceptions_enabled,
         memory64: config.memory64_enabled,
         tail_call: config.tail_call_enabled,
+        function_references: config.gc_enabled,
+        gc: config.gc_enabled,
 
         threads: false,
         floats: true,
         extended_const: false,
         component_model: false,
-        function_references: false,
         memory_control: false,
-        gc: false,
         component_model_values: false,
         component_model_nested_names: false,
     }
@@ -192,8 +192,10 @@ fn validate(validator: &mut Validator, bytes: &[u8]) {
         Ok(_) => return,
         Err(e) => e,
     };
+    eprintln!("Writing Wasm to `test.wasm`");
     drop(std::fs::write("test.wasm", &bytes));
     if let Ok(text) = wasmprinter::print_bytes(bytes) {
+        eprintln!("Writing WAT to `test.wat`");
         drop(std::fs::write("test.wat", &text));
     }
     panic!("wasm failed to validate: {}", err);
