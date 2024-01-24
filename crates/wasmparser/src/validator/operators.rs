@@ -1072,10 +1072,13 @@ where
                 BinaryReaderError::new("implementation limit: type index too large", self.offset)
             })?;
 
-        let sup_ty = self
-            .pop_ref()?
-            .unwrap_or_else(|| sub_ty.as_reference_type().unwrap());
-        let sup_ty = RefType::new(true, self.resources.top_type(&sup_ty.heap_type())).unwrap();
+        let sup_ty = self.pop_ref()?.unwrap_or_else(|| {
+            sub_ty
+                .as_reference_type()
+                .expect("we created this as a reference just above")
+        });
+        let sup_ty = RefType::new(true, self.resources.top_type(&sup_ty.heap_type()))
+            .expect("can't panic with non-concrete heap types");
 
         if !self.resources.is_subtype(sub_ty, sup_ty.into()) {
             bail!(
@@ -3990,15 +3993,11 @@ where
         self.push_operand(ValType::Ref(RefType::I31))
     }
     fn visit_i31_get_s(&mut self) -> Self::Output {
-        self.pop_operand(Some(ValType::Ref(
-            RefType::new(true, HeapType::I31).unwrap(),
-        )))?;
+        self.pop_operand(Some(ValType::Ref(RefType::I31REF)))?;
         self.push_operand(ValType::I32)
     }
     fn visit_i31_get_u(&mut self) -> Self::Output {
-        self.pop_operand(Some(ValType::Ref(
-            RefType::new(true, HeapType::I31).unwrap(),
-        )))?;
+        self.pop_operand(Some(ValType::Ref(RefType::I31REF)))?;
         self.push_operand(ValType::I32)
     }
 }
