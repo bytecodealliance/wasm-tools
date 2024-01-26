@@ -12,6 +12,9 @@ repository = "https://github.com/bytecodealliance/wasm-tools"
 readme = "README.md"
 exclude = ['tests/wabt', 'tests/testsuite', 'tests/snapshots', 'ci']
 
+[lints]
+workspace = true
+
 [workspace]
 members = [
   'crates/c-api',
@@ -20,6 +23,12 @@ members = [
   'fuzz',
   'crates/wit-parser/fuzz',
 ]
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+all = "allow"
 
 [workspace.package]
 edition = '2021'

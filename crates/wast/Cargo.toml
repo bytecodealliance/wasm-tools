@@ -12,6 +12,9 @@ description = """
 Customizable Rust parsers for the WebAssembly Text formats WAT and WAST
 """
 
+[lints]
+workspace = true
+
 [dependencies]
 leb128 = { workspace = true }
 unicode-width = "0.1.9"

@@ -36,7 +36,10 @@ impl KebabStr {
     pub(crate) fn new_unchecked<'a>(s: impl AsRef<str> + 'a) -> &'a Self {
         // Safety: `KebabStr` is a transparent wrapper around `str`
         // Therefore transmuting `&str` to `&KebabStr` is safe.
-        unsafe { std::mem::transmute::<_, &Self>(s.as_ref()) }
+        #[allow(unsafe_code)]
+        unsafe {
+            std::mem::transmute::<_, &Self>(s.as_ref())
+        }
     }
 
     /// Gets the underlying string slice.

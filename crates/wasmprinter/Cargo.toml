@@ -12,6 +12,9 @@ description = """
 Rust converter from the WebAssembly binary format to the text format.
 """
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = { workspace = true }
 wasmparser = { workspace = true }

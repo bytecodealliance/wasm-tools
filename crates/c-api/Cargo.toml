@@ -17,6 +17,9 @@ doc = false
 test = false
 doctest = false
 
+[lints]
+workspace = true
+
 [dependencies]
 arbitrary = { workspace = true, features = ["derive"] }
 wasm-mutate = { workspace = true }

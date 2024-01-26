@@ -12,6 +12,9 @@ description = """
 Tooling for working with `*.wit` and component files together.
 """
 
+[lints]
+workspace = true
+
 [dependencies]
 wasmparser = { workspace = true }
 wasm-encoder = { workspace = true }
