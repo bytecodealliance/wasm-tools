@@ -12,6 +12,9 @@ A simple event-driven library for parsing WebAssembly binary files.
 edition.workspace = true
 exclude = ["benches/*.wasm"]
 
+[lints]
+workspace = true
+
 [dependencies]
 bitflags = "2.4.1"
 indexmap = { workspace = true }

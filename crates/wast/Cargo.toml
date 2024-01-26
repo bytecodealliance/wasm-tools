@@ -12,11 +12,15 @@ description = """
 Customizable Rust parsers for the WebAssembly Text formats WAT and WAST
 """
 
+[lints]
+workspace = true
+
 [dependencies]
 leb128 = { workspace = true }
 unicode-width = "0.1.9"
 memchr = "2.4.1"
 wasm-encoder = { workspace = true }
+bumpalo = "3.14.0"
 
 [dev-dependencies]
 anyhow = { workspace = true }

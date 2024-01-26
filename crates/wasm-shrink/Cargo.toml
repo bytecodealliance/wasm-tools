@@ -10,6 +10,9 @@ repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wa
 name = "wasm-shrink"
 version = "0.1.46"
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = { workspace = true }
 blake3 = "1.2.0"

@@ -7,6 +7,9 @@ name = "wit-smith"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wit-smith"
 version = "0.1.26"
 
+[lints]
+workspace = true
+
 [dependencies]
 arbitrary = { workspace = true, features = ["derive"] }
 wit-component = { workspace = true }

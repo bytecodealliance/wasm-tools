@@ -12,6 +12,9 @@ description = """
 Tooling for parsing `*.wit` files and working with their contents.
 """
 
+[lints]
+workspace = true
+
 [dependencies]
 id-arena = "2"
 anyhow = { workspace = true }

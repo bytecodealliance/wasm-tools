@@ -10,6 +10,9 @@ homepage = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm
 documentation = "https://docs.rs/wasm-compose"
 description = "A library for composing WebAssembly components."
 
+[lints]
+workspace = true
+
 [dependencies]
 wat = { workspace = true }
 wasm-encoder = { workspace = true, features = ['wasmparser'] }

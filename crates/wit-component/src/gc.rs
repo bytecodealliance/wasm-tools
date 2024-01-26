@@ -1150,7 +1150,6 @@ impl Encoder {
 macro_rules! define_encode {
     ($(@$p:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
         $(
-            #[allow(clippy::drop_copy)]
             fn $visit(&mut self $(, $($arg: $argty),*)?)  {
                 #[allow(unused_imports)]
                 use wasm_encoder::Instruction::*;

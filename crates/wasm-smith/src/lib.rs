@@ -108,10 +108,7 @@ pub(crate) fn limited_str<'a>(max_size: usize, u: &mut Unstructured<'a>) -> Resu
         Err(e) => {
             let i = e.valid_up_to();
             let valid = u.bytes(i).unwrap();
-            let s = unsafe {
-                debug_assert!(str::from_utf8(valid).is_ok());
-                str::from_utf8_unchecked(valid)
-            };
+            let s = str::from_utf8(valid).unwrap();
             Ok(s)
         }
     }

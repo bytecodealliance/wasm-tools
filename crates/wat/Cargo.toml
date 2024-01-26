@@ -12,5 +12,8 @@ description = """
 Rust parser for the WebAssembly Text format, WAT
 """
 
+[lints]
+workspace = true
+
 [dependencies]
 wast = { workspace = true }

@@ -12,6 +12,9 @@ description = """
 A low-level WebAssembly encoder.
 """
 
+[lints]
+workspace = true
+
 [dependencies]
 leb128 = { workspace = true }
 

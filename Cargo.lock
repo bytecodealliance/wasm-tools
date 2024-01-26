@@ -2232,6 +2232,7 @@ name = "wast"
 version = "70.0.1"
 dependencies = [
  "anyhow",
+ "bumpalo",
  "leb128",
  "memchr",
  "rayon",
