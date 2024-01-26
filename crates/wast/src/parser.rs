@@ -396,9 +396,9 @@ impl ParseBuffer<'_> {
     /// This will return a reference to `s`, but one that's safely rooted in the
     /// `Parser`.
     fn push_str(&self, s: Vec<u8>) -> &[u8] {
-        let s = Box::from(s);
-        let ret = &*s as *const [u8];
-        self.strings.borrow_mut().push(s);
+        let mut strings = self.strings.borrow_mut();
+        strings.push(Box::from(s));
+        let ret = &**strings.last().unwrap() as *const [u8];
         // This should be safe in that the address of `ret` isn't changing as
         // it's on the heap itself. Additionally the lifetime of this return
         // value is tied to the lifetime of `self` (nothing is deallocated
