@@ -5,7 +5,6 @@
 //! files of the `include` directory for this crate.
 
 #![allow(non_snake_case, non_camel_case_types, non_upper_case_globals)]
-
 // This crate fundamentally is doing a lot of unsafe FFI and stuff like that, so
 // it doesn't make sense to allow each individual unsafe block.
 #![allow(unsafe_code)]
