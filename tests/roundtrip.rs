@@ -578,6 +578,7 @@ impl TestState {
             match part {
                 "testsuite" => {
                     features = WasmFeatures::default();
+                    features.component_model = false;
 
                     // NB: when these proposals are merged upstream in the spec
                     // repo then this should be removed. Currently this hasn't
@@ -597,6 +598,7 @@ impl TestState {
                     features.bulk_memory = false;
                     features.function_references = false;
                     features.gc = false;
+                    features.component_model = false;
                     features.component_model_values = false;
                 }
                 "floats-disabled.wast" => features.floats = false,

@@ -372,7 +372,6 @@ impl Default for WasmFeatures {
             exceptions: false,
             memory64: false,
             extended_const: false,
-            component_model: false,
             function_references: false,
             memory_control: false,
             gc: false,
@@ -392,6 +391,7 @@ impl Default for WasmFeatures {
             relaxed_simd: true,
             threads: true,
             multi_memory: true,
+            component_model: true,
         }
     }
 }
