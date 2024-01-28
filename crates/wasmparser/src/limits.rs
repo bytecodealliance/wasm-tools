@@ -57,3 +57,8 @@ pub const MAX_WASM_MODULES: usize = 1_000;
 pub const MAX_WASM_COMPONENTS: usize = 1_000;
 pub const MAX_WASM_INSTANCES: usize = 1_000;
 pub const MAX_WASM_VALUES: usize = 1_000;
+
+/// Core items in components such as globals/memories/tables don't actually
+/// create new definitions but are instead just aliases to preexisting items.
+/// This means they have a different limit than the core wasm based limits.
+pub const MAX_CORE_INDEX_SPACE_ITEMS: usize = 1_000_000;
