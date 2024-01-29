@@ -2303,14 +2303,20 @@ impl ComponentState {
                 push_module_export!(EntityType::Func, core_funcs, "function")
             }
             ExternalKind::Table => {
-                check_max(self.core_tables.len(), 1, MAX_WASM_TABLES, "tables", offset)?;
+                check_max(
+                    self.core_tables.len(),
+                    1,
+                    MAX_CORE_INDEX_SPACE_ITEMS,
+                    "tables",
+                    offset,
+                )?;
                 push_module_export!(EntityType::Table, core_tables, "table")
             }
             ExternalKind::Memory => {
                 check_max(
                     self.core_memories.len(),
                     1,
-                    MAX_WASM_MEMORIES,
+                    MAX_CORE_INDEX_SPACE_ITEMS,
                     "memories",
                     offset,
                 )?;
@@ -2320,14 +2326,20 @@ impl ComponentState {
                 check_max(
                     self.core_globals.len(),
                     1,
-                    MAX_WASM_GLOBALS,
+                    MAX_CORE_INDEX_SPACE_ITEMS,
                     "globals",
                     offset,
                 )?;
                 push_module_export!(EntityType::Global, core_globals, "global")
             }
             ExternalKind::Tag => {
-                check_max(self.core_tags.len(), 1, MAX_WASM_TAGS, "tags", offset)?;
+                check_max(
+                    self.core_tags.len(),
+                    1,
+                    MAX_CORE_INDEX_SPACE_ITEMS,
+                    "tags",
+                    offset,
+                )?;
                 push_module_export!(EntityType::Tag, core_tags, "tag")
             }
         }
