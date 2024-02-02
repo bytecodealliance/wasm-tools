@@ -11,8 +11,6 @@ pub enum Custom<'a> {
     Producers(Producers<'a>),
     /// The `dylink.0` custom section
     Dylink0(Dylink0<'a>),
-    /// The `metadata.code.branch_hint` custom section
-    BranchHint(BranchHint),
 }
 
 impl Custom<'_> {
@@ -22,7 +20,6 @@ impl Custom<'_> {
             Custom::Raw(s) => s.place,
             Custom::Producers(_) => CustomPlace::AfterLast,
             Custom::Dylink0(_) => CustomPlace::BeforeFirst,
-            Custom::BranchHint(_) => CustomPlace::BeforeFirst,
         }
     }
 
@@ -32,7 +29,6 @@ impl Custom<'_> {
             Custom::Raw(s) => s.name,
             Custom::Producers(_) => "producers",
             Custom::Dylink0(_) => "dylink.0",
-            Custom::BranchHint(_) => "metadata.code.branch_hint",
         }
     }
 }
@@ -393,53 +389,5 @@ impl Dylink0Subsection<'_> {
             ExportInfo(..) => 3,
             ImportInfo(..) => 4,
         }
-    }
-}
-
-/// A `metadata.code.branch_hint` custom section
-#[allow(missing_docs)]
-#[derive(Debug)]
-pub struct BranchHint {
-    // Number of function with branch hints.
-    pub function_count: u32,
-
-    // Contains a vector per function with branch hints
-    pub subsections: Vec<FunctionBranchHint>,
-}
-
-/// Possible subsections of the `metadata.code.branch_hint` custom section
-#[derive(Debug)]
-#[allow(missing_docs)]
-pub struct FunctionBranchHint {
-    // Function index
-    pub function_offset: u32,
-    // Hints count or this function
-    pub hint_counts: u32,
-    // Vector of branch hint for this function
-    pub data: Vec<BranchHintStruct>,
-}
-
-// Structure to encode a branch hint
-#[derive(Debug)]
-#[allow(missing_docs)]
-pub struct BranchHintStruct {
-    // Branch offset from the beginning of the function
-    pub branch_offset: u32,
-    // Reserved space, containing the value `1`
-    pub reserved_byte: u32,
-    // Value of this branch hint:
-    // 0 -> likely not taken
-    // 1 -> likely taken
-    pub branch_hint_value: u32,
-}
-
-// There is no parsing here, see BranchHintAnnotation
-impl Parse<'_> for BranchHint {
-    fn parse(_parser: Parser<'_>) -> Result<Self> {
-        let ret = BranchHint {
-            function_count: 0,
-            subsections: Vec::new(),
-        };
-        Ok(ret)
     }
 }

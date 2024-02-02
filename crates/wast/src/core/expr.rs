@@ -15,7 +15,20 @@ use std::mem;
 #[allow(missing_docs)]
 pub struct Expression<'a> {
     pub instrs: Box<[Instruction<'a>]>,
-    pub branch_hints: Vec<(usize, BranchHintAnnotation)>,
+    pub branch_hints: Vec<BranchHint>,
+}
+
+/// A `@metadata.code.branch_hint` in the code, associated with a If or BrIf
+/// This instruction is a placeholder and won't produce anything. Its purpose
+/// is to store the offset of the following instruction and check that
+/// it's followed by `br_if` or `if`.
+#[derive(Debug)]
+pub struct BranchHint {
+    /// Index of instructions in `instrs` field of `Expression` that this hint
+    /// appplies to.
+    pub instr_index: usize,
+    /// The value of this branch hint
+    pub value: u32,
 }
 
 impl<'a> Parse<'a> for Expression<'a> {
@@ -74,7 +87,7 @@ struct ExpressionParser<'a> {
     /// Related to the branch hints proposal.
     /// Will be used later to collect the offsets in the final binary.
     /// <(index of branch instructions, BranchHintAnnotation)>
-    branch_hints: Vec<(usize, BranchHintAnnotation)>,
+    branch_hints: Vec<BranchHint>,
 }
 
 enum Paren {
@@ -160,8 +173,7 @@ impl<'a> ExpressionParser<'a> {
 
                     // Handle the case of a branch hint annotation
                     if parser.peek::<annotation::metadata_code_branch_hint>()? {
-                        let branch_hint = parser.parse::<BranchHintAnnotation>()?;
-                        self.branch_hints.push((self.instrs.len(), branch_hint));
+                        self.parse_branch_hint(parser)?;
                         self.stack.push(Level::BranchHint);
                         continue;
                     }
@@ -307,6 +319,24 @@ impl<'a> ExpressionParser<'a> {
             // that's not syntactically allowed.
             If::Else => Err(parser.error("unexpected token: too many payloads inside of `(if)`")),
         }
+    }
+
+    fn parse_branch_hint(&mut self, parser: Parser<'a>) -> Result<()> {
+        parser.parse::<annotation::metadata_code_branch_hint>()?;
+
+        let hint = parser.parse::<String>()?;
+
+        let value = match hint.as_bytes() {
+            [0] => 0,
+            [1] => 1,
+            _ => return Err(parser.error("invalid value for branch hint")),
+        };
+
+        self.branch_hints.push(BranchHint {
+            instr_index: self.instrs.len(),
+            value,
+        });
+        Ok(())
     }
 }
 
@@ -1154,33 +1184,6 @@ impl<'a> Parse<'a> for TryTable<'a> {
         }
 
         Ok(TryTable { block, catches })
-    }
-}
-
-/// A `@metadata.code.branch_hint` in the code, associated with a If or BrIf
-/// This instruction is a placeholder and won't produce anything. Its purpose
-/// is to store the offset of the following instruction and check that
-/// it's followed by `br_if` or `if`.
-#[derive(Debug)]
-pub struct BranchHintAnnotation {
-    /// The value of this branch hint
-    pub value: u32,
-}
-
-impl Parse<'_> for BranchHintAnnotation {
-    fn parse(parser: Parser<'_>) -> Result<Self> {
-        parser.parse::<annotation::metadata_code_branch_hint>()?;
-
-        let hint = parser.parse::<String>()?;
-
-        let val;
-        match hint.as_bytes() {
-            [0] => val = 0,
-            [1] => val = 1,
-            _ => return Err(parser.error("invalid value for branch hint")),
-        }
-
-        Ok(BranchHintAnnotation { value: val })
     }
 }
 
