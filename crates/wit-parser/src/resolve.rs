@@ -1463,14 +1463,6 @@ impl Remap {
                     span,
                 })
             }
-
-            // check if this type has name conflict with any of the exported item.
-            if world.exports.contains_key(&WorldKey::Name(name.clone())) {
-                bail!(Error {
-                    msg: format!("import type `{name}` conflicts with prior export of interface",),
-                    span,
-                })
-            }
         }
 
         for (name, func, span) in import_funcs {
@@ -1485,36 +1477,16 @@ impl Remap {
                     span,
                 })
             }
-
-            // check if this function has name conflict with any of the exported item.
-            if world.exports.contains_key(&WorldKey::Name(name.clone())) {
-                bail!(Error {
-                    msg: format!(
-                        "import of function `{name}` conflicts with prior export of interface",
-                    ),
-                    span,
-                })
-            }
         }
 
         for (name, func, span) in export_funcs {
             let prev = world
                 .exports
                 .insert(WorldKey::Name(name.clone()), WorldItem::Function(func));
-            if prev.is_some() || world.imports.contains_key(&WorldKey::Name(name.clone())) {
+            if prev.is_some() {
                 bail!(Error {
                     msg: format!(
                         "export of function `{name}` shadows previously exported interface"
-                    ),
-                    span,
-                })
-            }
-
-            // check if this function has name conflict with any of the import item.
-            if world.imports.contains_key(&WorldKey::Name(name.clone())) {
-                bail!(Error {
-                    msg: format!(
-                        "export of function `{name}` conflicts with prior import of interface",
                     ),
                     span,
                 })

@@ -1,5 +1,0 @@
-export `a` conflicts with prior import of same name
-     --> tests/ui/parse-fail/import-export-overlap1.wit:4:10
-      |
-    4 |   export a: func();
-      |          ^

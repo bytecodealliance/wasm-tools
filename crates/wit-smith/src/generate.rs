@@ -413,6 +413,7 @@ impl<'a> InterfaceGenerator<'a> {
         let mut parts = Vec::new();
         let mut imported_interfaces = HashSet::new();
         let mut exported_interfaces = HashSet::new();
+        let mut export_names = HashSet::new();
 
         while parts.len() < self.config.max_world_items && !u.is_empty() && u.arbitrary()? {
             let kind = u.arbitrary::<ItemKind>()?;
@@ -432,7 +433,11 @@ impl<'a> InterfaceGenerator<'a> {
             }
 
             let name = if named {
-                let name = gen_unique_name(u, &mut self.unique_names)?;
+                let names = match direction {
+                    Some(Direction::Import) | None => &mut self.unique_names,
+                    Some(Direction::Export) => &mut export_names,
+                };
+                let name = gen_unique_name(u, names)?;
                 if direction.is_some() {
                     part.push_str("%");
                     part.push_str(&name);
