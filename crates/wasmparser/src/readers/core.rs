@@ -1,3 +1,4 @@
+mod branch_hinting;
 mod code;
 mod coredumps;
 mod custom;
@@ -18,6 +19,7 @@ mod tables;
 mod tags;
 mod types;
 
+pub use self::branch_hinting::*;
 pub use self::code::*;
 pub use self::coredumps::*;
 pub use self::custom::*;

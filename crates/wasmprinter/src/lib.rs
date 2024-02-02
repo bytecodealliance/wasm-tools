@@ -18,6 +18,7 @@ use wasmparser::*;
 const MAX_LOCALS: u32 = 50000;
 const MAX_NESTING_TO_PRINT: u32 = 50;
 const MAX_WASM_FUNCTIONS: u32 = 1_000_000;
+const MAX_WASM_FUNCTION_SIZE: u32 = 128 * 1024;
 
 mod operator;
 
@@ -52,6 +53,7 @@ pub struct Printer {
     nesting: u32,
     line: usize,
     group_lines: Vec<usize>,
+    code_section_hints: Vec<(u32, Vec<(usize, BranchHint)>)>,
 }
 
 #[derive(Default)]
@@ -240,6 +242,15 @@ impl Printer {
                 Payload::CustomSection(c) if c.name() == "component-name" => {
                     let reader = ComponentNameSectionReader::new(c.data(), c.data_offset());
                     drop(self.register_component_names(state, reader));
+                }
+
+                Payload::CustomSection(c) if c.name() == "metadata.code.branch_hint" => {
+                    drop(
+                        self.register_branch_hint_section(BranchHintSectionReader::new(
+                            c.data(),
+                            c.data_offset(),
+                        )?),
+                    );
                 }
 
                 Payload::End(_) => break,
@@ -1109,10 +1120,20 @@ impl Printer {
                 .print_core_functype_idx(state, ty, Some(func_idx))?
                 .unwrap_or(0);
 
+            // Hints are stored on `self` in reverse order of function index so
+            // check the last one and see if it matches this function.
+            let hints = match self.code_section_hints.last() {
+                Some((f, _)) if *f == func_idx => {
+                    let (_, hints) = self.code_section_hints.pop().unwrap();
+                    hints
+                }
+                _ => Vec::new(),
+            };
+
             if self.print_skeleton {
                 self.result.push_str(" ...");
             } else {
-                self.print_func_body(state, func_idx, params, &mut body)?;
+                self.print_func_body(state, func_idx, params, &mut body, &hints)?;
             }
 
             self.end_group();
@@ -1128,10 +1149,12 @@ impl Printer {
         func_idx: u32,
         params: u32,
         body: &mut BinaryReader<'_>,
+        mut branch_hints: &[(usize, BranchHint)],
     ) -> Result<()> {
         let mut first = true;
         let mut local_idx = 0;
         let mut locals = NamedLocalPrinter::new("local");
+        let func_start = body.original_position();
         for _ in 0..body.read_var_u32()? {
             let offset = body.original_position();
             let cnt = body.read_var_u32()?;
@@ -1163,7 +1186,21 @@ impl Printer {
         let mut buf = String::new();
         let mut op_printer = operator::PrintOperator::new(self, state);
         while !body.eof() {
-            // TODO
+            // Branch hints are stored in increasing order of their body offset
+            // so print them whenever their instruction comes up.
+            if let Some(((hint_offset, hint), rest)) = branch_hints.split_first() {
+                if hint.func_offset == (body.original_position() - func_start) as u32 {
+                    branch_hints = rest;
+                    op_printer.printer.newline(*hint_offset);
+                    let desc = if hint.taken { "\"\\01\"" } else { "\"\\00\"" };
+                    write!(
+                        op_printer.printer.result,
+                        "(@metadata.code.branch_hint {})",
+                        desc
+                    )?;
+                }
+            }
+
             let offset = body.original_position();
             mem::swap(&mut buf, &mut op_printer.printer.result);
             let op_kind = body.visit_operator(&mut op_printer)??;
@@ -2686,6 +2723,26 @@ impl Printer {
         if !flags.is_empty() {
             write!(self.result, " {:#x}", flags)?;
         }
+        Ok(())
+    }
+
+    fn register_branch_hint_section(&mut self, section: BranchHintSectionReader<'_>) -> Result<()> {
+        self.code_section_hints.clear();
+        for func in section {
+            let func = func?;
+            if self.code_section_hints.len() >= MAX_WASM_FUNCTIONS as usize {
+                bail!("found too many hints");
+            }
+            if func.hints.count() >= MAX_WASM_FUNCTION_SIZE {
+                bail!("found too many hints");
+            }
+            let hints = func
+                .hints
+                .into_iter_with_offsets()
+                .collect::<wasmparser::Result<Vec<_>>>()?;
+            self.code_section_hints.push((func.func, hints));
+        }
+        self.code_section_hints.reverse();
         Ok(())
     }
 }
