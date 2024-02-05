@@ -1,5 +1,0 @@
-import type `foo` conflicts with prior export of interface
-     --> tests/ui/parse-fail/union-fuzz-2.wit:11:12
-      |
-   11 |     record foo {}
-      |            ^--

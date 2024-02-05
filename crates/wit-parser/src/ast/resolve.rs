@@ -591,11 +591,12 @@ impl<'a> Resolver<'a> {
 
         let mut export_spans = Vec::new();
         let mut import_spans = Vec::new();
-        let mut used_names = HashMap::new();
+        let mut import_names = HashMap::new();
+        let mut export_names = HashMap::new();
         for (name, (item, span)) in self.type_lookup.iter() {
             match *item {
                 TypeOrItem::Type(id) => {
-                    let prev = used_names.insert(*name, "import");
+                    let prev = import_names.insert(*name, "import");
                     if let Some(prev) = prev {
                         return Err(Error {
                             span: *span,
@@ -617,13 +618,14 @@ impl<'a> Resolver<'a> {
         let mut imported_interfaces = HashSet::new();
         let mut exported_interfaces = HashSet::new();
         for item in world.items.iter() {
-            let (docs, kind, desc, spans, interfaces) = match item {
+            let (docs, kind, desc, spans, interfaces, names) = match item {
                 ast::WorldItem::Import(import) => (
                     &import.docs,
                     &import.kind,
                     "import",
                     &mut import_spans,
                     &mut imported_interfaces,
+                    &mut import_names,
                 ),
                 ast::WorldItem::Export(export) => (
                     &export.docs,
@@ -631,6 +633,7 @@ impl<'a> Resolver<'a> {
                     "export",
                     &mut export_spans,
                     &mut exported_interfaces,
+                    &mut export_names,
                 ),
 
                 ast::WorldItem::Type(ast::TypeDef {
@@ -659,7 +662,7 @@ impl<'a> Resolver<'a> {
             };
             let key = match kind {
                 ast::ExternKind::Interface(name, _) | ast::ExternKind::Func(name, _) => {
-                    let prev = used_names.insert(name.name, desc);
+                    let prev = names.insert(name.name, desc);
                     if let Some(prev) = prev {
                         return Err(Error {
                             span: kind.span(),
