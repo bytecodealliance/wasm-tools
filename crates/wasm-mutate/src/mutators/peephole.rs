@@ -1586,6 +1586,24 @@ mod tests {
         );
     }
 
+    #[test]
+    fn remove_local_set() {
+        test_default_peephole_mutator(
+            "(module (func (local i32) (local.set 0 (i32.const 0))))",
+            "(module (func (local i32) nop))",
+            4,
+        );
+    }
+
+    #[test]
+    fn remove_local_tee() {
+        test_default_peephole_mutator(
+            "(module (func (local i32) (local.tee 0 (i32.const 0)) drop))",
+            "(module (func (local i32) (i32.const 0) drop))",
+            4,
+        );
+    }
+
     fn test_peephole_mutator(
         original: &str,
         rules: &[Rewrite<super::Lang, PeepholeMutationAnalysis>],
@@ -1597,6 +1615,19 @@ mod tests {
         config.seed(seed);
 
         let mutator = PeepholeMutator::new_with_rules(3, rules.to_vec());
+        config.match_mutation(original, mutator, expected);
+    }
+
+    fn test_default_peephole_mutator(original: &str, expected: &str, seed: u64) {
+        let original_wasm = wat::parse_str(original).unwrap();
+        let mut config = WasmMutate::default();
+        config.fuel(10000);
+        config.seed(seed);
+        config.info = Some(ModuleInfo::new(&original_wasm).unwrap());
+
+        let mut mutator = PeepholeMutator::new(3);
+        let rules = mutator.get_rules(&config);
+        mutator.rules = Some(rules);
         config.match_mutation(original, mutator, expected);
     }
 }

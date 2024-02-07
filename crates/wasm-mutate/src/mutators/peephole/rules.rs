@@ -594,6 +594,16 @@ impl PeepholeMutator {
                         if self.is_type("?x", PrimitiveTypeInfo::I64)
                 );
             }
+
+            for i in 0..20 {
+                let name = format!("remove-local.set{i}");
+                let lhs = format!("(local.set.{i} ?x)");
+                self.add_rewrite(&mut rules, &name, &lhs, "nop", &[]);
+
+                let name = format!("remove-local.tee{i}");
+                let lhs = format!("(local.tee.{i} ?x)");
+                self.add_rewrite(&mut rules, &name, &lhs, "?x", &[]);
+            }
         }
 
         rules
