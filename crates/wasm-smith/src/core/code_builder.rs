@@ -922,6 +922,33 @@ impl CodeBuilder<'_> {
         self.allocs.operands.push(ty);
     }
 
+    fn pop_label_types(&mut self, module: &Module, target: u32) {
+        let target = usize::try_from(target).unwrap();
+        let control = &self.allocs.controls[self.allocs.controls.len() - 1 - target];
+        debug_assert!(self.label_types_on_stack(module, control));
+        self.allocs
+            .operands
+            .truncate(self.allocs.operands.len() - control.label_types().len());
+    }
+
+    fn push_label_types(&mut self, target: u32) {
+        let target = usize::try_from(target).unwrap();
+        let control = &self.allocs.controls[self.allocs.controls.len() - 1 - target];
+        self.allocs
+            .operands
+            .extend(control.label_types().iter().copied().map(Some));
+    }
+
+    /// Pop the target label types, and then push them again.
+    ///
+    /// This is not a no-op due to subtyping: if we have a `T <: U` on the
+    /// stack, and the target label's type is `[U]`, then this will erase the
+    /// information about `T` and subsequent operations may only operate on `U`.
+    fn pop_push_label_types(&mut self, module: &Module, target: u32) {
+        self.pop_label_types(module, target);
+        self.push_label_types(target)
+    }
+
     fn label_types_on_stack(&self, module: &Module, to_check: &Control) -> bool {
         self.types_on_stack(module, to_check.label_types())
     }
@@ -1710,10 +1737,9 @@ fn br(
         .filter(|(_, l)| builder.label_types_on_stack(module, l))
         .nth(i)
         .unwrap();
-    let control = &builder.allocs.controls[builder.allocs.controls.len() - 1 - target];
-    let tys = control.label_types().to_vec();
-    builder.pop_operands(module, &tys);
-    instructions.push(Instruction::Br(target as u32));
+    let target = u32::try_from(target).unwrap();
+    builder.pop_label_types(module, target);
+    instructions.push(Instruction::Br(target));
     Ok(())
 }
 
@@ -1757,7 +1783,9 @@ fn br_if(
         .filter(|(_, l)| builder.label_types_on_stack(module, l))
         .nth(i)
         .unwrap();
-    instructions.push(Instruction::BrIf(target as u32));
+    let target = u32::try_from(target).unwrap();
+    builder.pop_push_label_types(module, target);
+    instructions.push(Instruction::BrIf(target));
     Ok(())
 }
 
@@ -2203,13 +2231,15 @@ fn br_on_null(
         .filter(|(_, l)| builder.label_types_on_stack(module, l))
         .nth(i)
         .unwrap();
+    let target = u32::try_from(target).unwrap();
 
+    builder.pop_push_label_types(module, target);
     builder.push_operands(&[ValType::Ref(RefType {
         nullable: false,
         heap_type,
     })]);
 
-    instructions.push(Instruction::BrOnNull(u32::try_from(target).unwrap()));
+    instructions.push(Instruction::BrOnNull(target));
     Ok(())
 }
 
@@ -2270,9 +2300,11 @@ fn br_on_non_null(
         .filter(|(_, l)| is_valid_br_on_non_null_control(module, l, builder))
         .nth(i)
         .unwrap();
+    let target = u32::try_from(target).unwrap();
 
+    builder.pop_push_label_types(module, target);
     builder.pop_ref_type();
-    instructions.push(Instruction::BrOnNonNull(u32::try_from(target).unwrap()));
+    instructions.push(Instruction::BrOnNonNull(target));
     Ok(())
 }
 
@@ -2354,6 +2386,7 @@ fn br_on_cast(
         .unwrap();
     let relative_depth = u32::try_from(relative_depth).unwrap();
 
+    let num_label_types = control.label_types().len();
     let to_ref_type = match control.label_types().last() {
         Some(ValType::Ref(r)) => *r,
         _ => unreachable!(),
@@ -2363,6 +2396,15 @@ fn br_on_cast(
     let from_ref_type = from_ref_type.unwrap_or(to_ref_type);
     let from_ref_type = module.arbitrary_super_type_of_ref_type(u, from_ref_type)?;
 
+    // Do `pop_push_label_types` but without its debug assert that the types are
+    // on the stack, since we know that we have a `from_ref_type` but the label
+    // requires a `to_ref_type`.
+    for _ in 0..num_label_types {
+        builder.pop_operand();
+    }
+    builder.push_label_types(relative_depth);
+
+    // Replace the label's `to_ref_type` with the type difference.
     builder.pop_operand();
     builder.push_operands(&[ValType::Ref(ref_type_difference(
         from_ref_type,
@@ -2433,7 +2475,7 @@ fn br_on_cast_fail(
     debug_assert!(n > 0);
 
     let i = u.int_in_range(0..=n - 1)?;
-    let (target, control) = builder
+    let (relative_depth, control) = builder
         .allocs
         .controls
         .iter()
@@ -2442,6 +2484,7 @@ fn br_on_cast_fail(
         .filter(|(_, l)| is_valid_br_on_cast_fail_control(module, builder, l, from_ref_type))
         .nth(i)
         .unwrap();
+    let relative_depth = u32::try_from(relative_depth).unwrap();
 
     let from_ref_type =
         from_ref_type.unwrap_or_else(|| match control.label_types().last().unwrap() {
@@ -2450,13 +2493,16 @@ fn br_on_cast_fail(
         });
     let to_ref_type = module.arbitrary_matching_ref_type(u, from_ref_type)?;
 
+    // Pop-push the label types and then replace its last reference type with
+    // our `to_ref_type`.
+    builder.pop_push_label_types(module, relative_depth);
     builder.pop_operand();
     builder.push_operand(Some(ValType::Ref(to_ref_type)));
 
     instructions.push(Instruction::BrOnCastFail {
         from_ref_type,
         to_ref_type,
-        relative_depth: u32::try_from(target).unwrap(),
+        relative_depth,
     });
     Ok(())
 }
