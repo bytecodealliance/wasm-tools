@@ -17,6 +17,14 @@ pub struct Opts {
     /// replaced with "..." instead of printing their actual contents.
     #[clap(long)]
     skeleton: bool,
+
+    /// Ensure all wasm items have `$`-based names, even if they don't have an
+    /// entry in the `name` section.
+    ///
+    /// This option, when enabled, will synthesize names for any item which
+    /// doesn't previously have a name.
+    #[clap(long)]
+    name_unnamed: bool,
 }
 
 impl Opts {
@@ -29,6 +37,7 @@ impl Opts {
         let mut printer = wasmprinter::Printer::new();
         printer.print_offsets(self.print_offsets);
         printer.print_skeleton(self.skeleton);
+        printer.name_unnamed(self.name_unnamed);
         let wat = printer.print(&wasm)?;
         self.io.output(wasm_tools::Output::Wat(&wat))?;
         Ok(())

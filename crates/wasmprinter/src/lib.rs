@@ -11,6 +11,7 @@
 use anyhow::{bail, Context, Result};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Write};
+use std::marker;
 use std::mem;
 use std::path::Path;
 use wasmparser::*;
@@ -54,6 +55,7 @@ pub struct Printer {
     line: usize,
     group_lines: Vec<usize>,
     code_section_hints: Vec<(u32, Vec<(usize, BranchHint)>)>,
+    name_unnamed: bool,
 }
 
 #[derive(Default)]
@@ -66,18 +68,41 @@ struct CoreState {
     tables: u32,
     modules: u32,
     instances: u32,
-    func_names: HashMap<u32, Naming>,
-    local_names: HashMap<(u32, u32), Naming>,
-    label_names: HashMap<(u32, u32), Naming>,
-    type_names: HashMap<u32, Naming>,
-    tag_names: HashMap<u32, Naming>,
-    table_names: HashMap<u32, Naming>,
-    memory_names: HashMap<u32, Naming>,
-    global_names: HashMap<u32, Naming>,
-    element_names: HashMap<u32, Naming>,
-    data_names: HashMap<u32, Naming>,
-    module_names: HashMap<u32, Naming>,
-    instance_names: HashMap<u32, Naming>,
+    func_names: NamingMap<u32, NameFunc>,
+    local_names: NamingMap<(u32, u32), NameLocal>,
+    label_names: NamingMap<(u32, u32), NameLabel>,
+    type_names: NamingMap<u32, NameType>,
+    tag_names: NamingMap<u32, NameTag>,
+    table_names: NamingMap<u32, NameTable>,
+    memory_names: NamingMap<u32, NameMemory>,
+    global_names: NamingMap<u32, NameGlobal>,
+    element_names: NamingMap<u32, NameElem>,
+    data_names: NamingMap<u32, NameData>,
+    module_names: NamingMap<u32, NameModule>,
+    instance_names: NamingMap<u32, NameInstance>,
+}
+
+/// A map of index-to-name for tracking what are the contents of the name
+/// section.
+///
+/// The type parameter `T` is either `u32` for most index-based maps or a `(u32,
+/// u32)` for label/local maps where there are two levels of indices.
+///
+/// The type parameter `K` is a static description/namespace for what kind of
+/// item is contained within this map. That's used by some helper methods to
+/// synthesize reasonable names automatically.
+struct NamingMap<T, K> {
+    index_to_name: HashMap<T, Naming>,
+    _marker: marker::PhantomData<K>,
+}
+
+impl<T, K> Default for NamingMap<T, K> {
+    fn default() -> NamingMap<T, K> {
+        NamingMap {
+            index_to_name: HashMap::new(),
+            _marker: marker::PhantomData,
+        }
+    }
 }
 
 #[derive(Default)]
@@ -87,11 +112,11 @@ struct ComponentState {
     instances: u32,
     components: u32,
     values: u32,
-    type_names: HashMap<u32, Naming>,
-    func_names: HashMap<u32, Naming>,
-    component_names: HashMap<u32, Naming>,
-    instance_names: HashMap<u32, Naming>,
-    value_names: HashMap<u32, Naming>,
+    type_names: NamingMap<u32, NameType>,
+    func_names: NamingMap<u32, NameFunc>,
+    component_names: NamingMap<u32, NameComponent>,
+    instance_names: NamingMap<u32, NameInstance>,
+    value_names: NamingMap<u32, NameValue>,
 }
 
 struct State {
@@ -134,6 +159,20 @@ impl Printer {
     /// data segment contents, element segment contents, etc.
     pub fn print_skeleton(&mut self, print: bool) {
         self.print_skeleton = print;
+    }
+
+    /// Assign names to all unnamed items.
+    ///
+    /// If enabled then any previously unnamed item will have a name synthesized
+    /// that looks like `$#func10` for example. The leading `#` indicates that
+    /// it's `wasmprinter`-generated. The `func` is the namespace of the name
+    /// and provides extra context about the item when referenced. The 10 is the
+    /// local index of the item.
+    ///
+    /// Note that if the resulting text output is converted back to binary the
+    /// resulting `name` custom section will not be the same as before.
+    pub fn name_unnamed(&mut self, enable: bool) {
+        self.name_unnamed = enable;
     }
 
     /// Registers a custom `printer` function to get invoked whenever a custom
@@ -552,8 +591,8 @@ impl Printer {
     }
 
     fn register_names(&mut self, state: &mut State, names: NameSectionReader<'_>) -> Result<()> {
-        fn indirect_name_map(
-            into: &mut HashMap<(u32, u32), Naming>,
+        fn indirect_name_map<K>(
+            into: &mut NamingMap<(u32, u32), K>,
             names: IndirectNameMap<'_>,
             name: &str,
         ) -> Result<()> {
@@ -567,7 +606,7 @@ impl Printer {
                 };
                 for naming in indirect.names {
                     let naming = naming?;
-                    into.insert(
+                    into.index_to_name.insert(
                         (indirect.index, naming.index),
                         Naming::new(naming.name, naming.index, name, used.as_mut()),
                     );
@@ -811,8 +850,7 @@ impl Printer {
         // we need to be careful to terminate previous param blocks and open
         // a new one if that's the case with a named parameter.
         for (i, param) in ty.params().iter().enumerate() {
-            let name = names_for.and_then(|n| state.core.local_names.get(&(n, i as u32)));
-            params.start_local(name, &mut self.result);
+            params.start_local(names_for.unwrap_or(u32::MAX), i as u32, self, state);
             self.print_valtype(*param)?;
             params.end_local(&mut self.result);
         }
@@ -1171,8 +1209,7 @@ impl Printer {
                     self.newline(offset);
                     first = false;
                 }
-                let name = state.core.local_names.get(&(func_idx, params + local_idx));
-                locals.start_local(name, &mut self.result);
+                locals.start_local(func_idx, params + local_idx, self, state);
                 self.print_valtype(ty)?;
                 locals.end_local(&mut self.result);
                 local_idx += 1;
@@ -1345,28 +1382,55 @@ impl Printer {
         Ok(())
     }
 
-    fn print_idx(&mut self, names: &HashMap<u32, Naming>, idx: u32) -> Result<()> {
+    fn print_idx<K>(&mut self, names: &NamingMap<u32, K>, idx: u32) -> Result<()>
+    where
+        K: NamingNamespace,
+    {
+        self._print_idx(&names.index_to_name, idx, K::desc())
+    }
+
+    fn _print_idx(&mut self, names: &HashMap<u32, Naming>, idx: u32, desc: &str) -> Result<()> {
         match names.get(&idx) {
             Some(name) => write!(self.result, "${}", name.identifier())?,
-            None => write!(self.result, "{}", idx)?,
+            None if self.name_unnamed => write!(self.result, "$#{desc}{idx}")?,
+            None => write!(self.result, "{idx}")?,
         }
         Ok(())
     }
 
     fn print_local_idx(&mut self, state: &State, func: u32, idx: u32) -> Result<()> {
-        match state.core.local_names.get(&(func, idx)) {
+        match state.core.local_names.index_to_name.get(&(func, idx)) {
             Some(name) => write!(self.result, "${}", name.identifier())?,
+            None if self.name_unnamed => write!(self.result, "$#local{idx}")?,
             None => write!(self.result, "{}", idx)?,
         }
         Ok(())
     }
 
-    fn print_name(&mut self, names: &HashMap<u32, Naming>, cur_idx: u32) -> Result<()> {
-        if let Some(name) = names.get(&cur_idx) {
-            name.write(&mut self.result);
-            self.result.push(' ');
+    fn print_name<K>(&mut self, names: &NamingMap<u32, K>, cur_idx: u32) -> Result<()>
+    where
+        K: NamingNamespace,
+    {
+        self._print_name(&names.index_to_name, cur_idx, K::desc())
+    }
+
+    fn _print_name(
+        &mut self,
+        names: &HashMap<u32, Naming>,
+        cur_idx: u32,
+        desc: &str,
+    ) -> Result<()> {
+        match names.get(&cur_idx) {
+            Some(name) => {
+                name.write(&mut self.result);
+                self.result.push(' ');
+            }
+            None if self.name_unnamed => {
+                write!(self.result, "$#{desc}{cur_idx} ")?;
+            }
+            None => {}
         }
-        write!(self.result, "(;{};)", cur_idx)?;
+        write!(self.result, "(;{cur_idx};)")?;
         Ok(())
     }
 
@@ -2764,35 +2828,46 @@ impl NamedLocalPrinter {
         }
     }
 
-    fn start_local(&mut self, name: Option<&Naming>, dst: &mut String) {
+    fn start_local(&mut self, func: u32, local: u32, dst: &mut Printer, state: &State) {
+        let name = state.core.local_names.index_to_name.get(&(func, local));
+
         // Named locals must be in their own group, so if we have a name we need
         // to terminate the previous group.
         if name.is_some() && self.in_group {
-            dst.push(')');
+            dst.result.push(')');
             self.in_group = false;
         }
 
         if self.first {
             self.first = false;
         } else {
-            dst.push(' ');
+            dst.result.push(' ');
         }
 
         // Next we either need a separator if we're already in a group or we
         // need to open a group for our new local.
         if !self.in_group {
-            dst.push('(');
-            dst.push_str(self.group_name);
-            dst.push(' ');
+            dst.result.push('(');
+            dst.result.push_str(self.group_name);
+            dst.result.push(' ');
             self.in_group = true;
         }
 
         // Print the optional name if given...
-        if let Some(name) = name {
-            name.write(dst);
-            dst.push(' ');
+        match name {
+            Some(name) => {
+                name.write(&mut dst.result);
+                dst.result.push(' ');
+                self.end_group_after_local = true;
+            }
+            None if dst.name_unnamed => {
+                dst.result.push_str(&format!("$#local{local} "));
+                self.end_group_after_local = true;
+            }
+            None => {
+                self.end_group_after_local = false;
+            }
         }
-        self.end_group_after_local = name.is_some();
     }
 
     fn end_local(&mut self, dst: &mut String) {
@@ -3019,11 +3094,43 @@ impl Naming {
     }
 }
 
-fn name_map(into: &mut HashMap<u32, Naming>, names: NameMap<'_>, name: &str) -> Result<()> {
+/// Helper trait for the `NamingMap` type's `K` type parameter.
+trait NamingNamespace {
+    fn desc() -> &'static str;
+}
+
+macro_rules! naming_namespaces {
+    ($(struct $name:ident => $desc:tt)*) => ($(
+        struct $name;
+
+        impl NamingNamespace for $name {
+            fn desc() -> &'static str { $desc }
+        }
+    )*)
+}
+
+naming_namespaces! {
+    struct NameFunc => "func"
+    struct NameModule => "module"
+    struct NameInstance => "instance"
+    struct NameGlobal => "global"
+    struct NameMemory => "memory"
+    struct NameLocal => "local"
+    struct NameLabel => "label"
+    struct NameTable => "table"
+    struct NameValue => "value"
+    struct NameType => "type"
+    struct NameData => "data"
+    struct NameElem => "elem"
+    struct NameComponent => "component"
+    struct NameTag => "tag"
+}
+
+fn name_map<K>(into: &mut NamingMap<u32, K>, names: NameMap<'_>, name: &str) -> Result<()> {
     let mut used = HashSet::new();
     for naming in names {
         let naming = naming?;
-        into.insert(
+        into.index_to_name.insert(
             naming.index,
             Naming::new(naming.name, naming.index, name, Some(&mut used)),
         );
