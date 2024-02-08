@@ -68,12 +68,18 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         }
 
         let key = (self.state.core.funcs, self.label);
-        let has_name = if let Some(name) = self.state.core.label_names.get(&key) {
-            self.printer.result.push_str(" ");
-            name.write(&mut self.printer.result);
-            true
-        } else {
-            false
+        let has_name = match self.state.core.label_names.index_to_name.get(&key) {
+            Some(name) => {
+                self.printer.result.push_str(" ");
+                name.write(&mut self.printer.result);
+                true
+            }
+            None if self.printer.name_unnamed => {
+                let depth = self.cur_depth();
+                write!(self.result(), " $#label{depth}")?;
+                true
+            }
+            None => false,
         };
         match ty {
             BlockType::Empty => {}
@@ -127,7 +133,7 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
                     .and_then(|idx| self.label_indices.get(idx as usize).copied())
                     .and_then(|label_idx| {
                         let key = (self.state.core.funcs, label_idx);
-                        self.state.core.label_names.get(&key)
+                        self.state.core.label_names.index_to_name.get(&key)
                     });
 
                 // This is a bit tricky, but if there's a shallower label than
@@ -139,7 +145,7 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
                 let name = name.and_then(|name| {
                     for other_label in self.label_indices[i as usize..].iter() {
                         let key = (self.state.core.funcs, *other_label);
-                        if let Some(other) = self.state.core.label_names.get(&key) {
+                        if let Some(other) = self.state.core.label_names.index_to_name.get(&key) {
                             if name.name == other.name {
                                 return None;
                             }
@@ -150,6 +156,8 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
 
                 match name {
                     Some(name) => name.write(&mut self.printer.result),
+
+                    None if self.printer.name_unnamed => write!(self.result(), "$#label{i}")?,
 
                     // If this label has some name also print its pseudo-name as
                     // `@N` to help match things up in the text format.
