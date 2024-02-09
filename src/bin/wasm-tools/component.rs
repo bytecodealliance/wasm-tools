@@ -8,9 +8,10 @@ use anyhow::{bail, Context, Result};
 use clap::Parser;
 
 use wasm_tools::Output;
+use wat::Detect;
 use wit_component::{
-    embed_component_metadata, is_wasm_binary_or_wat, parse_wit_from_path, ComponentEncoder,
-    DecodedWasm, Linker, StringEncoding, WitPrinter,
+    embed_component_metadata, parse_wit_from_path, ComponentEncoder, DecodedWasm, Linker,
+    StringEncoding, WitPrinter,
 };
 use wit_parser::{Resolve, UnresolvedPackage};
 
@@ -505,31 +506,34 @@ impl WitOpts {
             }
         };
 
-        if is_wasm_binary_or_wat(&input) {
-            // Use `wat` to possible translate the text format, and then
-            // afterwards use either `decode` or `metadata::decode` depending on
-            // if the input is a component or a core wasm mdoule.
-            let input = wat::parse_bytes(&input).map_err(|mut e| {
-                e.set_path(path);
-                e
-            })?;
-            if wasmparser::Parser::is_component(&input) {
-                wit_component::decode(&input)
-            } else {
-                let (_wasm, bindgen) = wit_component::metadata::decode(&input)?;
-                Ok(DecodedWasm::Component(bindgen.resolve, bindgen.world))
+        match Detect::from_bytes(&input) {
+            Detect::WasmBinary | Detect::WasmText => {
+                // Use `wat` to possible translate the text format, and then
+                // afterwards use either `decode` or `metadata::decode` depending on
+                // if the input is a component or a core wasm mdoule.
+                let input = wat::parse_bytes(&input).map_err(|mut e| {
+                    e.set_path(path);
+                    e
+                })?;
+                if wasmparser::Parser::is_component(&input) {
+                    wit_component::decode(&input)
+                } else {
+                    let (_wasm, bindgen) = wit_component::metadata::decode(&input)?;
+                    Ok(DecodedWasm::Component(bindgen.resolve, bindgen.world))
+                }
             }
-        } else {
-            // This is a single WIT file, so create the single-file package and
-            // return it.
-            let input = match std::str::from_utf8(&input) {
-                Ok(s) => s,
-                Err(_) => bail!("input was not valid utf-8"),
-            };
-            let mut resolve = Resolve::default();
-            let pkg = UnresolvedPackage::parse(path, input)?;
-            let id = resolve.push(pkg)?;
-            Ok(DecodedWasm::WitPackage(resolve, id))
+            Detect::Unknown => {
+                // This is a single WIT file, so create the single-file package and
+                // return it.
+                let input = match std::str::from_utf8(&input) {
+                    Ok(s) => s,
+                    Err(_) => bail!("input was not valid utf-8"),
+                };
+                let mut resolve = Resolve::default();
+                let pkg = UnresolvedPackage::parse(path, input)?;
+                let id = resolve.push(pkg)?;
+                Ok(DecodedWasm::WitPackage(resolve, id))
+            }
         }
     }
 
