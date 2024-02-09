@@ -92,7 +92,6 @@ use wit_parser::{
 
 const INDIRECT_TABLE_NAME: &str = "$imports";
 
-pub mod docs;
 mod wit;
 pub use wit::{encode, encode_world};
 

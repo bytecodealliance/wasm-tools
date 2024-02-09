@@ -24,15 +24,20 @@ log = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true, optional = true }
 serde_derive = { workspace = true, optional = true }
+wasmparser = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
 
 [features]
-serde = ['dep:serde', 'dep:serde_derive', 'indexmap/serde']
+# default = ['decoding']
+serde = ['dep:serde', 'dep:serde_derive', 'indexmap/serde', 'serde_json']
+decoding = ['dep:wasmparser']
+# encoding = ['dep:wasm-encoder']
 
 [dev-dependencies]
 rayon = "1"
 env_logger = { workspace = true }
 pretty_assertions = { workspace = true }
-serde_json = "1.0.105"
+serde_json = { workspace = true }
 wit-parser = { path = '.', features = ['serde'] }
 
 [[test]]

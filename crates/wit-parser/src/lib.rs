@@ -6,6 +6,13 @@ use std::borrow::Cow;
 use std::fmt;
 use std::path::Path;
 
+#[cfg(feature = "decoding")]
+pub mod decoding;
+#[cfg(feature = "decoding")]
+mod docs;
+#[cfg(feature = "decoding")]
+pub use docs::PackageDocs;
+
 pub mod abi;
 mod ast;
 use ast::lex::Span;

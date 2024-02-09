@@ -9,7 +9,6 @@ use anyhow::{bail, Result};
 use wasm_encoder::{CanonicalOption, Encode, Section};
 use wit_parser::{Resolve, WorldId};
 
-mod decoding;
 mod encoding;
 mod gc;
 mod linking;
@@ -17,11 +16,11 @@ mod printing;
 mod targets;
 mod validation;
 
-pub use decoding::{decode, decode_reader, DecodedWasm};
 pub use encoding::{encode, ComponentEncoder};
 pub use linking::Linker;
 pub use printing::*;
 pub use targets::*;
+pub use wit_parser::decoding::{decode, decode_reader, DecodedWasm};
 
 pub mod metadata;
 

@@ -50,10 +50,7 @@ use wasm_encoder::{
     ComponentBuilder, ComponentExportKind, ComponentType, ComponentTypeRef, CustomSection,
 };
 use wasm_metadata::Producers;
-use wasmparser::types::ComponentAnyTypeId;
-use wasmparser::{
-    BinaryReader, ComponentExternalKind, Parser, Payload, ValidPayload, Validator, WasmFeatures,
-};
+use wasmparser::{BinaryReader, Parser, Payload};
 use wit_parser::{Package, PackageName, Resolve, World, WorldId, WorldItem};
 
 const CURRENT_VERSION: u8 = 0x04;
@@ -201,33 +198,11 @@ pub fn encode(
 }
 
 fn decode_custom_section(wasm: &[u8]) -> Result<(Resolve, WorldId, StringEncoding)> {
-    let mut validator = Validator::new_with_features(WasmFeatures::all());
-    let mut exports = Vec::new();
-    let mut depth = 1;
-    let mut types = None;
+    let (resolve, world) = wit_parser::decoding::decode_world(wasm)?;
     let mut custom_section = None;
 
     for payload in Parser::new(0).parse_all(wasm) {
-        let payload = payload?;
-
-        match validator.payload(&payload)? {
-            ValidPayload::Ok => {}
-            ValidPayload::Parser(_) => depth += 1,
-            ValidPayload::End(t) => {
-                depth -= 1;
-                if depth == 0 {
-                    types = Some(t);
-                }
-            }
-            ValidPayload::Func(..) => {}
-        }
-
-        match payload {
-            Payload::ComponentExportSection(s) if depth == 1 => {
-                for export in s {
-                    exports.push(export?);
-                }
-            }
+        match payload? {
             Payload::CustomSection(s) if s.name() == CUSTOM_SECTION_NAME => {
                 custom_section = Some(s.data());
             }
@@ -242,23 +217,6 @@ fn decode_custom_section(wasm: &[u8]) -> Result<(Resolve, WorldId, StringEncodin
             "custom section `{CUSTOM_SECTION_NAME}` uses format {version} but only {CURRENT_VERSION} is supported"
         ),
     };
-
-    if exports.len() != 1 {
-        bail!("expected one export in component");
-    }
-    if exports[0].kind != ComponentExternalKind::Type {
-        bail!("expected an export of a type");
-    }
-    if exports[0].ty.is_some() {
-        bail!("expected an un-ascribed exported type");
-    }
-    let types = types.as_ref().unwrap();
-    let ty = match types.component_any_type_at(exports[0].index) {
-        ComponentAnyTypeId::Component(c) => c,
-        _ => bail!("expected an exported component type"),
-    };
-
-    let (resolve, world) = crate::decoding::decode_world(types, ty)?;
     Ok((resolve, world, string_encoding))
 }
 

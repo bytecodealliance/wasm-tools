@@ -19,7 +19,7 @@ workspace = true
 wasmparser = { workspace = true }
 wasm-encoder = { workspace = true }
 wasm-metadata = { workspace = true }
-wit-parser = { workspace = true }
+wit-parser = { workspace = true, features = ['decoding', 'serde'] }
 anyhow = { workspace = true }
 log = "0.4.17"
 bitflags = "2.3.3"

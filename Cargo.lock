@@ -2472,6 +2472,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "unicode-xid",
+ "wasmparser 0.121.1",
  "wit-parser 0.13.2",
 ]
 
