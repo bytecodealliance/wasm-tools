@@ -39,9 +39,7 @@ use crate::{
     Error, ErrorKind, ModuleInfo, Result, WasmMutate,
 };
 use egg::{Rewrite, Runner};
-use rand::{prelude::SmallRng, Rng};
-use std::ops::Range;
-use std::{borrow::Cow, fmt::Debug};
+use rand::Rng;
 use wasm_encoder::{CodeSection, ConstExpr, Function, GlobalSection, Module, ValType};
 use wasmparser::{CodeSectionReader, FunctionBody, GlobalSectionReader, LocalsReader};
 
@@ -444,38 +442,6 @@ impl Mutator for PeepholeMutator {
 
     fn can_mutate<'a>(&self, config: &'a WasmMutate) -> bool {
         config.info().has_code() && config.info().num_local_functions() > 0
-    }
-}
-
-impl Debug for Box<dyn CodeMutator> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("Code mutator").finish()
-    }
-}
-
-pub(crate) trait CodeMutator {
-    fn mutate(
-        &self,
-        config: &WasmMutate,
-        rnd: &mut SmallRng,
-        operator_index: usize,
-        operators: Vec<OperatorAndByteOffset>,
-        funcreader: FunctionBody,
-        body_range: Range<usize>,
-        function_data: &[u8],
-    ) -> Result<Function>;
-
-    /// Returns if this mutator can be applied to the opcode at index i
-    fn can_mutate<'a>(
-        &self,
-        config: &'a WasmMutate,
-        operators: &[OperatorAndByteOffset<'a>],
-        at: usize,
-    ) -> Result<bool>;
-
-    /// Provides the name of the mutator, mostly used for debugging purposes
-    fn name(&self) -> Cow<'static, str> {
-        std::any::type_name::<Self>().into()
     }
 }
 

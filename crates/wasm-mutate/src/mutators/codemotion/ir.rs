@@ -185,22 +185,6 @@ pub trait AstWriter {
         Ok(())
     }
 
-    /// Default encoding for code node
-    ///
-    /// This function is called by the defaut implementation
-    /// of the `write_code` method
-    fn write_code_default<'a>(
-        &self,
-        ast: &Ast,
-        nodeidx: usize,
-        range: Range<usize>,
-        newfunc: &mut Function,
-        operators: &Vec<OperatorAndByteOffset>,
-        input_wasm: &'a [u8],
-    ) -> crate::Result<()> {
-        self.write_code(ast, nodeidx, range, newfunc, operators, input_wasm)
-    }
-
     /// Encoding discriminator for the Ast nodes
     ///
     /// It calls the corresponding methods depending on the node type
