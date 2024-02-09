@@ -14,7 +14,6 @@ mod encoding;
 mod gc;
 mod linking;
 mod printing;
-mod semver_check;
 mod targets;
 mod validation;
 
@@ -22,7 +21,6 @@ pub use decoding::{decode, decode_reader, DecodedWasm};
 pub use encoding::{encode, ComponentEncoder};
 pub use linking::Linker;
 pub use printing::*;
-pub use semver_check::*;
 pub use targets::*;
 
 pub mod metadata;
@@ -31,6 +29,11 @@ pub mod metadata;
 pub use dummy::dummy_module;
 #[cfg(feature = "dummy-module")]
 mod dummy;
+
+#[cfg(feature = "semver-check")]
+mod semver_check;
+#[cfg(feature = "semver-check")]
+pub use semver_check::*;
 
 /// Supported string encoding formats.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash)]
