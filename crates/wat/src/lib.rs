@@ -224,7 +224,7 @@ fn _parse_str(wat: &str) -> Result<Vec<u8>> {
 
 /// Result of [`Detect::from_bytes`] to indicate what some input bytes look
 /// like.
-#[derive(PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Detect {
     /// The input bytes look like the WebAssembly text format.
     WasmText,
@@ -253,7 +253,7 @@ impl Detect {
     ///     nop
     ///   )
     /// )
-    /// "#, Detect::WasmText));
+    /// "#), Detect::WasmText);
     /// ```
     pub fn from_bytes(bytes: impl AsRef<[u8]>) -> Detect {
         if bytes.as_ref().starts_with(b"\0asm") {
@@ -278,6 +278,14 @@ impl Detect {
         }
 
         Detect::Unknown
+    }
+
+    /// Returns whether this is either binary or textual wasm.
+    pub fn is_wasm(&self) -> bool {
+        match self {
+            Detect::WasmText | Detect::WasmBinary => true,
+            Detect::Unknown => false,
+        }
     }
 }
 

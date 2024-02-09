@@ -2473,6 +2473,7 @@ dependencies = [
  "serde_json",
  "unicode-xid",
  "wasmparser 0.121.1",
+ "wat",
  "wit-parser 0.13.2",
 ]
 

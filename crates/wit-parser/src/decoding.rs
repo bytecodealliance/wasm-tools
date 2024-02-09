@@ -49,7 +49,7 @@ impl ComponentInfo {
         let mut externs = Vec::new();
         let mut depth = 1;
         let mut types = None;
-        let mut package_docs = None;
+        let mut _package_docs = None;
         let mut cur = Parser::new(0);
         let mut eof = false;
         let mut stack = Vec::new();
@@ -113,10 +113,10 @@ impl ComponentInfo {
                 }
                 #[cfg(feature = "serde")]
                 Payload::CustomSection(s) if s.name() == PackageDocs::SECTION_NAME => {
-                    if package_docs.is_some() {
+                    if _package_docs.is_some() {
                         bail!("multiple {:?} sections", PackageDocs::SECTION_NAME);
                     }
-                    package_docs = Some(PackageDocs::decode(s.data())?);
+                    _package_docs = Some(PackageDocs::decode(s.data())?);
                 }
                 Payload::ModuleSection { parser, .. }
                 | Payload::ComponentSection { parser, .. } => {
@@ -141,7 +141,7 @@ impl ComponentInfo {
         Ok(Self {
             types: types.unwrap(),
             externs,
-            package_docs,
+            package_docs: _package_docs,
         })
     }
 

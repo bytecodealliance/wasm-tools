@@ -26,19 +26,29 @@ serde = { workspace = true, optional = true }
 serde_derive = { workspace = true, optional = true }
 wasmparser = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
+wat = { workspace = true, optional = true }
 
 [features]
-# default = ['decoding']
+default = ['serde', 'decoding']
+
+# Enables support for `derive(Serialize, Deserialize)` on many structures, such
+# as `Resolve`, which can assist when encoding `Resolve` as JSON for example.
 serde = ['dep:serde', 'dep:serde_derive', 'indexmap/serde', 'serde_json']
+
+# Enables support for decoding WIT from WebAssembly. This can be done to support
+# decoding a WIT package encoded as wasm automatically.
 decoding = ['dep:wasmparser']
-# encoding = ['dep:wasm-encoder']
+
+# Enables support for parsing the wasm text format in conjunction with the
+# `decoding` feature.
+wat = ['decoding', 'dep:wat']
 
 [dev-dependencies]
 rayon = "1"
 env_logger = { workspace = true }
 pretty_assertions = { workspace = true }
 serde_json = { workspace = true }
-wit-parser = { path = '.', features = ['serde'] }
+wit-parser = { path = '.', features = ['serde', 'wat'] }
 
 [[test]]
 name = "all"

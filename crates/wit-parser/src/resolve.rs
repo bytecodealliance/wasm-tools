@@ -93,19 +93,68 @@ pub struct Package {
 
 pub type PackageId = Id<Package>;
 
+enum ParsedFile {
+    #[cfg(feature = "decoding")]
+    Package(PackageId),
+    Unresolved(UnresolvedPackage),
+}
+
 impl Resolve {
     /// Creates a new [`Resolve`] with no packages/items inside of it.
     pub fn new() -> Resolve {
         Resolve::default()
     }
 
+    /// Parse a WIT package from the input `path`.
+    ///
+    /// The input `path` can be one of:
+    ///
+    /// * A directory containing a WIT package with an optional `deps` directory
+    ///   for any dependent WIT packages it references.
+    /// * A single standalone WIT file depending on what's already in `Resolve`.
+    /// * A wasm-encoded WIT package as a single file in the wasm binary format.
+    /// * A wasm-encoded WIT package as a single file in the wasm text format.
+    ///
+    /// The `PackageId` of the parsed package is returned. For more information
+    /// see [`Resolve::push_dir`] and [`Resolve::push_file`]. This method will
+    /// automatically call the appropriate method based on what kind of
+    /// filesystem entry `path` is.
+    ///
+    /// Returns the top-level [`PackageId`] as well as a list of all files read
+    /// during this parse.
+    pub fn push_path(&mut self, path: impl AsRef<Path>) -> Result<(PackageId, Vec<PathBuf>)> {
+        self._push_path(path.as_ref())
+    }
+
+    fn _push_path(&mut self, path: &Path) -> Result<(PackageId, Vec<PathBuf>)> {
+        if path.is_dir() {
+            self.push_dir(path).with_context(|| {
+                format!(
+                    "failed to resolve directory while parsing WIT for path [{}]",
+                    path.display()
+                )
+            })
+        } else {
+            let id = self.push_file(path)?;
+            Ok((id, vec![path.to_path_buf()]))
+        }
+    }
+
     /// Parses the filesystem directory at `path` as a WIT package and returns
     /// the fully resolved [`PackageId`] as a result.
     ///
-    /// Dependencies referenced by the WIT package at `path` will be loaded from
-    /// a `deps/..` directory under `path`. All directories under `deps/` will
-    /// be parsed as a WIT package. The directory name containing each package
-    /// is not used as each package is otherwise self-identifying.
+    /// The directory itself is parsed with [`UnresolvedPackage::parse_dir`]
+    /// which has more information on the layout of the directory. This method,
+    /// however, additionally supports an optional `deps` dir where dependencies
+    /// can be located.
+    ///
+    /// All entries in the `deps` directory are inspected and parsed as follows:
+    ///
+    /// * Any directories inside of `deps` are assumed to be another WIT package
+    ///   and are parsed with [`UnresolvedPackage::parse_dir`].
+    /// * WIT files (`*.wit`) are parsed with [`UnresolvedPackage::parse_file`].
+    /// * WebAssembly files (`*.wasm` or `*.wat`) are assumed to be WIT packages
+    ///   encoded to wasm and are parsed and inserted into `self`.
     ///
     /// This function returns the [`PackageId`] of the root parsed package at
     /// `path`, along with a list of all paths that were consumed during parsing
@@ -115,7 +164,8 @@ impl Resolve {
             .with_context(|| format!("failed to parse package: {}", path.display()))?;
 
         let deps = path.join("deps");
-        let mut deps = parse_deps_dir(&deps)
+        let mut deps = self
+            .parse_deps_dir(&deps)
             .with_context(|| format!("failed to parse dependency directory: {}", deps.display()))?;
 
         // Perform a simple topological sort which will bail out on cycles
@@ -142,34 +192,6 @@ impl Resolve {
 
         return Ok((last.unwrap(), files));
 
-        fn parse_deps_dir(path: &Path) -> Result<BTreeMap<PackageName, UnresolvedPackage>> {
-            let mut ret = BTreeMap::new();
-            // If there's no `deps` dir, then there's no deps, so return the
-            // empty set.
-            if !path.exists() {
-                return Ok(ret);
-            }
-            for dep in path.read_dir().context("failed to read directory")? {
-                let dep = dep.context("failed to read directory iterator")?;
-                let path = dep.path();
-
-                // Files in deps dir are ignored for now to avoid accidentally
-                // including things like `.DS_Store` files in the call below to
-                // `parse_dir`.
-                if path.is_file() {
-                    continue;
-                }
-
-                let pkg = UnresolvedPackage::parse_dir(&path)
-                    .with_context(|| format!("failed to parse package: {}", path.display()))?;
-                let prev = ret.insert(pkg.name.clone(), pkg);
-                if let Some(prev) = prev {
-                    bail!("duplicate definitions of package `{}` found", prev.name);
-                }
-            }
-            Ok(ret)
-        }
-
         fn visit<'a>(
             pkg: &'a UnresolvedPackage,
             deps: &'a BTreeMap<PackageName, UnresolvedPackage>,
@@ -188,17 +210,122 @@ impl Resolve {
                             msg: format!("package depends on itself"),
                         });
                     }
-                    let dep = deps.get(dep).ok_or_else(|| Error {
-                        span,
-                        msg: format!("failed to find package `{dep}` in `deps` directory"),
-                    })?;
-                    visit(dep, deps, order, visiting)?;
-                    assert!(visiting.remove(&dep.name));
+                    if let Some(dep) = deps.get(dep) {
+                        visit(dep, deps, order, visiting)?;
+                    }
+                    assert!(visiting.remove(dep));
                 }
                 assert!(order.insert(pkg.name.clone()));
                 Ok(())
             })
         }
+    }
+
+    fn parse_deps_dir(&mut self, path: &Path) -> Result<BTreeMap<PackageName, UnresolvedPackage>> {
+        let mut ret = BTreeMap::new();
+        // If there's no `deps` dir, then there's no deps, so return the
+        // empty set.
+        if !path.exists() {
+            return Ok(ret);
+        }
+        for dep in path.read_dir().context("failed to read directory")? {
+            let dep = dep.context("failed to read directory iterator")?;
+            let path = dep.path();
+
+            let pkg = if dep.file_type()?.is_dir() {
+                // If this entry is a directory then always parse it as an
+                // `UnresolvedPackage` since it's intentional to not support
+                // recursive `deps` directories.
+                UnresolvedPackage::parse_dir(&path)
+                    .with_context(|| format!("failed to parse package: {}", path.display()))?
+            } else {
+                // If this entry is a file then we may want to ignore it but
+                // this may also be a standalone WIT file or a `*.wasm` or
+                // `*.wat` encoded package.
+                let filename = dep.file_name();
+                match Path::new(&filename).extension().and_then(|s| s.to_str()) {
+                    Some("wit") | Some("wat") | Some("wasm") => match self._push_file(&path)? {
+                        #[cfg(feature = "decoding")]
+                        ParsedFile::Package(_) => continue,
+                        ParsedFile::Unresolved(pkg) => pkg,
+                    },
+
+                    // Other files in deps dir are ignored for now to avoid
+                    // accidentally including things like `.DS_Store` files in
+                    // the call below to `parse_dir`.
+                    _ => continue,
+                }
+            };
+            let prev = ret.insert(pkg.name.clone(), pkg);
+            if let Some(prev) = prev {
+                bail!("duplicate definitions of package `{}` found", prev.name);
+            }
+        }
+        Ok(ret)
+    }
+
+    /// Parses the contents of `path` from the filesystem and pushes the result
+    /// into this `Resolve`.
+    ///
+    /// The `path` referenced here can be one of:
+    ///
+    /// * A WIT file. Note that in this case this single WIT file will be the
+    ///   entire package and any dependencies it has must already be in `self`.
+    /// * A WIT package encoded as WebAssembly, either in text or binary form.
+    ///   In this the package and all of its dependencies are automatically
+    ///   inserted into `self`.
+    ///
+    /// In both situations the `PackageId` of the resulting resolved package is
+    /// returned from this method.
+    pub fn push_file(&mut self, path: impl AsRef<Path>) -> Result<PackageId> {
+        match self._push_file(path.as_ref())? {
+            #[cfg(feature = "decoding")]
+            ParsedFile::Package(id) => Ok(id),
+            ParsedFile::Unresolved(pkg) => self.push(pkg),
+        }
+    }
+
+    fn _push_file(&mut self, path: &Path) -> Result<ParsedFile> {
+        let contents = std::fs::read(path)
+            .with_context(|| format!("failed to read path for WIT [{}]", path.display()))?;
+
+        // If decoding is enabled at compile time then try to see if this is a
+        // wasm file.
+        #[cfg(feature = "decoding")]
+        {
+            use crate::decoding::{decode, DecodedWasm};
+
+            #[cfg(feature = "wat")]
+            let is_wasm = wat::Detect::from_bytes(&contents).is_wasm();
+            #[cfg(not(feature = "wat"))]
+            let is_wasm = wasmparser::Parser::is_core_wasm(&contents);
+
+            if is_wasm {
+                #[cfg(feature = "wat")]
+                let contents = wat::parse_bytes(&contents).map_err(|mut e| {
+                    e.set_path(path);
+                    e
+                })?;
+
+                match decode(&contents)? {
+                    DecodedWasm::Component(..) => {
+                        bail!("found an actual component instead of an encoded WIT package in wasm")
+                    }
+                    DecodedWasm::WitPackage(resolve, pkg) => {
+                        let remap = self.merge(resolve)?;
+                        return Ok(ParsedFile::Package(remap.packages[pkg.index()]));
+                    }
+                }
+            }
+        }
+
+        // If this wasn't a wasm file then assume it's a WIT file.
+        let text = match std::str::from_utf8(&contents) {
+            Ok(s) => s,
+            Err(_) => bail!("input file is not valid utf-8 [{}]", path.display()),
+        };
+        let pkg = UnresolvedPackage::parse(path, text)?;
+        Ok(ParsedFile::Unresolved(pkg))
     }
 
     /// Appends a new [`UnresolvedPackage`] to this [`Resolve`], creating a

@@ -87,8 +87,7 @@ fn find_tests() -> Vec<PathBuf> {
             }
 
             match path.extension().and_then(|s| s.to_str()) {
-                Some("md") => {}
-                Some("wit") => {}
+                Some("md") | Some("wit") | Some("wat") | Some("wasm") => {}
                 _ => continue,
             }
             tests.push(path);
@@ -103,16 +102,7 @@ struct Runner<'a> {
 impl Runner<'_> {
     fn run(&mut self, test: &Path) -> Result<()> {
         let mut resolve = Resolve::new();
-        let result = if test.is_dir() {
-            resolve.push_dir(test).map(|(id, _)| id)
-        } else {
-            let mut map = SourceMap::new();
-            map.set_require_semicolons(true);
-            map.push_file(test)
-                .and_then(|()| map.parse())
-                .and_then(|p| resolve.push(p))
-        };
-
+        let result = resolve.push_path(test);
         let result = if test.iter().any(|s| s == "parse-fail") {
             match result {
                 Ok(_) => bail!("expected test to not parse but it did"),

@@ -10,8 +10,7 @@ use clap::Parser;
 use wasm_tools::Output;
 use wat::Detect;
 use wit_component::{
-    embed_component_metadata, parse_wit_from_path, ComponentEncoder, DecodedWasm, Linker,
-    StringEncoding, WitPrinter,
+    embed_component_metadata, ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter,
 };
 use wit_parser::{Resolve, UnresolvedPackage};
 
@@ -239,7 +238,8 @@ impl EmbedOpts {
         } else {
             Some(self.io.parse_input_wasm()?)
         };
-        let (resolve, id) = parse_wit_from_path(self.wit)?;
+        let mut resolve = Resolve::default();
+        let id = resolve.push_path(&self.wit)?.0;
         let world = resolve.select_world(id, self.world.as_deref())?;
 
         let mut wasm = wasm.unwrap_or_else(|| wit_component::dummy_module(&resolve, world));
@@ -482,7 +482,8 @@ impl WitOpts {
         // `parse_wit_from_path`.
         if let Some(input) = &self.input {
             if input.is_dir() {
-                let (resolve, id) = parse_wit_from_path(input)?;
+                let mut resolve = Resolve::default();
+                let id = resolve.push_dir(&input)?.0;
                 return Ok(DecodedWasm::WitPackage(resolve, id));
             }
         }
@@ -656,7 +657,8 @@ impl TargetsOpts {
 
     /// Executes the application.
     fn run(self) -> Result<()> {
-        let (resolve, package_id) = parse_wit_from_path(&self.wit)?;
+        let mut resolve = Resolve::default();
+        let package_id = resolve.push_path(&self.wit)?.0;
         let world = resolve.select_world(package_id, self.world.as_deref())?;
         let component_to_test = self.input.parse_wasm()?;
 

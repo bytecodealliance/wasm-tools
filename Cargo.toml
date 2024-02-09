@@ -113,7 +113,7 @@ cpp_demangle = { version = "0.4.0", optional = true }
 
 # Dependencies of `component`
 wit-component = { workspace = true, optional = true, features = ['dummy-module', 'wat'] }
-wit-parser = { workspace = true, optional = true }
+wit-parser = { workspace = true, optional = true, features = ['decoding', 'wat', 'serde'] }
 wast = { workspace = true, optional = true }
 
 # Dependencies of `metadata`
