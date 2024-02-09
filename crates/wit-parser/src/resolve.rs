@@ -1,5 +1,6 @@
 use crate::ast::lex::Span;
 use crate::ast::{parse_use_path, AstUsePath};
+#[cfg(feature = "serde")]
 use crate::serde_::{serialize_arena, serialize_id_map};
 use crate::{
     AstItem, Docs, Error, Function, FunctionKind, Handle, IncludeName, Interface, InterfaceId,
@@ -9,6 +10,7 @@ use crate::{
 use anyhow::{anyhow, bail, Context, Result};
 use id_arena::{Arena, Id};
 use indexmap::{IndexMap, IndexSet};
+#[cfg(feature = "serde")]
 use serde_derive::Serialize;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::mem;
@@ -27,20 +29,21 @@ use std::path::{Path, PathBuf};
 ///
 /// Each item in a `Resolve` has a parent link to trace it back to the original
 /// package as necessary.
-#[derive(Default, Clone, Debug, Serialize)]
+#[derive(Default, Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Resolve {
     /// All knowns worlds within this `Resolve`.
     ///
     /// Each world points at a `PackageId` which is stored below. No ordering is
     /// guaranteed between this list of worlds.
-    #[serde(serialize_with = "serialize_arena")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_arena"))]
     pub worlds: Arena<World>,
 
     /// All knowns interfaces within this `Resolve`.
     ///
     /// Each interface points at a `PackageId` which is stored below. No
     /// ordering is guaranteed between this list of interfaces.
-    #[serde(serialize_with = "serialize_arena")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_arena"))]
     pub interfaces: Arena<Interface>,
 
     /// All knowns types within this `Resolve`.
@@ -48,18 +51,18 @@ pub struct Resolve {
     /// Types are topologically sorted such that any type referenced from one
     /// type is guaranteed to be defined previously. Otherwise though these are
     /// not sorted by interface for example.
-    #[serde(serialize_with = "serialize_arena")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_arena"))]
     pub types: Arena<TypeDef>,
 
     /// All knowns packages within this `Resolve`.
     ///
     /// This list of packages is not sorted. Sorted packages can be queried
     /// through [`Resolve::topological_packages`].
-    #[serde(serialize_with = "serialize_arena")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_arena"))]
     pub packages: Arena<Package>,
 
     /// A map of package names to the ID of the package with that name.
-    #[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub package_names: IndexMap<PackageName, PackageId>,
 }
 
@@ -68,22 +71,23 @@ pub struct Resolve {
 /// A package is a collection of interfaces and worlds. Packages additionally
 /// have a unique identifier that affects generated components and uniquely
 /// identifiers this particular package.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Package {
     /// A unique name corresponding to this package.
     pub name: PackageName,
 
     /// Documentation associated with this package.
-    #[serde(skip_serializing_if = "Docs::is_empty")]
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
 
     /// All interfaces contained in this packaged, keyed by the interface's
     /// name.
-    #[serde(serialize_with = "serialize_id_map")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id_map"))]
     pub interfaces: IndexMap<String, InterfaceId>,
 
     /// All worlds contained in this package, keyed by the world's name.
-    #[serde(serialize_with = "serialize_id_map")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id_map"))]
     pub worlds: IndexMap<String, WorldId>,
 }
 
