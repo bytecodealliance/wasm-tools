@@ -14,6 +14,7 @@ mod encoding;
 mod gc;
 mod linking;
 mod printing;
+mod semver_check;
 mod targets;
 mod validation;
 
@@ -21,6 +22,7 @@ pub use decoding::{decode, decode_reader, DecodedWasm};
 pub use encoding::{encode, ComponentEncoder};
 pub use linking::Linker;
 pub use printing::*;
+pub use semver_check::*;
 pub use targets::*;
 
 pub mod metadata;

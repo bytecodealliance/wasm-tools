@@ -1,0 +1,10 @@
+// FAIL: component semver-check % --prev prev --new new
+
+package a:b;
+
+world prev {
+  import a: func();
+}
+
+world new {
+}
