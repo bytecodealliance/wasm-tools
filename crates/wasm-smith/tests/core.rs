@@ -27,7 +27,7 @@ fn smoke_test_ensure_termination() {
         rng.fill_bytes(&mut buf);
         let u = Unstructured::new(&buf);
         if let Ok(mut module) = Module::arbitrary_take_rest(u) {
-            module.ensure_termination(10);
+            module.ensure_termination(10).unwrap();
             let wasm_bytes = module.to_bytes();
 
             let mut validator = Validator::new_with_features(wasm_features());
