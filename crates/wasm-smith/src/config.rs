@@ -481,6 +481,18 @@ define_config! {
         ///
         /// Defaults to `false`.
         pub threads_enabled: bool = false,
+
+        /// Indicates whether wasm-smith is allowed to generate invalid function
+        /// bodies.
+        ///
+        /// When enabled this option will enable taking raw bytes from the input
+        /// byte stream and using them as a wasm function body. This means that
+        /// the output module is not guaranteed to be valid but can help tickle
+        /// various parts of validation/compilation in some circumstances as
+        /// well.
+        ///
+        /// Defaults to `false`.
+        pub allow_invalid_funcs: bool = false,
     }
 }
 
@@ -617,6 +629,7 @@ impl<'a> Arbitrary<'a> for Config {
             tail_call_enabled: false,
             gc_enabled: false,
             generate_custom_sections: false,
+            allow_invalid_funcs: false,
         })
     }
 }

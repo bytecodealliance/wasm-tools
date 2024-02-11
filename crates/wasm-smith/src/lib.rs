@@ -58,7 +58,7 @@ mod component;
 mod config;
 mod core;
 
-pub use crate::core::{InstructionKind, InstructionKinds, MaybeInvalidModule, Module};
+pub use crate::core::{InstructionKind, InstructionKinds, Module};
 use arbitrary::{Result, Unstructured};
 pub use component::Component;
 pub use config::{Config, MemoryOffsetChoices};

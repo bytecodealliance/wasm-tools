@@ -25,25 +25,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     };
 
     // Validate the module or component and assert that it passes validation.
-    let mut validator = wasmparser::Validator::new_with_features(wasmparser::WasmFeatures {
-        component_model: generate_component,
-        multi_value: config.multi_value_enabled,
-        multi_memory: config.max_memories > 1,
-        bulk_memory: config.bulk_memory_enabled,
-        reference_types: config.reference_types_enabled,
-        simd: config.simd_enabled,
-        relaxed_simd: config.relaxed_simd_enabled,
-        memory64: config.memory64_enabled,
-        threads: config.threads_enabled,
-        exceptions: config.exceptions_enabled,
-        // TODO: determine our larger story for function-references in
-        // wasm-tools and whether we should just have a Wasm GC flag since
-        // function-references is effectively part of the Wasm GC proposal at
-        // this point.
-        function_references: config.gc_enabled,
-        gc: config.gc_enabled,
-        ..wasmparser::WasmFeatures::default()
-    });
+    let mut validator = crate::validator_for_config(&config);
     if let Err(e) = validator.validate_all(&wasm_bytes) {
         let component_or_module = if generate_component {
             "component"
