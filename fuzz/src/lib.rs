@@ -42,7 +42,7 @@ pub fn generate_valid_module(
     // still produce a valid module.
     if u.ratio(1, 10)? {
         log::debug!("ensuring termination with 100 fuel");
-        module.ensure_termination(100);
+        let _ = module.ensure_termination(100);
     }
 
     log_wasm(&bytes, &config);
@@ -74,6 +74,27 @@ pub fn generate_valid_component(
     log_wasm(&bytes, &config);
 
     Ok((bytes, config))
+}
+
+pub fn validator_for_config(config: &Config) -> wasmparser::Validator {
+    wasmparser::Validator::new_with_features(wasmparser::WasmFeatures {
+        multi_value: config.multi_value_enabled,
+        multi_memory: config.max_memories > 1,
+        bulk_memory: config.bulk_memory_enabled,
+        reference_types: config.reference_types_enabled,
+        simd: config.simd_enabled,
+        relaxed_simd: config.relaxed_simd_enabled,
+        memory64: config.memory64_enabled,
+        threads: config.threads_enabled,
+        exceptions: config.exceptions_enabled,
+        // TODO: determine our larger story for function-references in
+        // wasm-tools and whether we should just have a Wasm GC flag since
+        // function-references is effectively part of the Wasm GC proposal at
+        // this point.
+        function_references: config.gc_enabled,
+        gc: config.gc_enabled,
+        ..wasmparser::WasmFeatures::default()
+    })
 }
 
 // Optionally log the module and its configuration if we've gotten this

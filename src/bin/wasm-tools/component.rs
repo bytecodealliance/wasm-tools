@@ -22,6 +22,7 @@ pub enum Opts {
     Embed(EmbedOpts),
     Targets(TargetsOpts),
     Link(LinkOpts),
+    SemverCheck(SemverCheckOpts),
 }
 
 impl Opts {
@@ -32,6 +33,7 @@ impl Opts {
             Opts::Embed(embed) => embed.run(),
             Opts::Targets(targets) => targets.run(),
             Opts::Link(link) => link.run(),
+            Opts::SemverCheck(s) => s.run(),
         }
     }
 
@@ -42,6 +44,7 @@ impl Opts {
             Opts::Embed(embed) => embed.general_opts(),
             Opts::Targets(targets) => targets.general_opts(),
             Opts::Link(link) => link.general_opts(),
+            Opts::SemverCheck(s) => s.general_opts(),
         }
     }
 }
@@ -664,6 +667,48 @@ impl TargetsOpts {
 
         wit_component::targets(&resolve, world, &component_to_test)?;
 
+        Ok(())
+    }
+}
+
+/// Tool for verifying whether one world is a semver compatible evolution of
+/// another.
+#[derive(Parser)]
+pub struct SemverCheckOpts {
+    #[clap(flatten)]
+    general: wasm_tools::GeneralOpts,
+
+    /// The WIT package containing the `prev` and `new` worlds used in
+    /// arguments.
+    ///
+    /// This can either be a directory, a path to a single `*.wit` file, or a
+    /// path to a wasm-encoded WIT package.
+    wit: PathBuf,
+
+    /// The "previous" world, or older version, of what's being tested.
+    ///
+    /// This is considered the baseline for the semver compatibility check.
+    #[clap(long)]
+    prev: String,
+
+    /// The "new" world which is the "prev" world but modified.
+    ///
+    /// This is what's being tested to see whether it is a backwards-compatible
+    /// evolution of the "prev" world specified.
+    #[clap(long)]
+    new: String,
+}
+
+impl SemverCheckOpts {
+    fn general_opts(&self) -> &wasm_tools::GeneralOpts {
+        &self.general
+    }
+
+    fn run(self) -> Result<()> {
+        let (resolve, package_id) = parse_wit_from_path(&self.wit)?;
+        let prev = resolve.select_world(package_id, Some(&self.prev))?;
+        let new = resolve.select_world(package_id, Some(&self.new))?;
+        wit_component::semver_check(resolve, prev, new)?;
         Ok(())
     }
 }

@@ -14,7 +14,7 @@ use indexmap::{IndexMap, IndexSet};
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Index, Range};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{
     borrow::Borrow,
     hash::{Hash, Hasher},
@@ -1451,7 +1451,7 @@ pub struct ResourceId {
     // per resource id is probably too expensive. To amortize that cost each
     // top-level wasm component gets a single globally unique identifier, and
     // then within a component contextually unique identifiers are handed out.
-    globally_unique_id: u64,
+    globally_unique_id: usize,
 
     // A contextually unique id within the globally unique id above. This is
     // allocated within a `TypeAlloc` with its own counter, and allocations of
@@ -2925,7 +2925,7 @@ pub(crate) struct TypeAlloc {
 
     // This is assigned at creation of a `TypeAlloc` and then never changed.
     // It's used in one entry for all `ResourceId`s contained within.
-    globally_unique_id: u64,
+    globally_unique_id: usize,
 
     // This is a counter that's incremeneted each time `alloc_resource_id` is
     // called.
@@ -2934,10 +2934,17 @@ pub(crate) struct TypeAlloc {
 
 impl Default for TypeAlloc {
     fn default() -> TypeAlloc {
-        static NEXT_GLOBAL_ID: AtomicU64 = AtomicU64::new(0);
+        static NEXT_GLOBAL_ID: AtomicUsize = AtomicUsize::new(0);
         let mut ret = TypeAlloc {
             list: TypeList::default(),
-            globally_unique_id: NEXT_GLOBAL_ID.fetch_add(1, Ordering::Relaxed),
+            globally_unique_id: {
+                let id = NEXT_GLOBAL_ID.fetch_add(1, Ordering::Relaxed);
+                if id > usize::MAX - 10_000 {
+                    NEXT_GLOBAL_ID.store(usize::MAX - 10_000, Ordering::Relaxed);
+                    panic!("overflow on the global id counter");
+                }
+                id
+            },
             next_resource_id: 0,
         };
         ret.list.canonical_rec_groups = Some(Default::default());

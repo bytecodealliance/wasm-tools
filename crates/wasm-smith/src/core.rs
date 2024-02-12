@@ -172,7 +172,7 @@ impl Module {
         duplicate_imports_behavior: DuplicateImportsBehavior,
     ) -> Result<Self> {
         let mut module = Module::empty(config, duplicate_imports_behavior);
-        module.build(u, false)?;
+        module.build(u)?;
         Ok(module)
     }
 
@@ -210,30 +210,6 @@ impl Module {
             type_size: 0,
             export_names: HashSet::new(),
         }
-    }
-}
-
-/// Same as [`Module`], but may be invalid.
-///
-/// This module generates function bodies differnetly than `Module` to try to
-/// better explore wasm decoders and such.
-#[derive(Debug)]
-pub struct MaybeInvalidModule {
-    module: Module,
-}
-
-impl MaybeInvalidModule {
-    /// Encode this Wasm module into bytes.
-    pub fn to_bytes(&self) -> Vec<u8> {
-        self.module.to_bytes()
-    }
-}
-
-impl<'a> Arbitrary<'a> for MaybeInvalidModule {
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        let mut module = Module::empty(Config::default(), DuplicateImportsBehavior::Allowed);
-        module.build(u, true)?;
-        Ok(MaybeInvalidModule { module })
     }
 }
 
@@ -398,7 +374,7 @@ pub(crate) enum GlobalInitExpr {
 }
 
 impl Module {
-    fn build(&mut self, u: &mut Unstructured, allow_invalid: bool) -> Result<()> {
+    fn build(&mut self, u: &mut Unstructured) -> Result<()> {
         self.valtypes = configured_valtypes(&self.config);
 
         // We attempt to figure out our available imports *before* creating the types section here,
@@ -425,7 +401,7 @@ impl Module {
         self.arbitrary_start(u)?;
         self.arbitrary_elems(u)?;
         self.arbitrary_data(u)?;
-        self.arbitrary_code(u, allow_invalid)?;
+        self.arbitrary_code(u)?;
         Ok(())
     }
 
@@ -1795,11 +1771,11 @@ impl Module {
         )
     }
 
-    fn arbitrary_code(&mut self, u: &mut Unstructured, allow_invalid: bool) -> Result<()> {
+    fn arbitrary_code(&mut self, u: &mut Unstructured) -> Result<()> {
         self.code.reserve(self.num_defined_funcs);
         let mut allocs = CodeBuilderAllocations::new(self);
         for (_, ty) in self.funcs[self.funcs.len() - self.num_defined_funcs..].iter() {
-            let body = self.arbitrary_func_body(u, ty, &mut allocs, allow_invalid)?;
+            let body = self.arbitrary_func_body(u, ty, &mut allocs)?;
             self.code.push(body);
         }
         allocs.finish(u, self)?;
@@ -1811,11 +1787,10 @@ impl Module {
         u: &mut Unstructured,
         ty: &FuncType,
         allocs: &mut CodeBuilderAllocations,
-        allow_invalid: bool,
     ) -> Result<Code> {
         let mut locals = self.arbitrary_locals(u)?;
         let builder = allocs.builder(ty, &mut locals);
-        let instructions = if allow_invalid && u.arbitrary().unwrap_or(false) {
+        let instructions = if self.config.allow_invalid_funcs && u.arbitrary().unwrap_or(false) {
             Instructions::Arbitrary(arbitrary_vec_u8(u)?)
         } else {
             Instructions::Generated(builder.arbitrary(u, self)?)

@@ -1,10 +1,9 @@
 use anyhow::{Context, Result};
-use arbitrary::Arbitrary;
 use clap::Parser;
 use std::io::{stdin, Read};
 use std::path::PathBuf;
 use std::process;
-use wasm_smith::{MaybeInvalidModule, Module};
+use wasm_smith::Module;
 
 /// A WebAssembly test case generator.
 ///
@@ -52,23 +51,22 @@ pub struct Opts {
     /// and in function prologues. When the fuel reaches 0, a trap is raised to
     /// terminate execution. Control the default amount of fuel with the
     /// `--fuel` flag.
-    #[clap(long = "ensure-termination")]
+    ///
+    /// Note that when combined with `--allow-invalid-funcs` this subcommand may
+    /// return an error because arbitrary function bodies taken from input bytes
+    /// cannot be validated to ensure they always terminate.
+    #[clap(long)]
     ensure_termination: bool,
-
-    /// Indicates that the generated module may contain invalid wasm functions,
-    /// taken raw from the input DNA.
-    #[clap(long = "maybe-invalid")]
-    maybe_invalid: bool,
 
     /// The default amount of fuel used with `--ensure-termination`.
     ///
     /// This is roughly the number of loop iterations and function calls that
     /// will be executed before a trap is raised to prevent infinite loops.
-    #[clap(short = 'f', long = "fuel")]
+    #[clap(short, long)]
     fuel: Option<u32>,
 
     /// JSON configuration file with settings to control the wasm output.
-    #[clap(short = 'c', long = "config")]
+    #[clap(short, long)]
     config: Option<PathBuf>,
 
     #[clap(flatten)]
@@ -98,36 +96,31 @@ impl Opts {
         };
 
         let mut u = arbitrary::Unstructured::new(&seed);
-        let wasm_bytes = if self.maybe_invalid {
-            MaybeInvalidModule::arbitrary(&mut u)
-                .unwrap_or_else(|e| {
-                    eprintln!("error: failed to generate module: {}", e);
-                    process::exit(2);
-                })
-                .to_bytes()
-        } else {
-            let json = match &self.config {
-                Some(path) => {
-                    let json = std::fs::read_to_string(&path).with_context(|| {
-                        format!("failed to read json config: {}", path.display())
-                    })?;
-                    serde_json::from_str(&json).with_context(|| {
-                        format!("failed to decode json config: {}", path.display())
-                    })?
-                }
-                None => wasm_smith::InternalOptionalConfig::default(),
-            };
-            let config = self.module_config.clone().or(json);
-            let config = wasm_smith::Config::try_from(config)?;
-            let mut module = Module::new(config, &mut u).unwrap_or_else(|e| {
-                eprintln!("error: failed to generate module: {}", e);
-                process::exit(2);
-            });
-            if self.ensure_termination {
-                module.ensure_termination(self.fuel.unwrap_or(100));
+        let json = match &self.config {
+            Some(path) => {
+                let json = std::fs::read_to_string(&path)
+                    .with_context(|| format!("failed to read json config: {}", path.display()))?;
+                serde_json::from_str(&json)
+                    .with_context(|| format!("failed to decode json config: {}", path.display()))?
             }
-            module.to_bytes()
+            None => wasm_smith::InternalOptionalConfig::default(),
         };
+        let config = self.module_config.clone().or(json);
+        let config = wasm_smith::Config::try_from(config)?;
+        let mut module = Module::new(config, &mut u).unwrap_or_else(|e| {
+            eprintln!("error: failed to generate module: {}", e);
+            process::exit(2);
+        });
+        if self.ensure_termination {
+            module
+                .ensure_termination(self.fuel.unwrap_or(100))
+                .context(
+                    "failed to ensure module always terminates, \
+                    `--ensure-termination` is incompatible with \
+                    `--allow-invalid-funcs`",
+                )?;
+        }
+        let wasm_bytes = module.to_bytes();
 
         self.output.output(wasm_tools::Output::Wasm {
             bytes: &wasm_bytes,
