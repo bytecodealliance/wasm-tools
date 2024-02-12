@@ -87,9 +87,13 @@ fn wasm_tools_exe() -> Command {
 
 fn run_test(test: &Path, bless: bool) -> Result<()> {
     let contents = std::fs::read_to_string(test)?;
-    let line = contents
+    let (line, should_fail) = contents
         .lines()
-        .filter_map(|l| l.strip_prefix(";; RUN: ").or(l.strip_prefix("// RUN: ")))
+        .filter_map(|l| {
+            let run = l.strip_prefix(";; RUN: ").or(l.strip_prefix("// RUN: "));
+            let fail = l.strip_prefix(";; FAIL: ").or(l.strip_prefix("// FAIL: "));
+            run.map(|l| (l, false)).or(fail.map(|l| (l, true)))
+        })
         .next()
         .ok_or_else(|| anyhow!("no line found with `;; RUN: ` directive"))?;
 
@@ -97,7 +101,7 @@ fn run_test(test: &Path, bless: bool) -> Result<()> {
     let mut stdin = None;
     for arg in line.split_whitespace() {
         if arg == "|" {
-            let output = execute(&mut cmd, stdin.as_deref())?;
+            let output = execute(&mut cmd, stdin.as_deref(), false)?;
             stdin = Some(output.stdout);
             cmd = wasm_tools_exe();
         } else if arg == "%" {
@@ -107,7 +111,7 @@ fn run_test(test: &Path, bless: bool) -> Result<()> {
         }
     }
 
-    let output = execute(&mut cmd, stdin.as_deref())?;
+    let output = execute(&mut cmd, stdin.as_deref(), should_fail)?;
     let extension = test.extension().unwrap().to_str().unwrap();
     assert_output(
         bless,
@@ -124,7 +128,7 @@ fn run_test(test: &Path, bless: bool) -> Result<()> {
     Ok(())
 }
 
-fn execute(cmd: &mut Command, stdin: Option<&[u8]>) -> Result<Output> {
+fn execute(cmd: &mut Command, stdin: Option<&[u8]>, should_fail: bool) -> Result<Output> {
     cmd.stdin(Stdio::piped());
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
@@ -141,12 +145,22 @@ fn execute(cmd: &mut Command, stdin: Option<&[u8]>) -> Result<Output> {
     let output = p.wait_with_output()?;
 
     if !output.status.success() {
-        bail!(
-            "{cmd:?} failed:
+        if !should_fail {
+            bail!(
+                "{cmd:?} failed:
             status: {}
             stdout: {}
             stderr: {}",
-            output.status,
+                output.status,
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+    } else if should_fail {
+        bail!(
+            "{cmd:?} succeeded instead of failed
+            stdout: {}
+            stderr: {}",
             String::from_utf8_lossy(&output.stdout),
             String::from_utf8_lossy(&output.stderr)
         );

@@ -30,6 +30,11 @@ pub use dummy::dummy_module;
 #[cfg(feature = "dummy-module")]
 mod dummy;
 
+#[cfg(feature = "semver-check")]
+mod semver_check;
+#[cfg(feature = "semver-check")]
+pub use semver_check::*;
+
 /// Supported string encoding formats.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum StringEncoding {

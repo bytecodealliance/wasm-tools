@@ -43,3 +43,4 @@ wasmtime = { workspace = true }
 [features]
 dummy-module = ['dep:wat']
 wat = ['dep:wast', 'dep:wat']
+semver-check = ['dummy-module']
