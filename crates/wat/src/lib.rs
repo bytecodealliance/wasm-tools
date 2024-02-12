@@ -71,6 +71,7 @@ use std::borrow::Cow;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::str;
+use wast::lexer::{Lexer, TokenKind};
 use wast::parser::{self, ParseBuffer};
 
 /// Parses a file on disk as a [WebAssembly Text format][wat] file, or a binary
@@ -219,6 +220,73 @@ fn _parse_str(wat: &str) -> Result<Vec<u8>> {
     let buf = ParseBuffer::new(wat).map_err(|e| Error::cvt(e, wat))?;
     let mut ast = parser::parse::<wast::Wat>(&buf).map_err(|e| Error::cvt(e, wat))?;
     ast.encode().map_err(|e| Error::cvt(e, wat))
+}
+
+/// Result of [`Detect::from_bytes`] to indicate what some input bytes look
+/// like.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Detect {
+    /// The input bytes look like the WebAssembly text format.
+    WasmText,
+    /// The input bytes look like the WebAssembly binary format.
+    WasmBinary,
+    /// The input bytes don't look like WebAssembly at all.
+    Unknown,
+}
+
+impl Detect {
+    /// Detect quickly if supplied bytes represent a Wasm module,
+    /// whether binary encoded or in WAT-encoded.
+    ///
+    /// This briefly lexes past whitespace and comments as a `*.wat` file to see if
+    /// we can find a left-paren. If that fails then it's probably `*.wit` instead.
+    ///
+    ///
+    /// Examples
+    /// ```
+    /// use wat::Detect;
+    ///
+    /// assert_eq!(Detect::from_bytes(r#"
+    /// (module
+    ///   (type (;0;) (func))
+    ///   (func (;0;) (type 0)
+    ///     nop
+    ///   )
+    /// )
+    /// "#), Detect::WasmText);
+    /// ```
+    pub fn from_bytes(bytes: impl AsRef<[u8]>) -> Detect {
+        if bytes.as_ref().starts_with(b"\0asm") {
+            return Detect::WasmBinary;
+        }
+        let text = match std::str::from_utf8(bytes.as_ref()) {
+            Ok(s) => s,
+            Err(_) => return Detect::Unknown,
+        };
+
+        let lexer = Lexer::new(text);
+        let mut iter = lexer.iter(0);
+
+        while let Some(next) = iter.next() {
+            match next.map(|t| t.kind) {
+                Ok(TokenKind::Whitespace)
+                | Ok(TokenKind::BlockComment)
+                | Ok(TokenKind::LineComment) => {}
+                Ok(TokenKind::LParen) => return Detect::WasmText,
+                _ => break,
+            }
+        }
+
+        Detect::Unknown
+    }
+
+    /// Returns whether this is either binary or textual wasm.
+    pub fn is_wasm(&self) -> bool {
+        match self {
+            Detect::WasmText | Detect::WasmBinary => true,
+            Detect::Unknown => false,
+        }
+    }
 }
 
 /// A convenience type definition for `Result` where the error is [`Error`]

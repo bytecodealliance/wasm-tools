@@ -1,4 +1,3 @@
-use crate::decoding::InterfaceNameExt;
 use crate::metadata::{Bindgen, ModuleMetadata};
 use anyhow::{bail, Context, Result};
 use indexmap::{map::Entry, IndexMap, IndexSet};
@@ -10,7 +9,7 @@ use wasmparser::{
 };
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
-    Function, InterfaceId, Resolve, TypeDefKind, TypeId, WorldId, WorldItem, WorldKey,
+    Function, InterfaceId, PackageName, Resolve, TypeDefKind, TypeId, WorldId, WorldItem, WorldKey,
 };
 
 fn is_canonical_function(name: &str) -> bool {
@@ -584,7 +583,12 @@ fn world_key(resolve: &Resolve, name: &str) -> WorldKey {
     let kebab_name = ComponentName::new(name, 0);
     let (pkgname, interface) = match kebab_name.as_ref().map(|k| k.kind()) {
         Ok(ComponentNameKind::Interface(name)) => {
-            (name.to_package_name(), name.interface().as_str())
+            let pkgname = PackageName {
+                namespace: name.namespace().to_string(),
+                name: name.package().to_string(),
+                version: name.version(),
+            };
+            (pkgname, name.interface().as_str())
         }
         _ => return WorldKey::Name(name.to_string()),
     };

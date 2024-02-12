@@ -1,27 +1,40 @@
+use crate::{
+    Docs, InterfaceId, PackageId, Resolve, TypeDefKind, TypeId, WorldId, WorldItem, WorldKey,
+};
 use anyhow::{bail, Result};
 use indexmap::IndexMap;
+#[cfg(feature = "serde")]
 use serde_derive::{Deserialize, Serialize};
-use wasm_encoder::{CustomSection, Encode};
-use wit_parser::{Docs, InterfaceId, PackageId, Resolve, TypeId, WorldId, WorldItem, WorldKey};
 
 type StringMap<V> = IndexMap<String, V>;
 
-pub const PACKAGE_DOCS_SECTION_NAME: &str = "package-docs";
+#[cfg(feature = "serde")]
 const PACKAGE_DOCS_SECTION_VERSION: u8 = 0;
 
 /// Represents serializable doc comments parsed from a WIT package.
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
 pub struct PackageDocs {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     docs: Option<String>,
-    #[serde(default, skip_serializing_if = "StringMap::is_empty")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "StringMap::is_empty")
+    )]
     worlds: StringMap<WorldDocs>,
-    #[serde(default, skip_serializing_if = "StringMap::is_empty")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "StringMap::is_empty")
+    )]
     interfaces: StringMap<InterfaceDocs>,
 }
 
 impl PackageDocs {
+    pub const SECTION_NAME: &'static str = "package-docs";
+
     /// Extract package docs for the given package.
     pub fn extract(resolve: &Resolve, package: PackageId) -> Self {
         let package = &resolve.packages[package];
@@ -69,21 +82,16 @@ impl PackageDocs {
     }
 
     /// Encode package docs as a package-docs custom section.
-    pub fn raw_custom_section(&self) -> Result<Vec<u8>> {
+    #[cfg(feature = "serde")]
+    pub fn encode(&self) -> Result<Vec<u8>> {
         // Version byte (0), followed by JSON encoding of docs
         let mut data = vec![PACKAGE_DOCS_SECTION_VERSION];
         serde_json::to_writer(&mut data, self)?;
-
-        let mut raw_section = vec![];
-        CustomSection {
-            name: PACKAGE_DOCS_SECTION_NAME.into(),
-            data: data.into(),
-        }
-        .encode(&mut raw_section);
-        Ok(raw_section)
+        Ok(data)
     }
 
     /// Decode package docs from package-docs custom section content.
+    #[cfg(feature = "serde")]
     pub fn decode(data: &[u8]) -> Result<Self> {
         let version = data.first();
         if version != Some(&PACKAGE_DOCS_SECTION_VERSION) {
@@ -93,16 +101,28 @@ impl PackageDocs {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct WorldDocs {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
+struct WorldDocs {
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     docs: Option<String>,
-    #[serde(default, skip_serializing_if = "StringMap::is_empty")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "StringMap::is_empty")
+    )]
     interfaces: StringMap<InterfaceDocs>,
-    #[serde(default, skip_serializing_if = "StringMap::is_empty")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "StringMap::is_empty")
+    )]
     types: StringMap<TypeDocs>,
-    #[serde(default, skip_serializing_if = "StringMap::is_empty")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "StringMap::is_empty")
+    )]
     funcs: StringMap<String>,
 }
 
@@ -195,14 +215,23 @@ impl WorldDocs {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct InterfaceDocs {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
+struct InterfaceDocs {
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     docs: Option<String>,
-    #[serde(default, skip_serializing_if = "StringMap::is_empty")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "StringMap::is_empty")
+    )]
     funcs: StringMap<String>,
-    #[serde(default, skip_serializing_if = "StringMap::is_empty")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "StringMap::is_empty")
+    )]
     types: StringMap<TypeDocs>,
 }
 
@@ -254,13 +283,19 @@ impl InterfaceDocs {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct TypeDocs {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
+struct TypeDocs {
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     docs: Option<String>,
     // record fields, variant cases, etc.
-    #[serde(default, skip_serializing_if = "StringMap::is_empty")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "StringMap::is_empty")
+    )]
     items: StringMap<String>,
 }
 
@@ -277,16 +312,16 @@ impl TypeDocs {
         }
         let ty = &resolve.types[id];
         let items = match &ty.kind {
-            wit_parser::TypeDefKind::Record(record) => {
+            TypeDefKind::Record(record) => {
                 extract_items(&record.fields, |item| (&item.name, &item.docs))
             }
-            wit_parser::TypeDefKind::Flags(flags) => {
+            TypeDefKind::Flags(flags) => {
                 extract_items(&flags.flags, |item| (&item.name, &item.docs))
             }
-            wit_parser::TypeDefKind::Variant(variant) => {
+            TypeDefKind::Variant(variant) => {
                 extract_items(&variant.cases, |item| (&item.name, &item.docs))
             }
-            wit_parser::TypeDefKind::Enum(enum_) => {
+            TypeDefKind::Enum(enum_) => {
                 extract_items(&enum_.cases, |item| (&item.name, &item.docs))
             }
             // other types don't have inner items
@@ -303,16 +338,16 @@ impl TypeDocs {
         let ty = &mut resolve.types[id];
         if !self.items.is_empty() {
             match &mut ty.kind {
-                wit_parser::TypeDefKind::Record(record) => {
+                TypeDefKind::Record(record) => {
                     self.inject_items(&mut record.fields, |item| (&item.name, &mut item.docs))?
                 }
-                wit_parser::TypeDefKind::Flags(flags) => {
+                TypeDefKind::Flags(flags) => {
                     self.inject_items(&mut flags.flags, |item| (&item.name, &mut item.docs))?
                 }
-                wit_parser::TypeDefKind::Variant(variant) => {
+                TypeDefKind::Variant(variant) => {
                     self.inject_items(&mut variant.cases, |item| (&item.name, &mut item.docs))?
                 }
-                wit_parser::TypeDefKind::Enum(enum_) => {
+                TypeDefKind::Enum(enum_) => {
                     self.inject_items(&mut enum_.cases, |item| (&item.name, &mut item.docs))?
                 }
                 _ => {

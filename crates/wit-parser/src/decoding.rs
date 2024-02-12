@@ -1,3 +1,5 @@
+use crate::docs::PackageDocs;
+use crate::*;
 use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
 use std::mem;
@@ -5,12 +7,11 @@ use std::{collections::HashMap, io::Read};
 use wasmparser::Chunk;
 use wasmparser::{
     names::{ComponentName, ComponentNameKind},
-    types, ComponentExternalKind, Parser, Payload, PrimitiveValType, ValidPayload, Validator,
+    types,
+    types::ComponentAnyTypeId,
+    ComponentExternalKind, Parser, Payload, PrimitiveValType, ValidPayload, Validator,
     WasmFeatures,
 };
-use wit_parser::*;
-
-use crate::encoding::docs::{PackageDocs, PACKAGE_DOCS_SECTION_NAME};
 
 /// Represents information about a decoded WebAssembly component.
 struct ComponentInfo {
@@ -48,7 +49,7 @@ impl ComponentInfo {
         let mut externs = Vec::new();
         let mut depth = 1;
         let mut types = None;
-        let mut package_docs = None;
+        let mut _package_docs = None;
         let mut cur = Parser::new(0);
         let mut eof = false;
         let mut stack = Vec::new();
@@ -110,11 +111,12 @@ impl ComponentInfo {
                         ));
                     }
                 }
-                Payload::CustomSection(s) if s.name() == PACKAGE_DOCS_SECTION_NAME => {
-                    if package_docs.is_some() {
-                        bail!("multiple {PACKAGE_DOCS_SECTION_NAME:?} sections");
+                #[cfg(feature = "serde")]
+                Payload::CustomSection(s) if s.name() == PackageDocs::SECTION_NAME => {
+                    if _package_docs.is_some() {
+                        bail!("multiple {:?} sections", PackageDocs::SECTION_NAME);
                     }
-                    package_docs = Some(PackageDocs::decode(s.data())?);
+                    _package_docs = Some(PackageDocs::decode(s.data())?);
                 }
                 Payload::ModuleSection { parser, .. }
                 | Payload::ComponentSection { parser, .. } => {
@@ -139,7 +141,7 @@ impl ComponentInfo {
         Ok(Self {
             types: types.unwrap(),
             externs,
-            package_docs,
+            package_docs: _package_docs,
         })
     }
 
@@ -412,10 +414,52 @@ pub fn decode(bytes: &[u8]) -> Result<DecodedWasm> {
 /// itself imports nothing and exports a single component, and the single
 /// component export represents the world. The name of the export is also the
 /// name of the package/world/etc.
-pub(crate) fn decode_world(
-    types: &types::Types,
-    world: types::ComponentTypeId,
-) -> Result<(Resolve, WorldId)> {
+pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
+    let mut validator = Validator::new_with_features(WasmFeatures::all());
+    let mut exports = Vec::new();
+    let mut depth = 1;
+    let mut types = None;
+
+    for payload in Parser::new(0).parse_all(wasm) {
+        let payload = payload?;
+
+        match validator.payload(&payload)? {
+            ValidPayload::Ok => {}
+            ValidPayload::Parser(_) => depth += 1,
+            ValidPayload::End(t) => {
+                depth -= 1;
+                if depth == 0 {
+                    types = Some(t);
+                }
+            }
+            ValidPayload::Func(..) => {}
+        }
+
+        match payload {
+            Payload::ComponentExportSection(s) if depth == 1 => {
+                for export in s {
+                    exports.push(export?);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    if exports.len() != 1 {
+        bail!("expected one export in component");
+    }
+    if exports[0].kind != ComponentExternalKind::Type {
+        bail!("expected an export of a type");
+    }
+    if exports[0].ty.is_some() {
+        bail!("expected an un-ascribed exported type");
+    }
+    let types = types.as_ref().unwrap();
+    let world = match types.component_any_type_at(exports[0].index) {
+        ComponentAnyTypeId::Component(c) => c,
+        _ => bail!("expected an exported component type"),
+    };
+
     let mut decoder = WitPackageDecoder::new(types);
     let mut interfaces = IndexMap::new();
     let mut worlds = IndexMap::new();

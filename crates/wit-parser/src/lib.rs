@@ -2,10 +2,16 @@ use anyhow::{Context, Result};
 use id_arena::{Arena, Id};
 use indexmap::IndexMap;
 use semver::Version;
-use serde_derive::Serialize;
 use std::borrow::Cow;
 use std::fmt;
 use std::path::Path;
+
+#[cfg(feature = "decoding")]
+pub mod decoding;
+#[cfg(feature = "decoding")]
+mod docs;
+#[cfg(feature = "decoding")]
+pub use docs::PackageDocs;
 
 pub mod abi;
 mod ast;
@@ -17,7 +23,12 @@ mod resolve;
 pub use resolve::{Package, PackageId, Remap, Resolve};
 mod live;
 pub use live::LiveTypes;
+
+#[cfg(feature = "serde")]
+use serde_derive::Serialize;
+#[cfg(feature = "serde")]
 mod serde_;
+#[cfg(feature = "serde")]
 use serde_::{
     serialize_anon_result, serialize_id, serialize_id_map, serialize_none, serialize_optional_id,
     serialize_params,
@@ -107,12 +118,13 @@ pub struct UnresolvedPackage {
     required_resource_types: Vec<(TypeId, Span)>,
 }
 
-#[derive(Debug, Copy, Clone, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum AstItem {
-    #[serde(serialize_with = "serialize_id")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
     Interface(InterfaceId),
-    #[serde(serialize_with = "serialize_id")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
     World(WorldId),
 }
 
@@ -121,8 +133,9 @@ pub enum AstItem {
 ///
 /// This is directly encoded as an "ID" in the binary component representation
 /// with an interfaced tacked on as well.
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize)]
-#[serde(into = "String")]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", serde(into = "String"))]
 pub struct PackageName {
     /// A namespace such as `wasi` in `wasi:foo/bar`
     pub namespace: String,
@@ -247,7 +260,8 @@ impl UnresolvedPackage {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct World {
     /// The WIT identifier name of this world.
     pub name: String,
@@ -259,19 +273,19 @@ pub struct World {
     pub exports: IndexMap<WorldKey, WorldItem>,
 
     /// The package that owns this world.
-    #[serde(serialize_with = "serialize_optional_id")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_optional_id"))]
     pub package: Option<PackageId>,
 
     /// Documentation associated with this world declaration.
-    #[serde(skip_serializing_if = "Docs::is_empty")]
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
 
     /// All the included worlds from this world. Empty if this is fully resolved
-    #[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub includes: Vec<WorldId>,
 
     /// All the included worlds names. Empty if this is fully resolved
-    #[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub include_names: Vec<Vec<IncludeName>>,
 }
 
@@ -286,8 +300,9 @@ pub struct IncludeName {
 
 /// The key to the import/export maps of a world. Either a kebab-name or a
 /// unique interface.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
-#[serde(into = "String")]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", serde(into = "String"))]
 pub enum WorldKey {
     /// A kebab-name.
     Name(String),
@@ -315,12 +330,13 @@ impl WorldKey {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum WorldItem {
     /// An interface is being imported or exported from a world, indicating that
     /// it's a namespace of functions.
-    #[serde(serialize_with = "serialize_id")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
     Interface(InterfaceId),
 
     /// A function is being directly imported or exported from this world.
@@ -329,11 +345,12 @@ pub enum WorldItem {
     /// A type is being exported from this world.
     ///
     /// Note that types are never imported into worlds at this time.
-    #[serde(serialize_with = "serialize_id")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
     Type(TypeId),
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Interface {
     /// Optionally listed name of this interface.
     ///
@@ -344,32 +361,34 @@ pub struct Interface {
     ///
     /// Export names are listed within the types themselves. Note that the
     /// export name here matches the name listed in the `TypeDef`.
-    #[serde(serialize_with = "serialize_id_map")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id_map"))]
     pub types: IndexMap<String, TypeId>,
 
     /// Exported functions from this interface.
     pub functions: IndexMap<String, Function>,
 
     /// Documentation associated with this interface.
-    #[serde(skip_serializing_if = "Docs::is_empty")]
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
 
     /// The package that owns this interface.
-    #[serde(serialize_with = "serialize_optional_id")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_optional_id"))]
     pub package: Option<PackageId>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct TypeDef {
     pub name: Option<String>,
     pub kind: TypeDefKind,
     pub owner: TypeOwner,
-    #[serde(skip_serializing_if = "Docs::is_empty")]
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum TypeDefKind {
     Record(Record),
     Resource,
@@ -417,27 +436,29 @@ impl TypeDefKind {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum TypeOwner {
     /// This type was defined within a `world` block.
-    #[serde(serialize_with = "serialize_id")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
     World(WorldId),
     /// This type was defined within an `interface` block.
-    #[serde(serialize_with = "serialize_id")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
     Interface(InterfaceId),
     /// This type wasn't inherently defined anywhere, such as a `list<T>`, which
     /// doesn't need an owner.
-    #[serde(untagged, serialize_with = "serialize_none")]
+    #[cfg_attr(feature = "serde", serde(untagged, serialize_with = "serialize_none"))]
     None,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum Handle {
-    #[serde(serialize_with = "serialize_id")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
     Own(TypeId),
-    #[serde(serialize_with = "serialize_id")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
     Borrow(TypeId),
 }
 
@@ -467,29 +488,33 @@ pub enum Int {
     U64,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Record {
     pub fields: Vec<Field>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Field {
     pub name: String,
-    #[serde(rename = "type")]
+    #[cfg_attr(feature = "serde", serde(rename = "type"))]
     pub ty: Type,
-    #[serde(skip_serializing_if = "Docs::is_empty")]
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Flags {
     pub flags: Vec<Flag>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Flag {
     pub name: String,
-    #[serde(skip_serializing_if = "Docs::is_empty")]
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
 }
 
@@ -521,22 +546,25 @@ impl FlagsRepr {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Tuple {
     pub types: Vec<Type>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Variant {
     pub cases: Vec<Case>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Case {
     pub name: String,
-    #[serde(rename = "type")]
+    #[cfg_attr(feature = "serde", serde(rename = "type"))]
     pub ty: Option<Type>,
-    #[serde(skip_serializing_if = "Docs::is_empty")]
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
 }
 
@@ -551,15 +579,17 @@ impl Variant {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Enum {
     pub cases: Vec<EnumCase>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct EnumCase {
     pub name: String,
-    #[serde(skip_serializing_if = "Docs::is_empty")]
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
 }
 
@@ -574,19 +604,22 @@ impl Enum {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Result_ {
     pub ok: Option<Type>,
     pub err: Option<Type>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Stream {
     pub element: Option<Type>,
     pub end: Option<Type>,
 }
 
-#[derive(Clone, Default, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Default, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Docs {
     pub contents: Option<String>,
 }
@@ -599,12 +632,13 @@ impl Docs {
 
 pub type Params = Vec<(String, Type)>;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
-#[serde(untagged)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", serde(untagged))]
 pub enum Results {
-    #[serde(serialize_with = "serialize_params")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_params"))]
     Named(Params),
-    #[serde(serialize_with = "serialize_anon_result")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_anon_result"))]
     Anon(Type),
 }
 
@@ -667,26 +701,28 @@ impl Results {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Function {
     pub name: String,
     pub kind: FunctionKind,
-    #[serde(serialize_with = "serialize_params")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_params"))]
     pub params: Params,
     pub results: Results,
-    #[serde(skip_serializing_if = "Docs::is_empty")]
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum FunctionKind {
     Freestanding,
-    #[serde(serialize_with = "serialize_id")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
     Method(TypeId),
-    #[serde(serialize_with = "serialize_id")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
     Static(TypeId),
-    #[serde(serialize_with = "serialize_id")]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
     Constructor(TypeId),
 }
 

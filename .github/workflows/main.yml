@@ -119,6 +119,11 @@ jobs:
       - run: cargo check --no-default-features --features metadata
       - run: cargo check --no-default-features --features wit-smith
       - run: cargo check --no-default-features --features addr2line
+      - run: cargo check --no-default-features -p wit-parser
+      - run: cargo check --no-default-features -p wit-parser --features wat
+      - run: cargo check --no-default-features -p wit-parser --features serde
+      - run: cargo check --no-default-features -p wit-parser --features decoding
+      - run: cargo check --no-default-features -p wit-parser --features serde,decoding,wat
       - run: |
           if cargo tree -p wasm-smith --no-default-features -e no-dev | grep wasmparser; then
             echo wasm-smith without default features should not depend on wasmparser

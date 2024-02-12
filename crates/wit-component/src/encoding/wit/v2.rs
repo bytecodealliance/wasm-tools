@@ -1,7 +1,4 @@
-use crate::encoding::{
-    docs::PackageDocs,
-    types::{FunctionKey, ValtypeEncoder},
-};
+use crate::encoding::types::{FunctionKey, ValtypeEncoder};
 use anyhow::Result;
 use indexmap::IndexSet;
 use std::collections::HashMap;
@@ -36,9 +33,10 @@ pub fn encode_component(resolve: &Resolve, package: PackageId) -> Result<Compone
     encoder.run()?;
 
     let package_docs = PackageDocs::extract(resolve, package);
-    encoder
-        .component
-        .raw_custom_section(&package_docs.raw_custom_section()?);
+    encoder.component.custom_section(&CustomSection {
+        name: PackageDocs::SECTION_NAME.into(),
+        data: package_docs.encode()?.into(),
+    });
 
     Ok(encoder.component)
 }

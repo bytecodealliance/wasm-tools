@@ -9,7 +9,6 @@ use anyhow::{bail, Result};
 use wasm_encoder::{CanonicalOption, Encode, Section};
 use wit_parser::{Resolve, WorldId};
 
-mod decoding;
 mod encoding;
 mod gc;
 mod linking;
@@ -17,11 +16,11 @@ mod printing;
 mod targets;
 mod validation;
 
-pub use decoding::{decode, decode_reader, DecodedWasm};
 pub use encoding::{encode, ComponentEncoder};
 pub use linking::Linker;
 pub use printing::*;
 pub use targets::*;
+pub use wit_parser::decoding::{decode, decode_reader, DecodedWasm};
 
 pub mod metadata;
 
@@ -86,132 +85,6 @@ pub(crate) fn base_producers() -> wasm_metadata::Producers {
     let mut producer = wasm_metadata::Producers::empty();
     producer.add("processed-by", "wit-component", env!("CARGO_PKG_VERSION"));
     producer
-}
-
-/// Parse a WIT package from the input `path`.
-///
-/// The input `path` can be one of:
-///
-/// * A directory containing a WIT package with an optional `deps` directory for
-///   any dependent WIT packages it references.
-/// * A single standalone WIT file with no dependencies.
-/// * A wasm-encoded WIT package as a single file in the wasm binary format.
-/// * A wasm-encoded WIT package as a single file in the wasm text format.
-///
-/// The `Resolve` containing WIT information along with the `PackageId` of what
-/// was parsed is returned if successful.
-pub fn parse_wit_from_path(
-    path: impl AsRef<std::path::Path>,
-) -> Result<(Resolve, wit_parser::PackageId)> {
-    use anyhow::Context;
-
-    let mut resolver = Resolve::default();
-    let id = match path.as_ref() {
-        // Directories can be directly fed into the resolver
-        p if p.is_dir() => {
-            resolver
-                .push_dir(p)
-                .with_context(|| {
-                    format!(
-                        "failed to resolve directory while parsing WIT for path [{}]",
-                        p.display()
-                    )
-                })?
-                .0
-        }
-        // Non-directory files (including symlinks) can be either:
-        // - Wasm modules (binary or WAT) that are WIT packages
-        // - WIT files
-        #[cfg(not(feature = "wat"))]
-        p => {
-            let file_contents = std::fs::read(p)
-                .with_context(|| format!("failed to parse WIT from path [{}]", p.display()))?;
-            match decode(&file_contents)? {
-                DecodedWasm::Component(..) => {
-                    bail!("specified path is a component, not a wit package")
-                }
-                DecodedWasm::WitPackage(resolve, pkg) => return Ok((resolve, pkg)),
-            }
-        }
-        #[cfg(feature = "wat")]
-        p => {
-            use wit_parser::UnresolvedPackage;
-
-            let file_contents = std::fs::read(p)
-                .with_context(|| format!("failed to parse WIT from path [{}]", p.display()))?;
-
-            // Check if the bytes represent a Wasm module (either binary or WAT encoded)
-            if is_wasm_binary_or_wat(&file_contents) {
-                let bytes = wat::parse_bytes(&file_contents).map_err(|mut e| {
-                    e.set_path(p);
-                    e
-                })?;
-                match decode(&bytes)? {
-                    DecodedWasm::Component(..) => {
-                        bail!("specified path is a component, not a wit package")
-                    }
-                    DecodedWasm::WitPackage(resolve, pkg) => return Ok((resolve, pkg)),
-                }
-            } else {
-                // If the bytes are not a WASM module, they should be WIT that can be parsed
-                // into a package by the resolver
-                let text = match std::str::from_utf8(&file_contents) {
-                    Ok(s) => s,
-                    Err(_) => bail!("input file is not valid utf-8"),
-                };
-                let pkg = UnresolvedPackage::parse(p, text)?;
-                resolver.push(pkg)?
-            }
-        }
-    };
-    Ok((resolver, id))
-}
-
-/// Detect quickly if supplied bytes represent a Wasm module,
-/// whether binary encoded or in WAT-encoded.
-///
-/// This briefly lexes past whitespace and comments as a `*.wat` file to see if
-/// we can find a left-paren. If that fails then it's probably `*.wit` instead.
-///
-///
-/// Examples
-/// ```
-/// # use wit_component::is_wasm_binary_or_wat;
-/// assert!(is_wasm_binary_or_wat(r#"
-/// (module
-///   (type (;0;) (func))
-///   (func (;0;) (type 0)
-///     nop
-///   )
-/// )
-/// "#));
-/// ```
-#[cfg(feature = "wat")]
-pub fn is_wasm_binary_or_wat(bytes: impl AsRef<[u8]>) -> bool {
-    use wast::lexer::{Lexer, TokenKind};
-
-    if bytes.as_ref().starts_with(b"\0asm") {
-        return true;
-    }
-    let text = match std::str::from_utf8(bytes.as_ref()) {
-        Ok(s) => s,
-        Err(_) => return true,
-    };
-
-    let lexer = Lexer::new(text);
-    let mut iter = lexer.iter(0);
-
-    while let Some(next) = iter.next() {
-        match next.map(|t| t.kind) {
-            Ok(TokenKind::Whitespace)
-            | Ok(TokenKind::BlockComment)
-            | Ok(TokenKind::LineComment) => {}
-            Ok(TokenKind::LParen) => return true,
-            _ => break,
-        }
-    }
-
-    false
 }
 
 /// Embed component metadata in a buffer of bytes that contains a Wasm module

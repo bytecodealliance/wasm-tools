@@ -106,7 +106,7 @@ impl State {
         config.gc_enabled = false;
 
         let mut wasm = wasm_smith::Module::new(config, &mut u)?;
-        wasm.ensure_termination(10_000);
+        wasm.ensure_termination(10_000).unwrap();
         let wasm = wasm.to_bytes();
 
         // We install a resource limiter in the store which limits the store to

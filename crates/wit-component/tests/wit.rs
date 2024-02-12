@@ -1,23 +1,15 @@
 #![cfg(feature = "wat")]
 
 use anyhow::Result;
-use wit_component::{is_wasm_binary_or_wat, parse_wit_from_path};
-
-const EXAMPLE_MODULE_WAT: &str = r#"
-(module
-  (type (;0;) (func))
-  (func (;0;) (type 0)
-    nop
-  )
-)
-"#;
+use wit_parser::Resolve;
 
 /// Ensure that parse_wit_from_path works with directories
 #[test]
 fn parse_wit_dir() -> Result<()> {
     drop(env_logger::try_init());
 
-    let (resolver, package_id) = parse_wit_from_path("tests/wit/parse-dir/wit")?;
+    let mut resolver = Resolve::default();
+    let package_id = resolver.push_path("tests/wit/parse-dir/wit")?.0;
     assert!(resolver
         .select_world(package_id, "foo-world".into())
         .is_ok());
@@ -30,7 +22,10 @@ fn parse_wit_dir() -> Result<()> {
 fn parse_wit_file() -> Result<()> {
     drop(env_logger::try_init());
 
-    let (resolver, package_id) = parse_wit_from_path("tests/wit/parse-dir/wit/deps/bar/bar.wit")?;
+    let mut resolver = Resolve::default();
+    let package_id = resolver
+        .push_path("tests/wit/parse-dir/wit/deps/bar/bar.wit")?
+        .0;
     resolver.select_world(package_id, "bar-world".into())?;
     assert!(resolver
         .interfaces
@@ -45,17 +40,8 @@ fn parse_wit_file() -> Result<()> {
 fn parse_wit_missing_path() -> Result<()> {
     drop(env_logger::try_init());
 
-    assert!(parse_wit_from_path("tests/nonexistent/path").is_err());
-
-    Ok(())
-}
-
-/// Ensure that is_wasm_binary_or_wat works for binaries
-#[test]
-fn check_wasm_from_bytes() -> Result<()> {
-    drop(env_logger::try_init());
-
-    assert!(is_wasm_binary_or_wat(wat::parse_str(EXAMPLE_MODULE_WAT)?));
+    let mut resolver = Resolve::default();
+    assert!(resolver.push_path("tests/nonexistent/path").is_err());
 
     Ok(())
 }
