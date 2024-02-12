@@ -1714,7 +1714,7 @@ dependencies = [
  "serde_yaml",
  "smallvec",
  "wasm-encoder 0.38.1",
- "wasmparser 0.118.1",
+ "wasmparser 0.118.2",
  "wasmprinter 0.2.75",
  "wat",
  "wit-component",
@@ -1736,7 +1736,7 @@ dependencies = [
  "anyhow",
  "leb128",
  "tempfile",
- "wasmparser 0.118.1",
+ "wasmparser 0.118.2",
 ]
 
 [[package]]
@@ -1751,7 +1751,7 @@ dependencies = [
  "serde_json",
  "spdx",
  "wasm-encoder 0.38.1",
- "wasmparser 0.118.1",
+ "wasmparser 0.118.2",
  "wat",
 ]
 
@@ -1767,7 +1767,7 @@ dependencies = [
  "rand",
  "thiserror",
  "wasm-encoder 0.38.1",
- "wasmparser 0.118.1",
+ "wasmparser 0.118.2",
  "wasmprinter 0.2.75",
  "wat",
 ]
@@ -1785,7 +1785,7 @@ dependencies = [
  "num_cpus",
  "rand",
  "wasm-mutate",
- "wasmparser 0.118.1",
+ "wasmparser 0.118.2",
  "wasmprinter 0.2.75",
  "wasmtime",
 ]
@@ -1801,7 +1801,7 @@ dependencies = [
  "log",
  "rand",
  "wasm-mutate",
- "wasmparser 0.118.1",
+ "wasmparser 0.118.2",
  "wasmprinter 0.2.75",
  "wat",
 ]
@@ -1820,7 +1820,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "wasm-encoder 0.38.1",
- "wasmparser 0.118.1",
+ "wasmparser 0.118.2",
  "wasmprinter 0.2.75",
  "wat",
 ]
@@ -1854,7 +1854,7 @@ dependencies = [
  "wasm-mutate",
  "wasm-shrink",
  "wasm-smith",
- "wasmparser 0.118.1",
+ "wasmparser 0.118.2",
  "wasmprinter 0.2.75",
  "wast",
  "wat",
@@ -1871,7 +1871,7 @@ dependencies = [
  "wasm-mutate",
  "wasm-shrink",
  "wasm-smith",
- "wasmparser 0.118.1",
+ "wasmparser 0.118.2",
  "wasmprinter 0.2.75",
  "wast",
  "wat",
@@ -1890,7 +1890,7 @@ dependencies = [
  "wasm-encoder 0.38.1",
  "wasm-mutate",
  "wasm-smith",
- "wasmparser 0.118.1",
+ "wasmparser 0.118.2",
  "wasmprinter 0.2.75",
  "wasmtime",
  "wast",
@@ -1922,7 +1922,7 @@ dependencies = [
 
 [[package]]
 name = "wasmparser"
-version = "0.118.1"
+version = "0.118.2"
 dependencies = [
  "anyhow",
  "criterion",
@@ -1955,7 +1955,7 @@ dependencies = [
  "diff",
  "rayon",
  "tempfile",
- "wasmparser 0.118.1",
+ "wasmparser 0.118.2",
  "wast",
  "wat",
 ]
@@ -2221,7 +2221,7 @@ dependencies = [
  "rayon",
  "unicode-width",
  "wasm-encoder 0.38.1",
- "wasmparser 0.118.1",
+ "wasmparser 0.118.2",
  "wat",
 ]
 
@@ -2371,7 +2371,7 @@ dependencies = [
  "serde_json",
  "wasm-encoder 0.38.1",
  "wasm-metadata",
- "wasmparser 0.118.1",
+ "wasmparser 0.118.2",
  "wasmprinter 0.2.75",
  "wasmtime",
  "wast",
