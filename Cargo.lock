@@ -1688,7 +1688,7 @@ checksum = "4d91413b1c31d7539ba5ef2451af3f0b833a005eb27a631cec32bc0635a8602b"
 
 [[package]]
 name = "wasm-compose"
-version = "0.5.4"
+version = "0.5.5"
 dependencies = [
  "anyhow",
  "glob",
@@ -1730,7 +1730,7 @@ dependencies = [
 
 [[package]]
 name = "wasm-metadata"
-version = "0.10.19"
+version = "0.10.20"
 dependencies = [
  "anyhow",
  "clap 4.4.18",
@@ -1797,7 +1797,7 @@ dependencies = [
 
 [[package]]
 name = "wasm-smith"
-version = "0.16.0"
+version = "0.16.1"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -1818,7 +1818,7 @@ dependencies = [
 
 [[package]]
 name = "wasm-tools"
-version = "1.0.59"
+version = "1.0.60"
 dependencies = [
  "addr2line 0.21.0",
  "anyhow",
@@ -1851,7 +1851,7 @@ dependencies = [
  "wast",
  "wat",
  "wit-component",
- "wit-parser 0.13.2",
+ "wit-parser 0.14.0",
  "wit-smith",
 ]
 
@@ -1888,7 +1888,7 @@ dependencies = [
  "wast",
  "wat",
  "wit-component",
- "wit-parser 0.13.2",
+ "wit-parser 0.14.0",
  "wit-smith",
 ]
 
@@ -2222,7 +2222,7 @@ dependencies = [
 
 [[package]]
 name = "wat"
-version = "1.0.87"
+version = "1.0.88"
 dependencies = [
  "wast",
 ]
@@ -2418,7 +2418,7 @@ checksum = "dff9641d1cd4be8d1a070daf9e3773c5f67e78b4d9d42263020c057706765c04"
 
 [[package]]
 name = "wit-component"
-version = "0.20.3"
+version = "0.21.0"
 dependencies = [
  "anyhow",
  "bitflags 2.4.2",
@@ -2437,7 +2437,7 @@ dependencies = [
  "wasmtime",
  "wast",
  "wat",
- "wit-parser 0.13.2",
+ "wit-parser 0.14.0",
 ]
 
 [[package]]
@@ -2458,7 +2458,7 @@ dependencies = [
 
 [[package]]
 name = "wit-parser"
-version = "0.13.2"
+version = "0.14.0"
 dependencies = [
  "anyhow",
  "env_logger",
@@ -2474,7 +2474,7 @@ dependencies = [
  "unicode-xid",
  "wasmparser 0.121.2",
  "wat",
- "wit-parser 0.13.2",
+ "wit-parser 0.14.0",
 ]
 
 [[package]]
@@ -2486,12 +2486,12 @@ dependencies = [
  "libfuzzer-sys",
  "log",
  "wasmprinter 0.2.80",
- "wit-parser 0.13.2",
+ "wit-parser 0.14.0",
 ]
 
 [[package]]
 name = "wit-smith"
-version = "0.1.29"
+version = "0.1.30"
 dependencies = [
  "arbitrary",
  "clap 4.4.18",
@@ -2499,7 +2499,7 @@ dependencies = [
  "log",
  "semver",
  "wit-component",
- "wit-parser 0.13.2",
+ "wit-parser 0.14.0",
 ]
 
 [[package]]
