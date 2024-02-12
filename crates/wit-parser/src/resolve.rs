@@ -298,7 +298,7 @@ impl Resolve {
             #[cfg(feature = "wat")]
             let is_wasm = wat::Detect::from_bytes(&contents).is_wasm();
             #[cfg(not(feature = "wat"))]
-            let is_wasm = wasmparser::Parser::is_core_wasm(&contents);
+            let is_wasm = wasmparser::Parser::is_component(&contents);
 
             if is_wasm {
                 #[cfg(feature = "wat")]

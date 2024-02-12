@@ -705,7 +705,8 @@ impl SemverCheckOpts {
     }
 
     fn run(self) -> Result<()> {
-        let (resolve, package_id) = parse_wit_from_path(&self.wit)?;
+        let mut resolve = Resolve::default();
+        let package_id = resolve.push_path(&self.wit)?.0;
         let prev = resolve.select_world(package_id, Some(&self.prev))?;
         let new = resolve.select_world(package_id, Some(&self.new))?;
         wit_component::semver_check(resolve, prev, new)?;
