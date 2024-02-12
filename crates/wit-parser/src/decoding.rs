@@ -460,13 +460,6 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
         _ => bail!("expected an exported component type"),
     };
 
-    // let (resolve, world) = crate::decoding::decode_world(types, ty)?;
-    // Ok((resolve, world, string_encoding))
-    // }
-    // pub(crate) fn decode_world(
-    // types: &types::Types,
-    // world: types::ComponentTypeId,
-    // ) -> Result<(Resolve, WorldId)> {
     let mut decoder = WitPackageDecoder::new(types);
     let mut interfaces = IndexMap::new();
     let mut worlds = IndexMap::new();

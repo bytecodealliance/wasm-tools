@@ -511,7 +511,7 @@ impl WitOpts {
             Detect::WasmBinary | Detect::WasmText => {
                 // Use `wat` to possible translate the text format, and then
                 // afterwards use either `decode` or `metadata::decode` depending on
-                // if the input is a component or a core wasm mdoule.
+                // if the input is a component or a core wasm module.
                 let input = wat::parse_bytes(&input).map_err(|mut e| {
                     e.set_path(path);
                     e
