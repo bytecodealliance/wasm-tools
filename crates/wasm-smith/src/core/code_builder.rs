@@ -821,9 +821,10 @@ impl CodeBuilderAllocations {
 
     pub fn finish(self, u: &mut Unstructured<'_>, module: &mut Module) -> arbitrary::Result<()> {
         // Any globals injected as part of dropping operands on the stack get
-        // injected into the module here. Each global is then exported, most of
-        // the time, to ensure it's part of the "image" of this module available
-        // for differential execution for example.
+        // injected into the module here. Each global is then exported (unless
+        // the `Config` specifies the exports), most of the time, to ensure it's
+        // part of the "image" of this module available for differential
+        // execution for example.
         for (ty, init) in self.new_globals {
             let global_idx = module.globals.len() as u32;
             module.globals.push(GlobalType {
@@ -833,7 +834,7 @@ impl CodeBuilderAllocations {
             let init = GlobalInitExpr::ConstExpr(init);
             module.defined_globals.push((global_idx, init));
 
-            if u.ratio(1, 100).unwrap_or(false) {
+            if module.config.exports.is_some() || u.ratio(1, 100).unwrap_or(false) {
                 continue;
             }
 
