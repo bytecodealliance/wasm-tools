@@ -1,6 +1,5 @@
 [package]
 name = "fuzz-stats"
-version = "0.1.0"
 edition.workspace = true
 publish = false
 

@@ -191,6 +191,50 @@ bindings do not comprehensively cover all the functionality of this repository
 at this time, but please feel free to contribute more if you find functions
 useful!
 
+# Versioning and Releases
+
+This repository has both a CLI and a suite of crates that is published to
+crates.io (Rust's package manager). The versioning scheme used by this
+repository looks like:
+
+* `wasm-tools` - the CLI follows the versioning pattern of `1.X.Y`. Frequently
+  `Y` is 0 and `X` is bumped as part of a release for this repository.
+* `wat` - this Rust crate is versioned at `1.X.Y` as well and matches the
+  `wasm-tools` version.
+* `wast` - this Rust crate is versioned as `X.0.Y`. The `X` here matches the `X`
+  in `1.X.Y` of `wasm-tools`.
+* All other crates - all other crates in this repository are versioned at
+  `0.X.Y` where `X` matches the `1.X.Y` of `wasm-tools`.
+
+Note that the `Y` of all the versions above will also match for any release of
+this repository. This versioning scheme is intended to reflect the stable nature
+of the CLI and the `wat` crate in terms of API stability. Other crates, however,
+all receive a major version bump that are not automatically considered API
+compatible on all releases. This reflects how WebAssembly itself is an evolving
+standard which is not an unchanging foundation. All of the crates in this
+repository are suitable for "production use" but be aware that API stability is
+not guaranteed over time. If you have difficulty upgrading versions please feel
+free to file an issue and we can help out.
+
+Also, this repository does not currently have a strict release cadence. Releases
+are done on an as-needed basis. If you'd like a release done please feel free to
+reach out on [Zulip], file an issue, leave a comment on a PR, or otherwise
+contact a maintainer.
+
+[Zulip]: https://bytecodealliance.zulipchat.com/
+
+For maintainers, the release process looks like:
+
+* Go to [this link](https://github.com/bytecodealliance/wasm-tools/actions/workflows/release-process.yml)
+* Click on "Run workflow" in the UI.
+* Use the default `bump` argument and hit "Run workflow"
+* Wait for a PR to be created by CI. You can watch the "Actions" tab for if
+  things go wrong.
+* When the PR opens, close it then reopen it. Don't ask questions.
+* Review the PR, approve it, then queue it for merge.
+
+That should be it, but be sure to keep an eye on CI in case anything goes wrong.
+
 # Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for more information about contributing
