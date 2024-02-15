@@ -2,4 +2,4 @@ error: new world is not semver-compatible with the previous world
 
 Caused by:
     0: type mismatch for import `new`
-       missing export named `a` (at offset 0xff)
+       missing export named `a` (at offset 0x101)

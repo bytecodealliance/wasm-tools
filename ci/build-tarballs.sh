@@ -9,11 +9,7 @@ rm -rf tmp
 mkdir tmp
 mkdir -p dist
 
-tag=dev
-if [[ $GITHUB_REF == refs/tags/wasm-tools-* ]]; then
-  tag=${GITHUB_REF:21}
-fi
-
+tag=$(./ci/print-current-version.sh)
 bin_pkgname=wasm-tools-$tag-$platform
 
 mkdir tmp/$bin_pkgname
