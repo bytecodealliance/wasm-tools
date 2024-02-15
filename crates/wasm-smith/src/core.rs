@@ -1983,7 +1983,7 @@ impl Module {
 
     fn arbitrary_code(&mut self, u: &mut Unstructured) -> Result<()> {
         self.code.reserve(self.num_defined_funcs);
-        let mut allocs = CodeBuilderAllocations::new(self);
+        let mut allocs = CodeBuilderAllocations::new(self, self.config.exports.is_some());
         for (_, ty) in self.funcs[self.funcs.len() - self.num_defined_funcs..].iter() {
             let body = self.arbitrary_func_body(u, ty, &mut allocs)?;
             self.code.push(body);

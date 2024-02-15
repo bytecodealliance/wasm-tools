@@ -51,7 +51,11 @@ macro_rules! define_config {
 
             /// If provided, the generated module will have exports with exactly
             /// the same names and types as those in the provided WebAssembly
-            /// module.
+            /// module. The implementation (e.g. function bodies, global
+            /// initializers) of each export in the generated module will be
+            /// random and unrelated to the implementation in the provided
+            /// module. Only globals and functions are supported.
+            ///
             ///
             /// Defaults to `None` which means arbitrary exports will be
             /// generated.
@@ -132,7 +136,10 @@ macro_rules! define_config {
 
             /// If provided, the generated module will have exports with exactly
             /// the same names and types as those in the provided WebAssembly
-            /// module.
+            /// module. The implementation (e.g. function bodies, global
+            /// initializers) of each export in the generated module will be
+            /// random and unrelated to the implementation in the provided
+            /// module. Only globals and functions are supported.
             ///
             /// Defaults to `None` which means arbitrary exports will be
             /// generated.

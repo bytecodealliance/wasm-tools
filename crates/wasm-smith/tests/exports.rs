@@ -17,6 +17,16 @@ struct TestCase {
     expected_exports: Vec<(&'static str, ExportType)>,
 }
 
+fn make_global(name: &'static str, ty: ValType, mutable: bool) -> (&'static str, ExportType) {
+    (
+        name,
+        ExportType::Global(GlobalType {
+            content_type: ty,
+            mutable,
+        }),
+    )
+}
+
 #[test]
 fn smoke_test_single_export() {
     let test = TestCase {
@@ -82,13 +92,7 @@ fn smoke_test_exported_global() {
                     [ValType::F32],
                 )),
             ),
-            (
-                "glob",
-                ExportType::Global(GlobalType {
-                    content_type: ValType::F64,
-                    mutable: false,
-                }),
-            ),
+            make_global("glob", ValType::F64, false),
         ],
     };
     smoke_test_exports(test, 20)
@@ -111,24 +115,40 @@ fn smoke_test_export_with_imports() {
             "#,
         expected_exports: vec![
             ("a", ExportType::Func(FuncType::new([ValType::I32], []))),
-            (
-                "b",
-                ExportType::Global(GlobalType {
-                    content_type: ValType::F32,
-                    mutable: true,
-                }),
-            ),
+            make_global("b", ValType::F32, true),
             ("c", ExportType::Func(FuncType::new([ValType::I64], []))),
-            (
-                "d",
-                ExportType::Global(GlobalType {
-                    content_type: ValType::I32,
-                    mutable: false,
-                }),
-            ),
+            make_global("d", ValType::I32, false),
         ],
     };
     smoke_test_exports(test, 21)
+}
+
+#[test]
+fn smoke_test_with_mutable_global_exports() {
+    let test = TestCase {
+        export_module: r#"
+        (module
+            (global (export "1i32") (mut i32))
+            (global (export "2i32") (mut i32))
+            (global (export "1i64") (mut i64))
+            (global (export "2i64") (mut i64))
+            (global (export "3i32") (mut i32))
+            (global (export "3i64") (mut i64))
+            (global (export "4i32") i32)
+            (global (export "4i64") i64)
+        )"#,
+        expected_exports: vec![
+            make_global("1i32", ValType::I32, true),
+            make_global("2i32", ValType::I32, true),
+            make_global("1i64", ValType::I64, true),
+            make_global("2i64", ValType::I64, true),
+            make_global("3i32", ValType::I32, true),
+            make_global("3i64", ValType::I64, true),
+            make_global("4i32", ValType::I32, false),
+            make_global("4i64", ValType::I64, false),
+        ],
+    };
+    smoke_test_exports(test, 22)
 }
 
 fn smoke_test_exports(exports_test_case: TestCase, seed: u64) {
