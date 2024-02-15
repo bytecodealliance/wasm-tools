@@ -80,6 +80,7 @@ jobs:
         tag_name: v${{ steps.tag.outputs.version }}
 
     - run: |
+        rm -rf dist main.log
         rustc ci/publish.rs
         ./publish publish
       env:
