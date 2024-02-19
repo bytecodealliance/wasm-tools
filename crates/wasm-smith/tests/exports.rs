@@ -81,7 +81,7 @@ fn smoke_test_exported_global() {
         	(func (export "a") (param i32 i32 f32 f64) (result f32)
         		unreachable
         	)
-            (global (export "glob") f64)
+            (global (export "glob") f64 (f64.const 0))
         )
         "#,
         expected_exports: vec![
@@ -106,7 +106,7 @@ fn smoke_test_export_with_imports() {
             (import "" "foo" (func (param i32)))
             (import "" "bar" (global (mut f32)))
             (func (param i64) unreachable)
-            (global i32)
+            (global i32 (i32.const 0))
             (export "a" (func 0))
             (export "b" (global 0))
             (export "c" (func 1))
@@ -128,14 +128,14 @@ fn smoke_test_with_mutable_global_exports() {
     let test = TestCase {
         export_module: r#"
         (module
-            (global (export "1i32") (mut i32))
-            (global (export "2i32") (mut i32))
-            (global (export "1i64") (mut i64))
-            (global (export "2i64") (mut i64))
-            (global (export "3i32") (mut i32))
-            (global (export "3i64") (mut i64))
-            (global (export "4i32") i32)
-            (global (export "4i64") i64)
+            (global (export "1i32") (mut i32) (i32.const 0))
+            (global (export "2i32") (mut i32) (i32.const 0))
+            (global (export "1i64") (mut i64) (i64.const 0))
+            (global (export "2i64") (mut i64) (i64.const 0))
+            (global (export "3i32") (mut i32) (i32.const 0))
+            (global (export "3i64") (mut i64) (i64.const 0))
+            (global (export "4i32") i32 (i32.const 0))
+            (global (export "4i64") i64 (i64.const 0))
         )"#,
         expected_exports: vec![
             make_global("1i32", ValType::I32, true),

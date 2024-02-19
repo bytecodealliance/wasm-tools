@@ -1600,130 +1600,110 @@ impl Module {
             }
         }
 
-        // Map from function type index in `exports` to type and index in generated module.
-        let mut available_types: Vec<(Rc<FuncType>, Option<u32>)> = vec![];
-        // Map from global index in `exports` to type and index in generated module.
-        let mut globals: Vec<(GlobalType, Option<u32>)> = vec![];
-        // Map from function index in `exports` to type index in `exports`.
-        let mut funcs: Vec<u32> = vec![];
         let mut required_exports: Vec<wasmparser::Export> = vec![];
+        let mut validator = wasmparser::Validator::new();
+        let exports_types = validator
+            .validate_all(&example_module)
+            .expect("Failed to validate `exports` Wasm");
         for payload in wasmparser::Parser::new(0).parse_all(&example_module) {
             match payload.expect("Failed to read `exports` Wasm") {
-                wasmparser::Payload::ImportSection(import_reader) => {
-                    // Spec requires import section to be before funcs and
-                    // globals so those lists should not have been modified yet.
-                    assert!(globals.is_empty());
-                    assert!(funcs.is_empty());
-                    for import in import_reader {
-                        match import.expect("Failed to read `exports` import section").ty {
-                            wasmparser::TypeRef::Func(i) => funcs.push(i),
-                            wasmparser::TypeRef::Global(g) => globals.push((
-                                GlobalType {
-                                    mutable: g.mutable,
-                                    val_type: convert_val_type(&g.content_type),
-                                },
-                                None,
-                            )),
-                            _ => {}
-                        }
-                    }
-                }
-                wasmparser::Payload::TypeSection(type_reader) => {
-                    for ty in type_reader.into_iter_err_on_gc_types() {
-                        let ty = ty.expect("Failed to read `exports` type section");
-                        available_types.push((
-                            Rc::new(FuncType {
-                                params: ty.params().into_iter().map(convert_val_type).collect(),
-                                results: ty.results().into_iter().map(convert_val_type).collect(),
-                            }),
-                            None,
-                        ));
-                    }
-                }
-                wasmparser::Payload::FunctionSection(func_reader) => {
-                    for func in func_reader {
-                        funcs.push(func.expect("Failed to read `exports` function section"));
-                    }
-                }
                 wasmparser::Payload::ExportSection(export_reader) => {
                     required_exports = export_reader
                         .into_iter()
                         .collect::<Result<_, _>>()
                         .expect("Failed to read `exports` export section");
                 }
-                wasmparser::Payload::GlobalSection(global_reader) => {
-                    for global in global_reader {
-                        let global = global.expect("Failed to read `exports` global section");
-                        globals.push((
-                            GlobalType {
-                                mutable: global.ty.mutable,
-                                val_type: convert_val_type(&global.ty.content_type),
-                            },
-                            None,
-                        ))
-                    }
-                }
                 _ => {}
             }
         }
 
-        // Update the type indices for any function types that already exist.
-        for (index, subtype) in self.types.iter().enumerate() {
-            if let CompositeType::Func(func_type) = &subtype.composite_type {
-                for (needed_ty, needed_index) in available_types.iter_mut() {
-                    if needed_ty == func_type {
-                        *needed_index = Some(index as u32);
-                    }
-                }
-            }
-        }
-
-        // Add any function types that are needed and save their index.
-        for (needed_ty, needed_index) in available_types.iter_mut() {
-            self.rec_groups.push(self.types.len()..self.types.len() + 1);
-            *needed_index = Some(self.add_type(SubType {
-                is_final: true,
-                supertype: None,
-                composite_type: CompositeType::Func(needed_ty.clone()),
-            }));
-        }
-
-        // Add functions that are needed.
-        for ty_index in funcs.iter() {
-            let new_ty_index = available_types[*ty_index as usize].1.unwrap();
-            self.funcs
-                .push((new_ty_index, self.func_type(new_ty_index).clone()));
-            self.num_defined_funcs += 1;
-        }
-
-        // Add any globals that are needed.
+        // For each export, add necessary prerequisites to the module.
         let mut choices = vec![];
         let num_imported_globals = self.globals.len() - self.defined_globals.len();
-        for (global_ty, index) in globals.iter_mut() {
-            *index = Some(self.add_arbitrary_global_of_type(
-                *global_ty,
-                num_imported_globals,
-                u,
-                &mut choices,
-            )?);
-        }
-
-        // Add exports that are needed.
-        for wasmparser::Export { name, kind, index } in required_exports {
-            let kind = convert_export_kind(&kind);
-            let new_index = match kind {
-                ExportKind::Func => {
-                    let index_from_end = funcs.len() as u32 - index;
-                    self.funcs.len() as u32 - index_from_end
+        for export in required_exports {
+            let new_index = match exports_types
+                .entity_type_from_export(&export)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "Unable to get type from export {:?} in `exports` Wasm",
+                        export,
+                    )
+                }) {
+                // For functions, add the type and a function with that type.
+                wasmparser::types::EntityType::Func(id) => {
+                    let subtype = exports_types.get(id).unwrap_or_else(|| {
+                        panic!(
+                            "Unable to get subtype for function {:?} in `exports` Wasm",
+                            id
+                        )
+                    });
+                    match &subtype.composite_type {
+                        wasmparser::CompositeType::Func(func_type) => {
+                            assert!(
+                                subtype.is_final,
+                                "Subtype {:?} from `exports` Wasm is not final",
+                                subtype
+                            );
+                            assert!(
+                                subtype.supertype_idx.is_none(),
+                                "Subtype {:?} from `exports` Wasm has non-empty supertype",
+                                subtype
+                            );
+                            let new_type = Rc::new(FuncType {
+                                params: func_type
+                                    .params()
+                                    .into_iter()
+                                    .map(convert_val_type)
+                                    .collect(),
+                                results: func_type
+                                    .results()
+                                    .into_iter()
+                                    .map(convert_val_type)
+                                    .collect(),
+                            });
+                            self.rec_groups.push(self.types.len()..self.types.len() + 1);
+                            let type_index = self.add_type(SubType {
+                                is_final: true,
+                                supertype: None,
+                                composite_type: CompositeType::Func(Rc::clone(&new_type)),
+                            });
+                            let func_index = self.funcs.len() as u32;
+                            self.funcs.push((type_index, new_type));
+                            self.num_defined_funcs += 1;
+                            func_index
+                        }
+                        _ => panic!(
+                            "Unable to handle type {:?} from `exports` Wasm",
+                            subtype.composite_type
+                        ),
+                    }
                 }
-                ExportKind::Global => globals[index as usize].1.unwrap(),
-                ExportKind::Table | ExportKind::Memory | ExportKind::Tag => panic!(
-                    "Config `exports` has an export of type {:?} which cannot yet be handled.",
-                    kind
-                ),
+                // For globals, add a new global.
+                wasmparser::types::EntityType::Global(global_type) => self
+                    .add_arbitrary_global_of_type(
+                        GlobalType {
+                            val_type: convert_val_type(&global_type.content_type),
+                            mutable: global_type.mutable,
+                        },
+                        num_imported_globals,
+                        u,
+                        &mut choices,
+                    )?,
+                wasmparser::types::EntityType::Table(_)
+                | wasmparser::types::EntityType::Memory(_)
+                | wasmparser::types::EntityType::Tag(_) => {
+                    panic!(
+                        "Config `exports` has an export of type {:?} which cannot yet be handled.",
+                        export.kind
+                    )
+                }
             };
-            self.exports.push((name.to_string(), kind, new_index));
-            self.export_names.insert(name.to_string());
+            self.exports.push((
+                export.name.to_string(),
+                convert_export_kind(&export.kind),
+                new_index,
+            ));
+            self.export_names.insert(export.name.to_string());
         }
 
         Ok(())
