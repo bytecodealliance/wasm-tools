@@ -228,8 +228,12 @@ impl Resolve {
         if !path.exists() {
             return Ok(ret);
         }
-        for dep in path.read_dir().context("failed to read directory")? {
-            let dep = dep.context("failed to read directory iterator")?;
+        let mut entries = path
+            .read_dir()
+            .and_then(|i| i.collect::<std::io::Result<Vec<_>>>())
+            .context("failed to read directory")?;
+        entries.sort_by_key(|e| e.file_name());
+        for dep in entries {
             let path = dep.path();
 
             let pkg = if dep.file_type()?.is_dir() {
