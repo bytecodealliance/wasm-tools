@@ -1,5 +1,5 @@
 use wasm_smith::Config;
-use wasmparser::{Validator, WasmFeatures};
+use wasmparser::{types::Types, Validator, WasmFeatures};
 
 pub fn parser_features_from_config(config: &Config) -> WasmFeatures {
     WasmFeatures {
@@ -28,9 +28,9 @@ pub fn parser_features_from_config(config: &Config) -> WasmFeatures {
     }
 }
 
-pub fn validate(validator: &mut Validator, bytes: &[u8]) {
+pub fn validate(validator: &mut Validator, bytes: &[u8]) -> Types {
     let err = match validator.validate_all(bytes) {
-        Ok(_) => return,
+        Ok(types) => return types,
         Err(e) => e,
     };
     eprintln!("Writing Wasm to `test.wasm`");
