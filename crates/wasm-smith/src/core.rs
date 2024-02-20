@@ -389,7 +389,6 @@ impl Module {
             self.arbitrary_imports(u)?;
         }
 
-        self.should_encode_types = !self.types.is_empty() || u.arbitrary()?;
         self.should_encode_imports = !self.imports.is_empty() || u.arbitrary()?;
 
         self.arbitrary_tags(u)?;
@@ -397,7 +396,10 @@ impl Module {
         self.arbitrary_tables(u)?;
         self.arbitrary_memories(u)?;
         self.arbitrary_globals(u)?;
-        self.arbitrary_exports(u)?;
+        if !self.required_exports(u)? {
+            self.arbitrary_exports(u)?;
+        };
+        self.should_encode_types = !self.types.is_empty() || u.arbitrary()?;
         self.arbitrary_start(u)?;
         self.arbitrary_elems(u)?;
         self.arbitrary_data(u)?;
@@ -1470,6 +1472,53 @@ impl Module {
         )
     }
 
+    /// Add a new global of the given type and return its global index.
+    /// `choices` can be reused in a loop to avoid allocating a new `Vec` each
+    /// time.
+    fn add_arbitrary_global_of_type(
+        &mut self,
+        ty: GlobalType,
+        num_imported_globals: usize,
+        u: &mut Unstructured,
+        choices: &mut Vec<Box<dyn Fn(&mut Unstructured, ValType) -> Result<GlobalInitExpr>>>,
+    ) -> Result<u32> {
+        choices.clear();
+        let num_funcs = self.funcs.len() as u32;
+        choices.push(Box::new(move |u, ty| {
+            Ok(GlobalInitExpr::ConstExpr(match ty {
+                ValType::I32 => ConstExpr::i32_const(u.arbitrary()?),
+                ValType::I64 => ConstExpr::i64_const(u.arbitrary()?),
+                ValType::F32 => ConstExpr::f32_const(u.arbitrary()?),
+                ValType::F64 => ConstExpr::f64_const(u.arbitrary()?),
+                ValType::V128 => ConstExpr::v128_const(u.arbitrary()?),
+                ValType::Ref(ty) => {
+                    assert!(ty.nullable);
+                    if ty.heap_type == HeapType::Func && num_funcs > 0 && u.arbitrary()? {
+                        let func = u.int_in_range(0..=num_funcs - 1)?;
+                        return Ok(GlobalInitExpr::FuncRef(func));
+                    }
+                    ConstExpr::ref_null(ty.heap_type)
+                }
+            }))
+        }));
+
+        for (i, g) in self.globals[..num_imported_globals].iter().enumerate() {
+            if !g.mutable && g.val_type == ty.val_type {
+                choices.push(Box::new(move |_, _| {
+                    Ok(GlobalInitExpr::ConstExpr(ConstExpr::global_get(i as u32)))
+                }));
+            }
+        }
+
+        let f = u.choose(&choices)?;
+        let expr = f(u, ty.val_type)?;
+        let global_idx = self.globals.len() as u32;
+        self.globals.push(ty);
+        self.defined_globals.push((global_idx, expr));
+
+        Ok(global_idx)
+    }
+
     fn arbitrary_globals(&mut self, u: &mut Unstructured) -> Result<()> {
         let mut choices: Vec<Box<dyn Fn(&mut Unstructured, ValType) -> Result<GlobalInitExpr>>> =
             vec![];
@@ -1481,42 +1530,183 @@ impl Module {
             }
 
             let ty = self.arbitrary_global_type(u)?;
+            self.add_arbitrary_global_of_type(ty, num_imported_globals, u, &mut choices)?;
 
-            choices.clear();
-            let num_funcs = self.funcs.len() as u32;
-            choices.push(Box::new(move |u, ty| {
-                Ok(GlobalInitExpr::ConstExpr(match ty {
-                    ValType::I32 => ConstExpr::i32_const(u.arbitrary()?),
-                    ValType::I64 => ConstExpr::i64_const(u.arbitrary()?),
-                    ValType::F32 => ConstExpr::f32_const(u.arbitrary()?),
-                    ValType::F64 => ConstExpr::f64_const(u.arbitrary()?),
-                    ValType::V128 => ConstExpr::v128_const(u.arbitrary()?),
-                    ValType::Ref(ty) => {
-                        assert!(ty.nullable);
-                        if ty.heap_type == HeapType::Func && num_funcs > 0 && u.arbitrary()? {
-                            let func = u.int_in_range(0..=num_funcs - 1)?;
-                            return Ok(GlobalInitExpr::FuncRef(func));
-                        }
-                        ConstExpr::ref_null(ty.heap_type)
-                    }
-                }))
-            }));
-
-            for (i, g) in self.globals[..num_imported_globals].iter().enumerate() {
-                if !g.mutable && g.val_type == ty.val_type {
-                    choices.push(Box::new(move |_, _| {
-                        Ok(GlobalInitExpr::ConstExpr(ConstExpr::global_get(i as u32)))
-                    }));
-                }
-            }
-
-            let f = u.choose(&choices)?;
-            let expr = f(u, ty.val_type)?;
-            let global_idx = self.globals.len() as u32;
-            self.globals.push(ty);
-            self.defined_globals.push((global_idx, expr));
             Ok(true)
         })
+    }
+
+    fn required_exports(&mut self, u: &mut Unstructured) -> Result<bool> {
+        let example_module = if let Some(wasm) = self.config.exports.clone() {
+            wasm
+        } else {
+            return Ok(false);
+        };
+
+        #[cfg(feature = "wasmparser")]
+        {
+            self._required_exports(u, &example_module)?;
+            Ok(true)
+        }
+        #[cfg(not(feature = "wasmparser"))]
+        {
+            let _ = (example_module, u);
+            panic!("support for `exports` was disabled at compile time");
+        }
+    }
+
+    #[cfg(feature = "wasmparser")]
+    fn _required_exports(&mut self, u: &mut Unstructured, example_module: &[u8]) -> Result<()> {
+        fn convert_heap_type(ty: &wasmparser::HeapType) -> HeapType {
+            match ty {
+                wasmparser::HeapType::Concrete(_) => {
+                    panic!("Unable to handle concrete types in exports")
+                }
+                wasmparser::HeapType::Func => HeapType::Func,
+                wasmparser::HeapType::Extern => HeapType::Extern,
+                wasmparser::HeapType::Any => HeapType::Any,
+                wasmparser::HeapType::None => HeapType::None,
+                wasmparser::HeapType::NoExtern => HeapType::NoExtern,
+                wasmparser::HeapType::NoFunc => HeapType::NoFunc,
+                wasmparser::HeapType::Eq => HeapType::Eq,
+                wasmparser::HeapType::Struct => HeapType::Struct,
+                wasmparser::HeapType::Array => HeapType::Array,
+                wasmparser::HeapType::I31 => HeapType::I31,
+                wasmparser::HeapType::Exn => HeapType::Exn,
+            }
+        }
+
+        fn convert_val_type(ty: &wasmparser::ValType) -> ValType {
+            match ty {
+                wasmparser::ValType::I32 => ValType::I32,
+                wasmparser::ValType::I64 => ValType::I64,
+                wasmparser::ValType::F32 => ValType::F32,
+                wasmparser::ValType::F64 => ValType::F64,
+                wasmparser::ValType::V128 => ValType::V128,
+                wasmparser::ValType::Ref(r) => ValType::Ref(RefType {
+                    nullable: r.is_nullable(),
+                    heap_type: convert_heap_type(&r.heap_type()),
+                }),
+            }
+        }
+
+        fn convert_export_kind(kind: &wasmparser::ExternalKind) -> ExportKind {
+            match kind {
+                wasmparser::ExternalKind::Func => ExportKind::Func,
+                wasmparser::ExternalKind::Table => ExportKind::Table,
+                wasmparser::ExternalKind::Memory => ExportKind::Memory,
+                wasmparser::ExternalKind::Global => ExportKind::Global,
+                wasmparser::ExternalKind::Tag => ExportKind::Tag,
+            }
+        }
+
+        let mut required_exports: Vec<wasmparser::Export> = vec![];
+        let mut validator = wasmparser::Validator::new();
+        let exports_types = validator
+            .validate_all(&example_module)
+            .expect("Failed to validate `exports` Wasm");
+        for payload in wasmparser::Parser::new(0).parse_all(&example_module) {
+            match payload.expect("Failed to read `exports` Wasm") {
+                wasmparser::Payload::ExportSection(export_reader) => {
+                    required_exports = export_reader
+                        .into_iter()
+                        .collect::<Result<_, _>>()
+                        .expect("Failed to read `exports` export section");
+                }
+                _ => {}
+            }
+        }
+
+        // For each export, add necessary prerequisites to the module.
+        let mut choices = vec![];
+        let num_imported_globals = self.globals.len() - self.defined_globals.len();
+        for export in required_exports {
+            let new_index = match exports_types
+                .entity_type_from_export(&export)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "Unable to get type from export {:?} in `exports` Wasm",
+                        export,
+                    )
+                }) {
+                // For functions, add the type and a function with that type.
+                wasmparser::types::EntityType::Func(id) => {
+                    let subtype = exports_types.get(id).unwrap_or_else(|| {
+                        panic!(
+                            "Unable to get subtype for function {:?} in `exports` Wasm",
+                            id
+                        )
+                    });
+                    match &subtype.composite_type {
+                        wasmparser::CompositeType::Func(func_type) => {
+                            assert!(
+                                subtype.is_final,
+                                "Subtype {:?} from `exports` Wasm is not final",
+                                subtype
+                            );
+                            assert!(
+                                subtype.supertype_idx.is_none(),
+                                "Subtype {:?} from `exports` Wasm has non-empty supertype",
+                                subtype
+                            );
+                            let new_type = Rc::new(FuncType {
+                                params: func_type
+                                    .params()
+                                    .into_iter()
+                                    .map(convert_val_type)
+                                    .collect(),
+                                results: func_type
+                                    .results()
+                                    .into_iter()
+                                    .map(convert_val_type)
+                                    .collect(),
+                            });
+                            self.rec_groups.push(self.types.len()..self.types.len() + 1);
+                            let type_index = self.add_type(SubType {
+                                is_final: true,
+                                supertype: None,
+                                composite_type: CompositeType::Func(Rc::clone(&new_type)),
+                            });
+                            let func_index = self.funcs.len() as u32;
+                            self.funcs.push((type_index, new_type));
+                            self.num_defined_funcs += 1;
+                            func_index
+                        }
+                        _ => panic!(
+                            "Unable to handle type {:?} from `exports` Wasm",
+                            subtype.composite_type
+                        ),
+                    }
+                }
+                // For globals, add a new global.
+                wasmparser::types::EntityType::Global(global_type) => self
+                    .add_arbitrary_global_of_type(
+                        GlobalType {
+                            val_type: convert_val_type(&global_type.content_type),
+                            mutable: global_type.mutable,
+                        },
+                        num_imported_globals,
+                        u,
+                        &mut choices,
+                    )?,
+                wasmparser::types::EntityType::Table(_)
+                | wasmparser::types::EntityType::Memory(_)
+                | wasmparser::types::EntityType::Tag(_) => {
+                    panic!(
+                        "Config `exports` has an export of type {:?} which cannot yet be handled.",
+                        export.kind
+                    )
+                }
+            };
+            self.exports.push((
+                export.name.to_string(),
+                convert_export_kind(&export.kind),
+                new_index,
+            ));
+            self.export_names.insert(export.name.to_string());
+        }
+
+        Ok(())
     }
 
     fn arbitrary_exports(&mut self, u: &mut Unstructured) -> Result<()> {
@@ -1773,7 +1963,7 @@ impl Module {
 
     fn arbitrary_code(&mut self, u: &mut Unstructured) -> Result<()> {
         self.code.reserve(self.num_defined_funcs);
-        let mut allocs = CodeBuilderAllocations::new(self);
+        let mut allocs = CodeBuilderAllocations::new(self, self.config.exports.is_some());
         for (_, ty) in self.funcs[self.funcs.len() - self.num_defined_funcs..].iter() {
             let body = self.arbitrary_func_body(u, ty, &mut allocs)?;
             self.code.push(body);

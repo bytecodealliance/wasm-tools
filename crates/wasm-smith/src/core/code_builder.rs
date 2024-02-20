@@ -648,6 +648,10 @@ pub(crate) struct CodeBuilderAllocations {
     global_dropped_f32: Option<u32>,
     global_dropped_f64: Option<u32>,
     global_dropped_v128: Option<u32>,
+
+    // Indicates that additional exports cannot be generated. This will be true
+    // if the `Config` specifies exactly which exports should be present.
+    disallow_exporting: bool,
 }
 
 pub(crate) struct CodeBuilder<'a> {
@@ -704,7 +708,7 @@ enum Float {
 }
 
 impl CodeBuilderAllocations {
-    pub(crate) fn new(module: &Module) -> Self {
+    pub(crate) fn new(module: &Module, disallow_exporting: bool) -> Self {
         let mut mutable_globals = BTreeMap::new();
         for (i, global) in module.globals.iter().enumerate() {
             if global.mutable {
@@ -769,6 +773,42 @@ impl CodeBuilderAllocations {
             }
         }
 
+        let mut global_dropped_i32 = None;
+        let mut global_dropped_i64 = None;
+        let mut global_dropped_f32 = None;
+        let mut global_dropped_f64 = None;
+        let mut global_dropped_v128 = None;
+
+        // If we can't export additional globals, try to use existing exported
+        // mutable globals for dropped values.
+        if disallow_exporting {
+            for (_, kind, index) in module.exports.iter() {
+                if *kind == ExportKind::Global {
+                    let ty = module.globals[*index as usize];
+                    if ty.mutable {
+                        match ty.val_type {
+                            ValType::I32 => {
+                                if global_dropped_i32.is_none() {
+                                    global_dropped_i32 = Some(*index)
+                                } else {
+                                    global_dropped_f32 = Some(*index)
+                                }
+                            }
+                            ValType::I64 => {
+                                if global_dropped_i64.is_none() {
+                                    global_dropped_i64 = Some(*index)
+                                } else {
+                                    global_dropped_f64 = Some(*index)
+                                }
+                            }
+                            ValType::V128 => global_dropped_v128 = Some(*index),
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+
         CodeBuilderAllocations {
             controls: Vec::with_capacity(4),
             operands: Vec::with_capacity(16),
@@ -782,13 +822,14 @@ impl CodeBuilderAllocations {
             memory32,
             memory64,
 
-            global_dropped_i32: None,
-            global_dropped_i64: None,
-            global_dropped_f32: None,
-            global_dropped_f64: None,
-            global_dropped_v128: None,
+            global_dropped_i32,
+            global_dropped_i64,
+            global_dropped_f32,
+            global_dropped_f64,
+            global_dropped_v128,
             globals_cnt: module.globals.len() as u32,
             new_globals: Vec::new(),
+            disallow_exporting,
         }
     }
 
@@ -822,8 +863,9 @@ impl CodeBuilderAllocations {
     pub fn finish(self, u: &mut Unstructured<'_>, module: &mut Module) -> arbitrary::Result<()> {
         // Any globals injected as part of dropping operands on the stack get
         // injected into the module here. Each global is then exported, most of
-        // the time, to ensure it's part of the "image" of this module available
-        // for differential execution for example.
+        // the time (if additional exports are allowed), to ensure it's part of
+        // the "image" of this module available for differential execution for
+        // example.
         for (ty, init) in self.new_globals {
             let global_idx = module.globals.len() as u32;
             module.globals.push(GlobalType {
@@ -833,7 +875,7 @@ impl CodeBuilderAllocations {
             let init = GlobalInitExpr::ConstExpr(init);
             module.defined_globals.push((global_idx, init));
 
-            if u.ratio(1, 100).unwrap_or(false) {
+            if self.disallow_exporting || u.ratio(1, 100).unwrap_or(false) {
                 continue;
             }
 
