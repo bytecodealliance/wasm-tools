@@ -51,7 +51,7 @@ fn smoke_test_exported_global() {
         	(func (export "a") (param i32 i32 f32 f64) (result f32)
         		unreachable
         	)
-            (global (export "glob") f64 (f64.const 0))
+            (global (export "glob") f64 f64.const 0)
         )
         "#;
     smoke_test_exports(test, 20)

@@ -88,7 +88,7 @@ macro_rules! define_config {
             /// Some(wat::parse_str(r#"
             ///     (module
             ///         (func (export "foo") (param i32) (result i64) unreachable)
-            ///         (global (export "bar") f32)
+            ///         (global (export "bar") f32 f32.const 0)
             ///     )
             /// "#));
             /// ```
