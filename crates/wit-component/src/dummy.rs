@@ -128,6 +128,9 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId) -> Vec<u8> {
                 WasmType::I64 => dst.push_str("i64"),
                 WasmType::F32 => dst.push_str("f32"),
                 WasmType::F64 => dst.push_str("f64"),
+                WasmType::Pointer => dst.push_str("i32"),
+                WasmType::PointerOrI64 => dst.push_str("i64"),
+                WasmType::Length => dst.push_str("i32"),
             }
         }
         dst.push(')');

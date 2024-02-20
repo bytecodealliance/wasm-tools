@@ -23,6 +23,9 @@ fn wasm_sig_to_func_type(signature: WasmSignature) -> FuncType {
             WasmType::I64 => ValType::I64,
             WasmType::F32 => ValType::F32,
             WasmType::F64 => ValType::F64,
+            WasmType::Pointer => ValType::I32,
+            WasmType::PointerOrI64 => ValType::I64,
+            WasmType::Length => ValType::I32,
         }
     }
 

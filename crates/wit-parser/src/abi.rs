@@ -1,6 +1,6 @@
 use crate::{Function, Handle, Int, Resolve, Type, TypeDefKind};
 
-/// A raw WebAssembly signature with params and results.
+/// A core WebAssembly signature with params and results.
 #[derive(Clone, Debug, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub struct WasmSignature {
     /// The WebAssembly parameters of this function.
@@ -31,6 +31,29 @@ pub enum WasmType {
     I64,
     F32,
     F64,
+
+    /// A pointer type. In core Wasm this typically lowers to either `i32` or
+    /// `i64` depending on the index type of the exported linear memory,
+    /// however bindings can use different source-level types to preserve
+    /// provenance.
+    ///
+    /// Users that don't do anything special for pointers can treat this as
+    /// `i32`.
+    Pointer,
+
+    /// A type for values which can be either pointers or 64-bit integers.
+    /// This occurs in variants, when pointers and non-pointers are unified.
+    ///
+    /// Users that don't do anything special for pointers can treat this as
+    /// `i64`.
+    PointerOrI64,
+
+    /// An array length type. In core Wasm this lowers to either `i32` or `i64`
+    /// depending on the index type of the exported linear memory.
+    ///
+    /// Users that don't do anything special for pointers can treat this as
+    /// `i32`.
+    Length,
     // NOTE: we don't lower interface types to any other Wasm type,
     // e.g. externref, so we don't need to define them here.
 }
@@ -39,10 +62,41 @@ fn join(a: WasmType, b: WasmType) -> WasmType {
     use WasmType::*;
 
     match (a, b) {
-        (I32, I32) | (I64, I64) | (F32, F32) | (F64, F64) => a,
+        (I32, I32)
+        | (I64, I64)
+        | (F32, F32)
+        | (F64, F64)
+        | (Pointer, Pointer)
+        | (PointerOrI64, PointerOrI64)
+        | (Length, Length) => a,
 
         (I32, F32) | (F32, I32) => I32,
 
+        // A length is at least an `i32`, maybe more, so it wins over
+        // 32-bit types.
+        (Length, I32 | F32) => Length,
+        (I32 | F32, Length) => Length,
+
+        // A length might be an `i64`, but might not be, so if we have
+        // 64-bit types, they win.
+        (Length, I64 | F64) => I64,
+        (I64 | F64, Length) => I64,
+
+        // Pointers have provenance and are at least an `i32`, so they
+        // win over 32-bit and length types.
+        (Pointer, I32 | F32 | Length) => Pointer,
+        (I32 | F32 | Length, Pointer) => Pointer,
+
+        // If we need 64 bits and provenance, we need to use the special
+        // `PointerOrI64`.
+        (Pointer, I64 | F64) => PointerOrI64,
+        (I64 | F64, Pointer) => PointerOrI64,
+
+        // PointerOrI64 wins over everything.
+        (PointerOrI64, _) => PointerOrI64,
+        (_, PointerOrI64) => PointerOrI64,
+
+        // Otherwise, `i64` wins.
         (_, I64 | F64) | (I64 | F64, _) => I64,
     }
 }
@@ -92,7 +146,7 @@ impl Resolve {
 
         if params.len() > MAX_FLAT_PARAMS {
             params.truncate(0);
-            params.push(WasmType::I32);
+            params.push(WasmType::Pointer);
             indirect_params = true;
         }
 
@@ -112,10 +166,10 @@ impl Resolve {
             results.truncate(0);
             match variant {
                 AbiVariant::GuestImport => {
-                    params.push(WasmType::I32);
+                    params.push(WasmType::Pointer);
                 }
                 AbiVariant::GuestExport => {
-                    results.push(WasmType::I32);
+                    results.push(WasmType::Pointer);
                 }
             }
         }
@@ -145,8 +199,8 @@ impl Resolve {
             Type::Float32 => result.push(WasmType::F32),
             Type::Float64 => result.push(WasmType::F64),
             Type::String => {
-                result.push(WasmType::I32);
-                result.push(WasmType::I32);
+                result.push(WasmType::Pointer);
+                result.push(WasmType::Length);
             }
 
             Type::Id(id) => match &self.types[*id].kind {
@@ -177,8 +231,8 @@ impl Resolve {
                 }
 
                 TypeDefKind::List(_) => {
-                    result.push(WasmType::I32);
-                    result.push(WasmType::I32);
+                    result.push(WasmType::Pointer);
+                    result.push(WasmType::Length);
                 }
 
                 TypeDefKind::Variant(v) => {
