@@ -46,7 +46,7 @@ pub enum WasmType {
     ///
     /// Users that don't do anything special for pointers can treat this as
     /// `i64`.
-    Pointer64,
+    PointerOrI64,
 
     /// An array length type. In core Wasm this lowers to either `i32` or `i64`
     /// depending on the index type of the exported linear memory.
@@ -67,7 +67,7 @@ fn join(a: WasmType, b: WasmType) -> WasmType {
         | (F32, F32)
         | (F64, F64)
         | (Pointer, Pointer)
-        | (Pointer64, Pointer64)
+        | (PointerOrI64, PointerOrI64)
         | (Length, Length) => a,
 
         (I32, F32) | (F32, I32) => I32,
@@ -88,13 +88,13 @@ fn join(a: WasmType, b: WasmType) -> WasmType {
         (I32 | F32 | Length, Pointer) => Pointer,
 
         // If we need 64 bits and provenance, we need to use the special
-        // `Pointer64`.
-        (Pointer, I64 | F64) => Pointer64,
-        (I64 | F64, Pointer) => Pointer64,
+        // `PointerOrI64`.
+        (Pointer, I64 | F64) => PointerOrI64,
+        (I64 | F64, Pointer) => PointerOrI64,
 
-        // Pointer64 wins over everything.
-        (Pointer64, _) => Pointer64,
-        (_, Pointer64) => Pointer64,
+        // PointerOrI64 wins over everything.
+        (PointerOrI64, _) => PointerOrI64,
+        (_, PointerOrI64) => PointerOrI64,
 
         // Otherwise, `i64` wins.
         (_, I64 | F64) | (I64 | F64, _) => I64,

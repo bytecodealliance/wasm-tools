@@ -107,7 +107,7 @@ fn to_val_type(ty: &WasmType) -> ValType {
         WasmType::F32 => ValType::F32,
         WasmType::F64 => ValType::F64,
         WasmType::Pointer => ValType::I32,
-        WasmType::Pointer64 => ValType::I64,
+        WasmType::PointerOrI64 => ValType::I64,
         WasmType::Length => ValType::I32,
     }
 }
