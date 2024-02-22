@@ -1,6 +1,5 @@
 //! Dummy implementations of things that a Wasm module can import.
 
-use anyhow::Result;
 use wasmtime::*;
 
 /// Create a set of dummy functions/globals/etc for the given imports.

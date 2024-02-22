@@ -1,7 +1,6 @@
 //! Nodes for intermediate representation of Wasm operators
 //!
 use egg::Id;
-use std::convert::TryInto;
 use std::fmt::{self, Display};
 use std::str::FromStr;
 use wasm_encoder::HeapType;

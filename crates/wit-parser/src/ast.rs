@@ -3,7 +3,6 @@ use anyhow::{bail, Context, Result};
 use lex::{Span, Token, Tokenizer};
 use semver::Version;
 use std::borrow::Cow;
-use std::convert::TryFrom;
 use std::fmt;
 use std::path::{Path, PathBuf};
 

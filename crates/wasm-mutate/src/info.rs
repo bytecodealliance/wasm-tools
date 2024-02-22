@@ -3,7 +3,6 @@ use crate::{
     Result,
 };
 use std::collections::HashSet;
-use std::convert::TryFrom;
 use std::ops::Range;
 use wasm_encoder::{RawSection, SectionId};
 use wasmparser::{Chunk, Parser, Payload};

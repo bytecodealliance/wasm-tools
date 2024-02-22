@@ -8,7 +8,6 @@ use crate::{
     GlobalSectionReader, ImportSectionReader, InstanceSectionReader, MemorySectionReader, Result,
     SectionLimited, TableSectionReader, TagSectionReader, TypeSectionReader,
 };
-use std::convert::TryInto;
 use std::fmt;
 use std::iter;
 use std::ops::Range;

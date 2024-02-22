@@ -1,7 +1,6 @@
 use super::*;
 use anyhow::{bail, Result};
 use std::mem;
-use wasm_encoder::BlockType;
 
 impl Module {
     /// Ensure that all of this Wasm module's functions will terminate when

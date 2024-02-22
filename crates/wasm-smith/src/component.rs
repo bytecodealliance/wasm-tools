@@ -7,7 +7,6 @@
 use crate::{arbitrary_loop, Config};
 use arbitrary::{Arbitrary, Result, Unstructured};
 use std::collections::BTreeMap;
-use std::convert::TryFrom;
 use std::{
     collections::{HashMap, HashSet},
     rc::Rc,

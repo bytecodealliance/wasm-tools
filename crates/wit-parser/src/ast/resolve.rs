@@ -1,8 +1,7 @@
-use super::{Error, ParamList, ResultList, WorldOrInterface};
+use super::{ParamList, ResultList, WorldOrInterface};
 use crate::ast::toposort::toposort;
 use crate::*;
-use anyhow::{bail, Result};
-use indexmap::IndexMap;
+use anyhow::bail;
 use std::collections::{HashMap, HashSet};
 use std::mem;
 
