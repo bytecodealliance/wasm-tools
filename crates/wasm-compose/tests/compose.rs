@@ -74,6 +74,7 @@ fn component_composing() -> Result<()> {
                             }
                         }
                     }
+                    err.push_str("\n");
                     (err.replace('\\', "/"), &error_path)
                 }
             }
@@ -112,7 +113,7 @@ fn component_composing() -> Result<()> {
         };
 
         if std::env::var_os("BLESS").is_some() {
-            fs::write(baseline_path, output + "\n")?;
+            fs::write(baseline_path, output)?;
         } else {
             assert_eq!(
                 fs::read_to_string(baseline_path)
@@ -120,8 +121,7 @@ fn component_composing() -> Result<()> {
                         "failed to read component baseline `{}`",
                         baseline_path.display()
                     ))?
-                    .replace("\r\n", "\n")
-                    .trim(),
+                    .replace("\r\n", "\n"),
                 output,
                 "failed baseline comparison for test case `{}` ({})",
                 test_case,
