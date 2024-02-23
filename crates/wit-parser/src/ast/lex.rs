@@ -1,6 +1,5 @@
 use anyhow::{bail, Result};
 use std::char;
-use std::convert::TryFrom;
 use std::fmt;
 use std::str;
 use unicode_xid::UnicodeXID;

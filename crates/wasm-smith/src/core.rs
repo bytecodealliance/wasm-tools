@@ -9,7 +9,6 @@ use arbitrary::{Arbitrary, Result, Unstructured};
 use code_builder::CodeBuilderAllocations;
 use flagset::{flags, FlagSet};
 use std::collections::{HashMap, HashSet};
-use std::convert::TryFrom;
 use std::ops::Range;
 use std::rc::Rc;
 use std::str::{self, FromStr};

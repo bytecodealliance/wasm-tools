@@ -1,5 +1,4 @@
 use super::*;
-use std::convert::TryFrom;
 
 impl Module {
     /// Encode this Wasm module into bytes.

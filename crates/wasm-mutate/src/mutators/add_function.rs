@@ -4,7 +4,6 @@ use super::Mutator;
 use crate::module::{PrimitiveTypeInfo, TypeInfo};
 use crate::{Result, WasmMutate};
 use rand::Rng;
-use std::convert::TryFrom;
 use wasm_encoder::{HeapType, Instruction, Module};
 
 /// Mutator that adds new, empty functions to a Wasm module.

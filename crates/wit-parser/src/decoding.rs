@@ -1,7 +1,6 @@
-use crate::docs::PackageDocs;
 use crate::*;
-use anyhow::{anyhow, bail, Context, Result};
-use indexmap::{IndexMap, IndexSet};
+use anyhow::{anyhow, bail};
+use indexmap::IndexSet;
 use std::mem;
 use std::{collections::HashMap, io::Read};
 use wasmparser::Chunk;

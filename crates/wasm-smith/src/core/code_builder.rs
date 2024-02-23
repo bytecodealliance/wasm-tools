@@ -5,7 +5,6 @@ use super::{
 use crate::{unique_string, MemoryOffsetChoices};
 use arbitrary::{Result, Unstructured};
 use std::collections::{BTreeMap, BTreeSet};
-use std::convert::TryFrom;
 use std::rc::Rc;
 use wasm_encoder::{
     ArrayType, BlockType, Catch, ConstExpr, ExportKind, FieldType, GlobalType, HeapType, MemArg,
