@@ -547,7 +547,7 @@ impl Printer {
                     self.print_component_exports(states.last_mut().unwrap(), s)?;
                 }
 
-                Payload::End(_) => {
+                Payload::End(offset) => {
                     self.end_group(); // close the `module` or `component` group
 
                     let state = states.pop().unwrap();
@@ -562,6 +562,10 @@ impl Printer {
                         }
                         parser = parsers.pop().unwrap();
                     } else {
+                        self.newline(offset);
+                        if self.print_offsets {
+                            self.result.push('\n');
+                        }
                         break;
                     }
                 }

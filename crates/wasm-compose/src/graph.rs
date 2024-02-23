@@ -1329,7 +1329,11 @@ mod test {
         })?;
 
         let wat = wasmprinter::print_bytes(encoded)?;
-        assert_eq!(r#"(component)"#, wat);
+        assert_eq!(
+            r#"(component)
+"#,
+            wat
+        );
 
         Ok(())
     }
@@ -1356,7 +1360,8 @@ mod test {
   )
   (import "b" (component (;0;) (type 0)))
   (instance (;0;) (instantiate 0))
-)"#,
+)
+"#,
             wat
         );
 
@@ -1382,7 +1387,8 @@ mod test {
             r#"(component
   (component (;0;))
   (instance (;0;) (instantiate 0))
-)"#,
+)
+"#,
             wat
         );
 
@@ -1552,7 +1558,8 @@ mod test {
       (with "i5" (type 4))
     )
   )
-)"#,
+)
+"#,
             wat
         );
 
