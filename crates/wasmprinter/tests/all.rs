@@ -259,7 +259,8 @@ fn offsets_and_lines_smoke_test() {
         (Some(0x20), "    local.get 0\n"),
         (None,       "  )\n"),
         (Some(0x17), "  (export \"f\" (func 0))\n"),
-        (None,       ")"),
+        (None,       ")\n"),
+        (Some(0x23), ""),
     ];
 
     assert_eq!(actual, expected);
