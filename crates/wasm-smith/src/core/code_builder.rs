@@ -1,6 +1,6 @@
 use super::{
-    CompositeType, Elements, FuncType, GlobalInitExpr, Instruction, InstructionKind::*,
-    InstructionKinds, Module, ValType,
+    CompositeType, Elements, FuncType, Instruction, InstructionKind::*, InstructionKinds, Module,
+    ValType,
 };
 use crate::{unique_string, MemoryOffsetChoices};
 use arbitrary::{Result, Unstructured};
@@ -744,14 +744,14 @@ impl CodeBuilderAllocations {
 
         let mut referenced_functions = BTreeSet::new();
         for (_, expr) in module.defined_globals.iter() {
-            if let GlobalInitExpr::FuncRef(i) = *expr {
+            if let Some(i) = expr.get_ref_func() {
                 referenced_functions.insert(i);
             }
         }
         for g in module.elems.iter() {
             match &g.items {
                 Elements::Expressions(e) => {
-                    let iter = e.iter().filter_map(|i| *i);
+                    let iter = e.iter().filter_map(|e| e.get_ref_func());
                     referenced_functions.extend(iter);
                 }
                 Elements::Functions(e) => {
@@ -871,7 +871,6 @@ impl CodeBuilderAllocations {
                 val_type: ty,
                 mutable: true,
             });
-            let init = GlobalInitExpr::ConstExpr(init);
             module.defined_globals.push((global_idx, init));
 
             if self.disallow_exporting || u.ratio(1, 100).unwrap_or(false) {

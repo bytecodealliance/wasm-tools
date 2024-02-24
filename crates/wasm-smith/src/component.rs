@@ -954,7 +954,7 @@ impl ComponentBuilder {
     }
 
     fn arbitrary_core_table_type(&self, u: &mut Unstructured) -> Result<crate::core::TableType> {
-        crate::core::arbitrary_table_type(u, &self.config)
+        crate::core::arbitrary_table_type(u, &self.config, None)
     }
 
     fn arbitrary_core_memory_type(&self, u: &mut Unstructured) -> Result<crate::core::MemoryType> {
