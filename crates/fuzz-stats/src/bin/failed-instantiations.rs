@@ -113,7 +113,15 @@ impl State {
         // 1gb of memory. That's half the default allocation of memory for
         // libfuzzer-based fuzzers by default, and ideally we're not in a
         // situation where most of the modules are above this threshold.
-        let module = Module::new(&self.engine, &wasm).expect("failed to compile module");
+        let module = match Module::new(&self.engine, &wasm) {
+            Ok(m) => m,
+            // NB: after bytecodealliance/wasm-tools#1426 wasm-smith is
+            // generating modules that Wasmtime can't handle until
+            // bytecodealliance/wasmtime#7996 is on crates.io, until that time
+            // ignore these errors.
+            Err(e) if format!("{e:?}").contains("unsupported init expr") => return Ok(()),
+            Err(e) => panic!("unexpected module compile error {e:?}"),
+        };
         let mut store = Store::new(
             &self.engine,
             fuzz_stats::limits::StoreLimits {
