@@ -128,6 +128,7 @@ fn smoke_test_wasm_gc() {
         let mut u = Unstructured::new(&buf);
         let config = Config {
             gc_enabled: true,
+            reference_types_enabled: true,
             ..Config::default()
         };
         if let Ok(module) = Module::new(config, &mut u) {
