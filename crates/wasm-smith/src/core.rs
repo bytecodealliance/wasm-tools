@@ -2353,16 +2353,9 @@ pub(crate) fn arbitrary_table_type(
     if config.disallow_traps {
         assert!(minimum > 0);
     }
-    let element_type = if !config.reference_types_enabled {
-        // Without reference types the only available type is `funcref` as
-        // that's all that was available with MVP wasm.
-        RefType::FUNCREF
-    } else if !config.gc_enabled || module.is_none() {
-        // With reference types, but without GC, there's only two options.
-        *u.choose(&[RefType::FUNCREF, RefType::EXTERNREF])?
-    } else {
-        // With GC we get the full suite of reference types available to us.
-        module.unwrap().arbitrary_ref_type(u)?
+    let element_type = match module {
+        Some(module) => module.arbitrary_ref_type(u)?,
+        None => RefType::FUNCREF,
     };
     Ok(TableType {
         element_type,
