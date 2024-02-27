@@ -3302,6 +3302,20 @@ impl ConstExpr {
     pub fn with_i64_mul(self) -> Self {
         self.with_insn(Instruction::I64Mul)
     }
+
+    /// Returns the function, if any, referenced by this global.
+    pub fn get_ref_func(&self) -> Option<u32> {
+        let prefix = *self.bytes.get(0)?;
+        // 0xd2 == `ref.func` opcode, and if that's found then load the leb
+        // corresponding to the function index.
+        if prefix != 0xd2 {
+            return None;
+        }
+        leb128::read::unsigned(&mut &self.bytes[1..])
+            .ok()?
+            .try_into()
+            .ok()
+    }
 }
 
 impl Encode for ConstExpr {
