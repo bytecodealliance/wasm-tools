@@ -211,6 +211,10 @@ pub struct Metadata<'a> {
     /// Whether this module includes any `component-type*` custom sections which include exports
     pub has_component_exports: bool,
 
+    /// Whether this module imports `__asyncify_state` or `__asyncify_data`, indicating that it is
+    /// asyncified with `--pass-arg=asyncify-relocatable` option.
+    pub is_asyncified: bool,
+
     /// The functions imported from the `env` module, if any
     pub env_imports: BTreeSet<(&'a str, (FunctionType, SymbolFlags))>,
 
@@ -313,6 +317,7 @@ impl<'a> Metadata<'a> {
             has_wasi_start: false,
             has_set_libraries: false,
             has_component_exports,
+            is_asyncified: false,
             env_imports: BTreeSet::new(),
             memory_address_imports: BTreeSet::new(),
             table_address_imports: BTreeSet::new(),
@@ -377,6 +382,18 @@ impl<'a> Metadata<'a> {
                         match (import.module, import.name) {
                             ("env", "memory") => {
                                 if !matches!(import.ty, TypeRef::Memory(_)) {
+                                    return type_error();
+                                }
+                            }
+                            ("env", "__asyncify_data" | "__asyncify_state") => {
+                                result.is_asyncified = true;
+                                if !matches!(
+                                    import.ty,
+                                    TypeRef::Global(wasmparser::GlobalType {
+                                        content_type: ValType::I32,
+                                        ..
+                                    })
+                                ) {
                                     return type_error();
                                 }
                             }

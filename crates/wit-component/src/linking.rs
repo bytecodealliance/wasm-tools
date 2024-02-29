@@ -358,6 +358,14 @@ fn make_env_module<'a>(
 
         add_global_export("__stack_pointer", stack_size_bytes, true);
 
+        // Binaryen's Asyncify transform for shared everything linking requires these globals
+        // to be provided from env module
+        let has_asyncified_module = metadata.iter().any(|m| m.is_asyncified);
+        if has_asyncified_module {
+            add_global_export("__asyncify_state", 0, true);
+            add_global_export("__asyncify_data", 0, true);
+        }
+
         for metadata in metadata {
             memory_offset = align(memory_offset, 1 << metadata.mem_info.memory_alignment);
             table_offset = align(table_offset, 1 << metadata.mem_info.table_alignment);
@@ -1436,6 +1444,24 @@ impl Linker {
                         name: (*name).into(),
                     }
                 }))
+                .chain(if metadata.is_asyncified {
+                    vec![
+                        Item {
+                            alias: "__asyncify_state".into(),
+                            kind: ExportKind::Global,
+                            which: MainOrAdapter::Main,
+                            name: "__asyncify_state".into(),
+                        },
+                        Item {
+                            alias: "__asyncify_data".into(),
+                            kind: ExportKind::Global,
+                            which: MainOrAdapter::Main,
+                            name: "__asyncify_data".into(),
+                        },
+                    ]
+                } else {
+                    vec![]
+                })
                 .collect();
 
             let global_item = |address_name: &str| Item {
