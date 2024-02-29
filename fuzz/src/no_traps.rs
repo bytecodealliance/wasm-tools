@@ -35,7 +35,14 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         eng_conf.wasm_multi_memory(true);
         eng_conf.consume_fuel(true);
         let engine = Engine::new(&eng_conf).unwrap();
-        let module = Module::from_binary(&engine, &wasm_bytes).unwrap();
+        let module = match Module::from_binary(&engine, &wasm_bytes) {
+            Ok(m) => m,
+            // Waiting on wasmtime to get published to fix this.
+            Err(e) if format!("{e:?}").contains("unsupported init expr in element section") => {
+                return Ok(())
+            }
+            Err(e) => panic!("failed to compile module {e:?}"),
+        };
 
         // Call all exported functions
         for export in module.exports() {
