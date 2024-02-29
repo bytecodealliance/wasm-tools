@@ -6,6 +6,7 @@ use crate::token::Id;
 use crate::token::{Index, Span};
 use std::collections::HashMap;
 use std::mem;
+use serde::Serialize as SerializeT;
 
 /// Performs an AST "expansion" pass over the component fields provided.
 ///
@@ -599,7 +600,7 @@ impl<'a> Expander<'a> {
         *ty = ComponentValType::Ref(idx);
     }
 
-    fn expand_core_type_use<T>(
+    fn expand_core_type_use<T: SerializeT>(
         &mut self,
         item: &mut CoreTypeUse<'a, T>,
     ) -> CoreItemRef<'a, kw::r#type>
@@ -652,7 +653,7 @@ impl<'a> Expander<'a> {
         ret
     }
 
-    fn expand_component_type_use<T>(
+    fn expand_component_type_use<T: SerializeT>(
         &mut self,
         item: &mut ComponentTypeUse<'a, T>,
     ) -> ItemRef<'a, kw::r#type>

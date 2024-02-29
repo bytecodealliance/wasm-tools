@@ -2,15 +2,18 @@ use crate::core::*;
 use crate::parser::{Parse, Parser, Result};
 use crate::token::{Id, Index, NameAnnotation, Span};
 use crate::{annotation, kw};
+use serde_derive::{Serialize, Deserialize};
 
 pub use crate::core::resolve::Names;
 
 /// A parsed WebAssembly core module.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct Module<'a> {
     /// Where this `module` was defined
     pub span: Span,
     /// An optional identifier this module is known by
+    #[serde(borrow)]
     pub id: Option<Id<'a>>,
     /// An optional `@name` annotation for this module
     pub name: Option<NameAnnotation<'a>>,
@@ -20,8 +23,11 @@ pub struct Module<'a> {
 
 /// The different kinds of ways to define a module.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum ModuleKind<'a> {
     /// A module defined in the textual s-expression format.
+    #[serde(borrow)]
     Text(Vec<ModuleField<'a>>),
     /// A module that had its raw binary bytes defined via the `binary`
     /// directive.
@@ -142,7 +148,10 @@ impl<'a> Parse<'a> for Module<'a> {
 /// A listing of all possible fields that can make up a WebAssembly module.
 #[allow(missing_docs)]
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum ModuleField<'a> {
+    #[serde(borrow)]
     Type(Type<'a>),
     Rec(Rec<'a>),
     Import(Import<'a>),

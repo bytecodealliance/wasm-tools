@@ -7,14 +7,18 @@ use crate::parser::{Parse, Parser, Result};
 use crate::token::Index;
 use crate::token::LParen;
 use crate::token::{Id, NameAnnotation, Span};
+use serde_derive::{Serialize, Deserialize};
+use serde::Serialize as SerializeT;
 
 /// A core type declaration.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct CoreType<'a> {
     /// Where this type was defined.
     pub span: Span,
     /// An optional identifier to refer to this `core type` by as part of name
     /// resolution.
+    #[serde(borrow)]
     pub id: Option<Id<'a>>,
     /// An optional name for this type stored in the custom `name` section.
     pub name: Option<NameAnnotation<'a>>,
@@ -44,8 +48,11 @@ impl<'a> Parse<'a> for CoreType<'a> {
 /// In the future this may be removed when module types are a part of
 /// a core module.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum CoreTypeDef<'a> {
     /// The type definition is one of the core types.
+    #[serde(borrow)]
     Def(core::TypeDef<'a>),
     /// The type definition is a module type.
     Module(ModuleType<'a>),
@@ -64,8 +71,10 @@ impl<'a> Parse<'a> for CoreTypeDef<'a> {
 
 /// A type definition for a core module.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct ModuleType<'a> {
     /// The declarations of the module type.
+    #[serde(borrow)]
     pub decls: Vec<ModuleTypeDecl<'a>>,
 }
 
@@ -80,6 +89,8 @@ impl<'a> Parse<'a> for ModuleType<'a> {
 
 /// The declarations of a [`ModuleType`].
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum ModuleTypeDecl<'a> {
     /// A core type.
     Type(core::Type<'a>),
@@ -123,11 +134,13 @@ impl<'a> Parse<'a> for Vec<ModuleTypeDecl<'a>> {
 
 /// A type declaration in a component.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct Type<'a> {
     /// Where this type was defined.
     pub span: Span,
     /// An optional identifier to refer to this `type` by as part of name
     /// resolution.
+    #[serde(borrow)]
     pub id: Option<Id<'a>>,
     /// An optional name for this type stored in the custom `name` section.
     pub name: Option<NameAnnotation<'a>>,
@@ -172,8 +185,11 @@ impl<'a> Type<'a> {
 
 /// A definition of a component type.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum TypeDef<'a> {
     /// A defined value type.
+    #[serde(borrow)]
     Defined(ComponentDefinedType<'a>),
     /// A component function type.
     Func(ComponentFunctionType<'a>),
@@ -220,6 +236,8 @@ impl<'a> Parse<'a> for TypeDef<'a> {
 /// A primitive value type.
 #[allow(missing_docs)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum PrimitiveValType {
     Bool,
     S8,
@@ -312,8 +330,11 @@ impl Peek for PrimitiveValType {
 /// A component value type.
 #[allow(missing_docs)]
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum ComponentValType<'a> {
     /// The value type is an inline defined type.
+    #[serde(borrow)]
     Inline(ComponentDefinedType<'a>),
     /// The value type is an index reference to a defined type.
     Ref(Index<'a>),
@@ -344,7 +365,11 @@ impl Peek for ComponentValType<'_> {
 /// This variation does not parse type indexes.
 #[allow(missing_docs)]
 #[derive(Debug)]
-pub struct InlineComponentValType<'a>(ComponentDefinedType<'a>);
+#[derive(Serialize, Deserialize)]
+pub struct InlineComponentValType<'a>(
+    #[serde(borrow)]
+    ComponentDefinedType<'a>
+);
 
 impl<'a> Parse<'a> for InlineComponentValType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
@@ -364,8 +389,11 @@ impl<'a> Parse<'a> for InlineComponentValType<'a> {
 // A component defined type.
 #[allow(missing_docs)]
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum ComponentDefinedType<'a> {
     Primitive(PrimitiveValType),
+    #[serde(borrow)]
     Record(Record<'a>),
     Variant(Variant<'a>),
     List(List<'a>),
@@ -446,8 +474,10 @@ impl Peek for ComponentDefinedType<'_> {
 
 /// A record defined type.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct Record<'a> {
     /// The fields of the record.
+    #[serde(borrow)]
     pub fields: Vec<RecordField<'a>>,
 }
 
@@ -464,6 +494,7 @@ impl<'a> Parse<'a> for Record<'a> {
 
 /// A record type field.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct RecordField<'a> {
     /// The name of the field.
     pub name: &'a str,
@@ -483,8 +514,10 @@ impl<'a> Parse<'a> for RecordField<'a> {
 
 /// A variant defined type.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct Variant<'a> {
     /// The cases of the variant type.
+    #[serde(borrow)]
     pub cases: Vec<VariantCase<'a>>,
 }
 
@@ -501,6 +534,7 @@ impl<'a> Parse<'a> for Variant<'a> {
 
 /// A case of a variant type.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct VariantCase<'a> {
     /// Where this `case` was defined
     pub span: Span,
@@ -538,9 +572,15 @@ impl<'a> Parse<'a> for VariantCase<'a> {
 
 /// A refinement for a variant case.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum Refinement<'a> {
     /// The refinement is referenced by index.
-    Index(Span, Index<'a>),
+    Index(
+        Span,
+        #[serde(borrow)]
+        Index<'a>
+    ),
     /// The refinement has been resolved to an index into
     /// the cases of the variant.
     Resolved(u32),
@@ -558,8 +598,10 @@ impl<'a> Parse<'a> for Refinement<'a> {
 
 /// A list type.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct List<'a> {
     /// The element type of the array.
+    #[serde(borrow)]
     pub element: Box<ComponentValType<'a>>,
 }
 
@@ -574,8 +616,10 @@ impl<'a> Parse<'a> for List<'a> {
 
 /// A tuple type.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct Tuple<'a> {
     /// The types of the fields of the tuple.
+    #[serde(borrow)]
     pub fields: Vec<ComponentValType<'a>>,
 }
 
@@ -592,8 +636,10 @@ impl<'a> Parse<'a> for Tuple<'a> {
 
 /// A flags type.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct Flags<'a> {
     /// The names of the individual flags.
+    #[serde(borrow)]
     pub names: Vec<&'a str>,
 }
 
@@ -610,8 +656,10 @@ impl<'a> Parse<'a> for Flags<'a> {
 
 /// An enum type.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct Enum<'a> {
     /// The tag names of the enum.
+    #[serde(borrow)]
     pub names: Vec<&'a str>,
 }
 
@@ -628,8 +676,10 @@ impl<'a> Parse<'a> for Enum<'a> {
 
 /// An optional type.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct OptionType<'a> {
     /// The type of the value, when a value is present.
+    #[serde(borrow)]
     pub element: Box<ComponentValType<'a>>,
 }
 
@@ -644,8 +694,10 @@ impl<'a> Parse<'a> for OptionType<'a> {
 
 /// A result type.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct ResultType<'a> {
     /// The type on success.
+    #[serde(borrow)]
     pub ok: Option<Box<ComponentValType<'a>>>,
     /// The type on failure.
     pub err: Option<Box<ComponentValType<'a>>>,
@@ -674,9 +726,11 @@ impl<'a> Parse<'a> for ResultType<'a> {
 
 /// A component function type with parameters and result.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct ComponentFunctionType<'a> {
     /// The parameters of a function, optionally each having an identifier for
     /// name resolution and a name for the custom `name` section.
+    #[serde(borrow)]
     pub params: Box<[ComponentFunctionParam<'a>]>,
     /// The result of a function, optionally each having an identifier for
     /// name resolution and a name for the custom `name` section.
@@ -704,6 +758,7 @@ impl<'a> Parse<'a> for ComponentFunctionType<'a> {
 
 /// A parameter of a [`ComponentFunctionType`].
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct ComponentFunctionParam<'a> {
     /// The name of the parameter
     pub name: &'a str,
@@ -723,6 +778,7 @@ impl<'a> Parse<'a> for ComponentFunctionParam<'a> {
 
 /// A result of a [`ComponentFunctionType`].
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct ComponentFunctionResult<'a> {
     /// An optionally-specified name of this result
     pub name: Option<&'a str>,
@@ -742,10 +798,12 @@ impl<'a> Parse<'a> for ComponentFunctionResult<'a> {
 
 /// The type of an exported item from an component or instance type.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct ComponentExportType<'a> {
     /// Where this export was defined.
     pub span: Span,
     /// The name of this export.
+    #[serde(borrow)]
     pub name: ComponentExternName<'a>,
     /// The signature of the item.
     pub item: ItemSig<'a>,
@@ -769,8 +827,10 @@ impl<'a> Parse<'a> for ComponentExportType<'a> {
 
 /// A type definition for a component type.
 #[derive(Debug, Default)]
+#[derive(Serialize, Deserialize)]
 pub struct ComponentType<'a> {
     /// The declarations of the component type.
+    #[serde(borrow)]
     pub decls: Vec<ComponentTypeDecl<'a>>,
 }
 
@@ -785,8 +845,11 @@ impl<'a> Parse<'a> for ComponentType<'a> {
 
 /// A declaration of a component type.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum ComponentTypeDecl<'a> {
     /// A core type definition local to the component type.
+    #[serde(borrow)]
     CoreType(CoreType<'a>),
     /// A type definition local to the component type.
     Type(Type<'a>),
@@ -829,8 +892,10 @@ impl<'a> Parse<'a> for Vec<ComponentTypeDecl<'a>> {
 
 /// A type definition for an instance type.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct InstanceType<'a> {
     /// The declarations of the instance type.
+    #[serde(borrow)]
     pub decls: Vec<InstanceTypeDecl<'a>>,
 }
 
@@ -845,8 +910,11 @@ impl<'a> Parse<'a> for InstanceType<'a> {
 
 /// A declaration of an instance type.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum InstanceTypeDecl<'a> {
     /// A core type definition local to the component type.
+    #[serde(borrow)]
     CoreType(CoreType<'a>),
     /// A type definition local to the instance type.
     Type(Type<'a>),
@@ -885,8 +953,10 @@ impl<'a> Parse<'a> for Vec<InstanceTypeDecl<'a>> {
 
 /// A type definition for an instance type.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct ResourceType<'a> {
     /// Representation, in core WebAssembly, of this resource.
+    #[serde(borrow)]
     pub rep: core::ValType<'a>,
     /// The declarations of the instance type.
     pub dtor: Option<CoreItemRef<'a, kw::func>>,
@@ -912,7 +982,11 @@ impl<'a> Parse<'a> for ResourceType<'a> {
 
 /// A value type declaration used for values in import signatures.
 #[derive(Debug)]
-pub struct ComponentValTypeUse<'a>(pub ComponentValType<'a>);
+#[derive(Serialize, Deserialize)]
+pub struct ComponentValTypeUse<'a>(
+    #[serde(borrow)]
+    pub ComponentValType<'a>
+);
 
 impl<'a> Parse<'a> for ComponentValTypeUse<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
@@ -928,14 +1002,17 @@ impl<'a> Parse<'a> for ComponentValTypeUse<'a> {
 /// This is the same as `TypeUse`, but accepts `$T` as shorthand for
 /// `(type $T)`.
 #[derive(Debug, Clone)]
-pub enum CoreTypeUse<'a, T> {
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
+pub enum CoreTypeUse<'a, T: SerializeT> {
     /// The type that we're referencing.
+    #[serde(borrow)]
     Ref(CoreItemRef<'a, kw::r#type>),
     /// The inline type.
     Inline(T),
 }
 
-impl<'a, T: Parse<'a>> Parse<'a> for CoreTypeUse<'a, T> {
+impl<'a, T: Parse<'a> + SerializeT> Parse<'a> for CoreTypeUse<'a, T> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         // Here the core context is assumed, so no core prefix is expected
         if parser.peek::<LParen>()? && parser.peek2::<CoreItemRef<'a, kw::r#type>>()? {
@@ -946,7 +1023,7 @@ impl<'a, T: Parse<'a>> Parse<'a> for CoreTypeUse<'a, T> {
     }
 }
 
-impl<T> Default for CoreTypeUse<'_, T> {
+impl<T: SerializeT> Default for CoreTypeUse<'_, T> {
     fn default() -> Self {
         let span = Span::from_offset(0);
         Self::Ref(CoreItemRef {
@@ -962,14 +1039,17 @@ impl<T> Default for CoreTypeUse<'_, T> {
 /// This is the same as `TypeUse`, but accepts `$T` as shorthand for
 /// `(type $T)`.
 #[derive(Debug, Clone)]
-pub enum ComponentTypeUse<'a, T> {
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
+pub enum ComponentTypeUse<'a, T: SerializeT> {
     /// The type that we're referencing.
+    #[serde(borrow)]
     Ref(ItemRef<'a, kw::r#type>),
     /// The inline type.
     Inline(T),
 }
 
-impl<'a, T: Parse<'a>> Parse<'a> for ComponentTypeUse<'a, T> {
+impl<'a, T: Parse<'a> + SerializeT> Parse<'a> for ComponentTypeUse<'a, T> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         if parser.peek::<LParen>()? && parser.peek2::<ItemRef<'a, kw::r#type>>()? {
             Ok(Self::Ref(parser.parens(|parser| parser.parse())?))
@@ -979,7 +1059,7 @@ impl<'a, T: Parse<'a>> Parse<'a> for ComponentTypeUse<'a, T> {
     }
 }
 
-impl<T> Default for ComponentTypeUse<'_, T> {
+impl<T: SerializeT> Default for ComponentTypeUse<'_, T> {
     fn default() -> Self {
         let span = Span::from_offset(0);
         Self::Ref(ItemRef {

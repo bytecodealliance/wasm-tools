@@ -8,9 +8,11 @@ use crate::{annotation, Error};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str;
+use serde_derive::{Serialize, Deserialize};
 
 /// A position in the original source stream, used to render errors.
 #[derive(Copy, Clone, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize)]
 pub struct Span {
     pub(crate) offset: usize,
 }
@@ -51,6 +53,7 @@ impl Span {
 /// An identifier is used to symbolically refer to items in a a wasm module,
 /// typically via the [`Index`] type.
 #[derive(Copy, Clone)]
+#[derive(Serialize, Deserialize)]
 pub struct Id<'a> {
     name: &'a str,
     gen: u32,
@@ -162,12 +165,15 @@ impl Peek for Id<'_> {
 /// The emission phase of a module will ensure that `Index::Id` is never used
 /// and switch them all to `Index::Num`.
 #[derive(Copy, Clone, Debug)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum Index<'a> {
     /// A numerical index that this references. The index space this is
     /// referencing is implicit based on where this [`Index`] is stored.
     Num(u32, Span),
     /// A human-readable identifier this references. Like `Num`, the namespace
     /// this references is based on where this is stored.
+    #[serde(borrow)]
     Id(Id<'a>),
 }
 
@@ -276,6 +282,7 @@ impl<'a, K: Peek> Peek for ItemRef<'a, K> {
 
 /// An `@name` annotation in source, currently of the form `@name "foo"`
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct NameAnnotation<'a> {
     /// The name specified for the item
     pub name: &'a str,
@@ -400,6 +407,7 @@ macro_rules! float {
     })*) => ($(
         /// A parsed floating-point type
         #[derive(Debug, Copy, Clone)]
+        #[derive(Serialize, Deserialize)]
         pub struct $name {
             /// The raw bits that this floating point number represents.
             pub bits: $int,

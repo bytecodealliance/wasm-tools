@@ -2,13 +2,16 @@ use super::{ComponentExternName, ItemRef, ItemSigNoName};
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Id, Index, NameAnnotation, Span};
+use serde_derive::{Serialize, Deserialize};
 
 /// An entry in a WebAssembly component's export section.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct ComponentExport<'a> {
     /// Where this export was defined.
     pub span: Span,
     /// Optional identifier bound to this export.
+    #[serde(borrow)]
     pub id: Option<Id<'a>>,
     /// An optional name for this instance stored in the custom `name` section.
     pub debug_name: Option<NameAnnotation<'a>>,
@@ -55,11 +58,14 @@ impl<'a> Parse<'a> for Vec<ComponentExport<'a>> {
 
 /// The kind of exported item.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum ComponentExportKind<'a> {
     /// The export is a core module.
     ///
     /// Note this isn't a core item ref as currently only
     /// components can export core modules.
+    #[serde(borrow)]
     CoreModule(ItemRef<'a, kw::module>),
     /// The export is a function.
     Func(ItemRef<'a, kw::func>),
@@ -171,8 +177,10 @@ impl Peek for ComponentExportKind<'_> {
 /// A listing of inline `(export "foo" <url>)` statements on a WebAssembly
 /// component item in its textual format.
 #[derive(Debug, Default)]
+#[derive(Serialize, Deserialize)]
 pub struct InlineExport<'a> {
     /// The extra names to export an item as, if any.
+    #[serde(borrow)]
     pub names: Vec<ComponentExternName<'a>>,
 }
 

@@ -3,14 +3,17 @@ use crate::core;
 use crate::kw;
 use crate::parser::{Parse, Parser, Result};
 use crate::token::{Id, LParen, NameAnnotation, Span};
+use serde_derive::{Serialize, Deserialize};
 
 /// A core instance defined by instantiation or exporting core items.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct CoreInstance<'a> {
     /// Where this `core instance` was defined.
     pub span: Span,
     /// An identifier that this instance is resolved with (optionally) for name
     /// resolution.
+    #[serde(borrow)]
     pub id: Option<Id<'a>>,
     /// An optional name for this instance stored in the custom `name` section.
     pub name: Option<NameAnnotation<'a>>,
@@ -37,10 +40,13 @@ impl<'a> Parse<'a> for CoreInstance<'a> {
 
 /// The kinds of core instances in the text format.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum CoreInstanceKind<'a> {
     /// Instantiate a core module.
     Instantiate {
         /// The module being instantiated.
+        #[serde(borrow)]
         module: ItemRef<'a, kw::module>,
         /// Arguments used to instantiate the instance.
         args: Vec<CoreInstantiationArg<'a>>,
@@ -73,6 +79,7 @@ impl Default for kw::module {
 
 /// An argument to instantiate a core module.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct CoreInstantiationArg<'a> {
     /// The name of the instantiation argument.
     pub name: &'a str,
@@ -102,8 +109,11 @@ impl<'a> Parse<'a> for Vec<CoreInstantiationArg<'a>> {
 
 /// The kind of core instantiation argument.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum CoreInstantiationArgKind<'a> {
     /// The argument is a reference to an instance.
+    #[serde(borrow)]
     Instance(CoreItemRef<'a, kw::instance>),
     /// The argument is an instance created from local exported core items.
     ///
@@ -127,6 +137,7 @@ impl<'a> Parse<'a> for CoreInstantiationArgKind<'a> {
 
 /// An exported item as part of a core instance.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct CoreInstanceExport<'a> {
     /// Where this export was defined.
     pub span: Span,
@@ -158,11 +169,13 @@ impl<'a> Parse<'a> for Vec<CoreInstanceExport<'a>> {
 
 /// A component instance defined by instantiation or exporting items.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct Instance<'a> {
     /// Where this `instance` was defined.
     pub span: Span,
     /// An identifier that this instance is resolved with (optionally) for name
     /// resolution.
+    #[serde(borrow)]
     pub id: Option<Id<'a>>,
     /// An optional name for this instance stored in the custom `name` section.
     pub name: Option<NameAnnotation<'a>>,
@@ -193,10 +206,13 @@ impl<'a> Parse<'a> for Instance<'a> {
 
 /// The kinds of instances in the text format.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum InstanceKind<'a> {
     /// The `(instance (import "x"))` sugar syntax
     Import {
         /// The name of the import
+        #[serde(borrow)]
         import: InlineImport<'a>,
         /// The type of the instance being imported
         ty: ComponentTypeUse<'a, InstanceType<'a>>,
@@ -243,6 +259,7 @@ impl Default for kw::component {
 
 /// An argument to instantiate a component.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct InstantiationArg<'a> {
     /// The name of the instantiation argument.
     pub name: &'a str,
@@ -272,8 +289,11 @@ impl<'a> Parse<'a> for Vec<InstantiationArg<'a>> {
 
 /// The kind of instantiation argument.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum InstantiationArgKind<'a> {
     /// The argument is a reference to a component item.
+    #[serde(borrow)]
     Item(ComponentExportKind<'a>),
     /// The argument is an instance created from local exported items.
     ///

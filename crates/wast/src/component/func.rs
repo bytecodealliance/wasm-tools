@@ -2,16 +2,20 @@ use crate::component::*;
 use crate::kw;
 use crate::parser::{Parse, Parser, Result};
 use crate::token::{Id, Index, LParen, NameAnnotation, Span};
+use serde_derive::{Serialize, Deserialize};
+use serde::Serialize as SerializeT;
 
 /// A declared core function.
 ///
 /// This is a member of both the core alias and canon sections.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct CoreFunc<'a> {
     /// Where this `core func` was defined.
     pub span: Span,
     /// An identifier that this function is resolved with (optionally) for name
     /// resolution.
+    #[serde(borrow)]
     pub id: Option<Id<'a>>,
     /// An optional name for this function stored in the custom `name` section.
     pub name: Option<NameAnnotation<'a>>,
@@ -39,10 +43,13 @@ impl<'a> Parse<'a> for CoreFunc<'a> {
 /// Represents the kind of core functions.
 #[derive(Debug)]
 #[allow(missing_docs)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum CoreFuncKind<'a> {
     /// The core function is defined in terms of lowering a component function.
     ///
     /// The core function is actually a member of the canon section.
+    #[serde(borrow)]
     Lower(CanonLower<'a>),
     /// The core function is defined in terms of aliasing a module instance export.
     ///
@@ -84,11 +91,13 @@ impl<'a> Parse<'a> for CoreFuncKind<'a> {
 ///
 /// This may be a member of the import, alias, or canon sections.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct Func<'a> {
     /// Where this `func` was defined.
     pub span: Span,
     /// An identifier that this function is resolved with (optionally) for name
     /// resolution.
+    #[serde(borrow)]
     pub id: Option<Id<'a>>,
     /// An optional name for this function stored in the custom `name` section.
     pub name: Option<NameAnnotation<'a>>,
@@ -119,6 +128,8 @@ impl<'a> Parse<'a> for Func<'a> {
 
 /// Represents the kind of component functions.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum FuncKind<'a> {
     /// A function which is actually defined as an import, such as:
     ///
@@ -127,6 +138,7 @@ pub enum FuncKind<'a> {
     /// ```
     Import {
         /// The import name of this import.
+        #[serde(borrow)]
         import: InlineImport<'a>,
         /// The type that this function will have.
         ty: ComponentTypeUse<'a, ComponentFunctionType<'a>>,
@@ -171,11 +183,13 @@ impl<'a> Parse<'a> for FuncKind<'a> {
 ///
 /// This is a member of the canonical section.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct CanonicalFunc<'a> {
     /// Where this `func` was defined.
     pub span: Span,
     /// An identifier that this function is resolved with (optionally) for name
     /// resolution.
+    #[serde(borrow)]
     pub id: Option<Id<'a>>,
     /// An optional name for this function stored in the custom `name` section.
     pub name: Option<NameAnnotation<'a>>,
@@ -247,10 +261,13 @@ impl<'a> CanonicalFunc<'a> {
 /// Possible ways to define a canonical function in the text format.
 #[derive(Debug)]
 #[allow(missing_docs)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum CanonicalFuncKind<'a> {
     /// A canonical function that is defined in terms of lifting a core function.
     Lift {
         /// The lifted function's type.
+        #[serde(borrow)]
         ty: ComponentTypeUse<'a, ComponentFunctionType<'a>>,
         /// Information relating to the lifting of the core function.
         info: CanonLift<'a>,
@@ -265,8 +282,10 @@ pub enum CanonicalFuncKind<'a> {
 
 /// Information relating to lifting a core function.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct CanonLift<'a> {
     /// The core function being lifted.
+    #[serde(borrow)]
     pub func: CoreItemRef<'a, kw::func>,
     /// The canonical options for the lifting.
     pub opts: Vec<CanonOpt<'a>>,
@@ -302,8 +321,10 @@ impl Default for CanonLift<'_> {
 
 /// Information relating to lowering a component function.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct CanonLower<'a> {
     /// The function being lowered.
+    #[serde(borrow)]
     pub func: ItemRef<'a, kw::func>,
     /// The canonical options for the lowering.
     pub opts: Vec<CanonOpt<'a>>,
@@ -336,8 +357,10 @@ impl Default for CanonLower<'_> {
 
 /// Information relating to the `resource.new` intrinsic.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct CanonResourceNew<'a> {
     /// The resource type that this intrinsic creates an owned reference to.
+    #[serde(borrow)]
     pub ty: Index<'a>,
 }
 
@@ -361,8 +384,10 @@ impl Default for CanonResourceNew<'_> {
 
 /// Information relating to the `resource.drop` intrinsic.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct CanonResourceDrop<'a> {
     /// The resource type that this intrinsic is dropping.
+    #[serde(borrow)]
     pub ty: Index<'a>,
 }
 
@@ -386,8 +411,10 @@ impl Default for CanonResourceDrop<'_> {
 
 /// Information relating to the `resource.rep` intrinsic.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct CanonResourceRep<'a> {
     /// The resource type that this intrinsic is accessing.
+    #[serde(borrow)]
     pub ty: Index<'a>,
 }
 
@@ -411,6 +438,8 @@ impl Default for CanonResourceRep<'_> {
 
 #[derive(Debug)]
 /// Canonical ABI options.
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum CanonOpt<'a> {
     /// Encode strings as UTF-8.
     StringUtf8,
@@ -419,6 +448,7 @@ pub enum CanonOpt<'a> {
     /// Encode strings as "compact UTF-16".
     StringLatin1Utf16,
     /// Use the specified memory for canonical ABI memory access.
+    #[serde(borrow)]
     Memory(CoreItemRef<'a, kw::memory>),
     /// Use the specified reallocation function for memory allocations.
     Realloc(CoreItemRef<'a, kw::func>),
@@ -467,7 +497,7 @@ impl<'a> Parse<'a> for CanonOpt<'a> {
     }
 }
 
-fn parse_trailing_item_ref<T>(kind: T, parser: Parser) -> Result<CoreItemRef<T>> {
+fn parse_trailing_item_ref<T: SerializeT>(kind: T, parser: Parser) -> Result<CoreItemRef<T>> {
     Ok(CoreItemRef {
         kind,
         idx: parser.parse()?,

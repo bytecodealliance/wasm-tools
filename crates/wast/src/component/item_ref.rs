@@ -1,5 +1,7 @@
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::Index;
+use serde::Serialize as SerializeT;
+use serde_derive::{Serialize, Deserialize};
 
 fn peek<K: Peek>(cursor: Cursor) -> Result<bool> {
     // This is a little fancy because when parsing something like:
@@ -39,7 +41,8 @@ fn peek<K: Peek>(cursor: Cursor) -> Result<bool> {
 
 /// Parses core item references.
 #[derive(Clone, Debug)]
-pub struct CoreItemRef<'a, K> {
+#[derive(Serialize, Deserialize)]
+pub struct CoreItemRef<'a, K: SerializeT> {
     /// The item kind being parsed.
     pub kind: K,
     /// The item or instance reference.
@@ -48,7 +51,7 @@ pub struct CoreItemRef<'a, K> {
     pub export_name: Option<&'a str>,
 }
 
-impl<'a, K: Parse<'a>> Parse<'a> for CoreItemRef<'a, K> {
+impl<'a, K: Parse<'a> + SerializeT> Parse<'a> for CoreItemRef<'a, K> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         // This does not parse the surrounding `(` and `)` because
         // core prefix is context dependent and only the caller knows if it should be
@@ -64,7 +67,7 @@ impl<'a, K: Parse<'a>> Parse<'a> for CoreItemRef<'a, K> {
     }
 }
 
-impl<'a, K: Peek> Peek for CoreItemRef<'a, K> {
+impl<'a, K: Peek + SerializeT> Peek for CoreItemRef<'a, K> {
     fn peek(cursor: Cursor<'_>) -> Result<bool> {
         peek::<K>(cursor)
     }
@@ -76,16 +79,18 @@ impl<'a, K: Peek> Peek for CoreItemRef<'a, K> {
 
 /// Parses component item references.
 #[derive(Clone, Debug)]
-pub struct ItemRef<'a, K> {
+#[derive(Serialize, Deserialize)]
+pub struct ItemRef<'a, K: SerializeT> {
     /// The item kind being parsed.
     pub kind: K,
     /// The item or instance reference.
+    #[serde(borrow)]
     pub idx: Index<'a>,
     /// Export names to resolve the item from.
     pub export_names: Vec<&'a str>,
 }
 
-impl<'a, K: Parse<'a>> Parse<'a> for ItemRef<'a, K> {
+impl<'a, K: Parse<'a> + SerializeT> Parse<'a> for ItemRef<'a, K> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let kind = parser.parse::<K>()?;
         let idx = parser.parse()?;
@@ -101,7 +106,7 @@ impl<'a, K: Parse<'a>> Parse<'a> for ItemRef<'a, K> {
     }
 }
 
-impl<'a, K: Peek> Peek for ItemRef<'a, K> {
+impl<'a, K: Peek + SerializeT> Peek for ItemRef<'a, K> {
     fn peek(cursor: Cursor<'_>) -> Result<bool> {
         peek::<K>(cursor)
     }
@@ -113,9 +118,9 @@ impl<'a, K: Peek> Peek for ItemRef<'a, K> {
 
 /// Convenience structure to parse `$f` or `(item $f)`.
 #[derive(Clone, Debug)]
-pub struct IndexOrRef<'a, K>(pub ItemRef<'a, K>);
+pub struct IndexOrRef<'a, K: SerializeT>(pub ItemRef<'a, K>);
 
-impl<'a, K> Parse<'a> for IndexOrRef<'a, K>
+impl<'a, K: SerializeT> Parse<'a> for IndexOrRef<'a, K>
 where
     K: Parse<'a> + Default,
 {
@@ -134,9 +139,9 @@ where
 
 /// Convenience structure to parse `$f` or `(item $f)`.
 #[derive(Clone, Debug)]
-pub struct IndexOrCoreRef<'a, K>(pub CoreItemRef<'a, K>);
+pub struct IndexOrCoreRef<'a, K: SerializeT>(pub CoreItemRef<'a, K>);
 
-impl<'a, K> Parse<'a> for IndexOrCoreRef<'a, K>
+impl<'a, K: SerializeT> Parse<'a> for IndexOrCoreRef<'a, K>
 where
     K: Parse<'a> + Default,
 {

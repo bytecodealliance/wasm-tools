@@ -2,13 +2,16 @@ use crate::core::*;
 use crate::kw;
 use crate::parser::{Lookahead1, Parse, Parser, Peek, Result};
 use crate::token::*;
+use serde_derive::{Serialize, Deserialize};
 
 /// A defined WebAssembly memory instance inside of a module.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct Memory<'a> {
     /// Where this `memory` was defined
     pub span: Span,
     /// An optional name to refer to this memory by.
+    #[serde(borrow)]
     pub id: Option<Id<'a>>,
     /// An optional name for this function stored in the custom `name` section.
     pub name: Option<NameAnnotation<'a>>,
@@ -21,10 +24,13 @@ pub struct Memory<'a> {
 
 /// Different syntactical ways a memory can be defined in a module.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum MemoryKind<'a> {
     /// This memory is actually an inlined import definition.
     #[allow(missing_docs)]
     Import {
+        #[serde(borrow)]
         import: InlineImport<'a>,
         ty: MemoryType,
     },
@@ -91,11 +97,13 @@ impl<'a> Parse<'a> for Memory<'a> {
 
 /// A `data` directive in a WebAssembly module.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct Data<'a> {
     /// Where this `data` was defined
     pub span: Span,
 
     /// The optional name of this data segment
+    #[serde(borrow)]
     pub id: Option<Id<'a>>,
 
     /// An optional name for this data stored in the custom `name` section.
@@ -111,6 +119,8 @@ pub struct Data<'a> {
 
 /// Different kinds of data segments, either passive or active.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum DataKind<'a> {
     /// A passive data segment which isn't associated with a memory and is
     /// referenced from various instructions.
@@ -120,6 +130,7 @@ pub enum DataKind<'a> {
     /// memory on module instantiation.
     Active {
         /// The memory that this `Data` will be associated with.
+        #[serde(borrow)]
         memory: Index<'a>,
 
         /// Initial offset to load this data segment at
@@ -209,6 +220,8 @@ impl<'a> Parse<'a> for Data<'a> {
 /// Differnet ways the value of a data segment can be defined.
 #[derive(Debug)]
 #[allow(missing_docs)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum DataVal<'a> {
     String(&'a [u8]),
     Integral(Vec<u8>),

@@ -3,16 +3,20 @@ use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Id, Index, LParen, NameAnnotation, Span};
 use std::mem;
+use serde_derive::{Serialize, Deserialize};
 
 /// The value types for a wasm module.
 #[allow(missing_docs)]
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum ValType<'a> {
     I32,
     I64,
     F32,
     F64,
     V128,
+    #[serde(borrow)]
     Ref(RefType<'a>),
 }
 
@@ -59,6 +63,8 @@ impl<'a> Peek for ValType<'a> {
 /// A heap type for a reference type
 #[allow(missing_docs)]
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum HeapType<'a> {
     /// An untyped function reference: funcref. This is part of the reference
     /// types proposal.
@@ -88,6 +94,7 @@ pub enum HeapType<'a> {
     None,
     /// A reference to a concrete function, struct, or array type defined by
     /// Wasm: `ref T`. This is part of the function references and GC proposals.
+    #[serde(borrow)]
     Concrete(Index<'a>),
 }
 
@@ -158,8 +165,10 @@ impl<'a> Peek for HeapType<'a> {
 /// A reference type in a wasm module.
 #[allow(missing_docs)]
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Serialize, Deserialize)]
 pub struct RefType<'a> {
     pub nullable: bool,
+    #[serde(borrow)]
     pub heap: HeapType<'a>,
 }
 
@@ -338,9 +347,12 @@ impl<'a> Peek for RefType<'a> {
 /// The types of values that may be used in a struct or array.
 #[allow(missing_docs)]
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum StorageType<'a> {
     I8,
     I16,
+    #[serde(borrow)]
     Val(ValType<'a>),
 }
 
@@ -363,8 +375,10 @@ impl<'a> Parse<'a> for StorageType<'a> {
 
 /// Type for a `global` in a wasm module
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize)]
 pub struct GlobalType<'a> {
     /// The element type of this `global`
+    #[serde(borrow)]
     pub ty: ValType<'a>,
     /// Whether or not the global is mutable or not.
     pub mutable: bool,
@@ -391,6 +405,7 @@ impl<'a> Parse<'a> for GlobalType<'a> {
 
 /// Min/max limits used for tables/memories.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize)]
 pub struct Limits {
     /// The minimum number of units for this type.
     pub min: u32,
@@ -412,6 +427,7 @@ impl<'a> Parse<'a> for Limits {
 
 /// Min/max limits used for 64-bit memories
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize)]
 pub struct Limits64 {
     /// The minimum number of units for this type.
     pub min: u64,
@@ -433,10 +449,12 @@ impl<'a> Parse<'a> for Limits64 {
 
 /// Configuration for a table of a wasm mdoule
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize)]
 pub struct TableType<'a> {
     /// Limits on the element sizes of this table
     pub limits: Limits,
     /// The type of element stored in this table
+    #[serde(borrow)]
     pub elem: RefType<'a>,
 }
 
@@ -451,6 +469,8 @@ impl<'a> Parse<'a> for TableType<'a> {
 
 /// Configuration for a memory of a wasm module
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum MemoryType {
     /// A 32-bit memory
     B32 {
@@ -486,9 +506,11 @@ impl<'a> Parse<'a> for MemoryType {
 
 /// A function type with parameters and results.
 #[derive(Clone, Debug, Default)]
+#[derive(Serialize, Deserialize)]
 pub struct FunctionType<'a> {
     /// The parameters of a function, optionally each having an identifier for
     /// name resolution and a name for the custom `name` section.
+    #[serde(borrow)]
     pub params: Box<[(Option<Id<'a>>, Option<NameAnnotation<'a>>, ValType<'a>)]>,
     /// The results types of a function.
     pub results: Box<[ValType<'a>]>,
@@ -601,8 +623,10 @@ impl<'a> From<FunctionTypeNoNames<'a>> for FunctionType<'a> {
 
 /// A struct type with fields.
 #[derive(Clone, Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct StructType<'a> {
     /// The fields of the struct
+    #[serde(borrow)]
     pub fields: Vec<StructField<'a>>,
 }
 
@@ -630,8 +654,10 @@ impl<'a> Parse<'a> for StructType<'a> {
 
 /// A field of a struct type.
 #[derive(Clone, Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct StructField<'a> {
     /// An optional identifier for name resolution.
+    #[serde(borrow)]
     pub id: Option<Id<'a>>,
     /// Whether this field may be mutated or not.
     pub mutable: bool,
@@ -657,10 +683,12 @@ impl<'a> StructField<'a> {
 
 /// An array type with fields.
 #[derive(Clone, Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct ArrayType<'a> {
     /// Whether this field may be mutated or not.
     pub mutable: bool,
     /// The storage type stored in this field.
+    #[serde(borrow)]
     pub ty: StorageType<'a>,
 }
 
@@ -701,8 +729,11 @@ impl<'a> Parse<'a> for ExportType<'a> {
 
 /// A definition of a type.
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type", content = "val")]
 pub enum TypeDef<'a> {
     /// A function type definition.
+    #[serde(borrow)]
     Func(FunctionType<'a>),
     /// A struct type definition.
     Struct(StructType<'a>),
@@ -730,11 +761,13 @@ impl<'a> Parse<'a> for TypeDef<'a> {
 
 /// A type declaration in a module
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct Type<'a> {
     /// Where this type was defined.
     pub span: Span,
     /// An optional identifier to refer to this `type` by as part of name
     /// resolution.
+    #[serde(borrow)]
     pub id: Option<Id<'a>>,
     /// An optional name for this function stored in the custom `name` section.
     pub name: Option<NameAnnotation<'a>>,
@@ -797,10 +830,12 @@ impl<'a> Parse<'a> for Type<'a> {
 
 /// A recursion group declaration in a module
 #[derive(Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct Rec<'a> {
     /// Where this recursion group was defined.
     pub span: Span,
     /// The types that we're defining in this group.
+    #[serde(borrow)]
     pub types: Vec<Type<'a>>,
 }
 
@@ -817,8 +852,10 @@ impl<'a> Parse<'a> for Rec<'a> {
 
 /// A reference to a type defined in this module.
 #[derive(Clone, Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct TypeUse<'a, T> {
     /// The type that we're referencing, if it was present.
+    #[serde(borrow)]
     pub index: Option<Index<'a>>,
     /// The inline type, if present.
     pub inline: Option<T>,
