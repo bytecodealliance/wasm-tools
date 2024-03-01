@@ -21,6 +21,9 @@ unicode-width = "0.1.9"
 memchr = "2.4.1"
 wasm-encoder = { workspace = true }
 bumpalo = "3.14.0"
+serde_json = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+serde_derive = { workspace = true, optional = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
@@ -38,6 +41,9 @@ default = ['wasm-module']
 #
 # This feature is turned on by default.
 wasm-module = []
+
+# Includes support for serializing and deserializing the `Wat` type.
+serde = ['dep:serde', 'dep:serde_derive', 'dep:serde_json']
 
 [[test]]
 name = "parse-fail"
