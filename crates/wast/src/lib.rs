@@ -375,7 +375,7 @@ id! {
 /// Common keyword used to parse WebAssembly text files.
 pub mod kw {
     #[cfg(feature = "serde")]
-use serde_derive::{Serialize, Deserialize};
+    use serde_derive::{Deserialize, Serialize};
 
     custom_keyword!(after);
     custom_keyword!(alias);

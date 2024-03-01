@@ -5,11 +5,11 @@
 use crate::lexer::{Float, Lexer, TokenKind};
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::{annotation, Error};
+#[cfg(feature = "serde")]
+use serde_derive::{Deserialize, Serialize};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str;
-#[cfg(feature = "serde")]
-use serde_derive::{Serialize, Deserialize};
 
 /// A position in the original source stream, used to render errors.
 #[derive(Copy, Clone, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
@@ -166,7 +166,11 @@ impl Peek for Id<'_> {
 /// The emission phase of a module will ensure that `Index::Id` is never used
 /// and switch them all to `Index::Num`.
 #[derive(Copy, Clone, Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum Index<'a> {
     /// A numerical index that this references. The index space this is
     /// referencing is implicit based on where this [`Index`] is stored.
