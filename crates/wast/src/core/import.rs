@@ -2,11 +2,12 @@ use crate::core::*;
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Id, NameAnnotation, Span};
+#[cfg(feature = "serde")]
 use serde_derive::{Serialize, Deserialize};
 
 /// An `import` statement and entry in a WebAssembly module.
 #[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Import<'a> {
     /// Where this `import` was defined
     pub span: Span,
@@ -35,13 +36,13 @@ impl<'a> Parse<'a> for Import<'a> {
 
 #[derive(Debug, Clone)]
 #[allow(missing_docs)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ItemSig<'a> {
     /// Where this item is defined in the source.
     pub span: Span,
     /// An optional identifier used during name resolution to refer to this item
     /// from the rest of the module.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub id: Option<Id<'a>>,
     /// An optional name which, for functions, will be stored in the
     /// custom `name` section.
@@ -52,10 +53,9 @@ pub struct ItemSig<'a> {
 
 #[derive(Debug, Clone)]
 #[allow(missing_docs)]
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type", content = "val")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
 pub enum ItemKind<'a> {
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     Func(TypeUse<'a, FunctionType<'a>>),
     Table(TableType<'a>),
     Memory(MemoryType),
@@ -120,7 +120,7 @@ impl<'a> Parse<'a> for ItemSig<'a> {
 /// `Peek` rather than `Option<T>`.
 #[derive(Debug, Copy, Clone)]
 #[allow(missing_docs)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct InlineImport<'a> {
     pub module: &'a str,
     pub field: &'a str,

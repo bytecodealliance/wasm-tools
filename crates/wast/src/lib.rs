@@ -96,7 +96,7 @@ macro_rules! custom_keyword {
         #[allow(non_camel_case_types)]
         #[allow(missing_docs)]
         #[derive(Debug, Copy, Clone)]
-        #[derive(Serialize, Deserialize)]
+        #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
         pub struct $name(pub $crate::token::Span);
 
         impl<'a> $crate::parser::Parse<'a> for $name {
@@ -374,7 +374,8 @@ id! {
 
 /// Common keyword used to parse WebAssembly text files.
 pub mod kw {
-    use serde_derive::{Serialize, Deserialize};
+    #[cfg(feature = "serde")]
+use serde_derive::{Serialize, Deserialize};
 
     custom_keyword!(after);
     custom_keyword!(alias);

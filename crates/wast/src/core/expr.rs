@@ -5,6 +5,7 @@ use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Result};
 use crate::token::*;
 use std::mem;
+#[cfg(feature = "serde")]
 use serde_derive::{Serialize, Deserialize};
 
 /// An expression, or a list of instructions, in the WebAssembly text format.
@@ -14,9 +15,9 @@ use serde_derive::{Serialize, Deserialize};
 /// at the end of an expression is not included in the `instrs` field.
 #[derive(Debug)]
 #[allow(missing_docs)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Expression<'a> {
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub instrs: Box<[Instruction<'a>]>,
     pub branch_hints: Vec<BranchHint>,
 }
@@ -26,7 +27,7 @@ pub struct Expression<'a> {
 /// is to store the offset of the following instruction and check that
 /// it's followed by `br_if` or `if`.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct BranchHint {
     /// Index of instructions in `instrs` field of `Expression` that this hint
     /// appplies to.
@@ -356,8 +357,7 @@ macro_rules! instructions {
         /// that this crate currently parses.
         #[derive(Debug)]
         #[allow(missing_docs)]
-        #[derive(Serialize, Deserialize)]
-        #[serde(tag = "type", content = "val")]
+        #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
         pub enum Instruction<'a> {
             $(
                 $(#[$doc])*
@@ -452,7 +452,7 @@ macro_rules! instructions {
 
 instructions! {
     pub enum Instruction<'a> {
-        #[serde(borrow)]
+        #[cfg_attr(feature = "serde", serde(borrow))]
         Block(Box<BlockType<'a>>) : [0x02] : "block",
         If(Box<BlockType<'a>>) : [0x04] : "if",
         Else(Option<Id<'a>>) : [0x05] : "else",
@@ -1132,9 +1132,9 @@ impl<'a> Instruction<'a> {
 /// the block.
 #[derive(Debug)]
 #[allow(missing_docs)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct BlockType<'a> {
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub label: Option<Id<'a>>,
     pub label_name: Option<NameAnnotation<'a>>,
     pub ty: TypeUse<'a, FunctionType<'a>>,
@@ -1154,9 +1154,9 @@ impl<'a> Parse<'a> for BlockType<'a> {
 
 #[derive(Debug)]
 #[allow(missing_docs)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TryTable<'a> {
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub block: Box<BlockType<'a>>,
     pub catches: Vec<TryTableCatch<'a>>,
 }
@@ -1200,11 +1200,10 @@ impl<'a> Parse<'a> for TryTable<'a> {
 
 #[derive(Debug)]
 #[allow(missing_docs)]
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type", content = "val")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
 pub enum TryTableCatchKind<'a> {
     // Catch a tagged exception, do not capture an exnref.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     Catch(Index<'a>),
     // Catch a tagged exception, and capture the exnref.
     CatchRef(Index<'a>),
@@ -1226,9 +1225,9 @@ impl<'a> TryTableCatchKind<'a> {
 
 #[derive(Debug)]
 #[allow(missing_docs)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TryTableCatch<'a> {
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub kind: TryTableCatchKind<'a>,
     pub label: Index<'a>,
 }
@@ -1236,9 +1235,9 @@ pub struct TryTableCatch<'a> {
 /// Extra information associated with the func.bind instruction.
 #[derive(Debug)]
 #[allow(missing_docs)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct FuncBindType<'a> {
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub ty: TypeUse<'a, FunctionType<'a>>,
 }
 
@@ -1255,9 +1254,9 @@ impl<'a> Parse<'a> for FuncBindType<'a> {
 /// Extra information associated with the let instruction.
 #[derive(Debug)]
 #[allow(missing_docs)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct LetType<'a> {
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub block: Box<BlockType<'a>>,
     pub locals: Box<[Local<'a>]>,
 }
@@ -1274,9 +1273,9 @@ impl<'a> Parse<'a> for LetType<'a> {
 /// Extra information associated with the `br_table` instruction.
 #[allow(missing_docs)]
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct BrTableIndices<'a> {
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub labels: Vec<Index<'a>>,
     pub default: Index<'a>,
 }
@@ -1294,7 +1293,7 @@ impl<'a> Parse<'a> for BrTableIndices<'a> {
 
 /// Payload for lane-related instructions. Unsigned with no + prefix.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct LaneArg {
     /// The lane argument.
     pub lane: u8,
@@ -1323,7 +1322,7 @@ impl<'a> Parse<'a> for LaneArg {
 /// Payload for memory-related instructions indicating offset/alignment of
 /// memory accesses.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct MemArg<'a> {
     /// The alignment of this access.
     ///
@@ -1333,7 +1332,7 @@ pub struct MemArg<'a> {
     /// The offset, in bytes of this access.
     pub offset: u64,
     /// The memory index we're accessing
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub memory: Index<'a>,
 }
 
@@ -1400,10 +1399,10 @@ impl<'a> MemArg<'a> {
 
 /// Extra data associated with the `loadN_lane` and `storeN_lane` instructions.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct LoadOrStoreLane<'a> {
     /// The memory argument for this instruction.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub memarg: MemArg<'a>,
     /// The lane argument for this instruction.
     pub lane: LaneArg,
@@ -1456,10 +1455,10 @@ impl<'a> LoadOrStoreLane<'a> {
 
 /// Extra data associated with the `call_indirect` instruction.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct CallIndirect<'a> {
     /// The table that this call is going to be indexing.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub table: Index<'a>,
     /// Type type signature that this `call_indirect` instruction is using.
     pub ty: TypeUse<'a, FunctionType<'a>>,
@@ -1479,10 +1478,10 @@ impl<'a> Parse<'a> for CallIndirect<'a> {
 
 /// Extra data associated with the `table.init` instruction
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TableInit<'a> {
     /// The index of the table we're copying into.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub table: Index<'a>,
     /// The index of the element segment we're copying into a table.
     pub elem: Index<'a>,
@@ -1503,10 +1502,10 @@ impl<'a> Parse<'a> for TableInit<'a> {
 
 /// Extra data associated with the `table.copy` instruction.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TableCopy<'a> {
     /// The index of the destination table to copy into.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub dst: Index<'a>,
     /// The index of the source table to copy from.
     pub src: Index<'a>,
@@ -1527,10 +1526,10 @@ impl<'a> Parse<'a> for TableCopy<'a> {
 
 /// Extra data associated with unary table instructions.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TableArg<'a> {
     /// The index of the table argument.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub dst: Index<'a>,
 }
 
@@ -1547,10 +1546,10 @@ impl<'a> Parse<'a> for TableArg<'a> {
 
 /// Extra data associated with unary memory instructions.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct MemoryArg<'a> {
     /// The index of the memory space.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub mem: Index<'a>,
 }
 
@@ -1567,10 +1566,10 @@ impl<'a> Parse<'a> for MemoryArg<'a> {
 
 /// Extra data associated with the `memory.init` instruction
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct MemoryInit<'a> {
     /// The index of the data segment we're copying into memory.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub data: Index<'a>,
     /// The index of the memory we're copying into,
     pub mem: Index<'a>,
@@ -1591,10 +1590,10 @@ impl<'a> Parse<'a> for MemoryInit<'a> {
 
 /// Extra data associated with the `memory.copy` instruction
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct MemoryCopy<'a> {
     /// The index of the memory we're copying from.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub src: Index<'a>,
     /// The index of the memory we're copying to.
     pub dst: Index<'a>,
@@ -1615,10 +1614,10 @@ impl<'a> Parse<'a> for MemoryCopy<'a> {
 
 /// Extra data associated with the `struct.get/set` instructions
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct StructAccess<'a> {
     /// The index of the struct type we're accessing.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub r#struct: Index<'a>,
     /// The index of the field of the struct we're accessing
     pub field: Index<'a>,
@@ -1635,10 +1634,10 @@ impl<'a> Parse<'a> for StructAccess<'a> {
 
 /// Extra data associated with the `array.fill` instruction
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ArrayFill<'a> {
     /// The index of the array type we're filling.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub array: Index<'a>,
 }
 
@@ -1652,10 +1651,10 @@ impl<'a> Parse<'a> for ArrayFill<'a> {
 
 /// Extra data associated with the `array.copy` instruction
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ArrayCopy<'a> {
     /// The index of the array type we're copying to.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub dest_array: Index<'a>,
     /// The index of the array type we're copying from.
     pub src_array: Index<'a>,
@@ -1672,10 +1671,10 @@ impl<'a> Parse<'a> for ArrayCopy<'a> {
 
 /// Extra data associated with the `array.init_[data/elem]` instruction
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ArrayInit<'a> {
     /// The index of the array type we're initializing.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub array: Index<'a>,
     /// The index of the data or elem segment we're reading from.
     pub segment: Index<'a>,
@@ -1692,10 +1691,10 @@ impl<'a> Parse<'a> for ArrayInit<'a> {
 
 /// Extra data associated with the `array.new_fixed` instruction
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ArrayNewFixed<'a> {
     /// The index of the array type we're accessing.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub array: Index<'a>,
     /// The amount of values to initialize the array with.
     pub length: u32,
@@ -1712,10 +1711,10 @@ impl<'a> Parse<'a> for ArrayNewFixed<'a> {
 
 /// Extra data associated with the `array.new_data` instruction
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ArrayNewData<'a> {
     /// The index of the array type we're accessing.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub array: Index<'a>,
     /// The data segment to initialize from.
     pub data_idx: Index<'a>,
@@ -1732,10 +1731,10 @@ impl<'a> Parse<'a> for ArrayNewData<'a> {
 
 /// Extra data associated with the `array.new_elem` instruction
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ArrayNewElem<'a> {
     /// The index of the array type we're accessing.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub array: Index<'a>,
     /// The elem segment to initialize from.
     pub elem_idx: Index<'a>,
@@ -1752,10 +1751,10 @@ impl<'a> Parse<'a> for ArrayNewElem<'a> {
 
 /// Extra data associated with the `ref.cast` instruction
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct RefCast<'a> {
     /// The type to cast to.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub r#type: RefType<'a>,
 }
 
@@ -1769,10 +1768,10 @@ impl<'a> Parse<'a> for RefCast<'a> {
 
 /// Extra data associated with the `ref.test` instruction
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct RefTest<'a> {
     /// The type to test for.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub r#type: RefType<'a>,
 }
 
@@ -1786,10 +1785,10 @@ impl<'a> Parse<'a> for RefTest<'a> {
 
 /// Extra data associated with the `br_on_cast` instruction
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct BrOnCast<'a> {
     /// The label to branch to.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub label: Index<'a>,
     /// The type we're casting from.
     pub from_type: RefType<'a>,
@@ -1809,10 +1808,10 @@ impl<'a> Parse<'a> for BrOnCast<'a> {
 
 /// Extra data associated with the `br_on_cast_fail` instruction
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct BrOnCastFail<'a> {
     /// The label to branch to.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub label: Index<'a>,
     /// The type we're casting from.
     pub from_type: RefType<'a>,
@@ -1833,8 +1832,7 @@ impl<'a> Parse<'a> for BrOnCastFail<'a> {
 /// Different ways to specify a `v128.const` instruction
 #[derive(Debug)]
 #[allow(missing_docs)]
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type", content = "val")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
 pub enum V128Const {
     I8x16([i8; 16]),
     I16x8([i16; 8]),
@@ -2000,7 +1998,7 @@ impl<'a> Parse<'a> for V128Const {
 
 /// Lanes being shuffled in the `i8x16.shuffle` instruction
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct I8x16Shuffle {
     #[allow(missing_docs)]
     pub lanes: [u8; 16],
@@ -2033,10 +2031,10 @@ impl<'a> Parse<'a> for I8x16Shuffle {
 
 /// Payload of the `select` instructions
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SelectTypes<'a> {
     #[allow(missing_docs)]
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub tys: Option<Vec<ValType<'a>>>,
 }
 

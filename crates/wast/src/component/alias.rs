@@ -2,13 +2,14 @@ use crate::core::ExportKind;
 use crate::kw;
 use crate::parser::{Parse, Parser, Result};
 use crate::token::{Id, Index, NameAnnotation, Span};
+#[cfg(feature = "serde")]
 use serde_derive::{Serialize, Deserialize};
 
 /// A inline alias for component exported items.
 ///
 /// Handles both `core export` and `export` aliases
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct InlineExportAlias<'a, const CORE: bool> {
     /// The instance to alias the export from.
     pub instance: Index<'a>,
@@ -31,13 +32,13 @@ impl<'a, const CORE: bool> Parse<'a> for InlineExportAlias<'a, CORE> {
 
 /// An alias to a component item.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Alias<'a> {
     /// Where this `alias` was defined.
     pub span: Span,
     /// An identifier that this alias is resolved with (optionally) for name
     /// resolution.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub id: Option<Id<'a>>,
     /// An optional name for this alias stored in the custom `name` section.
     pub name: Option<NameAnnotation<'a>>,
@@ -141,8 +142,7 @@ impl<'a> Parse<'a> for Alias<'a> {
 
 /// Represents the kind of instance export alias.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type", content = "val")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
 pub enum ComponentExportAliasKind {
     /// The alias is to a core module export.
     CoreModule,
@@ -193,8 +193,7 @@ impl<'a> Parse<'a> for ComponentExportAliasKind {
 
 /// Represents the kind of outer alias.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type", content = "val")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
 pub enum ComponentOuterAliasKind {
     /// The alias is to an outer core module.
     CoreModule,
@@ -235,8 +234,7 @@ impl<'a> Parse<'a> for ComponentOuterAliasKind {
 
 /// The target of a component alias.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type", content = "val")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
 pub enum AliasTarget<'a> {
     /// The alias is to an export of a component instance.
     Export {

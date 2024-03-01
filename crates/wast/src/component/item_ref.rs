@@ -1,6 +1,8 @@
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::Index;
+#[cfg(feature = "serde")]
 use serde::Serialize as SerializeT;
+#[cfg(feature = "serde")]
 use serde_derive::{Serialize, Deserialize};
 
 fn peek<K: Peek>(cursor: Cursor) -> Result<bool> {
@@ -41,7 +43,7 @@ fn peek<K: Peek>(cursor: Cursor) -> Result<bool> {
 
 /// Parses core item references.
 #[derive(Clone, Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct CoreItemRef<'a,
     #[cfg(feature = "serde")] K: SerializeT,
     #[cfg(not(feature = "serde"))] K,
@@ -88,7 +90,7 @@ impl<'a,
 
 /// Parses component item references.
 #[derive(Clone, Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ItemRef<'a,
     #[cfg(feature = "serde")] K: SerializeT,
     #[cfg(not(feature = "serde"))] K,
@@ -96,7 +98,7 @@ pub struct ItemRef<'a,
     /// The item kind being parsed.
     pub kind: K,
     /// The item or instance reference.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub idx: Index<'a>,
     /// Export names to resolve the item from.
     pub export_names: Vec<&'a str>,

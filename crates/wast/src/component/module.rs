@@ -3,19 +3,20 @@ use crate::core;
 use crate::kw;
 use crate::parser::{Parse, Parser, Result};
 use crate::token::{Id, NameAnnotation, Span};
+#[cfg(feature = "serde")]
 use serde_derive::{Serialize, Deserialize};
 
 /// A core WebAssembly module to be created as part of a component.
 ///
 /// This is a member of the core module section.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct CoreModule<'a> {
     /// Where this `core module` was defined.
     pub span: Span,
     /// An identifier that this module is resolved with (optionally) for name
     /// resolution.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub id: Option<Id<'a>>,
     /// An optional name for this module stored in the custom `name` section.
     pub name: Option<NameAnnotation<'a>>,
@@ -28,13 +29,12 @@ pub struct CoreModule<'a> {
 
 /// Possible ways to define a core module in the text format.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type", content = "val")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
 pub enum CoreModuleKind<'a> {
     /// A core module which is actually defined as an import
     Import {
         /// Where this core module is imported from
-        #[serde(borrow)]
+        #[cfg_attr(feature = "serde", serde(borrow))]
         import: InlineImport<'a>,
         /// The type that this core module will have.
         ty: CoreTypeUse<'a, ModuleType<'a>>,

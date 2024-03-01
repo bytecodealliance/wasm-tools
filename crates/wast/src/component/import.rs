@@ -2,16 +2,17 @@ use crate::component::*;
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Id, Index, LParen, NameAnnotation, Span};
+#[cfg(feature = "serde")]
 use serde_derive::{Serialize, Deserialize};
 
 /// An `import` statement and entry in a WebAssembly component.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ComponentImport<'a> {
     /// Where this `import` was defined
     pub span: Span,
     /// The name of the item being imported.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub name: ComponentExternName<'a>,
     /// The item that's being imported.
     pub item: ItemSig<'a>,
@@ -28,7 +29,7 @@ impl<'a> Parse<'a> for ComponentImport<'a> {
 
 /// The different ways an import can be named.
 #[derive(Debug, Copy, Clone)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ComponentExternName<'a>(pub &'a str);
 
 impl<'a> Parse<'a> for ComponentExternName<'a> {
@@ -53,13 +54,13 @@ impl<'a> Parse<'a> for ComponentExternName<'a> {
 
 /// An item signature for imported items.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ItemSig<'a> {
     /// Where this item is defined in the source.
     pub span: Span,
     /// An optional identifier used during name resolution to refer to this item
     /// from the rest of the component.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub id: Option<Id<'a>>,
     /// An optional name which, for functions, will be stored in the
     /// custom `name` section.
@@ -76,9 +77,9 @@ impl<'a> Parse<'a> for ItemSig<'a> {
 
 /// An item signature for imported items.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ItemSigNoName<'a>(
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub ItemSig<'a>
 );
 
@@ -124,11 +125,10 @@ fn parse_item_sig<'a>(parser: Parser<'a>, name: bool) -> Result<ItemSig<'a>> {
 
 /// The kind of signatures for imported items.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type", content = "val")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
 pub enum ItemSigKind<'a> {
     /// The item signature is for a core module.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     CoreModule(CoreTypeUse<'a, ModuleType<'a>>),
     /// The item signature is for a function.
     Func(ComponentTypeUse<'a, ComponentFunctionType<'a>>),
@@ -144,11 +144,10 @@ pub enum ItemSigKind<'a> {
 
 /// Represents the bounds applied to types being imported.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type", content = "val")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
 pub enum TypeBounds<'a> {
     /// The equality type bounds.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     Eq(Index<'a>),
     /// A resource type is imported/exported,
     SubResource,
@@ -175,10 +174,10 @@ impl<'a> Parse<'a> for TypeBounds<'a> {
 /// This is the same as `core::InlineImport` except only one string import is
 /// required.
 #[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct InlineImport<'a> {
     /// The name of the item being imported.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub name: ComponentExternName<'a>,
 }
 

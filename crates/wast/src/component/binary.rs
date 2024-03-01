@@ -8,6 +8,7 @@ use wasm_encoder::{
     ComponentTypeSection, CoreTypeEncoder, CoreTypeSection, InstanceSection, NameMap,
     NestedComponentSection, RawSection, SectionId,
 };
+#[cfg(feature = "serde")]
 use serde::Serialize as SerializeT;
 
 pub fn encode(component: &Component<'_>) -> Vec<u8> {

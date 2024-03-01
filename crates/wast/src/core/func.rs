@@ -2,19 +2,20 @@ use crate::core::*;
 use crate::kw;
 use crate::parser::{Parse, Parser, Result};
 use crate::token::{Id, NameAnnotation, Span};
+#[cfg(feature = "serde")]
 use serde_derive::{Serialize, Deserialize};
 
 /// A WebAssembly function to be inserted into a module.
 ///
 /// This is a member of both the function and code sections.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Func<'a> {
     /// Where this `func` was defined.
     pub span: Span,
     /// An identifier that this function is resolved with (optionally) for name
     /// resolution.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub id: Option<Id<'a>>,
     /// An optional name for this function stored in the custom `name` section.
     pub name: Option<NameAnnotation<'a>>,
@@ -30,15 +31,14 @@ pub struct Func<'a> {
 
 /// Possible ways to define a function in the text format.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type", content = "val")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
 pub enum FuncKind<'a> {
     /// A function which is actually defined as an import, such as:
     ///
     /// ```text
     /// (func (type 3) (import "foo" "bar"))
     /// ```
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     Import(InlineImport<'a>),
 
     /// Almost all functions, those defined inline in a wasm module.
@@ -88,11 +88,11 @@ impl<'a> Parse<'a> for Func<'a> {
 /// Each local has an optional identifier for name resolution, an optional name
 /// for the custom `name` section, and a value type.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Local<'a> {
     /// An identifier that this local is resolved with (optionally) for name
     /// resolution.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub id: Option<Id<'a>>,
     /// An optional name for this local stored in the custom `name` section.
     pub name: Option<NameAnnotation<'a>>,

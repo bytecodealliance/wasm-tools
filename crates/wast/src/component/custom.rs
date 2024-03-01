@@ -1,11 +1,12 @@
 use crate::annotation;
 use crate::parser::{Parse, Parser, Result};
 use crate::token::Span;
+#[cfg(feature = "serde")]
 use serde_derive::{Serialize, Deserialize};
 
 /// A custom section within a component.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Custom<'a> {
     /// Where this `@custom` was defined.
     pub span: Span,

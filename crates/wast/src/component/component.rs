@@ -5,16 +5,17 @@ use crate::kw;
 use crate::parser::{Parse, Parser, Result};
 use crate::token::Index;
 use crate::token::{Id, NameAnnotation, Span};
+#[cfg(feature = "serde")]
 use serde_derive::{Serialize, Deserialize};
 
 /// A parsed WebAssembly component module.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Component<'a> {
     /// Where this `component` was defined
     pub span: Span,
     /// An optional identifier this component is known by
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub id: Option<Id<'a>>,
     /// An optional `@name` annotation for this component
     pub name: Option<NameAnnotation<'a>>,
@@ -24,11 +25,10 @@ pub struct Component<'a> {
 
 /// The different kinds of ways to define a component.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type", content = "val")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
 pub enum ComponentKind<'a> {
     /// A component defined in the textual s-expression format.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     Text(Vec<ComponentField<'a>>),
     /// A component that had its raw binary bytes defined via the `binary`
     /// directive.
@@ -145,10 +145,9 @@ impl<'a> Parse<'a> for Component<'a> {
 /// A listing of all possible fields that can make up a WebAssembly component.
 #[allow(missing_docs)]
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type", content = "val")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
 pub enum ComponentField<'a> {
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     CoreModule(CoreModule<'a>),
     CoreInstance(CoreInstance<'a>),
     CoreType(CoreType<'a>),
@@ -229,10 +228,10 @@ impl<'a> Parse<'a> for ComponentField<'a> {
 
 /// A function to call at instantiation time.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Start<'a> {
     /// The function to call.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub func: Index<'a>,
     /// The arguments to pass to the function.
     pub args: Vec<ItemRef<'a, kw::value>>,
@@ -270,12 +269,12 @@ impl<'a> Parse<'a> for Start<'a> {
 
 /// A nested WebAssembly component.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct NestedComponent<'a> {
     /// Where this `component` was defined
     pub span: Span,
     /// An optional identifier this component is known by
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub id: Option<Id<'a>>,
     /// An optional `@name` annotation for this component
     pub name: Option<NameAnnotation<'a>>,
@@ -288,13 +287,12 @@ pub struct NestedComponent<'a> {
 
 /// The different kinds of ways to define a nested component.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type", content = "val")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
 pub enum NestedComponentKind<'a> {
     /// This is actually an inline import of a component
     Import {
         /// The information about where this is being imported from.
-        #[serde(borrow)]
+        #[cfg_attr(feature = "serde", serde(borrow))]
         import: InlineImport<'a>,
         /// The type of component being imported.
         ty: ComponentTypeUse<'a, ComponentType<'a>>,

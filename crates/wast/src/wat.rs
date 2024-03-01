@@ -3,6 +3,7 @@ use crate::core::{Module, ModuleField, ModuleKind};
 use crate::kw;
 use crate::parser::{Parse, Parser, Result};
 use crate::token::Span;
+#[cfg(feature = "serde")]
 use serde_derive::{Serialize, Deserialize};
 
 /// A `*.wat` file parser, or a parser for one parenthesized module.
@@ -12,10 +13,9 @@ use serde_derive::{Serialize, Deserialize};
 /// of s-expressions that are module fields.
 #[derive(Debug)]
 #[allow(missing_docs)]
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type", content = "val")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
 pub enum Wat<'a> {
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     Module(Module<'a>),
     Component(Component<'a>),
 }

@@ -1,15 +1,15 @@
 use crate::parser::{Parse, Parser, Result};
 use crate::token::{self, Span};
 use crate::{annotation, kw};
+#[cfg(feature = "serde")]
 use serde_derive::{Serialize, Deserialize};
 
 /// A custom section within a wasm module.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type", content = "val")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
 pub enum Custom<'a> {
     /// A raw custom section with the manual placement and bytes specified.
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     Raw(RawCustomSection<'a>),
     /// A producers custom section.
     Producers(Producers<'a>),
@@ -51,7 +51,7 @@ impl<'a> Parse<'a> for Custom<'a> {
 
 /// A wasm custom section within a module.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct RawCustomSection<'a> {
     /// Where this `@custom` was defined.
     pub span: Span,
@@ -68,8 +68,7 @@ pub struct RawCustomSection<'a> {
 
 /// Possible locations to place a custom section within a module.
 #[derive(Debug, PartialEq, Copy, Clone)]
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type", content = "val")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
 pub enum CustomPlace {
     /// This custom section will appear before the first section in the module.
     BeforeFirst,
@@ -84,8 +83,7 @@ pub enum CustomPlace {
 /// Known sections that custom sections can be placed relative to.
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 #[allow(missing_docs)]
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type", content = "val")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
 pub enum CustomPlaceAnchor {
     Type,
     Import,
@@ -205,9 +203,9 @@ impl<'a> Parse<'a> for CustomPlaceAnchor {
 /// A producers custom section
 #[allow(missing_docs)]
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Producers<'a> {
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub fields: Vec<(&'a str, Vec<(&'a str, &'a str)>)>,
 }
 
@@ -255,17 +253,16 @@ impl<'a> Parse<'a> for Producers<'a> {
 /// A `dylink.0` custom section
 #[allow(missing_docs)]
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Dylink0<'a> {
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub subsections: Vec<Dylink0Subsection<'a>>,
 }
 
 /// Possible subsections of the `dylink.0` custom section
 #[derive(Debug)]
 #[allow(missing_docs)]
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type", content = "val")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
 pub enum Dylink0Subsection<'a> {
     MemInfo {
         memory_size: u32,
@@ -273,7 +270,7 @@ pub enum Dylink0Subsection<'a> {
         table_size: u32,
         table_align: u32,
     },
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     Needed(Vec<&'a str>),
     ExportInfo(Vec<(&'a str, u32)>),
     ImportInfo(Vec<(&'a str, &'a str, u32)>),

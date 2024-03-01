@@ -5,6 +5,7 @@ use crate::names::Namespace;
 use crate::token::Span;
 use crate::token::{Id, Index};
 use crate::Error;
+#[cfg(feature = "serde")]
 use serde::Serialize as SerializeT;
 
 /// Resolve the fields of a component and everything nested within it, changing

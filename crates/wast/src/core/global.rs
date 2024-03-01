@@ -2,16 +2,17 @@ use crate::core::*;
 use crate::kw;
 use crate::parser::{Parse, Parser, Result};
 use crate::token::{Id, NameAnnotation, Span};
+#[cfg(feature = "serde")]
 use serde_derive::{Serialize, Deserialize};
 
 /// A WebAssembly global in a module
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Global<'a> {
     /// Where this `global` was defined.
     pub span: Span,
     /// An optional name to reference this global by
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub id: Option<Id<'a>>,
     /// An optional name for this function stored in the custom `name` section.
     pub name: Option<NameAnnotation<'a>>,
@@ -26,15 +27,14 @@ pub struct Global<'a> {
 
 /// Different kinds of globals that can be defined in a module.
 #[derive(Debug)]
-#[derive(Serialize, Deserialize)]
-#[serde(tag = "type", content = "val")]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
 pub enum GlobalKind<'a> {
     /// A global which is actually defined as an import, such as:
     ///
     /// ```text
     /// (global i32 (import "foo" "bar"))
     /// ```
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     Import(InlineImport<'a>),
 
     /// A global defined inline in the module itself
