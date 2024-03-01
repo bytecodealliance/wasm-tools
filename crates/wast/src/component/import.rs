@@ -3,7 +3,7 @@ use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Id, Index, LParen, NameAnnotation, Span};
 #[cfg(feature = "serde")]
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 
 /// An `import` statement and entry in a WebAssembly component.
 #[derive(Debug)]
@@ -78,10 +78,7 @@ impl<'a> Parse<'a> for ItemSig<'a> {
 /// An item signature for imported items.
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct ItemSigNoName<'a>(
-    #[cfg_attr(feature = "serde", serde(borrow))]
-    pub ItemSig<'a>
-);
+pub struct ItemSigNoName<'a>(#[cfg_attr(feature = "serde", serde(borrow))] pub ItemSig<'a>);
 
 impl<'a> Parse<'a> for ItemSigNoName<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
@@ -125,7 +122,11 @@ fn parse_item_sig<'a>(parser: Parser<'a>, name: bool) -> Result<ItemSig<'a>> {
 
 /// The kind of signatures for imported items.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum ItemSigKind<'a> {
     /// The item signature is for a core module.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -144,7 +145,11 @@ pub enum ItemSigKind<'a> {
 
 /// Represents the bounds applied to types being imported.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum TypeBounds<'a> {
     /// The equality type bounds.
     #[cfg_attr(feature = "serde", serde(borrow))]

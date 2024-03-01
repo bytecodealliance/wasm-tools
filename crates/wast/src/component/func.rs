@@ -3,9 +3,9 @@ use crate::kw;
 use crate::parser::{Parse, Parser, Result};
 use crate::token::{Id, Index, LParen, NameAnnotation, Span};
 #[cfg(feature = "serde")]
-use serde_derive::{Serialize, Deserialize};
-#[cfg(feature = "serde")]
 use serde::Serialize as SerializeT;
+#[cfg(feature = "serde")]
+use serde_derive::{Deserialize, Serialize};
 
 /// A declared core function.
 ///
@@ -45,7 +45,11 @@ impl<'a> Parse<'a> for CoreFunc<'a> {
 /// Represents the kind of core functions.
 #[derive(Debug)]
 #[allow(missing_docs)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum CoreFuncKind<'a> {
     /// The core function is defined in terms of lowering a component function.
     ///
@@ -129,7 +133,11 @@ impl<'a> Parse<'a> for Func<'a> {
 
 /// Represents the kind of component functions.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum FuncKind<'a> {
     /// A function which is actually defined as an import, such as:
     ///
@@ -261,7 +269,11 @@ impl<'a> CanonicalFunc<'a> {
 /// Possible ways to define a canonical function in the text format.
 #[derive(Debug)]
 #[allow(missing_docs)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum CanonicalFuncKind<'a> {
     /// A canonical function that is defined in terms of lifting a core function.
     Lift {
@@ -437,7 +449,11 @@ impl Default for CanonResourceRep<'_> {
 
 #[derive(Debug)]
 /// Canonical ABI options.
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum CanonOpt<'a> {
     /// Encode strings as UTF-8.
     StringUtf8,
@@ -498,7 +514,10 @@ impl<'a> Parse<'a> for CanonOpt<'a> {
 fn parse_trailing_item_ref<
     #[cfg(feature = "serde")] T: SerializeT,
     #[cfg(not(feature = "serde"))] T,
->(kind: T, parser: Parser) -> Result<CoreItemRef<T>> {
+>(
+    kind: T,
+    parser: Parser,
+) -> Result<CoreItemRef<T>> {
     Ok(CoreItemRef {
         kind,
         idx: parser.parse()?,

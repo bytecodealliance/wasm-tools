@@ -2,11 +2,15 @@ use crate::parser::{Parse, Parser, Result};
 use crate::token::{self, Span};
 use crate::{annotation, kw};
 #[cfg(feature = "serde")]
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 
 /// A custom section within a wasm module.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum Custom<'a> {
     /// A raw custom section with the manual placement and bytes specified.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -68,7 +72,11 @@ pub struct RawCustomSection<'a> {
 
 /// Possible locations to place a custom section within a module.
 #[derive(Debug, PartialEq, Copy, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum CustomPlace {
     /// This custom section will appear before the first section in the module.
     BeforeFirst,
@@ -83,7 +91,11 @@ pub enum CustomPlace {
 /// Known sections that custom sections can be placed relative to.
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 #[allow(missing_docs)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum CustomPlaceAnchor {
     Type,
     Import,
@@ -262,7 +274,11 @@ pub struct Dylink0<'a> {
 /// Possible subsections of the `dylink.0` custom section
 #[derive(Debug)]
 #[allow(missing_docs)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum Dylink0Subsection<'a> {
     MemInfo {
         memory_size: u32,

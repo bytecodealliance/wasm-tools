@@ -2,14 +2,18 @@ use crate::core::*;
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Id, Index, LParen, NameAnnotation, Span};
-use std::mem;
 #[cfg(feature = "serde")]
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
+use std::mem;
 
 /// The value types for a wasm module.
 #[allow(missing_docs)]
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum ValType<'a> {
     I32,
     I64,
@@ -63,7 +67,11 @@ impl<'a> Peek for ValType<'a> {
 /// A heap type for a reference type
 #[allow(missing_docs)]
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum HeapType<'a> {
     /// An untyped function reference: funcref. This is part of the reference
     /// types proposal.
@@ -346,7 +354,11 @@ impl<'a> Peek for RefType<'a> {
 /// The types of values that may be used in a struct or array.
 #[allow(missing_docs)]
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum StorageType<'a> {
     I8,
     I16,
@@ -467,7 +479,11 @@ impl<'a> Parse<'a> for TableType<'a> {
 
 /// Configuration for a memory of a wasm module
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum MemoryType {
     /// A 32-bit memory
     B32 {
@@ -726,7 +742,11 @@ impl<'a> Parse<'a> for ExportType<'a> {
 
 /// A definition of a type.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum TypeDef<'a> {
     /// A function type definition.
     #[cfg_attr(feature = "serde", serde(borrow))]

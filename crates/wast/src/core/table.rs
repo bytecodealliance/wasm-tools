@@ -3,7 +3,7 @@ use crate::kw;
 use crate::parser::{Parse, Parser, Peek, Result};
 use crate::token::{Id, Index, LParen, NameAnnotation, Span};
 #[cfg(feature = "serde")]
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 
 /// A WebAssembly `table` directive in a module.
 #[derive(Debug)]
@@ -25,7 +25,11 @@ pub struct Table<'a> {
 
 /// Different ways to textually define a table.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum TableKind<'a> {
     /// This table is actually an inlined import definition.
     #[allow(missing_docs)]
@@ -123,7 +127,11 @@ pub struct Elem<'a> {
 
 /// Different ways to define an element segment in an mdoule.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum ElemKind<'a> {
     /// A passive segment that isn't associated with a table and can be used in
     /// various bulk-memory instructions.
@@ -145,7 +153,11 @@ pub enum ElemKind<'a> {
 
 /// Different ways to define the element segment payload in a module.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum ElemPayload<'a> {
     /// This element segment has a contiguous list of function indices
     #[cfg_attr(feature = "serde", serde(borrow))]

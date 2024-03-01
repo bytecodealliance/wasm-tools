@@ -4,7 +4,7 @@ use crate::kw;
 use crate::parser::{Parse, Parser, Result};
 use crate::token::{Id, LParen, NameAnnotation, Span};
 #[cfg(feature = "serde")]
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 
 /// A core instance defined by instantiation or exporting core items.
 #[derive(Debug)]
@@ -41,7 +41,11 @@ impl<'a> Parse<'a> for CoreInstance<'a> {
 
 /// The kinds of core instances in the text format.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum CoreInstanceKind<'a> {
     /// Instantiate a core module.
     Instantiate {
@@ -109,7 +113,11 @@ impl<'a> Parse<'a> for Vec<CoreInstantiationArg<'a>> {
 
 /// The kind of core instantiation argument.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum CoreInstantiationArgKind<'a> {
     /// The argument is a reference to an instance.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -205,7 +213,11 @@ impl<'a> Parse<'a> for Instance<'a> {
 
 /// The kinds of instances in the text format.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum InstanceKind<'a> {
     /// The `(instance (import "x"))` sugar syntax
     Import {
@@ -287,7 +299,11 @@ impl<'a> Parse<'a> for Vec<InstantiationArg<'a>> {
 
 /// The kind of instantiation argument.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum InstantiationArgKind<'a> {
     /// The argument is a reference to a component item.
     #[cfg_attr(feature = "serde", serde(borrow))]

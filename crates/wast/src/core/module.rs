@@ -3,7 +3,7 @@ use crate::parser::{Parse, Parser, Result};
 use crate::token::{Id, Index, NameAnnotation, Span};
 use crate::{annotation, kw};
 #[cfg(feature = "serde")]
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 
 pub use crate::core::resolve::Names;
 
@@ -24,7 +24,11 @@ pub struct Module<'a> {
 
 /// The different kinds of ways to define a module.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum ModuleKind<'a> {
     /// A module defined in the textual s-expression format.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -148,7 +152,11 @@ impl<'a> Parse<'a> for Module<'a> {
 /// A listing of all possible fields that can make up a WebAssembly module.
 #[allow(missing_docs)]
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum ModuleField<'a> {
     #[cfg_attr(feature = "serde", serde(borrow))]
     Type(Type<'a>),

@@ -3,7 +3,7 @@ use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Id, NameAnnotation, Span};
 #[cfg(feature = "serde")]
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 
 /// An `import` statement and entry in a WebAssembly module.
 #[derive(Debug, Clone)]
@@ -53,7 +53,11 @@ pub struct ItemSig<'a> {
 
 #[derive(Debug, Clone)]
 #[allow(missing_docs)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum ItemKind<'a> {
     #[cfg_attr(feature = "serde", serde(borrow))]
     Func(TypeUse<'a, FunctionType<'a>>),

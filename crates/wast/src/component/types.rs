@@ -8,9 +8,9 @@ use crate::token::Index;
 use crate::token::LParen;
 use crate::token::{Id, NameAnnotation, Span};
 #[cfg(feature = "serde")]
-use serde_derive::{Serialize, Deserialize};
-#[cfg(feature = "serde")]
 use serde::Serialize as SerializeT;
+#[cfg(feature = "serde")]
+use serde_derive::{Deserialize, Serialize};
 
 /// A core type declaration.
 #[derive(Debug)]
@@ -50,7 +50,11 @@ impl<'a> Parse<'a> for CoreType<'a> {
 /// In the future this may be removed when module types are a part of
 /// a core module.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum CoreTypeDef<'a> {
     /// The type definition is one of the core types.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -90,7 +94,11 @@ impl<'a> Parse<'a> for ModuleType<'a> {
 
 /// The declarations of a [`ModuleType`].
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum ModuleTypeDecl<'a> {
     /// A core type.
     Type(core::Type<'a>),
@@ -185,7 +193,11 @@ impl<'a> Type<'a> {
 
 /// A definition of a component type.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum TypeDef<'a> {
     /// A defined value type.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -235,7 +247,11 @@ impl<'a> Parse<'a> for TypeDef<'a> {
 /// A primitive value type.
 #[allow(missing_docs)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum PrimitiveValType {
     Bool,
     S8,
@@ -328,7 +344,11 @@ impl Peek for PrimitiveValType {
 /// A component value type.
 #[allow(missing_docs)]
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum ComponentValType<'a> {
     /// The value type is an inline defined type.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -364,8 +384,7 @@ impl Peek for ComponentValType<'_> {
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct InlineComponentValType<'a>(
-    #[cfg_attr(feature = "serde", serde(borrow))]
-    ComponentDefinedType<'a>
+    #[cfg_attr(feature = "serde", serde(borrow))] ComponentDefinedType<'a>,
 );
 
 impl<'a> Parse<'a> for InlineComponentValType<'a> {
@@ -386,7 +405,11 @@ impl<'a> Parse<'a> for InlineComponentValType<'a> {
 // A component defined type.
 #[allow(missing_docs)]
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum ComponentDefinedType<'a> {
     Primitive(PrimitiveValType),
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -568,13 +591,16 @@ impl<'a> Parse<'a> for VariantCase<'a> {
 
 /// A refinement for a variant case.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum Refinement<'a> {
     /// The refinement is referenced by index.
     Index(
         Span,
-        #[cfg_attr(feature = "serde", serde(borrow))]
-        Index<'a>
+        #[cfg_attr(feature = "serde", serde(borrow))] Index<'a>,
     ),
     /// The refinement has been resolved to an index into
     /// the cases of the variant.
@@ -840,7 +866,11 @@ impl<'a> Parse<'a> for ComponentType<'a> {
 
 /// A declaration of a component type.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum ComponentTypeDecl<'a> {
     /// A core type definition local to the component type.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -904,7 +934,11 @@ impl<'a> Parse<'a> for InstanceType<'a> {
 
 /// A declaration of an instance type.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum InstanceTypeDecl<'a> {
     /// A core type definition local to the component type.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -977,8 +1011,7 @@ impl<'a> Parse<'a> for ResourceType<'a> {
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ComponentValTypeUse<'a>(
-    #[cfg_attr(feature = "serde", serde(borrow))]
-    pub ComponentValType<'a>
+    #[cfg_attr(feature = "serde", serde(borrow))] pub ComponentValType<'a>,
 );
 
 impl<'a> Parse<'a> for ComponentValTypeUse<'a> {
@@ -995,11 +1028,13 @@ impl<'a> Parse<'a> for ComponentValTypeUse<'a> {
 /// This is the same as `TypeUse`, but accepts `$T` as shorthand for
 /// `(type $T)`.
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
-pub enum CoreTypeUse<'a,
-    #[cfg(feature = "serde")] T: SerializeT,
-    #[cfg(not(feature = "serde"))] T,
-> {
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
+pub enum CoreTypeUse<'a, #[cfg(feature = "serde")] T: SerializeT, #[cfg(not(feature = "serde"))] T>
+{
     /// The type that we're referencing.
     #[cfg_attr(feature = "serde", serde(borrow))]
     Ref(CoreItemRef<'a, kw::r#type>),
@@ -1007,10 +1042,12 @@ pub enum CoreTypeUse<'a,
     Inline(T),
 }
 
-impl<'a,
-    #[cfg(feature = "serde")] T: Parse<'a> + SerializeT,
-    #[cfg(not(feature = "serde"))] T: Parse<'a>,
-> Parse<'a> for CoreTypeUse<'a, T> {
+impl<
+        'a,
+        #[cfg(feature = "serde")] T: Parse<'a> + SerializeT,
+        #[cfg(not(feature = "serde"))] T: Parse<'a>,
+    > Parse<'a> for CoreTypeUse<'a, T>
+{
     fn parse(parser: Parser<'a>) -> Result<Self> {
         // Here the core context is assumed, so no core prefix is expected
         if parser.peek::<LParen>()? && parser.peek2::<CoreItemRef<'a, kw::r#type>>()? {
@@ -1021,10 +1058,9 @@ impl<'a,
     }
 }
 
-impl<
-    #[cfg(feature = "serde")] T: SerializeT,
-    #[cfg(not(feature = "serde"))] T,
-> Default for CoreTypeUse<'_, T> {
+impl<#[cfg(feature = "serde")] T: SerializeT, #[cfg(not(feature = "serde"))] T> Default
+    for CoreTypeUse<'_, T>
+{
     fn default() -> Self {
         let span = Span::from_offset(0);
         Self::Ref(CoreItemRef {
@@ -1040,8 +1076,13 @@ impl<
 /// This is the same as `TypeUse`, but accepts `$T` as shorthand for
 /// `(type $T)`.
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
-pub enum ComponentTypeUse<'a,
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
+pub enum ComponentTypeUse<
+    'a,
     #[cfg(feature = "serde")] T: SerializeT,
     #[cfg(not(feature = "serde"))] T,
 > {
@@ -1052,10 +1093,12 @@ pub enum ComponentTypeUse<'a,
     Inline(T),
 }
 
-impl<'a,
-    #[cfg(feature = "serde")] T: Parse<'a> + SerializeT,
-    #[cfg(not(feature = "serde"))] T: Parse<'a>,
-> Parse<'a> for ComponentTypeUse<'a, T> {
+impl<
+        'a,
+        #[cfg(feature = "serde")] T: Parse<'a> + SerializeT,
+        #[cfg(not(feature = "serde"))] T: Parse<'a>,
+    > Parse<'a> for ComponentTypeUse<'a, T>
+{
     fn parse(parser: Parser<'a>) -> Result<Self> {
         if parser.peek::<LParen>()? && parser.peek2::<ItemRef<'a, kw::r#type>>()? {
             Ok(Self::Ref(parser.parens(|parser| parser.parse())?))
@@ -1065,10 +1108,9 @@ impl<'a,
     }
 }
 
-impl<
-    #[cfg(feature = "serde")] T: SerializeT,
-    #[cfg(not(feature = "serde"))] T,
-> Default for ComponentTypeUse<'_, T> {
+impl<#[cfg(feature = "serde")] T: SerializeT, #[cfg(not(feature = "serde"))] T> Default
+    for ComponentTypeUse<'_, T>
+{
     fn default() -> Self {
         let span = Span::from_offset(0);
         Self::Ref(ItemRef {

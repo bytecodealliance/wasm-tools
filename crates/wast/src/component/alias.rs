@@ -3,7 +3,7 @@ use crate::kw;
 use crate::parser::{Parse, Parser, Result};
 use crate::token::{Id, Index, NameAnnotation, Span};
 #[cfg(feature = "serde")]
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 
 /// A inline alias for component exported items.
 ///
@@ -142,7 +142,11 @@ impl<'a> Parse<'a> for Alias<'a> {
 
 /// Represents the kind of instance export alias.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum ComponentExportAliasKind {
     /// The alias is to a core module export.
     CoreModule,
@@ -193,7 +197,11 @@ impl<'a> Parse<'a> for ComponentExportAliasKind {
 
 /// Represents the kind of outer alias.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum ComponentOuterAliasKind {
     /// The alias is to an outer core module.
     CoreModule,
@@ -234,7 +242,11 @@ impl<'a> Parse<'a> for ComponentOuterAliasKind {
 
 /// The target of a component alias.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum AliasTarget<'a> {
     /// The alias is to an export of a component instance.
     Export {

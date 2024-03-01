@@ -4,9 +4,9 @@ use crate::encode::Encode;
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Result};
 use crate::token::*;
-use std::mem;
 #[cfg(feature = "serde")]
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
+use std::mem;
 
 /// An expression, or a list of instructions, in the WebAssembly text format.
 ///
@@ -1200,7 +1200,11 @@ impl<'a> Parse<'a> for TryTable<'a> {
 
 #[derive(Debug)]
 #[allow(missing_docs)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum TryTableCatchKind<'a> {
     // Catch a tagged exception, do not capture an exnref.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -1832,7 +1836,11 @@ impl<'a> Parse<'a> for BrOnCastFail<'a> {
 /// Different ways to specify a `v128.const` instruction
 #[derive(Debug)]
 #[allow(missing_docs)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum V128Const {
     I8x16([i8; 16]),
     I16x8([i16; 8]),

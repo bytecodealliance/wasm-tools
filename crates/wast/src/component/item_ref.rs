@@ -3,7 +3,7 @@ use crate::token::Index;
 #[cfg(feature = "serde")]
 use serde::Serialize as SerializeT;
 #[cfg(feature = "serde")]
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 
 fn peek<K: Peek>(cursor: Cursor) -> Result<bool> {
     // This is a little fancy because when parsing something like:
@@ -44,7 +44,8 @@ fn peek<K: Peek>(cursor: Cursor) -> Result<bool> {
 /// Parses core item references.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct CoreItemRef<'a,
+pub struct CoreItemRef<
+    'a,
     #[cfg(feature = "serde")] K: SerializeT,
     #[cfg(not(feature = "serde"))] K,
 > {
@@ -56,10 +57,12 @@ pub struct CoreItemRef<'a,
     pub export_name: Option<&'a str>,
 }
 
-impl<'a,
-    #[cfg(feature = "serde")] K: Parse<'a> + SerializeT,
-    #[cfg(not(feature = "serde"))] K: Parse<'a>,
-> Parse<'a> for CoreItemRef<'a, K> {
+impl<
+        'a,
+        #[cfg(feature = "serde")] K: Parse<'a> + SerializeT,
+        #[cfg(not(feature = "serde"))] K: Parse<'a>,
+    > Parse<'a> for CoreItemRef<'a, K>
+{
     fn parse(parser: Parser<'a>) -> Result<Self> {
         // This does not parse the surrounding `(` and `)` because
         // core prefix is context dependent and only the caller knows if it should be
@@ -75,10 +78,12 @@ impl<'a,
     }
 }
 
-impl<'a,
-    #[cfg(feature = "serde")] K: Peek + SerializeT,
-    #[cfg(not(feature = "serde"))] K: Peek,
-> Peek for CoreItemRef<'a, K> {
+impl<
+        'a,
+        #[cfg(feature = "serde")] K: Peek + SerializeT,
+        #[cfg(not(feature = "serde"))] K: Peek,
+    > Peek for CoreItemRef<'a, K>
+{
     fn peek(cursor: Cursor<'_>) -> Result<bool> {
         peek::<K>(cursor)
     }
@@ -91,10 +96,7 @@ impl<'a,
 /// Parses component item references.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct ItemRef<'a,
-    #[cfg(feature = "serde")] K: SerializeT,
-    #[cfg(not(feature = "serde"))] K,
-> {
+pub struct ItemRef<'a, #[cfg(feature = "serde")] K: SerializeT, #[cfg(not(feature = "serde"))] K> {
     /// The item kind being parsed.
     pub kind: K,
     /// The item or instance reference.
@@ -104,10 +106,12 @@ pub struct ItemRef<'a,
     pub export_names: Vec<&'a str>,
 }
 
-impl<'a,
-    #[cfg(feature = "serde")] K: Parse<'a> + SerializeT,
-    #[cfg(not(feature = "serde"))] K: Parse<'a> +,
-> Parse<'a> for ItemRef<'a, K> {
+impl<
+        'a,
+        #[cfg(feature = "serde")] K: Parse<'a> + SerializeT,
+        #[cfg(not(feature = "serde"))] K: Parse<'a>,
+    > Parse<'a> for ItemRef<'a, K>
+{
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let kind = parser.parse::<K>()?;
         let idx = parser.parse()?;
@@ -123,10 +127,12 @@ impl<'a,
     }
 }
 
-impl<'a,
-    #[cfg(feature = "serde")] K: Peek + SerializeT,
-    #[cfg(not(feature = "serde"))] K: Peek,
-> Peek for ItemRef<'a, K> {
+impl<
+        'a,
+        #[cfg(feature = "serde")] K: Peek + SerializeT,
+        #[cfg(not(feature = "serde"))] K: Peek,
+    > Peek for ItemRef<'a, K>
+{
     fn peek(cursor: Cursor<'_>) -> Result<bool> {
         peek::<K>(cursor)
     }
@@ -138,15 +144,12 @@ impl<'a,
 
 /// Convenience structure to parse `$f` or `(item $f)`.
 #[derive(Clone, Debug)]
-pub struct IndexOrRef<'a,
-    #[cfg(feature = "serde")] K: SerializeT,
-    #[cfg(not(feature = "serde"))] K,
->(pub ItemRef<'a, K>);
+pub struct IndexOrRef<'a, #[cfg(feature = "serde")] K: SerializeT, #[cfg(not(feature = "serde"))] K>(
+    pub ItemRef<'a, K>,
+);
 
-impl<'a,
-    #[cfg(feature = "serde")] K: SerializeT,
-    #[cfg(not(feature = "serde"))] K,
-> Parse<'a> for IndexOrRef<'a, K>
+impl<'a, #[cfg(feature = "serde")] K: SerializeT, #[cfg(not(feature = "serde"))] K> Parse<'a>
+    for IndexOrRef<'a, K>
 where
     K: Parse<'a> + Default,
 {
@@ -165,15 +168,14 @@ where
 
 /// Convenience structure to parse `$f` or `(item $f)`.
 #[derive(Clone, Debug)]
-pub struct IndexOrCoreRef<'a,
+pub struct IndexOrCoreRef<
+    'a,
     #[cfg(feature = "serde")] K: SerializeT,
     #[cfg(not(feature = "serde"))] K,
 >(pub CoreItemRef<'a, K>);
 
-impl<'a,
-    #[cfg(feature = "serde")] K: SerializeT,
-    #[cfg(not(feature = "serde"))] K,
-> Parse<'a> for IndexOrCoreRef<'a, K>
+impl<'a, #[cfg(feature = "serde")] K: SerializeT, #[cfg(not(feature = "serde"))] K> Parse<'a>
+    for IndexOrCoreRef<'a, K>
 where
     K: Parse<'a> + Default,
 {

@@ -3,7 +3,7 @@ use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Id, Index, NameAnnotation, Span};
 #[cfg(feature = "serde")]
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 
 /// An entry in a WebAssembly component's export section.
 #[derive(Debug)]
@@ -59,7 +59,11 @@ impl<'a> Parse<'a> for Vec<ComponentExport<'a>> {
 
 /// The kind of exported item.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum ComponentExportKind<'a> {
     /// The export is a core module.
     ///

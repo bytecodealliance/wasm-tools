@@ -3,7 +3,7 @@ use crate::kw;
 use crate::parser::{Parse, Parser, Result};
 use crate::token::{Id, NameAnnotation, Span};
 #[cfg(feature = "serde")]
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 
 /// A WebAssembly global in a module
 #[derive(Debug)]
@@ -27,7 +27,11 @@ pub struct Global<'a> {
 
 /// Different kinds of globals that can be defined in a module.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum GlobalKind<'a> {
     /// A global which is actually defined as an import, such as:
     ///

@@ -393,10 +393,10 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
-    fn core_type_use<
-        #[cfg(feature = "serde")] T: SerializeT,
-        #[cfg(not(feature = "serde"))] T,
-    >(&mut self, ty: &mut CoreTypeUse<'a, T>) -> Result<(), Error> {
+    fn core_type_use<#[cfg(feature = "serde")] T: SerializeT, #[cfg(not(feature = "serde"))] T>(
+        &mut self,
+        ty: &mut CoreTypeUse<'a, T>,
+    ) -> Result<(), Error> {
         let item = match ty {
             CoreTypeUse::Ref(r) => r,
             CoreTypeUse::Inline(_) => {
@@ -409,7 +409,10 @@ impl<'a> Resolver<'a> {
     fn component_type_use<
         #[cfg(feature = "serde")] T: SerializeT,
         #[cfg(not(feature = "serde"))] T,
-    >(&mut self, ty: &mut ComponentTypeUse<'a, T>) -> Result<(), Error> {
+    >(
+        &mut self,
+        ty: &mut ComponentTypeUse<'a, T>,
+    ) -> Result<(), Error> {
         let item = match ty {
             ComponentTypeUse::Ref(r) => r,
             ComponentTypeUse::Inline(_) => {
@@ -615,10 +618,10 @@ impl<'a> Resolver<'a> {
         )
     }
 
-    fn core_item_ref<
-        #[cfg(feature = "serde")] K: SerializeT,
-        #[cfg(not(feature = "serde"))] K,
-    >(&mut self, item: &mut CoreItemRef<'a, K>) -> Result<(), Error>
+    fn core_item_ref<#[cfg(feature = "serde")] K: SerializeT, #[cfg(not(feature = "serde"))] K>(
+        &mut self,
+        item: &mut CoreItemRef<'a, K>,
+    ) -> Result<(), Error>
     where
         K: CoreItem + Copy,
     {
@@ -657,7 +660,10 @@ impl<'a> Resolver<'a> {
     fn component_item_ref<
         #[cfg(feature = "serde")] K: SerializeT,
         #[cfg(not(feature = "serde"))] K,
-    >(&mut self, item: &mut ItemRef<'a, K>) -> Result<(), Error>
+    >(
+        &mut self,
+        item: &mut ItemRef<'a, K>,
+    ) -> Result<(), Error>
     where
         K: ComponentItem + Copy,
     {

@@ -4,10 +4,10 @@ use crate::gensym;
 use crate::kw;
 use crate::token::Id;
 use crate::token::{Index, Span};
-use std::collections::HashMap;
-use std::mem;
 #[cfg(feature = "serde")]
 use serde::Serialize as SerializeT;
+use std::collections::HashMap;
+use std::mem;
 
 /// Performs an AST "expansion" pass over the component fields provided.
 ///

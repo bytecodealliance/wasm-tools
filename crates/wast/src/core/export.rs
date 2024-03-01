@@ -2,7 +2,7 @@ use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Index, Span};
 #[cfg(feature = "serde")]
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 
 /// A entry in a WebAssembly module's export section.
 #[derive(Debug)]
@@ -22,7 +22,11 @@ pub struct Export<'a> {
 /// contained in an [`Export`].
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 #[allow(missing_docs)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum ExportKind {
     Func,
     Table,

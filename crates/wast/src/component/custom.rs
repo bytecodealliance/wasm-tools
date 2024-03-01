@@ -2,7 +2,7 @@ use crate::annotation;
 use crate::parser::{Parse, Parser, Result};
 use crate::token::Span;
 #[cfg(feature = "serde")]
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 
 /// A custom section within a component.
 #[derive(Debug)]

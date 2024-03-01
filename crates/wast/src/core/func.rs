@@ -3,7 +3,7 @@ use crate::kw;
 use crate::parser::{Parse, Parser, Result};
 use crate::token::{Id, NameAnnotation, Span};
 #[cfg(feature = "serde")]
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 
 /// A WebAssembly function to be inserted into a module.
 ///
@@ -31,7 +31,11 @@ pub struct Func<'a> {
 
 /// Possible ways to define a function in the text format.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum FuncKind<'a> {
     /// A function which is actually defined as an import, such as:
     ///

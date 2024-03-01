@@ -1,6 +1,8 @@
 use crate::component::*;
 use crate::core;
 use crate::token::{Id, Index, NameAnnotation, Span};
+#[cfg(feature = "serde")]
+use serde::Serialize as SerializeT;
 use wasm_encoder::{
     CanonicalFunctionSection, ComponentAliasSection, ComponentDefinedTypeEncoder,
     ComponentExportSection, ComponentImportSection, ComponentInstanceSection, ComponentNameSection,
@@ -8,8 +10,6 @@ use wasm_encoder::{
     ComponentTypeSection, CoreTypeEncoder, CoreTypeSection, InstanceSection, NameMap,
     NestedComponentSection, RawSection, SectionId,
 };
-#[cfg(feature = "serde")]
-use serde::Serialize as SerializeT;
 
 pub fn encode(component: &Component<'_>) -> Vec<u8> {
     match &component.kind {
@@ -733,20 +733,18 @@ impl From<Index<'_>> for u32 {
     }
 }
 
-impl<
-    #[cfg(feature = "serde")] T: SerializeT,
-    #[cfg(not(feature = "serde"))] T,
-> From<&ItemRef<'_, T>> for u32 {
+impl<#[cfg(feature = "serde")] T: SerializeT, #[cfg(not(feature = "serde"))] T>
+    From<&ItemRef<'_, T>> for u32
+{
     fn from(i: &ItemRef<'_, T>) -> Self {
         assert!(i.export_names.is_empty());
         i.idx.into()
     }
 }
 
-impl<
-    #[cfg(feature = "serde")] T: SerializeT,
-    #[cfg(not(feature = "serde"))] T,
-> From<&CoreTypeUse<'_, T>> for u32 {
+impl<#[cfg(feature = "serde")] T: SerializeT, #[cfg(not(feature = "serde"))] T>
+    From<&CoreTypeUse<'_, T>> for u32
+{
     fn from(u: &CoreTypeUse<'_, T>) -> Self {
         match u {
             CoreTypeUse::Inline(_) => unreachable!("should be expanded already"),
@@ -755,10 +753,9 @@ impl<
     }
 }
 
-impl<
-    #[cfg(feature = "serde")] T: SerializeT,
-    #[cfg(not(feature = "serde"))] T,
-> From<&ComponentTypeUse<'_, T>> for u32 {
+impl<#[cfg(feature = "serde")] T: SerializeT, #[cfg(not(feature = "serde"))] T>
+    From<&ComponentTypeUse<'_, T>> for u32
+{
     fn from(u: &ComponentTypeUse<'_, T>) -> Self {
         match u {
             ComponentTypeUse::Inline(_) => unreachable!("should be expanded already"),

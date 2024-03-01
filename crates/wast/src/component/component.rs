@@ -6,7 +6,7 @@ use crate::parser::{Parse, Parser, Result};
 use crate::token::Index;
 use crate::token::{Id, NameAnnotation, Span};
 #[cfg(feature = "serde")]
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 
 /// A parsed WebAssembly component module.
 #[derive(Debug)]
@@ -25,7 +25,11 @@ pub struct Component<'a> {
 
 /// The different kinds of ways to define a component.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum ComponentKind<'a> {
     /// A component defined in the textual s-expression format.
     #[cfg_attr(feature = "serde", serde(borrow))]
@@ -145,7 +149,11 @@ impl<'a> Parse<'a> for Component<'a> {
 /// A listing of all possible fields that can make up a WebAssembly component.
 #[allow(missing_docs)]
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum ComponentField<'a> {
     #[cfg_attr(feature = "serde", serde(borrow))]
     CoreModule(CoreModule<'a>),
@@ -287,7 +295,11 @@ pub struct NestedComponent<'a> {
 
 /// The different kinds of ways to define a nested component.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum NestedComponentKind<'a> {
     /// This is actually an inline import of a component
     Import {

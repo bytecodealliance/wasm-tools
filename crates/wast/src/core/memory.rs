@@ -3,7 +3,7 @@ use crate::kw;
 use crate::parser::{Lookahead1, Parse, Parser, Peek, Result};
 use crate::token::*;
 #[cfg(feature = "serde")]
-use serde_derive::{Serialize, Deserialize};
+use serde_derive::{Deserialize, Serialize};
 
 /// A defined WebAssembly memory instance inside of a module.
 #[derive(Debug)]
@@ -25,7 +25,11 @@ pub struct Memory<'a> {
 
 /// Different syntactical ways a memory can be defined in a module.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum MemoryKind<'a> {
     /// This memory is actually an inlined import definition.
     #[allow(missing_docs)]
@@ -119,7 +123,11 @@ pub struct Data<'a> {
 
 /// Different kinds of data segments, either passive or active.
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum DataKind<'a> {
     /// A passive data segment which isn't associated with a memory and is
     /// referenced from various instructions.
@@ -219,7 +227,11 @@ impl<'a> Parse<'a> for Data<'a> {
 /// Differnet ways the value of a data segment can be defined.
 #[derive(Debug)]
 #[allow(missing_docs)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(tag = "type", content = "val"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", content = "val")
+)]
 pub enum DataVal<'a> {
     String(&'a [u8]),
     Integral(Vec<u8>),
