@@ -184,7 +184,6 @@ impl<'a> ExpressionParser<'a> {
                         // seen
                         i @ Instruction::Block(_)
                         | i @ Instruction::Loop(_)
-                        | i @ Instruction::Let(_)
                         | i @ Instruction::TryTable(_) => {
                             self.instrs.push(i);
                             self.stack.push(Level::EndWith(Instruction::End(None)));
@@ -468,8 +467,6 @@ instructions! {
         // function-references proposal
         CallRef(Index<'a>) : [0x14] : "call_ref",
         ReturnCallRef(Index<'a>) : [0x15] : "return_call_ref",
-        FuncBind(FuncBindType<'a>) : [0x16] : "func.bind",
-        Let(LetType<'a>) : [0x17] : "let",
 
         Drop : [0x1a] : "drop",
         Select(SelectTypes<'a>) : [] : "select",
@@ -1215,40 +1212,6 @@ impl<'a> TryTableCatchKind<'a> {
 pub struct TryTableCatch<'a> {
     pub kind: TryTableCatchKind<'a>,
     pub label: Index<'a>,
-}
-
-/// Extra information associated with the func.bind instruction.
-#[derive(Debug)]
-#[allow(missing_docs)]
-pub struct FuncBindType<'a> {
-    pub ty: TypeUse<'a, FunctionType<'a>>,
-}
-
-impl<'a> Parse<'a> for FuncBindType<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        Ok(FuncBindType {
-            ty: parser
-                .parse::<TypeUse<'a, FunctionTypeNoNames<'a>>>()?
-                .into(),
-        })
-    }
-}
-
-/// Extra information associated with the let instruction.
-#[derive(Debug)]
-#[allow(missing_docs)]
-pub struct LetType<'a> {
-    pub block: Box<BlockType<'a>>,
-    pub locals: Box<[Local<'a>]>,
-}
-
-impl<'a> Parse<'a> for LetType<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        Ok(LetType {
-            block: parser.parse()?,
-            locals: Local::parse_remainder(parser)?.into(),
-        })
-    }
 }
 
 /// Extra information associated with the `br_table` instruction.
