@@ -600,7 +600,10 @@ impl<'a> Expander<'a> {
         *ty = ComponentValType::Ref(idx);
     }
 
-    fn expand_core_type_use<T: SerializeT>(
+    fn expand_core_type_use<
+        #[cfg(feature = "serde")] T: SerializeT,
+        #[cfg(not(feature = "serde"))] T,
+    >(
         &mut self,
         item: &mut CoreTypeUse<'a, T>,
     ) -> CoreItemRef<'a, kw::r#type>
@@ -653,7 +656,10 @@ impl<'a> Expander<'a> {
         ret
     }
 
-    fn expand_component_type_use<T: SerializeT>(
+    fn expand_component_type_use<
+        #[cfg(feature = "serde")] T: SerializeT,
+        #[cfg(not(feature = "serde"))] T,
+    >(
         &mut self,
         item: &mut ComponentTypeUse<'a, T>,
     ) -> ItemRef<'a, kw::r#type>

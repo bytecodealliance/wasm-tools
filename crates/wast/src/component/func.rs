@@ -497,7 +497,10 @@ impl<'a> Parse<'a> for CanonOpt<'a> {
     }
 }
 
-fn parse_trailing_item_ref<T: SerializeT>(kind: T, parser: Parser) -> Result<CoreItemRef<T>> {
+fn parse_trailing_item_ref<
+    #[cfg(feature = "serde")] T: SerializeT,
+    #[cfg(not(feature = "serde"))] T,
+>(kind: T, parser: Parser) -> Result<CoreItemRef<T>> {
     Ok(CoreItemRef {
         kind,
         idx: parser.parse()?,

@@ -1004,7 +1004,10 @@ impl<'a> Parse<'a> for ComponentValTypeUse<'a> {
 #[derive(Debug, Clone)]
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type", content = "val")]
-pub enum CoreTypeUse<'a, T: SerializeT> {
+pub enum CoreTypeUse<'a,
+    #[cfg(feature = "serde")] T: SerializeT,
+    #[cfg(not(feature = "serde"))] T,
+> {
     /// The type that we're referencing.
     #[serde(borrow)]
     Ref(CoreItemRef<'a, kw::r#type>),
@@ -1012,7 +1015,10 @@ pub enum CoreTypeUse<'a, T: SerializeT> {
     Inline(T),
 }
 
-impl<'a, T: Parse<'a> + SerializeT> Parse<'a> for CoreTypeUse<'a, T> {
+impl<'a,
+    #[cfg(feature = "serde")] T: Parse<'a> + SerializeT,
+    #[cfg(not(feature = "serde"))] T: Parse<'a>,
+> Parse<'a> for CoreTypeUse<'a, T> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         // Here the core context is assumed, so no core prefix is expected
         if parser.peek::<LParen>()? && parser.peek2::<CoreItemRef<'a, kw::r#type>>()? {
@@ -1023,7 +1029,10 @@ impl<'a, T: Parse<'a> + SerializeT> Parse<'a> for CoreTypeUse<'a, T> {
     }
 }
 
-impl<T: SerializeT> Default for CoreTypeUse<'_, T> {
+impl<
+    #[cfg(feature = "serde")] T: SerializeT,
+    #[cfg(not(feature = "serde"))] T,
+> Default for CoreTypeUse<'_, T> {
     fn default() -> Self {
         let span = Span::from_offset(0);
         Self::Ref(CoreItemRef {
@@ -1041,7 +1050,10 @@ impl<T: SerializeT> Default for CoreTypeUse<'_, T> {
 #[derive(Debug, Clone)]
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type", content = "val")]
-pub enum ComponentTypeUse<'a, T: SerializeT> {
+pub enum ComponentTypeUse<'a,
+    #[cfg(feature = "serde")] T: SerializeT,
+    #[cfg(not(feature = "serde"))] T,
+> {
     /// The type that we're referencing.
     #[serde(borrow)]
     Ref(ItemRef<'a, kw::r#type>),
@@ -1049,7 +1061,10 @@ pub enum ComponentTypeUse<'a, T: SerializeT> {
     Inline(T),
 }
 
-impl<'a, T: Parse<'a> + SerializeT> Parse<'a> for ComponentTypeUse<'a, T> {
+impl<'a,
+    #[cfg(feature = "serde")] T: Parse<'a> + SerializeT,
+    #[cfg(not(feature = "serde"))] T: Parse<'a>,
+> Parse<'a> for ComponentTypeUse<'a, T> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         if parser.peek::<LParen>()? && parser.peek2::<ItemRef<'a, kw::r#type>>()? {
             Ok(Self::Ref(parser.parens(|parser| parser.parse())?))
@@ -1059,7 +1074,10 @@ impl<'a, T: Parse<'a> + SerializeT> Parse<'a> for ComponentTypeUse<'a, T> {
     }
 }
 
-impl<T: SerializeT> Default for ComponentTypeUse<'_, T> {
+impl<
+    #[cfg(feature = "serde")] T: SerializeT,
+    #[cfg(not(feature = "serde"))] T,
+> Default for ComponentTypeUse<'_, T> {
     fn default() -> Self {
         let span = Span::from_offset(0);
         Self::Ref(ItemRef {

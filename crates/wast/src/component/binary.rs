@@ -732,14 +732,20 @@ impl From<Index<'_>> for u32 {
     }
 }
 
-impl<T: SerializeT> From<&ItemRef<'_, T>> for u32 {
+impl<
+    #[cfg(feature = "serde")] T: SerializeT,
+    #[cfg(not(feature = "serde"))] T,
+> From<&ItemRef<'_, T>> for u32 {
     fn from(i: &ItemRef<'_, T>) -> Self {
         assert!(i.export_names.is_empty());
         i.idx.into()
     }
 }
 
-impl<T: SerializeT> From<&CoreTypeUse<'_, T>> for u32 {
+impl<
+    #[cfg(feature = "serde")] T: SerializeT,
+    #[cfg(not(feature = "serde"))] T,
+> From<&CoreTypeUse<'_, T>> for u32 {
     fn from(u: &CoreTypeUse<'_, T>) -> Self {
         match u {
             CoreTypeUse::Inline(_) => unreachable!("should be expanded already"),
@@ -748,7 +754,10 @@ impl<T: SerializeT> From<&CoreTypeUse<'_, T>> for u32 {
     }
 }
 
-impl<T: SerializeT> From<&ComponentTypeUse<'_, T>> for u32 {
+impl<
+    #[cfg(feature = "serde")] T: SerializeT,
+    #[cfg(not(feature = "serde"))] T,
+> From<&ComponentTypeUse<'_, T>> for u32 {
     fn from(u: &ComponentTypeUse<'_, T>) -> Self {
         match u {
             ComponentTypeUse::Inline(_) => unreachable!("should be expanded already"),
