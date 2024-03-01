@@ -4,8 +4,8 @@
   (type $at (;2;) (array i8))
   (type (;3;) (func (param externref)))
   (type (;4;) (func (param i32) (result i32)))
-  (type (;5;) (func (param structref) (result (ref 1))))
-  (type (;6;) (func (param structref) (result (ref 2))))
+  (type (;5;) (func (param structref) (result (ref $st))))
+  (type (;6;) (func (param structref) (result (ref $at))))
   (func $f (;0;) (type $ft) (result i32)
     i32.const 9
   )
@@ -58,10 +58,10 @@
       local.get $i
       table.get 0
       br_on_cast_fail $l anyref (ref struct)
-      block $l2 (type 5) (param structref) (result (ref 1))
-        block $l3 (type 6) (param structref) (result (ref 2))
-          br_on_cast $l2 structref (ref 1)
-          br_on_cast $l3 anyref (ref 2)
+      block $l2 (type 5) (param structref) (result (ref $st))
+        block $l3 (type 6) (param structref) (result (ref $at))
+          br_on_cast $l2 structref (ref $st)
+          br_on_cast $l3 anyref (ref $at)
           i32.const -2
           return
         end

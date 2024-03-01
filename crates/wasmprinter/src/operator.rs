@@ -85,7 +85,7 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
             BlockType::Empty => {}
             BlockType::Type(t) => {
                 self.push_str(" (result ");
-                self.printer.print_valtype(t)?;
+                self.printer.print_valtype(self.state, t)?;
                 self.push_str(")");
             }
             BlockType::FuncType(idx) => {
@@ -239,11 +239,11 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
     }
 
     fn from_ref_type(&mut self, ref_ty: RefType) -> Result<()> {
-        self.printer.print_reftype(ref_ty)
+        self.printer.print_reftype(self.state, ref_ty)
     }
 
     fn to_ref_type(&mut self, ref_ty: RefType) -> Result<()> {
-        self.printer.print_reftype(ref_ty)
+        self.printer.print_reftype(self.state, ref_ty)
     }
 
     fn data_index(&mut self, idx: u32) -> Result<()> {
@@ -418,12 +418,12 @@ macro_rules! define_visit {
     );
     (payload $self:ident TypedSelect $ty:ident) => (
         $self.push_str(" (result ");
-        $self.printer.print_valtype($ty)?;
+        $self.printer.print_valtype($self.state, $ty)?;
         $self.push_str(")")
     );
     (payload $self:ident RefNull $hty:ident) => (
         $self.push_str(" ");
-        $self.printer.print_heaptype($hty)?;
+        $self.printer.print_heaptype($self.state, $hty)?;
     );
     (payload $self:ident TableInit $segment:ident $table:ident) => (
         $self.push_str(" ");
@@ -502,25 +502,25 @@ macro_rules! define_visit {
         $self.push_str(" ");
         let rty = RefType::new(false, $hty)
             .ok_or_else(|| anyhow!("implementation limit: type index too large"))?;
-        $self.printer.print_reftype(rty)?;
+        $self.printer.print_reftype($self.state, rty)?;
     );
     (payload $self:ident RefTestNullable $hty:ident) => (
         $self.push_str(" ");
         let rty = RefType::new(true, $hty)
             .ok_or_else(|| anyhow!("implementation limit: type index too large"))?;
-        $self.printer.print_reftype(rty)?;
+        $self.printer.print_reftype($self.state, rty)?;
     );
     (payload $self:ident RefCastNonNull $hty:ident) => (
         $self.push_str(" ");
         let rty = RefType::new(false, $hty)
             .ok_or_else(|| anyhow!("implementation limit: type index too large"))?;
-        $self.printer.print_reftype(rty)?;
+        $self.printer.print_reftype($self.state, rty)?;
     );
     (payload $self:ident RefCastNullable $hty:ident) => (
         $self.push_str(" ");
         let rty = RefType::new(true, $hty)
             .ok_or_else(|| anyhow!("implementation limit: type index too large"))?;
-        $self.printer.print_reftype(rty)?;
+        $self.printer.print_reftype($self.state, rty)?;
     );
     (payload $self:ident $op:ident $($arg:ident)*) => (
         $(

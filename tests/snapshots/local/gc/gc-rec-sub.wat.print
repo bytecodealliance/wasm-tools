@@ -37,8 +37,8 @@
   )
   (type (;16;) (sub $a (func)))
   (rec
-    (type $t1 (;17;) (struct (field (ref 18))))
-    (type $t2 (;18;) (sub (struct (field (ref 17)))))
+    (type $t1 (;17;) (struct (field (ref $t2))))
+    (type $t2 (;18;) (sub (struct (field (ref $t1)))))
   )
   (rec)
 )

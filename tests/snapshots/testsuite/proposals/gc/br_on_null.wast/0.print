@@ -1,8 +1,8 @@
 (module
   (type $t (;0;) (func (result i32)))
-  (type (;1;) (func (param (ref 0)) (result i32)))
-  (type (;2;) (func (param (ref null 0)) (result i32)))
-  (func $nn (;0;) (type 1) (param $r (ref 0)) (result i32)
+  (type (;1;) (func (param (ref $t)) (result i32)))
+  (type (;2;) (func (param (ref null $t)) (result i32)))
+  (func $nn (;0;) (type 1) (param $r (ref $t)) (result i32)
     block $l
       local.get $r
       br_on_null $l
@@ -11,7 +11,7 @@
     end
     i32.const -1
   )
-  (func $n (;1;) (type 2) (param $r (ref null 0)) (result i32)
+  (func $n (;1;) (type 2) (param $r (ref null $t)) (result i32)
     block $l
       local.get $r
       br_on_null $l
@@ -24,7 +24,7 @@
     i32.const 7
   )
   (func (;3;) (type $t) (result i32)
-    ref.null 0
+    ref.null $t
     call $n
   )
   (func (;4;) (type $t) (result i32)

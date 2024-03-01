@@ -3,9 +3,9 @@
     (type $s (;0;) (struct))
   )
   (rec
-    (type $t (;1;) (func (param (ref 0))))
+    (type $t (;1;) (func (param (ref $s))))
   )
-  (type (;2;) (func (param (ref 0))))
-  (func $f (;0;) (type 2) (param (ref 0)))
-  (global (;0;) (ref 1) ref.func $f)
+  (type (;2;) (func (param (ref $s))))
+  (func $f (;0;) (type 2) (param (ref $s)))
+  (global (;0;) (ref $t) ref.func $f)
 )

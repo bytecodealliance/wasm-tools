@@ -1,11 +1,11 @@
 (module
   (rec
     (type $f11 (;0;) (sub (func (result (ref func)))))
-    (type $f12 (;1;) (sub $f11 (func (result (ref 0)))))
+    (type $f12 (;1;) (sub $f11 (func (result (ref $f11)))))
   )
   (rec
     (type $f21 (;2;) (sub (func (result (ref func)))))
-    (type $f22 (;3;) (sub $f21 (func (result (ref 2)))))
+    (type $f22 (;3;) (sub $f21 (func (result (ref $f21)))))
   )
   (import "M8" "f11" (func (;0;) (type $f11)))
   (import "M8" "f11" (func (;1;) (type $f21)))

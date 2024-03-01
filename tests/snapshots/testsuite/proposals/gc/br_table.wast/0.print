@@ -786,7 +786,7 @@
   (func $tf (;71;) (type $t))
   (func (;72;) (type 9) (param i32) (result funcref)
     block $l1 (result funcref)
-      block $l2 (result (ref null 1))
+      block $l2 (result (ref null $t))
         i32.const 0
         table.get $t
         local.get 0
@@ -796,7 +796,7 @@
   )
   (func (;73;) (type 9) (param i32) (result funcref)
     block $l1 (result funcref)
-      block $l2 (result (ref null 1))
+      block $l2 (result (ref null $t))
         i32.const 0
         table.get $t
         local.get 0
@@ -806,7 +806,7 @@
   )
   (func (;74;) (type 9) (param i32) (result funcref)
     block $l1 (result funcref)
-      block $l2 (result (ref null 1))
+      block $l2 (result (ref null $t))
         i32.const 0
         table.get $t
         local.get 0
@@ -816,7 +816,7 @@
   )
   (func (;75;) (type 9) (param i32) (result funcref)
     block $l1 (result funcref)
-      block $l2 (result (ref null 1))
+      block $l2 (result (ref null $t))
         i32.const 0
         table.get $t
         local.get 0
@@ -826,8 +826,8 @@
   )
   (func (;76;) (type 9) (param i32) (result funcref)
     block $l1 (result funcref)
-      block $l2 (result (ref null 1))
-        ref.null 1
+      block $l2 (result (ref null $t))
+        ref.null $t
         local.get 0
         br_table $l1 $l2 $l1
       end
@@ -835,8 +835,8 @@
   )
   (func (;77;) (type 9) (param i32) (result funcref)
     block $l1 (result funcref)
-      block $l2 (result (ref null 1))
-        block $l3 (result (ref 1))
+      block $l2 (result (ref null $t))
+        block $l3 (result (ref $t))
           ref.func $tf
           local.get 0
           br_table $l3 $l2 $l1
@@ -845,7 +845,7 @@
     end
   )
   (table (;0;) 1 1 funcref)
-  (table $t (;1;) 1 1 (ref null 1))
+  (table $t (;1;) 1 1 (ref null $t))
   (memory (;0;) 1)
   (global $a (;0;) (mut i32) i32.const 10)
   (export "type-i32" (func 1))
@@ -924,5 +924,5 @@
   (export "meet-nullref" (func 76))
   (export "meet-multi-ref" (func 77))
   (elem (;0;) (i32.const 0) func $f)
-  (elem (;1;) (table $t) (i32.const 0) (ref null 1) (ref.func $tf))
+  (elem (;1;) (table $t) (i32.const 0) (ref null $t) (ref.func $tf))
 )

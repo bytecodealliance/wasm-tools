@@ -1,7 +1,7 @@
 (module
   (type $dummy (;0;) (func))
   (type (;1;) (func (result funcref)))
-  (import "M" "g" (global $g (;0;) (ref 0)))
+  (import "M" "g" (global $g (;0;) (ref $dummy)))
   (func $dummy (;0;) (type $dummy))
   (func (;1;) (type 1) (result funcref)
     i32.const 1
@@ -25,9 +25,9 @@
   )
   (table $t1 (;0;) 10 funcref)
   (table $t2 (;1;) 10 funcref ref.func $dummy)
-  (table $t3 (;2;) 10 (ref 0) ref.func $dummy)
+  (table $t3 (;2;) 10 (ref $dummy) ref.func $dummy)
   (table $t4 (;3;) 10 funcref global.get $g)
-  (table $t5 (;4;) 10 (ref 0) global.get $g)
+  (table $t5 (;4;) 10 (ref $dummy) global.get $g)
   (export "get1" (func 1))
   (export "get2" (func 2))
   (export "get3" (func 3))

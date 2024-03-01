@@ -16,7 +16,7 @@
   )
   (table $t1 (;0;) 10 funcref)
   (table $t2 (;1;) 10 funcref ref.func $dummy)
-  (table $t3 (;2;) 10 (ref 0) ref.func $dummy)
+  (table $t3 (;2;) 10 (ref $dummy) ref.func $dummy)
   (table $t4 (;3;) 10 (ref func) ref.func $dummy)
   (export "get1" (func 1))
   (export "get2" (func 2))
