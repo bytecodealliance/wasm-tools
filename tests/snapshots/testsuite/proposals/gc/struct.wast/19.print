@@ -68,8 +68,8 @@
     global.get 0
     struct.get_u $s 3
   )
-  (global (;0;) (ref 0) i32.const 0 i32.const 1 i32.const 2 i32.const 3 struct.new $s)
-  (global (;1;) (ref 0) i32.const 254 i32.const 255 i32.const 65534 i32.const 65535 struct.new $s)
+  (global (;0;) (ref $s) i32.const 0 i32.const 1 i32.const 2 i32.const 3 struct.new $s)
+  (global (;1;) (ref $s) i32.const 254 i32.const 255 i32.const 65534 i32.const 65535 struct.new $s)
   (export "g0" (global 0))
   (export "g1" (global 1))
   (export "get_packed_g0_0" (func 0))

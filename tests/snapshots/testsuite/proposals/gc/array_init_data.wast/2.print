@@ -16,7 +16,7 @@
     array.get_u $arr16_mut
   )
   (func (;2;) (type 4)
-    ref.null 1
+    ref.null $arr8_mut
     i32.const 0
     i32.const 0
     i32.const 0
@@ -39,9 +39,9 @@
   (func (;5;) (type 4)
     data.drop $d1
   )
-  (global $g_arr8 (;0;) (ref 0) i32.const 10 i32.const 12 array.new $arr8)
-  (global $g_arr8_mut (;1;) (mut (ref 1)) i32.const 12 array.new_default $arr8_mut)
-  (global $g_arr16_mut (;2;) (ref 2) i32.const 6 array.new_default $arr16_mut)
+  (global $g_arr8 (;0;) (ref $arr8) i32.const 10 i32.const 12 array.new $arr8)
+  (global $g_arr8_mut (;1;) (mut (ref $arr8_mut)) i32.const 12 array.new_default $arr8_mut)
+  (global $g_arr16_mut (;2;) (ref $arr16_mut) i32.const 6 array.new_default $arr16_mut)
   (export "array_get_nth" (func 0))
   (export "array_get_nth_i16" (func 1))
   (export "array_init_data-null" (func 2))

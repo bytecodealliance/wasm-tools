@@ -10,7 +10,7 @@
     array.get_u $arr8_mut
   )
   (func (;1;) (type 3)
-    ref.null 1
+    ref.null $arr8_mut
     i32.const 0
     i32.const 0
     i32.const 0
@@ -23,8 +23,8 @@
     local.get $3
     array.fill $arr8_mut
   )
-  (global $g_arr8 (;0;) (ref 0) i32.const 10 i32.const 12 array.new $arr8)
-  (global $g_arr8_mut (;1;) (mut (ref 1)) i32.const 12 array.new_default $arr8_mut)
+  (global $g_arr8 (;0;) (ref $arr8) i32.const 10 i32.const 12 array.new $arr8)
+  (global $g_arr8_mut (;1;) (mut (ref $arr8_mut)) i32.const 12 array.new_default $arr8_mut)
   (export "array_get_nth" (func 0))
   (export "array_fill-null" (func 1))
   (export "array_fill" (func 2))

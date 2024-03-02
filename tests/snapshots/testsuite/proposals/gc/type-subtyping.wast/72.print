@@ -1,15 +1,15 @@
 (module
   (rec
     (type $f1 (;0;) (sub (func)))
-    (type $s1 (;1;) (sub (struct (field (ref 0)))))
+    (type $s1 (;1;) (sub (struct (field (ref $f1)))))
   )
   (rec
     (type $f2 (;2;) (sub (func)))
-    (type $s2 (;3;) (sub (struct (field (ref 2)))))
+    (type $s2 (;3;) (sub (struct (field (ref $f2)))))
   )
   (rec
     (type $g1 (;4;) (sub $f1 (func)))
-    (type (;5;) (sub $s1 (struct (field (ref 0)) (field (ref 0)) (field (ref 2)) (field (ref 2)) (field (ref 4)))))
+    (type (;5;) (sub $s1 (struct (field (ref $f1)) (field (ref $f1)) (field (ref $f2)) (field (ref $f2)) (field (ref $g1)))))
   )
   (rec
     (type $h (;6;) (sub $g1 (func)))

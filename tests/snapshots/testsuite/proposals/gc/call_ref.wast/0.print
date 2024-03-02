@@ -2,9 +2,9 @@
   (type $ii (;0;) (func (param i32) (result i32)))
   (type $ll (;1;) (func (param i64) (result i64)))
   (type $lll (;2;) (func (param i64 i64) (result i64)))
-  (type (;3;) (func (param (ref 0) i32) (result i32)))
+  (type (;3;) (func (param (ref $ii) i32) (result i32)))
   (type (;4;) (func (result i32)))
-  (func $apply (;0;) (type 3) (param $f (ref 0)) (param $x i32) (result i32)
+  (func $apply (;0;) (type 3) (param $f (ref $ii)) (param $x i32) (result i32)
     local.get $x
     local.get $f
     call_ref $ii
@@ -20,7 +20,7 @@
     i32.sub
   )
   (func (;3;) (type $ii) (param $x i32) (result i32)
-    (local $rf (ref null 0)) (local $rg (ref null 0))
+    (local $rf (ref null $ii)) (local $rg (ref null $ii))
     ref.func $f
     local.set $rf
     ref.func $g
@@ -33,7 +33,7 @@
   )
   (func (;4;) (type 4) (result i32)
     i32.const 1
-    ref.null 0
+    ref.null $ii
     call_ref $ii
   )
   (func $fac (;5;) (type $ll) (param i64) (result i64)
@@ -113,11 +113,11 @@
       call_ref $ll
     end
   )
-  (global $fac (;0;) (ref 1) ref.func $fac)
-  (global $fac-acc (;1;) (ref 2) ref.func $fac-acc)
-  (global $fib (;2;) (ref 1) ref.func $fib)
-  (global $even (;3;) (ref 1) ref.func $even)
-  (global $odd (;4;) (ref 1) ref.func $odd)
+  (global $fac (;0;) (ref $ll) ref.func $fac)
+  (global $fac-acc (;1;) (ref $lll) ref.func $fac-acc)
+  (global $fib (;2;) (ref $ll) ref.func $fib)
+  (global $even (;3;) (ref $ll) ref.func $even)
+  (global $odd (;4;) (ref $ll) ref.func $odd)
   (export "run" (func 3))
   (export "null" (func 4))
   (export "fac" (func $fac))

@@ -18,13 +18,13 @@
   (func (;4;) (type $t1)
     i32.const 1
     table.get 0
-    ref.cast (ref 0)
+    ref.cast (ref $t1)
     drop
   )
   (func (;5;) (type $t1)
     i32.const 0
     table.get 0
-    ref.cast (ref 1)
+    ref.cast (ref $t2)
     drop
   )
   (table (;0;) 2 2 funcref)

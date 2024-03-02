@@ -1,47 +1,47 @@
 (module
   (rec
-    (type $t1 (;0;) (func (result (ref null 0))))
+    (type $t1 (;0;) (func (result (ref null $t1))))
   )
   (rec
-    (type $t2 (;1;) (func (result (ref null 1))))
+    (type $t2 (;1;) (func (result (ref null $t2))))
   )
   (type (;2;) (func))
-  (func $f1 (;0;) (type $t1) (result (ref null 0))
-    ref.null 0
+  (func $f1 (;0;) (type $t1) (result (ref null $t1))
+    ref.null $t1
   )
-  (func $f2 (;1;) (type $t2) (result (ref null 1))
-    ref.null 1
+  (func $f2 (;1;) (type $t2) (result (ref null $t2))
+    ref.null $t2
   )
   (func (;2;) (type 2)
-    block (result (ref null 0)) ;; label = @1
+    block (result (ref null $t1)) ;; label = @1
       i32.const 0
       call_indirect (type $t1)
     end
-    block (result (ref null 0)) ;; label = @1
-      i32.const 0
-      call_indirect (type $t2)
-    end
-    block (result (ref null 1)) ;; label = @1
-      i32.const 0
-      call_indirect (type $t1)
-    end
-    block (result (ref null 1)) ;; label = @1
+    block (result (ref null $t1)) ;; label = @1
       i32.const 0
       call_indirect (type $t2)
     end
-    block (result (ref null 0)) ;; label = @1
+    block (result (ref null $t2)) ;; label = @1
+      i32.const 0
+      call_indirect (type $t1)
+    end
+    block (result (ref null $t2)) ;; label = @1
+      i32.const 0
+      call_indirect (type $t2)
+    end
+    block (result (ref null $t1)) ;; label = @1
       i32.const 1
       call_indirect (type $t1)
     end
-    block (result (ref null 0)) ;; label = @1
+    block (result (ref null $t1)) ;; label = @1
       i32.const 1
       call_indirect (type $t2)
     end
-    block (result (ref null 1)) ;; label = @1
+    block (result (ref null $t2)) ;; label = @1
       i32.const 1
       call_indirect (type $t1)
     end
-    block (result (ref null 1)) ;; label = @1
+    block (result (ref null $t2)) ;; label = @1
       i32.const 1
       call_indirect (type $t2)
     end

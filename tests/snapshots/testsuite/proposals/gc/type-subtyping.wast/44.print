@@ -11,7 +11,7 @@
   (func $f (;0;) (type $f21))
   (func (;1;) (type 4) (result i32)
     ref.func $f
-    ref.test (ref 0)
+    ref.test (ref $f11)
   )
   (export "run" (func 1))
   (elem (;0;) declare func $f)

@@ -9,8 +9,8 @@
   (type $b (;7;) (struct (field (mut f32))))
   (type (;8;) (struct (field externref)))
   (type (;9;) (struct (field externref) (field funcref)))
-  (type (;10;) (func (param (ref 6) (ref 7))))
-  (func (;0;) (type 10) (param (ref 6) (ref 7))
+  (type (;10;) (func (param (ref $a) (ref $b))))
+  (func (;0;) (type 10) (param (ref $a) (ref $b))
     f32.const 0x1p+0 (;=1;)
     struct.new $a
     drop

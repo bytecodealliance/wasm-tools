@@ -1,18 +1,18 @@
 (module
   (rec
-    (type $t1 (;0;) (func (param i32 (ref 0))))
-    (type $t2 (;1;) (func (param i32 (ref 2))))
-    (type $t3 (;2;) (func (param i32 (ref 1))))
+    (type $t1 (;0;) (func (param i32 (ref $t1))))
+    (type $t2 (;1;) (func (param i32 (ref $t3))))
+    (type $t3 (;2;) (func (param i32 (ref $t2))))
   )
   (rec
-    (type $u1 (;3;) (func (param i32 (ref 3))))
-    (type $u2 (;4;) (func (param i32 (ref 5))))
-    (type $u3 (;5;) (func (param i32 (ref 4))))
+    (type $u1 (;3;) (func (param i32 (ref $u1))))
+    (type $u2 (;4;) (func (param i32 (ref $u3))))
+    (type $u3 (;5;) (func (param i32 (ref $u2))))
   )
   (type (;6;) (func))
-  (func $f1 (;0;) (type $t1) (param i32 (ref 0)))
-  (func $f2 (;1;) (type $t2) (param i32 (ref 2)))
-  (func $f3 (;2;) (type $t3) (param i32 (ref 1)))
+  (func $f1 (;0;) (type $t1) (param i32 (ref $t1)))
+  (func $f2 (;1;) (type $t2) (param i32 (ref $t3)))
+  (func $f3 (;2;) (type $t3) (param i32 (ref $t2)))
   (func (;3;) (type 6)
     i32.const 1
     ref.func $f1

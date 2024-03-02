@@ -1,6 +1,6 @@
 (module
   (type $t_f (;0;) (func))
-  (type $arrref (;1;) (array (ref 0)))
+  (type $arrref (;1;) (array (ref $t_f)))
   (type $arrref_mut (;2;) (array (mut funcref)))
   (type (;3;) (func (param i32)))
   (type (;4;) (func (param i32 i32 i32)))
@@ -15,7 +15,7 @@
     call_indirect (type $t_f)
   )
   (func (;2;) (type $t_f)
-    ref.null 2
+    ref.null $arrref_mut
     i32.const 0
     i32.const 0
     i32.const 0
@@ -32,8 +32,8 @@
     elem.drop $e1
   )
   (table $t (;0;) 1 funcref)
-  (global $g_arrref (;0;) (ref 1) ref.func $dummy i32.const 12 array.new $arrref)
-  (global $g_arrref_mut (;1;) (ref 2) i32.const 12 array.new_default $arrref_mut)
+  (global $g_arrref (;0;) (ref $arrref) ref.func $dummy i32.const 12 array.new $arrref)
+  (global $g_arrref_mut (;1;) (ref $arrref_mut) i32.const 12 array.new_default $arrref_mut)
   (export "array_call_nth" (func 1))
   (export "array_init_elem-null" (func 2))
   (export "array_init_elem" (func 3))
