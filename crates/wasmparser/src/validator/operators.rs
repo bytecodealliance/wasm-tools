@@ -1320,18 +1320,20 @@ where
                 Catch::OneRef { tag, label } => {
                     let tag = self.tag_at(tag)?;
                     let (ty, kind) = self.jump(label)?;
-                    let params = tag.params().iter().copied();
-                    let types = self.label_types(ty, kind)?;
-                    if params.len() + 1 != types.len() {
+                    let tag_params = tag.params().iter().copied();
+                    let label_types = self.label_types(ty, kind)?;
+                    if tag_params.len() + 1 != label_types.len() {
                         bail!(
                             self.offset,
                             "type mismatch: catch_ref label must have one \
                              more type than tag types",
                         );
                     }
-                    for (expected, actual) in types.zip(params.chain([ValType::EXNREF])) {
-                        self.push_operand(actual)?;
-                        self.pop_operand(Some(expected))?;
+                    for (expected_label_tyep, actual_tag_param) in
+                        label_types.zip(tag_params.chain([ValType::EXNREF]))
+                    {
+                        self.push_operand(actual_tag_param)?;
+                        self.pop_operand(Some(expected_label_tyep))?;
                     }
                 }
 
