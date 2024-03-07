@@ -148,6 +148,14 @@ impl Resolve {
             params.truncate(0);
             params.push(WasmType::Pointer);
             indirect_params = true;
+        } else {
+            if matches!(
+                (&func.kind, variant),
+                (crate::FunctionKind::Method(_), AbiVariant::GuestExport)
+            ) {
+                // guest exported methods receive resource rep as first argument
+                params.get_mut(0).map(|p| *p = WasmType::Pointer);
+            }
         }
 
         let mut results = Vec::new();
