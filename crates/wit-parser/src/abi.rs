@@ -1,3 +1,5 @@
+use std::assert_matches::assert_matches;
+
 use crate::{Function, Handle, Int, Resolve, Type, TypeDefKind};
 
 /// A core WebAssembly signature with params and results.
@@ -153,8 +155,16 @@ impl Resolve {
                 (&func.kind, variant),
                 (crate::FunctionKind::Method(_), AbiVariant::GuestExport)
             ) {
-                // guest exported methods receive resource rep as first argument
-                params.get_mut(0).map(|p| *p = WasmType::Pointer);
+                // Guest exported methods always receive resource rep as first argument
+                //
+                // TODO: Ideally you would distinguish between imported and exported
+                // resource Handles and then use either I32 or Pointer in abi::push_flat().
+                // But this contextual information isn't available, yet.
+                // See https://github.com/bytecodealliance/wasm-tools/pull/1438 for more details.
+                params.get_mut(0).map(|p| {
+                    assert_matches!(p, &WasmType::I32);
+                    *p = WasmType::Pointer;
+                });
             }
         }
 
