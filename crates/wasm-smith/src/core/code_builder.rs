@@ -1617,13 +1617,24 @@ fn try_table(
         let i = i as u32;
 
         let label_types = ctrl.label_types();
+
+        // Empty labels are candidates for a `catch_all` since nothing is
+        // pushed in that case.
         if label_types.is_empty() {
             catch_options.push(Box::new(move |_, _| Ok(Catch::All { label: i })));
         }
+
+        // Labels with just an `externref` are suitable for `catch_all_refs`,
+        // which first pushes nothing since there's no tag and then pushes
+        // the caught exception value.
         if label_types == [ValType::EXNREF] {
             catch_options.push(Box::new(move |_, _| Ok(Catch::AllRef { label: i })));
         }
 
+        // If there is a tag which exactly matches the types of the label we're
+        // looking at then that tag can be used as part of a `catch` branch.
+        // That tag's parameters, which are the except values, are pushed
+        // for the label.
         if builder.allocs.tags.contains_key(label_types) {
             let label_types = label_types.to_vec();
             catch_options.push(Box::new(move |u, builder| {
@@ -1634,15 +1645,20 @@ fn try_table(
             }));
         }
 
-        let mut label_types_with_exnref = label_types.to_vec();
-        label_types_with_exnref.push(ValType::EXNREF);
-        if builder.allocs.tags.contains_key(&label_types_with_exnref) {
-            catch_options.push(Box::new(move |u, builder| {
-                Ok(Catch::OneRef {
-                    tag: *u.choose(&builder.allocs.tags[&label_types_with_exnref])?,
-                    label: i,
-                })
-            }));
+        // And finally the last type of catch label, `catch_ref`. If the label
+        // ends with `exnref`, then use everything except the last `exnref` to
+        // see if there's a matching tag. If so then `catch_ref` can be used
+        // with that tag when branching to this label.
+        if let Some((&ValType::EXNREF, rest)) = label_types.split_last() {
+            if builder.allocs.tags.contains_key(rest) {
+                let rest = rest.to_vec();
+                catch_options.push(Box::new(move |u, builder| {
+                    Ok(Catch::OneRef {
+                        tag: *u.choose(&builder.allocs.tags[&rest])?,
+                        label: i,
+                    })
+                }));
+            }
         }
     }
 
