@@ -1,5 +1,3 @@
-use std::assert_matches::assert_matches;
-
 use crate::{Function, Handle, Int, Resolve, Type, TypeDefKind};
 
 /// A core WebAssembly signature with params and results.
@@ -162,7 +160,7 @@ impl Resolve {
                 // But this contextual information isn't available, yet.
                 // See https://github.com/bytecodealliance/wasm-tools/pull/1438 for more details.
                 params.get_mut(0).map(|p| {
-                    assert_matches!(p, &WasmType::I32);
+                    assert!(matches!(*p, WasmType::I32));
                     *p = WasmType::Pointer;
                 });
             }
