@@ -236,10 +236,11 @@ impl Resolve {
         for dep in entries {
             let path = dep.path();
 
-            let pkg = if dep.file_type()?.is_dir() {
-                // If this entry is a directory then always parse it as an
-                // `UnresolvedPackage` since it's intentional to not support
-                // recursive `deps` directories.
+            let pkg = if dep.file_type()?.is_dir() || path.metadata()?.is_dir() {
+                // If this entry is a directory or a symlink point to a
+                // directory then always parse it as an `UnresolvedPackage`
+                // since it's intentional to not support recursive `deps`
+                // directories.
                 UnresolvedPackage::parse_dir(&path)
                     .with_context(|| format!("failed to parse package: {}", path.display()))?
             } else {
