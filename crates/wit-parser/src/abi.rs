@@ -148,6 +148,20 @@ impl Resolve {
             params.truncate(0);
             params.push(WasmType::Pointer);
             indirect_params = true;
+        } else {
+            if matches!(
+                (&func.kind, variant),
+                (crate::FunctionKind::Method(_), AbiVariant::GuestExport)
+            ) {
+                // Guest exported methods always receive resource rep as first argument
+                //
+                // TODO: Ideally you would distinguish between imported and exported
+                // resource Handles and then use either I32 or Pointer in abi::push_flat().
+                // But this contextual information isn't available, yet.
+                // See https://github.com/bytecodealliance/wasm-tools/pull/1438 for more details.
+                assert!(matches!(params[0], WasmType::I32));
+                params[0] = WasmType::Pointer;
+            }
         }
 
         let mut results = Vec::new();
