@@ -159,8 +159,8 @@ impl Resolve {
                 // resource Handles and then use either I32 or Pointer in abi::push_flat().
                 // But this contextual information isn't available, yet.
                 // See https://github.com/bytecodealliance/wasm-tools/pull/1438 for more details.
-                assert!(matches!(p[0], WasmType::I32));
-                p[0] = WasmType::Pointer;
+                assert!(matches!(params[0], WasmType::I32));
+                params[0] = WasmType::Pointer;
             }
         }
 
