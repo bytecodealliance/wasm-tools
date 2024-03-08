@@ -45,7 +45,7 @@
       i32.const 1
       call_indirect (type $t2)
     end
-    br 0 (;@0;)
+    br 0
   )
   (table (;0;) 2 2 funcref)
   (export "run" (func 2))

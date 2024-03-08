@@ -202,7 +202,7 @@ fn label_shadowing_block_confusion() {
         (func (;0;) (type 0)
           block $a
             block $a
-              br 1 (;@1;)
+              br 1
             end
           end
         )

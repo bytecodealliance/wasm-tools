@@ -5,17 +5,17 @@
   (type (;3;) (func (param externref)))
   (func (;0;) (type 1) (param $r (ref null $t))
     local.get $r
-    br_on_null 0 (;@0;)
+    br_on_null 0
     drop
   )
   (func (;1;) (type 2) (param $r funcref)
     local.get $r
-    br_on_null 0 (;@0;)
+    br_on_null 0
     drop
   )
   (func (;2;) (type 3) (param $r externref)
     local.get $r
-    br_on_null 0 (;@0;)
+    br_on_null 0
     drop
   )
 )

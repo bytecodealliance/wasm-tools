@@ -287,41 +287,41 @@
     return
   )
   (func (;74;) (type $sig)
-    br 0 (;@0;)
+    br 0
   )
   (func (;75;) (type $sig-2) (result i32)
     i32.const 79
-    br 0 (;@0;)
+    br 0
   )
   (func (;76;) (type 13) (result i64)
     i64.const 7979
-    br 0 (;@0;)
+    br 0
   )
   (func (;77;) (type 14) (result f32)
     f32.const 0x1.3f999ap+6 (;=79.9;)
-    br 0 (;@0;)
+    br 0
   )
   (func (;78;) (type 15) (result f64)
     f64.const 0x1.3f28f5c28f5c3p+6 (;=79.79;)
-    br 0 (;@0;)
+    br 0
   )
   (func (;79;) (type 10) (result i32 f64)
     i32.const 79
     f64.const 0x1.3f28f5c28f5c3p+6 (;=79.79;)
-    br 0 (;@0;)
+    br 0
   )
   (func (;80;) (type 21) (result i32 i32 i32)
     i32.const 1
     i32.const 2
     i32.const 3
-    br 0 (;@0;)
+    br 0
   )
   (func (;81;) (type $sig-2) (result i32)
     block (result i32) ;; label = @1
       call $dummy
       i32.const 77
     end
-    br 0 (;@0;)
+    br 0
   )
   (func (;82;) (type 22) (result i32 i64)
     block (type 22) (result i32 i64) ;; label = @1
@@ -329,16 +329,16 @@
       i32.const 1
       i64.const 2
     end
-    br 0 (;@0;)
+    br 0
   )
   (func (;83;) (type $sig-3) (param i32)
     local.get 0
-    br_if 0 (;@0;)
+    br_if 0
   )
   (func (;84;) (type 23) (param i32) (result i32)
     i32.const 50
     local.get 0
-    br_if 0 (;@0;)
+    br_if 0
     drop
     i32.const 51
   )
@@ -346,7 +346,7 @@
     i32.const 50
     i64.const 51
     local.get 0
-    br_if 0 (;@0;)
+    br_if 0
     drop
     drop
     i32.const 51
@@ -354,33 +354,33 @@
   )
   (func (;86;) (type $sig-3) (param i32)
     local.get 0
-    br_table 0 (;@0;) 0 (;@0;) 0 (;@0;)
+    br_table 0 0 0
   )
   (func (;87;) (type 23) (param i32) (result i32)
     i32.const 50
     local.get 0
-    br_table 0 (;@0;) 0 (;@0;)
+    br_table 0 0
     i32.const 51
   )
   (func (;88;) (type 25) (param i32) (result f32 i64)
     f32.const 0x1.9p+5 (;=50;)
     i64.const 51
     local.get 0
-    br_table 0 (;@0;) 0 (;@0;)
+    br_table 0 0
     f32.const 0x1.98p+5 (;=51;)
     i64.const 52
   )
   (func (;89;) (type $sig-3) (param i32)
     block ;; label = @1
       local.get 0
-      br_table 0 (;@1;) 1 (;@0;) 0 (;@1;)
+      br_table 0 (;@1;) 1 0 (;@1;)
     end
   )
   (func (;90;) (type 23) (param i32) (result i32)
     block (result i32) ;; label = @1
       i32.const 50
       local.get 0
-      br_table 0 (;@1;) 1 (;@0;) 0 (;@1;)
+      br_table 0 (;@1;) 1 0 (;@1;)
       i32.const 51
     end
     i32.const 2
@@ -391,7 +391,7 @@
       i32.const 50
       i32.const 51
       local.get 0
-      br_table 0 (;@1;) 1 (;@0;) 0 (;@1;)
+      br_table 0 (;@1;) 1 0 (;@1;)
       i32.const 51
       i32.const -3
     end
