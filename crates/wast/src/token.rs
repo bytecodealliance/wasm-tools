@@ -677,6 +677,22 @@ impl Peek for LParen {
     }
 }
 
+/// A convenience type to use with [`Parser::peek`](crate::parser::Parser::peek)
+/// to see if the next token is the end of an s-expression.
+pub struct RParen {
+    _priv: (),
+}
+
+impl Peek for RParen {
+    fn peek(cursor: Cursor<'_>) -> Result<bool> {
+        cursor.peek_rparen()
+    }
+
+    fn display() -> &'static str {
+        "right paren"
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[test]

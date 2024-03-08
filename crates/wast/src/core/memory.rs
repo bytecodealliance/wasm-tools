@@ -133,7 +133,7 @@ impl<'a> Parse<'a> for Data<'a> {
         let id = parser.parse()?;
         let name = parser.parse()?;
 
-        let kind = if parser.peek::<&[u8]>()? {
+        let kind = if parser.peek::<&[u8]>()? || parser.peek::<RParen>()? {
             DataKind::Passive
 
         // ... and otherwise we must be attached to a particular memory as well
