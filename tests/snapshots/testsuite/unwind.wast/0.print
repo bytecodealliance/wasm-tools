@@ -9,19 +9,19 @@
   (func (;1;) (type 0)
     i32.const 3
     i64.const 1
-    br 0 (;@0;)
+    br 0
   )
   (func (;2;) (type 1) (result i32)
     i32.const 3
     i64.const 1
     i32.const 9
-    br 0 (;@0;)
+    br 0
   )
   (func (;3;) (type 0)
     i32.const 3
     i64.const 1
     i32.const 1
-    br_if 0 (;@0;)
+    br_if 0
     drop
     drop
   )
@@ -30,7 +30,7 @@
     i64.const 1
     i32.const 9
     i32.const 1
-    br_if 0 (;@0;)
+    br_if 0
     drop
     drop
   )
@@ -38,14 +38,14 @@
     i32.const 3
     i64.const 1
     i32.const 0
-    br_table 0 (;@0;)
+    br_table 0
   )
   (func (;6;) (type 1) (result i32)
     i32.const 3
     i64.const 1
     i32.const 9
     i32.const 0
-    br_table 0 (;@0;)
+    br_table 0
   )
   (func (;7;) (type 1) (result i32)
     i32.const 3

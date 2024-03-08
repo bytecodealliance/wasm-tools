@@ -142,26 +142,47 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
                 // in the case of shadowing, which would be the wrong behavior
                 // here. All that can be done is to print the index down below
                 // instead.
-                let name = name.and_then(|name| {
-                    for other_label in self.label_indices[i as usize..].iter() {
+                let name_conflict = name.is_some()
+                    && self.label_indices[i as usize..].iter().any(|other_label| {
                         let key = (self.state.core.funcs, *other_label);
                         if let Some(other) = self.state.core.label_names.index_to_name.get(&key) {
-                            if name.name == other.name {
-                                return None;
+                            if name.unwrap().name == other.name {
+                                return true;
                             }
                         }
-                    }
-                    Some(name)
-                });
+                        false
+                    });
 
                 match name {
-                    Some(name) => name.write(&mut self.printer.result),
+                    // Only print the name if one is found and there's also no
+                    // name conflict.
+                    Some(name) if !name_conflict => name.write(&mut self.printer.result),
 
-                    None if self.printer.name_unnamed => write!(self.result(), "$#label{i}")?,
+                    // If there's no name conflict, and we're synthesizing
+                    // names, and this isn't targetting the function itself then
+                    // print a synthesized names.
+                    //
+                    // Note that synthesized label names don't handle the
+                    // function itself, so i==0, branching to a function label,
+                    // is not supported and otherwise labels are offset by 1.
+                    None if !name_conflict && self.printer.name_unnamed && i > 0 => {
+                        write!(self.result(), "$#label{}", i - 1)?
+                    }
 
-                    // If this label has some name also print its pseudo-name as
-                    // `@N` to help match things up in the text format.
-                    None => write!(self.result(), "{depth} (;@{i};)")?,
+                    _ => {
+                        // Last-ditch resort, we gotta print the index.
+                        write!(self.result(), "{depth}")?;
+
+                        // Unnamed labels have helpful `@N` labels printed for
+                        // them so also try to print where this index is going
+                        // (label-wise). Don't do this for a name conflict
+                        // though because we wouldn't have printed the numbered
+                        // label, and also don't do it for the function itself
+                        // since the function has no label we can synthesize.
+                        if !name_conflict && i > 0 {
+                            write!(self.result(), " (;@{i};)")?;
+                        }
+                    }
                 }
             }
 

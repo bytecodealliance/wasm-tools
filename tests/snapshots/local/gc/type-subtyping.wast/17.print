@@ -71,46 +71,46 @@
       table.get 0
       ref.cast (ref $t2)
     end
-    br 0 (;@0;)
+    br 0
   )
   (func (;4;) (type 3)
     block (result (ref null $t1)) ;; label = @1
       i32.const 0
       call_indirect (type $t1)
     end
-    br 0 (;@0;)
+    br 0
   )
   (func (;5;) (type 3)
     block (result (ref null $t1)) ;; label = @1
       i32.const 0
       call_indirect (type $t2)
     end
-    br 0 (;@0;)
+    br 0
   )
   (func (;6;) (type 3)
     block (result (ref null $t1)) ;; label = @1
       i32.const 1
       call_indirect (type $t2)
     end
-    br 0 (;@0;)
+    br 0
   )
   (func (;7;) (type 3)
     i32.const 0
     table.get 0
     ref.cast (ref $t1)
-    br 0 (;@0;)
+    br 0
   )
   (func (;8;) (type 3)
     i32.const 0
     table.get 0
     ref.cast (ref $t2)
-    br 0 (;@0;)
+    br 0
   )
   (func (;9;) (type 3)
     i32.const 1
     table.get 0
     ref.cast (ref $t2)
-    br 0 (;@0;)
+    br 0
   )
   (table (;0;) 3 3 funcref)
   (export "run" (func 3))

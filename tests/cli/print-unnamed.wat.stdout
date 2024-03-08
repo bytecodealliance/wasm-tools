@@ -1,0 +1,29 @@
+(module
+  (type $#type0 (;0;) (func))
+  (func $#func0 (;0;) (type $#type0)
+    block $a
+      block $#label1
+        block $c
+          i32.const 0
+          br_table $a $#label1 $c
+        end
+      end
+    end
+    block $c
+      block $#label1
+        block $a
+          i32.const 0
+          br_table $a $#label1 $c
+        end
+      end
+    end
+    block $a
+      block $a
+        block $a
+          i32.const 0
+          br_table $a 1 2 3
+        end
+      end
+    end
+  )
+)

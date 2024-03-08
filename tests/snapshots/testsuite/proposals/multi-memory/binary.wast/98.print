@@ -5,7 +5,7 @@
       i32.const 1
       if ;; label = @2
         i32.const 1
-        br_table 2 (;@0;)
+        br_table 2
       end
     end
   )

@@ -161,7 +161,7 @@
     loop ;; label = @1
       call $dummy
       local.get 0
-      br_if 1 (;@0;)
+      br_if 1
     end
   )
   (func (;18;) (type 2) (result i32)
