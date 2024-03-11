@@ -151,7 +151,7 @@ impl Peek for WastRetCore<'_> {
 }
 
 /// Either a NaN pattern (`nan:canonical`, `nan:arithmetic`) or a value of type `T`.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[allow(missing_docs)]
 pub enum NanPattern<T> {
     CanonicalNan,
@@ -181,7 +181,7 @@ where
 ///
 /// This implementation is necessary because only float types can include NaN patterns; otherwise
 /// it is largely similar to the implementation of `V128Const`.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[allow(missing_docs)]
 pub enum V128Pattern {
     I8x16([i8; 16]),
