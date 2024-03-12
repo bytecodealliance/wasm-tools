@@ -21,17 +21,6 @@ from other WebAssembly components.
 
 It is made available as the `compose` subcommand of `wasm-tools`.
 
-## Implementation status
-
-A quick note on the implementation status of the component model
-proposal:
-
-At this time of this writing, no WebAssembly runtimes have fully
-implemented the component model proposal.
-
-__[Wasmtime](https://github.com/bytecodealliance/wasmtime)
-has implementation efforts underway to support it.__
-
 ## Usage
 
 To compose a component, run the `compose` command:
