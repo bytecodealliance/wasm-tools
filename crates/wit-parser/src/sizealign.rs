@@ -1,11 +1,26 @@
 use crate::{FlagsRepr, Int, Resolve, Type, TypeDef, TypeDefKind};
 
 #[derive(Default)]
+pub enum AddressSize {
+    #[default]
+    Wasm32,
+    Wasm64,
+}
+
+#[derive(Default)]
 pub struct SizeAlign {
     map: Vec<(usize, usize)>,
+    wasm_type: AddressSize,
 }
 
 impl SizeAlign {
+    pub fn new(wasm_type: AddressSize) -> Self {
+        Self {
+            map: Vec::new(),
+            wasm_type,
+        }
+    }
+
     pub fn fill(&mut self, resolve: &Resolve) {
         self.map = Vec::new();
         for (_, ty) in resolve.types.iter() {
@@ -17,7 +32,13 @@ impl SizeAlign {
     fn calculate(&self, ty: &TypeDef) -> (usize, usize) {
         match &ty.kind {
             TypeDefKind::Type(t) => (self.size(t), self.align(t)),
-            TypeDefKind::List(_) => (8, 4),
+            TypeDefKind::List(_) => {
+                if matches!(self.wasm_type, AddressSize::Wasm64) {
+                    (16, 8)
+                } else {
+                    (8, 4)
+                }
+            }
             TypeDefKind::Record(r) => self.record(r.fields.iter().map(|f| &f.ty)),
             TypeDefKind::Tuple(t) => self.record(t.types.iter()),
             TypeDefKind::Flags(f) => match f.repr() {
@@ -47,7 +68,14 @@ impl SizeAlign {
             Type::Bool | Type::U8 | Type::S8 => 1,
             Type::U16 | Type::S16 => 2,
             Type::U32 | Type::S32 | Type::Float32 | Type::Char => 4,
-            Type::U64 | Type::S64 | Type::Float64 | Type::String => 8,
+            Type::U64 | Type::S64 | Type::Float64 => 8,
+            Type::String => {
+                if matches!(self.wasm_type, AddressSize::Wasm64) {
+                    16
+                } else {
+                    8
+                }
+            }
             Type::Id(id) => self.map[id.index()].0,
         }
     }
@@ -56,8 +84,15 @@ impl SizeAlign {
         match ty {
             Type::Bool | Type::U8 | Type::S8 => 1,
             Type::U16 | Type::S16 => 2,
-            Type::U32 | Type::S32 | Type::Float32 | Type::Char | Type::String => 4,
+            Type::U32 | Type::S32 | Type::Float32 | Type::Char => 4,
             Type::U64 | Type::S64 | Type::Float64 => 8,
+            Type::String => {
+                if matches!(self.wasm_type, AddressSize::Wasm64) {
+                    8
+                } else {
+                    4
+                }
+            }
             Type::Id(id) => self.map[id.index()].1,
         }
     }
