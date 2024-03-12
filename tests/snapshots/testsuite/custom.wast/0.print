@@ -1,1 +1,11 @@
-(module)
+(module
+  (@custom "a custom section" (before first) "this is the payload")
+  (@custom "a custom section" (before first) "this is payload")
+  (@custom "a custom section" (before first) "")
+  (@custom "" (before first) "this is payload")
+  (@custom "" (before first) "")
+  (@custom "\00\00custom sectio\00" (before first) "this is the payload")
+  (@custom "\ef\bb\bfa custom sect" (before first) "this is the payload")
+  (@custom "a custom sect\e2\8c\a3" (before first) "this is the payload")
+  (@custom "module within a module" (before first) "\00asm\01\00\00\00")
+)

@@ -124,6 +124,7 @@ struct State {
     name: Option<Naming>,
     core: CoreState,
     component: ComponentState,
+    custom_section_place: Option<&'static str>,
 }
 
 impl State {
@@ -133,6 +134,7 @@ impl State {
             name: None,
             core: CoreState::default(),
             component: ComponentState::default(),
+            custom_section_place: None,
         }
     }
 }
@@ -351,6 +353,7 @@ impl Printer {
                     match encoding {
                         Encoding::Module => {
                             states.push(State::new(Encoding::Module));
+                            states.last_mut().unwrap().custom_section_place = Some("before first");
                             if states.len() > 1 {
                                 self.start_group("core module");
                             } else {
@@ -414,7 +417,8 @@ impl Printer {
                         continue;
                     }
                     let cur = self.result.len();
-                    let err = match self.print_custom_section(c.clone()) {
+                    let state = states.last().unwrap();
+                    let err = match self.print_custom_section(state, c.clone()) {
                         Ok(()) => continue,
                         Err(e) => e,
                     };
@@ -429,13 +433,19 @@ impl Printer {
                         self.result.push_str(line);
                     }
                     self.newline(c.range().end);
+                    self.print_raw_custom_section(state, c)?;
                 }
-                Payload::TypeSection(s) => self.print_types(states.last_mut().unwrap(), s)?,
+                Payload::TypeSection(s) => {
+                    self.update_custom_section_place(&mut states, "after type");
+                    self.print_types(states.last_mut().unwrap(), s)?;
+                }
                 Payload::ImportSection(s) => {
+                    self.update_custom_section_place(&mut states, "after import");
                     Self::ensure_module(&states)?;
                     self.print_imports(states.last_mut().unwrap(), s)?
                 }
                 Payload::FunctionSection(reader) => {
+                    self.update_custom_section_place(&mut states, "after func");
                     Self::ensure_module(&states)?;
                     if mem::replace(&mut code_printed, true) {
                         bail!("function section appeared twice in module");
@@ -446,26 +456,32 @@ impl Printer {
                     self.print_code(states.last_mut().unwrap(), &code, reader)?;
                 }
                 Payload::TableSection(s) => {
+                    self.update_custom_section_place(&mut states, "after table");
                     Self::ensure_module(&states)?;
                     self.print_tables(states.last_mut().unwrap(), s)?
                 }
                 Payload::MemorySection(s) => {
+                    self.update_custom_section_place(&mut states, "after memory");
                     Self::ensure_module(&states)?;
                     self.print_memories(states.last_mut().unwrap(), s)?
                 }
                 Payload::TagSection(s) => {
+                    self.update_custom_section_place(&mut states, "after tag");
                     Self::ensure_module(&states)?;
                     self.print_tags(states.last_mut().unwrap(), s)?
                 }
                 Payload::GlobalSection(s) => {
+                    self.update_custom_section_place(&mut states, "after global");
                     Self::ensure_module(&states)?;
                     self.print_globals(states.last_mut().unwrap(), s)?
                 }
                 Payload::ExportSection(s) => {
+                    self.update_custom_section_place(&mut states, "after export");
                     Self::ensure_module(&states)?;
                     self.print_exports(states.last().unwrap(), s)?
                 }
                 Payload::StartSection { func, range } => {
+                    self.update_custom_section_place(&mut states, "after start");
                     Self::ensure_module(&states)?;
                     self.newline(range.start);
                     self.start_group("start ");
@@ -473,12 +489,14 @@ impl Printer {
                     self.end_group();
                 }
                 Payload::ElementSection(s) => {
+                    self.update_custom_section_place(&mut states, "after element");
                     Self::ensure_module(&states)?;
                     self.print_elems(states.last_mut().unwrap(), s)?;
                 }
                 // printed with the `Function` section, so we
                 // skip this section
                 Payload::CodeSectionStart { size, .. } => {
+                    self.update_custom_section_place(&mut states, "after code");
                     Self::ensure_module(&states)?;
                     bytes = &bytes[size as usize..];
                     parser.skip_section();
@@ -489,6 +507,7 @@ impl Printer {
                     // not part of the text format
                 }
                 Payload::DataSection(s) => {
+                    self.update_custom_section_place(&mut states, "after data");
                     Self::ensure_module(&states)?;
                     self.print_data(states.last_mut().unwrap(), s)?;
                 }
@@ -575,6 +594,14 @@ impl Printer {
         }
 
         Ok(())
+    }
+
+    fn update_custom_section_place(&self, states: &mut Vec<State>, place: &'static str) {
+        if let Some(last) = states.last_mut() {
+            if let Some(prev) = &mut last.custom_section_place {
+                *prev = place;
+            }
+        }
     }
 
     fn start_group(&mut self, name: &str) {
@@ -2661,8 +2688,15 @@ impl Printer {
         self.result.push(to_hex(byte & 0xf));
     }
 
-    fn print_custom_section(&mut self, section: CustomSectionReader<'_>) -> Result<()> {
+    fn print_custom_section(
+        &mut self,
+        state: &State,
+        section: CustomSectionReader<'_>,
+    ) -> Result<()> {
         match section.name() {
+            // For now `wasmprinter` has invented syntax for `producers` and
+            // `dylink.0` below to use in tests. Note that this syntax is not
+            // official at this time.
             "producers" => {
                 self.newline(section.range().start);
                 self.print_producers_section(ProducersSectionReader::new(
@@ -2677,8 +2711,33 @@ impl Printer {
                     section.data_offset(),
                 ))
             }
-            _ => Ok(()),
+
+            // These are parsed during `read_names_and_code` and are part of
+            // printing elsewhere, so don't print them.
+            "name" | "component-name" | "metadata.code.branch_hint" => Ok(()),
+
+            // Unknown custom sections get a `@custom` annotation printed.
+            _ => self.print_raw_custom_section(state, section),
         }
+    }
+
+    fn print_raw_custom_section(
+        &mut self,
+        state: &State,
+        section: CustomSectionReader<'_>,
+    ) -> Result<()> {
+        self.newline(section.range().start);
+        self.start_group("@custom ");
+        self.print_str(section.name())?;
+        if let Some(place) = state.custom_section_place {
+            self.result.push_str(" (");
+            self.result.push_str(place);
+            self.result.push_str(")");
+        }
+        self.result.push_str(" ");
+        self.print_bytes(section.data())?;
+        self.end_group();
+        Ok(())
     }
 
     fn print_producers_section(&mut self, section: ProducersSectionReader<'_>) -> Result<()> {

@@ -2,5 +2,6 @@
     ;; failed to parse custom section `producers`: invalid producers field name: `a
     ;; a` (at offset 0x15)
     
+    (@custom "producers" (before first) "\01\03a\0aa\01\01a\01a")
   )
   

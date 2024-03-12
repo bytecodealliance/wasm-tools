@@ -162,7 +162,7 @@ mod tests {
             AddCustomSectionMutator,
             r#"
                 (module
-                    (@custom "a" "b")
+                    (@custom "" (before first) "")
                 )
             "#,
         );

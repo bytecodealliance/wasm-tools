@@ -180,6 +180,7 @@
     )
   )
   (export (;11;) "implicit-own-handles3" (type 10))
+  (@custom "package-docs" "\00{\22worlds\22:{\22implicit-own-handles3\22:{\22types\22:{\22a\22:{\22docs\22:\22there should only be one `list` type despite there looking like two\5cnlist types here\22}}}},\22interfaces\22:{\22implicit-own-handles2\22:{\22types\22:{\22a\22:{\22docs\22:\22the `own` return and list param should be the same `own`\22},\22b\22:{\22docs\22:\22same as above, even when the `list<b>` implicitly-defined `own` comes\5cnbefore an explicitly defined `own`\22},\22c\22:{\22docs\22:\22same as the above, the `own` argument should have the same type as the\5cnreturn value\22}}}}}")
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
