@@ -6,7 +6,7 @@ package foo:comments;
 // this is a comment
 /* this too */ /* is a comment */
 /* this /* is /* a */ nested */ comment */
-
+/// and this is a documentation comment
 interface foo {
   type x = u32;
 
