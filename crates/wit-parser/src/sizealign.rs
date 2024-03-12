@@ -1,11 +1,80 @@
 use crate::{FlagsRepr, Int, Resolve, Type, TypeDef, TypeDefKind};
 
+pub type SizeAlign = SizeAlignSelect;
+
+// Data type with construction selected variant
+pub enum SizeAlignSelect {
+    Wasm32(SizeAlignAbi<false>),
+    Wasm64(SizeAlignAbi<true>),
+}
+
+impl std::default::Default for SizeAlignSelect {
+    fn default() -> Self {
+        Self::Wasm32(Default::default())
+    }
+}
+
+impl SizeAlignSelect {
+    pub fn fill(&mut self, resolve: &Resolve) {
+        match self {
+            SizeAlignSelect::Wasm32(sna) => sna.fill(resolve),
+            SizeAlignSelect::Wasm64(sna) => sna.fill(resolve),
+        }
+    }
+
+    pub fn size(&self, ty: &Type) -> usize {
+        match self {
+            SizeAlignSelect::Wasm32(sna) => sna.size(ty),
+            SizeAlignSelect::Wasm64(sna) => sna.size(ty),
+        }
+    }
+
+    pub fn align(&self, ty: &Type) -> usize {
+        match self {
+            SizeAlignSelect::Wasm32(sna) => sna.align(ty),
+            SizeAlignSelect::Wasm64(sna) => sna.align(ty),
+        }
+    }
+
+    pub fn record<'a>(&self, types: impl Iterator<Item = &'a Type>) -> (usize, usize) {
+        match self {
+            SizeAlignSelect::Wasm32(sna) => sna.record(types),
+            SizeAlignSelect::Wasm64(sna) => sna.record(types),
+        }
+    }
+
+    pub fn params<'a>(&self, types: impl IntoIterator<Item = &'a Type>) -> (usize, usize) {
+        self.record(types.into_iter())
+    }
+
+    pub fn field_offsets<'a>(
+        &self,
+        types: impl IntoIterator<Item = &'a Type>,
+    ) -> Vec<(usize, &'a Type)> {
+        match self {
+            SizeAlignSelect::Wasm32(sna) => sna.field_offsets(types),
+            SizeAlignSelect::Wasm64(sna) => sna.field_offsets(types),
+        }
+    }
+
+    pub fn payload_offset<'a>(
+        &self,
+        tag: Int,
+        cases: impl IntoIterator<Item = Option<&'a Type>>,
+    ) -> usize {
+        match self {
+            SizeAlignSelect::Wasm32(sna) => sna.payload_offset(tag, cases),
+            SizeAlignSelect::Wasm64(sna) => sna.payload_offset(tag, cases),
+        }
+    }
+}
+
 #[derive(Default)]
-pub struct SizeAlign {
+pub struct SizeAlignAbi<const wasm64: bool> {
     map: Vec<(usize, usize)>,
 }
 
-impl SizeAlign {
+impl<const wasm64: bool> SizeAlignAbi<wasm64> {
     pub fn fill(&mut self, resolve: &Resolve) {
         self.map = Vec::new();
         for (_, ty) in resolve.types.iter() {
@@ -17,7 +86,13 @@ impl SizeAlign {
     fn calculate(&self, ty: &TypeDef) -> (usize, usize) {
         match &ty.kind {
             TypeDefKind::Type(t) => (self.size(t), self.align(t)),
-            TypeDefKind::List(_) => (8, 4),
+            TypeDefKind::List(_) => {
+                if wasm64 {
+                    (16, 8)
+                } else {
+                    (8, 4)
+                }
+            }
             TypeDefKind::Record(r) => self.record(r.fields.iter().map(|f| &f.ty)),
             TypeDefKind::Tuple(t) => self.record(t.types.iter()),
             TypeDefKind::Flags(f) => match f.repr() {
@@ -47,7 +122,14 @@ impl SizeAlign {
             Type::Bool | Type::U8 | Type::S8 => 1,
             Type::U16 | Type::S16 => 2,
             Type::U32 | Type::S32 | Type::Float32 | Type::Char => 4,
-            Type::U64 | Type::S64 | Type::Float64 | Type::String => 8,
+            Type::U64 | Type::S64 | Type::Float64 => 8,
+            Type::String => {
+                if wasm64 {
+                    16
+                } else {
+                    8
+                }
+            }
             Type::Id(id) => self.map[id.index()].0,
         }
     }
@@ -56,8 +138,15 @@ impl SizeAlign {
         match ty {
             Type::Bool | Type::U8 | Type::S8 => 1,
             Type::U16 | Type::S16 => 2,
-            Type::U32 | Type::S32 | Type::Float32 | Type::Char | Type::String => 4,
+            Type::U32 | Type::S32 | Type::Float32 | Type::Char => 4,
             Type::U64 | Type::S64 | Type::Float64 => 8,
+            Type::String => {
+                if wasm64 {
+                    8
+                } else {
+                    4
+                }
+            }
             Type::Id(id) => self.map[id.index()].1,
         }
     }
