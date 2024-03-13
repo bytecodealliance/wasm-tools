@@ -22,12 +22,14 @@
 //!     cargo test --test roundtrip local/ref.wat
 
 use anyhow::{anyhow, bail, Context, Result};
+use libtest_mimic::{Arguments, FormatSetting, Trial};
 use rayon::prelude::*;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::str;
 use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
+use std::sync::Arc;
 use wasmparser::*;
 use wast::core::{Module, ModuleKind};
 use wast::lexer::Lexer;
@@ -37,59 +39,41 @@ use wast::{parser, QuoteWat, Wast, WastDirective, Wat};
 fn main() {
     env_logger::init();
 
-    let tests = find_tests();
-    let filter = std::env::args().nth(1);
+    let mut args = Arguments::from_args();
+    if args.format.is_none() {
+        args.format = Some(FormatSetting::Terse);
+    }
+    if cfg!(target_family = "wasm") && !cfg!(target_feature = "atomics") {
+        args.test_threads = Some(1);
+    }
+
     let bless = std::env::var_os("BLESS").is_some();
-    if bless {
+    let tests = match (args.exact, &args.filter) {
+        (true, Some(filter)) => vec![filter.into()],
+        _ => find_tests(),
+    };
+
+    let state = Arc::new(TestState::default());
+    let mut trials = Vec::new();
+    for test in tests {
+        let contents = std::fs::read(&test).unwrap();
+        let skip = skip_test(&test, &contents);
+        let trial = Trial::test(test.to_str().unwrap().to_string(), {
+            let state = state.clone();
+            move || {
+                state
+                    .run_test(&test, &contents)
+                    .map_err(|e| format!("{e:?}").into())
+            }
+        })
+        .with_ignored_flag(skip);
+        trials.push(trial);
+    }
+
+    if bless && !args.list && !args.exact && args.filter.is_none() {
         drop(std::fs::remove_dir_all("tests/snapshots"));
     }
-
-    let tests = tests
-        .par_iter()
-        .filter_map(|test| {
-            if let Some(filter) = &filter {
-                if let Some(s) = test.to_str() {
-                    if !s.contains(filter) {
-                        return None;
-                    }
-                }
-            }
-            let contents = std::fs::read(test).unwrap();
-            if skip_test(&test, &contents) {
-                None
-            } else {
-                Some((test, contents))
-            }
-        })
-        .collect::<Vec<_>>();
-
-    println!("running {} test files\n", tests.len());
-
-    let state = TestState::default();
-    let errors = tests
-        .par_iter()
-        .filter_map(|(test, contents)| {
-            let start = std::time::Instant::now();
-            let result = state.run_test(test, contents).err();
-            if start.elapsed().as_secs() > 2 {
-                println!("{test:?} SLOW");
-            }
-            result
-        })
-        .collect::<Vec<_>>();
-
-    if !errors.is_empty() {
-        for msg in errors.iter() {
-            eprintln!("{:?}", msg);
-        }
-
-        panic!("{} tests failed", errors.len())
-    }
-
-    println!(
-        "test result: ok. {} directives passed\n",
-        state.ntests.load(SeqCst)
-    );
+    libtest_mimic::run(&args, trials).exit();
 }
 
 /// Recursively finds all tests in a whitelisted set of directories which we

@@ -8,61 +8,36 @@
 //!     cargo test --test all foo.wit
 
 use anyhow::{bail, Context, Result};
+use libtest_mimic::{Arguments, Trial};
 use pretty_assertions::StrComparison;
-use rayon::prelude::*;
 use std::env;
 use std::ffi::OsStr;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::str;
-use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 use wit_parser::*;
 
 fn main() {
     env_logger::init();
     let tests = find_tests();
-    let filter = std::env::args().nth(1);
 
-    let tests = tests
-        .par_iter()
-        .filter_map(|test| {
-            if let Some(filter) = &filter {
-                if let Some(s) = test.to_str() {
-                    if !s.contains(filter) {
-                        return None;
-                    }
-                }
-            }
-            Some(test)
-        })
-        .collect::<Vec<_>>();
-
-    println!("running {} test files\n", tests.len());
-
-    let ntests = AtomicUsize::new(0);
-    let errors = tests
-        .par_iter()
-        .filter_map(|test| {
-            Runner { ntests: &ntests }
-                .run(test)
+    let mut trials = Vec::new();
+    for test in tests {
+        let trial = Trial::test(format!("{test:?}"), move || {
+            Runner {}
+                .run(&test)
                 .context(format!("test {:?} failed", test))
-                .err()
-        })
-        .collect::<Vec<_>>();
-
-    if !errors.is_empty() {
-        for msg in errors.iter() {
-            eprintln!("{:?}", msg);
-        }
-
-        panic!("{} tests failed", errors.len())
+                .map_err(|e| format!("{e:?}").into())
+        });
+        trials.push(trial);
     }
 
-    println!(
-        "test result: ok. {} directives passed\n",
-        ntests.load(SeqCst)
-    );
+    let mut args = Arguments::from_args();
+    if cfg!(target_family = "wasm") && !cfg!(target_feature = "atomics") {
+        args.test_threads = Some(1);
+    }
+    libtest_mimic::run(&args, trials).exit();
 }
 
 /// Recursively finds all tests in a whitelisted set of directories which we
@@ -95,11 +70,9 @@ fn find_tests() -> Vec<PathBuf> {
     }
 }
 
-struct Runner<'a> {
-    ntests: &'a AtomicUsize,
-}
+struct Runner {}
 
-impl Runner<'_> {
+impl Runner {
     fn run(&mut self, test: &Path) -> Result<()> {
         let mut resolve = Resolve::new();
         let result = resolve.push_path(test);
@@ -164,12 +137,7 @@ impl Runner<'_> {
                 );
             }
         }
-        self.bump_ntests();
         Ok(())
-    }
-
-    fn bump_ntests(&self) {
-        self.ntests.fetch_add(1, SeqCst);
     }
 }
 

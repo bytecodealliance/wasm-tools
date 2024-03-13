@@ -44,11 +44,11 @@ decoding = ['dep:wasmparser']
 wat = ['decoding', 'dep:wat']
 
 [dev-dependencies]
-rayon = "1"
 env_logger = { workspace = true }
 pretty_assertions = { workspace = true }
 serde_json = { workspace = true }
 wit-parser = { path = '.', features = ['serde', 'wat'] }
+libtest-mimic = { workspace = true }
 
 [[test]]
 name = "all"
