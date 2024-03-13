@@ -720,7 +720,7 @@ impl<'a> CompositionGraph<'a> {
     /// will also be removed.
     pub fn remove_component(&mut self, id: impl Into<ComponentId>) {
         let id = id.into();
-        if let Some(entry) = self.components.remove(&id) {
+        if let Some(entry) = self.components.swap_remove(&id) {
             log::info!(
                 "removing WebAssembly component `{name}` ({id}) from the graph",
                 name = entry.component.name(),
@@ -729,7 +729,7 @@ impl<'a> CompositionGraph<'a> {
             assert!(self.names.remove(&entry.component.name).is_some());
 
             for instance_id in entry.instances.iter().copied() {
-                self.instances.remove(&instance_id);
+                self.instances.swap_remove(&instance_id);
 
                 // Remove any connected indexes from outward edges from the instance being removed
                 for (_, target_id, map) in self
@@ -738,7 +738,7 @@ impl<'a> CompositionGraph<'a> {
                 {
                     let target = self.instances.get_mut(&target_id).unwrap();
                     for index in map.keys() {
-                        target.connected.remove(index);
+                        target.connected.swap_remove(index);
                     }
                 }
 
@@ -794,7 +794,7 @@ impl<'a> CompositionGraph<'a> {
     /// All connections relating to the instance will also be removed.
     pub fn remove_instance(&mut self, id: impl Into<InstanceId>) {
         let id = id.into();
-        if let Some(instance) = self.instances.remove(&id) {
+        if let Some(instance) = self.instances.swap_remove(&id) {
             let entry = self.components.get_mut(&instance.component).unwrap();
 
             log::info!(
@@ -809,7 +809,7 @@ impl<'a> CompositionGraph<'a> {
             for (_, target, map) in self.graph.edges_directed(id, EdgeDirection::Outgoing) {
                 let target = self.instances.get_mut(&target).unwrap();
                 for index in map.keys() {
-                    target.connected.remove(index);
+                    target.connected.swap_remove(index);
                 }
             }
 
@@ -886,10 +886,10 @@ impl<'a> CompositionGraph<'a> {
             .get_mut(&target)
             .ok_or_else(|| anyhow!("the target instance does not exist in the graph"))?;
 
-        target_instance.connected.remove(&target_import);
+        target_instance.connected.swap_remove(&target_import);
 
         let remove_edge = if let Some(set) = self.graph.edge_weight_mut(source, target) {
-            set.remove(&target_import);
+            set.swap_remove(&target_import);
             set.is_empty()
         } else {
             false

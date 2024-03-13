@@ -851,7 +851,7 @@ impl<'a> Resolver<'a> {
         }
         let order = toposort("type", &type_deps)?;
         for ty in order {
-            let def = match type_defs.remove(&ty).unwrap() {
+            let def = match type_defs.swap_remove(&ty).unwrap() {
                 Some(def) => def,
                 None => continue,
             };
