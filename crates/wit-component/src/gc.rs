@@ -48,7 +48,7 @@ pub fn run<T>(
         }
     }
     for name in not_required {
-        module.exports.remove(name);
+        module.exports.swap_remove(name);
     }
     assert!(!module.exports.is_empty());
     module.liveness()?;
