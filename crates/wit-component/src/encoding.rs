@@ -2127,7 +2127,7 @@ impl ComponentEncoder {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "dummy-module"))]
 mod test {
     use crate::{dummy_module, embed_component_metadata};
 

@@ -28,6 +28,7 @@
     )
   )
   (export (;3;) "the-world" (type 2))
+  (@custom "package-docs" "\00{}")
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

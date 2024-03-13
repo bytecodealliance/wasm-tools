@@ -162,7 +162,7 @@ mod tests {
             AddCustomSectionMutator,
             r#"
                 (module
-                    (@custom "a" "b")
+                    (@custom "" "")
                 )
             "#,
         );
@@ -224,13 +224,13 @@ mod tests {
         crate::mutators::match_mutation(
             r#"
                 (module
-                    (@custom "name" "data")
+                    (@custom "custom-name" "data")
                 )
             "#,
             CustomSectionMutator,
             r#"
                 (module
-                    (@custom "n" "data")
+                    (@custom "custom-nam" "data")
                 )
             "#,
         );
@@ -241,15 +241,15 @@ mod tests {
         crate::mutators::match_mutation(
             r#"
             (module
-                (@custom "name" "data")
                 (@custom "name2" "data")
+                (@custom "name3" "data")
             )
             "#,
             ReorderCustomSectionMutator,
             r#"
             (module
+                (@custom "name3" "data")
                 (@custom "name2" "data")
-                (@custom "name" "data")
             )
             "#,
         )

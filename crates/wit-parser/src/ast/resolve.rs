@@ -1280,18 +1280,34 @@ impl<'a> Resolver<'a> {
     }
 
     fn docs(&mut self, doc: &super::Docs<'_>) -> Docs {
-        let mut lines = vec![];
+        let mut docs = vec![];
         for doc in doc.docs.iter() {
             if let Some(doc) = doc.strip_prefix("/**") {
-                lines.push(doc.strip_suffix("*/").unwrap().trim());
+                docs.push(doc.strip_suffix("*/").unwrap().trim());
             } else {
-                lines.push(doc.trim_start_matches('/').trim());
+                docs.push(doc.trim_start_matches('/').trim());
             }
         }
-        let contents = if lines.is_empty() {
+        let contents = if docs.is_empty() {
             None
         } else {
-            Some(lines.join("\n"))
+            // NB: this notably, through the use of `lines`, normalizes `\r\n`
+            // to `\n`.
+            let mut contents = String::new();
+            for doc in docs {
+                if doc.is_empty() {
+                    contents.push_str("\n");
+                } else {
+                    for line in doc.lines() {
+                        contents.push_str(line);
+                        contents.push_str("\n");
+                    }
+                }
+            }
+            while contents.ends_with("\n") {
+                contents.pop();
+            }
+            Some(contents)
         };
         Docs { contents }
     }

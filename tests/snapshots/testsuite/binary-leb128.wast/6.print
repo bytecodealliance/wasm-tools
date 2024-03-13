@@ -1,1 +1,3 @@
-(module)
+(module
+  (@custom "1" (before first) "23456789")
+)

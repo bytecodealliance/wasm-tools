@@ -60,6 +60,7 @@
     )
   )
   (export (;5;) "baz" (type 4))
+  (@custom "package-docs" "\00{}")
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

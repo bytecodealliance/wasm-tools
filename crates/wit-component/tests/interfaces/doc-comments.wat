@@ -66,6 +66,7 @@
     )
   )
   (export (;5;) "coverage-world" (type 4))
+  (@custom "package-docs" "\00{\22docs\22:\22package docs;\22,\22worlds\22:{\22coverage-world\22:{\22docs\22:\22world docs\22,\22interfaces\22:{\22i\22:{\22docs\22:\22world inline interface docs\22,\22funcs\22:{\22f\22:\22inline interface func docs\22},\22types\22:{\22t\22:{\22docs\22:\22inline interface typedef docs\22}}}},\22types\22:{\22t\22:{\22docs\22:\22world typedef docs\22}},\22funcs\22:{\22imp\22:\22world func import docs\22,\22exp\22:\22world func export docs\22}}},\22interfaces\22:{\22coverage-iface\22:{\22docs\22:\22interface docs\22,\22funcs\22:{\22[constructor]res\22:\22constructor docs\22,\22[method]res.m\22:\22method docs\22,\22[static]res.s\22:\22static func docs\22,\22f\22:\22interface func docs\22},\22types\22:{\22t\22:{\22docs\22:\22basic typedef docs\22},\22r\22:{\22docs\22:\22record typedef docs\22,\22items\22:{\22f1\22:\22record field docs\22}},\22fl\22:{\22items\22:{\22f1\22:\22flag docs\22}},\22v\22:{\22items\22:{\22c1\22:\22variant case docs\22}},\22e\22:{\22items\22:{\22c1\22:\22enum case docs\22}}}},\22other-comment-forms\22:{\22docs\22:\22other comment forms\5cn    multi-line block\22,\22funcs\22:{\22multiple-lines-split\22:\22one doc line\5cnnon-doc in the middle\5cnanother doc line\22,\22mixed-forms\22:\22mixed forms; line doc\5cnplus block doc\5cn      multi-line\22}}}}")
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )
