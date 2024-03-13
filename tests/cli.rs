@@ -51,7 +51,10 @@ fn main() {
         trials.push(trial);
     }
 
-    let args = Arguments::from_args();
+    let mut args = Arguments::from_args();
+    if cfg!(target_family = "wasm") && !cfg!(target_feature = "atomics") {
+        args.test_threads = Some(1);
+    }
     libtest_mimic::run(&args, trials).exit();
 }
 
