@@ -146,6 +146,11 @@ pub struct Module {
 
     /// What the maximum type index that can be referenced is.
     max_type_limit: MaxTypeLimit,
+
+    /// Some known-interesting values, such as powers of two, values just before
+    /// or just after a memory size, etc...
+    interesting_values32: Vec<u32>,
+    interesting_values64: Vec<u64>,
 }
 
 impl<'a> Arbitrary<'a> for Module {
@@ -232,6 +237,8 @@ impl Module {
             export_names: HashSet::new(),
             const_expr_choices: Vec::new(),
             max_type_limit: MaxTypeLimit::ModuleTypes,
+            interesting_values32: Vec::new(),
+            interesting_values64: Vec::new(),
         }
     }
 }
@@ -2039,6 +2046,8 @@ impl Module {
     }
 
     fn arbitrary_code(&mut self, u: &mut Unstructured) -> Result<()> {
+        self.compute_interesting_values();
+
         self.code.reserve(self.num_defined_funcs);
         let mut allocs = CodeBuilderAllocations::new(self, self.config.exports.is_some());
         for (_, ty) in self.funcs[self.funcs.len() - self.num_defined_funcs..].iter() {
@@ -2223,6 +2232,168 @@ impl Module {
                     None
                 }
             })
+    }
+
+    fn compute_interesting_values(&mut self) {
+        debug_assert!(self.interesting_values32.is_empty());
+        debug_assert!(self.interesting_values64.is_empty());
+
+        let mut interesting_values32 = HashSet::new();
+        let mut interesting_values64 = HashSet::new();
+
+        let mut interesting = |val: u64| {
+            interesting_values32.insert(val as u32);
+            interesting_values64.insert(val);
+        };
+
+        // Zero is always interesting.
+        interesting(0);
+
+        // Max values are always interesting.
+        interesting(u8::MAX as _);
+        interesting(u16::MAX as _);
+        interesting(u32::MAX as _);
+        interesting(u64::MAX);
+
+        for i in 0..64 {
+            // Powers of two.
+            interesting(1 << i);
+
+            // Inverted powers of two.
+            interesting(!(1 << i));
+
+            // Powers of two minus one, AKA high bits unset and low bits set.
+            interesting((1 << i) - 1);
+
+            // Negative powers of two, AKA high bits set and low bits unset.
+            interesting(((1_i64 << 63) >> i) as _);
+        }
+
+        // Some repeating bit patterns.
+        for pattern in [0b01010101, 0b00010001, 0b00010001, 0b00000001] {
+            for b in [pattern, !pattern] {
+                interesting(u64::from_ne_bytes([b, b, b, b, b, b, b, b]));
+            }
+        }
+
+        // Interesting float values.
+        let mut interesting_f64 = |x: f64| interesting(x.to_bits());
+        interesting_f64(0.0);
+        interesting_f64(-0.0);
+        interesting_f64(f64::INFINITY);
+        interesting_f64(f64::NEG_INFINITY);
+        interesting_f64(f64::EPSILON);
+        interesting_f64(-f64::EPSILON);
+        interesting_f64(f64::MIN);
+        interesting_f64(f64::MIN_POSITIVE);
+        interesting_f64(f64::MAX);
+        interesting_f64(f64::NAN);
+        let mut interesting_f32 = |x: f32| interesting(x.to_bits() as _);
+        interesting_f32(0.0);
+        interesting_f32(-0.0);
+        interesting_f32(f32::INFINITY);
+        interesting_f32(f32::NEG_INFINITY);
+        interesting_f32(f32::EPSILON);
+        interesting_f32(-f32::EPSILON);
+        interesting_f32(f32::MIN);
+        interesting_f32(f32::MIN_POSITIVE);
+        interesting_f32(f32::MAX);
+        interesting_f32(f32::NAN);
+
+        // Interesting values related to table bounds.
+        for t in self.tables.iter() {
+            interesting(t.minimum as _);
+            if let Some(x) = t.minimum.checked_add(1) {
+                interesting(x as _);
+            }
+
+            if let Some(x) = t.maximum {
+                interesting(x as _);
+                if let Some(y) = x.checked_add(1) {
+                    interesting(y as _);
+                }
+            }
+        }
+
+        // Interesting values related to memory bounds.
+        for m in self.memories.iter() {
+            let min = m.minimum.saturating_mul(crate::WASM_PAGE_SIZE);
+            interesting(min);
+            for i in 0..5 {
+                if let Some(x) = min.checked_add(1 << i) {
+                    interesting(x);
+                }
+                if let Some(x) = min.checked_sub(1 << i) {
+                    interesting(x);
+                }
+            }
+
+            if let Some(max) = m.maximum {
+                let max = max.saturating_mul(crate::WASM_PAGE_SIZE);
+                interesting(max);
+                for i in 0..5 {
+                    if let Some(x) = max.checked_add(1 << i) {
+                        interesting(x);
+                    }
+                    if let Some(x) = max.checked_sub(1 << i) {
+                        interesting(x);
+                    }
+                }
+            }
+        }
+
+        self.interesting_values32.extend(interesting_values32);
+        self.interesting_values64.extend(interesting_values64);
+    }
+
+    fn arbitrary_const_instruction(
+        &self,
+        ty: ValType,
+        u: &mut Unstructured<'_>,
+    ) -> Result<Instruction> {
+        match ty {
+            ValType::I32 => Ok(Instruction::I32Const(
+                if self.interesting_values32.len() > 0 && u.arbitrary()? {
+                    *u.choose(&self.interesting_values32)? as i32
+                } else {
+                    u.arbitrary()?
+                },
+            )),
+            ValType::I64 => Ok(Instruction::I64Const(
+                if self.interesting_values64.len() > 0 && u.arbitrary()? {
+                    *u.choose(&self.interesting_values64)? as i64
+                } else {
+                    u.arbitrary()?
+                },
+            )),
+            ValType::F32 => Ok(Instruction::F32Const(
+                if self.interesting_values32.len() > 0 && u.arbitrary()? {
+                    f32::from_bits(*u.choose(&self.interesting_values32)?)
+                } else {
+                    u.arbitrary()?
+                },
+            )),
+            ValType::F64 => Ok(Instruction::F64Const(
+                if self.interesting_values64.len() > 0 && u.arbitrary()? {
+                    f64::from_bits(*u.choose(&self.interesting_values64)?)
+                } else {
+                    u.arbitrary()?
+                },
+            )),
+            ValType::V128 => Ok(Instruction::V128Const(
+                if self.interesting_values64.len() > 0 && u.arbitrary()? {
+                    let upper = (*u.choose(&self.interesting_values64)? as i128) << 64;
+                    let lower = *u.choose(&self.interesting_values64)? as i128;
+                    upper | lower
+                } else {
+                    u.arbitrary()?
+                },
+            )),
+            ValType::Ref(ty) => {
+                assert!(ty.nullable);
+                Ok(Instruction::RefNull(ty.heap_type))
+            }
+        }
     }
 }
 

@@ -1435,7 +1435,7 @@ impl CodeBuilder<'_> {
                 }
                 operands = &[];
             }
-            instructions.push(arbitrary_val(*expected, u));
+            instructions.push(module.arbitrary_const_instruction(*expected, u)?);
         }
         Ok(())
     }
@@ -1540,20 +1540,6 @@ impl CodeBuilder<'_> {
             let ret = *val;
             *val += 1;
             ret
-        }
-    }
-}
-
-fn arbitrary_val(ty: ValType, u: &mut Unstructured<'_>) -> Instruction {
-    match ty {
-        ValType::I32 => Instruction::I32Const(u.arbitrary().unwrap_or(0)),
-        ValType::I64 => Instruction::I64Const(u.arbitrary().unwrap_or(0)),
-        ValType::F32 => Instruction::F32Const(u.arbitrary().unwrap_or(0.0)),
-        ValType::F64 => Instruction::F64Const(u.arbitrary().unwrap_or(0.0)),
-        ValType::V128 => Instruction::V128Const(u.arbitrary().unwrap_or(0)),
-        ValType::Ref(ty) => {
-            assert!(ty.nullable);
-            Instruction::RefNull(ty.heap_type)
         }
     }
 }
@@ -3419,49 +3405,45 @@ fn data_drop(
 
 fn i32_const(
     u: &mut Unstructured,
-    _module: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let x = u.arbitrary()?;
     builder.push_operands(&[ValType::I32]);
-    instructions.push(Instruction::I32Const(x));
+    instructions.push(module.arbitrary_const_instruction(ValType::I32, u)?);
     Ok(())
 }
 
 fn i64_const(
     u: &mut Unstructured,
-    _module: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let x = u.arbitrary()?;
     builder.push_operands(&[ValType::I64]);
-    instructions.push(Instruction::I64Const(x));
+    instructions.push(module.arbitrary_const_instruction(ValType::I64, u)?);
     Ok(())
 }
 
 fn f32_const(
     u: &mut Unstructured,
-    _module: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let x = u.arbitrary()?;
     builder.push_operands(&[ValType::F32]);
-    instructions.push(Instruction::F32Const(x));
+    instructions.push(module.arbitrary_const_instruction(ValType::F32, u)?);
     Ok(())
 }
 
 fn f64_const(
     u: &mut Unstructured,
-    _module: &Module,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    let x = u.arbitrary()?;
     builder.push_operands(&[ValType::F64]);
-    instructions.push(Instruction::F64Const(x));
+    instructions.push(module.arbitrary_const_instruction(ValType::F64, u)?);
     Ok(())
 }
 
@@ -5220,10 +5202,10 @@ fn memory_offset(u: &mut Unstructured, module: &Module, memory_index: u32) -> Re
     assert!(a + b + c != 0);
 
     let memory_type = &module.memories[memory_index as usize];
-    let min = memory_type.minimum.saturating_mul(65536);
+    let min = memory_type.minimum.saturating_mul(crate::WASM_PAGE_SIZE);
     let max = memory_type
         .maximum
-        .map(|max| max.saturating_mul(65536))
+        .map(|max| max.saturating_mul(crate::WASM_PAGE_SIZE))
         .unwrap_or(u64::MAX);
 
     let (min, max, true_max) = match (memory_type.memory64, module.config.disallow_traps) {
