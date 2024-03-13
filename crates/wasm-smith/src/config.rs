@@ -681,6 +681,7 @@ impl<'a> Arbitrary<'a> for Config {
             },
             table_max_size_required: u.arbitrary()?,
             max_table_elements: u.int_in_range(0..=1_000_000)?,
+            disallow_traps: u.arbitrary()?,
 
             // These fields, unlike the ones above, are less useful to set.
             // They either make weird inputs or are for features not widely
@@ -712,7 +713,6 @@ impl<'a> Arbitrary<'a> for Config {
             exports: None,
             threads_enabled: false,
             export_everything: false,
-            disallow_traps: false,
             tail_call_enabled: false,
             gc_enabled: false,
             generate_custom_sections: false,
