@@ -39,26 +39,15 @@ use wast::{parser, QuoteWat, Wast, WastDirective, Wat};
 fn main() {
     env_logger::init();
 
-    let mut args = Arguments::from_args();
-    if args.format.is_none() {
-        args.format = Some(FormatSetting::Terse);
-    }
-    if cfg!(target_family = "wasm") && !cfg!(target_feature = "atomics") {
-        args.test_threads = Some(1);
-    }
-
+    let tests = find_tests();
     let bless = std::env::var_os("BLESS").is_some();
-    let tests = match (args.exact, &args.filter) {
-        (true, Some(filter)) => vec![filter.into()],
-        _ => find_tests(),
-    };
 
     let state = Arc::new(TestState::default());
     let mut trials = Vec::new();
     for test in tests {
         let contents = std::fs::read(&test).unwrap();
         let skip = skip_test(&test, &contents);
-        let trial = Trial::test(test.to_str().unwrap().to_string(), {
+        let trial = Trial::test(format!("{test:?}"), {
             let state = state.clone();
             move || {
                 state
@@ -70,7 +59,14 @@ fn main() {
         trials.push(trial);
     }
 
-    if bless && !args.list && !args.exact && args.filter.is_none() {
+    let mut args = Arguments::from_args();
+    if args.format.is_none() {
+        args.format = Some(FormatSetting::Terse);
+    }
+    if cfg!(target_family = "wasm") && !cfg!(target_feature = "atomics") {
+        args.test_threads = Some(1);
+    }
+    if bless && !args.list {
         drop(std::fs::remove_dir_all("tests/snapshots"));
     }
     libtest_mimic::run(&args, trials).exit();
