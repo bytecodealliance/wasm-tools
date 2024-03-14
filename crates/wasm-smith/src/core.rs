@@ -2255,6 +2255,12 @@ impl Module {
         interesting(u32::MAX as _);
         interesting(u64::MAX);
 
+        // Min values are always interesting.
+        interesting(i8::MIN as _);
+        interesting(i16::MIN as _);
+        interesting(i32::MIN as _);
+        interesting(i64::MIN as _);
+
         for i in 0..64 {
             // Powers of two.
             interesting(1 << i);
@@ -2344,6 +2350,10 @@ impl Module {
 
         self.interesting_values32.extend(interesting_values32);
         self.interesting_values64.extend(interesting_values64);
+
+        // Sort for determinism.
+        self.interesting_values32.sort();
+        self.interesting_values64.sort();
     }
 
     fn arbitrary_const_instruction(
@@ -2351,44 +2361,36 @@ impl Module {
         ty: ValType,
         u: &mut Unstructured<'_>,
     ) -> Result<Instruction> {
+        debug_assert!(self.interesting_values32.len() > 0);
+        debug_assert!(self.interesting_values64.len() > 0);
         match ty {
-            ValType::I32 => Ok(Instruction::I32Const(
-                if self.interesting_values32.len() > 0 && u.arbitrary()? {
-                    *u.choose(&self.interesting_values32)? as i32
-                } else {
-                    u.arbitrary()?
-                },
-            )),
-            ValType::I64 => Ok(Instruction::I64Const(
-                if self.interesting_values64.len() > 0 && u.arbitrary()? {
-                    *u.choose(&self.interesting_values64)? as i64
-                } else {
-                    u.arbitrary()?
-                },
-            )),
-            ValType::F32 => Ok(Instruction::F32Const(
-                if self.interesting_values32.len() > 0 && u.arbitrary()? {
-                    f32::from_bits(*u.choose(&self.interesting_values32)?)
-                } else {
-                    u.arbitrary()?
-                },
-            )),
-            ValType::F64 => Ok(Instruction::F64Const(
-                if self.interesting_values64.len() > 0 && u.arbitrary()? {
-                    f64::from_bits(*u.choose(&self.interesting_values64)?)
-                } else {
-                    u.arbitrary()?
-                },
-            )),
-            ValType::V128 => Ok(Instruction::V128Const(
-                if self.interesting_values64.len() > 0 && u.arbitrary()? {
-                    let upper = (*u.choose(&self.interesting_values64)? as i128) << 64;
-                    let lower = *u.choose(&self.interesting_values64)? as i128;
-                    upper | lower
-                } else {
-                    u.arbitrary()?
-                },
-            )),
+            ValType::I32 => Ok(Instruction::I32Const(if u.arbitrary()? {
+                *u.choose(&self.interesting_values32)? as i32
+            } else {
+                u.arbitrary()?
+            })),
+            ValType::I64 => Ok(Instruction::I64Const(if u.arbitrary()? {
+                *u.choose(&self.interesting_values64)? as i64
+            } else {
+                u.arbitrary()?
+            })),
+            ValType::F32 => Ok(Instruction::F32Const(if u.arbitrary()? {
+                f32::from_bits(*u.choose(&self.interesting_values32)?)
+            } else {
+                u.arbitrary()?
+            })),
+            ValType::F64 => Ok(Instruction::F64Const(if u.arbitrary()? {
+                f64::from_bits(*u.choose(&self.interesting_values64)?)
+            } else {
+                u.arbitrary()?
+            })),
+            ValType::V128 => Ok(Instruction::V128Const(if u.arbitrary()? {
+                let upper = (*u.choose(&self.interesting_values64)? as i128) << 64;
+                let lower = *u.choose(&self.interesting_values64)? as i128;
+                upper | lower
+            } else {
+                u.arbitrary()?
+            })),
             ValType::Ref(ty) => {
                 assert!(ty.nullable);
                 Ok(Instruction::RefNull(ty.heap_type))
