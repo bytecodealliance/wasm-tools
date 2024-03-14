@@ -101,7 +101,7 @@ pub struct NewOpts {
     /// ABI, for example, to one that uses the component model. The first
     /// `[NAME=]` specified in the argument is inferred from the name of file
     /// specified by `MODULE` if not present and is the name of the import
-    /// module that's being implemented (e.g. `wasi_snapshot_preview1.wasm`.
+    /// module that's being implemented (e.g. `wasi_snapshot_preview1.wasm`).
     ///
     /// The second part of this argument, optionally specified, is the interface
     /// that this adapter module imports. If not specified then the interface
@@ -317,7 +317,7 @@ pub struct LinkOpts {
     /// ABI, for example, to one that uses the component model. The first
     /// `[NAME=]` specified in the argument is inferred from the name of file
     /// specified by `MODULE` if not present and is the name of the import
-    /// module that's being implemented (e.g. `wasi_snapshot_preview1.wasm`.
+    /// module that's being implemented (e.g. `wasi_snapshot_preview1.wasm`).
     ///
     /// The second part of this argument, optionally specified, is the interface
     /// that this adapter module imports. If not specified then the interface
