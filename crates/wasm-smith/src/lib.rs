@@ -67,6 +67,8 @@ use std::{collections::HashSet, fmt::Write, str};
 #[cfg(feature = "_internal_cli")]
 pub use config::InternalOptionalConfig;
 
+const WASM_PAGE_SIZE: u64 = 65_536;
+
 /// Do something an arbitrary number of times.
 ///
 /// The callback can return `false` to exit the loop early.
