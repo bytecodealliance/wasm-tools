@@ -22,7 +22,10 @@ use wit_parser::{PackageId, Resolve, UnresolvedPackage};
 ///   interfaces of the `module.wat` or `lib-$name.wat` and
 ///   `dlopen-lib-$name.wat` files. Must have a `default world`
 /// * [optional] `adapt-$name.wat` - optional adapter for the module name
-///   `$name`, can be specified for multiple `$name`s
+///   `$name`, can be specified for multiple `$name`s.  Alternatively, if $name
+///   doesn't work as part of a filename (e.g. contains forward slashes), it may
+///   be specified on the first line of the file with the prefix `;; module name:
+///   `, e.g. `;; module name: wasi:cli/environment@0.2.0`.
 /// * [optional] `adapt-$name.wit` - required for each `*.wat` adapter to
 ///   describe imports/exports of the adapter.
 /// * [optional] `stub-missing-functions` - if linking libraries and this file
@@ -184,7 +187,15 @@ fn read_name_and_module(
 ) -> Result<(String, Vec<u8>)> {
     let wasm = read_core_module(path, resolve, pkg)?;
     let stem = path.file_stem().unwrap().to_str().unwrap();
-    let name = stem.trim_start_matches(prefix).to_owned();
+    let name = if let Some(name) = fs::read_to_string(path)?
+        .lines()
+        .next()
+        .and_then(|line| line.strip_prefix(";; module name: "))
+    {
+        name.to_owned()
+    } else {
+        stem.trim_start_matches(prefix).to_owned()
+    };
     Ok((name, wasm))
 }
 
