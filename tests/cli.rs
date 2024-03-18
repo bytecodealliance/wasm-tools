@@ -26,59 +26,36 @@
 //! to look at the diff!
 
 use anyhow::{anyhow, bail, Context, Result};
+use libtest_mimic::{Arguments, Trial};
 use pretty_assertions::StrComparison;
-use rayon::prelude::*;
 use std::env;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
 fn main() {
-    // This test suite can't run on wasm since it involves spawning
-    // subprocesses.
-    if cfg!(target_family = "wasm") {
-        return;
-    }
-
     let mut tests = Vec::new();
     find_tests("tests/cli".as_ref(), &mut tests);
-    let filter = std::env::args().nth(1);
-
     let bless = env::var("BLESS").is_ok();
-    let tests = tests
-        .iter()
-        .filter(|test| {
-            if let Some(filter) = &filter {
-                if let Some(s) = test.file_name().and_then(|s| s.to_str()) {
-                    if !s.contains(filter) {
-                        return false;
-                    }
-                }
-            }
-            true
-        })
-        .collect::<Vec<_>>();
 
-    println!("running {} tests\n", tests.len());
-
-    let errors = tests
-        .par_iter()
-        .filter_map(|test| {
-            run_test(test, bless)
+    let mut trials = Vec::new();
+    for test in tests {
+        let trial = Trial::test(format!("{test:?}"), move || {
+            run_test(&test, bless)
                 .with_context(|| format!("failed test {test:?}"))
-                .err()
+                .map_err(|e| format!("{e:?}").into())
         })
-        .collect::<Vec<_>>();
-
-    if !errors.is_empty() {
-        for msg in errors.iter() {
-            eprintln!("{:?}", msg);
-        }
-
-        panic!("{} tests failed", errors.len())
+        // This test suite can't run on wasm since it involves spawning
+        // subprocesses.
+        .with_ignored_flag(cfg!(target_family = "wasm"));
+        trials.push(trial);
     }
 
-    println!("test result: ok. {} passed\n", tests.len());
+    let mut args = Arguments::from_args();
+    if cfg!(target_family = "wasm") && !cfg!(target_feature = "atomics") {
+        args.test_threads = Some(1);
+    }
+    libtest_mimic::run(&args, trials).exit();
 }
 
 fn wasm_tools_exe() -> Command {

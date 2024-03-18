@@ -24,7 +24,7 @@ bumpalo = "3.14.0"
 
 [dev-dependencies]
 anyhow = { workspace = true }
-rayon = { workspace = true }
+libtest-mimic = { workspace = true }
 wasmparser = { path = "../wasmparser" }
 wat = { path = "../wat" }
 

@@ -617,6 +617,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "escape8259"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba4f4911e3666fcd7826997b4745c8224295a6f3072f1418c3067b97a67557ee"
+dependencies = [
+ "rustversion",
+]
+
+[[package]]
 name = "fallible-iterator"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -924,6 +933,18 @@ dependencies = [
  "arbitrary",
  "cc",
  "once_cell",
+]
+
+[[package]]
+name = "libtest-mimic"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f0f4c6f44ecfd52e8b443f2ad18f2b996540135771561283c2352ce56a1c70b"
+dependencies = [
+ "clap 4.5.2",
+ "escape8259",
+ "termcolor",
+ "threadpool",
 ]
 
 [[package]]
@@ -1274,6 +1295,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustversion"
+version = "1.0.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7ffc183a10b4478d04cbbbfc96d0873219d962dd5accaff2ffbd4ceb7df837f4"
+
+[[package]]
 name = "ruzstd"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1496,6 +1523,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.52",
+]
+
+[[package]]
+name = "threadpool"
+version = "1.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d050e60b33d41c19108b32cea32164033a9013fe3b46cbd4457559bfbf77afaa"
+dependencies = [
+ "num_cpus",
 ]
 
 [[package]]
@@ -1830,6 +1866,7 @@ dependencies = [
  "env_logger",
  "gimli 0.28.1",
  "is_executable",
+ "libtest-mimic",
  "log",
  "pretty_assertions",
  "rayon",
@@ -2212,8 +2249,8 @@ dependencies = [
  "anyhow",
  "bumpalo",
  "leb128",
+ "libtest-mimic",
  "memchr",
- "rayon",
  "unicode-width",
  "wasm-encoder 0.201.0",
  "wasmparser 0.201.0",
@@ -2464,9 +2501,9 @@ dependencies = [
  "env_logger",
  "id-arena",
  "indexmap 2.2.5",
+ "libtest-mimic",
  "log",
  "pretty_assertions",
- "rayon",
  "semver",
  "serde",
  "serde_derive",
