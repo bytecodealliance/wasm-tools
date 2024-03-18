@@ -54,7 +54,7 @@ interface types {
   type t52 = future<u32>;
   type t53 = future;
 
-  // type order doesn't matter
+  /// type order doesn't matter
   type foo = bar;
   type bar = u32;
 }
