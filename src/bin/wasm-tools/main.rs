@@ -73,7 +73,7 @@ subcommands! {
     (wit_smith, "wit-smith")
     (addr2line, "addr2line")
     (completion, "completion")
-    (wast2json, "wast2json")
+    (json_from_wast, "json-from-wast")
 }
 
 fn main() -> ExitCode {

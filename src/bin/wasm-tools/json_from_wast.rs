@@ -17,13 +17,13 @@ use wast::{
 /// perform all the parsing for various implementations of the wasm text format
 /// while deferring the actual processing of all commands.
 ///
-/// This subcommand is modelled after WABT's `wastjson` tool, found at
+/// This subcommand is modelled after WABT's `wast2json` tool, found at
 /// <https://github.com/WebAssembly/wabt>. More documentation of the format can
 /// be found at
 /// <https://github.com/WebAssembly/wabt/blob/main/docs/wast2json.md>.
 ///
 /// Note that this subcommand does not output precisely the same output as
-/// `wast2json`-the-binary, but there should be no major discrepancies.
+/// `wast2json`, but there should be no major discrepancies.
 ///
 /// This will also emit a number of `*.wasm` and `*.wat` files in the current
 /// directory (or in `--wasm-dir`) which the JSON will reference. This command

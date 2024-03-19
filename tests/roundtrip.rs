@@ -215,8 +215,8 @@ impl TestState {
     }
 
     fn test_wast(&self, test: &Path, contents: &[u8]) -> Result<()> {
-        self.test_wast2json(test)
-            .context("failed to run `wast2json` cli subcommand")?;
+        self.test_json_from_wast(test)
+            .context("failed to run `json-from-wast` cli subcommand")?;
         let contents = str::from_utf8(contents)?;
         macro_rules! adjust {
             ($e:expr) => {{
@@ -533,8 +533,8 @@ impl TestState {
         Ok(stdout)
     }
 
-    fn test_wast2json(&self, path: &Path) -> Result<()> {
-        // component model tests aren't tested through wast2json at this time.
+    fn test_json_from_wast(&self, path: &Path) -> Result<()> {
+        // component model tests aren't tested through json-from-wast at this time.
         if path.iter().any(|p| p == "component-model") {
             return Ok(());
         }
@@ -555,7 +555,7 @@ impl TestState {
 
         let mut cmd = self.wasm_tools();
         let td = tempfile::TempDir::new()?;
-        cmd.arg("wast2json")
+        cmd.arg("json-from-wast")
             .arg(&path)
             .arg("--pretty")
             .arg("--wasm-dir")
@@ -567,7 +567,7 @@ impl TestState {
             bail!("failed to run {cmd:?}\nstdout: {stdout}\nstderr: {stderr}");
         }
         self.snapshot("json", path.as_ref(), &stdout)
-            .context("failed to validate the `wast2json` snapshot")?;
+            .context("failed to validate the `json-from-wast` snapshot")?;
         Ok(())
     }
 
