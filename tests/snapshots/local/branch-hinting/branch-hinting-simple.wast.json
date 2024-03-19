@@ -1,0 +1,46 @@
+{
+  "source_filename": "tests/local/branch-hinting/branch-hinting-simple.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "branch-hinting-simple.0.wasm"
+    },
+    {
+      "type": "module",
+      "line": 26,
+      "filename": "branch-hinting-simple.1.wasm"
+    },
+    {
+      "type": "module",
+      "line": 37,
+      "filename": "branch-hinting-simple.2.wasm"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 62,
+      "filename": "branch-hinting-simple.3.wat",
+      "text": "expected valid module field",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 65,
+      "filename": "branch-hinting-simple.4.wat",
+      "text": "expected a string",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 68,
+      "filename": "branch-hinting-simple.5.wat",
+      "text": "invalid value for branch hint",
+      "module_type": "text"
+    },
+    {
+      "type": "module",
+      "line": 72,
+      "filename": "branch-hinting-simple.6.wasm"
+    }
+  ]
+}

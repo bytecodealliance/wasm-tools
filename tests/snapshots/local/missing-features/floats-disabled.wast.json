@@ -1,0 +1,19 @@
+{
+  "source_filename": "tests/local/missing-features/floats-disabled.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 2,
+      "filename": "floats-disabled.0.wasm",
+      "text": "floating-point support is disabled",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 7,
+      "filename": "floats-disabled.1.wasm",
+      "text": "floating-point support is disabled",
+      "module_type": "binary"
+    }
+  ]
+}

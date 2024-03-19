@@ -142,6 +142,7 @@ that can be use programmatically as well:
 | `wasm-tools metadata add` |  | Add name or producer metadata to a component or module |
 | `wasm-tools addr2line` |  | Translate wasm offsets to filename/line numbers with DWARF |
 | `wasm-tools completion` |  | Generate shell completion scripts for `wasm-tools` |
+| `wasm-tools json-from-wast` |  | Convert a `*.wast` file into JSON commands |
 
 [wasmparser]: https://crates.io/crates/wasmparser
 [wat]: https://crates.io/crates/wat

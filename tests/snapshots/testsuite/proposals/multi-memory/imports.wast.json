@@ -1,0 +1,1558 @@
+{
+  "source_filename": "tests/testsuite/proposals/multi-memory/imports.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "imports.0.wasm"
+    },
+    {
+      "type": "register",
+      "line": 21,
+      "as": "test"
+    },
+    {
+      "type": "module",
+      "line": 26,
+      "filename": "imports.1.wasm"
+    },
+    {
+      "type": "assert_return",
+      "line": 85,
+      "action": {
+        "type": "invoke",
+        "field": "print32",
+        "args": [
+          {
+            "type": "i32",
+            "value": "13"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 86,
+      "action": {
+        "type": "invoke",
+        "field": "print64",
+        "args": [
+          {
+            "type": "i64",
+            "value": "24"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_invalid",
+      "line": 89,
+      "filename": "imports.2.wasm",
+      "text": "unknown type",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 97,
+      "filename": "imports.3.wasm"
+    },
+    {
+      "type": "assert_return",
+      "line": 104,
+      "action": {
+        "type": "invoke",
+        "field": "print_i32",
+        "args": [
+          {
+            "type": "i32",
+            "value": "13"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "module",
+      "line": 107,
+      "filename": "imports.4.wasm"
+    },
+    {
+      "type": "assert_return",
+      "line": 114,
+      "action": {
+        "type": "invoke",
+        "field": "print_i32",
+        "args": [
+          {
+            "type": "i32",
+            "value": "5"
+          },
+          {
+            "type": "i32",
+            "value": "11"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "16"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 116,
+      "filename": "imports.5.wasm"
+    },
+    {
+      "type": "module",
+      "line": 117,
+      "filename": "imports.6.wasm"
+    },
+    {
+      "type": "module",
+      "line": 118,
+      "filename": "imports.7.wasm"
+    },
+    {
+      "type": "module",
+      "line": 119,
+      "filename": "imports.8.wasm"
+    },
+    {
+      "type": "module",
+      "line": 120,
+      "filename": "imports.9.wasm"
+    },
+    {
+      "type": "module",
+      "line": 121,
+      "filename": "imports.10.wasm"
+    },
+    {
+      "type": "module",
+      "line": 122,
+      "filename": "imports.11.wasm"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 125,
+      "filename": "imports.12.wasm",
+      "text": "unknown import",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 129,
+      "filename": "imports.13.wasm",
+      "text": "unknown import",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 134,
+      "filename": "imports.14.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 138,
+      "filename": "imports.15.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 142,
+      "filename": "imports.16.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 146,
+      "filename": "imports.17.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 150,
+      "filename": "imports.18.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 154,
+      "filename": "imports.19.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 158,
+      "filename": "imports.20.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 162,
+      "filename": "imports.21.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 166,
+      "filename": "imports.22.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 170,
+      "filename": "imports.23.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 174,
+      "filename": "imports.24.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 178,
+      "filename": "imports.25.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 182,
+      "filename": "imports.26.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 186,
+      "filename": "imports.27.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 190,
+      "filename": "imports.28.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 194,
+      "filename": "imports.29.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 199,
+      "filename": "imports.30.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 203,
+      "filename": "imports.31.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 207,
+      "filename": "imports.32.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 211,
+      "filename": "imports.33.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 215,
+      "filename": "imports.34.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 219,
+      "filename": "imports.35.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 226,
+      "filename": "imports.36.wasm"
+    },
+    {
+      "type": "assert_return",
+      "line": 246,
+      "action": {
+        "type": "invoke",
+        "field": "get-0",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "666"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 247,
+      "action": {
+        "type": "invoke",
+        "field": "get-1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "666"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 248,
+      "action": {
+        "type": "invoke",
+        "field": "get-x",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "666"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 249,
+      "action": {
+        "type": "invoke",
+        "field": "get-y",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "666"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 250,
+      "action": {
+        "type": "invoke",
+        "field": "get-4",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i64",
+          "value": "666"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 251,
+      "action": {
+        "type": "invoke",
+        "field": "get-5",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "f32",
+          "value": "1143383654"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 252,
+      "action": {
+        "type": "invoke",
+        "field": "get-6",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "f64",
+          "value": "4649074691427585229"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 254,
+      "filename": "imports.37.wasm"
+    },
+    {
+      "type": "module",
+      "line": 255,
+      "filename": "imports.38.wasm"
+    },
+    {
+      "type": "module",
+      "line": 256,
+      "filename": "imports.39.wasm"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 259,
+      "filename": "imports.40.wasm",
+      "text": "unknown import",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 263,
+      "filename": "imports.41.wasm",
+      "text": "unknown import",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 268,
+      "filename": "imports.42.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 272,
+      "filename": "imports.43.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 276,
+      "filename": "imports.44.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 280,
+      "filename": "imports.45.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 284,
+      "filename": "imports.46.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 288,
+      "filename": "imports.47.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 292,
+      "filename": "imports.48.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 296,
+      "filename": "imports.49.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 300,
+      "filename": "imports.50.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 304,
+      "filename": "imports.51.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 308,
+      "filename": "imports.52.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 312,
+      "filename": "imports.53.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 317,
+      "filename": "imports.54.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 321,
+      "filename": "imports.55.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 325,
+      "filename": "imports.56.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 329,
+      "filename": "imports.57.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 333,
+      "filename": "imports.58.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 337,
+      "filename": "imports.59.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 344,
+      "filename": "imports.60.wasm"
+    },
+    {
+      "type": "assert_trap",
+      "line": 356,
+      "action": {
+        "type": "invoke",
+        "field": "call",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_return",
+      "line": 357,
+      "action": {
+        "type": "invoke",
+        "field": "call",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "11"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 358,
+      "action": {
+        "type": "invoke",
+        "field": "call",
+        "args": [
+          {
+            "type": "i32",
+            "value": "2"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "22"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 359,
+      "action": {
+        "type": "invoke",
+        "field": "call",
+        "args": [
+          {
+            "type": "i32",
+            "value": "3"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 360,
+      "action": {
+        "type": "invoke",
+        "field": "call",
+        "args": [
+          {
+            "type": "i32",
+            "value": "100"
+          }
+        ]
+      },
+      "text": "undefined element"
+    },
+    {
+      "type": "module",
+      "line": 363,
+      "filename": "imports.61.wasm"
+    },
+    {
+      "type": "assert_trap",
+      "line": 375,
+      "action": {
+        "type": "invoke",
+        "field": "call",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_return",
+      "line": 376,
+      "action": {
+        "type": "invoke",
+        "field": "call",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "11"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 377,
+      "action": {
+        "type": "invoke",
+        "field": "call",
+        "args": [
+          {
+            "type": "i32",
+            "value": "2"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "22"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 378,
+      "action": {
+        "type": "invoke",
+        "field": "call",
+        "args": [
+          {
+            "type": "i32",
+            "value": "3"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_trap",
+      "line": 379,
+      "action": {
+        "type": "invoke",
+        "field": "call",
+        "args": [
+          {
+            "type": "i32",
+            "value": "100"
+          }
+        ]
+      },
+      "text": "undefined element"
+    },
+    {
+      "type": "module",
+      "line": 382,
+      "filename": "imports.62.wasm"
+    },
+    {
+      "type": "module",
+      "line": 389,
+      "filename": "imports.63.wasm"
+    },
+    {
+      "type": "module",
+      "line": 390,
+      "filename": "imports.64.wasm"
+    },
+    {
+      "type": "module",
+      "line": 391,
+      "filename": "imports.65.wasm"
+    },
+    {
+      "type": "module",
+      "line": 392,
+      "filename": "imports.66.wasm"
+    },
+    {
+      "type": "module",
+      "line": 393,
+      "filename": "imports.67.wasm"
+    },
+    {
+      "type": "module",
+      "line": 394,
+      "filename": "imports.68.wasm"
+    },
+    {
+      "type": "module",
+      "line": 395,
+      "filename": "imports.69.wasm"
+    },
+    {
+      "type": "module",
+      "line": 396,
+      "filename": "imports.70.wasm"
+    },
+    {
+      "type": "module",
+      "line": 397,
+      "filename": "imports.71.wasm"
+    },
+    {
+      "type": "module",
+      "line": 398,
+      "filename": "imports.72.wasm"
+    },
+    {
+      "type": "module",
+      "line": 399,
+      "filename": "imports.73.wasm"
+    },
+    {
+      "type": "module",
+      "line": 400,
+      "filename": "imports.74.wasm"
+    },
+    {
+      "type": "module",
+      "line": 401,
+      "filename": "imports.75.wasm"
+    },
+    {
+      "type": "module",
+      "line": 402,
+      "filename": "imports.76.wasm"
+    },
+    {
+      "type": "module",
+      "line": 403,
+      "filename": "imports.77.wasm"
+    },
+    {
+      "type": "module",
+      "line": 404,
+      "filename": "imports.78.wasm"
+    },
+    {
+      "type": "module",
+      "line": 405,
+      "filename": "imports.79.wasm"
+    },
+    {
+      "type": "module",
+      "line": 406,
+      "filename": "imports.80.wasm"
+    },
+    {
+      "type": "module",
+      "line": 407,
+      "filename": "imports.81.wasm"
+    },
+    {
+      "type": "module",
+      "line": 408,
+      "filename": "imports.82.wasm"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 411,
+      "filename": "imports.83.wasm",
+      "text": "unknown import",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 415,
+      "filename": "imports.84.wasm",
+      "text": "unknown import",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 420,
+      "filename": "imports.85.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 424,
+      "filename": "imports.86.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 428,
+      "filename": "imports.87.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 432,
+      "filename": "imports.88.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 436,
+      "filename": "imports.89.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 440,
+      "filename": "imports.90.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 445,
+      "filename": "imports.91.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 449,
+      "filename": "imports.92.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 453,
+      "filename": "imports.93.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 457,
+      "filename": "imports.94.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 465,
+      "filename": "imports.95.wasm"
+    },
+    {
+      "type": "assert_return",
+      "line": 472,
+      "action": {
+        "type": "invoke",
+        "field": "load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 473,
+      "action": {
+        "type": "invoke",
+        "field": "load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "10"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "16"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 474,
+      "action": {
+        "type": "invoke",
+        "field": "load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "8"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1048576"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 475,
+      "action": {
+        "type": "invoke",
+        "field": "load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1000000"
+          }
+        ]
+      },
+      "text": "out of bounds memory access"
+    },
+    {
+      "type": "module",
+      "line": 477,
+      "filename": "imports.96.wasm"
+    },
+    {
+      "type": "assert_return",
+      "line": 483,
+      "action": {
+        "type": "invoke",
+        "field": "load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 484,
+      "action": {
+        "type": "invoke",
+        "field": "load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "10"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "16"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 485,
+      "action": {
+        "type": "invoke",
+        "field": "load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "8"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1048576"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 486,
+      "action": {
+        "type": "invoke",
+        "field": "load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1000000"
+          }
+        ]
+      },
+      "text": "out of bounds memory access"
+    },
+    {
+      "type": "module",
+      "line": 488,
+      "filename": "imports.97.wasm"
+    },
+    {
+      "type": "module",
+      "line": 489,
+      "filename": "imports.98.wasm"
+    },
+    {
+      "type": "module",
+      "line": 490,
+      "filename": "imports.99.wasm"
+    },
+    {
+      "type": "module",
+      "line": 491,
+      "filename": "imports.100.wasm"
+    },
+    {
+      "type": "module",
+      "line": 492,
+      "filename": "imports.101.wasm"
+    },
+    {
+      "type": "module",
+      "line": 493,
+      "filename": "imports.102.wasm"
+    },
+    {
+      "type": "module",
+      "line": 494,
+      "filename": "imports.103.wasm"
+    },
+    {
+      "type": "module",
+      "line": 495,
+      "filename": "imports.104.wasm"
+    },
+    {
+      "type": "module",
+      "line": 496,
+      "filename": "imports.105.wasm"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 499,
+      "filename": "imports.106.wasm",
+      "text": "unknown import",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 503,
+      "filename": "imports.107.wasm",
+      "text": "unknown import",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 508,
+      "filename": "imports.108.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 512,
+      "filename": "imports.109.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 516,
+      "filename": "imports.110.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 520,
+      "filename": "imports.111.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 525,
+      "filename": "imports.112.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 529,
+      "filename": "imports.113.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 533,
+      "filename": "imports.114.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 537,
+      "filename": "imports.115.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 541,
+      "filename": "imports.116.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 545,
+      "filename": "imports.117.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 550,
+      "filename": "imports.118.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 554,
+      "filename": "imports.119.wasm",
+      "text": "incompatible import type",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 558,
+      "filename": "imports.120.wasm"
+    },
+    {
+      "type": "assert_return",
+      "line": 562,
+      "action": {
+        "type": "invoke",
+        "field": "grow",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 563,
+      "action": {
+        "type": "invoke",
+        "field": "grow",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 564,
+      "action": {
+        "type": "invoke",
+        "field": "grow",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 565,
+      "action": {
+        "type": "invoke",
+        "field": "grow",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "-1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 566,
+      "action": {
+        "type": "invoke",
+        "field": "grow",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 568,
+      "name": "Mgm",
+      "filename": "imports.121.wasm"
+    },
+    {
+      "type": "register",
+      "line": 572,
+      "name": "Mgm",
+      "as": "grown-memory"
+    },
+    {
+      "type": "assert_return",
+      "line": 573,
+      "action": {
+        "type": "invoke",
+        "module": "Mgm",
+        "field": "grow",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 574,
+      "name": "Mgim1",
+      "filename": "imports.122.wasm"
+    },
+    {
+      "type": "register",
+      "line": 579,
+      "name": "Mgim1",
+      "as": "grown-imported-memory"
+    },
+    {
+      "type": "assert_return",
+      "line": 580,
+      "action": {
+        "type": "invoke",
+        "module": "Mgim1",
+        "field": "grow",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "2"
+        }
+      ]
+    },
+    {
+      "type": "module",
+      "line": 581,
+      "name": "Mgim2",
+      "filename": "imports.123.wasm"
+    },
+    {
+      "type": "assert_return",
+      "line": 586,
+      "action": {
+        "type": "invoke",
+        "module": "Mgim2",
+        "field": "size",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "3"
+        }
+      ]
+    },
+    {
+      "type": "assert_malformed",
+      "line": 592,
+      "filename": "imports.124.wat",
+      "text": "import after function",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 596,
+      "filename": "imports.125.wat",
+      "text": "import after function",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 600,
+      "filename": "imports.126.wat",
+      "text": "import after function",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 604,
+      "filename": "imports.127.wat",
+      "text": "import after function",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 609,
+      "filename": "imports.128.wat",
+      "text": "import after global",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 613,
+      "filename": "imports.129.wat",
+      "text": "import after global",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 617,
+      "filename": "imports.130.wat",
+      "text": "import after global",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 621,
+      "filename": "imports.131.wat",
+      "text": "import after global",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 626,
+      "filename": "imports.132.wat",
+      "text": "import after table",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 630,
+      "filename": "imports.133.wat",
+      "text": "import after table",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 634,
+      "filename": "imports.134.wat",
+      "text": "import after table",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 638,
+      "filename": "imports.135.wat",
+      "text": "import after table",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 643,
+      "filename": "imports.136.wat",
+      "text": "import after memory",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 647,
+      "filename": "imports.137.wat",
+      "text": "import after memory",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 651,
+      "filename": "imports.138.wat",
+      "text": "import after memory",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 655,
+      "filename": "imports.139.wat",
+      "text": "import after memory",
+      "module_type": "text"
+    },
+    {
+      "type": "module",
+      "line": 662,
+      "filename": "imports.140.wasm"
+    },
+    {
+      "type": "register",
+      "line": 663,
+      "as": "not wasm"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 665,
+      "filename": "imports.141.wasm",
+      "text": "unknown import",
+      "module_type": "binary"
+    }
+  ]
+}

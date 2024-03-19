@@ -166,13 +166,14 @@ default = [
   'wit-smith',
   'addr2line',
   'completion',
+  'json-from-wast',
 ]
 
 # Each subcommand is gated behind a feature and lists the dependencies it needs
 validate = ['dep:wasmparser', 'rayon']
 print = []
 parse = []
-smith = ['wasm-smith', 'arbitrary', 'serde', 'serde_derive', 'serde_json']
+smith = ['wasm-smith', 'arbitrary', 'dep:serde', 'dep:serde_derive', 'dep:serde_json']
 shrink = ['wasm-shrink', 'is_executable']
 mutate = ['wasm-mutate']
 dump = ['dep:wasmparser']
@@ -183,12 +184,13 @@ demangle = ['rustc-demangle', 'cpp_demangle', 'dep:wasmparser', 'wasm-encoder']
 component = [
   'wit-component',
   'wit-parser',
-  'wast',
+  'dep:wast',
   'wasm-encoder',
   'dep:wasmparser',
-  'serde_json',
+  'dep:serde_json',
 ]
-metadata = ['dep:wasmparser', 'wasm-metadata', 'serde_json']
+metadata = ['dep:wasmparser', 'wasm-metadata', 'dep:serde_json']
 wit-smith = ['dep:wit-smith', 'arbitrary']
 addr2line = ['dep:addr2line', 'dep:gimli', 'dep:wasmparser']
 completion = ['dep:clap_complete']
+json-from-wast = ['dep:serde_derive', 'dep:serde_json', 'dep:wast', 'dep:serde']

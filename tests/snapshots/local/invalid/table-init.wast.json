@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/local/invalid/table-init.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 2,
+      "filename": "table-init.0.wasm",
+      "text": "nothing on stack",
+      "module_type": "binary"
+    }
+  ]
+}

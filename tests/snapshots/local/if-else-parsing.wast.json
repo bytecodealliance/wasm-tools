@@ -1,0 +1,45 @@
+{
+  "source_filename": "tests/local/if-else-parsing.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "if-else-parsing.0.wasm"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 17,
+      "filename": "if-else-parsing.1.wat",
+      "text": "no `then`",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 23,
+      "filename": "if-else-parsing.2.wat",
+      "text": "no `then`",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 29,
+      "filename": "if-else-parsing.3.wat",
+      "text": "expected `(`",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 34,
+      "filename": "if-else-parsing.4.wat",
+      "text": "no `then`",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 39,
+      "filename": "if-else-parsing.5.wat",
+      "text": "expected `(`",
+      "module_type": "text"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/local/invalid/float1.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 2,
+      "filename": "float1.0.wasm",
+      "text": "values remaining on stack",
+      "module_type": "binary"
+    }
+  ]
+}

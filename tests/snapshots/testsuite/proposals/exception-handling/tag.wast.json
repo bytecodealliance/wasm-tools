@@ -1,0 +1,27 @@
+{
+  "source_filename": "tests/testsuite/proposals/exception-handling/tag.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "tag.0.wasm"
+    },
+    {
+      "type": "register",
+      "line": 11,
+      "as": "test"
+    },
+    {
+      "type": "module",
+      "line": 13,
+      "filename": "tag.1.wasm"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 19,
+      "filename": "tag.2.wasm",
+      "text": "non-empty tag result type",
+      "module_type": "binary"
+    }
+  ]
+}

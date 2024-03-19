@@ -1,0 +1,55 @@
+{
+  "source_filename": "tests/testsuite/proposals/exception-handling/ref_null.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "ref_null.0.wasm"
+    },
+    {
+      "type": "assert_return",
+      "line": 11,
+      "action": {
+        "type": "invoke",
+        "field": "externref",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "externref",
+          "value": "null"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 12,
+      "action": {
+        "type": "invoke",
+        "field": "exnref",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "exnref",
+          "value": "null"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 13,
+      "action": {
+        "type": "invoke",
+        "field": "funcref",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "funcref",
+          "value": "null"
+        }
+      ]
+    }
+  ]
+}

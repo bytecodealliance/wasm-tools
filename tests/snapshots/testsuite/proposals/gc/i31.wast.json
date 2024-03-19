@@ -1,0 +1,388 @@
+{
+  "source_filename": "tests/testsuite/proposals/gc/i31.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "i31.0.wasm"
+    },
+    {
+      "type": "assert_return",
+      "line": 28,
+      "action": {
+        "type": "invoke",
+        "field": "new",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i31ref"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 30,
+      "action": {
+        "type": "invoke",
+        "field": "get_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 31,
+      "action": {
+        "type": "invoke",
+        "field": "get_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "100"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "100"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 32,
+      "action": {
+        "type": "invoke",
+        "field": "get_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "-1"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "2147483647"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 33,
+      "action": {
+        "type": "invoke",
+        "field": "get_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1073741823"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1073741823"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 34,
+      "action": {
+        "type": "invoke",
+        "field": "get_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1073741824"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1073741824"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 35,
+      "action": {
+        "type": "invoke",
+        "field": "get_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "2147483647"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "2147483647"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 36,
+      "action": {
+        "type": "invoke",
+        "field": "get_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "-1431655766"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "715827882"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 37,
+      "action": {
+        "type": "invoke",
+        "field": "get_u",
+        "args": [
+          {
+            "type": "i32",
+            "value": "-894784854"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1252698794"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 39,
+      "action": {
+        "type": "invoke",
+        "field": "get_s",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 40,
+      "action": {
+        "type": "invoke",
+        "field": "get_s",
+        "args": [
+          {
+            "type": "i32",
+            "value": "100"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "100"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 41,
+      "action": {
+        "type": "invoke",
+        "field": "get_s",
+        "args": [
+          {
+            "type": "i32",
+            "value": "-1"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "-1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 42,
+      "action": {
+        "type": "invoke",
+        "field": "get_s",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1073741823"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1073741823"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 43,
+      "action": {
+        "type": "invoke",
+        "field": "get_s",
+        "args": [
+          {
+            "type": "i32",
+            "value": "1073741824"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "-1073741824"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 44,
+      "action": {
+        "type": "invoke",
+        "field": "get_s",
+        "args": [
+          {
+            "type": "i32",
+            "value": "2147483647"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "-1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 45,
+      "action": {
+        "type": "invoke",
+        "field": "get_s",
+        "args": [
+          {
+            "type": "i32",
+            "value": "-1431655766"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "715827882"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 46,
+      "action": {
+        "type": "invoke",
+        "field": "get_s",
+        "args": [
+          {
+            "type": "i32",
+            "value": "-894784854"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "-894784854"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 48,
+      "action": {
+        "type": "invoke",
+        "field": "get_u-null",
+        "args": []
+      },
+      "text": "null i31 reference"
+    },
+    {
+      "type": "assert_trap",
+      "line": 49,
+      "action": {
+        "type": "invoke",
+        "field": "get_s-null",
+        "args": []
+      },
+      "text": "null i31 reference"
+    },
+    {
+      "type": "assert_return",
+      "line": 51,
+      "action": {
+        "type": "invoke",
+        "field": "get_globals",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "2"
+        },
+        {
+          "type": "i32",
+          "value": "3"
+        }
+      ]
+    }
+  ]
+}

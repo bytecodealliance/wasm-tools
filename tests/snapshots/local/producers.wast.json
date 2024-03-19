@@ -1,0 +1,42 @@
+{
+  "source_filename": "tests/local/producers.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "producers.0.wasm"
+    },
+    {
+      "type": "module",
+      "line": 5,
+      "filename": "producers.1.wasm"
+    },
+    {
+      "type": "module",
+      "line": 11,
+      "filename": "producers.2.wasm"
+    },
+    {
+      "type": "module",
+      "line": 20,
+      "filename": "producers.3.wasm"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 26,
+      "filename": "producers.4.wat",
+      "text": "unexpected token",
+      "module_type": "text"
+    },
+    {
+      "type": "module",
+      "line": 31,
+      "filename": "producers.5.wasm"
+    },
+    {
+      "type": "module",
+      "line": 41,
+      "filename": "producers.6.wasm"
+    }
+  ]
+}

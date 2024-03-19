@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/local/invalid/invalid-ty.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 2,
+      "filename": "invalid-ty.0.wasm",
+      "text": "type index out of bounds",
+      "module_type": "binary"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "source_filename": "tests/local/function-references/bad-call-ref-ty.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 2,
+      "filename": "bad-call-ref-ty.0.wasm",
+      "text": "funcref on stack does not match specified type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 11,
+      "filename": "bad-call-ref-ty.1.wasm",
+      "text": "expected i32 but nothing on stack",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 20,
+      "filename": "bad-call-ref-ty.2.wasm",
+      "text": "type index out of bounds",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 29,
+      "filename": "bad-call-ref-ty.3.wasm",
+      "text": "type index out of bounds",
+      "module_type": "binary"
+    }
+  ]
+}

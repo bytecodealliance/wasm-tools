@@ -1,0 +1,10 @@
+{
+  "source_filename": "tests/local/unreachable-block.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "unreachable-block.0.wasm"
+    }
+  ]
+}
