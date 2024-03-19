@@ -1,0 +1,19 @@
+{
+  "source_filename": "tests/local/gc/invalid.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "invalid.0.wasm",
+      "text": "type mismatch: expected structref, found anyref",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 18,
+      "filename": "invalid.1.wasm",
+      "text": "type mismatch: expected structref, found anyref",
+      "module_type": "binary"
+    }
+  ]
+}

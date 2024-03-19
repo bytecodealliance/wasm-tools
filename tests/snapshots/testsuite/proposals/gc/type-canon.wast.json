@@ -1,0 +1,15 @@
+{
+  "source_filename": "tests/testsuite/proposals/gc/type-canon.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "type-canon.0.wasm"
+    },
+    {
+      "type": "module",
+      "line": 9,
+      "filename": "type-canon.1.wasm"
+    }
+  ]
+}

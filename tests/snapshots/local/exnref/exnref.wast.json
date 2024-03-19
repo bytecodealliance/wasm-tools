@@ -1,0 +1,10 @@
+{
+  "source_filename": "tests/local/exnref/exnref.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "exnref.0.wasm"
+    }
+  ]
+}

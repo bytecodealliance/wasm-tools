@@ -1,0 +1,22 @@
+{
+  "source_filename": "tests/local/atomics.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "atomics.0.wasm"
+    },
+    {
+      "type": "module",
+      "line": 6,
+      "filename": "atomics.1.wasm"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 16,
+      "filename": "atomics.2.wasm",
+      "text": "unknown memory 1",
+      "module_type": "binary"
+    }
+  ]
+}

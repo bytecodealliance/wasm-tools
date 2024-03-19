@@ -1,0 +1,19 @@
+{
+  "source_filename": "tests/local/gc/gc-rec-groups-invalid.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "gc-rec-groups-invalid.0.wasm",
+      "text": "unknown type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 19,
+      "filename": "gc-rec-groups-invalid.1.wasm",
+      "text": "sub type must match super type",
+      "module_type": "binary"
+    }
+  ]
+}

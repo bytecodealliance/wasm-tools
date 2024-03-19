@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/local/missing-features/multi-value-function-block-type.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 2,
+      "filename": "multi-value-function-block-type.0.wasm",
+      "text": "blocks, loops, and ifs may only produce a resulttype when multi-value is not enabled",
+      "module_type": "binary"
+    }
+  ]
+}

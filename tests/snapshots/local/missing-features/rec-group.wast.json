@@ -1,0 +1,26 @@
+{
+  "source_filename": "tests/local/missing-features/rec-group.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 2,
+      "filename": "rec-group.0.wasm",
+      "text": "requires `gc` proposal to be enabled",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 6,
+      "filename": "rec-group.1.wasm",
+      "text": "requires `gc` proposal to be enabled",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 10,
+      "filename": "rec-group.2.wasm",
+      "text": "requires `gc` proposal to be enabled",
+      "module_type": "binary"
+    }
+  ]
+}

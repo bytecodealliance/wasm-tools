@@ -1,0 +1,10 @@
+{
+  "source_filename": "tests/local/relaxed-simd.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 2,
+      "filename": "relaxed-simd.0.wasm"
+    }
+  ]
+}

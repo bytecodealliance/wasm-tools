@@ -215,6 +215,8 @@ impl TestState {
     }
 
     fn test_wast(&self, test: &Path, contents: &[u8]) -> Result<()> {
+        self.test_wast2json(test)
+            .context("failed to run `wast2json` cli subcommand")?;
         let contents = str::from_utf8(contents)?;
         macro_rules! adjust {
             ($e:expr) => {{
@@ -516,7 +518,8 @@ impl TestState {
     }
 
     fn dump(&self, bytes: &[u8]) -> Result<String> {
-        let mut dump = Command::new(env!("CARGO_BIN_EXE_wasm-tools"))
+        let mut dump = self
+            .wasm_tools()
             .arg("dump")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -528,6 +531,40 @@ impl TestState {
             bail!("dump subcommand failed");
         }
         Ok(stdout)
+    }
+
+    fn test_wast2json(&self, path: &Path) -> Result<()> {
+        // component model tests aren't tested through wast2json at this time.
+        if path.iter().any(|p| p == "component-model") {
+            return Ok(());
+        }
+
+        // This has an `assert_invalid` which should be `assert_malformed`, so
+        // skip it.
+        if path.ends_with("gc-subtypes-invalid.wast") {
+            return Ok(());
+        }
+
+        let mut cmd = self.wasm_tools();
+        let td = tempfile::TempDir::new()?;
+        cmd.arg("wast2json")
+            .arg(path)
+            .arg("--pretty")
+            .arg("--wasm-dir")
+            .arg(td.path());
+        let output = cmd.output()?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            bail!("failed to run {cmd:?}\nstdout: {stdout}\nstderr: {stderr}");
+        }
+        self.snapshot("json", path, &stdout)
+            .context("failed to validate the `wast2json` snapshot")?;
+        Ok(())
+    }
+
+    fn wasm_tools(&self) -> Command {
+        Command::new(env!("CARGO_BIN_EXE_wasm-tools"))
     }
 
     fn wasmparser_validator_for(&self, test: &Path) -> Validator {

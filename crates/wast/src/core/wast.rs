@@ -151,7 +151,7 @@ impl Peek for WastRetCore<'_> {
 }
 
 /// Either a NaN pattern (`nan:canonical`, `nan:arithmetic`) or a value of type `T`.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 #[allow(missing_docs)]
 pub enum NanPattern<T> {
     CanonicalNan,
