@@ -545,6 +545,11 @@ impl TestState {
             return Ok(());
         }
 
+        // No processes on wasm
+        if cfg!(target_family = "wasm") {
+            return Ok(());
+        }
+
         let mut cmd = self.wasm_tools();
         let td = tempfile::TempDir::new()?;
         cmd.arg("wast2json")
