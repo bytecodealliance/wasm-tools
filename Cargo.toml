@@ -184,7 +184,7 @@ demangle = ['rustc-demangle', 'cpp_demangle', 'dep:wasmparser', 'wasm-encoder']
 component = [
   'wit-component',
   'wit-parser',
-  'wast',
+  'dep:wast',
   'wasm-encoder',
   'dep:wasmparser',
   'dep:serde_json',
@@ -193,4 +193,4 @@ metadata = ['dep:wasmparser', 'wasm-metadata', 'dep:serde_json']
 wit-smith = ['dep:wit-smith', 'arbitrary']
 addr2line = ['dep:addr2line', 'dep:gimli', 'dep:wasmparser']
 completion = ['dep:clap_complete']
-wast2json = ['dep:serde_derive', 'dep:serde_json']
+wast2json = ['dep:serde_derive', 'dep:serde_json', 'dep:wast', 'dep:serde']
