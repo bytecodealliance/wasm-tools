@@ -244,11 +244,6 @@ impl Module {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub(crate) struct RecGroup {
-    pub(crate) types: Vec<SubType>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct SubType {
     pub(crate) is_final: bool,
     pub(crate) supertype: Option<u32>,
