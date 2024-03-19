@@ -229,25 +229,31 @@ pub fn validate_module<'a>(
             continue;
         }
 
-        match world.imports.get(&world_key(&metadata.resolve, name)) {
-            Some(WorldItem::Interface(interface)) => {
-                let required =
-                    validate_imported_interface(&metadata.resolve, *interface, name, funcs, &types)
-                        .with_context(|| format!("failed to validate import interface `{name}`"))?;
-                let prev = ret.required_imports.insert(name, required);
-                assert!(prev.is_none());
+        if adapters.contains(name) {
+            let map = ret.adapters_required.entry(name).or_default();
+            for (func, ty) in funcs {
+                let ty = types[types.core_type_at(*ty).unwrap_sub()].unwrap_func();
+                map.insert(func, ty.clone());
             }
-            None if adapters.contains(name) => {
-                let map = ret.adapters_required.entry(name).or_default();
-                for (func, ty) in funcs {
-                    let ty = types[types.core_type_at(*ty).unwrap_sub()].unwrap_func();
-                    map.insert(func, ty.clone());
+        } else {
+            match world.imports.get(&world_key(&metadata.resolve, name)) {
+                Some(WorldItem::Interface(interface)) => {
+                    let required = validate_imported_interface(
+                        &metadata.resolve,
+                        *interface,
+                        name,
+                        funcs,
+                        &types,
+                    )
+                    .with_context(|| format!("failed to validate import interface `{name}`"))?;
+                    let prev = ret.required_imports.insert(name, required);
+                    assert!(prev.is_none());
                 }
+                Some(WorldItem::Function(_) | WorldItem::Type(_)) => {
+                    bail!("import `{}` is not an interface", name)
+                }
+                None => bail!("module requires an import interface named `{name}`"),
             }
-            Some(WorldItem::Function(_) | WorldItem::Type(_)) => {
-                bail!("import `{}` is not an interface", name)
-            }
-            None => bail!("module requires an import interface named `{name}`"),
         }
     }
 
@@ -389,6 +395,7 @@ pub fn validate_adapter_module<'a>(
     required_by_import: Option<&IndexMap<&str, FuncType>>,
     exports: &IndexSet<WorldKey>,
     is_library: bool,
+    adapters: &IndexSet<&str>,
 ) -> Result<ValidatedAdapter<'a>> {
     let mut validator = Validator::new();
     let mut import_funcs = IndexMap::new();
@@ -517,20 +524,24 @@ pub fn validate_adapter_module<'a>(
             continue;
         }
 
-        match resolve.worlds[world].imports.get(&world_key(resolve, name)) {
-            Some(WorldItem::Interface(interface)) => {
-                let required =
-                    validate_imported_interface(resolve, *interface, name, funcs, &types)
-                        .with_context(|| format!("failed to validate import interface `{name}`"))?;
-                let prev = ret.required_imports.insert(name.to_string(), required);
-                assert!(prev.is_none());
-            }
-            None | Some(WorldItem::Function(_) | WorldItem::Type(_)) => {
-                if !is_library {
-                    bail!(
-                        "adapter module requires an import interface named `{}`",
-                        name
-                    )
+        if !(is_library && adapters.contains(name)) {
+            match resolve.worlds[world].imports.get(&world_key(resolve, name)) {
+                Some(WorldItem::Interface(interface)) => {
+                    let required =
+                        validate_imported_interface(resolve, *interface, name, funcs, &types)
+                            .with_context(|| {
+                                format!("failed to validate import interface `{name}`")
+                            })?;
+                    let prev = ret.required_imports.insert(name.to_string(), required);
+                    assert!(prev.is_none());
+                }
+                None | Some(WorldItem::Function(_) | WorldItem::Type(_)) => {
+                    if !is_library {
+                        bail!(
+                            "adapter module requires an import interface named `{}`",
+                            name
+                        )
+                    }
                 }
             }
         }
