@@ -550,10 +550,13 @@ impl TestState {
             return Ok(());
         }
 
+        // Generate the same output on windows and unix
+        let path = path.to_str().unwrap().replace("\\", "/");
+
         let mut cmd = self.wasm_tools();
         let td = tempfile::TempDir::new()?;
         cmd.arg("wast2json")
-            .arg(path)
+            .arg(&path)
             .arg("--pretty")
             .arg("--wasm-dir")
             .arg(td.path());
@@ -563,7 +566,7 @@ impl TestState {
             let stderr = String::from_utf8_lossy(&output.stderr);
             bail!("failed to run {cmd:?}\nstdout: {stdout}\nstderr: {stderr}");
         }
-        self.snapshot("json", path, &stdout)
+        self.snapshot("json", path.as_ref(), &stdout)
             .context("failed to validate the `wast2json` snapshot")?;
         Ok(())
     }
