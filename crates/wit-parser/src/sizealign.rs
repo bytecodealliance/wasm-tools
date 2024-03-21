@@ -67,8 +67,8 @@ impl SizeAlign {
         match ty {
             Type::Bool | Type::U8 | Type::S8 => 1,
             Type::U16 | Type::S16 => 2,
-            Type::U32 | Type::S32 | Type::Float32 | Type::Char => 4,
-            Type::U64 | Type::S64 | Type::Float64 => 8,
+            Type::U32 | Type::S32 | Type::F32 | Type::Char => 4,
+            Type::U64 | Type::S64 | Type::F64 => 8,
             Type::String => {
                 if matches!(self.wasm_type, AddressSize::Wasm64) {
                     16
@@ -84,8 +84,8 @@ impl SizeAlign {
         match ty {
             Type::Bool | Type::U8 | Type::S8 => 1,
             Type::U16 | Type::S16 => 2,
-            Type::U32 | Type::S32 | Type::Float32 | Type::Char => 4,
-            Type::U64 | Type::S64 | Type::Float64 => 8,
+            Type::U32 | Type::S32 | Type::F32 | Type::Char => 4,
+            Type::U64 | Type::S64 | Type::F64 => 8,
             Type::String => {
                 if matches!(self.wasm_type, AddressSize::Wasm64) {
                     8

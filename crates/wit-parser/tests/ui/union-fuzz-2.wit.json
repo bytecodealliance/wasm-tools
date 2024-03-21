@@ -12,7 +12,7 @@
             "results": [
               {
                 "name": "name2",
-                "type": "float32"
+                "type": "f32"
               }
             ]
           }
@@ -36,7 +36,7 @@
             "results": [
               {
                 "name": "name2",
-                "type": "float32"
+                "type": "f32"
               }
             ]
           }

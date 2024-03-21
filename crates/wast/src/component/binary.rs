@@ -780,8 +780,8 @@ impl From<PrimitiveValType> for wasm_encoder::PrimitiveValType {
             PrimitiveValType::U32 => Self::U32,
             PrimitiveValType::S64 => Self::S64,
             PrimitiveValType::U64 => Self::U64,
-            PrimitiveValType::Float32 => Self::Float32,
-            PrimitiveValType::Float64 => Self::Float64,
+            PrimitiveValType::F32 => Self::F32,
+            PrimitiveValType::F64 => Self::F64,
             PrimitiveValType::Char => Self::Char,
             PrimitiveValType::String => Self::String,
         }

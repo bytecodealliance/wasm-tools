@@ -8,8 +8,10 @@
   (type $A7 s32)
   (type $A8 u64)
   (type $A9 s64)
-  (type $A10 float32)
-  (type $A11 float64)
+  (type $A10a f32)
+  (type $A11a f64)
+  (type $A10b float32)
+  (type $A11b float64)
   (type $A12 char)
   (type $A13 string)
 
@@ -37,7 +39,7 @@
   (type $A22a (result))
   (type $A22b (result $A7))
   (type $A22c (result (error $A8)))
-  (type $A22d (result $A9 (error $A10)))
+  (type $A22d (result $A9 (error $A10a)))
 )
 
 (assert_invalid

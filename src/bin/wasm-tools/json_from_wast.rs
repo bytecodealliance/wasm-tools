@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use wast::core::{HeapType, NanPattern, V128Const, V128Pattern, WastRetCore};
 use wast::lexer::Lexer;
 use wast::parser::{self, ParseBuffer};
-use wast::token::{Float32, Float64, Span};
+use wast::token::{Span, F32, F64};
 use wast::{
     QuoteWat, QuoteWatTest, Wast, WastArg, WastDirective, WastExecute, WastInvoke, WastRet, Wat,
 };
@@ -495,11 +495,11 @@ fn nan_pattern_to_string<T>(pat: NanPattern<T>, to_string: fn(T) -> String) -> S
     }
 }
 
-fn f32_to_string(f: Float32) -> String {
+fn f32_to_string(f: F32) -> String {
     f.bits.to_string()
 }
 
-fn f64_to_string(f: Float64) -> String {
+fn f64_to_string(f: F64) -> String {
     f.bits.to_string()
 }
 

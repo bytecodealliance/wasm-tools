@@ -163,10 +163,10 @@ pub enum PrimitiveValType {
     S64,
     /// The type is an unsigned 64-bit integer.
     U64,
-    /// The type is a 32-bit floating point number.
-    Float32,
-    /// The type is a 64-bit floating point number.
-    Float64,
+    /// The type is a 32-bit floating point number with only one NaN.
+    F32,
+    /// The type is a 64-bit floating point number with only one NaN.
+    F64,
     /// The type is a Unicode character.
     Char,
     /// The type is a string.
@@ -185,8 +185,8 @@ impl PrimitiveValType {
             0x79 => PrimitiveValType::U32,
             0x78 => PrimitiveValType::S64,
             0x77 => PrimitiveValType::U64,
-            0x76 => PrimitiveValType::Float32,
-            0x75 => PrimitiveValType::Float64,
+            0x76 => PrimitiveValType::F32,
+            0x75 => PrimitiveValType::F64,
             0x74 => PrimitiveValType::Char,
             0x73 => PrimitiveValType::String,
             _ => return None,
@@ -222,8 +222,8 @@ impl fmt::Display for PrimitiveValType {
             U32 => "u32",
             S64 => "s64",
             U64 => "u64",
-            Float32 => "float32",
-            Float64 => "float64",
+            F32 => "f32",
+            F64 => "f64",
             Char => "char",
             String => "string",
         };

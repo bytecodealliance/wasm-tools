@@ -571,8 +571,8 @@ instructions! {
 
         I32Const(i32) : [0x41] : "i32.const",
         I64Const(i64) : [0x42] : "i64.const",
-        F32Const(Float32) : [0x43] : "f32.const",
-        F64Const(Float64) : [0x44] : "f64.const",
+        F32Const(F32) : [0x43] : "f32.const",
+        F64Const(F64) : [0x44] : "f64.const",
 
         I32Clz : [0x67] : "i32.clz",
         I32Ctz : [0x68] : "i32.ctz",
@@ -1738,8 +1738,8 @@ pub enum V128Const {
     I16x8([i16; 8]),
     I32x4([i32; 4]),
     I64x2([i64; 2]),
-    F32x4([Float32; 4]),
-    F64x2([Float64; 2]),
+    F32x4([F32; 4]),
+    F64x2([F64; 2]),
 }
 
 impl V128Const {

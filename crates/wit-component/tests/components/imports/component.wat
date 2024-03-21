@@ -30,7 +30,7 @@
       (export (;0;) "foo1" (func (type 0)))
       (type (;1;) (func (param "x" u8)))
       (export (;1;) "foo2" (func (type 1)))
-      (type (;2;) (func (param "x" float32)))
+      (type (;2;) (func (param "x" f32)))
       (export (;2;) "foo3" (func (type 2)))
     )
   )

@@ -117,8 +117,8 @@ pub trait ValtypeEncoder<'a> {
             Type::S16 => ComponentValType::Primitive(PrimitiveValType::S16),
             Type::S32 => ComponentValType::Primitive(PrimitiveValType::S32),
             Type::S64 => ComponentValType::Primitive(PrimitiveValType::S64),
-            Type::Float32 => ComponentValType::Primitive(PrimitiveValType::Float32),
-            Type::Float64 => ComponentValType::Primitive(PrimitiveValType::Float64),
+            Type::F32 => ComponentValType::Primitive(PrimitiveValType::F32),
+            Type::F64 => ComponentValType::Primitive(PrimitiveValType::F64),
             Type::Char => ComponentValType::Primitive(PrimitiveValType::Char),
             Type::String => ComponentValType::Primitive(PrimitiveValType::String),
             Type::Id(id) => {

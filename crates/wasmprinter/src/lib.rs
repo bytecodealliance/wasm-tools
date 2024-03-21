@@ -1631,8 +1631,8 @@ impl Printer {
             PrimitiveValType::U32 => self.result.push_str("u32"),
             PrimitiveValType::S64 => self.result.push_str("s64"),
             PrimitiveValType::U64 => self.result.push_str("u64"),
-            PrimitiveValType::Float32 => self.result.push_str("float32"),
-            PrimitiveValType::Float64 => self.result.push_str("float64"),
+            PrimitiveValType::F32 => self.result.push_str("f32"),
+            PrimitiveValType::F64 => self.result.push_str("f64"),
             PrimitiveValType::Char => self.result.push_str("char"),
             PrimitiveValType::String => self.result.push_str("string"),
         }

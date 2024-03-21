@@ -132,8 +132,8 @@ fn push_primitive_wasm_types(ty: &PrimitiveValType, lowered_types: &mut LoweredT
         | PrimitiveValType::U32
         | PrimitiveValType::Char => lowered_types.push(ValType::I32),
         PrimitiveValType::S64 | PrimitiveValType::U64 => lowered_types.push(ValType::I64),
-        PrimitiveValType::Float32 => lowered_types.push(ValType::F32),
-        PrimitiveValType::Float64 => lowered_types.push(ValType::F64),
+        PrimitiveValType::F32 => lowered_types.push(ValType::F32),
+        PrimitiveValType::F64 => lowered_types.push(ValType::F64),
         PrimitiveValType::String => {
             lowered_types.push(ValType::I32) && lowered_types.push(ValType::I32)
         }

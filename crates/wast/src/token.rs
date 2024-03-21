@@ -639,13 +639,13 @@ macro_rules! float {
 }
 
 float! {
-    Float32 => {
+    F32 => {
         bits: u32,
         float: f32,
         exponent_bits: 8,
         name: strtof,
     }
-    Float64 => {
+    F64 => {
         bits: u64,
         float: f64,
         exponent_bits: 11,

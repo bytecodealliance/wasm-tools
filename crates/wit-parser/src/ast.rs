@@ -540,8 +540,8 @@ enum Type<'a> {
     S16,
     S32,
     S64,
-    Float32,
-    Float64,
+    F32,
+    F64,
     Char,
     String,
     Name(Id<'a>),
@@ -970,8 +970,8 @@ impl<'a> Type<'a> {
             Some((_span, Token::S16)) => Ok(Type::S16),
             Some((_span, Token::S32)) => Ok(Type::S32),
             Some((_span, Token::S64)) => Ok(Type::S64),
-            Some((_span, Token::Float32)) => Ok(Type::Float32),
-            Some((_span, Token::Float64)) => Ok(Type::Float64),
+            Some((_span, Token::F32)) => Ok(Type::F32),
+            Some((_span, Token::F64)) => Ok(Type::F64),
             Some((_span, Token::Char)) => Ok(Type::Char),
 
             // tuple<T, U, ...>

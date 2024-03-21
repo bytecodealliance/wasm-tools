@@ -443,18 +443,18 @@ impl WitPrinter {
             Type::S16 => self.output.push_str("s16"),
             Type::S32 => self.output.push_str("s32"),
             Type::S64 => self.output.push_str("s64"),
-            Type::Float32 => {
+            Type::F32 => {
                 if self.print_f32_f64 {
                     self.output.push_str("f32")
                 } else {
-                    self.output.push_str("float32")
+                    self.output.push_str("f32")
                 }
             }
-            Type::Float64 => {
+            Type::F64 => {
                 if self.print_f32_f64 {
                     self.output.push_str("f64")
                 } else {
-                    self.output.push_str("float64")
+                    self.output.push_str("f64")
                 }
             }
             Type::Char => self.output.push_str("char"),
@@ -621,8 +621,8 @@ impl WitPrinter {
             | Type::S16
             | Type::S32
             | Type::S64
-            | Type::Float32
-            | Type::Float64
+            | Type::F32
+            | Type::F64
             | Type::Char
             | Type::String => return Ok(()),
 
@@ -893,6 +893,8 @@ fn is_keyword(name: &str) -> bool {
             | "s16"
             | "s32"
             | "s64"
+            | "f32"
+            | "f64"
             | "float32"
             | "float64"
             | "char"

@@ -139,7 +139,7 @@
     {
       "name": "t9a",
       "kind": {
-        "type": "float32"
+        "type": "f32"
       },
       "owner": {
         "interface": 0
@@ -148,7 +148,7 @@
     {
       "name": "t9b",
       "kind": {
-        "type": "float32"
+        "type": "f32"
       },
       "owner": {
         "interface": 0
@@ -157,7 +157,7 @@
     {
       "name": "t10a",
       "kind": {
-        "type": "float64"
+        "type": "f64"
       },
       "owner": {
         "interface": 0
@@ -166,7 +166,7 @@
     {
       "name": "t10b",
       "kind": {
-        "type": "float64"
+        "type": "f64"
       },
       "owner": {
         "interface": 0

@@ -122,11 +122,11 @@
             },
             {
               "name": "a",
-              "type": "float32"
+              "type": "f32"
             },
             {
               "name": "b",
-              "type": "float32"
+              "type": "f32"
             }
           ],
           "results": [
@@ -174,7 +174,7 @@
             },
             {
               "name": "f",
-              "type": "float32"
+              "type": "f32"
             }
           ]
         },
@@ -254,7 +254,7 @@
       "kind": {
         "result": {
           "ok": "u32",
-          "err": "float32"
+          "err": "f32"
         }
       },
       "owner": null

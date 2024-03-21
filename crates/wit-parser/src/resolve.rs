@@ -356,8 +356,8 @@ impl Resolve {
             | Type::S32
             | Type::U64
             | Type::S64
-            | Type::Float32
-            | Type::Float64 => true,
+            | Type::F32
+            | Type::F64 => true,
 
             Type::Bool | Type::Char | Type::String => false,
 
