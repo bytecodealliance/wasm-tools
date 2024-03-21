@@ -1,5 +1,5 @@
 use anyhow::Result;
-use serde::Serialize;
+use serde_derive::Serialize;
 use wasm_compose::graph::Component;
 
 #[derive(Serialize, Clone, Debug)]
