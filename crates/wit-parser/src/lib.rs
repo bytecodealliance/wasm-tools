@@ -570,12 +570,7 @@ pub struct Case {
 
 impl Variant {
     pub fn tag(&self) -> Int {
-        match self.cases.len() {
-            n if n <= u8::max_value() as usize => Int::U8,
-            n if n <= u16::max_value() as usize => Int::U16,
-            n if n <= u32::max_value() as usize => Int::U32,
-            _ => panic!("too many cases to fit in a repr"),
-        }
+        discriminant_type(self.cases.len())
     }
 }
 
@@ -595,12 +590,18 @@ pub struct EnumCase {
 
 impl Enum {
     pub fn tag(&self) -> Int {
-        match self.cases.len() {
-            n if n <= u8::max_value() as usize => Int::U8,
-            n if n <= u16::max_value() as usize => Int::U16,
-            n if n <= u32::max_value() as usize => Int::U32,
-            _ => panic!("too many cases to fit in a repr"),
-        }
+        discriminant_type(self.cases.len())
+    }
+}
+
+/// This corresponds to the `discriminant_type` function in the Canonical ABI.
+fn discriminant_type(num_cases: usize) -> Int {
+    match num_cases.checked_sub(1) {
+        None => Int::U8,
+        Some(n) if n <= u8::max_value() as usize => Int::U8,
+        Some(n) if n <= u16::max_value() as usize => Int::U16,
+        Some(n) if n <= u32::max_value() as usize => Int::U32,
+        _ => panic!("too many cases to fit in a repr"),
     }
 }
 
@@ -742,6 +743,23 @@ impl Function {
         match interface {
             Some(interface) => Cow::Owned(format!("{interface}#{}", self.name)),
             None => Cow::Borrowed(&self.name),
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_discriminant_type() {
+        assert_eq!(discriminant_type(1), Int::U8);
+        assert_eq!(discriminant_type(0x100), Int::U8);
+        assert_eq!(discriminant_type(0x101), Int::U16);
+        assert_eq!(discriminant_type(0x10000), Int::U16);
+        assert_eq!(discriminant_type(0x10001), Int::U32);
+        if let Ok(num_cases) = usize::try_from(0x100000000_u64) {
+            assert_eq!(discriminant_type(num_cases), Int::U32);
         }
     }
 }
