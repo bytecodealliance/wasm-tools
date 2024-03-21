@@ -21,7 +21,7 @@ world module {
   import foo: interface {
     foo1: func();
     foo2: func(x: u8);
-    foo3: func(x: float32);
+    foo3: func(x: f32);
     unused: func();
 
     /// doesn't show up in the wit output despite being exported here since it's

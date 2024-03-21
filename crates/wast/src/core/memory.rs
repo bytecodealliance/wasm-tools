@@ -248,8 +248,8 @@ impl<'a> Parse<'a> for DataVal<'a> {
                 || consume::<kw::i16, i16, _>(p, l, r, |u, v| v.extend(&u.to_le_bytes()))?
                 || consume::<kw::i32, i32, _>(p, l, r, |u, v| v.extend(&u.to_le_bytes()))?
                 || consume::<kw::i64, i64, _>(p, l, r, |u, v| v.extend(&u.to_le_bytes()))?
-                || consume::<kw::f32, Float32, _>(p, l, r, |u, v| v.extend(&u.bits.to_le_bytes()))?
-                || consume::<kw::f64, Float64, _>(p, l, r, |u, v| v.extend(&u.bits.to_le_bytes()))?
+                || consume::<kw::f32, F32, _>(p, l, r, |u, v| v.extend(&u.bits.to_le_bytes()))?
+                || consume::<kw::f64, F64, _>(p, l, r, |u, v| v.extend(&u.bits.to_le_bytes()))?
                 || consume::<kw::v128, V128Const, _>(p, l, r, |u, v| v.extend(&u.to_le_bytes()))?
             {
                 Ok(DataVal::Integral(result))

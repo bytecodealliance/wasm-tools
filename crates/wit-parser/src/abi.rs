@@ -210,8 +210,8 @@ impl Resolve {
             | Type::Char => result.push(WasmType::I32),
 
             Type::U64 | Type::S64 => result.push(WasmType::I64),
-            Type::Float32 => result.push(WasmType::F32),
-            Type::Float64 => result.push(WasmType::F64),
+            Type::F32 => result.push(WasmType::F32),
+            Type::F64 => result.push(WasmType::F64),
             Type::String => {
                 result.push(WasmType::Pointer);
                 result.push(WasmType::Length);

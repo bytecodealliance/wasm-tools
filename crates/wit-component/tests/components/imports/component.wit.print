@@ -24,6 +24,6 @@ world root {
 
     foo2: func(x: u8);
 
-    foo3: func(x: float32);
+    foo3: func(x: f32);
   }
 }

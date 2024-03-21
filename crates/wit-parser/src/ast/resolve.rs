@@ -1045,8 +1045,8 @@ impl<'a> Resolver<'a> {
             ast::Type::S16 => TypeDefKind::Type(Type::S16),
             ast::Type::S32 => TypeDefKind::Type(Type::S32),
             ast::Type::S64 => TypeDefKind::Type(Type::S64),
-            ast::Type::Float32 => TypeDefKind::Type(Type::Float32),
-            ast::Type::Float64 => TypeDefKind::Type(Type::Float64),
+            ast::Type::F32 => TypeDefKind::Type(Type::F32),
+            ast::Type::F64 => TypeDefKind::Type(Type::F64),
             ast::Type::Char => TypeDefKind::Type(Type::Char),
             ast::Type::String => TypeDefKind::Type(Type::String),
             ast::Type::Name(name) => {
@@ -1387,8 +1387,8 @@ fn collect_deps<'a>(ty: &ast::Type<'a>, deps: &mut Vec<ast::Id<'a>>) {
         | ast::Type::S16
         | ast::Type::S32
         | ast::Type::S64
-        | ast::Type::Float32
-        | ast::Type::Float64
+        | ast::Type::F32
+        | ast::Type::F64
         | ast::Type::Char
         | ast::Type::String
         | ast::Type::Flags(_)
