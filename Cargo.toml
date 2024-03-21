@@ -167,6 +167,7 @@ default = [
   'addr2line',
   'completion',
   'json-from-wast',
+  'world',
 ]
 
 # Each subcommand is gated behind a feature and lists the dependencies it needs
@@ -194,3 +195,4 @@ wit-smith = ['dep:wit-smith', 'arbitrary']
 addr2line = ['dep:addr2line', 'dep:gimli', 'dep:wasmparser']
 completion = ['dep:clap_complete']
 json-from-wast = ['dep:serde_derive', 'dep:serde_json', 'dep:wast', 'dep:serde']
+world = ['wasm-compose', 'dep:serde_derive', 'dep:serde_json', 'dep:serde']

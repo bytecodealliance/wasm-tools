@@ -74,6 +74,7 @@ subcommands! {
     (addr2line, "addr2line")
     (completion, "completion")
     (json_from_wast, "json-from-wast")
+    (world, "world")
 }
 
 fn main() -> ExitCode {

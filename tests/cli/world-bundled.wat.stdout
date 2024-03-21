@@ -1,0 +1,8 @@
+{
+  "imports": [
+    "wasi-file"
+  ],
+  "exports": [
+    "work"
+  ]
+}
