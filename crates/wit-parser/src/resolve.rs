@@ -5,7 +5,7 @@ use crate::serde_::{serialize_arena, serialize_id_map};
 use crate::{
     AstItem, Docs, Error, Function, FunctionKind, Handle, IncludeName, Interface, InterfaceId,
     PackageName, Results, Type, TypeDef, TypeDefKind, TypeId, TypeOwner, UnresolvedPackage, World,
-    WorldId, WorldItem, WorldKey,
+    WorldId, WorldItem, WorldKey, WorldSpan,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use id_arena::{Arena, Id};
@@ -1130,21 +1130,14 @@ impl Remap {
         // This is done after types/interfaces are fully settled so the
         // transitive relation between interfaces, through types, is understood
         // here.
-        assert_eq!(unresolved.worlds.len(), unresolved.world_item_spans.len());
-        let include_world_spans = unresolved.include_world_spans;
-        for ((id, mut world), (import_spans, export_spans)) in unresolved
+        assert_eq!(unresolved.worlds.len(), unresolved.world_spans.len());
+        for ((id, mut world), span) in unresolved
             .worlds
             .into_iter()
-            .zip(unresolved.world_item_spans)
+            .zip(unresolved.world_spans)
             .skip(foreign_worlds)
         {
-            self.update_world(
-                &mut world,
-                resolve,
-                &import_spans,
-                &export_spans,
-                &include_world_spans,
-            )?;
+            self.update_world(&mut world, resolve, &span)?;
 
             let new_id = resolve.worlds.alloc(world);
             assert_eq!(self.worlds.len(), id.index());
@@ -1275,13 +1268,13 @@ impl Remap {
             assert!(unresolved_iface.functions.is_empty());
 
             let pkg = &resolve.packages[pkgid];
-            let span = unresolved.interface_spans[unresolved_iface_id.index()];
+            let span = &unresolved.interface_spans[unresolved_iface_id.index()];
             let iface_id = pkg
                 .interfaces
                 .get(interface)
                 .copied()
                 .ok_or_else(|| Error {
-                    span,
+                    span: span.span,
                     msg: format!("interface not found in package"),
                 })?;
             assert_eq!(self.interfaces.len(), unresolved_iface_id.index());
@@ -1319,9 +1312,9 @@ impl Remap {
                     msg: format!("package not found"),
                 })?;
             let pkg = &resolve.packages[pkgid];
-            let span = unresolved.world_spans[unresolved_world_id.index()];
+            let span = &unresolved.world_spans[unresolved_world_id.index()];
             let world_id = pkg.worlds.get(world).copied().ok_or_else(|| Error {
-                span,
+                span: span.span,
                 msg: format!("world not found in package"),
             })?;
             assert_eq!(self.worlds.len(), unresolved_world_id.index());
@@ -1505,9 +1498,7 @@ impl Remap {
         &mut self,
         world: &mut World,
         resolve: &mut Resolve,
-        import_spans: &[Span],
-        export_spans: &[Span],
-        include_world_spans: &[Span],
+        spans: &WorldSpan,
     ) -> Result<()> {
         // NB: this function is more more complicated than the prior versions
         // of merging an item because this is the location that elaboration of
@@ -1515,8 +1506,8 @@ impl Remap {
         // knowledge of all interfaces a worlds imports, for example, are
         // expanded fully to ensure that all transitive items are necessarily
         // imported.
-        assert_eq!(world.imports.len(), import_spans.len());
-        assert_eq!(world.exports.len(), export_spans.len());
+        assert_eq!(world.imports.len(), spans.imports.len());
+        assert_eq!(world.exports.len(), spans.exports.len());
 
         // First up, process all the `imports` of the world. Note that this
         // starts by gutting the list of imports stored in `world` to get
@@ -1527,7 +1518,9 @@ impl Remap {
         // determining names later on.
         let mut import_funcs = Vec::new();
         let mut import_types = Vec::new();
-        for ((mut name, item), span) in mem::take(&mut world.imports).into_iter().zip(import_spans)
+        for ((mut name, item), span) in mem::take(&mut world.imports)
+            .into_iter()
+            .zip(&spans.imports)
         {
             self.update_world_key(&mut name);
             match item {
@@ -1557,7 +1550,9 @@ impl Remap {
 
         let mut export_funcs = Vec::new();
         let mut export_interfaces = IndexMap::new();
-        for ((mut name, item), span) in mem::take(&mut world.exports).into_iter().zip(export_spans)
+        for ((mut name, item), span) in mem::take(&mut world.exports)
+            .into_iter()
+            .zip(&spans.exports)
         {
             self.update_world_key(&mut name);
             match item {
@@ -1581,12 +1576,13 @@ impl Remap {
         self.add_world_exports(resolve, world, &export_interfaces)?;
 
         // Resolve all includes of the world
+        assert_eq!(world.includes.len(), spans.includes.len());
         let includes = mem::take(&mut world.includes);
         let include_names = mem::take(&mut world.include_names);
-        for (index, include_world) in includes.into_iter().enumerate() {
-            let span = include_world_spans[index];
+        for (index, (include_world, span)) in includes.into_iter().zip(&spans.includes).enumerate()
+        {
             let names = &include_names[index];
-            self.resolve_include(world, include_world, names, span, resolve)?;
+            self.resolve_include(world, include_world, names, *span, resolve)?;
         }
 
         for (name, id, span) in import_types {
