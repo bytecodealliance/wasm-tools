@@ -1,0 +1,8 @@
+failed to resolve directory while parsing WIT for path [tests/ui/parse-fail/return-borrow8]
+
+Caused by:
+    package not found
+         --> tests/ui/parse-fail/return-borrow8/foo.wit:4:7
+          |
+        4 |   use foo:baz/i.{r};
+          |       ^------

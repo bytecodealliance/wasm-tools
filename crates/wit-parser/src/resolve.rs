@@ -4,8 +4,8 @@ use crate::ast::{parse_use_path, AstUsePath};
 use crate::serde_::{serialize_arena, serialize_id_map};
 use crate::{
     AstItem, Docs, Error, Function, FunctionKind, Handle, IncludeName, Interface, InterfaceId,
-    PackageName, Results, Type, TypeDef, TypeDefKind, TypeId, TypeOwner, UnresolvedPackage, World,
-    WorldId, WorldItem, WorldKey, WorldSpan,
+    InterfaceSpan, PackageName, Results, Type, TypeDef, TypeDefKind, TypeId, TypeOwner,
+    UnresolvedPackage, World, WorldId, WorldItem, WorldKey, WorldSpan,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use id_arena::{Arena, Id};
@@ -461,36 +461,43 @@ impl Resolve {
 
         let mut moved_interfaces = Vec::new();
         for (id, mut iface) in interfaces {
-            let new_id = interface_map.get(&id).copied().unwrap_or_else(|| {
-                log::debug!("moving interface {:?}", iface.name);
-                moved_interfaces.push(id);
-                remap.update_interface(self, &mut iface);
-                self.interfaces.alloc(iface)
-            });
+            let new_id = match interface_map.get(&id).copied() {
+                Some(id) => id,
+                None => {
+                    log::debug!("moving interface {:?}", iface.name);
+                    moved_interfaces.push(id);
+                    remap.update_interface(self, &mut iface, None)?;
+                    self.interfaces.alloc(iface)
+                }
+            };
             assert_eq!(remap.interfaces.len(), id.index());
             remap.interfaces.push(new_id);
         }
 
         let mut moved_worlds = Vec::new();
         for (id, mut world) in worlds {
-            let new_id = world_map.get(&id).copied().unwrap_or_else(|| {
-                log::debug!("moving world {}", world.name);
-                moved_worlds.push(id);
-                let mut update = |map: &mut IndexMap<WorldKey, WorldItem>| {
-                    for (mut name, mut item) in mem::take(map) {
-                        remap.update_world_key(&mut name);
-                        match &mut item {
-                            WorldItem::Function(f) => remap.update_function(self, f),
-                            WorldItem::Interface(i) => *i = remap.interfaces[i.index()],
-                            WorldItem::Type(i) => *i = remap.types[i.index()],
+            let new_id = match world_map.get(&id).copied() {
+                Some(id) => id,
+                None => {
+                    log::debug!("moving world {}", world.name);
+                    moved_worlds.push(id);
+                    let mut update = |map: &mut IndexMap<WorldKey, WorldItem>| -> Result<_> {
+                        for (mut name, mut item) in mem::take(map) {
+                            remap.update_world_key(&mut name);
+                            match &mut item {
+                                WorldItem::Function(f) => remap.update_function(self, f, None)?,
+                                WorldItem::Interface(i) => *i = remap.interfaces[i.index()],
+                                WorldItem::Type(i) => *i = remap.types[i.index()],
+                            }
+                            map.insert(name, item);
                         }
-                        map.insert(name, item);
-                    }
-                };
-                update(&mut world.imports);
-                update(&mut world.exports);
-                self.worlds.alloc(world)
-            });
+                        Ok(())
+                    };
+                    update(&mut world.imports)?;
+                    update(&mut world.exports)?;
+                    self.worlds.alloc(world)
+                }
+            };
             assert_eq!(remap.worlds.len(), id.index());
             remap.worlds.push(new_id);
         }
@@ -1062,6 +1069,8 @@ pub struct Remap {
     /// The key of this map is the resource id `T` in the new resolve, and
     /// the value is the `own<T>` type pointing to `T`.
     own_handles: HashMap<TypeId, TypeId>,
+
+    type_has_borrow: Vec<Option<bool>>,
 }
 
 impl Remap {
@@ -1107,8 +1116,13 @@ impl Remap {
 
         // Next transfer all interfaces into `Resolve`, updating type ids
         // referenced along the way.
-        for (id, mut iface) in unresolved.interfaces.into_iter().skip(foreign_interfaces) {
-            self.update_interface(resolve, &mut iface);
+        for ((id, mut iface), span) in unresolved
+            .interfaces
+            .into_iter()
+            .zip(&unresolved.interface_spans)
+            .skip(foreign_interfaces)
+        {
+            self.update_interface(resolve, &mut iface, Some(span))?;
             let new_id = resolve.interfaces.alloc(iface);
             assert_eq!(self.interfaces.len(), id.index());
             self.interfaces.push(new_id);
@@ -1463,18 +1477,33 @@ impl Remap {
         *id = self.types[id.index()];
     }
 
-    fn update_interface(&mut self, resolve: &mut Resolve, iface: &mut Interface) {
+    fn update_interface(
+        &mut self,
+        resolve: &mut Resolve,
+        iface: &mut Interface,
+        spans: Option<&InterfaceSpan>,
+    ) -> Result<()> {
         // NB: note that `iface.doc` is not updated here since interfaces
         // haven't been mapped yet and that's done in a separate step.
         for (_name, ty) in iface.types.iter_mut() {
             self.update_type_id(ty);
         }
-        for (_, func) in iface.functions.iter_mut() {
-            self.update_function(resolve, func);
+        if let Some(spans) = spans {
+            assert_eq!(iface.functions.len(), spans.funcs.len());
         }
+        for (i, (_, func)) in iface.functions.iter_mut().enumerate() {
+            let span = spans.map(|s| s.funcs[i]);
+            self.update_function(resolve, func, span)?;
+        }
+        Ok(())
     }
 
-    fn update_function(&mut self, resolve: &mut Resolve, func: &mut Function) {
+    fn update_function(
+        &mut self,
+        resolve: &mut Resolve,
+        func: &mut Function,
+        span: Option<Span>,
+    ) -> Result<()> {
         match &mut func.kind {
             FunctionKind::Freestanding => {}
             FunctionKind::Method(id) | FunctionKind::Constructor(id) | FunctionKind::Static(id) => {
@@ -1492,6 +1521,26 @@ impl Remap {
             }
             Results::Anon(ty) => self.update_ty(resolve, ty),
         }
+
+        for ty in func.results.iter_types() {
+            if !self.type_has_borrow(resolve, ty) {
+                continue;
+            }
+            match span {
+                Some(span) => {
+                    bail!(Error {
+                        span,
+                        msg: format!(
+                            "function returns a type which contains \
+                             a `borrow<T>` which is not supported"
+                        )
+                    })
+                }
+                None => unreachable!(),
+            }
+        }
+
+        Ok(())
     }
 
     fn update_world(
@@ -1529,7 +1578,7 @@ impl Remap {
                     self.add_world_import(resolve, world, name, id);
                 }
                 WorldItem::Function(mut f) => {
-                    self.update_function(resolve, &mut f);
+                    self.update_function(resolve, &mut f, Some(*span))?;
                     import_funcs.push((name.unwrap_name(), f, *span));
                 }
                 WorldItem::Type(id) => {
@@ -1562,7 +1611,7 @@ impl Remap {
                     assert!(prev.is_none());
                 }
                 WorldItem::Function(mut f) => {
-                    self.update_function(resolve, &mut f);
+                    self.update_function(resolve, &mut f, Some(*span))?;
                     let name = match name {
                         WorldKey::Name(name) => name,
                         WorldKey::Interface(_) => unreachable!(),
@@ -1905,6 +1954,58 @@ impl Remap {
                 names.retain(|name| name.name != n.clone());
             }
             _ => {}
+        }
+    }
+
+    fn type_has_borrow(&mut self, resolve: &Resolve, ty: &Type) -> bool {
+        let id = match ty {
+            Type::Id(id) => *id,
+            _ => return false,
+        };
+
+        if let Some(Some(has_borrow)) = self.type_has_borrow.get(id.index()) {
+            return *has_borrow;
+        }
+
+        let result = self.typedef_has_borrow(resolve, &resolve.types[id]);
+        if self.type_has_borrow.len() <= id.index() {
+            self.type_has_borrow.resize(id.index() + 1, None);
+        }
+        self.type_has_borrow[id.index()] = Some(result);
+        result
+    }
+
+    fn typedef_has_borrow(&mut self, resolve: &Resolve, ty: &TypeDef) -> bool {
+        match &ty.kind {
+            TypeDefKind::Type(t) => self.type_has_borrow(resolve, t),
+            TypeDefKind::Variant(v) => v
+                .cases
+                .iter()
+                .filter_map(|case| case.ty.as_ref())
+                .any(|ty| self.type_has_borrow(resolve, ty)),
+            TypeDefKind::Handle(Handle::Borrow(_)) => true,
+            TypeDefKind::Handle(Handle::Own(_)) => false,
+            TypeDefKind::Resource => false,
+            TypeDefKind::Record(r) => r
+                .fields
+                .iter()
+                .any(|case| self.type_has_borrow(resolve, &case.ty)),
+            TypeDefKind::Flags(_) => false,
+            TypeDefKind::Tuple(t) => t.types.iter().any(|t| self.type_has_borrow(resolve, t)),
+            TypeDefKind::Enum(_) => false,
+            TypeDefKind::List(ty) | TypeDefKind::Future(Some(ty)) | TypeDefKind::Option(ty) => {
+                self.type_has_borrow(resolve, ty)
+            }
+            TypeDefKind::Result(r) => [&r.ok, &r.err]
+                .iter()
+                .filter_map(|t| t.as_ref())
+                .any(|t| self.type_has_borrow(resolve, t)),
+            TypeDefKind::Stream(r) => [&r.element, &r.end]
+                .iter()
+                .filter_map(|t| t.as_ref())
+                .any(|t| self.type_has_borrow(resolve, t)),
+            TypeDefKind::Future(None) => false,
+            TypeDefKind::Unknown => unreachable!(),
         }
     }
 }

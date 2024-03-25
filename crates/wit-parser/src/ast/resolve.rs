@@ -281,7 +281,10 @@ impl<'a> Resolver<'a> {
 
     fn alloc_interface(&mut self, span: Span) -> InterfaceId {
         self.interface_types.push(IndexMap::new());
-        self.interface_spans.push(InterfaceSpan { span });
+        self.interface_spans.push(InterfaceSpan {
+            span,
+            funcs: Vec::new(),
+        });
         self.interfaces.alloc(Interface {
             name: None,
             types: IndexMap::new(),
@@ -766,6 +769,9 @@ impl<'a> Resolver<'a> {
                         &f.func,
                         FunctionKind::Freestanding,
                     )?);
+                    self.interface_spans[interface_id.index()]
+                        .funcs
+                        .push(f.name.span);
                 }
                 ast::InterfaceItem::Use(_) => {}
                 ast::InterfaceItem::TypeDef(ast::TypeDef {
@@ -775,6 +781,9 @@ impl<'a> Resolver<'a> {
                 }) => {
                     for func in r.funcs.iter() {
                         funcs.push(self.resolve_resource_func(func, name)?);
+                        self.interface_spans[interface_id.index()]
+                            .funcs
+                            .push(func.named_func().name.span);
                     }
                 }
                 ast::InterfaceItem::TypeDef(_) => {}

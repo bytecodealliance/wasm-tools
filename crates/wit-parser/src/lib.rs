@@ -127,6 +127,7 @@ struct WorldSpan {
 #[derive(Clone)]
 struct InterfaceSpan {
     span: Span,
+    funcs: Vec<Span>,
 }
 
 #[derive(Debug, Copy, Clone)]
