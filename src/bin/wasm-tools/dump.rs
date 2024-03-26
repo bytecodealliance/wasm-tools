@@ -422,6 +422,31 @@ impl<'a> Dump<'a> {
                             | CanonicalFunction::ThreadHwConcurrency => {
                                 ("core func", &mut i.core_funcs)
                             }
+                            CanonicalFunction::TaskBackpressure
+                            | CanonicalFunction::TaskReturn { .. }
+                            | CanonicalFunction::TaskWait { .. }
+                            | CanonicalFunction::TaskPoll { .. }
+                            | CanonicalFunction::TaskYield { .. }
+                            | CanonicalFunction::SubtaskDrop
+                            | CanonicalFunction::StreamNew { .. }
+                            | CanonicalFunction::StreamRead { .. }
+                            | CanonicalFunction::StreamWrite { .. }
+                            | CanonicalFunction::StreamCancelRead { .. }
+                            | CanonicalFunction::StreamCancelWrite { .. }
+                            | CanonicalFunction::StreamCloseReadable { .. }
+                            | CanonicalFunction::StreamCloseWritable { .. }
+                            | CanonicalFunction::FutureNew { .. }
+                            | CanonicalFunction::FutureRead { .. }
+                            | CanonicalFunction::FutureWrite { .. }
+                            | CanonicalFunction::FutureCancelRead { .. }
+                            | CanonicalFunction::FutureCancelWrite { .. }
+                            | CanonicalFunction::FutureCloseReadable { .. }
+                            | CanonicalFunction::FutureCloseWritable { .. }
+                            | CanonicalFunction::ErrorContextNew { .. }
+                            | CanonicalFunction::ErrorContextDebugMessage { .. }
+                            | CanonicalFunction::ErrorContextDrop => {
+                                ("core func", &mut i.core_funcs)
+                            }
                         };
 
                         write!(me.state, "[{} {}] {:?}", name, inc(col), f)?;

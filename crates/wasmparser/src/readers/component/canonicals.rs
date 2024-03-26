@@ -23,6 +23,11 @@ pub enum CanonicalOption {
     /// The post-return function to use if the lifting of a function requires
     /// cleanup after the function returns.
     PostReturn(u32),
+    /// Indicates that specified function should be lifted or lowered using the `async` ABI.
+    Async,
+    /// The function to use if the async lifting of a function should receive task/stream/future progress events
+    /// using a callback.
+    Callback(u32),
 }
 
 /// Represents a canonical function in a WebAssembly component.
@@ -68,6 +73,161 @@ pub enum CanonicalFunction {
     /// A function which returns the number of threads that can be expected to
     /// execute concurrently
     ThreadHwConcurrency,
+    /// A function which tells the host to enable or disable backpressure for
+    /// the caller's instance.
+    TaskBackpressure,
+    /// A function which returns a result to the caller of a lifted export
+    /// function.  This allows the callee to continue executing after returning
+    /// a result.
+    TaskReturn {
+        /// Core function type whose parameters represent the flattened
+        /// representation of the component-level results to be returned by the
+        /// currently executing task.
+        type_index: u32,
+    },
+    /// A function which waits for at least one outstanding async
+    /// task/stream/future to make progress, returning the first such event.
+    TaskWait {
+        /// If `true`, indicates the caller instance maybe reentered.
+        async_: bool,
+        /// Memory to use when storing the event.
+        memory: u32,
+    },
+    /// A function which checks whether any outstanding async task/stream/future
+    /// has made progress.  Unlike `task.wait`, this does not block and may
+    /// return nothing if no such event has occurred.
+    TaskPoll {
+        /// If `true`, indicates the caller instance maybe reentered.
+        async_: bool,
+        /// Memory to use when storing the event, if any.
+        memory: u32,
+    },
+    /// A function which yields control to the host so that other tasks are able
+    /// to make progress, if any.
+    TaskYield {
+        /// If `true`, indicates the caller instance maybe reentered.
+        async_: bool,
+    },
+    /// A function to drop a specified task which has completed.
+    SubtaskDrop,
+    /// A function to create a new `stream` handle of the specified type.
+    StreamNew {
+        /// The `stream` type to instantiate.
+        ty: u32,
+    },
+    /// A function to read from a `stream` of the specified type.
+    StreamRead {
+        /// The `stream` type to expect.
+        ty: u32,
+        /// Any options (e.g. string encoding) to use when storing values to
+        /// memory.
+        options: Box<[CanonicalOption]>,
+    },
+    /// A function to write to a `stream` of the specified type.
+    StreamWrite {
+        /// The `stream` type to expect.
+        ty: u32,
+        /// Any options (e.g. string encoding) to use when loading values from
+        /// memory.
+        options: Box<[CanonicalOption]>,
+    },
+    /// A function to cancel an in-progress read from a `stream` of the
+    /// specified type.
+    StreamCancelRead {
+        /// The `stream` type to expect.
+        ty: u32,
+        /// If `false`, block until cancellation completes rather than return
+        /// `BLOCKED`.
+        async_: bool,
+    },
+    /// A function to cancel an in-progress write to a `stream` of the specified
+    /// type.
+    StreamCancelWrite {
+        /// The `stream` type to expect.
+        ty: u32,
+        /// If `false`, block until cancellation completes rather than return
+        /// `BLOCKED`.
+        async_: bool,
+    },
+    /// A function to close the readable end of a `stream` of the specified
+    /// type.
+    StreamCloseReadable {
+        /// The `stream` type to expect.
+        ty: u32,
+    },
+    /// A function to close the writable end of a `stream` of the specified
+    /// type.
+    StreamCloseWritable {
+        /// The `stream` type to expect.
+        ty: u32,
+    },
+    /// A function to create a new `future` handle of the specified type.
+    FutureNew {
+        /// The `future` type to instantiate.
+        ty: u32,
+    },
+    /// A function to read from a `future` of the specified type.
+    FutureRead {
+        /// The `future` type to expect.
+        ty: u32,
+        /// Any options (e.g. string encoding) to use when storing values to
+        /// memory.
+        options: Box<[CanonicalOption]>,
+    },
+    /// A function to write to a `future` of the specified type.
+    FutureWrite {
+        /// The `future` type to expect.
+        ty: u32,
+        /// Any options (e.g. string encoding) to use when loading values from
+        /// memory.
+        options: Box<[CanonicalOption]>,
+    },
+    /// A function to cancel an in-progress read from a `future` of the
+    /// specified type.
+    FutureCancelRead {
+        /// The `future` type to expect.
+        ty: u32,
+        /// If `false`, block until cancellation completes rather than return
+        /// `BLOCKED`.
+        async_: bool,
+    },
+    /// A function to cancel an in-progress write to a `future` of the specified
+    /// type.
+    FutureCancelWrite {
+        /// The `future` type to expect.
+        ty: u32,
+        /// If `false`, block until cancellation completes rather than return
+        /// `BLOCKED`.
+        async_: bool,
+    },
+    /// A function to close the readable end of a `future` of the specified
+    /// type.
+    FutureCloseReadable {
+        /// The `future` type to expect.
+        ty: u32,
+    },
+    /// A function to close the writable end of a `future` of the specified
+    /// type.
+    FutureCloseWritable {
+        /// The `future` type to expect.
+        ty: u32,
+    },
+    /// A function to create a new `error-context` with a specified debug
+    /// message.
+    ErrorContextNew {
+        /// String encoding, memory, etc. to use when loading debug message.
+        options: Box<[CanonicalOption]>,
+    },
+    /// A function to get the debug message for a specified `error-context`.
+    ///
+    /// Note that the debug message might not necessarily match what was passed
+    /// to `error.new`.
+    ErrorContextDebugMessage {
+        /// String encoding, memory, etc. to use when storing debug message.
+        options: Box<[CanonicalOption]>,
+    },
+    /// A function to drop a specified `error-context`.
+    ErrorContextDrop,
 }
 
 /// A reader for the canonical section of a WebAssembly component.
@@ -113,6 +273,79 @@ impl<'a> FromReader<'a> for CanonicalFunction {
                 func_ty_index: reader.read()?,
             },
             0x06 => CanonicalFunction::ThreadHwConcurrency,
+            0x08 => CanonicalFunction::TaskBackpressure,
+            0x09 => CanonicalFunction::TaskReturn {
+                type_index: reader.read()?,
+            },
+            0x0a => CanonicalFunction::TaskWait {
+                async_: reader.read()?,
+                memory: reader.read()?,
+            },
+            0x0b => CanonicalFunction::TaskPoll {
+                async_: reader.read()?,
+                memory: reader.read()?,
+            },
+            0x0c => CanonicalFunction::TaskYield {
+                async_: reader.read()?,
+            },
+            0x0d => CanonicalFunction::SubtaskDrop,
+            0x0e => CanonicalFunction::StreamNew { ty: reader.read()? },
+            0x0f => CanonicalFunction::StreamRead {
+                ty: reader.read()?,
+                options: reader
+                    .read_iter(MAX_WASM_CANONICAL_OPTIONS, "canonical options")?
+                    .collect::<Result<_>>()?,
+            },
+            0x10 => CanonicalFunction::StreamWrite {
+                ty: reader.read()?,
+                options: reader
+                    .read_iter(MAX_WASM_CANONICAL_OPTIONS, "canonical options")?
+                    .collect::<Result<_>>()?,
+            },
+            0x11 => CanonicalFunction::StreamCancelRead {
+                ty: reader.read()?,
+                async_: reader.read()?,
+            },
+            0x12 => CanonicalFunction::StreamCancelWrite {
+                ty: reader.read()?,
+                async_: reader.read()?,
+            },
+            0x13 => CanonicalFunction::StreamCloseReadable { ty: reader.read()? },
+            0x14 => CanonicalFunction::StreamCloseWritable { ty: reader.read()? },
+            0x15 => CanonicalFunction::FutureNew { ty: reader.read()? },
+            0x16 => CanonicalFunction::FutureRead {
+                ty: reader.read()?,
+                options: reader
+                    .read_iter(MAX_WASM_CANONICAL_OPTIONS, "canonical options")?
+                    .collect::<Result<_>>()?,
+            },
+            0x17 => CanonicalFunction::FutureWrite {
+                ty: reader.read()?,
+                options: reader
+                    .read_iter(MAX_WASM_CANONICAL_OPTIONS, "canonical options")?
+                    .collect::<Result<_>>()?,
+            },
+            0x18 => CanonicalFunction::FutureCancelRead {
+                ty: reader.read()?,
+                async_: reader.read()?,
+            },
+            0x19 => CanonicalFunction::FutureCancelWrite {
+                ty: reader.read()?,
+                async_: reader.read()?,
+            },
+            0x1a => CanonicalFunction::FutureCloseReadable { ty: reader.read()? },
+            0x1b => CanonicalFunction::FutureCloseWritable { ty: reader.read()? },
+            0x1c => CanonicalFunction::ErrorContextNew {
+                options: reader
+                    .read_iter(MAX_WASM_CANONICAL_OPTIONS, "canonical options")?
+                    .collect::<Result<_>>()?,
+            },
+            0x1d => CanonicalFunction::ErrorContextDebugMessage {
+                options: reader
+                    .read_iter(MAX_WASM_CANONICAL_OPTIONS, "canonical options")?
+                    .collect::<Result<_>>()?,
+            },
+            0x1e => CanonicalFunction::ErrorContextDrop,
             x => return reader.invalid_leading_byte(x, "canonical function"),
         })
     }
@@ -127,6 +360,8 @@ impl<'a> FromReader<'a> for CanonicalOption {
             0x03 => CanonicalOption::Memory(reader.read_var_u32()?),
             0x04 => CanonicalOption::Realloc(reader.read_var_u32()?),
             0x05 => CanonicalOption::PostReturn(reader.read_var_u32()?),
+            0x06 => CanonicalOption::Async,
+            0x07 => CanonicalOption::Callback(reader.read_var_u32()?),
             x => return reader.invalid_leading_byte(x, "canonical option"),
         })
     }

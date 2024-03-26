@@ -47,12 +47,9 @@ interface types {
   type t45 = list<list<list<t32>>>;
   type t46 = t44;
   type t47 = %t44;
-  type t48 = stream<u32, u32>;
-  type t49 = stream<_, u32>;
-  type t50 = stream<u32>;
-  type t51 = stream;
-  type t52 = future<u32>;
-  type t53 = future;
+  type t48 = stream<u32>;
+  type t49 = future<u32>;
+  type t50 = future;
 
   /// type order doesn't matter
   type foo = bar;
