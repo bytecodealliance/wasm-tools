@@ -27,6 +27,9 @@ pub enum Type {
     Result(Box<Result_>),
     List(Box<Type>),
     Tuple(Tuple),
+    Future(Option<Box<Type>>),
+    Stream(Box<Type>),
+    ErrorContext,
     Named(Ident),
 }
 
@@ -59,6 +62,12 @@ impl Type {
         Type::Tuple(Tuple {
             types: types.into_iter().collect(),
         })
+    }
+    pub fn future(type_: Option<Type>) -> Self {
+        Type::Future(type_.map(Box::new))
+    }
+    pub fn stream(type_: Type) -> Self {
+        Type::Stream(Box::new(type_))
     }
     pub fn named(name: impl Into<Ident>) -> Self {
         Type::Named(name.into())
@@ -108,6 +117,16 @@ impl Display for Type {
                 write!(f, "list<{type_}>")
             }
             Type::Tuple(tuple) => tuple.fmt(f),
+            Type::Future(None) => {
+                write!(f, "future")
+            }
+            Type::Future(Some(type_)) => {
+                write!(f, "future<{type_}>")
+            }
+            Type::Stream(type_) => {
+                write!(f, "stream<{type_}>")
+            }
+            Type::ErrorContext => write!(f, "error-context"),
         }
     }
 }

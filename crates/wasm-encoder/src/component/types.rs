@@ -672,6 +672,23 @@ impl ComponentDefinedTypeEncoder<'_> {
         self.0.push(0x68);
         idx.encode(self.0);
     }
+
+    /// Define a `future` type with the specified payload.
+    pub fn future(self, payload: Option<ComponentValType>) {
+        self.0.push(0x67);
+        payload.encode(self.0);
+    }
+
+    /// Define a `stream` type with the specified payload.
+    pub fn stream(self, payload: ComponentValType) {
+        self.0.push(0x66);
+        payload.encode(self.0);
+    }
+
+    /// Define the `error-context` type.
+    pub fn error_context(self) {
+        self.0.push(0x65);
+    }
 }
 
 /// An encoder for the type section of WebAssembly components.

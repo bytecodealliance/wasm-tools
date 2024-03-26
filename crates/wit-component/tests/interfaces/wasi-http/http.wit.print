@@ -6,7 +6,7 @@ package wasi:http@0.2.0-rc-2023-12-05;
 interface types {
   use wasi:clocks/monotonic-clock@0.2.0-rc-2023-11-10.{duration};
   use wasi:io/streams@0.2.0-rc-2023-11-10.{input-stream, output-stream};
-  use wasi:io/error@0.2.0-rc-2023-11-10.{error as io-error};
+  use wasi:io/%error@0.2.0-rc-2023-11-10.{%error as io-error};
   use wasi:io/poll@0.2.0-rc-2023-11-10.{pollable};
 
   /// This type corresponds to HTTP standard Methods.
@@ -556,7 +556,7 @@ interface outgoing-handler {
 /// outgoing HTTP requests.
 world proxy {
   import wasi:random/random@0.2.0-rc-2023-11-10;
-  import wasi:io/error@0.2.0-rc-2023-11-10;
+  import wasi:io/%error@0.2.0-rc-2023-11-10;
   import wasi:io/poll@0.2.0-rc-2023-11-10;
   import wasi:io/streams@0.2.0-rc-2023-11-10;
   import wasi:cli/stdout@0.2.0-rc-2023-12-05;

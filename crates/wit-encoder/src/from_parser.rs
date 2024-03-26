@@ -228,12 +228,13 @@ impl<'a> Converter<'a> {
                         let output = self.convert_enum(enum_);
                         TypeDefKind::Enum(output)
                     }
-                    wit_parser::TypeDefKind::Future(_) => {
-                        todo!("Enable once wit-encoder supports `future`")
+                    wit_parser::TypeDefKind::Future(ty) => {
+                        TypeDefKind::Type(Type::future(self.convert_option_type(ty)))
                     }
-                    wit_parser::TypeDefKind::Stream(_) => {
-                        todo!("Enable once wit-encoder supports `stream`")
+                    wit_parser::TypeDefKind::Stream(ty) => {
+                        TypeDefKind::Type(Type::stream(self.convert_type(ty)))
                     }
+                    wit_parser::TypeDefKind::ErrorContext => TypeDefKind::Type(Type::ErrorContext),
                     // all the following are just `type` declarations
                     wit_parser::TypeDefKind::Option(ty) => {
                         let output = Type::option(self.convert_type(ty));
@@ -265,6 +266,10 @@ impl<'a> Converter<'a> {
                 Some(TypeDef::new(name.clone(), kind))
             }
         }
+    }
+
+    fn convert_option_type(&self, ty: &Option<wit_parser::Type>) -> Option<Type> {
+        ty.as_ref().map(|ty| self.convert_type(ty))
     }
 
     fn convert_type(&self, type_: &wit_parser::Type) -> Type {
@@ -300,12 +305,13 @@ impl<'a> Converter<'a> {
                             Type::list(self.convert_type(type_))
                         }
                         wit_parser::TypeDefKind::Handle(handle) => self.handle_to_type(handle),
-                        wit_parser::TypeDefKind::Future(_) => {
-                            todo!("Enable once wit-encoder supports `future`")
+                        wit_parser::TypeDefKind::Future(type_) => {
+                            Type::future(self.convert_option_type(type_))
                         }
-                        wit_parser::TypeDefKind::Stream(_) => {
-                            todo!("Enable once wit-encoder supports `stream`")
+                        wit_parser::TypeDefKind::Stream(type_) => {
+                            Type::stream(self.convert_type(type_))
                         }
+                        wit_parser::TypeDefKind::ErrorContext => Type::ErrorContext,
                         wit_parser::TypeDefKind::Record(_)
                         | wit_parser::TypeDefKind::Resource
                         | wit_parser::TypeDefKind::Flags(_)

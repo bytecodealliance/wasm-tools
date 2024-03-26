@@ -22,6 +22,11 @@ pub enum CanonicalOption {
     /// The post-return function to use if the lifting of a function requires
     /// cleanup after the function returns.
     PostReturn(u32),
+    /// Indicates that specified function should be lifted or lowered using the `async` ABI.
+    Async,
+    /// The function to use if the async lifting of a function should receive task/stream/future progress events
+    /// using a callback.
+    Callback(u32),
 }
 
 impl Encode for CanonicalOption {
@@ -40,6 +45,13 @@ impl Encode for CanonicalOption {
             }
             Self::PostReturn(idx) => {
                 sink.push(0x05);
+                idx.encode(sink);
+            }
+            Self::Async => {
+                sink.push(0x06);
+            }
+            Self::Callback(idx) => {
+                sink.push(0x07);
                 idx.encode(sink);
             }
         }
@@ -159,6 +171,275 @@ impl CanonicalFunctionSection {
     /// expected to execute concurrently.
     pub fn thread_hw_concurrency(&mut self) -> &mut Self {
         self.bytes.push(0x06);
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function which tells the host to enable or disable
+    /// backpressure for the caller's instance.  When backpressure is enabled,
+    /// the host must not start any new calls to that instance until
+    /// backpressure is disabled.
+    pub fn task_backpressure(&mut self) -> &mut Self {
+        self.bytes.push(0x08);
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function which returns a result to the caller of a lifted
+    /// export function.  This allows the callee to continue executing after
+    /// returning a result.
+    pub fn task_return(&mut self, ty: u32) -> &mut Self {
+        self.bytes.push(0x09);
+        ty.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function which waits for at least one outstanding async
+    /// task/stream/future to make progress, returning the first such event.
+    ///
+    /// If `async_` is true, the caller instance may be reentered.
+    pub fn task_wait(&mut self, async_: bool, memory: u32) -> &mut Self {
+        self.bytes.push(0x0a);
+        self.bytes.push(if async_ { 1 } else { 0 });
+        memory.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function which checks whether any outstanding async
+    /// task/stream/future has made progress.  Unlike `task.wait`, this does not
+    /// block and may return nothing if no such event has occurred.
+    ///
+    /// If `async_` is true, the caller instance may be reentered.
+    pub fn task_poll(&mut self, async_: bool, memory: u32) -> &mut Self {
+        self.bytes.push(0x0b);
+        self.bytes.push(if async_ { 1 } else { 0 });
+        memory.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function which yields control to the host so that other tasks
+    /// are able to make progress, if any.
+    ///
+    /// If `async_` is true, the caller instance may be reentered.
+    pub fn task_yield(&mut self, async_: bool) -> &mut Self {
+        self.bytes.push(0x0c);
+        self.bytes.push(if async_ { 1 } else { 0 });
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function to drop a specified task which has completed.
+    pub fn subtask_drop(&mut self) -> &mut Self {
+        self.bytes.push(0x0d);
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function to create a new `stream` handle of the specified
+    /// type.
+    pub fn stream_new(&mut self, ty: u32) -> &mut Self {
+        self.bytes.push(0x0e);
+        ty.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function to read from a `stream` of the specified type.
+    pub fn stream_read<O>(&mut self, ty: u32, options: O) -> &mut Self
+    where
+        O: IntoIterator<Item = CanonicalOption>,
+        O::IntoIter: ExactSizeIterator,
+    {
+        self.bytes.push(0x0f);
+        ty.encode(&mut self.bytes);
+        let options = options.into_iter();
+        options.len().encode(&mut self.bytes);
+        for option in options {
+            option.encode(&mut self.bytes);
+        }
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function to write to a `stream` of the specified type.
+    pub fn stream_write<O>(&mut self, ty: u32, options: O) -> &mut Self
+    where
+        O: IntoIterator<Item = CanonicalOption>,
+        O::IntoIter: ExactSizeIterator,
+    {
+        self.bytes.push(0x10);
+        ty.encode(&mut self.bytes);
+        let options = options.into_iter();
+        options.len().encode(&mut self.bytes);
+        for option in options {
+            option.encode(&mut self.bytes);
+        }
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function to cancel an in-progress read from a `stream` of the
+    /// specified type.
+    pub fn stream_cancel_read(&mut self, ty: u32, async_: bool) -> &mut Self {
+        self.bytes.push(0x11);
+        ty.encode(&mut self.bytes);
+        self.bytes.push(if async_ { 1 } else { 0 });
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function to cancel an in-progress write to a `stream` of the
+    /// specified type.
+    pub fn stream_cancel_write(&mut self, ty: u32, async_: bool) -> &mut Self {
+        self.bytes.push(0x12);
+        ty.encode(&mut self.bytes);
+        self.bytes.push(if async_ { 1 } else { 0 });
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function to close the readable end of a `stream` of the
+    /// specified type.
+    pub fn stream_close_readable(&mut self, ty: u32) -> &mut Self {
+        self.bytes.push(0x13);
+        ty.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function to close the writable end of a `stream` of the
+    /// specified type.
+    pub fn stream_close_writable(&mut self, ty: u32) -> &mut Self {
+        self.bytes.push(0x14);
+        ty.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function to create a new `future` handle of the specified
+    /// type.
+    pub fn future_new(&mut self, ty: u32) -> &mut Self {
+        self.bytes.push(0x15);
+        ty.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function to read from a `future` of the specified type.
+    pub fn future_read<O>(&mut self, ty: u32, options: O) -> &mut Self
+    where
+        O: IntoIterator<Item = CanonicalOption>,
+        O::IntoIter: ExactSizeIterator,
+    {
+        self.bytes.push(0x16);
+        ty.encode(&mut self.bytes);
+        let options = options.into_iter();
+        options.len().encode(&mut self.bytes);
+        for option in options {
+            option.encode(&mut self.bytes);
+        }
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function to write to a `future` of the specified type.
+    pub fn future_write<O>(&mut self, ty: u32, options: O) -> &mut Self
+    where
+        O: IntoIterator<Item = CanonicalOption>,
+        O::IntoIter: ExactSizeIterator,
+    {
+        self.bytes.push(0x17);
+        ty.encode(&mut self.bytes);
+        let options = options.into_iter();
+        options.len().encode(&mut self.bytes);
+        for option in options {
+            option.encode(&mut self.bytes);
+        }
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function to cancel an in-progress read from a `future` of the
+    /// specified type.
+    pub fn future_cancel_read(&mut self, ty: u32, async_: bool) -> &mut Self {
+        self.bytes.push(0x18);
+        ty.encode(&mut self.bytes);
+        self.bytes.push(if async_ { 1 } else { 0 });
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function to cancel an in-progress write to a `future` of the
+    /// specified type.
+    pub fn future_cancel_write(&mut self, ty: u32, async_: bool) -> &mut Self {
+        self.bytes.push(0x19);
+        ty.encode(&mut self.bytes);
+        self.bytes.push(if async_ { 1 } else { 0 });
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function to close the readable end of a `future` of the
+    /// specified type.
+    pub fn future_close_readable(&mut self, ty: u32) -> &mut Self {
+        self.bytes.push(0x1a);
+        ty.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function to close the writable end of a `future` of the
+    /// specified type.
+    pub fn future_close_writable(&mut self, ty: u32) -> &mut Self {
+        self.bytes.push(0x1b);
+        ty.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function to create a new `error-context` with a specified
+    /// debug message.
+    pub fn error_context_new<O>(&mut self, options: O) -> &mut Self
+    where
+        O: IntoIterator<Item = CanonicalOption>,
+        O::IntoIter: ExactSizeIterator,
+    {
+        self.bytes.push(0x1c);
+        let options = options.into_iter();
+        options.len().encode(&mut self.bytes);
+        for option in options {
+            option.encode(&mut self.bytes);
+        }
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function to get the debug message for a specified
+    /// `error-context`.
+    ///
+    /// Note that the debug message might not necessarily match what was passed
+    /// to `error-context.new`.
+    pub fn error_context_debug_message<O>(&mut self, options: O) -> &mut Self
+    where
+        O: IntoIterator<Item = CanonicalOption>,
+        O::IntoIter: ExactSizeIterator,
+    {
+        self.bytes.push(0x1d);
+        let options = options.into_iter();
+        options.len().encode(&mut self.bytes);
+        for option in options {
+            option.encode(&mut self.bytes);
+        }
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function to drop a specified `error-context`.
+    pub fn error_context_drop(&mut self) -> &mut Self {
+        self.bytes.push(0x1e);
         self.num_added += 1;
         self
     }

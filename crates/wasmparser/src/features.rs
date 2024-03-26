@@ -229,6 +229,8 @@ define_wasm_features! {
         pub stack_switching: STACK_SWITCHING(1 << 27) = false;
         /// The WebAssembly [wide-arithmetic proposal](https://github.com/WebAssembly/wide-arithmetic).
         pub wide_arithmetic: WIDE_ARITHMETIC(1 << 28) = false;
+        /// Support for component model async lift/lower ABI, as well as streams, futures, and errors.
+        pub component_model_async: COMPONENT_MODEL_ASYNC(1 << 29) = false;
     }
 }
 

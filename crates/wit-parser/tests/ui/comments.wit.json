@@ -27,10 +27,7 @@
     {
       "name": "bar",
       "kind": {
-        "stream": {
-          "element": 0,
-          "end": null
-        }
+        "stream": 0
       },
       "owner": {
         "interface": 0

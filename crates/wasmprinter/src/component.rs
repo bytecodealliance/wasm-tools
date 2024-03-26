@@ -227,6 +227,28 @@ impl Printer<'_, '_> {
         Ok(())
     }
 
+    fn print_future_type(&mut self, state: &State, ty: Option<ComponentValType>) -> Result<()> {
+        self.start_group("future")?;
+
+        if let Some(ty) = ty {
+            self.result.write_str(" ")?;
+            self.print_component_val_type(state, &ty)?;
+        }
+
+        self.end_group()?;
+
+        Ok(())
+    }
+
+    fn print_stream_type(&mut self, state: &State, ty: ComponentValType) -> Result<()> {
+        self.start_group("stream")?;
+        self.result.write_str(" ")?;
+        self.print_component_val_type(state, &ty)?;
+        self.end_group()?;
+
+        Ok(())
+    }
+
     pub(crate) fn print_defined_type(
         &mut self,
         state: &State,
@@ -252,6 +274,9 @@ impl Printer<'_, '_> {
                 self.print_idx(&state.component.type_names, *idx)?;
                 self.end_group()?;
             }
+            ComponentDefinedType::Future(ty) => self.print_future_type(state, *ty)?,
+            ComponentDefinedType::Stream(ty) => self.print_stream_type(state, *ty)?,
+            ComponentDefinedType::ErrorContext => self.print_type_keyword("error-context")?,
         }
 
         Ok(())
@@ -775,8 +800,33 @@ impl Printer<'_, '_> {
                     self.print_idx(&state.core.func_names, *idx)?;
                     self.end_group()?;
                 }
+                CanonicalOption::Async => self.result.write_str("async")?,
+                CanonicalOption::Callback(idx) => {
+                    self.start_group("callback ")?;
+                    self.print_idx(&state.core.func_names, *idx)?;
+                    self.end_group()?;
+                }
             }
         }
+        Ok(())
+    }
+
+    fn print_intrinsic(
+        &mut self,
+        state: &mut State,
+        group: &str,
+        body: &dyn Fn(&mut Self, &mut State) -> Result<()>,
+    ) -> Result<()> {
+        self.start_group("core func ")?;
+        self.print_name(&state.core.func_names, state.core.funcs)?;
+        self.result.write_str(" ")?;
+        self.start_group(group)?;
+        body(self, state)?;
+        self.end_group()?;
+        self.end_group()?;
+        debug_assert_eq!(state.core.func_to_type.len(), state.core.funcs as usize);
+        state.core.funcs += 1;
+        state.core.func_to_type.push(None);
         Ok(())
     }
 
@@ -814,55 +864,27 @@ impl Printer<'_, '_> {
                     func_index,
                     options,
                 } => {
-                    self.start_group("core func ")?;
-                    self.print_name(&state.core.func_names, state.core.funcs)?;
-                    self.result.write_str(" ")?;
-                    self.start_group("canon lower ")?;
-                    self.start_group("func ")?;
-                    self.print_idx(&state.component.func_names, func_index)?;
-                    self.end_group()?;
-                    self.print_canonical_options(state, &options)?;
-                    self.end_group()?;
-                    self.end_group()?;
-                    debug_assert!(state.core.func_to_type.len() == state.core.funcs as usize);
-                    state.core.funcs += 1;
-                    state.core.func_to_type.push(None)
+                    self.print_intrinsic(state, "canon lower ", &|me, state| {
+                        me.start_group("func ")?;
+                        me.print_idx(&state.component.func_names, func_index)?;
+                        me.end_group()?;
+                        me.print_canonical_options(state, &options)
+                    })?;
                 }
                 CanonicalFunction::ResourceNew { resource } => {
-                    self.start_group("core func ")?;
-                    self.print_name(&state.core.func_names, state.core.funcs)?;
-                    self.result.write_str(" ")?;
-                    self.start_group("canon resource.new ")?;
-                    self.print_idx(&state.component.type_names, resource)?;
-                    self.end_group()?;
-                    self.end_group()?;
-                    debug_assert!(state.core.func_to_type.len() == state.core.funcs as usize);
-                    state.core.funcs += 1;
-                    state.core.func_to_type.push(None)
+                    self.print_intrinsic(state, "canon resource.new ", &|me, state| {
+                        me.print_idx(&state.component.type_names, resource)
+                    })?;
                 }
                 CanonicalFunction::ResourceDrop { resource } => {
-                    self.start_group("core func ")?;
-                    self.print_name(&state.core.func_names, state.core.funcs)?;
-                    self.result.write_str(" ")?;
-                    self.start_group("canon resource.drop ")?;
-                    self.print_idx(&state.component.type_names, resource)?;
-                    self.end_group()?;
-                    self.end_group()?;
-                    debug_assert!(state.core.func_to_type.len() == state.core.funcs as usize);
-                    state.core.funcs += 1;
-                    state.core.func_to_type.push(None)
+                    self.print_intrinsic(state, "canon resource.drop ", &|me, state| {
+                        me.print_idx(&state.component.type_names, resource)
+                    })?;
                 }
                 CanonicalFunction::ResourceRep { resource } => {
-                    self.start_group("core func ")?;
-                    self.print_name(&state.core.func_names, state.core.funcs)?;
-                    self.result.write_str(" ")?;
-                    self.start_group("canon resource.rep ")?;
-                    self.print_idx(&state.component.type_names, resource)?;
-                    self.end_group()?;
-                    self.end_group()?;
-                    debug_assert!(state.core.func_to_type.len() == state.core.funcs as usize);
-                    state.core.funcs += 1;
-                    state.core.func_to_type.push(None)
+                    self.print_intrinsic(state, "canon resource.rep ", &|me, state| {
+                        me.print_idx(&state.component.type_names, resource)
+                    })?;
                 }
                 CanonicalFunction::ThreadSpawn {
                     func_ty_index: func_index,
@@ -884,6 +906,150 @@ impl Printer<'_, '_> {
                     self.end_group()?;
                     self.end_group()?;
                     state.core.funcs += 1;
+                }
+                CanonicalFunction::TaskBackpressure => {
+                    self.print_intrinsic(state, "canon task.backpressure", &|_, _| Ok(()))?;
+                }
+                CanonicalFunction::TaskReturn { type_index } => {
+                    self.print_intrinsic(state, "canon task.return ", &|me, state| {
+                        me.print_idx(&state.component.type_names, type_index)
+                    })?;
+                }
+                CanonicalFunction::TaskWait { async_, memory } => {
+                    self.print_intrinsic(state, "canon task.wait ", &|me, state| {
+                        if async_ {
+                            me.result.write_str("async ")?;
+                        }
+                        me.start_group("memory ")?;
+                        me.print_idx(&state.core.memory_names, memory)?;
+                        me.end_group()
+                    })?;
+                }
+                CanonicalFunction::TaskPoll { async_, memory } => {
+                    self.print_intrinsic(state, "canon task.poll ", &|me, state| {
+                        if async_ {
+                            me.result.write_str("async ")?;
+                        }
+                        me.start_group("memory ")?;
+                        me.print_idx(&state.core.memory_names, memory)?;
+                        me.end_group()
+                    })?;
+                }
+                CanonicalFunction::TaskYield { async_ } => {
+                    self.print_intrinsic(state, "canon task.yield", &|me, _| {
+                        if async_ {
+                            me.result.write_str(" async")?;
+                        }
+                        Ok(())
+                    })?;
+                }
+                CanonicalFunction::SubtaskDrop => {
+                    self.print_intrinsic(state, "canon subtask.drop", &|_, _| Ok(()))?;
+                }
+                CanonicalFunction::StreamNew { ty } => {
+                    self.print_intrinsic(state, "canon stream.new ", &|me, state| {
+                        me.print_idx(&state.component.type_names, ty)
+                    })?;
+                }
+                CanonicalFunction::StreamRead { ty, options } => {
+                    self.print_intrinsic(state, "canon stream.read ", &|me, state| {
+                        me.print_idx(&state.component.type_names, ty)?;
+                        me.print_canonical_options(state, &options)
+                    })?;
+                }
+                CanonicalFunction::StreamWrite { ty, options } => {
+                    self.print_intrinsic(state, "canon stream.write ", &|me, state| {
+                        me.print_idx(&state.component.type_names, ty)?;
+                        me.print_canonical_options(state, &options)
+                    })?;
+                }
+                CanonicalFunction::StreamCancelRead { ty, async_ } => {
+                    self.print_intrinsic(state, "canon stream.cancel-read ", &|me, state| {
+                        me.print_idx(&state.component.type_names, ty)?;
+                        if async_ {
+                            me.result.write_str(" async")?;
+                        }
+                        Ok(())
+                    })?;
+                }
+                CanonicalFunction::StreamCancelWrite { ty, async_ } => {
+                    self.print_intrinsic(state, "canon stream.cancel-write ", &|me, state| {
+                        me.print_idx(&state.component.type_names, ty)?;
+                        if async_ {
+                            me.result.write_str(" async")?;
+                        }
+                        Ok(())
+                    })?;
+                }
+                CanonicalFunction::StreamCloseReadable { ty } => {
+                    self.print_intrinsic(state, "canon stream.close-readable ", &|me, state| {
+                        me.print_idx(&state.component.type_names, ty)
+                    })?;
+                }
+                CanonicalFunction::StreamCloseWritable { ty } => {
+                    self.print_intrinsic(state, "canon stream.close-writable ", &|me, state| {
+                        me.print_idx(&state.component.type_names, ty)
+                    })?;
+                }
+                CanonicalFunction::FutureNew { ty } => {
+                    self.print_intrinsic(state, "canon future.new ", &|me, state| {
+                        me.print_idx(&state.component.type_names, ty)
+                    })?;
+                }
+                CanonicalFunction::FutureRead { ty, options } => {
+                    self.print_intrinsic(state, "canon future.read ", &|me, state| {
+                        me.print_idx(&state.component.type_names, ty)?;
+                        me.print_canonical_options(state, &options)
+                    })?;
+                }
+                CanonicalFunction::FutureWrite { ty, options } => {
+                    self.print_intrinsic(state, "canon future.write ", &|me, state| {
+                        me.print_idx(&state.component.type_names, ty)?;
+                        me.print_canonical_options(state, &options)
+                    })?;
+                }
+                CanonicalFunction::FutureCancelRead { ty, async_ } => {
+                    self.print_intrinsic(state, "canon future.cancel-read ", &|me, state| {
+                        me.print_idx(&state.component.type_names, ty)?;
+                        if async_ {
+                            me.result.write_str(" async")?;
+                        }
+                        Ok(())
+                    })?;
+                }
+                CanonicalFunction::FutureCancelWrite { ty, async_ } => {
+                    self.print_intrinsic(state, "canon future.cancel-write ", &|me, state| {
+                        me.print_idx(&state.component.type_names, ty)?;
+                        if async_ {
+                            me.result.write_str(" async")?;
+                        }
+                        Ok(())
+                    })?;
+                }
+                CanonicalFunction::FutureCloseReadable { ty } => {
+                    self.print_intrinsic(state, "canon future.close-readable ", &|me, state| {
+                        me.print_idx(&state.component.type_names, ty)
+                    })?;
+                }
+                CanonicalFunction::FutureCloseWritable { ty } => {
+                    self.print_intrinsic(state, "canon future.close-writable ", &|me, state| {
+                        me.print_idx(&state.component.type_names, ty)
+                    })?;
+                }
+                CanonicalFunction::ErrorContextNew { options } => {
+                    self.print_intrinsic(state, "canon error-context.new", &|me, state| {
+                        me.print_canonical_options(state, &options)
+                    })?;
+                }
+                CanonicalFunction::ErrorContextDebugMessage { options } => {
+                    self.print_intrinsic(
+                        state,
+                        "canon error-context.debug-message",
+                        &|me, state| me.print_canonical_options(state, &options),
+                    )?;
+                }
+                CanonicalFunction::ErrorContextDrop => {
+                    self.print_intrinsic(state, "canon error-context.drop", &|_, _| Ok(()))?;
                 }
             }
         }
@@ -1079,7 +1245,7 @@ impl Printer<'_, '_> {
                         self.start_group("core func ")?;
                         self.print_name(&state.core.func_names, state.core.funcs)?;
                         self.end_group()?;
-                        debug_assert!(state.core.func_to_type.len() == state.core.funcs as usize);
+                        debug_assert_eq!(state.core.func_to_type.len(), state.core.funcs as usize);
                         state.core.funcs += 1;
                         state.core.func_to_type.push(None)
                     }
@@ -1105,7 +1271,7 @@ impl Printer<'_, '_> {
                         self.start_group("core tag ")?;
                         self.print_name(&state.core.tag_names, state.core.tags as u32)?;
                         self.end_group()?;
-                        debug_assert!(state.core.tag_to_type.len() == state.core.tags as usize);
+                        debug_assert_eq!(state.core.tag_to_type.len(), state.core.tags as usize);
                         state.core.tags += 1;
                         state.core.tag_to_type.push(None)
                     }

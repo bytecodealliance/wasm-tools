@@ -215,19 +215,19 @@ impl<'a> ComponentWorld<'a> {
             .chain(self.info.imports.imports())
         {
             match import {
-                Import::WorldFunc(_, name) => {
+                Import::WorldFunc(_, name, abi) => {
                     required
                         .interface_funcs
                         .entry(None)
                         .or_default()
-                        .insert(name);
+                        .insert((name, *abi));
                 }
-                Import::InterfaceFunc(_, id, name) => {
+                Import::InterfaceFunc(_, id, name, abi) => {
                     required
                         .interface_funcs
                         .entry(Some(*id))
                         .or_default()
-                        .insert(name);
+                        .insert((name, *abi));
                 }
                 Import::ImportedResourceDrop(_, _, id) => {
                     required.resource_drops.insert(*id);
@@ -414,22 +414,27 @@ impl<'a> ComponentWorld<'a> {
 
 #[derive(Default)]
 struct Required<'a> {
-    interface_funcs: IndexMap<Option<InterfaceId>, IndexSet<&'a str>>,
+    interface_funcs: IndexMap<Option<InterfaceId>, IndexSet<(&'a str, AbiVariant)>>,
     resource_drops: IndexSet<TypeId>,
 }
 
 impl ImportedInterface {
     fn add_func(&mut self, required: &Required<'_>, resolve: &Resolve, func: &Function) {
-        match required.interface_funcs.get(&self.interface) {
-            Some(set) if set.contains(func.name.as_str()) => {}
+        let abi = match required.interface_funcs.get(&self.interface) {
+            Some(set) if set.contains(&(func.name.as_str(), AbiVariant::GuestImport)) => {
+                AbiVariant::GuestImport
+            }
+            Some(set) if set.contains(&(func.name.as_str(), AbiVariant::GuestImportAsync)) => {
+                AbiVariant::GuestImportAsync
+            }
             _ => return,
-        }
+        };
         log::trace!("add func {}", func.name);
-        let options = RequiredOptions::for_import(resolve, func);
+        let options = RequiredOptions::for_import(resolve, func, abi);
         let lowering = if options.is_empty() {
             Lowering::Direct
         } else {
-            let sig = resolve.wasm_signature(AbiVariant::GuestImport, func);
+            let sig = resolve.wasm_signature(abi, func);
             Lowering::Indirect { sig, options }
         };
 
