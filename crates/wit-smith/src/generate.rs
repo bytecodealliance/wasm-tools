@@ -415,6 +415,10 @@ impl<'a> InterfaceGenerator<'a> {
         let mut exported_interfaces = HashSet::new();
         let mut export_names = HashSet::new();
 
+        // Claim the name `memory` to avoid conflicting with the canonical ABI
+        // always using a linear memory named `memory`.
+        export_names.insert("memory".to_string());
+
         while parts.len() < self.config.max_world_items && !u.is_empty() && u.arbitrary()? {
             let kind = u.arbitrary::<ItemKind>()?;
             let (direction, named) = match kind {
