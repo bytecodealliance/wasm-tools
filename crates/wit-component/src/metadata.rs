@@ -50,7 +50,7 @@ use wasm_encoder::{
     ComponentBuilder, ComponentExportKind, ComponentType, ComponentTypeRef, CustomSection,
 };
 use wasm_metadata::Producers;
-use wasmparser::{BinaryReader, Parser, Payload};
+use wasmparser::{BinaryReader, Encoding, Parser, Payload};
 use wit_parser::{Package, PackageName, Resolve, World, WorldId, WorldItem};
 
 const CURRENT_VERSION: u8 = 0x04;
@@ -127,6 +127,8 @@ pub struct ModuleMetadata {
 /// The extraction here provides the metadata necessary to continue the process
 /// later on.
 ///
+/// This will return an error if `wasm` is not a valid WebAssembly module.
+///
 /// Note that a "stripped" binary where `component-type` sections are removed
 /// is returned as well to embed within a component.
 pub fn decode(wasm: &[u8]) -> Result<(Vec<u8>, Bindgen)> {
@@ -141,6 +143,9 @@ pub fn decode(wasm: &[u8]) -> Result<(Vec<u8>, Bindgen)> {
                     .with_context(|| format!("decoding custom section {}", cs.name()))?;
                 ret.merge(data)
                     .with_context(|| format!("updating metadata for section {}", cs.name()))?;
+            }
+            wasmparser::Payload::Version { encoding, .. } if encoding != Encoding::Module => {
+                bail!("decoding a component is not supported")
             }
             _ => {
                 if let Some((id, range)) = payload.as_section() {
