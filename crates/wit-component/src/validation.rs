@@ -91,6 +91,9 @@ pub struct ValidatedModule<'a> {
     /// Whether or not this module exported a `cabi_realloc` function.
     pub realloc: Option<&'a str>,
 
+    /// Whether or not this module exported a `cabi_stream_buffer` function.
+    pub stream_buffer: Option<&'a str>,
+
     /// Whether or not this module exported a `cabi_realloc_adapter` function.
     pub adapter_realloc: Option<&'a str>,
 
@@ -142,6 +145,7 @@ pub fn validate_module<'a>(
         adapters_required: Default::default(),
         has_memory: false,
         realloc: None,
+        stream_buffer: None,
         adapter_realloc: None,
         metadata: &metadata.metadata,
         required_resource_funcs: Default::default(),
@@ -188,8 +192,9 @@ pub fn validate_module<'a>(
                                     || export.name == "canonical_abi_realloc"
                                 {
                                     ret.realloc = Some(export.name);
-                                }
-                                if export.name == "cabi_realloc_adapter" {
+                                } else if export.name == "cabi_stream_buffer" {
+                                    ret.stream_buffer = Some(export.name);
+                                } else if export.name == "cabi_realloc_adapter" {
                                     ret.adapter_realloc = Some(export.name);
                                 }
                             }

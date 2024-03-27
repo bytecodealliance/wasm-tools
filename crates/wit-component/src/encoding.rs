@@ -245,9 +245,7 @@ impl RequiredOptions {
         }
 
         if self.contains(RequiredOptions::REALLOC) {
-            iter.push(CanonicalOption::Realloc(realloc_index.ok_or_else(
-                || anyhow!("module does not export a function named `cabi_realloc`"),
-            )?));
+            iter.push(CanonicalOption::Realloc(realloc_index.unwrap()));
         }
 
         if self.contains(RequiredOptions::STRING_ENCODING) {
@@ -341,7 +339,11 @@ pub struct EncodingState<'a> {
     /// The index in the core function index space for the realloc function.
     ///
     /// If `None`, then the realloc function has not yet been aliased.
-    realloc_index: Option<u32>,
+    default_realloc_index: Option<u32>,
+    /// The index in the core function index space for the stream realloc function.
+    ///
+    /// If `None`, then the realloc function has not yet been aliased.
+    stream_buffer_index: Option<u32>,
     /// The index of the shim instance used for lowering imports into the core instance.
     ///
     /// If `None`, then the shim instance how not yet been encoded.
@@ -375,6 +377,10 @@ pub struct EncodingState<'a> {
     import_func_type_map: HashMap<types::FunctionKey<'a>, u32>,
     export_type_map: HashMap<TypeId, u32>,
     export_func_type_map: HashMap<types::FunctionKey<'a>, u32>,
+
+    /// Interface-name and function-name pairs identifying functions which
+    /// should use the optimized stream ABI with `cabi_stream_buffer`.
+    optimize_stream_read: IndexSet<(String, String)>,
 
     /// Metadata about the world inferred from the input to `ComponentEncoder`.
     info: &'a ComponentWorld<'a>,
@@ -1101,9 +1107,16 @@ impl<'a> EncodingState<'a> {
         // some sort of scheme to have per-function reallocs like
         // `cabi_realloc_{name}` or something like that.
         let realloc_index = match module {
-            CustomModule::Main => self.realloc_index,
+            CustomModule::Main => self.default_realloc_index,
             CustomModule::Adapter(name) => self.adapter_export_reallocs[name],
         };
+        if options.contains(RequiredOptions::REALLOC) && realloc_index.is_none() {
+            bail!(
+                "export `{}` needs dynamic allocation, but the module does not \
+                  export a function named `cabi_realloc`",
+                core_name
+            );
+        }
         let mut options = options
             .into_iter(encoding, self.memory_index, realloc_index)?
             .collect::<Vec<_>>();
@@ -1372,7 +1385,8 @@ impl<'a> EncodingState<'a> {
                     realloc,
                     encoding,
                 } => {
-                    let interface = &self.info.import_map[interface];
+                    let interface_name = interface;
+                    let interface = &self.info.import_map[interface_name];
                     let (name, _) = interface.lowerings.get_index(*index).unwrap();
                     let func_index = match &interface.interface {
                         Some(interface_id) => {
@@ -1387,7 +1401,9 @@ impl<'a> EncodingState<'a> {
                     };
 
                     let realloc = match realloc {
-                        CustomModule::Main => self.realloc_index,
+                        CustomModule::Main => {
+                            self.select_realloc_function(shim.options, interface_name, name)?
+                        }
                         CustomModule::Adapter(name) => self.adapter_import_reallocs[name],
                     };
 
@@ -1443,6 +1459,62 @@ impl<'a> EncodingState<'a> {
         Ok(())
     }
 
+    /// Decide whether to use the regular `cabi_realloc` or some alternative
+    /// (eg. `cabi_stream_buffer`) for a function named `name` in an imported
+    /// interface `interface_name`.
+    fn select_realloc_function(
+        &self,
+        options: RequiredOptions,
+        interface_name: &Option<String>,
+        name: &str,
+    ) -> Result<Option<u32>> {
+        // If we have an interface name and the interface/func was opted into
+        // the stream-read optimization, use `cabi_stream_buffer`.
+        if let Some(interface_name) = interface_name {
+            if self
+                .optimize_stream_read
+                .contains(&(interface_name.to_owned(), name.to_owned()))
+            {
+                if !options.contains(RequiredOptions::REALLOC) {
+                    bail!(
+                        "`{}#{}` is designated for stream reading, but it doesn't \
+                        have a `list` in its return type",
+                        interface_name,
+                        name
+                    );
+                }
+                if self.stream_buffer_index.is_none() {
+                    bail!(
+                        "`{}#{}` is designated for stream reading, but the module does \
+                        not export a function named `cabi_stream_buffer`",
+                        interface_name,
+                        name
+                    );
+                }
+                return Ok(self.stream_buffer_index);
+            }
+        }
+
+        // Otherwise, use the module's default realloc function if we need one.
+        if options.contains(RequiredOptions::REALLOC) && self.default_realloc_index.is_none() {
+            if let Some(interface_name) = interface_name {
+                bail!(
+                    "`{}#{}` needs dynamic allocation, but the module does not export a \
+                    function named `cabi_realloc`",
+                    interface_name,
+                    name
+                );
+            } else {
+                bail!(
+                    "`{}` needs dynamic allocation, but the module does not export a \
+                    function named `cabi_realloc`",
+                    name
+                );
+            }
+        }
+        Ok(self.default_realloc_index)
+    }
+
     fn instantiate_core_module<'b, A>(&mut self, args: A, info: &ValidatedModule<'_>)
     where
         A: IntoIterator<Item = (&'b str, ModuleArg)>,
@@ -1463,7 +1535,14 @@ impl<'a> EncodingState<'a> {
         }
 
         if let Some(name) = &info.realloc {
-            self.realloc_index = Some(self.component.core_alias_export(
+            self.default_realloc_index = Some(self.component.core_alias_export(
+                instance_index,
+                name,
+                ExportKind::Func,
+            ));
+        }
+        if let Some(name) = &info.stream_buffer {
+            self.stream_buffer_index = Some(self.component.core_alias_export(
                 instance_index,
                 name,
                 ExportKind::Func,
@@ -1910,6 +1989,7 @@ pub struct ComponentEncoder {
     adapters: IndexMap<String, Adapter>,
     import_name_map: HashMap<String, String>,
     realloc_via_memory_grow: bool,
+    optimize_stream_read: IndexSet<(String, String)>,
 }
 
 impl ComponentEncoder {
@@ -2057,6 +2137,16 @@ impl ComponentEncoder {
         self
     }
 
+    /// Provide a list of interface-name and function-name pairs identifying
+    /// functions that should use an alternate ABI optimized for stream
+    /// reading.
+    pub fn optimize_stream_read(mut self, value: &[(String, String)]) -> Self {
+        for func in value {
+            self.optimize_stream_read.insert(func.clone());
+        }
+        self
+    }
+
     /// The instance import name map to use.
     ///
     /// This is used to rename instance imports in the final component.
@@ -2084,7 +2174,8 @@ impl ComponentEncoder {
             module_index: None,
             instance_index: None,
             memory_index: None,
-            realloc_index: None,
+            default_realloc_index: None,
+            stream_buffer_index: None,
             shim_instance_index: None,
             fixups_module_index: None,
             adapter_modules: IndexMap::new(),
@@ -2098,6 +2189,7 @@ impl ComponentEncoder {
             imported_instances: Default::default(),
             imported_funcs: Default::default(),
             exported_instances: Default::default(),
+            optimize_stream_read: self.optimize_stream_read.clone(),
             info: &world,
         };
         state.encode_imports(&self.import_name_map)?;
