@@ -14,6 +14,7 @@
  */
 
 use crate::limits::MAX_WASM_CATCHES;
+use crate::prelude::*;
 use crate::{BinaryReader, BinaryReaderError, FromReader, Result, ValType};
 
 /// Represents a block type.

@@ -19,6 +19,8 @@ workspace = true
 bitflags = "2.4.1"
 indexmap = { workspace = true }
 semver = { workspace = true }
+hashbrown = { workspace = true }
+ahash = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
@@ -34,3 +36,7 @@ log.workspace = true
 [[bench]]
 name = "benchmark"
 harness = false
+
+[features]
+default = ['std']
+std = ['indexmap/std']

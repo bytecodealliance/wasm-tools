@@ -22,13 +22,14 @@
 // confusing it's recommended to read over that section to see how it maps to
 // the various methods here.
 
+use crate::prelude::*;
 use crate::{
     limits::MAX_WASM_FUNCTION_LOCALS, ArrayType, BinaryReaderError, BlockType, BrTable, Catch,
     CompositeType, FieldType, FuncType, HeapType, Ieee32, Ieee64, MemArg, RefType, Result,
     StorageType, StructType, SubType, TryTable, UnpackedIndex, ValType, VisitOperator,
     WasmFeatures, WasmModuleResources, V128,
 };
-use std::ops::{Deref, DerefMut};
+use core::ops::{Deref, DerefMut};
 
 pub(crate) struct OperatorValidator {
     pub(super) locals: Locals,
@@ -154,15 +155,15 @@ enum MaybeType {
 // unit of storage, so assert that it doesn't exceed 4 bytes which is the
 // current expected size.
 const _: () = {
-    assert!(std::mem::size_of::<MaybeType>() == 4);
+    assert!(core::mem::size_of::<MaybeType>() == 4);
 };
 
-impl std::fmt::Display for MaybeType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for MaybeType {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             MaybeType::Bot => write!(f, "bot"),
             MaybeType::HeapBot => write!(f, "heap-bot"),
-            MaybeType::Type(ty) => std::fmt::Display::fmt(ty, f),
+            MaybeType::Type(ty) => core::fmt::Display::fmt(ty, f),
         }
     }
 }
@@ -4073,8 +4074,8 @@ where
     }
 }
 
-trait PreciseIterator: ExactSizeIterator + DoubleEndedIterator + Clone + std::fmt::Debug {}
-impl<T: ExactSizeIterator + DoubleEndedIterator + Clone + std::fmt::Debug> PreciseIterator for T {}
+trait PreciseIterator: ExactSizeIterator + DoubleEndedIterator + Clone + core::fmt::Debug {}
+impl<T: ExactSizeIterator + DoubleEndedIterator + Clone + core::fmt::Debug> PreciseIterator for T {}
 
 impl Locals {
     /// Defines another group of `count` local variables of type `ty`.

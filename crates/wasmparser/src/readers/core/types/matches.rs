@@ -49,7 +49,7 @@ impl<T> WithRecGroup<T> {
     }
 }
 
-impl<T> std::ops::Deref for WithRecGroup<T> {
+impl<T> core::ops::Deref for WithRecGroup<T> {
     type Target = T;
 
     #[inline]
@@ -58,7 +58,7 @@ impl<T> std::ops::Deref for WithRecGroup<T> {
     }
 }
 
-impl<T> std::ops::DerefMut for WithRecGroup<T> {
+impl<T> core::ops::DerefMut for WithRecGroup<T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner

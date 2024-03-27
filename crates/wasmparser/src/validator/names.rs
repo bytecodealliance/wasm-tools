@@ -1,12 +1,13 @@
 //! Definitions of name-related helpers and newtypes, primarily for the
 //! component model.
 
+use crate::prelude::*;
 use crate::{Result, WasmFeatures};
+use core::borrow::Borrow;
+use core::fmt;
+use core::hash::{Hash, Hasher};
+use core::ops::Deref;
 use semver::Version;
-use std::borrow::Borrow;
-use std::fmt;
-use std::hash::{Hash, Hasher};
-use std::ops::Deref;
 
 /// Represents a kebab string slice used in validation.
 ///
@@ -38,7 +39,7 @@ impl KebabStr {
         // Therefore transmuting `&str` to `&KebabStr` is safe.
         #[allow(unsafe_code)]
         unsafe {
-            std::mem::transmute::<_, &Self>(s.as_ref())
+            core::mem::transmute::<_, &Self>(s.as_ref())
         }
     }
 

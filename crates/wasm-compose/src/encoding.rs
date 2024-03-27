@@ -730,7 +730,7 @@ impl<'a> TypeEncoder<'a> {
         index
     }
 
-    fn flags(encodable: &mut Encodable, names: &IndexSet<KebabString>) -> u32 {
+    fn flags(encodable: &mut Encodable, names: &wasmparser::map::IndexSet<KebabString>) -> u32 {
         let index = encodable.type_count();
         encodable
             .ty()
@@ -739,7 +739,7 @@ impl<'a> TypeEncoder<'a> {
         index
     }
 
-    fn enum_type(encodable: &mut Encodable, cases: &IndexSet<KebabString>) -> u32 {
+    fn enum_type(encodable: &mut Encodable, cases: &wasmparser::map::IndexSet<KebabString>) -> u32 {
         let index = encodable.type_count();
         encodable
             .ty()

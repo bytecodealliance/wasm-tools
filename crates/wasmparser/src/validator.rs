@@ -13,15 +13,16 @@
  * limitations under the License.
  */
 
+use crate::prelude::*;
 use crate::{
     limits::*, BinaryReaderError, Encoding, FromReader, FunctionBody, HeapType, Parser, Payload,
     RefType, Result, SectionLimited, ValType, WASM_COMPONENT_VERSION, WASM_MODULE_VERSION,
 };
+use ::core::mem;
+use ::core::ops::Range;
+use ::core::sync::atomic::{AtomicUsize, Ordering};
+use alloc::sync::Arc;
 use bitflags::bitflags;
-use std::mem;
-use std::ops::Range;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
 
 /// Test whether the given buffer contains a valid WebAssembly module or component,
 /// analogous to [`WebAssembly.validate`][js] in the JS API.
@@ -1465,7 +1466,7 @@ impl Validator {
     ///
     /// Returns the types known to the validator for the module or component.
     pub fn end(&mut self, offset: usize) -> Result<Types> {
-        match std::mem::replace(&mut self.state, State::End) {
+        match mem::replace(&mut self.state, State::End) {
             State::Unparsed(_) => Err(BinaryReaderError::new(
                 "cannot call `end` before a header has been parsed",
                 offset,

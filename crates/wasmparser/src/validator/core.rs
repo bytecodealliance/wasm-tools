@@ -9,6 +9,7 @@ use super::{
     operators::{ty_to_str, OperatorValidator, OperatorValidatorAllocations},
     types::{CoreTypeId, EntityType, RecGroupId, TypeAlloc, TypeList},
 };
+use crate::prelude::*;
 use crate::{
     limits::*, validator::types::TypeIdentifier, BinaryReaderError, CompositeType, ConstExpr, Data,
     DataKind, Element, ElementKind, ExternalKind, FuncType, Global, GlobalType, HeapType,
@@ -16,9 +17,8 @@ use crate::{
     TableType, TagType, TypeRef, UnpackedIndex, ValType, VisitOperator, WasmFeatures,
     WasmModuleResources,
 };
-use indexmap::IndexMap;
-use std::mem;
-use std::{collections::HashSet, sync::Arc};
+use alloc::sync::Arc;
+use core::mem;
 
 // Section order for WebAssembly modules.
 //
@@ -1362,8 +1362,8 @@ const _: () = {
 };
 
 mod arc {
-    use std::ops::Deref;
-    use std::sync::Arc;
+    use alloc::sync::Arc;
+    use core::ops::Deref;
 
     enum Inner<T> {
         Owned(T),
@@ -1405,7 +1405,7 @@ mod arc {
                 return;
             }
 
-            let inner = std::mem::replace(&mut self.inner, Inner::Empty);
+            let inner = core::mem::replace(&mut self.inner, Inner::Empty);
             let x = match inner {
                 Inner::Owned(x) => x,
                 _ => Self::unreachable(),

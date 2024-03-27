@@ -1,7 +1,8 @@
+use crate::prelude::*;
 use crate::{
     BinaryReader, BinaryReaderError, FromReader, Result, SectionLimited, Subsection, Subsections,
 };
-use std::ops::Range;
+use core::ops::Range;
 
 bitflags::bitflags! {
     /// Flags for WebAssembly symbols.
