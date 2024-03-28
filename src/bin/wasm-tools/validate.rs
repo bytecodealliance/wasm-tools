@@ -102,6 +102,9 @@ fn parse_features(arg: &str) -> Result<WasmFeatures> {
         ("function-references", |f| &mut f.function_references),
         ("simd", |f| &mut f.simd),
         ("threads", |f| &mut f.threads),
+        ("shared-everything-threads", |f| {
+            &mut f.shared_everything_threads
+        }),
         ("bulk-memory", |f| &mut f.bulk_memory),
         ("multi-value", |f| &mut f.multi_value),
         ("tail-call", |f| &mut f.tail_call),
