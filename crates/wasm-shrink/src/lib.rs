@@ -223,6 +223,7 @@ impl ShrinkRun {
             bulk_memory: true,
             simd: true,
             threads: true,
+            shared_everything_threads: false,
             tail_call: true,
             multi_memory: true,
             exceptions: true,

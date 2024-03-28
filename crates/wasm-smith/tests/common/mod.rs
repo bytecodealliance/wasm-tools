@@ -19,6 +19,7 @@ pub fn parser_features_from_config(config: &Config) -> WasmFeatures {
         gc: config.gc_enabled,
 
         threads: false,
+        shared_everything_threads: false,
         floats: true,
         extended_const: false,
         component_model: false,
