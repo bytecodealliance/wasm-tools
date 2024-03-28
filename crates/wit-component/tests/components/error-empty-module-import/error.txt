@@ -1,1 +1,5 @@
-no top-level imported function `foo` specified
+failed to decode world from module
+
+Caused by:
+    0: module was not valid
+    1: no top-level imported function `foo` specified

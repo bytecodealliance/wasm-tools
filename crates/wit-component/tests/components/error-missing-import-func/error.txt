@@ -1,1 +1,5 @@
-module requires an import interface named `foo`
+failed to decode world from module
+
+Caused by:
+    0: module was not valid
+    1: module requires an import interface named `foo`

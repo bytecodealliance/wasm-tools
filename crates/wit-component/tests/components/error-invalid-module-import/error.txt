@@ -1,1 +1,5 @@
-module is only allowed to import functions
+failed to decode world from module
+
+Caused by:
+    0: module was not valid
+    1: module is only allowed to import functions

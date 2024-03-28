@@ -1,4 +1,6 @@
-failed to validate exported interface `foo`
+failed to decode world from module
 
 Caused by:
-    type mismatch for function `a`: expected `[I32, I32] -> [I32]` but found `[] -> []`
+    0: module was not valid
+    1: failed to validate exported interface `foo`
+    2: type mismatch for function `a`: expected `[I32, I32] -> [I32]` but found `[] -> []`
