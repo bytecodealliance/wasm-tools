@@ -661,6 +661,7 @@ impl From<core::GlobalType<'_>> for wasm_encoder::GlobalType {
         Self {
             val_type: ty.ty.into(),
             mutable: ty.mutable,
+            shared: ty.shared,
         }
     }
 }

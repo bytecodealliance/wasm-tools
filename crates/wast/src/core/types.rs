@@ -368,22 +368,35 @@ pub struct GlobalType<'a> {
     pub ty: ValType<'a>,
     /// Whether or not the global is mutable or not.
     pub mutable: bool,
+    /// Whether or not the global is shared.
+    pub shared: bool,
 }
 
 impl<'a> Parse<'a> for GlobalType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek2::<kw::r#mut>()? {
+        if parser.peek2::<kw::shared>()? || parser.peek2::<kw::r#mut>()? {
             parser.parens(|p| {
-                p.parse::<kw::r#mut>()?;
+                let mut shared = false;
+                let mut mutable = false;
+                if parser.peek::<kw::shared>()? {
+                    p.parse::<kw::shared>()?;
+                    shared = true;
+                }
+                if parser.peek::<kw::r#mut>()? {
+                    p.parse::<kw::r#mut>()?;
+                    mutable = true;
+                }
                 Ok(GlobalType {
-                    ty: parser.parse()?,
-                    mutable: true,
+                    ty: p.parse()?,
+                    mutable,
+                    shared,
                 })
             })
         } else {
             Ok(GlobalType {
                 ty: parser.parse()?,
                 mutable: false,
+                shared: false,
             })
         }
     }

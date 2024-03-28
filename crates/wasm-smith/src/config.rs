@@ -568,6 +568,18 @@ define_config! {
         /// Defaults to `false`.
         pub threads_enabled: bool = false,
 
+        /// Determines whether the shared-everything-threads proposal is
+        /// enabled.
+        ///
+        /// The [shared-everything-threads proposal] involves shared attributes
+        /// on more things, even more new atomic instructions, TLS support, new
+        /// component model intrinsics, etc.
+        ///
+        /// [threads proposal]: https://github.com/WebAssembly/shared-everything-threads/blob/main/proposals/shared-everything-threads/Overview.md
+        ///
+        /// Defaults to `false`.
+        pub shared_everything_threads_enabled: bool = false,
+
         /// Indicates whether wasm-smith is allowed to generate invalid function
         /// bodies.
         ///
@@ -712,6 +724,7 @@ impl<'a> Arbitrary<'a> for Config {
             available_imports: None,
             exports: None,
             threads_enabled: false,
+            shared_everything_threads_enabled: false,
             export_everything: false,
             tail_call_enabled: false,
             gc_enabled: false,

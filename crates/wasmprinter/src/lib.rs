@@ -1104,8 +1104,14 @@ impl Printer {
             self.print_name(&state.core.global_names, state.core.globals)?;
             self.result.push(' ');
         }
-        if ty.mutable {
-            self.result.push_str("(mut ");
+        if ty.shared || ty.mutable {
+            self.result.push('(');
+            if ty.shared {
+                self.result.push_str("shared ");
+            }
+            if ty.mutable {
+                self.result.push_str("mut ");
+            }
             self.print_valtype(state, ty.content_type)?;
             self.result.push(')');
         } else {

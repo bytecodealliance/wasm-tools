@@ -277,3 +277,17 @@ fn no_panic_non_func_type() {
     .unwrap();
     wasmprinter::print_bytes(&bytes).unwrap();
 }
+
+#[test]
+fn shared_global() {
+    const MODULE: &str = r#"
+    (module
+        (global (;0;) (shared f32))
+    )"#;
+    let bytes = wat::parse_str(MODULE).unwrap();
+    let result = wasmprinter::print_bytes(&bytes).unwrap();
+    assert_eq!(
+        result.replace(" ", "").trim(),
+        MODULE.replace(" ", "").trim()
+    );
+}

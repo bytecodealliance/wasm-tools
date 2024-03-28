@@ -1027,6 +1027,12 @@ impl Module {
         features: &WasmFeatures,
         offset: usize,
     ) -> Result<()> {
+        if ty.shared && !features.shared_everything_threads {
+            return Err(BinaryReaderError::new(
+                "shared globals require the shared-everything-threads proposal",
+                offset,
+            ));
+        }
         self.check_value_type(&mut ty.content_type, features, offset)
     }
 

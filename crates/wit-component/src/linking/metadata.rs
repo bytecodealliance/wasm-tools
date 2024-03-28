@@ -89,6 +89,7 @@ impl TryFrom<&FuncType> for FunctionType {
 pub struct GlobalType {
     pub ty: ValueType,
     pub mutable: bool,
+    pub shared: bool,
 }
 
 impl fmt::Display for GlobalType {
@@ -472,9 +473,11 @@ impl<'a> Metadata<'a> {
                                     TypeRef::Global(wasmparser::GlobalType {
                                         content_type,
                                         mutable,
+                                        shared,
                                     }) => Type::Global(GlobalType {
                                         ty: content_type.try_into()?,
                                         mutable,
+                                        shared,
                                     }),
                                     TypeRef::Func(ty) => Type::Function(FunctionType::try_from(
                                         &types[usize::try_from(ty).unwrap()],
@@ -537,6 +540,7 @@ impl<'a> Metadata<'a> {
                                         Type::Global(GlobalType {
                                             ty: ValueType::try_from(ty.content_type)?,
                                             mutable: ty.mutable,
+                                            shared: ty.shared,
                                         })
                                     }
                                     kind => {

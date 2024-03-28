@@ -23,6 +23,8 @@ pub enum ResourceRequest {
         tpe: PrimitiveTypeInfo,
         /// If its mutable
         mutable: bool,
+        /// If its shared
+        shared: bool,
     },
     // TODO add other needed resources here, for example, needed locals, needed
     // memory etc. Notice that how this resources are translated to Wasm code,
@@ -363,6 +365,7 @@ pub fn expr2wasm(
                             index: global_idx as usize,
                             tpe: PrimitiveTypeInfo::I32,
                             mutable: true,
+                            shared: false,
                         };
                         resources.push(request);
 
@@ -375,6 +378,7 @@ pub fn expr2wasm(
                             index: global_idx as usize,
                             tpe: PrimitiveTypeInfo::I64,
                             mutable: true,
+                            shared: false,
                         };
                         resources.push(request);
 
@@ -387,6 +391,7 @@ pub fn expr2wasm(
                             index: global_idx as usize,
                             tpe: PrimitiveTypeInfo::F32,
                             mutable: true,
+                            shared: false,
                         };
                         resources.push(request);
 
@@ -399,6 +404,7 @@ pub fn expr2wasm(
                             index: global_idx as usize,
                             tpe: PrimitiveTypeInfo::F64,
                             mutable: true,
+                            shared: false,
                         };
                         resources.push(request);
 

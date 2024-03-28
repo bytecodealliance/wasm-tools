@@ -309,6 +309,7 @@ impl PeepholeMutator {
                                     index: _,
                                     tpe: ty,
                                     mutable,
+                                    shared,
                                 } => {
                                     let (init, ty) = match ty {
                                         PrimitiveTypeInfo::I32 => {
@@ -329,8 +330,9 @@ impl PeepholeMutator {
                                         _ => unreachable!("Not valid for globals"),
                                     };
                                     let ty = wasm_encoder::GlobalType {
-                                        mutable: *mutable,
                                         val_type: ty,
+                                        mutable: *mutable,
+                                        shared: *shared,
                                     };
                                     // Add to globals
                                     new_global_section.global(ty, &init);

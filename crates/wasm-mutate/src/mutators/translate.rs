@@ -170,6 +170,7 @@ pub fn global_type(
     Ok(wasm_encoder::GlobalType {
         val_type: t.translate_ty(&ty.content_type)?,
         mutable: ty.mutable,
+        shared: ty.shared,
     })
 }
 
