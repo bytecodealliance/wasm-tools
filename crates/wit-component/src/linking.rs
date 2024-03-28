@@ -57,9 +57,7 @@ enum Address<'a> {
 /// Represents a `dlopen`/`dlsym` lookup table enabling runtime symbol resolution
 ///
 /// The top level of this table is a sorted list of library names and offsets, each pointing to a sorted list of
-/// symbol names and offsets.  See
-/// https://github.com/dicej/wasi-libc/blob/76c7e1e1cfdad577ecd7f61c67ead7a38d62a7c4/libc-top-half/musl/src/misc/dl.c
-/// for how this is used.
+/// symbol names and offsets.  See ../dl/src/lib.rs for how this is used at runtime.
 struct DlOpenables<'a> {
     /// Offset into the main module's table where function references will be stored
     table_base: u32,
@@ -1202,6 +1200,9 @@ pub struct Linker {
     /// Whether to generate trapping stubs for any unresolved imports
     stub_missing_functions: bool,
 
+    /// Whether to use a built-in implementation of `dlopen`/`dlsym`.
+    use_built_in_libdl: bool,
+
     /// Size of stack (in bytes) to allocate in the synthesized main module
     ///
     /// If `None`, use `DEFAULT_STACK_SIZE_BYTES`.
@@ -1247,8 +1248,18 @@ impl Linker {
         self
     }
 
+    /// Specify whether to use a built-in implementation of `dlopen`/`dlsym`.
+    pub fn use_built_in_libdl(mut self, use_built_in_libdl: bool) -> Self {
+        self.use_built_in_libdl = use_built_in_libdl;
+        self
+    }
+
     /// Encode the component and return the bytes
     pub fn encode(mut self) -> Result<Vec<u8>> {
+        if self.use_built_in_libdl {
+            self = self.library("libdl.so", include_bytes!("../dl/libdl.so"), false)?;
+        }
+
         let adapter_names = self
             .adapters
             .iter()
@@ -1267,6 +1278,14 @@ impl Linker {
                     .with_context(|| format!("failed to extract linking metadata from {name}"))
             })
             .collect::<Result<Vec<_>>>()?;
+
+        eprintln!(
+            "libraries are {:?}",
+            self.libraries
+                .iter()
+                .map(|(name, ..)| name)
+                .collect::<Vec<_>>()
+        );
 
         {
             let names = self
@@ -1332,6 +1351,7 @@ impl Linker {
                         .all(|(_, export)| export.flags.contains(SymbolFlags::BINDING_WEAK)))
             {
                 self.stub_missing_functions = false;
+                self.use_built_in_libdl = false;
                 self.libraries.push((
                     "wit-component:stubs".into(),
                     make_stubs_module(&missing),
