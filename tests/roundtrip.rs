@@ -578,6 +578,7 @@ impl TestState {
     fn wasmparser_validator_for(&self, test: &Path) -> Validator {
         let mut features = WasmFeatures {
             threads: true,
+            shared_everything_threads: false,
             reference_types: true,
             simd: true,
             relaxed_simd: true,
@@ -637,6 +638,10 @@ impl TestState {
                 "tail-call" => features.tail_call = true,
                 "memory64" => features.memory64 = true,
                 "component-model" => features.component_model = true,
+                "shared-everything-threads" => {
+                    features.component_model = true;
+                    features.shared_everything_threads = true;
+                }
                 "multi-memory" => features.multi_memory = true,
                 "extended-const" => features.extended_const = true,
                 "function-references" => features.function_references = true,
