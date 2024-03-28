@@ -109,13 +109,25 @@ pub struct UnresolvedPackage {
     pub docs: Docs,
 
     unknown_type_spans: Vec<Span>,
-    world_item_spans: Vec<(Vec<Span>, Vec<Span>)>,
-    interface_spans: Vec<Span>,
-    world_spans: Vec<Span>,
+    interface_spans: Vec<InterfaceSpan>,
+    world_spans: Vec<WorldSpan>,
     foreign_dep_spans: Vec<Span>,
     source_map: SourceMap,
-    include_world_spans: Vec<Span>,
     required_resource_types: Vec<(TypeId, Span)>,
+}
+
+#[derive(Clone)]
+struct WorldSpan {
+    span: Span,
+    imports: Vec<Span>,
+    exports: Vec<Span>,
+    includes: Vec<Span>,
+}
+
+#[derive(Clone)]
+struct InterfaceSpan {
+    span: Span,
+    funcs: Vec<Span>,
 }
 
 #[derive(Debug, Copy, Clone)]

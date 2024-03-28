@@ -64,22 +64,16 @@ pub struct Resolver<'a> {
     /// pointing to it if the item isn't actually defined.
     unknown_type_spans: Vec<Span>,
 
-    /// Spans for each world in `self.world` to assign for each import/export
-    /// for later error reporting.
-    world_item_spans: Vec<(Vec<Span>, Vec<Span>)>,
-
     /// Spans for each world in `self.world`
-    world_spans: Vec<Span>,
+    world_spans: Vec<WorldSpan>,
 
     /// The span of each interface's definition which is used for error
     /// reporting during the final `Resolve` phase.
-    interface_spans: Vec<Span>,
+    interface_spans: Vec<InterfaceSpan>,
 
     /// Spans per entry in `self.foreign_deps` for where the dependency was
     /// introduced to print an error message if necessary.
     foreign_dep_spans: Vec<Span>,
-
-    include_world_spans: Vec<Span>,
 
     /// A list of `TypeDefKind::Unknown` types which are required to be
     /// resources when this package is resolved against its dependencies.
@@ -221,12 +215,10 @@ impl<'a> Resolver<'a> {
                 })
                 .collect(),
             unknown_type_spans: mem::take(&mut self.unknown_type_spans),
-            world_item_spans: mem::take(&mut self.world_item_spans),
             interface_spans: mem::take(&mut self.interface_spans),
             world_spans: mem::take(&mut self.world_spans),
             foreign_dep_spans: mem::take(&mut self.foreign_dep_spans),
             source_map: SourceMap::default(),
-            include_world_spans: mem::take(&mut self.include_world_spans),
             required_resource_types: mem::take(&mut self.required_resource_types),
         })
     }
@@ -258,7 +250,7 @@ impl<'a> Resolver<'a> {
                                 id.package_name(),
                                 name.name
                             );
-                            AstItem::World(self.alloc_world(name.span, true))
+                            AstItem::World(self.alloc_world(name.span))
                         }
                         WorldOrInterface::Interface | WorldOrInterface::Unknown => {
                             // Currently top-level `use` always assumes an interface, so the
@@ -289,7 +281,10 @@ impl<'a> Resolver<'a> {
 
     fn alloc_interface(&mut self, span: Span) -> InterfaceId {
         self.interface_types.push(IndexMap::new());
-        self.interface_spans.push(span);
+        self.interface_spans.push(InterfaceSpan {
+            span,
+            funcs: Vec::new(),
+        });
         self.interfaces.alloc(Interface {
             name: None,
             types: IndexMap::new(),
@@ -299,11 +294,13 @@ impl<'a> Resolver<'a> {
         })
     }
 
-    fn alloc_world(&mut self, span: Span, dummy_span: bool) -> WorldId {
-        self.world_spans.push(span);
-        if dummy_span {
-            self.world_item_spans.push((Vec::new(), Vec::new()));
-        }
+    fn alloc_world(&mut self, span: Span) -> WorldId {
+        self.world_spans.push(WorldSpan {
+            span,
+            imports: Vec::new(),
+            exports: Vec::new(),
+            includes: Vec::new(),
+        });
         self.worlds.alloc(World {
             name: String::new(),
             docs: Docs::default(),
@@ -461,8 +458,7 @@ impl<'a> Resolver<'a> {
                     iface_id_order.push(id);
                 }
                 ast::AstItem::World(_) => {
-                    // No dummy span needs to be created because they will be created at `resolve_world`
-                    let id = self.alloc_world(package_items[name], false);
+                    let id = self.alloc_world(package_items[name]);
                     self.worlds[id].name = name.to_string();
                     let prev = ids.insert(name, AstItem::World(id));
                     assert!(prev.is_none());
@@ -585,7 +581,7 @@ impl<'a> Resolver<'a> {
             _ => None,
         });
         for include in items {
-            self.resolve_include(TypeOwner::World(world_id), include)?;
+            self.resolve_include(world_id, include)?;
         }
 
         let mut export_spans = Vec::new();
@@ -698,7 +694,8 @@ impl<'a> Resolver<'a> {
             assert!(prev.is_none());
             spans.push(kind.span());
         }
-        self.world_item_spans.push((import_spans, export_spans));
+        self.world_spans[world_id.index()].imports = import_spans;
+        self.world_spans[world_id.index()].exports = export_spans;
         self.type_lookup.clear();
 
         Ok(world_id)
@@ -772,6 +769,9 @@ impl<'a> Resolver<'a> {
                         &f.func,
                         FunctionKind::Freestanding,
                     )?);
+                    self.interface_spans[interface_id.index()]
+                        .funcs
+                        .push(f.name.span);
                 }
                 ast::InterfaceItem::Use(_) => {}
                 ast::InterfaceItem::TypeDef(ast::TypeDef {
@@ -781,6 +781,9 @@ impl<'a> Resolver<'a> {
                 }) => {
                     for func in r.funcs.iter() {
                         funcs.push(self.resolve_resource_func(func, name)?);
+                        self.interface_spans[interface_id.index()]
+                            .funcs
+                            .push(func.named_func().name.span);
                     }
                 }
                 ast::InterfaceItem::TypeDef(_) => {}
@@ -900,14 +903,9 @@ impl<'a> Resolver<'a> {
     }
 
     /// For each name in the `include`, resolve the path of the include, add it to the self.includes
-    fn resolve_include(&mut self, owner: TypeOwner, i: &ast::Include<'a>) -> Result<()> {
+    fn resolve_include(&mut self, world_id: WorldId, i: &ast::Include<'a>) -> Result<()> {
         let (item, name, span) = self.resolve_ast_item_path(&i.from)?;
         let include_from = self.extract_world_from_item(&item, &name, span)?;
-        self.include_world_spans.push(span);
-        let world_id = match owner {
-            TypeOwner::World(id) => id,
-            _ => unreachable!(),
-        };
         self.worlds[world_id].includes.push(include_from);
         self.worlds[world_id].include_names.push(
             i.names
@@ -918,6 +916,7 @@ impl<'a> Resolver<'a> {
                 })
                 .collect(),
         );
+        self.world_spans[world_id.index()].includes.push(span);
         Ok(())
     }
 

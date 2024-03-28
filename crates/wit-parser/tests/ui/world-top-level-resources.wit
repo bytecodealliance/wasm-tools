@@ -14,7 +14,7 @@ interface types {
 
 interface handler {
   use types.{request, response};
-  handle: func(some: borrow<request>) -> borrow<response>;
+  handle: func(some: borrow<request>) -> response;
   handle-owned: func(some: own<request>) -> own<response>;
 }
 
