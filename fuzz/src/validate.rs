@@ -32,6 +32,7 @@ pub fn validate_raw_bytes(u: &mut Unstructured<'_>) -> Result<()> {
         reference_types: u.arbitrary()?,
         multi_value: u.arbitrary()?,
         threads: u.arbitrary()?,
+        shared_everything_threads: u.arbitrary()?,
         simd: u.arbitrary()?,
         component_model: u.arbitrary()?,
         tail_call: u.arbitrary()?,
