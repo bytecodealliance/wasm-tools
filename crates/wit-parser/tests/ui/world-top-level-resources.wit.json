@@ -122,7 +122,7 @@
           ],
           "results": [
             {
-              "type": 10
+              "type": 8
             }
           ]
         }
@@ -201,7 +201,7 @@
       "name": null,
       "kind": {
         "handle": {
-          "borrow": 6
+          "own": 6
         }
       },
       "owner": null
@@ -211,15 +211,6 @@
       "kind": {
         "handle": {
           "own": 5
-        }
-      },
-      "owner": null
-    },
-    {
-      "name": null,
-      "kind": {
-        "handle": {
-          "own": 6
         }
       },
       "owner": null

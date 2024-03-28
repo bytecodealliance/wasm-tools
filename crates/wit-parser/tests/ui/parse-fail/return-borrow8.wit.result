@@ -1,0 +1,8 @@
+failed to resolve directory while parsing WIT for path [tests/ui/parse-fail/return-borrow8]
+
+Caused by:
+    function returns a type which contains a `borrow<T>` which is not supported
+         --> tests/ui/parse-fail/return-borrow8/foo.wit:6:3
+          |
+        6 |   x: func() -> r;
+          |   ^
