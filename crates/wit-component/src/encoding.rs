@@ -2078,7 +2078,7 @@ impl ComponentEncoder {
             bail!("a module is required when encoding a component");
         }
 
-        let world = ComponentWorld::new(self)?;
+        let world = ComponentWorld::new(self).context("failed to decode world from module")?;
         let mut state = EncodingState {
             component: ComponentBuilder::default(),
             module_index: None,

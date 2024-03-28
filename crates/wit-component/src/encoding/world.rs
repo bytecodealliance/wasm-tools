@@ -76,7 +76,8 @@ impl<'a> ComponentWorld<'a> {
             &encoder.metadata,
             &encoder.main_module_exports,
             &adapters,
-        )?;
+        )
+        .context("module was not valid")?;
 
         let mut ret = ComponentWorld {
             encoder,
