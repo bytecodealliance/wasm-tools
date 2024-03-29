@@ -22,6 +22,7 @@ members = [
   'crates/wasm-mutate-stats',
   'fuzz',
   'crates/wit-parser/fuzz',
+  'crates/wit-component/dl',
 ]
 
 [workspace.lints.rust]

@@ -8,5 +8,3 @@ publish = false
 crate-type = [ "staticlib" ]
 
 [dependencies]
-
-[workspace]
