@@ -1257,6 +1257,7 @@ impl Linker {
     /// Encode the component and return the bytes
     pub fn encode(mut self) -> Result<Vec<u8>> {
         if self.use_built_in_libdl {
+            self.use_built_in_libdl = false;
             self = self.library("libdl.so", include_bytes!("../libdl.so"), false)?;
         }
 
@@ -1343,7 +1344,6 @@ impl Linker {
                         .all(|(_, export)| export.flags.contains(SymbolFlags::BINDING_WEAK)))
             {
                 self.stub_missing_functions = false;
-                self.use_built_in_libdl = false;
                 self.libraries.push((
                     "wit-component:stubs".into(),
                     make_stubs_module(&missing),
