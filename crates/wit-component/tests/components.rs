@@ -100,6 +100,7 @@ fn component_encoding_via_flags() -> Result<()> {
             if path.join("use-built-in-libdl").is_file() {
                 linker = linker.use_built_in_libdl(true);
             }
+
             let linker =
                 libs.into_iter()
                     .try_fold(linker, |linker, (prefix, path, dl_openable)| {
@@ -212,13 +213,9 @@ fn read_name_and_module(
 /// corresponding name which should have a world that `path` ascribes to.
 fn read_core_module(path: &Path, resolve: &Resolve, pkg: PackageId) -> Result<Vec<u8>> {
     let mut wasm = wat::parse_file(path)?;
-    let name = path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap()
-        .replace('_', "-");
+    let name = path.file_stem().and_then(|s| s.to_str()).unwrap();
     let world = resolve
-        .select_world(pkg, Some(&name))
+        .select_world(pkg, Some(name))
         .context("failed to select a world")?;
 
     // Add this producer data to the wit-component metadata so we can make sure it gets through the
