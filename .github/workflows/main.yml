@@ -116,7 +116,8 @@ jobs:
         cargo --locked test --workspace \
           --exclude fuzz-stats \
           --exclude wasm-tools-fuzz \
-          --exclude wasm-mutate-stats
+          --exclude wasm-mutate-stats \
+          --exclude dl
 
   rustfmt:
     name: Rustfmt
