@@ -19,9 +19,9 @@
     (global (;5;) i32 i32.const 1048688)
     (global (;6;) i32 i32.const 4)
     (global (;7;) (mut i32) i32.const 0)
-    (global (;8;) i32 i32.const 1053496)
+    (global (;8;) i32 i32.const 1053512)
     (global (;9;) i32 i32.const 64)
-    (global (;10;) (mut i32) i32.const 1053504)
+    (global (;10;) (mut i32) i32.const 1053520)
     (global (;11;) (mut i32) i32.const 1114112)
     (export "__stack_pointer" (global 0))
     (export "foo:memory_base" (global 1))
@@ -125,7 +125,7 @@
   )
   (core module (;4;)
     (@dylink.0
-      (mem-info (memory 4808 3) (table 59 0))
+      (mem-info (memory 4824 3) (table 59 0))
       (needed "libc.so")
     )
     (type (;0;) (func (param i32)))
@@ -163,18 +163,11 @@
     (import "GOT.mem" "errno" (global $errno (;3;) (mut i32)))
     (func $__wasm_call_ctors (;11;) (type 6))
     (func $__wasm_apply_data_relocs (;12;) (type 6)
-      i32.const 3568
+      i32.const 3584
       global.get $__memory_base
       i32.add
       global.get $__memory_base
       i32.const 0
-      i32.add
-      i32.store
-      i32.const 3576
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 89
       i32.add
       i32.store
       i32.const 3592
@@ -188,413 +181,406 @@
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 222
+      i32.const 89
       i32.add
       i32.store
-      i32.const 3628
+      i32.const 3624
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 3608
-      i32.add
-      i32.store
-      i32.const 3632
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 264
+      i32.const 239
       i32.add
       i32.store
-      i32.const 3652
+      i32.const 3644
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 3632
+      i32.const 3624
       i32.add
       i32.store
-      i32.const 3656
+      i32.const 3648
       global.get $__memory_base
       i32.add
-      global.get $__table_base
-      i32.const 0
+      global.get $__memory_base
+      i32.const 281
       i32.add
       i32.store
       i32.const 3668
       global.get $__memory_base
       i32.add
-      global.get $__table_base
-      i32.const 1
+      global.get $__memory_base
+      i32.const 3648
       i32.add
       i32.store
       i32.const 3672
       global.get $__memory_base
       i32.add
       global.get $__table_base
-      i32.const 2
-      i32.add
-      i32.store
-      i32.const 3676
-      global.get $__memory_base
-      i32.add
-      global.get $__table_base
-      i32.const 3
-      i32.add
-      i32.store
-      i32.const 3680
-      global.get $__memory_base
-      i32.add
-      global.get $__table_base
       i32.const 0
       i32.add
       i32.store
-      i32.const 3692
-      global.get $__memory_base
-      i32.add
-      global.get $__table_base
-      i32.const 4
-      i32.add
-      i32.store
-      i32.const 3696
-      global.get $__memory_base
-      i32.add
-      global.get $__table_base
-      i32.const 5
-      i32.add
-      i32.store
-      i32.const 3700
-      global.get $__memory_base
-      i32.add
-      global.get $__table_base
-      i32.const 6
-      i32.add
-      i32.store
-      i32.const 3704
-      global.get $__memory_base
-      i32.add
-      global.get $__table_base
-      i32.const 7
-      i32.add
-      i32.store
-      i32.const 3716
-      global.get $__memory_base
-      i32.add
-      global.get $__table_base
-      i32.const 8
-      i32.add
-      i32.store
-      i32.const 3720
-      global.get $__memory_base
-      i32.add
-      global.get $__table_base
-      i32.const 9
-      i32.add
-      i32.store
-      i32.const 3732
-      global.get $__memory_base
-      i32.add
-      global.get $__table_base
-      i32.const 10
-      i32.add
-      i32.store
-      i32.const 3736
-      global.get $__memory_base
-      i32.add
-      global.get $__table_base
-      i32.const 11
-      i32.add
-      i32.store
-      i32.const 3740
-      global.get $__memory_base
-      i32.add
-      global.get $__table_base
-      i32.const 12
-      i32.add
-      i32.store
-      i32.const 3744
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 308
-      i32.add
-      i32.store
-      i32.const 3752
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 322
-      i32.add
-      i32.store
-      i32.const 3768
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 544
-      i32.add
-      i32.store
-      i32.const 3776
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 433
-      i32.add
-      i32.store
-      i32.const 3792
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 599
-      i32.add
-      i32.store
-      i32.const 3800
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 638
-      i32.add
-      i32.store
-      i32.const 3816
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 638
-      i32.add
-      i32.store
-      i32.const 3832
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 745
-      i32.add
-      i32.store
-      i32.const 3844
-      global.get $__memory_base
-      i32.add
-      global.get $__table_base
-      i32.const 13
-      i32.add
-      i32.store
-      i32.const 3856
+      i32.const 3684
       global.get $__memory_base
       i32.add
       global.get $__table_base
       i32.const 1
       i32.add
       i32.store
-      i32.const 3860
+      i32.const 3688
       global.get $__memory_base
       i32.add
       global.get $__table_base
       i32.const 2
       i32.add
       i32.store
-      i32.const 3864
+      i32.const 3692
       global.get $__memory_base
       i32.add
       global.get $__table_base
       i32.const 3
       i32.add
       i32.store
-      i32.const 3868
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 773
-      i32.add
-      i32.store
-      i32.const 3880
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 788
-      i32.add
-      i32.store
-      i32.const 3888
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 823
-      i32.add
-      i32.store
-      i32.const 3904
+      i32.const 3696
       global.get $__memory_base
       i32.add
       global.get $__table_base
-      i32.const 14
+      i32.const 0
       i32.add
       i32.store
-      i32.const 3916
-      global.get $__memory_base
-      i32.add
-      global.get $__table_base
-      i32.const 15
-      i32.add
-      i32.store
-      i32.const 3920
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 1016
-      i32.add
-      i32.store
-      i32.const 3936
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 1183
-      i32.add
-      i32.store
-      i32.const 3952
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 1292
-      i32.add
-      i32.store
-      i32.const 3960
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 1331
-      i32.add
-      i32.store
-      i32.const 3976
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 1331
-      i32.add
-      i32.store
-      i32.const 3992
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 1438
-      i32.add
-      i32.store
-      i32.const 4004
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 1331
-      i32.add
-      i32.store
-      i32.const 4020
-      global.get $__memory_base
-      i32.add
-      global.get $__table_base
-      i32.const 16
-      i32.add
-      i32.store
-      i32.const 4032
+      i32.const 3708
       global.get $__memory_base
       i32.add
       global.get $__table_base
       i32.const 4
       i32.add
       i32.store
-      i32.const 4036
+      i32.const 3712
       global.get $__memory_base
       i32.add
       global.get $__table_base
       i32.const 5
       i32.add
       i32.store
-      i32.const 4040
+      i32.const 3716
       global.get $__memory_base
       i32.add
       global.get $__table_base
       i32.const 6
       i32.add
       i32.store
-      i32.const 4044
+      i32.const 3720
+      global.get $__memory_base
+      i32.add
+      global.get $__table_base
+      i32.const 7
+      i32.add
+      i32.store
+      i32.const 3732
+      global.get $__memory_base
+      i32.add
+      global.get $__table_base
+      i32.const 8
+      i32.add
+      i32.store
+      i32.const 3736
+      global.get $__memory_base
+      i32.add
+      global.get $__table_base
+      i32.const 9
+      i32.add
+      i32.store
+      i32.const 3748
+      global.get $__memory_base
+      i32.add
+      global.get $__table_base
+      i32.const 10
+      i32.add
+      i32.store
+      i32.const 3752
+      global.get $__memory_base
+      i32.add
+      global.get $__table_base
+      i32.const 11
+      i32.add
+      i32.store
+      i32.const 3756
+      global.get $__memory_base
+      i32.add
+      global.get $__table_base
+      i32.const 12
+      i32.add
+      i32.store
+      i32.const 3760
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 1466
+      i32.const 324
+      i32.add
+      i32.store
+      i32.const 3768
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 338
+      i32.add
+      i32.store
+      i32.const 3784
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 560
+      i32.add
+      i32.store
+      i32.const 3792
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 449
+      i32.add
+      i32.store
+      i32.const 3808
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 615
+      i32.add
+      i32.store
+      i32.const 3816
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 654
+      i32.add
+      i32.store
+      i32.const 3832
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 654
+      i32.add
+      i32.store
+      i32.const 3848
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 761
+      i32.add
+      i32.store
+      i32.const 3860
+      global.get $__memory_base
+      i32.add
+      global.get $__table_base
+      i32.const 13
+      i32.add
+      i32.store
+      i32.const 3872
+      global.get $__memory_base
+      i32.add
+      global.get $__table_base
+      i32.const 1
+      i32.add
+      i32.store
+      i32.const 3876
+      global.get $__memory_base
+      i32.add
+      global.get $__table_base
+      i32.const 2
+      i32.add
+      i32.store
+      i32.const 3880
+      global.get $__memory_base
+      i32.add
+      global.get $__table_base
+      i32.const 3
+      i32.add
+      i32.store
+      i32.const 3884
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 789
+      i32.add
+      i32.store
+      i32.const 3896
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 804
+      i32.add
+      i32.store
+      i32.const 3904
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 839
+      i32.add
+      i32.store
+      i32.const 3920
+      global.get $__memory_base
+      i32.add
+      global.get $__table_base
+      i32.const 14
+      i32.add
+      i32.store
+      i32.const 3932
+      global.get $__memory_base
+      i32.add
+      global.get $__table_base
+      i32.const 15
+      i32.add
+      i32.store
+      i32.const 3936
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 1032
+      i32.add
+      i32.store
+      i32.const 3952
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 1199
+      i32.add
+      i32.store
+      i32.const 3968
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 1308
+      i32.add
+      i32.store
+      i32.const 3976
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 1347
+      i32.add
+      i32.store
+      i32.const 3992
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 1347
+      i32.add
+      i32.store
+      i32.const 4008
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 1454
+      i32.add
+      i32.store
+      i32.const 4020
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 1347
+      i32.add
+      i32.store
+      i32.const 4036
+      global.get $__memory_base
+      i32.add
+      global.get $__table_base
+      i32.const 16
+      i32.add
+      i32.store
+      i32.const 4048
+      global.get $__memory_base
+      i32.add
+      global.get $__table_base
+      i32.const 4
+      i32.add
+      i32.store
+      i32.const 4052
+      global.get $__memory_base
+      i32.add
+      global.get $__table_base
+      i32.const 5
       i32.add
       i32.store
       i32.const 4056
       global.get $__memory_base
       i32.add
-      global.get $__memory_base
-      i32.const 1481
+      global.get $__table_base
+      i32.const 6
       i32.add
       i32.store
-      i32.const 4064
+      i32.const 4060
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 1516
+      i32.const 1482
+      i32.add
+      i32.store
+      i32.const 4072
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 1497
       i32.add
       i32.store
       i32.const 4080
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 1628
-      i32.add
-      i32.store
-      i32.const 4088
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 1628
+      i32.const 1532
       i32.add
       i32.store
       i32.const 4096
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 1645
+      i32.const 1644
       i32.add
       i32.store
       i32.const 4104
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 1733
+      i32.const 1644
       i32.add
       i32.store
       i32.const 4112
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 1754
+      i32.const 1661
       i32.add
       i32.store
       i32.const 4120
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 1733
+      i32.const 1749
       i32.add
       i32.store
       i32.const 4128
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 1768
+      i32.const 1770
       i32.add
       i32.store
       i32.const 4136
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 1781
+      i32.const 1749
+      i32.add
+      i32.store
+      i32.const 4144
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 1784
       i32.add
       i32.store
       i32.const 4152
       global.get $__memory_base
       i32.add
-      global.get $__table_base
-      i32.const 20
-      i32.add
-      i32.store
-      i32.const 4164
       global.get $__memory_base
-      i32.add
-      global.get $__table_base
-      i32.const 21
+      i32.const 1797
       i32.add
       i32.store
       i32.const 4168
@@ -608,182 +594,182 @@
       global.get $__memory_base
       i32.add
       global.get $__table_base
-      i32.const 22
+      i32.const 21
       i32.add
       i32.store
       i32.const 4184
       global.get $__memory_base
       i32.add
       global.get $__table_base
-      i32.const 23
+      i32.const 20
       i32.add
       i32.store
-      i32.const 4188
+      i32.const 4196
       global.get $__memory_base
       i32.add
       global.get $__table_base
-      i32.const 24
+      i32.const 22
       i32.add
       i32.store
       i32.const 4200
       global.get $__memory_base
       i32.add
       global.get $__table_base
-      i32.const 25
+      i32.const 23
       i32.add
       i32.store
       i32.const 4204
       global.get $__memory_base
       i32.add
       global.get $__table_base
-      i32.const 26
-      i32.add
-      i32.store
-      i32.const 4208
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 1887
+      i32.const 24
       i32.add
       i32.store
       i32.const 4216
       global.get $__memory_base
       i32.add
+      global.get $__table_base
+      i32.const 25
+      i32.add
+      i32.store
+      i32.const 4220
       global.get $__memory_base
-      i32.const 1920
+      i32.add
+      global.get $__table_base
+      i32.const 26
+      i32.add
+      i32.store
+      i32.const 4224
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 1903
       i32.add
       i32.store
       i32.const 4232
       global.get $__memory_base
       i32.add
-      global.get $__table_base
-      i32.const 30
-      i32.add
-      i32.store
-      i32.const 4244
       global.get $__memory_base
-      i32.add
-      global.get $__table_base
-      i32.const 31
+      i32.const 1936
       i32.add
       i32.store
       i32.const 4248
       global.get $__memory_base
       i32.add
       global.get $__table_base
-      i32.const 32
-      i32.add
-      i32.store
-      i32.const 4252
-      global.get $__memory_base
-      i32.add
-      global.get $__table_base
-      i32.const 33
-      i32.add
-      i32.store
-      i32.const 4256
-      global.get $__memory_base
-      i32.add
-      global.get $__table_base
-      i32.const 34
+      i32.const 30
       i32.add
       i32.store
       i32.const 4260
       global.get $__memory_base
       i32.add
       global.get $__table_base
-      i32.const 35
+      i32.const 31
       i32.add
       i32.store
       i32.const 4264
       global.get $__memory_base
       i32.add
       global.get $__table_base
-      i32.const 36
+      i32.const 32
       i32.add
       i32.store
       i32.const 4268
       global.get $__memory_base
       i32.add
       global.get $__table_base
-      i32.const 37
+      i32.const 33
       i32.add
       i32.store
       i32.const 4272
       global.get $__memory_base
       i32.add
       global.get $__table_base
-      i32.const 38
+      i32.const 34
+      i32.add
+      i32.store
+      i32.const 4276
+      global.get $__memory_base
+      i32.add
+      global.get $__table_base
+      i32.const 35
+      i32.add
+      i32.store
+      i32.const 4280
+      global.get $__memory_base
+      i32.add
+      global.get $__table_base
+      i32.const 36
       i32.add
       i32.store
       i32.const 4284
       global.get $__memory_base
       i32.add
       global.get $__table_base
-      i32.const 39
+      i32.const 37
       i32.add
       i32.store
       i32.const 4288
       global.get $__memory_base
       i32.add
       global.get $__table_base
-      i32.const 40
-      i32.add
-      i32.store
-      i32.const 4292
-      global.get $__memory_base
-      i32.add
-      global.get $__table_base
-      i32.const 41
-      i32.add
-      i32.store
-      i32.const 4296
-      global.get $__memory_base
-      i32.add
-      global.get $__table_base
-      i32.const 42
+      i32.const 38
       i32.add
       i32.store
       i32.const 4300
       global.get $__memory_base
       i32.add
       global.get $__table_base
-      i32.const 43
+      i32.const 39
       i32.add
       i32.store
       i32.const 4304
       global.get $__memory_base
       i32.add
       global.get $__table_base
-      i32.const 44
+      i32.const 40
       i32.add
       i32.store
       i32.const 4308
       global.get $__memory_base
       i32.add
       global.get $__table_base
-      i32.const 45
+      i32.const 41
       i32.add
       i32.store
       i32.const 4312
       global.get $__memory_base
       i32.add
+      global.get $__table_base
+      i32.const 42
+      i32.add
+      i32.store
+      i32.const 4316
       global.get $__memory_base
-      i32.const 2187
+      i32.add
+      global.get $__table_base
+      i32.const 43
       i32.add
       i32.store
       i32.const 4320
       global.get $__memory_base
       i32.add
+      global.get $__table_base
+      i32.const 44
+      i32.add
+      i32.store
+      i32.const 4324
       global.get $__memory_base
-      i32.const 2195
+      i32.add
+      global.get $__table_base
+      i32.const 45
       i32.add
       i32.store
       i32.const 4328
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 2209
+      i32.const 2203
       i32.add
       i32.store
       i32.const 4336
@@ -797,311 +783,325 @@
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 2212
+      i32.const 2225
       i32.add
       i32.store
-      i32.const 4356
+      i32.const 4352
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 2056
+      i32.const 2227
+      i32.add
+      i32.store
+      i32.const 4360
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 2228
       i32.add
       i32.store
       i32.const 4372
       global.get $__memory_base
       i32.add
-      global.get $__table_base
-      i32.const 30
-      i32.add
-      i32.store
-      i32.const 4384
       global.get $__memory_base
-      i32.add
-      global.get $__table_base
-      i32.const 46
+      i32.const 2072
       i32.add
       i32.store
       i32.const 4388
       global.get $__memory_base
       i32.add
       global.get $__table_base
-      i32.const 47
-      i32.add
-      i32.store
-      i32.const 4392
-      global.get $__memory_base
-      i32.add
-      global.get $__table_base
-      i32.const 12
-      i32.add
-      i32.store
-      i32.const 4396
-      global.get $__memory_base
-      i32.add
-      global.get $__table_base
       i32.const 30
+      i32.add
+      i32.store
+      i32.const 4400
+      global.get $__memory_base
+      i32.add
+      global.get $__table_base
+      i32.const 46
+      i32.add
+      i32.store
+      i32.const 4404
+      global.get $__memory_base
+      i32.add
+      global.get $__table_base
+      i32.const 47
       i32.add
       i32.store
       i32.const 4408
       global.get $__memory_base
       i32.add
       global.get $__table_base
-      i32.const 48
+      i32.const 12
       i32.add
       i32.store
       i32.const 4412
       global.get $__memory_base
       i32.add
       global.get $__table_base
-      i32.const 49
+      i32.const 30
       i32.add
       i32.store
       i32.const 4424
       global.get $__memory_base
       i32.add
       global.get $__table_base
-      i32.const 21
+      i32.const 48
       i32.add
       i32.store
       i32.const 4428
       global.get $__memory_base
       i32.add
       global.get $__table_base
-      i32.const 38
+      i32.const 49
       i32.add
       i32.store
       i32.const 4440
       global.get $__memory_base
       i32.add
       global.get $__table_base
-      i32.const 50
+      i32.const 21
       i32.add
       i32.store
       i32.const 4444
       global.get $__memory_base
       i32.add
-      global.get $__memory_base
-      i32.const 2056
+      global.get $__table_base
+      i32.const 38
       i32.add
       i32.store
-      i32.const 4452
+      i32.const 4456
       global.get $__memory_base
       i32.add
-      global.get $__memory_base
-      i32.const 2333
+      global.get $__table_base
+      i32.const 50
       i32.add
       i32.store
       i32.const 4460
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 2382
+      i32.const 2072
       i32.add
       i32.store
       i32.const 4468
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 2432
+      i32.const 2349
       i32.add
       i32.store
       i32.const 4476
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 2477
+      i32.const 2398
       i32.add
       i32.store
       i32.const 4484
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 2211
+      i32.const 2448
       i32.add
       i32.store
       i32.const 4492
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 2530
+      i32.const 2493
       i32.add
       i32.store
       i32.const 4500
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 2563
+      i32.const 2227
+      i32.add
+      i32.store
+      i32.const 4508
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 2546
       i32.add
       i32.store
       i32.const 4516
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 2699
+      i32.const 2579
       i32.add
       i32.store
-      i32.const 4524
+      i32.const 4532
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 2789
+      i32.const 2715
       i32.add
       i32.store
       i32.const 4540
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 3014
+      i32.const 2805
       i32.add
       i32.store
-      i32.const 4548
+      i32.const 4556
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 2904
+      i32.const 3030
       i32.add
       i32.store
       i32.const 4564
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 2920
+      i32.add
+      i32.store
+      i32.const 4580
       global.get $__memory_base
       i32.add
       global.get $__table_base
       i32.const 51
       i32.add
       i32.store
-      i32.const 4576
+      i32.const 4592
       global.get $__memory_base
       i32.add
       global.get $__table_base
       i32.const 52
       i32.add
       i32.store
-      i32.const 4580
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 3085
-      i32.add
-      i32.store
       i32.const 4596
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 3404
-      i32.add
-      i32.store
-      i32.const 4604
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 3404
+      i32.const 3101
       i32.add
       i32.store
       i32.const 4612
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 3420
+      i32.add
+      i32.store
+      i32.const 4620
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 3420
+      i32.add
+      i32.store
+      i32.const 4628
       global.get $__memory_base
       i32.add
       global.get $__table_base
       i32.const 57
       i32.add
       i32.store
-      i32.const 4624
+      i32.const 4640
       global.get $__memory_base
       i32.add
       global.get $__table_base
       i32.const 58
       i32.add
       i32.store
-      i32.const 4628
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 3419
-      i32.add
-      i32.store
-      i32.const 4636
+      i32.const 4644
       global.get $__memory_base
       i32.add
       global.get $__memory_base
       i32.const 3435
       i32.add
       i32.store
-      i32.const 4644
-      global.get $__memory_base
-      i32.add
-      global.get $__memory_base
-      i32.const 3458
-      i32.add
-      i32.store
       i32.const 4652
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 3419
+      i32.const 3451
       i32.add
       i32.store
       i32.const 4660
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 3467
+      i32.const 3474
       i32.add
       i32.store
       i32.const 4668
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 3483
+      i32.const 3435
       i32.add
       i32.store
       i32.const 4676
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 3458
+      i32.const 3483
       i32.add
       i32.store
       i32.const 4684
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 3496
+      i32.const 3499
       i32.add
       i32.store
       i32.const 4692
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 3496
+      i32.const 3474
       i32.add
       i32.store
       i32.const 4700
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 3496
+      i32.const 3512
       i32.add
       i32.store
       i32.const 4708
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 3497
+      i32.const 3512
       i32.add
       i32.store
       i32.const 4716
       global.get $__memory_base
       i32.add
       global.get $__memory_base
-      i32.const 3515
+      i32.const 3512
+      i32.add
+      i32.store
+      i32.const 4724
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 3513
+      i32.add
+      i32.store
+      i32.const 4732
+      global.get $__memory_base
+      i32.add
+      global.get $__memory_base
+      i32.const 3531
       i32.add
       i32.store
     )
     (func $__wasm_apply_global_relocs (;13;) (type 6)
       global.get $__memory_base
-      i32.const 4741
+      i32.const 4757
       i32.add
       global.set $GOT.data.internal.__rust_no_alloc_shim_is_unstable
       global.get $__memory_base
-      i32.const 4740
+      i32.const 4756
       i32.add
       global.set $GOT.data.internal.__rust_alloc_error_handler_should_panic
       global.get $__table_base
@@ -1120,7 +1120,7 @@
     (func $_initialize (;14;) (type 6)
       block ;; label = @1
         global.get $__memory_base
-        i32.const 4728
+        i32.const 4744
         i32.add
         i32.load
         i32.eqz
@@ -1129,7 +1129,7 @@
         unreachable
       end
       global.get $__memory_base
-      i32.const 4728
+      i32.const 4744
       i32.add
       i32.const 1
       i32.store
@@ -1144,7 +1144,7 @@
       global.set $__stack_pointer
       block ;; label = @1
         global.get $__memory_base
-        i32.const 4736
+        i32.const 4752
         i32.add
         i32.load
         local.tee 2
@@ -1190,7 +1190,7 @@
           end
           global.get $__memory_base
           local.tee 4
-          i32.const 4732
+          i32.const 4748
           i32.add
           local.get 4
           i32.const 99
@@ -1217,7 +1217,7 @@
       local.get 1
       global.get $__memory_base
       local.tee 4
-      i32.const 3568
+      i32.const 3584
       i32.add
       i32.store offset=8
       local.get 1
@@ -1229,7 +1229,7 @@
       i32.const 8
       i32.add
       local.get 4
-      i32.const 3576
+      i32.const 3592
       i32.add
       call $core::panicking::panic_fmt::hf3388a9334a7d4c4
       unreachable
@@ -1237,7 +1237,7 @@
     (func $dlerror (;16;) (type 8) (result i32)
       (local i32 i32)
       global.get $__memory_base
-      i32.const 4732
+      i32.const 4748
       i32.add
       local.tee 0
       i32.load
@@ -1256,7 +1256,7 @@
       global.set $__stack_pointer
       block ;; label = @1
         global.get $__memory_base
-        i32.const 4736
+        i32.const 4752
         i32.add
         i32.load
         local.tee 3
@@ -1365,7 +1365,7 @@
             local.set 1
           end
           global.get $__memory_base
-          i32.const 4732
+          i32.const 4748
           i32.add
           local.get 1
           i32.store
@@ -1390,7 +1390,7 @@
       local.get 2
       global.get $__memory_base
       local.tee 1
-      i32.const 3568
+      i32.const 3584
       i32.add
       i32.store offset=8
       local.get 2
@@ -1402,7 +1402,7 @@
       i32.const 8
       i32.add
       local.get 1
-      i32.const 3592
+      i32.const 3608
       i32.add
       call $core::panicking::panic_fmt::hf3388a9334a7d4c4
       unreachable
@@ -1425,10 +1425,10 @@
             br_if 0 (;@3;)
             global.get $__memory_base
             local.tee 3
-            i32.const 4732
+            i32.const 4748
             i32.add
             local.get 3
-            i32.const 171
+            i32.const 188
             i32.add
             i32.store
             i32.const 0
@@ -1436,7 +1436,7 @@
             br 1 (;@2;)
           end
           global.get $__memory_base
-          i32.const 4736
+          i32.const 4752
           i32.add
           i32.load
           local.tee 4
@@ -1480,7 +1480,7 @@
             end
             global.get $__memory_base
             local.tee 3
-            i32.const 4732
+            i32.const 4748
             i32.add
             local.get 3
             i32.const 99
@@ -1569,10 +1569,10 @@
             end
             global.get $__memory_base
             local.tee 3
-            i32.const 4732
+            i32.const 4748
             i32.add
             local.get 3
-            i32.const 122
+            i32.const 171
             i32.add
             i32.store
             i32.const 0
@@ -1605,7 +1605,7 @@
       local.get 2
       global.get $__memory_base
       local.tee 3
-      i32.const 3568
+      i32.const 3584
       i32.add
       i32.store offset=8
       local.get 2
@@ -1617,14 +1617,14 @@
       i32.const 8
       i32.add
       local.get 3
-      i32.const 3576
+      i32.const 3592
       i32.add
       call $core::panicking::panic_fmt::hf3388a9334a7d4c4
       unreachable
     )
     (func $__wasm_set_libraries (;19;) (type 0) (param i32)
       global.get $__memory_base
-      i32.const 4736
+      i32.const 4752
       i32.add
       local.get 0
       i32.store
@@ -1666,7 +1666,7 @@
       (local i32)
       block ;; label = @1
         global.get $__memory_base
-        i32.const 4744
+        i32.const 4760
         i32.add
         i32.load
         br_if 0 (;@1;)
@@ -1692,7 +1692,7 @@
           local.set 1
         end
         global.get $__memory_base
-        i32.const 4744
+        i32.const 4760
         i32.add
         local.tee 0
         local.get 1
@@ -1702,7 +1702,7 @@
         i32.store
       end
       global.get $__memory_base
-      i32.const 4744
+      i32.const 4760
       i32.add
       i32.const 4
       i32.add
@@ -1799,7 +1799,7 @@
             i32.store
             local.get 0
             global.get $__memory_base
-            i32.const 3624
+            i32.const 3640
             i32.add
             i64.load
             i64.store offset=4 align=4
@@ -2166,7 +2166,7 @@
               end
               local.get 3
               global.get $__memory_base
-              i32.const 3648
+              i32.const 3664
               i32.add
               i64.load
               i64.store offset=12 align=4
@@ -2562,7 +2562,7 @@
                       local.tee 5
                       br_if 0 (;@8;)
                       local.get 4
-                      i32.const 3992
+                      i32.const 4008
                       i32.add
                       local.set 5
                       i32.const 2
@@ -2662,7 +2662,7 @@
       local.get 5
       local.get 1
       global.get $__memory_base
-      i32.const 4004
+      i32.const 4020
       i32.add
       call $core::slice::index::slice_start_index_len_fail::hea1c763acd9dfde3
       unreachable
@@ -2670,7 +2670,7 @@
     (func $core::fmt::Write::write_fmt::h0bb0a982cbee5fbf (;32;) (type 4) (param i32 i32) (result i32)
       local.get 0
       global.get $__memory_base
-      i32.const 3656
+      i32.const 3672
       i32.add
       local.get 1
       call $core::fmt::write::h9a3c09758e76bf05
@@ -2678,7 +2678,7 @@
     (func $core::fmt::Write::write_fmt::hf0f6500f70dd74b1 (;33;) (type 4) (param i32 i32) (result i32)
       local.get 0
       global.get $__memory_base
-      i32.const 3680
+      i32.const 3696
       i32.add
       local.get 1
       call $core::fmt::write::h9a3c09758e76bf05
@@ -2770,7 +2770,7 @@
                   local.tee 6
                   br_if 0 (;@6;)
                   local.get 5
-                  i32.const 3992
+                  i32.const 4008
                   i32.add
                   local.set 6
                   i32.const 2
@@ -2869,7 +2869,7 @@
       local.get 6
       local.get 2
       global.get $__memory_base
-      i32.const 4004
+      i32.const 4020
       i32.add
       call $core::slice::index::slice_start_index_len_fail::hea1c763acd9dfde3
       unreachable
@@ -2913,14 +2913,14 @@
     )
     (func $std::panicking::panic_count::is_zero_slow_path::h30fc47034d17437a (;37;) (type 8) (result i32)
       global.get $__memory_base
-      i32.const 4752
+      i32.const 4768
       i32.add
       i32.load
       i32.eqz
     )
     (func $#func38<std::panicking::panic_count::LOCAL_PANIC_COUNT::__getit::hc13cf437609f1ede__.llvm.5565787320568768541_> (@name "std::panicking::panic_count::LOCAL_PANIC_COUNT::__getit::hc13cf437609f1ede (.llvm.5565787320568768541)") (;38;) (type 5) (param i32) (result i32)
       global.get $__memory_base
-      i32.const 4752
+      i32.const 4768
       i32.add
     )
     (func $_$LT$T$u20$as$u20$core..any..Any$GT$::type_id::h6af49548f242c026 (;39;) (type 2) (param i32 i32)
@@ -2934,7 +2934,7 @@
     (func $core::fmt::Write::write_fmt::h31a2c20220c957e6 (;40;) (type 4) (param i32 i32) (result i32)
       local.get 0
       global.get $__memory_base
-      i32.const 3720
+      i32.const 3736
       i32.add
       local.get 1
       call $core::fmt::write::h9a3c09758e76bf05
@@ -2973,7 +2973,7 @@
       i32.const 8
       i32.add
       global.get $__memory_base
-      i32.const 3704
+      i32.const 3720
       i32.add
       local.tee 2
       local.get 5
@@ -3296,7 +3296,7 @@
           i32.const 0
           i32.store
           global.get $__memory_base
-          i32.const 4768
+          i32.const 4784
           i32.add
           i64.load
           local.set 4
@@ -3308,7 +3308,7 @@
             i64.eqz
             br_if 2 (;@1;)
             global.get $__memory_base
-            i32.const 4768
+            i32.const 4784
             i32.add
             local.tee 1
             local.get 5
@@ -3363,19 +3363,19 @@
       local.get 0
       global.get $__memory_base
       local.tee 1
-      i32.const 3768
+      i32.const 3784
       i32.add
       i32.store offset=8
       local.get 0
       local.get 1
-      i32.const 308
+      i32.const 324
       i32.add
       i32.store offset=16
       local.get 0
       i32.const 8
       i32.add
       local.get 1
-      i32.const 3776
+      i32.const 3792
       i32.add
       call $core::panicking::panic_fmt::hf3388a9334a7d4c4
       unreachable
@@ -3620,7 +3620,7 @@
                   i32.store8
                   local.get 0
                   global.get $__memory_base
-                  i32.const 3832
+                  i32.const 3848
                   i32.add
                   i32.store offset=4
                   br 5 (;@1;)
@@ -3697,19 +3697,19 @@
                       local.get 4
                       global.get $__memory_base
                       local.tee 5
-                      i32.const 3792
+                      i32.const 3808
                       i32.add
                       i32.store offset=8
                       local.get 4
                       local.get 5
-                      i32.const 308
+                      i32.const 324
                       i32.add
                       i32.store offset=16
                       local.get 4
                       i32.const 8
                       i32.add
                       local.get 5
-                      i32.const 3800
+                      i32.const 3816
                       i32.add
                       call $core::panicking::panic_fmt::hf3388a9334a7d4c4
                       unreachable
@@ -3717,7 +3717,7 @@
                     local.get 8
                     local.get 9
                     global.get $__memory_base
-                    i32.const 3816
+                    i32.const 3832
                     i32.add
                     call $core::slice::index::slice_start_index_len_fail::hea1c763acd9dfde3
                     unreachable
@@ -3763,19 +3763,19 @@
           local.get 4
           global.get $__memory_base
           local.tee 5
-          i32.const 3880
+          i32.const 3896
           i32.add
           i32.store offset=8
           local.get 4
           local.get 5
-          i32.const 308
+          i32.const 324
           i32.add
           i32.store offset=16
           local.get 4
           i32.const 8
           i32.add
           local.get 5
-          i32.const 3888
+          i32.const 3904
           i32.add
           call $core::panicking::panic_fmt::hf3388a9334a7d4c4
           unreachable
@@ -3783,7 +3783,7 @@
         local.get 8
         local.get 3
         global.get $__memory_base
-        i32.const 3816
+        i32.const 3832
         i32.add
         call $core::slice::index::slice_start_index_len_fail::hea1c763acd9dfde3
         unreachable
@@ -3810,7 +3810,7 @@
         block ;; label = @2
           local.get 3
           global.get $__memory_base
-          i32.const 3844
+          i32.const 3860
           i32.add
           local.get 2
           call $core::fmt::write::h9a3c09758e76bf05
@@ -3827,7 +3827,7 @@
             i32.store8
             local.get 0
             global.get $__memory_base
-            i32.const 3868
+            i32.const 3884
             i32.add
             i32.store offset=4
             br 2 (;@1;)
@@ -3998,7 +3998,7 @@
       i32.add
       local.get 1
       global.get $__memory_base
-      i32.const 935
+      i32.const 951
       i32.add
       i32.const 11
       call $core::fmt::Formatter::debug_struct::ha9d8a8b5657b52dc
@@ -4032,18 +4032,18 @@
             block ;; label = @4
               block ;; label = @5
                 global.get $__memory_base
-                i32.const 4780
+                i32.const 4796
                 i32.add
                 i32.load
                 br_table 3 (;@2;) 4 (;@1;) 2 (;@3;) 1 (;@4;) 0 (;@5;)
               end
               global.get $__memory_base
               local.tee 1
-              i32.const 1143
+              i32.const 1159
               i32.add
               i32.const 40
               local.get 1
-              i32.const 3936
+              i32.const 3952
               i32.add
               call $core::panicking::panic::h6b5f2399fab9b82b
               unreachable
@@ -4060,7 +4060,7 @@
         i32.const 4
         i32.add
         global.get $__memory_base
-        i32.const 1129
+        i32.const 1145
         i32.add
         i32.const 14
         call $std::sys::wasi::os::getenv::h007efdd02afe9fc9
@@ -4127,7 +4127,7 @@
           local.set 2
         end
         global.get $__memory_base
-        i32.const 4780
+        i32.const 4796
         i32.add
         local.get 2
         i32.store
@@ -4233,7 +4233,7 @@
                       i32.store8
                       local.get 0
                       global.get $__memory_base
-                      i32.const 3992
+                      i32.const 4008
                       i32.add
                       i32.store offset=4
                       br 7 (;@1;)
@@ -4271,7 +4271,7 @@
           local.get 5
           local.get 3
           global.get $__memory_base
-          i32.const 4004
+          i32.const 4020
           i32.add
           call $core::slice::index::slice_start_index_len_fail::hea1c763acd9dfde3
           unreachable
@@ -4382,7 +4382,7 @@
                         i32.store8
                         local.get 0
                         global.get $__memory_base
-                        i32.const 3992
+                        i32.const 4008
                         i32.add
                         i32.store offset=4
                         br 7 (;@2;)
@@ -4484,19 +4484,19 @@
                       local.get 4
                       global.get $__memory_base
                       local.tee 5
-                      i32.const 3952
+                      i32.const 3968
                       i32.add
                       i32.store offset=8
                       local.get 4
                       local.get 5
-                      i32.const 1292
+                      i32.const 1308
                       i32.add
                       i32.store offset=16
                       local.get 4
                       i32.const 8
                       i32.add
                       local.get 5
-                      i32.const 3960
+                      i32.const 3976
                       i32.add
                       call $core::panicking::panic_fmt::hf3388a9334a7d4c4
                       unreachable
@@ -4504,7 +4504,7 @@
                     local.get 6
                     local.get 7
                     global.get $__memory_base
-                    i32.const 3976
+                    i32.const 3992
                     i32.add
                     call $core::slice::index::slice_start_index_len_fail::hea1c763acd9dfde3
                     unreachable
@@ -4549,19 +4549,19 @@
           local.get 4
           global.get $__memory_base
           local.tee 5
-          i32.const 4056
+          i32.const 4072
           i32.add
           i32.store offset=8
           local.get 4
           local.get 5
-          i32.const 1292
+          i32.const 1308
           i32.add
           i32.store offset=16
           local.get 4
           i32.const 8
           i32.add
           local.get 5
-          i32.const 4064
+          i32.const 4080
           i32.add
           call $core::panicking::panic_fmt::hf3388a9334a7d4c4
           unreachable
@@ -4575,7 +4575,7 @@
       local.get 8
       local.get 3
       global.get $__memory_base
-      i32.const 3976
+      i32.const 3992
       i32.add
       call $core::slice::index::slice_start_index_len_fail::hea1c763acd9dfde3
       unreachable
@@ -4597,7 +4597,7 @@
         block ;; label = @2
           local.get 3
           global.get $__memory_base
-          i32.const 4020
+          i32.const 4036
           i32.add
           local.get 2
           call $core::fmt::write::h9a3c09758e76bf05
@@ -4614,7 +4614,7 @@
             i32.store8
             local.get 0
             global.get $__memory_base
-            i32.const 4044
+            i32.const 4060
             i32.add
             i32.store offset=4
             br 2 (;@1;)
@@ -4789,7 +4789,7 @@
       local.tee 4
       global.set $__stack_pointer
       global.get $__memory_base
-      i32.const 4784
+      i32.const 4800
       i32.add
       local.tee 5
       i32.load8_u
@@ -4807,7 +4807,7 @@
         br_if 0 (;@1;)
         block ;; label = @2
           global.get $__memory_base
-          i32.const 4760
+          i32.const 4776
           i32.add
           i32.load
           i32.const 2147483647
@@ -4832,7 +4832,7 @@
         i32.store offset=16
         local.get 4
         global.get $__memory_base
-        i32.const 4080
+        i32.const 4096
         i32.add
         i32.store offset=12
         local.get 4
@@ -4865,7 +4865,7 @@
           i32.eqz
           br_if 0 (;@2;)
           global.get $__memory_base
-          i32.const 4760
+          i32.const 4776
           i32.add
           i32.load
           i32.const 2147483647
@@ -4875,13 +4875,13 @@
           call $std::panicking::panic_count::is_zero_slow_path::h30fc47034d17437a
           br_if 0 (;@2;)
           global.get $__memory_base
-          i32.const 4784
+          i32.const 4800
           i32.add
           i32.const 1
           i32.store8 offset=1
         end
         global.get $__memory_base
-        i32.const 4784
+        i32.const 4800
         i32.add
         i32.const 0
         i32.store8
@@ -4900,12 +4900,12 @@
       local.get 4
       global.get $__memory_base
       local.tee 6
-      i32.const 1628
+      i32.const 1644
       i32.add
       i32.store offset=20
       local.get 4
       local.get 6
-      i32.const 4208
+      i32.const 4224
       i32.add
       i32.store offset=12
       i32.const 0
@@ -4913,13 +4913,13 @@
       i32.const 36
       i32.add
       local.get 6
-      i32.const 1919
+      i32.const 1935
       i32.add
       local.get 4
       i32.const 12
       i32.add
       local.get 6
-      i32.const 4216
+      i32.const 4232
       i32.add
       call $core::panicking::assert_failed::h2389905535db148b
       unreachable
@@ -4998,12 +4998,12 @@
       local.get 2
       global.get $__memory_base
       local.tee 7
-      i32.const 4088
+      i32.const 4104
       i32.add
       i32.store offset=8
       local.get 2
       local.get 7
-      i32.const 1628
+      i32.const 1644
       i32.add
       i32.store offset=16
       block ;; label = @1
@@ -5031,12 +5031,12 @@
               local.get 2
               global.get $__memory_base
               local.tee 7
-              i32.const 4096
+              i32.const 4112
               i32.add
               i32.store offset=8
               local.get 2
               local.get 7
-              i32.const 1628
+              i32.const 1644
               i32.add
               i32.store offset=16
               local.get 1
@@ -5107,7 +5107,7 @@
             local.get 3
             br_if 2 (;@1;)
             local.get 4
-            i32.const 1628
+            i32.const 1644
             i32.add
             local.set 2
             i32.const 0
@@ -5133,7 +5133,7 @@
         i32.store
         local.get 1
         global.get $__memory_base
-        i32.const 4168
+        i32.const 4184
         i32.add
         local.get 0
         i32.load offset=4
@@ -5156,7 +5156,7 @@
       i32.store
       local.get 1
       global.get $__memory_base
-      i32.const 4188
+      i32.const 4204
       i32.add
       local.get 0
       i32.load offset=4
@@ -5196,7 +5196,7 @@
         local.get 2
         global.get $__memory_base
         local.tee 3
-        i32.const 4104
+        i32.const 4120
         i32.add
         i32.store offset=12
         local.get 2
@@ -5224,7 +5224,7 @@
         i32.const 48
         i32.add
         local.get 3
-        i32.const 4020
+        i32.const 4036
         i32.add
         local.get 2
         i32.const 12
@@ -5346,7 +5346,7 @@
       local.get 2
       global.get $__memory_base
       local.tee 3
-      i32.const 4120
+      i32.const 4136
       i32.add
       i32.store offset=12
       local.get 2
@@ -5366,7 +5366,7 @@
       i32.const 12
       i32.add
       local.get 3
-      i32.const 4136
+      i32.const 4152
       i32.add
       call $core::panicking::panic_fmt::hf3388a9334a7d4c4
       unreachable
@@ -5374,7 +5374,7 @@
     (func $_$LT$std..panicking..begin_panic_handler..StaticStrPayload$u20$as$u20$core..panic..PanicPayload$GT$::get::h501156f013b749a6 (;74;) (type 2) (param i32 i32)
       local.get 0
       global.get $__memory_base
-      i32.const 4152
+      i32.const 4168
       i32.add
       i32.store offset=4
       local.get 0
@@ -5388,7 +5388,7 @@
       local.get 0
       local.get 1
       global.get $__memory_base
-      i32.const 4788
+      i32.const 4804
       i32.add
       i32.load
       local.tee 3
@@ -5525,7 +5525,7 @@
               i64.eqz
               br_if 1 (;@3;)
               local.get 0
-              i32.const 2166
+              i32.const 2182
               i32.add
               local.set 0
               br 3 (;@1;)
@@ -5566,7 +5566,7 @@
                 block ;; label = @6
                   block ;; label = @7
                     global.get $__memory_base
-                    i32.const 4776
+                    i32.const 4792
                     i32.add
                     i32.load
                     local.tee 0
@@ -5576,12 +5576,12 @@
                     call $#func48<core::cell::once::OnceCell$LT$T$GT$::get_or_try_init::outlined_call::hd352954db2dff7b1__.llvm.16956913488488451105_>
                     local.set 0
                     local.get 3
-                    i32.const 4776
+                    i32.const 4792
                     i32.add
                     i32.load
                     br_if 1 (;@6;)
                     global.get $__memory_base
-                    i32.const 4776
+                    i32.const 4792
                     i32.add
                     local.get 0
                     i32.store
@@ -5609,7 +5609,7 @@
                   i32.load
                   local.tee 2
                   local.get 3
-                  i32.const 2178
+                  i32.const 2194
                   i32.add
                   local.get 2
                   select
@@ -5626,7 +5626,7 @@
                   select
                   i32.store offset=56
                   local.get 3
-                  i32.const 4742
+                  i32.const 4758
                   i32.add
                   i32.load8_u
                   local.set 0
@@ -5659,7 +5659,7 @@
                     br 5 (;@2;)
                   end
                   global.get $__memory_base
-                  i32.const 4742
+                  i32.const 4758
                   i32.add
                   i32.const 1
                   i32.store8
@@ -5695,7 +5695,7 @@
                     block ;; label = @8
                       block ;; label = @9
                         global.get $__memory_base
-                        i32.const 4760
+                        i32.const 4776
                         i32.add
                         i32.load
                         i32.const 2147483647
@@ -5708,7 +5708,7 @@
                         i32.const 12
                         i32.add
                         global.get $__memory_base
-                        i32.const 4232
+                        i32.const 4248
                         i32.add
                         call $std::panicking::default_hook::_$u7b$$u7b$closure$u7d$$u7d$::h99c42c0a8943aa06
                         local.get 0
@@ -5728,7 +5728,7 @@
                       i32.const 12
                       i32.add
                       local.get 3
-                      i32.const 4232
+                      i32.const 4248
                       i32.add
                       call $std::panicking::default_hook::_$u7b$$u7b$closure$u7d$$u7d$::h99c42c0a8943aa06
                       local.get 2
@@ -5740,7 +5740,7 @@
                       local.set 3
                     end
                     global.get $__memory_base
-                    i32.const 4760
+                    i32.const 4776
                     i32.add
                     i32.load
                     i32.const 2147483647
@@ -5757,7 +5757,7 @@
                   i32.const 0
                   i32.store8 offset=8
                   global.get $__memory_base
-                  i32.const 4742
+                  i32.const 4758
                   i32.add
                   i32.const 1
                   i32.store8
@@ -5788,17 +5788,17 @@
                     end
                     global.get $__memory_base
                     local.tee 0
-                    i32.const 946
+                    i32.const 962
                     i32.add
                     i32.const 70
                     local.get 1
                     i32.const 111
                     i32.add
                     local.get 0
-                    i32.const 3904
+                    i32.const 3920
                     i32.add
                     local.get 0
-                    i32.const 3920
+                    i32.const 3936
                     i32.add
                     call $core::result::unwrap_failed::h0a2a95058939daaf
                     unreachable
@@ -5847,19 +5847,19 @@
                 local.get 1
                 global.get $__memory_base
                 local.tee 0
-                i32.const 3744
+                i32.const 3760
                 i32.add
                 i32.store offset=84
                 local.get 1
                 local.get 0
-                i32.const 308
+                i32.const 324
                 i32.add
                 i32.store offset=92
                 local.get 1
                 i32.const 84
                 i32.add
                 local.get 0
-                i32.const 3752
+                i32.const 3768
                 i32.add
                 call $core::panicking::panic_fmt::hf3388a9334a7d4c4
                 unreachable
@@ -5869,17 +5869,17 @@
             end
             global.get $__memory_base
             local.tee 0
-            i32.const 946
+            i32.const 962
             i32.add
             i32.const 70
             local.get 1
             i32.const 111
             i32.add
             local.get 0
-            i32.const 3904
+            i32.const 3920
             i32.add
             local.get 0
-            i32.const 3920
+            i32.const 3936
             i32.add
             call $core::result::unwrap_failed::h0a2a95058939daaf
             unreachable
@@ -5893,12 +5893,12 @@
           local.get 1
           global.get $__memory_base
           local.tee 0
-          i32.const 2056
+          i32.const 2072
           i32.add
           i32.store offset=92
           local.get 1
           local.get 0
-          i32.const 4492
+          i32.const 4508
           i32.add
           i32.store offset=84
           i32.const 0
@@ -5906,13 +5906,13 @@
           i32.const 80
           i32.add
           local.get 0
-          i32.const 2562
+          i32.const 2578
           i32.add
           local.get 1
           i32.const 84
           i32.add
           local.get 0
-          i32.const 4500
+          i32.const 4516
           i32.add
           call $core::panicking::assert_failed::h2389905535db148b
           unreachable
@@ -5924,7 +5924,7 @@
         i32.const 111
         i32.add
         global.get $__memory_base
-        i32.const 4272
+        i32.const 4288
         i32.add
         call $std::panicking::default_hook::_$u7b$$u7b$closure$u7d$$u7d$::h99c42c0a8943aa06
         i32.const 0
@@ -6557,7 +6557,7 @@
       i32.store
       local.get 3
       global.get $__memory_base
-      i32.const 4312
+      i32.const 4328
       i32.add
       i32.store offset=16
       local.get 3
@@ -6752,7 +6752,7 @@
           br 1 (;@1;)
         end
         global.get $__memory_base
-        i32.const 4352
+        i32.const 4368
         i32.add
         local.tee 0
         i32.load8_u
@@ -6774,12 +6774,12 @@
         local.get 3
         global.get $__memory_base
         local.tee 0
-        i32.const 4344
+        i32.const 4360
         i32.add
         i32.store offset=40
         local.get 3
         local.get 0
-        i32.const 2056
+        i32.const 2072
         i32.add
         i32.store offset=48
         local.get 3
@@ -6852,11 +6852,11 @@
         br_if 0 (;@1;)
         global.get $__memory_base
         local.tee 0
-        i32.const 2290
+        i32.const 2306
         i32.add
         i32.const 43
         local.get 0
-        i32.const 4356
+        i32.const 4372
         i32.add
         call $core::panicking::panic::h6b5f2399fab9b82b
         unreachable
@@ -6908,7 +6908,7 @@
         i32.const 36
         i32.add
         global.get $__memory_base
-        i32.const 4372
+        i32.const 4388
         i32.add
         local.get 3
         call $core::fmt::write::h9a3c09758e76bf05
@@ -6986,7 +6986,7 @@
       i32.store
       local.get 0
       global.get $__memory_base
-      i32.const 4396
+      i32.const 4412
       i32.add
       i32.store offset=4
       local.get 0
@@ -7028,7 +7028,7 @@
         i32.const 20
         i32.add
         global.get $__memory_base
-        i32.const 4372
+        i32.const 4388
         i32.add
         local.get 3
         call $core::fmt::write::h9a3c09758e76bf05
@@ -7061,7 +7061,7 @@
       i32.store
       local.get 0
       global.get $__memory_base
-      i32.const 4396
+      i32.const 4412
       i32.add
       i32.store offset=4
       local.get 2
@@ -7099,7 +7099,7 @@
       i32.store
       local.get 0
       global.get $__memory_base
-      i32.const 4412
+      i32.const 4428
       i32.add
       i32.store offset=4
       local.get 0
@@ -7114,7 +7114,7 @@
       local.tee 6
       global.set $__stack_pointer
       global.get $__memory_base
-      i32.const 4760
+      i32.const 4776
       i32.add
       local.tee 7
       local.get 7
@@ -7161,7 +7161,7 @@
                     local.get 2
                     i32.store offset=24
                     global.get $__memory_base
-                    i32.const 4792
+                    i32.const 4808
                     i32.add
                     i32.load
                     local.tee 5
@@ -7169,7 +7169,7 @@
                     i32.le_s
                     br_if 5 (;@2;)
                     global.get $__memory_base
-                    i32.const 4792
+                    i32.const 4808
                     i32.add
                     local.tee 3
                     local.get 5
@@ -7192,7 +7192,7 @@
                     i32.eqz
                     br_if 3 (;@4;)
                     global.get $__memory_base
-                    i32.const 4792
+                    i32.const 4808
                     i32.add
                     local.tee 5
                     i32.load offset=8
@@ -7220,12 +7220,12 @@
                   local.get 6
                   global.get $__memory_base
                   local.tee 7
-                  i32.const 4428
+                  i32.const 4444
                   i32.add
                   i32.store offset=20
                   local.get 6
                   local.get 7
-                  i32.const 2056
+                  i32.const 2072
                   i32.add
                   i32.store offset=16
                   local.get 6
@@ -7238,7 +7238,7 @@
                   i32.store offset=44
                   local.get 6
                   local.get 7
-                  i32.const 4444
+                  i32.const 4460
                   i32.add
                   i32.store offset=40
                   local.get 6
@@ -7266,7 +7266,7 @@
                   i32.const 64
                   i32.add
                   local.get 7
-                  i32.const 4020
+                  i32.const 4036
                   i32.add
                   local.get 6
                   i32.const 40
@@ -7381,12 +7381,12 @@
                 local.get 6
                 global.get $__memory_base
                 local.tee 7
-                i32.const 4460
+                i32.const 4476
                 i32.add
                 i32.store offset=40
                 local.get 6
                 local.get 7
-                i32.const 2056
+                i32.const 2072
                 i32.add
                 i32.store offset=48
                 local.get 6
@@ -7401,7 +7401,7 @@
                 i32.const 16
                 i32.add
                 local.get 7
-                i32.const 4020
+                i32.const 4036
                 i32.add
                 local.get 6
                 i32.const 40
@@ -7515,7 +7515,7 @@
           i32.const 0
           i32.store8 offset=4
           global.get $__memory_base
-          i32.const 4792
+          i32.const 4808
           i32.add
           local.tee 7
           local.get 7
@@ -7541,7 +7541,7 @@
         i32.store offset=44
         local.get 6
         global.get $__memory_base
-        i32.const 4516
+        i32.const 4532
         i32.add
         i32.store offset=40
         local.get 6
@@ -7578,12 +7578,12 @@
       local.get 6
       global.get $__memory_base
       local.tee 7
-      i32.const 4468
+      i32.const 4484
       i32.add
       i32.store offset=40
       local.get 6
       local.get 7
-      i32.const 2056
+      i32.const 2072
       i32.add
       i32.store offset=48
       local.get 6
@@ -7626,7 +7626,7 @@
       i32.store offset=16
       local.get 2
       global.get $__memory_base
-      i32.const 4476
+      i32.const 4492
       i32.add
       i32.store offset=12
       local.get 2
@@ -8181,11 +8181,11 @@
                     end
                     global.get $__memory_base
                     local.tee 2
-                    i32.const 2746
+                    i32.const 2762
                     i32.add
                     i32.const 43
                     local.get 2
-                    i32.const 4524
+                    i32.const 4540
                     i32.add
                     call $core::panicking::panic::h6b5f2399fab9b82b
                     unreachable
@@ -8409,19 +8409,19 @@
       local.get 0
       global.get $__memory_base
       local.tee 1
-      i32.const 4540
+      i32.const 4556
       i32.add
       i32.store offset=8
       local.get 0
       local.get 1
-      i32.const 2904
+      i32.const 2920
       i32.add
       i32.store offset=16
       local.get 0
       i32.const 8
       i32.add
       local.get 1
-      i32.const 4548
+      i32.const 4564
       i32.add
       call $core::panicking::panic_fmt::hf3388a9334a7d4c4
       unreachable
@@ -8650,7 +8650,7 @@
     (func $_$LT$core..alloc..layout..LayoutError$u20$as$u20$core..fmt..Debug$GT$::fmt::h64ca7dd1b0bd65bd (;111;) (type 4) (param i32 i32) (result i32)
       local.get 1
       global.get $__memory_base
-      i32.const 3031
+      i32.const 3047
       i32.add
       i32.const 11
       call $core::fmt::Formatter::write_str::hbd1d482a114ac427
@@ -8723,17 +8723,17 @@
       end
       global.get $__memory_base
       local.tee 1
-      i32.const 3042
+      i32.const 3058
       i32.add
       i32.const 43
       local.get 3
       i32.const 15
       i32.add
       local.get 1
-      i32.const 4564
+      i32.const 4580
       i32.add
       local.get 1
-      i32.const 4580
+      i32.const 4596
       i32.add
       call $core::result::unwrap_failed::h0a2a95058939daaf
       unreachable
@@ -10094,7 +10094,7 @@
         br_if 0 (;@1;)
         local.get 1
         global.get $__memory_base
-        i32.const 3392
+        i32.const 3408
         i32.add
         i32.const 5
         call $core::fmt::Formatter::pad::he5b059dce10eb550
@@ -10102,7 +10102,7 @@
       end
       local.get 1
       global.get $__memory_base
-      i32.const 3397
+      i32.const 3413
       i32.add
       i32.const 4
       call $core::fmt::Formatter::pad::he5b059dce10eb550
@@ -10171,7 +10171,7 @@
       i32.store offset=28
       local.get 5
       global.get $__memory_base
-      i32.const 4596
+      i32.const 4612
       i32.add
       i32.store offset=24
       local.get 5
@@ -10722,7 +10722,7 @@
           i32.const -4
           i32.add
           global.get $__memory_base
-          i32.const 3192
+          i32.const 3208
           i32.add
           local.tee 7
           local.get 0
@@ -10791,7 +10791,7 @@
         local.tee 4
         i32.add
         global.get $__memory_base
-        i32.const 3192
+        i32.const 3208
         i32.add
         local.get 5
         i32.wrap_i64
@@ -10828,7 +10828,7 @@
           local.tee 4
           i32.add
           global.get $__memory_base
-          i32.const 3192
+          i32.const 3208
           i32.add
           local.get 6
           i32.const 1
@@ -10854,7 +10854,7 @@
       local.get 2
       local.get 1
       global.get $__memory_base
-      i32.const 3408
+      i32.const 3424
       i32.add
       i32.const 0
       local.get 3
@@ -10908,12 +10908,12 @@
       local.get 2
       global.get $__memory_base
       local.tee 1
-      i32.const 4612
+      i32.const 4628
       i32.add
       i32.store offset=16
       local.get 2
       local.get 1
-      i32.const 3408
+      i32.const 3424
       i32.add
       i32.store offset=12
       local.get 2
@@ -10945,7 +10945,7 @@
       i32.store offset=24
       local.get 3
       global.get $__memory_base
-      i32.const 3408
+      i32.const 3424
       i32.add
       i32.store offset=8
       local.get 3
@@ -10988,7 +10988,7 @@
             end
             local.get 7
             global.get $__memory_base
-            i32.const 3408
+            i32.const 3424
             i32.add
             i32.store offset=24
             i32.const 2
@@ -10997,7 +10997,7 @@
           end
           local.get 7
           global.get $__memory_base
-          i32.const 3410
+          i32.const 3426
           i32.add
           i32.store offset=24
           i32.const 2
@@ -11006,7 +11006,7 @@
         end
         local.get 7
         global.get $__memory_base
-        i32.const 3412
+        i32.const 3428
         i32.add
         i32.store offset=24
         i32.const 7
@@ -11052,7 +11052,7 @@
         i32.store offset=60
         local.get 7
         global.get $__memory_base
-        i32.const 4628
+        i32.const 4644
         i32.add
         i32.store offset=88
         local.get 7
@@ -11141,7 +11141,7 @@
       i32.store offset=92
       local.get 7
       global.get $__memory_base
-      i32.const 4652
+      i32.const 4668
       i32.add
       i32.store offset=88
       local.get 7
@@ -11218,7 +11218,7 @@
           local.get 1
           i32.load offset=20
           local.get 2
-          i32.const 3493
+          i32.const 3509
           i32.add
           i32.const 2
           local.get 1
@@ -11235,7 +11235,7 @@
         local.get 1
         i32.load offset=20
         local.get 2
-        i32.const 3492
+        i32.const 3508
         i32.add
         i32.const 1
         local.get 1
@@ -11516,7 +11516,7 @@
       i32.store offset=28
       local.get 2
       global.get $__memory_base
-      i32.const 4684
+      i32.const 4700
       i32.add
       i32.store
       local.get 2
@@ -11748,7 +11748,7 @@
       i32.store offset=12
       local.get 3
       global.get $__memory_base
-      i32.const 4708
+      i32.const 4724
       i32.add
       i32.store offset=8
       local.get 3
@@ -11798,7 +11798,7 @@
         i32.load offset=20
         local.tee 5
         local.get 3
-        i32.const 3549
+        i32.const 3565
         i32.add
         i32.const 12
         local.get 1
@@ -11841,7 +11841,7 @@
         i32.store offset=20
         local.get 2
         global.get $__memory_base
-        i32.const 4684
+        i32.const 4700
         i32.add
         i32.store offset=16
         local.get 2
@@ -11883,7 +11883,7 @@
             br_if 0 (;@3;)
             local.get 5
             global.get $__memory_base
-            i32.const 3561
+            i32.const 3577
             i32.add
             i32.const 2
             local.get 6
@@ -11948,7 +11948,7 @@
           br_if 0 (;@2;)
           local.get 5
           global.get $__memory_base
-          i32.const 3561
+          i32.const 3577
           i32.add
           i32.const 2
           local.get 6
@@ -11972,8 +11972,8 @@
       global.set $__stack_pointer
       local.get 4
     )
-    (global $GOT.data.internal.__rust_no_alloc_shim_is_unstable (;4;) (mut i32) i32.const 4741)
-    (global $GOT.data.internal.__rust_alloc_error_handler_should_panic (;5;) (mut i32) i32.const 4740)
+    (global $GOT.data.internal.__rust_no_alloc_shim_is_unstable (;4;) (mut i32) i32.const 4757)
+    (global $GOT.data.internal.__rust_alloc_error_handler_should_panic (;5;) (mut i32) i32.const 4756)
     (global $GOT.func.internal.core::fmt::num::imp::_$LT$impl$u20$core..fmt..Display$u20$for$u20$usize$GT$::fmt::hbfd83f0499f79957 (;6;) (mut i32) i32.const 18)
     (global $GOT.func.internal._$LT$core..panic..panic_info..PanicInfo$u20$as$u20$core..fmt..Display$GT$::fmt::haaf6d012a733bd8d (;7;) (mut i32) i32.const 29)
     (global $GOT.func.internal.core::fmt::num::imp::_$LT$impl$u20$core..fmt..Display$u20$for$u20$u32$GT$::fmt::h98edb2ad46049cf7 (;8;) (mut i32) i32.const 18)
@@ -11986,7 +11986,7 @@
     (export "__wasm_set_libraries" (func $__wasm_set_libraries))
     (start $__wasm_apply_global_relocs)
     (elem (;0;) (global.get $__table_base) func $core::ptr::drop_in_place$LT$std..io..Write..write_fmt..Adapter$LT$alloc..vec..Vec$LT$u8$GT$$GT$$GT$::hf998f532c50cb705 $_$LT$std..io..Write..write_fmt..Adapter$LT$T$GT$$u20$as$u20$core..fmt..Write$GT$::write_str::h341120c3903b9bf2 $core::fmt::Write::write_char::h835ac4d37f70aa8f $core::fmt::Write::write_fmt::h0bb0a982cbee5fbf $_$LT$std..io..Write..write_fmt..Adapter$LT$T$GT$$u20$as$u20$core..fmt..Write$GT$::write_str::h0cc9ffee36cd937f $core::fmt::Write::write_char::h9db6317e31914445 $core::fmt::Write::write_fmt::hf0f6500f70dd74b1 $#func42<core::ptr::drop_in_place$LT$$RF$u8$GT$::h1255938afe5b5108__.llvm.15332286852275299187_> $_$LT$$RF$T$u20$as$u20$core..fmt..Debug$GT$::fmt::h38d29057232e3175 $core::ptr::drop_in_place$LT$$LT$alloc..boxed..Box$LT$dyn$u20$core..error..Error$u2b$core..marker..Sync$u2b$core..marker..Send$GT$$u20$as$u20$core..convert..From$LT$alloc..string..String$GT$$GT$..from..StringError$GT$::ha9469d5d85838b71 $_$LT$alloc..string..String$u20$as$u20$core..fmt..Write$GT$::write_str::ha232be781f4501bb $_$LT$alloc..string..String$u20$as$u20$core..fmt..Write$GT$::write_char::hbccd3dd660ab8f35 $core::fmt::Write::write_fmt::h31a2c20220c957e6 $#func47<core::ptr::drop_in_place$LT$std..io..Write..write_fmt..Adapter$LT$alloc..vec..Vec$LT$u8$GT$$GT$$GT$::hf998f532c50cb705__.llvm.16956913488488451105_> $#func56<core::ptr::drop_in_place$LT$std..thread..local..AccessError$GT$::h2b846ef7bba63faf__.llvm.11225111681125628113_> $_$LT$std..thread..local..AccessError$u20$as$u20$core..fmt..Debug$GT$::fmt::h894d1eb0ce9c3529 $#func61<core::ptr::drop_in_place$LT$std..io..Write..write_fmt..Adapter$LT$std..sys..wasi..stdio..Stderr$GT$$GT$::hdaf8233befe1c34a__.llvm.9557612308607314467_> $_$LT$std..sys_common..backtrace.._print..DisplayBacktrace$u20$as$u20$core..fmt..Display$GT$::fmt::h048cf0e1272391fd $core::fmt::num::imp::_$LT$impl$u20$core..fmt..Display$u20$for$u20$u32$GT$::fmt::h98edb2ad46049cf7 $std::alloc::default_alloc_error_hook::h0be6e654dfab6bd4 $core::ptr::drop_in_place$LT$$RF$str$GT$::h6b1dc4f502fe29b8 $_$LT$T$u20$as$u20$core..any..Any$GT$::type_id::h46e973aefffffd83 $_$LT$std..panicking..begin_panic_handler..StaticStrPayload$u20$as$u20$core..panic..PanicPayload$GT$::take_box::hb5f30bcde0dfc478 $_$LT$std..panicking..begin_panic_handler..StaticStrPayload$u20$as$u20$core..panic..PanicPayload$GT$::get::h501156f013b749a6 $core::ptr::drop_in_place$LT$std..panicking..begin_panic_handler..FormatStringPayload$GT$::h5dc476b836162c7e $_$LT$std..panicking..begin_panic_handler..FormatStringPayload$u20$as$u20$core..panic..PanicPayload$GT$::take_box::h6075c9dae37cc887 $_$LT$std..panicking..begin_panic_handler..FormatStringPayload$u20$as$u20$core..panic..PanicPayload$GT$::get::h8593919de4f10490 $_$LT$$RF$T$u20$as$u20$core..fmt..Display$GT$::fmt::h94e43c46ea1ae9fc $_$LT$$RF$T$u20$as$u20$core..fmt..Display$GT$::fmt::h5885aa12204b115c $_$LT$core..panic..panic_info..PanicInfo$u20$as$u20$core..fmt..Display$GT$::fmt::haaf6d012a733bd8d $core::ptr::drop_in_place$LT$alloc..string..String$GT$::h7e859c3d49663973 $std::io::impls::_$LT$impl$u20$std..io..Write$u20$for$u20$alloc..vec..Vec$LT$u8$C$A$GT$$GT$::write::h56227fb4b7b7274d $std::io::impls::_$LT$impl$u20$std..io..Write$u20$for$u20$alloc..vec..Vec$LT$u8$C$A$GT$$GT$::write_vectored::hb080017ea512e2c8 $std::io::impls::_$LT$impl$u20$std..io..Write$u20$for$u20$alloc..vec..Vec$LT$u8$C$A$GT$$GT$::is_write_vectored::h47ca120c93aed961 $std::io::impls::_$LT$impl$u20$std..io..Write$u20$for$u20$alloc..vec..Vec$LT$u8$C$A$GT$$GT$::flush::h87a3932c46cb40cd $std::io::impls::_$LT$impl$u20$std..io..Write$u20$for$u20$alloc..vec..Vec$LT$u8$C$A$GT$$GT$::write_all::h2828d09c0a196513 $std::io::Write::write_all_vectored::ha7c695d0a1fd5e82 $std::io::Write::write_fmt::h1462c39bcd355635 $core::ptr::drop_in_place$LT$$LP$$RP$$GT$::hc7983eb888352f97 $_$LT$std..sys..wasi..stdio..Stderr$u20$as$u20$std..io..Write$GT$::write::had566fb5db304fce $_$LT$std..sys..wasi..stdio..Stderr$u20$as$u20$std..io..Write$GT$::write_vectored::ha0d7307e4f52640c $_$LT$std..sys..wasi..stdio..Stderr$u20$as$u20$std..io..Write$GT$::is_write_vectored::he4fe63897dfa8fc7 $_$LT$std..sys..wasi..stdio..Stderr$u20$as$u20$std..io..Write$GT$::flush::h821a5942ed937229 $std::io::Write::write_all::he1386585803e5b4d $std::io::Write::write_all_vectored::h7c465c96bfe57a1f $std::io::Write::write_fmt::h0b43c07e3174d5bc $#func86<_$LT$alloc..string..String$u20$as$u20$core..fmt..Write$GT$::write_str::ha232be781f4501bb> $#func85<_$LT$alloc..string..String$u20$as$u20$core..fmt..Write$GT$::write_char::hbccd3dd660ab8f35> $_$LT$T$u20$as$u20$core..any..Any$GT$::type_id::h6af49548f242c026 $core::ptr::drop_in_place$LT$i32$GT$::h7b5f74dcf93888ba $_$LT$T$u20$as$u20$core..any..Any$GT$::type_id::h45e6f7a5d52f9492 $core::ptr::drop_in_place$LT$core..alloc..layout..LayoutError$GT$::h9b75eb298734e077 $_$LT$core..alloc..layout..LayoutError$u20$as$u20$core..fmt..Debug$GT$::fmt::h64ca7dd1b0bd65bd $#func130<core::ops::function::FnOnce::call_once::h1de21cb08b386aef__.llvm.2317637258618301942_> $_$LT$$RF$T$u20$as$u20$core..fmt..Debug$GT$::fmt::hefb7a28dbdd3d329 $_$LT$$RF$T$u20$as$u20$core..fmt..Display$GT$::fmt::hfbbeeeb5a0b8c499 $_$LT$core..fmt..Arguments$u20$as$u20$core..fmt..Display$GT$::fmt::h0abdc867019bcb34 $core::ptr::drop_in_place$LT$core..panic..panic_info..PanicInfo..internal_constructor..NoPayload$GT$::h6a104a878b33c3af $_$LT$T$u20$as$u20$core..any..Any$GT$::type_id::h564ccd5ea9d298c8)
-    (data $.data (;0;) (global.get $__memory_base) "`__wasm_set_libraries` should have been called during instantiation with a non-NULL valuesrc/lib.rsinvalid library handle\00library not found\00dlopen flags not yet supported\00dlsym RTLD_NEXT and RTLD_DEFAULT not yet supported\00file name contained an unexpected NUL bytefile name contained an unexpected NUL byte\00\00reentrant init/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cell/once.rs/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/mod.rsfailed to generate unique thread ID: bitspace exhaustedadvancing io slices beyond their length/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/io/mod.rsfailed to write whole bufferformatter erroradvancing IoSlice beyond its length/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/wasi/io.rsAccessErrorcannot access a Thread Local Storage value during or after destruction/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rsRUST_BACKTRACEinternal error: entered unreachable code/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/panic.rs\00\00\00advancing io slices beyond their length/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/io/mod.rsfailed to write whole bufferformatter erroradvancing IoSlice beyond its length/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/wasi/io.rsstack backtrace:\0anote: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.\0amemory allocation of  bytes failed\0a bytes failed/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/alloc.rscannot recursively acquire mutex\00/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/wasi/../unsupported/locks/mutex.rs/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/panicking.rsBox<dyn Any><unnamed>thread '' panicked at :\0a\0anote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\0acalled `Option::unwrap()` on a `None` value\0apanicked after panic::always_abort(), aborting.\0athread panicked while processing panic. aborting.\0athread caused non-unwinding panic. aborting.\0afatal runtime error: failed to initiate panic, error cannot recursively acquire mutex\00/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/wasi/../unsupported/locks/mutex.rsfatal runtime error: rwlock locked for writing\0acalled `Option::unwrap()` on a `None` value/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/alloc/src/ffi/c_str.rs\00\00\00/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/alloc/src/raw_vec.rscapacity overflowLayoutErrorcalled `Result::unwrap()` on an `Err` value/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/alloc/src/sync.rs00010203040506070809101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899falsetrue\00\00\00: \00\00==!=matchesassertion `left  right` failed\0a  left: \0a right:  right` failed: \0a  left: } }\00:range start index  out of range for slice of length panicked at :\0a\00\00\00\00\00\00\00\00\00Y\00\00\00Y\00\00\00\0a\00\00\008\00\00\00\09\00\00\00Y\00\00\00\0a\00\00\00h\00\00\00\09\00\00\00\de\00\00\00*\00\00\00\14\00\00\00\00\00\00\00\02\00\00\00\18\0e\00\00\08\01\00\00*\00\00\00\14\00\00\00\00\00\00\00\02\00\00\000\0e\00\00\00\00\00\00\0c\00\00\00\04\00\00\00\01\00\00\00\02\00\00\00\03\00\00\00\00\00\00\00\0c\00\00\00\04\00\00\00\04\00\00\00\05\00\00\00\06\00\00\00\07\00\00\00\04\00\00\00\04\00\00\00\08\00\00\00\09\00\00\00\0c\00\00\00\04\00\00\00\0a\00\00\00\0b\00\00\00\0c\00\00\004\01\00\00\0e\00\00\00B\01\00\00o\00\00\00\d9\00\00\00B\00\00\00 \02\00\007\00\00\00\b1\01\00\00o\00\00\00\98\04\00\00\0d\00\00\00W\02\00\00'\00\00\00~\02\00\00k\00\00\00\a5\05\00\00\0d\00\00\00~\02\00\00k\00\00\00\a3\05\00\00 \00\00\00\e9\02\00\00\1c\00\00\00\17\00\00\00\0d\00\00\00\0c\00\00\00\04\00\00\00\01\00\00\00\02\00\00\00\03\00\00\00\05\03\00\00\0f\00\00\00(\00\00\00\14\03\00\00#\00\00\007\03\00\00p\00\00\00\17\00\00\00\0d\00\00\00\0e\00\00\00\00\00\00\00\01\00\00\00\0f\00\00\00\f8\03\00\00q\00\00\00\04\01\00\00\1a\00\00\00\9f\04\00\00j\00\00\00\f5\00\00\00\12\00\00\00\0c\05\00\00'\00\00\003\05\00\00k\00\00\00\a5\05\00\00\0d\00\00\003\05\00\00k\00\00\00\a3\05\00\00 \00\00\00\9e\05\00\00\1c\00\00\00\17\00\00\003\05\00\00k\00\00\00\8d\06\00\00$\00\00\00\10\00\00\00\0c\00\00\00\04\00\00\00\04\00\00\00\05\00\00\00\06\00\00\00\ba\05\00\00\0f\00\00\00(\00\00\00\c9\05\00\00#\00\00\00\ec\05\00\00p\00\00\00\17\00\00\00\0d\00\00\00\5c\06\00\00\00\00\00\00\5c\06\00\00\11\00\00\00m\06\00\00X\00\00\00\c5\06\00\00\15\00\00\00\da\06\00\00\0e\00\00\00\c5\06\00\00\15\00\00\00\e8\06\00\00\0d\00\00\00\f5\06\00\00j\00\00\00b\01\00\00\09\00\00\00\14\00\00\00\08\00\00\00\04\00\00\00\15\00\00\00\14\00\00\00\08\00\00\00\04\00\00\00\16\00\00\00\17\00\00\00\18\00\00\00\10\00\00\00\04\00\00\00\19\00\00\00\1a\00\00\00_\07\00\00 \00\00\00\80\07\00\00\88\00\00\00\14\00\00\00\09\00\00\00\1e\00\00\00\0c\00\00\00\04\00\00\00\1f\00\00\00 \00\00\00!\00\00\00\22\00\00\00#\00\00\00$\00\00\00%\00\00\00&\00\00\00\00\00\00\00\01\00\00\00'\00\00\00(\00\00\00)\00\00\00*\00\00\00+\00\00\00,\00\00\00-\00\00\00\8b\08\00\00\08\00\00\00\93\08\00\00\0e\00\00\00\a1\08\00\00\02\00\00\00\a3\08\00\00\01\00\00\00\a4\08\00\00N\00\00\00\01\00\00\00\08\08\00\00n\00\00\00\84\02\00\00\1e\00\00\00\1e\00\00\00\0c\00\00\00\04\00\00\00.\00\00\00/\00\00\00\0c\00\00\00\1e\00\00\00\0c\00\00\00\04\00\00\000\00\00\001\00\00\00\08\00\00\00\04\00\00\00\15\00\00\00&\00\00\00\00\00\00\00\01\00\00\002\00\00\00\08\08\00\00\00\00\00\00\1d\09\00\001\00\00\00N\09\00\002\00\00\00\80\09\00\00-\00\00\00\ad\09\00\005\00\00\00\a3\08\00\00\01\00\00\00\e2\09\00\00 \00\00\00\03\0a\00\00\88\00\00\00\14\00\00\00\09\00\00\00\8b\0a\00\00/\00\00\00\e5\0a\00\00p\00\00\00\1b\01\00\007\00\00\00\c6\0b\00\00\11\00\00\00X\0b\00\00n\00\00\00;\02\00\00\05\00\00\003\00\00\00\00\00\00\00\01\00\00\004\00\00\00\0d\0c\00\00k\00\00\00o\01\00\002\00\00\00L\0d\00\00\00\00\00\00L\0d\00\00\02\00\00\009\00\00\00\00\00\00\00\01\00\00\00:\00\00\00[\0d\00\00\10\00\00\00k\0d\00\00\17\00\00\00\82\0d\00\00\09\00\00\00[\0d\00\00\10\00\00\00\8b\0d\00\00\10\00\00\00\9b\0d\00\00\09\00\00\00\82\0d\00\00\09\00\00\00\a8\0d\00\00\00\00\00\00\a8\0d\00\00\01\00\00\00\a8\0d\00\00\01\00\00\00\a9\0d\00\00\12\00\00\00\bb\0d\00\00\22\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
+    (data $.data (;0;) (global.get $__memory_base) "`__wasm_set_libraries` should have been called during instantiation with a non-NULL valuesrc/lib.rsinvalid library handle\00library not found\00dlopen flags not yet supported\00symbol not found\00dlsym RTLD_NEXT and RTLD_DEFAULT not yet supported\00file name contained an unexpected NUL bytefile name contained an unexpected NUL byte\00reentrant init/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/cell/once.rs/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/mod.rsfailed to generate unique thread ID: bitspace exhaustedadvancing io slices beyond their length/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/io/mod.rsfailed to write whole bufferformatter erroradvancing IoSlice beyond its length/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/wasi/io.rsAccessErrorcannot access a Thread Local Storage value during or after destruction/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/thread/local.rsRUST_BACKTRACEinternal error: entered unreachable code/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/panic.rs\00\00\00advancing io slices beyond their length/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/io/mod.rsfailed to write whole bufferformatter erroradvancing IoSlice beyond its length/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/wasi/io.rsstack backtrace:\0anote: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.\0amemory allocation of  bytes failed\0a bytes failed/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/alloc.rscannot recursively acquire mutex\00/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/wasi/../unsupported/locks/mutex.rs/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/panicking.rsBox<dyn Any><unnamed>thread '' panicked at :\0a\0anote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\0acalled `Option::unwrap()` on a `None` value\0apanicked after panic::always_abort(), aborting.\0athread panicked while processing panic. aborting.\0athread caused non-unwinding panic. aborting.\0afatal runtime error: failed to initiate panic, error cannot recursively acquire mutex\00/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/std/src/sys/wasi/../unsupported/locks/mutex.rsfatal runtime error: rwlock locked for writing\0acalled `Option::unwrap()` on a `None` value/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/alloc/src/ffi/c_str.rs\00\00\00/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/alloc/src/raw_vec.rscapacity overflowLayoutErrorcalled `Result::unwrap()` on an `Err` value/Users/dicej/.rustup/toolchains/nightly-aarch64-apple-darwin/lib/rustlib/src/rust/library/alloc/src/sync.rs00010203040506070809101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899falsetrue\00\00\00: \00\00==!=matchesassertion `left  right` failed\0a  left: \0a right:  right` failed: \0a  left: } }\00:range start index  out of range for slice of length panicked at :\0a\00\00\00\00\00\00\00\00\00Y\00\00\00Y\00\00\00\0a\00\00\008\00\00\00\09\00\00\00Y\00\00\00\0a\00\00\00h\00\00\00\09\00\00\00\ef\00\00\00*\00\00\00\14\00\00\00\00\00\00\00\02\00\00\00(\0e\00\00\19\01\00\00*\00\00\00\14\00\00\00\00\00\00\00\02\00\00\00@\0e\00\00\00\00\00\00\0c\00\00\00\04\00\00\00\01\00\00\00\02\00\00\00\03\00\00\00\00\00\00\00\0c\00\00\00\04\00\00\00\04\00\00\00\05\00\00\00\06\00\00\00\07\00\00\00\04\00\00\00\04\00\00\00\08\00\00\00\09\00\00\00\0c\00\00\00\04\00\00\00\0a\00\00\00\0b\00\00\00\0c\00\00\00D\01\00\00\0e\00\00\00R\01\00\00o\00\00\00\d9\00\00\00B\00\00\000\02\00\007\00\00\00\c1\01\00\00o\00\00\00\98\04\00\00\0d\00\00\00g\02\00\00'\00\00\00\8e\02\00\00k\00\00\00\a5\05\00\00\0d\00\00\00\8e\02\00\00k\00\00\00\a3\05\00\00 \00\00\00\f9\02\00\00\1c\00\00\00\17\00\00\00\0d\00\00\00\0c\00\00\00\04\00\00\00\01\00\00\00\02\00\00\00\03\00\00\00\15\03\00\00\0f\00\00\00(\00\00\00$\03\00\00#\00\00\00G\03\00\00p\00\00\00\17\00\00\00\0d\00\00\00\0e\00\00\00\00\00\00\00\01\00\00\00\0f\00\00\00\08\04\00\00q\00\00\00\04\01\00\00\1a\00\00\00\af\04\00\00j\00\00\00\f5\00\00\00\12\00\00\00\1c\05\00\00'\00\00\00C\05\00\00k\00\00\00\a5\05\00\00\0d\00\00\00C\05\00\00k\00\00\00\a3\05\00\00 \00\00\00\ae\05\00\00\1c\00\00\00\17\00\00\00C\05\00\00k\00\00\00\8d\06\00\00$\00\00\00\10\00\00\00\0c\00\00\00\04\00\00\00\04\00\00\00\05\00\00\00\06\00\00\00\ca\05\00\00\0f\00\00\00(\00\00\00\d9\05\00\00#\00\00\00\fc\05\00\00p\00\00\00\17\00\00\00\0d\00\00\00l\06\00\00\00\00\00\00l\06\00\00\11\00\00\00}\06\00\00X\00\00\00\d5\06\00\00\15\00\00\00\ea\06\00\00\0e\00\00\00\d5\06\00\00\15\00\00\00\f8\06\00\00\0d\00\00\00\05\07\00\00j\00\00\00b\01\00\00\09\00\00\00\14\00\00\00\08\00\00\00\04\00\00\00\15\00\00\00\14\00\00\00\08\00\00\00\04\00\00\00\16\00\00\00\17\00\00\00\18\00\00\00\10\00\00\00\04\00\00\00\19\00\00\00\1a\00\00\00o\07\00\00 \00\00\00\90\07\00\00\88\00\00\00\14\00\00\00\09\00\00\00\1e\00\00\00\0c\00\00\00\04\00\00\00\1f\00\00\00 \00\00\00!\00\00\00\22\00\00\00#\00\00\00$\00\00\00%\00\00\00&\00\00\00\00\00\00\00\01\00\00\00'\00\00\00(\00\00\00)\00\00\00*\00\00\00+\00\00\00,\00\00\00-\00\00\00\9b\08\00\00\08\00\00\00\a3\08\00\00\0e\00\00\00\b1\08\00\00\02\00\00\00\b3\08\00\00\01\00\00\00\b4\08\00\00N\00\00\00\01\00\00\00\18\08\00\00n\00\00\00\84\02\00\00\1e\00\00\00\1e\00\00\00\0c\00\00\00\04\00\00\00.\00\00\00/\00\00\00\0c\00\00\00\1e\00\00\00\0c\00\00\00\04\00\00\000\00\00\001\00\00\00\08\00\00\00\04\00\00\00\15\00\00\00&\00\00\00\00\00\00\00\01\00\00\002\00\00\00\18\08\00\00\00\00\00\00-\09\00\001\00\00\00^\09\00\002\00\00\00\90\09\00\00-\00\00\00\bd\09\00\005\00\00\00\b3\08\00\00\01\00\00\00\f2\09\00\00 \00\00\00\13\0a\00\00\88\00\00\00\14\00\00\00\09\00\00\00\9b\0a\00\00/\00\00\00\f5\0a\00\00p\00\00\00\1b\01\00\007\00\00\00\d6\0b\00\00\11\00\00\00h\0b\00\00n\00\00\00;\02\00\00\05\00\00\003\00\00\00\00\00\00\00\01\00\00\004\00\00\00\1d\0c\00\00k\00\00\00o\01\00\002\00\00\00\5c\0d\00\00\00\00\00\00\5c\0d\00\00\02\00\00\009\00\00\00\00\00\00\00\01\00\00\00:\00\00\00k\0d\00\00\10\00\00\00{\0d\00\00\17\00\00\00\92\0d\00\00\09\00\00\00k\0d\00\00\10\00\00\00\9b\0d\00\00\10\00\00\00\ab\0d\00\00\09\00\00\00\92\0d\00\00\09\00\00\00\b8\0d\00\00\00\00\00\00\b8\0d\00\00\01\00\00\00\b8\0d\00\00\01\00\00\00\b9\0d\00\00\12\00\00\00\cb\0d\00\00\22\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
     (@producers
       (processed-by "clang" "17.0.6 (https://github.com/llvm/llvm-project 6009708b4367171ccdbf4b5905cb6a803753fe18)")
       (processed-by "rustc" "1.77.0-nightly (75c68cfd2 2024-01-07)")
