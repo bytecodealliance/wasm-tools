@@ -165,7 +165,7 @@ pub unsafe extern "C" fn dlsym(library: *const c_void, name: *const c_char) -> *
     }) {
         symbols[index].address
     } else {
-        ERROR.0 = "library not found\0" as *const _ as _;
+        ERROR.0 = "symbol not found\0" as *const _ as _;
         ptr::null()
     }
 }
