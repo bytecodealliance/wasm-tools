@@ -12,6 +12,7 @@ use core::{
 
 const RTLD_LAZY: c_int = 1;
 const RTLD_NOW: c_int = 2;
+const RTLD_GLOBAL: c_int = 256;
 
 const RTLD_NEXT: isize = -1;
 const RTLD_DEFAULT: isize = 0;
@@ -102,7 +103,7 @@ pub unsafe extern "C" fn dlopen(name: *const c_char, flags: c_int) -> *const c_v
         );
     }
 
-    if (flags & !(RTLD_LAZY | RTLD_NOW)) != 0 {
+    if (flags & !(RTLD_LAZY | RTLD_NOW | RTLD_GLOBAL)) != 0 {
         // TODO
         ERROR = c"dlopen flags not yet supported".as_ptr();
         return ptr::null();

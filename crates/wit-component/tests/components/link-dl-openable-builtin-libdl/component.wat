@@ -178,8 +178,9 @@
           block ;; label = @3
             block ;; label = @4
               local.get 1
-              i32.const 3
-              i32.le_u
+              i32.const -260
+              i32.and
+              i32.eqz
               br_if 0 (;@4;)
               local.get 3
               i32.const 41
