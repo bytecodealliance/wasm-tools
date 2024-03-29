@@ -83,6 +83,7 @@ jobs:
         curl -LO https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-21/wasi-sdk-21.0-linux.tar.gz
         tar xf wasi-sdk-21.0-linux.tar.gz
         export WASI_SDK_PATH=$(pwd)/wasi-sdk-21.0
+        rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
         cd crates/wit-component/dl && bash check.sh
       if: matrix.os == 'ubuntu-latest' && matrix.build == 'nightly'
     - run: cargo test --locked --all
