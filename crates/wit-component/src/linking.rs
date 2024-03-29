@@ -1279,14 +1279,6 @@ impl Linker {
             })
             .collect::<Result<Vec<_>>>()?;
 
-        eprintln!(
-            "libraries are {:?}",
-            self.libraries
-                .iter()
-                .map(|(name, ..)| name)
-                .collect::<Vec<_>>()
-        );
-
         {
             let names = self
                 .libraries
