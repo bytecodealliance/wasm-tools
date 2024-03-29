@@ -1257,7 +1257,7 @@ impl Linker {
     /// Encode the component and return the bytes
     pub fn encode(mut self) -> Result<Vec<u8>> {
         if self.use_built_in_libdl {
-            self = self.library("libdl.so", include_bytes!("../dl/libdl.so"), false)?;
+            self = self.library("libdl.so", include_bytes!("../libdl.so"), false)?;
         }
 
         let adapter_names = self

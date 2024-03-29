@@ -4,4 +4,4 @@
 # `wasm32-wasi` target, plus `wasi-sdk` 21 or later, installed at $WASI_SDK_PATH
 
 RUSTFLAGS="-C relocation-model=pic" cargo +nightly build -Z build-std=panic_abort,std --release --target=wasm32-wasi
-$WASI_SDK_PATH/bin/clang -shared -o libdl.so -Wl,--whole-archive target/wasm32-wasi/release/libdl.a -Wl,--no-whole-archive
+$WASI_SDK_PATH/bin/clang -shared -o ../libdl.so -Wl,--whole-archive target/wasm32-wasi/release/libdl.a -Wl,--no-whole-archive
