@@ -79,6 +79,13 @@ jobs:
         submodules: true
     - name: Install Rust (rustup)
       run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
+    - run: |
+        curl -LO https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-21/wasi-sdk-21.0-linux.tar.gz
+        tar xf wasi-sdk-21.0-linux.tar.gz
+        export WASI_SDK_PATH=$(pwd)/wasi-sdk-21.0
+        rustup target add wasm32-wasi
+        cd crates/wit-component/dl && bash check.sh
+      if: matrix.os == 'ubuntu-latest' && matrix.build == 'stable'
     - run: cargo test --locked --all
     - run: cargo test --locked -p wasmparser --benches
     - run: cargo test --locked -p wasm-encoder --all-features
@@ -109,7 +116,8 @@ jobs:
         cargo --locked test --workspace \
           --exclude fuzz-stats \
           --exclude wasm-tools-fuzz \
-          --exclude wasm-mutate-stats
+          --exclude wasm-mutate-stats \
+          --exclude dl
 
   rustfmt:
     name: Rustfmt

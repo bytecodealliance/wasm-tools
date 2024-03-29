@@ -346,6 +346,10 @@ pub struct LinkOpts {
     /// Generate trapping stubs for any missing functions
     #[clap(long)]
     stub_missing_functions: bool,
+
+    /// Use built-in implementations of `dlopen`/`dlsym`
+    #[clap(long)]
+    use_built_in_libdl: bool,
 }
 
 impl LinkOpts {
@@ -357,7 +361,8 @@ impl LinkOpts {
     fn run(self) -> Result<()> {
         let mut linker = Linker::default()
             .validate(!self.skip_validation)
-            .stub_missing_functions(self.stub_missing_functions);
+            .stub_missing_functions(self.stub_missing_functions)
+            .use_built_in_libdl(self.use_built_in_libdl);
 
         if let Some(stack_size) = self.stack_size {
             linker = linker.stack_size(stack_size);

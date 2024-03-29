@@ -31,6 +31,9 @@ use wit_parser::{PackageId, Resolve, UnresolvedPackage};
 /// * [optional] `stub-missing-functions` - if linking libraries and this file
 ///   exists, `Linker::stub_missing_functions` will be set to `true`.  The
 ///   contents of the file are ignored.
+/// * [optional] `use-built-in-libdl` - if linking libraries and this file
+///   exists, `Linker::use_built_in_libdl` will be set to `true`.  The contents
+///   of the file are ignored.
 ///
 /// And the output files are one of the following:
 ///
@@ -92,6 +95,10 @@ fn component_encoding_via_flags() -> Result<()> {
 
             if path.join("stub-missing-functions").is_file() {
                 linker = linker.stub_missing_functions(true);
+            }
+
+            if path.join("use-built-in-libdl").is_file() {
+                linker = linker.use_built_in_libdl(true);
             }
 
             let linker =
