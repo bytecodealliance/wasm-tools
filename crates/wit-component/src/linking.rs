@@ -351,7 +351,7 @@ fn make_env_module<'a>(
                 wasm_encoder::GlobalType {
                     val_type: ValType::I32,
                     mutable,
-                    shared: false, // TODO: determine if module is shared or not.
+                    shared: false,
                 },
                 &const_u32(value),
             );
@@ -579,7 +579,7 @@ fn make_init_module(
                     wasm_encoder::GlobalType {
                         val_type: ValType::I32,
                         mutable,
-                        shared: false, // TODO: determine if module is shared or not.
+                        shared: false,
                     },
                 );
                 get_and_increment(&mut global_count)
