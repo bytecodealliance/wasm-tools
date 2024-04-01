@@ -870,6 +870,7 @@ impl CodeBuilderAllocations {
             module.globals.push(GlobalType {
                 val_type: ty,
                 mutable: true,
+                shared: false,
             });
             module.defined_globals.push((global_idx, init));
 

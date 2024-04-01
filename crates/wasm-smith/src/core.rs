@@ -1424,6 +1424,7 @@ impl Module {
         Ok(GlobalType {
             val_type: self.arbitrary_valtype(u)?,
             mutable: u.arbitrary()?,
+            shared: false,
         })
     }
 
@@ -1756,6 +1757,7 @@ impl Module {
                         GlobalType {
                             val_type: convert_val_type(&global_type.content_type),
                             mutable: global_type.mutable,
+                            shared: global_type.shared,
                         },
                         u,
                     )?,

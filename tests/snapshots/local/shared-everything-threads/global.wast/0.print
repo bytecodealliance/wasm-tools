@@ -1,0 +1,6 @@
+(module
+  (import "spectest" "global_i32" (global (;0;) (shared i32)))
+  (import "spectest" "global_f64" (global (;1;) (shared mut f64)))
+  (global $a (;2;) (shared i64) i64.const 0)
+  (global $b (;3;) (shared mut i64) i64.const 1)
+)

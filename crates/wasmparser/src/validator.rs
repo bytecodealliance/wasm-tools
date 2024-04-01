@@ -1533,7 +1533,8 @@ mod tests {
             types.global_at(0),
             GlobalType {
                 content_type: ValType::I32,
-                mutable: true
+                mutable: true,
+                shared: false
             }
         );
 

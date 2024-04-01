@@ -1,0 +1,17 @@
+{
+  "source_filename": "tests/local/shared-everything-threads/global.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "global.0.wasm"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 11,
+      "filename": "global.1.wat",
+      "text": "unexpected token",
+      "module_type": "text"
+    }
+  ]
+}

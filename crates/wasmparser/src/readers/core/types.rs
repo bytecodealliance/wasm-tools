@@ -1505,6 +1505,8 @@ pub struct GlobalType {
     pub content_type: ValType,
     /// Whether or not the global is mutable.
     pub mutable: bool,
+    /// Whether or not the global is shared.
+    pub shared: bool,
 }
 
 /// Represents a tag kind.

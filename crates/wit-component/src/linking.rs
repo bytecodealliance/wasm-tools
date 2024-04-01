@@ -300,6 +300,7 @@ fn make_env_module<'a>(
                             EntityType::Global(wasm_encoder::GlobalType {
                                 val_type: ty.ty.into(),
                                 mutable: ty.mutable,
+                                shared: ty.shared,
                             })
                         }
                     },
@@ -348,6 +349,7 @@ fn make_env_module<'a>(
                 wasm_encoder::GlobalType {
                     val_type: ValType::I32,
                     mutable,
+                    shared: false,
                 },
                 &const_u32(value),
             );
@@ -575,6 +577,7 @@ fn make_init_module(
                     wasm_encoder::GlobalType {
                         val_type: ValType::I32,
                         mutable,
+                        shared: false,
                     },
                 );
                 get_and_increment(&mut global_count)
@@ -788,6 +791,7 @@ fn find_offset_exporter<'a>(
         ty: Type::Global(GlobalType {
             ty: ValueType::I32,
             mutable: false,
+            shared: false,
         }),
     };
 
@@ -896,6 +900,7 @@ fn resolve_symbols<'a>(
                         ty: Type::Global(GlobalType {
                             ty: ValueType::I32,
                             mutable: false,
+                            shared: false,
                         }),
                     },
                     flags: SymbolFlags::empty(),

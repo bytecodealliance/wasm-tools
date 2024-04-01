@@ -952,6 +952,7 @@ impl ComponentBuilder {
         Ok(crate::core::GlobalType {
             val_type: self.arbitrary_core_valtype(u)?,
             mutable: u.arbitrary()?,
+            shared: false,
         })
     }
 
