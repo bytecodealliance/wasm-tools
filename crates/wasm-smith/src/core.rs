@@ -1424,7 +1424,7 @@ impl Module {
         Ok(GlobalType {
             val_type: self.arbitrary_valtype(u)?,
             mutable: u.arbitrary()?,
-            shared: self.config.shared_everything_threads_enabled && u.arbitrary()?,
+            shared: false,
         })
     }
 

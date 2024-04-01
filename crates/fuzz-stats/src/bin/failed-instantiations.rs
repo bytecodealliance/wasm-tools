@@ -104,7 +104,6 @@ impl State {
 
         // Wasmtime doesn't support these proposals yet.
         config.gc_enabled = false;
-        config.shared_everything_threads_enabled = false;
 
         let mut wasm = wasm_smith::Module::new(config, &mut u)?;
         wasm.ensure_termination(10_000).unwrap();
