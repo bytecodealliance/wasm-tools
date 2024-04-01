@@ -8,7 +8,7 @@
     },
     {
       "type": "assert_malformed",
-      "line": 9,
+      "line": 11,
       "filename": "global.1.wat",
       "text": "unexpected token",
       "module_type": "text"
