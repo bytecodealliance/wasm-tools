@@ -626,6 +626,7 @@ impl TestState {
                     features.gc = false;
                     features.component_model = false;
                     features.component_model_values = false;
+                    features.shared_everything_threads = false;
                 }
                 "floats-disabled.wast" => features.floats = false,
                 "threads" => {
