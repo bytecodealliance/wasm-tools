@@ -378,11 +378,11 @@ impl<'a> Parse<'a> for GlobalType<'a> {
             parser.parens(|p| {
                 let mut shared = false;
                 let mut mutable = false;
-                if parser.peek::<kw::shared>()? {
+                if p.peek::<kw::shared>()? {
                     p.parse::<kw::shared>()?;
                     shared = true;
                 }
-                if parser.peek::<kw::r#mut>()? {
+                if p.peek::<kw::r#mut>()? {
                     p.parse::<kw::r#mut>()?;
                     mutable = true;
                 }
