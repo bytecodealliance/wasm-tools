@@ -40,7 +40,7 @@ impl<'a> FromReader<'a> for GlobalType {
         let content_type = reader.read()?;
         let flags = reader.read_u8()?;
         if flags > 0b11 {
-            bail!(reader.original_position() - 1, "malformed mutability")
+            bail!(reader.original_position() - 1, "malformed global flags")
         }
         Ok(GlobalType {
             content_type,

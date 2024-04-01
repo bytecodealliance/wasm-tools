@@ -846,8 +846,10 @@ fn error_matches(error: &str, message: &str) -> bool {
         // When parsing a global `shared` type (e.g., `global (mut shared i32)
         // ...`), many spec tests expect a `malformed mutability` error.
         // Previously, `0x2` was an invalid flag but it now means `shared`. We
-        // accept a validation error instead.
-        return error.contains("require the shared-everything-threads proposal");
+        // accept either (a) a new, more accurate error message or (b) a
+        // validation error instead.
+        return error.contains("malformed global flags")
+            || error.contains("require the shared-everything-threads proposal");
     }
 
     return false;
