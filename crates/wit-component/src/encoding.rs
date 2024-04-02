@@ -340,10 +340,11 @@ pub struct EncodingState<'a> {
     ///
     /// If `None`, then the realloc function has not yet been aliased.
     default_realloc_index: Option<u32>,
-    /// The index in the core function index space for the stream realloc function.
+    /// The index in the core function index space for the a realloc function
+    /// designed for use with caller-provided buffers.
     ///
     /// If `None`, then the realloc function has not yet been aliased.
-    stream_buffer_index: Option<u32>,
+    use_caller_buffer_index: Option<u32>,
     /// The index of the shim instance used for lowering imports into the core instance.
     ///
     /// If `None`, then the shim instance how not yet been encoded.
@@ -379,8 +380,8 @@ pub struct EncodingState<'a> {
     export_func_type_map: HashMap<types::FunctionKey<'a>, u32>,
 
     /// Interface-name and function-name pairs identifying functions which
-    /// should use the optimized stream ABI with `cabi_stream_buffer`.
-    optimize_stream_read: IndexSet<(String, String)>,
+    /// should use the caller-buffer optimization with `cabi_use_caller_buffer`.
+    optimize_using_caller_buffer: IndexSet<(String, String)>,
 
     /// Metadata about the world inferred from the input to `ComponentEncoder`.
     info: &'a ComponentWorld<'a>,
@@ -1460,7 +1461,7 @@ impl<'a> EncodingState<'a> {
     }
 
     /// Decide whether to use the regular `cabi_realloc` or some alternative
-    /// (eg. `cabi_stream_buffer`) for a function named `name` in an imported
+    /// (eg. `cabi_use_caller_buffer`) for a function named `name` in an imported
     /// interface `interface_name`.
     fn select_realloc_function(
         &self,
@@ -1469,29 +1470,29 @@ impl<'a> EncodingState<'a> {
         name: &str,
     ) -> Result<Option<u32>> {
         // If we have an interface name and the interface/func was opted into
-        // the stream-read optimization, use `cabi_stream_buffer`.
+        // the caller-buffer optimization, use `cabi_use_caller_buffer`.
         if let Some(interface_name) = interface_name {
             if self
-                .optimize_stream_read
+                .optimize_using_caller_buffer
                 .contains(&(interface_name.to_owned(), name.to_owned()))
             {
                 if !options.contains(RequiredOptions::REALLOC) {
                     bail!(
-                        "`{}#{}` is designated for stream reading, but it doesn't \
+                        "`{}#{}` is designated for caller-buffer optimization, but it doesn't \
                         have a `list` in its return type",
                         interface_name,
                         name
                     );
                 }
-                if self.stream_buffer_index.is_none() {
+                if self.use_caller_buffer_index.is_none() {
                     bail!(
-                        "`{}#{}` is designated for stream reading, but the module does \
-                        not export a function named `cabi_stream_buffer`",
+                        "`{}#{}` is designated for caller-buffer optimization, but the module does \
+                        not export a function named `cabi_use_caller_buffer`",
                         interface_name,
                         name
                     );
                 }
-                return Ok(self.stream_buffer_index);
+                return Ok(self.use_caller_buffer_index);
             }
         }
 
@@ -1541,8 +1542,8 @@ impl<'a> EncodingState<'a> {
                 ExportKind::Func,
             ));
         }
-        if let Some(name) = &info.stream_buffer {
-            self.stream_buffer_index = Some(self.component.core_alias_export(
+        if let Some(name) = &info.use_caller_buffer {
+            self.use_caller_buffer_index = Some(self.component.core_alias_export(
                 instance_index,
                 name,
                 ExportKind::Func,
@@ -1989,7 +1990,7 @@ pub struct ComponentEncoder {
     adapters: IndexMap<String, Adapter>,
     import_name_map: HashMap<String, String>,
     realloc_via_memory_grow: bool,
-    optimize_stream_read: IndexSet<(String, String)>,
+    optimize_using_caller_buffer: IndexSet<(String, String)>,
 }
 
 impl ComponentEncoder {
@@ -2138,11 +2139,11 @@ impl ComponentEncoder {
     }
 
     /// Provide a list of interface-name and function-name pairs identifying
-    /// functions that should use an alternate ABI optimized for stream
-    /// reading.
-    pub fn optimize_stream_read(mut self, value: &[(String, String)]) -> Self {
+    /// functions that should use an alternate ABI using caller-provided
+    /// buffers.
+    pub fn optimize_using_caller_buffer(mut self, value: &[(String, String)]) -> Self {
         for func in value {
-            self.optimize_stream_read.insert(func.clone());
+            self.optimize_using_caller_buffer.insert(func.clone());
         }
         self
     }
@@ -2175,7 +2176,7 @@ impl ComponentEncoder {
             instance_index: None,
             memory_index: None,
             default_realloc_index: None,
-            stream_buffer_index: None,
+            use_caller_buffer_index: None,
             shim_instance_index: None,
             fixups_module_index: None,
             adapter_modules: IndexMap::new(),
@@ -2189,7 +2190,7 @@ impl ComponentEncoder {
             imported_instances: Default::default(),
             imported_funcs: Default::default(),
             exported_instances: Default::default(),
-            optimize_stream_read: self.optimize_stream_read.clone(),
+            optimize_using_caller_buffer: self.optimize_using_caller_buffer.clone(),
             info: &world,
         };
         state.encode_imports(&self.import_name_map)?;

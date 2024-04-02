@@ -81,10 +81,10 @@ fn parse_import_name(s: &str) -> Result<(String, String)> {
         .context("expected `--import-name` option to be of the form `OLD=NEW`")
 }
 
-fn parse_optimize_stream_read(s: &str) -> Result<(String, String)> {
+fn parse_optimize_using_caller_buffer(s: &str) -> Result<(String, String)> {
     s.split_once('#')
         .map(|(old, new)| (old.to_string(), new.to_string()))
-        .context("expected `--optimize-stream-read` option to be of the form `INTERFACE#FUNC`")
+        .context("expected `--optimize-using-caller-buffers` option to be of the form `INTERFACE#FUNC`")
 }
 
 /// WebAssembly component encoder from an input core wasm binary.
@@ -142,18 +142,16 @@ pub struct NewOpts {
     #[clap(long)]
     realloc_via_memory_grow: bool,
 
-    /// Optimize functions for stream reading.
+    /// Optimize selected functions using caller-provided buffers.
     ///
     /// This may be used to generate specialized bindings for imported
-    /// functions that read from streams.
-    ///
-    /// Reading from a stream involves returning a `list`, or a `result`
-    /// of a `list`, such as `wasi:io/streams#[method]input-stream.read`,
-    /// where the caller knows the maximum length of the returned data up
-    /// front. The specialized bindings work by having the caller provide a
-    /// buffer instead of allocating one dynamically using `cabi_realloc`.
-    #[clap(long = "optimize-stream-read", value_name = "INTERFACE#FUNC", value_parser = parse_optimize_stream_read)]
-    optimize_stream_read: Vec<(String, String)>,
+    /// functions that return a single list, or a `result` or other simple
+    /// wrapper around a single `list`, where the caller knows the maximum
+    /// length of the list up front and can provide a buffer. This is
+    /// common in `read` and `poll` functions, such as
+    ///`wasi:io/streams#[method]input-stream.read` and `wasi:io/poll#poll`.
+    #[clap(long = "optimize-using-caller-buffer", value_name = "INTERFACE#FUNC", value_parser = parse_optimize_using_caller_buffer)]
+    optimize_using_caller_buffer: Vec<(String, String)>,
 }
 
 impl NewOpts {
@@ -173,7 +171,7 @@ impl NewOpts {
         }
 
         encoder = encoder.realloc_via_memory_grow(self.realloc_via_memory_grow);
-        encoder = encoder.optimize_stream_read(&self.optimize_stream_read);
+        encoder = encoder.optimize_using_caller_buffer(&self.optimize_using_caller_buffer);
 
         let bytes = encoder
             .import_name_map(self.import_names.into_iter().collect())
