@@ -800,6 +800,23 @@ impl Encode for MemArg<'_> {
     }
 }
 
+impl Encode for Ordering {
+    fn encode(&self, buf: &mut Vec<u8>) {
+        let flag: u8 = match self {
+            Ordering::SeqCst => 0,
+            Ordering::AcqRel => 1,
+        };
+        flag.encode(buf);
+    }
+}
+
+impl Encode for OrderedAccess<'_> {
+    fn encode(&self, buf: &mut Vec<u8>) {
+        self.ordering.encode(buf);
+        self.index.encode(buf);
+    }
+}
+
 impl Encode for LoadOrStoreLane<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.memarg.encode(e);

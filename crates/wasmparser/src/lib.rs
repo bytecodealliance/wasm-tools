@@ -468,6 +468,12 @@ macro_rules! for_each_operator {
             @threads I64AtomicRmw16CmpxchgU { memarg: $crate::MemArg } => visit_i64_atomic_rmw16_cmpxchg_u
             @threads I64AtomicRmw32CmpxchgU { memarg: $crate::MemArg } => visit_i64_atomic_rmw32_cmpxchg_u
 
+            // Also 0xFE prefixed operators
+            // shared-everything threads
+            // https://github.com/WebAssembly/shared-everything-threads
+            @shared_everything_threads GlobalAtomicGet { ordering: $crate::Ordering, global_index: u32 } => visit_global_atomic_get
+            @shared_everything_threads GlobalAtomicSet { ordering: $crate::Ordering, global_index: u32 } => visit_global_atomic_set
+
             // 0xFD operators
             // 128-bit SIMD
             // - https://github.com/webassembly/simd

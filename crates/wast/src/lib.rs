@@ -472,12 +472,14 @@ pub mod kw {
     custom_keyword!(ref_null = "ref.null");
     custom_keyword!(register);
     custom_keyword!(rec);
+    custom_keyword!(acq_rel);
     custom_keyword!(rep);
     custom_keyword!(resource);
     custom_keyword!(resource_new = "resource.new");
     custom_keyword!(resource_drop = "resource.drop");
     custom_keyword!(resource_rep = "resource.rep");
     custom_keyword!(result);
+    custom_keyword!(seq_cst);
     custom_keyword!(shared);
     custom_keyword!(start);
     custom_keyword!(sub);
