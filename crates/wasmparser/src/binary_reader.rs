@@ -278,7 +278,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     fn read_ordering(&mut self) -> Result<Ordering> {
-        let byte = self.read_u8()?;
+        let byte = self.read_var_u32()?;
         match byte {
             0 => Ok(Ordering::SeqCst),
             1 => Ok(Ordering::AcqRel),
