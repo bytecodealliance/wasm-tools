@@ -295,6 +295,7 @@ impl<'a> Encode for HeapType<'a> {
             HeapType::I31 => e.push(0x6c),
             HeapType::NoFunc => e.push(0x73),
             HeapType::NoExtern => e.push(0x72),
+            HeapType::NoExn => e.push(0x74),
             HeapType::None => e.push(0x71),
             // Note that this is encoded as a signed leb128 so be sure to cast
             // to an i64 first
@@ -349,6 +350,11 @@ impl<'a> Encode for RefType<'a> {
                 nullable: true,
                 heap: HeapType::NoExtern,
             } => e.push(0x72),
+            // The 'nullexnref' binary abbreviation
+            RefType {
+                nullable: true,
+                heap: HeapType::NoExn,
+            } => e.push(0x74),
             // The 'nullref' binary abbreviation
             RefType {
                 nullable: true,
