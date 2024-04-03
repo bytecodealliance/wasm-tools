@@ -496,6 +496,8 @@ impl Module {
                 matches!(self.ty(b).composite_type, CompositeType::Func(_))
             }
 
+            (HT::NoExn, HT::Exn) => true,
+
             // Nothing else matches. (Avoid full wildcard matches so that
             // adding/modifying variants is easier in the future.)
             (HT::Concrete(_), _)
@@ -508,11 +510,9 @@ impl Module {
             | (HT::Eq, _)
             | (HT::Struct, _)
             | (HT::Array, _)
-            | (HT::I31, _) => false,
-
-            // TODO: `exn` probably will be its own type hierarchy and will
-            // probably get `noexn` as well.
-            (HT::Exn, _) => false,
+            | (HT::I31, _)
+            | (HT::Exn, _)
+            | (HT::NoExn, _) => false,
         }
     }
 
@@ -781,7 +781,7 @@ impl Module {
             HT::Extern => {
                 choices.push(HT::NoExtern);
             }
-            HT::Exn | HT::None | HT::NoExtern | HT::NoFunc => {}
+            HT::Exn | HT::NoExn | HT::None | HT::NoExtern | HT::NoFunc => {}
         }
         Ok(*u.choose(&choices)?)
     }
@@ -859,6 +859,9 @@ impl Module {
             HT::NoFunc => {
                 choices.extend(self.func_types.iter().copied().map(HT::Concrete));
                 choices.push(HT::Func);
+            }
+            HT::NoExn => {
+                choices.push(HT::Exn);
             }
             HT::Concrete(mut idx) => {
                 match &self
@@ -1648,6 +1651,7 @@ impl Module {
                 wasmparser::HeapType::Array => HeapType::Array,
                 wasmparser::HeapType::I31 => HeapType::I31,
                 wasmparser::HeapType::Exn => HeapType::Exn,
+                wasmparser::HeapType::NoExn => HeapType::NoExn,
             }
         }
 

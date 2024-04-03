@@ -597,7 +597,7 @@ impl From<core::HeapType<'_>> for wasm_encoder::HeapType {
         match r {
             core::HeapType::Func => Self::Func,
             core::HeapType::Extern => Self::Extern,
-            core::HeapType::Exn => {
+            core::HeapType::Exn | core::HeapType::NoExn => {
                 todo!("encoding of exceptions proposal types not yet implemented")
             }
             core::HeapType::Concrete(Index::Num(i, _)) => Self::Concrete(i),
