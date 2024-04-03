@@ -1637,9 +1637,10 @@ where
         // unshared globals.
         if let Some(ty) = self.resources.global_at(global_index) {
             let ty = ty.content_type;
-            // TODO: need to express that any ValType::Ref(..) must be a subtype
-            // (<:) of `anyref`.
-            if !(ty == ValType::I32 || ty == ValType::I64) {
+            if !(ty == ValType::I32
+                || ty == ValType::I64
+                || self.resources.is_subtype(ty, RefType::ANYREF.into()))
+            {
                 bail!(
                     self.offset,
                     "invalid type: `global.atomic.get` only allows `i32`, `i64` and subtypes of `anyref`"
@@ -1684,9 +1685,10 @@ where
                 );
             }
             let ty = ty.content_type;
-            // TODO: need to express that any ValType::Ref(..) must be a subtype
-            // (<:) of `anyref`.
-            if !(ty == ValType::I32 || ty == ValType::I64) {
+            if !(ty == ValType::I32
+                || ty == ValType::I64
+                || self.resources.is_subtype(ty, RefType::ANYREF.into()))
+            {
                 bail!(
                     self.offset,
                     "invalid type: `global.atomic.set` only allows `i32`, `i64` and subtypes of `anyref`"
