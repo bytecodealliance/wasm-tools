@@ -349,7 +349,7 @@ macro_rules! instructions {
     }) => (
         /// A listing of all WebAssembly instructions that can be in a module
         /// that this crate currently parses.
-        #[derive(Debug)]
+        #[derive(Debug, Clone)]
         #[allow(missing_docs)]
         pub enum Instruction<'a> {
             $(
@@ -1120,7 +1120,7 @@ impl<'a> Instruction<'a> {
 ///
 /// This is used to label blocks and also annotate what types are expected for
 /// the block.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(missing_docs)]
 pub struct BlockType<'a> {
     pub label: Option<Id<'a>>,
@@ -1140,7 +1140,7 @@ impl<'a> Parse<'a> for BlockType<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(missing_docs)]
 pub struct TryTable<'a> {
     pub block: Box<BlockType<'a>>,
@@ -1184,7 +1184,7 @@ impl<'a> Parse<'a> for TryTable<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(missing_docs)]
 pub enum TryTableCatchKind<'a> {
     // Catch a tagged exception, do not capture an exnref.
@@ -1207,7 +1207,7 @@ impl<'a> TryTableCatchKind<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(missing_docs)]
 pub struct TryTableCatch<'a> {
     pub kind: TryTableCatchKind<'a>,
@@ -1216,7 +1216,7 @@ pub struct TryTableCatch<'a> {
 
 /// Extra information associated with the `br_table` instruction.
 #[allow(missing_docs)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BrTableIndices<'a> {
     pub labels: Vec<Index<'a>>,
     pub default: Index<'a>,
@@ -1234,7 +1234,7 @@ impl<'a> Parse<'a> for BrTableIndices<'a> {
 }
 
 /// Payload for lane-related instructions. Unsigned with no + prefix.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LaneArg {
     /// The lane argument.
     pub lane: u8,
@@ -1262,7 +1262,7 @@ impl<'a> Parse<'a> for LaneArg {
 
 /// Payload for memory-related instructions indicating offset/alignment of
 /// memory accesses.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MemArg<'a> {
     /// The alignment of this access.
     ///
@@ -1337,7 +1337,7 @@ impl<'a> MemArg<'a> {
 }
 
 /// Extra data associated with the `loadN_lane` and `storeN_lane` instructions.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LoadOrStoreLane<'a> {
     /// The memory argument for this instruction.
     pub memarg: MemArg<'a>,
@@ -1391,7 +1391,7 @@ impl<'a> LoadOrStoreLane<'a> {
 }
 
 /// Extra data associated with the `call_indirect` instruction.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CallIndirect<'a> {
     /// The table that this call is going to be indexing.
     pub table: Index<'a>,
@@ -1412,7 +1412,7 @@ impl<'a> Parse<'a> for CallIndirect<'a> {
 }
 
 /// Extra data associated with the `table.init` instruction
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TableInit<'a> {
     /// The index of the table we're copying into.
     pub table: Index<'a>,
@@ -1434,7 +1434,7 @@ impl<'a> Parse<'a> for TableInit<'a> {
 }
 
 /// Extra data associated with the `table.copy` instruction.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TableCopy<'a> {
     /// The index of the destination table to copy into.
     pub dst: Index<'a>,
@@ -1456,7 +1456,7 @@ impl<'a> Parse<'a> for TableCopy<'a> {
 }
 
 /// Extra data associated with unary table instructions.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TableArg<'a> {
     /// The index of the table argument.
     pub dst: Index<'a>,
@@ -1474,7 +1474,7 @@ impl<'a> Parse<'a> for TableArg<'a> {
 }
 
 /// Extra data associated with unary memory instructions.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MemoryArg<'a> {
     /// The index of the memory space.
     pub mem: Index<'a>,
@@ -1492,7 +1492,7 @@ impl<'a> Parse<'a> for MemoryArg<'a> {
 }
 
 /// Extra data associated with the `memory.init` instruction
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MemoryInit<'a> {
     /// The index of the data segment we're copying into memory.
     pub data: Index<'a>,
@@ -1514,7 +1514,7 @@ impl<'a> Parse<'a> for MemoryInit<'a> {
 }
 
 /// Extra data associated with the `memory.copy` instruction
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MemoryCopy<'a> {
     /// The index of the memory we're copying from.
     pub src: Index<'a>,
@@ -1536,7 +1536,7 @@ impl<'a> Parse<'a> for MemoryCopy<'a> {
 }
 
 /// Extra data associated with the `struct.get/set` instructions
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StructAccess<'a> {
     /// The index of the struct type we're accessing.
     pub r#struct: Index<'a>,
@@ -1554,7 +1554,7 @@ impl<'a> Parse<'a> for StructAccess<'a> {
 }
 
 /// Extra data associated with the `array.fill` instruction
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ArrayFill<'a> {
     /// The index of the array type we're filling.
     pub array: Index<'a>,
@@ -1569,7 +1569,7 @@ impl<'a> Parse<'a> for ArrayFill<'a> {
 }
 
 /// Extra data associated with the `array.copy` instruction
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ArrayCopy<'a> {
     /// The index of the array type we're copying to.
     pub dest_array: Index<'a>,
@@ -1587,7 +1587,7 @@ impl<'a> Parse<'a> for ArrayCopy<'a> {
 }
 
 /// Extra data associated with the `array.init_[data/elem]` instruction
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ArrayInit<'a> {
     /// The index of the array type we're initializing.
     pub array: Index<'a>,
@@ -1605,7 +1605,7 @@ impl<'a> Parse<'a> for ArrayInit<'a> {
 }
 
 /// Extra data associated with the `array.new_fixed` instruction
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ArrayNewFixed<'a> {
     /// The index of the array type we're accessing.
     pub array: Index<'a>,
@@ -1623,7 +1623,7 @@ impl<'a> Parse<'a> for ArrayNewFixed<'a> {
 }
 
 /// Extra data associated with the `array.new_data` instruction
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ArrayNewData<'a> {
     /// The index of the array type we're accessing.
     pub array: Index<'a>,
@@ -1641,7 +1641,7 @@ impl<'a> Parse<'a> for ArrayNewData<'a> {
 }
 
 /// Extra data associated with the `array.new_elem` instruction
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ArrayNewElem<'a> {
     /// The index of the array type we're accessing.
     pub array: Index<'a>,
@@ -1659,7 +1659,7 @@ impl<'a> Parse<'a> for ArrayNewElem<'a> {
 }
 
 /// Extra data associated with the `ref.cast` instruction
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RefCast<'a> {
     /// The type to cast to.
     pub r#type: RefType<'a>,
@@ -1674,7 +1674,7 @@ impl<'a> Parse<'a> for RefCast<'a> {
 }
 
 /// Extra data associated with the `ref.test` instruction
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RefTest<'a> {
     /// The type to test for.
     pub r#type: RefType<'a>,
@@ -1689,7 +1689,7 @@ impl<'a> Parse<'a> for RefTest<'a> {
 }
 
 /// Extra data associated with the `br_on_cast` instruction
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BrOnCast<'a> {
     /// The label to branch to.
     pub label: Index<'a>,
@@ -1710,7 +1710,7 @@ impl<'a> Parse<'a> for BrOnCast<'a> {
 }
 
 /// Extra data associated with the `br_on_cast_fail` instruction
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BrOnCastFail<'a> {
     /// The label to branch to.
     pub label: Index<'a>,
@@ -1897,7 +1897,7 @@ impl<'a> Parse<'a> for V128Const {
 }
 
 /// Lanes being shuffled in the `i8x16.shuffle` instruction
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct I8x16Shuffle {
     #[allow(missing_docs)]
     pub lanes: [u8; 16],
@@ -1929,7 +1929,7 @@ impl<'a> Parse<'a> for I8x16Shuffle {
 }
 
 /// Payload of the `select` instructions
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SelectTypes<'a> {
     #[allow(missing_docs)]
     pub tys: Option<Vec<ValType<'a>>>,
