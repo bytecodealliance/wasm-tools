@@ -1076,6 +1076,9 @@ impl Printer {
         if ty.shared {
             self.result.push_str(" shared");
         }
+        if let Some(p) = ty.page_size {
+            write!(self.result, "(pagesize {p})")?;
+        }
         Ok(())
     }
 
