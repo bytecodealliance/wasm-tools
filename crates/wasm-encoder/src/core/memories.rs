@@ -75,25 +75,42 @@ pub struct MemoryType {
     pub memory64: bool,
     /// Whether or not this memory is shared.
     pub shared: bool,
+    /// A custom page size for this memory.
+    ///
+    /// The default page size for Wasm memories is 64KiB, i.e. 2<sup>16</sup> or
+    /// `65536`.
+    ///
+    /// After the introduction of [the custom-page-sizes
+    /// proposal](https://github.com/WebAssembly/custom-page-sizes), Wasm can
+    /// customize the page size. It must be a power of two that is less than or
+    /// equal to 64KiB. Attempting to encode an invalid page size may panic.
+    pub page_size: Option<u32>,
 }
 
 impl Encode for MemoryType {
     fn encode(&self, sink: &mut Vec<u8>) {
         let mut flags = 0;
         if self.maximum.is_some() {
-            flags |= 0b001;
+            flags |= 0b0001;
         }
         if self.shared {
-            flags |= 0b010;
+            flags |= 0b0010;
         }
         if self.memory64 {
-            flags |= 0b100;
+            flags |= 0b0100;
         }
-
+        if self.page_size.is_some() {
+            flags |= 0b1000;
+        }
         sink.push(flags);
         self.minimum.encode(sink);
         if let Some(max) = self.maximum {
             max.encode(sink);
+        }
+        if let Some(p) = self.page_size {
+            assert!(p.is_power_of_two());
+            assert!(p <= (1 << 16));
+            p.ilog2().encode(sink);
         }
     }
 }
@@ -106,6 +123,7 @@ impl From<wasmparser::MemoryType> for MemoryType {
             maximum: memory_ty.maximum,
             memory64: memory_ty.memory64,
             shared: memory_ty.shared,
+            page_size: memory_ty.page_size,
         }
     }
 }
