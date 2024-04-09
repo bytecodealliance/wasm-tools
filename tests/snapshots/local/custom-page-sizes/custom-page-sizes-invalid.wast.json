@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/local/custom-page-sizes/custom-page-sizes-invalid.wast",
+  "commands": [
+    {
+      "type": "assert_malformed",
+      "line": 2,
+      "filename": "custom-page-sizes-invalid.0.wasm",
+      "text": "invalid custom page size",
+      "module_type": "binary"
+    }
+  ]
+}
