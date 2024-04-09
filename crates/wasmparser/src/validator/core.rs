@@ -876,6 +876,24 @@ impl Module {
         offset: usize,
     ) -> Result<()> {
         self.check_limits(ty.initial, ty.maximum, offset)?;
+        let page_size = if let Some(page_size) = ty.page_size {
+            if !features.custom_page_sizes {
+                return Err(BinaryReaderError::new(
+                    "the custom page sizes proposal must be enabled to \
+                     customize a memory's page size",
+                    offset,
+                ));
+            }
+            if u64::from(page_size) > DEFAULT_WASM_PAGE_SIZE || !page_size.is_power_of_two() {
+                return Err(BinaryReaderError::new(
+                    "invalid custom page size: {page_size}",
+                    offset,
+                ));
+            }
+            u64::from(page_size)
+        } else {
+            DEFAULT_WASM_PAGE_SIZE
+        };
         let (true_maximum, err) = if ty.memory64 {
             if !features.memory64 {
                 return Err(BinaryReaderError::new(
@@ -884,13 +902,17 @@ impl Module {
                 ));
             }
             (
-                MAX_WASM_MEMORY64_PAGES,
-                "memory size must be at most 2**48 pages",
+                max_wasm_memory64_pages(page_size),
+                format!(
+                    "memory size must be at most 2**{} pages",
+                    64 - page_size.ilog2()
+                ),
             )
         } else {
+            let max = max_wasm_memory32_pages(page_size);
             (
-                MAX_WASM_MEMORY32_PAGES,
-                "memory size must be at most 65536 pages (4GiB)",
+                max,
+                format!("memory size must be at most {max} pages (4GiB)"),
             )
         };
         if ty.initial > true_maximum {
