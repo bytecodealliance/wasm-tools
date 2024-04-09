@@ -597,6 +597,7 @@ impl TestState {
             function_references: true,
             memory_control: true,
             gc: true,
+            custom_page_sizes: true,
             component_model_values: true,
             component_model_nested_names: false,
         };
@@ -624,6 +625,7 @@ impl TestState {
                     features.bulk_memory = false;
                     features.function_references = false;
                     features.gc = false;
+                    features.custom_page_sizes = false;
                     features.component_model = false;
                     features.component_model_values = false;
                     features.shared_everything_threads = false;
@@ -652,6 +654,7 @@ impl TestState {
                     features.function_references = true;
                     features.gc = true;
                 }
+                "custom-page-sizes" => features.custom_page_sizes = true,
                 "import-extended.wast" => {
                     features.component_model_nested_names = true;
                 }
@@ -791,7 +794,10 @@ fn error_matches(error: &str, message: &str) -> bool {
 
     if message == "malformed limits flags" {
         return error.contains("invalid memory limits flags")
-            || error.contains("invalid table resizable limits flags");
+            || error.contains("invalid table resizable limits flags")
+            // These tests need to be updated for the new limits flags in the
+            // custom-page-sizes-proposal.
+            || error.contains("unexpected end-of-file");
     }
 
     if message == "zero flag expected" {
