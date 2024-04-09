@@ -472,24 +472,48 @@ impl Encode for Limits {
 impl Encode for MemoryType {
     fn encode(&self, e: &mut Vec<u8>) {
         match self {
-            MemoryType::B32 { limits, shared } => {
+            MemoryType::B32 {
+                limits,
+                shared,
+                page_size,
+            } => {
                 let flag_max = limits.max.is_some() as u8;
                 let flag_shared = *shared as u8;
-                let flags = flag_max | (flag_shared << 1);
+                let flag_page_size = page_size.is_some() as u8;
+                let flags = flag_max | (flag_shared << 1) | (flag_page_size << 3);
                 e.push(flags);
                 limits.min.encode(e);
                 if let Some(max) = limits.max {
                     max.encode(e);
                 }
+                if let Some(p) = page_size {
+                    assert!(p.is_power_of_two());
+                    assert!(*p <= (1 << 16));
+                    p.ilog2().encode(e);
+                }
             }
-            MemoryType::B64 { limits, shared } => {
-                let flag_max = limits.max.is_some() as u8;
-                let flag_shared = *shared as u8;
-                let flags = flag_max | (flag_shared << 1) | 0x04;
+            MemoryType::B64 {
+                limits,
+                shared,
+                page_size,
+            } => {
+                let flag_max = limits.max.is_some();
+                let flag_shared = *shared;
+                let flag_mem64 = true;
+                let flag_page_size = page_size.is_some();
+                let flags = ((flag_max as u8) << 0)
+                    | ((flag_shared as u8) << 1)
+                    | ((flag_mem64 as u8) << 2)
+                    | ((flag_page_size as u8) << 3);
                 e.push(flags);
                 limits.min.encode(e);
                 if let Some(max) = limits.max {
                     max.encode(e);
+                }
+                if let Some(p) = page_size {
+                    assert!(p.is_power_of_two());
+                    assert!(*p <= (1 << 16));
+                    p.ilog2().encode(e);
                 }
             }
         }

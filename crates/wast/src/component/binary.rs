@@ -640,11 +640,23 @@ impl From<core::TableType<'_>> for wasm_encoder::TableType {
 
 impl From<core::MemoryType> for wasm_encoder::MemoryType {
     fn from(ty: core::MemoryType) -> Self {
-        let (minimum, maximum, memory64, shared) = match ty {
-            core::MemoryType::B32 { limits, shared } => {
-                (limits.min.into(), limits.max.map(Into::into), false, shared)
-            }
-            core::MemoryType::B64 { limits, shared } => (limits.min, limits.max, true, shared),
+        let (minimum, maximum, memory64, shared, page_size) = match ty {
+            core::MemoryType::B32 {
+                limits,
+                shared,
+                page_size,
+            } => (
+                limits.min.into(),
+                limits.max.map(Into::into),
+                false,
+                shared,
+                page_size,
+            ),
+            core::MemoryType::B64 {
+                limits,
+                shared,
+                page_size,
+            } => (limits.min, limits.max, true, shared, page_size),
         };
 
         Self {
@@ -652,6 +664,7 @@ impl From<core::MemoryType> for wasm_encoder::MemoryType {
             maximum,
             memory64,
             shared,
+            page_size,
         }
     }
 }
