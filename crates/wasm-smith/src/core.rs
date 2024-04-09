@@ -2324,7 +2324,7 @@ impl Module {
 
         // Interesting values related to memory bounds.
         for m in self.memories.iter() {
-            let min = m.minimum.saturating_mul(crate::WASM_PAGE_SIZE);
+            let min = m.minimum.saturating_mul(crate::page_size(m).into());
             interesting(min);
             for i in 0..5 {
                 if let Some(x) = min.checked_add(1 << i) {
@@ -2336,7 +2336,7 @@ impl Module {
             }
 
             if let Some(max) = m.maximum {
-                let max = max.saturating_mul(crate::WASM_PAGE_SIZE);
+                let max = max.saturating_mul(crate::page_size(m).into());
                 interesting(max);
                 for i in 0..5 {
                     if let Some(x) = max.checked_add(1 << i) {
@@ -2518,6 +2518,11 @@ pub(crate) fn arbitrary_memtype(u: &mut Unstructured, config: &Config) -> Result
     // We want to favor memories <= 1gb in size, allocate at most 16k pages,
     // depending on the maximum number of memories.
     let memory64 = config.memory64_enabled && u.arbitrary()?;
+    let page_size = if config.custom_page_sizes_enabled && u.arbitrary()? {
+        Some(1 << u.int_in_range(0..=16)?)
+    } else {
+        None
+    };
     let max_inbounds = 16 * 1024 / u64::try_from(config.max_memories).unwrap();
     let min_pages = if config.disallow_traps { Some(1) } else { None };
     let max_pages = min_pages.unwrap_or(0).max(if memory64 {
@@ -2537,6 +2542,7 @@ pub(crate) fn arbitrary_memtype(u: &mut Unstructured, config: &Config) -> Result
         maximum,
         memory64,
         shared,
+        page_size,
     })
 }
 
