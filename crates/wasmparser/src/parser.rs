@@ -679,12 +679,15 @@ impl Parser {
                             );
                         }
 
+                        let len_usize = usize::try_from(len).unwrap();
+                        reader.ensure_has_bytes(len_usize)?;
+
                         let range =
-                            reader.original_position()..reader.original_position() + len as usize;
+                            reader.original_position()..reader.original_position() + len_usize;
                         self.max_size -= u64::from(len);
                         self.offset += u64::from(len);
                         let mut parser = Parser::new(usize_to_u64(reader.original_position()));
-                        parser.max_size = len.into();
+                        parser.max_size = u64::from(len);
 
                         Ok(match id {
                             1 => ModuleSection { parser, range },
