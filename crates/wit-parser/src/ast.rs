@@ -3,6 +3,7 @@ use anyhow::{bail, Context, Result};
 use lex::{Span, Token, Tokenizer};
 use semver::Version;
 use std::borrow::Cow;
+use std::collections::HashSet;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
@@ -14,29 +15,129 @@ pub mod toposort;
 
 pub use lex::validate_id;
 
-pub struct Ast<'a> {
+enum Ast<'a> {
+    ExplicitPackages(Vec<ExplicitPackage<'a>>),
+    PartialImplicitPackage(PartialImplicitPackage<'a>),
+}
+
+pub struct ExplicitPackage<'a> {
+    package_id: PackageName<'a>,
+    decl_list: DeclList<'a>,
+}
+
+pub struct PartialImplicitPackage<'a> {
     package_id: Option<PackageName<'a>>,
+    decl_list: DeclList<'a>,
+}
+
+/// Stores all of the declarations in a package's scope. In AST terms, this
+/// means everything except the `package` declaration that demarcates a package
+/// scope. In the traditional implicit format, these are all of the declarations
+/// non-`package` declarations in the file:
+///
+/// ```wit
+/// package foo:name;
+///
+/// /* START DECL LIST */
+/// // Some comment...
+/// interface i {}
+/// world w {}
+/// /* END DECL LIST */
+/// ```
+///
+/// In the explicit package style, a [`DeclList`] is everything inside of each
+/// `package` element's brackets:
+///
+/// ```wit
+/// package foo:name {
+///   /* START FIRST DECL LIST */
+///   // Some comment...
+///   interface i {}
+///   world w {}
+///   /* END FIRST DECL LIST */
+/// }
+///
+/// package bar:name {
+///   /* START SECOND DECL LIST */
+///   // Some comment...
+///   interface i {}
+///   world w {}
+///   /* END SECOND DECL LIST */
+/// }
+/// ```
+pub struct DeclList<'a> {
     items: Vec<AstItem<'a>>,
 }
 
-impl<'a> Ast<'a> {
-    pub fn parse(lexer: &mut Tokenizer<'a>) -> Result<Self> {
-        let mut items = Vec::new();
-        let mut package_id = None;
-        let mut docs = parse_docs(lexer)?;
-        if lexer.eat(Token::Package)? {
-            let package_docs = std::mem::take(&mut docs);
-            package_id = Some(PackageName::parse(lexer, package_docs)?);
-            lexer.expect_semicolon()?;
-            docs = parse_docs(lexer)?;
+fn parse_explicit_package_items<'a>(tokens: &mut Tokenizer<'a>) -> Result<DeclList<'a>> {
+    let mut items = Vec::new();
+    let mut docs = parse_docs(tokens)?;
+    loop {
+        if tokens.eat(Token::RightBrace)? {
+            return Ok(DeclList { items });
         }
-        while lexer.clone().next()?.is_some() {
-            items.push(AstItem::parse(lexer, docs)?);
-            docs = parse_docs(lexer)?;
-        }
-        Ok(Self { package_id, items })
+        items.push(AstItem::parse(tokens, docs)?);
+        docs = parse_docs(tokens)?;
     }
+}
 
+fn parse_implicit_package_items<'a>(
+    tokens: &mut Tokenizer<'a>,
+    mut docs: Docs<'a>,
+) -> Result<DeclList<'a>> {
+    let mut items = Vec::new();
+    while tokens.clone().next()?.is_some() {
+        items.push(AstItem::parse(tokens, docs)?);
+        docs = parse_docs(tokens)?;
+    }
+    Ok(DeclList { items })
+}
+
+impl<'a> Ast<'a> {
+    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self> {
+        let mut maybe_package_id = None;
+        let mut packages = Vec::new();
+        let mut docs = parse_docs(tokens)?;
+        loop {
+            if tokens.clone().next()?.is_none() {
+                break;
+            }
+            if !tokens.eat(Token::Package)? {
+                if !packages.is_empty() {
+                    bail!("WIT files cannot mix top-level explicit `package` declarations with other declaration kinds");
+                }
+                break;
+            }
+
+            let package_id = PackageName::parse(tokens, std::mem::take(&mut docs))?;
+            if tokens.eat(Token::LeftBrace)? {
+                packages.push(ExplicitPackage {
+                    package_id: package_id,
+                    decl_list: parse_explicit_package_items(tokens)?,
+                });
+                docs = parse_docs(tokens)?;
+            } else {
+                maybe_package_id = Some(package_id);
+                tokens.expect_semicolon()?;
+                if !packages.is_empty() {
+                    bail!("WIT files cannot mix top-level explicit `package` declarations with other declaration kinds");
+                }
+                docs = parse_docs(tokens)?;
+                break;
+            }
+        }
+
+        if packages.is_empty() {
+            return Ok(Ast::PartialImplicitPackage(PartialImplicitPackage {
+                package_id: maybe_package_id,
+                decl_list: parse_implicit_package_items(tokens, docs)?,
+            }));
+        }
+        Ok(Ast::ExplicitPackages(packages))
+    }
+}
+
+impl<'a> DeclList<'a> {
     fn for_each_path<'b>(
         &'b self,
         mut f: impl FnMut(
@@ -1529,10 +1630,13 @@ impl SourceMap {
         self.offset = new_offset;
     }
 
-    /// Parses the files added to this source map into an [`UnresolvedPackage`].
-    pub fn parse(self) -> Result<UnresolvedPackage> {
-        let mut doc = self.rewrite_error(|| {
-            let mut resolver = Resolver::default();
+    /// Parses the files added to this source map into one or more [`UnresolvedPackage`]s.
+    pub fn parse(self) -> Result<Vec<UnresolvedPackage>> {
+        let mut implicit_pkg: Option<UnresolvedPackage> = None;
+        let explicit_pkgs = self.rewrite_error(|| {
+            let mut ret_packages = Vec::new();
+            let mut explicit_pkg_names: HashSet<crate::PackageName> = HashSet::new();
+            let mut implicit_resolver = Resolver::default();
             let mut srcs = self.sources.iter().collect::<Vec<_>>();
             srcs.sort_by_key(|src| &src.path);
             for src in srcs {
@@ -1543,15 +1647,58 @@ impl SourceMap {
                     self.require_f32_f64,
                 )
                 .with_context(|| format!("failed to tokenize path: {}", src.path.display()))?;
-                let ast = Ast::parse(&mut tokens)?;
-                resolver.push(ast).with_context(|| {
-                    format!("failed to start resolving path: {}", src.path.display())
-                })?;
+                match Ast::parse(&mut tokens)? {
+                    Ast::ExplicitPackages(pkgs) => {
+                        for pkg in pkgs {
+                            let mut resolver = Resolver::default();
+                            let pkg_name = pkg.package_id.package_name();
+                            let ingested = resolver.push_then_resolve(pkg).with_context(|| {
+                                format!("failed to start resolving path: {}", src.path.display())
+                            })?;
+
+                            match explicit_pkg_names.get(&pkg_name) {
+                                Some(_) => bail!(
+                                    "colliding explicit package names, multiple packages named `{}`",
+                                    pkg_name
+                                ),
+                                None => explicit_pkg_names.insert(pkg_name),
+                            };
+
+                            if let Some(unresolved) = ingested {
+                                ret_packages.push(unresolved);
+                            }
+                        }
+                    }
+                    Ast::PartialImplicitPackage(partial) => {
+                        if !explicit_pkg_names.is_empty() {
+                            bail!("WIT files cannot mix top-level explicit `package` declarations with other declaration kinds 2");
+                        }
+
+                        implicit_resolver.push_partial(partial).with_context(|| {
+                            format!("failed to start resolving path: {}", src.path.display())
+                        })?;
+                    }
+                }
             }
-            resolver.resolve()
+
+            if let Some(pkg) = implicit_resolver.resolve()? {
+                implicit_pkg = Some(pkg)
+            }
+            Ok(ret_packages)
         })?;
-        doc.source_map = self;
-        Ok(doc)
+
+        match implicit_pkg {
+            Some(mut pkg) => match explicit_pkgs.is_empty() {
+                true => {
+                    pkg.source_map = self;
+                    Ok(vec![pkg])
+                }
+                false => {
+                    bail!("WIT files cannot mix top-level explicit `package` declarations with other declaration kinds");
+                }
+            },
+            None => Ok(explicit_pkgs),
+        }
     }
 
     pub(crate) fn rewrite_error<F, T>(&self, f: F) -> Result<T>
@@ -1648,21 +1795,21 @@ impl SourceMap {
     }
 }
 
-pub(crate) enum AstUsePath {
+pub enum ParsedUsePath {
     Name(String),
     Package(crate::PackageName, String),
 }
 
-pub(crate) fn parse_use_path(s: &str) -> Result<AstUsePath> {
+pub fn parse_use_path(s: &str) -> Result<ParsedUsePath> {
     let mut tokens = Tokenizer::new(s, 0, Some(true), None)?;
     let path = UsePath::parse(&mut tokens)?;
     if tokens.next()?.is_some() {
         bail!("trailing tokens in path specifier");
     }
     Ok(match path {
-        UsePath::Id(id) => AstUsePath::Name(id.name.to_string()),
+        UsePath::Id(id) => ParsedUsePath::Name(id.name.to_string()),
         UsePath::Package { id, name } => {
-            AstUsePath::Package(id.package_name(), name.name.to_string())
+            ParsedUsePath::Package(id.package_name(), name.name.to_string())
         }
     })
 }

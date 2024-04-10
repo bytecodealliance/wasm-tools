@@ -42,7 +42,7 @@
 //! the three arguments originally passed to `encode`.
 
 use crate::validation::BARE_FUNC_MODULE_NAME;
-use crate::{DecodedWasm, StringEncoding};
+use crate::{resolve_world_from_name, DecodedWasm, StringEncoding};
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use std::borrow::Cow;
@@ -259,12 +259,12 @@ impl Bindgen {
                 let world_name = reader.read_string()?;
                 wasm = &data[reader.original_position()..];
 
-                let (r, pkg) = match crate::decode(wasm)? {
-                    DecodedWasm::WitPackage(resolve, pkg) => (resolve, pkg),
-                    DecodedWasm::Component(..) => bail!("expected an encoded wit package"),
+                let (r, pkgs) = match crate::decode(wasm)? {
+                    DecodedWasm::WitPackages(resolve, pkgs) => (resolve, pkgs),
+                    DecodedWasm::Component(..) => bail!("expected encoded wit package(s)"),
                 };
                 resolve = r;
-                world = resolve.packages[pkg].worlds[world_name];
+                world = resolve_world_from_name(&resolve, pkgs, Some(world_name.into()))?;
             }
 
             // Current format where `data` is a wasm component itself.

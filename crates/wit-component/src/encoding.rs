@@ -2157,7 +2157,8 @@ world test {
 }
 "#,
                 )
-                .unwrap(),
+                .unwrap()
+                .remove(0),
             )
             .unwrap();
 

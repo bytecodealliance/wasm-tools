@@ -141,7 +141,7 @@ fn encode(wat: &str, wit: Option<&str>) -> Result<Vec<u8>> {
 
     if let Some(wit) = wit {
         let mut resolve = Resolve::default();
-        let pkg = resolve.push(UnresolvedPackage::parse(Path::new("wit"), wit)?)?;
+        let pkg = resolve.push(UnresolvedPackage::parse(Path::new("wit"), wit)?.remove(0))?;
         let world = resolve.select_world(pkg, None)?;
 
         wit_component::embed_component_metadata(

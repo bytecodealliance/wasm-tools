@@ -17,6 +17,7 @@ pub mod abi;
 mod ast;
 use ast::lex::Span;
 pub use ast::SourceMap;
+pub use ast::{parse_use_path, ParsedUsePath};
 mod sizealign;
 pub use sizealign::*;
 mod resolve;
@@ -214,7 +215,7 @@ impl UnresolvedPackage {
     ///
     /// The `path` argument is used for error reporting. The `contents` provided
     /// will not be able to use `pkg` use paths to other documents.
-    pub fn parse(path: &Path, contents: &str) -> Result<Self> {
+    pub fn parse(path: &Path, contents: &str) -> Result<Vec<Self>> {
         let mut map = SourceMap::default();
         map.push(path, contents);
         map.parse()
@@ -225,7 +226,7 @@ impl UnresolvedPackage {
     /// The path provided is inferred whether it's a file or a directory. A file
     /// is parsed with [`UnresolvedPackage::parse_file`] and a directory is
     /// parsed with [`UnresolvedPackage::parse_dir`].
-    pub fn parse_path(path: &Path) -> Result<Self> {
+    pub fn parse_path(path: &Path) -> Result<Vec<Self>> {
         if path.is_dir() {
             UnresolvedPackage::parse_dir(path)
         } else {
@@ -237,7 +238,7 @@ impl UnresolvedPackage {
     ///
     /// The WIT package returned will be a single-document package and will not
     /// be able to use `pkg` paths to other documents.
-    pub fn parse_file(path: &Path) -> Result<Self> {
+    pub fn parse_file(path: &Path) -> Result<Vec<Self>> {
         let contents = std::fs::read_to_string(path)
             .with_context(|| format!("failed to read file {path:?}"))?;
         Self::parse(path, &contents)
@@ -247,7 +248,7 @@ impl UnresolvedPackage {
     ///
     /// All files with the extension `*.wit` or `*.wit.md` will be loaded from
     /// `path` into the returned package.
-    pub fn parse_dir(path: &Path) -> Result<Self> {
+    pub fn parse_dir(path: &Path) -> Result<Vec<Self>> {
         let mut map = SourceMap::default();
         let cx = || format!("failed to read directory {path:?}");
         for entry in path.read_dir().with_context(&cx)? {
