@@ -1521,7 +1521,8 @@ mod tests {
                 memory64: false,
                 shared: false,
                 initial: 1,
-                maximum: Some(5)
+                maximum: Some(5),
+                page_size: None,
             }
         );
 
