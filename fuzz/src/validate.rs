@@ -1,5 +1,5 @@
 use arbitrary::{Result, Unstructured};
-use wasmparser::{Validator, WasmFeatures};
+use wasmparser::{Parser, Validator, WasmFeatures};
 
 pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     // Either use `wasm-smith` to generate a module with possibly invalid
@@ -21,14 +21,13 @@ pub fn validate_maybe_invalid_module(u: &mut Unstructured<'_>) -> Result<()> {
         config.allow_invalid_funcs = true;
         Ok(())
     })?;
-    let mut validator = crate::validator_for_config(&config);
-    drop(validator.validate_all(&wasm));
+    validate_all(crate::validator_for_config(&config), &wasm);
     Ok(())
 }
 
 pub fn validate_raw_bytes(u: &mut Unstructured<'_>) -> Result<()> {
     // Enable arbitrary combinations of features to validate the input bytes.
-    let mut validator = Validator::new_with_features(WasmFeatures {
+    let validator = Validator::new_with_features(WasmFeatures {
         reference_types: u.arbitrary()?,
         multi_value: u.arbitrary()?,
         threads: u.arbitrary()?,
@@ -54,6 +53,54 @@ pub fn validate_raw_bytes(u: &mut Unstructured<'_>) -> Result<()> {
     });
     let wasm = u.bytes(u.len())?;
     crate::log_wasm(wasm, "");
-    drop(validator.validate_all(wasm));
+    validate_all(validator, wasm);
     Ok(())
+}
+
+fn validate_all(mut validator: Validator, wasm: &[u8]) {
+    for payload in Parser::new(0).parse_all(wasm) {
+        let payload = match payload {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+
+        if validator.payload(&payload).is_err() {
+            return;
+        }
+
+        // Check that the payload's range is in bounds, since the payload is
+        // supposedly valid.
+        use wasmparser::Payload::*;
+        match payload {
+            Version { range, .. } => assert!(wasm.get(range).is_some()),
+            TypeSection(s) => assert!(wasm.get(s.range()).is_some()),
+            ImportSection(s) => assert!(wasm.get(s.range()).is_some()),
+            FunctionSection(s) => assert!(wasm.get(s.range()).is_some()),
+            TableSection(s) => assert!(wasm.get(s.range()).is_some()),
+            MemorySection(s) => assert!(wasm.get(s.range()).is_some()),
+            TagSection(s) => assert!(wasm.get(s.range()).is_some()),
+            GlobalSection(s) => assert!(wasm.get(s.range()).is_some()),
+            ExportSection(s) => assert!(wasm.get(s.range()).is_some()),
+            StartSection { range, .. } => assert!(wasm.get(range).is_some()),
+            ElementSection(s) => assert!(wasm.get(s.range()).is_some()),
+            DataCountSection { range, .. } => assert!(wasm.get(range).is_some()),
+            DataSection(s) => assert!(wasm.get(s.range()).is_some()),
+            CodeSectionStart { range, .. } => assert!(wasm.get(range).is_some()),
+            CodeSectionEntry(body) => assert!(wasm.get(body.range()).is_some()),
+            ModuleSection { range, .. } => assert!(wasm.get(range).is_some()),
+            InstanceSection(s) => assert!(wasm.get(s.range()).is_some()),
+            CoreTypeSection(s) => assert!(wasm.get(s.range()).is_some()),
+            ComponentSection { range, .. } => assert!(wasm.get(range).is_some()),
+            ComponentInstanceSection(s) => assert!(wasm.get(s.range()).is_some()),
+            ComponentAliasSection(s) => assert!(wasm.get(s.range()).is_some()),
+            ComponentTypeSection(s) => assert!(wasm.get(s.range()).is_some()),
+            ComponentCanonicalSection(s) => assert!(wasm.get(s.range()).is_some()),
+            ComponentStartSection { range, .. } => assert!(wasm.get(range).is_some()),
+            ComponentImportSection(s) => assert!(wasm.get(s.range()).is_some()),
+            ComponentExportSection(s) => assert!(wasm.get(s.range()).is_some()),
+            CustomSection(s) => assert!(wasm.get(s.range()).is_some()),
+            UnknownSection { range, .. } => assert!(wasm.get(range).is_some()),
+            End(_) => {}
+        }
+    }
 }
