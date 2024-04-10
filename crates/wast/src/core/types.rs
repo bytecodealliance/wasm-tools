@@ -491,7 +491,7 @@ pub enum MemoryType {
         /// Whether or not this is a shared (atomic) memory type
         shared: bool,
         /// The custom page size for this memory, if any.
-        page_size: Option<u32>,
+        page_size_log2: Option<u32>,
     },
     /// A 64-bit memory
     B64 {
@@ -500,7 +500,7 @@ pub enum MemoryType {
         /// Whether or not this is a shared (atomic) memory type
         shared: bool,
         /// The custom page size for this memory, if any.
-        page_size: Option<u32>,
+        page_size_log2: Option<u32>,
     },
 }
 
@@ -510,8 +510,8 @@ fn page_size(parser: Parser<'_>) -> Result<Option<u32>> {
             parser.parse::<kw::pagesize>()?;
             let span = parser.cur_span();
             let size = parser.parse::<u32>()?;
-            if size.is_power_of_two() && size <= (1 << 16) {
-                Ok(size)
+            if size.is_power_of_two() {
+                Ok(size.ilog2())
             } else {
                 Err(Error::new(
                     span,
@@ -534,7 +534,7 @@ impl<'a> Parse<'a> for MemoryType {
             Ok(MemoryType::B64 {
                 limits,
                 shared,
-                page_size,
+                page_size_log2: page_size,
             })
         } else {
             parser.parse::<Option<kw::i32>>()?;
@@ -544,7 +544,7 @@ impl<'a> Parse<'a> for MemoryType {
             Ok(MemoryType::B32 {
                 limits,
                 shared,
-                page_size,
+                page_size_log2: page_size,
             })
         }
     }

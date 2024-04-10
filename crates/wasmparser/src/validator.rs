@@ -1522,7 +1522,7 @@ mod tests {
                 shared: false,
                 initial: 1,
                 maximum: Some(5),
-                page_size: None,
+                page_size_log2: None,
             }
         );
 

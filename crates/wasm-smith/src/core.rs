@@ -2542,7 +2542,7 @@ pub(crate) fn arbitrary_memtype(u: &mut Unstructured, config: &Config) -> Result
         maximum,
         memory64,
         shared,
-        page_size,
+        page_size_log2: page_size,
     })
 }
 

@@ -54,13 +54,8 @@ impl<'a> FromReader<'a> for MemoryType {
             } else {
                 Some(reader.read_var_u32()?.into())
             },
-            page_size: if has_page_size {
-                let pos = reader.original_position();
-                let log = reader.read_var_u32()?;
-                if log > 16 {
-                    bail!(pos, "invalid custom page size")
-                }
-                Some(1 << log)
+            page_size_log2: if has_page_size {
+                Some(reader.read_var_u32()?)
             } else {
                 None
             },

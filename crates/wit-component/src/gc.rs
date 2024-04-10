@@ -584,7 +584,7 @@ impl<'a> Module<'a> {
                 maximum: mem.ty.maximum,
                 shared: mem.ty.shared,
                 memory64: mem.ty.memory64,
-                page_size: mem.ty.page_size,
+                page_size_log2: mem.ty.page_size_log2,
             };
             match &mem.def {
                 Definition::Import(m, n) => {

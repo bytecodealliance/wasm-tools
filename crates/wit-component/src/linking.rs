@@ -482,7 +482,7 @@ fn make_env_module<'a>(
             maximum: None,
             memory64: false,
             shared: false,
-            page_size: None,
+            page_size_log2: None,
         });
         exports.export("memory", ExportKind::Memory, 0);
         module.section(&memories);
@@ -551,7 +551,7 @@ fn make_init_module(
             maximum: None,
             memory64: false,
             shared: false,
-            page_size: None,
+            page_size_log2: None,
         },
     );
     imports.import(

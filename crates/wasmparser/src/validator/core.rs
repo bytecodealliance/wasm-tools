@@ -876,7 +876,7 @@ impl Module {
         offset: usize,
     ) -> Result<()> {
         self.check_limits(ty.initial, ty.maximum, offset)?;
-        let page_size = if let Some(page_size) = ty.page_size {
+        let page_size = if let Some(page_size_log2) = ty.page_size_log2 {
             if !features.custom_page_sizes {
                 return Err(BinaryReaderError::new(
                     "the custom page sizes proposal must be enabled to \
@@ -884,13 +884,15 @@ impl Module {
                     offset,
                 ));
             }
-            if u64::from(page_size) > DEFAULT_WASM_PAGE_SIZE || !page_size.is_power_of_two() {
+            let page_size = 1_u64 << page_size_log2;
+            debug_assert!(page_size.is_power_of_two());
+            if page_size > DEFAULT_WASM_PAGE_SIZE {
                 return Err(BinaryReaderError::new(
                     "invalid custom page size: {page_size}",
                     offset,
                 ));
             }
-            u64::from(page_size)
+            page_size
         } else {
             DEFAULT_WASM_PAGE_SIZE
         };
