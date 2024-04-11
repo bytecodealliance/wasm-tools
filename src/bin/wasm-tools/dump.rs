@@ -270,7 +270,10 @@ impl<'a> Dump<'a> {
                 }
 
                 // Component sections
-                Payload::ModuleSection { unchecked_range: range, .. } => {
+                Payload::ModuleSection {
+                    unchecked_range: range,
+                    ..
+                } => {
                     write!(
                         self.state,
                         "[core module {}] inline size",
@@ -297,7 +300,10 @@ impl<'a> Dump<'a> {
                     me.print(end)
                 })?,
 
-                Payload::ComponentSection { unchecked_range: range, .. } => {
+                Payload::ComponentSection {
+                    unchecked_range: range,
+                    ..
+                } => {
                     write!(
                         self.state,
                         "[component {}] inline size",

@@ -103,8 +103,12 @@ fn validate_all(mut validator: Validator, wasm: &[u8]) {
             // sections' ranges are not checked during validation, since they
             // contain nested sections and we don't want to require all nested
             // sections are present before we can parse/validate any of them.
-            ComponentSection { unchecked_range: _, .. } |
-            ModuleSection { unchecked_range: _, .. } => {}
+            ComponentSection {
+                unchecked_range: _, ..
+            }
+            | ModuleSection {
+                unchecked_range: _, ..
+            } => {}
 
             // No associated range.
             End(_) => {}

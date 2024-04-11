@@ -267,7 +267,14 @@ impl Printer {
                 Payload::CodeSectionEntry(f) => {
                     code.push(f);
                 }
-                Payload::ModuleSection { unchecked_range: range, .. } | Payload::ComponentSection { unchecked_range: range, .. } => {
+                Payload::ModuleSection {
+                    unchecked_range: range,
+                    ..
+                }
+                | Payload::ComponentSection {
+                    unchecked_range: range,
+                    ..
+                } => {
                     let offset = range.end - range.start;
                     if offset > bytes.len() {
                         bail!("invalid module or component section range");
