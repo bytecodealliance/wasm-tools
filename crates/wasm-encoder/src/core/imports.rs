@@ -103,7 +103,7 @@ impl TryFrom<wasmparser::TypeRef> for EntityType {
 ///         maximum: None,
 ///         memory64: false,
 ///         shared: false,
-///         page_size: None,
+///         page_size_log2: None,
 ///     }
 /// );
 ///
