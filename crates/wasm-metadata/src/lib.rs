@@ -418,8 +418,14 @@ impl Metadata {
                         }
                     }
                 }
-                ModuleSection { range, .. } => metadata.push(Metadata::empty_module(range)),
-                ComponentSection { range, .. } => metadata.push(Metadata::empty_component(range)),
+                ModuleSection {
+                    unchecked_range: range,
+                    ..
+                } => metadata.push(Metadata::empty_module(range)),
+                ComponentSection {
+                    unchecked_range: range,
+                    ..
+                } => metadata.push(Metadata::empty_component(range)),
                 End { .. } => {
                     let finished = metadata.pop().expect("non-empty metadata stack");
                     if metadata.is_empty() {

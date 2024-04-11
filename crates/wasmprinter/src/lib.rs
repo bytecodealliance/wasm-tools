@@ -267,7 +267,14 @@ impl Printer {
                 Payload::CodeSectionEntry(f) => {
                     code.push(f);
                 }
-                Payload::ModuleSection { range, .. } | Payload::ComponentSection { range, .. } => {
+                Payload::ModuleSection {
+                    unchecked_range: range,
+                    ..
+                }
+                | Payload::ComponentSection {
+                    unchecked_range: range,
+                    ..
+                } => {
                     let offset = range.end - range.start;
                     if offset > bytes.len() {
                         bail!("invalid module or component section range");
@@ -514,7 +521,7 @@ impl Printer {
 
                 Payload::ModuleSection {
                     parser: inner,
-                    range,
+                    unchecked_range: range,
                 } => {
                     Self::ensure_component(&states)?;
                     expected = Some(Encoding::Module);
@@ -529,7 +536,7 @@ impl Printer {
                 Payload::CoreTypeSection(s) => self.print_core_types(&mut states, s)?,
                 Payload::ComponentSection {
                     parser: inner,
-                    range,
+                    unchecked_range: range,
                 } => {
                     Self::ensure_component(&states)?;
                     expected = Some(Encoding::Component);
