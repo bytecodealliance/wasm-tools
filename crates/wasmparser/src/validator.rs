@@ -551,13 +551,13 @@ impl Validator {
             DataSection(s) => self.data_section(s)?,
 
             // Component sections
-            ModuleSection { parser, range, .. } => {
+            ModuleSection { parser, unchecked_range: range, .. } => {
                 self.module_section(range)?;
                 return Ok(ValidPayload::Parser(parser.clone()));
             }
             InstanceSection(s) => self.instance_section(s)?,
             CoreTypeSection(s) => self.core_type_section(s)?,
-            ComponentSection { parser, range, .. } => {
+            ComponentSection { parser, unchecked_range: range, .. } => {
                 self.component_section(range)?;
                 return Ok(ValidPayload::Parser(parser.clone()));
             }

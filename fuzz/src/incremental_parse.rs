@@ -146,9 +146,9 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
             (
                 ModuleSection {
                     parser: p,
-                    range: a,
+                    unchecked_range: a,
                 },
-                ModuleSection { range: b, .. },
+                ModuleSection { unchecked_range: b, .. },
             ) => {
                 assert_eq!(a, b);
                 stack.push(parser);
@@ -158,9 +158,9 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
             (
                 ComponentSection {
                     parser: p,
-                    range: a,
+                    unchecked_range: a,
                 },
-                ComponentSection { range: b, .. },
+                ComponentSection { unchecked_range: b, .. },
             ) => {
                 assert_eq!(a, b);
                 stack.push(parser);

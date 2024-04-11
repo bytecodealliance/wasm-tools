@@ -87,10 +87,8 @@ fn validate_all(mut validator: Validator, wasm: &[u8]) {
             DataSection(s) => assert!(wasm.get(s.range()).is_some()),
             CodeSectionStart { range, .. } => assert!(wasm.get(range).is_some()),
             CodeSectionEntry(body) => assert!(wasm.get(body.range()).is_some()),
-            ModuleSection { range, .. } => assert!(wasm.get(range).is_some()),
             InstanceSection(s) => assert!(wasm.get(s.range()).is_some()),
             CoreTypeSection(s) => assert!(wasm.get(s.range()).is_some()),
-            ComponentSection { range, .. } => assert!(wasm.get(range).is_some()),
             ComponentInstanceSection(s) => assert!(wasm.get(s.range()).is_some()),
             ComponentAliasSection(s) => assert!(wasm.get(s.range()).is_some()),
             ComponentTypeSection(s) => assert!(wasm.get(s.range()).is_some()),
@@ -100,6 +98,15 @@ fn validate_all(mut validator: Validator, wasm: &[u8]) {
             ComponentExportSection(s) => assert!(wasm.get(s.range()).is_some()),
             CustomSection(s) => assert!(wasm.get(s.range()).is_some()),
             UnknownSection { range, .. } => assert!(wasm.get(range).is_some()),
+
+            // In order to support streaming parsing and validation, these
+            // sections' ranges are not checked during validation, since they
+            // contain nested sections and we don't want to require all nested
+            // sections are present before we can parse/validate any of them.
+            ComponentSection { unchecked_range: _, .. } |
+            ModuleSection { unchecked_range: _, .. } => {}
+
+            // No associated range.
             End(_) => {}
         }
     }
