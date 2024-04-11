@@ -1,8 +1,11 @@
+(assert_malformed
+  (module quote "(memory 0 (pagesize 3))")
+  "invalid custom page size"
+)
+
 ;; Power of two page size that is larger than 64KiB.
 (assert_invalid
-  (module
-    (memory 0 (pagesize 0x20000))
-  )
+  (module (memory 0 (pagesize 0x20000)))
   "invalid custom page size"
 )
 
