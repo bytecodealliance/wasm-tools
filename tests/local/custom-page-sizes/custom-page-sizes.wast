@@ -1,0 +1,118 @@
+;; Check all the valid custom page sizes.
+(module (memory 1 (pagesize 1)))
+(module (memory 1 (pagesize 2)))
+(module (memory 1 (pagesize 4)))
+(module (memory 1 (pagesize 8)))
+(module (memory 1 (pagesize 16)))
+(module (memory 1 (pagesize 32)))
+(module (memory 1 (pagesize 64)))
+(module (memory 1 (pagesize 128)))
+(module (memory 1 (pagesize 256)))
+(module (memory 1 (pagesize 512)))
+(module (memory 1 (pagesize 1024)))
+(module (memory 1 (pagesize 2048)))
+(module (memory 1 (pagesize 4096)))
+(module (memory 1 (pagesize 8192)))
+(module (memory 1 (pagesize 16384)))
+(module (memory 1 (pagesize 32768)))
+(module (memory 1 (pagesize 65536)))
+
+;; Check them all again with maximums specified.
+(module (memory 1 2 (pagesize 1)))
+(module (memory 1 2 (pagesize 2)))
+(module (memory 1 2 (pagesize 4)))
+(module (memory 1 2 (pagesize 8)))
+(module (memory 1 2 (pagesize 16)))
+(module (memory 1 2 (pagesize 32)))
+(module (memory 1 2 (pagesize 64)))
+(module (memory 1 2 (pagesize 128)))
+(module (memory 1 2 (pagesize 256)))
+(module (memory 1 2 (pagesize 512)))
+(module (memory 1 2 (pagesize 1024)))
+(module (memory 1 2 (pagesize 2048)))
+(module (memory 1 2 (pagesize 4096)))
+(module (memory 1 2 (pagesize 8192)))
+(module (memory 1 2 (pagesize 16384)))
+(module (memory 1 2 (pagesize 32768)))
+(module (memory 1 2 (pagesize 65536)))
+
+;; Check the behavior of memories with page size 1.
+(module
+  (memory 0 (pagesize 1))
+  (func (export "size") (result i32)
+    memory.size
+  )
+  (func (export "grow") (param i32) (result i32)
+    (memory.grow (local.get 0))
+  )
+  (func (export "load") (param i32) (result i32)
+    (i32.load8_u (local.get 0))
+  )
+  (func (export "store") (param i32 i32)
+    (i32.store (local.get 0) (local.get 1))
+  )
+)
+
+(assert_return (invoke "size") (i32.const 0))
+(assert_trap (invoke "load" (i32.const 0)) "out of bounds memory access")
+
+(assert_return (invoke "grow" (i32.const 65536)) (i32.const 0))
+(assert_return (invoke "size") (i32.const 65536))
+(assert_return (invoke "load" (i32.const 65535)) (i32.const 0))
+(assert_return (invoke "store" (i32.const 65535) (i32.const 1)))
+(assert_return (invoke "load" (i32.const 65535)) (i32.const 1))
+(assert_trap (invoke "load" (i32.const 65536)) "out of bounds memory access")
+
+(assert_return (invoke "grow" (i32.const 65536)) (i32.const 65536))
+(assert_return (invoke "size") (i32.const 131072))
+(assert_return (invoke "load" (i32.const 131071)) (i32.const 0))
+(assert_return (invoke "store" (i32.const 131071) (i32.const 1)))
+(assert_return (invoke "load" (i32.const 131071)) (i32.const 1))
+(assert_trap (invoke "load" (i32.const 131072)) "out of bounds memory access")
+
+;; Check the behavior of memories with page size 4.
+(module
+  (memory 0 (pagesize 4))
+  (func (export "size") (result i32)
+    memory.size
+  )
+  (func (export "grow") (param i32) (result i32)
+    (memory.grow (local.get 0))
+  )
+  (func (export "load") (param i32) (result i32)
+    (i32.load (local.get 0))
+  )
+  (func (export "store") (param i32 i32)
+    (i32.store (local.get 0) (local.get 1))
+  )
+)
+
+(assert_return (invoke "size") (i32.const 0))
+(assert_trap (invoke "load" (i32.const 0)) "out of bounds memory access")
+
+(assert_return (invoke "grow" (i32.const 65536)) (i32.const 0))
+(assert_return (invoke "size") (i32.const 65536))
+(assert_return (invoke "load" (i32.const 262143)) (i32.const 0))
+(assert_return (invoke "store" (i32.const 262143) (i32.const 1)))
+(assert_return (invoke "load" (i32.const 262143)) (i32.const 1))
+(assert_trap (invoke "load" (i32.const 262144)) "out of bounds memory access")
+
+(assert_return (invoke "grow" (i32.const 65536)) (i32.const 65536))
+(assert_return (invoke "size") (i32.const 131072))
+(assert_return (invoke "load" (i32.const 524287)) (i32.const 0))
+(assert_return (invoke "store" (i32.const 524287) (i32.const 1)))
+(assert_return (invoke "load" (i32.const 524287)) (i32.const 1))
+(assert_trap (invoke "load" (i32.const 524288)) "out of bounds memory access")
+
+;; Although smaller page sizes let us get to memories larger than 2**16 pages,
+;; we can't do that with the default page size, even if we explicitly state it
+;; as a custom page size.
+(module
+  (memory 0 (pagesize 65536))
+  (func (export "grow") (param i32) (result i32)
+    (memory.grow (local.get 0))
+  )
+)
+(assert_return (invoke "size") (i32.const 0))
+(assert_return (invoke "grow" (i32.const 65537)) (i32.const -1))
+(assert_return (invoke "size") (i32.const 0))

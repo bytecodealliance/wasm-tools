@@ -2,6 +2,7 @@ use crate::core::*;
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Id, Index, LParen, NameAnnotation, Span};
+use crate::Error;
 use std::mem;
 
 /// The value types for a wasm module.
@@ -489,6 +490,8 @@ pub enum MemoryType {
         limits: Limits,
         /// Whether or not this is a shared (atomic) memory type
         shared: bool,
+        /// The custom page size for this memory, if any.
+        page_size_log2: Option<u32>,
     },
     /// A 64-bit memory
     B64 {
@@ -496,7 +499,29 @@ pub enum MemoryType {
         limits: Limits64,
         /// Whether or not this is a shared (atomic) memory type
         shared: bool,
+        /// The custom page size for this memory, if any.
+        page_size_log2: Option<u32>,
     },
+}
+
+fn page_size(parser: Parser<'_>) -> Result<Option<u32>> {
+    if parser.peek::<LParen>()? {
+        Ok(Some(parser.parens(|parser| {
+            parser.parse::<kw::pagesize>()?;
+            let span = parser.cur_span();
+            let size = parser.parse::<u32>()?;
+            if size.is_power_of_two() {
+                Ok(size.ilog2())
+            } else {
+                Err(Error::new(
+                    span,
+                    format!("invalid custom page size: {size}"),
+                ))
+            }
+        })?))
+    } else {
+        Ok(None)
+    }
 }
 
 impl<'a> Parse<'a> for MemoryType {
@@ -505,12 +530,22 @@ impl<'a> Parse<'a> for MemoryType {
             parser.parse::<kw::i64>()?;
             let limits = parser.parse()?;
             let shared = parser.parse::<Option<kw::shared>>()?.is_some();
-            Ok(MemoryType::B64 { limits, shared })
+            let page_size = page_size(parser)?;
+            Ok(MemoryType::B64 {
+                limits,
+                shared,
+                page_size_log2: page_size,
+            })
         } else {
             parser.parse::<Option<kw::i32>>()?;
             let limits = parser.parse()?;
             let shared = parser.parse::<Option<kw::shared>>()?.is_some();
-            Ok(MemoryType::B32 { limits, shared })
+            let page_size = page_size(parser)?;
+            Ok(MemoryType::B32 {
+                limits,
+                shared,
+                page_size_log2: page_size,
+            })
         }
     }
 }

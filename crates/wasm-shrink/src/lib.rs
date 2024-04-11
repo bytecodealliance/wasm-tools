@@ -236,6 +236,7 @@ impl ShrinkRun {
             component_model: false,
             function_references: false,
             gc: false,
+            custom_page_sizes: false,
             component_model_values: false,
             component_model_nested_names: false,
 

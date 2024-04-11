@@ -20,7 +20,7 @@
  0x24 | 70 00 01    | [table 0] Table { ty: TableType { element_type: funcref, initial: 1, maximum: None }, init: RefNull }
  0x27 | 05 03       | memory section
  0x29 | 01          | 1 count
- 0x2a | 00 01       | [memory 0] MemoryType { memory64: false, shared: false, initial: 1, maximum: None }
+ 0x2a | 00 01       | [memory 0] MemoryType { memory64: false, shared: false, initial: 1, maximum: None, page_size_log2: None }
  0x2c | 06 06       | global section
  0x2e | 01          | 1 count
  0x2f | 7f 00       | [global 0] GlobalType { content_type: I32, mutable: false, shared: false }

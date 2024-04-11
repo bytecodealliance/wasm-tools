@@ -17,6 +17,7 @@ pub fn parser_features_from_config(config: &Config) -> WasmFeatures {
         tail_call: config.tail_call_enabled,
         function_references: config.gc_enabled,
         gc: config.gc_enabled,
+        custom_page_sizes: config.custom_page_sizes_enabled,
 
         threads: false,
         shared_everything_threads: false,

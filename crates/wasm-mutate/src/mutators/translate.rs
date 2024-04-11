@@ -160,6 +160,7 @@ pub fn memory_type(
         minimum: ty.initial,
         maximum: ty.maximum,
         shared: ty.shared,
+        page_size_log2: ty.page_size_log2,
     })
 }
 

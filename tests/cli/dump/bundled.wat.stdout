@@ -33,7 +33,7 @@
     0x62 | 00          | [func 0] type 0
     0x63 | 05 03       | memory section
     0x65 | 01          | 1 count
-    0x66 | 00 00       | [memory 0] MemoryType { memory64: false, shared: false, initial: 0, maximum: None }
+    0x66 | 00 00       | [memory 0] MemoryType { memory64: false, shared: false, initial: 0, maximum: None, page_size_log2: None }
     0x68 | 07 11       | export section
     0x6a | 02          | 2 count
     0x6b | 03 6d 65 6d | export Export { name: "mem", kind: Memory, index: 0 }

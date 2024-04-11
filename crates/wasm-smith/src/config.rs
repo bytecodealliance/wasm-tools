@@ -313,6 +313,12 @@ define_config! {
         /// Defaults to `false`.
         pub gc_enabled: bool = false,
 
+        /// Determines whether the custom-page-sizes proposal is enabled when
+        /// generating a Wasm module.
+        ///
+        /// Defaults to `false`.
+        pub custom_page_sizes_enabled: bool = false,
+
         /// Returns whether we should generate custom sections or not. Defaults
         /// to false.
         pub generate_custom_sections: bool = false,
@@ -715,6 +721,7 @@ impl<'a> Arbitrary<'a> for Config {
             export_everything: false,
             tail_call_enabled: false,
             gc_enabled: false,
+            custom_page_sizes_enabled: false,
             generate_custom_sections: false,
             allow_invalid_funcs: false,
         })

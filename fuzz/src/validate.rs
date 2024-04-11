@@ -49,6 +49,7 @@ pub fn validate_raw_bytes(u: &mut Unstructured<'_>) -> Result<()> {
         memory_control: u.arbitrary()?,
         function_references: u.arbitrary()?,
         gc: u.arbitrary()?,
+        custom_page_sizes: u.arbitrary()?,
         component_model_values: u.arbitrary()?,
         component_model_nested_names: u.arbitrary()?,
     });

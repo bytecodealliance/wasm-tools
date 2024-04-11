@@ -1512,6 +1512,16 @@ pub struct MemoryType {
     /// be at most `u32::MAX` for valid types. This field is always present for
     /// valid wasm memories when `shared` is `true`.
     pub maximum: Option<u64>,
+
+    /// The log base 2 of the memory's custom page size.
+    ///
+    /// Memory pages are, by default, 64KiB large (i.e. 2<sup>16</sup> or
+    /// `65536`).
+    ///
+    /// [The custom-page-sizes proposal] allows changing it to other values.
+    ///
+    /// [The custom-page-sizes proposal]: https://github.com/WebAssembly/custom-page-sizes
+    pub page_size_log2: Option<u32>,
 }
 
 impl MemoryType {

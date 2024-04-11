@@ -8,7 +8,7 @@
 
 #![deny(missing_docs)]
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Write};
 use std::marker;
@@ -1075,6 +1075,12 @@ impl Printer {
         self.print_limits(ty.initial, ty.maximum)?;
         if ty.shared {
             self.result.push_str(" shared");
+        }
+        if let Some(p) = ty.page_size_log2 {
+            let p = 1_u64
+                .checked_shl(p)
+                .ok_or_else(|| anyhow!("left shift overflow").context("invalid page size"))?;
+            write!(self.result, "(pagesize {p:#x})")?;
         }
         Ok(())
     }
