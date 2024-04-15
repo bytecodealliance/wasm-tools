@@ -320,11 +320,11 @@ impl<'wasm> WasmMutate<'wasm> {
 
 #[cfg(test)]
 pub(crate) fn validate(bytes: &[u8]) {
-    let mut validator = wasmparser::Validator::new_with_features(wasmparser::WasmFeatures {
-        memory64: true,
-        multi_memory: true,
-        ..Default::default()
-    });
+    use wasmparser::WasmFeatures;
+
+    let mut validator = wasmparser::Validator::new_with_features(
+        WasmFeatures::default() | WasmFeatures::MEMORY64 | WasmFeatures::MULTI_MEMORY,
+    );
     let err = match validator.validate_all(bytes) {
         Ok(_) => return,
         Err(e) => e,

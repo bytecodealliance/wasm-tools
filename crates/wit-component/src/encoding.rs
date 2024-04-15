@@ -2113,10 +2113,9 @@ impl ComponentEncoder {
         let bytes = state.component.finish();
 
         if self.validate {
-            let mut validator = Validator::new_with_features(WasmFeatures {
-                component_model: true,
-                ..Default::default()
-            });
+            let mut validator = Validator::new_with_features(
+                WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL,
+            );
 
             validator
                 .validate_all(&bytes)

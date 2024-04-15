@@ -97,31 +97,31 @@ impl Opts {
 fn parse_features(arg: &str) -> Result<WasmFeatures> {
     let mut ret = WasmFeatures::default();
 
-    const FEATURES: &[(&str, fn(&mut WasmFeatures) -> &mut bool)] = &[
-        ("reference-types", |f| &mut f.reference_types),
-        ("function-references", |f| &mut f.function_references),
-        ("simd", |f| &mut f.simd),
-        ("threads", |f| &mut f.threads),
-        ("shared-everything-threads", |f| {
-            &mut f.shared_everything_threads
+    const FEATURES: &[(&str, fn(&mut WasmFeatures, new_value: bool))] = &[
+        ("reference-types", |f, new_value| f.set(WasmFeatures::REFERENCE_TYPES, new_value)),
+        ("function-references", |f, new_value| f.set(WasmFeatures::FUNCTION_REFERENCES, new_value)),
+        ("simd", |f, new_value| f.set(WasmFeatures::SIMD, new_value)),
+        ("threads", |f, new_value| f.set(WasmFeatures::THREADS, new_value)),
+        ("shared-everything-threads", |f, new_value| {
+            f.set(WasmFeatures::SHARED_EVERYTHING_THREADS, new_value)
         }),
-        ("bulk-memory", |f| &mut f.bulk_memory),
-        ("multi-value", |f| &mut f.multi_value),
-        ("tail-call", |f| &mut f.tail_call),
-        ("component-model", |f| &mut f.component_model),
-        ("component-model-values", |f| &mut f.component_model_values),
-        ("multi-memory", |f| &mut f.multi_memory),
-        ("exception-handling", |f| &mut f.exceptions),
-        ("memory64", |f| &mut f.memory64),
-        ("extended-const", |f| &mut f.extended_const),
-        ("floats", |f| &mut f.floats),
-        ("saturating-float-to-int", |f| {
-            &mut f.saturating_float_to_int
+        ("bulk-memory", |f, new_value| f.set(WasmFeatures::BULK_MEMORY, new_value)),
+        ("multi-value", |f, new_value| f.set(WasmFeatures::MULTI_VALUE, new_value)),
+        ("tail-call", |f, new_value| f.set(WasmFeatures::TAIL_CALL, new_value)),
+        ("component-model", |f, new_value| f.set(WasmFeatures::COMPONENT_MODEL, new_value)),
+        ("component-model-values", |f, new_value| f.set(WasmFeatures::COMPONENT_MODEL_VALUES, new_value)),
+        ("multi-memory", |f, new_value| f.set(WasmFeatures::MULTI_MEMORY, new_value)),
+        ("exception-handling", |f, new_value| f.set(WasmFeatures::EXCEPTIONS, new_value)),
+        ("memory64", |f, new_value| f.set(WasmFeatures::MEMORY64, new_value)),
+        ("extended-const", |f, new_value| f.set(WasmFeatures::EXTENDED_CONST, new_value)),
+        ("floats", |f, new_value| f.set(WasmFeatures::FLOATS, new_value)),
+        ("saturating-float-to-int", |f, new_value| {
+            f.set(WasmFeatures::SATURATING_FLOAT_TO_INT, new_value)
         }),
-        ("sign-extension", |f| &mut f.sign_extension),
-        ("mutable-global", |f| &mut f.mutable_global),
-        ("relaxed-simd", |f| &mut f.relaxed_simd),
-        ("gc", |f| &mut f.gc),
+        ("sign-extension", |f, new_value| f.set(WasmFeatures::SIGN_EXTENSION, new_value)),
+        ("mutable-global", |f, new_value| f.set(WasmFeatures::MUTABLE_GLOBAL, new_value)),
+        ("relaxed-simd", |f, new_value| f.set(WasmFeatures::RELAXED_SIMD, new_value)),
+        ("gc", |f, new_value| f.set(WasmFeatures::GC, new_value)),
     ];
 
     for part in arg.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
@@ -137,8 +137,7 @@ fn parse_features(arg: &str) -> Result<WasmFeatures> {
                     if *name == "deterministic" {
                         continue;
                     }
-
-                    *accessor(&mut ret) = enable;
+                    accessor(&mut ret, enable);
                 }
             }
 
@@ -154,7 +153,7 @@ fn parse_features(arg: &str) -> Result<WasmFeatures> {
                             .join(", "),
                     )
                 })?;
-                *accessor(&mut ret) = enable;
+                accessor(&mut ret, enable);
             }
         }
     }

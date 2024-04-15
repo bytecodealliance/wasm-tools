@@ -27,31 +27,7 @@ pub fn validate_maybe_invalid_module(u: &mut Unstructured<'_>) -> Result<()> {
 
 pub fn validate_raw_bytes(u: &mut Unstructured<'_>) -> Result<()> {
     // Enable arbitrary combinations of features to validate the input bytes.
-    let validator = Validator::new_with_features(WasmFeatures {
-        reference_types: u.arbitrary()?,
-        multi_value: u.arbitrary()?,
-        threads: u.arbitrary()?,
-        shared_everything_threads: u.arbitrary()?,
-        simd: u.arbitrary()?,
-        component_model: u.arbitrary()?,
-        tail_call: u.arbitrary()?,
-        bulk_memory: u.arbitrary()?,
-        floats: u.arbitrary()?,
-        multi_memory: u.arbitrary()?,
-        memory64: u.arbitrary()?,
-        exceptions: u.arbitrary()?,
-        relaxed_simd: u.arbitrary()?,
-        extended_const: u.arbitrary()?,
-        mutable_global: u.arbitrary()?,
-        saturating_float_to_int: u.arbitrary()?,
-        sign_extension: u.arbitrary()?,
-        memory_control: u.arbitrary()?,
-        function_references: u.arbitrary()?,
-        gc: u.arbitrary()?,
-        custom_page_sizes: u.arbitrary()?,
-        component_model_values: u.arbitrary()?,
-        component_model_nested_names: u.arbitrary()?,
-    });
+    let validator = Validator::new_with_features(WasmFeatures::from_bits_truncate(u.arbitrary()?));
     let wasm = u.bytes(u.len())?;
     crate::log_wasm(wasm, "");
     validate_all(validator, wasm);

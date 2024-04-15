@@ -1,4 +1,5 @@
 use arbitrary::{Result, Unstructured};
+use wasmparser::WasmFeatures;
 #[cfg(feature = "wasmtime")]
 use wasmtime::*;
 
@@ -108,18 +109,19 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
 
 fn validate_module(config: wasm_smith::Config, wasm_bytes: &Vec<u8>) {
     // Validate the module or component and assert that it passes validation.
-    let mut validator = wasmparser::Validator::new_with_features(wasmparser::WasmFeatures {
-        component_model: false,
-        multi_value: config.multi_value_enabled,
-        multi_memory: config.max_memories > 1,
-        bulk_memory: true,
-        reference_types: true,
-        simd: config.simd_enabled,
-        relaxed_simd: config.relaxed_simd_enabled,
-        memory64: config.memory64_enabled,
-        threads: config.threads_enabled,
-        exceptions: config.exceptions_enabled,
-        ..wasmparser::WasmFeatures::default()
+    let mut validator = wasmparser::Validator::new_with_features({
+        let mut features = WasmFeatures::default();
+        features.remove(WasmFeatures::COMPONENT_MODEL);
+        features.set(WasmFeatures::MULTI_VALUE, config.multi_value_enabled);
+        features.set(WasmFeatures::MULTI_MEMORY, config.max_memories > 1);
+        features.insert(WasmFeatures::BULK_MEMORY);
+        features.insert(WasmFeatures::REFERENCE_TYPES);
+        features.set(WasmFeatures::SIMD, config.simd_enabled);
+        features.set(WasmFeatures::RELAXED_SIMD, config.relaxed_simd_enabled);
+        features.set(WasmFeatures::MEMORY64, config.memory64_enabled);
+        features.set(WasmFeatures::THREADS, config.threads_enabled);
+        features.set(WasmFeatures::EXCEPTIONS, config.exceptions_enabled);
+        features
     });
     if let Err(e) = validator.validate_all(wasm_bytes) {
         panic!("Invalid module: {}", e);

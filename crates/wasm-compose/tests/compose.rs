@@ -82,17 +82,14 @@ fn component_composing() -> Result<()> {
             let bytes =
                 r.with_context(|| format!("failed to encode for test case `{}`", test_case))?;
 
-            Validator::new_with_features(WasmFeatures {
-                component_model: true,
-                ..Default::default()
-            })
-            .validate_all(&bytes)
-            .with_context(|| {
-                format!(
-                    "failed to validate component bytes for test case `{}`",
-                    test_case
-                )
-            })?;
+            Validator::new_with_features(WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL)
+                .validate_all(&bytes)
+                .with_context(|| {
+                    format!(
+                        "failed to validate component bytes for test case `{}`",
+                        test_case
+                    )
+                })?;
 
             wit_component::decode(&bytes).with_context(|| {
                 format!(

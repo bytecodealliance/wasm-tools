@@ -140,7 +140,7 @@ impl<'a> TypeCanonicalizer<'a> {
     }
 
     fn allow_gc(&self) -> bool {
-        self.features.map_or(true, |f| f.gc)
+        self.features.map_or(true, |f| f.contains(WasmFeatures::GC))
     }
 
     fn canonicalize_rec_group(&mut self, rec_group: &mut RecGroup) -> Result<()> {
