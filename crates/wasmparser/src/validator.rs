@@ -973,12 +973,12 @@ impl Validator {
         let state = self.module.as_mut().unwrap();
 
         let (index, ty) = state.next_code_index_and_type(offset)?;
-        Ok(FuncToValidate::new(
+        Ok(FuncToValidate {
             index,
             ty,
-            ValidatorResources(state.module.arc().clone()),
-            &self.features,
-        ))
+            resources: ValidatorResources(state.module.arc().clone()),
+            features: self.features,
+        })
     }
 
     /// Validates [`Payload::DataSection`](crate::Payload).
