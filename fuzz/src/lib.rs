@@ -1,6 +1,7 @@
 use libfuzzer_sys::arbitrary::{Result, Unstructured};
 use std::fmt::Debug;
 use wasm_smith::{Component, Config, Module};
+use wasmparser::WasmFeatures;
 
 pub mod incremental_parse;
 pub mod mutate;
@@ -77,24 +78,26 @@ pub fn generate_valid_component(
 }
 
 pub fn validator_for_config(config: &Config) -> wasmparser::Validator {
-    wasmparser::Validator::new_with_features(wasmparser::WasmFeatures {
-        multi_value: config.multi_value_enabled,
-        multi_memory: config.max_memories > 1,
-        bulk_memory: config.bulk_memory_enabled,
-        reference_types: config.reference_types_enabled,
-        simd: config.simd_enabled,
-        relaxed_simd: config.relaxed_simd_enabled,
-        memory64: config.memory64_enabled,
-        threads: config.threads_enabled,
-        exceptions: config.exceptions_enabled,
-        // TODO: determine our larger story for function-references in
-        // wasm-tools and whether we should just have a Wasm GC flag since
-        // function-references is effectively part of the Wasm GC proposal at
-        // this point.
-        function_references: config.gc_enabled,
-        gc: config.gc_enabled,
-        ..wasmparser::WasmFeatures::default()
-    })
+    let mut features = WasmFeatures::default();
+    features.set(WasmFeatures::MULTI_VALUE, config.multi_value_enabled);
+    features.set(WasmFeatures::MULTI_MEMORY, config.max_memories > 1);
+    features.set(WasmFeatures::BULK_MEMORY, config.bulk_memory_enabled);
+    features.set(
+        WasmFeatures::REFERENCE_TYPES,
+        config.reference_types_enabled,
+    );
+    features.set(WasmFeatures::SIMD, config.simd_enabled);
+    features.set(WasmFeatures::RELAXED_SIMD, config.relaxed_simd_enabled);
+    features.set(WasmFeatures::MEMORY64, config.memory64_enabled);
+    features.set(WasmFeatures::THREADS, config.threads_enabled);
+    features.set(WasmFeatures::EXCEPTIONS, config.exceptions_enabled);
+    // TODO: determine our larger story for function-references in
+    // wasm-tools and whether we should just have a Wasm GC flag since
+    // function-references is effectively part of the Wasm GC proposal at
+    // this point.
+    features.set(WasmFeatures::FUNCTION_REFERENCES, config.gc_enabled);
+    features.set(WasmFeatures::GC, config.gc_enabled);
+    wasmparser::Validator::new_with_features(features)
 }
 
 // Optionally log the module and its configuration if we've gotten this

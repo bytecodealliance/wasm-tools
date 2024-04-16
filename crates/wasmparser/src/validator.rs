@@ -17,6 +17,7 @@ use crate::{
     limits::*, BinaryReaderError, Encoding, FromReader, FunctionBody, HeapType, Parser, Payload,
     RefType, Result, SectionLimited, ValType, WASM_COMPONENT_VERSION, WASM_MODULE_VERSION,
 };
+use bitflags::bitflags;
 use std::mem;
 use std::ops::Range;
 use std::sync::Arc;
@@ -197,98 +198,71 @@ impl Default for State {
     }
 }
 
-/// Flags for features that are enabled for validation.
-#[derive(Hash, Debug, Copy, Clone)]
-pub struct WasmFeatures {
-    /// The WebAssembly `mutable-global` proposal (enabled by default)
-    pub mutable_global: bool,
-    /// The WebAssembly `nontrapping-float-to-int-conversions` proposal (enabled by default)
-    pub saturating_float_to_int: bool,
-    /// The WebAssembly `sign-extension-ops` proposal (enabled by default)
-    pub sign_extension: bool,
-    /// The WebAssembly reference types proposal (enabled by default)
-    pub reference_types: bool,
-    /// The WebAssembly multi-value proposal (enabled by default)
-    pub multi_value: bool,
-    /// The WebAssembly bulk memory operations proposal (enabled by default)
-    pub bulk_memory: bool,
-    /// The WebAssembly SIMD proposal (enabled by default)
-    pub simd: bool,
-    /// The WebAssembly Relaxed SIMD proposal (enabled by default)
-    pub relaxed_simd: bool,
-    /// The WebAssembly threads proposal (enabled by default)
-    pub threads: bool,
-    /// The WebAssembly shared-everything-threads proposal; includes new
-    /// component model built-ins.
-    pub shared_everything_threads: bool,
-    /// The WebAssembly tail-call proposal (enabled by default)
-    pub tail_call: bool,
-    /// Whether or not floating-point instructions are enabled.
-    ///
-    /// This is enabled by default can be used to disallow floating-point
-    /// operators and types.
-    ///
-    /// This does not correspond to a WebAssembly proposal but is instead
-    /// intended for embeddings which have stricter-than-usual requirements
-    /// about execution. Floats in WebAssembly can have different NaN patterns
-    /// across hosts which can lead to host-dependent execution which some
-    /// runtimes may not desire.
-    pub floats: bool,
-    /// The WebAssembly multi memory proposal (enabled by default)
-    pub multi_memory: bool,
-    /// The WebAssembly exception handling proposal
-    pub exceptions: bool,
-    /// The WebAssembly memory64 proposal
-    pub memory64: bool,
-    /// The WebAssembly extended_const proposal
-    pub extended_const: bool,
-    /// The WebAssembly component model proposal.
-    pub component_model: bool,
-    /// The WebAssembly typed function references proposal
-    pub function_references: bool,
-    /// The WebAssembly memory control proposal
-    pub memory_control: bool,
-    /// The WebAssembly gc proposal
-    pub gc: bool,
-    /// The WebAssembly [custom-page-sizes
-    /// proposal](https://github.com/WebAssembly/custom-page-sizes).
-    pub custom_page_sizes: bool,
-    /// Support for the `value` type in the component model proposal.
-    pub component_model_values: bool,
-    /// Support for the nested namespaces and projects in component model names.
-    pub component_model_nested_names: bool,
+bitflags! {
+    /// Flags for features that are enabled for validation.
+    #[derive(Hash, Debug, Copy, Clone)]
+    pub struct WasmFeatures: u32 {
+        /// The WebAssembly `mutable-global` proposal (enabled by default)
+        const MUTABLE_GLOBAL = 1;
+        /// The WebAssembly `saturating-float-to-int` proposal (enabled by default)
+        const SATURATING_FLOAT_TO_INT = 1 << 1;
+        /// The WebAssembly `sign-extension-ops` proposal (enabled by default)
+        const SIGN_EXTENSION = 1 << 2;
+        /// The WebAssembly reference types proposal (enabled by default)
+        const REFERENCE_TYPES = 1 << 3;
+        /// The WebAssembly multi-value proposal (enabled by default)
+        const MULTI_VALUE = 1 << 4;
+        /// The WebAssembly bulk memory operations proposal (enabled by default)
+        const BULK_MEMORY = 1 << 5;
+        /// The WebAssembly SIMD proposal (enabled by default)
+        const SIMD = 1 << 6;
+        /// The WebAssembly Relaxed SIMD proposal (enabled by default)
+        const RELAXED_SIMD = 1 << 7;
+        /// The WebAssembly threads proposal (enabled by default)
+        const THREADS = 1 << 8;
+        /// The WebAssembly shared-everything-threads proposal; includes new
+        /// component model built-ins.
+        const SHARED_EVERYTHING_THREADS = 1 << 9;
+        /// The WebAssembly tail-call proposal (enabled by default)
+        const TAIL_CALL = 1 << 10;
+        /// Whether or not floating-point instructions are enabled.
+        ///
+        /// This is enabled by default can be used to disallow floating-point
+        /// operators and types.
+        ///
+        /// This does not correspond to a WebAssembly proposal but is instead
+        /// intended for embeddings which have stricter-than-usual requirements
+        /// about execution. Floats in WebAssembly can have different NaN patterns
+        /// across hosts which can lead to host-dependent execution which some
+        /// runtimes may not desire.
+        const FLOATS = 1 << 11;
+        /// The WebAssembly multi memory proposal (enabled by default)
+        const MULTI_MEMORY = 1 << 12;
+        /// The WebAssembly exception handling proposal
+        const EXCEPTIONS = 1 << 13;
+        /// The WebAssembly memory64 proposal
+        const MEMORY64 = 1 << 14;
+        /// The WebAssembly extended_const proposal
+        const EXTENDED_CONST = 1 << 15;
+        /// The WebAssembly component model proposal.
+        const COMPONENT_MODEL = 1 << 16;
+        /// The WebAssembly typed function references proposal
+        const FUNCTION_REFERENCES = 1 << 17;
+        /// The WebAssembly memory control proposal
+        const MEMORY_CONTROL = 1 << 18;
+        /// The WebAssembly gc proposal
+        const GC = 1 << 19;
+        /// The WebAssembly [custom-page-sizes
+        /// proposal](https://github.com/WebAssembly/custom-page-sizes).
+        const CUSTOM_PAGE_SIZE = 1 << 20;
+        /// Support for the `value` type in the component model proposal.
+        const COMPONENT_MODEL_VALUES = 1 << 21;
+        /// Support for the nested namespaces and projects in component model names.
+        const COMPONENT_MODEL_NESTED_NAMES = 1 << 22;
+    }
 }
 
 impl WasmFeatures {
-    /// Returns [`WasmFeatures`] with all features enabled.
-    pub fn all() -> Self {
-        WasmFeatures {
-            mutable_global: true,
-            saturating_float_to_int: true,
-            sign_extension: true,
-            reference_types: true,
-            multi_value: true,
-            bulk_memory: true,
-            simd: true,
-            relaxed_simd: true,
-            threads: true,
-            shared_everything_threads: true,
-            tail_call: true,
-            floats: true,
-            multi_memory: true,
-            exceptions: true,
-            memory64: true,
-            extended_const: true,
-            component_model: true,
-            function_references: true,
-            memory_control: true,
-            gc: true,
-            custom_page_sizes: true,
-            component_model_values: true,
-            component_model_nested_names: true,
-        }
-    }
-
     /// NOTE: This only checks that the value type corresponds to the feature set!!
     ///
     /// To check that reference types are valid, we need access to the module
@@ -297,7 +271,7 @@ impl WasmFeatures {
         match ty {
             ValType::I32 | ValType::I64 => Ok(()),
             ValType::F32 | ValType::F64 => {
-                if self.floats {
+                if self.contains(Self::FLOATS) {
                     Ok(())
                 } else {
                     Err("floating-point support is disabled")
@@ -305,7 +279,7 @@ impl WasmFeatures {
             }
             ValType::Ref(r) => self.check_ref_type(r),
             ValType::V128 => {
-                if self.simd {
+                if self.contains(Self::SIMD) {
                     Ok(())
                 } else {
                     Err("SIMD support is not enabled")
@@ -315,7 +289,7 @@ impl WasmFeatures {
     }
 
     pub(crate) fn check_ref_type(&self, r: RefType) -> Result<(), &'static str> {
-        if !self.reference_types {
+        if !self.contains(Self::REFERENCE_TYPES) {
             return Err("reference types support is not enabled");
         }
         match (r.heap_type(), r.is_nullable()) {
@@ -325,7 +299,7 @@ impl WasmFeatures {
             // Non-nullable func/extern references requires the
             // `function-references` proposal.
             (HeapType::Func | HeapType::Extern, false) => {
-                if self.function_references {
+                if self.contains(Self::FUNCTION_REFERENCES) {
                     Ok(())
                 } else {
                     Err("function references required for non-nullable types")
@@ -335,7 +309,7 @@ impl WasmFeatures {
             // Indexed types require either the function-references or gc
             // proposal as gc implies function references here.
             (HeapType::Concrete(_), _) => {
-                if self.function_references || self.gc {
+                if self.contains(Self::FUNCTION_REFERENCES) || self.contains(Self::GC) {
                     Ok(())
                 } else {
                     Err("function references required for index reference types")
@@ -354,7 +328,7 @@ impl WasmFeatures {
                 | HeapType::NoFunc,
                 _,
             ) => {
-                if self.gc {
+                if self.contains(Self::GC) {
                     Ok(())
                 } else {
                     Err("heap types not supported without the gc feature")
@@ -363,7 +337,7 @@ impl WasmFeatures {
 
             // These types were added in the exception-handling proposal.
             (HeapType::Exn | HeapType::NoExn, _) => {
-                if self.exceptions {
+                if self.contains(Self::EXCEPTIONS) {
                     Ok(())
                 } else {
                     Err("exception refs not supported without the exception handling feature")
@@ -375,34 +349,19 @@ impl WasmFeatures {
 
 impl Default for WasmFeatures {
     fn default() -> WasmFeatures {
-        WasmFeatures {
-            // Off-by-default features.
-            exceptions: false,
-            memory64: false,
-            extended_const: false,
-            function_references: false,
-            memory_control: false,
-            gc: false,
-            custom_page_sizes: false,
-            component_model_values: false,
-            component_model_nested_names: false,
-            shared_everything_threads: false,
-
-            // On-by-default features (phase 4 or greater).
-            mutable_global: true,
-            saturating_float_to_int: true,
-            sign_extension: true,
-            bulk_memory: true,
-            multi_value: true,
-            reference_types: true,
-            tail_call: true,
-            simd: true,
-            floats: true,
-            relaxed_simd: true,
-            threads: true,
-            multi_memory: true,
-            component_model: true,
-        }
+        Self::MUTABLE_GLOBAL
+            | Self::SATURATING_FLOAT_TO_INT
+            | Self::SIGN_EXTENSION
+            | Self::REFERENCE_TYPES
+            | Self::MULTI_VALUE
+            | Self::BULK_MEMORY
+            | Self::SIMD
+            | Self::RELAXED_SIMD
+            | Self::THREADS
+            | Self::TAIL_CALL
+            | Self::FLOATS
+            | Self::MULTI_MEMORY
+            | Self::COMPONENT_MODEL
     }
 }
 
@@ -626,7 +585,7 @@ impl Validator {
                 }
             }
             Encoding::Component => {
-                if !self.features.component_model {
+                if !self.features.contains(WasmFeatures::COMPONENT_MODEL) {
                     bail!(
                         range.start,
                         "unknown binary version and encoding combination: {num:#x} and 0x1, \
@@ -772,7 +731,7 @@ impl Validator {
     ///
     /// This method should only be called when parsing a module.
     pub fn tag_section(&mut self, section: &crate::TagSectionReader<'_>) -> Result<()> {
-        if !self.features.exceptions {
+        if !self.features.contains(WasmFeatures::EXCEPTIONS) {
             return Err(BinaryReaderError::new(
                 "exceptions proposal not enabled",
                 section.range().start,
@@ -1437,7 +1396,7 @@ impl Validator {
     {
         let offset = section.range().start;
 
-        if !self.features.component_model {
+        if !self.features.contains(WasmFeatures::COMPONENT_MODEL) {
             return Err(BinaryReaderError::new(
                 "component model feature is not enabled",
                 offset,
@@ -1488,10 +1447,8 @@ mod tests {
         "#,
         )?;
 
-        let mut validator = Validator::new_with_features(WasmFeatures {
-            exceptions: true,
-            ..Default::default()
-        });
+        let mut validator =
+            Validator::new_with_features(WasmFeatures::default() | WasmFeatures::EXCEPTIONS);
 
         let types = validator.validate_all(&bytes)?;
 
@@ -1579,10 +1536,8 @@ mod tests {
         "#,
         )?;
 
-        let mut validator = Validator::new_with_features(WasmFeatures {
-            component_model: true,
-            ..Default::default()
-        });
+        let mut validator =
+            Validator::new_with_features(WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL);
 
         let types = validator.validate_all(&bytes)?;
 
@@ -1614,10 +1569,8 @@ mod tests {
         "#,
         )?;
 
-        let mut validator = Validator::new_with_features(WasmFeatures {
-            component_model: true,
-            ..Default::default()
-        });
+        let mut validator =
+            Validator::new_with_features(WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL);
 
         let types = validator.validate_all(&bytes)?;
 

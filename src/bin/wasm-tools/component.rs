@@ -8,6 +8,7 @@ use anyhow::{bail, Context, Result};
 use clap::Parser;
 
 use wasm_tools::Output;
+use wasmparser::WasmFeatures;
 use wat::Detect;
 use wit_component::{
     embed_component_metadata, ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter,
@@ -552,10 +553,9 @@ impl WitOpts {
 
         let bytes = wit_component::encode(None, decoded.resolve(), decoded.package())?;
         if !self.skip_validation {
-            wasmparser::Validator::new_with_features(wasmparser::WasmFeatures {
-                component_model: true,
-                ..Default::default()
-            })
+            wasmparser::Validator::new_with_features(
+                WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL,
+            )
             .validate_all(&bytes)?;
         }
         self.output.output(Output::Wasm {

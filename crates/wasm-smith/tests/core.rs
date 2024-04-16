@@ -69,7 +69,7 @@ fn multi_value_disabled() {
         if let Ok(module) = Module::new(cfg, &mut u) {
             let wasm_bytes = module.to_bytes();
             let mut features = wasm_features();
-            features.multi_value = false;
+            features.remove(WasmFeatures::MULTI_VALUE);
             let mut validator = Validator::new_with_features(features);
             validate(&mut validator, &wasm_bytes);
         }
@@ -143,14 +143,5 @@ fn smoke_test_wasm_gc() {
 }
 
 fn wasm_features() -> WasmFeatures {
-    WasmFeatures {
-        multi_memory: true,
-        relaxed_simd: true,
-        memory64: true,
-        exceptions: true,
-        tail_call: true,
-        function_references: true,
-        gc: true,
-        ..WasmFeatures::default()
-    }
+    WasmFeatures::all()
 }

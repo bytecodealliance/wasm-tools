@@ -36,12 +36,9 @@ pub fn targets(resolve: &Resolve, world: WorldId, component_to_test: &[u8]) -> R
 
     let bytes = root_component.finish();
 
-    Validator::new_with_features(WasmFeatures {
-        component_model: true,
-        ..Default::default()
-    })
-    .validate_all(&bytes)
-    .context("failed to validate encoded bytes")?;
+    Validator::new_with_features(WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL)
+        .validate_all(&bytes)
+        .context("failed to validate encoded bytes")?;
 
     Ok(())
 }

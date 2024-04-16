@@ -1191,7 +1191,7 @@ impl ComponentState {
         types: &mut TypeList,
         offset: usize,
     ) -> Result<()> {
-        if !features.component_model_values {
+        if !features.contains(WasmFeatures::COMPONENT_MODEL_VALUES) {
             bail!(
                 offset,
                 "support for component model `value`s is not enabled"
@@ -2987,7 +2987,7 @@ impl ComponentState {
     }
 
     fn check_value_support(&self, features: &WasmFeatures, offset: usize) -> Result<()> {
-        if !features.component_model_values {
+        if !features.contains(WasmFeatures::COMPONENT_MODEL_VALUES) {
             bail!(
                 offset,
                 "support for component model `value`s is not enabled"
