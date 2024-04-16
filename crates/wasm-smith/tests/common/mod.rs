@@ -26,7 +26,7 @@ pub fn parser_features_from_config(config: &Config) -> WasmFeatures {
     features.set(WasmFeatures::FUNCTION_REFERENCES, config.gc_enabled);
     features.set(WasmFeatures::GC, config.gc_enabled);
     features.set(
-        WasmFeatures::CUSTOM_PAGE_SIZE,
+        WasmFeatures::CUSTOM_PAGE_SIZES,
         config.custom_page_sizes_enabled,
     );
     features
