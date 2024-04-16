@@ -1518,6 +1518,22 @@ impl<'a> TypesRef<'a> {
         self.list.get(id)
     }
 
+    /// Get the id of the rec group that the given type id was defined within.
+    pub fn rec_group_id_of(&self, id: CoreTypeId) -> RecGroupId {
+        self.list.rec_group_id_of(id)
+    }
+
+    /// Get the types within a rec group.
+    pub fn rec_group_elements(&self, id: RecGroupId) -> impl ExactSizeIterator<Item = CoreTypeId> {
+        let range = &self.list.rec_group_elements[id];
+        (range.start.index..range.end.index).map(|index| CoreTypeId { index })
+    }
+
+    /// Get the super type of the given type id, if any.
+    pub fn supertype_of(&self, id: CoreTypeId) -> Option<CoreTypeId> {
+        self.list.supertype_of(id)
+    }
+
     /// Gets a core WebAssembly type id from a type index.
     ///
     /// Note that this is in contrast to [`TypesRef::component_type_at`] which
