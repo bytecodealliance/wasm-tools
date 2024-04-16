@@ -620,7 +620,7 @@ impl TestState {
                     features.insert(WasmFeatures::FUNCTION_REFERENCES);
                     features.insert(WasmFeatures::GC);
                 }
-                "custom-page-sizes" => features.insert(WasmFeatures::CUSTOM_PAGE_SIZE),
+                "custom-page-sizes" => features.insert(WasmFeatures::CUSTOM_PAGE_SIZES),
                 "import-extended.wast" => {
                     features.insert(WasmFeatures::COMPONENT_MODEL_NESTED_NAMES);
                 }
