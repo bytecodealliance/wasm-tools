@@ -669,7 +669,7 @@ mod tests {
         let wasm_bytes = module.finish();
 
         let mut validator =
-            wasmparser::Validator::new_with_features(WasmFeatures::default() | WasmFeatures::GC);
+            wasmparser::Validator::new_with_features(WasmFeatures::default() & !WasmFeatures::GC);
 
         validator.validate_all(&wasm_bytes).expect(
             "Encoding pre Wasm GC type should not accidentally use Wasm GC specific encoding",

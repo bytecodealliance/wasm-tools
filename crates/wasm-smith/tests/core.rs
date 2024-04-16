@@ -143,12 +143,5 @@ fn smoke_test_wasm_gc() {
 }
 
 fn wasm_features() -> WasmFeatures {
-    WasmFeatures::default()
-        | WasmFeatures::MULTI_MEMORY
-        | WasmFeatures::RELAXED_SIMD
-        | WasmFeatures::MEMORY64
-        | WasmFeatures::EXCEPTIONS
-        | WasmFeatures::TAIL_CALL
-        | WasmFeatures::FUNCTION_REFERENCES
-        | WasmFeatures::GC
+    WasmFeatures::all()
 }

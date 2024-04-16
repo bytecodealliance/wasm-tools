@@ -576,28 +576,10 @@ impl TestState {
     }
 
     fn wasmparser_validator_for(&self, test: &Path) -> Validator {
-        let mut features = WasmFeatures::empty()
-            | WasmFeatures::THREADS
-            | WasmFeatures::SHARED_EVERYTHING_THREADS
-            | WasmFeatures::REFERENCE_TYPES
-            | WasmFeatures::SIMD
-            | WasmFeatures::RELAXED_SIMD
-            | WasmFeatures::EXCEPTIONS
-            | WasmFeatures::BULK_MEMORY
-            | WasmFeatures::TAIL_CALL
-            | WasmFeatures::FLOATS
-            | WasmFeatures::MULTI_VALUE
-            | WasmFeatures::MULTI_MEMORY
-            | WasmFeatures::MEMORY64
-            | WasmFeatures::EXTENDED_CONST
-            | WasmFeatures::SATURATING_FLOAT_TO_INT
-            | WasmFeatures::SIGN_EXTENSION
-            | WasmFeatures::MUTABLE_GLOBAL
-            | WasmFeatures::FUNCTION_REFERENCES
-            | WasmFeatures::MEMORY_CONTROL
-            | WasmFeatures::GC
-            | WasmFeatures::CUSTOM_PAGE_SIZE
-            | WasmFeatures::COMPONENT_MODEL_VALUES;
+        let mut features = WasmFeatures::all()
+            & !WasmFeatures::SHARED_EVERYTHING_THREADS
+            & !WasmFeatures::COMPONENT_MODEL
+            & !WasmFeatures::COMPONENT_MODEL_NESTED_NAMES;
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
                 "testsuite" => {
@@ -612,20 +594,7 @@ impl TestState {
                     features.remove(WasmFeatures::THREADS);
                 }
                 "missing-features" => {
-                    features = WasmFeatures::default();
-                    features.remove(WasmFeatures::SIMD);
-                    features.remove(WasmFeatures::REFERENCE_TYPES);
-                    features.remove(WasmFeatures::MULTI_VALUE);
-                    features.remove(WasmFeatures::SIGN_EXTENSION);
-                    features.remove(WasmFeatures::SATURATING_FLOAT_TO_INT);
-                    features.remove(WasmFeatures::MUTABLE_GLOBAL);
-                    features.remove(WasmFeatures::BULK_MEMORY);
-                    features.remove(WasmFeatures::FUNCTION_REFERENCES);
-                    features.remove(WasmFeatures::GC);
-                    features.remove(WasmFeatures::CUSTOM_PAGE_SIZE);
-                    features.remove(WasmFeatures::COMPONENT_MODEL);
-                    features.remove(WasmFeatures::COMPONENT_MODEL_VALUES);
-                    features.remove(WasmFeatures::SHARED_EVERYTHING_THREADS);
+                    features = WasmFeatures::empty() | WasmFeatures::FLOATS;
                 }
                 "floats-disabled.wast" => features.remove(WasmFeatures::FLOATS),
                 "threads" => {

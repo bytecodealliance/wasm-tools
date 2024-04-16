@@ -204,7 +204,7 @@ bitflags! {
     pub struct WasmFeatures: u32 {
         /// The WebAssembly `mutable-global` proposal (enabled by default)
         const MUTABLE_GLOBAL = 1;
-        /// The WebAssembly `mutable-global` proposal (enabled by default)
+        /// The WebAssembly `saturating-float-to-int` proposal (enabled by default)
         const SATURATING_FLOAT_TO_INT = 1 << 1;
         /// The WebAssembly `sign-extension-ops` proposal (enabled by default)
         const SIGN_EXTENSION = 1 << 2;
@@ -361,6 +361,7 @@ impl Default for WasmFeatures {
             | Self::TAIL_CALL
             | Self::FLOATS
             | Self::MULTI_MEMORY
+            | Self::COMPONENT_MODEL
     }
 }
 
