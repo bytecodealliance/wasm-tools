@@ -331,7 +331,7 @@ define_wasm_features! {
         pub gc: GC(1 << 19) = false;
         /// The WebAssembly [custom-page-sizes
         /// proposal](https://github.com/WebAssembly/custom-page-sizes).
-        pub custom_page_size: CUSTOM_PAGE_SIZE(1 << 20) = false;
+        pub custom_page_sizes: CUSTOM_PAGE_SIZES(1 << 20) = false;
         /// Support for the `value` type in the component model proposal.
         pub component_model_values: COMPONENT_MODEL_VALUES(1 << 21) = false;
         /// Support for the nested namespaces and projects in component model names.

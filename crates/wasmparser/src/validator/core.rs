@@ -878,7 +878,7 @@ impl Module {
     ) -> Result<()> {
         self.check_limits(ty.initial, ty.maximum, offset)?;
         let (page_size, page_size_log2) = if let Some(page_size_log2) = ty.page_size_log2 {
-            if !features.contains(WasmFeatures::CUSTOM_PAGE_SIZE) {
+            if !features.contains(WasmFeatures::CUSTOM_PAGE_SIZES) {
                 return Err(BinaryReaderError::new(
                     "the custom page sizes proposal must be enabled to \
                      customize a memory's page size",
