@@ -1064,6 +1064,28 @@ where
         self.push_operand(sub_ty)
     }
 
+    /// Common helper for checking the types of global types accessed
+    /// atomically.
+    fn check_atomic_global_ty(&self, global_index: u32, supertype: Option<ValType>) -> Result<()> {
+        let ty = self
+            .resources
+            .global_at(global_index)
+            .expect("existence should be checked prior to this point");
+        let ty = ty.content_type;
+        let is_valid_subtype = if let Some(supertype) = supertype {
+            self.resources.is_subtype(ty, supertype)
+        } else {
+            false
+        };
+        if !(ty == ValType::I32 || ty == ValType::I64 || is_valid_subtype) {
+            bail!(
+                    self.offset,
+                    "invalid type: `global.atomic.get` only allows `i32`, `i64` and subtypes of `anyref`"
+                );
+        }
+        Ok(())
+    }
+
     fn element_type_at(&self, elem_index: u32) -> Result<RefType> {
         match self.resources.element_type_at(elem_index) {
             Some(ty) => Ok(ty),
@@ -1234,6 +1256,7 @@ macro_rules! validate_proposal {
     (bitflags reference_types) => (WasmFeatures::REFERENCE_TYPES);
     (bitflags function_references) => (WasmFeatures::FUNCTION_REFERENCES);
     (bitflags threads) => (WasmFeatures::THREADS);
+    (bitflags shared_everything_threads) => (WasmFeatures::SHARED_EVERYTHING_THREADS);
     (bitflags gc) => (WasmFeatures::GC);
     (bitflags memory_control) => (WasmFeatures::MEMORY_CONTROL);
 }
@@ -1631,26 +1654,10 @@ where
         _ordering: crate::Ordering,
         global_index: u32,
     ) -> Self::Output {
-        // The following is almost identical to `visit_global_get` except for
-        // some additional type restrictions. No validation of `ordering` is
-        // needed because `global.atomic.get` can be used on both shared and
-        // unshared globals.
-        if let Some(ty) = self.resources.global_at(global_index) {
-            let ty = ty.content_type;
-            if !(ty == ValType::I32
-                || ty == ValType::I64
-                || self.resources.is_subtype(ty, RefType::ANYREF.into()))
-            {
-                bail!(
-                    self.offset,
-                    "invalid type: `global.atomic.get` only allows `i32`, `i64` and subtypes of `anyref`"
-                );
-            }
-            debug_assert_type_indices_are_ids(ty);
-            self.push_operand(ty)?;
-        } else {
-            bail!(self.offset, "unknown global: global index out of bounds");
-        };
+        self.visit_global_get(global_index)?;
+        // No validation of `ordering` is needed because `global.atomic.get` can
+        // be used on both shared and unshared globals.
+        self.check_atomic_global_ty(global_index, Some(RefType::ANYREF.into()))?;
         Ok(())
     }
     fn visit_global_set(&mut self, global_index: u32) -> Self::Output {
@@ -1667,37 +1674,15 @@ where
         };
         Ok(())
     }
-
     fn visit_global_atomic_set(
         &mut self,
         _ordering: crate::Ordering,
         global_index: u32,
     ) -> Self::Output {
-        // The following is almost identical to `visit_global_set` except for
-        // some additional type restrictions. No validation of `ordering` is
-        // needed because `global.atomic.set` can be used on both shared and
-        // unshared globals.
-        if let Some(ty) = self.resources.global_at(global_index) {
-            if !ty.mutable {
-                bail!(
-                    self.offset,
-                    "global is immutable: cannot modify it with `global.atomic.set`"
-                );
-            }
-            let ty = ty.content_type;
-            if !(ty == ValType::I32
-                || ty == ValType::I64
-                || self.resources.is_subtype(ty, RefType::ANYREF.into()))
-            {
-                bail!(
-                    self.offset,
-                    "invalid type: `global.atomic.set` only allows `i32`, `i64` and subtypes of `anyref`"
-                );
-            }
-            self.pop_operand(Some(ty))?;
-        } else {
-            bail!(self.offset, "unknown global: global index out of bounds");
-        };
+        self.visit_global_set(global_index)?;
+        // No validation of `ordering` is needed because `global.atomic.get` can
+        // be used on both shared and unshared globals.
+        self.check_atomic_global_ty(global_index, Some(RefType::ANYREF.into()))?;
         Ok(())
     }
     fn visit_i32_load(&mut self, memarg: MemArg) -> Self::Output {

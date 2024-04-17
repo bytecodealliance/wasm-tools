@@ -132,7 +132,7 @@ impl ModuleState {
         offset: usize,
     ) -> Result<()> {
         self.module
-            .check_global_type(&mut global.ty, features, offset)?;
+            .check_global_type(&mut global.ty, features, offset, types)?;
         self.check_const_expr(&global.init_expr, global.ty.content_type, features, types)?;
         self.module.assert_mut().globals.push(global.ty);
         Ok(())
@@ -842,7 +842,7 @@ impl Module {
                 EntityType::Tag(self.types[t.func_type_idx as usize])
             }
             TypeRef::Global(t) => {
-                self.check_global_type(t, features, offset)?;
+                self.check_global_type(t, features, offset, types)?;
                 EntityType::Global(*t)
             }
         })
@@ -1052,14 +1052,28 @@ impl Module {
         ty: &mut GlobalType,
         features: &WasmFeatures,
         offset: usize,
+        types: &TypeList,
     ) -> Result<()> {
-        if ty.shared && !features.contains(WasmFeatures::SHARED_EVERYTHING_THREADS) {
-            return Err(BinaryReaderError::new(
-                "shared globals require the shared-everything-threads proposal",
-                offset,
-            ));
+        self.check_value_type(&mut ty.content_type, features, offset)?;
+        if ty.shared {
+            if !features.contains(WasmFeatures::SHARED_EVERYTHING_THREADS) {
+                return Err(BinaryReaderError::new(
+                    "shared globals require the shared-everything-threads proposal",
+                    offset,
+                ));
+            }
+            let ty = ty.content_type;
+            if !(ty == ValType::I32
+                || ty == ValType::I64
+                || types.valtype_is_subtype(ty, RefType::ANYREF.into()))
+            {
+                return Err(BinaryReaderError::new(
+                    "invalid type: shared globals must be i32, i64 or a subtype of anyref",
+                    offset,
+                ));
+            }
         }
-        self.check_value_type(&mut ty.content_type, features, offset)
+        Ok(())
     }
 
     fn check_limits<T>(&self, initial: T, maximum: Option<T>, offset: usize) -> Result<()>

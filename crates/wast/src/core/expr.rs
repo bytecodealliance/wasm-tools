@@ -1741,7 +1741,7 @@ impl<'a> Parse<'a> for BrOnCastFail<'a> {
 ///
 /// [`memory_order`]: https://en.cppreference.com/w/cpp/atomic/memory_order
 /// [`atomic::Ordering`]: https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Ordering {
     /// Like `AcqRel` but all threads see all sequentially consistent operations
     /// in the same order.
@@ -1767,7 +1767,7 @@ impl<'a> Parse<'a> for Ordering {
 }
 
 /// Extra data associated with the `global.atomic.*` instructions.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct OrderedAccess<'a> {
     /// The memory ordering for this atomic instruction.
     pub ordering: Ordering,
