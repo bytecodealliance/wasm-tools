@@ -1076,9 +1076,8 @@ impl RefType {
 
     /// Create a new `RefType`.
     ///
-    /// Returns `None` when the heap type's type index (if any) is
-    /// beyond this crate's implementation limits and therfore is not
-    /// representable.
+    /// Returns `None` when the heap type's type index (if any) is beyond this
+    /// crate's implementation limits and therefore is not representable.
     pub fn new(nullable: bool, heap_type: HeapType) -> Option<Self> {
         let nullable32 = Self::NULLABLE_BIT * (nullable as u32);
         match heap_type {
