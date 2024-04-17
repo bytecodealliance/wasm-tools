@@ -712,7 +712,8 @@ impl Func<'_> {
         // encodes its length first then the body.
         let mut tmp = Vec::new();
         locals.encode(&mut tmp);
-        let branch_hints = expr.encode(&mut tmp, 0);
+        let offset = tmp.len();
+        let branch_hints = expr.encode(&mut tmp, offset);
         tmp.encode(e);
 
         branch_hints

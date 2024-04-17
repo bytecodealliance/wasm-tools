@@ -1254,7 +1254,6 @@ impl Printer {
         let mut first = true;
         let mut local_idx = 0;
         let mut locals = NamedLocalPrinter::new("local");
-        let func_start = body.original_position();
         for _ in 0..body.read_var_u32()? {
             let offset = body.original_position();
             let cnt = body.read_var_u32()?;
@@ -1279,6 +1278,7 @@ impl Printer {
         }
         locals.finish(&mut self.result);
 
+        let func_start = body.original_position();
         let nesting_start = self.nesting;
         body.allow_memarg64(true);
 
