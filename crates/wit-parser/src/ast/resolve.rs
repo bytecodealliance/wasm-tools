@@ -1035,25 +1035,25 @@ impl<'a> Resolver<'a> {
 
     fn resolve_type_def(&mut self, ty: &ast::Type<'_>) -> Result<TypeDefKind> {
         Ok(match ty {
-            ast::Type::Bool => TypeDefKind::Type(Type::Bool),
-            ast::Type::U8 => TypeDefKind::Type(Type::U8),
-            ast::Type::U16 => TypeDefKind::Type(Type::U16),
-            ast::Type::U32 => TypeDefKind::Type(Type::U32),
-            ast::Type::U64 => TypeDefKind::Type(Type::U64),
-            ast::Type::S8 => TypeDefKind::Type(Type::S8),
-            ast::Type::S16 => TypeDefKind::Type(Type::S16),
-            ast::Type::S32 => TypeDefKind::Type(Type::S32),
-            ast::Type::S64 => TypeDefKind::Type(Type::S64),
-            ast::Type::F32 => TypeDefKind::Type(Type::F32),
-            ast::Type::F64 => TypeDefKind::Type(Type::F64),
-            ast::Type::Char => TypeDefKind::Type(Type::Char),
-            ast::Type::String => TypeDefKind::Type(Type::String),
+            ast::Type::Bool(_) => TypeDefKind::Type(Type::Bool),
+            ast::Type::U8(_) => TypeDefKind::Type(Type::U8),
+            ast::Type::U16(_) => TypeDefKind::Type(Type::U16),
+            ast::Type::U32(_) => TypeDefKind::Type(Type::U32),
+            ast::Type::U64(_) => TypeDefKind::Type(Type::U64),
+            ast::Type::S8(_) => TypeDefKind::Type(Type::S8),
+            ast::Type::S16(_) => TypeDefKind::Type(Type::S16),
+            ast::Type::S32(_) => TypeDefKind::Type(Type::S32),
+            ast::Type::S64(_) => TypeDefKind::Type(Type::S64),
+            ast::Type::F32(_) => TypeDefKind::Type(Type::F32),
+            ast::Type::F64(_) => TypeDefKind::Type(Type::F64),
+            ast::Type::Char(_) => TypeDefKind::Type(Type::Char),
+            ast::Type::String(_) => TypeDefKind::Type(Type::String),
             ast::Type::Name(name) => {
                 let id = self.resolve_type_name(name)?;
                 TypeDefKind::Type(Type::Id(id))
             }
             ast::Type::List(list) => {
-                let ty = self.resolve_type(list)?;
+                let ty = self.resolve_type(&list.ty)?;
                 TypeDefKind::List(ty)
             }
             ast::Type::Handle(handle) => TypeDefKind::Handle(match handle {
@@ -1116,8 +1116,9 @@ impl<'a> Resolver<'a> {
                     .collect::<Vec<_>>();
                 TypeDefKind::Flags(Flags { flags })
             }
-            ast::Type::Tuple(types) => {
-                let types = types
+            ast::Type::Tuple(t) => {
+                let types = t
+                    .types
                     .iter()
                     .map(|ty| self.resolve_type(ty))
                     .collect::<Result<Vec<_>>>()?;
@@ -1164,12 +1165,14 @@ impl<'a> Resolver<'a> {
                     .collect::<Result<Vec<_>>>()?;
                 TypeDefKind::Enum(Enum { cases })
             }
-            ast::Type::Option(ty) => TypeDefKind::Option(self.resolve_type(ty)?),
+            ast::Type::Option(ty) => TypeDefKind::Option(self.resolve_type(&ty.ty)?),
             ast::Type::Result(r) => TypeDefKind::Result(Result_ {
                 ok: self.resolve_optional_type(r.ok.as_deref())?,
                 err: self.resolve_optional_type(r.err.as_deref())?,
             }),
-            ast::Type::Future(t) => TypeDefKind::Future(self.resolve_optional_type(t.as_deref())?),
+            ast::Type::Future(t) => {
+                TypeDefKind::Future(self.resolve_optional_type(t.ty.as_deref())?)
+            }
             ast::Type::Stream(s) => TypeDefKind::Stream(Stream {
                 element: self.resolve_optional_type(s.element.as_deref())?,
                 end: self.resolve_optional_type(s.end.as_deref())?,
@@ -1377,23 +1380,23 @@ impl<'a> Resolver<'a> {
 
 fn collect_deps<'a>(ty: &ast::Type<'a>, deps: &mut Vec<ast::Id<'a>>) {
     match ty {
-        ast::Type::Bool
-        | ast::Type::U8
-        | ast::Type::U16
-        | ast::Type::U32
-        | ast::Type::U64
-        | ast::Type::S8
-        | ast::Type::S16
-        | ast::Type::S32
-        | ast::Type::S64
-        | ast::Type::F32
-        | ast::Type::F64
-        | ast::Type::Char
-        | ast::Type::String
+        ast::Type::Bool(_)
+        | ast::Type::U8(_)
+        | ast::Type::U16(_)
+        | ast::Type::U32(_)
+        | ast::Type::U64(_)
+        | ast::Type::S8(_)
+        | ast::Type::S16(_)
+        | ast::Type::S32(_)
+        | ast::Type::S64(_)
+        | ast::Type::F32(_)
+        | ast::Type::F64(_)
+        | ast::Type::Char(_)
+        | ast::Type::String(_)
         | ast::Type::Flags(_)
         | ast::Type::Enum(_) => {}
         ast::Type::Name(name) => deps.push(name.clone()),
-        ast::Type::List(list) => collect_deps(list, deps),
+        ast::Type::List(list) => collect_deps(&list.ty, deps),
         ast::Type::Handle(handle) => match handle {
             ast::Handle::Own { resource } => deps.push(resource.clone()),
             ast::Handle::Borrow { resource } => deps.push(resource.clone()),
@@ -1404,8 +1407,8 @@ fn collect_deps<'a>(ty: &ast::Type<'a>, deps: &mut Vec<ast::Id<'a>>) {
                 collect_deps(&field.ty, deps);
             }
         }
-        ast::Type::Tuple(types) => {
-            for ty in types {
+        ast::Type::Tuple(t) => {
+            for ty in t.types.iter() {
                 collect_deps(ty, deps);
             }
         }
@@ -1416,7 +1419,7 @@ fn collect_deps<'a>(ty: &ast::Type<'a>, deps: &mut Vec<ast::Id<'a>>) {
                 }
             }
         }
-        ast::Type::Option(ty) => collect_deps(ty, deps),
+        ast::Type::Option(ty) => collect_deps(&ty.ty, deps),
         ast::Type::Result(r) => {
             if let Some(ty) = &r.ok {
                 collect_deps(ty, deps);
@@ -1426,7 +1429,7 @@ fn collect_deps<'a>(ty: &ast::Type<'a>, deps: &mut Vec<ast::Id<'a>>) {
             }
         }
         ast::Type::Future(t) => {
-            if let Some(t) = t {
+            if let Some(t) = &t.ty {
                 collect_deps(t, deps)
             }
         }

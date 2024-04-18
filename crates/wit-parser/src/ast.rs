@@ -531,31 +531,31 @@ struct TypeDef<'a> {
 }
 
 enum Type<'a> {
-    Bool,
-    U8,
-    U16,
-    U32,
-    U64,
-    S8,
-    S16,
-    S32,
-    S64,
-    F32,
-    F64,
-    Char,
-    String,
+    Bool(Span),
+    U8(Span),
+    U16(Span),
+    U32(Span),
+    U64(Span),
+    S8(Span),
+    S16(Span),
+    S32(Span),
+    S64(Span),
+    F32(Span),
+    F64(Span),
+    Char(Span),
+    String(Span),
     Name(Id<'a>),
-    List(Box<Type<'a>>),
+    List(List<'a>),
     Handle(Handle<'a>),
     Resource(Resource<'a>),
     Record(Record<'a>),
     Flags(Flags<'a>),
     Variant(Variant<'a>),
-    Tuple(Vec<Type<'a>>),
+    Tuple(Tuple<'a>),
     Enum(Enum<'a>),
-    Option(Box<Type<'a>>),
+    Option(Option_<'a>),
     Result(Result_<'a>),
-    Future(Option<Box<Type<'a>>>),
+    Future(Future<'a>),
     Stream(Stream<'a>),
 }
 
@@ -564,7 +564,16 @@ enum Handle<'a> {
     Borrow { resource: Id<'a> },
 }
 
+impl Handle<'_> {
+    fn span(&self) -> Span {
+        match self {
+            Handle::Own { resource } | Handle::Borrow { resource } => resource.span,
+        }
+    }
+}
+
 struct Resource<'a> {
+    span: Span,
     funcs: Vec<ResourceFunc<'a>>,
 }
 
@@ -624,6 +633,7 @@ impl<'a> ResourceFunc<'a> {
 }
 
 struct Record<'a> {
+    span: Span,
     fields: Vec<Field<'a>>,
 }
 
@@ -634,6 +644,7 @@ struct Field<'a> {
 }
 
 struct Flags<'a> {
+    span: Span,
     flags: Vec<Flag<'a>>,
 }
 
@@ -663,12 +674,34 @@ struct EnumCase<'a> {
     name: Id<'a>,
 }
 
+struct Option_<'a> {
+    span: Span,
+    ty: Box<Type<'a>>,
+}
+
+struct List<'a> {
+    span: Span,
+    ty: Box<Type<'a>>,
+}
+
+struct Future<'a> {
+    span: Span,
+    ty: Option<Box<Type<'a>>>,
+}
+
+struct Tuple<'a> {
+    span: Span,
+    types: Vec<Type<'a>>,
+}
+
 struct Result_<'a> {
+    span: Span,
     ok: Option<Box<Type<'a>>>,
     err: Option<Box<Type<'a>>>,
 }
 
 struct Stream<'a> {
+    span: Span,
     element: Option<Box<Type<'a>>>,
     end: Option<Box<Type<'a>>>,
 }
@@ -766,6 +799,7 @@ impl<'a> TypeDef<'a> {
         tokens.expect(Token::Flags)?;
         let name = parse_id(tokens)?;
         let ty = Type::Flags(Flags {
+            span: name.span,
             flags: parse_list(
                 tokens,
                 Token::LeftBrace,
@@ -790,14 +824,22 @@ impl<'a> TypeDef<'a> {
         } else {
             tokens.expect_semicolon()?;
         }
-        let ty = Type::Resource(Resource { funcs });
-        Ok(TypeDef { docs, name, ty })
+        let ty = Type::Resource(Resource {
+            span: name.span,
+            funcs,
+        });
+        Ok(TypeDef {
+            docs,
+            name,
+            ty,
+        })
     }
 
     fn parse_record(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self> {
         tokens.expect(Token::Record)?;
         let name = parse_id(tokens)?;
         let ty = Type::Record(Record {
+            span: name.span,
             fields: parse_list(
                 tokens,
                 Token::LeftBrace,
@@ -962,53 +1004,59 @@ fn parse_docs<'a>(tokens: &mut Tokenizer<'a>) -> Result<Docs<'a>> {
 impl<'a> Type<'a> {
     fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self> {
         match tokens.next()? {
-            Some((_span, Token::U8)) => Ok(Type::U8),
-            Some((_span, Token::U16)) => Ok(Type::U16),
-            Some((_span, Token::U32)) => Ok(Type::U32),
-            Some((_span, Token::U64)) => Ok(Type::U64),
-            Some((_span, Token::S8)) => Ok(Type::S8),
-            Some((_span, Token::S16)) => Ok(Type::S16),
-            Some((_span, Token::S32)) => Ok(Type::S32),
-            Some((_span, Token::S64)) => Ok(Type::S64),
-            Some((_span, Token::F32)) => Ok(Type::F32),
-            Some((_span, Token::F64)) => Ok(Type::F64),
-            Some((_span, Token::Char)) => Ok(Type::Char),
+            Some((span, Token::U8)) => Ok(Type::U8(span)),
+            Some((span, Token::U16)) => Ok(Type::U16(span)),
+            Some((span, Token::U32)) => Ok(Type::U32(span)),
+            Some((span, Token::U64)) => Ok(Type::U64(span)),
+            Some((span, Token::S8)) => Ok(Type::S8(span)),
+            Some((span, Token::S16)) => Ok(Type::S16(span)),
+            Some((span, Token::S32)) => Ok(Type::S32(span)),
+            Some((span, Token::S64)) => Ok(Type::S64(span)),
+            Some((span, Token::F32)) => Ok(Type::F32(span)),
+            Some((span, Token::F64)) => Ok(Type::F64(span)),
+            Some((span, Token::Char)) => Ok(Type::Char(span)),
 
             // tuple<T, U, ...>
-            Some((_span, Token::Tuple)) => {
+            Some((span, Token::Tuple)) => {
                 let types = parse_list(
                     tokens,
                     Token::LessThan,
                     Token::GreaterThan,
                     |_docs, tokens| Type::parse(tokens),
                 )?;
-                Ok(Type::Tuple(types))
+                Ok(Type::Tuple(Tuple { span, types }))
             }
 
-            Some((_span, Token::Bool)) => Ok(Type::Bool),
-            Some((_span, Token::String_)) => Ok(Type::String),
+            Some((span, Token::Bool)) => Ok(Type::Bool(span)),
+            Some((span, Token::String_)) => Ok(Type::String(span)),
 
             // list<T>
-            Some((_span, Token::List)) => {
+            Some((span, Token::List)) => {
                 tokens.expect(Token::LessThan)?;
                 let ty = Type::parse(tokens)?;
                 tokens.expect(Token::GreaterThan)?;
-                Ok(Type::List(Box::new(ty)))
+                Ok(Type::List(List {
+                    span,
+                    ty: Box::new(ty),
+                }))
             }
 
             // option<T>
-            Some((_span, Token::Option_)) => {
+            Some((span, Token::Option_)) => {
                 tokens.expect(Token::LessThan)?;
                 let ty = Type::parse(tokens)?;
                 tokens.expect(Token::GreaterThan)?;
-                Ok(Type::Option(Box::new(ty)))
+                Ok(Type::Option(Option_ {
+                    span,
+                    ty: Box::new(ty),
+                }))
             }
 
             // result<T, E>
             // result<_, E>
             // result<T>
             // result
-            Some((_span, Token::Result_)) => {
+            Some((span, Token::Result_)) => {
                 let mut ok = None;
                 let mut err = None;
 
@@ -1024,26 +1072,26 @@ impl<'a> Type<'a> {
                     };
                     tokens.expect(Token::GreaterThan)?;
                 };
-                Ok(Type::Result(Result_ { ok, err }))
+                Ok(Type::Result(Result_ { span, ok, err }))
             }
 
             // future<T>
             // future
-            Some((_span, Token::Future)) => {
+            Some((span, Token::Future)) => {
                 let mut ty = None;
 
                 if tokens.eat(Token::LessThan)? {
                     ty = Some(Box::new(Type::parse(tokens)?));
                     tokens.expect(Token::GreaterThan)?;
                 };
-                Ok(Type::Future(ty))
+                Ok(Type::Future(Future { span, ty }))
             }
 
             // stream<T, Z>
             // stream<_, Z>
             // stream<T>
             // stream
-            Some((_span, Token::Stream)) => {
+            Some((span, Token::Stream)) => {
                 let mut element = None;
                 let mut end = None;
 
@@ -1059,7 +1107,7 @@ impl<'a> Type<'a> {
                     };
                     tokens.expect(Token::GreaterThan)?;
                 };
-                Ok(Type::Stream(Stream { element, end }))
+                Ok(Type::Stream(Stream { span, element, end }))
             }
 
             // own<T>
@@ -1090,6 +1138,37 @@ impl<'a> Type<'a> {
             })),
 
             other => Err(err_expected(tokens, "a type", other).into()),
+        }
+    }
+
+    fn span(&self) -> Span {
+        match self {
+            Type::Bool(span)
+            | Type::U8(span)
+            | Type::U16(span)
+            | Type::U32(span)
+            | Type::U64(span)
+            | Type::S8(span)
+            | Type::S16(span)
+            | Type::S32(span)
+            | Type::S64(span)
+            | Type::F32(span)
+            | Type::F64(span)
+            | Type::Char(span)
+            | Type::String(span) => *span,
+            Type::Name(id) => id.span,
+            Type::List(l) => l.span,
+            Type::Handle(h) => h.span(),
+            Type::Resource(r) => r.span,
+            Type::Record(r) => r.span,
+            Type::Flags(f) => f.span,
+            Type::Variant(v) => v.span,
+            Type::Tuple(t) => t.span,
+            Type::Enum(e) => e.span,
+            Type::Option(o) => o.span,
+            Type::Result(r) => r.span,
+            Type::Future(f) => f.span,
+            Type::Stream(s) => s.span,
         }
     }
 }
