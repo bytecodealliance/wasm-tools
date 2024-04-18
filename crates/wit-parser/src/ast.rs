@@ -828,11 +828,7 @@ impl<'a> TypeDef<'a> {
             span: name.span,
             funcs,
         });
-        Ok(TypeDef {
-            docs,
-            name,
-            ty,
-        })
+        Ok(TypeDef { docs, name, ty })
     }
 
     fn parse_record(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self> {
@@ -936,10 +932,7 @@ fn parse_opt_version(tokens: &mut Tokenizer<'_>) -> Result<Option<(Span, Version
     eat_ids(tokens, Token::Minus, &mut span)?;
     eat_ids(tokens, Token::Plus, &mut span)?;
     let string = tokens.get_span(span);
-    let version = Version::parse(string).map_err(|e| Error {
-        span,
-        msg: e.to_string(),
-    })?;
+    let version = Version::parse(string).map_err(|e| Error::new(span, e.to_string()))?;
     return Ok(Some((span, version)));
 
     fn eat_ids(tokens: &mut Tokenizer<'_>, prefix: Token, end: &mut Span) -> Result<()> {
@@ -1217,17 +1210,17 @@ fn err_expected(
     found: Option<(Span, Token)>,
 ) -> Error {
     match found {
-        Some((span, token)) => Error {
+        Some((span, token)) => Error::new(
             span,
-            msg: format!("expected {}, found {}", expected, token.describe()),
-        },
-        None => Error {
-            span: Span {
+            format!("expected {}, found {}", expected, token.describe()),
+        ),
+        None => Error::new(
+            Span {
                 start: u32::try_from(tokens.input().len()).unwrap(),
                 end: u32::try_from(tokens.input().len()).unwrap(),
             },
-            msg: format!("expected {}, found eof", expected),
-        },
+            format!("expected {}, found eof", expected),
+        ),
     }
 }
 
@@ -1320,13 +1313,16 @@ impl SourceMap {
     where
         F: FnOnce() -> Result<T>,
     {
-        let err = match f() {
+        let mut err = match f() {
             Ok(t) => return Ok(t),
             Err(e) => e,
         };
-        if let Some(parse) = err.downcast_ref::<Error>() {
-            let msg = self.highlight_err(parse.span.start, Some(parse.span.end), parse);
-            bail!("{msg}")
+        if let Some(parse) = err.downcast_mut::<Error>() {
+            if parse.highlighted.is_none() {
+                let msg = self.highlight_err(parse.span.start, Some(parse.span.end), &parse.msg);
+                parse.highlighted = Some(msg);
+            }
+            return Err(err);
         }
 
         if let Some(lex) = err.downcast_ref::<lex::Error>() {

@@ -190,11 +190,22 @@ impl fmt::Display for PackageName {
 struct Error {
     span: Span,
     msg: String,
+    highlighted: Option<String>,
+}
+
+impl Error {
+    fn new(span: Span, msg: impl Into<String>) -> Error {
+        Error {
+            span,
+            msg: msg.into(),
+            highlighted: None,
+        }
+    }
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.msg.fmt(f)
+        self.highlighted.as_ref().unwrap_or(&self.msg).fmt(f)
     }
 }
 

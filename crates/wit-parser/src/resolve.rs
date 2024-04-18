@@ -205,10 +205,7 @@ impl Resolve {
                 for (i, (dep, _)) in pkg.foreign_deps.iter().enumerate() {
                     let span = pkg.foreign_dep_spans[i];
                     if !visiting.insert(dep) {
-                        bail!(Error {
-                            span,
-                            msg: format!("package depends on itself"),
-                        });
+                        bail!(Error::new(span, "package depends on itself"));
                     }
                     if let Some(dep) = deps.get(dep) {
                         visit(dep, deps, order, visiting)?;
@@ -1246,10 +1243,10 @@ impl Remap {
                 match resolve.types[id].kind {
                     TypeDefKind::Type(Type::Id(i)) => id = i,
                     TypeDefKind::Resource => break,
-                    _ => bail!(Error {
-                        span: *span,
-                        msg: format!("type used in a handle must be a resource"),
-                    }),
+                    _ => bail!(Error::new(
+                        *span,
+                        format!("type used in a handle must be a resource"),
+                    )),
                 }
             }
         }
@@ -1275,10 +1272,7 @@ impl Remap {
                 .package_names
                 .get(pkg_name)
                 .copied()
-                .ok_or_else(|| Error {
-                    span,
-                    msg: format!("package not found"),
-                })?;
+                .ok_or_else(|| Error::new(span, "package not found"))?;
 
             // Functions can't be imported so this should be empty.
             assert!(unresolved_iface.functions.is_empty());
@@ -1289,10 +1283,7 @@ impl Remap {
                 .interfaces
                 .get(interface)
                 .copied()
-                .ok_or_else(|| Error {
-                    span: span.span,
-                    msg: format!("interface not found in package"),
-                })?;
+                .ok_or_else(|| Error::new(span.span, "interface not found in package"))?;
             assert_eq!(self.interfaces.len(), unresolved_iface_id.index());
             self.interfaces.push(iface_id);
         }
@@ -1323,16 +1314,14 @@ impl Remap {
                 .package_names
                 .get(pkg_name)
                 .copied()
-                .ok_or_else(|| Error {
-                    span,
-                    msg: format!("package not found"),
-                })?;
+                .ok_or_else(|| Error::new(span, "package not found"))?;
             let pkg = &resolve.packages[pkgid];
             let span = &unresolved.world_spans[unresolved_world_id.index()];
-            let world_id = pkg.worlds.get(world).copied().ok_or_else(|| Error {
-                span: span.span,
-                msg: format!("world not found in package"),
-            })?;
+            let world_id = pkg
+                .worlds
+                .get(world)
+                .copied()
+                .ok_or_else(|| Error::new(span.span, "world not found in package"))?;
             assert_eq!(self.worlds.len(), unresolved_world_id.index());
             self.worlds.push(world_id);
         }
@@ -1368,9 +1357,8 @@ impl Remap {
             let type_id = *resolve.interfaces[iface_id]
                 .types
                 .get(name)
-                .ok_or_else(|| Error {
-                    span,
-                    msg: format!("type `{name}` not defined in interface"),
+                .ok_or_else(|| {
+                    Error::new(span, format!("type `{name}` not defined in interface"))
                 })?;
             assert_eq!(self.types.len(), unresolved_type_id.index());
             self.types.push(type_id);
@@ -1530,13 +1518,13 @@ impl Remap {
             }
             match span {
                 Some(span) => {
-                    bail!(Error {
+                    bail!(Error::new(
                         span,
-                        msg: format!(
+                        format!(
                             "function returns a type which contains \
                              a `borrow<T>` which is not supported"
                         )
-                    })
+                    ))
                 }
                 None => unreachable!(),
             }
@@ -1641,10 +1629,10 @@ impl Remap {
                 .imports
                 .insert(WorldKey::Name(name.clone()), WorldItem::Type(id));
             if prev.is_some() {
-                bail!(Error {
-                    msg: format!("export of type `{name}` shadows previously imported interface"),
+                bail!(Error::new(
                     span,
-                })
+                    format!("export of type `{name}` shadows previously imported interface"),
+                ))
             }
         }
 
@@ -1653,12 +1641,10 @@ impl Remap {
                 .imports
                 .insert(WorldKey::Name(name.clone()), WorldItem::Function(func));
             if prev.is_some() {
-                bail!(Error {
-                    msg: format!(
-                        "import of function `{name}` shadows previously imported interface"
-                    ),
+                bail!(Error::new(
                     span,
-                })
+                    format!("import of function `{name}` shadows previously imported interface"),
+                ))
             }
         }
 
@@ -1667,12 +1653,10 @@ impl Remap {
                 .exports
                 .insert(WorldKey::Name(name.clone()), WorldItem::Function(func));
             if prev.is_some() {
-                bail!(Error {
-                    msg: format!(
-                        "export of function `{name}` shadows previously exported interface"
-                    ),
+                bail!(Error::new(
                     span,
-                })
+                    format!("export of function `{name}` shadows previously exported interface"),
+                ))
             }
         }
 
@@ -1798,7 +1782,8 @@ impl Remap {
                 true,
             );
             if !ok {
-                bail!(Error {
+                bail!(Error::new(
+                    *span,
                     // FIXME: this is not a great error message and basically no
                     // one will know what to do when it gets printed. Improving
                     // this error message, however, is a chunk of work that may
@@ -1816,12 +1801,11 @@ impl Remap {
                     // more refactoring, so it's left to a future date in the
                     // hopes that most folks won't actually run into this for
                     // the time being.
-                    msg: format!(
+                    format!(
                         "interface transitively depends on an interface in \
                          incompatible ways",
                     ),
-                    span: *span,
-                });
+                ));
             }
         }
         return Ok(());
@@ -1896,10 +1880,10 @@ impl Remap {
             self.remove_matching_name(export, &mut names_);
         }
         if !names_.is_empty() {
-            bail!(Error {
-                msg: format!("no import or export kebab-name `{}`. Note that an ID does not support renaming", names_[0].name),
-                span: span,
-            });
+            bail!(Error::new(
+                span,
+                format!("no import or export kebab-name `{}`. Note that an ID does not support renaming", names_[0].name),
+            ));
         }
 
         // copy the imports and exports from the included world into the current world
@@ -1934,10 +1918,10 @@ impl Remap {
 
                 let prev = items.insert(WorldKey::Name(n.clone()), item.1.clone());
                 if prev.is_some() {
-                    bail!(Error {
-                        msg: format!("{item_type} of `{n}` shadows previously {item_type}ed items"),
+                    bail!(Error::new(
                         span,
-                    })
+                        format!("{item_type} of `{n}` shadows previously {item_type}ed items"),
+                    ))
                 }
             }
             key => {

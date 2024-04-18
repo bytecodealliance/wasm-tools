@@ -114,13 +114,13 @@ impl<'a> Resolver<'a> {
             let cur_name = cur.package_name();
             if let Some(prev) = &self.package_name {
                 if cur_name != *prev {
-                    bail!(Error {
-                        span: cur.span,
-                        msg: format!(
+                    bail!(Error::new(
+                        cur.span,
+                        format!(
                             "package identifier `{cur_name}` does not match \
                              previous package name of `{prev}`"
                         ),
-                    })
+                    ))
                 }
             }
             self.package_name = Some(cur_name);
@@ -129,10 +129,10 @@ impl<'a> Resolver<'a> {
             let docs = self.docs(&cur.docs);
             if docs.contents.is_some() {
                 if self.package_docs.contents.is_some() {
-                    bail!(Error {
-                        span: cur.docs.span,
-                        msg: "found doc comments on multiple 'package' items".into(),
-                    })
+                    bail!(Error::new(
+                        cur.docs.span,
+                        "found doc comments on multiple 'package' items"
+                    ))
                 }
                 self.package_docs = docs;
             }
@@ -332,10 +332,10 @@ impl<'a> Resolver<'a> {
                 match item {
                     ast::AstItem::Interface(i) => {
                         if package_items.insert(i.name.name, i.name.span).is_some() {
-                            bail!(Error {
-                                span: i.name.span,
-                                msg: format!("duplicate item named `{}`", i.name.name),
-                            })
+                            bail!(Error::new(
+                                i.name.span,
+                                format!("duplicate item named `{}`", i.name.name),
+                            ))
                         }
                         let prev = ast_ns.insert(i.name.name, ());
                         assert!(prev.is_none());
@@ -346,10 +346,10 @@ impl<'a> Resolver<'a> {
                     }
                     ast::AstItem::World(w) => {
                         if package_items.insert(w.name.name, w.name.span).is_some() {
-                            bail!(Error {
-                                span: w.name.span,
-                                msg: format!("duplicate item named `{}`", w.name.name),
-                            })
+                            bail!(Error::new(
+                                w.name.span,
+                                format!("duplicate item named `{}`", w.name.name),
+                            ))
                         }
                         let prev = ast_ns.insert(w.name.name, ());
                         assert!(prev.is_none());
@@ -394,10 +394,10 @@ impl<'a> Resolver<'a> {
                     ast::AstItem::World(w) => (&w.name, ItemSource::Local(w.name.clone())),
                 };
                 if ast_ns.insert(name.name, (name.span, src)).is_some() {
-                    bail!(Error {
-                        span: name.span,
-                        msg: format!("duplicate name `{}` in this file", name.name),
-                    });
+                    bail!(Error::new(
+                        name.span,
+                        format!("duplicate name `{}` in this file", name.name),
+                    ));
                 }
             }
 
@@ -425,13 +425,13 @@ impl<'a> Resolver<'a> {
                             order[iface.name].push(used_name.clone());
                         }
                         None => {
-                            bail!(Error {
-                                span: used_name.span,
-                                msg: format!(
+                            bail!(Error::new(
+                                used_name.span,
+                                format!(
                                     "interface or world `{name}` not found in package",
                                     name = used_name.name
                                 ),
-                            })
+                            ))
                         }
                     },
                 }
@@ -474,12 +474,14 @@ impl<'a> Resolver<'a> {
                     ast::AstItem::Use(u) => {
                         let name = u.as_.as_ref().unwrap_or(u.item.name());
                         let item = match &u.item {
-                            ast::UsePath::Id(name) => *ids.get(name.name).ok_or_else(|| Error {
-                                span: name.span,
-                                msg: format!(
-                                    "interface or world `{name}` does not exist",
-                                    name = name.name
-                                ),
+                            ast::UsePath::Id(name) => *ids.get(name.name).ok_or_else(|| {
+                                Error::new(
+                                    name.span,
+                                    format!(
+                                        "interface or world `{name}` does not exist",
+                                        name = name.name
+                                    ),
+                                )
                             })?,
                             ast::UsePath::Package { id, name } => {
                                 self.foreign_deps[&id.package_name()][name.name]
@@ -593,13 +595,10 @@ impl<'a> Resolver<'a> {
                 TypeOrItem::Type(id) => {
                     let prev = import_names.insert(*name, "import");
                     if let Some(prev) = prev {
-                        return Err(Error {
-                            span: *span,
-                            msg: format!(
-                                "import `{name}` conflicts with prior {prev} of same name",
-                            ),
-                        }
-                        .into());
+                        bail!(Error::new(
+                            *span,
+                            format!("import `{name}` conflicts with prior {prev} of same name",),
+                        ))
                     }
                     self.worlds[world_id]
                         .imports
@@ -659,14 +658,13 @@ impl<'a> Resolver<'a> {
                 ast::ExternKind::Interface(name, _) | ast::ExternKind::Func(name, _) => {
                     let prev = names.insert(name.name, desc);
                     if let Some(prev) = prev {
-                        return Err(Error {
-                            span: kind.span(),
-                            msg: format!(
+                        bail!(Error::new(
+                            kind.span(),
+                            format!(
                                 "{desc} `{name}` conflicts with prior {prev} of same name",
                                 name = name.name
                             ),
-                        }
-                        .into());
+                        ))
                     }
                     WorldKey::Name(name.name.to_string())
                 }
@@ -679,10 +677,10 @@ impl<'a> Resolver<'a> {
             let world_item = self.resolve_world_item(docs, kind)?;
             if let WorldItem::Interface(id) = world_item {
                 if !interfaces.insert(id) {
-                    bail!(Error {
-                        span: kind.span(),
-                        msg: format!("interface cannot be {desc}ed more than once"),
-                    })
+                    bail!(Error::new(
+                        kind.span(),
+                        format!("interface cannot be {desc}ed more than once"),
+                    ))
                 }
             }
             let dst = if desc == "import" {
@@ -833,11 +831,10 @@ impl<'a> Resolver<'a> {
                 TypeItem::Def(t) => {
                     let prev = type_defs.insert(t.name.name, Some(t));
                     if prev.is_some() {
-                        return Err(Error {
-                            span: t.name.span,
-                            msg: format!("name `{}` is defined more than once", t.name.name),
-                        }
-                        .into());
+                        bail!(Error::new(
+                            t.name.span,
+                            format!("name `{}` is defined more than once", t.name.name),
+                        ))
                     }
                     let mut deps = Vec::new();
                     collect_deps(&t.ty, &mut deps);
@@ -880,15 +877,15 @@ impl<'a> Resolver<'a> {
             let id = match lookup.get(name.name.name) {
                 Some((TypeOrItem::Type(id), _)) => *id,
                 Some((TypeOrItem::Item(s), _)) => {
-                    bail!(Error {
-                        span: name.name.span,
-                        msg: format!("cannot import {s} `{}`", name.name.name),
-                    })
+                    bail!(Error::new(
+                        name.name.span,
+                        format!("cannot import {s} `{}`", name.name.name),
+                    ))
                 }
-                None => bail!(Error {
-                    span: name.name.span,
-                    msg: format!("name `{}` is not defined", name.name.name),
-                }),
+                None => bail!(Error::new(
+                    name.name.span,
+                    format!("name `{}` is not defined", name.name.name),
+                )),
             };
             let name = name.as_.as_ref().unwrap_or(&name.name);
             let id = self.types.alloc(TypeDef {
@@ -976,10 +973,10 @@ impl<'a> Resolver<'a> {
                 match item {
                     Some(item) => Ok((*item, id.name.into(), id.span)),
                     None => {
-                        bail!(Error {
-                            span: id.span,
-                            msg: format!("interface or world `{}` does not exist", id.name),
-                        })
+                        bail!(Error::new(
+                            id.span,
+                            format!("interface or world `{}` does not exist", id.name),
+                        ))
                     }
                 }
             }
@@ -1000,10 +997,10 @@ impl<'a> Resolver<'a> {
         match item {
             AstItem::Interface(id) => Ok(*id),
             AstItem::World(_) => {
-                bail!(Error {
-                    span: span,
-                    msg: format!("name `{}` is defined as a world, not an interface", name),
-                })
+                bail!(Error::new(
+                    span,
+                    format!("name `{}` is defined as a world, not an interface", name),
+                ))
             }
         }
     }
@@ -1012,10 +1009,10 @@ impl<'a> Resolver<'a> {
         match item {
             AstItem::World(id) => Ok(*id),
             AstItem::Interface(_) => {
-                bail!(Error {
-                    span: span,
-                    msg: format!("name `{}` is defined as an interface, not a world", name),
-                })
+                bail!(Error::new(
+                    span,
+                    format!("name `{}` is defined as an interface, not a world", name),
+                ))
             }
         }
     }
@@ -1023,11 +1020,10 @@ impl<'a> Resolver<'a> {
     fn define_interface_name(&mut self, name: &ast::Id<'a>, item: TypeOrItem) -> Result<()> {
         let prev = self.type_lookup.insert(name.name, (item, name.span));
         if prev.is_some() {
-            Err(Error {
-                span: name.span,
-                msg: format!("name `{}` is defined more than once", name.name),
-            }
-            .into())
+            bail!(Error::new(
+                name.span,
+                format!("name `{}` is defined more than once", name.name),
+            ))
         } else {
             Ok(())
         }
@@ -1071,19 +1067,16 @@ impl<'a> Resolver<'a> {
                     match func {
                         ast::ResourceFunc::Method(f) | ast::ResourceFunc::Static(f) => {
                             if !names.insert(&f.name.name) {
-                                bail!(Error {
-                                    span: f.name.span,
-                                    msg: format!("duplicate function name `{}`", f.name.name),
-                                })
+                                bail!(Error::new(
+                                    f.name.span,
+                                    format!("duplicate function name `{}`", f.name.name),
+                                ))
                             }
                         }
                         ast::ResourceFunc::Constructor(f) => {
                             ctors += 1;
                             if ctors > 1 {
-                                bail!(Error {
-                                    span: f.name.span,
-                                    msg: format!("duplicate constructors"),
-                                })
+                                bail!(Error::new(f.name.span, "duplicate constructors"))
                             }
                         }
                     }
@@ -1126,11 +1119,7 @@ impl<'a> Resolver<'a> {
             }
             ast::Type::Variant(variant) => {
                 if variant.cases.is_empty() {
-                    return Err(Error {
-                        span: variant.span,
-                        msg: "empty variant".to_string(),
-                    }
-                    .into());
+                    bail!(Error::new(variant.span, "empty variant"))
                 }
                 let cases = variant
                     .cases
@@ -1147,11 +1136,7 @@ impl<'a> Resolver<'a> {
             }
             ast::Type::Enum(e) => {
                 if e.cases.is_empty() {
-                    return Err(Error {
-                        span: e.span,
-                        msg: "empty enum".to_string(),
-                    }
-                    .into());
+                    bail!(Error::new(e.span, "empty enum"))
                 }
                 let cases = e
                     .cases
@@ -1183,14 +1168,14 @@ impl<'a> Resolver<'a> {
     fn resolve_type_name(&mut self, name: &ast::Id<'_>) -> Result<TypeId> {
         match self.type_lookup.get(name.name) {
             Some((TypeOrItem::Type(id), _)) => Ok(*id),
-            Some((TypeOrItem::Item(s), _)) => bail!(Error {
-                span: name.span,
-                msg: format!("cannot use {s} `{name}` as a type", name = name.name),
-            }),
-            None => bail!(Error {
-                span: name.span,
-                msg: format!("name `{name}` is not defined", name = name.name),
-            }),
+            Some((TypeOrItem::Item(s), _)) => bail!(Error::new(
+                name.span,
+                format!("cannot use {s} `{name}` as a type", name = name.name),
+            )),
+            None => bail!(Error::new(
+                name.span,
+                format!("name `{name}` is not defined", name = name.name),
+            )),
         }
     }
 
@@ -1205,10 +1190,10 @@ impl<'a> Resolver<'a> {
                     self.required_resource_types.push((cur, name.span));
                     break Ok(id);
                 }
-                _ => bail!(Error {
-                    span: name.span,
-                    msg: format!("type `{}` used in a handle must be a resource", name.name),
-                }),
+                _ => bail!(Error::new(
+                    name.span,
+                    format!("type `{}` used in a handle must be a resource", name.name),
+                )),
             }
         }
     }
@@ -1337,11 +1322,10 @@ impl<'a> Resolver<'a> {
         for (name, ty) in params {
             let prev = ret.insert(name.name.to_string(), self.resolve_type(ty)?);
             if prev.is_some() {
-                return Err(Error {
-                    span: name.span,
-                    msg: format!("param `{}` is defined more than once", name.name),
-                }
-                .into());
+                bail!(Error::new(
+                    name.span,
+                    format!("param `{}` is defined more than once", name.name),
+                ))
             }
         }
         Ok(ret.into_iter().collect())
