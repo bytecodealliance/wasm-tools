@@ -4,7 +4,7 @@ use crate::ast::{parse_use_path, AstUsePath};
 use crate::serde_::{serialize_arena, serialize_id_map};
 use crate::{
     AstItem, Docs, Error, Function, FunctionKind, Handle, IncludeName, Interface, InterfaceId,
-    InterfaceSpan, PackageName, Results, Type, TypeDef, TypeDefKind, TypeId, TypeOwner,
+    InterfaceSpan, PackageName, Results, Stability, Type, TypeDef, TypeDefKind, TypeId, TypeOwner,
     UnresolvedPackage, World, WorldId, WorldItem, WorldKey, WorldSpan,
 };
 use anyhow::{anyhow, bail, Context, Result};
@@ -64,6 +64,15 @@ pub struct Resolve {
     /// A map of package names to the ID of the package with that name.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub package_names: IndexMap<PackageName, PackageId>,
+
+    /// Activated features for this [`Resolve`].
+    ///
+    /// This set of features is empty by default. This is consulted for
+    /// `@unstable` annotations in loaded WIT documents. Any items with
+    /// `@unstable` are filtered out unless their feature is present within this
+    /// set.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub features: IndexSet<String>,
 }
 
 /// A WIT package within a `Resolve`.
@@ -444,18 +453,22 @@ impl Resolve {
             interfaces,
             packages,
             package_names,
+            features: _,
         } = resolve;
 
         let mut moved_types = Vec::new();
         for (id, mut ty) in types {
-            let new_id = type_map.get(&id).copied().unwrap_or_else(|| {
-                log::debug!("moving type {:?}", ty.name);
-                moved_types.push(id);
-                remap.update_typedef(self, &mut ty);
-                self.types.alloc(ty)
-            });
+            let new_id = match type_map.get(&id).copied() {
+                Some(id) => id,
+                None => {
+                    log::debug!("moving type {:?}", ty.name);
+                    moved_types.push(id);
+                    remap.update_typedef(self, &mut ty, None)?;
+                    self.types.alloc(ty)
+                }
+            };
             assert_eq!(remap.types.len(), id.index());
-            remap.types.push(new_id);
+            remap.types.push(Some(new_id));
         }
 
         let mut moved_interfaces = Vec::new();
@@ -470,7 +483,7 @@ impl Resolve {
                 }
             };
             assert_eq!(remap.interfaces.len(), id.index());
-            remap.interfaces.push(new_id);
+            remap.interfaces.push(Some(new_id));
         }
 
         let mut moved_worlds = Vec::new();
@@ -482,13 +495,13 @@ impl Resolve {
                     moved_worlds.push(id);
                     let mut update = |map: &mut IndexMap<WorldKey, WorldItem>| -> Result<_> {
                         for (mut name, mut item) in mem::take(map) {
-                            remap.update_world_key(&mut name);
+                            remap.update_world_key(&mut name, None)?;
                             match &mut item {
                                 WorldItem::Function(f) => remap.update_function(self, f, None)?,
                                 WorldItem::Interface { id, .. } => {
-                                    *id = remap.interfaces[id.index()]
+                                    *id = remap.map_interface(*id, None)?
                                 }
-                                WorldItem::Type(i) => *i = remap.types[i.index()],
+                                WorldItem::Type(i) => *i = remap.map_type(*i, None)?,
                             }
                             map.insert(name, item);
                         }
@@ -500,19 +513,22 @@ impl Resolve {
                 }
             };
             assert_eq!(remap.worlds.len(), id.index());
-            remap.worlds.push(new_id);
+            remap.worlds.push(Some(new_id));
         }
 
         for (id, mut pkg) in packages {
-            let new_id = package_map.get(&id).copied().unwrap_or_else(|| {
-                for (_, id) in pkg.interfaces.iter_mut() {
-                    *id = remap.interfaces[id.index()];
+            let new_id = match package_map.get(&id).copied() {
+                Some(id) => id,
+                None => {
+                    for (_, id) in pkg.interfaces.iter_mut() {
+                        *id = remap.map_interface(*id, None)?;
+                    }
+                    for (_, id) in pkg.worlds.iter_mut() {
+                        *id = remap.map_world(*id, None)?;
+                    }
+                    self.packages.alloc(pkg)
                 }
-                for (_, id) in pkg.worlds.iter_mut() {
-                    *id = remap.worlds[id.index()];
-                }
-                self.packages.alloc(pkg)
-            });
+            };
             assert_eq!(remap.packages.len(), id.index());
             remap.packages.push(new_id);
         }
@@ -532,20 +548,20 @@ impl Resolve {
         // are ids within `resolve`, so they're translated through `remap` to
         // ids within `self`.
         for id in moved_worlds {
-            let id = remap.worlds[id.index()];
+            let id = remap.map_world(id, None)?;
             let pkg = self.worlds[id].package.as_mut().unwrap();
             *pkg = remap.packages[pkg.index()];
         }
         for id in moved_interfaces {
-            let id = remap.interfaces[id.index()];
+            let id = remap.map_interface(id, None)?;
             let pkg = self.interfaces[id].package.as_mut().unwrap();
             *pkg = remap.packages[pkg.index()];
         }
         for id in moved_types {
-            let id = remap.types[id.index()];
+            let id = remap.map_type(id, None)?;
             match &mut self.types[id].owner {
-                TypeOwner::Interface(id) => *id = remap.interfaces[id.index()],
-                TypeOwner::World(id) => *id = remap.worlds[id.index()],
+                TypeOwner::Interface(id) => *id = remap.map_interface(*id, None)?,
+                TypeOwner::World(id) => *id = remap.map_world(*id, None)?,
                 TypeOwner::None => {}
             }
         }
@@ -557,13 +573,13 @@ impl Resolve {
         for (name, pkg, iface) in interfaces_to_add {
             let prev = self.packages[pkg]
                 .interfaces
-                .insert(name, remap.interfaces[iface.index()]);
+                .insert(name, remap.map_interface(iface, None)?);
             assert!(prev.is_none());
         }
         for (name, pkg, world) in worlds_to_add {
             let prev = self.packages[pkg]
                 .worlds
-                .insert(name, remap.worlds[world.index()]);
+                .insert(name, remap.map_world(world, None)?);
             assert!(prev.is_none());
         }
 
@@ -1050,15 +1066,22 @@ impl Resolve {
             }
         }
     }
+
+    fn include_stability(&self, stability: &Stability) -> bool {
+        match stability {
+            Stability::Stable { .. } | Stability::Unknown => true,
+            Stability::Unstable { feature } => self.features.contains(feature),
+        }
+    }
 }
 
 /// Structure returned by [`Resolve::merge`] which contains mappings from
 /// old-ids to new-ids after the merge.
 #[derive(Default)]
 pub struct Remap {
-    pub types: Vec<TypeId>,
-    pub interfaces: Vec<InterfaceId>,
-    pub worlds: Vec<WorldId>,
+    pub types: Vec<Option<TypeId>>,
+    pub interfaces: Vec<Option<InterfaceId>>,
+    pub worlds: Vec<Option<WorldId>>,
     pub packages: Vec<PackageId>,
 
     /// A cache of anonymous `own<T>` handles for resource types.
@@ -1075,7 +1098,36 @@ pub struct Remap {
     type_has_borrow: Vec<Option<bool>>,
 }
 
+fn apply_map<T>(map: &[Option<Id<T>>], id: Id<T>, desc: &str, span: Option<Span>) -> Result<Id<T>> {
+    match map.get(id.index()) {
+        Some(Some(id)) => Ok(*id),
+        Some(None) => {
+            let msg = format!(
+                "found a reference to a {desc} which is excluded \
+                 due to its feature not being activated"
+            );
+            match span {
+                Some(span) => Err(Error::new(span, msg).into()),
+                None => bail!("{msg}"),
+            }
+        }
+        None => panic!("request to remap a {desc} that has not yet been registered"),
+    }
+}
+
 impl Remap {
+    pub fn map_type(&self, id: TypeId, span: Option<Span>) -> Result<TypeId> {
+        apply_map(&self.types, id, "type", span)
+    }
+
+    pub fn map_interface(&self, id: InterfaceId, span: Option<Span>) -> Result<InterfaceId> {
+        apply_map(&self.interfaces, id, "interface", span)
+    }
+
+    pub fn map_world(&self, id: WorldId, span: Option<Span>) -> Result<WorldId> {
+        apply_map(&self.worlds, id, "world", span)
+    }
+
     fn append(
         &mut self,
         resolve: &mut Resolve,
@@ -1087,13 +1139,33 @@ impl Remap {
         let foreign_interfaces = self.interfaces.len();
         let foreign_worlds = self.worlds.len();
 
+        let pkgid = resolve.packages.alloc(Package {
+            name: unresolved.name.clone(),
+            docs: unresolved.docs.clone(),
+            interfaces: Default::default(),
+            worlds: Default::default(),
+        });
+        let prev = resolve.package_names.insert(unresolved.name.clone(), pkgid);
+        assert!(prev.is_none());
+
         // Copy over all types first, updating any intra-type references. Note
         // that types are sorted topologically which means this iteration
         // order should be sufficient. Also note though that the interface
         // owner of a type isn't updated here due to interfaces not being known
         // yet.
-        for (id, mut ty) in unresolved.types.into_iter().skip(foreign_types) {
-            self.update_typedef(resolve, &mut ty);
+        assert_eq!(unresolved.types.len(), unresolved.type_spans.len());
+        for ((id, mut ty), span) in unresolved
+            .types
+            .into_iter()
+            .zip(&unresolved.type_spans)
+            .skip(foreign_types)
+        {
+            if !resolve.include_stability(&ty.stability) {
+                self.types.push(None);
+                continue;
+            }
+
+            self.update_typedef(resolve, &mut ty, Some(*span))?;
             let new_id = resolve.types.alloc(ty);
             assert_eq!(self.types.len(), id.index());
 
@@ -1114,28 +1186,48 @@ impl Remap {
                 // modified.
                 _ => new_id,
             };
-            self.types.push(new_id);
+            self.types.push(Some(new_id));
         }
 
         // Next transfer all interfaces into `Resolve`, updating type ids
         // referenced along the way.
+        assert_eq!(
+            unresolved.interfaces.len(),
+            unresolved.interface_spans.len()
+        );
         for ((id, mut iface), span) in unresolved
             .interfaces
             .into_iter()
             .zip(&unresolved.interface_spans)
             .skip(foreign_interfaces)
         {
+            if !resolve.include_stability(&iface.stability) {
+                self.interfaces.push(None);
+                continue;
+            }
             self.update_interface(resolve, &mut iface, Some(span))?;
+            assert!(iface.package.is_none());
+            iface.package = Some(pkgid);
             let new_id = resolve.interfaces.alloc(iface);
             assert_eq!(self.interfaces.len(), id.index());
-            self.interfaces.push(new_id);
+            self.interfaces.push(Some(new_id));
         }
 
         // Now that interfaces are identified go back through the types and
         // update their interface owners.
-        for id in self.types.iter().skip(foreign_types) {
-            match &mut resolve.types[*id].owner {
-                TypeOwner::Interface(id) => *id = self.interfaces[id.index()],
+        for (i, id) in self.types.iter().enumerate().skip(foreign_types) {
+            let id = match id {
+                Some(id) => *id,
+                None => continue,
+            };
+            match &mut resolve.types[id].owner {
+                TypeOwner::Interface(id) => {
+                    let span = unresolved.type_spans[i];
+                    *id = self.map_interface(*id, Some(span))
+                        .with_context(|| {
+                            "this type is not gated by a feature but its interface is gated by a feature"
+                        })?;
+                }
                 TypeOwner::World(_) | TypeOwner::None => {}
             }
         }
@@ -1154,44 +1246,58 @@ impl Remap {
             .zip(unresolved.world_spans)
             .skip(foreign_worlds)
         {
+            if !resolve.include_stability(&world.stability) {
+                self.worlds.push(None);
+                continue;
+            }
             self.update_world(&mut world, resolve, &span)?;
 
             let new_id = resolve.worlds.alloc(world);
             assert_eq!(self.worlds.len(), id.index());
-            self.worlds.push(new_id);
+            self.worlds.push(Some(new_id));
         }
 
         // As with interfaces, now update the ids of world-owned types.
-        for id in self.types.iter().skip(foreign_types) {
-            match &mut resolve.types[*id].owner {
-                TypeOwner::World(id) => *id = self.worlds[id.index()],
+        for (i, id) in self.types.iter().enumerate().skip(foreign_types) {
+            let id = match id {
+                Some(id) => *id,
+                None => continue,
+            };
+            match &mut resolve.types[id].owner {
+                TypeOwner::World(id) => {
+                    let span = unresolved.type_spans[i];
+                    *id = self.map_world(*id, Some(span))
+                        .with_context(|| {
+                            "this type is not gated by a feature but its interface is gated by a feature"
+                        })?;
+                }
                 TypeOwner::Interface(_) | TypeOwner::None => {}
             }
         }
 
         // Fixup "parent" ids now that everything has been identified
-        let pkgid = resolve.packages.alloc(Package {
-            name: unresolved.name.clone(),
-            docs: unresolved.docs.clone(),
-            interfaces: Default::default(),
-            worlds: Default::default(),
-        });
-        let prev = resolve.package_names.insert(unresolved.name.clone(), pkgid);
-        assert!(prev.is_none());
         for id in self.interfaces.iter().skip(foreign_interfaces) {
-            let iface = &mut resolve.interfaces[*id];
+            let id = match id {
+                Some(id) => *id,
+                None => continue,
+            };
+            let iface = &mut resolve.interfaces[id];
             iface.package = Some(pkgid);
             if let Some(name) = &iface.name {
-                let prev = resolve.packages[pkgid].interfaces.insert(name.clone(), *id);
+                let prev = resolve.packages[pkgid].interfaces.insert(name.clone(), id);
                 assert!(prev.is_none());
             }
         }
         for id in self.worlds.iter().skip(foreign_worlds) {
-            let world = &mut resolve.worlds[*id];
+            let id = match id {
+                Some(id) => *id,
+                None => continue,
+            };
+            let world = &mut resolve.worlds[id];
             world.package = Some(pkgid);
             let prev = resolve.packages[pkgid]
                 .worlds
-                .insert(world.name.clone(), *id);
+                .insert(world.name.clone(), id);
             assert!(prev.is_none());
         }
         Ok(pkgid)
@@ -1242,7 +1348,7 @@ impl Remap {
         self.process_foreign_types(unresolved, resolve)?;
 
         for (id, span) in unresolved.required_resource_types.iter() {
-            let mut id = self.types[id.index()];
+            let mut id = self.map_type(*id, Some(*span))?;
             loop {
                 match resolve.types[id].kind {
                     TypeDefKind::Type(Type::Id(i)) => id = i,
@@ -1289,7 +1395,7 @@ impl Remap {
                 .copied()
                 .ok_or_else(|| Error::new(span.span, "interface not found in package"))?;
             assert_eq!(self.interfaces.len(), unresolved_iface_id.index());
-            self.interfaces.push(iface_id);
+            self.interfaces.push(Some(iface_id));
         }
         for (id, _) in unresolved.interfaces.iter().skip(self.interfaces.len()) {
             assert!(
@@ -1327,7 +1433,7 @@ impl Remap {
                 .copied()
                 .ok_or_else(|| Error::new(span.span, "world not found in package"))?;
             assert_eq!(self.worlds.len(), unresolved_world_id.index());
-            self.worlds.push(world_id);
+            self.worlds.push(Some(world_id));
         }
         for (id, _) in unresolved.worlds.iter().skip(self.worlds.len()) {
             assert!(
@@ -1355,7 +1461,7 @@ impl Remap {
                 TypeOwner::Interface(id) => id,
                 _ => unreachable!(),
             };
-            let iface_id = self.interfaces[unresolved_iface_id.index()];
+            let iface_id = self.map_interface(unresolved_iface_id, None)?;
             let name = unresolved_ty.name.as_ref().unwrap();
             let span = unresolved.unknown_type_spans[unresolved_type_id.index()];
             let type_id = *resolve.interfaces[iface_id]
@@ -1365,7 +1471,7 @@ impl Remap {
                     Error::new(span, format!("type `{name}` not defined in interface"))
                 })?;
             assert_eq!(self.types.len(), unresolved_type_id.index());
-            self.types.push(type_id);
+            self.types.push(Some(type_id));
         }
         for (_, ty) in unresolved.types.iter().skip(self.types.len()) {
             if let TypeDefKind::Unknown = ty.kind {
@@ -1375,49 +1481,57 @@ impl Remap {
         Ok(())
     }
 
-    fn update_typedef(&mut self, resolve: &mut Resolve, ty: &mut TypeDef) {
+    fn update_typedef(
+        &mut self,
+        resolve: &mut Resolve,
+        ty: &mut TypeDef,
+        span: Option<Span>,
+    ) -> Result<()> {
         // NB: note that `ty.owner` is not updated here since interfaces
         // haven't been mapped yet and that's done in a separate step.
         use crate::TypeDefKind::*;
         match &mut ty.kind {
             Handle(handle) => match handle {
-                crate::Handle::Own(ty) | crate::Handle::Borrow(ty) => self.update_type_id(ty),
+                crate::Handle::Own(ty) | crate::Handle::Borrow(ty) => {
+                    self.update_type_id(ty, span)?
+                }
             },
             Resource => {}
             Record(r) => {
                 for field in r.fields.iter_mut() {
-                    self.update_ty(resolve, &mut field.ty);
+                    self.update_ty(resolve, &mut field.ty, span)
+                        .with_context(|| format!("failed to update field `{}`", field.name))?;
                 }
             }
             Tuple(t) => {
                 for ty in t.types.iter_mut() {
-                    self.update_ty(resolve, ty);
+                    self.update_ty(resolve, ty, span)?;
                 }
             }
             Variant(v) => {
                 for case in v.cases.iter_mut() {
                     if let Some(t) = &mut case.ty {
-                        self.update_ty(resolve, t);
+                        self.update_ty(resolve, t, span)?;
                     }
                 }
             }
-            Option(t) => self.update_ty(resolve, t),
+            Option(t) => self.update_ty(resolve, t, span)?,
             Result(r) => {
                 if let Some(ty) = &mut r.ok {
-                    self.update_ty(resolve, ty);
+                    self.update_ty(resolve, ty, span)?;
                 }
                 if let Some(ty) = &mut r.err {
-                    self.update_ty(resolve, ty);
+                    self.update_ty(resolve, ty, span)?;
                 }
             }
-            List(t) => self.update_ty(resolve, t),
-            Future(Some(t)) => self.update_ty(resolve, t),
+            List(t) => self.update_ty(resolve, t, span)?,
+            Future(Some(t)) => self.update_ty(resolve, t, span)?,
             Stream(t) => {
                 if let Some(ty) = &mut t.element {
-                    self.update_ty(resolve, ty);
+                    self.update_ty(resolve, ty, span)?;
                 }
                 if let Some(ty) = &mut t.end {
-                    self.update_ty(resolve, ty);
+                    self.update_ty(resolve, ty, span)?;
                 }
             }
 
@@ -1425,7 +1539,7 @@ impl Remap {
             // because for the `type a = b` form that doesn't force `a` to be a
             // handle type if `b` is a resource type, instead `a` is
             // simultaneously usable as a resource and a handle type
-            Type(crate::Type::Id(id)) => self.update_type_id(id),
+            Type(crate::Type::Id(id)) => self.update_type_id(id, span)?,
             Type(_) => {}
 
             // nothing to do for these as they're just names or empty
@@ -1433,14 +1547,21 @@ impl Remap {
 
             Unknown => unreachable!(),
         }
+
+        Ok(())
     }
 
-    fn update_ty(&mut self, resolve: &mut Resolve, ty: &mut Type) {
+    fn update_ty(
+        &mut self,
+        resolve: &mut Resolve,
+        ty: &mut Type,
+        span: Option<Span>,
+    ) -> Result<()> {
         let id = match ty {
             Type::Id(id) => id,
-            _ => return,
+            _ => return Ok(()),
         };
-        self.update_type_id(id);
+        self.update_type_id(id, span)?;
 
         // If `id` points to a `Resource` type then this means that what was
         // just discovered was a reference to what will implicitly become an
@@ -1466,10 +1587,12 @@ impl Remap {
                 })
             });
         }
+        Ok(())
     }
 
-    fn update_type_id(&self, id: &mut TypeId) {
-        *id = self.types[id.index()];
+    fn update_type_id(&self, id: &mut TypeId, span: Option<Span>) -> Result<()> {
+        *id = self.map_type(*id, span)?;
+        Ok(())
     }
 
     fn update_interface(
@@ -1478,18 +1601,27 @@ impl Remap {
         iface: &mut Interface,
         spans: Option<&InterfaceSpan>,
     ) -> Result<()> {
+        iface.types.retain(|_, ty| self.types[ty.index()].is_some());
+
         // NB: note that `iface.doc` is not updated here since interfaces
         // haven't been mapped yet and that's done in a separate step.
         for (_name, ty) in iface.types.iter_mut() {
-            self.update_type_id(ty);
+            self.update_type_id(ty, spans.map(|s| s.span))?;
         }
         if let Some(spans) = spans {
             assert_eq!(iface.functions.len(), spans.funcs.len());
         }
         for (i, (_, func)) in iface.functions.iter_mut().enumerate() {
+            if !resolve.include_stability(&func.stability) {
+                continue;
+            }
             let span = spans.map(|s| s.funcs[i]);
-            self.update_function(resolve, func, span)?;
+            self.update_function(resolve, func, span)
+                .with_context(|| format!("failed to update function `{}`", func.name))?;
         }
+        iface
+            .functions
+            .retain(|_, f| resolve.include_stability(&f.stability));
         Ok(())
     }
 
@@ -1502,19 +1634,19 @@ impl Remap {
         match &mut func.kind {
             FunctionKind::Freestanding => {}
             FunctionKind::Method(id) | FunctionKind::Constructor(id) | FunctionKind::Static(id) => {
-                self.update_type_id(id);
+                self.update_type_id(id, span)?;
             }
         }
         for (_, ty) in func.params.iter_mut() {
-            self.update_ty(resolve, ty);
+            self.update_ty(resolve, ty, span)?;
         }
         match &mut func.results {
             Results::Named(named) => {
                 for (_, ty) in named.iter_mut() {
-                    self.update_ty(resolve, ty);
+                    self.update_ty(resolve, ty, span)?;
                 }
             }
-            Results::Anon(ty) => self.update_ty(resolve, ty),
+            Results::Anon(ty) => self.update_ty(resolve, ty, span)?,
         }
 
         for ty in func.results.iter_types() {
@@ -1562,22 +1694,30 @@ impl Remap {
         // determining names later on.
         let mut import_funcs = Vec::new();
         let mut import_types = Vec::new();
-        for ((mut name, item), span) in mem::take(&mut world.imports)
+        for ((mut name, mut item), span) in mem::take(&mut world.imports)
             .into_iter()
             .zip(&spans.imports)
         {
-            self.update_world_key(&mut name);
+            // Update the `id` eagerly here so `item.stability(..)` below
+            // works.
+            if let WorldItem::Type(id) = &mut item {
+                *id = self.map_type(*id, Some(*span))?;
+            }
+            let stability = item.stability(resolve);
+            if !resolve.include_stability(stability) {
+                continue;
+            }
+            self.update_world_key(&mut name, Some(*span))?;
             match item {
-                WorldItem::Interface { id, .. } => {
-                    let id = self.interfaces[id.index()];
-                    self.add_world_import(resolve, world, name, id);
+                WorldItem::Interface { id, stability } => {
+                    let id = self.map_interface(id, Some(*span))?;
+                    self.add_world_import(resolve, world, name, id, &stability);
                 }
                 WorldItem::Function(mut f) => {
                     self.update_function(resolve, &mut f, Some(*span))?;
                     import_funcs.push((name.unwrap_name(), f, *span));
                 }
                 WorldItem::Type(id) => {
-                    let id = self.types[id.index()];
                     import_types.push((name.unwrap_name(), id, *span));
                 }
             }
@@ -1587,7 +1727,13 @@ impl Remap {
             if let TypeDefKind::Type(Type::Id(other)) = resolve.types[*id].kind {
                 if let TypeOwner::Interface(owner) = resolve.types[other].owner {
                     let name = WorldKey::Interface(owner);
-                    self.add_world_import(resolve, world, name, owner);
+                    self.add_world_import(
+                        resolve,
+                        world,
+                        name,
+                        owner,
+                        &resolve.types[*id].stability,
+                    );
                 }
             }
         }
@@ -1598,11 +1744,15 @@ impl Remap {
             .into_iter()
             .zip(&spans.exports)
         {
-            self.update_world_key(&mut name);
+            let stability = item.stability(resolve);
+            if !resolve.include_stability(stability) {
+                continue;
+            }
+            self.update_world_key(&mut name, Some(*span))?;
             match item {
-                WorldItem::Interface { id, .. } => {
-                    let id = self.interfaces[id.index()];
-                    let prev = export_interfaces.insert(id, (name, *span));
+                WorldItem::Interface { id, stability } => {
+                    let id = self.map_interface(id, Some(*span))?;
+                    let prev = export_interfaces.insert(id, (name, *span, stability));
                     assert!(prev.is_none());
                 }
                 WorldItem::Function(mut f) => {
@@ -1623,10 +1773,14 @@ impl Remap {
         assert_eq!(world.includes.len(), spans.includes.len());
         let includes = mem::take(&mut world.includes);
         let include_names = mem::take(&mut world.include_names);
-        for (index, ((_, include_world), span)) in
-            includes.into_iter().zip(&spans.includes).enumerate()
+        for (((stability, include_world), span), names) in includes
+            .into_iter()
+            .zip(&spans.includes)
+            .zip(&include_names)
         {
-            let names = &include_names[index];
+            if !resolve.include_stability(&stability) {
+                continue;
+            }
             self.resolve_include(world, include_world, names, *span, resolve)?;
         }
 
@@ -1698,13 +1852,14 @@ impl Remap {
         Ok(())
     }
 
-    fn update_world_key(&self, key: &mut WorldKey) {
+    fn update_world_key(&self, key: &mut WorldKey, span: Option<Span>) -> Result<()> {
         match key {
             WorldKey::Name(_) => {}
             WorldKey::Interface(id) => {
-                *id = self.interfaces[id.index()];
+                *id = self.map_interface(*id, span)?;
             }
         }
+        Ok(())
     }
 
     fn add_world_import(
@@ -1713,18 +1868,19 @@ impl Remap {
         world: &mut World,
         key: WorldKey,
         id: InterfaceId,
+        stability: &Stability,
     ) {
         if world.imports.contains_key(&key) {
             return;
         }
         for dep in resolve.interface_direct_deps(id) {
-            self.add_world_import(resolve, world, WorldKey::Interface(dep), dep);
+            self.add_world_import(resolve, world, WorldKey::Interface(dep), dep, stability);
         }
         let prev = world.imports.insert(
             key,
             WorldItem::Interface {
                 id,
-                stability: Default::default(),
+                stability: stability.clone(),
             },
         );
         assert!(prev.is_none());
@@ -1780,10 +1936,10 @@ impl Remap {
         &self,
         resolve: &Resolve,
         world: &mut World,
-        export_interfaces: &IndexMap<InterfaceId, (WorldKey, Span)>,
+        export_interfaces: &IndexMap<InterfaceId, (WorldKey, Span, Stability)>,
     ) -> Result<()> {
         let mut required_imports = HashSet::new();
-        for (id, (key, span)) in export_interfaces.iter() {
+        for (id, (key, span, stability)) in export_interfaces.iter() {
             let ok = add_world_export(
                 resolve,
                 world,
@@ -1792,6 +1948,7 @@ impl Remap {
                 *id,
                 key,
                 true,
+                &stability,
             );
             if !ok {
                 bail!(Error::new(
@@ -1825,11 +1982,12 @@ impl Remap {
         fn add_world_export(
             resolve: &Resolve,
             world: &mut World,
-            export_interfaces: &IndexMap<InterfaceId, (WorldKey, Span)>,
+            export_interfaces: &IndexMap<InterfaceId, (WorldKey, Span, Stability)>,
             required_imports: &mut HashSet<InterfaceId>,
             id: InterfaceId,
             key: &WorldKey,
             add_export: bool,
+            stability: &Stability,
         ) -> bool {
             if world.exports.contains_key(key) {
                 if add_export {
@@ -1854,6 +2012,7 @@ impl Remap {
                     dep,
                     &key,
                     add_export,
+                    stability,
                 )
             });
             if !ok {
@@ -1861,7 +2020,7 @@ impl Remap {
             }
             let item = WorldItem::Interface {
                 id,
-                stability: Default::default(),
+                stability: stability.clone(),
             };
             if add_export {
                 if required_imports.contains(&id) {
@@ -1884,7 +2043,7 @@ impl Remap {
         span: Span,
         resolve: &Resolve,
     ) -> Result<()> {
-        let include_world_id = self.worlds[include_world.index()];
+        let include_world_id = self.map_world(include_world, Some(span))?;
         let include_world = &resolve.worlds[include_world_id];
         let mut names_ = names.to_owned();
 

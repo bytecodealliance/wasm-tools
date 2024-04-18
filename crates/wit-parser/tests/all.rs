@@ -75,6 +75,7 @@ struct Runner {}
 impl Runner {
     fn run(&mut self, test: &Path) -> Result<()> {
         let mut resolve = Resolve::new();
+        resolve.features.insert("active".to_string());
         let result = resolve.push_path(test);
         let result = if test.iter().any(|s| s == "parse-fail") {
             match result {

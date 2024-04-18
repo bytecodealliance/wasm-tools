@@ -307,7 +307,7 @@ impl Bindgen {
             .resolve
             .merge(resolve)
             .context("failed to merge WIT package sets together")?
-            .worlds[world.index()];
+            .map_world(world, None)?;
         self.resolve
             .merge_worlds(world, self.world)
             .context("failed to merge worlds from two documents")?;

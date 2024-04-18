@@ -2001,7 +2001,7 @@ impl ComponentEncoder {
             .with_context(|| {
                 format!("failed to merge WIT packages of adapter `{name}` into main packages")
             })?
-            .worlds[metadata.world.index()];
+            .map_world(metadata.world, None)?;
         self.metadata
             .resolve
             .merge_worlds(world, self.metadata.world)

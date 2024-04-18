@@ -1,5 +1,8 @@
-function returns a type which contains a `borrow<T>` which is not supported
-     --> tests/ui/parse-fail/resources-multiple-returns-borrow.wit:7:5
-      |
-    7 |     f1: func() -> (a: s32, handle: borrow<r1>);
-      |     ^-
+failed to update function `[method]r1.f1`
+
+Caused by:
+    function returns a type which contains a `borrow<T>` which is not supported
+         --> tests/ui/parse-fail/resources-multiple-returns-borrow.wit:7:5
+          |
+        7 |     f1: func() -> (a: s32, handle: borrow<r1>);
+          |     ^-
