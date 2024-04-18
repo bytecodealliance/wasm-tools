@@ -1,0 +1,38 @@
+/// RUN: component wit --features foo %
+package a:b;
+
+interface foo {
+  type t = u32;
+}
+
+interface bar {
+  use foo.{t};
+
+  record x {
+    y: t,
+  }
+}
+
+interface another-interface {
+  resource x {
+    constructor();
+    x: static func();
+    y: func();
+  }
+
+  variant y {
+    x(x),
+  }
+}
+
+world the-world {
+  import foo;
+  import x: func();
+
+  resource thing {
+    constructor();
+  }
+
+  export y: func();
+  export bar;
+}
