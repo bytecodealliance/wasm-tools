@@ -3,17 +3,13 @@
 (module
   (global $a (import "spectest" "global_i32") (shared i32))
   (global $b (import "spectest" "global_i64") (shared mut i64))
-  (global $c (import "spectest" "global_ref") (shared eqref))
   (global $d (shared i32) (i32.const 0))
   (global $e (shared mut i64) (i64.const 1))
-  (global $f (shared mut anyref) (ref.null any))
 
   (func (export "get-a-seqcst") (result i32) (global.atomic.get seq_cst $a))
   (func (export "set-b-seqcst") (global.atomic.set seq_cst $b (i64.const 1)))
-  (func (export "get-c-seqcst") (result eqref) (global.atomic.get seq_cst $c))
   (func (export "get-d-acqrel") (result i32) (global.atomic.get acq_rel $d))
   (func (export "set-e-acqrel") (global.atomic.set acq_rel $e (i64.const 2)))
-  (func (export "set-f-acqrel") (param $a anyref) (global.atomic.set acq_rel $f (local.get $a)))
 )
 
 (assert_malformed
@@ -37,6 +33,5 @@
 (assert_invalid
   (module
     (global $a (import "spectest" "global_ref") (shared funcref))
-    (func (export "get-shared") (result funcref) (global.atomic.get seq_cst $a))
   )
-  "invalid type")
+  "shared value type")

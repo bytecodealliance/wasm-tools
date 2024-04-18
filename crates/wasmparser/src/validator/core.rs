@@ -1061,6 +1061,12 @@ impl Module {
                     offset,
                 ));
             }
+            if !ty.content_type.is_shared() {
+                return Err(BinaryReaderError::new(
+                    "shared globals must have a shared value type",
+                    offset,
+                ));
+            }
         }
         Ok(())
     }

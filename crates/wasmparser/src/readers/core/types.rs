@@ -780,6 +780,15 @@ impl ValType {
         }
     }
 
+    /// Whether the type is `shared`.
+    pub fn is_shared(&self) -> bool {
+        match *self {
+            Self::I32 | Self::I64 | Self::F32 | Self::F64 | Self::V128 => true,
+            // TODO: parsing of `shared` refs is not yet implemented.
+            Self::Ref(_) => false,
+        }
+    }
+
     /// Maps any `UnpackedIndex` via the specified closure.
     pub(crate) fn remap_indices(
         &mut self,
