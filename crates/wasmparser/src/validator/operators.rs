@@ -1066,18 +1066,14 @@ where
 
     /// Common helper for checking the types of global types accessed
     /// atomically.
-    fn check_atomic_global_ty(&self, global_index: u32, supertype: Option<ValType>) -> Result<()> {
+    fn check_atomic_global_ty(&self, global_index: u32) -> Result<()> {
         let ty = self
             .resources
             .global_at(global_index)
             .expect("existence should be checked prior to this point");
         let ty = ty.content_type;
-        let is_valid_subtype = if let Some(supertype) = supertype {
-            self.resources.is_subtype(ty, supertype)
-        } else {
-            false
-        };
-        if !(ty == ValType::I32 || ty == ValType::I64 || is_valid_subtype) {
+        let supertype = RefType::ANYREF.into();
+        if !(ty == ValType::I32 || ty == ValType::I64 || self.resources.is_subtype(ty, supertype)) {
             bail!(
                     self.offset,
                     "invalid type: `global.atomic.get` only allows `i32`, `i64` and subtypes of `anyref`"
@@ -1657,7 +1653,7 @@ where
         self.visit_global_get(global_index)?;
         // No validation of `ordering` is needed because `global.atomic.get` can
         // be used on both shared and unshared globals.
-        self.check_atomic_global_ty(global_index, Some(RefType::ANYREF.into()))?;
+        self.check_atomic_global_ty(global_index)?;
         Ok(())
     }
     fn visit_global_set(&mut self, global_index: u32) -> Self::Output {
@@ -1682,7 +1678,7 @@ where
         self.visit_global_set(global_index)?;
         // No validation of `ordering` is needed because `global.atomic.get` can
         // be used on both shared and unshared globals.
-        self.check_atomic_global_ty(global_index, Some(RefType::ANYREF.into()))?;
+        self.check_atomic_global_ty(global_index)?;
         Ok(())
     }
     fn visit_i32_load(&mut self, memarg: MemArg) -> Self::Output {
