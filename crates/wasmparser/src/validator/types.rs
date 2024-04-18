@@ -4,7 +4,7 @@ use super::{
     component::{ComponentState, ExternKind},
     core::Module,
 };
-use crate::{validator::names::KebabString, HeapType};
+use crate::{validator::names::KebabString, HeapType, ValidatorId};
 use crate::{
     BinaryReaderError, CompositeType, Export, ExternalKind, FuncType, GlobalType, Import, Matches,
     MemoryType, PackedIndex, PrimitiveValType, RecGroup, RefType, Result, SubType, TableType,
@@ -1474,6 +1474,7 @@ enum TypesKind {
 ///
 /// The type information is returned via the [`crate::Validator::end`] method.
 pub struct Types {
+    id: ValidatorId,
     list: TypeList,
     kind: TypesKind,
 }
@@ -1489,23 +1490,36 @@ enum TypesRefKind<'a> {
 /// Retrieved via the [`crate::Validator::types`] method.
 #[derive(Clone, Copy)]
 pub struct TypesRef<'a> {
+    id: ValidatorId,
     list: &'a TypeList,
     kind: TypesRefKind<'a>,
 }
 
 impl<'a> TypesRef<'a> {
-    pub(crate) fn from_module(types: &'a TypeList, module: &'a Module) -> Self {
+    pub(crate) fn from_module(id: ValidatorId, types: &'a TypeList, module: &'a Module) -> Self {
         Self {
+            id,
             list: types,
             kind: TypesRefKind::Module(module),
         }
     }
 
-    pub(crate) fn from_component(types: &'a TypeList, component: &'a ComponentState) -> Self {
+    pub(crate) fn from_component(
+        id: ValidatorId,
+        types: &'a TypeList,
+        component: &'a ComponentState,
+    ) -> Self {
         Self {
+            id,
             list: types,
             kind: TypesRefKind::Component(component),
         }
+    }
+
+    /// Get the id of the validator that these types are associated with.
+    #[inline]
+    pub fn id(&self) -> ValidatorId {
+        self.id
     }
 
     /// Gets a type based on its type id.
@@ -1930,23 +1944,36 @@ where
 }
 
 impl Types {
-    pub(crate) fn from_module(types: TypeList, module: Arc<Module>) -> Self {
+    pub(crate) fn from_module(id: ValidatorId, types: TypeList, module: Arc<Module>) -> Self {
         Self {
+            id,
             list: types,
             kind: TypesKind::Module(module),
         }
     }
 
-    pub(crate) fn from_component(types: TypeList, component: ComponentState) -> Self {
+    pub(crate) fn from_component(
+        id: ValidatorId,
+        types: TypeList,
+        component: ComponentState,
+    ) -> Self {
         Self {
+            id,
             list: types,
             kind: TypesKind::Component(component),
         }
     }
 
+    /// Get the id of the validator that these types are associated with.
+    #[inline]
+    pub fn id(&self) -> ValidatorId {
+        self.id
+    }
+
     /// Gets a reference to this validation type information.
     pub fn as_ref(&self) -> TypesRef {
         TypesRef {
+            id: self.id,
             list: &self.list,
             kind: match &self.kind {
                 TypesKind::Module(module) => TypesRefKind::Module(module),
