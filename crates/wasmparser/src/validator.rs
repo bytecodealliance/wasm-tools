@@ -20,6 +20,7 @@ use crate::{
 use bitflags::bitflags;
 use std::mem;
 use std::ops::Range;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 /// Test whether the given buffer contains a valid WebAssembly module or component,
@@ -86,6 +87,30 @@ fn combine_type_sizes(a: u32, b: u32, offset: usize) -> Result<u32> {
     }
 }
 
+/// A unique identifier for a particular `Validator`.
+///
+/// Allows you to save the `ValidatorId` of the [`Validator`][crate::Validator]
+/// you get identifiers out of (e.g. [`CoreTypeId`][crate::types::CoreTypeId])
+/// and then later assert that you are pairing those identifiers with the same
+/// `Validator` instance when accessing the identifier's associated data.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
+pub struct ValidatorId(usize);
+
+impl Default for ValidatorId {
+    #[inline]
+    fn default() -> Self {
+        static ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+        ValidatorId(ID_COUNTER.fetch_add(1, Ordering::AcqRel))
+    }
+}
+
+impl From<ValidatorId> for usize {
+    #[inline]
+    fn from(id: ValidatorId) -> Self {
+        id.0
+    }
+}
+
 /// Validator for a WebAssembly binary module or component.
 ///
 /// This structure encapsulates state necessary to validate a WebAssembly
@@ -113,6 +138,8 @@ fn combine_type_sizes(a: u32, b: u32, offset: usize) -> Result<u32> {
 /// [core]: https://webassembly.github.io/spec/core/valid/index.html
 #[derive(Default)]
 pub struct Validator {
+    id: ValidatorId,
+
     /// The current state of the validator.
     state: State,
 
@@ -484,6 +511,100 @@ impl Validator {
         &self.features
     }
 
+    /// Reset this validator's state such that it is ready to validate a new
+    /// Wasm module or component.
+    ///
+    /// This does *not* clear or reset the internal state keeping track of
+    /// validated (and deduplicated and canonicalized) types, allowing you to
+    /// use the same type identifiers (such as
+    /// [`CoreTypeId`][crate::types::CoreTypeId]) for the same types that are
+    /// defined multiple times across different modules and components.
+    ///
+    /// ```
+    /// fn foo() -> anyhow::Result<()> {
+    /// use wasmparser::Validator;
+    ///
+    /// let mut validator = Validator::default();
+    ///
+    /// // Two wasm modules, both of which define the same type, but at
+    /// // different indices in their respective types index spaces.
+    /// let wasm1 = wat::parse_str("
+    ///     (module
+    ///         (type $same_type (func (param i32) (result f64)))
+    ///     )
+    /// ")?;
+    /// let wasm2 = wat::parse_str("
+    ///     (module
+    ///         (type $different_type (func))
+    ///         (type $same_type (func (param i32) (result f64)))
+    ///     )
+    /// ")?;
+    ///
+    /// // Validate the first Wasm module and get the ID of its type.
+    /// let types = validator.validate_all(&wasm1)?;
+    /// let id1 = types.core_type_at(0);
+    ///
+    /// // Reset the validator so we can parse the second wasm module inside
+    /// // this validator's same context.
+    /// validator.reset();
+    ///
+    /// // Validate the second Wasm module and get the ID of its second type,
+    /// // which is the same type as the first Wasm module's only type.
+    /// let types = validator.validate_all(&wasm2)?;
+    /// let id2 = types.core_type_at(1);
+    ///
+    /// // Because both modules were processed in the same `Validator`, they
+    /// // share the same types context and therefore the same type defined
+    /// // multiple times across different modules will be deduplicated and
+    /// // assigned the same identifier!
+    /// assert_eq!(id1, id2);
+    /// assert_eq!(types[id1.unwrap_sub()], types[id2.unwrap_sub()]);
+    /// # Ok(())
+    /// # }
+    /// # foo().unwrap()
+    /// ```
+    pub fn reset(&mut self) {
+        let Validator {
+            // Not changing the identifier; users should be able to observe that
+            // they are using the same validation context, even after resetting.
+            id: _,
+
+            // Don't mess with `types`, we specifically want to reuse canonicalizations.
+            types: _,
+
+            // Also leave features as they are. While this is perhaps not
+            // strictly necessary, it helps us avoid weird bugs where we have
+            // different views of what is or is not a valid type at different
+            // times, despite using the same `TypeList` and hash consing
+            // context, and therefore there could be moments in time where we
+            // have "invalid" types inside our current types list.
+            features: _,
+
+            state,
+            module,
+            components,
+        } = self;
+
+        assert!(
+            matches!(state, State::End),
+            "cannot reset a validator that did not successfully complete validation"
+        );
+        assert!(module.is_none());
+        assert!(components.is_empty());
+
+        *state = State::default();
+    }
+
+    /// Get this validator's unique identifier.
+    ///
+    /// Allows you to assert that you are always working with the same
+    /// `Validator` instance, when you can't otherwise statically ensure that
+    /// property by e.g. storing a reference to the validator inside your
+    /// structure.
+    pub fn id(&self) -> ValidatorId {
+        self.id
+    }
+
     /// Validates an entire in-memory module or component with this validator.
     ///
     /// This function will internally create a [`Parser`] to parse the `bytes`
@@ -530,7 +651,7 @@ impl Validator {
     pub fn types(&self, mut level: usize) -> Option<TypesRef> {
         if let Some(module) = &self.module {
             if level == 0 {
-                return Some(TypesRef::from_module(&self.types, &module.module));
+                return Some(TypesRef::from_module(self.id, &self.types, &module.module));
             } else {
                 level -= 1;
             }
@@ -539,7 +660,7 @@ impl Validator {
         self.components
             .iter()
             .nth_back(level)
-            .map(|component| TypesRef::from_component(&self.types, component))
+            .map(|component| TypesRef::from_component(self.id, &self.types, component))
     }
 
     /// Convenience function to validate a single [`Payload`].
@@ -1372,6 +1493,7 @@ impl Validator {
                 }
 
                 Ok(Types::from_module(
+                    self.id,
                     self.types.commit(),
                     state.module.arc().clone(),
                 ))
@@ -1396,7 +1518,11 @@ impl Validator {
                     self.state = State::Component;
                 }
 
-                Ok(Types::from_component(self.types.commit(), component))
+                Ok(Types::from_component(
+                    self.id,
+                    self.types.commit(),
+                    component,
+                ))
             }
         }
     }
