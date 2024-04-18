@@ -64,8 +64,11 @@ pub struct Resolver<'a> {
     /// pointing to it if the item isn't actually defined.
     unknown_type_spans: Vec<Span>,
 
-    /// Spans for each world in `self.world`
+    /// Spans for each world in `self.worlds`
     world_spans: Vec<WorldSpan>,
+
+    /// Spans for each type in `self.types`
+    type_spans: Vec<Span>,
 
     /// The span of each interface's definition which is used for error
     /// reporting during the final `Resolve` phase.
@@ -217,6 +220,7 @@ impl<'a> Resolver<'a> {
             unknown_type_spans: mem::take(&mut self.unknown_type_spans),
             interface_spans: mem::take(&mut self.interface_spans),
             world_spans: mem::take(&mut self.world_spans),
+            type_spans: mem::take(&mut self.type_spans),
             foreign_dep_spans: mem::take(&mut self.foreign_dep_spans),
             source_map: SourceMap::default(),
             required_resource_types: mem::take(&mut self.required_resource_types),
@@ -550,6 +554,7 @@ impl<'a> Resolver<'a> {
                         owner: TypeOwner::Interface(iface),
                     });
                     self.unknown_type_spans.push(name.name.span);
+                    self.type_spans.push(name.name.span);
                     lookup.insert(name.name.name, (TypeOrItem::Type(id), name.name.span));
                     self.interfaces[iface]
                         .types
@@ -863,6 +868,7 @@ impl<'a> Resolver<'a> {
                 name: Some(def.name.name.to_string()),
                 owner,
             });
+            self.type_spans.push(def.name.span);
             self.define_interface_name(&def.name, TypeOrItem::Type(id))?;
         }
         Ok(())
@@ -887,6 +893,7 @@ impl<'a> Resolver<'a> {
                     format!("name `{}` is not defined", name.name.name),
                 )),
             };
+            self.type_spans.push(name.name.span);
             let name = name.as_.as_ref().unwrap_or(&name.name);
             let id = self.types.alloc(TypeDef {
                 docs: Docs::default(),
@@ -953,8 +960,8 @@ impl<'a> Resolver<'a> {
         kind: FunctionKind,
     ) -> Result<Function> {
         let docs = self.docs(docs);
-        let params = self.resolve_params(&func.params, &kind)?;
-        let results = self.resolve_results(&func.results, &kind)?;
+        let params = self.resolve_params(&func.params, &kind, func.span)?;
+        let results = self.resolve_results(&func.results, &kind, func.span)?;
         Ok(Function {
             docs,
             name: name.to_string(),
@@ -1207,12 +1214,15 @@ impl<'a> Resolver<'a> {
             _ => {}
         }
         let kind = self.resolve_type_def(ty)?;
-        Ok(self.anon_type_def(TypeDef {
-            kind,
-            name: None,
-            docs: Docs::default(),
-            owner: TypeOwner::None,
-        }))
+        Ok(self.anon_type_def(
+            TypeDef {
+                kind,
+                name: None,
+                docs: Docs::default(),
+                owner: TypeOwner::None,
+            },
+            ty.span(),
+        ))
     }
 
     fn resolve_optional_type(&mut self, ty: Option<&super::Type<'_>>) -> Result<Option<Type>> {
@@ -1222,7 +1232,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn anon_type_def(&mut self, ty: TypeDef) -> Type {
+    fn anon_type_def(&mut self, ty: TypeDef, span: Span) -> Type {
         let key = match &ty.kind {
             TypeDefKind::Type(t) => return *t,
             TypeDefKind::Variant(v) => Key::Variant(
@@ -1258,11 +1268,10 @@ impl<'a> Resolver<'a> {
             TypeDefKind::Stream(s) => Key::Stream(s.element, s.end),
             TypeDefKind::Unknown => unreachable!(),
         };
-        let types = &mut self.types;
-        let id = self
-            .anon_types
-            .entry(key)
-            .or_insert_with(|| types.alloc(ty));
+        let id = self.anon_types.entry(key).or_insert_with(|| {
+            self.type_spans.push(span);
+            self.types.alloc(ty)
+        });
         Type::Id(*id)
     }
 
@@ -1299,7 +1308,12 @@ impl<'a> Resolver<'a> {
         Docs { contents }
     }
 
-    fn resolve_params(&mut self, params: &ParamList<'_>, kind: &FunctionKind) -> Result<Params> {
+    fn resolve_params(
+        &mut self,
+        params: &ParamList<'_>,
+        kind: &FunctionKind,
+        span: Span,
+    ) -> Result<Params> {
         let mut ret = IndexMap::new();
         match *kind {
             // These kinds of methods don't have any adjustments to the
@@ -1310,12 +1324,15 @@ impl<'a> Resolver<'a> {
             // Methods automatically get a `self` initial argument so insert
             // that here before processing the normal parameters.
             FunctionKind::Method(id) => {
-                let shared = self.anon_type_def(TypeDef {
-                    docs: Docs::default(),
-                    kind: TypeDefKind::Handle(Handle::Borrow(id)),
-                    name: None,
-                    owner: TypeOwner::None,
-                });
+                let shared = self.anon_type_def(
+                    TypeDef {
+                        docs: Docs::default(),
+                        kind: TypeDefKind::Handle(Handle::Borrow(id)),
+                        name: None,
+                        owner: TypeOwner::None,
+                    },
+                    span,
+                );
                 ret.insert("self".to_string(), shared);
             }
         }
@@ -1335,15 +1352,18 @@ impl<'a> Resolver<'a> {
         &mut self,
         results: &ResultList<'_>,
         kind: &FunctionKind,
+        span: Span,
     ) -> Result<Results> {
         match *kind {
             // These kinds of methods don't have any adjustments to the return
             // values, so plumb them through as-is.
             FunctionKind::Freestanding | FunctionKind::Method(_) | FunctionKind::Static(_) => {
                 match results {
-                    ResultList::Named(rs) => Ok(Results::Named(
-                        self.resolve_params(rs, &FunctionKind::Freestanding)?,
-                    )),
+                    ResultList::Named(rs) => Ok(Results::Named(self.resolve_params(
+                        rs,
+                        &FunctionKind::Freestanding,
+                        span,
+                    )?)),
                     ResultList::Anon(ty) => Ok(Results::Anon(self.resolve_type(ty)?)),
                 }
             }

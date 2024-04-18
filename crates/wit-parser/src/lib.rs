@@ -111,6 +111,7 @@ pub struct UnresolvedPackage {
     unknown_type_spans: Vec<Span>,
     interface_spans: Vec<InterfaceSpan>,
     world_spans: Vec<WorldSpan>,
+    type_spans: Vec<Span>,
     foreign_dep_spans: Vec<Span>,
     source_map: SourceMap,
     required_resource_types: Vec<(TypeId, Span)>,
