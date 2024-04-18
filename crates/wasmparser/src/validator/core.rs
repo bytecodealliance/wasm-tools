@@ -510,6 +510,7 @@ impl ModuleState {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct Module {
     // This is set once the code section starts.
     // `WasmModuleResources` implementations use the snapshot to
@@ -1271,6 +1272,7 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
 
 /// The implementation of [`WasmModuleResources`] used by
 /// [`Validator`](crate::Validator).
+#[derive(Debug)]
 pub struct ValidatorResources(pub(crate) Arc<Module>);
 
 impl WasmModuleResources for ValidatorResources {

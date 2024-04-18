@@ -9,6 +9,7 @@ use crate::{FunctionBody, Operator, WasmFeatures, WasmModuleResources};
 /// is created per-function in a WebAssembly module. This structure is suitable
 /// for sending to other threads while the original
 /// [`Validator`](crate::Validator) continues processing other functions.
+#[derive(Debug)]
 pub struct FuncToValidate<T> {
     /// Reusable, heap allocated resources to drive the Wasm validation.
     pub resources: T,

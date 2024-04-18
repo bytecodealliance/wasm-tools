@@ -2267,6 +2267,7 @@ where
 //
 // Only public because it shows up in a public trait's `doc(hidden)` method.
 #[doc(hidden)]
+#[derive(Debug)]
 pub struct SnapshotList<T> {
     // All previous snapshots, the "head" of the list that this type represents.
     // The first entry in this pair is the starting index for all elements
@@ -2286,6 +2287,7 @@ pub struct SnapshotList<T> {
     cur: Vec<T>,
 }
 
+#[derive(Debug)]
 struct Snapshot<T> {
     prior_types: usize,
     items: Vec<T>,
@@ -2394,7 +2396,7 @@ impl<T> Default for SnapshotList<T> {
 /// component model's {component, instance, defined, func} types are in the same
 /// index space). However, we store each of them in their own type-specific
 /// snapshot list and give each of them their own identifier type.
-#[derive(Default)]
+#[derive(Default, Debug)]
 // Only public because it shows up in a public trait's `doc(hidden)` method.
 #[doc(hidden)]
 pub struct TypeList {
