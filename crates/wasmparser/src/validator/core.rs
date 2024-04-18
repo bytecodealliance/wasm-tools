@@ -1054,13 +1054,22 @@ impl Module {
         features: &WasmFeatures,
         offset: usize,
     ) -> Result<()> {
-        if ty.shared && !features.contains(WasmFeatures::SHARED_EVERYTHING_THREADS) {
-            return Err(BinaryReaderError::new(
-                "shared globals require the shared-everything-threads proposal",
-                offset,
-            ));
+        self.check_value_type(&mut ty.content_type, features, offset)?;
+        if ty.shared {
+            if !features.contains(WasmFeatures::SHARED_EVERYTHING_THREADS) {
+                return Err(BinaryReaderError::new(
+                    "shared globals require the shared-everything-threads proposal",
+                    offset,
+                ));
+            }
+            if !ty.content_type.is_shared() {
+                return Err(BinaryReaderError::new(
+                    "shared globals must have a shared value type",
+                    offset,
+                ));
+            }
         }
-        self.check_value_type(&mut ty.content_type, features, offset)
+        Ok(())
     }
 
     fn check_limits<T>(&self, initial: T, maximum: Option<T>, offset: usize) -> Result<()>

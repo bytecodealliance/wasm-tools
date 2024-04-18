@@ -8,10 +8,31 @@
     },
     {
       "type": "assert_malformed",
-      "line": 11,
+      "line": 16,
       "filename": "global.1.wat",
       "text": "unexpected token",
       "module_type": "text"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 20,
+      "filename": "global.2.wasm",
+      "text": "global is immutable",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 27,
+      "filename": "global.3.wasm",
+      "text": "invalid type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 34,
+      "filename": "global.4.wasm",
+      "text": "shared value type",
+      "module_type": "binary"
     }
   ]
 }

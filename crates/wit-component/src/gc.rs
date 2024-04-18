@@ -1046,6 +1046,7 @@ macro_rules! define_visit {
     (mark_live $self:ident $arg:ident field_index) => {};
     (mark_live $self:ident $arg:ident from_type_nullable) => {};
     (mark_live $self:ident $arg:ident to_type_nullable) => {};
+    (mark_live $self:ident $arg:ident ordering) => {};
     (mark_live $self:ident $arg:ident try_table) => {unimplemented!();};
 }
 
@@ -1094,6 +1095,13 @@ impl Encoder {
             offset: ty.offset,
             align: ty.align.into(),
             memory_index: self.memories.remap(ty.memory),
+        }
+    }
+
+    fn ordering(&self, ord: Ordering) -> wasm_encoder::Ordering {
+        match ord {
+            Ordering::AcqRel => wasm_encoder::Ordering::AcqRel,
+            Ordering::SeqCst => wasm_encoder::Ordering::SeqCst,
         }
     }
 
@@ -1213,6 +1221,7 @@ macro_rules! define_encode {
     // Individual cases of mapping one argument type to another, similar to the
     // `define_visit` macro above.
     (map $self:ident $arg:ident memarg) => {$self.memarg($arg)};
+    (map $self:ident $arg:ident ordering) => {$self.ordering($arg)};
     (map $self:ident $arg:ident blockty) => {$self.blockty($arg)};
     (map $self:ident $arg:ident hty) => {$self.heapty($arg)};
     (map $self:ident $arg:ident from_ref_type) => {$self.refty($arg)};

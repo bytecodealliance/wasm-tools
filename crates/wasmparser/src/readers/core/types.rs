@@ -780,6 +780,15 @@ impl ValType {
         }
     }
 
+    /// Whether the type is `shared`.
+    pub fn is_shared(&self) -> bool {
+        match *self {
+            Self::I32 | Self::I64 | Self::F32 | Self::F64 | Self::V128 => true,
+            // TODO: parsing of `shared` refs is not yet implemented.
+            Self::Ref(_) => false,
+        }
+    }
+
     /// Maps any `UnpackedIndex` via the specified closure.
     pub(crate) fn remap_indices(
         &mut self,
@@ -1076,9 +1085,8 @@ impl RefType {
 
     /// Create a new `RefType`.
     ///
-    /// Returns `None` when the heap type's type index (if any) is
-    /// beyond this crate's implementation limits and therfore is not
-    /// representable.
+    /// Returns `None` when the heap type's type index (if any) is beyond this
+    /// crate's implementation limits and therefore is not representable.
     pub fn new(nullable: bool, heap_type: HeapType) -> Option<Self> {
         let nullable32 = Self::NULLABLE_BIT * (nullable as u32);
         match heap_type {

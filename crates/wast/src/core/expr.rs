@@ -800,6 +800,10 @@ instructions! {
         I64AtomicRmw16CmpxchgU(MemArg<2>) : [0xfe, 0x4d] : "i64.atomic.rmw16.cmpxchg_u",
         I64AtomicRmw32CmpxchgU(MemArg<4>) : [0xfe, 0x4e] : "i64.atomic.rmw32.cmpxchg_u",
 
+        // proposal: shared-everything-threads
+        GlobalAtomicGet(OrderedAccess<'a>) : [0xfe, 0x4f] : "global.atomic.get",
+        GlobalAtomicSet(OrderedAccess<'a>) : [0xfe, 0x50] : "global.atomic.set",
+
         // proposal: simd
         //
         // https://webassembly.github.io/simd/core/binary/instructions.html
@@ -1727,6 +1731,55 @@ impl<'a> Parse<'a> for BrOnCastFail<'a> {
             from_type: parser.parse()?,
             to_type: parser.parse()?,
         })
+    }
+}
+
+/// The memory ordering for atomic instructions.
+///
+/// For an in-depth explanation of memory orderings, see the C++ documentation
+/// for [`memory_order`] or the Rust documentation for [`atomic::Ordering`].
+///
+/// [`memory_order`]: https://en.cppreference.com/w/cpp/atomic/memory_order
+/// [`atomic::Ordering`]: https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html
+#[derive(Clone, Debug)]
+pub enum Ordering {
+    /// Like `AcqRel` but all threads see all sequentially consistent operations
+    /// in the same order.
+    AcqRel,
+    /// For a load, it acquires; this orders all operations before the last
+    /// "releasing" store. For a store, it releases; this orders all operations
+    /// before it at the next "acquiring" load.
+    SeqCst,
+}
+
+impl<'a> Parse<'a> for Ordering {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        if parser.peek::<kw::seq_cst>()? {
+            parser.parse::<kw::seq_cst>()?;
+            Ok(Ordering::SeqCst)
+        } else if parser.peek::<kw::acq_rel>()? {
+            parser.parse::<kw::acq_rel>()?;
+            Ok(Ordering::AcqRel)
+        } else {
+            Err(parser.error("expected a memory ordering: `seq_cst` or `acq_rel`"))
+        }
+    }
+}
+
+/// Extra data associated with the `global.atomic.*` instructions.
+#[derive(Clone, Debug)]
+pub struct OrderedAccess<'a> {
+    /// The memory ordering for this atomic instruction.
+    pub ordering: Ordering,
+    /// The index of the global to access.
+    pub index: Index<'a>,
+}
+
+impl<'a> Parse<'a> for OrderedAccess<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let ordering = parser.parse()?;
+        let index = parser.parse()?;
+        Ok(OrderedAccess { ordering, index })
     }
 }
 
