@@ -1,0 +1,6 @@
+(component
+  (type (;0;)
+    (instance)
+  )
+  (import "a:b/c" (instance (;0;) (type 0)))
+)
