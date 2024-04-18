@@ -104,13 +104,6 @@ impl Default for ValidatorId {
     }
 }
 
-impl From<ValidatorId> for usize {
-    #[inline]
-    fn from(id: ValidatorId) -> Self {
-        id.0
-    }
-}
-
 /// Validator for a WebAssembly binary module or component.
 ///
 /// This structure encapsulates state necessary to validate a WebAssembly
