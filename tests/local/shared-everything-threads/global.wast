@@ -23,18 +23,20 @@
 (assert_invalid
   (module
     (global $a (shared i32) (i32.const 0))
-    (func (export "set-shared") (global.atomic.set seq_cst $a (f32.const 1.0)))
+    (func (export "set-shared") (global.atomic.set seq_cst $a (i32.const 1)))
   )
   "global is immutable")
 
 (assert_invalid
   (module
     (global $a (shared mut f64) (f64.const 0))
+    (func (export "set-shared") (global.atomic.set acq_rel $a (f64.const 1.0)))
   )
   "invalid type")
 
 (assert_invalid
   (module
     (global $a (import "spectest" "global_ref") (shared funcref))
+    (func (export "get-shared") (result funcref) (global.atomic.get seq_cst $a))
   )
   "invalid type")

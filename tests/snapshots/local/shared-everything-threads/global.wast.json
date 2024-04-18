@@ -29,7 +29,7 @@
     },
     {
       "type": "assert_invalid",
-      "line": 37,
+      "line": 38,
       "filename": "global.4.wasm",
       "text": "invalid type",
       "module_type": "binary"
