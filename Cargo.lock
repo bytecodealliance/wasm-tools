@@ -1728,7 +1728,7 @@ checksum = "af190c94f2773fdb3729c55b007a722abb5384da03bc0986df4c289bf5567e96"
 
 [[package]]
 name = "wasm-compose"
-version = "0.204.0"
+version = "0.205.0"
 dependencies = [
  "anyhow",
  "glob",
@@ -1742,9 +1742,9 @@ dependencies = [
  "serde_derive",
  "serde_yaml",
  "smallvec",
- "wasm-encoder 0.204.0",
- "wasmparser 0.204.0",
- "wasmprinter 0.204.0",
+ "wasm-encoder 0.205.0",
+ "wasmparser 0.205.0",
+ "wasmprinter 0.205.0",
  "wat",
  "wit-component",
 ]
@@ -1760,17 +1760,17 @@ dependencies = [
 
 [[package]]
 name = "wasm-encoder"
-version = "0.204.0"
+version = "0.205.0"
 dependencies = [
  "anyhow",
  "leb128",
  "tempfile",
- "wasmparser 0.204.0",
+ "wasmparser 0.205.0",
 ]
 
 [[package]]
 name = "wasm-metadata"
-version = "0.204.0"
+version = "0.205.0"
 dependencies = [
  "anyhow",
  "clap 4.5.2",
@@ -1779,14 +1779,14 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "spdx",
- "wasm-encoder 0.204.0",
- "wasmparser 0.204.0",
+ "wasm-encoder 0.205.0",
+ "wasmparser 0.205.0",
  "wat",
 ]
 
 [[package]]
 name = "wasm-mutate"
-version = "0.204.0"
+version = "0.205.0"
 dependencies = [
  "anyhow",
  "clap 4.5.2",
@@ -1795,9 +1795,9 @@ dependencies = [
  "log",
  "rand",
  "thiserror",
- "wasm-encoder 0.204.0",
- "wasmparser 0.204.0",
- "wasmprinter 0.204.0",
+ "wasm-encoder 0.205.0",
+ "wasmparser 0.205.0",
+ "wasmprinter 0.205.0",
  "wat",
 ]
 
@@ -1814,14 +1814,14 @@ dependencies = [
  "num_cpus",
  "rand",
  "wasm-mutate",
- "wasmparser 0.204.0",
- "wasmprinter 0.204.0",
+ "wasmparser 0.205.0",
+ "wasmprinter 0.205.0",
  "wasmtime",
 ]
 
 [[package]]
 name = "wasm-shrink"
-version = "0.204.0"
+version = "0.205.0"
 dependencies = [
  "anyhow",
  "blake3",
@@ -1830,14 +1830,14 @@ dependencies = [
  "log",
  "rand",
  "wasm-mutate",
- "wasmparser 0.204.0",
- "wasmprinter 0.204.0",
+ "wasmparser 0.205.0",
+ "wasmprinter 0.205.0",
  "wat",
 ]
 
 [[package]]
 name = "wasm-smith"
-version = "0.204.0"
+version = "0.205.0"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -1850,15 +1850,15 @@ dependencies = [
  "rand",
  "serde",
  "serde_derive",
- "wasm-encoder 0.204.0",
- "wasmparser 0.204.0",
- "wasmprinter 0.204.0",
+ "wasm-encoder 0.205.0",
+ "wasmparser 0.205.0",
+ "wasmprinter 0.205.0",
  "wat",
 ]
 
 [[package]]
 name = "wasm-tools"
-version = "1.204.0"
+version = "1.205.0"
 dependencies = [
  "addr2line 0.21.0",
  "anyhow",
@@ -1882,17 +1882,17 @@ dependencies = [
  "tempfile",
  "termcolor",
  "wasm-compose",
- "wasm-encoder 0.204.0",
+ "wasm-encoder 0.205.0",
  "wasm-metadata",
  "wasm-mutate",
  "wasm-shrink",
  "wasm-smith",
- "wasmparser 0.204.0",
- "wasmprinter 0.204.0",
+ "wasmparser 0.205.0",
+ "wasmprinter 0.205.0",
  "wast",
  "wat",
  "wit-component",
- "wit-parser 0.204.0",
+ "wit-parser 0.205.0",
  "wit-smith",
 ]
 
@@ -1904,8 +1904,8 @@ dependencies = [
  "wasm-mutate",
  "wasm-shrink",
  "wasm-smith",
- "wasmparser 0.204.0",
- "wasmprinter 0.204.0",
+ "wasmparser 0.205.0",
+ "wasmprinter 0.205.0",
  "wast",
  "wat",
 ]
@@ -1920,16 +1920,16 @@ dependencies = [
  "libfuzzer-sys",
  "log",
  "tempfile",
- "wasm-encoder 0.204.0",
+ "wasm-encoder 0.205.0",
  "wasm-mutate",
  "wasm-smith",
- "wasmparser 0.204.0",
- "wasmprinter 0.204.0",
+ "wasmparser 0.205.0",
+ "wasmprinter 0.205.0",
  "wasmtime",
  "wast",
  "wat",
  "wit-component",
- "wit-parser 0.204.0",
+ "wit-parser 0.205.0",
  "wit-smith",
 ]
 
@@ -1956,7 +1956,7 @@ dependencies = [
 
 [[package]]
 name = "wasmparser"
-version = "0.204.0"
+version = "0.205.0"
 dependencies = [
  "anyhow",
  "bitflags 2.4.2",
@@ -1967,7 +1967,7 @@ dependencies = [
  "once_cell",
  "rayon",
  "semver",
- "wasm-encoder 0.204.0",
+ "wasm-encoder 0.205.0",
  "wast",
  "wat",
 ]
@@ -1984,13 +1984,13 @@ dependencies = [
 
 [[package]]
 name = "wasmprinter"
-version = "0.204.0"
+version = "0.205.0"
 dependencies = [
  "anyhow",
  "diff",
  "rayon",
  "tempfile",
- "wasmparser 0.204.0",
+ "wasmparser 0.205.0",
  "wast",
  "wat",
 ]
@@ -2248,7 +2248,7 @@ dependencies = [
 
 [[package]]
 name = "wast"
-version = "204.0.0"
+version = "205.0.0"
 dependencies = [
  "anyhow",
  "bumpalo",
@@ -2256,14 +2256,14 @@ dependencies = [
  "libtest-mimic",
  "memchr",
  "unicode-width",
- "wasm-encoder 0.204.0",
- "wasmparser 0.204.0",
+ "wasm-encoder 0.205.0",
+ "wasmparser 0.205.0",
  "wat",
 ]
 
 [[package]]
 name = "wat"
-version = "1.204.0"
+version = "1.205.0"
 dependencies = [
  "wast",
 ]
@@ -2459,7 +2459,7 @@ checksum = "32b752e52a2da0ddfbdbcc6fceadfeede4c939ed16d13e648833a61dfb611ed8"
 
 [[package]]
 name = "wit-component"
-version = "0.204.0"
+version = "0.205.0"
 dependencies = [
  "anyhow",
  "bitflags 2.4.2",
@@ -2471,14 +2471,14 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "wasm-encoder 0.204.0",
+ "wasm-encoder 0.205.0",
  "wasm-metadata",
- "wasmparser 0.204.0",
- "wasmprinter 0.204.0",
+ "wasmparser 0.205.0",
+ "wasmprinter 0.205.0",
  "wasmtime",
  "wast",
  "wat",
- "wit-parser 0.204.0",
+ "wit-parser 0.205.0",
 ]
 
 [[package]]
@@ -2499,7 +2499,7 @@ dependencies = [
 
 [[package]]
 name = "wit-parser"
-version = "0.204.0"
+version = "0.205.0"
 dependencies = [
  "anyhow",
  "env_logger",
@@ -2513,9 +2513,9 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "unicode-xid",
- "wasmparser 0.204.0",
+ "wasmparser 0.205.0",
  "wat",
- "wit-parser 0.204.0",
+ "wit-parser 0.205.0",
 ]
 
 [[package]]
@@ -2526,13 +2526,13 @@ dependencies = [
  "env_logger",
  "libfuzzer-sys",
  "log",
- "wasmprinter 0.204.0",
- "wit-parser 0.204.0",
+ "wasmprinter 0.205.0",
+ "wit-parser 0.205.0",
 ]
 
 [[package]]
 name = "wit-smith"
-version = "0.204.0"
+version = "0.205.0"
 dependencies = [
  "arbitrary",
  "clap 4.5.2",
@@ -2540,7 +2540,7 @@ dependencies = [
  "log",
  "semver",
  "wit-component",
- "wit-parser 0.204.0",
+ "wit-parser 0.205.0",
 ]
 
 [[package]]
