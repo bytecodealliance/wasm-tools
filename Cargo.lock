@@ -2482,6 +2482,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "wit-encoder"
+version = "0.204.0"
+dependencies = [
+ "arbitrary",
+ "clap 4.5.2",
+ "indexmap 2.2.5",
+ "log",
+ "semver",
+ "wit-component",
+ "wit-parser 0.204.0",
+]
+
+[[package]]
 name = "wit-parser"
 version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
