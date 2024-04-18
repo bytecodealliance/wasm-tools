@@ -1,6 +1,6 @@
 // use std::fmt::Display;
 
-use crate::{Case, Docs, Type};
+use crate::Case;
 
 /// A variant without a payload
 #[derive(Debug, Clone, PartialEq, Default)]
