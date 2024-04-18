@@ -190,7 +190,7 @@ impl<'a> Resolver<'a> {
         for id in iface_order {
             let (interface, i) = &iface_id_to_ast[&id];
             self.cur_ast_index = *i;
-            self.resolve_interface(id, &interface.items, &interface.docs)?;
+            self.resolve_interface(id, &interface.items, &interface.docs, &interface.attributes)?;
         }
 
         for id in world_order {
@@ -293,6 +293,7 @@ impl<'a> Resolver<'a> {
             name: None,
             types: IndexMap::new(),
             docs: Docs::default(),
+            stability: Default::default(),
             functions: IndexMap::new(),
             package: None,
         })
@@ -313,6 +314,7 @@ impl<'a> Resolver<'a> {
             package: None,
             includes: Default::default(),
             include_names: Default::default(),
+            stability: Default::default(),
         })
     }
 
@@ -476,6 +478,12 @@ impl<'a> Resolver<'a> {
             for item in ast.items.iter() {
                 let (name, ast_item) = match item {
                     ast::AstItem::Use(u) => {
+                        if !u.attributes.is_empty() {
+                            bail!(Error::new(
+                                u.span,
+                                format!("attributes not allowed on top-level use"),
+                            ))
+                        }
                         let name = u.as_.as_ref().unwrap_or(u.item.name());
                         let item = match &u.item {
                             ast::UsePath::Id(name) => *ids.get(name.name).ok_or_else(|| {
@@ -549,6 +557,7 @@ impl<'a> Resolver<'a> {
                     }
                     let id = self.types.alloc(TypeDef {
                         docs: Docs::default(),
+                        stability: Default::default(),
                         kind: TypeDefKind::Unknown,
                         name: Some(name.name.name.to_string()),
                         owner: TypeOwner::Interface(iface),
@@ -570,6 +579,8 @@ impl<'a> Resolver<'a> {
     fn resolve_world(&mut self, world_id: WorldId, world: &ast::World<'a>) -> Result<WorldId> {
         let docs = self.docs(&world.docs);
         self.worlds[world_id].docs = docs;
+        let stability = self.stability(&world.attributes)?;
+        self.worlds[world_id].stability = stability;
 
         self.resolve_types(
             TypeOwner::World(world_id),
@@ -617,9 +628,10 @@ impl<'a> Resolver<'a> {
         let mut imported_interfaces = HashSet::new();
         let mut exported_interfaces = HashSet::new();
         for item in world.items.iter() {
-            let (docs, kind, desc, spans, interfaces, names) = match item {
+            let (docs, attrs, kind, desc, spans, interfaces, names) = match item {
                 ast::WorldItem::Import(import) => (
                     &import.docs,
+                    &import.attributes,
                     &import.kind,
                     "import",
                     &mut import_spans,
@@ -628,6 +640,7 @@ impl<'a> Resolver<'a> {
                 ),
                 ast::WorldItem::Export(export) => (
                     &export.docs,
+                    &export.attributes,
                     &export.kind,
                     "export",
                     &mut export_spans,
@@ -679,8 +692,8 @@ impl<'a> Resolver<'a> {
                     WorldKey::Interface(id)
                 }
             };
-            let world_item = self.resolve_world_item(docs, kind)?;
-            if let WorldItem::Interface(id) = world_item {
+            let world_item = self.resolve_world_item(docs, attrs, kind)?;
+            if let WorldItem::Interface { id, .. } = world_item {
                 if !interfaces.insert(id) {
                     bail!(Error::new(
                         kind.span(),
@@ -707,24 +720,32 @@ impl<'a> Resolver<'a> {
     fn resolve_world_item(
         &mut self,
         docs: &ast::Docs<'a>,
+        attrs: &[ast::Attribute<'a>],
         kind: &ast::ExternKind<'a>,
     ) -> Result<WorldItem> {
         match kind {
             ast::ExternKind::Interface(name, items) => {
                 let prev = mem::take(&mut self.type_lookup);
                 let id = self.alloc_interface(name.span);
-                self.resolve_interface(id, items, docs)?;
+                self.resolve_interface(id, items, docs, attrs)?;
                 self.type_lookup = prev;
-                Ok(WorldItem::Interface(id))
+                let stability = self.interfaces[id].stability.clone();
+                Ok(WorldItem::Interface { id, stability })
             }
             ast::ExternKind::Path(path) => {
+                let stability = self.stability(attrs)?;
                 let (item, name, span) = self.resolve_ast_item_path(path)?;
                 let id = self.extract_iface_from_item(&item, &name, span)?;
-                Ok(WorldItem::Interface(id))
+                Ok(WorldItem::Interface { id, stability })
             }
             ast::ExternKind::Func(name, func) => {
-                let func =
-                    self.resolve_function(docs, name.name, func, FunctionKind::Freestanding)?;
+                let func = self.resolve_function(
+                    docs,
+                    attrs,
+                    name.name,
+                    func,
+                    FunctionKind::Freestanding,
+                )?;
                 Ok(WorldItem::Function(func))
             }
         }
@@ -735,9 +756,12 @@ impl<'a> Resolver<'a> {
         interface_id: InterfaceId,
         fields: &[ast::InterfaceItem<'a>],
         docs: &ast::Docs<'a>,
+        attrs: &[ast::Attribute<'a>],
     ) -> Result<()> {
         let docs = self.docs(docs);
         self.interfaces[interface_id].docs = docs;
+        let stability = self.stability(attrs)?;
+        self.interfaces[interface_id].stability = stability;
 
         self.resolve_types(
             TypeOwner::Interface(interface_id),
@@ -768,6 +792,7 @@ impl<'a> Resolver<'a> {
                     self.define_interface_name(&f.name, TypeOrItem::Item("function"))?;
                     funcs.push(self.resolve_function(
                         &f.docs,
+                        &f.attributes,
                         &f.name.name,
                         &f.func,
                         FunctionKind::Freestanding,
@@ -861,9 +886,11 @@ impl<'a> Resolver<'a> {
                 None => continue,
             };
             let docs = self.docs(&def.docs);
-            let kind = self.resolve_type_def(&def.ty)?;
+            let stability = self.stability(&def.attributes)?;
+            let kind = self.resolve_type_def(&def.ty, &stability)?;
             let id = self.types.alloc(TypeDef {
                 docs,
+                stability,
                 kind,
                 name: Some(def.name.name.to_string()),
                 owner,
@@ -877,6 +904,7 @@ impl<'a> Resolver<'a> {
     fn resolve_use(&mut self, owner: TypeOwner, u: &ast::Use<'a>) -> Result<()> {
         let (item, name, span) = self.resolve_ast_item_path(&u.from)?;
         let use_from = self.extract_iface_from_item(&item, &name, span)?;
+        let stability = self.stability(&u.attributes)?;
 
         for name in u.names.iter() {
             let lookup = &self.interface_types[use_from.index()];
@@ -897,6 +925,7 @@ impl<'a> Resolver<'a> {
             let name = name.as_.as_ref().unwrap_or(&name.name);
             let id = self.types.alloc(TypeDef {
                 docs: Docs::default(),
+                stability: stability.clone(),
                 kind: TypeDefKind::Type(Type::Id(id)),
                 name: Some(name.name.to_string()),
                 owner,
@@ -908,9 +937,12 @@ impl<'a> Resolver<'a> {
 
     /// For each name in the `include`, resolve the path of the include, add it to the self.includes
     fn resolve_include(&mut self, world_id: WorldId, i: &ast::Include<'a>) -> Result<()> {
+        let stability = self.stability(&i.attributes)?;
         let (item, name, span) = self.resolve_ast_item_path(&i.from)?;
         let include_from = self.extract_world_from_item(&item, &name, span)?;
-        self.worlds[world_id].includes.push(include_from);
+        self.worlds[world_id]
+            .includes
+            .push((stability, include_from));
         self.worlds[world_id].include_names.push(
             i.names
                 .iter()
@@ -949,21 +981,30 @@ impl<'a> Resolver<'a> {
             }
         }
         let named_func = func.named_func();
-        self.resolve_function(&named_func.docs, &name, &named_func.func, kind)
+        self.resolve_function(
+            &named_func.docs,
+            &named_func.attributes,
+            &name,
+            &named_func.func,
+            kind,
+        )
     }
 
     fn resolve_function(
         &mut self,
         docs: &ast::Docs<'_>,
+        attrs: &[ast::Attribute<'_>],
         name: &str,
         func: &ast::Func,
         kind: FunctionKind,
     ) -> Result<Function> {
         let docs = self.docs(docs);
-        let params = self.resolve_params(&func.params, &kind, func.span)?;
-        let results = self.resolve_results(&func.results, &kind, func.span)?;
+        let stability = self.stability(attrs)?;
+        let params = self.resolve_params(&func.params, &kind, func.span, &stability)?;
+        let results = self.resolve_results(&func.results, &kind, func.span, &stability)?;
         Ok(Function {
             docs,
+            stability,
             name: name.to_string(),
             kind,
             params,
@@ -1036,7 +1077,11 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn resolve_type_def(&mut self, ty: &ast::Type<'_>) -> Result<TypeDefKind> {
+    fn resolve_type_def(
+        &mut self,
+        ty: &ast::Type<'_>,
+        stability: &Stability,
+    ) -> Result<TypeDefKind> {
         Ok(match ty {
             ast::Type::Bool(_) => TypeDefKind::Type(Type::Bool),
             ast::Type::U8(_) => TypeDefKind::Type(Type::U8),
@@ -1056,7 +1101,7 @@ impl<'a> Resolver<'a> {
                 TypeDefKind::Type(Type::Id(id))
             }
             ast::Type::List(list) => {
-                let ty = self.resolve_type(&list.ty)?;
+                let ty = self.resolve_type(&list.ty, stability)?;
                 TypeDefKind::List(ty)
             }
             ast::Type::Handle(handle) => TypeDefKind::Handle(match handle {
@@ -1099,7 +1144,7 @@ impl<'a> Resolver<'a> {
                         Ok(Field {
                             docs: self.docs(&field.docs),
                             name: field.name.name.to_string(),
-                            ty: self.resolve_type(&field.ty)?,
+                            ty: self.resolve_type(&field.ty, stability)?,
                         })
                     })
                     .collect::<Result<Vec<_>>>()?;
@@ -1120,7 +1165,7 @@ impl<'a> Resolver<'a> {
                 let types = t
                     .types
                     .iter()
-                    .map(|ty| self.resolve_type(ty))
+                    .map(|ty| self.resolve_type(ty, stability))
                     .collect::<Result<Vec<_>>>()?;
                 TypeDefKind::Tuple(Tuple { types })
             }
@@ -1135,7 +1180,7 @@ impl<'a> Resolver<'a> {
                         Ok(Case {
                             docs: self.docs(&case.docs),
                             name: case.name.name.to_string(),
-                            ty: self.resolve_optional_type(case.ty.as_ref())?,
+                            ty: self.resolve_optional_type(case.ty.as_ref(), stability)?,
                         })
                     })
                     .collect::<Result<Vec<_>>>()?;
@@ -1157,17 +1202,17 @@ impl<'a> Resolver<'a> {
                     .collect::<Result<Vec<_>>>()?;
                 TypeDefKind::Enum(Enum { cases })
             }
-            ast::Type::Option(ty) => TypeDefKind::Option(self.resolve_type(&ty.ty)?),
+            ast::Type::Option(ty) => TypeDefKind::Option(self.resolve_type(&ty.ty, stability)?),
             ast::Type::Result(r) => TypeDefKind::Result(Result_ {
-                ok: self.resolve_optional_type(r.ok.as_deref())?,
-                err: self.resolve_optional_type(r.err.as_deref())?,
+                ok: self.resolve_optional_type(r.ok.as_deref(), stability)?,
+                err: self.resolve_optional_type(r.err.as_deref(), stability)?,
             }),
             ast::Type::Future(t) => {
-                TypeDefKind::Future(self.resolve_optional_type(t.ty.as_deref())?)
+                TypeDefKind::Future(self.resolve_optional_type(t.ty.as_deref(), stability)?)
             }
             ast::Type::Stream(s) => TypeDefKind::Stream(Stream {
-                element: self.resolve_optional_type(s.element.as_deref())?,
-                end: self.resolve_optional_type(s.end.as_deref())?,
+                element: self.resolve_optional_type(s.element.as_deref(), stability)?,
+                end: self.resolve_optional_type(s.end.as_deref(), stability)?,
             }),
         })
     }
@@ -1205,7 +1250,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn resolve_type(&mut self, ty: &super::Type<'_>) -> Result<Type> {
+    fn resolve_type(&mut self, ty: &super::Type<'_>, stability: &Stability) -> Result<Type> {
         // Resources must be declared at the top level to have their methods
         // processed appropriately, but resources also shouldn't show up
         // recursively so assert that's not happening here.
@@ -1213,21 +1258,26 @@ impl<'a> Resolver<'a> {
             ast::Type::Resource(_) => unreachable!(),
             _ => {}
         }
-        let kind = self.resolve_type_def(ty)?;
+        let kind = self.resolve_type_def(ty, stability)?;
         Ok(self.anon_type_def(
             TypeDef {
                 kind,
                 name: None,
                 docs: Docs::default(),
+                stability: stability.clone(),
                 owner: TypeOwner::None,
             },
             ty.span(),
         ))
     }
 
-    fn resolve_optional_type(&mut self, ty: Option<&super::Type<'_>>) -> Result<Option<Type>> {
+    fn resolve_optional_type(
+        &mut self,
+        ty: Option<&super::Type<'_>>,
+        stability: &Stability,
+    ) -> Result<Option<Type>> {
         match ty {
-            Some(ty) => Ok(Some(self.resolve_type(ty)?)),
+            Some(ty) => Ok(Some(self.resolve_type(ty, stability)?)),
             None => Ok(None),
         }
     }
@@ -1308,11 +1358,33 @@ impl<'a> Resolver<'a> {
         Docs { contents }
     }
 
+    fn stability(&mut self, attrs: &[ast::Attribute<'_>]) -> Result<Stability> {
+        match attrs {
+            [] => Ok(Stability::Unknown),
+            [ast::Attribute::Since {
+                version, feature, ..
+            }] => Ok(Stability::Stable {
+                since: version.clone(),
+                feature: feature.as_ref().map(|s| s.name.to_string()),
+            }),
+            [ast::Attribute::Unstable { feature, .. }] => Ok(Stability::Unstable {
+                feature: feature.name.to_string(),
+            }),
+            [_, b, ..] => {
+                bail!(Error::new(
+                    b.span(),
+                    "only one stability attribute is allowed per-item",
+                ))
+            }
+        }
+    }
+
     fn resolve_params(
         &mut self,
         params: &ParamList<'_>,
         kind: &FunctionKind,
         span: Span,
+        stability: &Stability,
     ) -> Result<Params> {
         let mut ret = IndexMap::new();
         match *kind {
@@ -1327,6 +1399,7 @@ impl<'a> Resolver<'a> {
                 let shared = self.anon_type_def(
                     TypeDef {
                         docs: Docs::default(),
+                        stability: stability.clone(),
                         kind: TypeDefKind::Handle(Handle::Borrow(id)),
                         name: None,
                         owner: TypeOwner::None,
@@ -1337,7 +1410,7 @@ impl<'a> Resolver<'a> {
             }
         }
         for (name, ty) in params {
-            let prev = ret.insert(name.name.to_string(), self.resolve_type(ty)?);
+            let prev = ret.insert(name.name.to_string(), self.resolve_type(ty, stability)?);
             if prev.is_some() {
                 bail!(Error::new(
                     name.span,
@@ -1353,6 +1426,7 @@ impl<'a> Resolver<'a> {
         results: &ResultList<'_>,
         kind: &FunctionKind,
         span: Span,
+        stability: &Stability,
     ) -> Result<Results> {
         match *kind {
             // These kinds of methods don't have any adjustments to the return
@@ -1363,8 +1437,9 @@ impl<'a> Resolver<'a> {
                         rs,
                         &FunctionKind::Freestanding,
                         span,
+                        stability,
                     )?)),
-                    ResultList::Anon(ty) => Ok(Results::Anon(self.resolve_type(ty)?)),
+                    ResultList::Anon(ty) => Ok(Results::Anon(self.resolve_type(ty, stability)?)),
                 }
             }
 

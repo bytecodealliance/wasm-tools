@@ -4,13 +4,19 @@
       "name": "the-world",
       "imports": {
         "interface-0": {
-          "interface": 0
+          "interface": {
+            "id": 0
+          }
         },
         "interface-1": {
-          "interface": 1
+          "interface": {
+            "id": 1
+          }
         },
         "interface-2": {
-          "interface": 2
+          "interface": {
+            "id": 2
+          }
         },
         "a": {
           "function": {

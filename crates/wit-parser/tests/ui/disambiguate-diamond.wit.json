@@ -4,16 +4,24 @@
       "name": "foo",
       "imports": {
         "interface-0": {
-          "interface": 0
+          "interface": {
+            "id": 0
+          }
         },
         "foo": {
-          "interface": 2
+          "interface": {
+            "id": 2
+          }
         },
         "interface-1": {
-          "interface": 1
+          "interface": {
+            "id": 1
+          }
         },
         "bar": {
-          "interface": 3
+          "interface": {
+            "id": 3
+          }
         }
       },
       "exports": {},

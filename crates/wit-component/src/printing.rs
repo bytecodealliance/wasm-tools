@@ -367,7 +367,7 @@ impl WitPrinter {
         // Print inline item docs
         if matches!(name, WorldKey::Name(_)) {
             self.print_docs(match item {
-                WorldItem::Interface(id) => &resolve.interfaces[*id].docs,
+                WorldItem::Interface { id, .. } => &resolve.interfaces[*id].docs,
                 WorldItem::Function(f) => &f.docs,
                 // Types are handled separately
                 WorldItem::Type(_) => unreachable!(),
@@ -381,7 +381,7 @@ impl WitPrinter {
                 self.print_name(name);
                 self.output.push_str(": ");
                 match item {
-                    WorldItem::Interface(id) => {
+                    WorldItem::Interface { id, .. } => {
                         assert!(resolve.interfaces[*id].name.is_none());
                         writeln!(self.output, "interface {{")?;
                         self.print_interface(resolve, *id)?;
@@ -398,7 +398,7 @@ impl WitPrinter {
             }
             WorldKey::Interface(id) => {
                 match item {
-                    WorldItem::Interface(id2) => assert_eq!(id, id2),
+                    WorldItem::Interface { id: id2, .. } => assert_eq!(id, id2),
                     _ => unreachable!(),
                 }
                 self.print_path_to_interface(resolve, *id, cur_pkg)?;

@@ -4,12 +4,16 @@
       "name": "bar",
       "imports": {
         "interface-0": {
-          "interface": 0
+          "interface": {
+            "id": 0
+          }
         }
       },
       "exports": {
         "interface-1": {
-          "interface": 1
+          "interface": {
+            "id": 1
+          }
         }
       },
       "package": 0
@@ -18,12 +22,16 @@
       "name": "foo",
       "imports": {
         "interface-0": {
-          "interface": 0
+          "interface": {
+            "id": 0
+          }
         }
       },
       "exports": {
         "interface-1": {
-          "interface": 1
+          "interface": {
+            "id": 1
+          }
         }
       },
       "package": 0

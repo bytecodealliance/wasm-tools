@@ -4,15 +4,21 @@
       "name": "foo",
       "imports": {
         "shared-items": {
-          "interface": 1
+          "interface": {
+            "id": 1
+          }
         },
         "interface-0": {
-          "interface": 0
+          "interface": {
+            "id": 0
+          }
         }
       },
       "exports": {
         "a-name": {
-          "interface": 2
+          "interface": {
+            "id": 2
+          }
         }
       },
       "package": 0

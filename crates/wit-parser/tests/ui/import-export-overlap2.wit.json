@@ -14,7 +14,9 @@
       },
       "exports": {
         "a": {
-          "interface": 0
+          "interface": {
+            "id": 0
+          }
         }
       },
       "package": 0

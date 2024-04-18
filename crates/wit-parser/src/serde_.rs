@@ -1,6 +1,7 @@
 use crate::{Params, Type};
 use id_arena::{Arena, Id};
 use indexmap::IndexMap;
+use semver::Version;
 use serde::ser::{SerializeMap, SerializeSeq, Serializer};
 use serde::Serialize;
 
@@ -105,4 +106,11 @@ struct Param {
     pub name: String,
     #[serde(rename = "type")]
     pub typ: Type,
+}
+
+pub fn serialize_version<S>(version: &Version, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    version.to_string().serialize(serializer)
 }

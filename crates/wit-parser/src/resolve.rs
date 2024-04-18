@@ -485,7 +485,9 @@ impl Resolve {
                             remap.update_world_key(&mut name);
                             match &mut item {
                                 WorldItem::Function(f) => remap.update_function(self, f, None)?,
-                                WorldItem::Interface(i) => *i = remap.interfaces[i.index()],
+                                WorldItem::Interface { id, .. } => {
+                                    *id = remap.interfaces[id.index()]
+                                }
                                 WorldItem::Type(i) => *i = remap.types[i.index()],
                             }
                             map.insert(name, item);
@@ -593,13 +595,13 @@ impl Resolve {
         let mut into_imports_by_id = HashMap::new();
         let mut into_exports_by_id = HashMap::new();
         for (name, import) in into_world.imports.iter() {
-            if let WorldItem::Interface(id) = *import {
+            if let WorldItem::Interface { id, .. } = *import {
                 let prev = into_imports_by_id.insert(id, name);
                 assert!(prev.is_none());
             }
         }
         for (name, export) in into_world.exports.iter() {
-            if let WorldItem::Interface(id) = *export {
+            if let WorldItem::Interface { id, .. } = *export {
                 let prev = into_exports_by_id.insert(id, name);
                 assert!(prev.is_none());
             }
@@ -610,7 +612,7 @@ impl Resolve {
             // are the same. Importing the same interface under different names
             // isn't allowed, but otherwise merging imports of
             // same-named-interfaces is allowed to merge them together.
-            if let WorldItem::Interface(id) = import {
+            if let WorldItem::Interface { id, .. } = import {
                 if let Some(prev) = into_imports_by_id.get(id) {
                     if *prev != name {
                         let name = self.name_world_key(name);
@@ -624,7 +626,7 @@ impl Resolve {
             // Note that unlike imports same-named exports are not handled here
             // since if something is exported twice there's no way to "unify" it
             // so it's left as an error.
-            if let WorldItem::Interface(id) = export {
+            if let WorldItem::Interface { id, .. } = export {
                 if let Some(prev) = into_exports_by_id.get(id) {
                     let name = self.name_world_key(name);
                     let prev = self.name_world_key(prev);
@@ -640,9 +642,10 @@ impl Resolve {
                 Some(into_import) => match (from_import, into_import) {
                     // If these imports, which have the same name, are of the
                     // same interface then union them together at this point.
-                    (WorldItem::Interface(from), WorldItem::Interface(into)) if from == into => {
-                        continue
-                    }
+                    (
+                        WorldItem::Interface { id: from, .. },
+                        WorldItem::Interface { id: into, .. },
+                    ) if from == into => continue,
                     _ => {
                         let name = self.name_world_key(name);
                         bail!("duplicate import found for interface `{name}`");
@@ -846,7 +849,7 @@ impl Resolve {
                     .iter()
                     .chain(world.exports.iter())
                     .filter_map(move |(_name, item)| match item {
-                        WorldItem::Interface(id) => Some(*id),
+                        WorldItem::Interface { id, .. } => Some(*id),
                         WorldItem::Function(_) => None,
                         WorldItem::Type(t) => self.type_interface_dep(*t),
                     })
@@ -942,7 +945,7 @@ impl Resolve {
             for (name, item) in world.imports.iter().chain(world.exports.iter()) {
                 log::debug!("validating world item: {}", self.name_world_key(name));
                 match item {
-                    WorldItem::Interface(_) => {}
+                    WorldItem::Interface { .. } => {}
                     WorldItem::Function(f) => {
                         assert_eq!(f.name, name.clone().unwrap_name());
                     }
@@ -1003,7 +1006,7 @@ impl Resolve {
 
             for (_, item) in world.imports.iter().chain(&world.exports) {
                 let id = match item {
-                    WorldItem::Interface(id) => *id,
+                    WorldItem::Interface { id, .. } => *id,
                     _ => continue,
                 };
                 let other_package = self.interfaces[id].package;
@@ -1104,6 +1107,7 @@ impl Remap {
                     owner: TypeOwner::None,
                     kind: TypeDefKind::Handle(Handle::Own(id)),
                     docs: _,
+                    stability: _,
                 } => *self.own_handles.entry(id).or_insert(new_id),
 
                 // Everything not-related to `own<T>` doesn't get its ID
@@ -1458,6 +1462,7 @@ impl Remap {
                     owner: TypeOwner::None,
                     kind: TypeDefKind::Handle(Handle::Own(*id)),
                     docs: Default::default(),
+                    stability: Default::default(),
                 })
             });
         }
@@ -1563,7 +1568,7 @@ impl Remap {
         {
             self.update_world_key(&mut name);
             match item {
-                WorldItem::Interface(id) => {
+                WorldItem::Interface { id, .. } => {
                     let id = self.interfaces[id.index()];
                     self.add_world_import(resolve, world, name, id);
                 }
@@ -1595,7 +1600,7 @@ impl Remap {
         {
             self.update_world_key(&mut name);
             match item {
-                WorldItem::Interface(id) => {
+                WorldItem::Interface { id, .. } => {
                     let id = self.interfaces[id.index()];
                     let prev = export_interfaces.insert(id, (name, *span));
                     assert!(prev.is_none());
@@ -1618,7 +1623,8 @@ impl Remap {
         assert_eq!(world.includes.len(), spans.includes.len());
         let includes = mem::take(&mut world.includes);
         let include_names = mem::take(&mut world.include_names);
-        for (index, (include_world, span)) in includes.into_iter().zip(&spans.includes).enumerate()
+        for (index, ((_, include_world), span)) in
+            includes.into_iter().zip(&spans.includes).enumerate()
         {
             let names = &include_names[index];
             self.resolve_include(world, include_world, names, *span, resolve)?;
@@ -1681,7 +1687,7 @@ impl Remap {
             let rank = |item: &WorldItem| match item {
                 WorldItem::Type(_) => unreachable!(),
                 WorldItem::Function(_) => 0,
-                WorldItem::Interface(_) => 1,
+                WorldItem::Interface { .. } => 1,
             };
             rank(a).cmp(&rank(b))
         });
@@ -1714,7 +1720,13 @@ impl Remap {
         for dep in resolve.interface_direct_deps(id) {
             self.add_world_import(resolve, world, WorldKey::Interface(dep), dep);
         }
-        let prev = world.imports.insert(key, WorldItem::Interface(id));
+        let prev = world.imports.insert(
+            key,
+            WorldItem::Interface {
+                id,
+                stability: Default::default(),
+            },
+        );
         assert!(prev.is_none());
     }
 
@@ -1847,14 +1859,18 @@ impl Remap {
             if !ok {
                 return false;
             }
+            let item = WorldItem::Interface {
+                id,
+                stability: Default::default(),
+            };
             if add_export {
                 if required_imports.contains(&id) {
                     return false;
                 }
-                world.exports.insert(key.clone(), WorldItem::Interface(id));
+                world.exports.insert(key.clone(), item);
             } else {
                 required_imports.insert(id);
-                world.imports.insert(key.clone(), WorldItem::Interface(id));
+                world.imports.insert(key.clone(), item);
             }
             true
         }
@@ -2216,7 +2232,7 @@ impl<'a> MergeMap<'a> {
 
     fn match_world_item(&mut self, from: &WorldItem, into: &WorldItem) -> Result<()> {
         match (from, into) {
-            (WorldItem::Interface(from), WorldItem::Interface(into)) => {
+            (WorldItem::Interface { id: from, .. }, WorldItem::Interface { id: into, .. }) => {
                 match (
                     &self.from.interfaces[*from].name,
                     &self.into.interfaces[*into].name,
@@ -2249,7 +2265,7 @@ impl<'a> MergeMap<'a> {
                 assert!(prev.is_none());
             }
 
-            (WorldItem::Interface(_), _)
+            (WorldItem::Interface { .. }, _)
             | (WorldItem::Function(_), _)
             | (WorldItem::Type(_), _) => {
                 bail!("world items do not have the same type")

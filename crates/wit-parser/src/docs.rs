@@ -138,7 +138,7 @@ impl WorldDocs {
         for (key, item) in world.imports.iter().chain(&world.exports) {
             if let WorldKey::Name(name) = key {
                 match item {
-                    WorldItem::Interface(id) => {
+                    WorldItem::Interface { id, .. } => {
                         let docs = InterfaceDocs::extract(resolve, *id);
                         if !docs.is_empty() {
                             interfaces.insert(name.to_string(), docs);
@@ -170,7 +170,7 @@ impl WorldDocs {
     fn inject(&self, resolve: &mut Resolve, id: WorldId) -> Result<()> {
         for (name, docs) in &self.interfaces {
             let key = WorldKey::Name(name.to_string());
-            let Some(WorldItem::Interface(id)) = resolve.worlds[id]
+            let Some(WorldItem::Interface { id, .. }) = resolve.worlds[id]
                 .imports
                 .get(&key)
                 .or_else(|| resolve.worlds[id].exports.get(&key))
