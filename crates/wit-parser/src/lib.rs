@@ -817,7 +817,7 @@ impl Function {
 /// This is added for WebAssembly/component-model#332 where @since and @unstable
 /// annotations were added to WIT.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize, Serialize))]
+#[cfg_attr(feature = "serde", derive(serde_derive::Deserialize, Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "lowercase", tag = "type"))]
 pub enum Stability {
     /// `@since(version = 1.2.3)`
