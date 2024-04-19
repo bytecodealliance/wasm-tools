@@ -19,8 +19,8 @@ struct ComponentInfo {
     types: types::Types,
     /// List of all imports and exports from this component.
     externs: Vec<(String, Extern)>,
-    /// Decoded package docs
-    package_docs: Option<PackageDocs>,
+    /// Decoded package metadata
+    package_metadata: Option<PackageMetadata>,
 }
 
 struct DecodingExport {
@@ -48,7 +48,7 @@ impl ComponentInfo {
         let mut externs = Vec::new();
         let mut depth = 1;
         let mut types = None;
-        let mut _package_docs = None;
+        let mut _package_metadata = None;
         let mut cur = Parser::new(0);
         let mut eof = false;
         let mut stack = Vec::new();
@@ -111,11 +111,11 @@ impl ComponentInfo {
                     }
                 }
                 #[cfg(feature = "serde")]
-                Payload::CustomSection(s) if s.name() == PackageDocs::SECTION_NAME => {
-                    if _package_docs.is_some() {
-                        bail!("multiple {:?} sections", PackageDocs::SECTION_NAME);
+                Payload::CustomSection(s) if s.name() == PackageMetadata::SECTION_NAME => {
+                    if _package_metadata.is_some() {
+                        bail!("multiple {:?} sections", PackageMetadata::SECTION_NAME);
                     }
-                    _package_docs = Some(PackageDocs::decode(s.data())?);
+                    _package_metadata = Some(PackageMetadata::decode(s.data())?);
                 }
                 Payload::ModuleSection { parser, .. }
                 | Payload::ComponentSection { parser, .. } => {
@@ -140,7 +140,7 @@ impl ComponentInfo {
         Ok(Self {
             types: types.unwrap(),
             externs,
-            package_docs: _package_docs,
+            package_metadata: _package_metadata,
         })
     }
 
@@ -204,8 +204,8 @@ impl ComponentInfo {
 
         let pkg = pkg.ok_or_else(|| anyhow!("no exported component type found"))?;
         let (mut resolve, package) = decoder.finish(pkg);
-        if let Some(package_docs) = &self.package_docs {
-            package_docs.inject(&mut resolve, package)?;
+        if let Some(package_metadata) = &self.package_metadata {
+            package_metadata.inject(&mut resolve, package)?;
         }
         Ok((resolve, package))
     }
@@ -284,8 +284,8 @@ impl ComponentInfo {
         };
 
         let (mut resolve, package) = decoder.finish(pkg);
-        if let Some(package_docs) = &self.package_docs {
-            package_docs.inject(&mut resolve, package)?;
+        if let Some(package_metadata) = &self.package_metadata {
+            package_metadata.inject(&mut resolve, package)?;
         }
         Ok((resolve, package))
     }

@@ -9,9 +9,9 @@ use std::path::Path;
 #[cfg(feature = "decoding")]
 pub mod decoding;
 #[cfg(feature = "decoding")]
-mod docs;
+mod metadata;
 #[cfg(feature = "decoding")]
-pub use docs::PackageDocs;
+pub use metadata::PackageMetadata;
 
 pub mod abi;
 mod ast;
@@ -817,7 +817,7 @@ impl Function {
 /// This is added for WebAssembly/component-model#332 where @since and @unstable
 /// annotations were added to WIT.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "lowercase", tag = "type"))]
 pub enum Stability {
     /// `@since(version = 1.2.3)`
@@ -826,6 +826,7 @@ pub enum Stability {
     /// specified version.  This may optionally have a feature listed as well.
     Stable {
         #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_version"))]
+        #[cfg_attr(feature = "serde", serde(deserialize_with = "deserialize_version"))]
         since: Version,
         #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
         feature: Option<String>,
