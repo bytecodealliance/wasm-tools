@@ -17,8 +17,6 @@ use wasm_encoder::{Function, Instruction};
 pub enum ResourceRequest {
     /// Global resource request
     Global {
-        /// Global index
-        index: usize,
         /// Global type
         tpe: PrimitiveTypeInfo,
         /// If its mutable
@@ -362,7 +360,6 @@ pub fn expr2wasm(
                     Lang::I32UseGlobal(_) => {
                         // Request a new global
                         let request = ResourceRequest::Global {
-                            index: global_idx as usize,
                             tpe: PrimitiveTypeInfo::I32,
                             mutable: true,
                             shared: false,
@@ -375,7 +372,6 @@ pub fn expr2wasm(
                     }
                     Lang::I64UseGlobal(_) => {
                         let request = ResourceRequest::Global {
-                            index: global_idx as usize,
                             tpe: PrimitiveTypeInfo::I64,
                             mutable: true,
                             shared: false,
@@ -388,7 +384,6 @@ pub fn expr2wasm(
                     }
                     Lang::F32UseGlobal(_) => {
                         let request = ResourceRequest::Global {
-                            index: global_idx as usize,
                             tpe: PrimitiveTypeInfo::F32,
                             mutable: true,
                             shared: false,
@@ -401,7 +396,6 @@ pub fn expr2wasm(
                     }
                     Lang::F64UseGlobal(_) => {
                         let request = ResourceRequest::Global {
-                            index: global_idx as usize,
                             tpe: PrimitiveTypeInfo::F64,
                             mutable: true,
                             shared: false,
