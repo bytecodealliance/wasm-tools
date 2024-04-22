@@ -3,4 +3,8 @@
     (instance)
   )
   (import "a:b/c" (instance (;0;) (type 0)))
+  (type (;1;)
+    (instance)
+  )
+  (import "a1:b1/c" (instance (;1;) (type 1)))
 )

@@ -112,4 +112,5 @@
 )
 (component
   (instance (import "a:b/c"))
+  (instance (import "a1:b1/c"))
 )

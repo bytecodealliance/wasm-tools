@@ -825,7 +825,10 @@ impl<'a> ComponentNameParser<'a> {
 
     fn take_lowercase_kebab(&mut self) -> Result<&'a KebabStr> {
         let kebab = self.take_kebab()?;
-        if let Some(c) = kebab.chars().find(|c| *c != '-' && !c.is_lowercase()) {
+        if let Some(c) = kebab
+            .chars()
+            .find(|c| c.is_alphabetic() && !c.is_lowercase())
+        {
             bail!(
                 self.offset,
                 "character `{c}` is not lowercase in package name/namespace"
