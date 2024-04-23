@@ -779,31 +779,26 @@ impl Printer {
         let ty_idx = state.core.types.len() as u32;
         self.print_name(&state.core.type_names, ty_idx)?;
         self.result.push(' ');
-        self.print_sub(state, &ty, Some(ty_idx))?;
+        self.print_sub(state, &ty, ty_idx)?;
         self.end_group(); // `type`
         state.core.types.push(Some(ty));
         Ok(())
     }
 
-    fn print_sub(&mut self, state: &State, ty: &SubType, names_for: Option<u32>) -> Result<u32> {
+    fn print_sub(&mut self, state: &State, ty: &SubType, ty_idx: u32) -> Result<u32> {
         let r = if !ty.is_final || !ty.supertype_idx.is_none() {
             self.start_group("sub");
             self.print_sub_type(state, ty)?;
-            let r = self.print_composite(state, &ty.composite_type, names_for)?;
+            let r = self.print_composite(state, &ty.composite_type, ty_idx)?;
             self.end_group(); // `sub`
             r
         } else {
-            self.print_composite(state, &ty.composite_type, names_for)?
+            self.print_composite(state, &ty.composite_type, ty_idx)?
         };
         Ok(r)
     }
 
-    fn print_composite(
-        &mut self,
-        state: &State,
-        ty: &CompositeType,
-        names_for: Option<u32>,
-    ) -> Result<u32> {
+    fn print_composite(&mut self, state: &State, ty: &CompositeType, ty_idx: u32) -> Result<u32> {
         let r = match &ty {
             CompositeType::Func(ty) => {
                 self.start_group("func");
@@ -819,7 +814,7 @@ impl Printer {
             }
             CompositeType::Struct(ty) => {
                 self.start_group("struct");
-                let r = self.print_struct_type(state, ty, names_for)?;
+                let r = self.print_struct_type(state, ty, ty_idx)?;
                 self.end_group(); // `struct`
                 r
             }
@@ -911,16 +906,15 @@ impl Printer {
         &mut self,
         state: &State,
         ty: &FieldType,
-        names_for: Option<u32>,
-        field_index: Option<u32>,
+        ty_field_idx: Option<(u32, u32)>,
     ) -> Result<u32> {
         self.result.push(' ');
-        if let (Some(names_for), Some(field_index)) = (names_for, field_index) {
+        if let Some((ty_idx, field_idx)) = ty_field_idx {
             if let Some(name) = state
                 .core
                 .field_names
                 .index_to_name
-                .get(&(names_for, field_index))
+                .get(&(ty_idx, field_idx))
             {
                 write!(self.result, "${}", name.identifier())?;
                 self.result.push(' ')
@@ -937,18 +931,13 @@ impl Printer {
     }
 
     fn print_array_type(&mut self, state: &State, ty: &ArrayType) -> Result<u32> {
-        self.print_field_type(state, &ty.0, None, None)
+        self.print_field_type(state, &ty.0, None)
     }
 
-    fn print_struct_type(
-        &mut self,
-        state: &State,
-        ty: &StructType,
-        names_for: Option<u32>,
-    ) -> Result<u32> {
+    fn print_struct_type(&mut self, state: &State, ty: &StructType, ty_idx: u32) -> Result<u32> {
         for (field_index, field) in ty.fields.iter().enumerate() {
             self.result.push_str(" (field");
-            self.print_field_type(state, field, names_for, Some(field_index as u32))?;
+            self.print_field_type(state, field, Some((ty_idx, field_index as u32)))?;
             self.result.push(')');
         }
         Ok(0)
