@@ -96,7 +96,7 @@ macro_rules! custom_keyword {
         #[allow(non_camel_case_types)]
         #[allow(missing_docs)]
         #[derive(Debug, Copy, Clone)]
-        pub struct $name(pub $crate::token::Span);
+        pub struct $name(#[allow(dead_code)] pub $crate::token::Span);
 
         impl<'a> $crate::parser::Parse<'a> for $name {
             fn parse(parser: $crate::parser::Parser<'a>) -> $crate::parser::Result<Self> {
