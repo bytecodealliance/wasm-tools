@@ -254,11 +254,6 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         self.printer.print_idx(&self.state.core.type_names, idx)
     }
 
-    fn field_index(&mut self, idx: u32) -> Result<()> {
-        write!(&mut self.printer.result, "{idx}")?;
-        Ok(())
-    }
-
     fn from_ref_type(&mut self, ref_ty: RefType) -> Result<()> {
         self.printer.print_reftype(self.state, ref_ty)
     }
@@ -554,6 +549,26 @@ macro_rules! define_visit {
         let rty = RefType::new(true, $hty)
             .ok_or_else(|| anyhow!("implementation limit: type index too large"))?;
         $self.printer.print_reftype($self.state, rty)?;
+    );
+    (payload $self:ident StructGet $ty:ident $field:ident) => (
+        $self.type_index($ty)?;
+        $self.push_str(" ");
+        $self.printer.print_field_idx($self.state, $ty, $field)?;
+    );
+    (payload $self:ident StructGetS $ty:ident $field:ident) => (
+        $self.type_index($ty)?;
+        $self.push_str(" ");
+        $self.printer.print_field_idx($self.state, $ty, $field)?;
+    );
+    (payload $self:ident StructGetU $ty:ident $field:ident) => (
+        $self.type_index($ty)?;
+        $self.push_str(" ");
+        $self.printer.print_field_idx($self.state, $ty, $field)?;
+    );
+    (payload $self:ident StructSet $ty:ident $field:ident) => (
+        $self.type_index($ty)?;
+        $self.push_str(" ");
+        $self.printer.print_field_idx($self.state, $ty, $field)?;
     );
     (payload $self:ident $op:ident $($arg:ident)*) => (
         $(

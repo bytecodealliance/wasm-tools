@@ -72,6 +72,7 @@ struct CoreState {
     local_names: NamingMap<(u32, u32), NameLocal>,
     label_names: NamingMap<(u32, u32), NameLabel>,
     type_names: NamingMap<u32, NameType>,
+    field_names: NamingMap<(u32, u32), NameField>,
     tag_names: NamingMap<u32, NameTag>,
     table_names: NamingMap<u32, NameTable>,
     memory_names: NamingMap<u32, NameMemory>,
@@ -639,7 +640,7 @@ impl Printer {
                 let mut used = match name {
                     // labels can be shadowed, so maintaining the used names is not useful.
                     "label" => None,
-                    "local" => Some(HashSet::new()),
+                    "local" | "field" => Some(HashSet::new()),
                     _ => unimplemented!("{name} is an unknown type of indirect names"),
                 };
                 for naming in indirect.names {
@@ -668,6 +669,7 @@ impl Printer {
                 Name::Global(n) => name_map(&mut state.core.global_names, n, "global")?,
                 Name::Element(n) => name_map(&mut state.core.element_names, n, "elem")?,
                 Name::Data(n) => name_map(&mut state.core.data_names, n, "data")?,
+                Name::Field(n) => indirect_name_map(&mut state.core.field_names, n, "field")?,
                 Name::Tag(n) => name_map(&mut state.core.tag_names, n, "tag")?,
                 Name::Unknown { .. } => (),
             }
@@ -774,9 +776,10 @@ impl Printer {
 
     fn print_type(&mut self, state: &mut State, ty: SubType) -> Result<()> {
         self.start_group("type ");
-        self.print_name(&state.core.type_names, state.core.types.len() as u32)?;
+        let ty_idx = state.core.types.len() as u32;
+        self.print_name(&state.core.type_names, ty_idx)?;
         self.result.push(' ');
-        self.print_sub(state, &ty, None)?;
+        self.print_sub(state, &ty, Some(ty_idx))?;
         self.end_group(); // `type`
         state.core.types.push(Some(ty));
         Ok(())
@@ -816,7 +819,7 @@ impl Printer {
             }
             CompositeType::Struct(ty) => {
                 self.start_group("struct");
-                let r = self.print_struct_type(state, ty)?;
+                let r = self.print_struct_type(state, ty, names_for)?;
                 self.end_group(); // `struct`
                 r
             }
@@ -904,8 +907,18 @@ impl Printer {
         Ok(ty.params().len() as u32)
     }
 
-    fn print_field_type(&mut self, state: &State, ty: &FieldType) -> Result<u32> {
+    fn print_field_type(
+        &mut self,
+        state: &State,
+        ty: &FieldType,
+        names_for: Option<u32>,
+        field_index: Option<u32>,
+    ) -> Result<u32> {
         self.result.push(' ');
+        if let (Some(names_for), Some(field_index)) = (names_for, field_index) {
+            self.print_field_idx(state, names_for, field_index)?;
+            self.result.push(' ');
+        }
         if ty.mutable {
             self.result.push_str("(mut ");
         }
@@ -917,13 +930,18 @@ impl Printer {
     }
 
     fn print_array_type(&mut self, state: &State, ty: &ArrayType) -> Result<u32> {
-        self.print_field_type(state, &ty.0)
+        self.print_field_type(state, &ty.0, None, None)
     }
 
-    fn print_struct_type(&mut self, state: &State, ty: &StructType) -> Result<u32> {
-        for field in ty.fields.iter() {
+    fn print_struct_type(
+        &mut self,
+        state: &State,
+        ty: &StructType,
+        names_for: Option<u32>,
+    ) -> Result<u32> {
+        for (field_index, field) in ty.fields.iter().enumerate() {
             self.result.push_str(" (field");
-            self.print_field_type(state, field)?;
+            self.print_field_type(state, field, names_for, Some(field_index as u32))?;
             self.result.push(')');
         }
         Ok(0)
@@ -1454,6 +1472,15 @@ impl Printer {
         match state.core.local_names.index_to_name.get(&(func, idx)) {
             Some(name) => write!(self.result, "${}", name.identifier())?,
             None if self.name_unnamed => write!(self.result, "$#local{idx}")?,
+            None => write!(self.result, "{}", idx)?,
+        }
+        Ok(())
+    }
+
+    fn print_field_idx(&mut self, state: &State, ty: u32, idx: u32) -> Result<()> {
+        match state.core.field_names.index_to_name.get(&(ty, idx)) {
+            Some(name) => write!(self.result, "${}", name.identifier())?,
+            None if self.name_unnamed => write!(self.result, "$#field{idx}")?,
             None => write!(self.result, "{}", idx)?,
         }
         Ok(())
@@ -3184,6 +3211,7 @@ naming_namespaces! {
     struct NameTable => "table"
     struct NameValue => "value"
     struct NameType => "type"
+    struct NameField => "field"
     struct NameData => "data"
     struct NameElem => "elem"
     struct NameComponent => "component"
