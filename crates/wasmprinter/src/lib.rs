@@ -807,7 +807,7 @@ impl Printer {
         let r = match &ty {
             CompositeType::Func(ty) => {
                 self.start_group("func");
-                let r = self.print_func_type(state, ty, names_for)?;
+                let r = self.print_func_type(state, ty, None)?;
                 self.end_group(); // `func`
                 r
             }
@@ -916,8 +916,15 @@ impl Printer {
     ) -> Result<u32> {
         self.result.push(' ');
         if let (Some(names_for), Some(field_index)) = (names_for, field_index) {
-            self.print_field_idx(state, names_for, field_index)?;
-            self.result.push(' ');
+            if let Some(name) = state
+                .core
+                .field_names
+                .index_to_name
+                .get(&(names_for, field_index))
+            {
+                write!(self.result, "${}", name.identifier())?;
+                self.result.push(' ')
+            }
         }
         if ty.mutable {
             self.result.push_str("(mut ");
@@ -1480,7 +1487,7 @@ impl Printer {
     fn print_field_idx(&mut self, state: &State, ty: u32, idx: u32) -> Result<()> {
         match state.core.field_names.index_to_name.get(&(ty, idx)) {
             Some(name) => write!(self.result, "${}", name.identifier())?,
-            None if self.name_unnamed => write!(self.result, "$#field{idx}")?,
+            None if self.name_unnamed => write!(self.result, "$#local{idx}")?,
             None => write!(self.result, "{}", idx)?,
         }
         Ok(())

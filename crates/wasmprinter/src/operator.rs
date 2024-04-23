@@ -551,22 +551,26 @@ macro_rules! define_visit {
         $self.printer.print_reftype($self.state, rty)?;
     );
     (payload $self:ident StructGet $ty:ident $field:ident) => (
-        $self.type_index($ty)?;
+        $self.push_str(" ");
+        $self.struct_type_index($ty)?;
         $self.push_str(" ");
         $self.printer.print_field_idx($self.state, $ty, $field)?;
     );
     (payload $self:ident StructGetS $ty:ident $field:ident) => (
-        $self.type_index($ty)?;
+        $self.push_str(" ");
+        $self.struct_type_index($ty)?;
         $self.push_str(" ");
         $self.printer.print_field_idx($self.state, $ty, $field)?;
     );
     (payload $self:ident StructGetU $ty:ident $field:ident) => (
-        $self.type_index($ty)?;
+        $self.push_str(" ");
+        $self.struct_type_index($ty)?;
         $self.push_str(" ");
         $self.printer.print_field_idx($self.state, $ty, $field)?;
     );
     (payload $self:ident StructSet $ty:ident $field:ident) => (
-        $self.type_index($ty)?;
+        $self.push_str(" ");
+        $self.struct_type_index($ty)?;
         $self.push_str(" ");
         $self.printer.print_field_idx($self.state, $ty, $field)?;
     );
