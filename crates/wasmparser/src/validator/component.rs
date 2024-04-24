@@ -1006,7 +1006,7 @@ impl ComponentState {
         self.check_options(None, &info, &options, types, offset)?;
 
         let lowered_ty = SubType {
-            is_final: false,
+            is_final: true,
             supertype_idx: None,
             composite_type: CompositeType::Func(info.into_func_type()),
         };
@@ -1027,7 +1027,7 @@ impl ComponentState {
     ) -> Result<()> {
         let rep = self.check_local_resource(resource, types, offset)?;
         let core_ty = SubType {
-            is_final: false,
+            is_final: true,
             supertype_idx: None,
             composite_type: CompositeType::Func(FuncType::new([rep], [ValType::I32])),
         };
@@ -1046,7 +1046,7 @@ impl ComponentState {
     ) -> Result<()> {
         self.resource_at(resource, types, offset)?;
         let core_ty = SubType {
-            is_final: false,
+            is_final: true,
             supertype_idx: None,
             composite_type: CompositeType::Func(FuncType::new([ValType::I32], [])),
         };
@@ -1065,7 +1065,7 @@ impl ComponentState {
     ) -> Result<()> {
         let rep = self.check_local_resource(resource, types, offset)?;
         let core_ty = SubType {
-            is_final: false,
+            is_final: true,
             supertype_idx: None,
             composite_type: CompositeType::Func(FuncType::new([ValType::I32], [rep])),
         };
