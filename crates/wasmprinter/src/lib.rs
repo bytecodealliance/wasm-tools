@@ -909,15 +909,11 @@ impl Printer {
         ty_field_idx: Option<(u32, u32)>,
     ) -> Result<u32> {
         self.result.push(' ');
-        if let Some((ty_idx, field_idx)) = ty_field_idx {
-            if let Some(name) = state
-                .core
-                .field_names
-                .index_to_name
-                .get(&(ty_idx, field_idx))
-            {
-                write!(self.result, "${}", name.identifier())?;
-                self.result.push(' ')
+        if let Some(idxs @ (_, field_idx)) = ty_field_idx {
+            match state.core.field_names.index_to_name.get(&idxs) {
+                Some(name) => write!(self.result, "${} ", name.identifier())?,
+                None if self.name_unnamed => write!(self.result, "$#field{field_idx} ")?,
+                None => {}
             }
         }
         if ty.mutable {
@@ -1476,7 +1472,7 @@ impl Printer {
     fn print_field_idx(&mut self, state: &State, ty: u32, idx: u32) -> Result<()> {
         match state.core.field_names.index_to_name.get(&(ty, idx)) {
             Some(name) => write!(self.result, "${}", name.identifier())?,
-            None if self.name_unnamed => write!(self.result, "$#local{idx}")?,
+            None if self.name_unnamed => write!(self.result, "$#field{idx}")?,
             None => write!(self.result, "{}", idx)?,
         }
         Ok(())
