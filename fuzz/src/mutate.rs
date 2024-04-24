@@ -271,11 +271,11 @@ mod eval {
             log::debug!("invoking `{}`", export.name());
             match (
                 {
-                    orig_store.add_fuel(1_000).unwrap();
+                    orig_store.set_fuel(1_000).unwrap();
                     orig_func.call(&mut *orig_store, &args, &mut orig_results)
                 },
                 {
-                    mutated_store.add_fuel(1000).unwrap();
+                    mutated_store.set_fuel(1000).unwrap();
                     mutated_func.call(&mut *mutated_store, &args, &mut mutated_results)
                 },
             ) {

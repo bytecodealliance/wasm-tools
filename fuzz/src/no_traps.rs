@@ -57,7 +57,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
                         },
                     );
                     store.limiter(|s| s as &mut dyn ResourceLimiter);
-                    store.add_fuel(1_000).unwrap();
+                    store.set_fuel(1_000).unwrap();
 
                     // Instantiate the module
                     let inst_result = fuzz_stats::dummy::dummy_imports(&mut store, &module)

@@ -40,11 +40,8 @@ fn under_10_percent() {
 
 impl State {
     fn new() -> State {
-        let mut config = Config::new();
-        config.wasm_multi_memory(true);
-        config.wasm_simd(true);
         State {
-            engine: Engine::new(&config).unwrap(),
+            engine: Engine::default(),
             print: true,
             total: AtomicUsize::new(0),
             remaining: AtomicIsize::new(isize::max_value()),
