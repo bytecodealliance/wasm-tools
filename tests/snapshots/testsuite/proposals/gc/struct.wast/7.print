@@ -1,5 +1,5 @@
 (module
-  (type $vec (;0;) (struct (field f32) (field (mut f32)) (field f32)))
+  (type $vec (;0;) (struct (field f32) (field $y (mut f32)) (field $z f32)))
   (type (;1;) (func (result anyref)))
   (type (;2;) (func (param (ref $vec)) (result f32)))
   (type (;3;) (func (result f32)))
@@ -26,7 +26,7 @@
   )
   (func $get_0_y (;5;) (type 2) (param $v (ref $vec)) (result f32)
     local.get $v
-    struct.get $vec 1
+    struct.get $vec $y
   )
   (func (;6;) (type 3) (result f32)
     struct.new_default $vec
@@ -34,7 +34,7 @@
   )
   (func $get_vec_y (;7;) (type 2) (param $v (ref $vec)) (result f32)
     local.get $v
-    struct.get $vec 1
+    struct.get $vec $y
   )
   (func (;8;) (type 3) (result f32)
     struct.new_default $vec
@@ -43,9 +43,9 @@
   (func $set_get_y (;9;) (type 4) (param $v (ref $vec)) (param $y f32) (result f32)
     local.get $v
     local.get $y
-    struct.set $vec 1
+    struct.set $vec $y
     local.get $v
-    struct.get $vec 1
+    struct.get $vec $y
   )
   (func (;10;) (type 5) (param $y f32) (result f32)
     struct.new_default $vec
@@ -55,9 +55,9 @@
   (func $set_get_1 (;11;) (type 4) (param $v (ref $vec)) (param $y f32) (result f32)
     local.get $v
     local.get $y
-    struct.set $vec 1
+    struct.set $vec $y
     local.get $v
-    struct.get $vec 1
+    struct.get $vec $y
   )
   (func (;12;) (type 5) (param $y f32) (result f32)
     struct.new_default $vec
