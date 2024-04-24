@@ -82,7 +82,7 @@ fn validate_name_section(wasm: &[u8]) -> wasmparser::Result<()> {
                         name?;
                     }
                 }
-                Name::Local(n) | Name::Label(n) => {
+                Name::Local(n) | Name::Label(n) | Name::Field(n) => {
                     for name in n {
                         for name in name?.names {
                             name?;

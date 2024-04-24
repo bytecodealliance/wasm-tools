@@ -911,6 +911,7 @@ struct Names<'a> {
     data_idx: u32,
     elems: Vec<(u32, &'a str)>,
     elem_idx: u32,
+    fields: Vec<(u32, Vec<(u32, &'a str)>)>,
 }
 
 fn find_names<'a>(
@@ -1045,6 +1046,24 @@ fn find_names<'a>(
             }
         }
 
+        // Handle struct fields separately from above
+        if let ModuleField::Type(ty) = field {
+            let mut field_names = vec![];
+            match &ty.def {
+                TypeDef::Func(_) | TypeDef::Array(_) => {}
+                TypeDef::Struct(ty_struct) => {
+                    for (idx, field) in ty_struct.fields.iter().enumerate() {
+                        if let Some(name) = get_name(&field.id, &None) {
+                            field_names.push((idx as u32, name))
+                        }
+                    }
+                }
+            }
+            if field_names.len() > 0 {
+                ret.fields.push((*idx, field_names))
+            }
+        }
+
         *idx += 1;
     }
 
@@ -1061,8 +1080,9 @@ impl Names<'_> {
             && self.memories.is_empty()
             && self.tables.is_empty()
             && self.types.is_empty()
-            && self.data.is_empty()
             && self.elems.is_empty()
+            && self.data.is_empty()
+            && self.fields.is_empty()
             && self.tags.is_empty()
         // NB: specifically don't check modules/instances since they're
         // not encoded for now.
@@ -1118,6 +1138,10 @@ impl Encode for Names<'_> {
         if self.data.len() > 0 {
             self.data.encode(&mut tmp);
             subsec(9, &mut tmp);
+        }
+        if self.fields.len() > 0 {
+            self.fields.encode(&mut tmp);
+            subsec(10, &mut tmp);
         }
         if self.tags.len() > 0 {
             self.tags.encode(&mut tmp);
