@@ -1,5 +1,6 @@
+use crate::prelude::*;
 use crate::{BinaryReader, Result, Subsection, Subsections, SymbolFlags};
-use std::ops::Range;
+use core::ops::Range;
 
 /// Parser for the dynamic linking `dylink.0` custom section.
 ///

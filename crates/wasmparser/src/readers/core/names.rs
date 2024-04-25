@@ -16,7 +16,7 @@
 use crate::{
     BinaryReader, BinaryReaderError, FromReader, Result, SectionLimited, Subsection, Subsections,
 };
-use std::ops::Range;
+use core::ops::Range;
 
 /// Represents a name map from the names custom section.
 pub type NameMap<'a> = SectionLimited<'a, Naming<'a>>;

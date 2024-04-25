@@ -14,9 +14,9 @@
  */
 
 use crate::{BinaryReader, BinaryReaderError, Result};
-use std::fmt;
-use std::marker;
-use std::ops::Range;
+use ::core::fmt;
+use ::core::marker;
+use ::core::ops::Range;
 
 mod component;
 mod core;

@@ -18,13 +18,13 @@ workspace = true
 [dependencies]
 id-arena = "2"
 anyhow = { workspace = true }
-indexmap = { workspace = true }
+indexmap = { workspace = true, features = ['std'] }
 unicode-xid = "0.2.2"
 log = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true, optional = true }
 serde_derive = { workspace = true, optional = true }
-wasmparser = { workspace = true, optional = true }
+wasmparser = { workspace = true, optional = true, features = ['std'] }
 serde_json = { workspace = true, optional = true }
 wat = { workspace = true, optional = true }
 

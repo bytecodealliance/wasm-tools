@@ -1803,10 +1803,12 @@ dependencies = [
 name = "wasmparser"
 version = "0.205.0"
 dependencies = [
+ "ahash",
  "anyhow",
  "bitflags 2.4.2",
  "criterion",
  "env_logger",
+ "hashbrown 0.14.3",
  "indexmap 2.2.5",
  "log",
  "once_cell",

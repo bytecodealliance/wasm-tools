@@ -1,3 +1,4 @@
+use crate::prelude::*;
 use crate::{BinaryReader, FromReader, Result};
 
 /// The data portion of a custom section representing a core dump. Per the

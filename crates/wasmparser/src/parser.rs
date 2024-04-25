@@ -1,4 +1,5 @@
 use crate::binary_reader::WASM_MAGIC_NUMBER;
+use crate::prelude::*;
 use crate::CoreTypeSectionReader;
 use crate::{
     limits::MAX_WASM_MODULE_SIZE, BinaryReader, BinaryReaderError, ComponentCanonicalSectionReader,
@@ -8,9 +9,9 @@ use crate::{
     GlobalSectionReader, ImportSectionReader, InstanceSectionReader, MemorySectionReader, Result,
     SectionLimited, TableSectionReader, TagSectionReader, TypeSectionReader,
 };
-use std::fmt;
-use std::iter;
-use std::ops::Range;
+use core::fmt;
+use core::iter;
+use core::ops::Range;
 
 pub(crate) const WASM_MODULE_VERSION: u16 = 0x1;
 
@@ -952,7 +953,7 @@ impl Parser {
     ///
     /// ```
     /// use wasmparser::{Result, Parser, Chunk, Payload::*};
-    /// use std::ops::Range;
+    /// use core::ops::Range;
     ///
     /// fn objdump_headers(mut wasm: &[u8]) -> Result<()> {
     ///     let mut parser = Parser::new(0);

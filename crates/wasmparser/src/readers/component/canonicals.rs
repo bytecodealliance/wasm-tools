@@ -1,4 +1,5 @@
 use crate::limits::MAX_WASM_CANONICAL_OPTIONS;
+use crate::prelude::*;
 use crate::{BinaryReader, FromReader, Result, SectionLimited};
 
 /// Represents options for component functions.

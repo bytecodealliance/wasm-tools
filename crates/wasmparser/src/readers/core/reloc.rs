@@ -1,6 +1,5 @@
-use std::ops::Range;
-
 use crate::{BinaryReader, FromReader, Result, SectionLimited};
+use core::ops::Range;
 
 /// Reader for relocation entries within a `reloc.*` section.
 pub type RelocationEntryReader<'a> = SectionLimited<'a, RelocationEntry>;
@@ -53,7 +52,7 @@ macro_rules! back_to_enum {
             $($(#[$vmeta])* $vname $(= $val)?,)*
         }
 
-        impl std::convert::TryFrom<u8> for $name {
+        impl TryFrom<u8> for $name {
             type Error = ();
 
             fn try_from(v: u8) -> Result<Self, Self::Error> {

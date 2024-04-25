@@ -111,7 +111,7 @@ pub(crate) struct TypeCanonicalizer<'a> {
     rec_group_len: u32,
     offset: usize,
     mode: CanonicalizationMode,
-    within_rec_group: Option<std::ops::Range<CoreTypeId>>,
+    within_rec_group: Option<core::ops::Range<CoreTypeId>>,
 }
 
 impl<'a> TypeCanonicalizer<'a> {
