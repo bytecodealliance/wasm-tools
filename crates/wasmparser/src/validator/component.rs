@@ -1657,7 +1657,8 @@ impl ComponentState {
         let mut info = TypeInfo::new();
 
         let mut set = Set::default();
-        // set.reserve(core::cmp::max(ty.params.len(), ty.results.type_count())); // TODO: re-instate later for unified API
+        #[cfg(not(feature = "no-hash-maps"))] // TODO: remove when unified map type is available
+        set.reserve(core::cmp::max(ty.params.len(), ty.results.type_count()));
 
         let params = ty
             .params
