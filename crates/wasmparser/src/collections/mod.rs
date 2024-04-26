@@ -6,25 +6,15 @@
 //! hash algorithm type parameter.
 
 pub mod hash;
+pub mod index_map;
+pub mod index_set;
+pub mod map;
+pub mod set;
 
-/// Wasmparser-specific type alias for an ordered map.
-pub type IndexMap<K, V> = indexmap::IndexMap<K, V, hash::RandomState>;
-
-/// Wasmparser-specific type alias for an ordered set.
-pub type IndexSet<K> = indexmap::IndexSet<K, hash::RandomState>;
-
-/// Wasmparser-specific type alias for map.
-#[cfg(not(feature = "no-hash-maps"))]
-pub type Map<K, V> = hashbrown::HashMap<K, V, hash::RandomState>;
-
-/// Wasmparser-specific type alias for map.
-#[cfg(feature = "no-hash-maps")]
-pub type Map<K, V> = alloc::collections::BTreeMap<K, V>;
-
-/// Wasmparser-specific type alias for set.
-#[cfg(not(feature = "no-hash-maps"))]
-pub type Set<K> = hashbrown::HashSet<K, hash::RandomState>;
-
-/// Wasmparser-specific type alias for set.
-#[cfg(feature = "no-hash-maps")]
-pub type Set<K> = alloc::collections::BTreeSet<K>;
+#[doc(inline)]
+pub use self::{
+    index_map::IndexMap,
+    index_set::IndexSet,
+    map::Map,
+    set::Set,
+};
