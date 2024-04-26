@@ -526,7 +526,7 @@ pub(crate) struct Module {
     // Stores indexes into `types`.
     pub functions: Vec<u32>,
     pub tags: Vec<CoreTypeId>,
-    pub function_references: HashSet<u32>,
+    pub function_references: Set<u32>,
     pub imports: IndexMap<(String, String), Vec<EntityType>>,
     pub exports: IndexMap<String, EntityType>,
     pub type_size: u32,

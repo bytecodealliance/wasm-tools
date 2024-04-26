@@ -13,11 +13,11 @@ pub type IndexMap<K, V> = indexmap::IndexMap<K, V, RandomState>;
 /// Wasmparser-specific type alias for an ordered set.
 pub type IndexSet<K> = indexmap::IndexSet<K, RandomState>;
 
-/// Wasmparser-specific type alias for hash map.
-pub type HashMap<K, V> = hashbrown::HashMap<K, V, RandomState>;
+/// Wasmparser-specific type alias for map.
+pub type Map<K, V> = hashbrown::HashMap<K, V, RandomState>;
 
-/// Wasmparser-specific type alias for hash set.
-pub type HashSet<K> = hashbrown::HashSet<K, RandomState>;
+/// Wasmparser-specific type alias for set.
+pub type Set<K> = hashbrown::HashSet<K, RandomState>;
 
 /// Wasmparser's hashing state stored per-map.
 ///

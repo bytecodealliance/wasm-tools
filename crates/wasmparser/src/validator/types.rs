@@ -2426,7 +2426,7 @@ impl<T> Default for SnapshotList<T> {
 #[doc(hidden)]
 pub struct TypeList {
     // Keeps track of which `alias_id` is an alias of which other `alias_id`.
-    alias_mappings: HashMap<u32, u32>,
+    alias_mappings: Map<u32, u32>,
     // Counter for generating new `alias_id`s.
     alias_counter: u32,
     // Snapshots of previously committed `TypeList`s' aliases.
@@ -2451,7 +2451,7 @@ pub struct TypeList {
     //
     // This is `None` when a list is "committed" meaning that no more insertions
     // can happen.
-    canonical_rec_groups: Option<HashMap<RecGroup, RecGroupId>>,
+    canonical_rec_groups: Option<Map<RecGroup, RecGroupId>>,
 
     // Component model types.
     components: SnapshotList<ComponentType>,
@@ -2469,7 +2469,7 @@ struct TypeListAliasSnapshot {
     alias_counter: u32,
 
     // The alias mappings in this snapshot.
-    alias_mappings: HashMap<u32, u32>,
+    alias_mappings: Map<u32, u32>,
 }
 
 struct TypeListCheckpoint {
@@ -2885,7 +2885,7 @@ impl TypeList {
         });
 
         TypeList {
-            alias_mappings: HashMap::default(),
+            alias_mappings: Map::default(),
             alias_counter: self.alias_counter,
             alias_snapshots: self.alias_snapshots.clone(),
             core_types: self.core_types.commit(),
@@ -3197,7 +3197,7 @@ impl TypeAlloc {
     pub(crate) fn type_named_type_id(
         &self,
         id: ComponentDefinedTypeId,
-        set: &HashSet<ComponentAnyTypeId>,
+        set: &Set<ComponentAnyTypeId>,
     ) -> bool {
         let ty = &self[id];
         match ty {
@@ -3240,7 +3240,7 @@ impl TypeAlloc {
     pub(crate) fn type_named_valtype(
         &self,
         ty: &ComponentValType,
-        set: &HashSet<ComponentAnyTypeId>,
+        set: &Set<ComponentAnyTypeId>,
     ) -> bool {
         match ty {
             ComponentValType::Primitive(_) => true,
@@ -3516,12 +3516,12 @@ where
 #[derive(Debug, Default)]
 pub struct Remapping {
     /// A mapping from old resource ID to new resource ID.
-    pub(crate) resources: HashMap<ResourceId, ResourceId>,
+    pub(crate) resources: Map<ResourceId, ResourceId>,
 
     /// A mapping filled in during the remapping process which records how a
     /// type was remapped, if applicable. This avoids remapping multiple
     /// references to the same type and instead only processing it once.
-    types: HashMap<ComponentAnyTypeId, ComponentAnyTypeId>,
+    types: Map<ComponentAnyTypeId, ComponentAnyTypeId>,
 }
 
 impl Remap for TypeAlloc {
@@ -4086,7 +4086,7 @@ impl<'a> SubtypeCx<'a> {
                 None => bail!(offset, "missing {} named `{name}`", kind.desc()),
             }
         }
-        let mut type_map = HashMap::default();
+        let mut type_map = Map::default();
         for (i, (actual, expected)) in to_typecheck.into_iter().enumerate() {
             let result = self.with_checkpoint(|this| {
                 let mut expected = expected;
@@ -4381,7 +4381,7 @@ impl<'a> SubtypeCx<'a> {
         &self,
         actual: ComponentEntityType,
         expected: ComponentEntityType,
-        type_map: &mut HashMap<ComponentAnyTypeId, ComponentAnyTypeId>,
+        type_map: &mut Map<ComponentAnyTypeId, ComponentAnyTypeId>,
     ) {
         match (expected, actual) {
             (
