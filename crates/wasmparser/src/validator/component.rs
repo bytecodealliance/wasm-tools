@@ -1657,13 +1657,13 @@ impl ComponentState {
         let mut info = TypeInfo::new();
 
         let mut set = Set::default();
-        set.reserve(core::cmp::max(ty.params.len(), ty.results.type_count()));
+        // set.reserve(core::cmp::max(ty.params.len(), ty.results.type_count())); // TODO: re-instate later for unified API
 
         let params = ty
             .params
             .iter()
             .map(|(name, ty)| {
-                let name = to_kebab_str(name, "function parameter", offset)?;
+                let name: &KebabStr = to_kebab_str(name, "function parameter", offset)?;
                 if !set.insert(name) {
                     bail!(
                         offset,

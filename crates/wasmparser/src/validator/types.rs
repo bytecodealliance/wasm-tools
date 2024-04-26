@@ -19,7 +19,12 @@ use core::{
     hash::{Hash, Hasher},
     mem,
 };
+
+#[cfg(not(feature = "no-hash-maps"))] // TODO: remove later for unified type
 use hashbrown::hash_map::Entry;
+
+#[cfg(feature = "no-hash-maps")] // TODO: remove later for unified type
+use alloc::collections::btree_map::Entry;
 
 /// The maximum number of parameters in the canonical ABI that can be passed by value.
 ///
@@ -201,7 +206,7 @@ macro_rules! define_type_id {
         #[doc = "Represents a unique identifier for a "]
         #[doc = $type_str]
         #[doc = " type known to a [`crate::Validator`]."]
-        #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+        #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
         #[repr(C)] // Use fixed field layout to ensure minimal size.
         pub struct $name {
             /// The index into the associated list of types.
@@ -258,7 +263,7 @@ pub enum CoreType {
 
 /// Represents a unique identifier for a core type type known to a
 /// [`crate::Validator`]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(C)]
 pub struct CoreTypeId {
     index: u32,
@@ -426,7 +431,7 @@ macro_rules! define_transitive_conversions {
 
 define_wrapper_id! {
     /// An identifier pointing to any kind of type, component or core.
-    #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+    #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
     pub enum AnyTypeId {
         #[unwrap = unwrap_component_core_type]
         /// A core type.
@@ -461,7 +466,7 @@ impl AnyTypeId {
 
 define_wrapper_id! {
     /// An identifier for a core type or a core module's type.
-    #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+    #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
     pub enum ComponentCoreTypeId {
         #[unwrap = unwrap_sub]
         /// A core type.
@@ -485,7 +490,7 @@ impl ComponentCoreTypeId {
 }
 
 /// An aliasable resource identifier.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct AliasableResourceId {
     id: ResourceId,
     alias_id: u32,
@@ -523,7 +528,7 @@ impl AliasableResourceId {
 
 define_wrapper_id! {
     /// An identifier for any kind of component type.
-    #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+    #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
     pub enum ComponentAnyTypeId {
         #[unwrap = unwrap_resource]
         /// The type is a resource with the specified id.
@@ -646,7 +651,7 @@ define_type_id!(
 
 /// Represents a unique identifier for a component type type known to a
 /// [`crate::Validator`].
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(C)]
 pub struct ComponentDefinedTypeId {
     index: u32,
@@ -712,7 +717,7 @@ impl Aliasable for ComponentDefinedTypeId {
 /// information, and then one more bit is used for whether or not a borrow is
 /// used. Currently this uses the low 24 bits for the type size and the MSB for
 /// the borrow bit.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 // Only public because it shows up in a public trait's `doc(hidden)` method.
 #[doc(hidden)]
 pub struct TypeInfo(u32);
@@ -870,6 +875,22 @@ impl PartialEq for (dyn ModuleImportKey + '_) {
 }
 
 impl Eq for (dyn ModuleImportKey + '_) {}
+
+impl Ord for (dyn ModuleImportKey + '_) {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        match self.module().cmp(other.module()) {
+            core::cmp::Ordering::Equal => (),
+            order => return order,
+        };
+        self.name().cmp(other.name())
+    }
+}
+
+impl PartialOrd for (dyn ModuleImportKey + '_) {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 impl ModuleImportKey for (String, String) {
     fn module(&self) -> &str {

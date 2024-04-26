@@ -4,6 +4,7 @@
 use crate::prelude::*;
 use crate::{Result, WasmFeatures};
 use core::borrow::Borrow;
+use core::cmp::Ordering;
 use core::fmt;
 use core::hash::{Hash, Hasher};
 use core::ops::Deref;
@@ -98,6 +99,20 @@ impl PartialEq for KebabStr {
 impl PartialEq<KebabString> for KebabStr {
     fn eq(&self, other: &KebabString) -> bool {
         self.eq(other.as_kebab_str())
+    }
+}
+
+impl Ord for KebabStr {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let self_chars = self.chars().map(|c| c.to_ascii_lowercase());
+        let other_chars = other.chars().map(|c| c.to_ascii_lowercase());
+        self_chars.cmp(other_chars)
+    }
+}
+
+impl PartialOrd for KebabStr {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 
