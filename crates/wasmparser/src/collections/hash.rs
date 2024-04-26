@@ -1,3 +1,5 @@
+//! Utilities for hashmap initialization based on random sources.
+
 use core::hash::{BuildHasher, Hasher};
 
 /// Wasmparser's hashing state stored per-map.
