@@ -47,7 +47,7 @@ mod prelude {
     pub use alloc::vec;
     pub use alloc::vec::Vec;
 
-    pub use crate::map::{IndexMap, IndexSet, Map, Set};
+    pub use crate::collections::{IndexMap, IndexSet, Map, Set};
 }
 
 /// A helper macro to conveniently iterate over all opcodes recognized by this
@@ -793,4 +793,4 @@ mod readers;
 mod resources;
 mod validator;
 
-pub mod map;
+pub mod collections;
