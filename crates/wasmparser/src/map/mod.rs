@@ -1,6 +1,6 @@
 //! Type aliases for maps used by `wasmparser`
 //!
-//! This module contains type aliases used for [`HashMap`], [`HashSet`],
+//! This module contains type aliases used for [`Map`], [`Set`],
 //! [`IndexMap`], and [`IndexSet`]. Note that these differ from upstream types
 //! in the `indexmap` crate and the standard library due to customization of the
 //! hash algorithm type parameter.
