@@ -4,6 +4,7 @@ use super::{
     component::{ComponentState, ExternKind},
     core::Module,
 };
+use crate::collections::map::Entry;
 use crate::prelude::*;
 use crate::{validator::names::KebabString, HeapType, ValidatorId};
 use crate::{
@@ -19,12 +20,6 @@ use core::{
     hash::{Hash, Hasher},
     mem,
 };
-
-#[cfg(not(feature = "no-hash-maps"))] // TODO: remove later for unified type
-use hashbrown::hash_map::Entry;
-
-#[cfg(feature = "no-hash-maps")] // TODO: remove later for unified type
-use alloc::collections::btree_map::Entry;
 
 /// The maximum number of parameters in the canonical ABI that can be passed by value.
 ///

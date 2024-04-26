@@ -2,5 +2,5 @@
 
 use crate::collections::hash;
 
-/// Wasmparser-specific type for an ordered set.
+/// A hash set where the iteration order of the values is independent of their hash values.
 pub type IndexSet<K> = indexmap::IndexSet<K, hash::RandomState>;

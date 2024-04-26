@@ -12,9 +12,4 @@ pub mod map;
 pub mod set;
 
 #[doc(inline)]
-pub use self::{
-    index_map::IndexMap,
-    index_set::IndexSet,
-    map::Map,
-    set::Set,
-};
+pub use self::{index_map::IndexMap, index_set::IndexSet, map::Map, set::Set};
