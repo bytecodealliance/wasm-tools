@@ -15,7 +15,7 @@ type SetImpl<T> = alloc::collections::BTreeSet<T>;
 /// A default set of values.
 ///
 /// Provides a unified API between a hash-set and a btree-set.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Set<T> {
     /// The underlying hash-set or btree-set data structure used.
     inner: SetImpl<T>,
