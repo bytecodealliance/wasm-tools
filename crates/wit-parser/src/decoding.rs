@@ -585,7 +585,7 @@ impl WitPackageDecoder<'_> {
     fn decode_interface<'a>(
         &mut self,
         name: &str,
-        imports: &wasmparser::map::IndexMap<String, types::ComponentEntityType>,
+        imports: &wasmparser::collections::IndexMap<String, types::ComponentEntityType>,
         ty: &types::ComponentInstanceType,
         fields: &mut PackageFields<'a>,
     ) -> Result<PackageName> {
