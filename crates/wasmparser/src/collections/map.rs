@@ -74,7 +74,7 @@ impl<K, V> Map<K, V> {
         }
     }
 
-    /// Returns an iterator that yields the mutable items in the [`Map`].
+    /// Returns a mutable iterator that yields the items in the [`Map`].
     pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
         IterMut {
             inner: self.inner.iter_mut(),
