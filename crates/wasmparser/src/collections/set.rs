@@ -2,6 +2,7 @@
 
 use core::borrow::Borrow;
 use core::hash::Hash;
+use core::iter::FusedIterator;
 
 #[cfg(not(feature = "no-hash-maps"))]
 use crate::collections::hash;
@@ -11,6 +12,12 @@ type SetImpl<T> = hashbrown::HashSet<T, hash::RandomState>;
 
 #[cfg(feature = "no-hash-maps")]
 type SetImpl<T> = alloc::collections::BTreeSet<T>;
+
+#[cfg(not(feature = "no-hash-maps"))]
+type IterImpl<'a, T> = hashbrown::hash_set::Iter<'a, T>;
+
+#[cfg(feature = "no-hash-maps")]
+type IterImpl<'a, T> = alloc::collections::btree_set::Iter<'a, T>;
 
 /// A default set of values.
 ///
@@ -43,6 +50,13 @@ impl<T> Set<T> {
     /// Returns `true` if the [`Set`] contains no elements.
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
+    }
+
+    /// Returns an iterator that yields the items in the [`Set`].
+    pub fn iter(&self) -> Iter<'_, T> {
+        Iter {
+            inner: self.inner.iter(),
+        }
     }
 }
 
@@ -100,3 +114,34 @@ where
         self.inner.remove(value)
     }
 }
+
+impl<'a, T> IntoIterator for &'a Set<T> {
+    type Item = &'a T;
+    type IntoIter = Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+/// An iterator over the items of a [`Set`].
+#[derive(Debug, Clone)]
+pub struct Iter<'a, T> {
+    inner: IterImpl<'a, T>,
+}
+
+impl<'a, T> Iterator for Iter<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+}
+
+impl<'a, T> ExactSizeIterator for Iter<'a, T> {
+    fn len(&self) -> usize {
+        self.inner.len()
+    }
+}
+
+impl<'a, T> FusedIterator for Iter<'a, T> {}
