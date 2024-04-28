@@ -1,9 +1,17 @@
-//! Type aliases for maps used by `wasmparser`
+//! Type aliases for maps and sets used by `wasmparser`
 //!
-//! This module contains type aliases used for [`Map`], [`Set`],
-//! [`IndexMap`], and [`IndexSet`]. Note that these differ from upstream types
-//! in the `indexmap` crate and the standard library due to customization of the
-//! hash algorithm type parameter.
+//! This module contains type definitions for [`Map`], [`Set`], [`IndexMap`], and [`IndexSet`].
+//! These types are thin-wrappers around either hash-map based or B-tree-map based data structures.
+//! 
+//! - [`Map`]: Either backed by [`hashbrown::HashMap`] or Rust's [`BTreeMap`].
+//! - [`Set`]: Either backed by [`hashbrown::HashSet`] or Rust's [`BTreeSet`].
+//! - [`IndexMap`]: Either backed by [`indexmap::IndexMap`] or a custom implementation based on Rust's [`BTreeMap`].
+//! - [`IndexSet`]: Either backed by [`indexmap::IndexSet`] or a custom implementation based on Rust's [`BTreeMap`].
+//! 
+//! For the hash-map based type definitions the hash algorithm type parameter is fixed.
+//! 
+//! [`BTreeMap`]: alloc::collections::BTreeMap
+//! [`BTreeSet`]: alloc::collections::BTreeSet
 
 pub mod hash;
 pub mod index_map;
