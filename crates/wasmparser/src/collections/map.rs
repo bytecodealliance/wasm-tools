@@ -49,12 +49,12 @@ impl<K, V> Map<K, V> {
         self.inner.clear()
     }
 
-    /// Returns the number of elements in the map.
+    /// Returns the number of elements in the [`Map`].
     pub fn len(&self) -> usize {
         self.inner.len()
     }
 
-    /// Returns `true` if the map contains no elements.
+    /// Returns `true` if the [`Map`] contains no elements.
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }
