@@ -139,6 +139,15 @@ impl<'a, T> IntoIterator for &'a Set<T> {
     }
 }
 
+impl<T> Extend<T> for Set<T>
+where
+    T: Hash + Eq + Ord,
+{
+    fn extend<Iter: IntoIterator<Item = T>>(&mut self, iter: Iter) {
+        self.inner.extend(iter)
+    }
+}
+
 /// An iterator over the items of a [`Set`].
 #[derive(Debug, Clone)]
 pub struct Iter<'a, T> {

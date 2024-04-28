@@ -190,6 +190,15 @@ where
     }
 }
 
+impl<K, V> Extend<(K, V)> for Map<K, V>
+where
+    K: Eq + Hash + Ord,
+{
+    fn extend<Iter: IntoIterator<Item = (K, V)>>(&mut self, iter: Iter) {
+        self.inner.extend(iter)
+    }
+}
+
 /// A view into a single entry in a [`Map`], which may either be vacant or occupied.
 ///
 /// This enum is constructed from the entry method on [`Map`].
