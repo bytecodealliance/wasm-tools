@@ -230,6 +230,20 @@ where
     }
 }
 
+impl<K, V> FromIterator<(K, V)> for Map<K, V>
+where
+    K: Hash + Eq + Ord,
+{
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = (K, V)>,
+    {
+        Self {
+            inner: <detail::MapImpl<K, V>>::from_iter(iter),
+        }
+    }
+}
+
 impl<'a, K, V> IntoIterator for &'a Map<K, V> {
     type Item = (&'a K, &'a V);
     type IntoIter = Iter<'a, K, V>;

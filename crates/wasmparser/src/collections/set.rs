@@ -114,6 +114,20 @@ where
     }
 }
 
+impl<T> FromIterator<T> for Set<T>
+where
+    T: Hash + Eq + Ord,
+{
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+    {
+        Self {
+            inner: <detail::SetImpl<T>>::from_iter(iter),
+        }
+    }
+}
+
 impl<'a, T> IntoIterator for &'a Set<T> {
     type Item = &'a T;
     type IntoIter = Iter<'a, T>;
