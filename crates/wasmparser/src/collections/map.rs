@@ -78,6 +78,14 @@ impl<K, V> Map<K, V>
 where
     K: Hash + Eq,
 {
+    /// Reserves capacity for at least `additional` more elements to be inserted in the [`Map`].
+    pub fn reserve(&mut self, additional: usize) {
+        #[cfg(not(feature = "no-hash-maps"))]
+        self.inner.reserve(additional);
+        #[cfg(feature = "no-hash-maps")]
+        let _ = additional;
+    }
+
     /// Returns a reference to the value corresponding to the `key`.
     pub fn get<Q: ?Sized>(&self, key: &Q) -> Option<&V>
     where
