@@ -14,6 +14,7 @@ mod detail {
     pub type OccupiedEntryImpl<'a, K, V> = hash_map::OccupiedEntry<'a, K, V, hash::RandomState>;
     pub type VacantEntryImpl<'a, K, V> = hash_map::VacantEntry<'a, K, V, hash::RandomState>;
     pub type IterImpl<'a, K, V> = hash_map::Iter<'a, K, V>;
+    pub type IterMutImpl<'a, K, V> = hash_map::IterMut<'a, K, V>;
 }
 
 #[cfg(feature = "no-hash-maps")]
@@ -25,6 +26,7 @@ mod detail {
     pub type OccupiedEntryImpl<'a, K, V> = btree_map::OccupiedEntry<'a, K, V>;
     pub type VacantEntryImpl<'a, K, V> = btree_map::VacantEntry<'a, K, V>;
     pub type IterImpl<'a, K, V> = btree_map::Iter<'a, K, V>;
+    pub type IterMutImpl<'a, K, V> = btree_map::IterMut<'a, K, V>;
 }
 
 /// A default key-value mapping.
@@ -61,6 +63,13 @@ impl<K, V> Map<K, V> {
     pub fn iter(&self) -> Iter<'_, K, V> {
         Iter {
             inner: self.inner.iter(),
+        }
+    }
+
+    /// Returns an iterator that yields the mutable items in the [`Map`].
+    pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
+        IterMut {
+            inner: self.inner.iter_mut(),
         }
     }
 }
@@ -251,3 +260,34 @@ impl<'a, K, V> ExactSizeIterator for Iter<'a, K, V> {
 }
 
 impl<'a, K, V> FusedIterator for Iter<'a, K, V> {}
+
+impl<'a, K, V> IntoIterator for &'a mut Map<K, V> {
+    type Item = (&'a K, &'a mut V);
+    type IntoIter = IterMut<'a, K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
+    }
+}
+
+/// An iterator over the mutable items of a [`Map`].
+#[derive(Debug)]
+pub struct IterMut<'a, K, V> {
+    inner: detail::IterMutImpl<'a, K, V>,
+}
+
+impl<'a, K, V> Iterator for IterMut<'a, K, V> {
+    type Item = (&'a K, &'a mut V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+}
+
+impl<'a, K, V> ExactSizeIterator for IterMut<'a, K, V> {
+    fn len(&self) -> usize {
+        self.inner.len()
+    }
+}
+
+impl<'a, K, V> FusedIterator for IterMut<'a, K, V> {}
