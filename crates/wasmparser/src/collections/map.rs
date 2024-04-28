@@ -7,23 +7,24 @@ use core::iter::FusedIterator;
 #[cfg(not(feature = "no-hash-maps"))]
 mod detail {
     use crate::collections::hash;
+    use hashbrown::{hash_map, HashMap};
 
-    pub type MapImpl<K, V> = hashbrown::HashMap<K, V, hash::RandomState>;
-    pub type EntryImpl<'a, K, V> = hashbrown::hash_map::Entry<'a, K, V, hash::RandomState>;
-    pub type OccupiedEntryImpl<'a, K, V> =
-        hashbrown::hash_map::OccupiedEntry<'a, K, V, hash::RandomState>;
-    pub type VacantEntryImpl<'a, K, V> =
-        hashbrown::hash_map::VacantEntry<'a, K, V, hash::RandomState>;
-    pub type IterImpl<'a, K, V> = hashbrown::hash_map::Iter<'a, K, V>;
+    pub type MapImpl<K, V> = HashMap<K, V, hash::RandomState>;
+    pub type EntryImpl<'a, K, V> = hash_map::Entry<'a, K, V, hash::RandomState>;
+    pub type OccupiedEntryImpl<'a, K, V> = hash_map::OccupiedEntry<'a, K, V, hash::RandomState>;
+    pub type VacantEntryImpl<'a, K, V> = hash_map::VacantEntry<'a, K, V, hash::RandomState>;
+    pub type IterImpl<'a, K, V> = hash_map::Iter<'a, K, V>;
 }
 
 #[cfg(feature = "no-hash-maps")]
 mod detail {
-    pub type MapImpl<K, V> = alloc::collections::BTreeMap<K, V>;
-    pub type EntryImpl<'a, K, V> = alloc::collections::btree_map::Entry<'a, K, V>;
-    pub type OccupiedEntryImpl<'a, K, V> = alloc::collections::btree_map::OccupiedEntry<'a, K, V>;
-    pub type VacantEntryImpl<'a, K, V> = alloc::collections::btree_map::VacantEntry<'a, K, V>;
-    pub type IterImpl<'a, K, V> = alloc::collections::btree_map::Iter<'a, K, V>;
+    use alloc::collections::{btree_map, BTreeMap};
+
+    pub type MapImpl<K, V> = BTreeMap<K, V>;
+    pub type EntryImpl<'a, K, V> = btree_map::Entry<'a, K, V>;
+    pub type OccupiedEntryImpl<'a, K, V> = btree_map::OccupiedEntry<'a, K, V>;
+    pub type VacantEntryImpl<'a, K, V> = btree_map::VacantEntry<'a, K, V>;
+    pub type IterImpl<'a, K, V> = btree_map::Iter<'a, K, V>;
 }
 
 /// A default key-value mapping.
