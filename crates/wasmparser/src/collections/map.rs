@@ -168,7 +168,7 @@ where
     }
 }
 
-/// A view into a single entry in a map, which may either be vacant or occupied.
+/// A view into a single entry in a [`Map`], which may either be vacant or occupied.
 ///
 /// This enum is constructed from the entry method on [`Map`].
 #[derive(Debug)]
