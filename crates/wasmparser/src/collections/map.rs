@@ -5,48 +5,37 @@ use core::hash::Hash;
 use core::iter::FusedIterator;
 
 #[cfg(not(feature = "no-hash-maps"))]
-use crate::collections::hash;
+mod detail {
+    use crate::collections::hash;
 
-#[cfg(not(feature = "no-hash-maps"))]
-type MapImpl<K, V> = hashbrown::HashMap<K, V, hash::RandomState>;
-
-#[cfg(feature = "no-hash-maps")]
-type MapImpl<K, V> = alloc::collections::BTreeMap<K, V>;
-
-#[cfg(not(feature = "no-hash-maps"))]
-type EntryImpl<'a, K, V> = hashbrown::hash_map::Entry<'a, K, V, hash::RandomState>;
-
-#[cfg(feature = "no-hash-maps")]
-type EntryImpl<'a, K, V> = alloc::collections::btree_map::Entry<'a, K, V>;
-
-#[cfg(not(feature = "no-hash-maps"))]
-type OccupiedEntryImpl<'a, K, V> = hashbrown::hash_map::OccupiedEntry<'a, K, V, hash::RandomState>;
+    pub type MapImpl<K, V> = hashbrown::HashMap<K, V, hash::RandomState>;
+    pub type EntryImpl<'a, K, V> = hashbrown::hash_map::Entry<'a, K, V, hash::RandomState>;
+    pub type OccupiedEntryImpl<'a, K, V> =
+        hashbrown::hash_map::OccupiedEntry<'a, K, V, hash::RandomState>;
+    pub type VacantEntryImpl<'a, K, V> =
+        hashbrown::hash_map::VacantEntry<'a, K, V, hash::RandomState>;
+    pub type IterImpl<'a, K, V> = hashbrown::hash_map::Iter<'a, K, V>;
+}
 
 #[cfg(feature = "no-hash-maps")]
-type OccupiedEntryImpl<'a, K, V> = alloc::collections::btree_map::OccupiedEntry<'a, K, V>;
-
-#[cfg(not(feature = "no-hash-maps"))]
-type VacantEntryImpl<'a, K, V> = hashbrown::hash_map::VacantEntry<'a, K, V, hash::RandomState>;
-
-#[cfg(feature = "no-hash-maps")]
-type VacantEntryImpl<'a, K, V> = alloc::collections::btree_map::VacantEntry<'a, K, V>;
-
-#[cfg(not(feature = "no-hash-maps"))]
-type IterImpl<'a, K, V> = hashbrown::hash_map::Iter<'a, K, V>;
-
-#[cfg(feature = "no-hash-maps")]
-type IterImpl<'a, K, V> = alloc::collections::btree_map::Iter<'a, K, V>;
+mod detail {
+    pub type MapImpl<K, V> = alloc::collections::BTreeMap<K, V>;
+    pub type EntryImpl<'a, K, V> = alloc::collections::btree_map::Entry<'a, K, V>;
+    pub type OccupiedEntryImpl<'a, K, V> = alloc::collections::btree_map::OccupiedEntry<'a, K, V>;
+    pub type VacantEntryImpl<'a, K, V> = alloc::collections::btree_map::VacantEntry<'a, K, V>;
+    pub type IterImpl<'a, K, V> = alloc::collections::btree_map::Iter<'a, K, V>;
+}
 
 /// A default key-value mapping.
 #[derive(Debug, Clone)]
 pub struct Map<K, V> {
-    inner: MapImpl<K, V>,
+    inner: detail::MapImpl<K, V>,
 }
 
 impl<K, V> Default for Map<K, V> {
     fn default() -> Self {
         Self {
-            inner: MapImpl::default(),
+            inner: detail::MapImpl::default(),
         }
     }
 }
@@ -126,8 +115,8 @@ where
         K: Ord,
     {
         match self.inner.entry(key) {
-            EntryImpl::Occupied(entry) => Entry::Occupied(OccupiedEntry { inner: entry }),
-            EntryImpl::Vacant(entry) => Entry::Vacant(VacantEntry { inner: entry }),
+            detail::EntryImpl::Occupied(entry) => Entry::Occupied(OccupiedEntry { inner: entry }),
+            detail::EntryImpl::Vacant(entry) => Entry::Vacant(VacantEntry { inner: entry }),
         }
     }
 }
@@ -161,7 +150,7 @@ where
 /// It is part of the [`Entry`] enum.
 #[derive(Debug)]
 pub struct OccupiedEntry<'a, K: Ord, V> {
-    inner: OccupiedEntryImpl<'a, K, V>,
+    inner: detail::OccupiedEntryImpl<'a, K, V>,
 }
 
 impl<'a, K: 'a, V: 'a> OccupiedEntry<'a, K, V>
@@ -205,7 +194,7 @@ where
 /// It is part of the [`Entry`] enum.
 #[derive(Debug)]
 pub struct VacantEntry<'a, K: Ord, V> {
-    inner: VacantEntryImpl<'a, K, V>,
+    inner: detail::VacantEntryImpl<'a, K, V>,
 }
 
 impl<'a, K: 'a, V: 'a> VacantEntry<'a, K, V>
@@ -243,7 +232,7 @@ impl<'a, K, V> IntoIterator for &'a Map<K, V> {
 /// An iterator over the items of a [`Map`].
 #[derive(Debug, Clone)]
 pub struct Iter<'a, K, V> {
-    inner: IterImpl<'a, K, V>,
+    inner: detail::IterImpl<'a, K, V>,
 }
 
 impl<'a, K, V> Iterator for Iter<'a, K, V> {

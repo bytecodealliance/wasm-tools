@@ -5,19 +5,19 @@ use core::hash::Hash;
 use core::iter::FusedIterator;
 
 #[cfg(not(feature = "no-hash-maps"))]
-use crate::collections::hash;
+mod detail {
+    #[cfg(not(feature = "no-hash-maps"))]
+    use crate::collections::hash;
 
-#[cfg(not(feature = "no-hash-maps"))]
-type SetImpl<T> = hashbrown::HashSet<T, hash::RandomState>;
-
-#[cfg(feature = "no-hash-maps")]
-type SetImpl<T> = alloc::collections::BTreeSet<T>;
-
-#[cfg(not(feature = "no-hash-maps"))]
-type IterImpl<'a, T> = hashbrown::hash_set::Iter<'a, T>;
+    pub type SetImpl<T> = hashbrown::HashSet<T, hash::RandomState>;
+    pub type IterImpl<'a, T> = hashbrown::hash_set::Iter<'a, T>;
+}
 
 #[cfg(feature = "no-hash-maps")]
-type IterImpl<'a, T> = alloc::collections::btree_set::Iter<'a, T>;
+mod detail {
+    pub type SetImpl<T> = alloc::collections::BTreeSet<T>;
+    pub type IterImpl<'a, T> = alloc::collections::btree_set::Iter<'a, T>;
+}
 
 /// A default set of values.
 ///
@@ -25,13 +25,13 @@ type IterImpl<'a, T> = alloc::collections::btree_set::Iter<'a, T>;
 #[derive(Debug, Clone)]
 pub struct Set<T> {
     /// The underlying hash-set or btree-set data structure used.
-    inner: SetImpl<T>,
+    inner: detail::SetImpl<T>,
 }
 
 impl<T> Default for Set<T> {
     fn default() -> Self {
         Self {
-            inner: SetImpl::default(),
+            inner: detail::SetImpl::default(),
         }
     }
 }
@@ -127,7 +127,7 @@ impl<'a, T> IntoIterator for &'a Set<T> {
 /// An iterator over the items of a [`Set`].
 #[derive(Debug, Clone)]
 pub struct Iter<'a, T> {
-    inner: IterImpl<'a, T>,
+    inner: detail::IterImpl<'a, T>,
 }
 
 impl<'a, T> Iterator for Iter<'a, T> {
