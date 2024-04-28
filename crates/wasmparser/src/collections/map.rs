@@ -115,6 +115,15 @@ where
         let _ = additional;
     }
 
+    /// Returns true if `key` is contains in the [`Map`].
+    pub fn contains_key<Q: ?Sized>(&self, key: &Q) -> bool
+    where
+        K: Borrow<Q> + Ord,
+        Q: Hash + Eq + Ord,
+    {
+        self.inner.contains_key(key)
+    }
+
     /// Returns a reference to the value corresponding to the `key`.
     pub fn get<Q: ?Sized>(&self, key: &Q) -> Option<&V>
     where
