@@ -10,6 +10,7 @@ use super::{
         ModuleType, RecordType, Remapping, ResourceId, TypeAlloc, TypeList, VariantCase,
     },
 };
+use crate::collections::index_map::Entry;
 use crate::prelude::*;
 use crate::validator::names::{ComponentName, ComponentNameKind, KebabStr, KebabString};
 use crate::{
@@ -25,7 +26,6 @@ use crate::{
     WasmFeatures,
 };
 use core::mem;
-use indexmap::map::Entry;
 
 fn to_kebab_str<'a>(s: &'a str, desc: &str, offset: usize) -> Result<&'a KebabStr> {
     match KebabStr::new(s) {
@@ -3212,7 +3212,7 @@ mod append_only {
 
     impl<K, V> IndexMapAppendOnly<K, V>
     where
-        K: Hash + Eq + PartialEq,
+        K: Hash + Eq + Ord + PartialEq,
     {
         pub fn insert(&mut self, key: K, value: V) {
             let prev = self.0.insert(key, value);
