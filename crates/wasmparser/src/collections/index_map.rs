@@ -182,6 +182,17 @@ where
     }
 }
 
+impl<K, V> Index<usize> for IndexMap<K, V>
+where
+    K: Hash + Eq + Ord,
+{
+    type Output = V;
+
+    fn index(&self, key: usize) -> &V {
+        &self.inner[key]
+    }
+}
+
 impl<K, V> Extend<(K, V)> for IndexMap<K, V>
 where
     K: Eq + Hash + Ord,
