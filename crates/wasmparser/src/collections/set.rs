@@ -63,7 +63,7 @@ impl<T> Set<T> {
 
 impl<T> Set<T>
 where
-    T: Eq + Hash,
+    T: Eq + Hash + Ord,
 {
     /// Reserves capacity for at least `additional` more elements to be inserted in the [`Set`].
     pub fn reserve(&mut self, additional: usize) {
@@ -76,7 +76,7 @@ where
     /// Returns true if the [`Set`] contains an element equal to the `value`.
     pub fn contains<Q: ?Sized>(&self, value: &Q) -> bool
     where
-        T: Borrow<Q> + Ord,
+        T: Borrow<Q>,
         Q: Hash + Eq + Ord,
     {
         self.inner.contains(value)
@@ -85,7 +85,7 @@ where
     /// Returns a reference to the element in the [`Set`], if any, that is equal to the `value`.
     pub fn get<Q: ?Sized>(&self, value: &Q) -> Option<&T>
     where
-        T: Borrow<Q> + Ord,
+        T: Borrow<Q>,
         Q: Hash + Eq + Ord,
     {
         self.inner.get(value)
@@ -97,10 +97,7 @@ where
     ///
     /// - Returns `true` if the set did not previously contain an equal value.
     /// - Returns `false` otherwise and the entry is not updated.
-    pub fn insert(&mut self, value: T) -> bool
-    where
-        T: Ord,
-    {
+    pub fn insert(&mut self, value: T) -> bool {
         self.inner.insert(value)
     }
 
@@ -109,7 +106,7 @@ where
     /// Returns `true` if such an element was present, otherwise `false`.
     pub fn remove<Q: ?Sized>(&mut self, value: &Q) -> bool
     where
-        T: Borrow<Q> + Ord,
+        T: Borrow<Q>,
         Q: Hash + Eq + Ord,
     {
         self.inner.remove(value)

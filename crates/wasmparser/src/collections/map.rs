@@ -106,7 +106,7 @@ impl<K, V> Map<K, V> {
 
 impl<K, V> Map<K, V>
 where
-    K: Hash + Eq,
+    K: Hash + Eq + Ord,
 {
     /// Reserves capacity for at least `additional` more elements to be inserted in the [`Map`].
     pub fn reserve(&mut self, additional: usize) {
@@ -119,7 +119,7 @@ where
     /// Returns true if `key` is contains in the [`Map`].
     pub fn contains_key<Q: ?Sized>(&self, key: &Q) -> bool
     where
-        K: Borrow<Q> + Ord,
+        K: Borrow<Q>,
         Q: Hash + Eq + Ord,
     {
         self.inner.contains_key(key)
@@ -128,7 +128,7 @@ where
     /// Returns a reference to the value corresponding to the `key`.
     pub fn get<Q: ?Sized>(&self, key: &Q) -> Option<&V>
     where
-        K: Borrow<Q> + Ord,
+        K: Borrow<Q>,
         Q: Hash + Eq + Ord,
     {
         self.inner.get(key)
@@ -137,7 +137,7 @@ where
     /// Returns a mutable reference to the value corresponding to the key.
     pub fn get_mut<Q: ?Sized>(&mut self, key: &Q) -> Option<&mut V>
     where
-        K: Borrow<Q> + Ord,
+        K: Borrow<Q>,
         Q: Hash + Eq + Ord,
     {
         self.inner.get_mut(key)
@@ -150,27 +150,21 @@ where
     /// If the map did have this key present, the value is updated, and the old
     /// value is returned. The key is not updated, though; this matters for
     /// types that can be `==` without being identical.
-    pub fn insert(&mut self, key: K, value: V) -> Option<V>
-    where
-        K: Ord,
-    {
+    pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         self.inner.insert(key, value)
     }
 
     /// Removes a key from the map, returning the value at the key if the key was previously in the map.
     pub fn remove<Q: ?Sized>(&mut self, key: &Q) -> Option<V>
     where
-        K: Borrow<Q> + Ord,
+        K: Borrow<Q>,
         Q: Hash + Eq + Ord,
     {
         self.inner.remove(key)
     }
 
     /// Gets the given key's corresponding entry in the map for in-place manipulation.
-    pub fn entry(&mut self, key: K) -> Entry<'_, K, V>
-    where
-        K: Ord,
-    {
+    pub fn entry(&mut self, key: K) -> Entry<'_, K, V> {
         match self.inner.entry(key) {
             detail::EntryImpl::Occupied(entry) => Entry::Occupied(OccupiedEntry { inner: entry }),
             detail::EntryImpl::Vacant(entry) => Entry::Vacant(VacantEntry { inner: entry }),
