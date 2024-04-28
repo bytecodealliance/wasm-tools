@@ -142,7 +142,7 @@ where
         self.inner.get_mut(key)
     }
 
-    /// Inserts a key-value pair into the map.
+    /// Inserts a key-value pair into the [`Map`].
     ///
     /// If the map did not have this key present, `None` is returned.
     ///
