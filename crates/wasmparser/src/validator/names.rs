@@ -190,6 +190,18 @@ impl Borrow<KebabStr> for KebabString {
     }
 }
 
+impl Ord for KebabString {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.as_kebab_str().cmp(other.as_kebab_str())
+    }
+}
+
+impl PartialOrd for KebabString {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.as_kebab_str().partial_cmp(other.as_kebab_str())
+    }
+}
+
 impl PartialEq for KebabString {
     fn eq(&self, other: &Self) -> bool {
         self.as_kebab_str().eq(other.as_kebab_str())
