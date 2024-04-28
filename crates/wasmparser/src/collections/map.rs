@@ -16,6 +16,9 @@ mod detail {
     pub type IterImpl<'a, K, V> = hash_map::Iter<'a, K, V>;
     pub type IterMutImpl<'a, K, V> = hash_map::IterMut<'a, K, V>;
     pub type IntoIterImpl<K, V> = hash_map::IntoIter<K, V>;
+    pub type KeysImpl<'a, K, V> = hash_map::Keys<'a, K, V>;
+    pub type ValuesImpl<'a, K, V> = hash_map::Values<'a, K, V>;
+    pub type ValuesMutImpl<'a, K, V> = hash_map::ValuesMut<'a, K, V>;
 }
 
 #[cfg(feature = "no-hash-maps")]
@@ -29,6 +32,9 @@ mod detail {
     pub type IterImpl<'a, K, V> = btree_map::Iter<'a, K, V>;
     pub type IterMutImpl<'a, K, V> = btree_map::IterMut<'a, K, V>;
     pub type IntoIterImpl<K, V> = btree_map::IntoIter<K, V>;
+    pub type KeysImpl<'a, K, V> = btree_map::Keys<'a, K, V>;
+    pub type ValuesImpl<'a, K, V> = btree_map::Values<'a, K, V>;
+    pub type ValuesMutImpl<'a, K, V> = btree_map::ValuesMut<'a, K, V>;
 }
 
 /// A default key-value mapping.
@@ -72,6 +78,27 @@ impl<K, V> Map<K, V> {
     pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
         IterMut {
             inner: self.inner.iter_mut(),
+        }
+    }
+
+    /// Returns an iterator that yields the keys in the [`Map`].
+    pub fn keys(&self) -> Keys<'_, K, V> {
+        Keys {
+            inner: self.inner.keys(),
+        }
+    }
+
+    /// Returns an iterator that yields the values in the [`Map`].
+    pub fn values(&self) -> Values<'_, K, V> {
+        Values {
+            inner: self.inner.values(),
+        }
+    }
+
+    /// Returns a mutable iterator that yields the values in the [`Map`].
+    pub fn values_mut(&mut self) -> ValuesMut<'_, K, V> {
+        ValuesMut {
+            inner: self.inner.values_mut(),
         }
     }
 }
@@ -348,3 +375,69 @@ impl<K, V> ExactSizeIterator for IntoIter<K, V> {
 }
 
 impl<K, V> FusedIterator for IntoIter<K, V> {}
+
+/// An iterator over the keys of a [`Map`].
+#[derive(Debug, Clone)]
+pub struct Keys<'a, K, V> {
+    inner: detail::KeysImpl<'a, K, V>,
+}
+
+impl<'a, K, V> Iterator for Keys<'a, K, V> {
+    type Item = &'a K;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+}
+
+impl<'a, K, V> ExactSizeIterator for Keys<'a, K, V> {
+    fn len(&self) -> usize {
+        self.inner.len()
+    }
+}
+
+impl<'a, K, V> FusedIterator for Keys<'a, K, V> {}
+
+/// An iterator over the values of a [`Map`].
+#[derive(Debug, Clone)]
+pub struct Values<'a, K, V> {
+    inner: detail::ValuesImpl<'a, K, V>,
+}
+
+impl<'a, K, V> Iterator for Values<'a, K, V> {
+    type Item = &'a V;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+}
+
+impl<'a, K, V> ExactSizeIterator for Values<'a, K, V> {
+    fn len(&self) -> usize {
+        self.inner.len()
+    }
+}
+
+impl<'a, K, V> FusedIterator for Values<'a, K, V> {}
+
+/// An mutable iterator over the values of a [`Map`].
+#[derive(Debug)]
+pub struct ValuesMut<'a, K, V> {
+    inner: detail::ValuesMutImpl<'a, K, V>,
+}
+
+impl<'a, K, V> Iterator for ValuesMut<'a, K, V> {
+    type Item = &'a mut V;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+}
+
+impl<'a, K, V> ExactSizeIterator for ValuesMut<'a, K, V> {
+    fn len(&self) -> usize {
+        self.inner.len()
+    }
+}
+
+impl<'a, K, V> FusedIterator for ValuesMut<'a, K, V> {}
