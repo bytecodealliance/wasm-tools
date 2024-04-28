@@ -6,7 +6,6 @@ use core::iter::FusedIterator;
 
 #[cfg(not(feature = "no-hash-maps"))]
 mod detail {
-    #[cfg(not(feature = "no-hash-maps"))]
     use crate::collections::hash;
 
     pub type SetImpl<T> = hashbrown::HashSet<T, hash::RandomState>;
