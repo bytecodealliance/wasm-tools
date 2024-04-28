@@ -3,6 +3,7 @@
 use core::borrow::Borrow;
 use core::hash::Hash;
 use core::iter::FusedIterator;
+use core::ops::Index;
 
 #[cfg(not(feature = "no-hash-maps"))]
 mod detail {
@@ -174,6 +175,18 @@ where
             detail::EntryImpl::Occupied(entry) => Entry::Occupied(OccupiedEntry { inner: entry }),
             detail::EntryImpl::Vacant(entry) => Entry::Vacant(VacantEntry { inner: entry }),
         }
+    }
+}
+
+impl<K, Q, V> Index<&Q> for Map<K, V>
+where
+    K: Borrow<Q> + Hash + Eq + Ord,
+    Q: ?Sized + Hash + Eq + Ord,
+{
+    type Output = V;
+
+    fn index(&self, key: &Q) -> &V {
+        &self.inner[key]
     }
 }
 
