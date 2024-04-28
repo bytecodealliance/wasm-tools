@@ -15,6 +15,7 @@ mod detail {
     pub type VacantEntryImpl<'a, K, V> = hash_map::VacantEntry<'a, K, V, hash::RandomState>;
     pub type IterImpl<'a, K, V> = hash_map::Iter<'a, K, V>;
     pub type IterMutImpl<'a, K, V> = hash_map::IterMut<'a, K, V>;
+    pub type IntoIterImpl<K, V> = hash_map::IntoIter<K, V>;
 }
 
 #[cfg(feature = "no-hash-maps")]
@@ -27,6 +28,7 @@ mod detail {
     pub type VacantEntryImpl<'a, K, V> = btree_map::VacantEntry<'a, K, V>;
     pub type IterImpl<'a, K, V> = btree_map::Iter<'a, K, V>;
     pub type IterMutImpl<'a, K, V> = btree_map::IterMut<'a, K, V>;
+    pub type IntoIterImpl<K, V> = btree_map::IntoIter<K, V>;
 }
 
 /// A default key-value mapping.
@@ -313,3 +315,36 @@ impl<'a, K, V> ExactSizeIterator for IterMut<'a, K, V> {
 }
 
 impl<'a, K, V> FusedIterator for IterMut<'a, K, V> {}
+
+impl<K, V> IntoIterator for Map<K, V> {
+    type Item = (K, V);
+    type IntoIter = IntoIter<K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        IntoIter {
+            inner: self.inner.into_iter(),
+        }
+    }
+}
+
+/// An iterator over the owned items of an [`Map`].
+#[derive(Debug)]
+pub struct IntoIter<K, V> {
+    inner: detail::IntoIterImpl<K, V>,
+}
+
+impl<K, V> Iterator for IntoIter<K, V> {
+    type Item = (K, V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+}
+
+impl<K, V> ExactSizeIterator for IntoIter<K, V> {
+    fn len(&self) -> usize {
+        self.inner.len()
+    }
+}
+
+impl<K, V> FusedIterator for IntoIter<K, V> {}

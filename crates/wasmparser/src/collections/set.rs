@@ -10,12 +10,14 @@ mod detail {
 
     pub type SetImpl<T> = hashbrown::HashSet<T, hash::RandomState>;
     pub type IterImpl<'a, T> = hashbrown::hash_set::Iter<'a, T>;
+    pub type IntoIterImpl<T> = hashbrown::hash_set::IntoIter<T>;
 }
 
 #[cfg(feature = "no-hash-maps")]
 mod detail {
     pub type SetImpl<T> = alloc::collections::BTreeSet<T>;
     pub type IterImpl<'a, T> = alloc::collections::btree_set::Iter<'a, T>;
+    pub type IntoIterImpl<T> = alloc::collections::btree_set::IntoIter<T>;
 }
 
 /// A default set of values.
@@ -158,3 +160,36 @@ impl<'a, T> ExactSizeIterator for Iter<'a, T> {
 }
 
 impl<'a, T> FusedIterator for Iter<'a, T> {}
+
+impl<T> IntoIterator for Set<T> {
+    type Item = T;
+    type IntoIter = IntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        IntoIter {
+            inner: self.inner.into_iter(),
+        }
+    }
+}
+
+/// An iterator over the owned items of an [`Map`].
+#[derive(Debug)]
+pub struct IntoIter<T> {
+    inner: detail::IntoIterImpl<T>,
+}
+
+impl<T> Iterator for IntoIter<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+}
+
+impl<T> ExactSizeIterator for IntoIter<T> {
+    fn len(&self) -> usize {
+        self.inner.len()
+    }
+}
+
+impl<T> FusedIterator for IntoIter<T> {}
