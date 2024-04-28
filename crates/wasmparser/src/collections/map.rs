@@ -2,6 +2,7 @@
 
 use core::borrow::Borrow;
 use core::hash::Hash;
+use core::iter::FusedIterator;
 
 #[cfg(not(feature = "no-hash-maps"))]
 use crate::collections::hash;
@@ -29,6 +30,12 @@ type VacantEntryImpl<'a, K, V> = hashbrown::hash_map::VacantEntry<'a, K, V, hash
 
 #[cfg(feature = "no-hash-maps")]
 type VacantEntryImpl<'a, K, V> = alloc::collections::btree_map::VacantEntry<'a, K, V>;
+
+#[cfg(not(feature = "no-hash-maps"))]
+type IterImpl<'a, K, V> = hashbrown::hash_map::Iter<'a, K, V>;
+
+#[cfg(feature = "no-hash-maps")]
+type IterImpl<'a, K, V> = alloc::collections::btree_map::Iter<'a, K, V>;
 
 /// A default key-value mapping.
 #[derive(Debug, Clone)]
@@ -58,6 +65,13 @@ impl<K, V> Map<K, V> {
     /// Returns `true` if the map contains no elements.
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
+    }
+
+    /// Returns an iterator that yields the items in the [`Map`].
+    pub fn iter(&self) -> Iter<'_, K, V> {
+        Iter {
+            inner: self.inner.iter(),
+        }
     }
 }
 
@@ -216,3 +230,34 @@ where
         self.inner.insert(value)
     }
 }
+
+impl<'a, K, V> IntoIterator for &'a Map<K, V> {
+    type Item = (&'a K, &'a V);
+    type IntoIter = Iter<'a, K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+/// An iterator over the items of a [`Map`].
+#[derive(Debug, Clone)]
+pub struct Iter<'a, K, V> {
+    inner: IterImpl<'a, K, V>,
+}
+
+impl<'a, K, V> Iterator for Iter<'a, K, V> {
+    type Item = (&'a K, &'a V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+}
+
+impl<'a, K, V> ExactSizeIterator for Iter<'a, K, V> {
+    fn len(&self) -> usize {
+        self.inner.len()
+    }
+}
+
+impl<'a, K, V> FusedIterator for Iter<'a, K, V> {}
