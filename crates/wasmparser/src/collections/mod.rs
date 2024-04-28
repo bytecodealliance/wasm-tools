@@ -2,6 +2,7 @@
 //!
 //! This module contains type definitions for [`Map`], [`Set`], [`IndexMap`], and [`IndexSet`].
 //! These types are thin-wrappers around either hash-map based or B-tree-map based data structures.
+//! Users can strictly use the `btree`-map based variants by enabling the `no-hash-maps` crate feature.
 //! 
 //! - [`Map`]: Either backed by [`hashbrown::HashMap`] or Rust's [`BTreeMap`].
 //! - [`Set`]: Either backed by [`hashbrown::HashSet`] or Rust's [`BTreeSet`].
