@@ -111,6 +111,12 @@ where
     {
         self.inner.remove(value)
     }
+
+    /// Adds a value to the [`Set`], replacing the existing value, if any, that is equal to the given
+    /// one. Returns the replaced value.
+    pub fn replace(&mut self, value: T) -> Option<T> {
+        self.inner.replace(value)
+    }
 }
 
 impl<T> FromIterator<T> for Set<T>
