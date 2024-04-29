@@ -9,32 +9,20 @@ use crate::{FunctionBody, Operator, WasmFeatures, WasmModuleResources};
 /// is created per-function in a WebAssembly module. This structure is suitable
 /// for sending to other threads while the original
 /// [`Validator`](crate::Validator) continues processing other functions.
+#[derive(Debug)]
 pub struct FuncToValidate<T> {
-    resources: T,
-    index: u32,
-    ty: u32,
-    features: WasmFeatures,
+    /// Reusable, heap allocated resources to drive the Wasm validation.
+    pub resources: T,
+    /// The core Wasm function index being validated.
+    pub index: u32,
+    /// The core Wasm type index of the function being validated,
+    /// defining the results and parameters to the function.
+    pub ty: u32,
+    /// The Wasm features enabled to validate the function.
+    pub features: WasmFeatures,
 }
 
 impl<T: WasmModuleResources> FuncToValidate<T> {
-    /// Creates a new function to validate which will have the specified
-    /// configuration parameters:
-    ///
-    /// * `index` - the core wasm function index being validated
-    /// * `ty` - the core wasm type index of the function being validated,
-    ///   defining the results and parameters to the function.
-    /// * `resources` - metadata and type information about the module that
-    ///   this function is validated within.
-    /// * `features` - enabled WebAssembly features.
-    pub fn new(index: u32, ty: u32, resources: T, features: &WasmFeatures) -> FuncToValidate<T> {
-        FuncToValidate {
-            resources,
-            index,
-            ty,
-            features: *features,
-        }
-    }
-
     /// Converts this [`FuncToValidate`] into a [`FuncValidator`] using the
     /// `allocs` provided.
     ///
@@ -92,7 +80,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     pub fn validate(&mut self, body: &FunctionBody<'_>) -> Result<()> {
         let mut reader = body.get_binary_reader();
         self.read_locals(&mut reader)?;
-        reader.allow_memarg64(self.validator.features.memory64);
+        reader.allow_memarg64(self.validator.features.contains(WasmFeatures::MEMORY64));
         while !reader.eof() {
             reader.visit_operator(&mut self.visitor(reader.original_position()))??;
         }
@@ -310,8 +298,13 @@ mod tests {
 
     #[test]
     fn operand_stack_height() {
-        let mut v = FuncToValidate::new(0, 0, EmptyResources::default(), &Default::default())
-            .into_validator(Default::default());
+        let mut v = FuncToValidate {
+            index: 0,
+            ty: 0,
+            resources: EmptyResources::default(),
+            features: Default::default(),
+        }
+        .into_validator(Default::default());
 
         // Initially zero values on the stack.
         assert_eq!(v.operand_stack_height(), 0);

@@ -17,7 +17,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-wasmparser = { workspace = true }
+wasmparser = { workspace = true, features = ['std'] }
 
 [dev-dependencies]
 diff = "0.1"

@@ -108,6 +108,13 @@ pub trait Translator {
         memarg(self.as_obj(), arg)
     }
 
+    fn translate_ordering(&mut self, arg: &wasmparser::Ordering) -> Result<Ordering> {
+        Ok(match arg {
+            wasmparser::Ordering::SeqCst => Ordering::SeqCst,
+            wasmparser::Ordering::AcqRel => Ordering::AcqRel,
+        })
+    }
+
     fn remap(&mut self, item: Item, idx: u32) -> Result<u32> {
         let _ = item;
         Ok(idx)
@@ -160,6 +167,7 @@ pub fn memory_type(
         minimum: ty.initial,
         maximum: ty.maximum,
         shared: ty.shared,
+        page_size_log2: ty.page_size_log2,
     })
 }
 
@@ -369,6 +377,7 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
         (map $arg:ident from_ref_type) => (t.translate_refty($arg)?);
         (map $arg:ident to_ref_type) => (t.translate_refty($arg)?);
         (map $arg:ident memarg) => (t.translate_memarg($arg)?);
+        (map $arg:ident ordering) => (t.translate_ordering($arg)?);
         (map $arg:ident local_index) => (*$arg);
         (map $arg:ident value) => ($arg);
         (map $arg:ident lane) => (*$arg);

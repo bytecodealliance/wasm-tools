@@ -64,10 +64,10 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     // wasm-smith's generation of modules and wasm-mutate otherwise won't add
     // itself if it doesn't already exist.
     let mut features = WasmFeatures::default();
-    features.relaxed_simd = config.relaxed_simd_enabled;
-    features.multi_memory = config.max_memories > 1;
-    features.memory64 = config.memory64_enabled;
-    features.threads = config.threads_enabled;
+    features.set(WasmFeatures::RELAXED_SIMD, config.relaxed_simd_enabled);
+    features.set(WasmFeatures::MULTI_MEMORY, config.max_memories > 1);
+    features.set(WasmFeatures::MEMORY64, config.memory64_enabled);
+    features.set(WasmFeatures::THREADS, config.threads_enabled);
 
     for (i, mutated_wasm) in iterator.take(10).enumerate() {
         let mutated_wasm = match mutated_wasm {
@@ -271,11 +271,11 @@ mod eval {
             log::debug!("invoking `{}`", export.name());
             match (
                 {
-                    orig_store.add_fuel(1_000).unwrap();
+                    orig_store.set_fuel(1_000).unwrap();
                     orig_func.call(&mut *orig_store, &args, &mut orig_results)
                 },
                 {
-                    mutated_store.add_fuel(1000).unwrap();
+                    mutated_store.set_fuel(1000).unwrap();
                     mutated_func.call(&mut *mutated_store, &args, &mut mutated_results)
                 },
             ) {

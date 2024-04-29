@@ -17,10 +17,11 @@ use crate::limits::{
     MAX_WASM_FUNCTION_PARAMS, MAX_WASM_FUNCTION_RETURNS, MAX_WASM_STRUCT_FIELDS,
     MAX_WASM_SUPERTYPES, MAX_WASM_TYPES,
 };
+use crate::prelude::*;
 use crate::types::CoreTypeId;
 use crate::{BinaryReader, BinaryReaderError, FromReader, Result, SectionLimited};
-use std::fmt::{self, Debug, Write};
-use std::hash::{Hash, Hasher};
+use core::fmt::{self, Debug, Write};
+use core::hash::{Hash, Hasher};
 
 mod matches;
 pub(crate) use self::matches::{Matches, WithRecGroup};
@@ -201,8 +202,8 @@ impl PackedIndex {
     }
 }
 
-impl std::fmt::Debug for PackedIndex {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for PackedIndex {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("CoreTypeIndex")
             .field(
                 "kind",
@@ -218,9 +219,9 @@ impl std::fmt::Debug for PackedIndex {
     }
 }
 
-impl std::fmt::Display for PackedIndex {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Display::fmt(&self.unpack(), f)
+impl fmt::Display for PackedIndex {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> core::fmt::Result {
+        fmt::Display::fmt(&self.unpack(), f)
     }
 }
 
@@ -288,8 +289,8 @@ impl UnpackedIndex {
     }
 }
 
-impl std::fmt::Display for UnpackedIndex {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for UnpackedIndex {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             UnpackedIndex::Module(i) => write!(f, "(module {i})"),
             UnpackedIndex::RecGroup(i) => write!(f, "(recgroup {i})"),
@@ -334,7 +335,7 @@ impl RecGroup {
     /// Returns the list of subtypes in the recursive type group.
     pub fn types(&self) -> impl ExactSizeIterator<Item = &SubType> + '_ {
         let types = match &self.inner {
-            RecGroupInner::Implicit(ty) => std::slice::from_ref(ty),
+            RecGroupInner::Implicit(ty) => core::slice::from_ref(ty),
             RecGroupInner::Explicit(types) => types,
         };
         types.iter().map(|(_, ty)| ty)
@@ -344,7 +345,7 @@ impl RecGroup {
     /// recursive type group.
     pub(crate) fn types_mut(&mut self) -> impl ExactSizeIterator<Item = &mut SubType> + '_ {
         let types = match &mut self.inner {
-            RecGroupInner::Implicit(ty) => std::slice::from_mut(ty),
+            RecGroupInner::Implicit(ty) => core::slice::from_mut(ty),
             RecGroupInner::Explicit(types) => types,
         };
         types.iter_mut().map(|(_, ty)| ty)
@@ -366,7 +367,7 @@ impl RecGroup {
 
         enum Iter {
             Implicit(Option<(usize, SubType)>),
-            Explicit(std::vec::IntoIter<(usize, SubType)>),
+            Explicit(alloc::vec::IntoIter<(usize, SubType)>),
         }
 
         impl Iterator for Iter {
@@ -423,10 +424,10 @@ pub struct SubType {
     pub composite_type: CompositeType,
 }
 
-impl std::fmt::Display for SubType {
+impl fmt::Display for SubType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.is_final && self.supertype_idx.is_none() {
-            std::fmt::Display::fmt(&self.composite_type, f)
+            fmt::Display::fmt(&self.composite_type, f)
         } else {
             write!(f, "(sub ")?;
             if self.is_final {
@@ -435,7 +436,7 @@ impl std::fmt::Display for SubType {
             if let Some(idx) = self.supertype_idx {
                 write!(f, "{idx} ")?;
             }
-            std::fmt::Display::fmt(&self.composite_type, f)?;
+            fmt::Display::fmt(&self.composite_type, f)?;
             write!(f, ")")
         }
     }
@@ -504,7 +505,7 @@ pub enum CompositeType {
     Struct(StructType),
 }
 
-impl std::fmt::Display for CompositeType {
+impl fmt::Display for CompositeType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             Self::Array(_) => write!(f, "(array ...)"),
@@ -549,8 +550,8 @@ pub struct FuncType {
     len_params: usize,
 }
 
-impl std::fmt::Debug for FuncType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for FuncType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FuncType")
             .field("params", &self.params())
             .field("results", &self.results())
@@ -671,12 +672,12 @@ pub enum StorageType {
     Val(ValType),
 }
 
-impl std::fmt::Display for StorageType {
+impl fmt::Display for StorageType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::I8 => write!(f, "i8"),
             Self::I16 => write!(f, "i16"),
-            Self::Val(v) => std::fmt::Display::fmt(v, f),
+            Self::Val(v) => fmt::Display::fmt(v, f),
         }
     }
 }
@@ -732,15 +733,15 @@ impl From<RefType> for ValType {
     }
 }
 
-impl std::fmt::Display for ValType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for ValType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ValType::I32 => f.write_str("i32"),
             ValType::I64 => f.write_str("i64"),
             ValType::F32 => f.write_str("f32"),
             ValType::F64 => f.write_str("f64"),
             ValType::V128 => f.write_str("v128"),
-            ValType::Ref(r) => std::fmt::Display::fmt(r, f),
+            ValType::Ref(r) => fmt::Display::fmt(r, f),
         }
     }
 }
@@ -777,6 +778,15 @@ impl ValType {
         match *self {
             Self::I32 | Self::I64 | Self::F32 | Self::F64 | Self::V128 => true,
             Self::Ref(rt) => rt.is_nullable(),
+        }
+    }
+
+    /// Whether the type is `shared`.
+    pub fn is_shared(&self) -> bool {
+        match *self {
+            Self::I32 | Self::I64 | Self::F32 | Self::F64 | Self::V128 => true,
+            // TODO: parsing of `shared` refs is not yet implemented.
+            Self::Ref(_) => false,
         }
     }
 
@@ -853,8 +863,8 @@ impl ValType {
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct RefType([u8; 3]);
 
-impl std::fmt::Debug for RefType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for RefType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match (self.is_nullable(), self.heap_type()) {
             (true, HeapType::Any) => write!(f, "anyref"),
             (false, HeapType::Any) => write!(f, "(ref any)"),
@@ -886,9 +896,9 @@ impl std::fmt::Debug for RefType {
     }
 }
 
-impl std::fmt::Display for RefType {
+impl fmt::Display for RefType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        std::fmt::Debug::fmt(self, f)
+        fmt::Debug::fmt(self, f)
     }
 }
 
@@ -1076,9 +1086,8 @@ impl RefType {
 
     /// Create a new `RefType`.
     ///
-    /// Returns `None` when the heap type's type index (if any) is
-    /// beyond this crate's implementation limits and therfore is not
-    /// representable.
+    /// Returns `None` when the heap type's type index (if any) is beyond this
+    /// crate's implementation limits and therefore is not representable.
     pub fn new(nullable: bool, heap_type: HeapType) -> Option<Self> {
         let nullable32 = Self::NULLABLE_BIT * (nullable as u32);
         match heap_type {
@@ -1512,6 +1521,16 @@ pub struct MemoryType {
     /// be at most `u32::MAX` for valid types. This field is always present for
     /// valid wasm memories when `shared` is `true`.
     pub maximum: Option<u64>,
+
+    /// The log base 2 of the memory's custom page size.
+    ///
+    /// Memory pages are, by default, 64KiB large (i.e. 2<sup>16</sup> or
+    /// `65536`).
+    ///
+    /// [The custom-page-sizes proposal] allows changing it to other values.
+    ///
+    /// [The custom-page-sizes proposal]: https://github.com/WebAssembly/custom-page-sizes
+    pub page_size_log2: Option<u32>,
 }
 
 impl MemoryType {

@@ -9,6 +9,7 @@ use super::{
     operators::{ty_to_str, OperatorValidator, OperatorValidatorAllocations},
     types::{CoreTypeId, EntityType, RecGroupId, TypeAlloc, TypeList},
 };
+use crate::prelude::*;
 use crate::{
     limits::*, validator::types::TypeIdentifier, BinaryReaderError, CompositeType, ConstExpr, Data,
     DataKind, Element, ElementKind, ExternalKind, FuncType, Global, GlobalType, HeapType,
@@ -16,9 +17,8 @@ use crate::{
     TableType, TagType, TypeRef, UnpackedIndex, ValType, VisitOperator, WasmFeatures,
     WasmModuleResources,
 };
-use indexmap::IndexMap;
-use std::mem;
-use std::{collections::HashSet, sync::Arc};
+use alloc::sync::Arc;
+use core::mem;
 
 // Section order for WebAssembly modules.
 //
@@ -155,7 +155,7 @@ impl ModuleState {
                 }
             }
             TableInit::Expr(expr) => {
-                if !features.function_references {
+                if !features.contains(WasmFeatures::FUNCTION_REFERENCES) {
                     bail!(
                         offset,
                         "tables with expression initializers require \
@@ -225,7 +225,7 @@ impl ModuleState {
                 self.check_const_expr(&offset_expr, ValType::I32, features, types)?;
             }
             ElementKind::Passive | ElementKind::Declared => {
-                if !features.bulk_memory {
+                if !features.contains(WasmFeatures::BULK_MEMORY) {
                     return Err(BinaryReaderError::new(
                         "bulk memory must be enabled",
                         offset,
@@ -317,7 +317,7 @@ impl ModuleState {
             }
 
             fn validate_extended_const(&mut self, op: &str) -> Result<()> {
-                if self.ops.features.extended_const {
+                if self.ops.features.contains(WasmFeatures::EXTENDED_CONST) {
                     Ok(())
                 } else {
                     Err(BinaryReaderError::new(
@@ -331,7 +331,7 @@ impl ModuleState {
             }
 
             fn validate_gc(&mut self, op: &str) -> Result<()> {
-                if self.features.gc {
+                if self.features.contains(WasmFeatures::GC) {
                     Ok(())
                 } else {
                     Err(BinaryReaderError::new(
@@ -348,7 +348,8 @@ impl ModuleState {
                 let module = &self.resources.module;
                 let global = module.global_at(index, self.offset)?;
 
-                if index >= module.num_imported_globals && !self.features.gc {
+                if index >= module.num_imported_globals && !self.features.contains(WasmFeatures::GC)
+                {
                     return Err(BinaryReaderError::new(
                         "constant expression required: global.get of locally defined global",
                         self.offset,
@@ -509,6 +510,7 @@ impl ModuleState {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct Module {
     // This is set once the code section starts.
     // `WasmModuleResources` implementations use the snapshot to
@@ -557,7 +559,7 @@ impl Module {
         check_limit: bool,
     ) -> Result<()> {
         debug_assert!(rec_group.is_explicit_rec_group() || rec_group.types().len() == 1);
-        if rec_group.is_explicit_rec_group() && !features.gc {
+        if rec_group.is_explicit_rec_group() && !features.contains(WasmFeatures::GC) {
             bail!(
                 offset,
                 "rec group usage requires `gc` proposal to be enabled"
@@ -603,7 +605,7 @@ impl Module {
         offset: usize,
     ) -> Result<()> {
         let ty = &types[id];
-        if !features.gc && (!ty.is_final || ty.supertype_idx.is_some()) {
+        if !features.contains(WasmFeatures::GC) && (!ty.is_final || ty.supertype_idx.is_some()) {
             bail!(offset, "gc proposal must be enabled to use subtypes");
         }
 
@@ -639,7 +641,7 @@ impl Module {
                 for ty in t.params().iter().chain(t.results()) {
                     check(ty)?;
                 }
-                if t.results().len() > 1 && !features.multi_value {
+                if t.results().len() > 1 && !features.contains(WasmFeatures::MULTI_VALUE) {
                     return Err(BinaryReaderError::new(
                         "func type returns multiple values but the multi-value feature is not enabled",
                         offset,
@@ -647,7 +649,7 @@ impl Module {
                 }
             }
             CompositeType::Array(t) => {
-                if !features.gc {
+                if !features.contains(WasmFeatures::GC) {
                     return Err(BinaryReaderError::new(
                         "array indexed types not supported without the gc feature",
                         offset,
@@ -659,7 +661,7 @@ impl Module {
                 };
             }
             CompositeType::Struct(t) => {
-                if !features.gc {
+                if !features.contains(WasmFeatures::GC) {
                     return Err(BinaryReaderError::new(
                         "struct indexed types not supported without the gc feature",
                         offset,
@@ -704,7 +706,7 @@ impl Module {
                 (self.tags.len(), MAX_WASM_TAGS, "tags")
             }
             TypeRef::Global(ty) => {
-                if !features.mutable_global && ty.mutable {
+                if !features.contains(WasmFeatures::MUTABLE_GLOBAL) && ty.mutable {
                     return Err(BinaryReaderError::new(
                         "mutable global support is not enabled",
                         offset,
@@ -737,7 +739,7 @@ impl Module {
         check_limit: bool,
         types: &TypeList,
     ) -> Result<()> {
-        if !features.mutable_global {
+        if !features.contains(WasmFeatures::MUTABLE_GLOBAL) {
             if let EntityType::Global(global_type) = ty {
                 if global_type.mutable {
                     return Err(BinaryReaderError::new(
@@ -876,21 +878,45 @@ impl Module {
         offset: usize,
     ) -> Result<()> {
         self.check_limits(ty.initial, ty.maximum, offset)?;
+        let (page_size, page_size_log2) = if let Some(page_size_log2) = ty.page_size_log2 {
+            if !features.contains(WasmFeatures::CUSTOM_PAGE_SIZES) {
+                return Err(BinaryReaderError::new(
+                    "the custom page sizes proposal must be enabled to \
+                     customize a memory's page size",
+                    offset,
+                ));
+            }
+            if page_size_log2 > 16 {
+                return Err(BinaryReaderError::new("invalid custom page size", offset));
+            }
+            let page_size = 1_u64 << page_size_log2;
+            debug_assert!(page_size.is_power_of_two());
+            debug_assert!(page_size <= DEFAULT_WASM_PAGE_SIZE);
+            (page_size, page_size_log2)
+        } else {
+            let page_size_log2 = 16;
+            debug_assert_eq!(DEFAULT_WASM_PAGE_SIZE, 1 << page_size_log2);
+            (DEFAULT_WASM_PAGE_SIZE, page_size_log2)
+        };
         let (true_maximum, err) = if ty.memory64 {
-            if !features.memory64 {
+            if !features.contains(WasmFeatures::MEMORY64) {
                 return Err(BinaryReaderError::new(
                     "memory64 must be enabled for 64-bit memories",
                     offset,
                 ));
             }
             (
-                MAX_WASM_MEMORY64_PAGES,
-                "memory size must be at most 2**48 pages",
+                max_wasm_memory64_pages(page_size),
+                format!(
+                    "memory size must be at most 2**{} pages",
+                    64 - page_size_log2
+                ),
             )
         } else {
+            let max = max_wasm_memory32_pages(page_size);
             (
-                MAX_WASM_MEMORY32_PAGES,
-                "memory size must be at most 65536 pages (4GiB)",
+                max,
+                format!("memory size must be at most {max} pages (4GiB)"),
             )
         };
         if ty.initial > true_maximum {
@@ -902,7 +928,7 @@ impl Module {
             }
         }
         if ty.shared {
-            if !features.threads {
+            if !features.contains(WasmFeatures::THREADS) {
                 return Err(BinaryReaderError::new(
                     "threads must be enabled for shared memories",
                     offset,
@@ -1006,7 +1032,7 @@ impl Module {
         types: &TypeList,
         offset: usize,
     ) -> Result<()> {
-        if !features.exceptions {
+        if !features.contains(WasmFeatures::EXCEPTIONS) {
             return Err(BinaryReaderError::new(
                 "exceptions proposal not enabled",
                 offset,
@@ -1028,13 +1054,22 @@ impl Module {
         features: &WasmFeatures,
         offset: usize,
     ) -> Result<()> {
-        if ty.shared && !features.shared_everything_threads {
-            return Err(BinaryReaderError::new(
-                "shared globals require the shared-everything-threads proposal",
-                offset,
-            ));
+        self.check_value_type(&mut ty.content_type, features, offset)?;
+        if ty.shared {
+            if !features.contains(WasmFeatures::SHARED_EVERYTHING_THREADS) {
+                return Err(BinaryReaderError::new(
+                    "shared globals require the shared-everything-threads proposal",
+                    offset,
+                ));
+            }
+            if !ty.content_type.is_shared() {
+                return Err(BinaryReaderError::new(
+                    "shared globals must have a shared value type",
+                    offset,
+                ));
+            }
         }
-        self.check_value_type(&mut ty.content_type, features, offset)
+        Ok(())
     }
 
     fn check_limits<T>(&self, initial: T, maximum: Option<T>, offset: usize) -> Result<()>
@@ -1053,7 +1088,7 @@ impl Module {
     }
 
     pub fn max_tables(&self, features: &WasmFeatures) -> usize {
-        if features.reference_types {
+        if features.contains(WasmFeatures::REFERENCE_TYPES) {
             MAX_WASM_TABLES
         } else {
             1
@@ -1061,7 +1096,7 @@ impl Module {
     }
 
     pub fn max_memories(&self, features: &WasmFeatures) -> usize {
-        if features.multi_memory {
+        if features.contains(WasmFeatures::MULTI_MEMORY) {
             MAX_WASM_MEMORIES
         } else {
             1
@@ -1246,6 +1281,7 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
 
 /// The implementation of [`WasmModuleResources`] used by
 /// [`Validator`](crate::Validator).
+#[derive(Debug)]
 pub struct ValidatorResources(pub(crate) Arc<Module>);
 
 impl WasmModuleResources for ValidatorResources {
@@ -1326,8 +1362,8 @@ const _: () = {
 };
 
 mod arc {
-    use std::ops::Deref;
-    use std::sync::Arc;
+    use alloc::sync::Arc;
+    use core::ops::Deref;
 
     enum Inner<T> {
         Owned(T),
@@ -1369,7 +1405,7 @@ mod arc {
                 return;
             }
 
-            let inner = std::mem::replace(&mut self.inner, Inner::Empty);
+            let inner = core::mem::replace(&mut self.inner, Inner::Empty);
             let x = match inner {
                 Inner::Owned(x) => x,
                 _ => Self::unreachable(),

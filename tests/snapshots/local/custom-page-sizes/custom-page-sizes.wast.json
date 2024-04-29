@@ -1,0 +1,736 @@
+{
+  "source_filename": "tests/local/custom-page-sizes/custom-page-sizes.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 2,
+      "filename": "custom-page-sizes.0.wasm"
+    },
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "custom-page-sizes.1.wasm"
+    },
+    {
+      "type": "module",
+      "line": 4,
+      "filename": "custom-page-sizes.2.wasm"
+    },
+    {
+      "type": "module",
+      "line": 5,
+      "filename": "custom-page-sizes.3.wasm"
+    },
+    {
+      "type": "module",
+      "line": 6,
+      "filename": "custom-page-sizes.4.wasm"
+    },
+    {
+      "type": "module",
+      "line": 7,
+      "filename": "custom-page-sizes.5.wasm"
+    },
+    {
+      "type": "module",
+      "line": 8,
+      "filename": "custom-page-sizes.6.wasm"
+    },
+    {
+      "type": "module",
+      "line": 9,
+      "filename": "custom-page-sizes.7.wasm"
+    },
+    {
+      "type": "module",
+      "line": 10,
+      "filename": "custom-page-sizes.8.wasm"
+    },
+    {
+      "type": "module",
+      "line": 11,
+      "filename": "custom-page-sizes.9.wasm"
+    },
+    {
+      "type": "module",
+      "line": 12,
+      "filename": "custom-page-sizes.10.wasm"
+    },
+    {
+      "type": "module",
+      "line": 13,
+      "filename": "custom-page-sizes.11.wasm"
+    },
+    {
+      "type": "module",
+      "line": 14,
+      "filename": "custom-page-sizes.12.wasm"
+    },
+    {
+      "type": "module",
+      "line": 15,
+      "filename": "custom-page-sizes.13.wasm"
+    },
+    {
+      "type": "module",
+      "line": 16,
+      "filename": "custom-page-sizes.14.wasm"
+    },
+    {
+      "type": "module",
+      "line": 17,
+      "filename": "custom-page-sizes.15.wasm"
+    },
+    {
+      "type": "module",
+      "line": 18,
+      "filename": "custom-page-sizes.16.wasm"
+    },
+    {
+      "type": "module",
+      "line": 21,
+      "filename": "custom-page-sizes.17.wasm"
+    },
+    {
+      "type": "module",
+      "line": 22,
+      "filename": "custom-page-sizes.18.wasm"
+    },
+    {
+      "type": "module",
+      "line": 23,
+      "filename": "custom-page-sizes.19.wasm"
+    },
+    {
+      "type": "module",
+      "line": 24,
+      "filename": "custom-page-sizes.20.wasm"
+    },
+    {
+      "type": "module",
+      "line": 25,
+      "filename": "custom-page-sizes.21.wasm"
+    },
+    {
+      "type": "module",
+      "line": 26,
+      "filename": "custom-page-sizes.22.wasm"
+    },
+    {
+      "type": "module",
+      "line": 27,
+      "filename": "custom-page-sizes.23.wasm"
+    },
+    {
+      "type": "module",
+      "line": 28,
+      "filename": "custom-page-sizes.24.wasm"
+    },
+    {
+      "type": "module",
+      "line": 29,
+      "filename": "custom-page-sizes.25.wasm"
+    },
+    {
+      "type": "module",
+      "line": 30,
+      "filename": "custom-page-sizes.26.wasm"
+    },
+    {
+      "type": "module",
+      "line": 31,
+      "filename": "custom-page-sizes.27.wasm"
+    },
+    {
+      "type": "module",
+      "line": 32,
+      "filename": "custom-page-sizes.28.wasm"
+    },
+    {
+      "type": "module",
+      "line": 33,
+      "filename": "custom-page-sizes.29.wasm"
+    },
+    {
+      "type": "module",
+      "line": 34,
+      "filename": "custom-page-sizes.30.wasm"
+    },
+    {
+      "type": "module",
+      "line": 35,
+      "filename": "custom-page-sizes.31.wasm"
+    },
+    {
+      "type": "module",
+      "line": 36,
+      "filename": "custom-page-sizes.32.wasm"
+    },
+    {
+      "type": "module",
+      "line": 37,
+      "filename": "custom-page-sizes.33.wasm"
+    },
+    {
+      "type": "module",
+      "line": 40,
+      "filename": "custom-page-sizes.34.wasm"
+    },
+    {
+      "type": "assert_return",
+      "line": 56,
+      "action": {
+        "type": "invoke",
+        "field": "size",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 57,
+      "action": {
+        "type": "invoke",
+        "field": "load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "out of bounds memory access"
+    },
+    {
+      "type": "assert_return",
+      "line": 59,
+      "action": {
+        "type": "invoke",
+        "field": "grow",
+        "args": [
+          {
+            "type": "i32",
+            "value": "65536"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 60,
+      "action": {
+        "type": "invoke",
+        "field": "size",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "65536"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 61,
+      "action": {
+        "type": "invoke",
+        "field": "load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "65535"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 62,
+      "action": {
+        "type": "invoke",
+        "field": "store",
+        "args": [
+          {
+            "type": "i32",
+            "value": "65535"
+          },
+          {
+            "type": "i32",
+            "value": "1"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 63,
+      "action": {
+        "type": "invoke",
+        "field": "load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "65535"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 64,
+      "action": {
+        "type": "invoke",
+        "field": "load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "65536"
+          }
+        ]
+      },
+      "text": "out of bounds memory access"
+    },
+    {
+      "type": "assert_return",
+      "line": 66,
+      "action": {
+        "type": "invoke",
+        "field": "grow",
+        "args": [
+          {
+            "type": "i32",
+            "value": "65536"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "65536"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 67,
+      "action": {
+        "type": "invoke",
+        "field": "size",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "131072"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 68,
+      "action": {
+        "type": "invoke",
+        "field": "load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "131071"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 69,
+      "action": {
+        "type": "invoke",
+        "field": "store",
+        "args": [
+          {
+            "type": "i32",
+            "value": "131071"
+          },
+          {
+            "type": "i32",
+            "value": "1"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 70,
+      "action": {
+        "type": "invoke",
+        "field": "load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "131071"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 71,
+      "action": {
+        "type": "invoke",
+        "field": "load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "131072"
+          }
+        ]
+      },
+      "text": "out of bounds memory access"
+    },
+    {
+      "type": "module",
+      "line": 74,
+      "filename": "custom-page-sizes.35.wasm"
+    },
+    {
+      "type": "assert_return",
+      "line": 90,
+      "action": {
+        "type": "invoke",
+        "field": "size",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 91,
+      "action": {
+        "type": "invoke",
+        "field": "load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      },
+      "text": "out of bounds memory access"
+    },
+    {
+      "type": "assert_return",
+      "line": 93,
+      "action": {
+        "type": "invoke",
+        "field": "grow",
+        "args": [
+          {
+            "type": "i32",
+            "value": "65536"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 94,
+      "action": {
+        "type": "invoke",
+        "field": "size",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "65536"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 95,
+      "action": {
+        "type": "invoke",
+        "field": "load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "262143"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 96,
+      "action": {
+        "type": "invoke",
+        "field": "store",
+        "args": [
+          {
+            "type": "i32",
+            "value": "262143"
+          },
+          {
+            "type": "i32",
+            "value": "1"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 97,
+      "action": {
+        "type": "invoke",
+        "field": "load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "262143"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 98,
+      "action": {
+        "type": "invoke",
+        "field": "load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "262144"
+          }
+        ]
+      },
+      "text": "out of bounds memory access"
+    },
+    {
+      "type": "assert_return",
+      "line": 100,
+      "action": {
+        "type": "invoke",
+        "field": "grow",
+        "args": [
+          {
+            "type": "i32",
+            "value": "65536"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "65536"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 101,
+      "action": {
+        "type": "invoke",
+        "field": "size",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "131072"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 102,
+      "action": {
+        "type": "invoke",
+        "field": "load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "524287"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 103,
+      "action": {
+        "type": "invoke",
+        "field": "store",
+        "args": [
+          {
+            "type": "i32",
+            "value": "524287"
+          },
+          {
+            "type": "i32",
+            "value": "1"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 104,
+      "action": {
+        "type": "invoke",
+        "field": "load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "524287"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "type": "assert_trap",
+      "line": 105,
+      "action": {
+        "type": "invoke",
+        "field": "load",
+        "args": [
+          {
+            "type": "i32",
+            "value": "524288"
+          }
+        ]
+      },
+      "text": "out of bounds memory access"
+    },
+    {
+      "type": "module",
+      "line": 110,
+      "filename": "custom-page-sizes.36.wasm"
+    },
+    {
+      "type": "assert_return",
+      "line": 116,
+      "action": {
+        "type": "invoke",
+        "field": "size",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 117,
+      "action": {
+        "type": "invoke",
+        "field": "grow",
+        "args": [
+          {
+            "type": "i32",
+            "value": "65537"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "-1"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 118,
+      "action": {
+        "type": "invoke",
+        "field": "size",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    }
+  ]
+}

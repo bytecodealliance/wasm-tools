@@ -16,7 +16,7 @@ wasmprinter = { workspace = true }
 wasmparser = { workspace = true }
 wasmtime = { workspace = true }
 env_logger = { workspace = true }
-itertools = "0.10.0"
+itertools = "0.12.0"
 clap = { workspace = true }
 log = { workspace = true }
 

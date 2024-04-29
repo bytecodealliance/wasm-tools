@@ -1,5 +1,6 @@
 use arbitrary::{Result, Unstructured};
 use std::path::Path;
+use wasmparser::WasmFeatures;
 use wit_component::*;
 use wit_parser::{Resolve, SourceMap};
 
@@ -49,10 +50,9 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
             .encode()
             .unwrap();
         write_file("dummy.component.wasm", &wasm);
-        wasmparser::Validator::new_with_features(wasmparser::WasmFeatures {
-            component_model: true,
-            ..Default::default()
-        })
+        wasmparser::Validator::new_with_features(
+            WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL,
+        )
         .validate_all(&wasm)
         .unwrap();
 

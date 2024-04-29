@@ -1,7 +1,7 @@
 use super::{Printer, State};
 use anyhow::{anyhow, bail, Result};
 use std::fmt::Write;
-use wasmparser::{BlockType, BrTable, Catch, MemArg, RefType, TryTable, VisitOperator};
+use wasmparser::{BlockType, BrTable, Catch, MemArg, Ordering, RefType, TryTable, VisitOperator};
 
 pub struct PrintOperator<'a, 'b> {
     pub(super) printer: &'a mut Printer,
@@ -254,11 +254,6 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         self.printer.print_idx(&self.state.core.type_names, idx)
     }
 
-    fn field_index(&mut self, idx: u32) -> Result<()> {
-        write!(&mut self.printer.result, "{idx}")?;
-        Ok(())
-    }
-
     fn from_ref_type(&mut self, ref_ty: RefType) -> Result<()> {
         self.printer.print_reftype(self.state, ref_ty)
     }
@@ -319,6 +314,18 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
             let align = 1 << memarg.align;
             write!(self.result(), " align={}", align)?;
         }
+        Ok(())
+    }
+
+    fn ordering(&mut self, ordering: Ordering) -> Result<()> {
+        write!(
+            self.result(),
+            "{}",
+            match ordering {
+                Ordering::SeqCst => "seq_cst",
+                Ordering::AcqRel => "acq_rel",
+            }
+        )?;
         Ok(())
     }
 
@@ -542,6 +549,30 @@ macro_rules! define_visit {
         let rty = RefType::new(true, $hty)
             .ok_or_else(|| anyhow!("implementation limit: type index too large"))?;
         $self.printer.print_reftype($self.state, rty)?;
+    );
+    (payload $self:ident StructGet $ty:ident $field:ident) => (
+        $self.push_str(" ");
+        $self.struct_type_index($ty)?;
+        $self.push_str(" ");
+        $self.printer.print_field_idx($self.state, $ty, $field)?;
+    );
+    (payload $self:ident StructGetS $ty:ident $field:ident) => (
+        $self.push_str(" ");
+        $self.struct_type_index($ty)?;
+        $self.push_str(" ");
+        $self.printer.print_field_idx($self.state, $ty, $field)?;
+    );
+    (payload $self:ident StructGetU $ty:ident $field:ident) => (
+        $self.push_str(" ");
+        $self.struct_type_index($ty)?;
+        $self.push_str(" ");
+        $self.printer.print_field_idx($self.state, $ty, $field)?;
+    );
+    (payload $self:ident StructSet $ty:ident $field:ident) => (
+        $self.push_str(" ");
+        $self.struct_type_index($ty)?;
+        $self.push_str(" ");
+        $self.printer.print_field_idx($self.state, $ty, $field)?;
     );
     (payload $self:ident $op:ident $($arg:ident)*) => (
         $(
@@ -1122,6 +1153,8 @@ macro_rules! define_visit {
     (name Catch) => ("catch");
     (name CatchAll) => ("catch_all");
     (name Delegate) => ("delegate");
+    (name GlobalAtomicGet) => ("global.atomic.get");
+    (name GlobalAtomicSet) => ("global.atomic.set");
 }
 
 impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {

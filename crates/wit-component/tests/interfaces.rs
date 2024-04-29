@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use pretty_assertions::assert_eq;
 use std::fs;
 use std::path::Path;
+use wasmparser::WasmFeatures;
 use wit_component::WitPrinter;
 use wit_parser::{PackageId, Resolve, UnresolvedPackage};
 
@@ -47,10 +48,7 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
 
     assert_print(&resolve, package, path, is_dir)?;
 
-    let features = wasmparser::WasmFeatures {
-        component_model: true,
-        ..Default::default()
-    };
+    let features = WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL;
 
     // First convert the WIT package to a binary WebAssembly output, then
     // convert that binary wasm to textual wasm, then assert it matches the

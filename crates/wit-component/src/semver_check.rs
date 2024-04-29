@@ -90,12 +90,9 @@ pub fn semver_check(mut resolve: Resolve, prev: WorldId, new: WorldId) -> Result
     // error message is produced here an attempt is made to make it more
     // understandable but there's only but so good these errors can be with this
     // strategy.
-    Validator::new_with_features(WasmFeatures {
-        component_model: true,
-        ..Default::default()
-    })
-    .validate_all(&bytes)
-    .context("new world is not semver-compatible with the previous world")?;
+    Validator::new_with_features(WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL)
+        .validate_all(&bytes)
+        .context("new world is not semver-compatible with the previous world")?;
 
     Ok(())
 }

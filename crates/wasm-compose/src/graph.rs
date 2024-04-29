@@ -98,10 +98,8 @@ impl<'a> Component<'a> {
     fn parse(name: String, path: Option<PathBuf>, bytes: Cow<'a, [u8]>) -> Result<Self> {
         let mut parser = Parser::new(0);
         let mut parsers = Vec::new();
-        let mut validator = Validator::new_with_features(WasmFeatures {
-            component_model: true,
-            ..Default::default()
-        });
+        let mut validator =
+            Validator::new_with_features(WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL);
         let mut imports = IndexMap::new();
         let mut exports = IndexMap::new();
 
@@ -992,12 +990,9 @@ impl<'a> CompositionGraph<'a> {
         let bytes = CompositionGraphEncoder::new(options, self).encode()?;
 
         if options.validate {
-            Validator::new_with_features(WasmFeatures {
-                component_model: true,
-                ..Default::default()
-            })
-            .validate_all(&bytes)
-            .context("failed to validate encoded graph bytes")?;
+            Validator::new_with_features(WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL)
+                .validate_all(&bytes)
+                .context("failed to validate encoded graph bytes")?;
         }
 
         Ok(bytes)

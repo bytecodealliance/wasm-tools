@@ -650,6 +650,8 @@ impl Section for TypeSection {
 
 #[cfg(test)]
 mod tests {
+    use wasmparser::WasmFeatures;
+
     use super::*;
     use crate::Module;
 
@@ -666,10 +668,8 @@ mod tests {
         module.section(&types);
         let wasm_bytes = module.finish();
 
-        let mut validator = wasmparser::Validator::new_with_features(wasmparser::WasmFeatures {
-            gc: false,
-            ..Default::default()
-        });
+        let mut validator =
+            wasmparser::Validator::new_with_features(WasmFeatures::default() & !WasmFeatures::GC);
 
         validator.validate_all(&wasm_bytes).expect(
             "Encoding pre Wasm GC type should not accidentally use Wasm GC specific encoding",

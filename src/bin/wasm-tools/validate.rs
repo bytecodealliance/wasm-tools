@@ -97,31 +97,36 @@ impl Opts {
 fn parse_features(arg: &str) -> Result<WasmFeatures> {
     let mut ret = WasmFeatures::default();
 
-    const FEATURES: &[(&str, fn(&mut WasmFeatures) -> &mut bool)] = &[
-        ("reference-types", |f| &mut f.reference_types),
-        ("function-references", |f| &mut f.function_references),
-        ("simd", |f| &mut f.simd),
-        ("threads", |f| &mut f.threads),
-        ("shared-everything-threads", |f| {
-            &mut f.shared_everything_threads
-        }),
-        ("bulk-memory", |f| &mut f.bulk_memory),
-        ("multi-value", |f| &mut f.multi_value),
-        ("tail-call", |f| &mut f.tail_call),
-        ("component-model", |f| &mut f.component_model),
-        ("component-model-values", |f| &mut f.component_model_values),
-        ("multi-memory", |f| &mut f.multi_memory),
-        ("exception-handling", |f| &mut f.exceptions),
-        ("memory64", |f| &mut f.memory64),
-        ("extended-const", |f| &mut f.extended_const),
-        ("floats", |f| &mut f.floats),
-        ("saturating-float-to-int", |f| {
-            &mut f.saturating_float_to_int
-        }),
-        ("sign-extension", |f| &mut f.sign_extension),
-        ("mutable-global", |f| &mut f.mutable_global),
-        ("relaxed-simd", |f| &mut f.relaxed_simd),
-        ("gc", |f| &mut f.gc),
+    const FEATURES: &[(&str, WasmFeatures)] = &[
+        ("reference-types", WasmFeatures::REFERENCE_TYPES),
+        ("function-references", WasmFeatures::FUNCTION_REFERENCES),
+        ("simd", WasmFeatures::SIMD),
+        ("threads", WasmFeatures::THREADS),
+        (
+            "shared-everything-threads",
+            WasmFeatures::SHARED_EVERYTHING_THREADS,
+        ),
+        ("bulk-memory", WasmFeatures::BULK_MEMORY),
+        ("multi-value", WasmFeatures::MULTI_VALUE),
+        ("tail-call", WasmFeatures::TAIL_CALL),
+        ("component-model", WasmFeatures::COMPONENT_MODEL),
+        (
+            "component-model-values",
+            WasmFeatures::COMPONENT_MODEL_VALUES,
+        ),
+        ("multi-memory", WasmFeatures::MULTI_MEMORY),
+        ("exception-handling", WasmFeatures::EXCEPTIONS),
+        ("memory64", WasmFeatures::MEMORY64),
+        ("extended-const", WasmFeatures::EXTENDED_CONST),
+        ("floats", WasmFeatures::FLOATS),
+        (
+            "saturating-float-to-int",
+            WasmFeatures::SATURATING_FLOAT_TO_INT,
+        ),
+        ("sign-extension", WasmFeatures::SIGN_EXTENSION),
+        ("mutable-global", WasmFeatures::MUTABLE_GLOBAL),
+        ("relaxed-simd", WasmFeatures::RELAXED_SIMD),
+        ("gc", WasmFeatures::GC),
     ];
 
     for part in arg.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
@@ -132,18 +137,17 @@ fn parse_features(arg: &str) -> Result<WasmFeatures> {
         };
         match part {
             "all" => {
-                for (name, accessor) in FEATURES {
+                for (name, feature) in FEATURES {
                     // don't count this under "all" for now.
                     if *name == "deterministic" {
                         continue;
                     }
-
-                    *accessor(&mut ret) = enable;
+                    ret.set(*feature, enable);
                 }
             }
 
             name => {
-                let (_, accessor) = FEATURES.iter().find(|(n, _)| *n == name).ok_or_else(|| {
+                let (_, feature) = FEATURES.iter().find(|(n, _)| *n == name).ok_or_else(|| {
                     anyhow!(
                         "unknown feature `{}`\nValid features: {}",
                         name,
@@ -154,7 +158,7 @@ fn parse_features(arg: &str) -> Result<WasmFeatures> {
                             .join(", "),
                     )
                 })?;
-                *accessor(&mut ret) = enable;
+                ret.set(*feature, enable);
             }
         }
     }

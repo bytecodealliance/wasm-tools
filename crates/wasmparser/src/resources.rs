@@ -173,7 +173,7 @@ where
     }
 }
 
-impl<T> WasmModuleResources for std::sync::Arc<T>
+impl<T> WasmModuleResources for alloc::sync::Arc<T>
 where
     T: WasmModuleResources,
 {

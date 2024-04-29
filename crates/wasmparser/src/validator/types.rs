@@ -4,24 +4,22 @@ use super::{
     component::{ComponentState, ExternKind},
     core::Module,
 };
-use crate::{validator::names::KebabString, HeapType};
+use crate::prelude::*;
+use crate::{validator::names::KebabString, HeapType, ValidatorId};
 use crate::{
     BinaryReaderError, CompositeType, Export, ExternalKind, FuncType, GlobalType, Import, Matches,
     MemoryType, PackedIndex, PrimitiveValType, RecGroup, RefType, Result, SubType, TableType,
     TypeRef, UnpackedIndex, ValType, WithRecGroup,
 };
-use indexmap::{IndexMap, IndexSet};
-use std::collections::hash_map::Entry;
-use std::collections::{HashMap, HashSet};
-use std::ops::{Index, Range};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::{
+use alloc::sync::Arc;
+use core::ops::{Deref, DerefMut, Index, Range};
+use core::sync::atomic::{AtomicUsize, Ordering};
+use core::{
     borrow::Borrow,
     hash::{Hash, Hasher},
     mem,
-    ops::{Deref, DerefMut},
-    sync::Arc,
 };
+use hashbrown::hash_map::Entry;
 
 /// The maximum number of parameters in the canonical ABI that can be passed by value.
 ///
@@ -145,7 +143,7 @@ fn push_primitive_wasm_types(ty: &PrimitiveValType, lowered_types: &mut LoweredT
 /// Any id that can be used to get a type from a `Types`.
 //
 // Or, internally, from a `TypeList`.
-pub trait TypeIdentifier: std::fmt::Debug + Copy + Eq + Sized + 'static {
+pub trait TypeIdentifier: core::fmt::Debug + Copy + Eq + Sized + 'static {
     /// The data pointed to by this type of id.
     type Data: TypeData<Id = Self>;
 
@@ -172,7 +170,7 @@ pub trait TypeIdentifier: std::fmt::Debug + Copy + Eq + Sized + 'static {
 ///
 /// This is the data that can be retreived by indexing with the associated
 /// [`TypeIdentifier`].
-pub trait TypeData: std::fmt::Debug {
+pub trait TypeData: core::fmt::Debug {
     /// The identifier for this type data.
     type Id: TypeIdentifier<Data = Self>;
 
@@ -241,7 +239,7 @@ macro_rules! define_type_id {
         // The size of type IDs was seen to have a large-ish impact in #844, so
         // this assert ensures that it stays relatively small.
         const _: () = {
-            assert!(std::mem::size_of::<$name>() <= 4);
+            assert!(core::mem::size_of::<$name>() <= 4);
         };
     };
 }
@@ -267,7 +265,7 @@ pub struct CoreTypeId {
 }
 
 const _: () = {
-    assert!(std::mem::size_of::<CoreTypeId>() <= 4);
+    assert!(core::mem::size_of::<CoreTypeId>() <= 4);
 };
 
 impl TypeIdentifier for CoreTypeId {
@@ -656,7 +654,7 @@ pub struct ComponentDefinedTypeId {
 }
 
 const _: () = {
-    assert!(std::mem::size_of::<ComponentDefinedTypeId>() <= 8);
+    assert!(core::mem::size_of::<ComponentDefinedTypeId>() <= 8);
 };
 
 impl TypeIdentifier for ComponentDefinedTypeId {
@@ -1474,6 +1472,7 @@ enum TypesKind {
 ///
 /// The type information is returned via the [`crate::Validator::end`] method.
 pub struct Types {
+    id: ValidatorId,
     list: TypeList,
     kind: TypesKind,
 }
@@ -1489,23 +1488,36 @@ enum TypesRefKind<'a> {
 /// Retrieved via the [`crate::Validator::types`] method.
 #[derive(Clone, Copy)]
 pub struct TypesRef<'a> {
+    id: ValidatorId,
     list: &'a TypeList,
     kind: TypesRefKind<'a>,
 }
 
 impl<'a> TypesRef<'a> {
-    pub(crate) fn from_module(types: &'a TypeList, module: &'a Module) -> Self {
+    pub(crate) fn from_module(id: ValidatorId, types: &'a TypeList, module: &'a Module) -> Self {
         Self {
+            id,
             list: types,
             kind: TypesRefKind::Module(module),
         }
     }
 
-    pub(crate) fn from_component(types: &'a TypeList, component: &'a ComponentState) -> Self {
+    pub(crate) fn from_component(
+        id: ValidatorId,
+        types: &'a TypeList,
+        component: &'a ComponentState,
+    ) -> Self {
         Self {
+            id,
             list: types,
             kind: TypesRefKind::Component(component),
         }
+    }
+
+    /// Get the id of the validator that these types are associated with.
+    #[inline]
+    pub fn id(&self) -> ValidatorId {
+        self.id
     }
 
     /// Gets a type based on its type id.
@@ -1516,6 +1528,22 @@ impl<'a> TypesRef<'a> {
         T: TypeIdentifier,
     {
         self.list.get(id)
+    }
+
+    /// Get the id of the rec group that the given type id was defined within.
+    pub fn rec_group_id_of(&self, id: CoreTypeId) -> RecGroupId {
+        self.list.rec_group_id_of(id)
+    }
+
+    /// Get the types within a rec group.
+    pub fn rec_group_elements(&self, id: RecGroupId) -> impl ExactSizeIterator<Item = CoreTypeId> {
+        let range = &self.list.rec_group_elements[id];
+        (range.start.index..range.end.index).map(|index| CoreTypeId { index })
+    }
+
+    /// Get the super type of the given type id, if any.
+    pub fn supertype_of(&self, id: CoreTypeId) -> Option<CoreTypeId> {
+        self.list.supertype_of(id)
     }
 
     /// Gets a core WebAssembly type id from a type index.
@@ -1914,23 +1942,36 @@ where
 }
 
 impl Types {
-    pub(crate) fn from_module(types: TypeList, module: Arc<Module>) -> Self {
+    pub(crate) fn from_module(id: ValidatorId, types: TypeList, module: Arc<Module>) -> Self {
         Self {
+            id,
             list: types,
             kind: TypesKind::Module(module),
         }
     }
 
-    pub(crate) fn from_component(types: TypeList, component: ComponentState) -> Self {
+    pub(crate) fn from_component(
+        id: ValidatorId,
+        types: TypeList,
+        component: ComponentState,
+    ) -> Self {
         Self {
+            id,
             list: types,
             kind: TypesKind::Component(component),
         }
     }
 
+    /// Get the id of the validator that these types are associated with.
+    #[inline]
+    pub fn id(&self) -> ValidatorId {
+        self.id
+    }
+
     /// Gets a reference to this validation type information.
     pub fn as_ref(&self) -> TypesRef {
         TypesRef {
+            id: self.id,
             list: &self.list,
             kind: match &self.kind {
                 TypesKind::Module(module) => TypesRefKind::Module(module),
@@ -2251,6 +2292,7 @@ where
 //
 // Only public because it shows up in a public trait's `doc(hidden)` method.
 #[doc(hidden)]
+#[derive(Debug)]
 pub struct SnapshotList<T> {
     // All previous snapshots, the "head" of the list that this type represents.
     // The first entry in this pair is the starting index for all elements
@@ -2270,6 +2312,7 @@ pub struct SnapshotList<T> {
     cur: Vec<T>,
 }
 
+#[derive(Debug)]
 struct Snapshot<T> {
     prior_types: usize,
     items: Vec<T>,
@@ -2378,7 +2421,7 @@ impl<T> Default for SnapshotList<T> {
 /// component model's {component, instance, defined, func} types are in the same
 /// index space). However, we store each of them in their own type-specific
 /// snapshot list and give each of them their own identifier type.
-#[derive(Default)]
+#[derive(Default, Debug)]
 // Only public because it shows up in a public trait's `doc(hidden)` method.
 #[doc(hidden)]
 pub struct TypeList {
@@ -2842,7 +2885,7 @@ impl TypeList {
         });
 
         TypeList {
-            alias_mappings: HashMap::new(),
+            alias_mappings: HashMap::default(),
             alias_counter: self.alias_counter,
             alias_snapshots: self.alias_snapshots.clone(),
             core_types: self.core_types.commit(),
@@ -3166,7 +3209,7 @@ impl TypeAlloc {
             ComponentDefinedType::Flags(_)
             | ComponentDefinedType::Enum(_)
             | ComponentDefinedType::Record(_)
-            | ComponentDefinedType::Variant(_) => set.contains(&id.into()),
+            | ComponentDefinedType::Variant(_) => set.contains(&ComponentAnyTypeId::from(id)),
 
             // All types below here are allowed to be anonymous, but their
             // own components must be appropriately named.
@@ -3189,7 +3232,7 @@ impl TypeAlloc {
             // own/borrow themselves don't have to be named, but the resource
             // they refer to must be named.
             ComponentDefinedType::Own(id) | ComponentDefinedType::Borrow(id) => {
-                set.contains(&(*id).into())
+                set.contains(&ComponentAnyTypeId::from(*id))
             }
         }
     }
@@ -3516,7 +3559,7 @@ impl Remapping {
     fn remap_id<T>(&self, id: &mut T) -> Option<bool>
     where
         T: Copy + Into<ComponentAnyTypeId> + TryFrom<ComponentAnyTypeId>,
-        T::Error: std::fmt::Debug,
+        T::Error: core::fmt::Debug,
     {
         let old: ComponentAnyTypeId = (*id).into();
         let new = self.types.get(&old)?;

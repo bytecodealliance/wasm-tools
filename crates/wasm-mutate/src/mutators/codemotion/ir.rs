@@ -203,7 +203,6 @@ pub trait AstWriter {
                 consequent,
                 alternative,
                 ty,
-                range: _,
             } => {
                 self.write_if_else(
                     ast,
@@ -222,7 +221,7 @@ pub trait AstWriter {
             Node::Loop { body, ty, range: _ } => {
                 self.write_loop(ast, nodeidx, body, newfunc, operators, input_wasm, ty)?
             }
-            Node::Block { body, ty, range: _ } => {
+            Node::Block { body, ty } => {
                 self.write_block(ast, nodeidx, body, newfunc, operators, input_wasm, ty)?
             }
             Node::Root(body) => {
@@ -304,11 +303,10 @@ impl AstBuilder {
                                 consequent: then_branch,
                                 alternative: None,
                                 ty: ty.expect("Missing if type"),
-                                range: frame_start..idx,
                             });
                         }
                         State::Else => {
-                            let (last_frame, ty, if_start) = parse_context.pop_frame()?;
+                            let (last_frame, ty, _if_start) = parse_context.pop_frame()?;
                             // Validate parent
                             match last_frame {
                                 State::If => {}
@@ -322,7 +320,6 @@ impl AstBuilder {
                                 consequent: then_branch,
                                 alternative: Some(else_branch),
                                 ty: ty.expect("Missing if type"),
-                                range: if_start..idx,
                             });
                         }
                         State::Loop => {
@@ -342,7 +339,6 @@ impl AstBuilder {
                             parse_context.push_node_to_current_parsing(Node::Block {
                                 body: children,
                                 ty: ty.expect("Missing block type for loop"),
-                                range: frame_start..idx,
                             });
                         }
                         State::Root => {

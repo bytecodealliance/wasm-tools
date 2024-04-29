@@ -1,4 +1,5 @@
 use crate::limits::{MAX_WASM_FUNCTION_RETURNS, MAX_WASM_START_ARGS};
+use crate::prelude::*;
 use crate::{BinaryReader, FromReader, Result};
 
 /// Represents the start function in a WebAssembly component.

@@ -111,7 +111,7 @@ pub(crate) struct TypeCanonicalizer<'a> {
     rec_group_len: u32,
     offset: usize,
     mode: CanonicalizationMode,
-    within_rec_group: Option<std::ops::Range<CoreTypeId>>,
+    within_rec_group: Option<core::ops::Range<CoreTypeId>>,
 }
 
 impl<'a> TypeCanonicalizer<'a> {
@@ -140,7 +140,7 @@ impl<'a> TypeCanonicalizer<'a> {
     }
 
     fn allow_gc(&self) -> bool {
-        self.features.map_or(true, |f| f.gc)
+        self.features.map_or(true, |f| f.contains(WasmFeatures::GC))
     }
 
     fn canonicalize_rec_group(&mut self, rec_group: &mut RecGroup) -> Result<()> {

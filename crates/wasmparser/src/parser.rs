@@ -1,4 +1,5 @@
 use crate::binary_reader::WASM_MAGIC_NUMBER;
+use crate::prelude::*;
 use crate::CoreTypeSectionReader;
 use crate::{
     limits::MAX_WASM_MODULE_SIZE, BinaryReader, BinaryReaderError, ComponentCanonicalSectionReader,
@@ -8,9 +9,9 @@ use crate::{
     GlobalSectionReader, ImportSectionReader, InstanceSectionReader, MemorySectionReader, Result,
     SectionLimited, TableSectionReader, TagSectionReader, TypeSectionReader,
 };
-use std::fmt;
-use std::iter;
-use std::ops::Range;
+use core::fmt;
+use core::iter;
+use core::ops::Range;
 
 pub(crate) const WASM_MODULE_VERSION: u16 = 0x1;
 
@@ -212,7 +213,10 @@ pub enum Payload<'a> {
         parser: Parser,
         /// The range of bytes that represent the nested module in the
         /// original byte stream.
-        range: Range<usize>,
+        ///
+        /// Note that, to better support streaming parsing and validation, the
+        /// validator does *not* check that this range is in bounds.
+        unchecked_range: Range<usize>,
     },
     /// A core instance section was received and the provided parser can be
     /// used to parse the contents of the core instance section.
@@ -241,7 +245,10 @@ pub enum Payload<'a> {
         parser: Parser,
         /// The range of bytes that represent the nested component in the
         /// original byte stream.
-        range: Range<usize>,
+        ///
+        /// Note that, to better support streaming parsing and validation, the
+        /// validator does *not* check that this range is in bounds.
+        unchecked_range: Range<usize>,
     },
     /// A component instance section was received and the provided reader can be
     /// used to parse the contents of the component instance section.
@@ -679,16 +686,22 @@ impl Parser {
                             );
                         }
 
-                        let range =
-                            reader.original_position()..reader.original_position() + len as usize;
+                        let range = reader.original_position()
+                            ..reader.original_position() + usize::try_from(len).unwrap();
                         self.max_size -= u64::from(len);
                         self.offset += u64::from(len);
                         let mut parser = Parser::new(usize_to_u64(reader.original_position()));
-                        parser.max_size = len.into();
+                        parser.max_size = u64::from(len);
 
                         Ok(match id {
-                            1 => ModuleSection { parser, range },
-                            4 => ComponentSection { parser, range },
+                            1 => ModuleSection {
+                                parser,
+                                unchecked_range: range,
+                            },
+                            4 => ComponentSection {
+                                parser,
+                                unchecked_range: range,
+                            },
                             _ => unreachable!(),
                         })
                     }
@@ -940,7 +953,7 @@ impl Parser {
     ///
     /// ```
     /// use wasmparser::{Result, Parser, Chunk, Payload::*};
-    /// use std::ops::Range;
+    /// use core::ops::Range;
     ///
     /// fn objdump_headers(mut wasm: &[u8]) -> Result<()> {
     ///     let mut parser = Parser::new(0);
@@ -1098,10 +1111,16 @@ impl Payload<'_> {
             CodeSectionStart { range, .. } => Some((CODE_SECTION, range.clone())),
             CodeSectionEntry(_) => None,
 
-            ModuleSection { range, .. } => Some((COMPONENT_MODULE_SECTION, range.clone())),
+            ModuleSection {
+                unchecked_range: range,
+                ..
+            } => Some((COMPONENT_MODULE_SECTION, range.clone())),
             InstanceSection(s) => Some((COMPONENT_CORE_INSTANCE_SECTION, s.range())),
             CoreTypeSection(s) => Some((COMPONENT_CORE_TYPE_SECTION, s.range())),
-            ComponentSection { range, .. } => Some((COMPONENT_SECTION, range.clone())),
+            ComponentSection {
+                unchecked_range: range,
+                ..
+            } => Some((COMPONENT_SECTION, range.clone())),
             ComponentInstanceSection(s) => Some((COMPONENT_INSTANCE_SECTION, s.range())),
             ComponentAliasSection(s) => Some((COMPONENT_ALIAS_SECTION, s.range())),
             ComponentTypeSection(s) => Some((COMPONENT_TYPE_SECTION, s.range())),
@@ -1164,13 +1183,19 @@ impl fmt::Debug for Payload<'_> {
             CodeSectionEntry(_) => f.debug_tuple("CodeSectionEntry").field(&"...").finish(),
 
             // Component sections
-            ModuleSection { parser: _, range } => f
+            ModuleSection {
+                parser: _,
+                unchecked_range: range,
+            } => f
                 .debug_struct("ModuleSection")
                 .field("range", range)
                 .finish(),
             InstanceSection(_) => f.debug_tuple("InstanceSection").field(&"...").finish(),
             CoreTypeSection(_) => f.debug_tuple("CoreTypeSection").field(&"...").finish(),
-            ComponentSection { parser: _, range } => f
+            ComponentSection {
+                parser: _,
+                unchecked_range: range,
+            } => f
                 .debug_struct("ComponentSection")
                 .field("range", range)
                 .finish(),

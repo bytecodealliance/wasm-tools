@@ -418,8 +418,14 @@ impl Metadata {
                         }
                     }
                 }
-                ModuleSection { range, .. } => metadata.push(Metadata::empty_module(range)),
-                ComponentSection { range, .. } => metadata.push(Metadata::empty_component(range)),
+                ModuleSection {
+                    unchecked_range: range,
+                    ..
+                } => metadata.push(Metadata::empty_module(range)),
+                ComponentSection {
+                    unchecked_range: range,
+                    ..
+                } => metadata.push(Metadata::empty_component(range)),
                 End { .. } => {
                     let finished = metadata.pop().expect("non-empty metadata stack");
                     if metadata.is_empty() {
@@ -640,6 +646,7 @@ impl<'a> ModuleNames<'a> {
                 wasmparser::Name::Global(m) => section.globals(&name_map(&m)?),
                 wasmparser::Name::Element(m) => section.elements(&name_map(&m)?),
                 wasmparser::Name::Data(m) => section.data(&name_map(&m)?),
+                wasmparser::Name::Field(m) => section.fields(&indirect_name_map(&m)?),
                 wasmparser::Name::Tag(m) => section.tags(&name_map(&m)?),
                 wasmparser::Name::Unknown { .. } => {} // wasm-encoder doesn't support it
             }

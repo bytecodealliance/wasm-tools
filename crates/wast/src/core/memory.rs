@@ -59,7 +59,10 @@ impl<'a> Parse<'a> for Memory<'a> {
                 import,
                 ty: parser.parse()?,
             }
-        } else if l.peek::<LParen>()? || parser.peek2::<LParen>()? {
+        } else if l.peek::<LParen>()?
+            || ((parser.peek::<kw::i32>()? || parser.peek::<kw::i64>()?)
+                && parser.peek2::<LParen>()?)
+        {
             let is_32 = if parser.parse::<Option<kw::i32>>()?.is_some() {
                 true
             } else {

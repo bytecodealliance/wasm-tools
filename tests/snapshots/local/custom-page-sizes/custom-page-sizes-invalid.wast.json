@@ -1,0 +1,26 @@
+{
+  "source_filename": "tests/local/custom-page-sizes/custom-page-sizes-invalid.wast",
+  "commands": [
+    {
+      "type": "assert_malformed",
+      "line": 2,
+      "filename": "custom-page-sizes-invalid.0.wat",
+      "text": "invalid custom page size",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 8,
+      "filename": "custom-page-sizes-invalid.1.wasm",
+      "text": "invalid custom page size",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 15,
+      "filename": "custom-page-sizes-invalid.2.wasm",
+      "text": "invalid custom page size",
+      "module_type": "binary"
+    }
+  ]
+}

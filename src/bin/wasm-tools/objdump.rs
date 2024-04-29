@@ -49,13 +49,19 @@ impl Opts {
                 }
                 CodeSectionEntry(_) => {}
 
-                ModuleSection { range, .. } => {
+                ModuleSection {
+                    unchecked_range: range,
+                    ..
+                } => {
                     printer.section_raw(range, 1, "module")?;
                     printer.start(Encoding::Module)?;
                 }
                 InstanceSection(s) => printer.section(s, "core instances")?,
                 CoreTypeSection(s) => printer.section(s, "core types")?,
-                ComponentSection { range, .. } => {
+                ComponentSection {
+                    unchecked_range: range,
+                    ..
+                } => {
                     printer.section_raw(range, 1, "component")?;
                     printer.indices.push(IndexSpace::default());
                     printer.start(Encoding::Component)?;

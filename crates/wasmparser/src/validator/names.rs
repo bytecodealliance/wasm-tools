@@ -1,12 +1,13 @@
 //! Definitions of name-related helpers and newtypes, primarily for the
 //! component model.
 
+use crate::prelude::*;
 use crate::{Result, WasmFeatures};
+use core::borrow::Borrow;
+use core::fmt;
+use core::hash::{Hash, Hasher};
+use core::ops::Deref;
 use semver::Version;
-use std::borrow::Borrow;
-use std::fmt;
-use std::hash::{Hash, Hasher};
-use std::ops::Deref;
 
 /// Represents a kebab string slice used in validation.
 ///
@@ -38,7 +39,7 @@ impl KebabStr {
         // Therefore transmuting `&str` to `&KebabStr` is safe.
         #[allow(unsafe_code)]
         unsafe {
-            std::mem::transmute::<_, &Self>(s.as_ref())
+            core::mem::transmute::<_, &Self>(s.as_ref())
         }
     }
 
@@ -279,10 +280,7 @@ impl ComponentName {
         Self::new_with_features(
             name,
             offset,
-            WasmFeatures {
-                component_model: true,
-                ..Default::default()
-            },
+            WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL,
         )
     }
 
@@ -630,15 +628,18 @@ impl<'a> ComponentNameParser<'a> {
     // pkgpath ::= <namespace>+ <label> <projection>*
     fn pkg_path(&mut self, require_projection: bool) -> Result<()> {
         // There must be at least one package namespace
-        self.take_kebab()?;
+        self.take_lowercase_kebab()?;
         self.expect_str(":")?;
-        self.take_kebab()?;
+        self.take_lowercase_kebab()?;
 
-        if self.features.component_model_nested_names {
+        if self
+            .features
+            .contains(WasmFeatures::COMPONENT_MODEL_NESTED_NAMES)
+        {
             // Take the remaining package namespaces and name
             while self.next.starts_with(':') {
                 self.expect_str(":")?;
-                self.take_kebab()?;
+                self.take_lowercase_kebab()?;
             }
         }
 
@@ -647,7 +648,10 @@ impl<'a> ComponentNameParser<'a> {
             self.expect_str("/")?;
             self.take_kebab()?;
 
-            if self.features.component_model_nested_names {
+            if self
+                .features
+                .contains(WasmFeatures::COMPONENT_MODEL_NESTED_NAMES)
+            {
                 while self.next.starts_with('/') {
                     self.expect_str("/")?;
                     self.take_kebab()?;
@@ -818,6 +822,20 @@ impl<'a> ComponentNameParser<'a> {
                 self.kebab(kebab)
             })
             .unwrap_or_else(|| self.expect_kebab())
+    }
+
+    fn take_lowercase_kebab(&mut self) -> Result<&'a KebabStr> {
+        let kebab = self.take_kebab()?;
+        if let Some(c) = kebab
+            .chars()
+            .find(|c| c.is_alphabetic() && !c.is_lowercase())
+        {
+            bail!(
+                self.offset,
+                "character `{c}` is not lowercase in package name/namespace"
+            );
+        }
+        Ok(kebab)
     }
 
     fn expect_kebab(&mut self) -> Result<&'a KebabStr> {

@@ -14,6 +14,7 @@
  */
 
 use crate::limits::MAX_WASM_CATCHES;
+use crate::prelude::*;
 use crate::{BinaryReader, BinaryReaderError, FromReader, Result, ValType};
 
 /// Represents a block type.
@@ -105,6 +106,24 @@ impl V128 {
     pub fn i128(&self) -> i128 {
         i128::from_le_bytes(self.0)
     }
+}
+
+/// Represents the memory ordering for atomic instructions.
+///
+/// For an in-depth explanation of memory orderings, see the C++ documentation
+/// for [`memory_order`] or the Rust documentation for [`atomic::Ordering`].
+///
+/// [`memory_order`]: https://en.cppreference.com/w/cpp/atomic/memory_order
+/// [`atomic::Ordering`]: https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub enum Ordering {
+    /// For a load, it acquires; this orders all operations before the last
+    /// "releasing" store. For a store, it releases; this orders all operations
+    /// before it at the next "acquiring" load.
+    AcqRel,
+    /// Like `AcqRel` but all threads see all sequentially consistent operations
+    /// in the same order.
+    SeqCst,
 }
 
 macro_rules! define_operator {

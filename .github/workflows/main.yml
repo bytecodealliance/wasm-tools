@@ -24,6 +24,7 @@ jobs:
           os: ubuntu-latest
         - build: x86_64-macos
           os: macos-latest
+          target: x86_64-apple-darwin
         - build: aarch64-macos
           os: macos-latest
           target: aarch64-apple-darwin
@@ -152,6 +153,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - run: rustup target add x86_64-unknown-none
       - run: cargo check --benches -p wasm-smith
       - run: cargo check --no-default-features
       - run: cargo check --no-default-features --features print
@@ -176,6 +178,9 @@ jobs:
       - run: cargo check --no-default-features -p wit-parser --features serde
       - run: cargo check --no-default-features -p wit-parser --features decoding
       - run: cargo check --no-default-features -p wit-parser --features serde,decoding,wat
+      - run: cargo check --no-default-features -p wasmparser
+      - run: cargo check --no-default-features -p wasmparser --target x86_64-unknown-none
+      - run: cargo check --no-default-features -p wasmparser --features std
       - run: |
           if cargo tree -p wasm-smith --no-default-features -e no-dev | grep wasmparser; then
             echo wasm-smith without default features should not depend on wasmparser

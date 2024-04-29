@@ -16,7 +16,7 @@
 use crate::{
     BinaryReader, BinaryReaderError, FromReader, Result, SectionLimited, Subsection, Subsections,
 };
-use std::ops::Range;
+use core::ops::Range;
 
 /// Represents a name map from the names custom section.
 pub type NameMap<'a> = SectionLimited<'a, Naming<'a>>;
@@ -101,6 +101,8 @@ pub enum Name<'a> {
     Element(NameMap<'a>),
     /// The name is for the data segments.
     Data(NameMap<'a>),
+    /// The name is for fields.
+    Field(IndirectNameMap<'a>),
     /// The name is for tags.
     Tag(NameMap<'a>),
     /// An unknown [name subsection](https://webassembly.github.io/spec/core/appendix/custom.html#subsections).
@@ -145,6 +147,7 @@ impl<'a> Subsection<'a> for Name<'a> {
             7 => Name::Global(NameMap::new(data, offset)?),
             8 => Name::Element(NameMap::new(data, offset)?),
             9 => Name::Data(NameMap::new(data, offset)?),
+            10 => Name::Field(IndirectNameMap::new(data, offset)?),
             11 => Name::Tag(NameMap::new(data, offset)?),
             ty => Name::Unknown {
                 ty,

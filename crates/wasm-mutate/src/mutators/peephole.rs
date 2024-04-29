@@ -306,7 +306,6 @@ impl PeepholeMutator {
                         for resource in &needed_resources {
                             match resource {
                                 ResourceRequest::Global {
-                                    index: _,
                                     tpe: ty,
                                     mutable,
                                     shared,

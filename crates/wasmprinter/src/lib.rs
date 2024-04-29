@@ -8,7 +8,7 @@
 
 #![deny(missing_docs)]
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Write};
 use std::marker;
@@ -72,6 +72,7 @@ struct CoreState {
     local_names: NamingMap<(u32, u32), NameLocal>,
     label_names: NamingMap<(u32, u32), NameLabel>,
     type_names: NamingMap<u32, NameType>,
+    field_names: NamingMap<(u32, u32), NameField>,
     tag_names: NamingMap<u32, NameTag>,
     table_names: NamingMap<u32, NameTable>,
     memory_names: NamingMap<u32, NameMemory>,
@@ -267,7 +268,14 @@ impl Printer {
                 Payload::CodeSectionEntry(f) => {
                     code.push(f);
                 }
-                Payload::ModuleSection { range, .. } | Payload::ComponentSection { range, .. } => {
+                Payload::ModuleSection {
+                    unchecked_range: range,
+                    ..
+                }
+                | Payload::ComponentSection {
+                    unchecked_range: range,
+                    ..
+                } => {
                     let offset = range.end - range.start;
                     if offset > bytes.len() {
                         bail!("invalid module or component section range");
@@ -514,7 +522,7 @@ impl Printer {
 
                 Payload::ModuleSection {
                     parser: inner,
-                    range,
+                    unchecked_range: range,
                 } => {
                     Self::ensure_component(&states)?;
                     expected = Some(Encoding::Module);
@@ -529,7 +537,7 @@ impl Printer {
                 Payload::CoreTypeSection(s) => self.print_core_types(&mut states, s)?,
                 Payload::ComponentSection {
                     parser: inner,
-                    range,
+                    unchecked_range: range,
                 } => {
                     Self::ensure_component(&states)?;
                     expected = Some(Encoding::Component);
@@ -632,7 +640,7 @@ impl Printer {
                 let mut used = match name {
                     // labels can be shadowed, so maintaining the used names is not useful.
                     "label" => None,
-                    "local" => Some(HashSet::new()),
+                    "local" | "field" => Some(HashSet::new()),
                     _ => unimplemented!("{name} is an unknown type of indirect names"),
                 };
                 for naming in indirect.names {
@@ -661,6 +669,7 @@ impl Printer {
                 Name::Global(n) => name_map(&mut state.core.global_names, n, "global")?,
                 Name::Element(n) => name_map(&mut state.core.element_names, n, "elem")?,
                 Name::Data(n) => name_map(&mut state.core.data_names, n, "data")?,
+                Name::Field(n) => indirect_name_map(&mut state.core.field_names, n, "field")?,
                 Name::Tag(n) => name_map(&mut state.core.tag_names, n, "tag")?,
                 Name::Unknown { .. } => (),
             }
@@ -767,37 +776,33 @@ impl Printer {
 
     fn print_type(&mut self, state: &mut State, ty: SubType) -> Result<()> {
         self.start_group("type ");
-        self.print_name(&state.core.type_names, state.core.types.len() as u32)?;
+        let ty_idx = state.core.types.len() as u32;
+        self.print_name(&state.core.type_names, ty_idx)?;
         self.result.push(' ');
-        self.print_sub(state, &ty, None)?;
+        self.print_sub(state, &ty, ty_idx)?;
         self.end_group(); // `type`
         state.core.types.push(Some(ty));
         Ok(())
     }
 
-    fn print_sub(&mut self, state: &State, ty: &SubType, names_for: Option<u32>) -> Result<u32> {
+    fn print_sub(&mut self, state: &State, ty: &SubType, ty_idx: u32) -> Result<u32> {
         let r = if !ty.is_final || !ty.supertype_idx.is_none() {
             self.start_group("sub");
             self.print_sub_type(state, ty)?;
-            let r = self.print_composite(state, &ty.composite_type, names_for)?;
+            let r = self.print_composite(state, &ty.composite_type, ty_idx)?;
             self.end_group(); // `sub`
             r
         } else {
-            self.print_composite(state, &ty.composite_type, names_for)?
+            self.print_composite(state, &ty.composite_type, ty_idx)?
         };
         Ok(r)
     }
 
-    fn print_composite(
-        &mut self,
-        state: &State,
-        ty: &CompositeType,
-        names_for: Option<u32>,
-    ) -> Result<u32> {
+    fn print_composite(&mut self, state: &State, ty: &CompositeType, ty_idx: u32) -> Result<u32> {
         let r = match &ty {
             CompositeType::Func(ty) => {
                 self.start_group("func");
-                let r = self.print_func_type(state, ty, names_for)?;
+                let r = self.print_func_type(state, ty, None)?;
                 self.end_group(); // `func`
                 r
             }
@@ -809,7 +814,7 @@ impl Printer {
             }
             CompositeType::Struct(ty) => {
                 self.start_group("struct");
-                let r = self.print_struct_type(state, ty)?;
+                let r = self.print_struct_type(state, ty, ty_idx)?;
                 self.end_group(); // `struct`
                 r
             }
@@ -897,8 +902,20 @@ impl Printer {
         Ok(ty.params().len() as u32)
     }
 
-    fn print_field_type(&mut self, state: &State, ty: &FieldType) -> Result<u32> {
+    fn print_field_type(
+        &mut self,
+        state: &State,
+        ty: &FieldType,
+        ty_field_idx: Option<(u32, u32)>,
+    ) -> Result<u32> {
         self.result.push(' ');
+        if let Some(idxs @ (_, field_idx)) = ty_field_idx {
+            match state.core.field_names.index_to_name.get(&idxs) {
+                Some(name) => write!(self.result, "${} ", name.identifier())?,
+                None if self.name_unnamed => write!(self.result, "$#field{field_idx} ")?,
+                None => {}
+            }
+        }
         if ty.mutable {
             self.result.push_str("(mut ");
         }
@@ -910,13 +927,13 @@ impl Printer {
     }
 
     fn print_array_type(&mut self, state: &State, ty: &ArrayType) -> Result<u32> {
-        self.print_field_type(state, &ty.0)
+        self.print_field_type(state, &ty.0, None)
     }
 
-    fn print_struct_type(&mut self, state: &State, ty: &StructType) -> Result<u32> {
-        for field in ty.fields.iter() {
+    fn print_struct_type(&mut self, state: &State, ty: &StructType, ty_idx: u32) -> Result<u32> {
+        for (field_index, field) in ty.fields.iter().enumerate() {
             self.result.push_str(" (field");
-            self.print_field_type(state, field)?;
+            self.print_field_type(state, field, Some((ty_idx, field_index as u32)))?;
             self.result.push(')');
         }
         Ok(0)
@@ -1075,6 +1092,12 @@ impl Printer {
         self.print_limits(ty.initial, ty.maximum)?;
         if ty.shared {
             self.result.push_str(" shared");
+        }
+        if let Some(p) = ty.page_size_log2 {
+            let p = 1_u64
+                .checked_shl(p)
+                .ok_or_else(|| anyhow!("left shift overflow").context("invalid page size"))?;
+            write!(self.result, "(pagesize {p:#x})")?;
         }
         Ok(())
     }
@@ -1441,6 +1464,15 @@ impl Printer {
         match state.core.local_names.index_to_name.get(&(func, idx)) {
             Some(name) => write!(self.result, "${}", name.identifier())?,
             None if self.name_unnamed => write!(self.result, "$#local{idx}")?,
+            None => write!(self.result, "{}", idx)?,
+        }
+        Ok(())
+    }
+
+    fn print_field_idx(&mut self, state: &State, ty: u32, idx: u32) -> Result<()> {
+        match state.core.field_names.index_to_name.get(&(ty, idx)) {
+            Some(name) => write!(self.result, "${}", name.identifier())?,
+            None if self.name_unnamed => write!(self.result, "$#field{idx}")?,
             None => write!(self.result, "{}", idx)?,
         }
         Ok(())
@@ -1838,6 +1870,7 @@ impl Printer {
                 ComponentTypeDeclaration::Export { name, ty } => {
                     self.start_group("export ");
                     self.print_component_kind_name(states.last_mut().unwrap(), ty.kind())?;
+                    self.result.push(' ');
                     self.print_str(name.0)?;
                     self.result.push(' ');
                     self.print_component_import_ty(states.last_mut().unwrap(), &ty, false)?;
@@ -1872,6 +1905,7 @@ impl Printer {
                 InstanceTypeDeclaration::Export { name, ty } => {
                     self.start_group("export ");
                     self.print_component_kind_name(states.last_mut().unwrap(), ty.kind())?;
+                    self.result.push(' ');
                     self.print_str(name.0)?;
                     self.result.push(' ');
                     self.print_component_import_ty(states.last_mut().unwrap(), &ty, false)?;
@@ -2150,6 +2184,7 @@ impl Printer {
         self.start_group("export ");
         if named {
             self.print_component_kind_name(state, export.kind)?;
+            self.result.push(' ');
         }
         self.print_str(export.name.0)?;
         self.result.push(' ');
@@ -2193,7 +2228,30 @@ impl Printer {
                 state.component.components += 1;
             }
         }
-        self.result.push(' ');
+        Ok(())
+    }
+
+    fn start_component_external_kind_group(&mut self, kind: ComponentExternalKind) -> Result<()> {
+        match kind {
+            ComponentExternalKind::Module => {
+                self.start_group("core module ");
+            }
+            ComponentExternalKind::Component => {
+                self.start_group("component ");
+            }
+            ComponentExternalKind::Instance => {
+                self.start_group("instance ");
+            }
+            ComponentExternalKind::Func => {
+                self.start_group("func ");
+            }
+            ComponentExternalKind::Value => {
+                self.start_group("value ");
+            }
+            ComponentExternalKind::Type => {
+                self.start_group("type ");
+            }
+        }
         Ok(())
     }
 
@@ -2203,29 +2261,24 @@ impl Printer {
         kind: ComponentExternalKind,
         index: u32,
     ) -> Result<()> {
+        self.start_component_external_kind_group(kind)?;
         match kind {
             ComponentExternalKind::Module => {
-                self.start_group("core module ");
                 self.print_idx(&state.core.module_names, index)?;
             }
             ComponentExternalKind::Component => {
-                self.start_group("component ");
                 self.print_idx(&state.component.component_names, index)?;
             }
             ComponentExternalKind::Instance => {
-                self.start_group("instance ");
                 self.print_idx(&state.component.instance_names, index)?;
             }
             ComponentExternalKind::Func => {
-                self.start_group("func ");
                 self.print_idx(&state.component.func_names, index)?;
             }
             ComponentExternalKind::Value => {
-                self.start_group("value ");
                 self.print_idx(&state.component.value_names, index)?;
             }
             ComponentExternalKind::Type => {
-                self.start_group("type ");
                 self.print_idx(&state.component.type_names, index)?;
             }
         }
@@ -2506,50 +2559,9 @@ impl Printer {
                 self.result.push(' ');
                 self.print_str(name)?;
                 self.result.push(' ');
-                match kind {
-                    ComponentExternalKind::Module => {
-                        self.start_group("core module ");
-                        self.print_name(&state.core.module_names, state.core.modules)?;
-                        self.end_group();
-                        state.core.modules += 1;
-                    }
-                    ComponentExternalKind::Component => {
-                        self.start_group("component ");
-                        self.print_name(
-                            &state.component.component_names,
-                            state.component.components,
-                        )?;
-                        self.end_group();
-                        state.component.components += 1;
-                    }
-                    ComponentExternalKind::Instance => {
-                        self.start_group("instance ");
-                        self.print_name(
-                            &state.component.instance_names,
-                            state.component.instances,
-                        )?;
-                        self.end_group();
-                        state.component.instances += 1;
-                    }
-                    ComponentExternalKind::Func => {
-                        self.start_group("func ");
-                        self.print_name(&state.component.func_names, state.component.funcs)?;
-                        self.end_group();
-                        state.component.funcs += 1;
-                    }
-                    ComponentExternalKind::Value => {
-                        self.start_group("value ");
-                        self.print_name(&state.component.value_names, state.component.values)?;
-                        self.end_group();
-                        state.component.values += 1;
-                    }
-                    ComponentExternalKind::Type => {
-                        self.start_group("type ");
-                        self.print_name(&state.component.type_names, state.component.types)?;
-                        self.end_group();
-                        state.component.types += 1;
-                    }
-                }
+                self.start_component_external_kind_group(kind)?;
+                self.print_component_kind_name(state, kind)?;
+                self.end_group();
 
                 self.end_group(); // alias export
             }
@@ -3191,6 +3203,7 @@ naming_namespaces! {
     struct NameTable => "table"
     struct NameValue => "value"
     struct NameType => "type"
+    struct NameField => "field"
     struct NameData => "data"
     struct NameElem => "elem"
     struct NameComponent => "component"

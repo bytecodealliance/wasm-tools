@@ -22,8 +22,6 @@ pub const MAX_WASM_EXPORTS: usize = 100_000;
 pub const MAX_WASM_GLOBALS: usize = 1_000_000;
 pub const MAX_WASM_ELEMENT_SEGMENTS: usize = 100_000;
 pub const MAX_WASM_DATA_SEGMENTS: usize = 100_000;
-pub const MAX_WASM_MEMORY32_PAGES: u64 = 65536;
-pub const MAX_WASM_MEMORY64_PAGES: u64 = 1 << 48;
 pub const MAX_WASM_STRING_SIZE: usize = 100_000;
 pub const MAX_WASM_FUNCTION_SIZE: usize = 128 * 1024;
 pub const MAX_WASM_FUNCTION_LOCALS: usize = 50000;
@@ -37,6 +35,20 @@ pub const MAX_WASM_TAGS: usize = 1_000_000;
 pub const MAX_WASM_BR_TABLE_SIZE: usize = MAX_WASM_FUNCTION_SIZE;
 pub const MAX_WASM_STRUCT_FIELDS: usize = 10_000;
 pub const MAX_WASM_CATCHES: usize = 10_000;
+
+pub const DEFAULT_WASM_PAGE_SIZE: u64 = 1 << 16;
+
+pub fn max_wasm_memory32_pages(page_size: u64) -> u64 {
+    assert!(page_size.is_power_of_two());
+    assert!(page_size <= DEFAULT_WASM_PAGE_SIZE);
+    (1 << 32) / page_size
+}
+
+pub fn max_wasm_memory64_pages(page_size: u64) -> u64 {
+    assert!(page_size.is_power_of_two());
+    assert!(page_size <= DEFAULT_WASM_PAGE_SIZE);
+    u64::try_from((1_u128 << 64) / u128::from(page_size)).unwrap_or(u64::MAX)
+}
 
 // Component-related limits
 pub const MAX_WASM_MODULE_SIZE: usize = 1024 * 1024 * 1024; //= 1 GiB

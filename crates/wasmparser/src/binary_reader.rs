@@ -13,12 +13,12 @@
  * limitations under the License.
  */
 
+use crate::prelude::*;
 use crate::{limits::*, *};
-use std::error::Error;
-use std::fmt;
-use std::marker;
-use std::ops::Range;
-use std::str;
+use core::fmt;
+use core::marker;
+use core::ops::Range;
+use core::str;
 
 pub(crate) const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
 
@@ -39,9 +39,10 @@ pub(crate) struct BinaryReaderErrorInner {
 }
 
 /// The result for `BinaryReader` operations.
-pub type Result<T, E = BinaryReaderError> = std::result::Result<T, E>;
+pub type Result<T, E = BinaryReaderError> = core::result::Result<T, E>;
 
-impl Error for BinaryReaderError {}
+#[cfg(feature = "std")]
+impl std::error::Error for BinaryReaderError {}
 
 impl fmt::Display for BinaryReaderError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -275,6 +276,18 @@ impl<'a> BinaryReader<'a> {
             offset,
             memory,
         })
+    }
+
+    fn read_ordering(&mut self) -> Result<Ordering> {
+        let byte = self.read_var_u32()?;
+        match byte {
+            0 => Ok(Ordering::SeqCst),
+            1 => Ok(Ordering::AcqRel),
+            x => Err(BinaryReaderError::new(
+                &format!("invalid atomic consistency ordering {}", x),
+                self.original_position() - 1,
+            )),
+        }
     }
 
     fn read_br_table(&mut self) -> Result<BrTable<'a>> {
@@ -1625,6 +1638,10 @@ impl<'a> BinaryReader<'a> {
             0x4c => visitor.visit_i64_atomic_rmw8_cmpxchg_u(self.read_memarg(0)?),
             0x4d => visitor.visit_i64_atomic_rmw16_cmpxchg_u(self.read_memarg(1)?),
             0x4e => visitor.visit_i64_atomic_rmw32_cmpxchg_u(self.read_memarg(2)?),
+
+            // Decode shared-everything-threads proposal.
+            0x4f => visitor.visit_global_atomic_get(self.read_ordering()?, self.read_var_u32()?),
+            0x50 => visitor.visit_global_atomic_set(self.read_ordering()?, self.read_var_u32()?),
 
             _ => bail!(pos, "unknown 0xfe subopcode: 0x{code:x}"),
         })

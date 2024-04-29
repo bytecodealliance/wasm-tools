@@ -73,6 +73,7 @@ impl Opts {
                 Name::Data(names) => new_section.data(&self.name_map(names)?),
                 Name::Local(names) => new_section.locals(&self.indirect_name_map(names)?),
                 Name::Label(names) => new_section.labels(&self.indirect_name_map(names)?),
+                Name::Field(names) => new_section.fields(&self.indirect_name_map(names)?),
                 Name::Tag(names) => new_section.tags(&self.name_map(names)?),
                 Name::Unknown { .. } => bail!("unknown name section"),
             }

@@ -472,24 +472,44 @@ impl Encode for Limits {
 impl Encode for MemoryType {
     fn encode(&self, e: &mut Vec<u8>) {
         match self {
-            MemoryType::B32 { limits, shared } => {
+            MemoryType::B32 {
+                limits,
+                shared,
+                page_size_log2,
+            } => {
                 let flag_max = limits.max.is_some() as u8;
                 let flag_shared = *shared as u8;
-                let flags = flag_max | (flag_shared << 1);
+                let flag_page_size = page_size_log2.is_some() as u8;
+                let flags = flag_max | (flag_shared << 1) | (flag_page_size << 3);
                 e.push(flags);
                 limits.min.encode(e);
                 if let Some(max) = limits.max {
                     max.encode(e);
                 }
+                if let Some(p) = page_size_log2 {
+                    p.encode(e);
+                }
             }
-            MemoryType::B64 { limits, shared } => {
-                let flag_max = limits.max.is_some() as u8;
-                let flag_shared = *shared as u8;
-                let flags = flag_max | (flag_shared << 1) | 0x04;
+            MemoryType::B64 {
+                limits,
+                shared,
+                page_size_log2,
+            } => {
+                let flag_max = limits.max.is_some();
+                let flag_shared = *shared;
+                let flag_mem64 = true;
+                let flag_page_size = page_size_log2.is_some();
+                let flags = ((flag_max as u8) << 0)
+                    | ((flag_shared as u8) << 1)
+                    | ((flag_mem64 as u8) << 2)
+                    | ((flag_page_size as u8) << 3);
                 e.push(flags);
                 limits.min.encode(e);
                 if let Some(max) = limits.max {
                     max.encode(e);
+                }
+                if let Some(p) = page_size_log2 {
+                    p.encode(e);
                 }
             }
         }
@@ -780,6 +800,23 @@ impl Encode for MemArg<'_> {
     }
 }
 
+impl Encode for Ordering {
+    fn encode(&self, buf: &mut Vec<u8>) {
+        let flag: u8 = match self {
+            Ordering::SeqCst => 0,
+            Ordering::AcqRel => 1,
+        };
+        flag.encode(buf);
+    }
+}
+
+impl Encode for OrderedAccess<'_> {
+    fn encode(&self, buf: &mut Vec<u8>) {
+        self.ordering.encode(buf);
+        self.index.encode(buf);
+    }
+}
+
 impl Encode for LoadOrStoreLane<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.memarg.encode(e);
@@ -874,6 +911,7 @@ struct Names<'a> {
     data_idx: u32,
     elems: Vec<(u32, &'a str)>,
     elem_idx: u32,
+    fields: Vec<(u32, Vec<(u32, &'a str)>)>,
 }
 
 fn find_names<'a>(
@@ -1008,6 +1046,24 @@ fn find_names<'a>(
             }
         }
 
+        // Handle struct fields separately from above
+        if let ModuleField::Type(ty) = field {
+            let mut field_names = vec![];
+            match &ty.def {
+                TypeDef::Func(_) | TypeDef::Array(_) => {}
+                TypeDef::Struct(ty_struct) => {
+                    for (idx, field) in ty_struct.fields.iter().enumerate() {
+                        if let Some(name) = get_name(&field.id, &None) {
+                            field_names.push((idx as u32, name))
+                        }
+                    }
+                }
+            }
+            if field_names.len() > 0 {
+                ret.fields.push((*idx, field_names))
+            }
+        }
+
         *idx += 1;
     }
 
@@ -1024,8 +1080,9 @@ impl Names<'_> {
             && self.memories.is_empty()
             && self.tables.is_empty()
             && self.types.is_empty()
-            && self.data.is_empty()
             && self.elems.is_empty()
+            && self.data.is_empty()
+            && self.fields.is_empty()
             && self.tags.is_empty()
         // NB: specifically don't check modules/instances since they're
         // not encoded for now.
@@ -1081,6 +1138,10 @@ impl Encode for Names<'_> {
         if self.data.len() > 0 {
             self.data.encode(&mut tmp);
             subsec(9, &mut tmp);
+        }
+        if self.fields.len() > 0 {
+            self.fields.encode(&mut tmp);
+            subsec(10, &mut tmp);
         }
         if self.tags.len() > 0 {
             self.tags.encode(&mut tmp);

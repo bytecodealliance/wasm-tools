@@ -5203,10 +5203,12 @@ fn memory_offset(u: &mut Unstructured, module: &Module, memory_index: u32) -> Re
     assert!(a + b + c != 0);
 
     let memory_type = &module.memories[memory_index as usize];
-    let min = memory_type.minimum.saturating_mul(crate::WASM_PAGE_SIZE);
+    let min = memory_type
+        .minimum
+        .saturating_mul(crate::page_size(memory_type).into());
     let max = memory_type
         .maximum
-        .map(|max| max.saturating_mul(crate::WASM_PAGE_SIZE))
+        .map(|max| max.saturating_mul(crate::page_size(memory_type).into()))
         .unwrap_or(u64::MAX);
 
     let (min, max, true_max) = match (memory_type.memory64, module.config.disallow_traps) {

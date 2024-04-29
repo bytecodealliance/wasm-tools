@@ -66,18 +66,15 @@ impl Opts {
         if config.skip_validation {
             log::debug!("output validation was skipped");
         } else {
-            Validator::new_with_features(WasmFeatures {
-                component_model: true,
-                ..Default::default()
-            })
-            .validate_all(&bytes)
-            .with_context(|| {
-                let output = match self.output.output_path() {
-                    Some(s) => format!(" `{}`", s.display()),
-                    None => String::new(),
-                };
-                format!("failed to validate output component{output}")
-            })?;
+            Validator::new_with_features(WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL)
+                .validate_all(&bytes)
+                .with_context(|| {
+                    let output = match self.output.output_path() {
+                        Some(s) => format!(" `{}`", s.display()),
+                        None => String::new(),
+                    };
+                    format!("failed to validate output component{output}")
+                })?;
 
             log::debug!("output component validated successfully");
         }
