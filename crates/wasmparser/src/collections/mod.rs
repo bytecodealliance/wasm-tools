@@ -1,4 +1,4 @@
-//! Type aliases for maps and sets used by `wasmparser`
+//! Type definitions for maps and sets used by the `wasmparser` crate.
 //!
 //! This module contains type definitions for [`Map`], [`Set`], [`IndexMap`], and [`IndexSet`].
 //! These types are thin-wrappers around either hash-map based or B-tree-map based data structures.
