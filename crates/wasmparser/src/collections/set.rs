@@ -117,6 +117,24 @@ where
     pub fn replace(&mut self, value: T) -> Option<T> {
         self.inner.replace(value)
     }
+
+    /// Returns `true` if `self` has no elements in common with `other`.
+    /// This is equivalent to checking for an empty intersection.
+    pub fn is_disjoint(&self, other: &Self) -> bool {
+        self.inner.is_disjoint(&other.inner)
+    }
+
+    /// Returns `true` if the [`Set`] is a subset of another,
+    /// i.e., `other` contains at least all the values in `self`.
+    pub fn is_subset(&self, other: &Self) -> bool {
+        self.inner.is_subset(&other.inner)
+    }
+
+    /// Returns `true` if the [`Set`] is a superset of another,
+    /// i.e., `self` contains at least all the values in `other`.
+    pub fn is_superset(&self, other: &Self) -> bool {
+        self.inner.is_superset(&other.inner)
+    }
 }
 
 impl<T> FromIterator<T> for Set<T>
