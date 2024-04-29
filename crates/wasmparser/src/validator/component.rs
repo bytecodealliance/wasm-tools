@@ -3212,7 +3212,7 @@ mod append_only {
 
     impl<K, V> IndexMapAppendOnly<K, V>
     where
-        K: Hash + Eq + Ord + PartialEq,
+        K: Hash + Eq + Ord + PartialEq + Clone,
     {
         pub fn insert(&mut self, key: K, value: V) {
             let prev = self.0.insert(key, value);

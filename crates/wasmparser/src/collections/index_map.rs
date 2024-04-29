@@ -23,22 +23,7 @@ mod detail {
 }
 
 #[cfg(feature = "no-hash-maps")]
-mod detail {
-    // TODO: this module is going to custom implement IndexMap
-    use crate::collections::hash;
-    use indexmap::IndexMap;
-
-    pub type IndexMapImpl<K, V> = IndexMap<K, V, hash::RandomState>;
-    pub type EntryImpl<'a, K, V> = indexmap::map::Entry<'a, K, V>;
-    pub type OccupiedEntryImpl<'a, K, V> = indexmap::map::OccupiedEntry<'a, K, V>;
-    pub type VacantEntryImpl<'a, K, V> = indexmap::map::VacantEntry<'a, K, V>;
-    pub type IterImpl<'a, K, V> = indexmap::map::Iter<'a, K, V>;
-    pub type IterMutImpl<'a, K, V> = indexmap::map::IterMut<'a, K, V>;
-    pub type IntoIterImpl<K, V> = indexmap::map::IntoIter<K, V>;
-    pub type KeysImpl<'a, K, V> = indexmap::map::Keys<'a, K, V>;
-    pub type ValuesImpl<'a, K, V> = indexmap::map::Values<'a, K, V>;
-    pub type ValuesMutImpl<'a, K, V> = indexmap::map::ValuesMut<'a, K, V>;
-}
+mod detail;
 
 /// A hash table where the iteration order of the key-value pairs is independent of the hash values of the keys.
 ///
@@ -118,7 +103,7 @@ impl<K, V> IndexMap<K, V> {
 
 impl<K, V> IndexMap<K, V>
 where
-    K: Hash + Eq + Ord,
+    K: Hash + Eq + Ord + Clone,
 {
     /// Reserves capacity for at least `additional` more elements to be inserted in the [`IndexMap`].
     pub fn reserve(&mut self, additional: usize) {
@@ -219,7 +204,7 @@ where
 
 impl<K, V> Extend<(K, V)> for IndexMap<K, V>
 where
-    K: Eq + Hash + Ord,
+    K: Eq + Hash + Ord + Clone,
 {
     fn extend<Iter: IntoIterator<Item = (K, V)>>(&mut self, iter: Iter) {
         self.inner.extend(iter)
@@ -239,7 +224,7 @@ pub enum Entry<'a, K: Ord, V> {
 
 impl<'a, K, V> Entry<'a, K, V>
 where
-    K: Hash + Eq + Ord,
+    K: Hash + Eq + Ord + Clone,
 {
     /// Returns a reference to this entry's key.
     pub fn key(&self) -> &K {
@@ -252,7 +237,7 @@ where
 
 impl<'a, K, V> Entry<'a, K, V>
 where
-    K: Hash + Eq + Ord,
+    K: Hash + Eq + Ord + Clone,
     V: Default,
 {
     /// Ensures a value is in the entry by inserting the default value if empty,
@@ -275,7 +260,7 @@ pub struct OccupiedEntry<'a, K: Ord, V> {
 
 impl<'a, K: 'a, V: 'a> OccupiedEntry<'a, K, V>
 where
-    K: Ord,
+    K: Ord + Clone,
 {
     /// Gets a reference to the key in the entry.
     pub fn key(&self) -> &K {
@@ -314,7 +299,7 @@ pub struct VacantEntry<'a, K: Ord, V> {
 
 impl<'a, K: 'a, V: 'a> VacantEntry<'a, K, V>
 where
-    K: Ord,
+    K: Ord + Clone,
 {
     /// Gets a reference to the key in the entry.
     pub fn key(&self) -> &K {
@@ -337,7 +322,7 @@ where
 
 impl<K, V> FromIterator<(K, V)> for IndexMap<K, V>
 where
-    K: Hash + Eq,
+    K: Hash + Ord + Eq + Clone,
 {
     fn from_iter<I>(iter: I) -> Self
     where
