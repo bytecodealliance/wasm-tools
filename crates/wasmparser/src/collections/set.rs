@@ -21,9 +21,9 @@ mod detail {
 }
 
 /// A default set of values.
-/// 
+///
 /// Provides an API compatible with both [`HashSet`] and [`BTreeSet`].
-/// 
+///
 /// [`HashSet`]: hashbrown::HashSet
 /// [`BTreeSet`]: alloc::collections::BTreeSet
 #[derive(Debug, Clone)]

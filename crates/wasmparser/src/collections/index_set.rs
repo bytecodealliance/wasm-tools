@@ -21,9 +21,9 @@ mod detail {
 }
 
 /// A default set of values.
-/// 
+///
 /// Provides an API compatible with both [`IndexSet`] and a custom implementation based on [`BTreeMap`].
-/// 
+///
 /// [`IndexSet`]: indexmap::IndexSet
 /// [`BTreeMap`]: alloc::collections::BTreeMap
 #[derive(Debug, Clone)]

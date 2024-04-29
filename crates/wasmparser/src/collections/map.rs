@@ -39,9 +39,9 @@ mod detail {
 }
 
 /// A default key-value mapping.
-/// 
+///
 /// Provides an API compatible with both [`HashMap`] and [`BTreeMap`].
-/// 
+///
 /// [`HashMap`]: hashbrown::HashMap
 /// [`BTreeMap`]: alloc::collections::BTreeMap
 #[derive(Debug, Clone)]
