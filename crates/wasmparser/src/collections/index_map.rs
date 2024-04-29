@@ -161,6 +161,25 @@ where
         self.inner.insert(key, value)
     }
 
+    /// Remove the key-value pair equivalent to `key` and return its value.
+    ///
+    /// Like [`Vec::swap_remove`], the pair is removed by swapping it with the
+    /// last element of the map and popping it off. **This perturbs
+    /// the position of what used to be the last element!**
+    ///
+    /// Return `None` if `key` is not in map.
+    ///
+    /// Computes in **O(1)** time (average).
+    ///
+    /// [`Vec::swap_remove`]: alloc::vec::Vec::swap_remove
+    pub fn swap_remove<Q>(&mut self, key: &Q) -> Option<V>
+    where
+        K: Borrow<Q>,
+        Q: ?Sized + Hash + Eq + Ord,
+    {
+        self.inner.swap_remove(key)
+    }
+
     /// Gets the given key's corresponding entry in the [`IndexMap`] for in-place manipulation.
     pub fn entry(&mut self, key: K) -> Entry<'_, K, V> {
         match self.inner.entry(key) {
