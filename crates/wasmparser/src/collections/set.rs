@@ -38,7 +38,7 @@ impl<T> Default for Set<T> {
 }
 
 impl<T> Set<T> {
-    /// Clears the set, removing all elements.
+    /// Clears the [`Set`], removing all elements.
     pub fn clear(&mut self) {
         self.inner.clear()
     }
