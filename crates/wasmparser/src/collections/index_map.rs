@@ -41,6 +41,11 @@ mod detail {
 }
 
 /// A hash table where the iteration order of the key-value pairs is independent of the hash values of the keys.
+/// 
+/// Provides an API compatible with both [`IndexMap`] and a custom implementation based on [`BTreeMap`].
+/// 
+/// [`IndexMap`]: indexmap::IndexMap
+/// [`BTreeMap`]: alloc::collections::BTreeMap
 #[derive(Debug, Clone)]
 pub struct IndexMap<K, V> {
     inner: detail::IndexMapImpl<K, V>,

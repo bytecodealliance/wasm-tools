@@ -21,8 +21,11 @@ mod detail {
 }
 
 /// A default set of values.
-///
-/// Provides a unified API between a hash-set and a btree-set.
+/// 
+/// Provides an API compatible with both [`HashSet`] and [`BTreeSet`].
+/// 
+/// [`HashSet`]: hashbrown::HashSet
+/// [`BTreeSet`]: alloc::collections::BTreeSet
 #[derive(Debug, Clone)]
 pub struct Set<T> {
     /// The underlying hash-set or btree-set data structure used.

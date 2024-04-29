@@ -21,8 +21,11 @@ mod detail {
 }
 
 /// A default set of values.
-///
-/// Provides a unified API between a hash-set based and a btree-set based implementation.
+/// 
+/// Provides an API compatible with both [`IndexSet`] and a custom implementation based on [`BTreeMap`].
+/// 
+/// [`IndexSet`]: indexmap::IndexSet
+/// [`BTreeMap`]: alloc::collections::BTreeMap
 #[derive(Debug, Clone)]
 pub struct IndexSet<T> {
     /// The underlying hash-set or btree-set data structure used.
