@@ -259,11 +259,6 @@ where
     pub fn into_mut(self) -> &'a mut V {
         self.inner.into_mut()
     }
-
-    /// Takes the value out of the entry, and returns it.
-    pub fn remove(self) -> V {
-        self.inner.remove()
-    }
 }
 
 /// A view into a vacant entry in a [`Map`].
