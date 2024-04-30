@@ -12,13 +12,7 @@ mod detail {
 }
 
 #[cfg(feature = "no-hash-maps")]
-mod detail {
-    use crate::collections::hash;
-
-    pub type IndexSetImpl<T> = indexmap::IndexSet<T, hash::RandomState>;
-    pub type IterImpl<'a, T> = indexmap::set::Iter<'a, T>;
-    pub type IntoIterImpl<T> = indexmap::set::IntoIter<T>;
-}
+mod detail;
 
 /// A default set of values.
 ///
@@ -66,7 +60,7 @@ impl<T> IndexSet<T> {
 
 impl<T> IndexSet<T>
 where
-    T: Eq + Hash + Ord,
+    T: Eq + Hash + Ord + Clone,
 {
     /// Reserves capacity for at least `additional` more elements to be inserted in the [`IndexSet`].
     pub fn reserve(&mut self, additional: usize) {
@@ -161,7 +155,7 @@ where
 
 impl<T> FromIterator<T> for IndexSet<T>
 where
-    T: Hash + Eq + Ord,
+    T: Hash + Eq + Ord + Clone,
 {
     fn from_iter<I>(iter: I) -> Self
     where
@@ -184,7 +178,7 @@ impl<'a, T> IntoIterator for &'a IndexSet<T> {
 
 impl<T> Extend<T> for IndexSet<T>
 where
-    T: Hash + Eq + Ord,
+    T: Hash + Eq + Ord + Clone,
 {
     fn extend<Iter: IntoIterator<Item = T>>(&mut self, iter: Iter) {
         self.inner.extend(iter)
