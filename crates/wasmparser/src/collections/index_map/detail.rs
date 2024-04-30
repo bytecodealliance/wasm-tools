@@ -173,8 +173,7 @@ impl<K, V> IndexMap<K, V> {
     where
         K: Ord + Clone,
     {
-        self.insert_full(key, value)
-            .map(|(_index, old_value)| old_value)
+        self.insert_full(key, value).1
     }
 
     /// Inserts a key-value pair into the map.
@@ -186,22 +185,22 @@ impl<K, V> IndexMap<K, V> {
     /// If the map did have this key present, the value is updated, and the old
     /// value is returned. The key is not updated, though; this matters for
     /// types that can be `==` without being identical.
-    pub fn insert_full(&mut self, key: K, value: V) -> Option<(usize, V)>
+    pub fn insert_full(&mut self, key: K, value: V) -> (usize, Option<V>)
     where
         K: Ord + Clone,
     {
         match self.key2slot.entry(key.clone()) {
             btree_map::Entry::Vacant(entry) => {
-                let new_slot = self.slots.len();
-                entry.insert(SlotIndex(new_slot));
+                let index = self.slots.len();
+                entry.insert(SlotIndex(index));
                 self.slots.push(Slot::new(key, value));
-                None
+                (index, None)
             }
             btree_map::Entry::Occupied(entry) => {
                 let index = entry.get().index();
                 let new_slot = Slot::new(key, value);
                 let old_slot = replace(&mut self.slots[index], new_slot);
-                Some((index, old_slot.value))
+                (index, Some(old_slot.value))
             }
         }
     }
