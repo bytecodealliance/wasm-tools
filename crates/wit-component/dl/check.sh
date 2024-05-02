@@ -1,3 +1,5 @@
+set -ex
+
 bash ./build.sh ../../../target/wasm32-wasi/release/tmp.so
 if diff ../../../target/wasm32-wasi/release/tmp.so ../libdl.so; then
   exit 0
