@@ -21,7 +21,7 @@ $ wasm-tools component wit component.wasm
 * Creates WebAssembly [component binaries][model] from input core WebAssembly
   modules. Input modules communicate with the [canonical ABI] to imported and
   exported interfaces described with [`*.wit` files][wit]. The wit interface is
-  either embedded directly in the core wasm binary.
+  required to be embedded directly in the core wasm binary.
 
 * Supports "adapters" which can be used to bridge legacy core WebAssembly
   imported functions into [component model][model] functions. Adapters are
