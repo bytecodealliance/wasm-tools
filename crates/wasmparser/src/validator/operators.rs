@@ -1627,13 +1627,13 @@ where
     }
     fn visit_local_tee(&mut self, local_index: u32) -> Self::Output {
         let expected_ty = self.local(local_index)?;
-        let actual_ty = self.pop_operand(Some(expected_ty))?;
+        self.pop_operand(Some(expected_ty))?;
         if !self.local_inits[local_index as usize] {
             self.local_inits[local_index as usize] = true;
             self.inits.push(local_index);
         }
 
-        self.push_operand(actual_ty)?;
+        self.push_operand(expected_ty)?;
         Ok(())
     }
     fn visit_global_get(&mut self, global_index: u32) -> Self::Output {
