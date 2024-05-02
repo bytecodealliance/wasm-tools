@@ -341,7 +341,7 @@ define_wasm_features! {
         /// The WebAssembly memory64 proposal.
         pub memory64: MEMORY64(1 << 14) = false;
         /// The WebAssembly extended_const proposal.
-        pub extended_const: EXTENDED_CONST(1 << 15) = false;
+        pub extended_const: EXTENDED_CONST(1 << 15) = true;
         /// The WebAssembly component model proposal.
         pub component_model: COMPONENT_MODEL(1 << 16) = true;
         /// The WebAssembly typed function references proposal.
