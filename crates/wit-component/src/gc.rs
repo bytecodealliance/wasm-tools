@@ -603,6 +603,7 @@ impl<'a> Module<'a> {
                 minimum: table.ty.initial,
                 maximum: table.ty.maximum,
                 element_type: map.refty(table.ty.element_type),
+                table64: table.ty.table64,
             };
             match &table.def {
                 Definition::Import(m, n) => {

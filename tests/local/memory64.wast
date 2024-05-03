@@ -130,3 +130,8 @@
 (assert_invalid
   (module (memory 1) (data (i64.const 0) ".."))
   "type mismatch")
+
+(module $table64
+  (table $t0 i64 1 1 funcref)
+  (elem (table $t0) (i64.const 0) func)
+)

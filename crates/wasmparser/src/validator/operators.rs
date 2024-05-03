@@ -26,7 +26,7 @@ use crate::prelude::*;
 use crate::{
     limits::MAX_WASM_FUNCTION_LOCALS, ArrayType, BinaryReaderError, BlockType, BrTable, Catch,
     CompositeType, FieldType, FuncType, HeapType, Ieee32, Ieee64, MemArg, RefType, Result,
-    StorageType, StructType, SubType, TryTable, UnpackedIndex, ValType, VisitOperator,
+    StorageType, StructType, SubType, TableType, TryTable, UnpackedIndex, ValType, VisitOperator,
     WasmFeatures, WasmModuleResources, V128,
 };
 use core::ops::{Deref, DerefMut};
@@ -737,6 +737,17 @@ where
         Ok(index_ty)
     }
 
+    /// Validates that the `table` is valid and returns the type it points to.
+    fn check_table_index(&self, table: u32) -> Result<TableType> {
+        match self.resources.table_at(table) {
+            Some(ty) => Ok(ty),
+            None => bail!(
+                self.offset,
+                "unknown table {table}: table index out of bounds"
+            ),
+        }
+    }
+
     fn check_floats_enabled(&self) -> Result<()> {
         if !self.features.contains(WasmFeatures::FLOATS) {
             bail!(self.offset, "floating-point instruction disallowed");
@@ -816,24 +827,18 @@ where
 
     /// Validates a call to an indirect function, very similar to `check_call`.
     fn check_call_indirect(&mut self, index: u32, table_index: u32) -> Result<()> {
-        match self.resources.table_at(table_index) {
-            None => {
-                bail!(self.offset, "unknown table: table index out of bounds");
-            }
-            Some(tab) => {
-                if !self
-                    .resources
-                    .is_subtype(ValType::Ref(tab.element_type), ValType::FUNCREF)
-                {
-                    bail!(
-                        self.offset,
-                        "indirect calls must go through a table with type <= funcref",
-                    );
-                }
-            }
+        let tab = self.check_table_index(table_index)?;
+        if !self
+            .resources
+            .is_subtype(ValType::Ref(tab.element_type), ValType::FUNCREF)
+        {
+            bail!(
+                self.offset,
+                "indirect calls must go through a table with type <= funcref",
+            );
         }
         let ty = self.func_type_at(index)?;
-        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(tab.index_type()))?;
         for ty in ty.clone().params().iter().rev() {
             self.pop_operand(Some(*ty))?;
         }
@@ -3502,15 +3507,7 @@ where
         Ok(())
     }
     fn visit_table_init(&mut self, segment: u32, table: u32) -> Self::Output {
-        if table > 0 {}
-        let table = match self.resources.table_at(table) {
-            Some(table) => table,
-            None => bail!(
-                self.offset,
-                "unknown table {}: table index out of bounds",
-                table
-            ),
-        };
+        let table = self.check_table_index(table)?;
         let segment_ty = self.element_type_at(segment)?;
         if !self
             .resources
@@ -3520,7 +3517,7 @@ where
         }
         self.pop_operand(Some(ValType::I32))?;
         self.pop_operand(Some(ValType::I32))?;
-        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(table.index_type()))?;
         Ok(())
     }
     fn visit_elem_drop(&mut self, segment: u32) -> Self::Output {
@@ -3534,73 +3531,61 @@ where
         Ok(())
     }
     fn visit_table_copy(&mut self, dst_table: u32, src_table: u32) -> Self::Output {
-        if src_table > 0 || dst_table > 0 {}
-        let (src, dst) = match (
-            self.resources.table_at(src_table),
-            self.resources.table_at(dst_table),
-        ) {
-            (Some(a), Some(b)) => (a, b),
-            _ => bail!(self.offset, "table index out of bounds"),
-        };
+        let src = self.check_table_index(src_table)?;
+        let dst = self.check_table_index(dst_table)?;
         if !self.resources.is_subtype(
             ValType::Ref(src.element_type),
             ValType::Ref(dst.element_type),
         ) {
             bail!(self.offset, "type mismatch");
         }
-        self.pop_operand(Some(ValType::I32))?;
-        self.pop_operand(Some(ValType::I32))?;
-        self.pop_operand(Some(ValType::I32))?;
+
+        // The length operand here is the smaller of src/dst, which is
+        // i32 if one is i32
+        self.pop_operand(Some(match src.index_type() {
+            ValType::I32 => ValType::I32,
+            _ => dst.index_type(),
+        }))?;
+
+        // ... and the offset into each table is required to be
+        // whatever the indexing type is for that table
+        self.pop_operand(Some(src.index_type()))?;
+        self.pop_operand(Some(dst.index_type()))?;
         Ok(())
     }
     fn visit_table_get(&mut self, table: u32) -> Self::Output {
-        let ty = match self.resources.table_at(table) {
-            Some(ty) => ty.element_type,
-            None => bail!(self.offset, "table index out of bounds"),
-        };
-        let ty = ValType::Ref(ty);
-        debug_assert_type_indices_are_ids(ty);
-        self.pop_operand(Some(ValType::I32))?;
-        self.push_operand(ty)?;
+        let table = self.check_table_index(table)?;
+        debug_assert_type_indices_are_ids(table.element_type.into());
+        self.pop_operand(Some(table.index_type()))?;
+        self.push_operand(table.element_type)?;
         Ok(())
     }
     fn visit_table_set(&mut self, table: u32) -> Self::Output {
-        let ty = match self.resources.table_at(table) {
-            Some(ty) => ValType::Ref(ty.element_type),
-            None => bail!(self.offset, "table index out of bounds"),
-        };
-        debug_assert_type_indices_are_ids(ty);
-        self.pop_operand(Some(ty))?;
-        self.pop_operand(Some(ValType::I32))?;
+        let table = self.check_table_index(table)?;
+        debug_assert_type_indices_are_ids(table.element_type.into());
+        self.pop_operand(Some(table.element_type.into()))?;
+        self.pop_operand(Some(table.index_type()))?;
         Ok(())
     }
     fn visit_table_grow(&mut self, table: u32) -> Self::Output {
-        let ty = match self.resources.table_at(table) {
-            Some(ty) => ValType::Ref(ty.element_type),
-            None => bail!(self.offset, "table index out of bounds"),
-        };
-        debug_assert_type_indices_are_ids(ty);
-        self.pop_operand(Some(ValType::I32))?;
-        self.pop_operand(Some(ty))?;
-        self.push_operand(ValType::I32)?;
+        let table = self.check_table_index(table)?;
+        debug_assert_type_indices_are_ids(table.element_type.into());
+        self.pop_operand(Some(table.index_type()))?;
+        self.pop_operand(Some(table.element_type.into()))?;
+        self.push_operand(table.index_type())?;
         Ok(())
     }
     fn visit_table_size(&mut self, table: u32) -> Self::Output {
-        if self.resources.table_at(table).is_none() {
-            bail!(self.offset, "table index out of bounds");
-        }
-        self.push_operand(ValType::I32)?;
+        let table = self.check_table_index(table)?;
+        self.push_operand(table.index_type())?;
         Ok(())
     }
     fn visit_table_fill(&mut self, table: u32) -> Self::Output {
-        let ty = match self.resources.table_at(table) {
-            Some(ty) => ValType::Ref(ty.element_type),
-            None => bail!(self.offset, "table index out of bounds"),
-        };
-        debug_assert_type_indices_are_ids(ty);
-        self.pop_operand(Some(ValType::I32))?;
-        self.pop_operand(Some(ty))?;
-        self.pop_operand(Some(ValType::I32))?;
+        let table = self.check_table_index(table)?;
+        debug_assert_type_indices_are_ids(table.element_type.into());
+        self.pop_operand(Some(table.index_type()))?;
+        self.pop_operand(Some(table.element_type.into()))?;
+        self.pop_operand(Some(table.index_type()))?;
         Ok(())
     }
     fn visit_struct_new(&mut self, struct_type_index: u32) -> Self::Output {

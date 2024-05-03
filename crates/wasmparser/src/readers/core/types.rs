@@ -1487,10 +1487,31 @@ impl<'a> FromReader<'a> for HeapType {
 pub struct TableType {
     /// The table's element type.
     pub element_type: RefType,
+    /// Whether or not this is a 64-bit table.
+    ///
+    /// This is part of the memory64 proposal in WebAssembly.
+    pub table64: bool,
     /// Initial size of this table, in elements.
-    pub initial: u32,
+    ///
+    /// For 32-bit tables (when `table64` is `false`) this is guaranteed to
+    /// be at most `u32::MAX` for valid types.
+    pub initial: u64,
     /// Optional maximum size of the table, in elements.
-    pub maximum: Option<u32>,
+    ///
+    /// For 32-bit tables (when `table64` is `false`) this is guaranteed to
+    /// be at most `u32::MAX` for valid types.
+    pub maximum: Option<u64>,
+}
+
+impl TableType {
+    /// Gets the index type for the table.
+    pub fn index_type(&self) -> ValType {
+        if self.table64 {
+            ValType::I64
+        } else {
+            ValType::I32
+        }
+    }
 }
 
 /// Represents a memory's type.

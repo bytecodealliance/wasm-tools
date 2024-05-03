@@ -31,6 +31,7 @@
 
 extern crate alloc;
 #[cfg(feature = "std")]
+#[macro_use]
 extern crate std;
 
 /// A small "prelude" to use throughout this crate.
