@@ -2722,7 +2722,7 @@ fn local_tee(
         .count();
     debug_assert!(n > 0);
     let i = u.int_in_range(0..=n - 1)?;
-    let (j, _) = builder
+    let (j, ty) = builder
         .func_ty
         .params
         .iter()
@@ -2731,7 +2731,9 @@ fn local_tee(
         .filter(|(_, ty)| builder.type_on_stack(module, **ty))
         .nth(i)
         .unwrap();
+    builder.allocs.operands.pop();
     instructions.push(Instruction::LocalTee(j as u32));
+    builder.push_operand(Some(*ty));
     Ok(())
 }
 
