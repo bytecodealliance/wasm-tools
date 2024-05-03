@@ -19,6 +19,12 @@
       "filename": "memory64.2.wasm",
       "text": "type mismatch",
       "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 134,
+      "name": "table64",
+      "filename": "memory64.3.wasm"
     }
   ]
 }

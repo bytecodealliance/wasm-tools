@@ -1,26 +1,33 @@
 (module
-  (rec
-    (type $f1 (;0;) (sub (func)))
-    (type (;1;) (struct (field (ref $f1))))
+  (type $t1 (;0;) (sub (func)))
+  (type $t2 (;1;) (sub $t1 (func)))
+  (type $t3 (;2;) (sub $t2 (func)))
+  (type $t4 (;3;) (func))
+  (func $f2 (;0;) (type $t2))
+  (func $f3 (;1;) (type $t3))
+  (func (;2;) (type $t1)
+    i32.const 0
+    call_indirect (type $t1)
+    i32.const 1
+    call_indirect (type $t1)
+    i32.const 0
+    call_indirect (type $t2)
+    i32.const 1
+    call_indirect (type $t2)
+    i32.const 1
+    call_indirect (type $t3)
   )
-  (rec
-    (type $f2 (;2;) (sub (func)))
-    (type (;3;) (struct (field (ref $f2))))
+  (func (;3;) (type $t1)
+    i32.const 0
+    call_indirect (type $t3)
   )
-  (rec
-    (type $g1 (;4;) (sub $f1 (func)))
-    (type (;5;) (struct))
+  (func (;4;) (type $t1)
+    i32.const 0
+    call_indirect (type $t4)
   )
-  (rec
-    (type $g2 (;6;) (sub $f2 (func)))
-    (type (;7;) (struct))
-  )
-  (type (;8;) (func (result i32)))
-  (func $g (;0;) (type $g2))
-  (func (;1;) (type 8) (result i32)
-    ref.func $g
-    ref.test (ref $g1)
-  )
-  (export "run" (func 1))
-  (elem (;0;) declare func $g)
+  (table (;0;) 2 2 (ref null $t2))
+  (export "run" (func 2))
+  (export "fail1" (func 3))
+  (export "fail2" (func 4))
+  (elem (;0;) (i32.const 0) (ref null $t2) (ref.func $f2) (ref.func $f3))
 )

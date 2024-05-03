@@ -734,7 +734,9 @@ fn error_matches(error: &str, message: &str) -> bool {
             || error.contains("invalid var_u32: integer representation too long")
             || error.contains("malformed section id")
             // FIXME(WebAssembly/memory64#45)
-            || error.contains("trailing bytes at end of section");
+            || error.contains("trailing bytes at end of section")
+            // It's tests... again... waiting for memory64 to get merged.
+            || error.contains("memory64 must be enabled for 64-bit tables");
     }
 
     // wasmparser blames a truncated file here, the spec interpreter blames the
@@ -824,6 +826,10 @@ fn error_matches(error: &str, message: &str) -> bool {
         // validation error instead.
         return error.contains("malformed global flags")
             || error.contains("require the shared-everything-threads proposal");
+    }
+
+    if message == "table size must be at most 2^32-1" {
+        return error.contains("invalid u32 number: constant out of range");
     }
 
     return false;
