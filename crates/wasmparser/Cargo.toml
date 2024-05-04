@@ -17,10 +17,10 @@ workspace = true
 
 [dependencies]
 bitflags = "2.4.1"
-indexmap = { workspace = true }
-semver = { workspace = true }
-hashbrown = { workspace = true }
-ahash = { workspace = true }
+indexmap = { workspace = true, optional = true }
+semver = { workspace = true, optional = true }
+hashbrown = { workspace = true, optional = true }
+ahash = { workspace = true, optional = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
@@ -38,5 +38,19 @@ name = "benchmark"
 harness = false
 
 [features]
-default = ['std']
+default = ['std', 'validate']
+
+# A feature which enables implementations of `std::error::Error` as appropriate
+# along with other convenience APIs. This additionally uses the standard
+# library's source of randomness for seeding hash maps.
 std = ['indexmap/std']
+
+# A feature that enables validating WebAssembly files. This is enabled by
+# default but not required if you're only parsing a file, for example, as
+# opposed to validating all of its contents.
+validate = [
+  'dep:indexmap',
+  'dep:semver',
+  'dep:hashbrown',
+  'dep:ahash',
+]

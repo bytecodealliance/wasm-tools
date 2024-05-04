@@ -5,7 +5,7 @@ use core::ops::Range;
 pub type RelocationEntryReader<'a> = SectionLimited<'a, RelocationEntry>;
 
 /// Reader for reloc.* sections as defined by
-/// https://github.com/WebAssembly/tool-conventions/blob/main/Linking.md#relocation-sections.
+/// <https://github.com/WebAssembly/tool-conventions/blob/main/Linking.md#relocation-sections>.
 #[derive(Debug, Clone)]
 pub struct RelocSectionReader<'a> {
     section: u32,
@@ -69,9 +69,9 @@ back_to_enum! {
 
     /// Relocation entry type. Each entry type corresponds to one of the
     /// `R_WASM_*` constants defined at
-    /// https://github.com/llvm/llvm-project/blob/main/llvm/include/llvm/BinaryFormat/WasmRelocs.def
+    /// <https://github.com/llvm/llvm-project/blob/main/llvm/include/llvm/BinaryFormat/WasmRelocs.def>
     /// and
-    /// https://github.com/WebAssembly/tool-conventions/blob/main/Linking.md#relocation-sections.
+    /// <https://github.com/WebAssembly/tool-conventions/blob/main/Linking.md#relocation-sections>.
     #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
     #[repr(u8)]
     pub enum RelocationType {
@@ -170,7 +170,7 @@ back_to_enum! {
         /// immediate argument in the table.* instructions. (in LLVM 12.0)
         TableNumberLeb = 20,
 
-        /// An offset from the __tls_base symbol encoded as a 5-byte [varint32].
+        /// An offset from the __tls_base symbol encoded as a 5-byte varint32.
         /// Used for PIC case to avoid absolute relocation. (in LLVM 12.0)
         MemoryAddrTlsSleb = 21,
 
@@ -192,7 +192,7 @@ back_to_enum! {
         MemoryAddrTlsSleb64 = 25,
 
         /// A function index encoded as a uint32. Used in custom sections for
-        /// function annotations (__attribute__((annotate(<name>))) (in LLVM
+        /// function annotations (`__attribute__((annotate(<name>)))`) (in LLVM
         /// 17.0)
         FunctionIndexI32 = 26,
     }
@@ -224,7 +224,7 @@ pub enum RelocAddendKind {
 }
 
 /// Single relocation entry within a `reloc.*` section, as defined at
-/// https://github.com/WebAssembly/tool-conventions/blob/main/Linking.md#relocation-sections.
+/// <https://github.com/WebAssembly/tool-conventions/blob/main/Linking.md#relocation-sections>.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct RelocationEntry {
     /// Relocation entry type.
