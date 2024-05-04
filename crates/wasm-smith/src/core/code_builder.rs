@@ -627,10 +627,12 @@ pub(crate) struct CodeBuilderAllocations {
     // Functions that are referenced in the module through globals and segments.
     referenced_functions: Vec<u32>,
 
-    // Flag that indicates if any element segments have the same type as any
-    // table
-    table_init32_possible: bool,
-    table_init64_possible: bool,
+    // Precomputed tables/element segments that can be used for `table.init`,
+    // stored as (segment, table).
+    table32_init: Vec<(u32, u32)>,
+    table64_init: Vec<(u32, u32)>,
+
+    // Precomputed valid tables to copy between, stored in (src, dst) order.
     table_copy_32_to_32: Vec<(u32, u32)>,
     table_copy_32_to_64: Vec<(u32, u32)>,
     table_copy_64_to_32: Vec<(u32, u32)>,
@@ -764,7 +766,10 @@ impl CodeBuilderAllocations {
                 referenced_functions.insert(i);
             }
         }
-        for g in module.elems.iter() {
+
+        let mut table32_init = Vec::new();
+        let mut table64_init = Vec::new();
+        for (i, g) in module.elems.iter().enumerate() {
             match &g.items {
                 Elements::Expressions(e) => {
                     let iter = e.iter().filter_map(|e| e.get_ref_func());
@@ -774,10 +779,17 @@ impl CodeBuilderAllocations {
                     referenced_functions.extend(e.iter().cloned());
                 }
             }
+            for (j, table) in module.tables.iter().enumerate() {
+                if module.ref_type_is_sub_type(g.ty, table.element_type) {
+                    let dst = if table.table64 {
+                        &mut table64_init
+                    } else {
+                        &mut table32_init
+                    };
+                    dst.push((i as u32, j as u32));
+                }
+            }
         }
-
-        let table_init32_possible = module.elems.iter().any(|e| table32_tys.contains(&e.ty));
-        let table_init64_possible = module.elems.iter().any(|e| table64_tys.contains(&e.ty));
 
         let mut memory32 = Vec::new();
         let mut memory64 = Vec::new();
@@ -861,8 +873,8 @@ impl CodeBuilderAllocations {
             table32_with_funcref,
             table64_with_funcref,
             referenced_functions: referenced_functions.into_iter().collect(),
-            table_init32_possible,
-            table_init64_possible,
+            table32_init,
+            table64_init,
             table_copy_32_to_32,
             table_copy_32_to_64,
             table_copy_64_to_32,
@@ -5763,12 +5775,12 @@ fn table_init_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     if module.config.disallow_traps {
         return false;
     }
-    if builder.allocs.table_init32_possible
+    if builder.allocs.table32_init.len() > 0
         && builder.types_on_stack(module, &[ValType::I32, ValType::I32, ValType::I32])
     {
         return true;
     }
-    if builder.allocs.table_init64_possible
+    if builder.allocs.table64_init.len() > 0
         && builder.types_on_stack(module, &[ValType::I64, ValType::I32, ValType::I32])
     {
         return true;
@@ -5782,24 +5794,16 @@ fn table_init(
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
-    if builder.types_on_stack(module, &[ValType::I64, ValType::I32, ValType::I32]) {
+    let candidates = if builder.types_on_stack(module, &[ValType::I64, ValType::I32, ValType::I32])
+    {
         builder.pop_operands(module, &[ValType::I64, ValType::I32, ValType::I32]);
+        &builder.allocs.table64_init
     } else {
         builder.pop_operands(module, &[ValType::I32, ValType::I32, ValType::I32]);
+        &builder.allocs.table32_init
     };
-    let segments = module
-        .elems
-        .iter()
-        .enumerate()
-        .filter(|(_, e)| module.tables.iter().any(|t| t.element_type == e.ty))
-        .map(|(i, _)| i)
-        .collect::<Vec<_>>();
-    let segment = *u.choose(&segments)?;
-    let table = table_index(module.elems[segment].ty, u, module)?;
-    instructions.push(Instruction::TableInit {
-        elem_index: segment as u32,
-        table,
-    });
+    let (elem_index, table) = *u.choose(&candidates)?;
+    instructions.push(Instruction::TableInit { elem_index, table });
     Ok(())
 }
 
@@ -6664,17 +6668,6 @@ fn extern_convert_any(
     })));
     instructions.push(Instruction::ExternConvertAny);
     Ok(())
-}
-
-fn table_index(ty: RefType, u: &mut Unstructured, module: &Module) -> Result<u32> {
-    let tables = module
-        .tables
-        .iter()
-        .enumerate()
-        .filter(|(_, t)| module.ref_type_is_sub_type(ty, t.element_type))
-        .map(|t| t.0 as u32)
-        .collect::<Vec<_>>();
-    Ok(*u.choose(&tables)?)
 }
 
 fn lane_index(u: &mut Unstructured, number_of_lanes: u8) -> Result<u8> {
