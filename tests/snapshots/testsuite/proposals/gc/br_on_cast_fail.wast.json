@@ -582,6 +582,13 @@
       "filename": "br_on_cast_fail.7.wasm",
       "text": "type mismatch",
       "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 287,
+      "filename": "br_on_cast_fail.8.wasm",
+      "text": "type mismatch",
+      "module_type": "binary"
     }
   ]
 }

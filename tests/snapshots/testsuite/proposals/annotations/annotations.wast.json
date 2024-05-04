@@ -463,6 +463,16 @@
       "line": 147,
       "name": "m2",
       "filename": "annotations.67.wasm"
+    },
+    {
+      "type": "module",
+      "line": 199,
+      "filename": "annotations.68.wat"
+    },
+    {
+      "type": "module",
+      "line": 200,
+      "filename": "annotations.69.wat"
     }
   ]
 }

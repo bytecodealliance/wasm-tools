@@ -1690,6 +1690,7 @@ mod tests {
                 initial: 10,
                 maximum: None,
                 element_type: RefType::FUNCREF,
+                table64: false,
             }
         );
 

@@ -35,13 +35,6 @@ impl<'a> FromReader<'a> for MemoryType {
         Ok(MemoryType {
             memory64,
             shared,
-            // FIXME(WebAssembly/memory64#21) as currently specified if the
-            // `shared` flag is set we should be reading a 32-bit limits field
-            // here. That seems a bit odd to me at the time of this writing so
-            // I've taken the liberty of reading a 64-bit limits field in those
-            // situations. I suspect that this is a typo in the spec, but if not
-            // we'll need to update this to read a 32-bit limits field when the
-            // shared flag is set.
             initial: if memory64 {
                 reader.read_var_u64()?
             } else {

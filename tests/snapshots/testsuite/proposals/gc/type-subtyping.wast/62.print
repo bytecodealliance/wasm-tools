@@ -1,0 +1,12 @@
+(module
+  (rec
+    (type $f2 (;0;) (sub (func)))
+    (type (;1;) (struct (field (ref $f2))))
+  )
+  (rec
+    (type $g2 (;2;) (sub $f2 (func)))
+    (type (;3;) (struct))
+  )
+  (func (;0;) (type $g2))
+  (export "g" (func 0))
+)

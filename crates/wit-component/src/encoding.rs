@@ -1266,8 +1266,9 @@ impl<'a> EncodingState<'a> {
 
         let table_type = TableType {
             element_type: RefType::FUNCREF,
-            minimum: signatures.len() as u32,
-            maximum: Some(signatures.len() as u32),
+            minimum: signatures.len() as u64,
+            maximum: Some(signatures.len() as u64),
+            table64: false,
         };
 
         tables.table(table_type);

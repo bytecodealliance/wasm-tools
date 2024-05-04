@@ -449,69 +449,44 @@ impl Encode for Index<'_> {
 impl<'a> Encode for TableType<'a> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.elem.encode(e);
-        self.limits.encode(e);
-    }
-}
 
-impl Encode for Limits {
-    fn encode(&self, e: &mut Vec<u8>) {
-        match self.max {
-            Some(max) => {
-                e.push(0x01);
-                self.min.encode(e);
-                max.encode(e);
-            }
-            None => {
-                e.push(0x00);
-                self.min.encode(e);
-            }
+        let mut flags = 0;
+        if self.limits.max.is_some() {
+            flags |= 1 << 0;
+        }
+        if self.limits.is64 {
+            flags |= 1 << 2;
+        }
+        e.push(flags);
+        self.limits.min.encode(e);
+        if let Some(max) = self.limits.max {
+            max.encode(e);
         }
     }
 }
 
 impl Encode for MemoryType {
     fn encode(&self, e: &mut Vec<u8>) {
-        match self {
-            MemoryType::B32 {
-                limits,
-                shared,
-                page_size_log2,
-            } => {
-                let flag_max = limits.max.is_some() as u8;
-                let flag_shared = *shared as u8;
-                let flag_page_size = page_size_log2.is_some() as u8;
-                let flags = flag_max | (flag_shared << 1) | (flag_page_size << 3);
-                e.push(flags);
-                limits.min.encode(e);
-                if let Some(max) = limits.max {
-                    max.encode(e);
-                }
-                if let Some(p) = page_size_log2 {
-                    p.encode(e);
-                }
-            }
-            MemoryType::B64 {
-                limits,
-                shared,
-                page_size_log2,
-            } => {
-                let flag_max = limits.max.is_some();
-                let flag_shared = *shared;
-                let flag_mem64 = true;
-                let flag_page_size = page_size_log2.is_some();
-                let flags = ((flag_max as u8) << 0)
-                    | ((flag_shared as u8) << 1)
-                    | ((flag_mem64 as u8) << 2)
-                    | ((flag_page_size as u8) << 3);
-                e.push(flags);
-                limits.min.encode(e);
-                if let Some(max) = limits.max {
-                    max.encode(e);
-                }
-                if let Some(p) = page_size_log2 {
-                    p.encode(e);
-                }
-            }
+        let mut flags = 0;
+        if self.limits.max.is_some() {
+            flags |= 1 << 0;
+        }
+        if self.shared {
+            flags |= 1 << 1;
+        }
+        if self.limits.is64 {
+            flags |= 1 << 2;
+        }
+        if self.page_size_log2.is_some() {
+            flags |= 1 << 3;
+        }
+        e.push(flags);
+        self.limits.min.encode(e);
+        if let Some(max) = self.limits.max {
+            max.encode(e);
+        }
+        if let Some(p) = self.page_size_log2 {
+            p.encode(e);
         }
     }
 }

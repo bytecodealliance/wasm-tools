@@ -222,7 +222,7 @@ impl ModuleState {
                     ));
                 }
 
-                self.check_const_expr(&offset_expr, ValType::I32, features, types)?;
+                self.check_const_expr(&offset_expr, table.index_type(), features, types)?;
             }
             ElementKind::Passive | ElementKind::Declared => {
                 if !features.contains(WasmFeatures::BULK_MEMORY) {
@@ -861,8 +861,15 @@ impl Module {
             self.check_ref_type(&mut ty.element_type, features, offset)?
         }
 
+        if ty.table64 && !features.contains(WasmFeatures::MEMORY64) {
+            return Err(BinaryReaderError::new(
+                "memory64 must be enabled for 64-bit tables",
+                offset,
+            ));
+        }
+
         self.check_limits(ty.initial, ty.maximum, offset)?;
-        if ty.initial > MAX_WASM_TABLE_ENTRIES as u32 {
+        if ty.initial > MAX_WASM_TABLE_ENTRIES as u64 {
             return Err(BinaryReaderError::new(
                 "minimum table size is out of bounds",
                 offset,
