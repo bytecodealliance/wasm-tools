@@ -194,6 +194,7 @@ impl PrimitiveValType {
         })
     }
 
+    #[cfg(feature = "validate")]
     pub(crate) fn contains_ptr(&self) -> bool {
         matches!(self, Self::String)
     }

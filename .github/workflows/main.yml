@@ -190,6 +190,7 @@ jobs:
       - run: cargo check --no-default-features -p wasmparser
       - run: cargo check --no-default-features -p wasmparser --target x86_64-unknown-none
       - run: cargo check --no-default-features -p wasmparser --features std
+      - run: cargo check --no-default-features -p wasmparser --features validate
       - run: |
           if cargo tree -p wasm-smith --no-default-features -e no-dev | grep wasmparser; then
             echo wasm-smith without default features should not depend on wasmparser

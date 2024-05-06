@@ -93,6 +93,7 @@ impl BinaryReaderError {
         self.inner.offset
     }
 
+    #[cfg(feature = "validate")]
     pub(crate) fn add_context(&mut self, mut context: String) {
         context.push_str("\n");
         self.inner.message.insert_str(0, &context);

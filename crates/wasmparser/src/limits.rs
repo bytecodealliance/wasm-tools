@@ -13,6 +13,8 @@
  * limitations under the License.
  */
 
+#![cfg_attr(not(feature = "validate"), allow(dead_code))]
+
 // The following limits are imposed by wasmparser on WebAssembly modules.
 // The limits are agreed upon with other engines for consistency.
 pub const MAX_WASM_TYPES: usize = 1_000_000;
