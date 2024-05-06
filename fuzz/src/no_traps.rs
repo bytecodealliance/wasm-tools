@@ -18,6 +18,10 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         config.gc_enabled = false;
         config.max_memory32_pages = config.max_memory32_pages.min(100);
         config.max_memory64_pages = config.max_memory64_pages.min(100);
+
+        // NB: should re-enable once wasmtime implements the table64 extension
+        // to the memory64 proposal.
+        config.memory64_enabled = false;
         Ok(())
     })?;
     validate_module(config.clone(), &wasm_bytes);
