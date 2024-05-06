@@ -24,7 +24,7 @@ pub struct PeepholeMutationAnalysis {
     /// function idx to type idx
     function_map: Vec<u32>,
     /// table index to the type of element it has
-    table_types: Vec<PrimitiveTypeInfo>,
+    table_types: Vec<wasmparser::TableType>,
     memory_types: Vec<wasmparser::MemoryType>,
 }
 
@@ -36,7 +36,7 @@ impl PeepholeMutationAnalysis {
             global_types: info.global_types.clone(),
             types_map: info.types_map.clone(),
             function_map: info.function_map.clone(),
-            table_types: info.table_elem_types.clone(),
+            table_types: info.table_types.clone(),
             memory_types: info.memory_types.clone(),
         }
     }
@@ -267,8 +267,22 @@ impl PeepholeMutationAnalysis {
             Lang::DataDrop(_) => Ok(PrimitiveTypeInfo::Empty),
             Lang::MemoryCopy { .. } => Ok(PrimitiveTypeInfo::Empty),
             Lang::MemoryFill { .. } => Ok(PrimitiveTypeInfo::Empty),
-            Lang::TableGrow { .. } => Ok(PrimitiveTypeInfo::I32),
-            Lang::TableSize { .. } => Ok(PrimitiveTypeInfo::I32),
+            Lang::TableGrow(table, _) => {
+                let ty = self.table_types[*table as usize];
+                if ty.table64 {
+                    Ok(PrimitiveTypeInfo::I64)
+                } else {
+                    Ok(PrimitiveTypeInfo::I32)
+                }
+            }
+            Lang::TableSize(table) => {
+                let ty = self.table_types[*table as usize];
+                if ty.table64 {
+                    Ok(PrimitiveTypeInfo::I64)
+                } else {
+                    Ok(PrimitiveTypeInfo::I32)
+                }
+            }
             Lang::TableInit { .. } => Ok(PrimitiveTypeInfo::Empty),
             Lang::ElemDrop(_) => Ok(PrimitiveTypeInfo::Empty),
             Lang::TableCopy { .. } => Ok(PrimitiveTypeInfo::Empty),
@@ -276,7 +290,7 @@ impl PeepholeMutationAnalysis {
             Lang::TableSet(..) => Ok(PrimitiveTypeInfo::Empty),
             Lang::TableGet(idx, _) => {
                 let ty = self.table_types[*idx as usize].clone();
-                Ok(ty)
+                Ok(ty.element_type.into())
             }
             Lang::I32UseGlobal(_) => Ok(PrimitiveTypeInfo::I32),
             Lang::I64UseGlobal(_) => Ok(PrimitiveTypeInfo::I64),
