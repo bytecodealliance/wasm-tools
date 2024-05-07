@@ -20,7 +20,7 @@ bitflags = "2.4.1"
 indexmap = { workspace = true, optional = true }
 semver = { workspace = true, optional = true }
 hashbrown = { workspace = true, optional = true }
-ahash = { workspace = true, optional = true }
+ahash = { workspace = true, optional = true, features = ["compile-time-rng"] }
 
 [dev-dependencies]
 anyhow = { workspace = true }
