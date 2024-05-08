@@ -194,6 +194,10 @@ pub struct Iter<'a, T> {
 impl<'a, T> Iterator for Iter<'a, T> {
     type Item = &'a T;
 
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
     }
@@ -226,6 +230,10 @@ pub struct IntoIter<T> {
 
 impl<T> Iterator for IntoIter<T> {
     type Item = T;
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()

@@ -324,6 +324,10 @@ pub struct Iter<'a, K, V> {
 impl<'a, K, V> Iterator for Iter<'a, K, V> {
     type Item = (&'a K, &'a V);
 
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
     }
@@ -354,6 +358,10 @@ pub struct IterMut<'a, K, V> {
 
 impl<'a, K, V> Iterator for IterMut<'a, K, V> {
     type Item = (&'a K, &'a mut V);
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
@@ -389,6 +397,10 @@ pub struct IntoIter<K, V> {
 impl<K, V> Iterator for IntoIter<K, V> {
     type Item = (K, V);
 
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
     }
@@ -410,6 +422,10 @@ pub struct Keys<'a, K, V> {
 
 impl<'a, K, V> Iterator for Keys<'a, K, V> {
     type Item = &'a K;
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
@@ -433,6 +449,10 @@ pub struct Values<'a, K, V> {
 impl<'a, K, V> Iterator for Values<'a, K, V> {
     type Item = &'a V;
 
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
     }
@@ -454,6 +474,10 @@ pub struct ValuesMut<'a, K, V> {
 
 impl<'a, K, V> Iterator for ValuesMut<'a, K, V> {
     type Item = &'a mut V;
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
