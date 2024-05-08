@@ -533,15 +533,17 @@ impl Parser {
         };
         // TODO: thread through `offset: u64` to `BinaryReader`, remove
         // the cast here.
-        let mut reader = BinaryReader::new_with_offset(data, self.offset as usize);
+        let starting_offset = self.offset as usize;
+        let mut reader = BinaryReader::new_with_offset(data, starting_offset);
         match self.parse_reader(&mut reader, eof) {
             Ok(payload) => {
                 // Be sure to update our offset with how far we got in the
                 // reader
-                self.offset += usize_to_u64(reader.position);
-                self.max_size -= usize_to_u64(reader.position);
+                let consumed = reader.original_position() - starting_offset;
+                self.offset += usize_to_u64(consumed);
+                self.max_size -= usize_to_u64(consumed);
                 Ok(Chunk::Parsed {
-                    consumed: reader.position,
+                    consumed: consumed,
                     payload,
                 })
             }
@@ -595,7 +597,7 @@ impl Parser {
                     return Ok(Payload::End(reader.original_position()));
                 }
 
-                let id_pos = reader.position;
+                let id_pos = reader.original_position();
                 let id = reader.read_u8()?;
                 if id & 0x80 != 0 {
                     return Err(BinaryReaderError::new("malformed section id", id_pos));
@@ -608,9 +610,10 @@ impl Parser {
                 // but it is required for nested modules/components to correctly ensure
                 // that all sections live entirely within their section of the
                 // file.
+                let consumed = reader.original_position() - id_pos;
                 let section_overflow = self
                     .max_size
-                    .checked_sub(usize_to_u64(reader.position))
+                    .checked_sub(usize_to_u64(consumed))
                     .and_then(|s| s.checked_sub(len.into()))
                     .is_none();
                 if section_overflow {
@@ -1057,9 +1060,9 @@ fn delimited<'a, T>(
     len: &mut u32,
     f: impl FnOnce(&mut BinaryReader<'a>) -> Result<T>,
 ) -> Result<T> {
-    let start = reader.position;
+    let start = reader.original_position();
     let ret = f(reader)?;
-    *len = match (reader.position - start)
+    *len = match (reader.original_position() - start)
         .try_into()
         .ok()
         .and_then(|i| len.checked_sub(i))

@@ -1368,11 +1368,11 @@ impl<'a> FromReader<'a> for StorageType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         match reader.peek()? {
             0x78 => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(StorageType::I8)
             }
             0x77 => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(StorageType::I16)
             }
             _ => Ok(StorageType::Val(reader.read()?)),
@@ -1384,23 +1384,23 @@ impl<'a> FromReader<'a> for ValType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         match reader.peek()? {
             0x7F => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(ValType::I32)
             }
             0x7E => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(ValType::I64)
             }
             0x7D => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(ValType::F32)
             }
             0x7C => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(ValType::F64)
             }
             0x7B => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(ValType::V128)
             }
             0x70 | 0x6F | 0x64 | 0x63 | 0x6E | 0x71 | 0x72 | 0x73 | 0x74 | 0x6D | 0x6B | 0x6A
@@ -1440,51 +1440,51 @@ impl<'a> FromReader<'a> for HeapType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         match reader.peek()? {
             0x70 => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::Func)
             }
             0x6F => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::Extern)
             }
             0x6E => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::Any)
             }
             0x71 => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::None)
             }
             0x72 => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::NoExtern)
             }
             0x73 => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::NoFunc)
             }
             0x6D => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::Eq)
             }
             0x6B => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::Struct)
             }
             0x6A => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::Array)
             }
             0x6C => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::I31)
             }
             0x69 => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::Exn)
             }
             0x74 => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::NoExn)
             }
             _ => {

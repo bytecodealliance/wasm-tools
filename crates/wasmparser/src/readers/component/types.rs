@@ -125,7 +125,7 @@ pub enum ComponentValType {
 impl<'a> FromReader<'a> for ComponentValType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         if let Some(ty) = PrimitiveValType::from_byte(reader.peek()?) {
-            reader.position += 1;
+            reader.read_u8()?;
             return Ok(ComponentValType::Primitive(ty));
         }
 
@@ -319,7 +319,7 @@ impl<'a> FromReader<'a> for ComponentTypeDeclaration<'a> {
         // variant of imports; check for imports here or delegate to
         // `InstanceTypeDeclaration` with the appropriate conversions.
         if reader.peek()? == 0x03 {
-            reader.position += 1;
+            reader.read_u8()?;
             return Ok(ComponentTypeDeclaration::Import(reader.read()?));
         }
 

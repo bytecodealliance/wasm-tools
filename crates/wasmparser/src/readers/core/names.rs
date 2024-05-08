@@ -135,7 +135,7 @@ impl<'a> Subsection<'a> for Name<'a> {
                 }
                 Name::Module {
                     name,
-                    name_range: offset..offset + reader.position,
+                    name_range: offset..reader.original_position(),
                 }
             }
             1 => Name::Function(NameMap::new(data, offset)?),
