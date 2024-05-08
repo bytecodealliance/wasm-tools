@@ -13,7 +13,7 @@ use crate::{BinaryReader, FromReader, Result};
 /// let data: &[u8] = &[0x00, 0x09, 0x74, 0x65, 0x73, 0x74, 0x2e, 0x77, 0x61,
 ///      0x73, 0x6d];
 /// let mut reader = BinaryReader::new(data);
-/// let core = CoreDumpSection::from_reader(&mut reader).unwrap();
+/// let core = CoreDumpSection::new(reader).unwrap();
 /// assert!(core.name == "test.wasm")
 /// ```
 pub struct CoreDumpSection<'a> {
@@ -21,13 +21,21 @@ pub struct CoreDumpSection<'a> {
     pub name: &'a str,
 }
 
-impl<'a> FromReader<'a> for CoreDumpSection<'a> {
-    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+impl<'a> CoreDumpSection<'a> {
+    /// Parses this section from the provided `reader`, derived from a custom
+    /// section.
+    pub fn new(mut reader: BinaryReader<'a>) -> Result<CoreDumpSection<'a>> {
         let pos = reader.original_position();
         if reader.read_u8()? != 0 {
             bail!(pos, "invalid start byte for core dump name");
         }
         let name = reader.read_string()?;
+        if !reader.eof() {
+            bail!(
+                reader.original_position(),
+                "trailing bytes at end of custom section"
+            );
+        }
         Ok(CoreDumpSection { name })
     }
 }
@@ -40,8 +48,8 @@ impl<'a> FromReader<'a> for CoreDumpSection<'a> {
 /// ```
 /// use wasmparser::{ BinaryReader, CoreDumpModulesSection, FromReader, Result };
 /// let data: &[u8] = &[0x01, 0x00, 0x04, 0x74, 0x65, 0x73, 0x74];
-/// let mut reader = BinaryReader::new(data);
-/// let modules_section = CoreDumpModulesSection::from_reader(&mut reader).unwrap();
+/// let reader = BinaryReader::new(data);
+/// let modules_section = CoreDumpModulesSection::new(reader).unwrap();
 /// assert!(modules_section.modules[0] == "test")
 /// ```
 #[derive(Debug)]
@@ -51,8 +59,10 @@ pub struct CoreDumpModulesSection<'a> {
     pub modules: Vec<&'a str>,
 }
 
-impl<'a> FromReader<'a> for CoreDumpModulesSection<'a> {
-    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+impl<'a> CoreDumpModulesSection<'a> {
+    /// Parses this section from the provided `reader`, derived from a custom
+    /// section.
+    pub fn new(mut reader: BinaryReader<'a>) -> Result<CoreDumpModulesSection<'a>> {
         let pos = reader.original_position();
         let mut modules = vec![];
         for _ in 0..reader.read_var_u32()? {
@@ -60,6 +70,12 @@ impl<'a> FromReader<'a> for CoreDumpModulesSection<'a> {
                 bail!(pos, "invalid start byte for coremodule");
             }
             modules.push(reader.read_string()?);
+        }
+        if !reader.eof() {
+            bail!(
+                reader.original_position(),
+                "trailing bytes at end of custom section"
+            );
         }
         Ok(CoreDumpModulesSection { modules })
     }
@@ -70,17 +86,26 @@ pub struct CoreDumpInstancesSection {
     pub instances: Vec<CoreDumpInstance>,
 }
 
-impl<'a> FromReader<'a> for CoreDumpInstancesSection {
-    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+impl CoreDumpInstancesSection {
+    /// Parses this section from the provided `reader`, derived from a custom
+    /// section.
+    pub fn new(mut reader: BinaryReader<'_>) -> Result<CoreDumpInstancesSection> {
         let mut instances = vec![];
         for _ in 0..reader.read_var_u32()? {
-            instances.push(CoreDumpInstance::from_reader(reader)?);
+            instances.push(CoreDumpInstance::from_reader(&mut reader)?);
+        }
+        if !reader.eof() {
+            bail!(
+                reader.original_position(),
+                "trailing bytes at end of custom section"
+            );
         }
         Ok(CoreDumpInstancesSection { instances })
     }
 }
 
 /// A single instance from a coredump instances section
+#[derive(Debug)]
 pub struct CoreDumpInstance {
     /// The module that this is an instance of, as an index into a "coremodules"
     /// section.
@@ -129,8 +154,8 @@ impl<'a> FromReader<'a> for CoreDumpInstance {
 /// let data: &[u8] = &[0x00, 0x04, 0x6d, 0x61, 0x69, 0x6e, 0x01, 0x00, 0x04,
 ///     0x2a, 0x33, 0x01, 0x7f, 0x01, 0x01, 0x7f, 0x02];
 /// use wasmparser::{ BinaryReader, CoreDumpStackSection, FromReader };
-/// let mut reader = BinaryReader::new(data);
-/// let corestack = CoreDumpStackSection::from_reader(&mut reader).unwrap();
+/// let reader = BinaryReader::new(data);
+/// let corestack = CoreDumpStackSection::new(reader).unwrap();
 /// assert!(corestack.name == "main");
 /// assert!(corestack.frames.len() == 1);
 /// let frame = &corestack.frames[0];
@@ -147,8 +172,10 @@ pub struct CoreDumpStackSection<'a> {
     pub frames: Vec<CoreDumpStackFrame>,
 }
 
-impl<'a> FromReader<'a> for CoreDumpStackSection<'a> {
-    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+impl<'a> CoreDumpStackSection<'a> {
+    /// Parses this section from the provided `reader`, derived from a custom
+    /// section.
+    pub fn new(mut reader: BinaryReader<'a>) -> Result<CoreDumpStackSection<'a>> {
         let pos = reader.original_position();
         if reader.read_u8()? != 0 {
             bail!(pos, "invalid start byte for core dump stack name");
@@ -156,7 +183,13 @@ impl<'a> FromReader<'a> for CoreDumpStackSection<'a> {
         let name = reader.read_string()?;
         let mut frames = vec![];
         for _ in 0..reader.read_var_u32()? {
-            frames.push(CoreDumpStackFrame::from_reader(reader)?);
+            frames.push(CoreDumpStackFrame::from_reader(&mut reader)?);
+        }
+        if !reader.eof() {
+            bail!(
+                reader.original_position(),
+                "trailing bytes at end of custom section"
+            );
         }
         Ok(CoreDumpStackSection {
             name: name,

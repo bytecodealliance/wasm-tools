@@ -329,14 +329,11 @@ impl<'a> Module<'a> {
 
                 // Ignore all custom sections except for the `name` and
                 // `producers` sections which we parse, but ignore errors within.
-                Payload::CustomSection(s) => {
-                    if s.name() == "name" {
-                        drop(self.parse_name_section(&s));
-                    }
-                    if s.name() == "producers" {
-                        drop(self.parse_producers_section(&s));
-                    }
-                }
+                Payload::CustomSection(s) => match s.as_known() {
+                    KnownCustom::Name(s) => drop(self.parse_name_section(s)),
+                    KnownCustom::Producers(_) => drop(self.parse_producers_section(&s)),
+                    _ => {}
+                },
 
                 // sections that shouldn't appear in the specially-crafted core wasm
                 // adapter self we're processing
@@ -369,8 +366,7 @@ impl<'a> Module<'a> {
         Ok(())
     }
 
-    fn parse_name_section(&mut self, section: &CustomSectionReader<'a>) -> Result<()> {
-        let section = NameSectionReader::new(section.data(), section.data_offset());
+    fn parse_name_section(&mut self, section: NameSectionReader<'a>) -> Result<()> {
         for s in section {
             match s? {
                 Name::Function(map) => {
