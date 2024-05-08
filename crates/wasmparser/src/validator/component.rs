@@ -1503,13 +1503,6 @@ impl ComponentState {
                     state.add_export(name, ty, features, offset, true, types)?;
                 }
                 crate::ModuleTypeDeclaration::OuterAlias { kind, count, index } => {
-                    if count > 1 {
-                        return Err(BinaryReaderError::new(
-                            "outer type aliases in module type declarations are limited to a \
-                             maximum count of 1",
-                            offset,
-                        ));
-                    }
                     match kind {
                         crate::OuterAliasKind::Type => {
                             let ty = if count == 0 {
