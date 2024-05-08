@@ -64,10 +64,7 @@ where
 {
     /// Reserves capacity for at least `additional` more elements to be inserted in the [`IndexSet`].
     pub fn reserve(&mut self, additional: usize) {
-        #[cfg(not(feature = "no-hash-maps"))]
         self.inner.reserve(additional);
-        #[cfg(feature = "no-hash-maps")]
-        let _ = additional;
     }
 
     /// Returns true if the [`IndexSet`] contains an element equal to the `value`.
@@ -126,19 +123,23 @@ where
     /// Returns `true` if `self` has no elements in common with `other`.
     /// This is equivalent to checking for an empty intersection.
     pub fn is_disjoint(&self, other: &Self) -> bool {
-        self.inner.is_disjoint(&other.inner)
+        if self.len() <= other.len() {
+            self.iter().all(move |value| !other.contains(value))
+        } else {
+            other.iter().all(move |value| !self.contains(value))
+        }
     }
 
     /// Returns `true` if the [`IndexSet`] is a subset of another,
     /// i.e., `other` contains at least all the values in `self`.
     pub fn is_subset(&self, other: &Self) -> bool {
-        self.inner.is_subset(&other.inner)
+        self.len() <= other.len() && self.iter().all(move |value| other.contains(value))
     }
 
     /// Returns `true` if the [`IndexSet`] is a superset of another,
     /// i.e., `self` contains at least all the values in `other`.
     pub fn is_superset(&self, other: &Self) -> bool {
-        self.inner.is_superset(&other.inner)
+        other.is_subset(self)
     }
 }
 
