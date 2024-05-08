@@ -56,6 +56,18 @@ jobs:
         name: bins-${{ matrix.build }}
         path: dist
 
+  test-no-hash-maps:
+    name: Test (no-hash-maps)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install Rust
+        run: rustup update stable --no-self-update && rustup default stable
+      - name: Test (no-hash-maps)
+        run: cargo test --workspace --locked --features no-hash-maps
+
   test:
     name: Test
     runs-on: ${{ matrix.os }}
