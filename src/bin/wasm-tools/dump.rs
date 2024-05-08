@@ -446,23 +446,58 @@ impl<'a> Dump<'a> {
                     self.color_print(c.range().start)?;
                     write!(self.state, "name: {:?}", c.name())?;
                     self.print(c.data_offset())?;
-                    if c.name() == "name" {
-                        let iter = NameSectionReader::new(c.data(), c.data_offset());
-                        self.print_custom_name_section(iter, |me, item, pos| {
-                            me.print_core_name(item, pos)
-                        })?;
-                    } else if c.name() == "component-name" {
-                        let iter = ComponentNameSectionReader::new(c.data(), c.data_offset());
-                        self.print_custom_name_section(iter, |me, item, pos| {
-                            me.print_component_name(item, pos)
-                        })?;
-                    } else {
-                        self.print_byte_header()?;
-                        for _ in 0..NBYTES {
-                            write!(self.dst, "---")?;
+                    match c.name() {
+                        "name" => {
+                            let iter = NameSectionReader::new(c.data(), c.data_offset());
+                            self.print_subsections(iter, |me, item, pos| {
+                                me.print_core_name(item, pos)
+                            })?;
                         }
-                        writeln!(self.dst, "-| ... {} bytes of data", c.data().len())?;
-                        self.cur += c.data().len();
+                        "component-name" => {
+                            let iter = ComponentNameSectionReader::new(c.data(), c.data_offset());
+                            self.print_subsections(iter, |me, item, pos| {
+                                me.print_component_name(item, pos)
+                            })?;
+                        }
+                        "producers" => {
+                            let iter = ProducersSectionReader::new(c.data(), c.data_offset())?;
+                            self.print_iter(iter, |me, _pos, item| {
+                                write!(me.state, "field: {}", item.name)?;
+                                me.print(item.values.range().start)?;
+
+                                me.print_iter(item.values, |me, pos, item| {
+                                    write!(me.state, "{item:?}")?;
+                                    me.print(pos)
+                                })
+                            })?;
+                        }
+                        "dylink.0" => {
+                            let iter = Dylink0SectionReader::new(c.data(), c.data_offset());
+                            self.print_subsections(iter, |me, item, pos| {
+                                write!(me.state, "{item:?}")?;
+                                me.print(pos)
+                            })?;
+                        }
+                        "metadata.code.branch_hint" => {
+                            let iter = BranchHintSectionReader::new(c.data(), c.data_offset())?;
+                            self.print_iter(iter, |me, _pos, item| {
+                                write!(me.state, "func: {}", item.func)?;
+                                me.print(item.hints.range().start)?;
+
+                                me.print_iter(item.hints, |me, pos, item| {
+                                    write!(me.state, "{item:?}")?;
+                                    me.print(pos)
+                                })
+                            })?;
+                        }
+                        _ => {
+                            self.print_byte_header()?;
+                            for _ in 0..NBYTES {
+                                write!(self.dst, "---")?;
+                            }
+                            writeln!(self.dst, "-| ... {} bytes of data", c.data().len())?;
+                            self.cur += c.data().len();
+                        }
                     }
                 }
                 Payload::UnknownSection {
@@ -510,7 +545,7 @@ impl<'a> Dump<'a> {
         })
     }
 
-    fn print_custom_name_section<'b, T>(
+    fn print_subsections<'b, T>(
         &mut self,
         mut section: Subsections<'b, T>,
         print_item: impl Fn(&mut Self, T, usize) -> Result<()>,
