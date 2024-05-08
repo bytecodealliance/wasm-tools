@@ -1,6 +1,6 @@
 [package]
 name = "wasm-tools"
-version = "1.206.0"
+version = "1.207.0"
 authors = ["The Wasmtime Project Developers"]
 edition.workspace = true
 description = "CLI tools for interoperating with WebAssembly files"
@@ -33,7 +33,7 @@ all = "allow"
 
 [workspace.package]
 edition = '2021'
-version = "0.206.0"
+version = "0.207.0"
 
 [workspace.dependencies]
 anyhow = "1.0.58"
@@ -62,19 +62,19 @@ bitflags = "2.5.0"
 hashbrown = { version = "0.14.3", default-features = false, features = ['ahash'] }
 ahash = { version = "0.8.11", default-features = false }
 
-wasm-compose = { version = "0.206.0", path = "crates/wasm-compose" }
-wasm-encoder = { version = "0.206.0", path = "crates/wasm-encoder" }
-wasm-metadata = { version = "0.206.0", path = "crates/wasm-metadata" }
-wasm-mutate = { version = "0.206.0", path = "crates/wasm-mutate" }
-wasm-shrink = { version = "0.206.0", path = "crates/wasm-shrink" }
-wasm-smith = { version = "0.206.0", path = "crates/wasm-smith" }
-wasmparser = { version = "0.206.0", path = "crates/wasmparser" }
-wasmprinter = { version = "0.206.0", path = "crates/wasmprinter" }
-wast = { version = "206.0.0", path = "crates/wast" }
-wat = { version = "1.206.0", path = "crates/wat" }
-wit-component = { version = "0.206.0", path = "crates/wit-component" }
-wit-parser = { version = "0.206.0", path = "crates/wit-parser" }
-wit-smith = { version = "0.206.0", path = "crates/wit-smith" }
+wasm-compose = { version = "0.207.0", path = "crates/wasm-compose" }
+wasm-encoder = { version = "0.207.0", path = "crates/wasm-encoder" }
+wasm-metadata = { version = "0.207.0", path = "crates/wasm-metadata" }
+wasm-mutate = { version = "0.207.0", path = "crates/wasm-mutate" }
+wasm-shrink = { version = "0.207.0", path = "crates/wasm-shrink" }
+wasm-smith = { version = "0.207.0", path = "crates/wasm-smith" }
+wasmparser = { version = "0.207.0", path = "crates/wasmparser", default-features = false, features = ['std'] }
+wasmprinter = { version = "0.207.0", path = "crates/wasmprinter" }
+wast = { version = "207.0.0", path = "crates/wast" }
+wat = { version = "1.207.0", path = "crates/wat" }
+wit-component = { version = "0.207.0", path = "crates/wit-component" }
+wit-parser = { version = "0.207.0", path = "crates/wit-parser" }
+wit-smith = { version = "0.207.0", path = "crates/wit-smith" }
 
 [dependencies]
 anyhow = { workspace = true }
@@ -87,7 +87,7 @@ wat = { workspace = true }
 termcolor = "1.2.0"
 
 # Dependencies of `validate`
-wasmparser = { workspace = true, optional = true }
+wasmparser = { workspace = true, optional = true, features = ['validate'] }
 rayon = { workspace = true, optional = true }
 
 # Dependencies of `print`

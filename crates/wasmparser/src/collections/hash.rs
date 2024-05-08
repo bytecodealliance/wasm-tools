@@ -94,9 +94,20 @@ use std::collections::hash_map::RandomState as RandomStateImpl;
 
 // When the `std` feature is NOT active then rely on `ahash::RandomState`. That
 // relies on ASLR by default for randomness.
-#[derive(Default, Clone, Debug)]
+#[derive(Clone, Debug)]
 #[cfg(not(feature = "std"))]
-struct RandomStateImpl;
+struct RandomStateImpl {
+    state: ahash::RandomState,
+}
+
+#[cfg(not(feature = "std"))]
+impl Default for RandomStateImpl {
+    fn default() -> RandomStateImpl {
+        RandomStateImpl {
+            state: ahash::RandomState::new(),
+        }
+    }
+}
 
 #[cfg(not(feature = "std"))]
 impl BuildHasher for RandomStateImpl {
@@ -104,6 +115,6 @@ impl BuildHasher for RandomStateImpl {
 
     #[inline]
     fn build_hasher(&self) -> ahash::AHasher {
-        ahash::RandomState::new().build_hasher()
+        self.state.build_hasher()
     }
 }

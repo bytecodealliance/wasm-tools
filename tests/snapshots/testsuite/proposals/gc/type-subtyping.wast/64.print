@@ -4,13 +4,8 @@
     (type (;1;) (struct (field (ref $f1))))
   )
   (rec
-    (type $f2 (;2;) (sub (func)))
-    (type (;3;) (struct (field (ref $f1))))
+    (type $g1 (;2;) (sub $f1 (func)))
+    (type (;3;) (struct))
   )
-  (rec
-    (type $g2 (;4;) (sub $f2 (func)))
-    (type (;5;) (struct))
-  )
-  (func (;0;) (type $g2))
-  (export "g" (func 0))
+  (import "M3" "g" (func (;0;) (type $g1)))
 )

@@ -1074,6 +1074,9 @@ impl Printer {
             self.print_name(&state.core.table_names, state.core.tables)?;
             self.result.push(' ');
         }
+        if ty.table64 {
+            self.result.push_str("i64 ");
+        }
         self.print_limits(ty.initial, ty.maximum)?;
         self.result.push(' ');
         self.print_reftype(state, ty.element_type)?;

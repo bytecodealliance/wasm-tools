@@ -49,7 +49,7 @@ pub struct ModuleInfo<'a> {
     // function idx to type idx
     pub function_map: Vec<u32>,
     pub global_types: Vec<PrimitiveTypeInfo>,
-    pub table_elem_types: Vec<PrimitiveTypeInfo>,
+    pub table_types: Vec<wasmparser::TableType>,
     pub memory_types: Vec<wasmparser::MemoryType>,
 
     // raw_sections
@@ -119,7 +119,7 @@ impl<'a> ModuleInfo<'a> {
                             wasmparser::TypeRef::Table(ty) => {
                                 info.table_count += 1;
                                 info.imported_tables_count += 1;
-                                info.table_elem_types.push(ty.element_type.into());
+                                info.table_types.push(ty);
                             }
                             wasmparser::TypeRef::Tag(_ty) => {
                                 info.tag_count += 1;
@@ -143,8 +143,7 @@ impl<'a> ModuleInfo<'a> {
 
                     for table in reader {
                         let table = table?;
-                        let ty = PrimitiveTypeInfo::try_from(table.ty.element_type).unwrap();
-                        info.table_elem_types.push(ty);
+                        info.table_types.push(table.ty);
                     }
                 }
                 Payload::MemorySection(reader) => {

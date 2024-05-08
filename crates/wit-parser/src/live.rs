@@ -1,4 +1,6 @@
-use crate::{Function, InterfaceId, Resolve, Type, TypeDefKind, TypeId, WorldId, WorldItem};
+use crate::{
+    Function, FunctionKind, InterfaceId, Resolve, Type, TypeDefKind, TypeId, WorldId, WorldItem,
+};
 use indexmap::IndexSet;
 
 #[derive(Default)]
@@ -41,6 +43,19 @@ impl LiveTypes {
     }
 
     pub fn add_func(&mut self, resolve: &Resolve, func: &Function) {
+        match func.kind {
+            // This resource is live as it's attached to a static method but
+            // it's not guaranteed to be present in either params or results, so
+            // be sure to attach it here.
+            FunctionKind::Static(id) => self.add_type_id(resolve, id),
+
+            // The resource these are attached to is in the params/results, so
+            // no need to re-add it here.
+            FunctionKind::Method(_) | FunctionKind::Constructor(_) => {}
+
+            FunctionKind::Freestanding => {}
+        }
+
         for (_, ty) in func.params.iter() {
             self.add_type(resolve, ty);
         }

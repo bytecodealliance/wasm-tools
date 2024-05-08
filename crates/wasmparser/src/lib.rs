@@ -28,9 +28,11 @@
 
 #![deny(missing_docs)]
 #![no_std]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 extern crate alloc;
 #[cfg(feature = "std")]
+#[macro_use]
 extern crate std;
 
 /// A small "prelude" to use throughout this crate.
@@ -47,6 +49,7 @@ mod prelude {
     pub use alloc::vec;
     pub use alloc::vec::Vec;
 
+    #[cfg(feature = "validate")]
     pub use crate::collections::{IndexMap, IndexSet, Map, Set};
 }
 
@@ -783,14 +786,20 @@ macro_rules! bail {
 pub use crate::binary_reader::{BinaryReader, BinaryReaderError, Result};
 pub use crate::parser::*;
 pub use crate::readers::*;
-pub use crate::resources::*;
-pub use crate::validator::*;
 
 mod binary_reader;
 mod limits;
 mod parser;
 mod readers;
-mod resources;
-mod validator;
 
+#[cfg(feature = "validate")]
+mod resources;
+#[cfg(feature = "validate")]
+mod validator;
+#[cfg(feature = "validate")]
+pub use crate::resources::*;
+#[cfg(feature = "validate")]
+pub use crate::validator::*;
+
+#[cfg(feature = "validate")]
 pub mod collections;

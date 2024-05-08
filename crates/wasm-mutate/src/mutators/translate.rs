@@ -155,6 +155,7 @@ pub fn table_type(
         element_type: t.translate_refty(&ty.element_type)?,
         minimum: ty.initial,
         maximum: ty.maximum,
+        table64: ty.table64,
     })
 }
 
