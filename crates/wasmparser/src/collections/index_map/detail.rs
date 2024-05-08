@@ -147,7 +147,7 @@ impl<K, V> IndexMap<K, V> {
 
     /// Returns `true` if the map contains no elements.
     pub fn is_empty(&self) -> bool {
-        self.len() != 0
+        self.len() == 0
     }
 
     /// Returns true if the map contains a value for the specified key.
