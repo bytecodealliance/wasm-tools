@@ -192,7 +192,7 @@ impl<'a, T> ExactSizeIterator for Iter<'a, T> {
     }
 }
 
-impl<'a, T> FusedIterator for Iter<'a, T> {}
+impl<'a, T> FusedIterator for Iter<'a, T> where detail::IterImpl<'a, T>: FusedIterator {}
 
 impl<T> IntoIterator for Set<T> {
     type Item = T;
@@ -225,4 +225,4 @@ impl<T> ExactSizeIterator for IntoIter<T> {
     }
 }
 
-impl<T> FusedIterator for IntoIter<T> {}
+impl<T> FusedIterator for IntoIter<T> where detail::IntoIterImpl<T>: FusedIterator {}

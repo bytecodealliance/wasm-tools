@@ -335,7 +335,7 @@ impl<'a, K, V> ExactSizeIterator for Iter<'a, K, V> {
     }
 }
 
-impl<'a, K, V> FusedIterator for Iter<'a, K, V> {}
+impl<'a, K, V> FusedIterator for Iter<'a, K, V> where detail::IterImpl<'a, K, V>: FusedIterator {}
 
 impl<'a, K, V> IntoIterator for &'a mut Map<K, V> {
     type Item = (&'a K, &'a mut V);
@@ -366,7 +366,8 @@ impl<'a, K, V> ExactSizeIterator for IterMut<'a, K, V> {
     }
 }
 
-impl<'a, K, V> FusedIterator for IterMut<'a, K, V> {}
+impl<'a, K, V> FusedIterator for IterMut<'a, K, V> where detail::IterMutImpl<'a, K, V>: FusedIterator
+{}
 
 impl<K, V> IntoIterator for Map<K, V> {
     type Item = (K, V);
@@ -399,7 +400,7 @@ impl<K, V> ExactSizeIterator for IntoIter<K, V> {
     }
 }
 
-impl<K, V> FusedIterator for IntoIter<K, V> {}
+impl<K, V> FusedIterator for IntoIter<K, V> where detail::IntoIterImpl<K, V>: FusedIterator {}
 
 /// An iterator over the keys of a [`Map`].
 #[derive(Debug, Clone)]
@@ -421,7 +422,7 @@ impl<'a, K, V> ExactSizeIterator for Keys<'a, K, V> {
     }
 }
 
-impl<'a, K, V> FusedIterator for Keys<'a, K, V> {}
+impl<'a, K, V> FusedIterator for Keys<'a, K, V> where detail::KeysImpl<'a, K, V>: FusedIterator {}
 
 /// An iterator over the values of a [`Map`].
 #[derive(Debug, Clone)]
@@ -443,7 +444,7 @@ impl<'a, K, V> ExactSizeIterator for Values<'a, K, V> {
     }
 }
 
-impl<'a, K, V> FusedIterator for Values<'a, K, V> {}
+impl<'a, K, V> FusedIterator for Values<'a, K, V> where detail::ValuesImpl<'a, K, V>: FusedIterator {}
 
 /// An mutable iterator over the values of a [`Map`].
 #[derive(Debug)]
@@ -465,4 +466,7 @@ impl<'a, K, V> ExactSizeIterator for ValuesMut<'a, K, V> {
     }
 }
 
-impl<'a, K, V> FusedIterator for ValuesMut<'a, K, V> {}
+impl<'a, K, V> FusedIterator for ValuesMut<'a, K, V> where
+    detail::ValuesMutImpl<'a, K, V>: FusedIterator
+{
+}
