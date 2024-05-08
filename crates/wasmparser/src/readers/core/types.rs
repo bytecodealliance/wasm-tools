@@ -22,7 +22,7 @@ use crate::prelude::*;
 use crate::types::CoreTypeId;
 use crate::{BinaryReader, BinaryReaderError, FromReader, Result, SectionLimited};
 use core::cmp::Ordering;
-use core::fmt::{self, Debug, Write};
+use core::fmt::{self, Debug};
 use core::hash::{Hash, Hasher};
 
 #[cfg(feature = "validate")]
