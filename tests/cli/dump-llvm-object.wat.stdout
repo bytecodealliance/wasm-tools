@@ -536,12 +536,44 @@
  0x5a1 | 0a 72 65 6c | name: "reloc.CODE"
        | 6f 63 2e 43
        | 4f 44 45   
- 0x5ac |-------------| ... 96 bytes of data
+ 0x5ac | 05          | section 5
+ 0x5ad | 19          | 25 count
+ 0x5ae | 00 06 01    | RelocationEntry { ty: FunctionIndexLeb, offset: 6, index: 1, addend: 0 }
+ 0x5b1 | 07 12 03    | RelocationEntry { ty: GlobalIndexLeb, offset: 18, index: 3, addend: 0 }
+ 0x5b4 | 07 27 03    | RelocationEntry { ty: GlobalIndexLeb, offset: 39, index: 3, addend: 0 }
+ 0x5b7 | 06 2f 05    | RelocationEntry { ty: TypeIndexLeb, offset: 47, index: 5, addend: 0 }
+ 0x5ba | 07 43 03    | RelocationEntry { ty: GlobalIndexLeb, offset: 67, index: 3, addend: 0 }
+ 0x5bd | 07 4f 03    | RelocationEntry { ty: GlobalIndexLeb, offset: 79, index: 3, addend: 0 }
+ 0x5c0 | 07 64 03    | RelocationEntry { ty: GlobalIndexLeb, offset: 100, index: 3, addend: 0 }
+ 0x5c3 | 04 80 01 04 | RelocationEntry { ty: MemoryAddrSleb, offset: 128, index: 4, addend: 0 }
+       | 00         
+ 0x5c8 | 00 92 01 05 | RelocationEntry { ty: FunctionIndexLeb, offset: 146, index: 5, addend: 0 }
+ 0x5cc | 07 b5 01 03 | RelocationEntry { ty: GlobalIndexLeb, offset: 181, index: 3, addend: 0 }
+ 0x5d0 | 07 c3 01 03 | RelocationEntry { ty: GlobalIndexLeb, offset: 195, index: 3, addend: 0 }
+ 0x5d4 | 07 d8 01 03 | RelocationEntry { ty: GlobalIndexLeb, offset: 216, index: 3, addend: 0 }
+ 0x5d8 | 00 e7 01 00 | RelocationEntry { ty: FunctionIndexLeb, offset: 231, index: 0, addend: 0 }
+ 0x5dc | 00 ed 01 07 | RelocationEntry { ty: FunctionIndexLeb, offset: 237, index: 7, addend: 0 }
+ 0x5e0 | 07 a6 02 03 | RelocationEntry { ty: GlobalIndexLeb, offset: 294, index: 3, addend: 0 }
+ 0x5e4 | 07 cb 02 03 | RelocationEntry { ty: GlobalIndexLeb, offset: 331, index: 3, addend: 0 }
+ 0x5e8 | 07 e0 02 03 | RelocationEntry { ty: GlobalIndexLeb, offset: 352, index: 3, addend: 0 }
+ 0x5ec | 00 ef 02 09 | RelocationEntry { ty: FunctionIndexLeb, offset: 367, index: 9, addend: 0 }
+ 0x5f0 | 07 84 03 03 | RelocationEntry { ty: GlobalIndexLeb, offset: 388, index: 3, addend: 0 }
+ 0x5f4 | 07 92 03 03 | RelocationEntry { ty: GlobalIndexLeb, offset: 402, index: 3, addend: 0 }
+ 0x5f8 | 07 a7 03 03 | RelocationEntry { ty: GlobalIndexLeb, offset: 423, index: 3, addend: 0 }
+ 0x5fc | 00 c5 03 06 | RelocationEntry { ty: FunctionIndexLeb, offset: 453, index: 6, addend: 0 }
+ 0x600 | 07 da 03 03 | RelocationEntry { ty: GlobalIndexLeb, offset: 474, index: 3, addend: 0 }
+ 0x604 | 01 f0 03 0b | RelocationEntry { ty: TableIndexSleb, offset: 496, index: 11, addend: 0 }
+ 0x608 | 00 88 04 02 | RelocationEntry { ty: FunctionIndexLeb, offset: 520, index: 2, addend: 0 }
  0x60c | 00 19       | custom section
  0x60e | 0a 72 65 6c | name: "reloc.DATA"
        | 6f 63 2e 44
        | 41 54 41   
- 0x619 |-------------| ... 14 bytes of data
+ 0x619 | 06          | section 6
+ 0x61a | 04          | 4 count
+ 0x61b | 02 06 0a    | RelocationEntry { ty: TableIndexI32, offset: 6, index: 10, addend: 0 }
+ 0x61e | 02 12 08    | RelocationEntry { ty: TableIndexI32, offset: 18, index: 8, addend: 0 }
+ 0x621 | 02 16 06    | RelocationEntry { ty: TableIndexI32, offset: 22, index: 6, addend: 0 }
+ 0x624 | 02 1a 06    | RelocationEntry { ty: TableIndexI32, offset: 26, index: 6, addend: 0 }
  0x627 | 00 2c       | custom section
  0x629 | 0f 74 61 72 | name: "target_features"
        | 67 65 74 5f

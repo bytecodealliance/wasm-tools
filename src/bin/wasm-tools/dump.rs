@@ -509,6 +509,15 @@ impl<'a> Dump<'a> {
                                 me.print_linking_subsection(item, pos)
                             })?;
                         }
+                        KnownCustom::Reloc(s) => {
+                            let entries = s.entries();
+                            write!(self.state, "section {}", s.section_index())?;
+                            self.print(entries.range().start)?;
+                            self.print_iter(entries, |me, pos, item| {
+                                write!(me.state, "{item:?}")?;
+                                me.print(pos)
+                            })?;
+                        }
                         KnownCustom::Unknown => {
                             self.print_byte_header()?;
                             for _ in 0..NBYTES {

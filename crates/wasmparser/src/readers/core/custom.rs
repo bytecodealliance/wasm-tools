@@ -112,6 +112,12 @@ impl<'a> CustomSectionReader<'a> {
                 Ok(s) => KnownCustom::Linking(s),
                 Err(_) => KnownCustom::Unknown,
             },
+            s if s.starts_with("reloc.") => {
+                match crate::RelocSectionReader::new(self.data, self.data_offset) {
+                    Ok(s) => KnownCustom::Reloc(s),
+                    Err(_) => KnownCustom::Unknown,
+                }
+            }
             _ => KnownCustom::Unknown,
         }
     }
@@ -130,6 +136,7 @@ pub enum KnownCustom<'a> {
     CoreDumpInstances(crate::CoreDumpInstancesSection),
     CoreDumpModules(crate::CoreDumpModulesSection<'a>),
     Linking(crate::LinkingSectionReader<'a>),
+    Reloc(crate::RelocSectionReader<'a>),
     Unknown,
 }
 
