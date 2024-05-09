@@ -99,7 +99,7 @@ jobs:
     - run: cargo test -p wasm-smith --features wasmparser
 
   test_capi:
-    name: Test
+    name: Test the C API
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
