@@ -2738,6 +2738,7 @@ impl Printer {
             | KnownCustom::CoreDumpModules(_)
             | KnownCustom::CoreDumpStack(_)
             | KnownCustom::CoreDumpInstances(_)
+            | KnownCustom::Linking(_)
             | KnownCustom::Unknown => self.print_raw_custom_section(state, section),
         }
     }

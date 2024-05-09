@@ -108,6 +108,10 @@ impl<'a> CustomSectionReader<'a> {
                 Ok(s) => KnownCustom::CoreDumpStack(s),
                 Err(_) => KnownCustom::Unknown,
             },
+            "linking" => match crate::LinkingSectionReader::new(self.data, self.data_offset) {
+                Ok(s) => KnownCustom::Linking(s),
+                Err(_) => KnownCustom::Unknown,
+            },
             _ => KnownCustom::Unknown,
         }
     }
@@ -125,6 +129,7 @@ pub enum KnownCustom<'a> {
     CoreDumpStack(crate::CoreDumpStackSection<'a>),
     CoreDumpInstances(crate::CoreDumpInstancesSection),
     CoreDumpModules(crate::CoreDumpModulesSection<'a>),
+    Linking(crate::LinkingSectionReader<'a>),
     Unknown,
 }
 

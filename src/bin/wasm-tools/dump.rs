@@ -501,6 +501,14 @@ impl<'a> Dump<'a> {
                             write!(self.state, "stacks: {} / {:?}", s.name, s.frames)?;
                             self.print(c.range().end)?;
                         }
+                        KnownCustom::Linking(s) => {
+                            let subsections = s.subsections();
+                            write!(self.state, "linking version {}", s.version())?;
+                            self.print(subsections.range().start)?;
+                            self.print_subsections(subsections, |me, item, pos| {
+                                me.print_linking_subsection(item, pos)
+                            })?;
+                        }
                         KnownCustom::Unknown => {
                             self.print_byte_header()?;
                             for _ in 0..NBYTES {
@@ -650,6 +658,32 @@ impl<'a> Dump<'a> {
             }
         }
         Ok(())
+    }
+
+    fn print_linking_subsection(&mut self, s: Linking<'_>, end: usize) -> Result<()> {
+        match s {
+            Linking::SegmentInfo(map) => self.section(map, "segment info", |me, pos, item| {
+                write!(me.state, "{item:?}")?;
+                me.print(pos)
+            }),
+            Linking::InitFuncs(map) => self.section(map, "init funcs", |me, pos, item| {
+                write!(me.state, "{item:?}")?;
+                me.print(pos)
+            }),
+            Linking::ComdatInfo(map) => self.section(map, "comdat info", |me, pos, item| {
+                write!(me.state, "{item:?}")?;
+                me.print(pos)
+            }),
+            Linking::SymbolTable(map) => self.section(map, "symbol table", |me, pos, item| {
+                write!(me.state, "{item:?}")?;
+                me.print(pos)
+            }),
+            Linking::Unknown { ty, range, .. } => {
+                write!(self.state, "unknown subsection: {}", ty)?;
+                self.print(range.start)?;
+                self.print(end)
+            }
+        }
     }
 
     fn section<'b, T>(
