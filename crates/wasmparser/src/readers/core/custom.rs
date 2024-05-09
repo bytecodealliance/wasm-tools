@@ -84,12 +84,12 @@ impl<'a> CustomSectionReader<'a> {
                 Ok(s) => KnownCustom::CoreDumpStack(s),
                 Err(_) => KnownCustom::Unknown,
             },
-            "linking" => match crate::LinkingSectionReader::new(self.data, self.data_offset) {
+            "linking" => match crate::LinkingSectionReader::new(self.reader.shrink()) {
                 Ok(s) => KnownCustom::Linking(s),
                 Err(_) => KnownCustom::Unknown,
             },
             s if s.starts_with("reloc.") => {
-                match crate::RelocSectionReader::new(self.data, self.data_offset) {
+                match crate::RelocSectionReader::new(self.reader.shrink()) {
                     Ok(s) => KnownCustom::Reloc(s),
                     Err(_) => KnownCustom::Unknown,
                 }
