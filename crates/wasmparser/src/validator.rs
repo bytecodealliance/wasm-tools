@@ -228,7 +228,7 @@ impl WasmFeatures {
         match ty {
             ValType::I32 | ValType::I64 => Ok(()),
             ValType::F32 | ValType::F64 => {
-                if self.contains(Self::FLOATS) {
+                if self.floats() {
                     Ok(())
                 } else {
                     Err("floating-point support is disabled")
@@ -236,7 +236,7 @@ impl WasmFeatures {
             }
             ValType::Ref(r) => self.check_ref_type(r),
             ValType::V128 => {
-                if self.contains(Self::SIMD) {
+                if self.simd() {
                     Ok(())
                 } else {
                     Err("SIMD support is not enabled")
@@ -246,7 +246,7 @@ impl WasmFeatures {
     }
 
     pub(crate) fn check_ref_type(&self, r: RefType) -> Result<(), &'static str> {
-        if !self.contains(Self::REFERENCE_TYPES) {
+        if !self.reference_types() {
             return Err("reference types support is not enabled");
         }
         match (r.heap_type(), r.is_nullable()) {
@@ -256,7 +256,7 @@ impl WasmFeatures {
             // Non-nullable func/extern references requires the
             // `function-references` proposal.
             (HeapType::Func | HeapType::Extern, false) => {
-                if self.contains(Self::FUNCTION_REFERENCES) {
+                if self.function_references() {
                     Ok(())
                 } else {
                     Err("function references required for non-nullable types")
@@ -266,7 +266,7 @@ impl WasmFeatures {
             // Indexed types require either the function-references or gc
             // proposal as gc implies function references here.
             (HeapType::Concrete(_), _) => {
-                if self.contains(Self::FUNCTION_REFERENCES) || self.contains(Self::GC) {
+                if self.function_references() || self.gc() {
                     Ok(())
                 } else {
                     Err("function references required for index reference types")
@@ -285,7 +285,7 @@ impl WasmFeatures {
                 | HeapType::NoFunc,
                 _,
             ) => {
-                if self.contains(Self::GC) {
+                if self.gc() {
                     Ok(())
                 } else {
                     Err("heap types not supported without the gc feature")
@@ -294,7 +294,7 @@ impl WasmFeatures {
 
             // These types were added in the exception-handling proposal.
             (HeapType::Exn | HeapType::NoExn, _) => {
-                if self.contains(Self::EXCEPTIONS) {
+                if self.exceptions() {
                     Ok(())
                 } else {
                     Err("exception refs not supported without the exception handling feature")
@@ -618,7 +618,7 @@ impl Validator {
                 }
             }
             Encoding::Component => {
-                if !self.features.contains(WasmFeatures::COMPONENT_MODEL) {
+                if !self.features.component_model() {
                     bail!(
                         range.start,
                         "unknown binary version and encoding combination: {num:#x} and 0x1, \
@@ -764,7 +764,7 @@ impl Validator {
     ///
     /// This method should only be called when parsing a module.
     pub fn tag_section(&mut self, section: &crate::TagSectionReader<'_>) -> Result<()> {
-        if !self.features.contains(WasmFeatures::EXCEPTIONS) {
+        if !self.features.exceptions() {
             return Err(BinaryReaderError::new(
                 "exceptions proposal not enabled",
                 section.range().start,
@@ -1434,7 +1434,7 @@ impl Validator {
     {
         let offset = section.range().start;
 
-        if !self.features.contains(WasmFeatures::COMPONENT_MODEL) {
+        if !self.features.component_model() {
             return Err(BinaryReaderError::new(
                 "component model feature is not enabled",
                 offset,

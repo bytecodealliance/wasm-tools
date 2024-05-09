@@ -57,10 +57,18 @@ macro_rules! define_wasm_features {
             pub fn inflate(&self) -> WasmFeaturesInflated {
                 WasmFeaturesInflated {
                     $(
-                        $field: self.contains(WasmFeatures::$const),
+                        $field: self.$field(),
                     )*
                 }
             }
+
+            $(
+                /// Returns whether this feature is enabled in this feature set.
+                #[inline]
+                pub fn $field(&self) -> bool {
+                    self.contains(WasmFeatures::$const)
+                }
+            )*
         }
 
         /// Inflated version of [`WasmFeatures`][crate::WasmFeatures] that

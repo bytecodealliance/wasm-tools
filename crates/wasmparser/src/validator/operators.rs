@@ -749,7 +749,7 @@ where
     }
 
     fn check_floats_enabled(&self) -> Result<()> {
-        if !self.features.contains(WasmFeatures::FLOATS) {
+        if !self.features.floats() {
             bail!(self.offset, "floating-point instruction disallowed");
         }
         Ok(())
@@ -780,7 +780,7 @@ where
                 .resources
                 .check_value_type(t, &self.features, self.offset),
             BlockType::FuncType(idx) => {
-                if !self.features.contains(WasmFeatures::MULTI_VALUE) {
+                if !self.features.multi_value() {
                     bail!(
                         self.offset,
                         "blocks, loops, and ifs may only produce a resulttype \
@@ -1231,7 +1231,7 @@ macro_rules! validate_proposal {
 
     (validate self mvp) => {};
     (validate $self:ident $proposal:ident) => {
-        $self.check_enabled($self.0.features.contains(validate_proposal!(bitflags $proposal)), validate_proposal!(desc $proposal))?
+        $self.check_enabled($self.0.features.$proposal(), validate_proposal!(desc $proposal))?
     };
 
     (desc simd) => ("SIMD");
@@ -1247,20 +1247,6 @@ macro_rules! validate_proposal {
     (desc function_references) => ("function references");
     (desc memory_control) => ("memory control");
     (desc gc) => ("gc");
-
-    (bitflags sign_extension) => (WasmFeatures::SIGN_EXTENSION);
-    (bitflags saturating_float_to_int) => (WasmFeatures::SATURATING_FLOAT_TO_INT);
-    (bitflags bulk_memory) => (WasmFeatures::BULK_MEMORY);
-    (bitflags simd) => (WasmFeatures::SIMD);
-    (bitflags relaxed_simd) => (WasmFeatures::RELAXED_SIMD);
-    (bitflags exceptions) => (WasmFeatures::EXCEPTIONS);
-    (bitflags tail_call) => (WasmFeatures::TAIL_CALL);
-    (bitflags reference_types) => (WasmFeatures::REFERENCE_TYPES);
-    (bitflags function_references) => (WasmFeatures::FUNCTION_REFERENCES);
-    (bitflags threads) => (WasmFeatures::THREADS);
-    (bitflags shared_everything_threads) => (WasmFeatures::SHARED_EVERYTHING_THREADS);
-    (bitflags gc) => (WasmFeatures::GC);
-    (bitflags memory_control) => (WasmFeatures::MEMORY_CONTROL);
 }
 
 impl<'a, T> VisitOperator<'a> for WasmProposalValidator<'_, '_, T>
@@ -1548,7 +1534,7 @@ where
         table_index: u32,
         table_byte: u8,
     ) -> Self::Output {
-        if table_byte != 0 && !self.features.contains(WasmFeatures::REFERENCE_TYPES) {
+        if table_byte != 0 && !self.features.reference_types() {
             bail!(
                 self.offset,
                 "reference-types not enabled: zero byte expected"
@@ -1815,7 +1801,7 @@ where
         Ok(())
     }
     fn visit_memory_size(&mut self, mem: u32, mem_byte: u8) -> Self::Output {
-        if mem_byte != 0 && !self.features.contains(WasmFeatures::MULTI_MEMORY) {
+        if mem_byte != 0 && !self.features.multi_memory() {
             bail!(self.offset, "multi-memory not enabled: zero byte expected");
         }
         let index_ty = self.check_memory_index(mem)?;
@@ -1823,7 +1809,7 @@ where
         Ok(())
     }
     fn visit_memory_grow(&mut self, mem: u32, mem_byte: u8) -> Self::Output {
-        if mem_byte != 0 && !self.features.contains(WasmFeatures::MULTI_MEMORY) {
+        if mem_byte != 0 && !self.features.multi_memory() {
             bail!(self.offset, "multi-memory not enabled: zero byte expected");
         }
         let index_ty = self.check_memory_index(mem)?;
