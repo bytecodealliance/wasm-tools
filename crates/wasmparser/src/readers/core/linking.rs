@@ -415,7 +415,7 @@ impl<'a> LinkingSectionReader<'a> {
             ));
         }
 
-        let subsections = Subsections::new(reader);
+        let subsections = Subsections::new(reader.shrink());
         Ok(Self {
             version,
             subsections,

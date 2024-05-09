@@ -22,7 +22,7 @@ impl<'a> RelocSectionReader<'a> {
         Ok(Self {
             section,
             range,
-            entries: SectionLimited::new(reader)?,
+            entries: SectionLimited::new(reader.shrink())?,
         })
     }
 
