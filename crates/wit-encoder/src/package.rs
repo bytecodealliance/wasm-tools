@@ -13,20 +13,47 @@ use crate::{Docs, Interface, World};
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Package {
     /// A unique name corresponding to this package.
-    pub name: PackageName,
+    name: PackageName,
 
     /// Documentation associated with this package.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
-    pub docs: Docs,
+    docs: Docs,
 
     /// All interfaces contained in this packaged, keyed by the interface's
     /// name.
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id_map"))]
-    pub interfaces: Vec<Interface>,
+    interfaces: Vec<Interface>,
 
     /// All worlds contained in this package, keyed by the world's name.
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id_map"))]
-    pub worlds: Vec<World>,
+    worlds: Vec<World>,
+}
+
+impl Package {
+    /// Create a new instance of `Package`.
+    pub fn new(name: PackageName) -> Self {
+        Self {
+            name,
+            docs: Docs::default(),
+            interfaces: vec![],
+            worlds: vec![],
+        }
+    }
+
+    /// Set the documentation
+    pub fn docs(&mut self, docs: Docs) {
+        self.docs = docs;
+    }
+
+    /// Add an `Interface` to the package
+    pub fn interface(&mut self, interface: Interface) {
+        self.interfaces.push(interface)
+    }
+
+    /// Add a `World` to the package
+    pub fn world(&mut self, world: World) {
+        self.worlds.push(world)
+    }
 }
 
 /// A structure used to keep track of the name of a package, containing optional
@@ -39,29 +66,27 @@ pub struct Package {
 #[cfg_attr(feature = "serde", serde(into = "String"))]
 pub struct PackageName {
     /// A namespace such as `wasi` in `wasi:foo/bar`
-    pub namespace: String,
+    namespace: String,
     /// The kebab-name of this package, which is always specified.
-    pub name: String,
+    name: String,
     /// Optional major/minor version information.
-    pub version: Option<Version>,
+    version: Option<Version>,
+}
+
+impl PackageName {
+    /// Create a new instance of `PackageName`
+    pub fn new(namespace: String, name: String, version: Option<Version>) -> Self {
+        Self {
+            namespace,
+            name,
+            version,
+        }
+    }
 }
 
 impl From<PackageName> for String {
     fn from(name: PackageName) -> String {
         name.to_string()
-    }
-}
-
-impl PackageName {
-    /// Returns the ID that this package name would assign the `interface` name
-    /// specified.
-    pub fn interface_id(&self, interface: &str) -> String {
-        let mut s = String::new();
-        s.push_str(&format!("{}:{}/{interface}", self.namespace, self.name));
-        if let Some(version) = &self.version {
-            s.push_str(&format!("@{version}"));
-        }
-        s
     }
 }
 
