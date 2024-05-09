@@ -2101,6 +2101,7 @@ dependencies = [
  "env_logger",
  "glob",
  "indexmap 2.2.6",
+ "libtest-mimic",
  "log",
  "pretty_assertions",
  "serde",
