@@ -4,10 +4,11 @@ use crate::CoreTypeSectionReader;
 use crate::{
     limits::MAX_WASM_MODULE_SIZE, BinaryReader, BinaryReaderError, ComponentCanonicalSectionReader,
     ComponentExportSectionReader, ComponentImportSectionReader, ComponentInstanceSectionReader,
-    ComponentStartFunction, ComponentTypeSectionReader, CustomSectionReader, DataSectionReader,
-    ElementSectionReader, ExportSectionReader, FromReader, FunctionBody, FunctionSectionReader,
-    GlobalSectionReader, ImportSectionReader, InstanceSectionReader, MemorySectionReader, Result,
-    SectionLimited, TableSectionReader, TagSectionReader, TypeSectionReader,
+    ComponentStartFunction, ComponentTypeSectionReader, ComponentValueSectionReader,
+    CustomSectionReader, DataSectionReader, ElementSectionReader, ExportSectionReader, FromReader,
+    FunctionBody, FunctionSectionReader, GlobalSectionReader, ImportSectionReader,
+    InstanceSectionReader, MemorySectionReader, Result, SectionLimited, TableSectionReader,
+    TagSectionReader, TypeSectionReader,
 };
 use core::fmt;
 use core::iter;
@@ -275,6 +276,9 @@ pub enum Payload<'a> {
     /// A component export section was received, and the provided reader can be
     /// used to parse the contents of the component export section.
     ComponentExportSection(ComponentExportSectionReader<'a>),
+    /// A component value section was received, and the provided reader can be
+    /// used to parse the contents of the component export section.
+    ComponentValueSection(ComponentValueSectionReader<'a>),
 
     /// A module or component custom section was received.
     CustomSection(CustomSectionReader<'a>),
@@ -328,6 +332,7 @@ const COMPONENT_CANONICAL_SECTION: u8 = 8;
 const COMPONENT_START_SECTION: u8 = 9;
 const COMPONENT_IMPORT_SECTION: u8 = 10;
 const COMPONENT_EXPORT_SECTION: u8 = 11;
+const COMPONENT_VALUE_SECTION: u8 = 12;
 
 impl Parser {
     /// Creates a new parser.
@@ -491,6 +496,7 @@ impl Parser {
     ///             ComponentStartSection { .. } => { /* ... */ }
     ///             ComponentImportSection(_) => { /* ... */ }
     ///             ComponentExportSection(_) => { /* ... */ }
+    ///             ComponentValueSection(_) => { /* ... */ }
     ///
     ///             ModuleSection { parser, .. }
     ///             | ComponentSection { parser, .. } => {
@@ -748,6 +754,12 @@ impl Parser {
                         ComponentExportSectionReader::new,
                         ComponentExportSection,
                     ),
+                    (Encoding::Component, COMPONENT_VALUE_SECTION) => section(
+                        reader,
+                        len,
+                        ComponentValueSectionReader::new,
+                        ComponentValueSection,
+                    ),
                     (_, id) => {
                         let offset = reader.original_position();
                         let contents = reader.read_bytes(len as usize)?;
@@ -875,6 +887,7 @@ impl Parser {
     ///             ComponentStartSection { .. } => { /* ... */ }
     ///             ComponentImportSection(_) => { /* ... */ }
     ///             ComponentExportSection(_) => { /* ... */ }
+    ///             ComponentValueSection(_) => { /* ... */}
     ///
     ///             CustomSection(_) => { /* ... */ }
     ///
@@ -1128,6 +1141,7 @@ impl Payload<'_> {
             ComponentStartSection { range, .. } => Some((COMPONENT_START_SECTION, range.clone())),
             ComponentImportSection(s) => Some((COMPONENT_IMPORT_SECTION, s.range())),
             ComponentExportSection(s) => Some((COMPONENT_EXPORT_SECTION, s.range())),
+            ComponentValueSection(s) => Some((COMPONENT_VALUE_SECTION, s.range())),
 
             CustomSection(c) => Some((CUSTOM_SECTION, c.range())),
 
@@ -1222,6 +1236,10 @@ impl fmt::Debug for Payload<'_> {
                 .finish(),
             ComponentExportSection(_) => f
                 .debug_tuple("ComponentExportSection")
+                .field(&"...")
+                .finish(),
+            ComponentValueSection(_) => f
+                .debug_tuple("ComponentValueSection")
                 .field(&"...")
                 .finish(),
 

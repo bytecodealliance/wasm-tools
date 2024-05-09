@@ -20,9 +20,9 @@ use crate::{
         TupleType, TypeInfo, VariantType,
     },
     BinaryReaderError, CanonicalOption, ComponentExportName, ComponentExternalKind,
-    ComponentOuterAliasKind, ComponentTypeRef, CompositeType, ExternalKind, FuncType, GlobalType,
-    InstantiationArgKind, MemoryType, RecGroup, Result, SubType, TableType, TypeBounds, ValType,
-    WasmFeatures,
+    ComponentOuterAliasKind, ComponentTypeRef, ComponentValue, CompositeType, ExternalKind,
+    FuncType, GlobalType, InstantiationArgKind, MemoryType, RecGroup, Result, SubType, TableType,
+    TypeBounds, ValType, WasmFeatures,
 };
 use core::mem;
 use indexmap::map::Entry;
@@ -1239,6 +1239,25 @@ impl ComponentState {
 
         self.has_start = true;
 
+        Ok(())
+    }
+
+    pub fn add_value(
+        &mut self,
+        value: ComponentValue,
+        features: &WasmFeatures,
+        types: &mut TypeList,
+        offset: usize,
+    ) -> Result<()> {
+        if !features.contains(WasmFeatures::COMPONENT_MODEL_VALUES) {
+            bail!(
+                offset,
+                "support for component model `value`s is not enabled"
+            );
+        }
+
+        let ty = self.create_component_val_type(value.ty, offset)?;
+        self.values.push((ty, false));
         Ok(())
     }
 

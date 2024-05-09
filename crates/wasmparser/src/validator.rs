@@ -728,6 +728,7 @@ impl Validator {
             ComponentStartSection { start, range } => self.component_start_section(start, range)?,
             ComponentImportSection(s) => self.component_import_section(s)?,
             ComponentExportSection(s) => self.component_export_section(s)?,
+            ComponentValueSection(s) => self.component_value_section(s)?,
 
             End(offset) => return Ok(ValidPayload::End(self.end(*offset)?)),
 
@@ -1451,6 +1452,42 @@ impl Validator {
                     offset,
                     false, /* checked above */
                 )
+            },
+        )
+    }
+
+    /// Validates [`Payload::ComponentValueSection`](crate::Payload).
+    ///
+    /// This method should only be called when parsing a component.
+    pub fn component_value_section(
+        &mut self,
+        section: &crate::ComponentValueSectionReader,
+    ) -> Result<()> {
+        if !self.features.contains(WasmFeatures::COMPONENT_MODEL_VALUES) {
+            bail!(
+                section.range().start,
+                "support for component model `value`s is not enabled"
+            );
+        }
+        self.process_component_section(
+            section,
+            "value",
+            |components, _types, count, offset| {
+                let current = components.last_mut().unwrap();
+                check_max(
+                    current.values.len(),
+                    count,
+                    MAX_WASM_VALUES,
+                    "values",
+                    offset,
+                )?;
+                current.values.reserve(count as usize);
+                Ok(())
+            },
+            |components, types, features, value, offset| {
+                let current = components.last_mut().unwrap();
+                current.add_value(value, features, types, offset)?;
+                Ok(())
             },
         )
     }

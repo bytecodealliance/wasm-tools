@@ -6,6 +6,7 @@ mod instances;
 mod names;
 mod start;
 mod types;
+mod values;
 
 pub use self::aliases::*;
 pub use self::canonicals::*;
@@ -15,3 +16,4 @@ pub use self::instances::*;
 pub use self::names::*;
 pub use self::start::*;
 pub use self::types::*;
+pub use self::values::*;
