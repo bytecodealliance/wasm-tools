@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use libtest_mimic::{Arguments, Trial};
 use pretty_assertions::assert_eq;
 use std::fs;
 use std::path::Path;
@@ -17,10 +18,10 @@ use wit_parser::{PackageId, Resolve, UnresolvedPackage};
 ///
 /// Run the test with the environment variable `BLESS` set to update
 /// the baseline files.
-#[test]
-fn interface_encoding() -> Result<()> {
+fn main() -> Result<()> {
     env_logger::init();
 
+    let mut trials = Vec::new();
     for entry in fs::read_dir("tests/interfaces")? {
         let path = entry?.path();
         let name = match path.file_name().and_then(|s| s.to_str()) {
@@ -30,15 +31,22 @@ fn interface_encoding() -> Result<()> {
         let is_dir = path.is_dir();
         let is_test = is_dir || name.ends_with(".wit");
         if is_test {
-            run_test(&path, is_dir).context(format!("failed test `{}`", path.display()))?;
+            trials.push(Trial::test(name.to_string(), move || {
+                run_test(&path, is_dir)
+                    .context(format!("failed test `{}`", path.display()))
+                    .map_err(|e| format!("{e:?}").into())
+            }));
         }
     }
 
-    Ok(())
+    let mut args = Arguments::from_args();
+    if cfg!(target_family = "wasm") && !cfg!(target_feature = "atomics") {
+        args.test_threads = Some(1);
+    }
+    libtest_mimic::run(&args, trials).exit();
 }
 
 fn run_test(path: &Path, is_dir: bool) -> Result<()> {
-    println!("running test at {path:?}");
     let mut resolve = Resolve::new();
     let package = if is_dir {
         resolve.push_dir(path)?.0

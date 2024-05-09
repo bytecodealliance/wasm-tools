@@ -36,6 +36,7 @@ glob = "0.3.0"
 pretty_assertions = "1.3.0"
 env_logger = { workspace = true }
 wat = { workspace = true }
+libtest-mimic = { workspace = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
 wasmtime = { workspace = true }
@@ -44,3 +45,11 @@ wasmtime = { workspace = true }
 dummy-module = ['dep:wat']
 wat = ['dep:wast', 'dep:wat']
 semver-check = ['dummy-module']
+
+[[test]]
+name = "components"
+harness = false
+
+[[test]]
+name = "interfaces"
+harness = false
