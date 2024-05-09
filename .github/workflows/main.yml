@@ -41,7 +41,7 @@ jobs:
       with:
         submodules: true
     - run: rustup update stable --no-self-update && rustup default stable
-    - uses: bytecodealliance/wasmtime/.github/actions/binary-compatible-builds@v17.0.1
+    - uses: bytecodealliance/wasmtime/.github/actions/binary-compatible-builds@v20.0.0
       with:
         name: ${{ matrix.build }}
       if: matrix.build != 'wasm32-wasi'
@@ -51,7 +51,7 @@ jobs:
       if: matrix.target != ''
     - run: $CENTOS cargo build --release
     - run: ./ci/build-tarballs.sh "${{ matrix.build }}" "${{ matrix.target }}"
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: bins-${{ matrix.build }}
         path: dist
