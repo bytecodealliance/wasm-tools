@@ -16,7 +16,9 @@ impl Mutator for RemoveExportMutator {
         config: &'a mut WasmMutate,
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         let mut exports = ExportSection::new();
-        let reader = ExportSectionReader::new(config.info().get_exports_section().data, 0)?;
+        let exports_idx = config.info().exports.unwrap();
+        let reader = config.info().get_binary_reader(exports_idx);
+        let reader = ExportSectionReader::new(reader)?;
         let max_exports = u64::from(reader.count());
         let skip_at = config.rng().gen_range(0..max_exports);
 

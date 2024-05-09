@@ -9,10 +9,10 @@ use crate::{BinaryReader, FromReader, Result};
 /// # Examples
 ///
 /// ```
-/// use wasmparser::{ BinaryReader, CoreDumpSection, FromReader, Result };
+/// use wasmparser::{BinaryReader, CoreDumpSection, FromReader, Result, WasmFeatures};
 /// let data: &[u8] = &[0x00, 0x09, 0x74, 0x65, 0x73, 0x74, 0x2e, 0x77, 0x61,
 ///      0x73, 0x6d];
-/// let mut reader = BinaryReader::new(data);
+/// let mut reader = BinaryReader::new(data, 0, WasmFeatures::all());
 /// let core = CoreDumpSection::new(reader).unwrap();
 /// assert!(core.name == "test.wasm")
 /// ```
@@ -46,9 +46,9 @@ impl<'a> CoreDumpSection<'a> {
 /// # Example
 ///
 /// ```
-/// use wasmparser::{ BinaryReader, CoreDumpModulesSection, FromReader, Result };
+/// use wasmparser::{BinaryReader, CoreDumpModulesSection, FromReader, Result, WasmFeatures};
 /// let data: &[u8] = &[0x01, 0x00, 0x04, 0x74, 0x65, 0x73, 0x74];
-/// let reader = BinaryReader::new(data);
+/// let reader = BinaryReader::new(data, 0, WasmFeatures::all());
 /// let modules_section = CoreDumpModulesSection::new(reader).unwrap();
 /// assert!(modules_section.modules[0] == "test")
 /// ```
@@ -151,10 +151,11 @@ impl<'a> FromReader<'a> for CoreDumpInstance {
 /// # Examples
 ///
 /// ```
+/// use wasmparser::{BinaryReader, CoreDumpStackSection, FromReader, WasmFeatures};
+///
 /// let data: &[u8] = &[0x00, 0x04, 0x6d, 0x61, 0x69, 0x6e, 0x01, 0x00, 0x04,
 ///     0x2a, 0x33, 0x01, 0x7f, 0x01, 0x01, 0x7f, 0x02];
-/// use wasmparser::{ BinaryReader, CoreDumpStackSection, FromReader };
-/// let reader = BinaryReader::new(data);
+/// let reader = BinaryReader::new(data, 0, WasmFeatures::all());
 /// let corestack = CoreDumpStackSection::new(reader).unwrap();
 /// assert!(corestack.name == "main");
 /// assert!(corestack.frames.len() == 1);

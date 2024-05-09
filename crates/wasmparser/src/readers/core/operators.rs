@@ -145,7 +145,7 @@ for_each_operator!(define_operator);
 /// A reader for a core WebAssembly function's operators.
 #[derive(Clone)]
 pub struct OperatorsReader<'a> {
-    pub(crate) reader: BinaryReader<'a>,
+    reader: BinaryReader<'a>,
 }
 
 impl<'a> OperatorsReader<'a> {
@@ -161,15 +161,6 @@ impl<'a> OperatorsReader<'a> {
     /// Gets the original position of the reader.
     pub fn original_position(&self) -> usize {
         self.reader.original_position()
-    }
-
-    /// Whether or not to allow 64-bit memory arguments in the
-    /// the operators being read.
-    ///
-    /// This is intended to be `true` when support for the memory64
-    /// WebAssembly proposal is also enabled.
-    pub fn allow_memarg64(&mut self, allow: bool) {
-        self.reader.allow_memarg64(allow);
     }
 
     /// Ensures the reader is at the end.
@@ -228,10 +219,11 @@ impl<'a> IntoIterator for OperatorsReader<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::{Operator, CodeSectionReader, Result};
+    /// # use wasmparser::{Operator, CodeSectionReader, Result, BinaryReader, WasmFeatures};
     /// # let data: &[u8] = &[
     /// #     0x01, 0x03, 0x00, 0x01, 0x0b];
-    /// let code_reader = CodeSectionReader::new(data, 0).unwrap();
+    /// let reader = BinaryReader::new(data, 0, WasmFeatures::all());
+    /// let code_reader = CodeSectionReader::new(reader).unwrap();
     /// for body in code_reader {
     ///     let body = body.expect("function body");
     ///     let mut op_reader = body.get_operators_reader().expect("op reader");
@@ -283,10 +275,11 @@ impl<'a> Iterator for OperatorsIteratorWithOffsets<'a> {
     ///
     /// # Examples
     /// ```
-    /// use wasmparser::{Operator, CodeSectionReader, Result};
+    /// use wasmparser::{Operator, CodeSectionReader, Result, BinaryReader, WasmFeatures};
     /// # let data: &[u8] = &[
     /// #     0x01, 0x03, 0x00, /* offset = 23 */ 0x01, 0x0b];
-    /// let code_reader = CodeSectionReader::new(data, 20).unwrap();
+    /// let reader = BinaryReader::new(data, 20, WasmFeatures::all());
+    /// let code_reader = CodeSectionReader::new(reader).unwrap();
     /// for body in code_reader {
     ///     let body = body.expect("function body");
     ///     let mut op_reader = body.get_operators_reader().expect("op reader");

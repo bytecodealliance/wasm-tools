@@ -132,16 +132,10 @@ impl<'a> FromReader<'a> for Element<'a> {
             Ok(())
         })?;
         let items = if exprs {
-            ElementItems::Expressions(
-                ty.unwrap_or(RefType::FUNCREF),
-                SectionLimited::new(data.remaining_buffer(), data.original_position())?,
-            )
+            ElementItems::Expressions(ty.unwrap_or(RefType::FUNCREF), SectionLimited::new(data)?)
         } else {
             assert!(ty.is_none());
-            ElementItems::Functions(SectionLimited::new(
-                data.remaining_buffer(),
-                data.original_position(),
-            )?)
+            ElementItems::Functions(SectionLimited::new(data)?)
         };
 
         let elem_end = reader.original_position();

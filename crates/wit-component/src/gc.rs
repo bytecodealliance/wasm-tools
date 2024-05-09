@@ -315,7 +315,11 @@ impl<'a> Module<'a> {
                         self.funcs.push(Func {
                             // Specify a dummy definition to get filled in later
                             // when parsing the code section.
-                            def: Definition::Local(FunctionBody::new(0, &[])),
+                            def: Definition::Local(FunctionBody::new(BinaryReader::new(
+                                &[],
+                                0,
+                                WasmFeatures::all(),
+                            ))),
                             ty,
                         });
                     }

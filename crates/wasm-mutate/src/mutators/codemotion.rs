@@ -62,9 +62,9 @@ impl CodemotionMutator {
         config: &mut WasmMutate,
         mutators: &[Box<dyn AstMutator>],
     ) -> crate::Result<(Function, u32)> {
-        let original_code_section = config.info().get_code_section();
-
-        let sectionreader = CodeSectionReader::new(original_code_section.data, 0)?;
+        let original_code_section = config.info().code.unwrap();
+        let reader = config.info().get_binary_reader(original_code_section);
+        let sectionreader = CodeSectionReader::new(reader)?;
         let function_count = sectionreader.count();
         let function_to_mutate = config.rng().gen_range(0..function_count);
 
@@ -75,8 +75,7 @@ impl CodemotionMutator {
         for fidx in (function_to_mutate..function_count).chain(0..function_to_mutate) {
             config.consume_fuel(1)?;
             let reader = all_readers[fidx as usize].clone();
-            let mut operatorreader = reader.get_operators_reader()?;
-            operatorreader.allow_memarg64(true);
+            let operatorreader = reader.get_operators_reader()?;
 
             let operators = operatorreader
                 .into_iter_with_offsets()
@@ -101,7 +100,7 @@ impl CodemotionMutator {
                         &ast,
                         &self.copy_locals(reader)?,
                         &operators,
-                        original_code_section.data,
+                        config.info().raw_sections[original_code_section].data,
                     )?;
                     return Ok((newfunc, fidx));
                 }
@@ -143,8 +142,8 @@ impl Mutator for CodemotionMutator {
         let (newfunc, function_to_mutate) = self.random_mutate(config, &mutators)?;
 
         let mut codes = CodeSection::new();
-        let code_section = config.info().get_code_section();
-        let sectionreader = CodeSectionReader::new(code_section.data, 0)?;
+        let code_section = config.info().get_binary_reader(config.info().code.unwrap());
+        let sectionreader = CodeSectionReader::new(code_section)?;
 
         for (fidx, reader) in sectionreader.into_iter().enumerate() {
             let reader = reader?;
@@ -152,7 +151,7 @@ impl Mutator for CodemotionMutator {
                 log::trace!("Mutating function {}", fidx);
                 codes.function(&newfunc);
             } else {
-                codes.raw(&code_section.data[reader.range().start..reader.range().end]);
+                codes.raw(reader.as_bytes());
             }
         }
         let module = config

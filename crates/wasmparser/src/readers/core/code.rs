@@ -27,19 +27,8 @@ pub struct FunctionBody<'a> {
 
 impl<'a> FunctionBody<'a> {
     /// Constructs a new `FunctionBody` for the given data and offset.
-    pub fn new(offset: usize, data: &'a [u8]) -> Self {
-        Self {
-            reader: BinaryReader::new_with_offset(data, offset),
-        }
-    }
-
-    /// Whether or not to allow 64-bit memory arguments in the
-    /// function body.
-    ///
-    /// This is intended to be `true` when support for the memory64
-    /// WebAssembly proposal is also enabled.
-    pub fn allow_memarg64(&mut self, allow: bool) {
-        self.reader.allow_memarg64(allow);
+    pub fn new(reader: BinaryReader<'a>) -> Self {
+        Self { reader }
     }
 
     /// Gets a binary reader for this function body.
@@ -73,6 +62,13 @@ impl<'a> FunctionBody<'a> {
     /// Gets the range of the function body.
     pub fn range(&self) -> Range<usize> {
         self.reader.range()
+    }
+
+    /// Returns the body of this function as a list of bytes.
+    ///
+    /// Note that the returned bytes start with the function locals declaration.
+    pub fn as_bytes(&self) -> &'a [u8] {
+        self.reader.remaining_buffer()
     }
 }
 

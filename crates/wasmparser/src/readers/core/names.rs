@@ -68,7 +68,7 @@ impl<'a> FromReader<'a> for IndirectNaming<'a> {
 
         Ok(IndirectNaming {
             index,
-            names: NameMap::new(names.remaining_buffer(), names.original_position())?,
+            names: NameMap::new(names)?,
         })
     }
 }
@@ -138,17 +138,17 @@ impl<'a> Subsection<'a> for Name<'a> {
                     name_range: offset..reader.original_position(),
                 }
             }
-            1 => Name::Function(NameMap::new(data, offset)?),
-            2 => Name::Local(IndirectNameMap::new(data, offset)?),
-            3 => Name::Label(IndirectNameMap::new(data, offset)?),
-            4 => Name::Type(NameMap::new(data, offset)?),
-            5 => Name::Table(NameMap::new(data, offset)?),
-            6 => Name::Memory(NameMap::new(data, offset)?),
-            7 => Name::Global(NameMap::new(data, offset)?),
-            8 => Name::Element(NameMap::new(data, offset)?),
-            9 => Name::Data(NameMap::new(data, offset)?),
-            10 => Name::Field(IndirectNameMap::new(data, offset)?),
-            11 => Name::Tag(NameMap::new(data, offset)?),
+            1 => Name::Function(NameMap::new(reader)?),
+            2 => Name::Local(IndirectNameMap::new(reader)?),
+            3 => Name::Label(IndirectNameMap::new(reader)?),
+            4 => Name::Type(NameMap::new(reader)?),
+            5 => Name::Table(NameMap::new(reader)?),
+            6 => Name::Memory(NameMap::new(reader)?),
+            7 => Name::Global(NameMap::new(reader)?),
+            8 => Name::Element(NameMap::new(reader)?),
+            9 => Name::Data(NameMap::new(reader)?),
+            10 => Name::Field(IndirectNameMap::new(reader)?),
+            11 => Name::Tag(NameMap::new(reader)?),
             ty => Name::Unknown {
                 ty,
                 data,

@@ -52,9 +52,10 @@ impl Mutator for AddTypeMutator {
         }
 
         let mut types = wasm_encoder::TypeSection::new();
-        if let Some(old_types) = config.info().get_type_section() {
+        if let Some(old_types) = config.info().types {
             // Copy the existing types section over into the encoder.
-            let reader = wasmparser::TypeSectionReader::new(old_types.data, 0)?;
+            let reader = config.info().get_binary_reader(old_types);
+            let reader = wasmparser::TypeSectionReader::new(reader)?;
             for ty in reader.into_iter_err_on_gc_types() {
                 let ty = ty?;
                 let params = ty

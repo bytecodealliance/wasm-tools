@@ -77,12 +77,15 @@ fn run_test(path: &Path) -> Result<()> {
     let test_case = path.file_stem().unwrap().to_str().unwrap();
 
     let mut resolve = Resolve::default();
-    let (pkg, _) = resolve.push_dir(&path)?;
+    let (pkg, _) = resolve
+        .push_dir(&path)
+        .context("failed to push directory into resolve")?;
 
     let module_path = path.join("module.wat");
     let mut adapters = glob::glob(path.join("adapt-*.wat").to_str().unwrap())?;
     let result = if module_path.is_file() {
-        let module = read_core_module(&module_path, &resolve, pkg)?;
+        let module = read_core_module(&module_path, &resolve, pkg)
+            .with_context(|| format!("failed to read core module at {module_path:?}"))?;
         adapters
             .try_fold(
                 ComponentEncoder::default().module(&module)?.validate(true),
@@ -148,13 +151,15 @@ fn run_test(path: &Path) -> Result<()> {
         }
     };
 
-    let wat = wasmprinter::print_bytes(&bytes)?;
+    let wat = wasmprinter::print_bytes(&bytes).context("failed to print bytes")?;
     assert_output(&wat, &component_path)?;
-    let (pkg, resolve) = match wit_component::decode(&bytes)? {
+    let (pkg, resolve) = match wit_component::decode(&bytes).context("failed to decode resolve")? {
         DecodedWasm::WitPackage(..) => unreachable!(),
         DecodedWasm::Component(resolve, world) => (resolve.worlds[world].package.unwrap(), resolve),
     };
-    let wit = WitPrinter::default().print(&resolve, pkg)?;
+    let wit = WitPrinter::default()
+        .print(&resolve, pkg)
+        .context("failed to print WIT")?;
     assert_output(&wit, &component_wit_path)?;
 
     UnresolvedPackage::parse(&component_wit_path, &wit).context("failed to parse printed WIT")?;
@@ -201,7 +206,8 @@ fn read_name_and_module(
     resolve: &Resolve,
     pkg: PackageId,
 ) -> Result<(String, Vec<u8>)> {
-    let wasm = read_core_module(path, resolve, pkg)?;
+    let wasm = read_core_module(path, resolve, pkg)
+        .with_context(|| format!("failed to read core module at {path:?}"))?;
     let stem = path.file_stem().unwrap().to_str().unwrap();
     let name = if let Some(name) = fs::read_to_string(path)?
         .lines()

@@ -5,7 +5,7 @@ use crate::{
 use std::collections::HashSet;
 use std::ops::Range;
 use wasm_encoder::{RawSection, SectionId};
-use wasmparser::{Chunk, Parser, Payload};
+use wasmparser::{BinaryReader, Chunk, Parser, Payload, WasmFeatures};
 
 /// Provides module information for future usage during mutation
 /// an instance of ModuleInfo could be user to determine which mutation could be applied
@@ -220,7 +220,8 @@ impl<'a> ModuleInfo<'a> {
     pub fn has_nonempty_code(&self) -> bool {
         if let Some(section) = self.code {
             let section_data = self.raw_sections[section].data;
-            wasmparser::CodeSectionReader::new(section_data, 0)
+            let reader = BinaryReader::new(section_data, 0, WasmFeatures::all());
+            wasmparser::CodeSectionReader::new(reader)
                 .map(|r| r.count() != 0)
                 .unwrap_or(false)
         } else {
@@ -247,21 +248,12 @@ impl<'a> ModuleInfo<'a> {
         });
     }
 
-    pub fn get_type_section(&self) -> Option<RawSection<'a>> {
-        let idx = self.types?;
-        Some(self.raw_sections[idx])
-    }
-
     pub fn get_code_section(&self) -> RawSection<'a> {
         self.raw_sections[self.code.unwrap()]
     }
 
-    pub fn get_exports_section(&self) -> RawSection<'a> {
-        self.raw_sections[self.exports.unwrap()]
-    }
-
-    pub fn get_data_section(&self) -> RawSection<'a> {
-        self.raw_sections[self.data.unwrap()]
+    pub fn get_binary_reader(&self, i: usize) -> wasmparser::BinaryReader<'a> {
+        BinaryReader::new(self.raw_sections[i].data, 0, WasmFeatures::all())
     }
 
     pub fn has_exports(&self) -> bool {
@@ -279,11 +271,6 @@ impl<'a> ModuleInfo<'a> {
     /// glboals
     pub fn get_global_count(&self) -> usize {
         self.global_types.len()
-    }
-
-    /// Returns the global section bytes as a `RawSection` instance
-    pub fn get_global_section(&self) -> RawSection {
-        self.raw_sections[self.globals.unwrap()]
     }
 
     /// Insert a new section as the `i`th section in the Wasm module.

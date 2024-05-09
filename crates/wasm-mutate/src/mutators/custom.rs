@@ -28,9 +28,8 @@ impl Mutator for CustomSectionMutator {
         assert!(!custom_section_indices.is_empty());
 
         let custom_section_index = *custom_section_indices.choose(config.rng()).unwrap();
-        let old_custom_section = &config.info().raw_sections[custom_section_index];
-        let old_custom_section =
-            wasmparser::CustomSectionReader::new(old_custom_section.data, 0).unwrap();
+        let reader = config.info().get_binary_reader(custom_section_index);
+        let old_custom_section = wasmparser::CustomSectionReader::new(reader).unwrap();
 
         let name_string;
         let data_vec;

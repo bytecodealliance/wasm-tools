@@ -83,11 +83,13 @@ impl CodeSection {
     /// into a new code section encoder:
     ///
     /// ```
+    /// # use wasmparser::{BinaryReader, WasmFeatures, CodeSectionReader};
     /// //                  id, size, # entries, entry
     /// let code_section = [10, 6,    1,         4, 0, 65, 0, 11];
     ///
     /// // Parse the code section.
-    /// let reader = wasmparser::CodeSectionReader::new(&code_section, 0).unwrap();
+    /// let reader = BinaryReader::new(&code_section, 0, WasmFeatures::all());
+    /// let reader = CodeSectionReader::new(reader).unwrap();
     /// let body = reader.into_iter().next().unwrap().unwrap();
     /// let body_range = body.range();
     ///

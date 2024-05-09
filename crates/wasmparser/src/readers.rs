@@ -83,8 +83,7 @@ impl<'a, T> SectionLimited<'a, T> {
     /// # Errors
     ///
     /// Returns an error if a 32-bit count couldn't be read from the `data`.
-    pub fn new(data: &'a [u8], offset: usize) -> Result<Self> {
-        let mut reader = BinaryReader::new_with_offset(data, offset);
+    pub fn new(mut reader: BinaryReader<'a>) -> Result<Self> {
         let count = reader.read_var_u32()?;
         Ok(SectionLimited {
             reader,
@@ -255,9 +254,9 @@ pub struct Subsections<'a, T> {
 impl<'a, T> Subsections<'a, T> {
     /// Creates a new reader for the specified section contents starting at
     /// `offset` within the original wasm file.
-    pub fn new(data: &'a [u8], offset: usize) -> Self {
+    pub fn new(reader: BinaryReader<'a>) -> Self {
         Subsections {
-            reader: BinaryReader::new_with_offset(data, offset),
+            reader,
             _marker: marker::PhantomData,
         }
     }

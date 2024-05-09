@@ -18,7 +18,9 @@ impl Mutator for ModifyDataMutator {
         config: &'a mut WasmMutate,
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         let mut new_section = DataSection::new();
-        let reader = DataSectionReader::new(config.info().get_data_section().data, 0)?;
+        let section_idx = config.info().data.unwrap();
+        let reader = config.info().get_binary_reader(section_idx);
+        let reader = DataSectionReader::new(reader)?;
 
         // Select an arbitrary data segment to modify.
         let data_to_modify = config.rng().gen_range(0..reader.count());

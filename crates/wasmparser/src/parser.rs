@@ -7,7 +7,7 @@ use crate::{
     ComponentStartFunction, ComponentTypeSectionReader, CustomSectionReader, DataSectionReader,
     ElementSectionReader, ExportSectionReader, FromReader, FunctionBody, FunctionSectionReader,
     GlobalSectionReader, ImportSectionReader, InstanceSectionReader, MemorySectionReader, Result,
-    SectionLimited, TableSectionReader, TagSectionReader, TypeSectionReader,
+    SectionLimited, TableSectionReader, TagSectionReader, TypeSectionReader, WasmFeatures,
 };
 use core::fmt;
 use core::iter;
@@ -52,6 +52,7 @@ pub struct Parser {
     offset: u64,
     max_size: u64,
     encoding: Encoding,
+    features: WasmFeatures,
 }
 
 #[derive(Debug, Clone)]
@@ -341,6 +342,7 @@ impl Parser {
             max_size: u64::MAX,
             // Assume the encoding is a module until we know otherwise
             encoding: Encoding::Module,
+            features: WasmFeatures::all(),
         }
     }
 
@@ -378,6 +380,25 @@ impl Parser {
             KIND_COMPONENT.to_le_bytes()[1],
         ];
         bytes.starts_with(&HEADER)
+    }
+
+    /// Returns the currently active set of wasm features that this parser is
+    /// using while parsing.
+    ///
+    /// The default set of features is [`WasmFeatures::all()`] for new parsers.
+    ///
+    /// For more information see [`BinaryReader::new`].
+    pub fn features(&self) -> WasmFeatures {
+        self.features
+    }
+
+    /// Sets the wasm features active while parsing to the `features` specified.
+    ///
+    /// The default set of features is [`WasmFeatures::all()`] for new parsers.
+    ///
+    /// For more information see [`BinaryReader::new`].
+    pub fn set_features(&mut self, features: WasmFeatures) {
+        self.features = features;
     }
 
     /// Attempts to parse a chunk of data.
@@ -534,7 +555,7 @@ impl Parser {
         // TODO: thread through `offset: u64` to `BinaryReader`, remove
         // the cast here.
         let starting_offset = self.offset as usize;
-        let mut reader = BinaryReader::new_with_offset(data, starting_offset);
+        let mut reader = BinaryReader::new(data, starting_offset, self.features);
         match self.parse_reader(&mut reader, eof) {
             Ok(payload) => {
                 // Be sure to update our offset with how far we got in the
@@ -803,7 +824,9 @@ impl Parser {
                 let body = delimited(reader, &mut len, |r| {
                     let size = r.read_var_u32()?;
                     let offset = r.original_position();
-                    Ok(FunctionBody::new(offset, r.read_bytes(size as usize)?))
+                    let reader =
+                        BinaryReader::new(r.read_bytes(size as usize)?, offset, self.features);
+                    Ok(FunctionBody::new(reader))
                 })?;
                 self.state = State::FunctionBody {
                     remaining: remaining - 1,
@@ -1014,15 +1037,16 @@ fn usize_to_u64(a: usize) -> u64 {
 fn section<'a, T>(
     reader: &mut BinaryReader<'a>,
     len: u32,
-    ctor: fn(&'a [u8], usize) -> Result<T>,
+    ctor: fn(BinaryReader<'a>) -> Result<T>,
     variant: fn(T) -> Payload<'a>,
 ) -> Result<Payload<'a>> {
     let offset = reader.original_position();
     let payload = reader.read_bytes(len as usize)?;
+    let reader = BinaryReader::new(payload, offset, reader.features());
     // clear the hint for "need this many more bytes" here because we already
     // read all the bytes, so it's not possible to read more bytes if this
     // fails.
-    let reader = ctor(payload, offset).map_err(clear_hint)?;
+    let reader = ctor(reader).map_err(clear_hint)?;
     Ok(variant(reader))
 }
 
@@ -1036,7 +1060,11 @@ where
     T: FromReader<'a>,
 {
     let range = reader.original_position()..reader.original_position() + len as usize;
-    let mut content = BinaryReader::new_with_offset(reader.read_bytes(len as usize)?, range.start);
+    let mut content = BinaryReader::new(
+        reader.read_bytes(len as usize)?,
+        range.start,
+        reader.features(),
+    );
     // We can't recover from "unexpected eof" here because our entire section is
     // already resident in memory, so clear the hint for how many more bytes are
     // expected.
@@ -1404,42 +1432,56 @@ mod tests {
             parser_after_header().parse(&[0, 2, 1], false),
             Ok(Chunk::NeedMoreData(1)),
         );
-        assert_matches!(
-            parser_after_header().parse(&[0, 1, 0], false),
-            Ok(Chunk::Parsed {
-                consumed: 3,
-                payload: Payload::CustomSection(CustomSectionReader {
-                    name: "",
-                    data_offset: 11,
-                    data: b"",
-                    range: Range { start: 10, end: 11 },
-                }),
-            }),
+        assert_custom(
+            parser_after_header().parse(&[0, 1, 0], false).unwrap(),
+            3,
+            "",
+            11,
+            b"",
+            Range { start: 10, end: 11 },
         );
-        assert_matches!(
-            parser_after_header().parse(&[0, 2, 1, b'a'], false),
-            Ok(Chunk::Parsed {
-                consumed: 4,
-                payload: Payload::CustomSection(CustomSectionReader {
-                    name: "a",
-                    data_offset: 12,
-                    data: b"",
-                    range: Range { start: 10, end: 12 },
-                }),
-            }),
+        assert_custom(
+            parser_after_header()
+                .parse(&[0, 2, 1, b'a'], false)
+                .unwrap(),
+            4,
+            "a",
+            12,
+            b"",
+            Range { start: 10, end: 12 },
         );
-        assert_matches!(
-            parser_after_header().parse(&[0, 2, 0, b'a'], false),
-            Ok(Chunk::Parsed {
-                consumed: 4,
-                payload: Payload::CustomSection(CustomSectionReader {
-                    name: "",
-                    data_offset: 11,
-                    data: b"a",
-                    range: Range { start: 10, end: 12 },
-                }),
-            }),
+        assert_custom(
+            parser_after_header()
+                .parse(&[0, 2, 0, b'a'], false)
+                .unwrap(),
+            4,
+            "",
+            11,
+            b"a",
+            Range { start: 10, end: 12 },
         );
+    }
+
+    fn assert_custom(
+        chunk: Chunk<'_>,
+        expected_consumed: usize,
+        expected_name: &str,
+        expected_data_offset: usize,
+        expected_data: &[u8],
+        expected_range: Range<usize>,
+    ) {
+        let (consumed, s) = match chunk {
+            Chunk::Parsed {
+                consumed,
+                payload: Payload::CustomSection(s),
+            } => (consumed, s),
+            _ => panic!("not a custom section payload"),
+        };
+        assert_eq!(consumed, expected_consumed);
+        assert_eq!(s.name(), expected_name);
+        assert_eq!(s.data_offset(), expected_data_offset);
+        assert_eq!(s.data(), expected_data);
+        assert_eq!(s.range(), expected_range);
     }
 
     #[test]

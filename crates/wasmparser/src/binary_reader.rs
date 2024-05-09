@@ -106,37 +106,65 @@ pub struct BinaryReader<'a> {
     buffer: &'a [u8],
     position: usize,
     original_offset: usize,
-    allow_memarg64: bool,
+    features: WasmFeatures,
 }
 
 impl<'a> BinaryReader<'a> {
-    /// Constructs `BinaryReader` type.
+    /// Creates a new binary reader which will parse the `data` provided.
     ///
-    /// # Examples
-    /// ```
-    /// let fn_body = &vec![0x41, 0x00, 0x10, 0x00, 0x0B];
-    /// let mut reader = wasmparser::BinaryReader::new(fn_body);
-    /// while !reader.eof() {
-    ///     let op = reader.read_operator();
-    ///     println!("{:?}", op)
-    /// }
-    /// ```
-    pub fn new(data: &[u8]) -> BinaryReader {
-        BinaryReader {
-            buffer: data,
-            position: 0,
-            original_offset: 0,
-            allow_memarg64: false,
-        }
-    }
-
-    /// Constructs a `BinaryReader` with an explicit starting offset.
-    pub fn new_with_offset(data: &[u8], original_offset: usize) -> BinaryReader {
+    /// The `original_offset` provided is used for byte offsets in errors that
+    /// are generated. That offset is added to the current position in `data`.
+    /// This can be helpful when `data` is just a window of a view into a larger
+    /// wasm binary perhaps not even entirely stored locally.
+    ///
+    /// The `features` argument provided controls which WebAssembly features are
+    /// active when parsing this data. Wasm features typically don't affect
+    /// parsing too too much and are generally more applicable during
+    /// validation, but features and proposals will often reinterpret
+    /// previously-invalid constructs as now-valid things meaning something
+    /// slightly different. This means that invalid bytes before a feature may
+    /// now be interpreted differently after a feature is implemented. This
+    /// means that the set of activated features can affect what errors are
+    /// generated and when they are generated.
+    ///
+    /// In general it's safe to pass `WasmFeatures::all()` here. There's no
+    /// downside to enabling all features while parsing and only enabling a
+    /// subset of features during validation.
+    ///
+    /// Note that the activated set of features does not guarantee that
+    /// `BinaryReader` will return an error for disabled features. For example
+    /// if SIMD is disabled then SIMD instructions will still be parsed via
+    /// [`BinaryReader::visit_operator`]. Validation must still be performed to
+    /// provide a strict guarantee that if a feature is disabled that a binary
+    /// doesn't leverage the feature. The activated set of features here instead
+    /// only affects locations where preexisting bytes are reinterpreted in
+    /// different ways with future proposals, such as the `memarg` moving from a
+    /// 32-bit offset to a 64-bit offset with the `memory64` proposal.
+    pub fn new(data: &[u8], original_offset: usize, features: WasmFeatures) -> BinaryReader {
         BinaryReader {
             buffer: data,
             position: 0,
             original_offset,
-            allow_memarg64: false,
+            features,
+        }
+    }
+
+    /// "Shrinks" this binary reader to retain only the buffer left-to-parse.
+    ///
+    /// The primary purpose of this method is to change the return value of the
+    /// `range()` method. That method returns the range of the original buffer
+    /// within the wasm binary so calling `range()` on the returned
+    /// `BinaryReader` will return a smaller range than if `range()` is called
+    /// on `self`.
+    ///
+    /// Otherwise parsing values from either `self` or the return value should
+    /// return the same thing.
+    pub(crate) fn shrink(&self) -> BinaryReader<'a> {
+        BinaryReader {
+            buffer: &self.buffer[self.position..],
+            position: 0,
+            original_offset: self.original_offset + self.position,
+            features: self.features,
         }
     }
 
@@ -146,12 +174,19 @@ impl<'a> BinaryReader<'a> {
         self.original_offset + self.position
     }
 
-    /// Whether or not to allow 64-bit memory arguments in functions.
+    /// Returns the currently active set of wasm features that this reader is
+    /// using while parsing.
     ///
-    /// This is intended to be `true` when support for the memory64
-    /// WebAssembly proposal is also enabled.
-    pub fn allow_memarg64(&mut self, allow: bool) {
-        self.allow_memarg64 = allow;
+    /// For more information see [`BinaryReader::new`].
+    pub fn features(&self) -> WasmFeatures {
+        self.features
+    }
+
+    /// Sets the wasm features active while parsing to the `features` specified.
+    ///
+    /// For more information see [`BinaryReader::new`].
+    pub fn set_features(&mut self, features: WasmFeatures) {
+        self.features = features;
     }
 
     /// Returns a range from the starting offset to the end of the buffer.
@@ -266,7 +301,7 @@ impl<'a> BinaryReader<'a> {
         } else {
             flags as u8
         };
-        let offset = if self.allow_memarg64 {
+        let offset = if self.features.contains(WasmFeatures::MEMORY64) {
             self.read_var_u64()?
         } else {
             u64::from(self.read_var_u32()?)
@@ -300,7 +335,7 @@ impl<'a> BinaryReader<'a> {
         let end = self.position;
         let default = self.read_var_u32()?;
         Ok(BrTable {
-            reader: BinaryReader::new_with_offset(&self.buffer[start..end], start),
+            reader: BinaryReader::new(&self.buffer[start..end], start, self.features),
             cnt: cnt as u32,
             default,
         })
@@ -353,9 +388,10 @@ impl<'a> BinaryReader<'a> {
             }
         };
         self.position += size;
-        Ok(BinaryReader::new_with_offset(
+        Ok(BinaryReader::new(
             buffer,
             self.original_offset + body_start,
+            self.features,
         ))
     }
 
@@ -494,9 +530,10 @@ impl<'a> BinaryReader<'a> {
     pub fn skip(&mut self, f: impl FnOnce(&mut Self) -> Result<()>) -> Result<Self> {
         let start = self.position;
         f(self)?;
-        Ok(BinaryReader::new_with_offset(
+        Ok(BinaryReader::new(
             &self.buffer[start..self.position],
             self.original_offset + start,
+            self.features,
         ))
     }
 
@@ -1723,10 +1760,12 @@ impl<'a> BrTable<'a> {
     /// # Examples
     ///
     /// ```rust
+    /// use wasmparser::{BinaryReader, Operator, WasmFeatures};
+    ///
     /// let buf = [0x0e, 0x02, 0x01, 0x02, 0x00];
-    /// let mut reader = wasmparser::BinaryReader::new(&buf);
+    /// let mut reader = BinaryReader::new(&buf, 0, WasmFeatures::all());
     /// let op = reader.read_operator().unwrap();
-    /// if let wasmparser::Operator::BrTable { targets } = op {
+    /// if let Operator::BrTable { targets } = op {
     ///     let targets = targets.targets().collect::<Result<Vec<_>, _>>().unwrap();
     ///     assert_eq!(targets, [1, 2]);
     /// }

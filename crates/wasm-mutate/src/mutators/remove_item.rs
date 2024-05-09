@@ -15,8 +15,8 @@ use rand::Rng;
 use std::collections::HashSet;
 use wasm_encoder::*;
 use wasmparser::{
-    BinaryReader, CodeSectionReader, DataSectionReader, ElementSectionReader, ExportSectionReader,
-    ExternalKind, FromReader, FunctionSectionReader, GlobalSectionReader, ImportSectionReader,
+    CodeSectionReader, DataSectionReader, ElementSectionReader, ExportSectionReader, ExternalKind,
+    FromReader, FunctionSectionReader, GlobalSectionReader, ImportSectionReader,
     MemorySectionReader, Operator, TableInit, TableSectionReader, TagSectionReader,
     TypeSectionReader,
 };
@@ -122,7 +122,8 @@ impl RemoveItem {
         // iterate over the original wasm sections, raw, and create the new
         // module section-by-section. Sections are rewritten on-the-fly.
         let mut module = Module::new();
-        for section in info.raw_sections.iter() {
+        for (i, section) in info.raw_sections.iter().enumerate() {
+            let mut reader = info.get_binary_reader(i);
             crate::module::match_section_id! {
                 match section.id;
 
@@ -134,7 +135,7 @@ impl RemoveItem {
                     self.filter_out(
                         &mut module,
                         0,
-                        TypeSectionReader::new(section.data, 0)?.into_iter_err_on_gc_types(),
+                        TypeSectionReader::new(reader)?.into_iter_err_on_gc_types(),
                         Item::Type,
                         |me, ty, section| {
                             me.translate_func_type(ty,section)?;
@@ -154,7 +155,7 @@ impl RemoveItem {
                     let mut table = 0;
                     let mut memory = 0;
                     let mut tag = 0;
-                    for item in ImportSectionReader::new(section.data, 0)? {
+                    for item in ImportSectionReader::new(reader)? {
                         let item = item?;
                         match &item.ty {
                             wasmparser::TypeRef::Func(ty) => {
@@ -201,7 +202,7 @@ impl RemoveItem {
                     self.filter_out(
                         &mut module,
                         info.num_imported_functions(),
-                        FunctionSectionReader::new(section.data, 0)?,
+                        FunctionSectionReader::new(reader)?,
                         Item::Function,
                         |me, idx, section: &mut FunctionSection| {
                             let idx = me.remap(Item::Type, idx)?;
@@ -215,7 +216,7 @@ impl RemoveItem {
                     self.filter_out(
                         &mut module,
                         info.num_imported_tables(),
-                        TableSectionReader::new(section.data, 0)?,
+                        TableSectionReader::new(reader)?,
                         Item::Table,
                         |me, table, section: &mut TableSection| {
                             let ty = me.translate_table_type(&table.ty)?;
@@ -241,7 +242,7 @@ impl RemoveItem {
                     self.filter_out(
                         &mut module,
                         info.num_imported_memories(),
-                        MemorySectionReader::new(section.data, 0)?,
+                        MemorySectionReader::new(reader)?,
                         Item::Memory,
                         |me, ty, section: &mut MemorySection| {
                             let ty = me.translate_memory_type(&ty)?;
@@ -255,7 +256,7 @@ impl RemoveItem {
                     self.filter_out(
                         &mut module,
                         info.num_imported_globals(),
-                        GlobalSectionReader::new(section.data, 0)?,
+                        GlobalSectionReader::new(reader)?,
                         Item::Global,
                         |me, ty, section| me.translate_global(ty, section),
                     )?;
@@ -263,7 +264,7 @@ impl RemoveItem {
 
                 Export => {
                     let mut result = ExportSection::new();
-                    for item in ExportSectionReader::new(section.data, 0)? {
+                    for item in ExportSectionReader::new(reader)? {
                         let item = item?;
                         let (kind, index) = match &item.kind {
                             ExternalKind::Func => {
@@ -286,7 +287,7 @@ impl RemoveItem {
                 },
 
                 Start => {
-                    let function_index = BinaryReader::new(section.data).read_var_u32()?;
+                    let function_index = reader.read_var_u32()?;
                     self.function_reference_action = Funcref::Skip;
                     let function_index = self.remap(Item::Function, function_index)?;
                     self.function_reference_action = Funcref::Save;
@@ -297,7 +298,7 @@ impl RemoveItem {
                     self.filter_out(
                         &mut module,
                         0,
-                        ElementSectionReader::new(section.data, 0)?,
+                        ElementSectionReader::new(reader)?,
                         Item::Element,
                         |me, ty, section| me.translate_element(ty, section),
                     )?;
@@ -311,7 +312,7 @@ impl RemoveItem {
                     self.filter_out(
                         &mut module,
                         info.num_imported_functions(),
-                        CodeSectionReader::new(section.data, 0)?,
+                        CodeSectionReader::new(reader)?,
                         Item::Function,
                         |me, body, section| me.translate_code(body, section),
                     )?;
@@ -321,14 +322,14 @@ impl RemoveItem {
                     self.filter_out(
                         &mut module,
                         0,
-                        DataSectionReader::new(section.data, 0)?,
+                        DataSectionReader::new(reader)?,
                         Item::Data,
                         |me, ty, section| me.translate_data(ty, section),
                     )?;
                 },
 
                 DataCount => {
-                    let count = BinaryReader::new(section.data).read_var_u32()?;
+                    let count = reader.read_var_u32()?;
                     // Note that the data count section is decremented here if
                     // we're removing a data item, otherwise it's preserved
                     // as-is.
@@ -344,7 +345,7 @@ impl RemoveItem {
                     self.filter_out(
                         &mut module,
                         info.num_imported_tags(),
-                        TagSectionReader::new(section.data, 0)?,
+                        TagSectionReader::new(reader)?,
                         Item::Tag,
                         |me, ty, section: &mut TagSection| {
                             let ty = me.translate_tag_type(&ty)?;

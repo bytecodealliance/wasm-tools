@@ -16,22 +16,23 @@ pub enum RemoveSection {
 
 fn is_empty_section(section: &wasm_encoder::RawSection) -> bool {
     use wasmparser::*;
+    let reader = BinaryReader::new(section.data, 0, WasmFeatures::all());
     crate::module::match_section_id! {
         match section.id;
         Custom => Ok(section.data.is_empty()),
-        Type => TypeSectionReader::new(section.data, 0).map(|r| r.count() == 0),
-        Import => ImportSectionReader::new(section.data, 0).map(|r| r.count() == 0),
-        Function => FunctionSectionReader::new(section.data, 0).map(|r| r.count() == 0),
-        Table => FunctionSectionReader::new(section.data, 0).map(|r| r.count() == 0),
-        Memory => MemorySectionReader::new(section.data, 0).map(|r| r.count() == 0),
-        Global => GlobalSectionReader::new(section.data, 0).map(|r| r.count() == 0),
-        Export => ExportSectionReader::new(section.data, 0).map(|r| r.count() == 0),
+        Type => TypeSectionReader::new(reader).map(|r| r.count() == 0),
+        Import => ImportSectionReader::new(reader).map(|r| r.count() == 0),
+        Function => FunctionSectionReader::new(reader).map(|r| r.count() == 0),
+        Table => FunctionSectionReader::new(reader).map(|r| r.count() == 0),
+        Memory => MemorySectionReader::new(reader).map(|r| r.count() == 0),
+        Global => GlobalSectionReader::new(reader).map(|r| r.count() == 0),
+        Export => ExportSectionReader::new(reader).map(|r| r.count() == 0),
         Start => Ok(section.data.is_empty()),
-        Element => ElementSectionReader::new(section.data, 0).map(|r| r.count() == 0),
-        Code => CodeSectionReader::new(section.data, 0).map(|r| r.count() == 0),
-        Data => DataSectionReader::new(section.data, 0).map(|r| r.count() == 0),
+        Element => ElementSectionReader::new(reader).map(|r| r.count() == 0),
+        Code => CodeSectionReader::new(reader).map(|r| r.count() == 0),
+        Data => DataSectionReader::new(reader).map(|r| r.count() == 0),
         DataCount => Ok(section.data.is_empty()),
-        Tag => TagSectionReader::new(section.data, 0).map(|r| r.count() == 0),
+        Tag => TagSectionReader::new(reader).map(|r| r.count() == 0),
         _ => Ok(section.data.is_empty()),
     }
     .unwrap_or(false)
