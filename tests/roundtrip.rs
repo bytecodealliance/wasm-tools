@@ -116,9 +116,8 @@ fn find_tests() -> Vec<PathBuf> {
 /// Note that this is used to skip tests for all crates, not just one at a
 /// time. There's further filters applied while testing.
 fn skip_test(test: &Path, contents: &[u8]) -> bool {
-    // currently no tests are skipped
-    let _ = (test, contents);
-    false
+    let _ = contents;
+    test.iter().any(|p| p == "exception-handling") && test.iter().any(|p| p == "legacy")
 }
 
 fn skip_validation(_test: &Path) -> bool {

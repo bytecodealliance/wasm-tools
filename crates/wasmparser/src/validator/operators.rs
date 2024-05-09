@@ -729,7 +729,10 @@ where
     fn check_memarg(&self, memarg: MemArg) -> Result<ValType> {
         let index_ty = self.check_memory_index(memarg.memory)?;
         if memarg.align > memarg.max_align {
-            bail!(self.offset, "alignment must not be larger than natural");
+            bail!(
+                self.offset,
+                "malformed memop flags: alignment must not be larger than natural"
+            );
         }
         if index_ty == ValType::I32 && memarg.offset > u64::from(u32::MAX) {
             bail!(self.offset, "offset out of range: must be <= 2**32");
