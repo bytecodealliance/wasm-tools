@@ -283,23 +283,20 @@ impl Printer {
                     bytes = &bytes[offset..];
                 }
 
-                // Ignore any error associated with the name sections.
-                Payload::CustomSection(c) if c.name() == "name" => {
-                    let reader = NameSectionReader::new(c.data(), c.data_offset());
-                    drop(self.register_names(state, reader));
-                }
-                Payload::CustomSection(c) if c.name() == "component-name" => {
-                    let reader = ComponentNameSectionReader::new(c.data(), c.data_offset());
-                    drop(self.register_component_names(state, reader));
-                }
-
-                Payload::CustomSection(c) if c.name() == "metadata.code.branch_hint" => {
-                    drop(
-                        self.register_branch_hint_section(BranchHintSectionReader::new(
-                            c.data(),
-                            c.data_offset(),
-                        )?),
-                    );
+                Payload::CustomSection(c) => {
+                    // Ignore any error associated with the name sections.
+                    match c.as_known() {
+                        KnownCustom::Name(reader) => {
+                            drop(self.register_names(state, reader));
+                        }
+                        KnownCustom::ComponentName(reader) => {
+                            drop(self.register_component_names(state, reader));
+                        }
+                        KnownCustom::BranchHints(reader) => {
+                            drop(self.register_branch_hint_section(reader));
+                        }
+                        _ => {}
+                    }
                 }
 
                 Payload::End(_) => break,
@@ -2716,31 +2713,34 @@ impl Printer {
         state: &State,
         section: CustomSectionReader<'_>,
     ) -> Result<()> {
-        match section.name() {
+        match section.as_known() {
             // For now `wasmprinter` has invented syntax for `producers` and
             // `dylink.0` below to use in tests. Note that this syntax is not
             // official at this time.
-            "producers" => {
+            KnownCustom::Producers(s) => {
                 self.newline(section.range().start);
-                self.print_producers_section(ProducersSectionReader::new(
-                    section.data(),
-                    section.data_offset(),
-                )?)
+                self.print_producers_section(s)
             }
-            "dylink.0" => {
+            KnownCustom::Dylink0(s) => {
                 self.newline(section.range().start);
-                self.print_dylink0_section(Dylink0SectionReader::new(
-                    section.data(),
-                    section.data_offset(),
-                ))
+                self.print_dylink0_section(s)
             }
 
             // These are parsed during `read_names_and_code` and are part of
             // printing elsewhere, so don't print them.
-            "name" | "component-name" | "metadata.code.branch_hint" => Ok(()),
+            KnownCustom::Name(_) | KnownCustom::ComponentName(_) | KnownCustom::BranchHints(_) => {
+                Ok(())
+            }
 
-            // Unknown custom sections get a `@custom` annotation printed.
-            _ => self.print_raw_custom_section(state, section),
+            // Custom sections without a text format at this time and unknown
+            // custom sections get a `@custom` annotation printed.
+            KnownCustom::CoreDump(_)
+            | KnownCustom::CoreDumpModules(_)
+            | KnownCustom::CoreDumpStack(_)
+            | KnownCustom::CoreDumpInstances(_)
+            | KnownCustom::Linking(_)
+            | KnownCustom::Reloc(_)
+            | KnownCustom::Unknown => self.print_raw_custom_section(state, section),
         }
     }
 

@@ -50,6 +50,94 @@ impl<'a> CustomSectionReader<'a> {
     pub fn range(&self) -> Range<usize> {
         self.range.clone()
     }
+
+    /// Attempts to match and see if this custom section is statically known to
+    /// `wasmparser` with any known section reader.
+    ///
+    /// This will inspect `self.name()` and return a [`KnownCustom`] if the name
+    /// matches a known custom section where there is a parser available for it.
+    /// This can also be used as a convenience function for creating such
+    /// parsers.
+    ///
+    /// If the custom section name is not known, or if a reader could not be
+    /// created, then `KnownCustom::Unknown` is returned.
+    pub fn as_known(&self) -> KnownCustom<'a> {
+        match self.name() {
+            "name" => KnownCustom::Name(crate::NameSectionReader::new(self.data, self.data_offset)),
+            "component-name" => KnownCustom::ComponentName(crate::ComponentNameSectionReader::new(
+                self.data,
+                self.data_offset,
+            )),
+            "metadata.code.branch_hint" => {
+                match crate::BranchHintSectionReader::new(self.data, self.data_offset) {
+                    Ok(s) => KnownCustom::BranchHints(s),
+                    Err(_) => KnownCustom::Unknown,
+                }
+            }
+            "producers" => match crate::ProducersSectionReader::new(self.data, self.data_offset) {
+                Ok(s) => KnownCustom::Producers(s),
+                Err(_) => KnownCustom::Unknown,
+            },
+            "dylink.0" => KnownCustom::Dylink0(crate::Dylink0SectionReader::new(
+                self.data,
+                self.data_offset,
+            )),
+            "core" => match crate::CoreDumpSection::new(BinaryReader::new_with_offset(
+                self.data,
+                self.data_offset,
+            )) {
+                Ok(s) => KnownCustom::CoreDump(s),
+                Err(_) => KnownCustom::Unknown,
+            },
+            "coremodules" => match crate::CoreDumpModulesSection::new(
+                BinaryReader::new_with_offset(self.data, self.data_offset),
+            ) {
+                Ok(s) => KnownCustom::CoreDumpModules(s),
+                Err(_) => KnownCustom::Unknown,
+            },
+            "coreinstances" => match crate::CoreDumpInstancesSection::new(
+                BinaryReader::new_with_offset(self.data, self.data_offset),
+            ) {
+                Ok(s) => KnownCustom::CoreDumpInstances(s),
+                Err(_) => KnownCustom::Unknown,
+            },
+            "corestack" => match crate::CoreDumpStackSection::new(BinaryReader::new_with_offset(
+                self.data,
+                self.data_offset,
+            )) {
+                Ok(s) => KnownCustom::CoreDumpStack(s),
+                Err(_) => KnownCustom::Unknown,
+            },
+            "linking" => match crate::LinkingSectionReader::new(self.data, self.data_offset) {
+                Ok(s) => KnownCustom::Linking(s),
+                Err(_) => KnownCustom::Unknown,
+            },
+            s if s.starts_with("reloc.") => {
+                match crate::RelocSectionReader::new(self.data, self.data_offset) {
+                    Ok(s) => KnownCustom::Reloc(s),
+                    Err(_) => KnownCustom::Unknown,
+                }
+            }
+            _ => KnownCustom::Unknown,
+        }
+    }
+}
+
+/// Return value of [`CustomSectionReader::as_known`].
+#[allow(missing_docs)]
+pub enum KnownCustom<'a> {
+    Name(crate::NameSectionReader<'a>),
+    ComponentName(crate::ComponentNameSectionReader<'a>),
+    BranchHints(crate::BranchHintSectionReader<'a>),
+    Producers(crate::ProducersSectionReader<'a>),
+    Dylink0(crate::Dylink0SectionReader<'a>),
+    CoreDump(crate::CoreDumpSection<'a>),
+    CoreDumpStack(crate::CoreDumpStackSection<'a>),
+    CoreDumpInstances(crate::CoreDumpInstancesSection),
+    CoreDumpModules(crate::CoreDumpModulesSection<'a>),
+    Linking(crate::LinkingSectionReader<'a>),
+    Reloc(crate::RelocSectionReader<'a>),
+    Unknown,
 }
 
 impl<'a> fmt::Debug for CustomSectionReader<'a> {

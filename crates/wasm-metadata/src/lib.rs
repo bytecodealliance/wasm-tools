@@ -9,7 +9,8 @@ use std::mem;
 use std::ops::Range;
 use wasm_encoder::{ComponentSection as _, ComponentSectionId, Encode, Section};
 use wasmparser::{
-    ComponentNameSectionReader, NameSectionReader, Parser, Payload::*, ProducersSectionReader,
+    ComponentNameSectionReader, KnownCustom, NameSectionReader, Parser, Payload::*,
+    ProducersSectionReader,
 };
 
 /// A representation of a WebAssembly producers section.
@@ -50,9 +51,11 @@ impl Producers {
             match payload {
                 ModuleSection { .. } | ComponentSection { .. } => depth += 1,
                 End { .. } => depth -= 1,
-                CustomSection(c) if c.name() == "producers" && depth == 0 => {
-                    let producers = Self::from_bytes(c.data(), c.data_offset())?;
-                    return Ok(Some(producers));
+                CustomSection(c) if depth == 0 => {
+                    if let KnownCustom::Producers(_) = c.as_known() {
+                        let producers = Self::from_bytes(c.data(), c.data_offset())?;
+                        return Ok(Some(producers));
+                    }
                 }
                 _ => {}
             }
@@ -290,56 +293,59 @@ fn rewrite_wasm(
             _ => {}
         }
 
-        // Process the wasm sections:
-        match payload {
-            // Only rewrite the outermost producers section:
-            CustomSection(c) if c.name() == "producers" && stack.len() == 0 => {
-                producers_found = true;
-                let mut producers = Producers::from_bytes(c.data(), c.data_offset())?;
-                // Add to the section according to the command line flags:
-                producers.merge(&add_producers);
-                // Encode into output:
-                producers.section().append_to(&mut output);
-            }
-
-            CustomSection(c) if c.name() == "name" && stack.len() == 0 => {
-                names_found = true;
-                let mut names = ModuleNames::from_bytes(c.data(), c.data_offset())?;
-                names.merge(&ModuleNames::from_name(add_name));
-
-                names.section()?.as_custom().append_to(&mut output);
-            }
-
-            CustomSection(c) if c.name() == "component-name" && stack.len() == 0 => {
-                names_found = true;
-                let mut names = ComponentNames::from_bytes(c.data(), c.data_offset())?;
-                names.merge(&ComponentNames::from_name(add_name));
-                names.section()?.as_custom().append_to(&mut output);
-            }
-
-            CustomSection(c) if c.name() == "registry-metadata" && stack.len() == 0 => {
-                // Pass section through if a new registry metadata isn't provided, otherwise ignore and overwrite with new
-                if add_registry_metadata.is_none() {
-                    let registry: RegistryMetadata = RegistryMetadata::from_bytes(&c.data(), 0)?;
-
-                    let registry_metadata = wasm_encoder::CustomSection {
-                        name: Cow::Borrowed("registry-metadata"),
-                        data: Cow::Owned(serde_json::to_vec(&registry)?),
-                    };
-                    registry_metadata.append_to(&mut output);
-                }
-            }
-
-            // All other sections get passed through unmodified:
-            _ => {
-                if let Some((id, range)) = payload.as_section() {
-                    wasm_encoder::RawSection {
-                        id,
-                        data: &input[range],
+        // Only rewrite the outermost custom sections
+        if let CustomSection(c) = &payload {
+            if stack.len() == 0 {
+                match c.as_known() {
+                    KnownCustom::Producers(_) => {
+                        producers_found = true;
+                        let mut producers = Producers::from_bytes(c.data(), c.data_offset())?;
+                        // Add to the section according to the command line flags:
+                        producers.merge(&add_producers);
+                        // Encode into output:
+                        producers.section().append_to(&mut output);
+                        continue;
                     }
-                    .append_to(&mut output);
+                    KnownCustom::Name(_) => {
+                        names_found = true;
+                        let mut names = ModuleNames::from_bytes(c.data(), c.data_offset())?;
+                        names.merge(&ModuleNames::from_name(add_name));
+
+                        names.section()?.as_custom().append_to(&mut output);
+                        continue;
+                    }
+                    KnownCustom::ComponentName(_) => {
+                        names_found = true;
+                        let mut names = ComponentNames::from_bytes(c.data(), c.data_offset())?;
+                        names.merge(&ComponentNames::from_name(add_name));
+                        names.section()?.as_custom().append_to(&mut output);
+                        continue;
+                    }
+                    KnownCustom::Unknown if c.name() == "registry-metadata" => {
+                        // Pass section through if a new registry metadata isn't provided, otherwise ignore and overwrite with new
+                        if add_registry_metadata.is_none() {
+                            let registry: RegistryMetadata =
+                                RegistryMetadata::from_bytes(&c.data(), 0)?;
+
+                            let registry_metadata = wasm_encoder::CustomSection {
+                                name: Cow::Borrowed("registry-metadata"),
+                                data: Cow::Owned(serde_json::to_vec(&registry)?),
+                            };
+                            registry_metadata.append_to(&mut output);
+                            continue;
+                        }
+                    }
+                    _ => {}
                 }
             }
+        }
+        // All other sections get passed through unmodified:
+        if let Some((id, range)) = payload.as_section() {
+            wasm_encoder::RawSection {
+                id,
+                data: &input[range],
+            }
+            .append_to(&mut output);
         }
     }
     if !names_found && add_name.is_some() {
@@ -434,39 +440,42 @@ impl Metadata {
                         metadata.last_mut().unwrap().push_child(finished);
                     }
                 }
-                CustomSection(c) if c.name() == "name" => {
-                    let names = ModuleNames::from_bytes(c.data(), c.data_offset())?;
-                    if let Some(name) = names.get_name() {
+                CustomSection(c) => match c.as_known() {
+                    KnownCustom::Name(_) => {
+                        let names = ModuleNames::from_bytes(c.data(), c.data_offset())?;
+                        if let Some(name) = names.get_name() {
+                            metadata
+                                .last_mut()
+                                .expect("non-empty metadata stack")
+                                .set_name(&name);
+                        }
+                    }
+                    KnownCustom::ComponentName(_) => {
+                        let names = ComponentNames::from_bytes(c.data(), c.data_offset())?;
+                        if let Some(name) = names.get_name() {
+                            metadata
+                                .last_mut()
+                                .expect("non-empty metadata stack")
+                                .set_name(name);
+                        }
+                    }
+                    KnownCustom::Producers(_) => {
+                        let producers = Producers::from_bytes(c.data(), c.data_offset())?;
                         metadata
                             .last_mut()
                             .expect("non-empty metadata stack")
-                            .set_name(&name);
+                            .set_producers(producers);
                     }
-                }
-                CustomSection(c) if c.name() == "component-name" => {
-                    let names = ComponentNames::from_bytes(c.data(), c.data_offset())?;
-                    if let Some(name) = names.get_name() {
+                    KnownCustom::Unknown if c.name() == "registry-metadata" => {
+                        let registry: RegistryMetadata =
+                            RegistryMetadata::from_bytes(&c.data(), 0)?;
                         metadata
                             .last_mut()
                             .expect("non-empty metadata stack")
-                            .set_name(name);
+                            .set_registry_metadata(registry);
                     }
-                }
-                CustomSection(c) if c.name() == "producers" => {
-                    let producers = Producers::from_bytes(c.data(), c.data_offset())?;
-                    metadata
-                        .last_mut()
-                        .expect("non-empty metadata stack")
-                        .set_producers(producers);
-                }
-                CustomSection(c) if c.name() == "registry-metadata" => {
-                    let registry: RegistryMetadata = RegistryMetadata::from_bytes(&c.data(), 0)?;
-                    metadata
-                        .last_mut()
-                        .expect("non-empty metadata stack")
-                        .set_registry_metadata(registry);
-                }
-
+                    _ => {}
+                },
                 _ => {}
             }
         }

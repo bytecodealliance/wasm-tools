@@ -446,21 +446,18 @@ impl<'a> Dump<'a> {
                     self.color_print(c.range().start)?;
                     write!(self.state, "name: {:?}", c.name())?;
                     self.print(c.data_offset())?;
-                    match c.name() {
-                        "name" => {
-                            let iter = NameSectionReader::new(c.data(), c.data_offset());
+                    match c.as_known() {
+                        KnownCustom::Name(iter) => {
                             self.print_subsections(iter, |me, item, pos| {
                                 me.print_core_name(item, pos)
                             })?;
                         }
-                        "component-name" => {
-                            let iter = ComponentNameSectionReader::new(c.data(), c.data_offset());
+                        KnownCustom::ComponentName(iter) => {
                             self.print_subsections(iter, |me, item, pos| {
                                 me.print_component_name(item, pos)
                             })?;
                         }
-                        "producers" => {
-                            let iter = ProducersSectionReader::new(c.data(), c.data_offset())?;
+                        KnownCustom::Producers(iter) => {
                             self.print_iter(iter, |me, _pos, item| {
                                 write!(me.state, "field: {}", item.name)?;
                                 me.print(item.values.range().start)?;
@@ -471,15 +468,13 @@ impl<'a> Dump<'a> {
                                 })
                             })?;
                         }
-                        "dylink.0" => {
-                            let iter = Dylink0SectionReader::new(c.data(), c.data_offset());
+                        KnownCustom::Dylink0(iter) => {
                             self.print_subsections(iter, |me, item, pos| {
                                 write!(me.state, "{item:?}")?;
                                 me.print(pos)
                             })?;
                         }
-                        "metadata.code.branch_hint" => {
-                            let iter = BranchHintSectionReader::new(c.data(), c.data_offset())?;
+                        KnownCustom::BranchHints(iter) => {
                             self.print_iter(iter, |me, _pos, item| {
                                 write!(me.state, "func: {}", item.func)?;
                                 me.print(item.hints.range().start)?;
@@ -490,7 +485,40 @@ impl<'a> Dump<'a> {
                                 })
                             })?;
                         }
-                        _ => {
+                        KnownCustom::CoreDump(s) => {
+                            write!(self.state, "name: {}", s.name)?;
+                            self.print(c.range().end)?;
+                        }
+                        KnownCustom::CoreDumpModules(s) => {
+                            write!(self.state, "modules: {:?}", s.modules)?;
+                            self.print(c.range().end)?;
+                        }
+                        KnownCustom::CoreDumpInstances(s) => {
+                            write!(self.state, "instances: {:?}", s.instances)?;
+                            self.print(c.range().end)?;
+                        }
+                        KnownCustom::CoreDumpStack(s) => {
+                            write!(self.state, "stacks: {} / {:?}", s.name, s.frames)?;
+                            self.print(c.range().end)?;
+                        }
+                        KnownCustom::Linking(s) => {
+                            let subsections = s.subsections();
+                            write!(self.state, "linking version {}", s.version())?;
+                            self.print(subsections.range().start)?;
+                            self.print_subsections(subsections, |me, item, pos| {
+                                me.print_linking_subsection(item, pos)
+                            })?;
+                        }
+                        KnownCustom::Reloc(s) => {
+                            let entries = s.entries();
+                            write!(self.state, "section {}", s.section_index())?;
+                            self.print(entries.range().start)?;
+                            self.print_iter(entries, |me, pos, item| {
+                                write!(me.state, "{item:?}")?;
+                                me.print(pos)
+                            })?;
+                        }
+                        KnownCustom::Unknown => {
                             self.print_byte_header()?;
                             for _ in 0..NBYTES {
                                 write!(self.dst, "---")?;
@@ -639,6 +667,32 @@ impl<'a> Dump<'a> {
             }
         }
         Ok(())
+    }
+
+    fn print_linking_subsection(&mut self, s: Linking<'_>, end: usize) -> Result<()> {
+        match s {
+            Linking::SegmentInfo(map) => self.section(map, "segment info", |me, pos, item| {
+                write!(me.state, "{item:?}")?;
+                me.print(pos)
+            }),
+            Linking::InitFuncs(map) => self.section(map, "init funcs", |me, pos, item| {
+                write!(me.state, "{item:?}")?;
+                me.print(pos)
+            }),
+            Linking::ComdatInfo(map) => self.section(map, "comdat info", |me, pos, item| {
+                write!(me.state, "{item:?}")?;
+                me.print(pos)
+            }),
+            Linking::SymbolTable(map) => self.section(map, "symbol table", |me, pos, item| {
+                write!(me.state, "{item:?}")?;
+                me.print(pos)
+            }),
+            Linking::Unknown { ty, range, .. } => {
+                write!(self.state, "unknown subsection: {}", ty)?;
+                self.print(range.start)?;
+                self.print(end)
+            }
+        }
     }
 
     fn section<'b, T>(

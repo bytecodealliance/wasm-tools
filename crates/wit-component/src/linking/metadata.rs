@@ -8,8 +8,8 @@ use {
         fmt,
     },
     wasmparser::{
-        BinaryReader, BinaryReaderError, ExternalKind, FuncType, Parser, Payload, RefType,
-        Subsection, Subsections, SymbolFlags, TableType, TypeRef, ValType,
+        BinaryReader, BinaryReaderError, ExternalKind, FuncType, KnownCustom, Parser, Payload,
+        RefType, Subsection, Subsections, SymbolFlags, TableType, TypeRef, ValType,
     },
 };
 
@@ -333,23 +333,29 @@ impl<'a> Metadata<'a> {
 
         for payload in Parser::new(0).parse_all(module) {
             match payload? {
-                Payload::CustomSection(section) if section.name() == "dylink.0" => {
-                    let reader = DylinkSectionReader::new(section.data(), section.data_offset());
-                    for subsection in reader {
-                        match subsection.context("failed to parse `dylink.0` subsection")? {
-                            DylinkSubsection::MemInfo(info) => result.mem_info = info,
-                            DylinkSubsection::Needed(needed) => result.needed_libs = needed.clone(),
-                            DylinkSubsection::ExportInfo(info) => {
-                                export_info.extend(info.iter().map(|info| (info.name, info.flags)));
-                            }
-                            DylinkSubsection::ImportInfo(info) => {
-                                import_info.extend(
-                                    info.iter()
-                                        .map(|info| ((info.module, info.field), info.flags)),
-                                );
-                            }
-                            DylinkSubsection::Unknown(index) => {
-                                bail!("unrecognized `dylink.0` subsection: {index}")
+                Payload::CustomSection(section) => {
+                    if let KnownCustom::Dylink0(_) = section.as_known() {
+                        let reader =
+                            DylinkSectionReader::new(section.data(), section.data_offset());
+                        for subsection in reader {
+                            match subsection.context("failed to parse `dylink.0` subsection")? {
+                                DylinkSubsection::MemInfo(info) => result.mem_info = info,
+                                DylinkSubsection::Needed(needed) => {
+                                    result.needed_libs = needed.clone()
+                                }
+                                DylinkSubsection::ExportInfo(info) => {
+                                    export_info
+                                        .extend(info.iter().map(|info| (info.name, info.flags)));
+                                }
+                                DylinkSubsection::ImportInfo(info) => {
+                                    import_info.extend(
+                                        info.iter()
+                                            .map(|info| ((info.module, info.field), info.flags)),
+                                    );
+                                }
+                                DylinkSubsection::Unknown(index) => {
+                                    bail!("unrecognized `dylink.0` subsection: {index}")
+                                }
                             }
                         }
                     }
