@@ -53,7 +53,7 @@ impl<'a> Subsection<'a> for ComponentName<'a> {
                 }
                 ComponentName::Component {
                     name,
-                    name_range: offset..offset + reader.position,
+                    name_range: offset..reader.original_position(),
                 }
             }
             1 => {
