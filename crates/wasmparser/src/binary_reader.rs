@@ -408,6 +408,47 @@ impl<'a> BinaryReader<'a> {
     }
 
     /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a `u16`.
+    ///
+    /// # Errors
+    ///
+    /// If `BinaryReader` has less than one or up to two bytes remaining, or
+    /// the integer is larger than 16 bits.
+    #[inline]
+    pub fn read_var_u16(&mut self) -> Result<u16> {
+        // Optimization for single byte u16.
+        let byte = self.read_u8()?;
+        if (byte & 0x80) == 0 {
+            Ok(u16::from(byte))
+        } else {
+            self.read_var_u16_big(byte)
+        }
+    }
+
+    fn read_var_u16_big(&mut self, byte: u8) -> Result<u16> {
+        let mut result = (byte & 0x7F) as u16;
+        let mut shift = 7;
+        loop {
+            let byte = self.read_u8()?;
+            result |= ((byte & 0x7F) as u16) << shift;
+            if shift >= 9 && (byte >> (16 - shift)) != 0 {
+                let msg = if byte & 0x80 != 0 {
+                    "invalid var_u16: integer representation too long"
+                } else {
+                    "invalid var_u16: integer too large"
+                };
+                // The continuation bit or unused bits are set.
+                return Err(BinaryReaderError::new(msg, self.original_position() - 1));
+            }
+            shift += 7;
+            if (byte & 0x80) == 0 {
+                break;
+            }
+        }
+        Ok(result)
+    }
+
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
     /// length integer as a `u32`.
     ///
     /// # Errors
@@ -517,6 +558,50 @@ impl<'a> BinaryReader<'a> {
         self.ensure_has_bytes(len)?;
         self.position += len;
         Ok(())
+    }
+
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a `i16`.
+    /// # Errors
+    /// If `BinaryReader` has less than one or up to two bytes remaining, or
+    /// the integer is larger than 16 bits.
+    #[inline]
+    pub fn read_var_i16(&mut self) -> Result<i16> {
+        // Optimization for single byte i16.
+        let byte = self.read_u8()?;
+        if (byte & 0x80) == 0 {
+            Ok(((byte as i16) << 9) >> 9)
+        } else {
+            self.read_var_i16_big(byte)
+        }
+    }
+
+    fn read_var_i16_big(&mut self, byte: u8) -> Result<i16> {
+        let mut result = (byte & 0x7F) as i16;
+        let mut shift = 7;
+        loop {
+            let byte = self.read_u8()?;
+            result |= ((byte & 0x7F) as i16) << shift;
+            if shift >= 9 {
+                let continuation_bit = (byte & 0x80) != 0;
+                let sign_and_unused_bit = (byte << 1) as i8 >> (16 - shift);
+                if continuation_bit || (sign_and_unused_bit != 0 && sign_and_unused_bit != -1) {
+                    let msg = if continuation_bit {
+                        "invalid var_i16: integer representation too long"
+                    } else {
+                        "invalid var_i16: integer too large"
+                    };
+                    return Err(BinaryReaderError::new(msg, self.original_position() - 1));
+                }
+                return Ok(result);
+            }
+            shift += 7;
+            if (byte & 0x80) == 0 {
+                break;
+            }
+        }
+        let ashift = 16 - shift;
+        Ok((result << ashift) >> ashift)
     }
 
     /// Advances the `BinaryReader` up to four bytes to parse a variable
