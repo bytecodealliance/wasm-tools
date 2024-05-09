@@ -15,14 +15,6 @@ pub struct World {
     /// Documentation associated with this world declaration.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
-
-    /// All the included worlds from this world. Empty if this is fully resolved
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub includes: Vec<WorldKey>,
-
-    /// All the included worlds names. Empty if this is fully resolved
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub include_names: Vec<Vec<IncludeName>>,
 }
 
 #[derive(Debug, Clone)]
