@@ -705,7 +705,7 @@ impl<'a> BinaryReader<'a> {
         }
         let bytes = self.read_bytes(len)?;
         str::from_utf8(bytes).map_err(|_| {
-            BinaryReaderError::new("invalid UTF-8 encoding", self.original_position() - 1)
+            BinaryReaderError::new("malformed UTF-8 encoding", self.original_position() - 1)
         })
     }
 

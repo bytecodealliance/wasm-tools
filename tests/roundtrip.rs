@@ -667,10 +667,6 @@ fn error_matches(error: &str, message: &str) -> bool {
         return error.contains("unexpected end-of-file");
     }
 
-    if message == "malformed UTF-8 encoding" {
-        return error.contains("invalid UTF-8 encoding");
-    }
-
     if message == "duplicate identifier" {
         return error.contains("duplicate") && error.contains("identifier");
     }
