@@ -707,9 +707,7 @@ fn error_matches(error: &str, message: &str) -> bool {
             // the spec interpreter will read past section boundaries when
             // decoding, wasmparser won't, producing different errors.
             || error.contains("unexpected end-of-file")
-            || error.contains("malformed section id")
-            // FIXME(WebAssembly/memory64#45)
-            || error.contains("trailing bytes at end of section");
+            || error.contains("malformed section id");
     }
 
     if message == "integer too large" {
@@ -724,21 +722,14 @@ fn error_matches(error: &str, message: &str) -> bool {
             // were inflated to a larger size while not updating the binary
             // encoding of the size of the section.
             || error.contains("invalid var_u32: integer representation too long")
-            || error.contains("malformed section id")
-            // FIXME(WebAssembly/memory64#45)
-            || error.contains("trailing bytes at end of section")
-            // It's tests... again... waiting for memory64 to get merged.
-            || error.contains("memory64 must be enabled for 64-bit tables");
+            || error.contains("malformed section id");
     }
 
     // wasmparser blames a truncated file here, the spec interpreter blames the
     // section counts/lengths.
     if message == "length out of bounds" || message == "unexpected end of section or function" {
         return error.contains("unexpected end-of-file")
-            || error.contains("control frames remain at end of function")
-            // This is the same case as "unexpected end" (below) but in
-            // function-references fsr it includes "of section or function"
-            || error.contains("type index out of bounds");
+            || error.contains("control frames remain at end of function");
     }
 
     // binary.wast includes a test in which a 0b (End) is eaten by a botched
@@ -778,17 +769,12 @@ fn error_matches(error: &str, message: &str) -> bool {
     }
 
     if message == "illegal opcode" {
-        // The test suite includes "bad opcodes" that later became valid opcodes
-        // (0xd4, function references proposal). However, they are still not
-        // constant expressions, so we can sidestep by checking for that error
-        // instead
-        return error.contains("constant expression required")
-            // The test suite contains a test with a global section where the
-            // init expression is truncated and doesn't have an "end"
-            // instruction. That's reported with wasmparser as end-of-file
-            // because the end of the section was reached while the spec
-            // interpreter says "illegal opcode".
-            || error.contains("unexpected end-of-file");
+        // The test suite contains a test with a global section where the
+        // init expression is truncated and doesn't have an "end"
+        // instruction. That's reported with wasmparser as end-of-file
+        // because the end of the section was reached while the spec
+        // interpreter says "illegal opcode".
+        return error.contains("unexpected end-of-file");
     }
     if message == "unknown global" {
         return error.contains("global.get of locally defined global");
