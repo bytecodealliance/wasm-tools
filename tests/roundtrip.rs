@@ -752,16 +752,6 @@ fn error_matches(error: &str, message: &str) -> bool {
             || error.contains("unexpected end-of-file");
     }
 
-    if message == "zero flag expected" {
-        return error.contains("zero byte expected")
-            // wasmparser defers some of these errors to validation
-            || error.contains("trailing bytes at end of section");
-    }
-
-    if message == "junk after last section" {
-        return error.contains("section out of order");
-    }
-
     // Our error for these tests is happening as a parser error of
     // the text file, not a validation error of the binary.
     if message == "memory size must be at most 65536 pages (4GiB)" {
@@ -782,10 +772,6 @@ fn error_matches(error: &str, message: &str) -> bool {
 
     if message == "immutable global" {
         return error.contains("global is immutable");
-    }
-
-    if message == "sub type" {
-        return error.contains("subtype");
     }
 
     if message.starts_with("unknown operator") {
