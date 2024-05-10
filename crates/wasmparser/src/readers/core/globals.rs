@@ -39,8 +39,18 @@ impl<'a> FromReader<'a> for GlobalType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let content_type = reader.read()?;
         let flags = reader.read_u8()?;
-        if flags > 0b11 {
-            bail!(reader.original_position() - 1, "malformed global flags")
+        if reader.features().shared_everything_threads() {
+            if flags > 0b11 {
+                bail!(reader.original_position() - 1, "malformed global flags")
+            }
+        } else {
+            if flags > 0b1 {
+                bail!(
+                    reader.original_position() - 1,
+                    "malformed mutability -- or shared globals \
+                     require the shared-everything-threads proposal"
+                )
+            }
         }
         Ok(GlobalType {
             content_type,

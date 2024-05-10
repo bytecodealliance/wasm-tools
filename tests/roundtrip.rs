@@ -818,16 +818,6 @@ fn error_matches(error: &str, message: &str) -> bool {
         return error.starts_with("type mismatch");
     }
 
-    if message == "malformed mutability" {
-        // When parsing a global `shared` type (e.g., `global (mut shared i32)
-        // ...`), many spec tests expect a `malformed mutability` error.
-        // Previously, `0x2` was an invalid flag but it now means `shared`. We
-        // accept either (a) a new, more accurate error message or (b) a
-        // validation error instead.
-        return error.contains("malformed global flags")
-            || error.contains("require the shared-everything-threads proposal");
-    }
-
     if message == "table size must be at most 2^32-1" {
         return error.contains("invalid u32 number: constant out of range");
     }

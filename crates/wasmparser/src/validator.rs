@@ -455,7 +455,9 @@ impl Validator {
     pub fn validate_all(&mut self, bytes: &[u8]) -> Result<Types> {
         let mut functions_to_validate = Vec::new();
         let mut last_types = None;
-        for payload in Parser::new(0).parse_all(bytes) {
+        let mut parser = Parser::new(0);
+        parser.set_features(self.features);
+        for payload in parser.parse_all(bytes) {
             match self.payload(&payload?)? {
                 ValidPayload::Func(a, b) => {
                     functions_to_validate.push((a, b));
