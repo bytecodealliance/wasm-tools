@@ -1,14 +1,15 @@
 use crate::prelude::*;
+use crate::types::{ComponentDefinedType, ComponentValType, TypesRef};
 use crate::{
-    BinaryReader, BinaryReaderError, ComponentDefinedType, ComponentType, ComponentValType,
-    FromReader, Ieee32, Ieee64, PrimitiveValType, Result, SectionLimited,
+    BinaryReader, BinaryReaderError, FromReader, Ieee32, Ieee64, PrimitiveValType, Result,
+    SectionLimited,
 };
 
 /// A component value with its type.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ComponentValue<'a> {
     /// The type of this value.
-    pub ty: ComponentValType,
+    pub ty: crate::ComponentValType,
     bytes: &'a [u8],
     original_offset: usize,
 }
@@ -17,18 +18,28 @@ impl<'a> ComponentValue<'a> {
     /// A component model value.
     /// This takes the types from the current components type section
     /// in the same order as they where read from there.
-    pub fn val(&self, types: &[ComponentType]) -> Result<Val> {
+    pub fn val<V>(&self, types: &TypesRef, visitor: V) -> Result<()>
+    where
+        V: Val,
+    {
+        let ty = match self.ty {
+            crate::ComponentValType::Primitive(prim_ty) => ComponentValType::Primitive(prim_ty),
+            crate::ComponentValType::Type(idx) => {
+                ComponentValType::Type(types.component_defined_type_at(idx))
+            }
+        };
         read_val(
             &mut BinaryReader::new_with_offset(self.bytes, self.original_offset),
-            self.ty,
+            ty,
             types,
+            visitor,
         )
     }
 }
 
-/// A component value.
+/// A primitive value.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub enum Val {
+pub enum PrimitiveValue {
     /// A boolean value.
     Bool(bool),
     /// A signed 8-bit integer.
@@ -55,31 +66,78 @@ pub enum Val {
     Char(char),
     /// A Unicode string.
     String(String),
+}
+
+/// A value visitor.
+pub trait Val: Sized {
+    /// A record visitor.
+    type R: Record<Self>;
+    /// A list visitor.
+    type L: List<Self>;
+    /// A tuple visitor.
+    type T: Tuple<Self>;
+    /// A flags visitor.
+    type F: Flags<Self>;
+    /// A primitive value.
+    fn primitive(self, v: PrimitiveValue);
     /// A record.
-    Record(Vec<Val>),
-    /// A variant case.
-    VariantCase {
-        /// The label of the variant case.
-        label: u32,
-        /// The value of the variant case.
-        v: Option<Box<Val>>,
-    },
+    fn record(self, length: u32) -> Self::R;
+    /// A variant case with a given value.
+    fn variant_case(self, label_index: u32, name: &str) -> Self;
+    /// A variant case without a value.
+    fn variant_case_empty(self, index: u32, name: &str);
     /// A list.
-    List(Vec<Val>),
+    fn list(self, length: u32) -> Self::L;
     /// A tuple.
-    Tuple(Vec<Val>),
+    fn tuple(self, length: u32) -> Self::T;
     /// A flags value.
-    Flags(Vec<bool>),
+    fn flags(self, length: u32) -> Self::F;
     /// An enum case.
-    EnumCase(u32),
+    fn enum_case(self, label_index: u32, name: &str);
     /// A none case of an option.
-    None,
+    fn none(self);
     /// A some case of an option with a given value.
-    Some(Box<Val>),
-    /// An ok case of a result with an optional value.
-    Ok(Option<Box<Val>>),
-    /// An error case of a result with an optional value.
-    Error(Option<Box<Val>>),
+    fn some(self) -> Self;
+    /// An ok case of a result with a given value.
+    fn ok(self) -> Self;
+    /// An ok case of a result without a value.
+    fn ok_empty(self);
+    /// An error case of a result with a given value.
+    fn error(self) -> Self;
+    /// An error case of a result without a given value.
+    fn error_empty(self);
+}
+
+/// A visitor for record fields.
+pub trait Record<V: Val>: Sized {
+    /// Visitor for the next record field.
+    fn field(&mut self, name: &str) -> V;
+    /// No more fields.
+    fn end(self);
+}
+
+/// A visitor for list elements.
+pub trait List<V: Val>: Sized {
+    /// Visitor for the next list element.
+    fn element(&mut self) -> V;
+    /// No more elements.
+    fn end(self);
+}
+
+/// A visitor for tuple fields.
+pub trait Tuple<V: Val>: Sized {
+    /// Visitor for the next tuple field.
+    fn field(&mut self) -> V;
+    /// No more fields.
+    fn end(self);
+}
+
+/// A visitor for flags fields.
+pub trait Flags<V: Val>: Sized {
+    /// Visitor for the next flags field.
+    fn field(&mut self, name: &str, val: bool);
+    /// No more fields.
+    fn end(self);
 }
 
 /// A reader for the value section of a WebAssembly component.
@@ -87,7 +145,7 @@ pub type ComponentValueSectionReader<'a> = SectionLimited<'a, ComponentValue<'a>
 
 impl<'a> FromReader<'a> for ComponentValue<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        let ty = ComponentValType::from_reader(reader)?;
+        let ty = crate::ComponentValType::from_reader(reader)?;
         let len = reader.read_var_u32()?;
         let original_offset = reader.original_position();
         let bytes = reader.read_bytes(len as usize)?;
@@ -99,63 +157,71 @@ impl<'a> FromReader<'a> for ComponentValue<'a> {
     }
 }
 
-fn read_val(
+fn read_val<V>(
     reader: &mut BinaryReader,
     ty: ComponentValType,
-    types: &[ComponentType],
-) -> Result<Val> {
+    types: &TypesRef,
+    visitor: V,
+) -> Result<()>
+where
+    V: Val,
+{
     let ty = get_defined_type(ty, types, reader.original_position())?;
     match ty {
-        ComponentDefinedType::Primitive(prim_ty) => read_primitive_value(reader, prim_ty),
+        ComponentDefinedType::Primitive(prim_ty) => {
+            visitor.primitive(read_primitive_value(reader, prim_ty)?);
+        }
         ComponentDefinedType::Record(record_ty) => {
-            let mut fields = Vec::with_capacity(record_ty.len());
-            for field in record_ty.iter() {
-                fields.push(read_val(reader, field.1, types)?);
+            let mut record = visitor.record(record_ty.fields.len() as u32);
+            for field in record_ty.fields.iter() {
+                read_val(reader, *field.1, types, record.field(field.0))?;
             }
-            Ok(Val::Record(fields))
+            record.end();
         }
         ComponentDefinedType::Variant(variant_ty) => {
             let label = reader.read_var_u32()?;
-            if label as usize >= variant_ty.len() {
+            if label as usize >= variant_ty.cases.len() {
                 bail!(
                     reader.original_position(),
                     "invalid variant case label: {label}"
                 );
             }
-            let case_ty = variant_ty[label as usize].ty;
-            let v = if let Some(case_ty) = case_ty {
-                Some(Box::new(read_val(reader, case_ty, types)?))
+            let case_ty = variant_ty.cases[label as usize].ty;
+            if let Some(case_ty) = case_ty {
+                read_val(reader, case_ty, types, visitor.some())?;
             } else {
-                None
+                visitor.none();
             };
-            Ok(Val::VariantCase { label, v })
         }
         ComponentDefinedType::List(element_ty) => {
             let len = reader.read_var_u32()?;
-            let mut elements = Vec::with_capacity(len as usize);
+            let mut list = visitor.list(len);
             for _ in 0..len {
-                elements.push(read_val(reader, element_ty, types)?);
+                read_val(reader, element_ty, types, list.element())?;
             }
-            Ok(Val::List(elements))
+            list.end();
         }
         ComponentDefinedType::Tuple(tuple_ty) => {
-            let mut fields = Vec::with_capacity(tuple_ty.len());
-            for field_ty in tuple_ty.iter() {
-                fields.push(read_val(reader, *field_ty, types)?);
+            let mut tuple = visitor.tuple(tuple_ty.types.len() as u32);
+            for field_ty in tuple_ty.types.iter() {
+                read_val(reader, *field_ty, types, tuple.field())?;
             }
-            Ok(Val::Tuple(fields))
+            tuple.end();
         }
-        ComponentDefinedType::Flags(flags_ty) => Ok(Val::Flags({
-            let mut value = vec![false; flags_ty.len()];
+        ComponentDefinedType::Flags(flags_ty) => {
             let n = reader.read_var_u64()?;
-            for (i, field) in value.iter_mut().enumerate() {
-                if ((n >> (i as u64)) & 1) == 1 {
-                    *field = true;
-                }
+            let mut flags = visitor.flags(flags_ty.len() as u32);
+            for i in 0..flags_ty.len() {
+                let v = if ((n >> (i as u64)) & 1) == 1 {
+                    true
+                } else {
+                    false
+                };
+                flags.field(flags_ty.get_index(i).unwrap(), v);
             }
-            value
-        })),
-        ComponentDefinedType::Enum(enum_ty) => Ok(Val::EnumCase({
+            flags.end();
+        }
+        ComponentDefinedType::Enum(enum_ty) => {
             let label = reader.read_var_u32()?;
             if label as usize >= enum_ty.len() {
                 bail!(
@@ -163,88 +229,101 @@ fn read_val(
                     "invalid enum case label: {label}"
                 );
             }
-            label
-        })),
-        ComponentDefinedType::Option(option_ty) => Ok(match reader.read_u8()? {
-            0x0 => Val::None,
-            0x1 => Val::Some(Box::new(read_val(reader, option_ty, types)?)),
+            visitor.enum_case(label, enum_ty.get_index(label as usize).unwrap());
+        }
+        ComponentDefinedType::Option(option_ty) => match reader.read_u8()? {
+            0x0 => {
+                visitor.none();
+            }
+            0x1 => {
+                read_val(reader, option_ty, types, visitor.some())?;
+            }
             x => return reader.invalid_leading_byte(x, "invalid option label"),
-        }),
+        },
         ComponentDefinedType::Result {
             ok: ok_ty,
             err: err_ty,
         } => {
             let label = reader.read_u8()?;
-            Ok(match label {
-                0x0 => Val::Ok(if let Some(ok_ty) = ok_ty {
-                    Some(Box::new(read_val(reader, ok_ty, types)?))
-                } else {
-                    None
-                }),
-                0x1 => Val::Error(if let Some(err_ty) = err_ty {
-                    Some(Box::new(read_val(reader, err_ty, types)?))
-                } else {
-                    None
-                }),
+            match label {
+                0x0 => {
+                    if let Some(ok_ty) = ok_ty {
+                        read_val(reader, ok_ty, types, visitor.ok())?;
+                    } else {
+                        visitor.ok_empty();
+                    }
+                }
+                0x1 => {
+                    if let Some(err_ty) = err_ty {
+                        read_val(reader, err_ty, types, visitor.error())?;
+                    } else {
+                        visitor.error_empty();
+                    }
+                }
                 x => return reader.invalid_leading_byte(x, "invalid result label"),
-            })
+            }
         }
         ComponentDefinedType::Own(_) | ComponentDefinedType::Borrow(_) => {
-            Err(BinaryReaderError::new(
-                "resource handles not supported in value section",
+            bail!(
                 reader.original_position(),
-            ))
+                "resource handles not supported in value section"
+            )
         }
     }
+    Ok(())
 }
 
-fn read_primitive_value(reader: &mut BinaryReader, ty: PrimitiveValType) -> Result<Val> {
+fn read_primitive_value(reader: &mut BinaryReader, ty: PrimitiveValType) -> Result<PrimitiveValue> {
     Ok(match ty {
-        PrimitiveValType::Bool => Val::Bool(match reader.read_u8()? {
-            0 => false,
-            1 => true,
-            n => bail!(reader.original_position(), "invalid bool value: {n}"),
+        PrimitiveValType::Bool => PrimitiveValue::Bool(match reader.read_u8()? {
+            0x0 => false,
+            0x1 => true,
+            x => return reader.invalid_leading_byte(x, "invalid bool value: {n}"),
         }),
-        PrimitiveValType::S8 => Val::S8(reader.read_u8()? as i8),
-        PrimitiveValType::U8 => Val::U8(reader.read_u8()?),
-        PrimitiveValType::S16 => Val::S16(reader.read_var_i16()?),
-        PrimitiveValType::U16 => Val::U16(reader.read_var_u16()?),
-        PrimitiveValType::S32 => Val::S32(reader.read_var_i32()?),
-        PrimitiveValType::U32 => Val::U32(reader.read_var_u32()?),
-        PrimitiveValType::S64 => Val::S64(reader.read_var_i64()?),
-        PrimitiveValType::U64 => Val::U64(reader.read_var_u64()?),
-        PrimitiveValType::F32 => Val::F32({
+        PrimitiveValType::S8 => PrimitiveValue::S8(reader.read_u8()? as i8),
+        PrimitiveValType::U8 => PrimitiveValue::U8(reader.read_u8()?),
+        PrimitiveValType::S16 => PrimitiveValue::S16(reader.read_var_i16()?),
+        PrimitiveValType::U16 => PrimitiveValue::U16(reader.read_var_u16()?),
+        PrimitiveValType::S32 => PrimitiveValue::S32(reader.read_var_i32()?),
+        PrimitiveValType::U32 => PrimitiveValue::U32(reader.read_var_u32()?),
+        PrimitiveValType::S64 => PrimitiveValue::S64(reader.read_var_i64()?),
+        PrimitiveValType::U64 => PrimitiveValue::U64(reader.read_var_u64()?),
+        PrimitiveValType::F32 => PrimitiveValue::F32({
             let value = reader.read_f32()?;
             if f32::from_bits(value.0).is_nan() && value.0 != 0x7f_c0_00_00 {
                 bail!(reader.original_position(), "invalid f32: non canonical NaN");
             }
             value
         }),
-        PrimitiveValType::F64 => Val::F64({
+        PrimitiveValType::F64 => PrimitiveValue::F64({
             let value = reader.read_f64()?;
             if f64::from_bits(value.0).is_nan() && value.0 != 0x7f_f8_00_00_00_00_00_00 {
                 bail!(reader.original_position(), "invalid f64: non canonical NaN");
             }
             value
         }),
-        PrimitiveValType::Char => Val::Char(char::from_u32(reader.read_var_u32()?).ok_or(
-            BinaryReaderError::new("invalid Unicode scalar value", reader.original_position()),
-        )?),
-        PrimitiveValType::String => Val::String(reader.read_string()?.into()),
+        PrimitiveValType::Char => {
+            PrimitiveValue::Char(char::from_u32(reader.read_var_u32()?).ok_or(
+                BinaryReaderError::new("invalid Unicode scalar value", reader.original_position()),
+            )?)
+        }
+        PrimitiveValType::String => PrimitiveValue::String(reader.read_string()?.into()),
     })
 }
 
-fn get_defined_type<'a>(
+fn get_defined_type(
     ty: ComponentValType,
-    types: &[ComponentType<'a>],
+    types: &TypesRef,
     offset: usize,
-) -> Result<ComponentDefinedType<'a>> {
-    match ty {
-        ComponentValType::Primitive(prim_ty) => Ok(ComponentDefinedType::Primitive(prim_ty)),
-        ComponentValType::Type(idx) => match types.get(idx as usize) {
-            Some(ComponentType::Defined(cdt)) => Ok(cdt.clone()),
-            Some(_) => bail!(offset, "not a component defined type at index {idx}"),
-            None => bail!(offset, "type index out of bounds: {idx}"),
-        },
-    }
+) -> Result<ComponentDefinedType> {
+    Ok(match ty {
+        ComponentValType::Primitive(prim_ty) => ComponentDefinedType::Primitive(prim_ty),
+        ComponentValType::Type(id) => {
+            if let Some(def_ty) = types.get(id) {
+                def_ty.clone()
+            } else {
+                bail!(offset, "invalid type");
+            }
+        }
+    })
 }
