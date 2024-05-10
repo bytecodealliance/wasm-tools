@@ -28,7 +28,7 @@ pub struct Data<'a> {
 }
 
 /// The kind of data segment.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub enum DataKind<'a> {
     /// The data segment is passive.
     Passive,

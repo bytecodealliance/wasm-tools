@@ -50,7 +50,7 @@ use wasm_encoder::{
     ComponentBuilder, ComponentExportKind, ComponentType, ComponentTypeRef, CustomSection,
 };
 use wasm_metadata::Producers;
-use wasmparser::{BinaryReader, Encoding, Parser, Payload};
+use wasmparser::{BinaryReader, Encoding, Parser, Payload, WasmFeatures};
 use wit_parser::{Package, PackageName, Resolve, World, WorldId, WorldItem};
 
 const CURRENT_VERSION: u8 = 0x04;
@@ -249,7 +249,7 @@ impl Bindgen {
         let resolve;
         let encoding;
 
-        let mut reader = BinaryReader::new(data);
+        let mut reader = BinaryReader::new(data, 0, WasmFeatures::all());
         match reader.read_u8()? {
             // Historical 0x03 format where the support here will be deleted in
             // the future

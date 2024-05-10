@@ -16,14 +16,13 @@ pub struct RelocSectionReader<'a> {
 impl<'a> RelocSectionReader<'a> {
     /// Creates a new reader for a `reloc.*` section starting at
     /// `original_position` within the wasm file.
-    pub fn new(data: &'a [u8], original_position: usize) -> Result<Self> {
-        let mut reader = BinaryReader::new_with_offset(data, original_position);
+    pub fn new(mut reader: BinaryReader<'a>) -> Result<Self> {
         let range = reader.range().clone();
         let section = reader.read_var_u32()?;
         Ok(Self {
             section,
             range,
-            entries: SectionLimited::new(reader.remaining_buffer(), reader.original_position())?,
+            entries: SectionLimited::new(reader.shrink())?,
         })
     }
 

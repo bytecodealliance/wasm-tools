@@ -155,7 +155,8 @@ impl Mutator for ConstExpressionMutator {
                 let mutate_idx = config.rng().gen_range(0..num_total);
                 let section = config.info().globals.ok_or(skip_err)?;
                 let mut new_section = GlobalSection::new();
-                let reader = GlobalSectionReader::new(config.info().raw_sections[section].data, 0)?;
+                let reader = config.info().get_binary_reader(section);
+                let reader = GlobalSectionReader::new(reader)?;
                 let mut translator = InitTranslator {
                     config,
                     skip_inits: 0,
@@ -179,8 +180,8 @@ impl Mutator for ConstExpressionMutator {
                 let mutate_idx = config.rng().gen_range(0..num_total);
                 let section = config.info().elements.ok_or(skip_err)?;
                 let mut new_section = ElementSection::new();
-                let reader =
-                    ElementSectionReader::new(config.info().raw_sections[section].data, 0)?;
+                let reader = config.info().get_binary_reader(section);
+                let reader = ElementSectionReader::new(reader)?;
                 let mut translator = InitTranslator {
                     config,
                     skip_inits: 0,

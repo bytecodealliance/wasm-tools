@@ -481,8 +481,7 @@ pub fn code(t: &mut dyn Translator, body: FunctionBody<'_>, s: &mut CodeSection)
         .collect::<Result<Vec<_>>>()?;
     let mut func = Function::new(locals);
 
-    let mut reader = body.get_operators_reader()?;
-    reader.allow_memarg64(true);
+    let reader = body.get_operators_reader()?;
     for op in reader {
         let op = op?;
         func.instruction(&t.translate_op(&op)?);

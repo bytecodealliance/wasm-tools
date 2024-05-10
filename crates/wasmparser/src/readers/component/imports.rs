@@ -98,9 +98,10 @@ impl<'a> FromReader<'a> for ComponentImport<'a> {
 /// # Examples
 ///
 /// ```
-/// use wasmparser::ComponentImportSectionReader;
+/// use wasmparser::{ComponentImportSectionReader, BinaryReader, WasmFeatures};
 /// let data: &[u8] = &[0x01, 0x00, 0x01, 0x41, 0x01, 0x66];
-/// let reader = ComponentImportSectionReader::new(data, 0).unwrap();
+/// let reader = BinaryReader::new(data, 0, WasmFeatures::all());
+/// let reader = ComponentImportSectionReader::new(reader).unwrap();
 /// for import in reader {
 ///     let import = import.expect("import");
 ///     println!("Import: {:?}", import);

@@ -27,7 +27,7 @@ impl<'a> FromReader<'a> for BranchHintFunction<'a> {
         })?;
         Ok(BranchHintFunction {
             func,
-            hints: SectionLimited::new(hints.remaining_buffer(), hints.original_position())?,
+            hints: SectionLimited::new(hints)?,
         })
     }
 }

@@ -16,7 +16,7 @@
 use crate::{BinaryReader, ConstExpr, FromReader, GlobalType, Result, SectionLimited};
 
 /// Represents a core WebAssembly global.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct Global<'a> {
     /// The global's type.
     pub ty: GlobalType,

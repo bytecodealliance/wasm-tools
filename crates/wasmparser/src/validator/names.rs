@@ -632,10 +632,7 @@ impl<'a> ComponentNameParser<'a> {
         self.expect_str(":")?;
         self.take_lowercase_kebab()?;
 
-        if self
-            .features
-            .contains(WasmFeatures::COMPONENT_MODEL_NESTED_NAMES)
-        {
+        if self.features.component_model_nested_names() {
             // Take the remaining package namespaces and name
             while self.next.starts_with(':') {
                 self.expect_str(":")?;
@@ -648,10 +645,7 @@ impl<'a> ComponentNameParser<'a> {
             self.expect_str("/")?;
             self.take_kebab()?;
 
-            if self
-                .features
-                .contains(WasmFeatures::COMPONENT_MODEL_NESTED_NAMES)
-            {
+            if self.features.component_model_nested_names() {
                 while self.next.starts_with('/') {
                     self.expect_str("/")?;
                     self.take_kebab()?;

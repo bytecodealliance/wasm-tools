@@ -145,11 +145,18 @@ impl<'a> FromReader<'a> for Comdat<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let name = reader.read_string()?;
         let flags = reader.read_var_u32()?;
-        let symbols = SectionLimited::new(reader.remaining_buffer(), reader.original_position())?;
+        // FIXME(#188) ideally shouldn't need to skip here
+        let symbols = reader.skip(|reader| {
+            let count = reader.read_var_u32()?;
+            for _ in 0..count {
+                reader.read::<ComdatSymbol>()?;
+            }
+            Ok(())
+        })?;
         Ok(Self {
             name,
             flags,
-            symbols,
+            symbols: SectionLimited::new(symbols)?,
         })
     }
 }
@@ -380,10 +387,10 @@ impl<'a> Subsection<'a> for Linking<'a> {
         let data = reader.remaining_buffer();
         let offset = reader.original_position();
         Ok(match id {
-            5 => Self::SegmentInfo(SegmentMap::new(data, offset)?),
-            6 => Self::InitFuncs(InitFuncMap::new(data, offset)?),
-            7 => Self::ComdatInfo(ComdatMap::new(data, offset)?),
-            8 => Self::SymbolTable(SymbolInfoMap::new(data, offset)?),
+            5 => Self::SegmentInfo(SegmentMap::new(reader)?),
+            6 => Self::InitFuncs(InitFuncMap::new(reader)?),
+            7 => Self::ComdatInfo(ComdatMap::new(reader)?),
+            8 => Self::SymbolTable(SymbolInfoMap::new(reader)?),
             ty => Self::Unknown {
                 ty,
                 data,
@@ -396,9 +403,9 @@ impl<'a> Subsection<'a> for Linking<'a> {
 impl<'a> LinkingSectionReader<'a> {
     /// Creates a new reader for the linking section contents starting at
     /// `offset` within the original wasm file.
-    pub fn new(data: &'a [u8], offset: usize) -> Result<Self> {
-        let mut reader = BinaryReader::new_with_offset(data, offset);
+    pub fn new(mut reader: BinaryReader<'a>) -> Result<Self> {
         let range = reader.range();
+        let offset = reader.original_position();
 
         let version = reader.read_var_u32()?;
         if version != 2 {
@@ -408,7 +415,7 @@ impl<'a> LinkingSectionReader<'a> {
             ));
         }
 
-        let subsections = Subsections::new(reader.remaining_buffer(), reader.original_position());
+        let subsections = Subsections::new(reader.shrink());
         Ok(Self {
             version,
             subsections,

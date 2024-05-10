@@ -14,23 +14,23 @@
  */
 
 use crate::{BinaryReader, FromReader, OperatorsReader, Result};
+use core::fmt;
 
 /// Represents an initialization expression.
-#[derive(Debug, Copy, Clone)]
+#[derive(Clone)]
 pub struct ConstExpr<'a> {
-    offset: usize,
-    data: &'a [u8],
+    reader: BinaryReader<'a>,
 }
 
 impl<'a> ConstExpr<'a> {
     /// Constructs a new `ConstExpr` from the given data and offset.
-    pub fn new(data: &[u8], offset: usize) -> ConstExpr {
-        ConstExpr { offset, data }
+    pub fn new(reader: BinaryReader<'a>) -> ConstExpr {
+        ConstExpr { reader }
     }
 
     /// Gets a binary reader for the initialization expression.
     pub fn get_binary_reader(&self) -> BinaryReader<'a> {
-        BinaryReader::new_with_offset(self.data, self.offset)
+        self.reader.clone()
     }
 
     /// Gets an operators reader for the initialization expression.
@@ -43,9 +43,15 @@ impl<'a> FromReader<'a> for ConstExpr<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         // FIXME(#188) ideally shouldn't need to skip here
         let reader = reader.skip(|r| r.skip_const_expr())?;
-        Ok(ConstExpr::new(
-            reader.remaining_buffer(),
-            reader.original_position(),
-        ))
+        Ok(ConstExpr { reader })
+    }
+}
+
+impl fmt::Debug for ConstExpr<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ConstExpr")
+            .field("offset", &self.reader.original_position())
+            .field("data", &self.reader.remaining_buffer())
+            .finish()
     }
 }

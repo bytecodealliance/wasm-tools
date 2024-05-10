@@ -105,8 +105,9 @@ impl PeepholeMutator {
         config: &'a mut WasmMutate,
         rules: &[Rewrite<Lang, PeepholeMutationAnalysis>],
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
-        let code_section = config.info().get_code_section();
-        let sectionreader = CodeSectionReader::new(code_section.data, 0)?;
+        let code_section = config.info().code.unwrap();
+        let reader = config.info().get_binary_reader(code_section);
+        let sectionreader = CodeSectionReader::new(reader)?;
         let function_count = sectionreader.count();
         let mut function_to_mutate = config.rng().gen_range(0..function_count);
 
@@ -120,8 +121,7 @@ impl PeepholeMutator {
             }
 
             let reader = readers[function_to_mutate as usize].clone();
-            let mut operatorreader = reader.get_operators_reader()?;
-            operatorreader.allow_memarg64(true);
+            let operatorreader = reader.get_operators_reader()?;
             let mut localsreader = reader.get_locals_reader()?;
             let operators = operatorreader
                 .into_iter_with_offsets()
@@ -267,8 +267,9 @@ impl PeepholeMutator {
                         )?;
 
                         let mut codes = CodeSection::new();
-                        let code_section = config.info().get_code_section();
-                        let sectionreader = CodeSectionReader::new(code_section.data, 0)?;
+                        let code_section = config.info().code.unwrap();
+                        let reader = config.info().get_binary_reader(code_section);
+                        let sectionreader = CodeSectionReader::new(reader)?;
 
                         // this mutator is applicable to internal functions, so
                         // it starts by randomly selecting an index between
@@ -278,9 +279,7 @@ impl PeepholeMutator {
                             if fidx as u32 == function_to_mutate {
                                 codes.function(&newfunc);
                             } else {
-                                codes.raw(
-                                    &code_section.data[reader.range().start..reader.range().end],
-                                );
+                                codes.raw(reader.as_bytes());
                             }
                         }
 
@@ -288,11 +287,11 @@ impl PeepholeMutator {
                         // Needed globals
                         let mut new_global_section = GlobalSection::new();
                         // Reparse and reencode global section
-                        if let Some(_) = config.info().globals {
+                        if let Some(global_section) = config.info().globals {
                             // If the global section was already there, try to copy it to the
                             // new raw section
-                            let global_section = config.info().get_global_section();
-                            let globalreader = GlobalSectionReader::new(global_section.data, 0)?;
+                            let reader = config.info().get_binary_reader(global_section);
+                            let globalreader = GlobalSectionReader::new(reader)?;
 
                             for g in globalreader {
                                 DefaultTranslator.translate_global(g?, &mut new_global_section)?;

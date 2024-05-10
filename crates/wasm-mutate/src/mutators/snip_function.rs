@@ -17,8 +17,9 @@ impl Mutator for SnipMutator {
         config: &'a mut WasmMutate,
     ) -> Result<Box<dyn Iterator<Item = Result<Module>> + 'a>> {
         let mut codes = CodeSection::new();
-        let code_section = config.info().get_code_section();
-        let reader = CodeSectionReader::new(code_section.data, 0)?;
+        let code_section = config.info().code.unwrap();
+        let reader = config.info().get_binary_reader(code_section);
+        let reader = CodeSectionReader::new(reader)?;
         let count = reader.count();
         let function_to_mutate = config.rng().gen_range(0..count);
         let ftype = config
@@ -31,7 +32,7 @@ impl Mutator for SnipMutator {
             let f = func?;
 
             if i as u32 != function_to_mutate {
-                codes.raw(&code_section.data[f.range().start..f.range().end]);
+                codes.raw(f.as_bytes());
                 continue;
             }
 

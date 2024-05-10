@@ -784,10 +784,12 @@ macro_rules! bail {
 }
 
 pub use crate::binary_reader::{BinaryReader, BinaryReaderError, Result};
+pub use crate::features::*;
 pub use crate::parser::*;
 pub use crate::readers::*;
 
 mod binary_reader;
+mod features;
 mod limits;
 mod parser;
 mod readers;

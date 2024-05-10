@@ -22,8 +22,9 @@ use crate::{BinaryReader, FromReader, Result, SectionLimited};
 /// ```
 /// # let data: &[u8] = &[0x01, 0x08, 0x6c, 0x61, 0x6e, 0x67, 0x75, 0x61, 0x67, 0x65,
 /// #     0x02, 0x03, 0x77, 0x61, 0x74, 0x01, 0x31, 0x01, 0x43, 0x03, 0x39, 0x2e, 0x30];
-/// use wasmparser::{ProducersSectionReader, ProducersFieldValue, Result};
-/// let reader = ProducersSectionReader::new(data, 0).expect("producers reader");
+/// # use wasmparser::{ProducersSectionReader, ProducersFieldValue, Result, BinaryReader, WasmFeatures};
+/// let reader = BinaryReader::new(data, 0, WasmFeatures::all());
+/// let reader = ProducersSectionReader::new(reader).expect("producers reader");
 /// let field = reader.into_iter().next().unwrap().expect("producers field");
 /// assert!(field.name == "language");
 /// let value = field.values.into_iter().collect::<Result<Vec<_>>>().expect("values");
@@ -60,7 +61,7 @@ impl<'a> FromReader<'a> for ProducersField<'a> {
         })?;
         Ok(ProducersField {
             name,
-            values: SectionLimited::new(values.remaining_buffer(), values.original_position())?,
+            values: SectionLimited::new(values)?,
         })
     }
 }

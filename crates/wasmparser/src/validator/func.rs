@@ -80,7 +80,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     pub fn validate(&mut self, body: &FunctionBody<'_>) -> Result<()> {
         let mut reader = body.get_binary_reader();
         self.read_locals(&mut reader)?;
-        reader.allow_memarg64(self.validator.features.contains(WasmFeatures::MEMORY64));
+        reader.set_features(self.validator.features);
         while !reader.eof() {
             reader.visit_operator(&mut self.visitor(reader.original_position()))??;
         }

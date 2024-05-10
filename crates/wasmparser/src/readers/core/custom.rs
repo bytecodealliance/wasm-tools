@@ -5,27 +5,15 @@ use core::ops::Range;
 /// A reader for custom sections of a WebAssembly module.
 #[derive(Clone)]
 pub struct CustomSectionReader<'a> {
-    // NB: these fields are public to the crate to make testing easier.
-    pub(crate) name: &'a str,
-    pub(crate) data_offset: usize,
-    pub(crate) data: &'a [u8],
-    pub(crate) range: Range<usize>,
+    name: &'a str,
+    reader: BinaryReader<'a>,
 }
 
 impl<'a> CustomSectionReader<'a> {
     /// Constructs a new `CustomSectionReader` for the given data and offset.
-    pub fn new(data: &'a [u8], offset: usize) -> Result<CustomSectionReader<'a>> {
-        let mut reader = BinaryReader::new_with_offset(data, offset);
+    pub fn new(mut reader: BinaryReader<'a>) -> Result<CustomSectionReader<'a>> {
         let name = reader.read_string()?;
-        let data_offset = reader.original_position();
-        let data = reader.remaining_buffer();
-        let range = reader.range();
-        Ok(CustomSectionReader {
-            name,
-            data_offset,
-            data,
-            range,
-        })
+        Ok(CustomSectionReader { name, reader })
     }
 
     /// The name of the custom section.
@@ -36,19 +24,19 @@ impl<'a> CustomSectionReader<'a> {
     /// The offset, relative to the start of the original module or component,
     /// that the `data` payload for this custom section starts at.
     pub fn data_offset(&self) -> usize {
-        self.data_offset
+        self.reader.original_position()
     }
 
     /// The actual contents of the custom section.
     pub fn data(&self) -> &'a [u8] {
-        self.data
+        self.reader.remaining_buffer()
     }
 
     /// The range of bytes that specify this whole custom section (including
     /// both the name of this custom section and its data) specified in
     /// offsets relative to the start of the byte stream.
     pub fn range(&self) -> Range<usize> {
-        self.range.clone()
+        self.reader.range()
     }
 
     /// Attempts to match and see if this custom section is statically known to
@@ -63,57 +51,45 @@ impl<'a> CustomSectionReader<'a> {
     /// created, then `KnownCustom::Unknown` is returned.
     pub fn as_known(&self) -> KnownCustom<'a> {
         match self.name() {
-            "name" => KnownCustom::Name(crate::NameSectionReader::new(self.data, self.data_offset)),
+            "name" => KnownCustom::Name(crate::NameSectionReader::new(self.reader.shrink())),
             "component-name" => KnownCustom::ComponentName(crate::ComponentNameSectionReader::new(
-                self.data,
-                self.data_offset,
+                self.reader.shrink(),
             )),
             "metadata.code.branch_hint" => {
-                match crate::BranchHintSectionReader::new(self.data, self.data_offset) {
+                match crate::BranchHintSectionReader::new(self.reader.shrink()) {
                     Ok(s) => KnownCustom::BranchHints(s),
                     Err(_) => KnownCustom::Unknown,
                 }
             }
-            "producers" => match crate::ProducersSectionReader::new(self.data, self.data_offset) {
+            "producers" => match crate::ProducersSectionReader::new(self.reader.shrink()) {
                 Ok(s) => KnownCustom::Producers(s),
                 Err(_) => KnownCustom::Unknown,
             },
-            "dylink.0" => KnownCustom::Dylink0(crate::Dylink0SectionReader::new(
-                self.data,
-                self.data_offset,
-            )),
-            "core" => match crate::CoreDumpSection::new(BinaryReader::new_with_offset(
-                self.data,
-                self.data_offset,
-            )) {
+            "dylink.0" => {
+                KnownCustom::Dylink0(crate::Dylink0SectionReader::new(self.reader.shrink()))
+            }
+            "core" => match crate::CoreDumpSection::new(self.reader.shrink()) {
                 Ok(s) => KnownCustom::CoreDump(s),
                 Err(_) => KnownCustom::Unknown,
             },
-            "coremodules" => match crate::CoreDumpModulesSection::new(
-                BinaryReader::new_with_offset(self.data, self.data_offset),
-            ) {
+            "coremodules" => match crate::CoreDumpModulesSection::new(self.reader.shrink()) {
                 Ok(s) => KnownCustom::CoreDumpModules(s),
                 Err(_) => KnownCustom::Unknown,
             },
-            "coreinstances" => match crate::CoreDumpInstancesSection::new(
-                BinaryReader::new_with_offset(self.data, self.data_offset),
-            ) {
+            "coreinstances" => match crate::CoreDumpInstancesSection::new(self.reader.shrink()) {
                 Ok(s) => KnownCustom::CoreDumpInstances(s),
                 Err(_) => KnownCustom::Unknown,
             },
-            "corestack" => match crate::CoreDumpStackSection::new(BinaryReader::new_with_offset(
-                self.data,
-                self.data_offset,
-            )) {
+            "corestack" => match crate::CoreDumpStackSection::new(self.reader.shrink()) {
                 Ok(s) => KnownCustom::CoreDumpStack(s),
                 Err(_) => KnownCustom::Unknown,
             },
-            "linking" => match crate::LinkingSectionReader::new(self.data, self.data_offset) {
+            "linking" => match crate::LinkingSectionReader::new(self.reader.shrink()) {
                 Ok(s) => KnownCustom::Linking(s),
                 Err(_) => KnownCustom::Unknown,
             },
             s if s.starts_with("reloc.") => {
-                match crate::RelocSectionReader::new(self.data, self.data_offset) {
+                match crate::RelocSectionReader::new(self.reader.shrink()) {
                     Ok(s) => KnownCustom::Reloc(s),
                     Err(_) => KnownCustom::Unknown,
                 }
@@ -144,9 +120,9 @@ impl<'a> fmt::Debug for CustomSectionReader<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("CustomSectionReader")
             .field("name", &self.name)
-            .field("data_offset", &self.data_offset)
+            .field("data_offset", &self.data_offset())
             .field("data", &"...")
-            .field("range", &self.range)
+            .field("range", &self.range())
             .finish()
     }
 }
