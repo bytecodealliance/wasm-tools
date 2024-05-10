@@ -675,10 +675,6 @@ fn error_matches(error: &str, message: &str) -> bool {
         return error.contains("duplicate") && error.contains("identifier");
     }
 
-    if message == "unknown memory" {
-        return error.contains("no linear memories are present");
-    }
-
     // wasmparser differentiates these cases, the spec interpreter apparently
     // doesn't
     if message == "function and code section have inconsistent lengths" {
