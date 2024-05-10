@@ -70,6 +70,46 @@ pub struct Function {
     pub docs: Docs,
 }
 
+impl Function {
+    pub fn new(name: impl Into<String>, kind: FunctionKind) -> Self {
+        Self {
+            name: name.into(),
+            kind: kind,
+            params: vec![],
+            results: Results::empty(),
+            docs: Docs::default(),
+        }
+    }
+
+    pub fn new_freestanding(name: impl Into<String>) -> Self {
+        Self::new(name, FunctionKind::Freestanding)
+    }
+
+    pub fn new_method(name: impl Into<String>) -> Self {
+        Self::new(name, FunctionKind::Method)
+    }
+
+    pub fn new_static(name: impl Into<String>) -> Self {
+        Self::new(name, FunctionKind::Static)
+    }
+
+    pub fn new_constructor(name: impl Into<String>) -> Self {
+        Self::new(name, FunctionKind::Constructor)
+    }
+
+    pub fn params(&mut self, params: Params) {
+        self.params = params;
+    }
+
+    pub fn results(&mut self, results: Results) {
+        self.results = results;
+    }
+
+    pub fn docs(&mut self, docs: Docs) {
+        self.docs = docs;
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]

@@ -75,10 +75,14 @@ pub struct PackageName {
 
 impl PackageName {
     /// Create a new instance of `PackageName`
-    pub fn new(namespace: String, name: String, version: Option<Version>) -> Self {
+    pub fn new(
+        namespace: impl Into<String>,
+        name: impl Into<String>,
+        version: Option<Version>,
+    ) -> Self {
         Self {
-            namespace,
-            name,
+            namespace: namespace.into(),
+            name: name.into(),
             version,
         }
     }
