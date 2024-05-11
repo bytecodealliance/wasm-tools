@@ -179,7 +179,7 @@ where
     }
 }
 
-/// An iterator over the items of a [`Set`].
+/// An iterator over the items of a [`IndexSet`].
 #[derive(Debug, Clone)]
 pub struct Iter<'a, T> {
     inner: <&'a IndexMap<T, ()> as IntoIterator>::IntoIter,
@@ -216,7 +216,7 @@ impl<T> IntoIterator for IndexSet<T> {
     }
 }
 
-/// An iterator over the owned items of an [`Map`].
+/// An iterator over the owned items of an [`IndexSet`].
 #[derive(Debug)]
 pub struct IntoIter<T> {
     inner: <IndexMap<T, ()> as IntoIterator>::IntoIter,
