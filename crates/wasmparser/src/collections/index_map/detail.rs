@@ -233,10 +233,10 @@ impl<K, V> IndexMap<K, V> {
     /// [`Vec::swap_remove`]: alloc::vec::Vec::swap_remove
     pub fn swap_remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
     where
-        K: Borrow<Q>,
-        Q: ?Sized + Hash + Eq + Ord,
+        K: Borrow<Q> + Ord,
+        Q: ?Sized + Ord,
     {
-        self.inner
+        self
             .swap_remove_full(key)
             .map(|(_index, key, value)| (key, value))
     }
