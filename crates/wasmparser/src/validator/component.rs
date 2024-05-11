@@ -1246,7 +1246,7 @@ impl ComponentState {
         &mut self,
         value: ComponentValue,
         features: &WasmFeatures,
-        types: &mut TypeList,
+        _types: &mut TypeList,
         offset: usize,
     ) -> Result<()> {
         if !features.contains(WasmFeatures::COMPONENT_MODEL_VALUES) {

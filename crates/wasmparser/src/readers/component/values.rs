@@ -1,4 +1,3 @@
-use crate::prelude::*;
 use crate::types::{ComponentDefinedType, ComponentValType, TypesRef};
 use crate::{
     BinaryReader, BinaryReaderError, FromReader, Ieee32, Ieee64, PrimitiveValType, Result,
@@ -18,7 +17,7 @@ impl<'a> ComponentValue<'a> {
     /// A component model value.
     /// This takes the types from the current components type section
     /// in the same order as they where read from there.
-    pub fn val<V>(&self, types: &TypesRef, visitor: V) -> Result<()>
+    pub fn val<V>(&self, types: TypesRef, visitor: V) -> Result<()>
     where
         V: Val,
     {
@@ -39,7 +38,7 @@ impl<'a> ComponentValue<'a> {
 
 /// A primitive value.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub enum PrimitiveValue {
+pub enum PrimitiveValue<'a> {
     /// A boolean value.
     Bool(bool),
     /// A signed 8-bit integer.
@@ -65,7 +64,7 @@ pub enum PrimitiveValue {
     /// A Unicode scalar value.
     Char(char),
     /// A Unicode string.
-    String(String),
+    String(&'a str),
 }
 
 /// A value visitor.
@@ -85,7 +84,7 @@ pub trait Val: Sized {
     /// A variant case with a given value.
     fn variant_case(self, label_index: u32, name: &str) -> Self;
     /// A variant case without a value.
-    fn variant_case_empty(self, index: u32, name: &str);
+    fn variant_case_empty(self, label_index: u32, name: &str);
     /// A list.
     fn list(self, length: u32) -> Self::L;
     /// A tuple.
@@ -134,7 +133,7 @@ pub trait Tuple<V: Val>: Sized {
 
 /// A visitor for flags fields.
 pub trait Flags<V: Val>: Sized {
-    /// Visitor for the next flags field.
+    /// The next flags field.
     fn field(&mut self, name: &str, val: bool);
     /// No more fields.
     fn end(self);
@@ -160,7 +159,7 @@ impl<'a> FromReader<'a> for ComponentValue<'a> {
 fn read_val<V>(
     reader: &mut BinaryReader,
     ty: ComponentValType,
-    types: &TypesRef,
+    types: TypesRef,
     visitor: V,
 ) -> Result<()>
 where
@@ -173,25 +172,25 @@ where
         }
         ComponentDefinedType::Record(record_ty) => {
             let mut record = visitor.record(record_ty.fields.len() as u32);
-            for field in record_ty.fields.iter() {
-                read_val(reader, *field.1, types, record.field(field.0))?;
+            for (name, field_ty) in record_ty.fields.iter() {
+                read_val(reader, *field_ty, types, record.field(name))?;
             }
             record.end();
         }
         ComponentDefinedType::Variant(variant_ty) => {
             let label = reader.read_var_u32()?;
-            if label as usize >= variant_ty.cases.len() {
+            if let Some((name, case_ty)) = variant_ty.cases.get_index(label as usize) {
+                if let Some(case_ty) = case_ty.ty {
+                    read_val(reader, case_ty, types, visitor.variant_case(label, name))?;
+                } else {
+                    visitor.variant_case_empty(label, name);
+                }
+            } else {
                 bail!(
                     reader.original_position(),
                     "invalid variant case label: {label}"
                 );
             }
-            let case_ty = variant_ty.cases[label as usize].ty;
-            if let Some(case_ty) = case_ty {
-                read_val(reader, case_ty, types, visitor.some())?;
-            } else {
-                visitor.none();
-            };
         }
         ComponentDefinedType::List(element_ty) => {
             let len = reader.read_var_u32()?;
@@ -273,7 +272,10 @@ where
     Ok(())
 }
 
-fn read_primitive_value(reader: &mut BinaryReader, ty: PrimitiveValType) -> Result<PrimitiveValue> {
+fn read_primitive_value<'a>(
+    reader: &'a mut BinaryReader,
+    ty: PrimitiveValType,
+) -> Result<PrimitiveValue<'a>> {
     Ok(match ty {
         PrimitiveValType::Bool => PrimitiveValue::Bool(match reader.read_u8()? {
             0x0 => false,
@@ -307,13 +309,13 @@ fn read_primitive_value(reader: &mut BinaryReader, ty: PrimitiveValType) -> Resu
                 BinaryReaderError::new("invalid Unicode scalar value", reader.original_position()),
             )?)
         }
-        PrimitiveValType::String => PrimitiveValue::String(reader.read_string()?.into()),
+        PrimitiveValType::String => PrimitiveValue::String(reader.read_string()?),
     })
 }
 
 fn get_defined_type(
     ty: ComponentValType,
-    types: &TypesRef,
+    types: TypesRef,
     offset: usize,
 ) -> Result<ComponentDefinedType> {
     Ok(match ty {
