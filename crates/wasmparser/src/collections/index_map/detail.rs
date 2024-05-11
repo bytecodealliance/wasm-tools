@@ -236,8 +236,7 @@ impl<K, V> IndexMap<K, V> {
         K: Borrow<Q> + Ord,
         Q: ?Sized + Ord,
     {
-        self
-            .swap_remove_full(key)
+        self.swap_remove_full(key)
             .map(|(_index, key, value)| (key, value))
     }
 
@@ -249,20 +248,14 @@ impl<K, V> IndexMap<K, V> {
     /// the position of what used to be the last element!**
     ///
     /// Return `None` if `key` is not in map.
-    ///
-    /// Computes in **O(1)** time (average).
     pub fn swap_remove_full<Q>(&mut self, key: &Q) -> Option<(usize, K, V)>
     where
         K: Borrow<Q> + Ord,
         Q: ?Sized + Ord,
     {
-        let len = self.len();
-        if len == 0 {
-            return None
-        }
-        let index = self.get_index_of(key)?;
+        let index = self.key2slot.remove(key)?.0;
         let removed = self.slots.swap_remove(index);
-        if index != len - 1 {
+        if index != self.len() {
             // If the index was referring the last element
             // `swap_remove` would not swap any other element
             // thus adjustments are only needed if this was not the case.
