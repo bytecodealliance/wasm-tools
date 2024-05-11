@@ -45,6 +45,11 @@ impl<K, V> Default for IndexMap<K, V> {
 }
 
 impl<K, V> IndexMap<K, V> {
+    /// Clears the [`IndexMap`], removing all elements.
+    pub fn clear(&mut self) {
+        self.inner.clear()
+    }
+
     /// Returns the number of elements in the [`IndexMap`].
     pub fn len(&self) -> usize {
         self.inner.len()
@@ -131,6 +136,30 @@ where
         self.inner.get(key)
     }
 
+    /// Return references to the key-value pair stored for `key`,
+    /// if it is present, else `None`.
+    pub fn get_key_value<Q: ?Sized>(&self, key: &Q) -> Option<(&K, &V)>
+    where
+        K: Borrow<Q>,
+        Q: Hash + Eq + Ord,
+    {
+        self.inner.get_key_value(key)
+    }
+
+    /// Returns the key-value pair corresponding to the supplied key
+    /// as well as the unique index of the returned key-value pair.
+    ///
+    /// The supplied key may be any borrowed form of the map's key type,
+    /// but the ordering on the borrowed form *must* match the ordering
+    /// on the key type.
+    pub fn get_full<Q: ?Sized>(&self, key: &Q) -> Option<(usize, &K, &V)>
+    where
+        K: Borrow<Q> + Ord,
+        Q: Hash + Eq + Ord,
+    {
+        self.inner.get_full(key)
+    }
+
     /// Returns a mutable reference to the value corresponding to the key.
     pub fn get_mut<Q: ?Sized>(&mut self, key: &Q) -> Option<&mut V>
     where
@@ -159,8 +188,6 @@ where
     ///
     /// Return `None` if `key` is not in map.
     ///
-    /// Computes in **O(1)** time (average).
-    ///
     /// [`Vec::swap_remove`]: alloc::vec::Vec::swap_remove
     pub fn swap_remove<Q>(&mut self, key: &Q) -> Option<V>
     where
@@ -168,6 +195,23 @@ where
         Q: ?Sized + Hash + Eq + Ord,
     {
         self.inner.swap_remove(key)
+    }
+
+    /// Remove and return the key-value pair equivalent to `key`.
+    ///
+    /// Like [`Vec::swap_remove`], the pair is removed by swapping it with the
+    /// last element of the map and popping it off. **This perturbs
+    /// the position of what used to be the last element!**
+    ///
+    /// Return `None` if `key` is not in map.
+    ///
+    /// [`Vec::swap_remove`]: alloc::vec::Vec::swap_remove
+    pub fn swap_remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
+    where
+        K: Borrow<Q>,
+        Q: ?Sized + Hash + Eq + Ord,
+    {
+        self.inner.swap_remove_entry(key)
     }
 
     /// Gets the given key's corresponding entry in the [`IndexMap`] for in-place manipulation.

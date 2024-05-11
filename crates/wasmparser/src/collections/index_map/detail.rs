@@ -213,8 +213,6 @@ impl<K, V> IndexMap<K, V> {
     /// the position of what used to be the last element!**
     ///
     /// Return `None` if `key` is not in map.
-    ///
-    /// Computes in **O(1)** time (average).
     pub fn swap_remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Borrow<Q> + Ord,
@@ -222,6 +220,25 @@ impl<K, V> IndexMap<K, V> {
     {
         self.swap_remove_full(key)
             .map(|(_index, _key, value)| value)
+    }
+
+    /// Remove and return the key-value pair equivalent to `key`.
+    ///
+    /// Like [`Vec::swap_remove`], the pair is removed by swapping it with the
+    /// last element of the map and popping it off. **This perturbs
+    /// the position of what used to be the last element!**
+    ///
+    /// Return `None` if `key` is not in map.
+    ///
+    /// [`Vec::swap_remove`]: alloc::vec::Vec::swap_remove
+    pub fn swap_remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
+    where
+        K: Borrow<Q>,
+        Q: ?Sized + Hash + Eq + Ord,
+    {
+        self.inner
+            .swap_remove_full(key)
+            .map(|(_index, key, value)| (key, value))
     }
 
     /// Remove the key-value pair equivalent to `key` and return it and
@@ -271,10 +288,10 @@ impl<K, V> IndexMap<K, V> {
     ///
     /// The key may be any borrowed form of the map’s key type,
     /// but the ordering on the borrowed form must match the ordering on the key type.
-    pub fn get<Q: ?Sized>(&self, key: &Q) -> Option<&V>
+    pub fn get<Q>(&self, key: &Q) -> Option<&V>
     where
         K: Borrow<Q> + Ord,
-        Q: Ord,
+        Q: ?Sized + Ord,
     {
         self.key2slot
             .get(key)

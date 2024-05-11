@@ -1,18 +1,7 @@
 //! Type definitions for an ordered set.
 
+use crate::collections::IndexMap;
 use core::{borrow::Borrow, hash::Hash, iter::FusedIterator, ops::Index};
-
-#[cfg(not(feature = "no-hash-maps"))]
-mod detail {
-    use crate::collections::hash;
-
-    pub type IndexSetImpl<T> = indexmap::IndexSet<T, hash::RandomState>;
-    pub type IterImpl<'a, T> = indexmap::set::Iter<'a, T>;
-    pub type IntoIterImpl<T> = indexmap::set::IntoIter<T>;
-}
-
-#[cfg(feature = "no-hash-maps")]
-mod detail;
 
 /// A default set of values.
 ///
@@ -22,14 +11,13 @@ mod detail;
 /// [`BTreeMap`]: alloc::collections::BTreeMap
 #[derive(Debug, Clone)]
 pub struct IndexSet<T> {
-    /// The underlying hash-set or btree-set data structure used.
-    inner: detail::IndexSetImpl<T>,
+    inner: IndexMap<T, ()>,
 }
 
 impl<T> Default for IndexSet<T> {
     fn default() -> Self {
         Self {
-            inner: detail::IndexSetImpl::default(),
+            inner: IndexMap::default(),
         }
     }
 }
@@ -73,7 +61,7 @@ where
         T: Borrow<Q>,
         Q: Hash + Eq + Ord,
     {
-        self.inner.contains(value)
+        self.inner.contains_key(value)
     }
 
     /// Returns a reference to the element in the [`IndexSet`], if any, that is equal to the `value`.
@@ -82,7 +70,7 @@ where
         T: Borrow<Q>,
         Q: Hash + Eq + Ord,
     {
-        self.inner.get(value)
+        self.inner.get_key_value(value).map(|(x, &())| x)
     }
 
     /// Adds `value` to the [`IndexSet`].
@@ -92,7 +80,7 @@ where
     /// - Returns `true` if the set did not previously contain an equal value.
     /// - Returns `false` otherwise and the entry is not updated.
     pub fn insert(&mut self, value: T) -> bool {
-        self.inner.insert(value)
+        self.inner.insert(value, ()).is_none()
     }
 
     /// Remove the value from the [`IndexSet`], and return `true` if it was present.
@@ -111,13 +99,15 @@ where
         T: Borrow<Q>,
         Q: Hash + Eq + Ord,
     {
-        self.inner.swap_remove(value)
+        self.inner.swap_remove(value).is_some()
     }
 
     /// Adds a value to the [`IndexSet`], replacing the existing value, if any, that is equal to the given
     /// one. Returns the replaced value.
     pub fn replace(&mut self, value: T) -> Option<T> {
-        self.inner.replace(value)
+        let removed = self.inner.swap_remove_entry(&value);
+        self.inner.insert(value, ());
+        removed.map(|(key, _value)| key)
     }
 
     /// Returns `true` if `self` has no elements in common with `other`.
@@ -149,8 +139,11 @@ where
 {
     type Output = T;
 
-    fn index(&self, key: usize) -> &T {
-        &self.inner[key]
+    fn index(&self, index: usize) -> &T {
+        let Some((value, _)) = self.inner.get_index(index) else {
+            panic!("out of bounds index: {index}");
+        };
+        value
     }
 }
 
@@ -163,7 +156,7 @@ where
         I: IntoIterator<Item = T>,
     {
         Self {
-            inner: <detail::IndexSetImpl<T>>::from_iter(iter),
+            inner: <IndexMap<T, ()>>::from_iter(iter.into_iter().map(|value| (value, ()))),
         }
     }
 }
@@ -182,14 +175,14 @@ where
     T: Hash + Eq + Ord + Clone,
 {
     fn extend<Iter: IntoIterator<Item = T>>(&mut self, iter: Iter) {
-        self.inner.extend(iter)
+        self.inner.extend(iter.into_iter().map(|value| (value, ())))
     }
 }
 
 /// An iterator over the items of a [`Set`].
 #[derive(Debug, Clone)]
 pub struct Iter<'a, T> {
-    inner: detail::IterImpl<'a, T>,
+    inner: <&'a IndexMap<T, ()> as IntoIterator>::IntoIter,
 }
 
 impl<'a, T> Iterator for Iter<'a, T> {
@@ -200,7 +193,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
     }
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next()
+        self.inner.next().map(|(key, _value)| key)
     }
 }
 
@@ -226,7 +219,7 @@ impl<T> IntoIterator for IndexSet<T> {
 /// An iterator over the owned items of an [`Map`].
 #[derive(Debug)]
 pub struct IntoIter<T> {
-    inner: detail::IntoIterImpl<T>,
+    inner: <IndexMap<T, ()> as IntoIterator>::IntoIter,
 }
 
 impl<T> Iterator for IntoIter<T> {
@@ -237,7 +230,7 @@ impl<T> Iterator for IntoIter<T> {
     }
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next()
+        self.inner.next().map(|(key, _value)| key)
     }
 }
 
