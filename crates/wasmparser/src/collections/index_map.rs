@@ -5,25 +5,7 @@ use core::hash::Hash;
 use core::iter::FusedIterator;
 use core::ops::Index;
 
-#[cfg(not(feature = "no-hash-maps"))]
-mod detail {
-    use crate::collections::hash;
-    use indexmap::IndexMap;
-
-    pub type IndexMapImpl<K, V> = IndexMap<K, V, hash::RandomState>;
-    pub type EntryImpl<'a, K, V> = indexmap::map::Entry<'a, K, V>;
-    pub type OccupiedEntryImpl<'a, K, V> = indexmap::map::OccupiedEntry<'a, K, V>;
-    pub type VacantEntryImpl<'a, K, V> = indexmap::map::VacantEntry<'a, K, V>;
-    pub type IterImpl<'a, K, V> = indexmap::map::Iter<'a, K, V>;
-    pub type IterMutImpl<'a, K, V> = indexmap::map::IterMut<'a, K, V>;
-    pub type IntoIterImpl<K, V> = indexmap::map::IntoIter<K, V>;
-    pub type KeysImpl<'a, K, V> = indexmap::map::Keys<'a, K, V>;
-    pub type ValuesImpl<'a, K, V> = indexmap::map::Values<'a, K, V>;
-    pub type ValuesMutImpl<'a, K, V> = indexmap::map::ValuesMut<'a, K, V>;
-}
-
-#[cfg(feature = "no-hash-maps")]
-pub(crate) mod detail;
+mod detail;
 
 /// A hash table where the iteration order of the key-value pairs is independent of the hash values of the keys.
 ///

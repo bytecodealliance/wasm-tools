@@ -1,15 +1,37 @@
 //! An ordered map based on a B-Tree that keeps insertion order of elements.
 
-pub type IndexMapImpl<K, V> = IndexMap<K, V>;
-pub type EntryImpl<'a, K, V> = Entry<'a, K, V>;
-pub type OccupiedEntryImpl<'a, K, V> = OccupiedEntry<'a, K, V>;
-pub type VacantEntryImpl<'a, K, V> = VacantEntry<'a, K, V>;
-pub type IterImpl<'a, K, V> = Iter<'a, K, V>;
-pub type IterMutImpl<'a, K, V> = IterMut<'a, K, V>;
-pub type IntoIterImpl<K, V> = IntoIter<K, V>;
-pub type KeysImpl<'a, K, V> = Keys<'a, K, V>;
-pub type ValuesImpl<'a, K, V> = Values<'a, K, V>;
-pub type ValuesMutImpl<'a, K, V> = ValuesMut<'a, K, V>;
+#[cfg(not(feature = "no-hash-maps"))]
+mod impls {
+    use crate::collections::hash;
+    use indexmap::IndexMap;
+
+    pub type IndexMapImpl<K, V> = IndexMap<K, V, hash::RandomState>;
+    pub type EntryImpl<'a, K, V> = indexmap::map::Entry<'a, K, V>;
+    pub type OccupiedEntryImpl<'a, K, V> = indexmap::map::OccupiedEntry<'a, K, V>;
+    pub type VacantEntryImpl<'a, K, V> = indexmap::map::VacantEntry<'a, K, V>;
+    pub type IterImpl<'a, K, V> = indexmap::map::Iter<'a, K, V>;
+    pub type IterMutImpl<'a, K, V> = indexmap::map::IterMut<'a, K, V>;
+    pub type IntoIterImpl<K, V> = indexmap::map::IntoIter<K, V>;
+    pub type KeysImpl<'a, K, V> = indexmap::map::Keys<'a, K, V>;
+    pub type ValuesImpl<'a, K, V> = indexmap::map::Values<'a, K, V>;
+    pub type ValuesMutImpl<'a, K, V> = indexmap::map::ValuesMut<'a, K, V>;
+}
+
+#[cfg(feature = "no-hash-maps")]
+mod impls {
+    pub type IndexMapImpl<K, V> = super::IndexMap<K, V>;
+    pub type EntryImpl<'a, K, V> = super::Entry<'a, K, V>;
+    pub type OccupiedEntryImpl<'a, K, V> = super::OccupiedEntry<'a, K, V>;
+    pub type VacantEntryImpl<'a, K, V> = super::VacantEntry<'a, K, V>;
+    pub type IterImpl<'a, K, V> = super::Iter<'a, K, V>;
+    pub type IterMutImpl<'a, K, V> = super::IterMut<'a, K, V>;
+    pub type IntoIterImpl<K, V> = super::IntoIter<K, V>;
+    pub type KeysImpl<'a, K, V> = super::Keys<'a, K, V>;
+    pub type ValuesImpl<'a, K, V> = super::Values<'a, K, V>;
+    pub type ValuesMutImpl<'a, K, V> = super::ValuesMut<'a, K, V>;
+}
+
+pub use self::impls::*;
 
 use alloc::collections::{btree_map, BTreeMap};
 use alloc::vec::IntoIter as VecIntoIter;
