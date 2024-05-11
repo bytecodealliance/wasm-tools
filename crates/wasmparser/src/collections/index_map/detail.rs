@@ -256,14 +256,23 @@ impl<K, V> IndexMap<K, V> {
         K: Borrow<Q> + Ord,
         Q: ?Sized + Ord,
     {
+        let len = self.len();
+        if len == 0 {
+            return None
+        }
         let index = self.get_index_of(key)?;
         let removed = self.slots.swap_remove(index);
-        let swapped = self.slots[index].key.borrow();
-        let swapped_index = self
-            .key2slot
-            .get_mut(swapped)
-            .expect("the swapped entry's key must be present");
-        *swapped_index = SlotIndex(index);
+        if index != len - 1 {
+            // If the index was referring the last element
+            // `swap_remove` would not swap any other element
+            // thus adjustments are only needed if this was not the case.
+            let swapped = self.slots[index].key.borrow();
+            let swapped_index = self
+                .key2slot
+                .get_mut(swapped)
+                .expect("the swapped entry's key must be present");
+            *swapped_index = SlotIndex(index);
+        }
         Some((index, removed.key, removed.value))
     }
 
