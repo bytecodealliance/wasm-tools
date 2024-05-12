@@ -76,7 +76,7 @@ pub trait Val: Sized {
     /// A tuple visitor.
     type T: Tuple<Self>;
     /// A flags visitor.
-    type F: Flags<Self>;
+    type F: Flags;
     /// A primitive value.
     fn primitive(self, v: PrimitiveValue);
     /// A record.
@@ -132,11 +132,95 @@ pub trait Tuple<V: Val>: Sized {
 }
 
 /// A visitor for flags fields.
-pub trait Flags<V: Val>: Sized {
+pub trait Flags: Sized {
     /// The next flags field.
-    fn field(&mut self, name: &str, val: bool);
+    fn field(&mut self, name: &str, v: bool);
     /// No more fields.
     fn end(self);
+}
+
+/// A val visitor intended for validation.
+pub struct VacuousVisitor();
+
+impl Val for VacuousVisitor {
+    type R = Self;
+    type T = Self;
+    type L = Self;
+    type F = Self;
+
+    fn primitive(self, _v: PrimitiveValue) {}
+
+    fn record(self, _length: u32) -> Self::R {
+        VacuousVisitor()
+    }
+
+    fn variant_case(self, _label_index: u32, _name: &str) -> Self {
+        VacuousVisitor()
+    }
+
+    fn variant_case_empty(self, _label_index: u32, _name: &str) {}
+
+    fn list(self, _length: u32) -> Self::L {
+        VacuousVisitor()
+    }
+
+    fn tuple(self, _length: u32) -> Self::T {
+        VacuousVisitor()
+    }
+
+    fn flags(self, _length: u32) -> Self::F {
+        VacuousVisitor()
+    }
+
+    fn enum_case(self, _label_index: u32, _name: &str) {}
+
+    fn none(self) {}
+
+    fn some(self) -> Self {
+        VacuousVisitor()
+    }
+
+    fn ok(self) -> Self {
+        VacuousVisitor()
+    }
+
+    fn ok_empty(self) {}
+
+    fn error(self) -> Self {
+        VacuousVisitor()
+    }
+
+    fn error_empty(self) {}
+}
+
+impl Record<VacuousVisitor> for VacuousVisitor {
+    fn field(&mut self, _name: &str) -> VacuousVisitor {
+        VacuousVisitor()
+    }
+
+    fn end(self) {}
+}
+
+impl List<VacuousVisitor> for VacuousVisitor {
+    fn element(&mut self) -> VacuousVisitor {
+        VacuousVisitor()
+    }
+
+    fn end(self) {}
+}
+
+impl Tuple<VacuousVisitor> for VacuousVisitor {
+    fn field(&mut self) -> VacuousVisitor {
+        VacuousVisitor()
+    }
+
+    fn end(self) {}
+}
+
+impl Flags for VacuousVisitor {
+    fn field(&mut self, _name: &str, _v: bool) {}
+
+    fn end(self) {}
 }
 
 /// A reader for the value section of a WebAssembly component.
@@ -210,25 +294,21 @@ where
         ComponentDefinedType::Flags(flags_ty) => {
             let n = reader.read_var_u64()?;
             let mut flags = visitor.flags(flags_ty.len() as u32);
-            for i in 0..flags_ty.len() {
-                let v = if ((n >> (i as u64)) & 1) == 1 {
-                    true
-                } else {
-                    false
-                };
-                flags.field(flags_ty.get_index(i).unwrap(), v);
+            for (i, name) in flags_ty.iter().enumerate() {
+                flags.field(name, ((n >> (i as u64)) & 1) == 1);
             }
             flags.end();
         }
         ComponentDefinedType::Enum(enum_ty) => {
             let label = reader.read_var_u32()?;
-            if label as usize >= enum_ty.len() {
+            if let Some(name) = enum_ty.get_index(label as usize) {
+                visitor.enum_case(label, name);
+            } else {
                 bail!(
                     reader.original_position(),
                     "invalid enum case label: {label}"
                 );
             }
-            visitor.enum_case(label, enum_ty.get_index(label as usize).unwrap());
         }
         ComponentDefinedType::Option(option_ty) => match reader.read_u8()? {
             0x0 => {

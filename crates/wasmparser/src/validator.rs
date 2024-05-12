@@ -16,7 +16,8 @@
 use crate::prelude::*;
 use crate::{
     limits::*, BinaryReaderError, Encoding, FromReader, FunctionBody, HeapType, Parser, Payload,
-    RefType, Result, SectionLimited, ValType, WASM_COMPONENT_VERSION, WASM_MODULE_VERSION,
+    RefType, Result, SectionLimited, VacuousVisitor, ValType, WASM_COMPONENT_VERSION,
+    WASM_MODULE_VERSION,
 };
 use ::core::mem;
 use ::core::ops::Range;
@@ -1469,6 +1470,7 @@ impl Validator {
                 "support for component model `value`s is not enabled"
             );
         }
+        let validator_id = self.id;
         self.process_component_section(
             section,
             "value",
@@ -1486,7 +1488,9 @@ impl Validator {
             },
             |components, types, features, value, offset| {
                 let current = components.last_mut().unwrap();
-                current.add_value(value, features, types, offset)?;
+                let types = TypesRef::from_component(validator_id, types, current);
+                value.val(types, VacuousVisitor())?;
+                current.add_value(value, features, offset)?;
                 Ok(())
             },
         )

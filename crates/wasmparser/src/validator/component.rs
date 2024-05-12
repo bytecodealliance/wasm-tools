@@ -1246,7 +1246,6 @@ impl ComponentState {
         &mut self,
         value: ComponentValue,
         features: &WasmFeatures,
-        _types: &mut TypeList,
         offset: usize,
     ) -> Result<()> {
         if !features.contains(WasmFeatures::COMPONENT_MODEL_VALUES) {
@@ -1255,7 +1254,6 @@ impl ComponentState {
                 "support for component model `value`s is not enabled"
             );
         }
-
         let ty = self.create_component_val_type(value.ty, offset)?;
         self.values.push((ty, false));
         Ok(())
