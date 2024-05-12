@@ -14,13 +14,9 @@ pub struct ComponentValue<'a> {
 }
 
 impl<'a> ComponentValue<'a> {
-    /// A component model value.
-    /// This takes the types from the current components type section
-    /// in the same order as they where read from there.
-    pub fn val<V>(&self, types: TypesRef, visitor: V) -> Result<()>
-    where
-        V: Val,
-    {
+    /// Visits a component model value.
+    /// Expects the types from the component it belongs to.
+    pub fn val<V: Val>(&self, types: TypesRef, visitor: V) -> Result<()> {
         let ty = match self.ty {
             crate::ComponentValType::Primitive(prim_ty) => ComponentValType::Primitive(prim_ty),
             crate::ComponentValType::Type(idx) => {
@@ -140,7 +136,7 @@ pub trait Flags: Sized {
 }
 
 /// A val visitor intended for validation.
-pub struct VacuousVisitor();
+pub struct VacuousVisitor;
 
 impl Val for VacuousVisitor {
     type R = Self;
@@ -151,25 +147,25 @@ impl Val for VacuousVisitor {
     fn primitive(self, _v: PrimitiveValue) {}
 
     fn record(self, _length: u32) -> Self::R {
-        VacuousVisitor()
+        VacuousVisitor
     }
 
     fn variant_case(self, _label_index: u32, _name: &str) -> Self {
-        VacuousVisitor()
+        VacuousVisitor
     }
 
     fn variant_case_empty(self, _label_index: u32, _name: &str) {}
 
     fn list(self, _length: u32) -> Self::L {
-        VacuousVisitor()
+        VacuousVisitor
     }
 
     fn tuple(self, _length: u32) -> Self::T {
-        VacuousVisitor()
+        VacuousVisitor
     }
 
     fn flags(self, _length: u32) -> Self::F {
-        VacuousVisitor()
+        VacuousVisitor
     }
 
     fn enum_case(self, _label_index: u32, _name: &str) {}
@@ -177,17 +173,17 @@ impl Val for VacuousVisitor {
     fn none(self) {}
 
     fn some(self) -> Self {
-        VacuousVisitor()
+        VacuousVisitor
     }
 
     fn ok(self) -> Self {
-        VacuousVisitor()
+        VacuousVisitor
     }
 
     fn ok_empty(self) {}
 
     fn error(self) -> Self {
-        VacuousVisitor()
+        VacuousVisitor
     }
 
     fn error_empty(self) {}
@@ -195,7 +191,7 @@ impl Val for VacuousVisitor {
 
 impl Record<VacuousVisitor> for VacuousVisitor {
     fn field(&mut self, _name: &str) -> VacuousVisitor {
-        VacuousVisitor()
+        VacuousVisitor
     }
 
     fn end(self) {}
@@ -203,7 +199,7 @@ impl Record<VacuousVisitor> for VacuousVisitor {
 
 impl List<VacuousVisitor> for VacuousVisitor {
     fn element(&mut self) -> VacuousVisitor {
-        VacuousVisitor()
+        VacuousVisitor
     }
 
     fn end(self) {}
@@ -211,7 +207,7 @@ impl List<VacuousVisitor> for VacuousVisitor {
 
 impl Tuple<VacuousVisitor> for VacuousVisitor {
     fn field(&mut self) -> VacuousVisitor {
-        VacuousVisitor()
+        VacuousVisitor
     }
 
     fn end(self) {}
@@ -240,15 +236,12 @@ impl<'a> FromReader<'a> for ComponentValue<'a> {
     }
 }
 
-fn read_val<V>(
+fn read_val<V: Val>(
     reader: &mut BinaryReader,
     ty: ComponentValType,
     types: TypesRef,
     visitor: V,
-) -> Result<()>
-where
-    V: Val,
-{
+) -> Result<()> {
     let ty = get_defined_type(ty, types, reader.original_position())?;
     match ty {
         ComponentDefinedType::Primitive(prim_ty) => {

@@ -1489,7 +1489,7 @@ impl Validator {
             |components, types, features, value, offset| {
                 let current = components.last_mut().unwrap();
                 let types = TypesRef::from_component(validator_id, types, current);
-                value.val(types, VacuousVisitor())?;
+                value.val(types, VacuousVisitor)?;
                 current.add_value(value, features, offset)?;
                 Ok(())
             },
