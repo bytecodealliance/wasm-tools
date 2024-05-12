@@ -7,6 +7,9 @@ use core::ops::Index;
 
 mod detail;
 
+#[cfg(test)]
+mod tests;
+
 /// A hash table where the iteration order of the key-value pairs is independent of the hash values of the keys.
 ///
 /// Provides an API compatible with both [`IndexMap`] and a custom implementation based on [`BTreeMap`].
