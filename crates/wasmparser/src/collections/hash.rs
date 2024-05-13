@@ -1,23 +1,6 @@
-//! Type aliases for maps used by `wasmparser`
-//!
-//! This module contains type aliases used for [`HashMap`], [`HashSet`],
-//! [`IndexMap`], and [`IndexSet`]. Note that these differ from upstream types
-//! in the `indexmap` crate and the standard library due to customization of the
-//! hash algorithm type parameter.
+//! Utilities for hashmap initialization based on random sources.
 
 use core::hash::{BuildHasher, Hasher};
-
-/// Wasmparser-specific type alias for an ordered map.
-pub type IndexMap<K, V> = indexmap::IndexMap<K, V, RandomState>;
-
-/// Wasmparser-specific type alias for an ordered set.
-pub type IndexSet<K> = indexmap::IndexSet<K, RandomState>;
-
-/// Wasmparser-specific type alias for hash map.
-pub type HashMap<K, V> = hashbrown::HashMap<K, V, RandomState>;
-
-/// Wasmparser-specific type alias for hash set.
-pub type HashSet<K> = hashbrown::HashSet<K, RandomState>;
 
 /// Wasmparser's hashing state stored per-map.
 ///

@@ -10,6 +10,7 @@ use super::{
         ModuleType, RecordType, Remapping, ResourceId, TypeAlloc, TypeList, VariantCase,
     },
 };
+use crate::collections::index_map::Entry;
 use crate::prelude::*;
 use crate::validator::names::{ComponentName, ComponentNameKind, KebabStr, KebabString};
 use crate::{
@@ -25,7 +26,6 @@ use crate::{
     WasmFeatures,
 };
 use core::mem;
-use indexmap::map::Entry;
 
 fn to_kebab_str<'a>(s: &'a str, desc: &str, offset: usize) -> Result<&'a KebabStr> {
     match KebabStr::new(s) {
@@ -152,10 +152,10 @@ pub(crate) struct ComponentState {
     ///
     /// This set is consulted whenever an exported item is added since all
     /// referenced types must be members of this set.
-    exported_types: HashSet<ComponentAnyTypeId>,
+    exported_types: Set<ComponentAnyTypeId>,
 
     /// Same as `exported_types`, but for imports.
-    imported_types: HashSet<ComponentAnyTypeId>,
+    imported_types: Set<ComponentAnyTypeId>,
 
     /// The set of top-level resource exports and their names.
     ///
@@ -185,7 +185,7 @@ pub enum ComponentKind {
 struct ComponentNameContext {
     /// A map from a resource type id to an index in the `all_resource_names`
     /// set for the name of that resource.
-    resource_name_map: HashMap<AliasableResourceId, usize>,
+    resource_name_map: Map<AliasableResourceId, usize>,
 
     /// All known resource names in this context, used to validate static method
     /// names to by ensuring that static methods' resource names are somewhere
@@ -669,7 +669,7 @@ impl ComponentState {
         &self,
         types: &TypeAlloc,
         id: ComponentAnyTypeId,
-        set: &HashSet<ComponentAnyTypeId>,
+        set: &Set<ComponentAnyTypeId>,
     ) -> bool {
         match id {
             // Resource types, in isolation, are always valid to import or
@@ -694,7 +694,7 @@ impl ComponentState {
         &self,
         types: &TypeAlloc,
         id: ComponentInstanceTypeId,
-        set: &HashSet<ComponentAnyTypeId>,
+        set: &Set<ComponentAnyTypeId>,
     ) -> bool {
         // Instances must recursively have all referenced types named.
         let ty = &types[id];
@@ -719,7 +719,7 @@ impl ComponentState {
         &self,
         types: &TypeAlloc,
         id: ComponentDefinedTypeId,
-        set: &HashSet<ComponentAnyTypeId>,
+        set: &Set<ComponentAnyTypeId>,
     ) -> bool {
         let ty = &types[id];
         match ty {
@@ -766,7 +766,7 @@ impl ComponentState {
         &self,
         types: &TypeAlloc,
         id: ComponentFuncTypeId,
-        set: &HashSet<ComponentAnyTypeId>,
+        set: &Set<ComponentAnyTypeId>,
     ) -> bool {
         let ty = &types[id];
         // Function types must have all their parameters/results named.
@@ -1656,14 +1656,15 @@ impl ComponentState {
     ) -> Result<ComponentFuncType> {
         let mut info = TypeInfo::new();
 
-        let mut set = HashSet::default();
+        let mut set = Set::default();
+        #[cfg(not(feature = "no-hash-maps"))] // TODO: remove when unified map type is available
         set.reserve(core::cmp::max(ty.params.len(), ty.results.type_count()));
 
         let params = ty
             .params
             .iter()
             .map(|(name, ty)| {
-                let name = to_kebab_str(name, "function parameter", offset)?;
+                let name: &KebabStr = to_kebab_str(name, "function parameter", offset)?;
                 if !set.insert(name) {
                     bail!(
                         offset,
@@ -3211,7 +3212,7 @@ mod append_only {
 
     impl<K, V> IndexMapAppendOnly<K, V>
     where
-        K: Hash + Eq + PartialEq,
+        K: Hash + Eq + Ord + PartialEq + Clone,
     {
         pub fn insert(&mut self, key: K, value: V) {
             let prev = self.0.insert(key, value);

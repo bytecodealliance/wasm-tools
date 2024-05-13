@@ -50,7 +50,7 @@ mod prelude {
     pub use alloc::vec::Vec;
 
     #[cfg(feature = "validate")]
-    pub use crate::map::{HashMap, HashSet, IndexMap, IndexSet};
+    pub use crate::collections::{IndexMap, IndexSet, Map, Set};
 }
 
 /// A helper macro to conveniently iterate over all opcodes recognized by this
@@ -804,4 +804,4 @@ pub use crate::resources::*;
 pub use crate::validator::*;
 
 #[cfg(feature = "validate")]
-pub mod map;
+pub mod collections;
