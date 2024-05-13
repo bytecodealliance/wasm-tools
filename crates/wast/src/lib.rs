@@ -347,12 +347,16 @@ pub mod lexer;
 pub mod parser;
 pub mod token;
 
+#[cfg(feature = "wasm-module")]
 mod encode;
 mod error;
+#[cfg(feature = "wasm-module")]
 mod gensym;
+#[cfg(feature = "wasm-module")]
 mod names;
 pub use self::error::*;
 
+#[cfg(feature = "wasm-module")]
 macro_rules! id {
     ($($t:tt)*) => ($($t)*)
 }

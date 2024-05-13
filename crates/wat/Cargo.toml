@@ -11,6 +11,7 @@ documentation = "https://docs.rs/wat"
 description = """
 Rust parser for the WebAssembly Text format, WAT
 """
+rust-version.workspace = true
 
 [lints]
 workspace = true

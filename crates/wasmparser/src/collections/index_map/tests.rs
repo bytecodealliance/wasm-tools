@@ -75,11 +75,11 @@ fn extend_works() {
     for (index, (key, value)) in values.into_iter().enumerate() {
         assert_get(&mut map, key, (index, value));
     }
-    assert!(map.iter().eq(values.each_ref().map(|(k, v)| (k, v))));
-    assert!(map.iter_mut().eq(values.each_mut().map(|(k, v)| (&*k, v))));
-    assert!(map.keys().eq(values.each_ref().map(|(k, _v)| k)));
-    assert!(map.values().eq(values.each_ref().map(|(_k, v)| v)));
-    assert!(map.values_mut().eq(values.each_mut().map(|(_k, v)| v)));
+    assert!(map.iter().eq(values.iter().map(|(k, v)| (k, v))));
+    assert!(map.iter_mut().eq(values.iter_mut().map(|(k, v)| (&*k, v))));
+    assert!(map.keys().eq(values.iter().map(|(k, _v)| k)));
+    assert!(map.values().eq(values.iter().map(|(_k, v)| v)));
+    assert!(map.values_mut().eq(values.iter_mut().map(|(_k, v)| v)));
     assert!(map.into_iter().eq(values));
 }
 

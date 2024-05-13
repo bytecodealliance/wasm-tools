@@ -6,6 +6,7 @@ license = "Apache-2.0 WITH LLVM-exception"
 name = "wit-smith"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wit-smith"
 version.workspace = true
+rust-version.workspace = true
 
 [lints]
 workspace = true

@@ -75,6 +75,7 @@ impl<'a> Id<'a> {
         }
     }
 
+    #[cfg(feature = "wasm-module")]
     pub(crate) fn gensym(span: Span, gen: u32) -> Id<'a> {
         Id {
             name: "gensym",
@@ -95,6 +96,7 @@ impl<'a> Id<'a> {
         self.span
     }
 
+    #[cfg(feature = "wasm-module")]
     pub(crate) fn is_gensym(&self) -> bool {
         self.gen != 0
     }
@@ -180,6 +182,7 @@ impl Index<'_> {
         }
     }
 
+    #[cfg(feature = "wasm-module")]
     pub(crate) fn is_resolved(&self) -> bool {
         matches!(self, Index::Num(..))
     }

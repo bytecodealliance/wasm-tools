@@ -3,6 +3,7 @@ name = "middleware"
 version = "0.1.0"
 edition = "2021"
 publish = false
+rust-version.workspace = true
 
 [dependencies]
 flate2 = "1.0.24"

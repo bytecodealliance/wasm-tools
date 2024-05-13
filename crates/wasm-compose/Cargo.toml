@@ -9,6 +9,7 @@ repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wa
 homepage = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-compose"
 documentation = "https://docs.rs/wasm-compose"
 description = "A library for composing WebAssembly components."
+rust-version.workspace = true
 
 [lints]
 workspace = true

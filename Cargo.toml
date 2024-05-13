@@ -11,6 +11,7 @@ keywords = ["webassembly", "wasm"]
 repository = "https://github.com/bytecodealliance/wasm-tools"
 readme = "README.md"
 exclude = ['tests/wabt', 'tests/testsuite', 'tests/snapshots', 'ci']
+rust-version.workspace = true
 
 [lints]
 workspace = true
@@ -34,6 +35,9 @@ all = "allow"
 [workspace.package]
 edition = '2021'
 version = "0.207.0"
+# Current policy for wasm-tools is the same as Wasmtime which is that this
+# number can be no larger than the current stable release of Rust minus 2.
+rust-version = "1.76.0"
 
 [workspace.dependencies]
 anyhow = "1.0.58"

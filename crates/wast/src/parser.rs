@@ -82,6 +82,7 @@ use std::usize;
 /// modules/components which be far trickier. For now we just say that when
 /// the parser goes too deep we return an error saying there's too many
 /// nested items. It would be great to not return an error here, though!
+#[cfg(feature = "wasm-module")]
 pub(crate) const MAX_PARENS_DEPTH: usize = 100;
 
 /// A top-level convenience parsing function that parses a `T` from `buf` and
@@ -483,6 +484,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    #[cfg(feature = "wasm-module")]
     pub(crate) fn has_meaningful_tokens(self) -> bool {
         self.buf.lexer.iter(0).any(|t| match t {
             Ok(token) => !matches!(
@@ -759,6 +761,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Checks that the parser parens depth hasn't exceeded the maximum depth.
+    #[cfg(feature = "wasm-module")]
     pub(crate) fn depth_check(&self) -> Result<()> {
         if self.parens_depth() > MAX_PARENS_DEPTH {
             Err(self.error("item nesting too deep"))
