@@ -76,6 +76,9 @@ subcommands! {
     (json_from_wast, "json-from-wast")
 }
 
+// when all features are disabled then `WasmTools` is an empty enum so suppress
+// some lints about how rustc detects that everything afterwards is unreachable.
+#[allow(unreachable_code, unused_variables)]
 fn main() -> ExitCode {
     let args = <WasmTools as Parser>::parse();
     args.general_opts().init_logger();
