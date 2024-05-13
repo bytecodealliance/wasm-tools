@@ -3,6 +3,7 @@ name = "svc"
 version = "0.1.0"
 edition = "2021"
 publish = false
+rust-version.workspace = true
 
 [dependencies]
 cargo-component-bindings = "0.6.0"

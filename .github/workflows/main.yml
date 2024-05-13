@@ -40,7 +40,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - run: rustup update stable --no-self-update && rustup default stable
+    - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
     - uses: bytecodealliance/wasmtime/.github/actions/binary-compatible-builds@v20.0.0
       with:
         name: ${{ matrix.build }}
@@ -63,8 +63,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
-      - name: Install Rust
-        run: rustup update stable --no-self-update && rustup default stable
+      - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
       - name: Test (no-hash-maps)
         run: cargo test --workspace --locked --features no-hash-maps
 
@@ -73,29 +72,26 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        build: [stable, beta, nightly, macos, windows]
         include:
-          - build: stable
-            os: ubuntu-latest
-            rust: stable
-          - build: beta
-            os: ubuntu-latest
+          - os: ubuntu-latest
+            rust: default
+          - os: ubuntu-latest
             rust: beta
-          - build: nightly
-            os: ubuntu-latest
+          - os: ubuntu-latest
             rust: nightly
-          - build: macos
-            os: macos-latest
-            rust: stable
-          - build: windows
-            os: windows-latest
-            rust: stable
+          - os: macos-latest
+            rust: default
+          - os: windows-latest
+            rust: default
+          - os: ubuntu-latest
+            rust: msrv
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - name: Install Rust (rustup)
-      run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
+    - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
+      with:
+        toolchain: ${{ matrix.rust }}
     - run: cargo test --locked --all
 
   test_extra_features:
@@ -105,7 +101,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - run: rustup update stable --no-self-update && rustup default stable
+    - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
     - run: cargo test --locked -p wasmparser --benches
     - run: cargo test --locked -p wasm-encoder --all-features
     - run: cargo test -p wasm-smith --features wasmparser
@@ -123,7 +119,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - run: rustup update stable --no-self-update && rustup default stable
+    - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
     - run: cmake -S examples -B examples/build -DCMAKE_BUILD_TYPE=Release
     - run: cmake --build examples/build --config Release
 
@@ -134,13 +130,13 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - name: Install Rust (rustup)
-      run: rustup update 1.77.0 --no-self-update && rustup default 1.77.0
+    - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
+      with:
+        toolchain: 1.77.0
     - run: |
         curl -LO https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-21/wasi-sdk-21.0-linux.tar.gz
         tar xf wasi-sdk-21.0-linux.tar.gz
         export WASI_SDK_PATH=$(pwd)/wasi-sdk-21.0
-        rustup target add wasm32-wasi
         cd crates/wit-component/dl && bash check.sh
 
   wasm:
@@ -150,9 +146,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - name: Install Rust
-      run: rustup update stable --no-self-update && rustup default stable
-    - run: rustup target add wasm32-wasi
+    - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
     - run: |
         tag=v10.0.1
         curl -LO https://github.com/bytecodealliance/wasmtime/releases/download/${tag}/wasmtime-${tag}-x86_64-linux.tar.xz
@@ -172,8 +166,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Install Rust
-      run: rustup update stable && rustup default stable && rustup component add rustfmt
+    - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
+    - run: rustup component add rustfmt
     # Note that this doesn't use `cargo fmt` because that doesn't format
     # modules-defined-in-macros which is in use in `wast` for example. This is
     # the best alternative I can come up with at this time
@@ -186,8 +180,9 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - name: Install Rust
-      run: rustup update nightly && rustup default nightly
+    - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
+      with:
+        toolchain: nightly
     - run: cargo install cargo-fuzz
     - run: cargo fuzz build --dev -s none
     - run: cargo fuzz build --dev --features wasmtime -s none
@@ -196,6 +191,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
       - run: rustup target add x86_64-unknown-none
       - run: cargo check --benches -p wasm-smith
       - run: cargo check --no-default-features
@@ -246,7 +242,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - run: rustup update stable && rustup default stable
+    - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
     - run: rustc ci/publish.rs
     # Make sure the tree is publish-able as-is
     - run: ./publish verify

@@ -10,6 +10,7 @@ readme = "./README.md"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-smith"
 version.workspace = true
 exclude = ["/benches/corpus"]
+rust-version.workspace = true
 
 [[bench]]
 name = "corpus"

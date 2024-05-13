@@ -11,6 +11,7 @@ documentation = "https://docs.rs/wit-parser"
 description = """
 Tooling for parsing `*.wit` files and working with their contents.
 """
+rust-version.workspace = true
 
 [lints]
 workspace = true
