@@ -610,7 +610,7 @@ impl Module {
 
         self.check_composite_type(&ty.composite_type, features, offset)?;
 
-        if let Some(supertype_index) = ty.supertype_idx {
+        let depth = if let Some(supertype_index) = ty.supertype_idx {
             debug_assert!(supertype_index.is_canonical());
             let sup_id = self.at_packed_index(types, rec_group, supertype_index, offset)?;
             if types[sup_id].is_final {
@@ -619,7 +619,20 @@ impl Module {
             if !types.matches(id, sup_id) {
                 bail!(offset, "sub type must match super type");
             }
-        }
+            let depth = types.get_subtyping_depth(sup_id) + 1;
+            if usize::from(depth) > crate::limits::MAX_WASM_SUBTYPING_DEPTH {
+                bail!(
+                    offset,
+                    "sub type hierarchy too deep: found depth {}, cannot exceed depth {}",
+                    depth,
+                    crate::limits::MAX_WASM_SUBTYPING_DEPTH,
+                );
+            }
+            depth
+        } else {
+            0
+        };
+        types.set_subtyping_depth(id, depth);
 
         Ok(())
     }
