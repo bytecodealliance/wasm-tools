@@ -2458,8 +2458,13 @@ pub struct TypeList {
     core_type_to_rec_group: SnapshotList<RecGroupId>,
     // The supertype of each core type.
     //
-    // A secondary map from `coreTypeId` to `Option<CoreTypeId>`.
+    // A secondary map from `CoreTypeId` to `Option<CoreTypeId>`.
     core_type_to_supertype: SnapshotList<Option<CoreTypeId>>,
+    // The subtyping depth of each core type. We use `u8::MAX` as a sentinel for
+    // an uninitialized entry.
+    //
+    // A secondary map from `CoreTypeId` to `u8`.
+    core_type_to_depth: Option<IndexMap<CoreTypeId, u8>>,
     // A primary map from `RecGroupId` to the range of the rec group's elements
     // within `core_types`.
     rec_group_elements: SnapshotList<Range<CoreTypeId>>,
@@ -2499,6 +2504,7 @@ struct TypeListCheckpoint {
     core_instances: usize,
     core_type_to_rec_group: usize,
     core_type_to_supertype: usize,
+    core_type_to_depth: usize,
     rec_group_elements: usize,
     canonical_rec_groups: usize,
 }
@@ -2612,6 +2618,29 @@ impl TypeList {
     /// Get the super type of the given type id, if any.
     pub fn supertype_of(&self, id: CoreTypeId) -> Option<CoreTypeId> {
         self.core_type_to_supertype[id.index()]
+    }
+
+    /// Get the subtyping depth of the given type. A type without any supertype
+    /// has depth 0.
+    pub fn get_subtyping_depth(&self, id: CoreTypeId) -> u8 {
+        let depth = self
+            .core_type_to_depth
+            .as_ref()
+            .expect("cannot get subtype depth from a committed list")[id.index()];
+        debug_assert!(usize::from(depth) <= crate::limits::MAX_WASM_SUBTYPING_DEPTH);
+        depth
+    }
+
+    /// Set the subtyping depth of the given type. This may only be done once
+    /// per type.
+    pub fn set_subtyping_depth(&mut self, id: CoreTypeId, depth: u8) {
+        debug_assert!(usize::from(depth) <= crate::limits::MAX_WASM_SUBTYPING_DEPTH);
+        let map = self
+            .core_type_to_depth
+            .as_mut()
+            .expect("cannot set a subtype depth in a committed list");
+        debug_assert!(!map.contains_key(&id));
+        map.insert(id, depth);
     }
 
     /// Get the `CoreTypeId` for a canonicalized `PackedIndex`.
@@ -2827,6 +2856,7 @@ impl TypeList {
             core_instances,
             core_type_to_rec_group,
             core_type_to_supertype,
+            core_type_to_depth,
             rec_group_elements,
             canonical_rec_groups,
         } = self;
@@ -2842,6 +2872,7 @@ impl TypeList {
             core_instances: core_instances.len(),
             core_type_to_rec_group: core_type_to_rec_group.len(),
             core_type_to_supertype: core_type_to_supertype.len(),
+            core_type_to_depth: core_type_to_depth.as_ref().map(|m| m.len()).unwrap_or(0),
             rec_group_elements: rec_group_elements.len(),
             canonical_rec_groups: canonical_rec_groups.as_ref().map(|m| m.len()).unwrap_or(0),
         }
@@ -2862,6 +2893,7 @@ impl TypeList {
             core_instances,
             core_type_to_rec_group,
             core_type_to_supertype,
+            core_type_to_depth,
             rec_group_elements,
             canonical_rec_groups,
         } = self;
@@ -2878,6 +2910,14 @@ impl TypeList {
         core_type_to_supertype.truncate(checkpoint.core_type_to_supertype);
         rec_group_elements.truncate(checkpoint.rec_group_elements);
 
+        if let Some(core_type_to_depth) = core_type_to_depth {
+            assert_eq!(
+                core_type_to_depth.len(),
+                checkpoint.core_type_to_depth,
+                "checkpointing does not support resetting `core_type_to_depth` (it would require a \
+                 proper immutable and persistent hash map) so adding new groups is disallowed"
+            );
+        }
         if let Some(canonical_rec_groups) = canonical_rec_groups {
             assert_eq!(
                 canonical_rec_groups.len(),
@@ -2914,6 +2954,7 @@ impl TypeList {
             core_instances: self.core_instances.commit(),
             core_type_to_rec_group: self.core_type_to_rec_group.commit(),
             core_type_to_supertype: self.core_type_to_supertype.commit(),
+            core_type_to_depth: None,
             rec_group_elements: self.rec_group_elements.commit(),
             canonical_rec_groups: None,
         }
@@ -3006,6 +3047,7 @@ impl Default for TypeAlloc {
             },
             next_resource_id: 0,
         };
+        ret.list.core_type_to_depth = Some(Default::default());
         ret.list.canonical_rec_groups = Some(Default::default());
         ret
     }
