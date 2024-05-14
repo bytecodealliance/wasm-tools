@@ -290,14 +290,18 @@ impl<'a> BinaryReader<'a> {
     fn read_memarg(&mut self, max_align: u8) -> Result<MemArg> {
         let flags_pos = self.original_position();
         let mut flags = self.read_var_u32()?;
-        let memory = if flags & (1 << 6) != 0 {
+
+        let memory = if self.features.multi_memory() && flags & (1 << 6) != 0 {
             flags ^= 1 << 6;
             self.read_var_u32()?
         } else {
             0
         };
         let align = if flags >= (1 << 6) {
-            return Err(BinaryReaderError::new("alignment too large", flags_pos));
+            return Err(BinaryReaderError::new(
+                "malformed memop flags: alignment too large",
+                flags_pos,
+            ));
         } else {
             flags as u8
         };
