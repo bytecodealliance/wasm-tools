@@ -265,6 +265,7 @@ jobs:
       - verify-publish
       - test_capi
       - test_extra_features
+      - test-no-hash-maps
     if: always()
 
     steps:
