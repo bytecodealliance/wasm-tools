@@ -715,6 +715,7 @@ impl Parser {
                         self.max_size -= u64::from(len);
                         self.offset += u64::from(len);
                         let mut parser = Parser::new(usize_to_u64(reader.original_position()));
+                        parser.features = self.features;
                         parser.max_size = u64::from(len);
 
                         Ok(match id {
