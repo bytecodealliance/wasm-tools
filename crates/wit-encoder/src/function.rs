@@ -1,6 +1,47 @@
-use crate::{Docs, Type};
+use std::fmt::{self, Display};
 
-pub type Params = Vec<(String, Type)>;
+
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", serde(untagged))]
+pub struct Params {
+    items: Vec<(String, Type)>,
+}
+
+impl FromIterator<(String, Type)> for Params {
+    fn from_iter<T: IntoIterator<Item = (String, Type)>>(iter: T) -> Self {
+        Self {
+            items: iter.into_iter().collect(),
+        }
+    }
+}
+
+impl Display for Params {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut peekable = self.items.iter().peekable();
+        while let Some((name, type_)) = peekable.next() {
+            write!(f, "{}: {}", name, type_)?;
+            if peekable.peek().is_some() {
+                write!(f, ", ")?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Params {
+    pub fn empty() -> Self {
+        Self::default()
+    }
+
+    pub fn items(&self) -> &Vec<(String, Type)> {
+        &self.items
+    }
+
+    pub fn items_mut(&mut self) -> &mut Vec<(String, Type)> {
+        &mut self.items
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -40,19 +81,32 @@ impl<'a> ExactSizeIterator for ResultsTypeIter<'a> {}
 impl Results {
     // For the common case of an empty results list.
     pub fn empty() -> Results {
-        Results::Named(Vec::new())
+        Results::Named(Default::default())
+    }
+
+    pub fn anon(type_: Type) -> Results {
+        Results::Anon(type_)
+    }
+
+    pub fn named(types: Vec<(impl Into<String>, Type)>) -> Results {
+        Results::Named(
+            types
+                .into_iter()
+                .map(|(name, ty)| (name.into(), ty))
+                .collect(),
+        )
     }
 
     pub fn len(&self) -> usize {
         match self {
-            Results::Named(params) => params.len(),
+            Results::Named(params) => params.items().len(),
             Results::Anon(_) => 1,
         }
     }
 
     pub fn iter_types(&self) -> ResultsTypeIter {
         match self {
-            Results::Named(ps) => ResultsTypeIter::Named(ps.iter()),
+            Results::Named(ps) => ResultsTypeIter::Named(ps.items().iter()),
             Results::Anon(ty) => ResultsTypeIter::Anon(std::iter::once(ty)),
         }
     }
@@ -61,13 +115,13 @@ impl Results {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Function {
-    pub name: String,
-    pub kind: FunctionKind,
+    name: String,
+    kind: FunctionKind,
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_params"))]
-    pub params: Params,
-    pub results: Results,
+    params: Params,
+    results: Results,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
-    pub docs: Docs,
+    docs: Docs,
 }
 
 impl Function {
@@ -75,7 +129,7 @@ impl Function {
         Self {
             name: name.into(),
             kind: kind,
-            params: vec![],
+            params: Params::empty(),
             results: Results::empty(),
             docs: Docs::default(),
         }
