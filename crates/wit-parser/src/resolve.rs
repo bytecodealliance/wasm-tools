@@ -336,11 +336,13 @@ impl Resolve {
     /// Appends a new [`UnresolvedPackage`] to this [`Resolve`], creating a
     /// fully resolved package with no dangling references.
     ///
-    /// The `deps` argument indicates that the named dependencies in
-    /// `unresolved` to packages are resolved by the mapping specified.
+    /// All the dependencies of `unresolved` must already have been loaded
+    /// within this `Resolve` via previous calls to `push` or other methods such
+    /// as [`Resolve::push_path`].
     ///
     /// Any dependency resolution error or otherwise world-elaboration error
-    /// will be returned here. If successful a package identifier is returned.
+    /// will be returned here. If successful a package identifier is returned
+    /// which corresponds to the package that was just inserted.
     pub fn push(&mut self, mut unresolved: UnresolvedPackage) -> Result<PackageId> {
         let source_map = mem::take(&mut unresolved.source_map);
         source_map.rewrite_error(|| Remap::default().append(self, unresolved))
