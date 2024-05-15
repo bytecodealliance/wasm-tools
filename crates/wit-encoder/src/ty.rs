@@ -1,4 +1,4 @@
-use crate::{Docs, Enum, Flags, Handle, Record, Result_, Tuple, Variant};
+use crate::{Docs, Enum, Flags, Record, Result_, Tuple, Variant};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Type {
@@ -15,7 +15,33 @@ pub enum Type {
     F64,
     Char,
     String,
-    TypeDef(Box<TypeDef>),
+    Borrow(Box<Type>),
+    Option(Box<Type>),
+    Result(Box<Result_>),
+    List(Box<Type>),
+    Tuple(Tuple),
+    Named(String),
+}
+
+impl Type {
+    pub fn borrow(type_: Type) -> Self {
+        Type::Borrow(Box::new(type_))
+    }
+    pub fn option(type_: Type) -> Self {
+        Type::Option(Box::new(type_))
+    }
+    pub fn result(result: Result_) -> Self {
+        Type::Result(Box::new(result))
+    }
+    pub fn list(type_: Type) -> Self {
+        Type::List(Box::new(type_))
+    }
+    pub fn tuple(types: Vec<Type>) -> Self {
+        Type::Tuple(Tuple { types })
+    }
+    pub fn named(name: impl Into<String>) -> Self {
+        Type::Named(name.into())
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -28,7 +54,31 @@ pub enum Int {
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-pub struct Case {
+pub struct EnumCase {
+    pub name: String,
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
+    pub docs: Docs,
+}
+
+impl From<&str> for EnumCase {
+    fn from(value: &str) -> Self {
+        Self {
+            name: value.to_string(),
+            docs: Docs::default(),
+        }
+    }
+}
+
+impl EnumCase {
+    pub fn docs(mut self, docs: Docs) -> Self {
+        self.docs = docs;
+        self
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub struct VariantCase {
     pub name: String,
     #[cfg_attr(feature = "serde", serde(rename = "type"))]
     pub ty: Option<Type>,
@@ -39,7 +89,7 @@ pub struct Case {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct TypeDef {
-    pub name: Option<String>,
+    pub name: String,
     pub kind: TypeDefKind,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
@@ -51,34 +101,16 @@ pub struct TypeDef {
 pub enum TypeDefKind {
     Record(Record),
     Resource,
-    Handle(Handle),
     Flags(Flags),
-    Tuple(Tuple),
     Variant(Variant),
     Enum(Enum),
-    Option(Type),
-    Result(Result_),
-    List(Type),
     Type(Type),
 }
 
 impl TypeDefKind {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            TypeDefKind::Record(_) => "record",
-            TypeDefKind::Resource => "resource",
-            TypeDefKind::Handle(handle) => match handle {
-                Handle::Own(_) => "own",
-                Handle::Borrow(_) => "borrow",
-            },
-            TypeDefKind::Flags(_) => "flags",
-            TypeDefKind::Tuple(_) => "tuple",
-            TypeDefKind::Variant(_) => "variant",
-            TypeDefKind::Enum(_) => "enum",
-            TypeDefKind::Option(_) => "option",
-            TypeDefKind::Result(_) => "result",
-            TypeDefKind::List(_) => "list",
-            TypeDefKind::Type(_) => "type",
-        }
+    pub fn enum_(cases: Vec<impl Into<EnumCase>>) -> Self {
+        Self::Enum(Enum {
+            cases: cases.into_iter().map(|c| c.into()).collect(),
+        })
     }
 }
