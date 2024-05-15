@@ -1,4 +1,4 @@
-use wit_parser::{FunctionKind, Params};
+use crate::{FunctionKind, Params};
 
 use crate::Function;
 
