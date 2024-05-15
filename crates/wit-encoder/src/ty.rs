@@ -1,5 +1,6 @@
 use std::fmt::{self, Display};
 
+use crate::{Docs, Enum, Flags, Record, Result_, Tuple, Variant};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Type {
@@ -33,6 +34,18 @@ impl Type {
     }
     pub fn result(result: Result_) -> Self {
         Type::Result(Box::new(result))
+    }
+    pub fn result_ok(type_: Type) -> Self {
+        Type::Result(Box::new(Result_::ok(type_)))
+    }
+    pub fn result_err(type_: Type) -> Self {
+        Type::Result(Box::new(Result_::err(type_)))
+    }
+    pub fn result_both(ok: Type, err: Type) -> Self {
+        Type::Result(Box::new(Result_::both(ok, err)))
+    }
+    pub fn result_empty() -> Self {
+        Type::Result(Box::new(Result_::empty()))
     }
     pub fn list(type_: Type) -> Self {
         Type::List(Box::new(type_))
@@ -122,10 +135,32 @@ pub struct VariantCase {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct TypeDef {
-    pub name: String,
-    pub kind: TypeDefKind,
+    name: String,
+    kind: TypeDefKind,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
-    pub docs: Docs,
+    docs: Docs,
+}
+
+impl TypeDef {
+    pub fn enum_(name: impl Into<String>, cases: Vec<impl Into<EnumCase>>) -> Self {
+        TypeDef {
+            name: name.into(),
+            kind: TypeDefKind::enum_(cases),
+            docs: Docs::default(),
+        }
+    }
+
+    pub fn type_(name: impl Into<String>, type_: Type) -> Self {
+        TypeDef {
+            name: name.into(),
+            kind: TypeDefKind::type_(type_),
+            docs: Docs::default(),
+        }
+    }
+
+    pub fn docs(&mut self, docs: Docs) {
+        self.docs = docs;
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -146,4 +181,9 @@ impl TypeDefKind {
             cases: cases.into_iter().map(|c| c.into()).collect(),
         })
     }
+
+    pub fn type_(type_: Type) -> Self {
+        Self::Type(type_)
+    }
+
 }
