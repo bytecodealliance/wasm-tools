@@ -53,6 +53,34 @@ pub enum Results {
     Anon(Type),
 }
 
+impl Display for Results {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Results::Anon(type_) => type_.fmt(f)?,
+            Results::Named(vals) => {
+                if !vals.items.is_empty() {
+                    write!(f, "(")?;
+                    let mut peekable = vals.items.iter().peekable();
+                    while let Some((name, type_)) = peekable.next() {
+                        write!(f, "{}: {}", name, type_)?;
+                        if peekable.peek().is_some() {
+                            write!(f, ", ")?;
+                        }
+                    }
+                    write!(f, ")")?;
+                }
+            }
+        };
+        Ok(())
+    }
+}
+
+impl Default for Results {
+    fn default() -> Self {
+        Results::empty()
+    }
+}
+
 pub enum ResultsTypeIter<'a> {
     Named(std::slice::Iter<'a, (String, Type)>),
     Anon(std::iter::Once<&'a Type>),

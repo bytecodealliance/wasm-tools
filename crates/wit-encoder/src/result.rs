@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::Type;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -34,5 +36,26 @@ impl Result_ {
     }
     pub fn is_empty(&self) -> bool {
         self.ok.is_none() && self.err.is_none()
+    }
+}
+
+impl Display for Result_ {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "result")?;
+        if !self.is_empty() {
+            write!(f, "<")?;
+            if let Some(type_) = &self.ok {
+                type_.fmt(f)?;
+            }
+            if let Some(type_) = &self.err {
+                if self.ok.is_none() {
+                    write!(f, "_")?;
+                }
+                write!(f, ", ")?;
+                type_.fmt(f)?;
+            }
+            write!(f, ">")?;
+        }
+        Ok(())
     }
 }

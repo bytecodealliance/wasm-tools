@@ -1,4 +1,5 @@
-use crate::{Docs, Enum, Flags, Record, Result_, Tuple, Variant};
+use std::fmt::{self, Display};
+
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Type {
@@ -41,6 +42,38 @@ impl Type {
     }
     pub fn named(name: impl Into<String>) -> Self {
         Type::Named(name.into())
+    }
+}
+
+impl Display for Type {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Type::Bool => write!(f, "bool"),
+            Type::U8 => write!(f, "u8"),
+            Type::U16 => write!(f, "u16"),
+            Type::U32 => write!(f, "u32"),
+            Type::U64 => write!(f, "u64"),
+            Type::S8 => write!(f, "s8"),
+            Type::S16 => write!(f, "s16"),
+            Type::S32 => write!(f, "s32"),
+            Type::S64 => write!(f, "s64"),
+            Type::F32 => write!(f, "f32"),
+            Type::F64 => write!(f, "f64"),
+            Type::Char => write!(f, "char"),
+            Type::String => write!(f, "string"),
+            Type::Named(name) => write!(f, "{}", name),
+            Type::Borrow(type_) => {
+                write!(f, "borrow<{type_}>")
+            }
+            Type::Option(type_) => {
+                write!(f, "option<{type_}>")
+            }
+            Type::Result(result) => result.fmt(f),
+            Type::List(type_) => {
+                write!(f, "list<{type_}>")
+            }
+            Type::Tuple(tuple) => tuple.fmt(f),
+        }
     }
 }
 
