@@ -1,5 +1,6 @@
 use std::fmt::{self, Display};
 
+use crate::{Docs, Render, RenderOpts, Type};
 
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -189,6 +190,29 @@ impl Function {
 
     pub fn docs(&mut self, docs: Docs) {
         self.docs = docs;
+    }
+}
+
+impl Render for Function {
+    fn render_opts(
+        &self,
+        f: &mut fmt::Formatter<'_>,
+        depth: usize,
+        opts: RenderOpts,
+    ) -> fmt::Result {
+        write!(
+            f,
+            "{:depth$}{}: func({})",
+            "",
+            self.name,
+            self.params,
+            depth = opts.indent(depth)
+        )?;
+        if self.results.len() > 0 {
+            write!(f, " -> {}", self.results)?;
+        }
+        write!(f, ";\n")?;
+        Ok(())
     }
 }
 

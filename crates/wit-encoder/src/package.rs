@@ -2,7 +2,7 @@ use std::fmt;
 
 use semver::Version;
 
-use crate::{Docs, Interface, World};
+use crate::{Docs, Interface, Render, RenderOpts, World};
 
 /// A WIT package.
 ///
@@ -53,6 +53,34 @@ impl Package {
     /// Add a `World` to the package
     pub fn world(&mut self, world: World) {
         self.worlds.push(world)
+    }
+}
+
+impl Render for Package {
+    fn render_opts(
+        &self,
+        f: &mut fmt::Formatter<'_>,
+        depth: usize,
+        opts: RenderOpts,
+    ) -> fmt::Result {
+        write!(
+            f,
+            "{:depth$}package {};\n",
+            "",
+            self.name,
+            depth = opts.indent(depth)
+        )?;
+        write!(f, "\n")?;
+        for interface in &self.interfaces {
+            interface.render(f, depth)?;
+        }
+        Ok(())
+    }
+}
+
+impl fmt::Display for Package {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.render(f, 0)
     }
 }
 

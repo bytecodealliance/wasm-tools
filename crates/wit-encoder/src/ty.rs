@@ -1,6 +1,6 @@
 use std::fmt::{self, Display};
 
-use crate::{Docs, Enum, Flags, Record, Result_, Tuple, Variant};
+use crate::{Docs, Enum, Flags, Record, Result_, Render, RenderOpts, Tuple, Variant};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Type {
@@ -185,5 +185,31 @@ impl TypeDefKind {
     pub fn type_(type_: Type) -> Self {
         Self::Type(type_)
     }
+}
 
+impl Render for TypeDef {
+    fn render_opts(
+        &self,
+        f: &mut fmt::Formatter<'_>,
+        depth: usize,
+        opts: RenderOpts,
+    ) -> fmt::Result {
+        match &self.kind {
+            TypeDefKind::Record(_) => todo!(),
+            TypeDefKind::Resource => todo!(),
+            TypeDefKind::Flags(_) => todo!(),
+            TypeDefKind::Variant(_) => todo!(),
+            TypeDefKind::Enum(enum_) => {
+                write!(f, "{:depth$}enum {} {{\n", "", self.name, depth = opts.indent(depth))?;
+                for case in &enum_.cases {
+                    write!(f, "{:depth$}{},\n", "", case.name, depth = opts.indent(depth + 1))?;
+                }
+                write!(f, "{:depth$}}}\n", "")?;
+            }
+            TypeDefKind::Type(type_) => {
+                write!(f, "{:depth$}type {} = {};\n", "", self.name, type_, depth = opts.indent(depth))?;
+            }
+        }
+        Ok(())
+    }
 }

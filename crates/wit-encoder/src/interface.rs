@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{Docs, Function, Resource, ToWitSyntax, TypeDef};
+use crate::{Docs, Function, Resource, Render, RenderOpts, TypeDef};
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -63,5 +63,31 @@ impl Interface {
     /// Set the documentation
     pub fn docs(&mut self, docs: Docs) {
         self.docs = docs;
+    }
+}
+
+impl Render for Interface {
+    fn render_opts(
+        &self,
+        f: &mut fmt::Formatter<'_>,
+        depth: usize,
+        opts: RenderOpts,
+    ) -> fmt::Result {
+        write!(
+            f,
+            "{:depth$}interface {} {{\n",
+            "",
+            self.name.as_ref().unwrap_or(&String::new()),
+            depth = opts.indent(depth),
+        )?;
+        for function in &self.functions {
+            function.render(f, depth + 1)?;
+        }
+        for type_def in &self.type_defs {
+            type_def.render(f, depth + 1)?;
+        }
+        // TODO: handle types and resources.
+        write!(f, "{:depth$}}}\n", "", depth = opts.indent(depth))?;
+        Ok(())
     }
 }
