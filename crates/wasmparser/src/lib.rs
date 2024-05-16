@@ -498,6 +498,13 @@ macro_rules! for_each_operator {
             // https://github.com/WebAssembly/shared-everything-threads
             @shared_everything_threads GlobalAtomicGet { ordering: $crate::Ordering, global_index: u32 } => visit_global_atomic_get
             @shared_everything_threads GlobalAtomicSet { ordering: $crate::Ordering, global_index: u32 } => visit_global_atomic_set
+            @shared_everything_threads GlobalAtomicRmwAdd { ordering: $crate::Ordering, global_index: u32 } => visit_global_atomic_rmw_add
+            @shared_everything_threads GlobalAtomicRmwSub { ordering: $crate::Ordering, global_index: u32 } => visit_global_atomic_rmw_sub
+            @shared_everything_threads GlobalAtomicRmwAnd { ordering: $crate::Ordering, global_index: u32 } => visit_global_atomic_rmw_and
+            @shared_everything_threads GlobalAtomicRmwOr { ordering: $crate::Ordering, global_index: u32 } => visit_global_atomic_rmw_or
+            @shared_everything_threads GlobalAtomicRmwXor { ordering: $crate::Ordering, global_index: u32 } => visit_global_atomic_rmw_xor
+            @shared_everything_threads GlobalAtomicRmwXchg { ordering: $crate::Ordering, global_index: u32 } => visit_global_atomic_rmw_xchg
+            @shared_everything_threads GlobalAtomicRmwCmpxchg { ordering: $crate::Ordering, global_index: u32 } => visit_global_atomic_rmw_cmpxchg
 
             // 0xFD operators
             // 128-bit SIMD

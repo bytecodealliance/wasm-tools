@@ -1684,6 +1684,25 @@ impl<'a> BinaryReader<'a> {
             // Decode shared-everything-threads proposal.
             0x4f => visitor.visit_global_atomic_get(self.read_ordering()?, self.read_var_u32()?),
             0x50 => visitor.visit_global_atomic_set(self.read_ordering()?, self.read_var_u32()?),
+            0x51 => {
+                visitor.visit_global_atomic_rmw_add(self.read_ordering()?, self.read_var_u32()?)
+            }
+            0x52 => {
+                visitor.visit_global_atomic_rmw_sub(self.read_ordering()?, self.read_var_u32()?)
+            }
+            0x53 => {
+                visitor.visit_global_atomic_rmw_and(self.read_ordering()?, self.read_var_u32()?)
+            }
+            0x54 => visitor.visit_global_atomic_rmw_or(self.read_ordering()?, self.read_var_u32()?),
+            0x55 => {
+                visitor.visit_global_atomic_rmw_xor(self.read_ordering()?, self.read_var_u32()?)
+            }
+            0x56 => {
+                visitor.visit_global_atomic_rmw_xchg(self.read_ordering()?, self.read_var_u32()?)
+            }
+            0x57 => {
+                visitor.visit_global_atomic_rmw_cmpxchg(self.read_ordering()?, self.read_var_u32()?)
+            }
 
             _ => bail!(pos, "unknown 0xfe subopcode: 0x{code:x}"),
         })
