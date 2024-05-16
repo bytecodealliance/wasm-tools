@@ -386,6 +386,18 @@ impl ComponentBuilder {
         inc(&mut self.core_funcs)
     }
 
+    /// Declares a new `thread.spawn` intrinsic.
+    pub fn thread_spawn(&mut self, ty: u32) -> u32 {
+        self.canonical_functions().thread_spawn(ty);
+        inc(&mut self.core_funcs)
+    }
+
+    /// Declares a new `thread.hw_concurrency` intrinsic.
+    pub fn thread_hw_concurrency(&mut self) -> u32 {
+        self.canonical_functions().thread_hw_concurrency();
+        inc(&mut self.core_funcs)
+    }
+
     /// Adds a new custom section to this component.
     pub fn custom_section(&mut self, section: &CustomSection<'_>) {
         self.flush();

@@ -1202,6 +1202,7 @@ impl Validator {
         &mut self,
         section: &crate::ComponentCanonicalSectionReader,
     ) -> Result<()> {
+        let shared_everything_threads = self.features.shared_everything_threads();
         self.process_component_section(
             section,
             "function",
@@ -1243,6 +1244,24 @@ impl Validator {
                     }
                     crate::CanonicalFunction::ResourceRep { resource } => {
                         current.resource_rep(resource, types, offset)
+                    }
+                    crate::CanonicalFunction::ThreadSpawn { func_ty_index } => {
+                        if !shared_everything_threads {
+                            bail!(
+                                offset,
+                                "invalid `thread.spawn`; shared-everything threads is not enabled"
+                            )
+                        }
+                        current.thread_spawn(func_ty_index, types, offset)
+                    }
+                    crate::CanonicalFunction::ThreadHwConcurrency => {
+                        if !shared_everything_threads {
+                            bail!(
+                                offset,
+                                "invalid `thread.hw_concurrency`; shared-everything threads is not enabled"
+                            )
+                        }
+                        current.thread_hw_concurrency(types, offset)
                     }
                 }
             },

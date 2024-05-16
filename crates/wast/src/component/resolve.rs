@@ -370,6 +370,8 @@ impl<'a> Resolver<'a> {
             CanonicalFuncKind::ResourceDrop(info) => {
                 return self.resolve_ns(&mut info.ty, Ns::Type)
             }
+            CanonicalFuncKind::ThreadSpawn(info) => return self.resolve_ns(&mut info.ty, Ns::Type),
+            CanonicalFuncKind::ThreadHwConcurrency(_) => return Ok(()),
         };
 
         for opt in opts {
@@ -801,7 +803,9 @@ impl<'a> ComponentState<'a> {
                 CanonicalFuncKind::Lower(_)
                 | CanonicalFuncKind::ResourceNew(_)
                 | CanonicalFuncKind::ResourceRep(_)
-                | CanonicalFuncKind::ResourceDrop(_) => {
+                | CanonicalFuncKind::ResourceDrop(_)
+                | CanonicalFuncKind::ThreadSpawn(_)
+                | CanonicalFuncKind::ThreadHwConcurrency(_) => {
                     self.core_funcs.register(f.id, "core func")?
                 }
             },

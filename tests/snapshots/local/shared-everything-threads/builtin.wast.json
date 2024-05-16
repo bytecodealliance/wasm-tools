@@ -1,0 +1,22 @@
+{
+  "source_filename": "tests/local/shared-everything-threads/builtin.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "builtin.0.wasm"
+    },
+    {
+      "type": "module",
+      "line": 9,
+      "filename": "builtin.1.wasm"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 29,
+      "filename": "builtin.2.wasm",
+      "text": "spawn function must take a single `u32` argument (currently)",
+      "module_type": "binary"
+    }
+  ]
+}
