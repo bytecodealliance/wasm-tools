@@ -941,23 +941,9 @@ where
     /// Checks the validity of atomic binary operator on memory.
     fn check_atomic_binary_memory_op(&mut self, memarg: MemArg, op_ty: ValType) -> Result<()> {
         let ty = self.check_shared_memarg(memarg)?;
-        self.check_atomic_binary_op(op_ty, ty)
-    }
-
-    /// Checks the validity of a common atomic binary operator.
-    fn check_atomic_binary_op(&mut self, op_ty: ValType, ty: ValType) -> Result<()> {
-        // TODO: why did the pre-existing code treat `op_ty` and `ty` as
-        // different types?
         self.pop_operand(Some(op_ty))?;
         self.pop_operand(Some(ty))?;
         self.push_operand(op_ty)?;
-        Ok(())
-    }
-
-    /// Checks the validity of a common atomic unary operator.
-    fn check_atomic_unary_op(&mut self, ty: ValType) -> Result<()> {
-        self.pop_operand(Some(ty))?;
-        self.push_operand(ty)?;
         Ok(())
     }
 
@@ -1087,24 +1073,10 @@ where
         self.push_operand(sub_ty)
     }
 
-    /// Common helper for checking the types of global types accessed
-    /// atomically.
-    fn check_atomic_global_ty(&self, global_index: u32) -> Result<()> {
-        let ty = self.global_type_at(global_index).content_type;
-        let supertype = RefType::ANYREF.into();
-        if !(ty == ValType::I32 || ty == ValType::I64 || self.resources.is_subtype(ty, supertype)) {
-            bail!(
-                    self.offset,
-                    "invalid type: `global.atomic.get` only allows `i32`, `i64` and subtypes of `anyref`"
-                );
-        }
-        Ok(())
-    }
-
     /// Common helper for checking the types of globals accessed with atomic RMW
-    /// instructions.
+    /// instructions, which only allow `i32` and `i64`.
     fn check_atomic_global_rmw_ty(&self, global_index: u32) -> Result<ValType> {
-        let ty = self.global_type_at(global_index).content_type;
+        let ty = self.global_type_at(global_index)?.content_type;
         if !(ty == ValType::I32 || ty == ValType::I64) {
             bail!(
                 self.offset,
@@ -1186,10 +1158,12 @@ where
             .ok_or_else(|| format_err!(self.offset, "unknown tag {}: tag index out of bounds", at))
     }
 
-    fn global_type_at(&self, at: u32) -> GlobalType {
-        self.resources
-            .global_at(at)
-            .expect("existence should be checked prior to this point")
+    fn global_type_at(&self, at: u32) -> Result<GlobalType> {
+        if let Some(ty) = self.resources.global_at(at) {
+            Ok(ty)
+        } else {
+            bail!(self.offset, "unknown global: global index out of bounds");
+        }
     }
 
     fn params(&self, ty: BlockType) -> Result<impl PreciseIterator<Item = ValType> + 'resources> {
@@ -1660,13 +1634,9 @@ where
         Ok(())
     }
     fn visit_global_get(&mut self, global_index: u32) -> Self::Output {
-        if let Some(ty) = self.resources.global_at(global_index) {
-            let ty = ty.content_type;
-            debug_assert_type_indices_are_ids(ty);
-            self.push_operand(ty)?;
-        } else {
-            bail!(self.offset, "unknown global: global index out of bounds");
-        };
+        let ty = self.global_type_at(global_index)?.content_type;
+        debug_assert_type_indices_are_ids(ty);
+        self.push_operand(ty)?;
         Ok(())
     }
     fn visit_global_atomic_get(
@@ -1676,22 +1646,24 @@ where
     ) -> Self::Output {
         self.visit_global_get(global_index)?;
         // No validation of `ordering` is needed because `global.atomic.get` can
-        // be used on both shared and unshared globals.
-        self.check_atomic_global_ty(global_index)?;
+        // be used on both shared and unshared globals. But we do need to limit
+        // which types can be used with this instruction.
+        let ty = self.global_type_at(global_index)?.content_type;
+        let supertype = RefType::ANYREF.into();
+        if !(ty == ValType::I32 || ty == ValType::I64 || self.resources.is_subtype(ty, supertype)) {
+            bail!(self.offset, "invalid type: `global.atomic.get` only allows `i32`, `i64` and subtypes of `anyref`");
+        }
         Ok(())
     }
     fn visit_global_set(&mut self, global_index: u32) -> Self::Output {
-        if let Some(ty) = self.resources.global_at(global_index) {
-            if !ty.mutable {
-                bail!(
-                    self.offset,
-                    "global is immutable: cannot modify it with `global.set`"
-                );
-            }
-            self.pop_operand(Some(ty.content_type))?;
-        } else {
-            bail!(self.offset, "unknown global: global index out of bounds");
-        };
+        let ty = self.global_type_at(global_index)?;
+        if !ty.mutable {
+            bail!(
+                self.offset,
+                "global is immutable: cannot modify it with `global.set`"
+            );
+        }
+        self.pop_operand(Some(ty.content_type))?;
         Ok(())
     }
     fn visit_global_atomic_set(
@@ -1702,7 +1674,11 @@ where
         self.visit_global_set(global_index)?;
         // No validation of `ordering` is needed because `global.atomic.get` can
         // be used on both shared and unshared globals.
-        self.check_atomic_global_ty(global_index)?;
+        let ty = self.global_type_at(global_index)?.content_type;
+        let supertype = RefType::ANYREF.into();
+        if !(ty == ValType::I32 || ty == ValType::I64 || self.resources.is_subtype(ty, supertype)) {
+            bail!(self.offset, "invalid type: `global.atomic.set` only allows `i32`, `i64` and subtypes of `anyref`");
+        }
         Ok(())
     }
     fn visit_global_atomic_rmw_add(
@@ -1711,7 +1687,7 @@ where
         global_index: u32,
     ) -> Self::Output {
         let ty = self.check_atomic_global_rmw_ty(global_index)?;
-        self.check_atomic_binary_op(ty, ty)
+        self.check_unary_op(ty)
     }
     fn visit_global_atomic_rmw_sub(
         &mut self,
@@ -1719,7 +1695,7 @@ where
         global_index: u32,
     ) -> Self::Output {
         let ty = self.check_atomic_global_rmw_ty(global_index)?;
-        self.check_atomic_binary_op(ty, ty)
+        self.check_unary_op(ty)
     }
     fn visit_global_atomic_rmw_and(
         &mut self,
@@ -1727,7 +1703,7 @@ where
         global_index: u32,
     ) -> Self::Output {
         let ty = self.check_atomic_global_rmw_ty(global_index)?;
-        self.check_atomic_binary_op(ty, ty)
+        self.check_unary_op(ty)
     }
     fn visit_global_atomic_rmw_or(
         &mut self,
@@ -1735,7 +1711,7 @@ where
         global_index: u32,
     ) -> Self::Output {
         let ty = self.check_atomic_global_rmw_ty(global_index)?;
-        self.check_atomic_binary_op(ty, ty)
+        self.check_unary_op(ty)
     }
     fn visit_global_atomic_rmw_xor(
         &mut self,
@@ -1743,23 +1719,35 @@ where
         global_index: u32,
     ) -> Self::Output {
         let ty = self.check_atomic_global_rmw_ty(global_index)?;
-        self.check_atomic_binary_op(ty, ty)
+        self.check_unary_op(ty)
     }
     fn visit_global_atomic_rmw_xchg(
         &mut self,
         _ordering: crate::Ordering,
         global_index: u32,
     ) -> Self::Output {
-        let ty = self.check_atomic_global_rmw_ty(global_index)?;
-        self.check_atomic_unary_op(ty)
+        let ty = self.global_type_at(global_index)?.content_type;
+        if !(ty == ValType::I32
+            || ty == ValType::I64
+            || self.resources.is_subtype(ty, RefType::ANYREF.into()))
+        {
+            bail!(self.offset, "invalid type: `global.atomic.rmw.xchg` only allows `i32`, `i64` and subtypes of `anyref`");
+        }
+        self.check_unary_op(ty)
     }
     fn visit_global_atomic_rmw_cmpxchg(
         &mut self,
         _ordering: crate::Ordering,
         global_index: u32,
     ) -> Self::Output {
-        let ty = self.check_atomic_global_rmw_ty(global_index)?;
-        self.check_atomic_binary_op(ty, ty)
+        let ty = self.global_type_at(global_index)?.content_type;
+        if !(ty == ValType::I32
+            || ty == ValType::I64
+            || self.resources.is_subtype(ty, RefType::EQREF.into()))
+        {
+            bail!(self.offset, "invalid type: `global.atomic.rmw.cmpxchg` only allows `i32`, `i64` and subtypes of `eqref`");
+        }
+        self.check_binary_op(ty)
     }
 
     fn visit_i32_load(&mut self, memarg: MemArg) -> Self::Output {

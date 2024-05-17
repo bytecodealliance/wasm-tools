@@ -182,99 +182,79 @@
   "invalid type")
 
 ;; Check global.atomic.rmw.*.
-(module
-  (global $b (import "spectest" "global_i32") (shared mut i32))
-  (global $a (shared mut i32) (i32.const 0))
-  (func (export "rmw-add-i32-seq_cst-$a") (param $x i32) (param $y i32) (result i32)
+(module (;i32;)
+  (global $a (import "spectest" "global_i32") (shared mut i32))
+  (global $b (shared mut i32) (i32.const 0))
+  (func (export "rmw-add-i32-seq_cst-$a") (param $x i32) (result i32)
     local.get $x
-    local.get $y
     global.atomic.rmw.add seq_cst $a)
-  (func (export "rmw-add-i32-seq_cst-$b") (param $x i32) (param $y i32) (result i32)
+  (func (export "rmw-add-i32-seq_cst-$b") (param $x i32) (result i32)
     local.get $x
-    local.get $y
     global.atomic.rmw.add seq_cst $b)
-  (func (export "rmw-add-i32-acq_rel-$a") (param $x i32) (param $y i32) (result i32)
+  (func (export "rmw-add-i32-acq_rel-$a") (param $x i32) (result i32)
     local.get $x
-    local.get $y
     global.atomic.rmw.add acq_rel $a)
-  (func (export "rmw-add-i32-acq_rel-$b") (param $x i32) (param $y i32) (result i32)
+  (func (export "rmw-add-i32-acq_rel-$b") (param $x i32) (result i32)
     local.get $x
-    local.get $y
     global.atomic.rmw.add acq_rel $b)
-  (func (export "rmw-sub-i32-seq_cst-$a") (param $x i32) (param $y i32) (result i32)
+  (func (export "rmw-sub-i32-seq_cst-$a") (param $x i32) (result i32)
     local.get $x
-    local.get $y
     global.atomic.rmw.sub seq_cst $a)
-  (func (export "rmw-sub-i32-seq_cst-$b") (param $x i32) (param $y i32) (result i32)
+  (func (export "rmw-sub-i32-seq_cst-$b") (param $x i32) (result i32)
     local.get $x
-    local.get $y
     global.atomic.rmw.sub seq_cst $b)
-  (func (export "rmw-sub-i32-acq_rel-$a") (param $x i32) (param $y i32) (result i32)
+  (func (export "rmw-sub-i32-acq_rel-$a") (param $x i32) (result i32)
     local.get $x
-    local.get $y
     global.atomic.rmw.sub acq_rel $a)
-  (func (export "rmw-sub-i32-acq_rel-$b") (param $x i32) (param $y i32) (result i32)
+  (func (export "rmw-sub-i32-acq_rel-$b") (param $x i32) (result i32)
     local.get $x
-    local.get $y
     global.atomic.rmw.sub acq_rel $b)
-  (func (export "rmw-and-i32-seq_cst-$a") (param $x i32) (param $y i32) (result i32)
+  (func (export "rmw-and-i32-seq_cst-$a") (param $x i32) (result i32)
     local.get $x
-    local.get $y
     global.atomic.rmw.and seq_cst $a)
-  (func (export "rmw-and-i32-seq_cst-$b") (param $x i32) (param $y i32) (result i32)
+  (func (export "rmw-and-i32-seq_cst-$b") (param $x i32) (result i32)
     local.get $x
-    local.get $y
     global.atomic.rmw.and seq_cst $b)
-  (func (export "rmw-and-i32-acq_rel-$a") (param $x i32) (param $y i32) (result i32)
+  (func (export "rmw-and-i32-acq_rel-$a") (param $x i32) (result i32)
     local.get $x
-    local.get $y
     global.atomic.rmw.and acq_rel $a)
-  (func (export "rmw-and-i32-acq_rel-$b") (param $x i32) (param $y i32) (result i32)
+  (func (export "rmw-and-i32-acq_rel-$b") (param $x i32) (result i32)
     local.get $x
-    local.get $y
     global.atomic.rmw.and acq_rel $b)
-  (func (export "rmw-or-i32-seq_cst-$a") (param $x i32) (param $y i32) (result i32)
+  (func (export "rmw-or-i32-seq_cst-$a") (param $x i32) (result i32)
     local.get $x
-    local.get $y
     global.atomic.rmw.or seq_cst $a)
-  (func (export "rmw-or-i32-seq_cst-$b") (param $x i32) (param $y i32) (result i32)
+  (func (export "rmw-or-i32-seq_cst-$b") (param $x i32) (result i32)
     local.get $x
-    local.get $y
     global.atomic.rmw.or seq_cst $b)
-  (func (export "rmw-or-i32-acq_rel-$a") (param $x i32) (param $y i32) (result i32)
+  (func (export "rmw-or-i32-acq_rel-$a") (param $x i32) (result i32)
     local.get $x
-    local.get $y
     global.atomic.rmw.or acq_rel $a)
-  (func (export "rmw-or-i32-acq_rel-$b") (param $x i32) (param $y i32) (result i32)
+  (func (export "rmw-or-i32-acq_rel-$b") (param $x i32) (result i32)
     local.get $x
-    local.get $y
     global.atomic.rmw.or acq_rel $b)
-  (func (export "rmw-xor-i32-seq_cst-$a") (param $x i32) (param $y i32) (result i32)
+  (func (export "rmw-xor-i32-seq_cst-$a") (param $x i32) (result i32)
     local.get $x
-    local.get $y
     global.atomic.rmw.xor seq_cst $a)
-  (func (export "rmw-xor-i32-seq_cst-$b") (param $x i32) (param $y i32) (result i32)
+  (func (export "rmw-xor-i32-seq_cst-$b") (param $x i32) (result i32)
     local.get $x
-    local.get $y
     global.atomic.rmw.xor seq_cst $b)
-  (func (export "rmw-xor-i32-acq_rel-$a") (param $x i32) (param $y i32) (result i32)
+  (func (export "rmw-xor-i32-acq_rel-$a") (param $x i32) (result i32)
     local.get $x
-    local.get $y
     global.atomic.rmw.xor acq_rel $a)
-  (func (export "rmw-xor-i32-acq_rel-$b") (param $x i32) (param $y i32) (result i32)
+  (func (export "rmw-xor-i32-acq_rel-$b") (param $x i32) (result i32)
     local.get $x
-    local.get $y
     global.atomic.rmw.xor acq_rel $b)
-  (func (export "rmw-xchg-i32-seq_cst-$a") (param $x i32) (param $y i32) (result i32)
+  (func (export "rmw-xchg-i32-seq_cst-$a") (param $x i32) (result i32)
     local.get $x
     global.atomic.rmw.xchg seq_cst $a)
-  (func (export "rmw-xchg-i32-seq_cst-$b") (param $x i32) (param $y i32) (result i32)
+  (func (export "rmw-xchg-i32-seq_cst-$b") (param $x i32) (result i32)
     local.get $x
     global.atomic.rmw.xchg seq_cst $b)
-  (func (export "rmw-xchg-i32-acq_rel-$a") (param $x i32) (param $y i32) (result i32)
+  (func (export "rmw-xchg-i32-acq_rel-$a") (param $x i32) (result i32)
     local.get $x
     global.atomic.rmw.xchg acq_rel $a)
-  (func (export "rmw-xchg-i32-acq_rel-$b") (param $x i32) (param $y i32) (result i32)
+  (func (export "rmw-xchg-i32-acq_rel-$b") (param $x i32) (result i32)
     local.get $x
     global.atomic.rmw.xchg acq_rel $b)
   (func (export "rmw-cmpxchg-i32-seq_cst-$a") (param $x i32) (param $y i32) (result i32)
@@ -295,99 +275,79 @@
     global.atomic.rmw.cmpxchg acq_rel $b)
 )
 
-(module
-  (global $b (import "spectest" "global_i64") (shared mut i64))
-  (global $a (shared mut i64) (i64.const 0))
-  (func (export "rmw-add-i64-seq_cst-$a") (param $x i64) (param $y i64) (result i64)
+(module (;i64;)
+  (global $a (import "spectest" "global_i64") (shared mut i64))
+  (global $b (shared mut i64) (i64.const 0))
+  (func (export "rmw-add-i64-seq_cst-$a") (param $x i64) (result i64)
     local.get $x
-    local.get $y
     global.atomic.rmw.add seq_cst $a)
-  (func (export "rmw-add-i64-seq_cst-$b") (param $x i64) (param $y i64) (result i64)
+  (func (export "rmw-add-i64-seq_cst-$b") (param $x i64) (result i64)
     local.get $x
-    local.get $y
     global.atomic.rmw.add seq_cst $b)
-  (func (export "rmw-add-i64-acq_rel-$a") (param $x i64) (param $y i64) (result i64)
+  (func (export "rmw-add-i64-acq_rel-$a") (param $x i64) (result i64)
     local.get $x
-    local.get $y
     global.atomic.rmw.add acq_rel $a)
-  (func (export "rmw-add-i64-acq_rel-$b") (param $x i64) (param $y i64) (result i64)
+  (func (export "rmw-add-i64-acq_rel-$b") (param $x i64) (result i64)
     local.get $x
-    local.get $y
     global.atomic.rmw.add acq_rel $b)
-  (func (export "rmw-sub-i64-seq_cst-$a") (param $x i64) (param $y i64) (result i64)
+  (func (export "rmw-sub-i64-seq_cst-$a") (param $x i64) (result i64)
     local.get $x
-    local.get $y
     global.atomic.rmw.sub seq_cst $a)
-  (func (export "rmw-sub-i64-seq_cst-$b") (param $x i64) (param $y i64) (result i64)
+  (func (export "rmw-sub-i64-seq_cst-$b") (param $x i64) (result i64)
     local.get $x
-    local.get $y
     global.atomic.rmw.sub seq_cst $b)
-  (func (export "rmw-sub-i64-acq_rel-$a") (param $x i64) (param $y i64) (result i64)
+  (func (export "rmw-sub-i64-acq_rel-$a") (param $x i64) (result i64)
     local.get $x
-    local.get $y
     global.atomic.rmw.sub acq_rel $a)
-  (func (export "rmw-sub-i64-acq_rel-$b") (param $x i64) (param $y i64) (result i64)
+  (func (export "rmw-sub-i64-acq_rel-$b") (param $x i64) (result i64)
     local.get $x
-    local.get $y
     global.atomic.rmw.sub acq_rel $b)
-  (func (export "rmw-and-i64-seq_cst-$a") (param $x i64) (param $y i64) (result i64)
+  (func (export "rmw-and-i64-seq_cst-$a") (param $x i64) (result i64)
     local.get $x
-    local.get $y
     global.atomic.rmw.and seq_cst $a)
-  (func (export "rmw-and-i64-seq_cst-$b") (param $x i64) (param $y i64) (result i64)
+  (func (export "rmw-and-i64-seq_cst-$b") (param $x i64) (result i64)
     local.get $x
-    local.get $y
     global.atomic.rmw.and seq_cst $b)
-  (func (export "rmw-and-i64-acq_rel-$a") (param $x i64) (param $y i64) (result i64)
+  (func (export "rmw-and-i64-acq_rel-$a") (param $x i64) (result i64)
     local.get $x
-    local.get $y
     global.atomic.rmw.and acq_rel $a)
-  (func (export "rmw-and-i64-acq_rel-$b") (param $x i64) (param $y i64) (result i64)
+  (func (export "rmw-and-i64-acq_rel-$b") (param $x i64) (result i64)
     local.get $x
-    local.get $y
     global.atomic.rmw.and acq_rel $b)
-  (func (export "rmw-or-i64-seq_cst-$a") (param $x i64) (param $y i64) (result i64)
+  (func (export "rmw-or-i64-seq_cst-$a") (param $x i64) (result i64)
     local.get $x
-    local.get $y
     global.atomic.rmw.or seq_cst $a)
-  (func (export "rmw-or-i64-seq_cst-$b") (param $x i64) (param $y i64) (result i64)
+  (func (export "rmw-or-i64-seq_cst-$b") (param $x i64) (result i64)
     local.get $x
-    local.get $y
     global.atomic.rmw.or seq_cst $b)
-  (func (export "rmw-or-i64-acq_rel-$a") (param $x i64) (param $y i64) (result i64)
+  (func (export "rmw-or-i64-acq_rel-$a") (param $x i64) (result i64)
     local.get $x
-    local.get $y
     global.atomic.rmw.or acq_rel $a)
-  (func (export "rmw-or-i64-acq_rel-$b") (param $x i64) (param $y i64) (result i64)
+  (func (export "rmw-or-i64-acq_rel-$b") (param $x i64) (result i64)
     local.get $x
-    local.get $y
     global.atomic.rmw.or acq_rel $b)
-  (func (export "rmw-xor-i64-seq_cst-$a") (param $x i64) (param $y i64) (result i64)
+  (func (export "rmw-xor-i64-seq_cst-$a") (param $x i64) (result i64)
     local.get $x
-    local.get $y
     global.atomic.rmw.xor seq_cst $a)
-  (func (export "rmw-xor-i64-seq_cst-$b") (param $x i64) (param $y i64) (result i64)
+  (func (export "rmw-xor-i64-seq_cst-$b") (param $x i64) (result i64)
     local.get $x
-    local.get $y
     global.atomic.rmw.xor seq_cst $b)
-  (func (export "rmw-xor-i64-acq_rel-$a") (param $x i64) (param $y i64) (result i64)
+  (func (export "rmw-xor-i64-acq_rel-$a") (param $x i64) (result i64)
     local.get $x
-    local.get $y
     global.atomic.rmw.xor acq_rel $a)
-  (func (export "rmw-xor-i64-acq_rel-$b") (param $x i64) (param $y i64) (result i64)
+  (func (export "rmw-xor-i64-acq_rel-$b") (param $x i64) (result i64)
     local.get $x
-    local.get $y
     global.atomic.rmw.xor acq_rel $b)
-  (func (export "rmw-xchg-i64-seq_cst-$a") (param $x i64) (param $y i64) (result i64)
+  (func (export "rmw-xchg-i64-seq_cst-$a") (param $x i64) (result i64)
     local.get $x
     global.atomic.rmw.xchg seq_cst $a)
-  (func (export "rmw-xchg-i64-seq_cst-$b") (param $x i64) (param $y i64) (result i64)
+  (func (export "rmw-xchg-i64-seq_cst-$b") (param $x i64) (result i64)
     local.get $x
     global.atomic.rmw.xchg seq_cst $b)
-  (func (export "rmw-xchg-i64-acq_rel-$a") (param $x i64) (param $y i64) (result i64)
+  (func (export "rmw-xchg-i64-acq_rel-$a") (param $x i64) (result i64)
     local.get $x
     global.atomic.rmw.xchg acq_rel $a)
-  (func (export "rmw-xchg-i64-acq_rel-$b") (param $x i64) (param $y i64) (result i64)
+  (func (export "rmw-xchg-i64-acq_rel-$b") (param $x i64) (result i64)
     local.get $x
     global.atomic.rmw.xchg acq_rel $b)
   (func (export "rmw-cmpxchg-i64-seq_cst-$a") (param $x i64) (param $y i64) (result i64)
