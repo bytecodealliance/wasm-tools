@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{Docs, Function, Resource, Render, RenderOpts, TypeDef};
+use crate::{Docs, Function, Render, RenderOpts, Resource, TypeDef};
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
