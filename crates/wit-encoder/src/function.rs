@@ -9,10 +9,13 @@ pub struct Params {
     items: Vec<(String, Type)>,
 }
 
-impl FromIterator<(String, Type)> for Params {
-    fn from_iter<T: IntoIterator<Item = (String, Type)>>(iter: T) -> Self {
+impl<N> FromIterator<(N, Type)> for Params
+where
+    N: Into<String>,
+{
+    fn from_iter<T: IntoIterator<Item = (N, Type)>>(iter: T) -> Self {
         Self {
-            items: iter.into_iter().collect(),
+            items: iter.into_iter().map(|(n, t)| (n.into(), t)).collect(),
         }
     }
 }
@@ -117,7 +120,7 @@ impl Results {
         Results::Anon(type_)
     }
 
-    pub fn named(types: Vec<(impl Into<String>, Type)>) -> Results {
+    pub fn named(types: impl IntoIterator<Item = (impl Into<String>, Type)>) -> Results {
         Results::Named(
             types
                 .into_iter()
