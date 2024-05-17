@@ -53,6 +53,9 @@ impl Opts {
     }
 
     pub fn run(self) -> Result<()> {
+        eprintln!("WARNING: `wasm-tools compose` has been deprecated.");
+        eprintln!("");
+        eprintln!("Please use `wac` instead. You can find more information about `wac` at https://github.com/bytecodealliance/wac.");
         let config = self.create_config()?;
         log::debug!("configuration:\n{:#?}", config);
 

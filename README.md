@@ -142,7 +142,7 @@ that can be use programmatically as well:
 | `wasm-tools objdump` |   | Print debugging information about section headers |
 | `wasm-tools strip` |   | Remove custom sections from a WebAssembly file |
 | `wasm-tools demangle` |   | Demangle Rust and C++ symbol names in the `name` section |
-| `wasm-tools compose` | [wasm-compose] | Compose wasm components together |
+| `wasm-tools compose` | [wasm-compose] | Compose wasm components together (*deprecated*) |
 | `wasm-tools component new` | [wit-component] | Create a component from a core wasm binary |
 | `wasm-tools component wit` |  | Extract a `*.wit` interface from a component |
 | `wasm-tools component embed` |  | Embed a `component-type` custom section in a core wasm binary |
