@@ -1,4 +1,6 @@
-use crate::Render;
+use std::fmt;
+
+use crate::{Render, RenderOpts};
 
 /// Documentation
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Default)]
@@ -26,14 +28,9 @@ where
 }
 
 impl Render for Docs {
-    fn render_opts(
-        &self,
-        f: &mut std::fmt::Formatter<'_>,
-        depth: usize,
-        opts: crate::RenderOpts,
-    ) -> std::fmt::Result {
+    fn render(&self, f: &mut fmt::Formatter<'_>, opts: &RenderOpts) -> fmt::Result {
         for line in self.contents.lines() {
-            write!(f, "{:depth$}/// {}\n", "", line, depth = opts.indent(depth))?;
+            write!(f, "{}/// {}\n", opts.spaces(), line)?;
         }
         Ok(())
     }

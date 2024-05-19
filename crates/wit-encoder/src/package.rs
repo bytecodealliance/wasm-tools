@@ -46,22 +46,11 @@ impl Package {
 }
 
 impl Render for Package {
-    fn render_opts(
-        &self,
-        f: &mut fmt::Formatter<'_>,
-        depth: usize,
-        opts: RenderOpts,
-    ) -> fmt::Result {
-        write!(
-            f,
-            "{:depth$}package {};\n",
-            "",
-            self.name,
-            depth = opts.indent(depth)
-        )?;
+    fn render(&self, f: &mut fmt::Formatter<'_>, opts: &RenderOpts) -> fmt::Result {
+        write!(f, "{}package {};\n", opts.spaces(), self.name,)?;
         write!(f, "\n")?;
         for interface in &self.interfaces {
-            interface.render(f, depth)?;
+            interface.render(f, opts)?;
         }
         Ok(())
     }
@@ -69,7 +58,7 @@ impl Render for Package {
 
 impl fmt::Display for Package {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.render(f, 0)
+        self.render(f, &RenderOpts::default())
     }
 }
 

@@ -313,197 +313,108 @@ impl TypeDefKind {
 }
 
 impl Render for TypeDef {
-    fn render_opts(
-        &self,
-        f: &mut fmt::Formatter<'_>,
-        depth: usize,
-        opts: RenderOpts,
-    ) -> fmt::Result {
+    fn render(&self, f: &mut fmt::Formatter<'_>, opts: &RenderOpts) -> fmt::Result {
         match &self.kind {
             TypeDefKind::Record(record) => {
                 if let Some(docs) = &self.docs {
-                    docs.render_opts(f, depth, opts.clone())?;
+                    docs.render(f, opts)?;
                 }
-                write!(
-                    f,
-                    "{:depth$}record {} {{\n",
-                    "",
-                    self.name,
-                    depth = opts.indent(depth)
-                )?;
+                write!(f, "{}record {} {{\n", opts.spaces(), self.name)?;
                 for field in &record.fields {
+                    let opts = opts.indent();
                     if let Some(docs) = &field.docs {
-                        docs.render_opts(f, depth + 1, opts.clone())?;
+                        docs.render(f, &opts)?;
                     }
-                    write!(
-                        f,
-                        "{:depth$}{}: {},\n",
-                        "",
-                        field.name,
-                        field.ty,
-                        depth = opts.indent(depth + 1)
-                    )?;
+                    write!(f, "{}{}: {},\n", opts.spaces(), field.name, field.ty)?;
                 }
-                write!(f, "{:depth$}}}\n", "", depth = opts.indent(depth))?;
+                write!(f, "{}}}\n", opts.spaces())?;
             }
             TypeDefKind::Resource(resource) => {
                 if let Some(docs) = &self.docs {
-                    docs.render_opts(f, depth, opts.clone())?;
+                    docs.render(f, opts)?;
                 }
-                write!(
-                    f,
-                    "{:depth$}resource {} {{\n",
-                    "",
-                    self.name,
-                    depth = opts.indent(depth)
-                )?;
+                write!(f, "{}resource {} {{\n", opts.spaces(), self.name)?;
                 for func in &resource.funcs {
+                    let opts = opts.indent();
                     if let Some(docs) = &func.docs {
-                        docs.render_opts(f, depth + 1, opts.clone())?;
+                        docs.render(f, &opts)?;
                     }
                     match &func.kind {
                         crate::ResourceFuncKind::Method(name, results) => {
-                            write!(
-                                f,
-                                "{:depth$}{}: func({})",
-                                "",
-                                name,
-                                func.params,
-                                depth = opts.indent(depth + 1)
-                            )?;
+                            write!(f, "{}{}: func({})", opts.spaces(), name, func.params)?;
                             if !results.is_empty() {
                                 write!(f, " -> {}", results)?;
                             }
-                            write!(f, ";\n",)?;
+                            write!(f, ";\n")?;
                         }
                         crate::ResourceFuncKind::Static(name, results) => {
-                            write!(
-                                f,
-                                "{:depth$}{}: static func({})",
-                                "",
-                                name,
-                                func.params,
-                                depth = opts.indent(depth + 1)
-                            )?;
+                            write!(f, "{}{}: static func({})", opts.spaces(), name, func.params)?;
                             if !results.is_empty() {
                                 write!(f, " -> {}", results)?;
                             }
-                            write!(f, ";\n",)?;
+                            write!(f, ";\n")?;
                         }
                         crate::ResourceFuncKind::Constructor => {
-                            write!(
-                                f,
-                                "{:depth$}constructor({});\n",
-                                "",
-                                func.params,
-                                depth = opts.indent(depth + 1)
-                            )?;
+                            write!(f, "{}constructor({});\n", opts.spaces(), func.params)?;
                         }
                     }
                 }
-                write!(f, "{:depth$}}}\n", "", depth = opts.indent(depth))?;
+                write!(f, "{}}}\n", opts.spaces())?;
             }
             TypeDefKind::Flags(flags) => {
                 if let Some(docs) = &self.docs {
-                    docs.render_opts(f, depth, opts.clone())?;
+                    docs.render(f, opts)?;
                 }
-                write!(
-                    f,
-                    "{:depth$}flags {} {{\n",
-                    "",
-                    self.name,
-                    depth = opts.indent(depth)
-                )?;
+                write!(f, "{}flags {} {{\n", opts.spaces(), self.name)?;
                 for flag in &flags.flags {
+                    let opts = opts.indent();
                     if let Some(docs) = &flag.docs {
-                        docs.render_opts(f, depth + 1, opts.clone())?;
+                        docs.render(f, &opts)?;
                     }
-                    write!(
-                        f,
-                        "{:depth$}{},\n",
-                        "",
-                        flag.name,
-                        depth = opts.indent(depth + 1)
-                    )?;
+                    write!(f, "{}{},\n", opts.spaces(), flag.name)?;
                 }
-                write!(f, "{:depth$}}}\n", "", depth = opts.indent(depth))?;
+                write!(f, "{}}}\n", opts.spaces())?;
             }
             TypeDefKind::Variant(variant) => {
                 if let Some(docs) = &self.docs {
-                    docs.render_opts(f, depth, opts.clone())?;
+                    docs.render(f, opts)?;
                 }
-                write!(
-                    f,
-                    "{:depth$}variant {} {{\n",
-                    "",
-                    self.name,
-                    depth = opts.indent(depth)
-                )?;
+                write!(f, "{}variant {} {{\n", opts.spaces(), self.name)?;
                 for case in &variant.cases {
+                    let opts = opts.indent();
                     if let Some(docs) = &case.docs {
-                        docs.render_opts(f, depth + 1, opts.clone())?;
+                        docs.render(f, &opts)?;
                     }
                     match &case.ty {
                         Some(type_) => {
-                            write!(
-                                f,
-                                "{:depth$}{}({}),\n",
-                                "",
-                                case.name,
-                                type_,
-                                depth = opts.indent(depth + 1)
-                            )?;
+                            write!(f, "{}{}({}),\n", opts.spaces(), case.name, type_)?;
                         }
                         None => {
-                            write!(
-                                f,
-                                "{:depth$}{},\n",
-                                "",
-                                case.name,
-                                depth = opts.indent(depth + 1)
-                            )?;
+                            write!(f, "{}{},\n", opts.spaces(), case.name)?;
                         }
                     }
                 }
-                write!(f, "{:depth$}}}\n", "", depth = opts.indent(depth))?;
+                write!(f, "{}}}\n", opts.spaces())?;
             }
             TypeDefKind::Enum(enum_) => {
                 if let Some(docs) = &self.docs {
-                    docs.render_opts(f, depth, opts.clone())?;
+                    docs.render(f, opts)?;
                 }
-                write!(
-                    f,
-                    "{:depth$}enum {} {{\n",
-                    "",
-                    self.name,
-                    depth = opts.indent(depth)
-                )?;
+                write!(f, "{}enum {} {{\n", opts.spaces(), self.name)?;
                 for case in &enum_.cases {
+                    let opts = opts.indent();
                     if let Some(docs) = &case.docs {
-                        docs.render_opts(f, depth + 1, opts.clone())?;
+                        docs.render(f, &opts)?;
                     }
-                    write!(
-                        f,
-                        "{:depth$}{},\n",
-                        "",
-                        case.name,
-                        depth = opts.indent(depth + 1)
-                    )?;
+                    write!(f, "{}{},\n", opts.spaces(), case.name)?;
                 }
-                write!(f, "{:depth$}}}\n", "", depth = opts.indent(depth))?;
+                write!(f, "{}}}\n", opts.spaces())?;
             }
             TypeDefKind::Type(type_) => {
                 if let Some(docs) = &self.docs {
-                    docs.render_opts(f, depth, opts.clone())?;
+                    docs.render(f, opts)?;
                 }
-                write!(
-                    f,
-                    "{:depth$}type {} = {};\n",
-                    "",
-                    self.name,
-                    type_,
-                    depth = opts.indent(depth)
-                )?;
+                write!(f, "{}type {} = {};\n", opts.spaces(), self.name, type_)?;
             }
         }
         Ok(())

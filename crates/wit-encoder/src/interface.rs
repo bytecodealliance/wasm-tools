@@ -55,29 +55,23 @@ impl Interface {
 }
 
 impl Render for Interface {
-    fn render_opts(
-        &self,
-        f: &mut fmt::Formatter<'_>,
-        depth: usize,
-        opts: RenderOpts,
-    ) -> fmt::Result {
+    fn render(&self, f: &mut fmt::Formatter<'_>, opts: &RenderOpts) -> fmt::Result {
         if let Some(docs) = &self.docs {
-            docs.render_opts(f, depth, opts.clone())?;
+            docs.render(f, opts)?;
         }
         write!(
             f,
-            "{:depth$}interface {} {{\n",
-            "",
+            "{}interface {} {{\n",
+            opts.spaces(),
             self.name.as_ref().unwrap_or(&String::new()),
-            depth = opts.indent(depth),
         )?;
         for function in &self.functions {
-            function.render(f, depth + 1)?;
+            function.render(f, &opts.indent())?;
         }
         for type_def in &self.type_defs {
-            type_def.render(f, depth + 1)?;
+            type_def.render(f, &opts.indent())?;
         }
-        write!(f, "{:depth$}}}\n", "", depth = opts.indent(depth))?;
+        write!(f, "{}}}\n", opts.spaces())?;
         Ok(())
     }
 }

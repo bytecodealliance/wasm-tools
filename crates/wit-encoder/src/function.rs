@@ -151,23 +151,11 @@ impl StandaloneFunction {
 }
 
 impl Render for StandaloneFunction {
-    fn render_opts(
-        &self,
-        f: &mut fmt::Formatter<'_>,
-        depth: usize,
-        opts: RenderOpts,
-    ) -> fmt::Result {
+    fn render(&self, f: &mut fmt::Formatter<'_>, opts: &RenderOpts) -> fmt::Result {
         if let Some(docs) = &self.docs {
-            docs.render_opts(f, depth, opts.clone())?;
+            docs.render(f, opts)?;
         }
-        write!(
-            f,
-            "{:depth$}{}: func({})",
-            "",
-            self.name,
-            self.params,
-            depth = opts.indent(depth)
-        )?;
+        write!(f, "{}{}: func({})", opts.spaces(), self.name, self.params,)?;
         if !self.results.is_empty() {
             write!(f, " -> {}", self.results)?;
         }
