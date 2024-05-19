@@ -43,20 +43,3 @@ where
         Flag::new(self.0)
     }
 }
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum FlagsRepr {
-    U8,
-    U16,
-    U32(usize),
-}
-
-impl FlagsRepr {
-    pub fn count(&self) -> usize {
-        match self {
-            FlagsRepr::U8 => 1,
-            FlagsRepr::U16 => 1,
-            FlagsRepr::U32(n) => *n,
-        }
-    }
-}

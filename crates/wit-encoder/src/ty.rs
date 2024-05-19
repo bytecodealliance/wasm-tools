@@ -95,14 +95,6 @@ impl Display for Type {
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum Int {
-    U8,
-    U16,
-    U32,
-    U64,
-}
-
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct EnumCase {
