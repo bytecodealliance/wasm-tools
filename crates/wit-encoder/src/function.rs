@@ -150,9 +150,8 @@ impl Results {
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-pub struct Function {
+pub struct StandaloneFunction {
     name: String,
-    kind: FunctionKind,
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_params"))]
     params: Params,
     results: Results,
@@ -160,31 +159,14 @@ pub struct Function {
     docs: Docs,
 }
 
-impl Function {
-    pub fn new(name: impl Into<String>, kind: FunctionKind) -> Self {
+impl StandaloneFunction {
+    pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
-            kind: kind,
             params: Params::empty(),
             results: Results::empty(),
             docs: Docs::default(),
         }
-    }
-
-    pub fn new_freestanding(name: impl Into<String>) -> Self {
-        Self::new(name, FunctionKind::Freestanding)
-    }
-
-    pub fn new_method(name: impl Into<String>) -> Self {
-        Self::new(name, FunctionKind::Method)
-    }
-
-    pub fn new_static(name: impl Into<String>) -> Self {
-        Self::new(name, FunctionKind::Static)
-    }
-
-    pub fn new_constructor(name: impl Into<String>) -> Self {
-        Self::new(name, FunctionKind::Constructor)
     }
 
     pub fn params(&mut self, params: Params) {
@@ -200,7 +182,7 @@ impl Function {
     }
 }
 
-impl Render for Function {
+impl Render for StandaloneFunction {
     fn render_opts(
         &self,
         f: &mut fmt::Formatter<'_>,
@@ -221,17 +203,4 @@ impl Render for Function {
         write!(f, ";\n")?;
         Ok(())
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
-pub enum FunctionKind {
-    Freestanding,
-    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
-    Method,
-    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
-    Static,
-    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
-    Constructor,
 }

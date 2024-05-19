@@ -1,4 +1,4 @@
-use crate::{Docs, Function, Interface, Type};
+use crate::{Docs, Interface, StandaloneFunction, Type};
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -59,7 +59,7 @@ pub enum WorldItem {
     Interface(Interface),
 
     /// A function is being directly imported or exported from this world.
-    Function(Function),
+    Function(StandaloneFunction),
 
     /// A type is being exported from this world.
     ///

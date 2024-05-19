@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{Docs, Function, Render, RenderOpts, TypeDef};
+use crate::{Docs, Render, RenderOpts, StandaloneFunction, TypeDef};
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -18,7 +18,7 @@ pub struct Interface {
     type_defs: Vec<TypeDef>,
 
     /// Exported functions from this interface.
-    functions: Vec<Function>,
+    functions: Vec<StandaloneFunction>,
 
     /// Documentation associated with this interface.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
@@ -47,7 +47,7 @@ impl Interface {
     }
 
     /// Add an `Function` to the interface
-    pub fn function(&mut self, function: Function) {
+    pub fn function(&mut self, function: StandaloneFunction) {
         self.functions.push(function);
     }
 
