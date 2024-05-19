@@ -22,7 +22,7 @@ pub struct Interface {
 
     /// Documentation associated with this interface.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
-    docs: Docs,
+    docs: Option<Docs>,
 }
 
 impl Interface {
@@ -32,7 +32,7 @@ impl Interface {
             name: name.map(|n| n.into()),
             type_defs: vec![],
             functions: vec![],
-            docs: Docs::default(),
+            docs: None,
         }
     }
 
@@ -52,8 +52,8 @@ impl Interface {
     }
 
     /// Set the documentation
-    pub fn docs(&mut self, docs: Docs) {
-        self.docs = docs;
+    pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
+        self.docs = docs.map(|d| d.into());
     }
 }
 
@@ -64,6 +64,9 @@ impl Render for Interface {
         depth: usize,
         opts: RenderOpts,
     ) -> fmt::Result {
+        if let Some(docs) = &self.docs {
+            docs.render_opts(f, depth, opts.clone())?;
+        }
         write!(
             f,
             "{:depth$}interface {} {{\n",

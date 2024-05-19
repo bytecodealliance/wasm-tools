@@ -7,6 +7,8 @@ interface functions {
     f1: func();
     f2: func(a: u32);
     f3: func() -> u32;
+    /// this is a documentation comment
+    /// for the f4 function
     f4: func() -> tuple<u32, u32>;
     f5: func(a: f32, b: f32) -> tuple<u32, u32>;
     f6: func(a: option<u32>) -> result<u32, f32>;
@@ -36,6 +38,7 @@ fn smoke() {
         interface.function({
             let mut func = StandaloneFunction::new("f4");
             func.results(Results::anon(Type::tuple(vec![Type::U32, Type::U32])));
+            func.docs(Some("this is a documentation comment\nfor the f4 function"));
             func
         });
         interface.function({

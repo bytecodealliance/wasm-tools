@@ -2,7 +2,7 @@ use std::fmt;
 
 use semver::Version;
 
-use crate::{Docs, Interface, Render, RenderOpts, World};
+use crate::{Interface, Render, RenderOpts, World};
 
 /// A WIT package.
 ///
@@ -14,10 +14,6 @@ use crate::{Docs, Interface, Render, RenderOpts, World};
 pub struct Package {
     /// A unique name corresponding to this package.
     name: PackageName,
-
-    /// Documentation associated with this package.
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
-    docs: Docs,
 
     /// All interfaces contained in this packaged, keyed by the interface's
     /// name.
@@ -34,15 +30,9 @@ impl Package {
     pub fn new(name: PackageName) -> Self {
         Self {
             name,
-            docs: Docs::default(),
             interfaces: vec![],
             worlds: vec![],
         }
-    }
-
-    /// Set the documentation
-    pub fn docs(&mut self, docs: Docs) {
-        self.docs = docs;
     }
 
     /// Add an `Interface` to the package

@@ -100,22 +100,21 @@ impl Display for Type {
 pub struct EnumCase {
     pub name: String,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
-    pub docs: Docs,
+    pub docs: Option<Docs>,
 }
 
 impl From<&str> for EnumCase {
     fn from(value: &str) -> Self {
         Self {
             name: value.to_string(),
-            docs: Docs::default(),
+            docs: None,
         }
     }
 }
 
 impl EnumCase {
-    pub fn docs(mut self, docs: Docs) -> Self {
-        self.docs = docs;
-        self
+    pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
+        self.docs = docs.map(|d| d.into());
     }
 }
 
@@ -126,7 +125,7 @@ pub struct VariantCase {
     #[cfg_attr(feature = "serde", serde(rename = "type"))]
     pub ty: Option<Type>,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
-    pub docs: Docs,
+    pub docs: Option<Docs>,
 }
 
 impl VariantCase {
@@ -134,18 +133,18 @@ impl VariantCase {
         Self {
             name: name.into(),
             ty: None,
-            docs: Docs::default(),
+            docs: None,
         }
     }
     pub fn value(name: impl Into<String>, ty: Type) -> Self {
         Self {
             name: name.into(),
             ty: Some(ty),
-            docs: Docs::default(),
+            docs: None,
         }
     }
-    pub fn docs(&mut self, docs: Docs) {
-        self.docs = docs;
+    pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
+        self.docs = docs.map(|d| d.into());
     }
 }
 
@@ -167,13 +166,14 @@ where
     }
 }
 
-impl<N> Into<VariantCase> for (N, Type, Docs)
+impl<N, D> Into<VariantCase> for (N, Type, D)
 where
     N: Into<String>,
+    D: Into<Docs>,
 {
     fn into(self) -> VariantCase {
         let mut field = VariantCase::value(self.0, self.1);
-        field.docs(self.2);
+        field.docs(Some(self.2.into()));
         field
     }
 }
@@ -184,7 +184,7 @@ pub struct TypeDef {
     name: String,
     kind: TypeDefKind,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
-    docs: Docs,
+    docs: Option<Docs>,
 }
 
 impl TypeDef {
@@ -192,7 +192,7 @@ impl TypeDef {
         TypeDef {
             name: name.into(),
             kind,
-            docs: Docs::default(),
+            docs: None,
         }
     }
 
@@ -203,7 +203,7 @@ impl TypeDef {
         TypeDef {
             name: name.into(),
             kind: TypeDefKind::record(fields),
-            docs: Docs::default(),
+            docs: None,
         }
     }
 
@@ -214,7 +214,7 @@ impl TypeDef {
         TypeDef {
             name: name.into(),
             kind: TypeDefKind::resource(funcs),
-            docs: Docs::default(),
+            docs: None,
         }
     }
 
@@ -225,7 +225,7 @@ impl TypeDef {
         TypeDef {
             name: name.into(),
             kind: TypeDefKind::flags(flags),
-            docs: Docs::default(),
+            docs: None,
         }
     }
 
@@ -236,7 +236,7 @@ impl TypeDef {
         TypeDef {
             name: name.into(),
             kind: TypeDefKind::variant(cases),
-            docs: Docs::default(),
+            docs: None,
         }
     }
 
@@ -247,7 +247,7 @@ impl TypeDef {
         TypeDef {
             name: name.into(),
             kind: TypeDefKind::enum_(cases),
-            docs: Docs::default(),
+            docs: None,
         }
     }
 
@@ -255,12 +255,12 @@ impl TypeDef {
         TypeDef {
             name: name.into(),
             kind: TypeDefKind::type_(type_),
-            docs: Docs::default(),
+            docs: None,
         }
     }
 
-    pub fn docs(&mut self, docs: Docs) {
-        self.docs = docs;
+    pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
+        self.docs = docs.map(|d| d.into());
     }
 }
 
@@ -321,6 +321,9 @@ impl Render for TypeDef {
     ) -> fmt::Result {
         match &self.kind {
             TypeDefKind::Record(record) => {
+                if let Some(docs) = &self.docs {
+                    docs.render_opts(f, depth, opts.clone())?;
+                }
                 write!(
                     f,
                     "{:depth$}record {} {{\n",
@@ -329,6 +332,9 @@ impl Render for TypeDef {
                     depth = opts.indent(depth)
                 )?;
                 for field in &record.fields {
+                    if let Some(docs) = &field.docs {
+                        docs.render_opts(f, depth + 1, opts.clone())?;
+                    }
                     write!(
                         f,
                         "{:depth$}{}: {},\n",
@@ -341,6 +347,9 @@ impl Render for TypeDef {
                 write!(f, "{:depth$}}}\n", "", depth = opts.indent(depth))?;
             }
             TypeDefKind::Resource(resource) => {
+                if let Some(docs) = &self.docs {
+                    docs.render_opts(f, depth, opts.clone())?;
+                }
                 write!(
                     f,
                     "{:depth$}resource {} {{\n",
@@ -349,6 +358,9 @@ impl Render for TypeDef {
                     depth = opts.indent(depth)
                 )?;
                 for func in &resource.funcs {
+                    if let Some(docs) = &func.docs {
+                        docs.render_opts(f, depth + 1, opts.clone())?;
+                    }
                     match &func.kind {
                         crate::ResourceFuncKind::Method(name, results) => {
                             write!(
@@ -392,6 +404,9 @@ impl Render for TypeDef {
                 write!(f, "{:depth$}}}\n", "", depth = opts.indent(depth))?;
             }
             TypeDefKind::Flags(flags) => {
+                if let Some(docs) = &self.docs {
+                    docs.render_opts(f, depth, opts.clone())?;
+                }
                 write!(
                     f,
                     "{:depth$}flags {} {{\n",
@@ -400,6 +415,9 @@ impl Render for TypeDef {
                     depth = opts.indent(depth)
                 )?;
                 for flag in &flags.flags {
+                    if let Some(docs) = &flag.docs {
+                        docs.render_opts(f, depth + 1, opts.clone())?;
+                    }
                     write!(
                         f,
                         "{:depth$}{},\n",
@@ -411,6 +429,9 @@ impl Render for TypeDef {
                 write!(f, "{:depth$}}}\n", "", depth = opts.indent(depth))?;
             }
             TypeDefKind::Variant(variant) => {
+                if let Some(docs) = &self.docs {
+                    docs.render_opts(f, depth, opts.clone())?;
+                }
                 write!(
                     f,
                     "{:depth$}variant {} {{\n",
@@ -419,6 +440,9 @@ impl Render for TypeDef {
                     depth = opts.indent(depth)
                 )?;
                 for case in &variant.cases {
+                    if let Some(docs) = &case.docs {
+                        docs.render_opts(f, depth + 1, opts.clone())?;
+                    }
                     match &case.ty {
                         Some(type_) => {
                             write!(
@@ -444,6 +468,9 @@ impl Render for TypeDef {
                 write!(f, "{:depth$}}}\n", "", depth = opts.indent(depth))?;
             }
             TypeDefKind::Enum(enum_) => {
+                if let Some(docs) = &self.docs {
+                    docs.render_opts(f, depth, opts.clone())?;
+                }
                 write!(
                     f,
                     "{:depth$}enum {} {{\n",
@@ -452,6 +479,9 @@ impl Render for TypeDef {
                     depth = opts.indent(depth)
                 )?;
                 for case in &enum_.cases {
+                    if let Some(docs) = &case.docs {
+                        docs.render_opts(f, depth + 1, opts.clone())?;
+                    }
                     write!(
                         f,
                         "{:depth$}{},\n",
@@ -463,6 +493,9 @@ impl Render for TypeDef {
                 write!(f, "{:depth$}}}\n", "", depth = opts.indent(depth))?;
             }
             TypeDefKind::Type(type_) => {
+                if let Some(docs) = &self.docs {
+                    docs.render_opts(f, depth, opts.clone())?;
+                }
                 write!(
                     f,
                     "{:depth$}type {} = {};\n",

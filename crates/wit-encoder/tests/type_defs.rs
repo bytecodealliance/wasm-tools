@@ -5,6 +5,7 @@ use wit_encoder::{
 
 const PACKAGE: &str = "package wit-encoder:tests;
 
+/// interface documentation
 interface type-defs {
     type t1 = u8;
     type t2 = u16;
@@ -25,6 +26,7 @@ interface type-defs {
     type t15 = result<u32, u32>;
     type t16 = result<_, u32>;
     type t17 = result<u32>;
+    /// this is a documentation comment
     type t18 = result;
     record t20 {
     }
@@ -54,8 +56,11 @@ interface type-defs {
     flags t30 {
     }
     flags t31 {
+        /// option a
         a,
+        /// option b
         b,
+        /// option c
         c,
     }
     flags t32 {
@@ -101,9 +106,13 @@ interface type-defs {
     resource t50 {
     }
     resource t51 {
+        /// create a new t51
         constructor(a: u32);
+        /// set a
         set-a: func(a: u32);
+        /// get a
         get-a: func() -> u32;
+        /// do b
         b: static func();
     }
 }
@@ -115,6 +124,7 @@ fn types() {
     let mut package = wit_encoder::Package::new(name);
     package.interface({
         let mut interface = wit_encoder::Interface::new(Some("type-defs"));
+        interface.docs(Some("interface documentation"));
         interface.type_def(TypeDef::type_("t1", Type::U8));
         interface.type_def(TypeDef::type_("t2", Type::U16));
         interface.type_def(TypeDef::type_("t3", Type::U32));
@@ -137,7 +147,11 @@ fn types() {
         ));
         interface.type_def(TypeDef::type_("t16", Type::result(Result_::err(Type::U32))));
         interface.type_def(TypeDef::type_("t17", Type::result(Result_::ok(Type::U32))));
-        interface.type_def(TypeDef::type_("t18", Type::result(Result_::empty())));
+        interface.type_def({
+            let mut type_ = TypeDef::type_("t18", Type::result(Result_::empty()));
+            type_.docs(Some("this is a documentation comment"));
+            type_
+        });
 
         interface.type_def(TypeDef::record("t20", Vec::<Field>::new()));
         interface.type_def(TypeDef::record("t21", [Field::new("a", Type::U32)]));
@@ -158,7 +172,10 @@ fn types() {
         interface.type_def(TypeDef::type_("t29", Type::tuple([Type::U32, Type::U64])));
 
         interface.type_def(TypeDef::flags("t30", Vec::<Flag>::new()));
-        interface.type_def(TypeDef::flags("t31", [("a",), ("b",), ("c",)]));
+        interface.type_def(TypeDef::flags(
+            "t31",
+            [("a", "option a"), ("b", "option b"), ("c", "option c")],
+        ));
         interface.type_def(TypeDef::flags("t32", [("a",), ("b",), ("c",)]));
 
         interface.type_def(TypeDef::variant("t33", [("a",)]));
@@ -201,19 +218,26 @@ fn types() {
                 {
                     let mut func = ResourceFunc::constructor();
                     func.params(Params::from_iter([("a", Type::U32)]));
+                    func.docs(Some("create a new t51"));
                     func
                 },
                 {
                     let mut func = ResourceFunc::method("set-a");
                     func.params(Params::from_iter([("a", Type::U32)]));
+                    func.docs(Some("set a"));
                     func
                 },
                 {
                     let mut func = ResourceFunc::method("get-a");
                     func.results(Results::anon(Type::U32));
+                    func.docs(Some("get a"));
                     func
                 },
-                ResourceFunc::static_("b"),
+                {
+                    let mut func = ResourceFunc::static_("b");
+                    func.docs(Some("do b"));
+                    func
+                },
             ],
         ));
         interface

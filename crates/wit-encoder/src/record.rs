@@ -21,7 +21,7 @@ pub struct Field {
     #[cfg_attr(feature = "serde", serde(rename = "type"))]
     pub ty: Type,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
-    pub docs: Docs,
+    pub docs: Option<Docs>,
 }
 
 impl Field {
@@ -29,12 +29,12 @@ impl Field {
         Self {
             name: name.into(),
             ty,
-            docs: Docs::default(),
+            docs: None,
         }
     }
 
-    pub fn docs(&mut self, docs: Docs) {
-        self.docs = docs;
+    pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
+        self.docs = docs.map(|d| d.into());
     }
 }
 
@@ -47,13 +47,14 @@ where
     }
 }
 
-impl<N> Into<Field> for (N, Type, Docs)
+impl<N, D> Into<Field> for (N, Type, D)
 where
     N: Into<String>,
+    D: Into<Docs>,
 {
     fn into(self) -> Field {
         let mut field = Field::new(self.0, self.1);
-        field.docs(self.2);
+        field.docs(Some(self.2.into()));
         field
     }
 }

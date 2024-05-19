@@ -14,7 +14,7 @@ pub struct World {
 
     /// Documentation associated with this world declaration.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
-    pub docs: Docs,
+    pub docs: Option<Docs>,
 }
 
 #[derive(Debug, Clone)]

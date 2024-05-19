@@ -11,7 +11,7 @@ pub struct ResourceFunc {
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_params"))]
     pub(crate) params: Params,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
-    pub(crate) docs: Docs,
+    pub(crate) docs: Option<Docs>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -26,7 +26,7 @@ impl ResourceFunc {
         Self {
             kind: ResourceFuncKind::Method(name.into(), Results::empty()),
             params: Params::empty(),
-            docs: Docs::default(),
+            docs: None,
         }
     }
 
@@ -34,7 +34,7 @@ impl ResourceFunc {
         Self {
             kind: ResourceFuncKind::Static(name.into(), Results::empty()),
             params: Params::empty(),
-            docs: Docs::default(),
+            docs: None,
         }
     }
 
@@ -42,7 +42,7 @@ impl ResourceFunc {
         Self {
             kind: ResourceFuncKind::Constructor,
             params: Params::empty(),
-            docs: Docs::default(),
+            docs: None,
         }
     }
 
@@ -74,7 +74,7 @@ impl ResourceFunc {
         }
     }
 
-    pub fn docs(&mut self, docs: Docs) {
-        self.docs = docs;
+    pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
+        self.docs = docs.map(|d| d.into());
     }
 }

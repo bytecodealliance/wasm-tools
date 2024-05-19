@@ -19,19 +19,19 @@ impl Flags {
 pub struct Flag {
     pub name: String,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
-    pub docs: Docs,
+    pub docs: Option<Docs>,
 }
 
 impl Flag {
     pub fn new(name: impl Into<String>) -> Self {
         Flag {
             name: name.into(),
-            docs: Docs::default(),
+            docs: None,
         }
     }
 
-    pub fn docs(&mut self, docs: Docs) {
-        self.docs = docs
+    pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
+        self.docs = docs.map(|d| d.into());
     }
 }
 
@@ -41,5 +41,17 @@ where
 {
     fn into(self) -> Flag {
         Flag::new(self.0)
+    }
+}
+
+impl<T, D> Into<Flag> for (T, D)
+where
+    T: Into<String>,
+    D: Into<Docs>,
+{
+    fn into(self) -> Flag {
+        let mut flag = Flag::new(self.0);
+        flag.docs(Some(self.1));
+        flag
     }
 }

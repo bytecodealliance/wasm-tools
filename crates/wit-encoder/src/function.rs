@@ -124,7 +124,7 @@ pub struct StandaloneFunction {
     params: Params,
     results: Results,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
-    docs: Docs,
+    docs: Option<Docs>,
 }
 
 impl StandaloneFunction {
@@ -133,7 +133,7 @@ impl StandaloneFunction {
             name: name.into(),
             params: Params::empty(),
             results: Results::empty(),
-            docs: Docs::default(),
+            docs: None,
         }
     }
 
@@ -145,8 +145,8 @@ impl StandaloneFunction {
         self.results = results;
     }
 
-    pub fn docs(&mut self, docs: Docs) {
-        self.docs = docs;
+    pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
+        self.docs = docs.map(|d| d.into());
     }
 }
 
@@ -157,6 +157,9 @@ impl Render for StandaloneFunction {
         depth: usize,
         opts: RenderOpts,
     ) -> fmt::Result {
+        if let Some(docs) = &self.docs {
+            docs.render_opts(f, depth, opts.clone())?;
+        }
         write!(
             f,
             "{:depth$}{}: func({})",

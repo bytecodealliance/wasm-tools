@@ -35,6 +35,7 @@ pub use ty::*;
 pub use variant::*;
 pub use world::*;
 
+#[derive(Clone)]
 pub struct RenderOpts {
     indent_count: usize,
 }
