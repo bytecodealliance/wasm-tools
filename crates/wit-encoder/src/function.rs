@@ -129,6 +129,10 @@ impl Results {
         )
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn len(&self) -> usize {
         match self {
             Results::Named(params) => params.items().len(),
@@ -211,7 +215,7 @@ impl Render for Function {
             self.params,
             depth = opts.indent(depth)
         )?;
-        if self.results.len() > 0 {
+        if !self.results.is_empty() {
             write!(f, " -> {}", self.results)?;
         }
         write!(f, ";\n")?;

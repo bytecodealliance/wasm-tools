@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{Docs, Function, Render, RenderOpts, Resource, TypeDef};
+use crate::{Docs, Function, Render, RenderOpts, TypeDef};
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -20,9 +20,6 @@ pub struct Interface {
     /// Exported functions from this interface.
     functions: Vec<Function>,
 
-    /// Exported resources from this interface.
-    resources: Vec<Resource>,
-
     /// Documentation associated with this interface.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     docs: Docs,
@@ -35,7 +32,6 @@ impl Interface {
             name: name.map(|n| n.into()),
             type_defs: vec![],
             functions: vec![],
-            resources: vec![],
             docs: Docs::default(),
         }
     }
@@ -53,11 +49,6 @@ impl Interface {
     /// Add an `Function` to the interface
     pub fn function(&mut self, function: Function) {
         self.functions.push(function);
-    }
-
-    /// Add a `Resource` to the interface
-    pub fn resource(&mut self, resource: Resource) {
-        self.resources.push(resource);
     }
 
     /// Set the documentation

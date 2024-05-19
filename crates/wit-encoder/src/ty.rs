@@ -1,6 +1,9 @@
 use std::fmt::{self, Display};
 
-use crate::{Docs, Enum, Field, Flag, Flags, Record, Render, RenderOpts, Result_, Tuple, Variant};
+use crate::{
+    Docs, Enum, Field, Flag, Flags, Record, Render, RenderOpts, Resource, ResourceFunc, Result_,
+    Tuple, Variant,
+};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Type {
@@ -212,6 +215,17 @@ impl TypeDef {
         }
     }
 
+    pub fn resource(
+        name: impl Into<String>,
+        funcs: impl IntoIterator<Item = impl Into<ResourceFunc>>,
+    ) -> Self {
+        TypeDef {
+            name: name.into(),
+            kind: TypeDefKind::resource(funcs),
+            docs: Docs::default(),
+        }
+    }
+
     pub fn flags(
         name: impl Into<String>,
         flags: impl IntoIterator<Item = impl Into<Flag>>,
@@ -263,7 +277,7 @@ impl TypeDef {
 #[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum TypeDefKind {
     Record(Record),
-    Resource,
+    Resource(Resource),
     Flags(Flags),
     Variant(Variant),
     Enum(Enum),
@@ -274,6 +288,12 @@ impl TypeDefKind {
     pub fn record(fields: impl IntoIterator<Item = impl Into<Field>>) -> Self {
         Self::Record(Record {
             fields: fields.into_iter().map(|c| c.into()).collect(),
+        })
+    }
+
+    pub fn resource(funcs: impl IntoIterator<Item = impl Into<ResourceFunc>>) -> Self {
+        Self::Resource(Resource {
+            funcs: funcs.into_iter().map(|f| f.into()).collect(),
         })
     }
 
@@ -328,7 +348,57 @@ impl Render for TypeDef {
                 }
                 write!(f, "{:depth$}}}\n", "", depth = opts.indent(depth))?;
             }
-            TypeDefKind::Resource => todo!(),
+            TypeDefKind::Resource(resource) => {
+                write!(
+                    f,
+                    "{:depth$}resource {} {{\n",
+                    "",
+                    self.name,
+                    depth = opts.indent(depth)
+                )?;
+                for func in &resource.funcs {
+                    match &func.kind {
+                        crate::ResourceFuncKind::Method(name, results) => {
+                            write!(
+                                f,
+                                "{:depth$}{}: func({})",
+                                "",
+                                name,
+                                func.params,
+                                depth = opts.indent(depth + 1)
+                            )?;
+                            if !results.is_empty() {
+                                write!(f, " -> {}", results)?;
+                            }
+                            write!(f, ";\n",)?;
+                        }
+                        crate::ResourceFuncKind::Static(name, results) => {
+                            write!(
+                                f,
+                                "{:depth$}{}: static func({})",
+                                "",
+                                name,
+                                func.params,
+                                depth = opts.indent(depth + 1)
+                            )?;
+                            if !results.is_empty() {
+                                write!(f, " -> {}", results)?;
+                            }
+                            write!(f, ";\n",)?;
+                        }
+                        crate::ResourceFuncKind::Constructor => {
+                            write!(
+                                f,
+                                "{:depth$}constructor({});\n",
+                                "",
+                                func.params,
+                                depth = opts.indent(depth + 1)
+                            )?;
+                        }
+                    }
+                }
+                write!(f, "{:depth$}}}\n", "", depth = opts.indent(depth))?;
+            }
             TypeDefKind::Flags(flags) => {
                 write!(
                     f,
