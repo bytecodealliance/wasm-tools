@@ -2485,13 +2485,8 @@ dependencies = [
 name = "wit-encoder"
 version = "0.204.0"
 dependencies = [
- "arbitrary",
- "clap 4.5.2",
- "indexmap 2.2.5",
- "log",
+ "pretty_assertions",
  "semver",
- "wit-component",
- "wit-parser 0.204.0",
 ]
 
 [[package]]
