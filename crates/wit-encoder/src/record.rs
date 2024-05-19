@@ -1,4 +1,4 @@
-use crate::{Docs, Type};
+use crate::{ident::Ident, Docs, Type};
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -17,7 +17,7 @@ impl Record {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Field {
-    pub name: String,
+    pub name: Ident,
     #[cfg_attr(feature = "serde", serde(rename = "type"))]
     pub ty: Type,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
@@ -25,7 +25,7 @@ pub struct Field {
 }
 
 impl Field {
-    pub fn new(name: impl Into<String>, ty: Type) -> Self {
+    pub fn new(name: impl Into<Ident>, ty: Type) -> Self {
         Self {
             name: name.into(),
             ty,
@@ -40,7 +40,7 @@ impl Field {
 
 impl<N> Into<Field> for (N, Type)
 where
-    N: Into<String>,
+    N: Into<Ident>,
 {
     fn into(self) -> Field {
         Field::new(self.0, self.1)
@@ -49,7 +49,7 @@ where
 
 impl<N, D> Into<Field> for (N, Type, D)
 where
-    N: Into<String>,
+    N: Into<Ident>,
     D: Into<Docs>,
 {
     fn into(self) -> Field {

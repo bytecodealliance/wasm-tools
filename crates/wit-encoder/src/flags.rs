@@ -1,4 +1,4 @@
-use crate::Docs;
+use crate::{ident::Ident, Docs};
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -17,13 +17,13 @@ impl Flags {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Flag {
-    pub name: String,
+    pub name: Ident,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Option<Docs>,
 }
 
 impl Flag {
-    pub fn new(name: impl Into<String>) -> Self {
+    pub fn new(name: impl Into<Ident>) -> Self {
         Flag {
             name: name.into(),
             docs: None,
@@ -37,7 +37,7 @@ impl Flag {
 
 impl<T> Into<Flag> for (T,)
 where
-    T: Into<String>,
+    T: Into<Ident>,
 {
     fn into(self) -> Flag {
         Flag::new(self.0)
@@ -46,7 +46,7 @@ where
 
 impl<T, D> Into<Flag> for (T, D)
 where
-    T: Into<String>,
+    T: Into<Ident>,
     D: Into<Docs>,
 {
     fn into(self) -> Flag {

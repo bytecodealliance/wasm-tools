@@ -2,7 +2,7 @@ use std::fmt;
 
 use semver::Version;
 
-use crate::{Interface, Render, RenderOpts, World};
+use crate::{ident::Ident, Interface, Render, RenderOpts, World};
 
 /// A WIT package.
 ///
@@ -86,7 +86,7 @@ pub struct PackageName {
     /// A namespace such as `wasi` in `wasi:foo/bar`
     namespace: String,
     /// The kebab-name of this package, which is always specified.
-    name: String,
+    name: Ident,
     /// Optional major/minor version information.
     version: Option<Version>,
 }
@@ -95,7 +95,7 @@ impl PackageName {
     /// Create a new instance of `PackageName`
     pub fn new(
         namespace: impl Into<String>,
-        name: impl Into<String>,
+        name: impl Into<Ident>,
         version: Option<Version>,
     ) -> Self {
         Self {

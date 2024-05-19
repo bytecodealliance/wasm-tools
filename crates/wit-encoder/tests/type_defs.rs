@@ -165,7 +165,7 @@ fn types() {
             [Field::new("a", Type::U32), Field::new("b", Type::U64)],
         ));
         interface.type_def(TypeDef::record("t25", [Field::new("x", Type::U32)]));
-        interface.type_def(TypeDef::record("%record", [Field::new("a", Type::U32)]));
+        interface.type_def(TypeDef::record("record", [Field::new("a", Type::U32)]));
 
         interface.type_def(TypeDef::type_("t26", Type::tuple(Vec::<Type>::new())));
         interface.type_def(TypeDef::type_("t27", Type::tuple([Type::U32])));

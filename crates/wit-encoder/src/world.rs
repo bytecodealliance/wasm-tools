@@ -1,10 +1,10 @@
-use crate::{Docs, Interface, StandaloneFunction, Type};
+use crate::{ident::Ident, Docs, Interface, StandaloneFunction, Type};
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct World {
     /// The WIT identifier name of this world.
-    pub name: String,
+    pub name: Ident,
 
     /// All imported items into this interface, both worlds and functions.
     pub imports: Vec<(WorldKey, WorldItem)>,
@@ -20,7 +20,7 @@ pub struct World {
 #[derive(Debug, Clone)]
 pub struct IncludeName {
     /// The name of the item
-    pub name: String,
+    pub name: Ident,
 
     /// The name to be replaced with
     pub as_: String,

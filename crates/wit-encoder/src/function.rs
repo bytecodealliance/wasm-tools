@@ -1,6 +1,6 @@
 use std::fmt::{self, Display};
 
-use crate::{Docs, Render, RenderOpts, Type};
+use crate::{ident::Ident, Docs, Render, RenderOpts, Type};
 
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -119,7 +119,7 @@ impl Results {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct StandaloneFunction {
-    name: String,
+    name: Ident,
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_params"))]
     params: Params,
     results: Results,
@@ -128,7 +128,7 @@ pub struct StandaloneFunction {
 }
 
 impl StandaloneFunction {
-    pub fn new(name: impl Into<String>) -> Self {
+    pub fn new(name: impl Into<Ident>) -> Self {
         Self {
             name: name.into(),
             params: Params::empty(),

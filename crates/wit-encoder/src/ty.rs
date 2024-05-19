@@ -1,8 +1,8 @@
 use std::fmt::{self, Display};
 
 use crate::{
-    Docs, Enum, Field, Flag, Flags, Record, Render, RenderOpts, Resource, ResourceFunc, Result_,
-    Tuple, Variant,
+    ident::Ident, Docs, Enum, Field, Flag, Flags, Record, Render, RenderOpts, Resource,
+    ResourceFunc, Result_, Tuple, Variant,
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -25,7 +25,7 @@ pub enum Type {
     Result(Box<Result_>),
     List(Box<Type>),
     Tuple(Tuple),
-    Named(String),
+    Named(Ident),
 }
 
 impl Type {
@@ -58,7 +58,7 @@ impl Type {
             types: types.into_iter().collect(),
         })
     }
-    pub fn named(name: impl Into<String>) -> Self {
+    pub fn named(name: impl Into<Ident>) -> Self {
         Type::Named(name.into())
     }
 }
@@ -98,15 +98,18 @@ impl Display for Type {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct EnumCase {
-    pub name: String,
+    pub name: Ident,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Option<Docs>,
 }
 
-impl From<&str> for EnumCase {
-    fn from(value: &str) -> Self {
+impl<N> From<N> for EnumCase
+where
+    N: Into<Ident>,
+{
+    fn from(value: N) -> Self {
         Self {
-            name: value.to_string(),
+            name: value.into(),
             docs: None,
         }
     }
@@ -121,7 +124,7 @@ impl EnumCase {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct VariantCase {
-    pub name: String,
+    pub name: Ident,
     #[cfg_attr(feature = "serde", serde(rename = "type"))]
     pub ty: Option<Type>,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
@@ -129,14 +132,14 @@ pub struct VariantCase {
 }
 
 impl VariantCase {
-    pub fn empty(name: impl Into<String>) -> Self {
+    pub fn empty(name: impl Into<Ident>) -> Self {
         Self {
             name: name.into(),
             ty: None,
             docs: None,
         }
     }
-    pub fn value(name: impl Into<String>, ty: Type) -> Self {
+    pub fn value(name: impl Into<Ident>, ty: Type) -> Self {
         Self {
             name: name.into(),
             ty: Some(ty),
@@ -150,7 +153,7 @@ impl VariantCase {
 
 impl<N> Into<VariantCase> for (N,)
 where
-    N: Into<String>,
+    N: Into<Ident>,
 {
     fn into(self) -> VariantCase {
         VariantCase::empty(self.0)
@@ -159,7 +162,7 @@ where
 
 impl<N> Into<VariantCase> for (N, Type)
 where
-    N: Into<String>,
+    N: Into<Ident>,
 {
     fn into(self) -> VariantCase {
         VariantCase::value(self.0, self.1)
@@ -168,7 +171,7 @@ where
 
 impl<N, D> Into<VariantCase> for (N, Type, D)
 where
-    N: Into<String>,
+    N: Into<Ident>,
     D: Into<Docs>,
 {
     fn into(self) -> VariantCase {
@@ -181,14 +184,14 @@ where
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct TypeDef {
-    name: String,
+    name: Ident,
     kind: TypeDefKind,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     docs: Option<Docs>,
 }
 
 impl TypeDef {
-    pub fn new(name: impl Into<String>, kind: TypeDefKind) -> Self {
+    pub fn new(name: impl Into<Ident>, kind: TypeDefKind) -> Self {
         TypeDef {
             name: name.into(),
             kind,
@@ -197,7 +200,7 @@ impl TypeDef {
     }
 
     pub fn record(
-        name: impl Into<String>,
+        name: impl Into<Ident>,
         fields: impl IntoIterator<Item = impl Into<Field>>,
     ) -> Self {
         TypeDef {
@@ -208,7 +211,7 @@ impl TypeDef {
     }
 
     pub fn resource(
-        name: impl Into<String>,
+        name: impl Into<Ident>,
         funcs: impl IntoIterator<Item = impl Into<ResourceFunc>>,
     ) -> Self {
         TypeDef {
@@ -218,10 +221,7 @@ impl TypeDef {
         }
     }
 
-    pub fn flags(
-        name: impl Into<String>,
-        flags: impl IntoIterator<Item = impl Into<Flag>>,
-    ) -> Self {
+    pub fn flags(name: impl Into<Ident>, flags: impl IntoIterator<Item = impl Into<Flag>>) -> Self {
         TypeDef {
             name: name.into(),
             kind: TypeDefKind::flags(flags),
@@ -230,7 +230,7 @@ impl TypeDef {
     }
 
     pub fn variant(
-        name: impl Into<String>,
+        name: impl Into<Ident>,
         cases: impl IntoIterator<Item = impl Into<VariantCase>>,
     ) -> Self {
         TypeDef {
@@ -241,7 +241,7 @@ impl TypeDef {
     }
 
     pub fn enum_(
-        name: impl Into<String>,
+        name: impl Into<Ident>,
         cases: impl IntoIterator<Item = impl Into<EnumCase>>,
     ) -> Self {
         TypeDef {
@@ -251,7 +251,7 @@ impl TypeDef {
         }
     }
 
-    pub fn type_(name: impl Into<String>, type_: Type) -> Self {
+    pub fn type_(name: impl Into<Ident>, type_: Type) -> Self {
         TypeDef {
             name: name.into(),
             kind: TypeDefKind::type_(type_),

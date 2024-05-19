@@ -9,6 +9,7 @@ mod docs;
 mod enum_;
 mod flags;
 mod function;
+mod ident;
 mod interface;
 mod package;
 mod record;

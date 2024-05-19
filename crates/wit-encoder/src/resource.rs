@@ -1,4 +1,4 @@
-use crate::{Docs, Params, Results};
+use crate::{ident::Ident, Docs, Params, Results};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Resource {
@@ -16,13 +16,13 @@ pub struct ResourceFunc {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ResourceFuncKind {
-    Method(String, Results),
-    Static(String, Results),
+    Method(Ident, Results),
+    Static(Ident, Results),
     Constructor,
 }
 
 impl ResourceFunc {
-    pub fn method(name: impl Into<String>) -> Self {
+    pub fn method(name: impl Into<Ident>) -> Self {
         Self {
             kind: ResourceFuncKind::Method(name.into(), Results::empty()),
             params: Params::empty(),
@@ -30,7 +30,7 @@ impl ResourceFunc {
         }
     }
 
-    pub fn static_(name: impl Into<String>) -> Self {
+    pub fn static_(name: impl Into<Ident>) -> Self {
         Self {
             kind: ResourceFuncKind::Static(name.into(), Results::empty()),
             params: Params::empty(),
@@ -46,7 +46,7 @@ impl ResourceFunc {
         }
     }
 
-    pub fn name(&mut self, name: impl Into<String>) {
+    pub fn name(&mut self, name: impl Into<Ident>) {
         match &self.kind {
             ResourceFuncKind::Method(_, results) => {
                 self.kind = ResourceFuncKind::Method(name.into(), results.clone())
