@@ -22,6 +22,7 @@ pub struct IndexMap<K, V> {
 }
 
 impl<K, V> Default for IndexMap<K, V> {
+    #[inline]
     fn default() -> Self {
         Self {
             inner: detail::IndexMapImpl::default(),
@@ -31,21 +32,25 @@ impl<K, V> Default for IndexMap<K, V> {
 
 impl<K, V> IndexMap<K, V> {
     /// Clears the [`IndexMap`], removing all elements.
+    #[inline]
     pub fn clear(&mut self) {
         self.inner.clear()
     }
 
     /// Returns the number of elements in the [`IndexMap`].
+    #[inline]
     pub fn len(&self) -> usize {
         self.inner.len()
     }
 
     /// Returns `true` if the [`IndexMap`] contains no elements.
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }
 
     /// Returns an iterator that yields the items in the [`IndexMap`].
+    #[inline]
     pub fn iter(&self) -> Iter<'_, K, V> {
         Iter {
             inner: self.inner.iter(),
@@ -53,6 +58,7 @@ impl<K, V> IndexMap<K, V> {
     }
 
     /// Returns an iterator that yields the mutable items in the [`IndexMap`].
+    #[inline]
     pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
         IterMut {
             inner: self.inner.iter_mut(),
@@ -60,6 +66,7 @@ impl<K, V> IndexMap<K, V> {
     }
 
     /// Returns an iterator that yields the keys in the [`IndexMap`].
+    #[inline]
     pub fn keys(&self) -> Keys<'_, K, V> {
         Keys {
             inner: self.inner.keys(),
@@ -67,6 +74,7 @@ impl<K, V> IndexMap<K, V> {
     }
 
     /// Returns an iterator that yields the values in the [`IndexMap`].
+    #[inline]
     pub fn values(&self) -> Values<'_, K, V> {
         Values {
             inner: self.inner.values(),
@@ -74,6 +82,7 @@ impl<K, V> IndexMap<K, V> {
     }
 
     /// Returns a mutable iterator that yields the values in the [`IndexMap`].
+    #[inline]
     pub fn values_mut(&mut self) -> ValuesMut<'_, K, V> {
         ValuesMut {
             inner: self.inner.values_mut(),
@@ -81,11 +90,13 @@ impl<K, V> IndexMap<K, V> {
     }
 
     /// Returns the key-value entry at the given `index` if any.
+    #[inline]
     pub fn get_index(&self, index: usize) -> Option<(&K, &V)> {
         self.inner.get_index(index)
     }
 
     /// Returns the mutable key-value entry at the given `index` if any.
+    #[inline]
     pub fn get_index_mut(&mut self, index: usize) -> Option<(&K, &mut V)> {
         self.inner.get_index_mut(index)
     }
@@ -96,6 +107,7 @@ where
     K: Hash + Eq + Ord + Clone,
 {
     /// Reserves capacity for at least `additional` more elements to be inserted in the [`IndexMap`].
+    #[inline]
     pub fn reserve(&mut self, additional: usize) {
         #[cfg(not(feature = "no-hash-maps"))]
         self.inner.reserve(additional);
@@ -104,6 +116,7 @@ where
     }
 
     /// Returns true if `key` is contains in the [`IndexMap`].
+    #[inline]
     pub fn contains_key<Q: ?Sized>(&self, key: &Q) -> bool
     where
         K: Borrow<Q>,
@@ -113,6 +126,7 @@ where
     }
 
     /// Returns a reference to the value corresponding to the `key`.
+    #[inline]
     pub fn get<Q: ?Sized>(&self, key: &Q) -> Option<&V>
     where
         K: Borrow<Q>,
@@ -123,6 +137,7 @@ where
 
     /// Return references to the key-value pair stored for `key`,
     /// if it is present, else `None`.
+    #[inline]
     pub fn get_key_value<Q: ?Sized>(&self, key: &Q) -> Option<(&K, &V)>
     where
         K: Borrow<Q>,
@@ -137,6 +152,7 @@ where
     /// The supplied key may be any borrowed form of the map's key type,
     /// but the ordering on the borrowed form *must* match the ordering
     /// on the key type.
+    #[inline]
     pub fn get_full<Q: ?Sized>(&self, key: &Q) -> Option<(usize, &K, &V)>
     where
         K: Borrow<Q> + Ord,
@@ -146,6 +162,7 @@ where
     }
 
     /// Returns a mutable reference to the value corresponding to the key.
+    #[inline]
     pub fn get_mut<Q: ?Sized>(&mut self, key: &Q) -> Option<&mut V>
     where
         K: Borrow<Q>,
@@ -161,6 +178,7 @@ where
     /// If the map did have this key present, the value is updated, and the old
     /// value is returned. The key is not updated, though; this matters for
     /// types that can be `==` without being identical.
+    #[inline]
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         self.inner.insert(key, value)
     }
@@ -174,6 +192,7 @@ where
     /// Return `None` if `key` is not in map.
     ///
     /// [`Vec::swap_remove`]: alloc::vec::Vec::swap_remove
+    #[inline]
     pub fn swap_remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Borrow<Q>,
@@ -191,6 +210,7 @@ where
     /// Return `None` if `key` is not in map.
     ///
     /// [`Vec::swap_remove`]: alloc::vec::Vec::swap_remove
+    #[inline]
     pub fn swap_remove_entry<Q>(&mut self, key: &Q) -> Option<(K, V)>
     where
         K: Borrow<Q>,
@@ -200,6 +220,7 @@ where
     }
 
     /// Gets the given key's corresponding entry in the [`IndexMap`] for in-place manipulation.
+    #[inline]
     pub fn entry(&mut self, key: K) -> Entry<'_, K, V> {
         match self.inner.entry(key) {
             detail::EntryImpl::Occupied(entry) => Entry::Occupied(OccupiedEntry { inner: entry }),
@@ -215,6 +236,7 @@ where
 {
     type Output = V;
 
+    #[inline]
     fn index(&self, key: &Q) -> &V {
         &self.inner[key]
     }
@@ -226,6 +248,7 @@ where
 {
     type Output = V;
 
+    #[inline]
     fn index(&self, key: usize) -> &V {
         &self.inner[key]
     }
@@ -235,6 +258,7 @@ impl<K, V> Extend<(K, V)> for IndexMap<K, V>
 where
     K: Eq + Hash + Ord + Clone,
 {
+    #[inline]
     fn extend<Iter: IntoIterator<Item = (K, V)>>(&mut self, iter: Iter) {
         self.inner.extend(iter)
     }
@@ -256,6 +280,7 @@ where
     K: Hash + Eq + Ord + Clone,
 {
     /// Returns a reference to this entry's key.
+    #[inline]
     pub fn key(&self) -> &K {
         match *self {
             Self::Occupied(ref entry) => entry.key(),
@@ -271,6 +296,7 @@ where
 {
     /// Ensures a value is in the entry by inserting the default value if empty,
     /// and returns a mutable reference to the value in the entry.
+    #[inline]
     pub fn or_default(self) -> &'a mut V {
         match self {
             Self::Occupied(entry) => entry.into_mut(),
@@ -292,27 +318,32 @@ where
     K: Ord + Clone,
 {
     /// Gets a reference to the key in the entry.
+    #[inline]
     pub fn key(&self) -> &K {
         self.inner.key()
     }
 
     /// Gets a reference to the value in the entry.
+    #[inline]
     pub fn get(&self) -> &V {
         self.inner.get()
     }
 
     /// Gets a mutable reference to the value in the entry.
+    #[inline]
     pub fn get_mut(&mut self) -> &mut V {
         self.inner.get_mut()
     }
 
     /// Sets the value of the entry with the [`OccupiedEntry`]'s key, and returns the entry's old value.
+    #[inline]
     pub fn insert(&mut self, value: V) -> V {
         self.inner.insert(value)
     }
 
     /// Converts the [`OccupiedEntry`] into a mutable reference to the value in the entry
     /// with a lifetime bound to the map itself.
+    #[inline]
     pub fn into_mut(self) -> &'a mut V {
         self.inner.into_mut()
     }
@@ -331,16 +362,19 @@ where
     K: Ord + Clone,
 {
     /// Gets a reference to the key in the entry.
+    #[inline]
     pub fn key(&self) -> &K {
         self.inner.key()
     }
 
     /// Take ownership of the key.
+    #[inline]
     pub fn into_key(self) -> K {
         self.inner.into_key()
     }
 
     /// Sets the value of the entry with the [`VacantEntry`]'s key, and returns a mutable reference to it.
+    #[inline]
     pub fn insert(self, value: V) -> &'a mut V
     where
         K: Hash,
@@ -353,6 +387,7 @@ impl<K, V> FromIterator<(K, V)> for IndexMap<K, V>
 where
     K: Hash + Ord + Eq + Clone,
 {
+    #[inline]
     fn from_iter<I>(iter: I) -> Self
     where
         I: IntoIterator<Item = (K, V)>,
@@ -367,6 +402,7 @@ impl<'a, K, V> IntoIterator for &'a IndexMap<K, V> {
     type Item = (&'a K, &'a V);
     type IntoIter = Iter<'a, K, V>;
 
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
@@ -381,16 +417,19 @@ pub struct Iter<'a, K, V> {
 impl<'a, K, V> Iterator for Iter<'a, K, V> {
     type Item = (&'a K, &'a V);
 
+    #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
     }
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
     }
 }
 
 impl<'a, K, V> ExactSizeIterator for Iter<'a, K, V> {
+    #[inline]
     fn len(&self) -> usize {
         self.inner.len()
     }
@@ -402,6 +441,7 @@ impl<'a, K, V> IntoIterator for &'a mut IndexMap<K, V> {
     type Item = (&'a K, &'a mut V);
     type IntoIter = IterMut<'a, K, V>;
 
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
     }
@@ -416,16 +456,19 @@ pub struct IterMut<'a, K, V> {
 impl<'a, K, V> Iterator for IterMut<'a, K, V> {
     type Item = (&'a K, &'a mut V);
 
+    #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
     }
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
     }
 }
 
 impl<'a, K, V> ExactSizeIterator for IterMut<'a, K, V> {
+    #[inline]
     fn len(&self) -> usize {
         self.inner.len()
     }
@@ -437,6 +480,7 @@ impl<K, V> IntoIterator for IndexMap<K, V> {
     type Item = (K, V);
     type IntoIter = IntoIter<K, V>;
 
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         IntoIter {
             inner: self.inner.into_iter(),
@@ -453,16 +497,19 @@ pub struct IntoIter<K, V> {
 impl<'a, K, V> Iterator for IntoIter<K, V> {
     type Item = (K, V);
 
+    #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
     }
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
     }
 }
 
 impl<'a, K, V> ExactSizeIterator for IntoIter<K, V> {
+    #[inline]
     fn len(&self) -> usize {
         self.inner.len()
     }
@@ -479,16 +526,19 @@ pub struct Keys<'a, K, V> {
 impl<'a, K, V> Iterator for Keys<'a, K, V> {
     type Item = &'a K;
 
+    #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
     }
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
     }
 }
 
 impl<'a, K, V> ExactSizeIterator for Keys<'a, K, V> {
+    #[inline]
     fn len(&self) -> usize {
         self.inner.len()
     }
@@ -505,16 +555,19 @@ pub struct Values<'a, K, V> {
 impl<'a, K, V> Iterator for Values<'a, K, V> {
     type Item = &'a V;
 
+    #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
     }
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
     }
 }
 
 impl<'a, K, V> ExactSizeIterator for Values<'a, K, V> {
+    #[inline]
     fn len(&self) -> usize {
         self.inner.len()
     }
@@ -531,16 +584,19 @@ pub struct ValuesMut<'a, K, V> {
 impl<'a, K, V> Iterator for ValuesMut<'a, K, V> {
     type Item = &'a mut V;
 
+    #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
     }
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
     }
 }
 
 impl<'a, K, V> ExactSizeIterator for ValuesMut<'a, K, V> {
+    #[inline]
     fn len(&self) -> usize {
         self.inner.len()
     }
