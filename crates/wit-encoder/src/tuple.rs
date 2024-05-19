@@ -5,7 +5,17 @@ use crate::Type;
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Tuple {
-    pub types: Vec<Type>,
+    pub(crate) types: Vec<Type>,
+}
+
+impl Tuple {
+    pub fn types(&self) -> &[Type] {
+        &self.types
+    }
+
+    pub fn types_mut(&mut self) -> &mut Vec<Type> {
+        &mut self.types
+    }
 }
 
 impl Display for Tuple {

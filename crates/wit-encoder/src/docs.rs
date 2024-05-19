@@ -5,7 +5,7 @@ use crate::{Render, RenderOpts};
 /// Documentation
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Default)]
 pub struct Docs {
-    pub contents: String,
+    contents: String,
 }
 
 impl Docs {

@@ -98,9 +98,9 @@ impl Display for Type {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct EnumCase {
-    pub name: Ident,
+    name: Ident,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
-    pub docs: Option<Docs>,
+    docs: Option<Docs>,
 }
 
 impl<N> From<N> for EnumCase
@@ -116,6 +116,13 @@ where
 }
 
 impl EnumCase {
+    pub fn new(name: impl Into<Ident>) -> Self {
+        Self {
+            name: name.into(),
+            docs: None,
+        }
+    }
+
     pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
         self.docs = docs.map(|d| d.into());
     }
@@ -124,11 +131,11 @@ impl EnumCase {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct VariantCase {
-    pub name: Ident,
+    name: Ident,
     #[cfg_attr(feature = "serde", serde(rename = "type"))]
-    pub ty: Option<Type>,
+    ty: Option<Type>,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
-    pub docs: Option<Docs>,
+    docs: Option<Docs>,
 }
 
 impl VariantCase {

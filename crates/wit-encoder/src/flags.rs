@@ -3,7 +3,7 @@ use crate::{ident::Ident, Docs};
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Flags {
-    pub flags: Vec<Flag>,
+    pub(crate) flags: Vec<Flag>,
 }
 
 impl Flags {
@@ -12,14 +12,22 @@ impl Flags {
             flags: flags.into_iter().map(|f| f.into()).collect(),
         }
     }
+
+    pub fn flags(&self) -> &[Flag] {
+        &self.flags
+    }
+
+    pub fn flags_mut(&mut self) -> &mut Vec<Flag> {
+        &mut self.flags
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Flag {
-    pub name: Ident,
+    pub(crate) name: Ident,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
-    pub docs: Option<Docs>,
+    pub(crate) docs: Option<Docs>,
 }
 
 impl Flag {

@@ -3,7 +3,7 @@ use crate::{ident::Ident, Docs, Type};
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Record {
-    pub fields: Vec<Field>,
+    pub(crate) fields: Vec<Field>,
 }
 
 impl Record {
@@ -12,16 +12,24 @@ impl Record {
             fields: fields.into_iter().map(|f| f.into()).collect(),
         }
     }
+
+    pub fn fields(&self) -> &[Field] {
+        &self.fields
+    }
+
+    pub fn fields_mut(&mut self) -> &mut Vec<Field> {
+        &mut self.fields
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Field {
-    pub name: Ident,
+    pub(crate) name: Ident,
     #[cfg_attr(feature = "serde", serde(rename = "type"))]
-    pub ty: Type,
+    pub(crate) ty: Type,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
-    pub docs: Option<Docs>,
+    pub(crate) docs: Option<Docs>,
 }
 
 impl Field {

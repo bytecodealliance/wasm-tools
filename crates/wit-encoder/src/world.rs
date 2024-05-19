@@ -4,17 +4,49 @@ use crate::{ident::Ident, Docs, Interface, StandaloneFunction, Type};
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct World {
     /// The WIT identifier name of this world.
-    pub name: Ident,
+    name: Ident,
 
     /// All imported items into this world.
-    pub imports: Vec<(WorldKey, WorldItem)>,
+    imports: Vec<(WorldKey, WorldItem)>,
 
     /// All exported items from this world.
-    pub exports: Vec<(WorldKey, WorldItem)>,
+    exports: Vec<(WorldKey, WorldItem)>,
 
     /// Documentation associated with this world declaration.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
-    pub docs: Option<Docs>,
+    docs: Option<Docs>,
+}
+
+impl World {
+    /// Create a new world.
+    pub fn new(name: impl Into<Ident>) -> Self {
+        Self {
+            name: name.into(),
+            imports: vec![],
+            exports: vec![],
+            docs: None,
+        }
+    }
+
+    /// Add a `name` to the world
+    pub fn name(&mut self, name: impl Into<Ident>) {
+        self.name = name.into();
+    }
+
+    /// Add an import to the world
+    pub fn imports(&mut self, world_key: WorldKey, world_item: WorldItem) {
+        self.imports.push((world_key, world_item));
+    }
+
+    /// Add an export to the world
+    pub fn exports(&mut self, world_key: WorldKey, world_item: WorldItem) {
+        self.exports.push((world_key, world_item));
+    }
+
+    /// Set the documentation
+    pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
+        self.docs = docs.map(|d| d.into());
+    }
 }
 
 #[derive(Debug, Clone)]

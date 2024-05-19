@@ -3,7 +3,17 @@ use crate::VariantCase;
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Variant {
-    pub cases: Vec<VariantCase>,
+    pub(crate) cases: Vec<VariantCase>,
+}
+
+impl Variant {
+    pub fn cases(&self) -> &[VariantCase] {
+        &self.cases
+    }
+
+    pub fn cases_mut(&mut self) -> &mut Vec<VariantCase> {
+        &mut self.cases
+    }
 }
 
 impl<I, C> From<I> for Variant

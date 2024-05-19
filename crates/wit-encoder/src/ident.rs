@@ -1,7 +1,7 @@
 use std::{borrow::Cow, fmt};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Ident(pub Cow<'static, str>);
+pub struct Ident(Cow<'static, str>);
 
 impl Ident {
     pub fn new(s: impl Into<Cow<'static, str>>) -> Self {
