@@ -6,10 +6,10 @@ pub struct World {
     /// The WIT identifier name of this world.
     pub name: Ident,
 
-    /// All imported items into this interface, both worlds and functions.
+    /// All imported items into this world.
     pub imports: Vec<(WorldKey, WorldItem)>,
 
-    /// All exported items from this interface, both worlds and functions.
+    /// All exported items from this world.
     pub exports: Vec<(WorldKey, WorldItem)>,
 
     /// Documentation associated with this world declaration.

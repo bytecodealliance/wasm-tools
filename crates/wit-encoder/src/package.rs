@@ -15,12 +15,11 @@ pub struct Package {
     /// A unique name corresponding to this package.
     name: PackageName,
 
-    /// All interfaces contained in this packaged, keyed by the interface's
-    /// name.
+    /// All interfaces contained in this packaged.
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id_map"))]
     interfaces: Vec<Interface>,
 
-    /// All worlds contained in this package, keyed by the world's name.
+    /// All worlds contained in this package.
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id_map"))]
     worlds: Vec<World>,
 }

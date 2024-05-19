@@ -11,9 +11,6 @@ pub struct Interface {
     name: Option<String>,
 
     /// Exported types from this interface.
-    ///
-    /// Export names are listed within the types themselves. Note that the
-    /// export name here matches the name listed in the `TypeDef`.
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id_map"))]
     type_defs: Vec<TypeDef>,
 
@@ -41,7 +38,7 @@ impl Interface {
         self.name = name.map(|n| n.into());
     }
 
-    /// Add a type-def to the interface
+    /// Add a `TypeDef` to the interface
     pub fn type_def(&mut self, type_def: TypeDef) {
         self.type_defs.push(type_def);
     }
@@ -51,7 +48,7 @@ impl Interface {
         self.functions.push(function);
     }
 
-    /// Set the documentation
+    /// Set the documentation of this interface.
     pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
         self.docs = docs.map(|d| d.into());
     }
@@ -80,7 +77,6 @@ impl Render for Interface {
         for type_def in &self.type_defs {
             type_def.render(f, depth + 1)?;
         }
-        // TODO: handle types and resources.
         write!(f, "{:depth$}}}\n", "", depth = opts.indent(depth))?;
         Ok(())
     }
