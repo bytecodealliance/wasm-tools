@@ -633,3 +633,24 @@ where
         })
     }
 }
+
+impl<K, V> PartialEq for IndexMap<K, V>
+where
+    K: PartialEq + Hash + Ord,
+    V: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.inner == other.inner
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        self.inner != other.inner
+    }
+}
+
+impl<K, V> Eq for IndexMap<K, V>
+where
+    K: Eq + Hash + Ord,
+    V: Eq,
+{
+}
