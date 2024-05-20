@@ -81,6 +81,16 @@ where
         self.inner.get_key_value(value).map(|(x, &())| x)
     }
 
+    /// Return the index of the item provided, if it exists.
+    pub fn get_index_of<Q>(&self, value: &Q) -> Option<usize>
+    where
+        T: Borrow<Q>,
+        Q: Hash + Eq + Ord + ?Sized,
+    {
+        let (index, _, _) = self.inner.get_full(value)?;
+        Some(index)
+    }
+
     /// Adds `value` to the [`IndexSet`].
     ///
     /// Returns whether the value was newly inserted:
