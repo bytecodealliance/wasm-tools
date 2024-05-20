@@ -61,7 +61,7 @@
   "not a valid export name")
 (assert_invalid
   (component (type (component (export "relative-url=<x>" (func)))))
-  "not a valid export name")
+  "not a valid extern name")
 (assert_invalid
   (component (type (component (export "locked-dep=<a:b>" (func)))))
   "not a valid export name")

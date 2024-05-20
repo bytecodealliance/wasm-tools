@@ -568,8 +568,7 @@ impl<'a> DependencyName<'a> {
     }
 }
 
-/// A dependency on an implementation either as `url=...` or
-/// `relative-url=...`
+/// A dependency on an implementation either as `url=...`
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct UrlName<'a>(&'a str);
 
@@ -644,17 +643,6 @@ impl<'a> ComponentNameParser<'a> {
             let url = self.take_up_to('>')?;
             if url.contains('<') {
                 bail!(self.offset, "url cannot contain `<`");
-            }
-            self.expect_str(">")?;
-            self.eat_optional_hash()?;
-            return Ok(ParsedComponentNameKind::Url);
-        }
-        // 'relative-url=<' <nonbrackets> '>' (',' <hashname>)?
-        if self.eat_str("relative-url=") {
-            self.expect_str("<")?;
-            let url = self.take_up_to('>')?;
-            if url.contains('<') {
-                bail!(self.offset, "relative-url cannot contain `<`");
             }
             self.expect_str(">")?;
             self.eat_optional_hash()?;
