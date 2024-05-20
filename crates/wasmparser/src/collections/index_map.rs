@@ -603,3 +603,33 @@ impl<'a, K, V> ExactSizeIterator for ValuesMut<'a, K, V> {
 }
 
 impl<'a, K, V> FusedIterator for ValuesMut<'a, K, V> {}
+
+#[cfg(feature = "serde")]
+impl<K, V> serde::Serialize for IndexMap<K, V>
+where
+    K: serde::Serialize + Eq + Hash + Ord,
+    V: serde::Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::ser::Serializer,
+    {
+        serde::Serialize::serialize(&self.inner, serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'a, K, V> serde::Deserialize<'a> for IndexMap<K, V>
+where
+    K: serde::Deserialize<'a> + Eq + Hash + Ord + Clone,
+    V: serde::Deserialize<'a>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::de::Deserializer<'a>,
+    {
+        Ok(IndexMap {
+            inner: serde::Deserialize::deserialize(deserializer)?,
+        })
+    }
+}

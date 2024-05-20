@@ -261,3 +261,31 @@ impl<T> ExactSizeIterator for IntoIter<T> {
 }
 
 impl<T> FusedIterator for IntoIter<T> {}
+
+#[cfg(feature = "serde")]
+impl<T> serde::Serialize for IndexSet<T>
+where
+    T: serde::Serialize + Eq + Hash + Ord,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::ser::Serializer,
+    {
+        serde::Serialize::serialize(&self.inner, serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'a, T> serde::Deserialize<'a> for IndexSet<T>
+where
+    T: serde::Deserialize<'a> + Eq + Hash + Ord + Clone,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::de::Deserializer<'a>,
+    {
+        Ok(IndexSet {
+            inner: serde::Deserialize::deserialize(deserializer)?,
+        })
+    }
+}
