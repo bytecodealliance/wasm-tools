@@ -15,6 +15,7 @@ pub struct IndexSet<T> {
 }
 
 impl<T> Default for IndexSet<T> {
+    #[inline]
     fn default() -> Self {
         Self {
             inner: IndexMap::default(),
@@ -24,21 +25,25 @@ impl<T> Default for IndexSet<T> {
 
 impl<T> IndexSet<T> {
     /// Clears the [`IndexSet`], removing all elements.
+    #[inline]
     pub fn clear(&mut self) {
         self.inner.clear()
     }
 
     /// Returns the number of elements in the [`IndexSet`].
+    #[inline]
     pub fn len(&self) -> usize {
         self.inner.len()
     }
 
     /// Returns `true` if the [`IndexSet`] contains no elements.
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }
 
     /// Returns an iterator that yields the items in the [`IndexSet`].
+    #[inline]
     pub fn iter(&self) -> Iter<'_, T> {
         Iter {
             inner: self.inner.iter(),
@@ -51,11 +56,13 @@ where
     T: Eq + Hash + Ord + Clone,
 {
     /// Reserves capacity for at least `additional` more elements to be inserted in the [`IndexSet`].
+    #[inline]
     pub fn reserve(&mut self, additional: usize) {
         self.inner.reserve(additional);
     }
 
     /// Returns true if the [`IndexSet`] contains an element equal to the `value`.
+    #[inline]
     pub fn contains<Q: ?Sized>(&self, value: &Q) -> bool
     where
         T: Borrow<Q>,
@@ -65,6 +72,7 @@ where
     }
 
     /// Returns a reference to the element in the [`IndexSet`], if any, that is equal to the `value`.
+    #[inline]
     pub fn get<Q: ?Sized>(&self, value: &Q) -> Option<&T>
     where
         T: Borrow<Q>,
@@ -79,6 +87,7 @@ where
     ///
     /// - Returns `true` if the set did not previously contain an equal value.
     /// - Returns `false` otherwise and the entry is not updated.
+    #[inline]
     pub fn insert(&mut self, value: T) -> bool {
         self.inner.insert(value, ()).is_none()
     }
@@ -94,6 +103,7 @@ where
     /// Computes in **O(1)** time (average).
     ///
     /// [`Vec::swap_remove`]: alloc::vec::Vec::swap_remove
+    #[inline]
     pub fn swap_remove<Q: ?Sized>(&mut self, value: &Q) -> bool
     where
         T: Borrow<Q>,
@@ -128,6 +138,7 @@ where
 
     /// Returns `true` if the [`IndexSet`] is a superset of another,
     /// i.e., `self` contains at least all the values in `other`.
+    #[inline]
     pub fn is_superset(&self, other: &Self) -> bool {
         other.is_subset(self)
     }
@@ -139,6 +150,7 @@ where
 {
     type Output = T;
 
+    #[inline]
     fn index(&self, index: usize) -> &T {
         let Some((value, _)) = self.inner.get_index(index) else {
             panic!("out of bounds index: {index}");
@@ -165,6 +177,7 @@ impl<'a, T> IntoIterator for &'a IndexSet<T> {
     type Item = &'a T;
     type IntoIter = Iter<'a, T>;
 
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
@@ -188,16 +201,19 @@ pub struct Iter<'a, T> {
 impl<'a, T> Iterator for Iter<'a, T> {
     type Item = &'a T;
 
+    #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
     }
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next().map(|(key, _value)| key)
     }
 }
 
 impl<'a, T> ExactSizeIterator for Iter<'a, T> {
+    #[inline]
     fn len(&self) -> usize {
         self.inner.len()
     }
@@ -209,6 +225,7 @@ impl<T> IntoIterator for IndexSet<T> {
     type Item = T;
     type IntoIter = IntoIter<T>;
 
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         IntoIter {
             inner: self.inner.into_iter(),
@@ -225,16 +242,19 @@ pub struct IntoIter<T> {
 impl<T> Iterator for IntoIter<T> {
     type Item = T;
 
+    #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
     }
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next().map(|(key, _value)| key)
     }
 }
 
 impl<T> ExactSizeIterator for IntoIter<T> {
+    #[inline]
     fn len(&self) -> usize {
         self.inner.len()
     }
