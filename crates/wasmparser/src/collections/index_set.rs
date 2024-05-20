@@ -289,3 +289,18 @@ where
         })
     }
 }
+
+impl<T> PartialEq for IndexSet<T>
+where
+    T: PartialEq + Hash + Ord,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.inner == other.inner
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        self.inner != other.inner
+    }
+}
+
+impl<T> Eq for IndexSet<T> where T: Eq + Hash + Ord {}
