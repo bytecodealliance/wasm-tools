@@ -22,6 +22,7 @@ indexmap = { workspace = true, optional = true }
 semver = { workspace = true, optional = true }
 hashbrown = { workspace = true, optional = true }
 ahash = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
@@ -39,7 +40,7 @@ name = "benchmark"
 harness = false
 
 [features]
-default = ['std', 'validate']
+default = ['std', 'validate', 'serde']
 
 # A feature which enables implementations of `std::error::Error` as appropriate
 # along with other convenience APIs. This additionally uses the standard
@@ -61,3 +62,7 @@ validate = [
   'dep:hashbrown',
   'dep:ahash',
 ]
+
+# Enable Serialize/Deserialize implementations for types in
+# `wasmparser::collections`
+serde = ['dep:serde', 'indexmap/serde', 'hashbrown/serde']

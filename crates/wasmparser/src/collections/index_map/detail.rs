@@ -1022,3 +1022,73 @@ where
             .finish()
     }
 }
+
+#[cfg(feature = "serde")]
+mod serde_impls {
+    use super::IndexMap;
+    use core::fmt;
+    use core::marker::PhantomData;
+    use serde::de::{Deserialize, MapAccess, Visitor};
+    use serde::ser::{Serialize, SerializeMap, Serializer};
+
+    impl<K, V> Serialize for IndexMap<K, V>
+    where
+        K: Serialize + Ord,
+        V: Serialize,
+    {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            let mut map = serializer.serialize_map(Some(self.len()))?;
+            for (k, v) in self.iter() {
+                map.serialize_entry(k, v)?;
+            }
+            map.end()
+        }
+    }
+
+    impl<'a, K, V> Deserialize<'a> for IndexMap<K, V>
+    where
+        K: Deserialize<'a> + Clone + Ord,
+        V: Deserialize<'a>,
+    {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::de::Deserializer<'a>,
+        {
+            deserializer.deserialize_map(IndexMapVisitor {
+                _marker: PhantomData,
+            })
+        }
+    }
+
+    struct IndexMapVisitor<K, V> {
+        _marker: PhantomData<fn() -> IndexMap<K, V>>,
+    }
+
+    impl<'de, K, V> Visitor<'de> for IndexMapVisitor<K, V>
+    where
+        K: Deserialize<'de> + Clone + Ord,
+        V: Deserialize<'de>,
+    {
+        type Value = IndexMap<K, V>;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a map")
+        }
+
+        fn visit_map<M>(self, mut access: M) -> Result<Self::Value, M::Error>
+        where
+            M: MapAccess<'de>,
+        {
+            let mut map = IndexMap::with_capacity(access.size_hint().unwrap_or(0));
+
+            while let Some((key, value)) = access.next_entry()? {
+                map.insert(key, value);
+            }
+
+            Ok(map)
+        }
+    }
+}

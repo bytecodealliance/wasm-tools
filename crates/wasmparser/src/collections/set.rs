@@ -630,3 +630,31 @@ where
     detail::UnionImpl<'a, T>: FusedIterator,
 {
 }
+
+#[cfg(feature = "serde")]
+impl<T> serde::Serialize for Set<T>
+where
+    T: serde::Serialize + Eq + Hash + Ord,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::ser::Serializer,
+    {
+        serde::Serialize::serialize(&self.inner, serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'a, T> serde::Deserialize<'a> for Set<T>
+where
+    T: serde::Deserialize<'a> + Eq + Hash + Ord,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::de::Deserializer<'a>,
+    {
+        Ok(Set {
+            inner: serde::Deserialize::deserialize(deserializer)?,
+        })
+    }
+}
