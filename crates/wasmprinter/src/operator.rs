@@ -1155,6 +1155,13 @@ macro_rules! define_visit {
     (name Delegate) => ("delegate");
     (name GlobalAtomicGet) => ("global.atomic.get");
     (name GlobalAtomicSet) => ("global.atomic.set");
+    (name GlobalAtomicRmwAdd) => ("global.atomic.rmw.add");
+    (name GlobalAtomicRmwSub) => ("global.atomic.rmw.sub");
+    (name GlobalAtomicRmwAnd) => ("global.atomic.rmw.and");
+    (name GlobalAtomicRmwOr) => ("global.atomic.rmw.or");
+    (name GlobalAtomicRmwXor) => ("global.atomic.rmw.xor");
+    (name GlobalAtomicRmwXchg) => ("global.atomic.rmw.xchg");
+    (name GlobalAtomicRmwCmpxchg) => ("global.atomic.rmw.cmpxchg");
 }
 
 impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {
