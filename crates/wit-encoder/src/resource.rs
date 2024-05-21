@@ -5,6 +5,24 @@ pub struct Resource {
     pub funcs: Vec<ResourceFunc>,
 }
 
+impl Resource {
+    pub fn empty() -> Self {
+        Self { funcs: vec![] }
+    }
+
+    pub fn func(&mut self, func: ResourceFunc) {
+        self.funcs.push(func);
+    }
+
+    pub fn funcs(&self) -> &[ResourceFunc] {
+        &self.funcs
+    }
+
+    pub fn funcs_mut(&mut self) -> &mut Vec<ResourceFunc> {
+        &mut self.funcs
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ResourceFunc {
     pub(crate) kind: ResourceFuncKind,
@@ -58,17 +76,17 @@ impl ResourceFunc {
         }
     }
 
-    pub fn params(&mut self, params: Params) {
-        self.params = params;
+    pub fn params(&mut self, params: impl Into<Params>) {
+        self.params = params.into();
     }
 
-    pub fn results(&mut self, results: Results) {
+    pub fn results(&mut self, results: impl Into<Results>) {
         match &self.kind {
             ResourceFuncKind::Method(name, _) => {
-                self.kind = ResourceFuncKind::Method(name.clone(), results)
+                self.kind = ResourceFuncKind::Method(name.clone(), results.into())
             }
             ResourceFuncKind::Static(name, _) => {
-                self.kind = ResourceFuncKind::Static(name.clone(), results)
+                self.kind = ResourceFuncKind::Static(name.clone(), results.into())
             }
             ResourceFuncKind::Constructor => panic!("constructors cannot have results"),
         }

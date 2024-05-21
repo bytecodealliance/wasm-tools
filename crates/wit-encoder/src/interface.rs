@@ -43,9 +43,25 @@ impl Interface {
         self.type_defs.push(type_def);
     }
 
+    pub fn type_defs(&self) -> &[TypeDef] {
+        &self.type_defs
+    }
+
+    pub fn type_defs_mut(&mut self) -> &mut Vec<TypeDef> {
+        &mut self.type_defs
+    }
+
     /// Add an `Function` to the interface
     pub fn function(&mut self, function: StandaloneFunction) {
         self.functions.push(function);
+    }
+
+    pub fn functions(&self) -> &[StandaloneFunction] {
+        &self.functions
+    }
+
+    pub fn functions_mut(&mut self) -> &mut Vec<StandaloneFunction> {
+        &mut self.functions
     }
 
     /// Set the documentation of this interface.

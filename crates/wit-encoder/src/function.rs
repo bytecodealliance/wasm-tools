@@ -6,12 +6,23 @@ use crate::{ident::Ident, Docs, Render, RenderOpts, Type};
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[cfg_attr(feature = "serde", serde(untagged))]
 pub struct Params {
-    items: Vec<(String, Type)>,
+    items: Vec<(Ident, Type)>,
+}
+
+impl<N> From<(N, Type)> for Params
+where
+    N: Into<Ident>,
+{
+    fn from(value: (N, Type)) -> Self {
+        Self {
+            items: vec![(value.0.into(), value.1)],
+        }
+    }
 }
 
 impl<N> FromIterator<(N, Type)> for Params
 where
-    N: Into<String>,
+    N: Into<Ident>,
 {
     fn from_iter<T: IntoIterator<Item = (N, Type)>>(iter: T) -> Self {
         Self {
@@ -38,11 +49,11 @@ impl Params {
         Self::default()
     }
 
-    pub fn items(&self) -> &Vec<(String, Type)> {
+    pub fn items(&self) -> &Vec<(Ident, Type)> {
         &self.items
     }
 
-    pub fn items_mut(&mut self) -> &mut Vec<(String, Type)> {
+    pub fn items_mut(&mut self) -> &mut Vec<(Ident, Type)> {
         &mut self.items
     }
 }
@@ -82,6 +93,21 @@ impl Display for Results {
 impl Default for Results {
     fn default() -> Self {
         Results::empty()
+    }
+}
+
+impl From<Type> for Results {
+    fn from(value: Type) -> Self {
+        Results::Anon(value)
+    }
+}
+
+impl<N> FromIterator<(N, Type)> for Results
+where
+    N: Into<Ident>,
+{
+    fn from_iter<T: IntoIterator<Item = (N, Type)>>(iter: T) -> Self {
+        Results::Named(Params::from_iter(iter))
     }
 }
 

@@ -1,7 +1,7 @@
 use std::fmt::{self, Display};
 
 use crate::{
-    ident::Ident, Docs, Enum, Field, Flag, Flags, Record, Render, RenderOpts, Resource,
+    ident::Ident, Docs, Enum, EnumCase, Field, Flag, Flags, Record, Render, RenderOpts, Resource,
     ResourceFunc, Result_, Tuple, Variant,
 };
 
@@ -92,39 +92,6 @@ impl Display for Type {
             }
             Type::Tuple(tuple) => tuple.fmt(f),
         }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
-pub struct EnumCase {
-    name: Ident,
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
-    docs: Option<Docs>,
-}
-
-impl<N> From<N> for EnumCase
-where
-    N: Into<Ident>,
-{
-    fn from(value: N) -> Self {
-        Self {
-            name: value.into(),
-            docs: None,
-        }
-    }
-}
-
-impl EnumCase {
-    pub fn new(name: impl Into<Ident>) -> Self {
-        Self {
-            name: name.into(),
-            docs: None,
-        }
-    }
-
-    pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
-        self.docs = docs.map(|d| d.into());
     }
 }
 
@@ -264,6 +231,22 @@ impl TypeDef {
             kind: TypeDefKind::type_(type_),
             docs: None,
         }
+    }
+
+    pub fn name(&self) -> &Ident {
+        &self.name
+    }
+
+    pub fn name_mut(&mut self) -> &mut Ident {
+        &mut self.name
+    }
+
+    pub fn kind(&self) -> &TypeDefKind {
+        &self.kind
+    }
+
+    pub fn kind_mut(&mut self) -> &mut TypeDefKind {
+        &mut self.kind
     }
 
     pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {

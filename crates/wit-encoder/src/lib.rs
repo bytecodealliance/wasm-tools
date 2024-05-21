@@ -23,6 +23,7 @@ pub use docs::*;
 pub use enum_::*;
 pub use flags::*;
 pub use function::*;
+pub use ident::*;
 pub use interface::*;
 pub use package::*;
 pub use record::*;
