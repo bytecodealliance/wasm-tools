@@ -905,12 +905,14 @@ impl Module {
                     offset,
                 ));
             }
-            if page_size_log2 > 16 {
+            // Currently 2**0 and 2**16 are the only valid page sizes, but this
+            // may be relaxed to allow any power of two in the future.
+            if page_size_log2 != 0 && page_size_log2 != 16 {
                 return Err(BinaryReaderError::new("invalid custom page size", offset));
             }
             let page_size = 1_u64 << page_size_log2;
             debug_assert!(page_size.is_power_of_two());
-            debug_assert!(page_size <= DEFAULT_WASM_PAGE_SIZE);
+            debug_assert!(page_size == DEFAULT_WASM_PAGE_SIZE || page_size == 1);
             (page_size, page_size_log2)
         } else {
             let page_size_log2 = 16;
