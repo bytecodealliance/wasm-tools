@@ -2,7 +2,7 @@ use std::fmt::{self, Display};
 
 use crate::{ident::Ident, Docs, Render, RenderOpts, Type};
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[cfg_attr(feature = "serde", serde(untagged))]
 pub struct Params {
@@ -58,7 +58,7 @@ impl Params {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[cfg_attr(feature = "serde", serde(untagged))]
 pub enum Results {
@@ -142,7 +142,7 @@ impl Results {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct StandaloneFunction {
     name: Ident,

@@ -1,6 +1,6 @@
 use crate::{ident::Ident, Docs, Type};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Record {
     pub(crate) fields: Vec<Field>,
@@ -22,7 +22,7 @@ impl Record {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Field {
     pub(crate) name: Ident,

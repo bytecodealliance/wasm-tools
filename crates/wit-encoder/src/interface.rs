@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::{Docs, Render, RenderOpts, StandaloneFunction, TypeDef};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Interface {
     /// Optionally listed name of this interface.

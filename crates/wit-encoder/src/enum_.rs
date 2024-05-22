@@ -1,7 +1,7 @@
 use crate::{Docs, Ident};
 
 /// A variant without a payload
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Enum {
     pub(crate) cases: Vec<EnumCase>,
 }
@@ -27,7 +27,7 @@ impl Enum {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct EnumCase {
     pub(crate) name: Ident,

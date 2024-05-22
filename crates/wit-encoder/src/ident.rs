@@ -1,6 +1,6 @@
 use std::{borrow::Cow, fmt};
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Ident(Cow<'static, str>);
 
 impl Ident {

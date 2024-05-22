@@ -9,7 +9,7 @@ use crate::{ident::Ident, Interface, Render, RenderOpts, World};
 /// A package is a collection of interfaces and worlds. Packages additionally
 /// have a unique identifier that affects generated components and uniquely
 /// identifiers this particular package.
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Package {
     /// A unique name corresponding to this package.
@@ -67,7 +67,7 @@ impl fmt::Display for Package {
 ///
 /// This is directly encoded as an "ID" in the binary component representation
 /// with an interfaced tacked on as well.
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[cfg_attr(feature = "serde", serde(into = "String"))]
 pub struct PackageName {

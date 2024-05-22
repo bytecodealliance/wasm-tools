@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::Type;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Tuple {
     pub(crate) types: Vec<Type>,

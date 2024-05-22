@@ -1,6 +1,6 @@
 use crate::{ident::Ident, Docs, Params, Results};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Resource {
     pub funcs: Vec<ResourceFunc>,
 }
@@ -23,7 +23,7 @@ impl Resource {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ResourceFunc {
     pub(crate) kind: ResourceFuncKind,
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_params"))]
@@ -32,7 +32,7 @@ pub struct ResourceFunc {
     pub(crate) docs: Option<Docs>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ResourceFuncKind {
     Method(Ident, Results),
     Static(Ident, Results),

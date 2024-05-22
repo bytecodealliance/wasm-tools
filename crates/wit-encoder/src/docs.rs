@@ -3,7 +3,7 @@ use std::fmt;
 use crate::{Render, RenderOpts};
 
 /// Documentation
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Docs {
     contents: String,
 }

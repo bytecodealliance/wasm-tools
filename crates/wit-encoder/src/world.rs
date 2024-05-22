@@ -1,6 +1,6 @@
 use crate::{ident::Ident, Docs, Interface, StandaloneFunction, Type};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct World {
     /// The WIT identifier name of this world.
@@ -49,7 +49,7 @@ impl World {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct IncludeName {
     /// The name of the item
     pub name: Ident,
@@ -60,7 +60,7 @@ pub struct IncludeName {
 
 /// The key to the import/export maps of a world. Either a kebab-name or a
 /// unique interface.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[cfg_attr(feature = "serde", serde(into = "String"))]
 pub enum WorldKey {
@@ -81,7 +81,7 @@ impl WorldKey {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum WorldItem {

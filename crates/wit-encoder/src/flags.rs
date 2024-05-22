@@ -1,6 +1,6 @@
 use crate::{ident::Ident, Docs};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Flags {
     pub(crate) flags: Vec<Flag>,
@@ -22,7 +22,7 @@ impl Flags {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Flag {
     pub(crate) name: Ident,
