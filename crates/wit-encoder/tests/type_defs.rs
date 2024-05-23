@@ -123,7 +123,7 @@ fn types() {
     let name = wit_encoder::PackageName::new("wit-encoder", "tests", None);
     let mut package = wit_encoder::Package::new(name);
     package.interface({
-        let mut interface = wit_encoder::Interface::new(Some("type-defs"));
+        let mut interface = wit_encoder::Interface::new("type-defs");
         interface.docs(Some("interface documentation"));
         interface.type_def(TypeDef::type_("t1", Type::U8));
         interface.type_def(TypeDef::type_("t2", Type::U16));

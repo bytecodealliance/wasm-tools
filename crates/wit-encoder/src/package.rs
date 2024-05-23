@@ -15,13 +15,9 @@ pub struct Package {
     /// A unique name corresponding to this package.
     name: PackageName,
 
-    /// All interfaces contained in this packaged.
+    /// World items
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id_map"))]
-    interfaces: Vec<Interface>,
-
-    /// All worlds contained in this package.
-    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id_map"))]
-    worlds: Vec<World>,
+    items: Vec<PackageItem>,
 }
 
 impl Package {
@@ -29,28 +25,37 @@ impl Package {
     pub fn new(name: PackageName) -> Self {
         Self {
             name,
-            interfaces: vec![],
-            worlds: vec![],
+            items: vec![],
         }
     }
 
     /// Add an `Interface` to the package
     pub fn interface(&mut self, interface: Interface) {
-        self.interfaces.push(interface)
+        self.items.push(PackageItem::Interface(interface))
     }
 
     /// Add a `World` to the package
     pub fn world(&mut self, world: World) {
-        self.worlds.push(world)
+        self.items.push(PackageItem::World(world))
     }
 }
 
 impl Render for Package {
     fn render(&self, f: &mut fmt::Formatter<'_>, opts: &RenderOpts) -> fmt::Result {
-        write!(f, "{}package {};\n", opts.spaces(), self.name,)?;
+        write!(f, "{}package {};\n", opts.spaces(), self.name)?;
         write!(f, "\n")?;
-        for interface in &self.interfaces {
-            interface.render(f, opts)?;
+        for item in &self.items {
+            match item {
+                PackageItem::Interface(interface) => {
+                    if let Some(docs) = &interface.docs {
+                        docs.render(f, opts)?;
+                    }
+                    write!(f, "{}interface {} {{\n", opts.spaces(), interface.name)?;
+                    interface.items.render(f, &opts.indent())?;
+                    write!(f, "{}}}\n", opts.spaces())?;
+                }
+                PackageItem::World(_) => todo!(),
+            }
         }
         Ok(())
     }
@@ -60,6 +65,13 @@ impl fmt::Display for Package {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.render(f, &RenderOpts::default())
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub enum PackageItem {
+    Interface(Interface),
+    World(World),
 }
 
 /// A structure used to keep track of the name of a package, containing optional

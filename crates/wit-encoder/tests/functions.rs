@@ -23,7 +23,7 @@ fn smoke() {
     let mut package = wit_encoder::Package::new(name);
 
     package.interface({
-        let mut interface = wit_encoder::Interface::new(Some("functions"));
+        let mut interface = wit_encoder::Interface::new("functions");
         interface.function(StandaloneFunction::new("f1"));
         interface.function({
             let mut func = StandaloneFunction::new("f2");

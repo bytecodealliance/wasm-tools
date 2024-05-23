@@ -1,67 +1,47 @@
 use std::fmt;
 
-use crate::{Docs, Render, RenderOpts, StandaloneFunction, TypeDef};
+use crate::{Docs, Ident, Render, RenderOpts, StandaloneFunction, TypeDef};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Interface {
-    /// Optionally listed name of this interface.
-    ///
-    /// This is `None` for inline interfaces in worlds.
-    name: Option<String>,
+    /// Name of this interface.
+    pub(crate) name: Ident,
 
-    /// Exported types from this interface.
-    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id_map"))]
-    type_defs: Vec<TypeDef>,
-
-    /// Exported functions from this interface.
-    functions: Vec<StandaloneFunction>,
+    // Interface items
+    pub(crate) items: Vec<InterfaceItem>,
 
     /// Documentation associated with this interface.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
-    docs: Option<Docs>,
+    pub(crate) docs: Option<Docs>,
 }
 
 impl Interface {
     /// Create a new instance of `Interface`.
-    pub fn new(name: Option<impl Into<String>>) -> Self {
+    pub fn new(name: impl Into<Ident>) -> Self {
         Self {
-            name: name.map(|n| n.into()),
-            type_defs: vec![],
-            functions: vec![],
+            name: name.into(),
+            items: vec![],
             docs: None,
         }
     }
 
-    /// Add a `Type` to the interface
-    pub fn name(&mut self, name: Option<impl Into<String>>) {
-        self.name = name.map(|n| n.into());
-    }
-
     /// Add a `TypeDef` to the interface
     pub fn type_def(&mut self, type_def: TypeDef) {
-        self.type_defs.push(type_def);
-    }
-
-    pub fn type_defs(&self) -> &[TypeDef] {
-        &self.type_defs
-    }
-
-    pub fn type_defs_mut(&mut self) -> &mut Vec<TypeDef> {
-        &mut self.type_defs
+        self.items.push(InterfaceItem::TypeDef(type_def));
     }
 
     /// Add an `Function` to the interface
     pub fn function(&mut self, function: StandaloneFunction) {
-        self.functions.push(function);
+        self.items.push(InterfaceItem::Function(function));
     }
 
-    pub fn functions(&self) -> &[StandaloneFunction] {
-        &self.functions
+    pub fn items(&self) -> &[InterfaceItem] {
+        &self.items
     }
 
-    pub fn functions_mut(&mut self) -> &mut Vec<StandaloneFunction> {
-        &mut self.functions
+    pub fn functions_mut(&mut self) -> &mut Vec<InterfaceItem> {
+        &mut self.items
     }
 
     /// Set the documentation of this interface.
@@ -70,24 +50,27 @@ impl Interface {
     }
 }
 
-impl Render for Interface {
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+pub enum InterfaceItem {
+    TypeDef(TypeDef),
+    Function(StandaloneFunction),
+}
+
+pub type InterfaceItems = Vec<InterfaceItem>;
+
+impl Render for InterfaceItems {
     fn render(&self, f: &mut fmt::Formatter<'_>, opts: &RenderOpts) -> fmt::Result {
-        if let Some(docs) = &self.docs {
-            docs.render(f, opts)?;
+        for item in self {
+            match item {
+                InterfaceItem::TypeDef(type_def) => {
+                    type_def.render(f, opts)?;
+                }
+                InterfaceItem::Function(function) => {
+                    function.render(f, opts)?;
+                }
+            }
         }
-        write!(
-            f,
-            "{}interface {} {{\n",
-            opts.spaces(),
-            self.name.as_ref().unwrap_or(&String::new()),
-        )?;
-        for function in &self.functions {
-            function.render(f, &opts.indent())?;
-        }
-        for type_def in &self.type_defs {
-            type_def.render(f, &opts.indent())?;
-        }
-        write!(f, "{}}}\n", opts.spaces())?;
         Ok(())
     }
 }
