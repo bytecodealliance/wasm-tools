@@ -66,8 +66,15 @@ impl Render for InterfaceItems {
                 InterfaceItem::TypeDef(type_def) => {
                     type_def.render(f, opts)?;
                 }
-                InterfaceItem::Function(function) => {
-                    function.render(f, opts)?;
+                InterfaceItem::Function(func) => {
+                    if let Some(docs) = &func.docs {
+                        docs.render(f, opts)?;
+                    }
+                    write!(f, "{}{}: func({})", opts.spaces(), func.name, func.params,)?;
+                    if !func.results.is_empty() {
+                        write!(f, " -> {}", func.results)?;
+                    }
+                    write!(f, ";\n")?;
                 }
             }
         }

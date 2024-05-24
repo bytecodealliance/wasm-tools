@@ -1,6 +1,6 @@
 use std::fmt::{self, Display};
 
-use crate::{ident::Ident, Docs, Render, RenderOpts, Type};
+use crate::{ident::Ident, Docs, Type};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -145,12 +145,12 @@ impl Results {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct StandaloneFunction {
-    name: Ident,
+    pub(crate) name: Ident,
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_params"))]
-    params: Params,
-    results: Results,
+    pub(crate) params: Params,
+    pub(crate) results: Results,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
-    docs: Option<Docs>,
+    pub(crate) docs: Option<Docs>,
 }
 
 impl StandaloneFunction {
@@ -163,29 +163,15 @@ impl StandaloneFunction {
         }
     }
 
-    pub fn params(&mut self, params: Params) {
-        self.params = params;
+    pub fn params(&mut self, params: impl Into<Params>) {
+        self.params = params.into();
     }
 
-    pub fn results(&mut self, results: Results) {
-        self.results = results;
+    pub fn results(&mut self, results: impl Into<Results>) {
+        self.results = results.into();
     }
 
     pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
         self.docs = docs.map(|d| d.into());
-    }
-}
-
-impl Render for StandaloneFunction {
-    fn render(&self, f: &mut fmt::Formatter<'_>, opts: &RenderOpts) -> fmt::Result {
-        if let Some(docs) = &self.docs {
-            docs.render(f, opts)?;
-        }
-        write!(f, "{}{}: func({})", opts.spaces(), self.name, self.params,)?;
-        if !self.results.is_empty() {
-            write!(f, " -> {}", self.results)?;
-        }
-        write!(f, ";\n")?;
-        Ok(())
     }
 }

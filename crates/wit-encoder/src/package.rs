@@ -54,7 +54,9 @@ impl Render for Package {
                     interface.items.render(f, &opts.indent())?;
                     write!(f, "{}}}\n", opts.spaces())?;
                 }
-                PackageItem::World(_) => todo!(),
+                PackageItem::World(world) => {
+                    world.render(f, opts)?;
+                }
             }
         }
         Ok(())
