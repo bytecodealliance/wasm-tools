@@ -2487,6 +2487,7 @@ version = "0.204.0"
 dependencies = [
  "pretty_assertions",
  "semver",
+ "serde",
 ]
 
 [[package]]
