@@ -317,8 +317,8 @@ macro_rules! annotation {
         impl<'a> $crate::parser::Parse<'a> for $name {
             fn parse(parser: $crate::parser::Parser<'a>) -> $crate::parser::Result<Self> {
                 parser.step(|c| {
-                    if let Some((a, rest)) = c.reserved()? {
-                        if a == concat!("@", $annotation) {
+                    if let Some((a, rest)) = c.annotation()? {
+                        if a == $annotation {
                             return Ok(($name(c.cur_span()), rest));
                         }
                     }
@@ -329,8 +329,8 @@ macro_rules! annotation {
 
         impl $crate::parser::Peek for $name {
             fn peek(cursor: $crate::parser::Cursor<'_>) -> $crate::parser::Result<bool> {
-                Ok(if let Some((a, _rest)) = cursor.reserved()? {
-                    a == concat!("@", $annotation)
+                Ok(if let Some((a, _rest)) = cursor.annotation()? {
+                    a == $annotation
                 } else {
                     false
                 })

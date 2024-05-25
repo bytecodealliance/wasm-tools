@@ -1,0 +1,31 @@
+{
+  "source_filename": "tests/testsuite/proposals/memory64/table_copy_mixed.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 2,
+      "filename": "table_copy_mixed.0.wasm"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 20,
+      "filename": "table_copy_mixed.1.wasm",
+      "text": "type mismatch",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 30,
+      "filename": "table_copy_mixed.2.wasm",
+      "text": "type mismatch",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 40,
+      "filename": "table_copy_mixed.3.wasm",
+      "text": "type mismatch",
+      "module_type": "binary"
+    }
+  ]
+}
