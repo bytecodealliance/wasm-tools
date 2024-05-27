@@ -33,11 +33,11 @@ fn main() {
     // for debugging purposes.
     if bless && wasm_debug_backtrace {
         eprintln!("Cannot set both the `BLESS=1` and `WASM_DEBUG_BACKTRACE=1` env variables simultaneously; blessing a new set of golden values and debugging broken tests should be separate operations.");
-        return
+        return;
     }
     if (rust_backtrace || rust_lib_backtrace) && !wasm_debug_backtrace {
         eprintln!("One of the `RUST_BACKTRACE`/`RUST_LIB_BACKTRACE` env variables is currently set to a truthy value; please either disable these (to allow `parse-fail` tests to run properly), or, if debugging, also set `WASM_DEBUG_BACKTRACE=1` to indicate that these tests failing with a detailed backtrace is the desired effect.");
-        return
+        return;
     }
 
     let mut trials = Vec::new();
