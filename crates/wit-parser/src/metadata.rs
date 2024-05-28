@@ -151,6 +151,7 @@ impl PackageMetadata {
         Ok(serde_json::from_slice(&data[1..])?)
     }
 
+    #[cfg(feature = "serde")]
     fn is_compatible_with_v0(&self) -> bool {
         self.worlds.iter().all(|(_, w)| w.is_compatible_with_v0())
             && self
@@ -476,6 +477,7 @@ impl WorldMetadata {
             && self.interface_export_stability.is_empty()
     }
 
+    #[cfg(feature = "serde")]
     fn is_compatible_with_v0(&self) -> bool {
         self.stability.is_unknown()
             && self
@@ -574,6 +576,7 @@ impl InterfaceMetadata {
             && self.stability.is_unknown()
     }
 
+    #[cfg(feature = "serde")]
     fn is_compatible_with_v0(&self) -> bool {
         self.stability.is_unknown()
             && self.funcs.iter().all(|(_, w)| w.is_compatible_with_v0())
@@ -642,6 +645,7 @@ impl FunctionMetadata {
         }
     }
 
+    #[cfg(feature = "serde")]
     fn is_compatible_with_v0(&self) -> bool {
         match self {
             FunctionMetadata::JustDocs(_) => true,
@@ -761,6 +765,7 @@ impl TypeMetadata {
         self.docs.is_none() && self.items.is_empty() && self.stability.is_unknown()
     }
 
+    #[cfg(feature = "serde")]
     fn is_compatible_with_v0(&self) -> bool {
         self.stability.is_unknown()
     }
