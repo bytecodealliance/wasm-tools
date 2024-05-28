@@ -785,5 +785,11 @@ fn error_matches(error: &str, message: &str) -> bool {
         return error.contains("invalid u32 number: constant out of range");
     }
 
+    // WebAssembly/annotations#25 - the spec interpreter's lexer is different
+    // than ours which produces a different error message.
+    if message == "empty identifier" || message == "empty annotation id" {
+        return error.contains("invalid character in string");
+    }
+
     return false;
 }

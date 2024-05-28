@@ -8,471 +8,499 @@
     },
     {
       "type": "assert_malformed",
-      "line": 20,
+      "line": 23,
       "filename": "annotations.1.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 21,
+      "line": 24,
       "filename": "annotations.2.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 22,
+      "line": 25,
       "filename": "annotations.3.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 23,
+      "line": 26,
       "filename": "annotations.4.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 24,
+      "line": 27,
       "filename": "annotations.5.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 25,
+      "line": 28,
       "filename": "annotations.6.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 26,
+      "line": 29,
       "filename": "annotations.7.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 27,
+      "line": 30,
       "filename": "annotations.8.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 28,
+      "line": 31,
       "filename": "annotations.9.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "module",
-      "line": 29,
+      "line": 32,
       "filename": "annotations.10.wat"
     },
     {
       "type": "module",
-      "line": 30,
+      "line": 33,
       "filename": "annotations.11.wat"
     },
     {
       "type": "assert_malformed",
-      "line": 31,
+      "line": 34,
       "filename": "annotations.12.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 32,
+      "line": 35,
       "filename": "annotations.13.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "module",
-      "line": 33,
+      "line": 36,
       "filename": "annotations.14.wat"
     },
     {
       "type": "assert_malformed",
-      "line": 34,
+      "line": 37,
       "filename": "annotations.15.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 35,
+      "line": 38,
       "filename": "annotations.16.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 36,
+      "line": 39,
       "filename": "annotations.17.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 37,
+      "line": 40,
       "filename": "annotations.18.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 38,
+      "line": 41,
       "filename": "annotations.19.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 39,
+      "line": 42,
       "filename": "annotations.20.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 40,
+      "line": 43,
       "filename": "annotations.21.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 41,
+      "line": 44,
       "filename": "annotations.22.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 42,
+      "line": 45,
       "filename": "annotations.23.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 43,
+      "line": 46,
       "filename": "annotations.24.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 44,
+      "line": 47,
       "filename": "annotations.25.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 45,
+      "line": 48,
       "filename": "annotations.26.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 46,
+      "line": 49,
       "filename": "annotations.27.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 47,
+      "line": 50,
       "filename": "annotations.28.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 48,
+      "line": 51,
       "filename": "annotations.29.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 49,
+      "line": 52,
       "filename": "annotations.30.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 50,
+      "line": 53,
       "filename": "annotations.31.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 51,
+      "line": 54,
       "filename": "annotations.32.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "module",
-      "line": 52,
+      "line": 55,
       "filename": "annotations.33.wat"
     },
     {
       "type": "assert_malformed",
-      "line": 53,
+      "line": 56,
       "filename": "annotations.34.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 54,
+      "line": 57,
       "filename": "annotations.35.wat",
       "text": "malformed UTF-8 encoding",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 55,
+      "line": 58,
       "filename": "annotations.36.wat",
       "text": "malformed UTF-8 encoding",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 56,
+      "line": 59,
       "filename": "annotations.37.wat",
       "text": "malformed UTF-8 encoding",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 57,
+      "line": 60,
       "filename": "annotations.38.wat",
       "text": "malformed UTF-8 encoding",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 58,
+      "line": 61,
       "filename": "annotations.39.wat",
       "text": "malformed UTF-8 encoding",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 59,
+      "line": 62,
       "filename": "annotations.40.wat",
       "text": "malformed UTF-8 encoding",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 60,
+      "line": 63,
       "filename": "annotations.41.wat",
       "text": "malformed UTF-8 encoding",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 61,
+      "line": 64,
       "filename": "annotations.42.wat",
       "text": "malformed UTF-8 encoding",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 62,
+      "line": 65,
       "filename": "annotations.43.wat",
       "text": "malformed UTF-8 encoding",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 63,
+      "line": 66,
       "filename": "annotations.44.wat",
       "text": "malformed UTF-8 encoding",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 64,
+      "line": 67,
       "filename": "annotations.45.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 65,
+      "line": 68,
       "filename": "annotations.46.wat",
       "text": "illegal character",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 67,
+      "line": 70,
       "filename": "annotations.47.wat",
       "text": "unknown operator",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 69,
-      "filename": "annotations.48.wat",
-      "text": "malformed annotation id",
-      "module_type": "text"
-    },
-    {
-      "type": "assert_malformed",
-      "line": 70,
-      "filename": "annotations.49.wat",
-      "text": "malformed annotation id",
-      "module_type": "text"
-    },
-    {
-      "type": "assert_malformed",
-      "line": 71,
-      "filename": "annotations.50.wat",
-      "text": "malformed annotation id",
-      "module_type": "text"
-    },
-    {
-      "type": "assert_malformed",
       "line": 72,
-      "filename": "annotations.51.wat",
-      "text": "malformed annotation id",
+      "filename": "annotations.48.wat",
+      "text": "empty annotation id",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 73,
+      "filename": "annotations.49.wat",
+      "text": "empty annotation id",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 74,
-      "filename": "annotations.52.wat",
-      "text": "unclosed annotation",
+      "filename": "annotations.50.wat",
+      "text": "empty annotation id",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 75,
-      "filename": "annotations.53.wat",
-      "text": "unclosed annotation",
+      "filename": "annotations.51.wat",
+      "text": "empty annotation id",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 76,
-      "filename": "annotations.54.wat",
-      "text": "unclosed annotation",
+      "filename": "annotations.52.wat",
+      "text": "empty annotation id",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 77,
-      "filename": "annotations.55.wat",
-      "text": "unclosed annotation",
+      "filename": "annotations.53.wat",
+      "text": "empty annotation id",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 78,
+      "filename": "annotations.54.wat",
+      "text": "empty annotation id",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 79,
-      "filename": "annotations.56.wat",
-      "text": "unexpected token",
-      "module_type": "text"
-    },
-    {
-      "type": "assert_malformed",
-      "line": 80,
-      "filename": "annotations.57.wat",
-      "text": "unexpected token",
+      "filename": "annotations.55.wat",
+      "text": "malformed UTF-8",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 81,
-      "filename": "annotations.58.wat",
-      "text": "unexpected token",
+      "filename": "annotations.56.wat",
+      "text": "unclosed annotation",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 82,
-      "filename": "annotations.59.wat",
-      "text": "unexpected token",
+      "filename": "annotations.57.wat",
+      "text": "unclosed annotation",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 83,
+      "filename": "annotations.58.wat",
+      "text": "unclosed annotation",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 84,
-      "filename": "annotations.60.wat",
-      "text": "unclosed string",
+      "filename": "annotations.59.wat",
+      "text": "unclosed annotation",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 85,
-      "filename": "annotations.61.wat",
-      "text": "unclosed string",
+      "line": 86,
+      "filename": "annotations.60.wat",
+      "text": "unexpected token",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 87,
-      "filename": "annotations.62.wat",
-      "text": "unknown operator",
+      "filename": "annotations.61.wat",
+      "text": "unexpected token",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 88,
-      "filename": "annotations.63.wat",
-      "text": "unknown operator",
+      "filename": "annotations.62.wat",
+      "text": "unexpected token",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 89,
+      "filename": "annotations.63.wat",
+      "text": "unexpected token",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 91,
       "filename": "annotations.64.wat",
+      "text": "unclosed string",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 92,
+      "filename": "annotations.65.wat",
+      "text": "unclosed string",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 94,
+      "filename": "annotations.66.wat",
       "text": "unknown operator",
       "module_type": "text"
     },
     {
+      "type": "assert_malformed",
+      "line": 95,
+      "filename": "annotations.67.wat",
+      "text": "empty identifier",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 96,
+      "filename": "annotations.68.wat",
+      "text": "empty identifier",
+      "module_type": "text"
+    },
+    {
       "type": "module",
-      "line": 91,
+      "line": 98,
       "name": "m",
-      "filename": "annotations.65.wasm"
+      "filename": "annotations.69.wasm"
     },
     {
       "type": "module",
-      "line": 122,
+      "line": 129,
       "name": "m1",
-      "filename": "annotations.66.wasm"
+      "filename": "annotations.70.wasm"
     },
     {
       "type": "module",
-      "line": 147,
+      "line": 154,
       "name": "m2",
-      "filename": "annotations.67.wasm"
+      "filename": "annotations.71.wasm"
     },
     {
       "type": "module",
-      "line": 199,
-      "filename": "annotations.68.wat"
+      "line": 206,
+      "filename": "annotations.72.wat"
     },
     {
       "type": "module",
-      "line": 200,
-      "filename": "annotations.69.wat"
+      "line": 207,
+      "filename": "annotations.73.wat"
     }
   ]
 }
