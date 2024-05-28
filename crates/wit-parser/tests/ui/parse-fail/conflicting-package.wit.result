@@ -2,7 +2,8 @@ failed to resolve directory while parsing WIT for path [tests/ui/parse-fail/conf
 
 Caused by:
     0: failed to parse package: tests/ui/parse-fail/conflicting-package
-    1: package identifier `foo:b` does not match previous package name of `foo:a`
+    1: failed to start resolving path: tests/ui/parse-fail/conflicting-package/b.wit
+    2: package identifier `foo:b` does not match previous package name of `foo:a`
             --> tests/ui/parse-fail/conflicting-package/b.wit:1:9
              |
            1 | package foo:b;

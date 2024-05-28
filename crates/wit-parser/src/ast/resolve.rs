@@ -64,8 +64,11 @@ pub struct Resolver<'a> {
     /// pointing to it if the item isn't actually defined.
     unknown_type_spans: Vec<Span>,
 
-    /// Spans for each world in `self.world`
+    /// Spans for each world in `self.worlds`
     world_spans: Vec<WorldSpan>,
+
+    /// Spans for each type in `self.types`
+    type_spans: Vec<Span>,
 
     /// The span of each interface's definition which is used for error
     /// reporting during the final `Resolve` phase.
@@ -114,13 +117,13 @@ impl<'a> Resolver<'a> {
             let cur_name = cur.package_name();
             if let Some(prev) = &self.package_name {
                 if cur_name != *prev {
-                    bail!(Error {
-                        span: cur.span,
-                        msg: format!(
+                    bail!(Error::new(
+                        cur.span,
+                        format!(
                             "package identifier `{cur_name}` does not match \
                              previous package name of `{prev}`"
                         ),
-                    })
+                    ))
                 }
             }
             self.package_name = Some(cur_name);
@@ -129,10 +132,10 @@ impl<'a> Resolver<'a> {
             let docs = self.docs(&cur.docs);
             if docs.contents.is_some() {
                 if self.package_docs.contents.is_some() {
-                    bail!(Error {
-                        span: cur.docs.span,
-                        msg: "found doc comments on multiple 'package' items".into(),
-                    })
+                    bail!(Error::new(
+                        cur.docs.span,
+                        "found doc comments on multiple 'package' items"
+                    ))
                 }
                 self.package_docs = docs;
             }
@@ -187,7 +190,7 @@ impl<'a> Resolver<'a> {
         for id in iface_order {
             let (interface, i) = &iface_id_to_ast[&id];
             self.cur_ast_index = *i;
-            self.resolve_interface(id, &interface.items, &interface.docs)?;
+            self.resolve_interface(id, &interface.items, &interface.docs, &interface.attributes)?;
         }
 
         for id in world_order {
@@ -217,6 +220,7 @@ impl<'a> Resolver<'a> {
             unknown_type_spans: mem::take(&mut self.unknown_type_spans),
             interface_spans: mem::take(&mut self.interface_spans),
             world_spans: mem::take(&mut self.world_spans),
+            type_spans: mem::take(&mut self.type_spans),
             foreign_dep_spans: mem::take(&mut self.foreign_dep_spans),
             source_map: SourceMap::default(),
             required_resource_types: mem::take(&mut self.required_resource_types),
@@ -289,6 +293,7 @@ impl<'a> Resolver<'a> {
             name: None,
             types: IndexMap::new(),
             docs: Docs::default(),
+            stability: Default::default(),
             functions: IndexMap::new(),
             package: None,
         })
@@ -309,6 +314,7 @@ impl<'a> Resolver<'a> {
             package: None,
             includes: Default::default(),
             include_names: Default::default(),
+            stability: Default::default(),
         })
     }
 
@@ -332,10 +338,10 @@ impl<'a> Resolver<'a> {
                 match item {
                     ast::AstItem::Interface(i) => {
                         if package_items.insert(i.name.name, i.name.span).is_some() {
-                            bail!(Error {
-                                span: i.name.span,
-                                msg: format!("duplicate item named `{}`", i.name.name),
-                            })
+                            bail!(Error::new(
+                                i.name.span,
+                                format!("duplicate item named `{}`", i.name.name),
+                            ))
                         }
                         let prev = ast_ns.insert(i.name.name, ());
                         assert!(prev.is_none());
@@ -346,10 +352,10 @@ impl<'a> Resolver<'a> {
                     }
                     ast::AstItem::World(w) => {
                         if package_items.insert(w.name.name, w.name.span).is_some() {
-                            bail!(Error {
-                                span: w.name.span,
-                                msg: format!("duplicate item named `{}`", w.name.name),
-                            })
+                            bail!(Error::new(
+                                w.name.span,
+                                format!("duplicate item named `{}`", w.name.name),
+                            ))
                         }
                         let prev = ast_ns.insert(w.name.name, ());
                         assert!(prev.is_none());
@@ -394,10 +400,10 @@ impl<'a> Resolver<'a> {
                     ast::AstItem::World(w) => (&w.name, ItemSource::Local(w.name.clone())),
                 };
                 if ast_ns.insert(name.name, (name.span, src)).is_some() {
-                    bail!(Error {
-                        span: name.span,
-                        msg: format!("duplicate name `{}` in this file", name.name),
-                    });
+                    bail!(Error::new(
+                        name.span,
+                        format!("duplicate name `{}` in this file", name.name),
+                    ));
                 }
             }
 
@@ -425,13 +431,13 @@ impl<'a> Resolver<'a> {
                             order[iface.name].push(used_name.clone());
                         }
                         None => {
-                            bail!(Error {
-                                span: used_name.span,
-                                msg: format!(
+                            bail!(Error::new(
+                                used_name.span,
+                                format!(
                                     "interface or world `{name}` not found in package",
                                     name = used_name.name
                                 ),
-                            })
+                            ))
                         }
                     },
                 }
@@ -472,14 +478,22 @@ impl<'a> Resolver<'a> {
             for item in ast.items.iter() {
                 let (name, ast_item) = match item {
                     ast::AstItem::Use(u) => {
+                        if !u.attributes.is_empty() {
+                            bail!(Error::new(
+                                u.span,
+                                format!("attributes not allowed on top-level use"),
+                            ))
+                        }
                         let name = u.as_.as_ref().unwrap_or(u.item.name());
                         let item = match &u.item {
-                            ast::UsePath::Id(name) => *ids.get(name.name).ok_or_else(|| Error {
-                                span: name.span,
-                                msg: format!(
-                                    "interface or world `{name}` does not exist",
-                                    name = name.name
-                                ),
+                            ast::UsePath::Id(name) => *ids.get(name.name).ok_or_else(|| {
+                                Error::new(
+                                    name.span,
+                                    format!(
+                                        "interface or world `{name}` does not exist",
+                                        name = name.name
+                                    ),
+                                )
                             })?,
                             ast::UsePath::Package { id, name } => {
                                 self.foreign_deps[&id.package_name()][name.name]
@@ -543,11 +557,13 @@ impl<'a> Resolver<'a> {
                     }
                     let id = self.types.alloc(TypeDef {
                         docs: Docs::default(),
+                        stability: Default::default(),
                         kind: TypeDefKind::Unknown,
                         name: Some(name.name.name.to_string()),
                         owner: TypeOwner::Interface(iface),
                     });
                     self.unknown_type_spans.push(name.name.span);
+                    self.type_spans.push(name.name.span);
                     lookup.insert(name.name.name, (TypeOrItem::Type(id), name.name.span));
                     self.interfaces[iface]
                         .types
@@ -563,6 +579,8 @@ impl<'a> Resolver<'a> {
     fn resolve_world(&mut self, world_id: WorldId, world: &ast::World<'a>) -> Result<WorldId> {
         let docs = self.docs(&world.docs);
         self.worlds[world_id].docs = docs;
+        let stability = self.stability(&world.attributes)?;
+        self.worlds[world_id].stability = stability;
 
         self.resolve_types(
             TypeOwner::World(world_id),
@@ -593,13 +611,10 @@ impl<'a> Resolver<'a> {
                 TypeOrItem::Type(id) => {
                     let prev = import_names.insert(*name, "import");
                     if let Some(prev) = prev {
-                        return Err(Error {
-                            span: *span,
-                            msg: format!(
-                                "import `{name}` conflicts with prior {prev} of same name",
-                            ),
-                        }
-                        .into());
+                        bail!(Error::new(
+                            *span,
+                            format!("import `{name}` conflicts with prior {prev} of same name",),
+                        ))
                     }
                     self.worlds[world_id]
                         .imports
@@ -613,9 +628,10 @@ impl<'a> Resolver<'a> {
         let mut imported_interfaces = HashSet::new();
         let mut exported_interfaces = HashSet::new();
         for item in world.items.iter() {
-            let (docs, kind, desc, spans, interfaces, names) = match item {
+            let (docs, attrs, kind, desc, spans, interfaces, names) = match item {
                 ast::WorldItem::Import(import) => (
                     &import.docs,
+                    &import.attributes,
                     &import.kind,
                     "import",
                     &mut import_spans,
@@ -624,6 +640,7 @@ impl<'a> Resolver<'a> {
                 ),
                 ast::WorldItem::Export(export) => (
                     &export.docs,
+                    &export.attributes,
                     &export.kind,
                     "export",
                     &mut export_spans,
@@ -659,14 +676,13 @@ impl<'a> Resolver<'a> {
                 ast::ExternKind::Interface(name, _) | ast::ExternKind::Func(name, _) => {
                     let prev = names.insert(name.name, desc);
                     if let Some(prev) = prev {
-                        return Err(Error {
-                            span: kind.span(),
-                            msg: format!(
+                        bail!(Error::new(
+                            kind.span(),
+                            format!(
                                 "{desc} `{name}` conflicts with prior {prev} of same name",
                                 name = name.name
                             ),
-                        }
-                        .into());
+                        ))
                     }
                     WorldKey::Name(name.name.to_string())
                 }
@@ -676,13 +692,13 @@ impl<'a> Resolver<'a> {
                     WorldKey::Interface(id)
                 }
             };
-            let world_item = self.resolve_world_item(docs, kind)?;
-            if let WorldItem::Interface(id) = world_item {
+            let world_item = self.resolve_world_item(docs, attrs, kind)?;
+            if let WorldItem::Interface { id, .. } = world_item {
                 if !interfaces.insert(id) {
-                    bail!(Error {
-                        span: kind.span(),
-                        msg: format!("interface cannot be {desc}ed more than once"),
-                    })
+                    bail!(Error::new(
+                        kind.span(),
+                        format!("interface cannot be {desc}ed more than once"),
+                    ))
                 }
             }
             let dst = if desc == "import" {
@@ -704,24 +720,32 @@ impl<'a> Resolver<'a> {
     fn resolve_world_item(
         &mut self,
         docs: &ast::Docs<'a>,
+        attrs: &[ast::Attribute<'a>],
         kind: &ast::ExternKind<'a>,
     ) -> Result<WorldItem> {
         match kind {
             ast::ExternKind::Interface(name, items) => {
                 let prev = mem::take(&mut self.type_lookup);
                 let id = self.alloc_interface(name.span);
-                self.resolve_interface(id, items, docs)?;
+                self.resolve_interface(id, items, docs, attrs)?;
                 self.type_lookup = prev;
-                Ok(WorldItem::Interface(id))
+                let stability = self.interfaces[id].stability.clone();
+                Ok(WorldItem::Interface { id, stability })
             }
             ast::ExternKind::Path(path) => {
+                let stability = self.stability(attrs)?;
                 let (item, name, span) = self.resolve_ast_item_path(path)?;
                 let id = self.extract_iface_from_item(&item, &name, span)?;
-                Ok(WorldItem::Interface(id))
+                Ok(WorldItem::Interface { id, stability })
             }
             ast::ExternKind::Func(name, func) => {
-                let func =
-                    self.resolve_function(docs, name.name, func, FunctionKind::Freestanding)?;
+                let func = self.resolve_function(
+                    docs,
+                    attrs,
+                    name.name,
+                    func,
+                    FunctionKind::Freestanding,
+                )?;
                 Ok(WorldItem::Function(func))
             }
         }
@@ -732,9 +756,12 @@ impl<'a> Resolver<'a> {
         interface_id: InterfaceId,
         fields: &[ast::InterfaceItem<'a>],
         docs: &ast::Docs<'a>,
+        attrs: &[ast::Attribute<'a>],
     ) -> Result<()> {
         let docs = self.docs(docs);
         self.interfaces[interface_id].docs = docs;
+        let stability = self.stability(attrs)?;
+        self.interfaces[interface_id].stability = stability;
 
         self.resolve_types(
             TypeOwner::Interface(interface_id),
@@ -765,6 +792,7 @@ impl<'a> Resolver<'a> {
                     self.define_interface_name(&f.name, TypeOrItem::Item("function"))?;
                     funcs.push(self.resolve_function(
                         &f.docs,
+                        &f.attributes,
                         &f.name.name,
                         &f.func,
                         FunctionKind::Freestanding,
@@ -833,11 +861,10 @@ impl<'a> Resolver<'a> {
                 TypeItem::Def(t) => {
                     let prev = type_defs.insert(t.name.name, Some(t));
                     if prev.is_some() {
-                        return Err(Error {
-                            span: t.name.span,
-                            msg: format!("name `{}` is defined more than once", t.name.name),
-                        }
-                        .into());
+                        bail!(Error::new(
+                            t.name.span,
+                            format!("name `{}` is defined more than once", t.name.name),
+                        ))
                     }
                     let mut deps = Vec::new();
                     collect_deps(&t.ty, &mut deps);
@@ -859,13 +886,16 @@ impl<'a> Resolver<'a> {
                 None => continue,
             };
             let docs = self.docs(&def.docs);
-            let kind = self.resolve_type_def(&def.ty)?;
+            let stability = self.stability(&def.attributes)?;
+            let kind = self.resolve_type_def(&def.ty, &stability)?;
             let id = self.types.alloc(TypeDef {
                 docs,
+                stability,
                 kind,
                 name: Some(def.name.name.to_string()),
                 owner,
             });
+            self.type_spans.push(def.name.span);
             self.define_interface_name(&def.name, TypeOrItem::Type(id))?;
         }
         Ok(())
@@ -874,25 +904,28 @@ impl<'a> Resolver<'a> {
     fn resolve_use(&mut self, owner: TypeOwner, u: &ast::Use<'a>) -> Result<()> {
         let (item, name, span) = self.resolve_ast_item_path(&u.from)?;
         let use_from = self.extract_iface_from_item(&item, &name, span)?;
+        let stability = self.stability(&u.attributes)?;
 
         for name in u.names.iter() {
             let lookup = &self.interface_types[use_from.index()];
             let id = match lookup.get(name.name.name) {
                 Some((TypeOrItem::Type(id), _)) => *id,
                 Some((TypeOrItem::Item(s), _)) => {
-                    bail!(Error {
-                        span: name.name.span,
-                        msg: format!("cannot import {s} `{}`", name.name.name),
-                    })
+                    bail!(Error::new(
+                        name.name.span,
+                        format!("cannot import {s} `{}`", name.name.name),
+                    ))
                 }
-                None => bail!(Error {
-                    span: name.name.span,
-                    msg: format!("name `{}` is not defined", name.name.name),
-                }),
+                None => bail!(Error::new(
+                    name.name.span,
+                    format!("name `{}` is not defined", name.name.name),
+                )),
             };
+            self.type_spans.push(name.name.span);
             let name = name.as_.as_ref().unwrap_or(&name.name);
             let id = self.types.alloc(TypeDef {
                 docs: Docs::default(),
+                stability: stability.clone(),
                 kind: TypeDefKind::Type(Type::Id(id)),
                 name: Some(name.name.to_string()),
                 owner,
@@ -904,9 +937,12 @@ impl<'a> Resolver<'a> {
 
     /// For each name in the `include`, resolve the path of the include, add it to the self.includes
     fn resolve_include(&mut self, world_id: WorldId, i: &ast::Include<'a>) -> Result<()> {
+        let stability = self.stability(&i.attributes)?;
         let (item, name, span) = self.resolve_ast_item_path(&i.from)?;
         let include_from = self.extract_world_from_item(&item, &name, span)?;
-        self.worlds[world_id].includes.push(include_from);
+        self.worlds[world_id]
+            .includes
+            .push((stability, include_from));
         self.worlds[world_id].include_names.push(
             i.names
                 .iter()
@@ -945,21 +981,30 @@ impl<'a> Resolver<'a> {
             }
         }
         let named_func = func.named_func();
-        self.resolve_function(&named_func.docs, &name, &named_func.func, kind)
+        self.resolve_function(
+            &named_func.docs,
+            &named_func.attributes,
+            &name,
+            &named_func.func,
+            kind,
+        )
     }
 
     fn resolve_function(
         &mut self,
         docs: &ast::Docs<'_>,
+        attrs: &[ast::Attribute<'_>],
         name: &str,
         func: &ast::Func,
         kind: FunctionKind,
     ) -> Result<Function> {
         let docs = self.docs(docs);
-        let params = self.resolve_params(&func.params, &kind)?;
-        let results = self.resolve_results(&func.results, &kind)?;
+        let stability = self.stability(attrs)?;
+        let params = self.resolve_params(&func.params, &kind, func.span, &stability)?;
+        let results = self.resolve_results(&func.results, &kind, func.span, &stability)?;
         Ok(Function {
             docs,
+            stability,
             name: name.to_string(),
             kind,
             params,
@@ -976,10 +1021,10 @@ impl<'a> Resolver<'a> {
                 match item {
                     Some(item) => Ok((*item, id.name.into(), id.span)),
                     None => {
-                        bail!(Error {
-                            span: id.span,
-                            msg: format!("interface or world `{}` does not exist", id.name),
-                        })
+                        bail!(Error::new(
+                            id.span,
+                            format!("interface or world `{}` does not exist", id.name),
+                        ))
                     }
                 }
             }
@@ -1000,10 +1045,10 @@ impl<'a> Resolver<'a> {
         match item {
             AstItem::Interface(id) => Ok(*id),
             AstItem::World(_) => {
-                bail!(Error {
-                    span: span,
-                    msg: format!("name `{}` is defined as a world, not an interface", name),
-                })
+                bail!(Error::new(
+                    span,
+                    format!("name `{}` is defined as a world, not an interface", name),
+                ))
             }
         }
     }
@@ -1012,10 +1057,10 @@ impl<'a> Resolver<'a> {
         match item {
             AstItem::World(id) => Ok(*id),
             AstItem::Interface(_) => {
-                bail!(Error {
-                    span: span,
-                    msg: format!("name `{}` is defined as an interface, not a world", name),
-                })
+                bail!(Error::new(
+                    span,
+                    format!("name `{}` is defined as an interface, not a world", name),
+                ))
             }
         }
     }
@@ -1023,37 +1068,40 @@ impl<'a> Resolver<'a> {
     fn define_interface_name(&mut self, name: &ast::Id<'a>, item: TypeOrItem) -> Result<()> {
         let prev = self.type_lookup.insert(name.name, (item, name.span));
         if prev.is_some() {
-            Err(Error {
-                span: name.span,
-                msg: format!("name `{}` is defined more than once", name.name),
-            }
-            .into())
+            bail!(Error::new(
+                name.span,
+                format!("name `{}` is defined more than once", name.name),
+            ))
         } else {
             Ok(())
         }
     }
 
-    fn resolve_type_def(&mut self, ty: &ast::Type<'_>) -> Result<TypeDefKind> {
+    fn resolve_type_def(
+        &mut self,
+        ty: &ast::Type<'_>,
+        stability: &Stability,
+    ) -> Result<TypeDefKind> {
         Ok(match ty {
-            ast::Type::Bool => TypeDefKind::Type(Type::Bool),
-            ast::Type::U8 => TypeDefKind::Type(Type::U8),
-            ast::Type::U16 => TypeDefKind::Type(Type::U16),
-            ast::Type::U32 => TypeDefKind::Type(Type::U32),
-            ast::Type::U64 => TypeDefKind::Type(Type::U64),
-            ast::Type::S8 => TypeDefKind::Type(Type::S8),
-            ast::Type::S16 => TypeDefKind::Type(Type::S16),
-            ast::Type::S32 => TypeDefKind::Type(Type::S32),
-            ast::Type::S64 => TypeDefKind::Type(Type::S64),
-            ast::Type::F32 => TypeDefKind::Type(Type::F32),
-            ast::Type::F64 => TypeDefKind::Type(Type::F64),
-            ast::Type::Char => TypeDefKind::Type(Type::Char),
-            ast::Type::String => TypeDefKind::Type(Type::String),
+            ast::Type::Bool(_) => TypeDefKind::Type(Type::Bool),
+            ast::Type::U8(_) => TypeDefKind::Type(Type::U8),
+            ast::Type::U16(_) => TypeDefKind::Type(Type::U16),
+            ast::Type::U32(_) => TypeDefKind::Type(Type::U32),
+            ast::Type::U64(_) => TypeDefKind::Type(Type::U64),
+            ast::Type::S8(_) => TypeDefKind::Type(Type::S8),
+            ast::Type::S16(_) => TypeDefKind::Type(Type::S16),
+            ast::Type::S32(_) => TypeDefKind::Type(Type::S32),
+            ast::Type::S64(_) => TypeDefKind::Type(Type::S64),
+            ast::Type::F32(_) => TypeDefKind::Type(Type::F32),
+            ast::Type::F64(_) => TypeDefKind::Type(Type::F64),
+            ast::Type::Char(_) => TypeDefKind::Type(Type::Char),
+            ast::Type::String(_) => TypeDefKind::Type(Type::String),
             ast::Type::Name(name) => {
                 let id = self.resolve_type_name(name)?;
                 TypeDefKind::Type(Type::Id(id))
             }
             ast::Type::List(list) => {
-                let ty = self.resolve_type(list)?;
+                let ty = self.resolve_type(&list.ty, stability)?;
                 TypeDefKind::List(ty)
             }
             ast::Type::Handle(handle) => TypeDefKind::Handle(match handle {
@@ -1071,19 +1119,16 @@ impl<'a> Resolver<'a> {
                     match func {
                         ast::ResourceFunc::Method(f) | ast::ResourceFunc::Static(f) => {
                             if !names.insert(&f.name.name) {
-                                bail!(Error {
-                                    span: f.name.span,
-                                    msg: format!("duplicate function name `{}`", f.name.name),
-                                })
+                                bail!(Error::new(
+                                    f.name.span,
+                                    format!("duplicate function name `{}`", f.name.name),
+                                ))
                             }
                         }
                         ast::ResourceFunc::Constructor(f) => {
                             ctors += 1;
                             if ctors > 1 {
-                                bail!(Error {
-                                    span: f.name.span,
-                                    msg: format!("duplicate constructors"),
-                                })
+                                bail!(Error::new(f.name.span, "duplicate constructors"))
                             }
                         }
                     }
@@ -1099,7 +1144,7 @@ impl<'a> Resolver<'a> {
                         Ok(Field {
                             docs: self.docs(&field.docs),
                             name: field.name.name.to_string(),
-                            ty: self.resolve_type(&field.ty)?,
+                            ty: self.resolve_type(&field.ty, stability)?,
                         })
                     })
                     .collect::<Result<Vec<_>>>()?;
@@ -1116,20 +1161,17 @@ impl<'a> Resolver<'a> {
                     .collect::<Vec<_>>();
                 TypeDefKind::Flags(Flags { flags })
             }
-            ast::Type::Tuple(types) => {
-                let types = types
+            ast::Type::Tuple(t) => {
+                let types = t
+                    .types
                     .iter()
-                    .map(|ty| self.resolve_type(ty))
+                    .map(|ty| self.resolve_type(ty, stability))
                     .collect::<Result<Vec<_>>>()?;
                 TypeDefKind::Tuple(Tuple { types })
             }
             ast::Type::Variant(variant) => {
                 if variant.cases.is_empty() {
-                    return Err(Error {
-                        span: variant.span,
-                        msg: "empty variant".to_string(),
-                    }
-                    .into());
+                    bail!(Error::new(variant.span, "empty variant"))
                 }
                 let cases = variant
                     .cases
@@ -1138,7 +1180,7 @@ impl<'a> Resolver<'a> {
                         Ok(Case {
                             docs: self.docs(&case.docs),
                             name: case.name.name.to_string(),
-                            ty: self.resolve_optional_type(case.ty.as_ref())?,
+                            ty: self.resolve_optional_type(case.ty.as_ref(), stability)?,
                         })
                     })
                     .collect::<Result<Vec<_>>>()?;
@@ -1146,11 +1188,7 @@ impl<'a> Resolver<'a> {
             }
             ast::Type::Enum(e) => {
                 if e.cases.is_empty() {
-                    return Err(Error {
-                        span: e.span,
-                        msg: "empty enum".to_string(),
-                    }
-                    .into());
+                    bail!(Error::new(e.span, "empty enum"))
                 }
                 let cases = e
                     .cases
@@ -1164,15 +1202,17 @@ impl<'a> Resolver<'a> {
                     .collect::<Result<Vec<_>>>()?;
                 TypeDefKind::Enum(Enum { cases })
             }
-            ast::Type::Option(ty) => TypeDefKind::Option(self.resolve_type(ty)?),
+            ast::Type::Option(ty) => TypeDefKind::Option(self.resolve_type(&ty.ty, stability)?),
             ast::Type::Result(r) => TypeDefKind::Result(Result_ {
-                ok: self.resolve_optional_type(r.ok.as_deref())?,
-                err: self.resolve_optional_type(r.err.as_deref())?,
+                ok: self.resolve_optional_type(r.ok.as_deref(), stability)?,
+                err: self.resolve_optional_type(r.err.as_deref(), stability)?,
             }),
-            ast::Type::Future(t) => TypeDefKind::Future(self.resolve_optional_type(t.as_deref())?),
+            ast::Type::Future(t) => {
+                TypeDefKind::Future(self.resolve_optional_type(t.ty.as_deref(), stability)?)
+            }
             ast::Type::Stream(s) => TypeDefKind::Stream(Stream {
-                element: self.resolve_optional_type(s.element.as_deref())?,
-                end: self.resolve_optional_type(s.end.as_deref())?,
+                element: self.resolve_optional_type(s.element.as_deref(), stability)?,
+                end: self.resolve_optional_type(s.end.as_deref(), stability)?,
             }),
         })
     }
@@ -1180,14 +1220,14 @@ impl<'a> Resolver<'a> {
     fn resolve_type_name(&mut self, name: &ast::Id<'_>) -> Result<TypeId> {
         match self.type_lookup.get(name.name) {
             Some((TypeOrItem::Type(id), _)) => Ok(*id),
-            Some((TypeOrItem::Item(s), _)) => bail!(Error {
-                span: name.span,
-                msg: format!("cannot use {s} `{name}` as a type", name = name.name),
-            }),
-            None => bail!(Error {
-                span: name.span,
-                msg: format!("name `{name}` is not defined", name = name.name),
-            }),
+            Some((TypeOrItem::Item(s), _)) => bail!(Error::new(
+                name.span,
+                format!("cannot use {s} `{name}` as a type", name = name.name),
+            )),
+            None => bail!(Error::new(
+                name.span,
+                format!("name `{name}` is not defined", name = name.name),
+            )),
         }
     }
 
@@ -1202,15 +1242,15 @@ impl<'a> Resolver<'a> {
                     self.required_resource_types.push((cur, name.span));
                     break Ok(id);
                 }
-                _ => bail!(Error {
-                    span: name.span,
-                    msg: format!("type `{}` used in a handle must be a resource", name.name),
-                }),
+                _ => bail!(Error::new(
+                    name.span,
+                    format!("type `{}` used in a handle must be a resource", name.name),
+                )),
             }
         }
     }
 
-    fn resolve_type(&mut self, ty: &super::Type<'_>) -> Result<Type> {
+    fn resolve_type(&mut self, ty: &super::Type<'_>, stability: &Stability) -> Result<Type> {
         // Resources must be declared at the top level to have their methods
         // processed appropriately, but resources also shouldn't show up
         // recursively so assert that's not happening here.
@@ -1218,23 +1258,31 @@ impl<'a> Resolver<'a> {
             ast::Type::Resource(_) => unreachable!(),
             _ => {}
         }
-        let kind = self.resolve_type_def(ty)?;
-        Ok(self.anon_type_def(TypeDef {
-            kind,
-            name: None,
-            docs: Docs::default(),
-            owner: TypeOwner::None,
-        }))
+        let kind = self.resolve_type_def(ty, stability)?;
+        Ok(self.anon_type_def(
+            TypeDef {
+                kind,
+                name: None,
+                docs: Docs::default(),
+                stability: stability.clone(),
+                owner: TypeOwner::None,
+            },
+            ty.span(),
+        ))
     }
 
-    fn resolve_optional_type(&mut self, ty: Option<&super::Type<'_>>) -> Result<Option<Type>> {
+    fn resolve_optional_type(
+        &mut self,
+        ty: Option<&super::Type<'_>>,
+        stability: &Stability,
+    ) -> Result<Option<Type>> {
         match ty {
-            Some(ty) => Ok(Some(self.resolve_type(ty)?)),
+            Some(ty) => Ok(Some(self.resolve_type(ty, stability)?)),
             None => Ok(None),
         }
     }
 
-    fn anon_type_def(&mut self, ty: TypeDef) -> Type {
+    fn anon_type_def(&mut self, ty: TypeDef, span: Span) -> Type {
         let key = match &ty.kind {
             TypeDefKind::Type(t) => return *t,
             TypeDefKind::Variant(v) => Key::Variant(
@@ -1270,11 +1318,10 @@ impl<'a> Resolver<'a> {
             TypeDefKind::Stream(s) => Key::Stream(s.element, s.end),
             TypeDefKind::Unknown => unreachable!(),
         };
-        let types = &mut self.types;
-        let id = self
-            .anon_types
-            .entry(key)
-            .or_insert_with(|| types.alloc(ty));
+        let id = self.anon_types.entry(key).or_insert_with(|| {
+            self.type_spans.push(span);
+            self.types.alloc(ty)
+        });
         Type::Id(*id)
     }
 
@@ -1311,7 +1358,34 @@ impl<'a> Resolver<'a> {
         Docs { contents }
     }
 
-    fn resolve_params(&mut self, params: &ParamList<'_>, kind: &FunctionKind) -> Result<Params> {
+    fn stability(&mut self, attrs: &[ast::Attribute<'_>]) -> Result<Stability> {
+        match attrs {
+            [] => Ok(Stability::Unknown),
+            [ast::Attribute::Since {
+                version, feature, ..
+            }] => Ok(Stability::Stable {
+                since: version.clone(),
+                feature: feature.as_ref().map(|s| s.name.to_string()),
+            }),
+            [ast::Attribute::Unstable { feature, .. }] => Ok(Stability::Unstable {
+                feature: feature.name.to_string(),
+            }),
+            [_, b, ..] => {
+                bail!(Error::new(
+                    b.span(),
+                    "only one stability attribute is allowed per-item",
+                ))
+            }
+        }
+    }
+
+    fn resolve_params(
+        &mut self,
+        params: &ParamList<'_>,
+        kind: &FunctionKind,
+        span: Span,
+        stability: &Stability,
+    ) -> Result<Params> {
         let mut ret = IndexMap::new();
         match *kind {
             // These kinds of methods don't have any adjustments to the
@@ -1322,23 +1396,26 @@ impl<'a> Resolver<'a> {
             // Methods automatically get a `self` initial argument so insert
             // that here before processing the normal parameters.
             FunctionKind::Method(id) => {
-                let shared = self.anon_type_def(TypeDef {
-                    docs: Docs::default(),
-                    kind: TypeDefKind::Handle(Handle::Borrow(id)),
-                    name: None,
-                    owner: TypeOwner::None,
-                });
+                let shared = self.anon_type_def(
+                    TypeDef {
+                        docs: Docs::default(),
+                        stability: stability.clone(),
+                        kind: TypeDefKind::Handle(Handle::Borrow(id)),
+                        name: None,
+                        owner: TypeOwner::None,
+                    },
+                    span,
+                );
                 ret.insert("self".to_string(), shared);
             }
         }
         for (name, ty) in params {
-            let prev = ret.insert(name.name.to_string(), self.resolve_type(ty)?);
+            let prev = ret.insert(name.name.to_string(), self.resolve_type(ty, stability)?);
             if prev.is_some() {
-                return Err(Error {
-                    span: name.span,
-                    msg: format!("param `{}` is defined more than once", name.name),
-                }
-                .into());
+                bail!(Error::new(
+                    name.span,
+                    format!("param `{}` is defined more than once", name.name),
+                ))
             }
         }
         Ok(ret.into_iter().collect())
@@ -1348,16 +1425,21 @@ impl<'a> Resolver<'a> {
         &mut self,
         results: &ResultList<'_>,
         kind: &FunctionKind,
+        span: Span,
+        stability: &Stability,
     ) -> Result<Results> {
         match *kind {
             // These kinds of methods don't have any adjustments to the return
             // values, so plumb them through as-is.
             FunctionKind::Freestanding | FunctionKind::Method(_) | FunctionKind::Static(_) => {
                 match results {
-                    ResultList::Named(rs) => Ok(Results::Named(
-                        self.resolve_params(rs, &FunctionKind::Freestanding)?,
-                    )),
-                    ResultList::Anon(ty) => Ok(Results::Anon(self.resolve_type(ty)?)),
+                    ResultList::Named(rs) => Ok(Results::Named(self.resolve_params(
+                        rs,
+                        &FunctionKind::Freestanding,
+                        span,
+                        stability,
+                    )?)),
+                    ResultList::Anon(ty) => Ok(Results::Anon(self.resolve_type(ty, stability)?)),
                 }
             }
 
@@ -1377,23 +1459,23 @@ impl<'a> Resolver<'a> {
 
 fn collect_deps<'a>(ty: &ast::Type<'a>, deps: &mut Vec<ast::Id<'a>>) {
     match ty {
-        ast::Type::Bool
-        | ast::Type::U8
-        | ast::Type::U16
-        | ast::Type::U32
-        | ast::Type::U64
-        | ast::Type::S8
-        | ast::Type::S16
-        | ast::Type::S32
-        | ast::Type::S64
-        | ast::Type::F32
-        | ast::Type::F64
-        | ast::Type::Char
-        | ast::Type::String
+        ast::Type::Bool(_)
+        | ast::Type::U8(_)
+        | ast::Type::U16(_)
+        | ast::Type::U32(_)
+        | ast::Type::U64(_)
+        | ast::Type::S8(_)
+        | ast::Type::S16(_)
+        | ast::Type::S32(_)
+        | ast::Type::S64(_)
+        | ast::Type::F32(_)
+        | ast::Type::F64(_)
+        | ast::Type::Char(_)
+        | ast::Type::String(_)
         | ast::Type::Flags(_)
         | ast::Type::Enum(_) => {}
         ast::Type::Name(name) => deps.push(name.clone()),
-        ast::Type::List(list) => collect_deps(list, deps),
+        ast::Type::List(list) => collect_deps(&list.ty, deps),
         ast::Type::Handle(handle) => match handle {
             ast::Handle::Own { resource } => deps.push(resource.clone()),
             ast::Handle::Borrow { resource } => deps.push(resource.clone()),
@@ -1404,8 +1486,8 @@ fn collect_deps<'a>(ty: &ast::Type<'a>, deps: &mut Vec<ast::Id<'a>>) {
                 collect_deps(&field.ty, deps);
             }
         }
-        ast::Type::Tuple(types) => {
-            for ty in types {
+        ast::Type::Tuple(t) => {
+            for ty in t.types.iter() {
                 collect_deps(ty, deps);
             }
         }
@@ -1416,7 +1498,7 @@ fn collect_deps<'a>(ty: &ast::Type<'a>, deps: &mut Vec<ast::Id<'a>>) {
                 }
             }
         }
-        ast::Type::Option(ty) => collect_deps(ty, deps),
+        ast::Type::Option(ty) => collect_deps(&ty.ty, deps),
         ast::Type::Result(r) => {
             if let Some(ty) = &r.ok {
                 collect_deps(ty, deps);
@@ -1426,7 +1508,7 @@ fn collect_deps<'a>(ty: &ast::Type<'a>, deps: &mut Vec<ast::Id<'a>>) {
             }
         }
         ast::Type::Future(t) => {
-            if let Some(t) = t {
+            if let Some(t) = &t.ty {
                 collect_deps(t, deps)
             }
         }

@@ -4,10 +4,14 @@
       "name": "wasi",
       "imports": {
         "interface-8": {
-          "interface": 8
+          "interface": {
+            "id": 8
+          }
         },
         "interface-7": {
-          "interface": 7
+          "interface": {
+            "id": 7
+          }
         }
       },
       "exports": {},
@@ -17,15 +21,21 @@
       "name": "my-world",
       "imports": {
         "interface-8": {
-          "interface": 8
+          "interface": {
+            "id": 8
+          }
         },
         "interface-7": {
-          "interface": 7
+          "interface": {
+            "id": 7
+          }
         }
       },
       "exports": {
         "interface-1": {
-          "interface": 1
+          "interface": {
+            "id": 1
+          }
         }
       },
       "package": 6
@@ -34,18 +44,26 @@
       "name": "my-world2",
       "imports": {
         "interface-8": {
-          "interface": 8
+          "interface": {
+            "id": 8
+          }
         },
         "interface-7": {
-          "interface": 7
+          "interface": {
+            "id": 7
+          }
         }
       },
       "exports": {
         "interface-9": {
-          "interface": 9
+          "interface": {
+            "id": 9
+          }
         },
         "interface-1": {
-          "interface": 1
+          "interface": {
+            "id": 1
+          }
         }
       },
       "package": 6
@@ -54,10 +72,14 @@
       "name": "bars-world",
       "imports": {
         "interface-4": {
-          "interface": 4
+          "interface": {
+            "id": 4
+          }
         },
         "interface-0": {
-          "interface": 0
+          "interface": {
+            "id": 0
+          }
         }
       },
       "exports": {},
@@ -67,18 +89,26 @@
       "name": "unionw-world",
       "imports": {
         "interface-8": {
-          "interface": 8
+          "interface": {
+            "id": 8
+          }
         },
         "interface-7": {
-          "interface": 7
+          "interface": {
+            "id": 7
+          }
         }
       },
       "exports": {
         "interface-1": {
-          "interface": 1
+          "interface": {
+            "id": 1
+          }
         },
         "interface-9": {
-          "interface": 9
+          "interface": {
+            "id": 9
+          }
         }
       },
       "package": 6

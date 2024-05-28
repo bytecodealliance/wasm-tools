@@ -4,7 +4,9 @@
       "name": "name",
       "imports": {
         "name": {
-          "interface": 1
+          "interface": {
+            "id": 1
+          }
         }
       },
       "exports": {},

@@ -13,7 +13,7 @@ use wat::Detect;
 use wit_component::{
     embed_component_metadata, ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter,
 };
-use wit_parser::{Resolve, UnresolvedPackage};
+use wit_parser::{PackageId, Resolve, UnresolvedPackage};
 
 /// WebAssembly wit-based component tooling.
 #[derive(Parser)]
@@ -170,6 +170,42 @@ impl NewOpts {
     }
 }
 
+#[derive(Parser)]
+struct WitResolve {
+    /// Path to WIT files to load.
+    ///
+    /// This can be a directory containing `*.wit` files, a `*.wit` file itself,
+    /// or a `*.wasm` file which is a WIT package encoded as WebAssembly.
+    wit: PathBuf,
+
+    /// Features to enable when parsing the `wit` option.
+    ///
+    /// This flag enables the `@unstable` feature in WIT documents where the
+    /// items are otherwise hidden by default.
+    #[clap(long)]
+    features: Vec<String>,
+}
+
+impl WitResolve {
+    fn resolve_with_features(features: &[String]) -> Resolve {
+        let mut resolve = Resolve::default();
+        for feature in features {
+            for f in feature.split_whitespace() {
+                for f in f.split(',').filter(|s| !s.is_empty()) {
+                    resolve.features.insert(f.to_string());
+                }
+            }
+        }
+        return resolve;
+    }
+
+    fn load(&self) -> Result<(Resolve, PackageId)> {
+        let mut resolve = Self::resolve_with_features(&self.features);
+        let id = resolve.push_path(&self.wit)?.0;
+        Ok((resolve, id))
+    }
+}
+
 /// Embeds metadata for a component inside of a core wasm module.
 ///
 /// This subcommand is a convenience tool provided for producing core wasm
@@ -187,11 +223,8 @@ impl NewOpts {
 /// working with text format wasm.
 #[derive(Parser)]
 pub struct EmbedOpts {
-    /// The WIT package where the `world` that the core wasm module implements
-    /// lives.
-    ///
-    /// This can either be a directory or a path to a single `*.wit` file.
-    wit: PathBuf,
+    #[clap(flatten)]
+    resolve: WitResolve,
 
     #[clap(flatten)]
     io: wasm_tools::InputOutput,
@@ -242,8 +275,7 @@ impl EmbedOpts {
         } else {
             Some(self.io.parse_input_wasm()?)
         };
-        let mut resolve = Resolve::default();
-        let id = resolve.push_path(&self.wit)?.0;
+        let (resolve, id) = self.resolve.load()?;
         let world = resolve.select_world(id, self.world.as_deref())?;
 
         let mut wasm = wasm.unwrap_or_else(|| wit_component::dummy_module(&resolve, world));
@@ -461,6 +493,13 @@ pub struct WitOpts {
         conflicts_with = "wat"
     )]
     json: bool,
+
+    /// Features to enable when parsing the `wit` option.
+    ///
+    /// This flag enables the `@unstable` feature in WIT documents where the
+    /// items are otherwise hidden by default.
+    #[clap(long)]
+    features: Vec<String>,
 }
 
 impl WitOpts {
@@ -491,7 +530,7 @@ impl WitOpts {
         // `parse_wit_from_path`.
         if let Some(input) = &self.input {
             if input.is_dir() {
-                let mut resolve = Resolve::default();
+                let mut resolve = WitResolve::resolve_with_features(&self.features);
                 let id = resolve.push_dir(&input)?.0;
                 return Ok(DecodedWasm::WitPackage(resolve, id));
             }
@@ -539,7 +578,7 @@ impl WitOpts {
                     Ok(s) => s,
                     Err(_) => bail!("input was not valid utf-8"),
                 };
-                let mut resolve = Resolve::default();
+                let mut resolve = WitResolve::resolve_with_features(&self.features);
                 let pkg = UnresolvedPackage::parse(path, input)?;
                 let id = resolve.push(pkg)?;
                 Ok(DecodedWasm::WitPackage(resolve, id))
@@ -645,10 +684,8 @@ pub struct TargetsOpts {
     #[clap(flatten)]
     general: wasm_tools::GeneralOpts,
 
-    /// The WIT package containing the `world` used to test a component for conformance.
-    ///
-    /// This can either be a directory or a path to a single `*.wit` file.
-    wit: PathBuf,
+    #[clap(flatten)]
+    resolve: WitResolve,
 
     /// The world used to test whether a component conforms to its signature.
     #[clap(short, long)]
@@ -665,8 +702,7 @@ impl TargetsOpts {
 
     /// Executes the application.
     fn run(self) -> Result<()> {
-        let mut resolve = Resolve::default();
-        let package_id = resolve.push_path(&self.wit)?.0;
+        let (resolve, package_id) = self.resolve.load()?;
         let world = resolve.select_world(package_id, self.world.as_deref())?;
         let component_to_test = self.input.parse_wasm()?;
 
@@ -683,12 +719,8 @@ pub struct SemverCheckOpts {
     #[clap(flatten)]
     general: wasm_tools::GeneralOpts,
 
-    /// The WIT package containing the `prev` and `new` worlds used in
-    /// arguments.
-    ///
-    /// This can either be a directory, a path to a single `*.wit` file, or a
-    /// path to a wasm-encoded WIT package.
-    wit: PathBuf,
+    #[clap(flatten)]
+    resolve: WitResolve,
 
     /// The "previous" world, or older version, of what's being tested.
     ///
@@ -710,8 +742,7 @@ impl SemverCheckOpts {
     }
 
     fn run(self) -> Result<()> {
-        let mut resolve = Resolve::default();
-        let package_id = resolve.push_path(&self.wit)?.0;
+        let (resolve, package_id) = self.resolve.load()?;
         let prev = resolve.select_world(package_id, Some(&self.prev))?;
         let new = resolve.select_world(package_id, Some(&self.new))?;
         wit_component::semver_check(resolve, prev, new)?;

@@ -32,10 +32,10 @@ pub fn encode_component(resolve: &Resolve, package: PackageId) -> Result<Compone
     };
     encoder.run()?;
 
-    let package_docs = PackageDocs::extract(resolve, package);
+    let package_metadata = PackageMetadata::extract(resolve, package);
     encoder.component.custom_section(&CustomSection {
-        name: PackageDocs::SECTION_NAME.into(),
-        data: package_docs.encode()?.into(),
+        name: PackageMetadata::SECTION_NAME.into(),
+        data: package_metadata.encode()?.into(),
     });
 
     Ok(encoder.component)

@@ -65,6 +65,7 @@ impl WitPrinter {
         self.output.push_str("\n\n");
         for (name, id) in pkg.interfaces.iter() {
             self.print_docs(&resolve.interfaces[*id].docs);
+            self.print_stability(&resolve.interfaces[*id].stability);
             self.output.push_str("interface ");
             self.print_name(name);
             self.output.push_str(" {\n");
@@ -74,6 +75,7 @@ impl WitPrinter {
 
         for (name, id) in pkg.worlds.iter() {
             self.print_docs(&resolve.worlds[*id].docs);
+            self.print_stability(&resolve.worlds[*id].stability);
             self.output.push_str("world ");
             self.print_name(name);
             self.output.push_str(" {\n");
@@ -125,6 +127,7 @@ impl WitPrinter {
         for (name, func) in freestanding {
             self.new_item();
             self.print_docs(&func.docs);
+            self.print_stability(&func.stability);
             self.print_name(name);
             self.output.push_str(": ");
             self.print_function(resolve, func)?;
@@ -147,7 +150,7 @@ impl WitPrinter {
         // Partition types defined in this interface into either those imported
         // from foreign interfaces or those defined locally.
         let mut types_to_declare = Vec::new();
-        let mut types_to_import: Vec<(_, Vec<_>)> = Vec::new();
+        let mut types_to_import: Vec<(_, &_, Vec<_>)> = Vec::new();
         for (name, ty_id) in types {
             let ty = &resolve.types[ty_id];
             if let TypeDefKind::Type(Type::Id(other)) = ty.kind {
@@ -159,13 +162,17 @@ impl WitPrinter {
                             .name
                             .as_ref()
                             .ok_or_else(|| anyhow!("cannot import unnamed type"))?;
-                        if let Some((owner, list)) = types_to_import.last_mut() {
-                            if *owner == other_owner {
+                        if let Some((owner, stability, list)) = types_to_import.last_mut() {
+                            if *owner == other_owner && ty.stability == **stability {
                                 list.push((name, other_name));
                                 continue;
                             }
                         }
-                        types_to_import.push((other_owner, vec![(name, other_name)]));
+                        types_to_import.push((
+                            other_owner,
+                            &ty.stability,
+                            vec![(name, other_name)],
+                        ));
                         continue;
                     }
                     _ => {}
@@ -181,8 +188,9 @@ impl WitPrinter {
             TypeOwner::World(id) => resolve.worlds[id].package.unwrap(),
             TypeOwner::None => unreachable!(),
         };
-        for (owner, tys) in types_to_import {
+        for (owner, stability, tys) in types_to_import {
             self.any_items = true;
+            self.print_stability(stability);
             write!(&mut self.output, "use ")?;
             let id = match owner {
                 TypeOwner::Interface(id) => id,
@@ -212,6 +220,7 @@ impl WitPrinter {
         for id in types_to_declare {
             self.new_item();
             self.print_docs(&resolve.types[id].docs);
+            self.print_stability(&resolve.types[id].stability);
             match resolve.types[id].kind {
                 TypeDefKind::Resource => self.print_resource(
                     resolve,
@@ -236,17 +245,16 @@ impl WitPrinter {
         }
         self.output.push_str(" {\n");
         for func in funcs {
+            self.print_docs(&func.docs);
+            self.print_stability(&func.stability);
+
             match &func.kind {
-                FunctionKind::Constructor(_) => {
-                    self.print_docs(&func.docs);
-                }
+                FunctionKind::Constructor(_) => {}
                 FunctionKind::Method(_) => {
-                    self.print_docs(&func.docs);
                     self.print_name(func.item_name());
                     self.output.push_str(": ");
                 }
                 FunctionKind::Static(_) => {
-                    self.print_docs(&func.docs);
                     self.print_name(func.item_name());
                     self.output.push_str(": ");
                     self.output.push_str("static ");
@@ -367,13 +375,14 @@ impl WitPrinter {
         // Print inline item docs
         if matches!(name, WorldKey::Name(_)) {
             self.print_docs(match item {
-                WorldItem::Interface(id) => &resolve.interfaces[*id].docs,
+                WorldItem::Interface { id, .. } => &resolve.interfaces[*id].docs,
                 WorldItem::Function(f) => &f.docs,
                 // Types are handled separately
                 WorldItem::Type(_) => unreachable!(),
             });
         }
 
+        self.print_stability(item.stability(resolve));
         self.output.push_str(desc);
         self.output.push_str(" ");
         match name {
@@ -381,7 +390,7 @@ impl WitPrinter {
                 self.print_name(name);
                 self.output.push_str(": ");
                 match item {
-                    WorldItem::Interface(id) => {
+                    WorldItem::Interface { id, .. } => {
                         assert!(resolve.interfaces[*id].name.is_none());
                         writeln!(self.output, "interface {{")?;
                         self.print_interface(resolve, *id)?;
@@ -398,7 +407,7 @@ impl WitPrinter {
             }
             WorldKey::Interface(id) => {
                 match item {
-                    WorldItem::Interface(id2) => assert_eq!(id, id2),
+                    WorldItem::Interface { id: id2, .. } => assert_eq!(id, id2),
                     _ => unreachable!(),
                 }
                 self.print_path_to_interface(resolve, *id, cur_pkg)?;
@@ -865,6 +874,26 @@ impl WitPrinter {
                     self.output.push_str(line);
                     self.output.push_str("\n");
                 }
+            }
+        }
+    }
+
+    fn print_stability(&mut self, stability: &Stability) {
+        match stability {
+            Stability::Unknown => {}
+            Stability::Stable { since, feature } => {
+                self.output.push_str("@since(version = ");
+                self.output.push_str(&since.to_string());
+                if let Some(feature) = feature {
+                    self.output.push_str(", feature = ");
+                    self.output.push_str(feature);
+                }
+                self.output.push_str(")\n");
+            }
+            Stability::Unstable { feature } => {
+                self.output.push_str("@unstable(feature = ");
+                self.output.push_str(feature);
+                self.output.push_str(")\n");
             }
         }
     }

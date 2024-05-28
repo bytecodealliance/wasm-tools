@@ -4,12 +4,16 @@
       "name": "more-depends-on-later-things",
       "imports": {
         "interface-3": {
-          "interface": 3
+          "interface": {
+            "id": 3
+          }
         }
       },
       "exports": {
         "interface-3": {
-          "interface": 3
+          "interface": {
+            "id": 3
+          }
         }
       },
       "package": 0
@@ -18,7 +22,9 @@
       "name": "the-world",
       "imports": {
         "interface-1": {
-          "interface": 1
+          "interface": {
+            "id": 1
+          }
         },
         "x": {
           "type": 15

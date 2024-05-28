@@ -92,6 +92,7 @@ impl Default for Bindgen {
             includes: Default::default(),
             include_names: Default::default(),
             package: Some(package),
+            stability: Default::default(),
         });
         resolve.packages[package]
             .worlds
@@ -306,7 +307,7 @@ impl Bindgen {
             .resolve
             .merge(resolve)
             .context("failed to merge WIT package sets together")?
-            .worlds[world.index()];
+            .map_world(world, None)?;
         self.resolve
             .merge_worlds(world, self.world)
             .context("failed to merge worlds from two documents")?;
@@ -361,8 +362,8 @@ impl ModuleMetadata {
                         .insert((BARE_FUNC_MODULE_NAME.to_string(), name.clone()), encoding);
                     assert!(prev.is_none());
                 }
-                WorldItem::Interface(i) => {
-                    for (func, _) in resolve.interfaces[*i].functions.iter() {
+                WorldItem::Interface { id, .. } => {
+                    for (func, _) in resolve.interfaces[*id].functions.iter() {
                         let prev = ret
                             .import_encodings
                             .insert((name.clone(), func.clone()), encoding);
@@ -381,8 +382,8 @@ impl ModuleMetadata {
                     let prev = ret.export_encodings.insert(name.clone(), encoding);
                     assert!(prev.is_none());
                 }
-                WorldItem::Interface(i) => {
-                    for (_, func) in resolve.interfaces[*i].functions.iter() {
+                WorldItem::Interface { id, .. } => {
+                    for (_, func) in resolve.interfaces[*id].functions.iter() {
                         let name = func.core_export_name(Some(&name)).into_owned();
                         let prev = ret.export_encodings.insert(name, encoding);
                         assert!(prev.is_none());

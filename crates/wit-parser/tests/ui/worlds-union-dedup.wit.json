@@ -4,10 +4,14 @@
       "name": "my-world-a",
       "imports": {
         "interface-0": {
-          "interface": 0
+          "interface": {
+            "id": 0
+          }
         },
         "interface-2": {
-          "interface": 2
+          "interface": {
+            "id": 2
+          }
         }
       },
       "exports": {},
@@ -17,10 +21,14 @@
       "name": "my-world-b",
       "imports": {
         "interface-0": {
-          "interface": 0
+          "interface": {
+            "id": 0
+          }
         },
         "interface-2": {
-          "interface": 2
+          "interface": {
+            "id": 2
+          }
         }
       },
       "exports": {},
@@ -30,10 +38,14 @@
       "name": "union-my-world",
       "imports": {
         "interface-0": {
-          "interface": 0
+          "interface": {
+            "id": 0
+          }
         },
         "interface-2": {
-          "interface": 2
+          "interface": {
+            "id": 2
+          }
         }
       },
       "exports": {},

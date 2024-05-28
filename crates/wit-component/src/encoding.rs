@@ -515,7 +515,7 @@ impl<'a> EncodingState<'a> {
         for (name, item) in resolve.worlds[world].imports.iter() {
             let func = match item {
                 WorldItem::Function(f) => f,
-                WorldItem::Interface(_) | WorldItem::Type(_) => continue,
+                WorldItem::Interface { .. } | WorldItem::Type(_) => continue,
             };
             let name = resolve.name_world_key(name);
             if !info.lowerings.contains_key(&name) {
@@ -751,8 +751,8 @@ impl<'a> EncodingState<'a> {
                     self.component
                         .export(&export_string, ComponentExportKind::Func, idx, None);
                 }
-                WorldItem::Interface(export) => {
-                    self.encode_interface_export(&export_string, module, *export)?;
+                WorldItem::Interface { id, .. } => {
+                    self.encode_interface_export(&export_string, module, *id)?;
                 }
                 WorldItem::Type(_) => unreachable!(),
             }
@@ -2001,7 +2001,7 @@ impl ComponentEncoder {
             .with_context(|| {
                 format!("failed to merge WIT packages of adapter `{name}` into main packages")
             })?
-            .worlds[metadata.world.index()];
+            .map_world(metadata.world, None)?;
         self.metadata
             .resolve
             .merge_worlds(world, self.metadata.world)

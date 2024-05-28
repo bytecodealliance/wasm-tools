@@ -1,0 +1,89 @@
+package a:b@1.0.1;
+
+@since(version = 1.0.0)
+interface foo1 {}
+
+@since(version = 1.0.0, feature = foo)
+interface foo2 {}
+
+@since(version = 1.0.0, feature = foo-bar)
+interface foo3 {}
+
+@unstable(feature = foo2)
+interface foo4 {}
+
+@since(version = 1.0.1)
+world w1 {}
+
+@since(version = 1.0.0)
+world w2 {}
+
+interface in-an-interface {
+  @since(version = 1.0.0)
+  foo: func();
+  @since(version = 1.0.0)
+  resource r1;
+  @since(version = 1.0.0)
+  resource r2 {}
+
+  @since(version = 1.0.0)
+  type t1 = u32;
+  @since(version = 1.0.0)
+  record t2 { a: u32 }
+  @since(version = 1.0.0)
+  enum t3 { a }
+  @since(version = 1.0.0)
+  flags t4 { a }
+  @since(version = 1.0.0)
+  variant t5 { a }
+
+  @since(version = 1.0.0)
+  resource r3 {
+    @since(version = 1.0.0)
+    constructor();
+
+    @since(version = 1.0.0)
+    x1: static func();
+
+    @since(version = 1.0.0)
+    x2: func();
+  }
+}
+
+interface z {}
+
+world in-a-world {
+  @since(version = 1.0.0)
+  import x: func();
+  @since(version = 1.0.0)
+  export x: func();
+
+  @since(version = 1.0.0)
+  import y: interface {}
+  @since(version = 1.0.0)
+  export y: interface {}
+
+  @since(version = 1.0.0)
+  import z;
+  @since(version = 1.0.0)
+  export z;
+
+
+  @since(version = 1.0.0)
+  record t1 { x: u32 }
+  @since(version = 1.0.0)
+  enum t2 { a }
+  @since(version = 1.0.0)
+  variant t3 { a }
+  @since(version = 1.0.0)
+  flags t4 { a }
+  @since(version = 1.0.0)
+  type t5 = u32;
+  @since(version = 1.0.0)
+  resource t6;
+  @since(version = 1.0.0)
+  resource t7 {
+    @since(version = 1.0.0)
+    constructor();
+  }
+}

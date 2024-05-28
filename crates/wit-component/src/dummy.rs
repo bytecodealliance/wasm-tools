@@ -16,7 +16,7 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId) -> Vec<u8> {
                 push_tys(&mut wat, "result", &sig.results);
                 wat.push_str("))\n");
             }
-            WorldItem::Interface(import) => {
+            WorldItem::Interface { id: import, .. } => {
                 let name = resolve.name_world_key(name);
                 for (_, func) in resolve.interfaces[*import].functions.iter() {
                     let sig = resolve.wasm_signature(AbiVariant::GuestImport, func);
@@ -39,7 +39,7 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId) -> Vec<u8> {
     // Import any resource-related functions for exports.
     for (name, export) in world.exports.iter() {
         let export = match export {
-            WorldItem::Interface(export) => *export,
+            WorldItem::Interface { id, .. } => *id,
             _ => continue,
         };
         let module = format!("[export]{}", resolve.name_world_key(name));
@@ -64,7 +64,7 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId) -> Vec<u8> {
             WorldItem::Function(func) => {
                 push_func(&mut wat, &func.name, resolve, func);
             }
-            WorldItem::Interface(export) => {
+            WorldItem::Interface { id: export, .. } => {
                 let name = resolve.name_world_key(name);
                 for (_, func) in resolve.interfaces[*export].functions.iter() {
                     let name = func.core_export_name(Some(&name));

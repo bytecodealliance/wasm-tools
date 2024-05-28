@@ -237,7 +237,7 @@ pub fn validate_module<'a>(
             }
         } else {
             match world.imports.get(&world_key(&metadata.resolve, name)) {
-                Some(WorldItem::Interface(interface)) => {
+                Some(WorldItem::Interface { id: interface, .. }) => {
                     let required = validate_imported_interface(
                         &metadata.resolve,
                         *interface,
@@ -272,10 +272,10 @@ pub fn validate_module<'a>(
     for (name, interface_name, funcs) in exported_resource_funcs {
         let world_key = world_key(&metadata.resolve, interface_name);
         match world.exports.get(&world_key) {
-            Some(WorldItem::Interface(i)) => {
+            Some(WorldItem::Interface { id, .. }) => {
                 validate_exported_interface_resource_imports(
                     &metadata.resolve,
-                    *i,
+                    *id,
                     name,
                     funcs,
                     &types,
@@ -526,7 +526,7 @@ pub fn validate_adapter_module<'a>(
 
         if !(is_library && adapters.contains(name)) {
             match resolve.worlds[world].imports.get(&world_key(resolve, name)) {
-                Some(WorldItem::Interface(interface)) => {
+                Some(WorldItem::Interface { id: interface, .. }) => {
                     let required =
                         validate_imported_interface(resolve, *interface, name, funcs, &types)
                             .with_context(|| {
@@ -576,10 +576,10 @@ pub fn validate_adapter_module<'a>(
     for (name, interface_name, funcs) in exported_resource_funcs {
         let world_key = world_key(resolve, interface_name);
         match world.exports.get(&world_key) {
-            Some(WorldItem::Interface(i)) => {
+            Some(WorldItem::Interface { id, .. }) => {
                 validate_exported_interface_resource_imports(
                     resolve,
-                    *i,
+                    *id,
                     name,
                     funcs,
                     &types,
@@ -809,7 +809,7 @@ fn validate_exported_item<'a>(
     };
     match item {
         WorldItem::Function(func) => validate(func, None)?,
-        WorldItem::Interface(interface) => {
+        WorldItem::Interface { id: interface, .. } => {
             let interface = &resolve.interfaces[*interface];
             for (_, f) in interface.functions.iter() {
                 validate(f, Some(export_name)).with_context(|| {
