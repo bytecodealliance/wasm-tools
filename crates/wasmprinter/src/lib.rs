@@ -941,7 +941,7 @@ impl Printer {
         if ty.is_final {
             self.result.push_str("final ");
         }
-        for idx in &ty.supertype_idx {
+        if let Some(idx) = ty.supertype_idx {
             self.print_idx(&state.core.type_names, idx.as_module_index().unwrap())?;
             self.result.push(' ');
         }
