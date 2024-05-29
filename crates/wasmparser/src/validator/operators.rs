@@ -796,6 +796,8 @@ where
         }
     }
 
+    /// Returns the corresponding function type for the `func` item located at
+    /// `function_index`.
     fn type_of_function(&self, function_index: u32) -> Result<&'resources FuncType> {
         match self.resources.type_of_function(function_index) {
             Some(f) => Ok(f),
@@ -808,18 +810,11 @@ where
         }
     }
 
-    /// Validates a `call` instruction, ensuring that the function index is
-    /// in-bounds and the right types are on the stack to call the function.
-    fn check_call(&mut self, function_index: u32) -> Result<()> {
-        let ty = self.type_of_function(function_index)?;
-        self.check_call_ty(ty)
-    }
-
-    fn check_call_type_index(&mut self, type_index: u32) -> Result<()> {
-        let ty = self.func_type_at(type_index)?;
-        self.check_call_ty(ty)
-    }
-
+    /// Checks a call-style instruction which will be invoking the function `ty`
+    /// specified.
+    ///
+    /// This will pop parameters from the operand stack for the function's
+    /// parameters and then push the results of the function on the stack.
     fn check_call_ty(&mut self, ty: &FuncType) -> Result<()> {
         for &ty in ty.params().iter().rev() {
             debug_assert_type_indices_are_ids(ty);
@@ -832,8 +827,53 @@ where
         Ok(())
     }
 
-    /// Validates a call to an indirect function, very similar to `check_call`.
-    fn check_call_indirect(&mut self, index: u32, table_index: u32) -> Result<()> {
+    /// Similar to `check_call_ty` except used for tail-call instructions.
+    fn check_return_call_ty(&mut self, ty: &FuncType) -> Result<()> {
+        self.check_func_type_same_results(ty)?;
+        self.check_call_ty(ty)?;
+        self.check_return()
+    }
+
+    /// Checks the immediate `type_index` of a `call_ref`-style instruction
+    /// (also `return_call_ref`).
+    ///
+    /// This will validate that the value on the stack is a `(ref type_index)`
+    /// or a subtype. This will then return the corresponding function type used
+    /// for this call (to be used with `check_call_ty` or
+    /// `check_return_call_ty`).
+    fn check_call_ref_ty(&mut self, type_index: u32) -> Result<&'resources FuncType> {
+        let unpacked_index = UnpackedIndex::Module(type_index);
+        let mut hty = HeapType::Concrete(unpacked_index);
+        self.resources.check_heap_type(&mut hty, self.offset)?;
+        // If `None` is popped then that means a "bottom" type was popped which
+        // is always considered equivalent to the `hty` tag.
+        if let Some(rt) = self.pop_ref()? {
+            let expected = RefType::new(true, hty).expect("hty should be previously validated");
+            let expected = ValType::Ref(expected);
+            if !self.resources.is_subtype(ValType::Ref(rt), expected) {
+                bail!(
+                    self.offset,
+                    "type mismatch: funcref on stack does not match specified type",
+                );
+            }
+        }
+        self.func_type_at(type_index)
+    }
+
+    /// Validates the immediate operands of a `call_indirect` or
+    /// `return_call_indirect` instruction.
+    ///
+    /// This will validate that `table_index` is valid and a funcref table. It
+    /// will additionally pop the index argument which is used to index into the
+    /// table.
+    ///
+    /// The return value of this function is the function type behind
+    /// `type_index` which must then be passedt o `check_{call,return_call}_ty`.
+    fn check_call_indirect_ty(
+        &mut self,
+        type_index: u32,
+        table_index: u32,
+    ) -> Result<&'resources FuncType> {
         let tab = self.check_table_index(table_index)?;
         if !self
             .resources
@@ -844,15 +884,8 @@ where
                 "indirect calls must go through a table with type <= funcref",
             );
         }
-        let ty = self.func_type_at(index)?;
         self.pop_operand(Some(tab.index_type()))?;
-        for ty in ty.clone().params().iter().rev() {
-            self.pop_operand(Some(*ty))?;
-        }
-        for ty in ty.results() {
-            self.push_operand(*ty)?;
-        }
-        Ok(())
+        self.func_type_at(type_index)
     }
 
     /// Validates a `return` instruction, popping types from the operand
@@ -866,20 +899,6 @@ where
         }
         self.unreachable()?;
         Ok(())
-    }
-
-    /// Check that the function at the given index has the same result types as
-    /// the current function's results.
-    fn check_func_same_results(&self, function_index: u32) -> Result<()> {
-        let ty = self.type_of_function(function_index)?;
-        self.check_func_type_same_results(ty)
-    }
-
-    /// Check that the type at the given index has the same result types as the
-    /// current function's results.
-    fn check_func_type_index_same_results(&self, type_index: u32) -> Result<()> {
-        let ty = self.func_type_at(type_index)?;
-        self.check_func_type_same_results(ty)
     }
 
     /// Check that the given type has the same result types as the current
@@ -1551,47 +1570,33 @@ where
         Ok(())
     }
     fn visit_call(&mut self, function_index: u32) -> Self::Output {
-        self.check_call(function_index)?;
+        let ty = self.type_of_function(function_index)?;
+        self.check_call_ty(ty)?;
         Ok(())
     }
     fn visit_return_call(&mut self, function_index: u32) -> Self::Output {
-        self.check_call(function_index)?;
-        self.check_return()?;
-        self.check_func_same_results(function_index)?;
+        let ty = self.type_of_function(function_index)?;
+        self.check_return_call_ty(ty)?;
         Ok(())
     }
     fn visit_call_ref(&mut self, type_index: u32) -> Self::Output {
-        let unpacked_index = UnpackedIndex::Module(type_index);
-        let mut hty = HeapType::Concrete(unpacked_index);
-        self.resources.check_heap_type(&mut hty, self.offset)?;
-        // If `None` is popped then that means a "bottom" type was popped which
-        // is always considered equivalent to the `hty` tag.
-        if let Some(rt) = self.pop_ref()? {
-            let expected = RefType::new(true, hty).expect("hty should be previously validated");
-            let expected = ValType::Ref(expected);
-            if !self.resources.is_subtype(ValType::Ref(rt), expected) {
-                bail!(
-                    self.offset,
-                    "type mismatch: funcref on stack does not match specified type",
-                );
-            }
-        }
-        self.check_call_type_index(type_index)
-    }
-    fn visit_return_call_ref(&mut self, type_index: u32) -> Self::Output {
-        self.visit_call_ref(type_index)?;
-        self.check_return()?;
-        self.check_func_type_index_same_results(type_index)?;
+        let ty = self.check_call_ref_ty(type_index)?;
+        self.check_call_ty(ty)?;
         Ok(())
     }
-    fn visit_call_indirect(&mut self, index: u32, table_index: u32) -> Self::Output {
-        self.check_call_indirect(index, table_index)?;
+    fn visit_return_call_ref(&mut self, type_index: u32) -> Self::Output {
+        let ty = self.check_call_ref_ty(type_index)?;
+        self.check_return_call_ty(ty)?;
+        Ok(())
+    }
+    fn visit_call_indirect(&mut self, type_index: u32, table_index: u32) -> Self::Output {
+        let ty = self.check_call_indirect_ty(type_index, table_index)?;
+        self.check_call_ty(ty)?;
         Ok(())
     }
     fn visit_return_call_indirect(&mut self, type_index: u32, table_index: u32) -> Self::Output {
-        self.check_call_indirect(type_index, table_index)?;
-        self.check_return()?;
-        self.check_func_type_index_same_results(type_index)?;
+        let ty = self.check_call_indirect_ty(type_index, table_index)?;
+        self.check_return_call_ty(ty)?;
         Ok(())
     }
     fn visit_drop(&mut self) -> Self::Output {
