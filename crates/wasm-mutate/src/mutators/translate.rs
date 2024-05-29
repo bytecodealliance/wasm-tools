@@ -370,8 +370,6 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
                 .into(),
             $arg.default(),
         ));
-        (map $arg:ident table_byte) => (());
-        (map $arg:ident mem_byte) => (());
         (map $arg:ident flags) => (());
         (map $arg:ident ty) => (t.translate_ty($arg)?);
         (map $arg:ident hty) => (t.translate_heapty($arg)?);
@@ -402,7 +400,7 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
         (build V128Const $arg:ident) => (I::V128Const($arg.i128()));
         (build TryTable $table:ident) => (unimplemented_try_table());
         (build $op:ident $arg:ident) => (I::$op($arg));
-        (build CallIndirect $ty:ident $table:ident $_:ident) => (I::CallIndirect {
+        (build CallIndirect $ty:ident $table:ident) => (I::CallIndirect {
             ty: $ty,
             table: $table,
         });
@@ -410,14 +408,6 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
             ty: $ty,
             table: $table,
         });
-        (build MemoryGrow $mem:ident $_:ident) => (I::MemoryGrow($mem));
-        (build MemorySize $mem:ident $_:ident) => (I::MemorySize($mem));
-        (build StructNew $type_index:ident) => (I::StructNew($type_index));
-        (build ArrayGet $type_index:ident) => (I::ArrayGet($type_index));
-        (build ArrayGetS $type_index:ident) => (I::ArrayGetS($type_index));
-        (build ArrayGetU $type_index:ident) => (I::ArrayGetU($type_index));
-        (build ArraySet $type_index:ident) => (I::ArraySet($type_index));
-        (build ArrayFill $type_index:ident) => (I::ArrayFill($type_index));
         (build $op:ident $($arg:ident)*) => (I::$op { $($arg),* });
     }
 

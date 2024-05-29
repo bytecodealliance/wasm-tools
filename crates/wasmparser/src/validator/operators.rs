@@ -1534,18 +1534,7 @@ where
         self.visit_call_ref(type_index)?;
         self.check_return()
     }
-    fn visit_call_indirect(
-        &mut self,
-        index: u32,
-        table_index: u32,
-        table_byte: u8,
-    ) -> Self::Output {
-        if table_byte != 0 && !self.features.reference_types() {
-            bail!(
-                self.offset,
-                "reference-types not enabled: zero byte expected"
-            );
-        }
+    fn visit_call_indirect(&mut self, index: u32, table_index: u32) -> Self::Output {
         self.check_call_indirect(index, table_index)?;
         Ok(())
     }
@@ -1877,18 +1866,12 @@ where
         self.pop_operand(Some(ty))?;
         Ok(())
     }
-    fn visit_memory_size(&mut self, mem: u32, mem_byte: u8) -> Self::Output {
-        if mem_byte != 0 && !self.features.multi_memory() {
-            bail!(self.offset, "multi-memory not enabled: zero byte expected");
-        }
+    fn visit_memory_size(&mut self, mem: u32) -> Self::Output {
         let index_ty = self.check_memory_index(mem)?;
         self.push_operand(index_ty)?;
         Ok(())
     }
-    fn visit_memory_grow(&mut self, mem: u32, mem_byte: u8) -> Self::Output {
-        if mem_byte != 0 && !self.features.multi_memory() {
-            bail!(self.offset, "multi-memory not enabled: zero byte expected");
-        }
+    fn visit_memory_grow(&mut self, mem: u32) -> Self::Output {
         let index_ty = self.check_memory_index(mem)?;
         self.pop_operand(Some(index_ty))?;
         self.push_operand(index_ty)?;

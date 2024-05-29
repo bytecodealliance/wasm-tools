@@ -640,11 +640,11 @@ impl<'a> DFGBuilder {
                         idx,
                     );
                 }
-                Operator::MemoryGrow { mem, mem_byte: _ } => {
+                Operator::MemoryGrow { mem } => {
                     let arg = self.pop_operand(idx, false);
                     self.push_node(Lang::MemoryGrow(*mem, Id::from(arg)), idx);
                 }
-                Operator::MemorySize { mem, mem_byte: _ } => {
+                Operator::MemorySize { mem } => {
                     self.push_node(Lang::MemorySize(*mem), idx);
                 }
                 Operator::TableGrow { table } => {

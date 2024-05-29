@@ -281,12 +281,6 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
-    fn read_first_byte_and_var_u32(&mut self) -> Result<(u8, u32)> {
-        let pos = self.position;
-        let val = self.read_var_u32()?;
-        Ok((self.buffer[pos], val))
-    }
-
     fn read_memarg(&mut self, max_align: u8) -> Result<MemArg> {
         let flags_pos = self.original_position();
         let mut flags = self.read_var_u32()?;
@@ -833,8 +827,8 @@ impl<'a> BinaryReader<'a> {
             0x10 => visitor.visit_call(self.read_var_u32()?),
             0x11 => {
                 let index = self.read_var_u32()?;
-                let (table_byte, table_index) = self.read_first_byte_and_var_u32()?;
-                visitor.visit_call_indirect(index, table_index, table_byte)
+                let table = self.read_table_index_or_zero_if_not_reference_types()?;
+                visitor.visit_call_indirect(index, table)
             }
             0x12 => visitor.visit_return_call(self.read_var_u32()?),
             0x13 => visitor.visit_return_call_indirect(self.read_var_u32()?, self.read_var_u32()?),
@@ -888,12 +882,12 @@ impl<'a> BinaryReader<'a> {
             0x3d => visitor.visit_i64_store16(self.read_memarg(1)?),
             0x3e => visitor.visit_i64_store32(self.read_memarg(2)?),
             0x3f => {
-                let (mem_byte, mem) = self.read_first_byte_and_var_u32()?;
-                visitor.visit_memory_size(mem, mem_byte)
+                let mem = self.read_memory_index_or_zero_if_not_multi_memory()?;
+                visitor.visit_memory_size(mem)
             }
             0x40 => {
-                let (mem_byte, mem) = self.read_first_byte_and_var_u32()?;
-                visitor.visit_memory_grow(mem, mem_byte)
+                let mem = self.read_memory_index_or_zero_if_not_multi_memory()?;
+                visitor.visit_memory_grow(mem)
             }
 
             0x41 => visitor.visit_i32_const(self.read_var_i32()?),
@@ -1751,6 +1745,32 @@ impl<'a> BinaryReader<'a> {
         loop {
             if let Operator::End = self.read_operator()? {
                 return Ok(());
+            }
+        }
+    }
+
+    fn read_memory_index_or_zero_if_not_multi_memory(&mut self) -> Result<u32> {
+        if self.features.multi_memory() {
+            self.read_var_u32()
+        } else {
+            // Before bulk memory this byte was required to be a single zero
+            // byte, not a LEB-encoded zero, so require a precise zero byte.
+            match self.read_u8()? {
+                0 => Ok(0),
+                _ => bail!(self.original_position() - 1, "zero byte expected"),
+            }
+        }
+    }
+
+    fn read_table_index_or_zero_if_not_reference_types(&mut self) -> Result<u32> {
+        if self.features.reference_types() {
+            self.read_var_u32()
+        } else {
+            // Before reference types this byte was required to be a single zero
+            // byte, not a LEB-encoded zero, so require a precise zero byte.
+            match self.read_u8()? {
+                0 => Ok(0),
+                _ => bail!(self.original_position() - 1, "zero byte expected"),
             }
         }
     }

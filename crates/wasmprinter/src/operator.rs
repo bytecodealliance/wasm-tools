@@ -421,13 +421,12 @@ macro_rules! define_visit {
     // when an index is 0 or similar. The final case in this list is the
     // catch-all which prints each payload individually based on the name of the
     // payload field.
-    (payload $self:ident CallIndirect $ty:ident $table:ident $byte:ident) => (
+    (payload $self:ident CallIndirect $ty:ident $table:ident) => (
         if $table != 0 {
             $self.push_str(" ");
             $self.table_index($table)?;
         }
         $self.type_index($ty)?;
-        let _ = $byte;
     );
     (payload $self:ident ReturnCallIndirect $ty:ident $table:ident) => (
         if $table != 0 {
@@ -469,7 +468,13 @@ macro_rules! define_visit {
             $self.table_index($src)?;
         }
     );
-    (payload $self:ident $mem_op:ident $mem:ident mem_byte) => (
+    (payload $self:ident MemoryGrow $mem:ident) => (
+        if $mem != 0 {
+            $self.push_str(" ");
+            $self.memory_index($mem)?;
+        }
+    );
+    (payload $self:ident MemorySize $mem:ident) => (
         if $mem != 0 {
             $self.push_str(" ");
             $self.memory_index($mem)?;

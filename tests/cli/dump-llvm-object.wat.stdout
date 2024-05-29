@@ -102,7 +102,7 @@
   0xf2 | 20 03       | local_get local_index:3
   0xf4 | 24 00       | global_set global_index:0
   0xf6 | 20 00       | local_get local_index:0
-  0xf8 | 11 05 00    | call_indirect type_index:5 table_index:0 table_byte:0
+  0xf8 | 11 05 00    | call_indirect type_index:5 table_index:0
   0xfb | 41 10       | i32_const value:16
   0xfd | 21 04       | local_set local_index:4
   0xff | 20 03       | local_get local_index:3
