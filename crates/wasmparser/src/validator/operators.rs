@@ -796,18 +796,22 @@ where
         }
     }
 
-    /// Validates a `call` instruction, ensuring that the function index is
-    /// in-bounds and the right types are on the stack to call the function.
-    fn check_call(&mut self, function_index: u32) -> Result<()> {
-        let ty = match self.resources.type_of_function(function_index) {
-            Some(i) => i,
+    fn type_of_function(&self, function_index: u32) -> Result<&'resources FuncType> {
+        match self.resources.type_of_function(function_index) {
+            Some(f) => Ok(f),
             None => {
                 bail!(
                     self.offset,
                     "unknown function {function_index}: function index out of bounds",
-                );
+                )
             }
-        };
+        }
+    }
+
+    /// Validates a `call` instruction, ensuring that the function index is
+    /// in-bounds and the right types are on the stack to call the function.
+    fn check_call(&mut self, function_index: u32) -> Result<()> {
+        let ty = self.type_of_function(function_index)?;
         self.check_call_ty(ty)
     }
 
@@ -861,6 +865,49 @@ where
             self.pop_operand(Some(ty))?;
         }
         self.unreachable()?;
+        Ok(())
+    }
+
+    /// Check that the function at the given index has the same result types as
+    /// the current function's results.
+    fn check_func_same_results(&self, function_index: u32) -> Result<()> {
+        let ty = self.type_of_function(function_index)?;
+        self.check_func_type_same_results(ty)
+    }
+
+    /// Check that the type at the given index has the same result types as the
+    /// current function's results.
+    fn check_func_type_index_same_results(&self, type_index: u32) -> Result<()> {
+        let ty = self.func_type_at(type_index)?;
+        self.check_func_type_same_results(ty)
+    }
+
+    /// Check that the given type has the same result types as the current
+    /// function's results.
+    fn check_func_type_same_results(&self, callee_ty: &FuncType) -> Result<()> {
+        let caller_rets = self.results(self.control[0].block_type)?;
+        if callee_ty.results().len() != caller_rets.len()
+            || !caller_rets
+                .zip(callee_ty.results())
+                .all(|(caller_ty, callee_ty)| self.resources.is_subtype(*callee_ty, caller_ty))
+        {
+            let caller_rets = self
+                .results(self.control[0].block_type)?
+                .map(|ty| format!("{ty}"))
+                .collect::<Vec<_>>()
+                .join(" ");
+            let callee_rets = callee_ty
+                .results()
+                .iter()
+                .map(|ty| format!("{ty}"))
+                .collect::<Vec<_>>()
+                .join(" ");
+            bail!(
+                self.offset,
+                "type mismatch: current function requires result type \
+                 [{caller_rets}] but callee returns [{callee_rets}]"
+            );
+        }
         Ok(())
     }
 
@@ -1510,6 +1557,7 @@ where
     fn visit_return_call(&mut self, function_index: u32) -> Self::Output {
         self.check_call(function_index)?;
         self.check_return()?;
+        self.check_func_same_results(function_index)?;
         Ok(())
     }
     fn visit_call_ref(&mut self, type_index: u32) -> Self::Output {
@@ -1532,7 +1580,9 @@ where
     }
     fn visit_return_call_ref(&mut self, type_index: u32) -> Self::Output {
         self.visit_call_ref(type_index)?;
-        self.check_return()
+        self.check_return()?;
+        self.check_func_type_index_same_results(type_index)?;
+        Ok(())
     }
     fn visit_call_indirect(
         &mut self,
@@ -1549,9 +1599,10 @@ where
         self.check_call_indirect(index, table_index)?;
         Ok(())
     }
-    fn visit_return_call_indirect(&mut self, index: u32, table_index: u32) -> Self::Output {
-        self.check_call_indirect(index, table_index)?;
+    fn visit_return_call_indirect(&mut self, type_index: u32, table_index: u32) -> Self::Output {
+        self.check_call_indirect(type_index, table_index)?;
         self.check_return()?;
+        self.check_func_type_index_same_results(type_index)?;
         Ok(())
     }
     fn visit_drop(&mut self) -> Self::Output {

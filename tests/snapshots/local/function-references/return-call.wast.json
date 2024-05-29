@@ -1,0 +1,26 @@
+{
+  "source_filename": "tests/local/function-references/return-call.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 7,
+      "filename": "return-call.0.wasm",
+      "text": "type mismatch: current function requires result type [i32] but callee returns [i32 i32]",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 17,
+      "filename": "return-call.1.wasm",
+      "text": "type mismatch: current function requires result type [i32] but callee returns [i32 i32]",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 29,
+      "filename": "return-call.2.wasm",
+      "text": "type mismatch: current function requires result type [i32] but callee returns [i32 i32]",
+      "module_type": "binary"
+    }
+  ]
+}
