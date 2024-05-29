@@ -1033,8 +1033,6 @@ macro_rules! define_visit {
     (mark_live $self:ident $arg:ident lanes) => {};
     (mark_live $self:ident $arg:ident flags) => {};
     (mark_live $self:ident $arg:ident value) => {};
-    (mark_live $self:ident $arg:ident mem_byte) => {};
-    (mark_live $self:ident $arg:ident table_byte) => {};
     (mark_live $self:ident $arg:ident local_index) => {};
     (mark_live $self:ident $arg:ident relative_depth) => {};
     (mark_live $self:ident $arg:ident tag_index) => {};
@@ -1186,21 +1184,12 @@ macro_rules! define_encode {
     (mk BrTable $arg:ident) => ({
         BrTable($arg.0, $arg.1)
     });
-    (mk CallIndirect $ty:ident $table:ident $table_byte:ident) => ({
-        let _ = $table_byte;
+    (mk CallIndirect $ty:ident $table:ident) => ({
         CallIndirect { ty: $ty, table: $table }
     });
     (mk ReturnCallIndirect $ty:ident $table:ident) => (
         ReturnCallIndirect { ty: $ty, table: $table }
     );
-    (mk MemorySize $mem:ident $mem_byte:ident) => ({
-        let _ = $mem_byte;
-        MemorySize($mem)
-    });
-    (mk MemoryGrow $mem:ident $mem_byte:ident) => ({
-        let _ = $mem_byte;
-        MemoryGrow($mem)
-    });
     (mk TryTable $try_table:ident) => ({
         let _ = $try_table;
         unimplemented_try_table()

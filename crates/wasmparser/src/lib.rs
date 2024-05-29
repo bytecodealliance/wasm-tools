@@ -169,7 +169,7 @@ macro_rules! for_each_operator {
             @mvp BrTable { targets: $crate::BrTable<'a> } => visit_br_table
             @mvp Return => visit_return
             @mvp Call { function_index: u32 } => visit_call
-            @mvp CallIndirect { type_index: u32, table_index: u32, table_byte: u8 } => visit_call_indirect
+            @mvp CallIndirect { type_index: u32, table_index: u32 } => visit_call_indirect
             @tail_call ReturnCall { function_index: u32 } => visit_return_call
             @tail_call ReturnCallIndirect { type_index: u32, table_index: u32 } => visit_return_call_indirect
             @mvp Drop => visit_drop
@@ -203,8 +203,8 @@ macro_rules! for_each_operator {
             @mvp I64Store8 { memarg: $crate::MemArg } => visit_i64_store8
             @mvp I64Store16 { memarg: $crate::MemArg } => visit_i64_store16
             @mvp I64Store32 { memarg: $crate::MemArg } => visit_i64_store32
-            @mvp MemorySize { mem: u32, mem_byte: u8 } => visit_memory_size
-            @mvp MemoryGrow { mem: u32, mem_byte: u8 } => visit_memory_grow
+            @mvp MemorySize { mem: u32 } => visit_memory_size
+            @mvp MemoryGrow { mem: u32 } => visit_memory_grow
             @mvp I32Const { value: i32 } => visit_i32_const
             @mvp I64Const { value: i64 } => visit_i64_const
             @mvp F32Const { value: $crate::Ieee32 } => visit_f32_const
