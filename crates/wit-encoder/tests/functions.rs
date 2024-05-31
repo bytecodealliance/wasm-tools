@@ -1,5 +1,5 @@
 use pretty_assertions::assert_eq;
-use wit_encoder::{Params, Result_, Results, StandaloneFunction, Type};
+use wit_encoder::{Params, Result_, Results, StandaloneFunc, Type};
 
 const PACKAGE: &str = "package foo:functions;
 
@@ -24,31 +24,31 @@ fn smoke() {
 
     package.interface({
         let mut interface = wit_encoder::Interface::new("functions");
-        interface.function(StandaloneFunction::new("f1"));
+        interface.function(StandaloneFunc::new("f1"));
         interface.function({
-            let mut func = StandaloneFunction::new("f2");
+            let mut func = StandaloneFunc::new("f2");
             func.params(Params::from_iter([("a", Type::U32)]));
             func
         });
         interface.function({
-            let mut func = StandaloneFunction::new("f3");
+            let mut func = StandaloneFunc::new("f3");
             func.results(Results::anon(Type::U32));
             func
         });
         interface.function({
-            let mut func = StandaloneFunction::new("f4");
+            let mut func = StandaloneFunc::new("f4");
             func.results(Results::anon(Type::tuple(vec![Type::U32, Type::U32])));
             func.docs(Some("this is a documentation comment\nfor the f4 function"));
             func
         });
         interface.function({
-            let mut func = StandaloneFunction::new("f5");
+            let mut func = StandaloneFunc::new("f5");
             func.params(Params::from_iter([("a", Type::F32), ("b", Type::F32)]));
             func.results(Results::anon(Type::tuple(vec![Type::U32, Type::U32])));
             func
         });
         interface.function({
-            let mut func = StandaloneFunction::new("f6");
+            let mut func = StandaloneFunc::new("f6");
             func.params(Params::from_iter([("a", Type::option(Type::U32))]));
             func.results(Results::anon(Type::result(Result_::both(
                 Type::U32,
@@ -57,12 +57,12 @@ fn smoke() {
             func
         });
         interface.function({
-            let mut func = StandaloneFunction::new("f7");
+            let mut func = StandaloneFunc::new("f7");
             func.results(Results::named(vec![("u", Type::U32), ("f", Type::F32)]));
             func
         });
         interface.function({
-            let mut func = StandaloneFunction::new("f8");
+            let mut func = StandaloneFunc::new("f8");
             func.results(Results::named(vec![("u", Type::U32)]));
             func
         });

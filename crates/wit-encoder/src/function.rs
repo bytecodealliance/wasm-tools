@@ -144,7 +144,7 @@ impl Results {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-pub struct StandaloneFunction {
+pub struct StandaloneFunc {
     pub(crate) name: Ident,
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_params"))]
     pub(crate) params: Params,
@@ -153,7 +153,7 @@ pub struct StandaloneFunction {
     pub(crate) docs: Option<Docs>,
 }
 
-impl StandaloneFunction {
+impl StandaloneFunc {
     pub fn new(name: impl Into<Ident>) -> Self {
         Self {
             name: name.into(),

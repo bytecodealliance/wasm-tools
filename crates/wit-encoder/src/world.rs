@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{ident::Ident, Docs, Interface, Render, RenderOpts, StandaloneFunction};
+use crate::{ident::Ident, Docs, Interface, Render, RenderOpts, StandaloneFunc};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -48,10 +48,10 @@ impl World {
     pub fn named_interface_export(&mut self, value: impl Into<WorldNamedInterface>) {
         self.item(WorldItem::named_interface_export(value));
     }
-    pub fn function_import(&mut self, value: StandaloneFunction) {
+    pub fn function_import(&mut self, value: StandaloneFunc) {
         self.item(WorldItem::function_import(value));
     }
-    pub fn function_export(&mut self, value: StandaloneFunction) {
+    pub fn function_export(&mut self, value: StandaloneFunc) {
         self.item(WorldItem::function_export(value));
     }
 
@@ -72,7 +72,7 @@ impl Render for World {
         fn render_function(
             f: &mut fmt::Formatter<'_>,
             _opts: &RenderOpts,
-            func: &StandaloneFunction,
+            func: &StandaloneFunc,
         ) -> fmt::Result {
             write!(f, "{}: func({})", func.name, func.params)?;
             if !func.results.is_empty() {
@@ -156,10 +156,10 @@ pub enum WorldItem {
     NamedInterfaceExport(WorldNamedInterface),
 
     /// A function is being directly imported from this world.
-    FunctionImport(StandaloneFunction),
+    FunctionImport(StandaloneFunc),
 
     /// A function is being directly exported from this world.
-    FunctionExport(StandaloneFunction),
+    FunctionExport(StandaloneFunc),
 }
 
 impl WorldItem {
@@ -175,10 +175,10 @@ impl WorldItem {
     pub fn named_interface_export(value: impl Into<WorldNamedInterface>) -> Self {
         Self::NamedInterfaceExport(value.into())
     }
-    pub fn function_import(value: StandaloneFunction) -> Self {
+    pub fn function_import(value: StandaloneFunc) -> Self {
         Self::FunctionImport(value)
     }
-    pub fn function_export(value: StandaloneFunction) -> Self {
+    pub fn function_export(value: StandaloneFunc) -> Self {
         Self::FunctionExport(value)
     }
 }

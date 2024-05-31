@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{Docs, Ident, Render, RenderOpts, StandaloneFunction, TypeDef};
+use crate::{Docs, Ident, Render, RenderOpts, StandaloneFunc, TypeDef};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -32,7 +32,7 @@ impl Interface {
     }
 
     /// Add an `Function` to the interface
-    pub fn function(&mut self, function: StandaloneFunction) {
+    pub fn function(&mut self, function: StandaloneFunc) {
         self.items.push(InterfaceItem::Function(function));
     }
 
@@ -54,7 +54,7 @@ impl Interface {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum InterfaceItem {
     TypeDef(TypeDef),
-    Function(StandaloneFunction),
+    Function(StandaloneFunc),
 }
 
 pub type InterfaceItems = Vec<InterfaceItem>;
