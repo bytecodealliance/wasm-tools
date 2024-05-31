@@ -3,7 +3,6 @@ use std::fmt;
 use crate::{ident::Ident, Docs, Interface, Render, RenderOpts, StandaloneFunc};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct World {
     /// The WIT identifier name of this world.
     name: Ident,
@@ -12,7 +11,6 @@ pub struct World {
     items: Vec<WorldItem>,
 
     /// Documentation associated with this world declaration.
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     docs: Option<Docs>,
 }
 
@@ -140,8 +138,6 @@ impl Render for World {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum WorldItem {
     /// An imported inline interface
     InlineInterfaceImport(Interface),
@@ -184,13 +180,11 @@ impl WorldItem {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct WorldNamedInterface {
     /// Name of this interface.
     pub(crate) name: Ident,
 
     /// Documentation associated with this interface.
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub(crate) docs: Option<Docs>,
 }
 

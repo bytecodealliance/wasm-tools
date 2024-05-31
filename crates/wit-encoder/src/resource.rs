@@ -26,9 +26,7 @@ impl Resource {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ResourceFunc {
     pub(crate) kind: ResourceFuncKind,
-    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_params"))]
     pub(crate) params: Params,
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub(crate) docs: Option<Docs>,
 }
 

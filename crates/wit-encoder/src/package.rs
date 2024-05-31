@@ -10,13 +10,11 @@ use crate::{ident::Ident, Interface, Render, RenderOpts, World};
 /// have a unique identifier that affects generated components and uniquely
 /// identifiers this particular package.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Package {
     /// A unique name corresponding to this package.
     name: PackageName,
 
     /// World items
-    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id_map"))]
     items: Vec<PackageItem>,
 }
 
@@ -70,7 +68,6 @@ impl fmt::Display for Package {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum PackageItem {
     Interface(Interface),
     World(World),
@@ -82,8 +79,6 @@ pub enum PackageItem {
 /// This is directly encoded as an "ID" in the binary component representation
 /// with an interfaced tacked on as well.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "serde", serde(into = "String"))]
 pub struct PackageName {
     /// A namespace such as `wasi` in `wasi:foo/bar`
     namespace: String,

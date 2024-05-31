@@ -1,7 +1,6 @@
 use crate::VariantCase;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Variant {
     pub(crate) cases: Vec<VariantCase>,
 }

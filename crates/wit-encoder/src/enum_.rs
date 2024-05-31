@@ -28,10 +28,8 @@ impl Enum {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct EnumCase {
     pub(crate) name: Ident,
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub(crate) docs: Option<Docs>,
 }
 

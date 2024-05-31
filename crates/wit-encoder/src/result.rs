@@ -3,7 +3,6 @@ use std::fmt::Display;
 use crate::Type;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Result_ {
     ok: Option<Type>,
     err: Option<Type>,

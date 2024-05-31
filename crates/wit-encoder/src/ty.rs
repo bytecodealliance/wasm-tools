@@ -96,12 +96,9 @@ impl Display for Type {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct VariantCase {
     name: Ident,
-    #[cfg_attr(feature = "serde", serde(rename = "type"))]
     ty: Option<Type>,
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     docs: Option<Docs>,
 }
 
@@ -156,11 +153,9 @@ where
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct TypeDef {
     name: Ident,
     kind: TypeDefKind,
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     docs: Option<Docs>,
 }
 
@@ -255,8 +250,6 @@ impl TypeDef {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum TypeDefKind {
     Record(Record),
     Resource(Resource),

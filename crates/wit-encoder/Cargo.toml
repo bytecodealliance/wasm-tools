@@ -11,6 +11,5 @@ version.workspace = true
 workspace = true
 
 [dependencies]
-serde = { workspace = true, optional = true }
 semver = { workspace = true }
 pretty_assertions = { workspace = true }

@@ -3,7 +3,6 @@ use std::fmt;
 use crate::{Docs, Ident, Render, RenderOpts, StandaloneFunc, TypeDef};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Interface {
     /// Name of this interface.
     pub(crate) name: Ident,
@@ -12,7 +11,6 @@ pub struct Interface {
     pub(crate) items: Vec<InterfaceItem>,
 
     /// Documentation associated with this interface.
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub(crate) docs: Option<Docs>,
 }
 
@@ -51,7 +49,6 @@ impl Interface {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum InterfaceItem {
     TypeDef(TypeDef),
     Function(StandaloneFunc),

@@ -3,8 +3,6 @@ use std::fmt::{self, Display};
 use crate::{ident::Ident, Docs, Type};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "serde", serde(untagged))]
 pub struct Params {
     items: Vec<(Ident, Type)>,
 }
@@ -59,12 +57,8 @@ impl Params {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "serde", serde(untagged))]
 pub enum Results {
-    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_params"))]
     Named(Params),
-    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_anon_result"))]
     Anon(Type),
 }
 
@@ -143,13 +137,10 @@ impl Results {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct StandaloneFunc {
     pub(crate) name: Ident,
-    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_params"))]
     pub(crate) params: Params,
     pub(crate) results: Results,
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub(crate) docs: Option<Docs>,
 }
 
