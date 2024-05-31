@@ -26,8 +26,8 @@ fn worlds() {
     package.interface(wit_encoder::Interface::new("error-reporter"));
 
     package.world({
-        let mut wold = wit_encoder::World::new("world");
-        wold.inline_interface_export({
+        let mut world = wit_encoder::World::new("world");
+        world.inline_interface_export({
             let mut interface = Interface::new("example");
             interface.docs(Some("inline interface"));
             interface.function({
@@ -37,19 +37,19 @@ fn worlds() {
             });
             interface
         });
-        wold.function_export({
+        world.function_export({
             let mut func = StandaloneFunction::new("scan");
             func.results(Type::list(Type::U8));
             func.docs(Some("scan stuff"));
             func
         });
-        wold.named_interface_import("error-reporter");
-        wold.function_import({
+        world.named_interface_import("error-reporter");
+        world.function_import({
             let mut func: StandaloneFunction = StandaloneFunction::new("print");
             func.params(("s", Type::String));
             func
         });
-        wold
+        world
     });
 
     assert_eq!(PACKAGE, package.to_string());
