@@ -171,7 +171,7 @@ fn run_test(path: &Path) -> Result<()> {
                 }
             };
         let wit = WitPrinter::default()
-            .print(&resolve, vec![pkg])
+            .print(&resolve, &[pkg])
             .context("failed to print WIT")?;
         assert_output(&wit, &component_wit_path)?;
 

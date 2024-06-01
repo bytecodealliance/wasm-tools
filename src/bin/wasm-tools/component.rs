@@ -637,7 +637,7 @@ impl WitOpts {
                 }
 
                 for (id, pkg) in resolve.packages.iter() {
-                    let output = printer.print(resolve, vec![id])?;
+                    let output = printer.print(resolve, &[id])?;
                     let out_dir = if main.contains(&id) {
                         dir.clone()
                     } else {
@@ -664,7 +664,7 @@ impl WitOpts {
                 }
             }
             None => {
-                let output = printer.print(resolve, main)?;
+                let output = printer.print(resolve, &main)?;
                 self.output.output(Output::Wat(&output))?;
             }
         }

@@ -51,13 +51,14 @@ impl WitPrinter {
     }
 
     /// Print a set of one or more WIT packages into a string.
-    pub fn print(&mut self, resolve: &Resolve, pkg_ids: Vec<PackageId>) -> Result<String> {
+    pub fn print(&mut self, resolve: &Resolve, pkg_ids: &[PackageId]) -> Result<String> {
+        let has_multiple_packages = pkg_ids.len() > 1;
         for (i, pkg_id) in pkg_ids.into_iter().enumerate() {
             if i > 0 {
                 self.output.push_str("\n\n");
             }
 
-            let pkg = &resolve.packages[pkg_id];
+            let pkg = &resolve.packages[pkg_id.clone()];
             self.print_docs(&pkg.docs);
             self.output.push_str("package ");
             self.print_name(&pkg.name.namespace);
@@ -66,8 +67,15 @@ impl WitPrinter {
             if let Some(version) = &pkg.name.version {
                 self.output.push_str(&format!("@{version}"));
             }
-            self.print_semicolon();
-            self.output.push_str("\n\n");
+
+            if has_multiple_packages {
+                self.output.push_str("{");
+                self.output.indent += 1
+            } else {
+                self.print_semicolon();
+                self.output.push_str("\n\n");
+            }
+
             for (name, id) in pkg.interfaces.iter() {
                 self.print_docs(&resolve.interfaces[*id].docs);
                 self.print_stability(&resolve.interfaces[*id].stability);
@@ -86,6 +94,11 @@ impl WitPrinter {
                 self.output.push_str(" {\n");
                 self.print_world(resolve, *id)?;
                 writeln!(&mut self.output, "}}")?;
+            }
+
+            if has_multiple_packages {
+                self.output.push_str("}");
+                self.output.indent -= 1
             }
         }
 

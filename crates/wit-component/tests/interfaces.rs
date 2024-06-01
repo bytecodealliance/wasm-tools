@@ -101,7 +101,7 @@ fn assert_print(
     path: &Path,
     is_dir: bool,
 ) -> Result<()> {
-    let output = WitPrinter::default().print(resolve, pkg_ids.clone())?;
+    let output = WitPrinter::default().print(resolve, &pkg_ids)?;
     for pkg_id in pkg_ids {
         let pkg = &resolve.packages[pkg_id];
         let expected = if is_dir {
