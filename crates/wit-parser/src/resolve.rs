@@ -157,11 +157,11 @@ impl Resolve {
     ///
     /// Returns the top-level [`PackageId`] as well as a list of all files read
     /// during this parse.
-    pub fn push_path(&mut self, path: impl AsRef<Path>) -> Result<Vec<(PackageId, Vec<PathBuf>)>> {
+    pub fn push_path(&mut self, path: impl AsRef<Path>) -> Result<(Vec<PackageId>, Vec<PathBuf>)> {
         self._push_path(path.as_ref())
     }
 
-    fn _push_path(&mut self, path: &Path) -> Result<Vec<(PackageId, Vec<PathBuf>)>> {
+    fn _push_path(&mut self, path: &Path) -> Result<(Vec<PackageId>, Vec<PathBuf>)> {
         if path.is_dir() {
             self.push_dir(path).with_context(|| {
                 format!(
@@ -171,11 +171,13 @@ impl Resolve {
             })
         } else {
             let ids = self.push_file(path)?;
-            let mut ret = Vec::new();
+            let mut pkg_ids = Vec::new();
+            let mut path_bufs = Vec::new();
             for id in ids {
-                ret.push((id, vec![path.to_path_buf()]));
+                pkg_ids.push(id);
+                path_bufs.push(path.to_path_buf());
             }
-            Ok(ret)
+            Ok((pkg_ids, path_bufs))
         }
     }
 
@@ -198,8 +200,9 @@ impl Resolve {
     /// This function returns the [`PackageId`] of the root parsed package at
     /// `path`, along with a list of all paths that were consumed during parsing
     /// for the root package and all dependency packages, for each package encountered.
-    pub fn push_dir(&mut self, path: &Path) -> Result<Vec<(PackageId, Vec<PathBuf>)>> {
-        let mut ret = Vec::new();
+    pub fn push_dir(&mut self, path: &Path) -> Result<(Vec<PackageId>, Vec<PathBuf>)> {
+        let mut pkg_ids = Vec::new();
+        let mut path_bufs = Vec::new();
         let pkgs = UnresolvedPackage::parse_dir(path)
             .with_context(|| format!("failed to parse package: {}", path.display()))?;
 
@@ -222,19 +225,18 @@ impl Resolve {
             // Additionally note that the last item visited here is the root
             // package, which is the one returned here.
             let mut last = None;
-            let mut files = Vec::new();
             let mut pkg = Some(pkg);
             for name in order {
                 let pkg = deps.remove(&name).unwrap_or_else(|| pkg.take().unwrap());
-                files.extend(pkg.source_files().map(|p| p.to_path_buf()));
+                path_bufs.extend(pkg.source_files().map(|p| p.to_path_buf()));
                 let pkgid = self.push(pkg)?;
                 last = Some(pkgid);
             }
 
-            ret.push((last.unwrap(), files));
+            pkg_ids.push(last.unwrap());
         }
 
-        Ok(ret)
+        Ok((pkg_ids, path_bufs))
     }
 
     // TODO: this is a pretty naive implementation, since for example it doesn't re-use dependencies

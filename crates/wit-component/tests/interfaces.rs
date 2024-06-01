@@ -49,7 +49,7 @@ fn main() -> Result<()> {
 fn run_test(path: &Path, is_dir: bool) -> Result<()> {
     let mut resolve = Resolve::new();
     let packages = if is_dir {
-        resolve.push_dir(path)?.into_iter().map(|x| x.0).collect()
+        resolve.push_dir(path)?.0
     } else {
         resolve.append(UnresolvedPackage::parse_file(path)?)?
     };

@@ -202,7 +202,7 @@ impl WitResolve {
 
     fn load(&self) -> Result<(Resolve, Vec<PackageId>)> {
         let mut resolve = Self::resolve_with_features(&self.features);
-        let pkg_ids = resolve.push_path(&self.wit)?.iter().map(|p| p.0).collect();
+        let (pkg_ids, _) = resolve.push_path(&self.wit)?;
         Ok((resolve, pkg_ids))
     }
 }
@@ -532,8 +532,8 @@ impl WitOpts {
         if let Some(input) = &self.input {
             if input.is_dir() {
                 let mut resolve = WitResolve::resolve_with_features(&self.features);
-                let ids = resolve.push_dir(&input)?.iter().map(|p| p.0).collect();
-                return Ok(DecodedWasm::WitPackages(resolve, ids));
+                let (pkg_ids, _) = resolve.push_dir(&input)?;
+                return Ok(DecodedWasm::WitPackages(resolve, pkg_ids));
             }
         }
 

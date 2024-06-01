@@ -76,10 +76,10 @@ fn main() -> Result<()> {
 fn run_test(path: &Path) -> Result<()> {
     let test_case = path.file_stem().unwrap().to_str().unwrap();
     let mut resolve = Resolve::default();
-    let pkgs = resolve.push_dir(&path)?;
-    let pkg_count = pkgs.len();
+    let (pkg_ids, _) = resolve.push_dir(&path)?;
+    let pkg_count = pkg_ids.len();
 
-    for (pkg_id, _) in pkgs {
+    for pkg_id in pkg_ids {
         // If this test case contained multiple packages, create separate sub-directories for
         // each.
         let mut path = path.to_path_buf();
