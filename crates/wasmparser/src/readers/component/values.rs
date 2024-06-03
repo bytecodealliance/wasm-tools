@@ -255,7 +255,7 @@ fn read_val<V: Val>(
             record.end();
         }
         ComponentDefinedType::Variant(variant_ty) => {
-            let label = read_label(variant_ty.cases.len() as u32, reader)?;
+            let label = reader.read_var_u32()?;
             if let Some((name, case_ty)) = variant_ty.cases.get_index(label as usize) {
                 if let Some(case_ty) = case_ty.ty {
                     read_val(reader, case_ty, types, visitor.variant_case(label, name))?;
@@ -294,7 +294,7 @@ fn read_val<V: Val>(
             flags.end();
         }
         ComponentDefinedType::Enum(enum_ty) => {
-            let label = read_label(enum_ty.len() as u32, reader)?;
+            let label = reader.read_var_u32()?;
             if let Some(name) = enum_ty.get_index(label as usize) {
                 visitor.enum_case(label, name);
             } else {
@@ -384,21 +384,6 @@ fn read_primitive_value<'a>(
             )?)
         }
         PrimitiveValType::String => PrimitiveValue::String(reader.read_string()?),
-    })
-}
-
-fn read_label(number_of_cases: u32, reader: &mut BinaryReader) -> Result<u32> {
-    Ok(match number_of_cases {
-        0 => bail!(
-            reader.original_position(),
-            "variants and enums must have at least one case"
-        ),
-        1..=256 => reader.read_u8()? as u32,
-        257..=65536 => u32::from_le_bytes([reader.read_u8()?, reader.read_u8()?, 0, 0]),
-        65537..=16777216 => {
-            u32::from_le_bytes([reader.read_u8()?, reader.read_u8()?, reader.read_u8()?, 0])
-        }
-        _ => u32::from_le_bytes(reader.read_bytes(4)?.try_into().unwrap()),
     })
 }
 
