@@ -62,11 +62,6 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
     }
 
     fn blockty_without_label_comment(&mut self, ty: BlockType) -> Result<bool> {
-        // Trim the trailing space, if any.
-        if self.result().ends_with(" ") {
-            self.result().pop();
-        }
-
         let key = (self.state.core.funcs, self.label);
         let has_name = match self.state.core.label_names.index_to_name.get(&key) {
             Some(name) => {
@@ -116,11 +111,13 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
     }
 
     fn tag_index(&mut self, index: u32) -> Result<()> {
+        self.push_str(" ");
         self.printer.print_idx(&self.state.core.tag_names, index)?;
         Ok(())
     }
 
     fn relative_depth(&mut self, depth: u32) -> Result<()> {
+        self.push_str(" ");
         match self.cur_depth().checked_sub(depth) {
             // If this relative depth is in-range relative to the current depth,
             // then try to print a name for this label. Label names are tracked
@@ -194,29 +191,30 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
     }
 
     fn targets(&mut self, targets: BrTable<'_>) -> Result<()> {
-        for (i, item) in targets.targets().chain([Ok(targets.default())]).enumerate() {
-            if i > 0 {
-                self.push_str(" ");
-            }
+        for item in targets.targets().chain([Ok(targets.default())]) {
             self.relative_depth(item?)?;
         }
         Ok(())
     }
 
     fn function_index(&mut self, idx: u32) -> Result<()> {
+        self.push_str(" ");
         self.printer.print_idx(&self.state.core.func_names, idx)
     }
 
     fn local_index(&mut self, idx: u32) -> Result<()> {
+        self.push_str(" ");
         self.printer
             .print_local_idx(self.state, self.state.core.funcs, idx)
     }
 
     fn global_index(&mut self, idx: u32) -> Result<()> {
+        self.push_str(" ");
         self.printer.print_idx(&self.state.core.global_names, idx)
     }
 
     fn table_index(&mut self, idx: u32) -> Result<()> {
+        self.push_str(" ");
         self.printer.print_idx(&self.state.core.table_names, idx)
     }
 
@@ -225,6 +223,7 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
     }
 
     fn memory_index(&mut self, idx: u32) -> Result<()> {
+        self.push_str(" ");
         self.printer.print_idx(&self.state.core.memory_names, idx)
     }
 
@@ -234,74 +233,74 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
     }
 
     fn array_type_index(&mut self, idx: u32) -> Result<()> {
+        self.push_str(" ");
         self.printer.print_idx(&self.state.core.type_names, idx)
     }
 
     fn array_type_index_dst(&mut self, idx: u32) -> Result<()> {
+        self.push_str(" ");
         self.printer.print_idx(&self.state.core.type_names, idx)
     }
 
     fn array_type_index_src(&mut self, idx: u32) -> Result<()> {
+        self.push_str(" ");
         self.printer.print_idx(&self.state.core.type_names, idx)
     }
 
     fn array_size(&mut self, array_size: u32) -> Result<()> {
-        write!(&mut self.printer.result, "{array_size}")?;
+        write!(&mut self.printer.result, " {array_size}")?;
         Ok(())
     }
 
     fn struct_type_index(&mut self, idx: u32) -> Result<()> {
+        self.push_str(" ");
         self.printer.print_idx(&self.state.core.type_names, idx)
     }
 
     fn from_ref_type(&mut self, ref_ty: RefType) -> Result<()> {
+        self.push_str(" ");
         self.printer.print_reftype(self.state, ref_ty)
     }
 
     fn to_ref_type(&mut self, ref_ty: RefType) -> Result<()> {
+        self.push_str(" ");
         self.printer.print_reftype(self.state, ref_ty)
     }
 
     fn data_index(&mut self, idx: u32) -> Result<()> {
+        self.push_str(" ");
         self.printer.print_idx(&self.state.core.data_names, idx)
     }
 
     fn array_data_index(&mut self, idx: u32) -> Result<()> {
+        self.push_str(" ");
         self.printer.print_idx(&self.state.core.data_names, idx)
     }
 
     fn elem_index(&mut self, idx: u32) -> Result<()> {
+        self.push_str(" ");
         self.printer.print_idx(&self.state.core.element_names, idx)
     }
 
     fn array_elem_index(&mut self, idx: u32) -> Result<()> {
+        self.push_str(" ");
         self.printer.print_idx(&self.state.core.element_names, idx)
     }
 
     fn lane(&mut self, lane: u8) -> Result<()> {
-        write!(self.result(), "{lane}")?;
+        write!(self.result(), " {lane}")?;
         Ok(())
     }
 
     fn lanes(&mut self, lanes: [u8; 16]) -> Result<()> {
-        for (i, lane) in lanes.iter().enumerate() {
-            if i > 0 {
-                self.push_str(" ");
-            }
-            write!(self.result(), "{lane}")?;
+        for lane in lanes.iter() {
+            write!(self.result(), " {lane}")?;
         }
         Ok(())
     }
 
     fn memarg(&mut self, memarg: MemArg) -> Result<()> {
-        // Remove the leading ' ' inserted by the macro below since memarg may
-        // not actually print anything if all of its parameters are defaulted.
-        // Ideally we wouldn't rely on the ability to pop here but this ends up
-        // being the easiest.
-        assert_eq!(self.printer.result.pop(), Some(' '));
-
         if memarg.memory != 0 {
-            self.result().push(' ');
             self.memory_index(memarg.memory)?;
         }
         if memarg.offset != 0 {
@@ -320,7 +319,7 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
     fn ordering(&mut self, ordering: Ordering) -> Result<()> {
         write!(
             self.result(),
-            "{}",
+            " {}",
             match ordering {
                 Ordering::SeqCst => "seq_cst",
                 Ordering::AcqRel => "acq_rel",
@@ -341,26 +340,24 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
             self.result().push(' ');
             match catch {
                 Catch::One { tag, label } => {
-                    self.printer.start_group("catch ");
+                    self.printer.start_group("catch");
                     self.tag_index(tag)?;
-                    self.result().push(' ');
                     self.relative_depth(label)?;
                     self.printer.end_group();
                 }
                 Catch::OneRef { tag, label } => {
-                    self.printer.start_group("catch_ref ");
+                    self.printer.start_group("catch_ref");
                     self.tag_index(tag)?;
-                    self.result().push(' ');
                     self.relative_depth(label)?;
                     self.printer.end_group();
                 }
                 Catch::All { label } => {
-                    self.printer.start_group("catch_all ");
+                    self.printer.start_group("catch_all");
                     self.relative_depth(label)?;
                     self.printer.end_group();
                 }
                 Catch::AllRef { label } => {
-                    self.printer.start_group("catch_all_ref ");
+                    self.printer.start_group("catch_all_ref");
                     self.relative_depth(label)?;
                     self.printer.end_group();
                 }
@@ -423,14 +420,12 @@ macro_rules! define_visit {
     // payload field.
     (payload $self:ident CallIndirect $ty:ident $table:ident) => (
         if $table != 0 {
-            $self.push_str(" ");
             $self.table_index($table)?;
         }
         $self.type_index($ty)?;
     );
     (payload $self:ident ReturnCallIndirect $ty:ident $table:ident) => (
         if $table != 0 {
-            $self.push_str(" ");
             $self.table_index($table)?;
         }
         $self.type_index($ty)?;
@@ -453,58 +448,46 @@ macro_rules! define_visit {
         $self.printer.print_heaptype($self.state, $hty)?;
     );
     (payload $self:ident TableInit $segment:ident $table:ident) => (
-        $self.push_str(" ");
         if $table != 0 {
             $self.table_index($table)?;
-            $self.push_str(" ");
         }
         $self.elem_index($segment)?;
     );
     (payload $self:ident TableCopy $dst:ident $src:ident) => (
         if $src != 0 || $dst != 0 {
-            $self.push_str(" ");
             $self.table_index($dst)?;
-            $self.push_str(" ");
             $self.table_index($src)?;
         }
     );
     (payload $self:ident MemoryGrow $mem:ident) => (
         if $mem != 0 {
-            $self.push_str(" ");
             $self.memory_index($mem)?;
         }
     );
     (payload $self:ident MemorySize $mem:ident) => (
         if $mem != 0 {
-            $self.push_str(" ");
             $self.memory_index($mem)?;
         }
     );
     (payload $self:ident MemoryInit $segment:ident $mem:ident) => (
         if $mem != 0 {
-            $self.push_str(" ");
             $self.memory_index($mem)?;
         }
-        $self.push_str(" ");
         $self.data_index($segment)?;
     );
     (payload $self:ident MemoryCopy $dst:ident $src:ident) => (
         if $src != 0 || $dst != 0 {
-            $self.push_str(" ");
             $self.memory_index($dst)?;
-            $self.push_str(" ");
             $self.memory_index($src)?;
         }
     );
     (payload $self:ident MemoryFill $mem:ident) => (
         if $mem != 0 {
-            $self.push_str(" ");
             $self.memory_index($mem)?;
         }
     );
     (payload $self:ident MemoryDiscard $mem:ident) => (
         if $mem != 0 {
-            $self.push_str(" ");
             $self.memory_index($mem)?;
         }
     );
@@ -556,34 +539,27 @@ macro_rules! define_visit {
         $self.printer.print_reftype($self.state, rty)?;
     );
     (payload $self:ident StructGet $ty:ident $field:ident) => (
-        $self.push_str(" ");
         $self.struct_type_index($ty)?;
         $self.push_str(" ");
         $self.printer.print_field_idx($self.state, $ty, $field)?;
     );
     (payload $self:ident StructGetS $ty:ident $field:ident) => (
-        $self.push_str(" ");
         $self.struct_type_index($ty)?;
         $self.push_str(" ");
         $self.printer.print_field_idx($self.state, $ty, $field)?;
     );
     (payload $self:ident StructGetU $ty:ident $field:ident) => (
-        $self.push_str(" ");
         $self.struct_type_index($ty)?;
         $self.push_str(" ");
         $self.printer.print_field_idx($self.state, $ty, $field)?;
     );
     (payload $self:ident StructSet $ty:ident $field:ident) => (
-        $self.push_str(" ");
         $self.struct_type_index($ty)?;
         $self.push_str(" ");
         $self.printer.print_field_idx($self.state, $ty, $field)?;
     );
     (payload $self:ident $op:ident $($arg:ident)*) => (
-        $(
-            $self.push_str(" ");
-            $self.$arg($arg)?;
-        )*
+        $($self.$arg($arg)?;)*
     );
 
     (name Block) => ("block");
