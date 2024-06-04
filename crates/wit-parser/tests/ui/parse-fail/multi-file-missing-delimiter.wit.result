@@ -3,7 +3,7 @@ failed to resolve directory while parsing WIT for path [tests/ui/parse-fail/mult
 Caused by:
     0: failed to parse package: tests/ui/parse-fail/multi-file-missing-delimiter
     1: expected `type`, `resource` or `func`, found eof
-            --> tests/ui/parse-fail/multi-file-missing-delimiter/observe.wit:6:1
+            --> tests/ui/parse-fail/multi-file-missing-delimiter/observe.wit:5:5
              |
-           6 | 
-             | ^
+           5 |   // NB: intentionally missing a delimiter at the end of the file
+             |     ^
