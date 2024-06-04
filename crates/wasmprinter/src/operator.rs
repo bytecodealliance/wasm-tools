@@ -5,20 +5,33 @@ use wasmparser::{BlockType, BrTable, Catch, MemArg, Ordering, RefType, TryTable,
 
 pub struct PrintOperator<'a, 'b> {
     pub(super) printer: &'a mut Printer,
+    pub(super) op_offset: usize,
     nesting_start: u32,
     state: &'b mut State,
     label: u32,
     label_indices: Vec<u32>,
+    sep: OperatorSeparator,
+}
+
+pub enum OperatorSeparator {
+    Newline,
+    None,
 }
 
 impl<'a, 'b> PrintOperator<'a, 'b> {
-    pub(super) fn new(printer: &'a mut Printer, state: &'b mut State) -> PrintOperator<'a, 'b> {
+    pub(super) fn new(
+        printer: &'a mut Printer,
+        state: &'b mut State,
+        sep: OperatorSeparator,
+    ) -> PrintOperator<'a, 'b> {
         PrintOperator {
             nesting_start: printer.nesting,
+            op_offset: 0,
             printer,
             state,
             label: 0,
             label_indices: Vec::new(),
+            sep,
         }
     }
 
@@ -30,29 +43,35 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         &mut self.printer.result
     }
 
-    /// This is called after every instruction and is used to manage the
-    /// `label_indices` stack.
-    fn update_label_stack(&mut self, kind: OpKind) {
-        match kind {
-            OpKind::Normal => {}
-
-            // The previous label was just defined, so add it to the stack.
-            OpKind::BlockStart => {
-                self.label_indices.push(self.label - 1);
+    fn separator(&mut self) {
+        match self.sep {
+            OperatorSeparator::Newline => {
+                self.printer.newline(self.op_offset);
             }
+            OperatorSeparator::None => {}
+        }
+    }
 
-            // The previous label is being defined at the same depth as the
-            // latest label, meaning it's overwriting its entry.
-            OpKind::BlockMid => {
-                if let Some(last) = self.label_indices.last_mut() {
-                    *last = self.label - 1;
-                }
-            }
+    /// Called just before an instruction that introduces a block such as
+    /// `block`, `if`, `loop`, etc.
+    fn block_start(&mut self) {
+        self.separator();
+        self.printer.nesting += 1;
+        self.label_indices.push(self.label);
+    }
 
-            // Label is out of scope so remove it from the stack.
-            OpKind::End | OpKind::Delegate => {
-                self.label_indices.pop();
-            }
+    /// Used for `else` and `delegate`
+    fn block_mid(&mut self) {
+        self.printer.nesting -= 1;
+        self.separator();
+        self.printer.nesting += 1;
+    }
+
+    /// Used for `end` to terminate the prior block.
+    fn block_end(&mut self) {
+        if self.printer.nesting > self.nesting_start {
+            self.printer.nesting -= 1;
+            self.separator();
         }
     }
 
@@ -70,7 +89,10 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
                 true
             }
             None if self.printer.name_unnamed => {
-                let depth = self.cur_depth();
+                // Subtract one from the depth here because the label was
+                // already pushed onto our stack when the instruction was
+                // entered so its own label is one less.
+                let depth = self.cur_depth() - 1;
                 write!(self.result(), " $#label{depth}")?;
                 true
             }
@@ -96,10 +118,7 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         if !has_name {
             let depth = self.cur_depth();
             self.push_str(" ");
-            // Note that 1 is added to the current depth here since if a block
-            // type is being printed then a block is being created which will
-            // increase the label depth of the block itself.
-            write!(self.result(), ";; label = @{}", depth + 1)?;
+            write!(self.result(), ";; label = @{}", depth)?;
         }
 
         self.label += 1;
@@ -334,7 +353,8 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         // Nesting has already been incremented but labels for catch start above
         // this `try_table` not at the `try_table`. Temporarily decrement this
         // nesting count and increase it below after printing catch clauses.
-        self.printer.nesting -= 1;
+        self.printer.nesting -= 2;
+        let try_table_label = self.label_indices.pop().unwrap();
 
         for catch in table.catches {
             self.result().push(' ');
@@ -363,19 +383,11 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
                 }
             }
         }
-        self.printer.nesting += 1;
+        self.label_indices.push(try_table_label);
+        self.printer.nesting += 2;
         self.maybe_blockty_label_comment(has_name)?;
         Ok(())
     }
-}
-
-#[derive(PartialEq, Copy, Clone)]
-pub enum OpKind {
-    BlockStart,
-    BlockMid,
-    End,
-    Delegate,
-    Normal,
 }
 
 macro_rules! define_visit {
@@ -386,32 +398,37 @@ macro_rules! define_visit {
     // * Return the `OpKind`, as defined by this macro
     ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident )*) => ($(
         fn $visit(&mut self $( , $($arg: $argty),* )?) -> Self::Output {
+            define_visit!(before_op self $op);
             self.push_str(define_visit!(name $op));
             $(
                 define_visit!(payload self $op $($arg)*);
             )?
-            let kind = define_visit!(kind $op);
-            if kind != OpKind::Normal {
-                self.update_label_stack(kind);
-            }
-            Ok(kind)
+
+            define_visit!(after_op self $op);
+            Ok(())
         }
     )*);
 
-    // Macro case to classify instructions based on their `$op` naming into an
-    // `OpKind`. There are a few special cases here but the vast majority of
-    // operators fall into the `Normal` category.
-    (kind Block) => (OpKind::BlockStart);
-    (kind Loop) => (OpKind::BlockStart);
-    (kind If) => (OpKind::BlockStart);
-    (kind Try) => (OpKind::BlockStart);
-    (kind TryTable) => (OpKind::BlockStart);
-    (kind Catch) => (OpKind::BlockMid);
-    (kind CatchAll) => (OpKind::BlockMid);
-    (kind Delegate) => (OpKind::Delegate);
-    (kind Else) => (OpKind::BlockMid);
-    (kind End) => (OpKind::End);
-    (kind $other:tt) => (OpKind::Normal);
+    // Control-flow related opcodes have special handling to manage nested
+    // depth as well as the stack of labels.
+    //
+    // The catch-all for "before an op" is "print an newline"
+    (before_op $self:ident Loop) => ($self.block_start(););
+    (before_op $self:ident Block) => ($self.block_start(););
+    (before_op $self:ident If) => ($self.block_start(););
+    (before_op $self:ident Try) => ($self.block_start(););
+    (before_op $self:ident TryTable) => ($self.block_start(););
+    (before_op $self:ident Catch) => ($self.block_mid(););
+    (before_op $self:ident CatchAll) => ($self.block_mid(););
+    (before_op $self:ident Delegate) => ($self.block_end(););
+    (before_op $self:ident Else) => ($self.block_mid(););
+    (before_op $self:ident End) => ($self.block_end(););
+    (before_op $self:ident $op:ident) => ($self.separator(););
+
+    // After some opcodes the label stack is popped.
+    // (after_op $self:ident Delegate) => ($self.label_indices.pop(););
+    (after_op $self:ident End) => ($self.label_indices.pop(););
+    (after_op $self:ident $op:ident) => ();
 
     // How to print the payload of an instruction. There are a number of
     // instructions that have special cases such as avoiding printing anything
@@ -1146,7 +1163,7 @@ macro_rules! define_visit {
 }
 
 impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {
-    type Output = Result<OpKind>;
+    type Output = Result<()>;
 
     wasmparser::for_each_operator!(define_visit);
 }

@@ -1712,6 +1712,12 @@ impl<'a> BinaryReader<'a> {
         self.visit_operator(&mut OperatorFactory::new())
     }
 
+    /// Returns whether there is an `end` opcode followed by eof remaining in
+    /// this reader.
+    pub fn is_end_then_eof(&mut self) -> bool {
+        self.remaining_buffer() == &[0x0b]
+    }
+
     fn read_lane_index(&mut self, max: u8) -> Result<u8> {
         let index = self.read_u8()?;
         if index >= max {
