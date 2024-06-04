@@ -1519,7 +1519,13 @@ impl SourceMap {
     /// interfaces and worlds defined together. Note that each file has its own
     /// personal namespace, however, for top-level `use` and such.
     pub fn push(&mut self, path: &Path, contents: impl Into<String>) {
-        let contents = contents.into();
+        let mut contents = contents.into();
+        // Guarantee that there's at least one character in these contents by
+        // appending a single newline to the end. This is excluded from
+        // tokenization below so it's only here to ensure that spans which point
+        // one byte beyond the end of a file (eof) point to the same original
+        // file.
+        contents.push('\n');
         let new_offset = self.offset + u32::try_from(contents.len()).unwrap();
         self.sources.push(Source {
             offset: self.offset,
@@ -1537,7 +1543,9 @@ impl SourceMap {
             srcs.sort_by_key(|src| &src.path);
             for src in srcs {
                 let mut tokens = Tokenizer::new(
-                    &src.contents,
+                    // chop off the forcibly appended `\n` character when
+                    // passing through the source to get tokenized.
+                    &src.contents[..src.contents.len() - 1],
                     src.offset,
                     self.require_semicolons,
                     self.require_f32_f64,
