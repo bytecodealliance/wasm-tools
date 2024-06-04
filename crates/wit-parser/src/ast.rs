@@ -1726,7 +1726,10 @@ impl SourceMap {
             }
         })?;
 
-        Ok(UnresolvedPackageGroup { packages: parsed_pkgs, source_map: self})
+        Ok(UnresolvedPackageGroup {
+            packages: parsed_pkgs,
+            source_map: self,
+        })
     }
 
     pub(crate) fn rewrite_error<F, T>(&self, f: F) -> Result<T>

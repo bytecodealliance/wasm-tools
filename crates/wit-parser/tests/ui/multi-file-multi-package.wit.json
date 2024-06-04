@@ -1,14 +1,14 @@
 {
   "worlds": [
     {
-      "name": "w1",
+      "name": "w2",
       "imports": {
         "interface-0": {
           "interface": {
             "id": 0
           }
         },
-        "imp1": {
+        "imp2": {
           "interface": {
             "id": 1
           }
@@ -18,14 +18,14 @@
       "package": 0
     },
     {
-      "name": "w2",
+      "name": "w3",
       "imports": {
         "interface-2": {
           "interface": {
             "id": 2
           }
         },
-        "imp2": {
+        "imp3": {
           "interface": {
             "id": 3
           }
@@ -35,14 +35,14 @@
       "package": 1
     },
     {
-      "name": "w3",
+      "name": "w1",
       "imports": {
         "interface-4": {
           "interface": {
             "id": 4
           }
         },
-        "imp3": {
+        "imp1": {
           "interface": {
             "id": 5
           }
@@ -71,39 +71,39 @@
   ],
   "interfaces": [
     {
-      "name": "i1",
-      "types": {
-        "a": 0
-      },
-      "functions": {},
-      "package": 0
-    },
-    {
-      "name": null,
-      "types": {
-        "a": 1
-      },
-      "functions": {},
-      "package": 0
-    },
-    {
       "name": "i2",
       "types": {
-        "b": 2
+        "b": 0
       },
       "functions": {},
-      "package": 1
+      "package": 0
     },
     {
       "name": null,
       "types": {
-        "b": 3
+        "b": 1
       },
       "functions": {},
-      "package": 1
+      "package": 0
     },
     {
       "name": "i3",
+      "types": {
+        "a": 2
+      },
+      "functions": {},
+      "package": 1
+    },
+    {
+      "name": null,
+      "types": {
+        "a": 3
+      },
+      "functions": {},
+      "package": 1
+    },
+    {
+      "name": "i1",
       "types": {
         "a": 4
       },
@@ -137,7 +137,7 @@
   ],
   "types": [
     {
-      "name": "a",
+      "name": "b",
       "kind": {
         "type": "u32"
       },
@@ -146,7 +146,7 @@
       }
     },
     {
-      "name": "a",
+      "name": "b",
       "kind": {
         "type": 0
       },
@@ -155,7 +155,7 @@
       }
     },
     {
-      "name": "b",
+      "name": "a",
       "kind": {
         "type": "u32"
       },
@@ -164,7 +164,7 @@
       }
     },
     {
-      "name": "b",
+      "name": "a",
       "kind": {
         "type": 2
       },
@@ -211,30 +211,30 @@
   ],
   "packages": [
     {
-      "name": "foo:name",
-      "interfaces": {
-        "i1": 0
-      },
-      "worlds": {
-        "w1": 0
-      }
-    },
-    {
       "name": "bar:name",
       "interfaces": {
-        "i2": 2
+        "i2": 0
       },
       "worlds": {
-        "w2": 1
+        "w2": 0
       }
     },
     {
       "name": "baz:name",
       "interfaces": {
-        "i3": 4
+        "i3": 2
       },
       "worlds": {
-        "w3": 2
+        "w3": 1
+      }
+    },
+    {
+      "name": "foo:name",
+      "interfaces": {
+        "i1": 4
+      },
+      "worlds": {
+        "w1": 2
       }
     },
     {

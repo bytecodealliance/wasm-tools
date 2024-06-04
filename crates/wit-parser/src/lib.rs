@@ -115,6 +115,7 @@ pub struct UnresolvedPackage {
 }
 
 /// Tracks a set of packages, all pulled from the same group of WIT source files.
+#[derive(Default)]
 pub struct UnresolvedPackageGroup {
     /// A set of packages that share source file(s).
     pub packages: Vec<UnresolvedPackage>,
@@ -218,7 +219,12 @@ impl fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
-impl UnresolvedPackage {
+impl UnresolvedPackageGroup {
+    /// Creates an empty set of packages.
+    pub fn new() -> UnresolvedPackageGroup {
+        UnresolvedPackageGroup::default()
+    }
+
     /// Parses the given string as a wit document.
     ///
     /// The `path` argument is used for error reporting. The `contents` provided
@@ -232,13 +238,13 @@ impl UnresolvedPackage {
     /// Parse a WIT package at the provided path.
     ///
     /// The path provided is inferred whether it's a file or a directory. A file
-    /// is parsed with [`UnresolvedPackage::parse_file`] and a directory is
-    /// parsed with [`UnresolvedPackage::parse_dir`].
+    /// is parsed with [`UnresolvedPackageGroup::parse_file`] and a directory is
+    /// parsed with [`UnresolvedPackageGroup::parse_dir`].
     pub fn parse_path(path: &Path) -> Result<UnresolvedPackageGroup> {
         if path.is_dir() {
-            UnresolvedPackage::parse_dir(path)
+            UnresolvedPackageGroup::parse_dir(path)
         } else {
-            UnresolvedPackage::parse_file(path)
+            UnresolvedPackageGroup::parse_file(path)
         }
     }
 

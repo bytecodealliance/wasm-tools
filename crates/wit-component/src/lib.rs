@@ -149,7 +149,7 @@ mod tests {
 
     use anyhow::Result;
     use wasmparser::Payload;
-    use wit_parser::{Resolve, UnresolvedPackage, UnresolvedPackageGroup};
+    use wit_parser::{Resolve, UnresolvedPackageGroup};
 
     use super::{embed_component_metadata, StringEncoding};
 
@@ -185,7 +185,7 @@ world test-world {}
         // Parse pre-canned WIT to build resolver
         let mut resolver = Resolve::default();
         let UnresolvedPackageGroup { mut packages, source_map } =
-            UnresolvedPackage::parse(&Path::new("in-code.wit"), COMPONENT_WIT)?;
+            UnresolvedPackageGroup::parse(&Path::new("in-code.wit"), COMPONENT_WIT)?;
         let pkg_id = resolver.push(packages.remove(0), &source_map)?;
         let world = resolver.select_world(pkg_id, Some("test-world").into())?;
 

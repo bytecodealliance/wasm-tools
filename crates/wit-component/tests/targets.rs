@@ -1,6 +1,6 @@
 use anyhow::{bail, Context, Result};
 use std::{fs, path::Path};
-use wit_parser::{Resolve, UnresolvedPackage, UnresolvedPackageGroup, WorldId};
+use wit_parser::{Resolve, UnresolvedPackageGroup, WorldId};
 
 /// Tests whether a component targets a world.
 ///
@@ -80,7 +80,7 @@ fn load_test_wit(path: &Path) -> Result<(Resolve, WorldId)> {
 
     let test_wit_path = path.join("test.wit");
     let UnresolvedPackageGroup { mut packages, source_map } =
-        UnresolvedPackage::parse_file(&test_wit_path).context("failed to parse WIT package")?;
+        UnresolvedPackageGroup::parse_file(&test_wit_path).context("failed to parse WIT package")?;
     if packages.is_empty() {
         bail!("Files were completely empty - are you sure these are the files you're looking for?")
     }

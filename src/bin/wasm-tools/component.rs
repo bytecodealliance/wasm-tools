@@ -14,7 +14,7 @@ use wit_component::{
     embed_component_metadata, resolve_world_from_name, ComponentEncoder, DecodedWasm,
     Linker, StringEncoding, WitPrinter,
 };
-use wit_parser::{PackageId, Resolve, UnresolvedPackage};
+use wit_parser::{PackageId, Resolve, UnresolvedPackageGroup};
 
 /// WebAssembly wit-based component tooling.
 #[derive(Parser)]
@@ -580,7 +580,7 @@ impl WitOpts {
                     Err(_) => bail!("input was not valid utf-8"),
                 };
                 let mut resolve = WitResolve::resolve_with_features(&self.features);
-                let pkgs = UnresolvedPackage::parse(path, input)?;
+                let pkgs = UnresolvedPackageGroup::parse(path, input)?;
                 let ids = resolve.append(pkgs)?;
                 Ok(DecodedWasm::WitPackages(resolve, ids))
             }

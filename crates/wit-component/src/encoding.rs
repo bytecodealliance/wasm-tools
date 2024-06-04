@@ -2133,12 +2133,12 @@ mod test {
 
     use super::*;
     use std::path::Path;
-    use wit_parser::{UnresolvedPackage, UnresolvedPackageGroup};
+    use wit_parser::UnresolvedPackageGroup;
 
     #[test]
     fn it_renames_imports() {
         let mut resolve = Resolve::new();
-        let UnresolvedPackageGroup { mut packages, source_map } = UnresolvedPackage::parse(
+        let UnresolvedPackageGroup { mut packages, source_map } = UnresolvedPackageGroup::parse(
             Path::new("test.wit"),
             r#"
 package test:wit;
