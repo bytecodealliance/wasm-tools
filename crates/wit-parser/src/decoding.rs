@@ -2,6 +2,7 @@ use crate::*;
 use anyhow::{anyhow, bail};
 use indexmap::IndexSet;
 use std::mem;
+use std::slice;
 use std::{collections::HashMap, io::Read};
 use wasmparser::Chunk;
 use wasmparser::{
@@ -366,10 +367,12 @@ impl DecodedWasm {
     }
 
     /// Returns the main packages of what was decoded.
-    pub fn packages(&self) -> Vec<PackageId> {
+    pub fn packages(&self) -> &[PackageId] {
         match self {
-            DecodedWasm::WitPackages(_, ids) => ids.clone(),
-            DecodedWasm::Component(resolve, world) => vec![resolve.worlds[*world].package.unwrap()],
+            DecodedWasm::WitPackages(_, ids) => ids,
+            DecodedWasm::Component(resolve, world) => {
+                slice::from_ref(&resolve.worlds[*world].package.as_ref().unwrap())
+            }
         }
     }
 }

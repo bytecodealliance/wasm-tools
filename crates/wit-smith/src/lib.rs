@@ -21,27 +21,20 @@ pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
     let mut resolve = Resolve::default();
     let mut last = None;
     for pkg in pkgs {
-        let unresolved = pkg.sources.parse().unwrap();
-        let first_unresolved = unresolved.into_iter().nth(0);
-        match first_unresolved {
-            Some(first_unresolved) => {
-                let id = match resolve.push(first_unresolved) {
-                    Ok(id) => id,
-                    Err(e) => {
-                        if e.to_string().contains(
-                            "interface transitively depends on an interface in \
-                             incompatible ways",
-                        ) {
-                            return Err(arbitrary::Error::IncorrectFormat);
-                        }
-                        panic!("bad wit parse: {e:?}")
-                    }
-                };
-                last = Some(id);
+        let unresolved = pkg.sources.parse().unwrap().remove(0);
+        let id = match resolve.push(unresolved) {
+            Ok(id) => id,
+            Err(e) => {
+                if e.to_string().contains(
+                    "interface transitively depends on an interface in \
+                     incompatible ways",
+                ) {
+                    return Err(arbitrary::Error::IncorrectFormat);
+                }
+                panic!("bad wit parse: {e:?}")
             }
-            // An empty vector means we had a bunch of empty wit files here.
-            None => return Err(arbitrary::Error::NotEnoughData),
-        }
+        };
+        last = Some(id);
     }
     let pkg = last.unwrap();
 

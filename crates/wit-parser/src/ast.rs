@@ -69,28 +69,30 @@ pub struct DeclList<'a> {
     items: Vec<AstItem<'a>>,
 }
 
-fn parse_explicit_package_items<'a>(tokens: &mut Tokenizer<'a>) -> Result<DeclList<'a>> {
-    let mut items = Vec::new();
-    let mut docs = parse_docs(tokens)?;
-    loop {
-        if tokens.eat(Token::RightBrace)? {
-            return Ok(DeclList { items });
+impl<'a> DeclList<'a> {
+    fn parse_explicit_package_items(tokens: &mut Tokenizer<'a>) -> Result<DeclList<'a>> {
+        let mut items = Vec::new();
+        let mut docs = parse_docs(tokens)?;
+        loop {
+            if tokens.eat(Token::RightBrace)? {
+                return Ok(DeclList { items });
+            }
+            items.push(AstItem::parse(tokens, docs)?);
+            docs = parse_docs(tokens)?;
         }
-        items.push(AstItem::parse(tokens, docs)?);
-        docs = parse_docs(tokens)?;
     }
-}
 
-fn parse_implicit_package_items<'a>(
-    tokens: &mut Tokenizer<'a>,
-    mut docs: Docs<'a>,
-) -> Result<DeclList<'a>> {
-    let mut items = Vec::new();
-    while tokens.clone().next()?.is_some() {
-        items.push(AstItem::parse(tokens, docs)?);
-        docs = parse_docs(tokens)?;
+    fn parse_implicit_package_items(
+        tokens: &mut Tokenizer<'a>,
+        mut docs: Docs<'a>,
+    ) -> Result<DeclList<'a>> {
+        let mut items = Vec::new();
+        while tokens.clone().next()?.is_some() {
+            items.push(AstItem::parse(tokens, docs)?);
+            docs = parse_docs(tokens)?;
+        }
+        Ok(DeclList { items })
     }
-    Ok(DeclList { items })
 }
 
 impl<'a> Ast<'a> {
@@ -113,7 +115,7 @@ impl<'a> Ast<'a> {
             if tokens.eat(Token::LeftBrace)? {
                 packages.push(ExplicitPackage {
                     package_id: package_id,
-                    decl_list: parse_explicit_package_items(tokens)?,
+                    decl_list: DeclList::parse_explicit_package_items(tokens)?,
                 });
                 docs = parse_docs(tokens)?;
             } else {
@@ -130,7 +132,7 @@ impl<'a> Ast<'a> {
         if packages.is_empty() {
             return Ok(Ast::PartialImplicitPackage(PartialImplicitPackage {
                 package_id: maybe_package_id,
-                decl_list: parse_implicit_package_items(tokens, docs)?,
+                decl_list: DeclList::parse_implicit_package_items(tokens, docs)?,
             }));
         }
         Ok(Ast::ExplicitPackages(packages))
