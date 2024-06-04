@@ -11,8 +11,8 @@ use wasm_tools::Output;
 use wasmparser::WasmFeatures;
 use wat::Detect;
 use wit_component::{
-    embed_component_metadata, resolve_world_from_name, ComponentEncoder, DecodedWasm,
-    Linker, StringEncoding, WitPrinter,
+    embed_component_metadata, resolve_world_from_name, ComponentEncoder, DecodedWasm, Linker,
+    StringEncoding, WitPrinter,
 };
 use wit_parser::{PackageId, Resolve, UnresolvedPackageGroup};
 
