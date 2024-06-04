@@ -3531,10 +3531,10 @@ impl<'a> TryFrom<wasmparser::ConstExpr<'a>> for ConstExpr {
             Some(Ok(wasmparser::Operator::I32Const { value })) => ConstExpr::i32_const(value),
             Some(Ok(wasmparser::Operator::I64Const { value })) => ConstExpr::i64_const(value),
             Some(Ok(wasmparser::Operator::F32Const { value })) => {
-                ConstExpr::f32_const(value.bits() as _)
+                ConstExpr::f32_const(f32::from_bits(value.bits()))
             }
             Some(Ok(wasmparser::Operator::F64Const { value })) => {
-                ConstExpr::f64_const(value.bits() as _)
+                ConstExpr::f64_const(f64::from_bits(value.bits()))
             }
             Some(Ok(wasmparser::Operator::V128Const { value })) => {
                 ConstExpr::v128_const(i128::from_le_bytes(*value.bytes()))
