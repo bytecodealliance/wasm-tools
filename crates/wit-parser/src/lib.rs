@@ -111,8 +111,16 @@ pub struct UnresolvedPackage {
     world_spans: Vec<WorldSpan>,
     type_spans: Vec<Span>,
     foreign_dep_spans: Vec<Span>,
-    source_map: SourceMap,
     required_resource_types: Vec<(TypeId, Span)>,
+}
+
+/// Tracks a set of packages, all pulled from the same group of WIT source files.
+pub struct UnresolvedPackageGroup {
+    /// A set of packages that share source file(s).
+    pub packages: Vec<UnresolvedPackage>,
+
+    /// A set of processed source files from which these packages have been parsed.
+    pub source_map: SourceMap,
 }
 
 #[derive(Clone)]
@@ -215,7 +223,7 @@ impl UnresolvedPackage {
     ///
     /// The `path` argument is used for error reporting. The `contents` provided
     /// will not be able to use `pkg` use paths to other documents.
-    pub fn parse(path: &Path, contents: &str) -> Result<Vec<Self>> {
+    pub fn parse(path: &Path, contents: &str) -> Result<UnresolvedPackageGroup> {
         let mut map = SourceMap::default();
         map.push(path, contents);
         map.parse()
@@ -226,7 +234,7 @@ impl UnresolvedPackage {
     /// The path provided is inferred whether it's a file or a directory. A file
     /// is parsed with [`UnresolvedPackage::parse_file`] and a directory is
     /// parsed with [`UnresolvedPackage::parse_dir`].
-    pub fn parse_path(path: &Path) -> Result<Vec<Self>> {
+    pub fn parse_path(path: &Path) -> Result<UnresolvedPackageGroup> {
         if path.is_dir() {
             UnresolvedPackage::parse_dir(path)
         } else {
@@ -238,7 +246,7 @@ impl UnresolvedPackage {
     ///
     /// The WIT package returned will be a single-document package and will not
     /// be able to use `pkg` paths to other documents.
-    pub fn parse_file(path: &Path) -> Result<Vec<Self>> {
+    pub fn parse_file(path: &Path) -> Result<UnresolvedPackageGroup> {
         let contents = std::fs::read_to_string(path)
             .with_context(|| format!("failed to read file {path:?}"))?;
         Self::parse(path, &contents)
@@ -248,7 +256,7 @@ impl UnresolvedPackage {
     ///
     /// All files with the extension `*.wit` or `*.wit.md` will be loaded from
     /// `path` into the returned package.
-    pub fn parse_dir(path: &Path) -> Result<Vec<Self>> {
+    pub fn parse_dir(path: &Path) -> Result<UnresolvedPackageGroup> {
         let mut map = SourceMap::default();
         let cx = || format!("failed to read directory {path:?}");
         for entry in path.read_dir().with_context(&cx)? {
@@ -273,12 +281,6 @@ impl UnresolvedPackage {
             map.push_file(&path)?;
         }
         map.parse()
-    }
-
-    /// Returns an iterator over the list of source files that were read when
-    /// parsing this package.
-    pub fn source_files(&self) -> impl Iterator<Item = &Path> {
-        self.source_map.source_files()
     }
 }
 

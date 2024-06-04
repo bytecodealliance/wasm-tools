@@ -227,7 +227,6 @@ impl<'a> Resolver<'a> {
             world_spans: mem::take(&mut self.world_spans),
             type_spans: mem::take(&mut self.type_spans),
             foreign_dep_spans: mem::take(&mut self.foreign_dep_spans),
-            source_map: SourceMap::default(),
             required_resource_types: mem::take(&mut self.required_resource_types),
         }))
     }

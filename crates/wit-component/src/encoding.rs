@@ -2133,33 +2133,31 @@ mod test {
 
     use super::*;
     use std::path::Path;
-    use wit_parser::UnresolvedPackage;
+    use wit_parser::{UnresolvedPackage, UnresolvedPackageGroup};
 
     #[test]
     fn it_renames_imports() {
         let mut resolve = Resolve::new();
-        let pkg = resolve
-            .push(
-                UnresolvedPackage::parse(
-                    Path::new("test.wit"),
-                    r#"
+        let UnresolvedPackageGroup { mut packages, source_map } = UnresolvedPackage::parse(
+            Path::new("test.wit"),
+            r#"
 package test:wit;
 
 interface i {
-    f: func();
+f: func();
 }
 
 world test {
-    import i;
-    import foo: interface {
-        f: func();
-    }
+import i;
+import foo: interface {
+f: func();
+}
 }
 "#,
-                )
-                .unwrap()
-                .remove(0),
-            )
+        )
+        .unwrap();
+        let pkg = resolve
+            .push(packages.remove(0), &source_map)
             .unwrap();
 
         let world = resolve.select_world(pkg, None).unwrap();

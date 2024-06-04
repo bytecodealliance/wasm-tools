@@ -1,4 +1,4 @@
-use crate::{Error, UnresolvedPackage};
+use crate::{Error, UnresolvedPackage, UnresolvedPackageGroup};
 use anyhow::{bail, Context, Result};
 use lex::{Span, Token, Tokenizer};
 use semver::Version;
@@ -1589,6 +1589,40 @@ struct Source {
     contents: String,
 }
 
+enum ResolverKind<'a> {
+    Unknown,
+    Explicit(Vec<UnresolvedPackage>),
+    PartialImplicit(Resolver<'a>),
+}
+
+fn parse_package(
+    unparsed_pkgs: Vec<ExplicitPackage>,
+    src: &Source,
+    explicit_pkg_names: &mut HashSet<crate::PackageName>,
+    parsed_pkgs: &mut Vec<UnresolvedPackage>,
+) -> Result<()> {
+    for pkg in unparsed_pkgs {
+        let mut resolver = Resolver::default();
+        let pkg_name = pkg.package_id.package_name();
+        let ingested = resolver
+            .push_then_resolve(pkg)
+            .with_context(|| format!("failed to start resolving path: {}", src.path.display()))?;
+
+        match explicit_pkg_names.get(&pkg_name) {
+            Some(_) => bail!(
+                "colliding explicit package names, multiple packages named `{}`",
+                pkg_name
+            ),
+            None => explicit_pkg_names.insert(pkg_name),
+        };
+
+        if let Some(unresolved) = ingested {
+            parsed_pkgs.push(unresolved);
+        }
+    }
+    Ok(())
+}
+
 impl SourceMap {
     /// Creates a new empty source map.
     pub fn new() -> SourceMap {
@@ -1633,12 +1667,10 @@ impl SourceMap {
     }
 
     /// Parses the files added to this source map into one or more [`UnresolvedPackage`]s.
-    pub fn parse(self) -> Result<Vec<UnresolvedPackage>> {
-        let mut implicit_pkg: Option<UnresolvedPackage> = None;
-        let explicit_pkgs = self.rewrite_error(|| {
-            let mut ret_packages = Vec::new();
+    pub fn parse(self) -> Result<UnresolvedPackageGroup> {
+        let mut resolver_kind = ResolverKind::Unknown;
+        let parsed_pkgs = self.rewrite_error(|| {
             let mut explicit_pkg_names: HashSet<crate::PackageName> = HashSet::new();
-            let mut implicit_resolver = Resolver::default();
             let mut srcs = self.sources.iter().collect::<Vec<_>>();
             srcs.sort_by_key(|src| &src.path);
             for src in srcs {
@@ -1649,58 +1681,52 @@ impl SourceMap {
                     self.require_f32_f64,
                 )
                 .with_context(|| format!("failed to tokenize path: {}", src.path.display()))?;
+
                 match Ast::parse(&mut tokens)? {
                     Ast::ExplicitPackages(pkgs) => {
-                        for pkg in pkgs {
-                            let mut resolver = Resolver::default();
-                            let pkg_name = pkg.package_id.package_name();
-                            let ingested = resolver.push_then_resolve(pkg).with_context(|| {
-                                format!("failed to start resolving path: {}", src.path.display())
-                            })?;
-
-                            match explicit_pkg_names.get(&pkg_name) {
-                                Some(_) => bail!(
-                                    "colliding explicit package names, multiple packages named `{}`",
-                                    pkg_name
-                                ),
-                                None => explicit_pkg_names.insert(pkg_name),
-                            };
-
-                            if let Some(unresolved) = ingested {
-                                ret_packages.push(unresolved);
-                            }
+                        match &mut resolver_kind {
+                            ResolverKind::Unknown => {
+                                let mut parsed_pkgs = Vec::new();
+                                parse_package(pkgs, src, &mut explicit_pkg_names, &mut parsed_pkgs)?;
+                                resolver_kind = ResolverKind::Explicit(parsed_pkgs);
+                            },
+                            ResolverKind::Explicit(parsed_pkgs) => {
+                                parse_package(pkgs, src, &mut explicit_pkg_names, parsed_pkgs)?;
+                            },
+                            ResolverKind::PartialImplicit(_) => bail!("WIT files cannot mix top-level explicit `package` declarations with other declaration kinds"),
                         }
                     }
                     Ast::PartialImplicitPackage(partial) => {
-                        if !explicit_pkg_names.is_empty() {
-                            bail!("WIT files cannot mix top-level explicit `package` declarations with other declaration kinds 2");
+                        match &mut resolver_kind {
+                            ResolverKind::Unknown => {
+                                let mut resolver = Resolver::default();
+                                resolver.push_partial(partial).with_context(|| {
+                                    format!("failed to start resolving path: {}", src.path.display())
+                                })?;
+                                resolver_kind = ResolverKind::PartialImplicit(resolver);
+                            },
+                            ResolverKind::Explicit(_) => bail!("WIT files cannot mix top-level explicit `package` declarations with other declaration kinds"),
+                            ResolverKind::PartialImplicit(resolver) => {
+                                resolver.push_partial(partial).with_context(|| {
+                                    format!("failed to start resolving path: {}", src.path.display())
+                                })?;
+                            }
                         }
-
-                        implicit_resolver.push_partial(partial).with_context(|| {
-                            format!("failed to start resolving path: {}", src.path.display())
-                        })?;
                     }
                 }
             }
 
-            if let Some(pkg) = implicit_resolver.resolve()? {
-                implicit_pkg = Some(pkg)
+            match resolver_kind {
+                ResolverKind::Unknown => bail!("No WIT packages found in the supplied source"),
+                ResolverKind::Explicit(pkgs) => Ok(pkgs),
+                ResolverKind::PartialImplicit(mut resolver) => match resolver.resolve()? {
+                    Some(pkg) => Ok(vec![pkg]),
+                    None => bail!("No WIT packages found in the supplied source"),
+                },
             }
-            Ok(ret_packages)
         })?;
 
-        match implicit_pkg {
-            Some(mut pkg) => match explicit_pkgs.is_empty() {
-                true => {
-                    pkg.source_map = self;
-                    Ok(vec![pkg])
-                }
-                false => {
-                    bail!("WIT files cannot mix top-level explicit `package` declarations with other declaration kinds");
-                }
-            },
-            None => Ok(explicit_pkgs),
-        }
+        Ok(UnresolvedPackageGroup { packages: parsed_pkgs, source_map: self})
     }
 
     pub(crate) fn rewrite_error<F, T>(&self, f: F) -> Result<T>
