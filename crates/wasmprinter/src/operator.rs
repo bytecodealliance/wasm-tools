@@ -1,13 +1,12 @@
-use super::{Printer, State};
+use super::{Print, Printer, State};
 use anyhow::{anyhow, bail, Result};
-use std::fmt::Write;
 use wasmparser::{BlockType, BrTable, Catch, MemArg, Ordering, RefType, TryTable, VisitOperator};
 
-pub struct PrintOperator<'cfg, 'a, 'b> {
-    pub(super) printer: &'a mut Printer<'cfg>,
+pub struct PrintOperator<'printer, 'state, 'a, 'b> {
+    pub(super) printer: &'printer mut Printer<'a, 'b>,
     pub(super) op_offset: usize,
     nesting_start: u32,
-    state: &'b mut State,
+    state: &'state mut State,
     label: u32,
     label_indices: Vec<u32>,
     sep: OperatorSeparator,
@@ -18,10 +17,10 @@ pub enum OperatorSeparator {
     None,
 }
 
-impl<'cfg, 'a, 'b> PrintOperator<'cfg, 'a, 'b> {
+impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
     pub(super) fn new(
-        printer: &'a mut Printer<'cfg>,
-        state: &'b mut State,
+        printer: &'printer mut Printer<'a, 'b>,
+        state: &'state mut State,
         sep: OperatorSeparator,
     ) -> Self {
         PrintOperator {
@@ -36,12 +35,12 @@ impl<'cfg, 'a, 'b> PrintOperator<'cfg, 'a, 'b> {
     }
 
     fn push_str(&mut self, s: &str) -> Result<()> {
-        self.printer.result.push_str(s);
+        self.printer.result.write_str(s)?;
         Ok(())
     }
 
-    fn result(&mut self) -> &mut String {
-        &mut self.printer.result
+    fn result(&mut self) -> &mut dyn Print {
+        self.printer.result
     }
 
     fn separator(&mut self) -> Result<()> {
@@ -86,8 +85,8 @@ impl<'cfg, 'a, 'b> PrintOperator<'cfg, 'a, 'b> {
         let key = (self.state.core.funcs, self.label);
         let has_name = match self.state.core.label_names.index_to_name.get(&key) {
             Some(name) => {
-                self.printer.result.push_str(" ");
-                name.write(&mut self.printer.result);
+                write!(self.printer.result, " ")?;
+                name.write(self.printer.result)?;
                 true
             }
             None if self.printer.config.name_unnamed => {
@@ -121,7 +120,9 @@ impl<'cfg, 'a, 'b> PrintOperator<'cfg, 'a, 'b> {
         if !has_name {
             let depth = self.cur_depth();
             self.push_str(" ")?;
+            self.result().start_comment()?;
             write!(self.result(), ";; label = @{}", depth)?;
+            self.result().reset_color()?;
         }
 
         self.label += 1;
@@ -175,7 +176,7 @@ impl<'cfg, 'a, 'b> PrintOperator<'cfg, 'a, 'b> {
                 match name {
                     // Only print the name if one is found and there's also no
                     // name conflict.
-                    Some(name) if !name_conflict => name.write(&mut self.printer.result),
+                    Some(name) if !name_conflict => name.write(self.printer.result)?,
 
                     // If there's no name conflict, and we're synthesizing
                     // names, and this isn't targetting the function itself then
@@ -185,12 +186,16 @@ impl<'cfg, 'a, 'b> PrintOperator<'cfg, 'a, 'b> {
                     // function itself, so i==0, branching to a function label,
                     // is not supported and otherwise labels are offset by 1.
                     None if !name_conflict && self.printer.config.name_unnamed && i > 0 => {
-                        write!(self.result(), "$#label{}", i - 1)?
+                        self.result().start_name()?;
+                        write!(self.result(), "$#label{}", i - 1)?;
+                        self.result().reset_color()?;
                     }
 
                     _ => {
                         // Last-ditch resort, we gotta print the index.
+                        self.result().start_name()?;
                         write!(self.result(), "{depth}")?;
+                        self.result().reset_color()?;
 
                         // Unnamed labels have helpful `@N` labels printed for
                         // them so also try to print where this index is going
@@ -199,7 +204,9 @@ impl<'cfg, 'a, 'b> PrintOperator<'cfg, 'a, 'b> {
                         // label, and also don't do it for the function itself
                         // since the function has no label we can synthesize.
                         if !name_conflict && i > 0 {
+                            self.result().start_comment()?;
                             write!(self.result(), " (;@{i};)")?;
+                            self.result().reset_color()?;
                         }
                     }
                 }
@@ -512,18 +519,31 @@ macro_rules! define_visit {
             $self.memory_index($mem)?;
         }
     );
-    (payload $self:ident I32Const $val:ident) => (write!($self.result(), " {}", $val)?);
-    (payload $self:ident I64Const $val:ident) => (write!($self.result(), " {}", $val)?);
+    (payload $self:ident I32Const $val:ident) => (
+        $self.result().start_literal()?;
+        write!($self.result(), " {}", $val)?;
+        $self.result().reset_color()?;
+    );
+    (payload $self:ident I64Const $val:ident) => (
+        $self.result().start_literal()?;
+        write!($self.result(), " {}", $val)?;
+        $self.result().reset_color()?;
+    );
     (payload $self:ident F32Const $val:ident) => (
         $self.push_str(" ")?;
+        $self.result().start_literal()?;
         $self.printer.print_f32($val.bits())?;
+        $self.result().reset_color()?;
     );
     (payload $self:ident F64Const $val:ident) => (
         $self.push_str(" ")?;
+        $self.result().start_literal()?;
         $self.printer.print_f64($val.bits())?;
+        $self.result().reset_color()?;
     );
     (payload $self:ident V128Const $val:ident) => (
-        $self.push_str(" i32x4")?;
+        $self.printer.print_type_keyword(" i32x4")?;
+        $self.result().start_literal()?;
         for chunk in $val.bytes().chunks(4) {
             write!(
                 $self.result(),
@@ -534,6 +554,7 @@ macro_rules! define_visit {
                 chunk[0],
             )?;
         }
+        $self.result().reset_color()?;
     );
     (payload $self:ident RefTestNonNull $hty:ident) => (
         $self.push_str(" ")?;
@@ -1166,7 +1187,7 @@ macro_rules! define_visit {
     (name GlobalAtomicRmwCmpxchg) => ("global.atomic.rmw.cmpxchg");
 }
 
-impl<'a> VisitOperator<'a> for PrintOperator<'_, '_, '_> {
+impl<'a> VisitOperator<'a> for PrintOperator<'_, '_, '_, '_> {
     type Output = Result<()>;
 
     wasmparser::for_each_operator!(define_visit);

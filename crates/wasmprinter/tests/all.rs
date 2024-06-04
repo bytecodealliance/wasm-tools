@@ -249,8 +249,7 @@ fn offsets_and_lines_smoke_test() {
     let bytes = wat::parse_str(MODULE).unwrap();
 
     let mut storage = String::new();
-    let printer = wasmprinter::Config::new();
-    let actual: Vec<_> = printer
+    let actual: Vec<_> = wasmprinter::Config::new()
         .offsets_and_lines(&bytes, &mut storage)
         .unwrap()
         .collect();

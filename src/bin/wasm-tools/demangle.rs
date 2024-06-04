@@ -54,10 +54,7 @@ impl Opts {
             }
         }
 
-        self.io.output(wasm_tools::Output::Wasm {
-            bytes: module.as_slice(),
-            wat: self.wat,
-        })?;
+        self.io.output_wasm(module.as_slice(), self.wat)?;
         Ok(())
     }
 

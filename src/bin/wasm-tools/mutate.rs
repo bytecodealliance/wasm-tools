@@ -82,10 +82,7 @@ impl Opts {
             }
         };
 
-        self.io.output(wasm_tools::Output::Wasm {
-            bytes: &wasm,
-            wat: self.wat,
-        })?;
+        self.io.output_wasm(&wasm, self.wat)?;
 
         Ok(())
     }

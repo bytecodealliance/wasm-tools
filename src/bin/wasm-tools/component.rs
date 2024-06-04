@@ -162,10 +162,7 @@ impl NewOpts {
             .encode()
             .context("failed to encode a component from module")?;
 
-        self.io.output(Output::Wasm {
-            bytes: &bytes,
-            wat: self.wat,
-        })?;
+        self.io.output_wasm(&bytes, self.wat)?;
 
         Ok(())
     }
@@ -290,10 +287,7 @@ impl EmbedOpts {
             self.encoding.unwrap_or(StringEncoding::UTF8),
         )?;
 
-        self.io.output(Output::Wasm {
-            bytes: &wasm,
-            wat: self.wat,
-        })?;
+        self.io.output_wasm(&wasm, self.wat)?;
 
         Ok(())
     }
@@ -420,10 +414,7 @@ impl LinkOpts {
             .encode()
             .context("failed to encode a component from modules")?;
 
-        self.output.output(Output::Wasm {
-            bytes: &bytes,
-            wat: self.wat,
-        })?;
+        self.output.output_wasm(&self.general, &bytes, self.wat)?;
 
         Ok(())
     }
@@ -604,10 +595,7 @@ impl WitOpts {
             )
             .validate_all(&bytes)?;
         }
-        self.output.output(Output::Wasm {
-            bytes: &bytes,
-            wat: self.wat,
-        })?;
+        self.output.output_wasm(&self.general, &bytes, self.wat)?;
         Ok(())
     }
 
@@ -666,8 +654,14 @@ impl WitOpts {
                 }
             }
             None => {
-                let output = printer.print(resolve, &main)?;
-                self.output.output(Output::Wat(&output))?;
+                self.output.output(
+                    &self.general,
+                    Output::Wit {
+                        resolve: &resolve,
+                        ids: &main,
+                        printer,
+                    },
+                )?;
             }
         }
 
@@ -679,7 +673,7 @@ impl WitOpts {
 
         let resolve = decoded.resolve();
         let output = serde_json::to_string_pretty(&resolve)?;
-        self.output.output(Output::Json(&output))?;
+        self.output.output(&self.general, Output::Json(&output))?;
 
         Ok(())
     }

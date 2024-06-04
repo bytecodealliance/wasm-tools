@@ -10,7 +10,8 @@
 
 use anyhow::{anyhow, bail, Context, Result};
 use std::collections::{HashMap, HashSet};
-use std::fmt::{self, Write};
+use std::fmt;
+use std::io;
 use std::marker;
 use std::mem;
 use std::path::Path;
@@ -22,6 +23,9 @@ const MAX_WASM_FUNCTIONS: u32 = 1_000_000;
 const MAX_WASM_FUNCTION_SIZE: u32 = 128 * 1024;
 
 mod operator;
+mod print;
+
+pub use self::print::*;
 
 /// Reads a WebAssembly `file` from the filesystem and then prints it into an
 /// in-memory `String`.
@@ -35,7 +39,7 @@ pub fn print_file(file: impl AsRef<Path>) -> Result<String> {
 /// its textual representation.
 pub fn print_bytes(wasm: impl AsRef<[u8]>) -> Result<String> {
     let mut dst = String::new();
-    Config::new().print(wasm.as_ref(), &mut dst)?;
+    Config::new().print(wasm.as_ref(), &mut PrintFmtWrite(&mut dst))?;
     Ok(dst)
 }
 
@@ -47,18 +51,13 @@ pub fn print_bytes(wasm: impl AsRef<[u8]>) -> Result<String> {
 pub struct Config {
     print_offsets: bool,
     print_skeleton: bool,
-    printers: HashMap<String, Box<dyn Fn(&mut Printer, usize, &[u8]) -> Result<()>>>,
     name_unnamed: bool,
 }
 
 /// This structure is the actual structure that prints WebAssembly binaries.
-pub struct Printer<'cfg> {
+struct Printer<'cfg, 'env> {
     config: &'cfg Config,
-    result: &'cfg mut String,
-    /// The `i`th line in `result` is at offset `lines[i]`.
-    lines: Vec<usize>,
-    /// The binary offset for the `i`th line is `line_offsets[i]`.
-    line_offsets: Vec<Option<usize>>,
+    result: &'cfg mut (dyn Print + 'env),
     nesting: u32,
     line: usize,
     group_lines: Vec<usize>,
@@ -185,43 +184,18 @@ impl Config {
         self.name_unnamed = enable;
     }
 
-    /// Registers a custom `printer` function to get invoked whenever a custom
-    /// section of name `section` is seen.
-    ///
-    /// This can be used to register printers into a textual format for custom
-    /// sections, such as by emitting annotations and/or other textual
-    /// references (maybe comments!)
-    ///
-    /// By default all custom sections are ignored for the text format.
-    ///
-    /// The `printer` function provided takes three arguments:
-    ///
-    /// * A `&mut Printer`, or where to print results to
-    /// * A `usize` offset which is the start of the offset for the custom
-    ///   section
-    /// * A byte slice which is the actual contents of the custom section.
-    pub fn add_custom_section_printer(
-        &mut self,
-        section: &str,
-        printer: impl Fn(&mut Printer, usize, &[u8]) -> Result<()> + 'static,
-    ) {
-        self.printers.insert(section.to_string(), Box::new(printer));
-    }
-
     /// Prints a WebAssembly binary into a `String`
     ///
     /// This function takes an entire `wasm` binary blob and will print it to
     /// the WebAssembly Text Format and return the result as a `String`.
-    pub fn print(&mut self, wasm: &[u8], dst: &mut String) -> Result<()> {
+    pub fn print(&self, wasm: &[u8], result: &mut impl Print) -> Result<()> {
         Printer {
             config: self,
-            result: dst,
+            result,
             code_section_hints: Vec::new(),
             group_lines: Vec::new(),
             line: 0,
             nesting: 0,
-            lines: Vec::new(),
-            line_offsets: Vec::new(),
         }
         .print_contents(wasm)
     }
@@ -233,26 +207,37 @@ impl Config {
         wasm: &[u8],
         storage: &'a mut String,
     ) -> Result<impl Iterator<Item = (Option<usize>, &'a str)> + 'a> {
-        let mut printer = Printer {
-            config: self,
-            result: storage,
-            code_section_hints: Vec::new(),
-            group_lines: Vec::new(),
-            line: 0,
-            nesting: 0,
+        struct TrackingPrint<'a> {
+            dst: &'a mut String,
+            lines: Vec<usize>,
+            line_offsets: Vec<Option<usize>>,
+        }
+
+        impl Print for TrackingPrint<'_> {
+            fn write_str(&mut self, s: &str) -> io::Result<()> {
+                self.dst.push_str(s);
+                Ok(())
+            }
+            fn start_line(&mut self, offset: Option<usize>) {
+                self.lines.push(self.dst.len());
+                self.line_offsets.push(offset);
+            }
+        }
+
+        let mut output = TrackingPrint {
+            dst: storage,
             lines: Vec::new(),
             line_offsets: Vec::new(),
         };
-        printer.print_contents(wasm)?;
+        self.print(wasm, &mut output)?;
 
-        let Printer {
+        let TrackingPrint {
+            dst,
             lines,
             line_offsets,
-            ..
-        } = printer;
-        let end = storage.len();
-        let result = &storage[..];
-
+        } = output;
+        let end = dst.len();
+        let dst = &dst[..];
         let mut offsets = line_offsets.into_iter();
         let mut lines = lines.into_iter().peekable();
 
@@ -260,13 +245,13 @@ impl Config {
             let offset = offsets.next()?;
             let i = lines.next()?;
             let j = lines.peek().copied().unwrap_or(end);
-            let line = &result[i..j];
+            let line = &dst[i..j];
             Some((offset, line))
         }))
     }
 }
 
-impl Printer<'_> {
+impl Printer<'_, '_> {
     fn read_names_and_code<'a>(
         &mut self,
         mut bytes: &'a [u8],
@@ -353,10 +338,7 @@ impl Printer<'_> {
     }
 
     fn print_contents(&mut self, mut bytes: &[u8]) -> Result<()> {
-        self.lines.clear();
-        self.lines.push(0);
-        self.line_offsets.clear();
-        self.line_offsets.push(Some(0));
+        self.result.start_line(Some(0));
 
         let mut expected = None;
         let mut states: Vec<State> = Vec::new();
@@ -428,19 +410,16 @@ impl Printer<'_> {
                     if len == 1 {
                         if let Some(name) = state.name.as_ref() {
                             self.result.write_str(" ")?;
-                            name.write(&mut self.result);
+                            name.write(self.result)?;
                         }
                     }
                 }
                 Payload::CustomSection(c) => {
-                    let mut printed = false;
-                    // let mut printers = mem::take(&mut self.printers);
-                    if let Some(printer) = self.config.printers.get(c.name()) {
-                        printer(self, c.data_offset(), c.data())?;
-                        printed = true;
-                    }
-                    // self.printers = printers;
-
+                    // If the custom printing trait handles this section, keep
+                    // going after that.
+                    let printed =
+                        self.result
+                            .print_custom_section(c.name(), c.data_offset(), c.data())?;
                     if printed {
                         continue;
                     }
@@ -621,7 +600,7 @@ impl Printer<'_> {
                     } else {
                         self.newline(offset)?;
                         if self.config.print_offsets {
-                            self.result.write_str("\n")?;
+                            self.result.newline()?;
                         }
                         break;
                     }
@@ -643,7 +622,10 @@ impl Printer<'_> {
     }
 
     fn start_group(&mut self, name: &str) -> Result<()> {
-        write!(self.result, "({name}")?;
+        write!(self.result, "(")?;
+        self.result.start_keyword()?;
+        write!(self.result, "{name}")?;
+        self.result.reset_color()?;
         self.nesting += 1;
         self.group_lines.push(self.line);
         Ok(())
@@ -994,11 +976,11 @@ impl Printer<'_> {
 
     fn print_valtype(&mut self, state: &State, ty: ValType) -> Result<()> {
         match ty {
-            ValType::I32 => self.result.write_str("i32")?,
-            ValType::I64 => self.result.write_str("i64")?,
-            ValType::F32 => self.result.write_str("f32")?,
-            ValType::F64 => self.result.write_str("f64")?,
-            ValType::V128 => self.result.write_str("v128")?,
+            ValType::I32 => self.print_type_keyword("i32")?,
+            ValType::I64 => self.print_type_keyword("i64")?,
+            ValType::F32 => self.print_type_keyword("f32")?,
+            ValType::F64 => self.print_type_keyword("f64")?,
+            ValType::V128 => self.print_type_keyword("v128")?,
             ValType::Ref(rt) => self.print_reftype(state, rt)?,
         }
         Ok(())
@@ -1007,18 +989,18 @@ impl Printer<'_> {
     fn print_reftype(&mut self, state: &State, ty: RefType) -> Result<()> {
         if ty.is_nullable() {
             match ty.as_non_null() {
-                RefType::FUNC => self.result.write_str("funcref")?,
-                RefType::EXTERN => self.result.write_str("externref")?,
-                RefType::I31 => self.result.write_str("i31ref")?,
-                RefType::ANY => self.result.write_str("anyref")?,
-                RefType::NONE => self.result.write_str("nullref")?,
-                RefType::NOEXTERN => self.result.write_str("nullexternref")?,
-                RefType::NOFUNC => self.result.write_str("nullfuncref")?,
-                RefType::EQ => self.result.write_str("eqref")?,
-                RefType::STRUCT => self.result.write_str("structref")?,
-                RefType::ARRAY => self.result.write_str("arrayref")?,
-                RefType::EXN => self.result.write_str("exnref")?,
-                RefType::NOEXN => self.result.write_str("nullexnref")?,
+                RefType::FUNC => self.print_type_keyword("funcref")?,
+                RefType::EXTERN => self.print_type_keyword("externref")?,
+                RefType::I31 => self.print_type_keyword("i31ref")?,
+                RefType::ANY => self.print_type_keyword("anyref")?,
+                RefType::NONE => self.print_type_keyword("nullref")?,
+                RefType::NOEXTERN => self.print_type_keyword("nullexternref")?,
+                RefType::NOFUNC => self.print_type_keyword("nullfuncref")?,
+                RefType::EQ => self.print_type_keyword("eqref")?,
+                RefType::STRUCT => self.print_type_keyword("structref")?,
+                RefType::ARRAY => self.print_type_keyword("arrayref")?,
+                RefType::EXN => self.print_type_keyword("exnref")?,
+                RefType::NOEXN => self.print_type_keyword("nullexnref")?,
                 _ => {
                     self.start_group("ref")?;
                     self.result.write_str(" null ")?;
@@ -1036,22 +1018,29 @@ impl Printer<'_> {
 
     fn print_heaptype(&mut self, state: &State, ty: HeapType) -> Result<()> {
         match ty {
-            HeapType::Func => self.result.write_str("func")?,
-            HeapType::Extern => self.result.write_str("extern")?,
-            HeapType::Any => self.result.write_str("any")?,
-            HeapType::None => self.result.write_str("none")?,
-            HeapType::NoExtern => self.result.write_str("noextern")?,
-            HeapType::NoFunc => self.result.write_str("nofunc")?,
-            HeapType::Eq => self.result.write_str("eq")?,
-            HeapType::Struct => self.result.write_str("struct")?,
-            HeapType::Array => self.result.write_str("array")?,
-            HeapType::I31 => self.result.write_str("i31")?,
-            HeapType::Exn => self.result.write_str("exn")?,
-            HeapType::NoExn => self.result.write_str("noexn")?,
+            HeapType::Func => self.print_type_keyword("func")?,
+            HeapType::Extern => self.print_type_keyword("extern")?,
+            HeapType::Any => self.print_type_keyword("any")?,
+            HeapType::None => self.print_type_keyword("none")?,
+            HeapType::NoExtern => self.print_type_keyword("noextern")?,
+            HeapType::NoFunc => self.print_type_keyword("nofunc")?,
+            HeapType::Eq => self.print_type_keyword("eq")?,
+            HeapType::Struct => self.print_type_keyword("struct")?,
+            HeapType::Array => self.print_type_keyword("array")?,
+            HeapType::I31 => self.print_type_keyword("i31")?,
+            HeapType::Exn => self.print_type_keyword("exn")?,
+            HeapType::NoExn => self.print_type_keyword("noexn")?,
             HeapType::Concrete(i) => {
                 self.print_idx(&state.core.type_names, i.as_module_index().unwrap())?;
             }
         }
+        Ok(())
+    }
+
+    fn print_type_keyword(&mut self, keyword: &str) -> Result<()> {
+        self.result.start_type()?;
+        self.result.write_str(keyword)?;
+        self.result.reset_color()?;
         Ok(())
     }
 
@@ -1108,7 +1097,7 @@ impl Printer<'_> {
             self.result.write_str(" ")?;
         }
         if ty.table64 {
-            self.result.write_str("i64 ")?;
+            self.print_type_keyword("i64 ")?;
         }
         self.print_limits(ty.initial, ty.maximum)?;
         self.result.write_str(" ")?;
@@ -1123,11 +1112,11 @@ impl Printer<'_> {
             self.result.write_str(" ")?;
         }
         if ty.memory64 {
-            self.result.write_str("i64 ")?;
+            self.print_type_keyword("i64 ")?;
         }
         self.print_limits(ty.initial, ty.maximum)?;
         if ty.shared {
-            self.result.write_str(" shared")?;
+            self.print_type_keyword(" shared")?;
         }
         if let Some(p) = ty.page_size_log2 {
             let p = 1_u64
@@ -1152,10 +1141,12 @@ impl Printer<'_> {
     where
         T: fmt::Display,
     {
+        self.result.start_literal()?;
         write!(self.result, "{}", initial)?;
         if let Some(max) = maximum {
             write!(self.result, " {}", max)?;
         }
+        self.result.reset_color()?;
         Ok(())
     }
 
@@ -1168,10 +1159,10 @@ impl Printer<'_> {
         if ty.shared || ty.mutable {
             self.result.write_str("(")?;
             if ty.shared {
-                self.result.write_str("shared ")?;
+                self.print_type_keyword("shared ")?;
             }
             if ty.mutable {
-                self.result.write_str("mut ")?;
+                self.print_type_keyword("mut ")?;
             }
             self.print_valtype(state, ty.content_type)?;
             self.result.write_str(")")?;
@@ -1360,10 +1351,8 @@ impl Printer<'_> {
     }
 
     fn print_newline(&mut self, offset: Option<usize>) -> Result<()> {
-        self.result.write_str("\n")?;
-
-        self.lines.push(self.result.len());
-        self.line_offsets.push(offset);
+        self.result.newline()?;
+        self.result.start_line(offset);
 
         if self.config.print_offsets {
             match offset {
@@ -1449,29 +1438,35 @@ impl Printer<'_> {
     }
 
     fn _print_idx(&mut self, names: &HashMap<u32, Naming>, idx: u32, desc: &str) -> Result<()> {
+        self.result.start_name()?;
         match names.get(&idx) {
             Some(name) => write!(self.result, "${}", name.identifier())?,
             None if self.config.name_unnamed => write!(self.result, "$#{desc}{idx}")?,
             None => write!(self.result, "{idx}")?,
         }
+        self.result.reset_color()?;
         Ok(())
     }
 
     fn print_local_idx(&mut self, state: &State, func: u32, idx: u32) -> Result<()> {
+        self.result.start_name()?;
         match state.core.local_names.index_to_name.get(&(func, idx)) {
             Some(name) => write!(self.result, "${}", name.identifier())?,
             None if self.config.name_unnamed => write!(self.result, "$#local{idx}")?,
             None => write!(self.result, "{}", idx)?,
         }
+        self.result.reset_color()?;
         Ok(())
     }
 
     fn print_field_idx(&mut self, state: &State, ty: u32, idx: u32) -> Result<()> {
+        self.result.start_name()?;
         match state.core.field_names.index_to_name.get(&(ty, idx)) {
             Some(name) => write!(self.result, "${}", name.identifier())?,
             None if self.config.name_unnamed => write!(self.result, "$#field{idx}")?,
             None => write!(self.result, "{}", idx)?,
         }
+        self.result.reset_color()?;
         Ok(())
     }
 
@@ -1488,9 +1483,10 @@ impl Printer<'_> {
         cur_idx: u32,
         desc: &str,
     ) -> Result<()> {
+        self.result.start_name()?;
         match names.get(&cur_idx) {
             Some(name) => {
-                name.write(&mut self.result);
+                name.write(self.result)?;
                 self.result.write_str(" ")?;
             }
             None if self.config.name_unnamed => {
@@ -1499,6 +1495,7 @@ impl Printer<'_> {
             None => {}
         }
         write!(self.result, "(;{cur_idx};)")?;
+        self.result.reset_color()?;
         Ok(())
     }
 
@@ -1617,7 +1614,7 @@ impl Printer<'_> {
             if first {
                 first = false;
             } else {
-                op_printer.printer.result.push(' ');
+                write!(op_printer.printer.result, " ")?;
             }
             reader.visit_operator(&mut op_printer)??;
         }
@@ -1899,7 +1896,7 @@ impl Printer<'_> {
         let outer = Self::outer_state(states, count)?;
         self.start_group("alias outer ")?;
         if let Some(name) = outer.name.as_ref() {
-            name.write(&mut self.result);
+            name.write(self.result)?;
         } else {
             write!(self.result, "{count}")?;
         }
@@ -2575,7 +2572,7 @@ impl Printer<'_> {
                 let outer = Self::outer_state(states, count)?;
                 self.start_group("alias outer ")?;
                 if let Some(name) = outer.name.as_ref() {
-                    name.write(&mut self.result);
+                    name.write(self.result)?;
                 } else {
                     write!(self.result, "{count}")?;
                 }
@@ -2625,6 +2622,7 @@ impl Printer<'_> {
     }
 
     fn print_str(&mut self, name: &str) -> Result<()> {
+        self.result.start_literal()?;
         let mut bytes = [0; 4];
         self.result.write_str("\"")?;
         for c in name.chars() {
@@ -2638,10 +2636,12 @@ impl Printer<'_> {
             }
         }
         self.result.write_str("\"")?;
+        self.result.reset_color()?;
         Ok(())
     }
 
     fn print_bytes(&mut self, bytes: &[u8]) -> Result<()> {
+        self.result.start_literal()?;
         self.result.write_str("\"")?;
         for byte in bytes {
             if *byte >= 0x20 && *byte < 0x7f && *byte != b'"' && *byte != b'\\' {
@@ -2651,6 +2651,7 @@ impl Printer<'_> {
             }
         }
         self.result.write_str("\"")?;
+        self.result.reset_color()?;
         Ok(())
     }
 
@@ -2896,7 +2897,7 @@ impl NamedLocalPrinter {
         // Print the optional name if given...
         match name {
             Some(name) => {
-                name.write(&mut dst.result);
+                name.write(dst.result)?;
                 dst.result.write_str(" ")?;
                 self.end_group_after_local = true;
             }
@@ -3011,7 +3012,7 @@ macro_rules! print_float {
     };
 }
 
-impl Printer<'_> {
+impl Printer<'_, '_> {
     print_float!(print_f32 f32 u32 i32 8);
     print_float!(print_f64 f64 u64 i64 11);
 }
@@ -3099,37 +3100,33 @@ impl Naming {
         }
     }
 
-    fn write(&self, dst: &mut String) {
+    fn write(&self, dst: &mut dyn Print) -> Result<()> {
         match &self.identifier {
             Some(alternate) => {
                 assert!(*alternate != self.name);
-                dst.push('$');
-                dst.push_str(alternate);
-                dst.push_str(" (@name \"");
+                write!(dst, "${alternate} (@name \"")?;
                 // https://webassembly.github.io/spec/core/text/values.html#text-string
                 for c in self.name.chars() {
                     match c {
-                        '\t' => dst.push_str("\\t"),
-                        '\n' => dst.push_str("\\n"),
-                        '\r' => dst.push_str("\\r"),
-                        '"' => dst.push_str("\\\""),
-                        '\'' => dst.push_str("\\'"),
-                        '\\' => dst.push_str("\\\\"),
+                        '\t' => write!(dst, "\\t")?,
+                        '\n' => write!(dst, "\\n")?,
+                        '\r' => write!(dst, "\\r")?,
+                        '"' => write!(dst, "\\\"")?,
+                        '\'' => write!(dst, "\\'")?,
+                        '\\' => write!(dst, "\\\\")?,
                         c if (c as u32) < 0x20 || c as u32 == 0x7f => {
-                            dst.push_str("\\u{");
-                            write!(dst, "{:x}", c as u32).unwrap();
-                            dst.push('}');
+                            write!(dst, "\\u{{{:x}}}", c as u32)?;
                         }
-                        other => dst.push(other),
+                        other => write!(dst, "{other}")?,
                     }
                 }
-                dst.push_str("\")");
+                write!(dst, "\")")?;
             }
             None => {
-                dst.push('$');
-                dst.push_str(&self.name);
+                write!(dst, "${}", self.name)?;
             }
         }
+        Ok(())
     }
 }
 

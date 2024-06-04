@@ -72,10 +72,8 @@ impl Opts {
         };
         let wasm_bytes = wit_smith::smith(&config, &mut u)?;
 
-        self.output.output(wasm_tools::Output::Wasm {
-            bytes: &wasm_bytes,
-            wat: self.wat,
-        })?;
+        self.output
+            .output_wasm(&self.general, &wasm_bytes, self.wat)?;
         Ok(())
     }
 }

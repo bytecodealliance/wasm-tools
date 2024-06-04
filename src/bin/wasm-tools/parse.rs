@@ -22,10 +22,7 @@ impl Opts {
 
     pub fn run(&self) -> Result<()> {
         let binary = self.io.parse_input_wasm()?;
-        self.io.output(wasm_tools::Output::Wasm {
-            bytes: &binary,
-            wat: self.wat,
-        })?;
+        self.io.output_wasm(&binary, self.wat)?;
         Ok(())
     }
 }

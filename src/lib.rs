@@ -92,8 +92,17 @@ pub struct OutputArg {
 }
 
 pub enum Output<'a> {
-    Wat(&'a str),
-    Wasm { bytes: &'a [u8], wat: bool },
+    #[cfg(feature = "component")]
+    Wit {
+        resolve: &'a wit_parser::Resolve,
+        ids: &'a [wit_parser::PackageId],
+        printer: wit_component::WitPrinter,
+    },
+    Wasm(&'a [u8]),
+    Wat {
+        wasm: &'a [u8],
+        config: wasmprinter::Config,
+    },
     Json(&'a str),
 }
 
@@ -102,8 +111,19 @@ impl InputOutput {
         self.input.parse_wasm()
     }
 
+    pub fn output_wasm(&self, wasm: &[u8], wat: bool) -> Result<()> {
+        if wat {
+            self.output(Output::Wat {
+                wasm,
+                config: Default::default(),
+            })
+        } else {
+            self.output(Output::Wasm(wasm))
+        }
+    }
+
     pub fn output(&self, bytes: Output<'_>) -> Result<()> {
-        self.output.output(bytes)
+        self.output.output(&self.general, bytes)
     }
 
     pub fn output_writer(&self) -> Result<Box<dyn WriteColor>> {
@@ -124,13 +144,27 @@ impl InputOutput {
 }
 
 impl OutputArg {
-    pub fn output(&self, output: Output<'_>) -> Result<()> {
+    pub fn output_wasm(&self, general: &GeneralOpts, wasm: &[u8], wat: bool) -> Result<()> {
+        if wat {
+            self.output(
+                general,
+                Output::Wat {
+                    wasm,
+                    config: Default::default(),
+                },
+            )
+        } else {
+            self.output(general, Output::Wasm(wasm))
+        }
+    }
+
+    pub fn output(&self, general: &GeneralOpts, output: Output<'_>) -> Result<()> {
         match output {
-            Output::Wat(s) => self.output_str(s),
-            Output::Wasm { bytes, wat: true } => {
-                self.output_str(&wasmprinter::print_bytes(&bytes)?)
+            Output::Wat { wasm, config } => {
+                let mut writer = self.output_writer(general.color)?;
+                config.print(wasm, &mut wasmprinter::PrintTermcolor(&mut writer))
             }
-            Output::Wasm { bytes, wat: false } => {
+            Output::Wasm(bytes) => {
                 match &self.output {
                     Some(path) => {
                         std::fs::write(path, bytes)
@@ -149,6 +183,15 @@ impl OutputArg {
                 Ok(())
             }
             Output::Json(s) => self.output_str(s),
+            #[cfg(feature = "component")]
+            Output::Wit {
+                resolve,
+                ids,
+                mut printer,
+            } => {
+                let output = printer.print(resolve, ids)?;
+                self.output_str(&output)
+            }
         }
     }
 
