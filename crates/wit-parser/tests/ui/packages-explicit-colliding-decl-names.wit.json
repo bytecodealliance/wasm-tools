@@ -109,7 +109,7 @@
   ],
   "packages": [
     {
-      "name": "foo:name",
+      "name": "bar:name",
       "interfaces": {
         "i": 0
       },
@@ -118,7 +118,7 @@
       }
     },
     {
-      "name": "bar:name",
+      "name": "foo:name",
       "interfaces": {
         "i": 2
       },

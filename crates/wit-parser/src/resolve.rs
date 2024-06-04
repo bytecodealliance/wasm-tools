@@ -115,7 +115,7 @@ fn visit<'a>(
     pkg_details_map: &'a BTreeMap<PackageName, (UnresolvedPackage, usize)>,
     order: &mut IndexSet<PackageName>,
     visiting: &mut HashSet<&'a PackageName>,
-    source_maps: &Vec<SourceMap>,
+    source_maps: &[SourceMap],
 ) -> Result<()> {
     if order.contains(&pkg.name) {
         return Ok(());
@@ -191,7 +191,7 @@ impl Resolve {
         }
     }
 
-    fn foo(
+    fn _sort_unresolved_packages(
         &mut self,
         unresolved_groups: Vec<UnresolvedPackageGroup>,
     ) -> Result<(Vec<PackageId>, Vec<PathBuf>)> {
@@ -269,12 +269,11 @@ impl Resolve {
                 deps_path.display()
             )
         })?;
-        let (_, mut path_bufs) = self.foo(unresolved_deps)?;
+        let (_, mut path_bufs) = self._sort_unresolved_packages(unresolved_deps)?;
 
         let unresolved_top_level = UnresolvedPackageGroup::parse_dir(path)
             .with_context(|| format!("failed to parse package: {}", path.display()))?;
-        // TODO(azaslavsky): frivolous copy
-        let (pkgs_ids, mut top_level_path_bufs) = self.foo(vec![unresolved_top_level])?;
+        let (pkgs_ids, mut top_level_path_bufs) = self._sort_unresolved_packages(vec![unresolved_top_level])?;
 
         path_bufs.append(&mut top_level_path_bufs);
         Ok((pkgs_ids, path_bufs))
@@ -414,17 +413,11 @@ impl Resolve {
     /// Any dependency resolution error or otherwise world-elaboration error
     /// will be returned here, if successful a package identifier is returned
     /// which corresponds to the package that was just inserted.
-    pub fn append(&mut self, unresolved: UnresolvedPackageGroup) -> Result<Vec<PackageId>> {
-        let mut ids = Vec::new();
-        let UnresolvedPackageGroup {
-            packages,
-            source_map,
-        } = unresolved;
-
-        for pkg in packages {
-            ids.push(source_map.rewrite_error(|| Remap::default().append(self, pkg))?);
-        }
-        Ok(ids)
+    /// 
+    /// The returned [PackageId]s are listed in topologically sorted order.
+    pub fn append(&mut self, unresolved_groups: UnresolvedPackageGroup) -> Result<Vec<PackageId>> {
+        let (pkg_ids, _) = self._sort_unresolved_packages(vec![unresolved_groups])?;
+        Ok(pkg_ids)
     }
 
     pub fn all_bits_valid(&self, ty: &Type) -> bool {
