@@ -1385,10 +1385,7 @@ fn err_expected(
             format!("expected {}, found {}", expected, token.describe()),
         ),
         None => Error::new(
-            Span {
-                start: u32::try_from(tokens.input().len()).unwrap(),
-                end: u32::try_from(tokens.input().len()).unwrap(),
-            },
+            tokens.eof_span(),
             format!("expected {}, found eof", expected),
         ),
     }
