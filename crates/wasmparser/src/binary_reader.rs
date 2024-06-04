@@ -48,8 +48,7 @@ pub(crate) enum BinaryReaderErrorKind {
 /// The result for `BinaryReader` operations.
 pub type Result<T, E = BinaryReaderError> = core::result::Result<T, E>;
 
-#[cfg(feature = "std")]
-impl std::error::Error for BinaryReaderError {}
+impl core::error::Error for BinaryReaderError {}
 
 impl fmt::Display for BinaryReaderError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
