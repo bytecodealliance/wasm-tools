@@ -1,0 +1,116 @@
+{
+  "worlds": [
+    {
+      "name": "w-bar",
+      "imports": {
+        "interface-0": {
+          "interface": {
+            "id": 0
+          }
+        },
+        "interface-1": {
+          "interface": {
+            "id": 1
+          }
+        }
+      },
+      "exports": {},
+      "package": 2
+    },
+    {
+      "name": "w-qux",
+      "imports": {
+        "interface-0": {
+          "interface": {
+            "id": 0
+          }
+        }
+      },
+      "exports": {},
+      "package": 3
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "types",
+      "types": {
+        "a": 0
+      },
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": "types",
+      "types": {
+        "a": 1,
+        "r": 2
+      },
+      "functions": {},
+      "package": 1
+    }
+  ],
+  "types": [
+    {
+      "name": "a",
+      "kind": "resource",
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "name": "a",
+      "kind": {
+        "type": 0
+      },
+      "owner": {
+        "interface": 1
+      }
+    },
+    {
+      "name": "r",
+      "kind": {
+        "record": {
+          "fields": [
+            {
+              "name": "f",
+              "type": "u8"
+            }
+          ]
+        }
+      },
+      "owner": {
+        "interface": 1
+      }
+    }
+  ],
+  "packages": [
+    {
+      "name": "foo:dep2",
+      "interfaces": {
+        "types": 0
+      },
+      "worlds": {}
+    },
+    {
+      "name": "foo:dep1",
+      "interfaces": {
+        "types": 1
+      },
+      "worlds": {}
+    },
+    {
+      "name": "foo:bar",
+      "interfaces": {},
+      "worlds": {
+        "w-bar": 0
+      }
+    },
+    {
+      "name": "foo:qux",
+      "interfaces": {},
+      "worlds": {
+        "w-qux": 1
+      }
+    }
+  ]
+}

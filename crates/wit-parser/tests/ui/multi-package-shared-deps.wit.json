@@ -1,0 +1,83 @@
+{
+  "worlds": [
+    {
+      "name": "w-bar",
+      "imports": {
+        "interface-0": {
+          "interface": {
+            "id": 0
+          }
+        },
+        "interface-1": {
+          "interface": {
+            "id": 1
+          }
+        }
+      },
+      "exports": {},
+      "package": 2
+    },
+    {
+      "name": "w-qux",
+      "imports": {
+        "interface-0": {
+          "interface": {
+            "id": 0
+          }
+        },
+        "interface-1": {
+          "interface": {
+            "id": 1
+          }
+        }
+      },
+      "exports": {},
+      "package": 3
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "types",
+      "types": {},
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": "types",
+      "types": {},
+      "functions": {},
+      "package": 1
+    }
+  ],
+  "types": [],
+  "packages": [
+    {
+      "name": "foo:dep1",
+      "interfaces": {
+        "types": 0
+      },
+      "worlds": {}
+    },
+    {
+      "name": "foo:dep2",
+      "interfaces": {
+        "types": 1
+      },
+      "worlds": {}
+    },
+    {
+      "name": "foo:bar",
+      "interfaces": {},
+      "worlds": {
+        "w-bar": 0
+      }
+    },
+    {
+      "name": "foo:qux",
+      "interfaces": {},
+      "worlds": {
+        "w-qux": 1
+      }
+    }
+  ]
+}
