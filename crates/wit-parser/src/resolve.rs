@@ -204,7 +204,7 @@ impl Resolve {
                 packages,
                 source_map,
             } = unresolved_group;
-            
+
             source_maps.push(source_map);
             for pkg in packages {
                 pkg_details_map.insert(pkg.name.clone(), (pkg, i));
@@ -218,7 +218,13 @@ impl Resolve {
         let mut visiting = HashSet::new();
         for pkg_details in pkg_details_map.values() {
             let (pkg, _) = pkg_details;
-            visit(pkg, &pkg_details_map, &mut order, &mut visiting, &source_maps)?;
+            visit(
+                pkg,
+                &pkg_details_map,
+                &mut order,
+                &mut visiting,
+                &source_maps,
+            )?;
         }
 
         // Ensure that the final output is topologically sorted. Use a set to ensure that we render
@@ -273,7 +279,8 @@ impl Resolve {
 
         let unresolved_top_level = UnresolvedPackageGroup::parse_dir(path)
             .with_context(|| format!("failed to parse package: {}", path.display()))?;
-        let (pkgs_ids, mut top_level_path_bufs) = self._sort_unresolved_packages(vec![unresolved_top_level])?;
+        let (pkgs_ids, mut top_level_path_bufs) =
+            self._sort_unresolved_packages(vec![unresolved_top_level])?;
 
         path_bufs.append(&mut top_level_path_bufs);
         Ok((pkgs_ids, path_bufs))
@@ -298,25 +305,29 @@ impl Resolve {
                 // directory then always parse it as an `UnresolvedPackage`
                 // since it's intentional to not support recursive `deps`
                 // directories.
-                unresolved_deps.push(UnresolvedPackageGroup::parse_dir(&path)
-                    .with_context(|| format!("failed to parse package: {}", path.display()))?)
+                unresolved_deps.push(
+                    UnresolvedPackageGroup::parse_dir(&path)
+                        .with_context(|| format!("failed to parse package: {}", path.display()))?,
+                )
             } else {
                 // If this entry is a file then we may want to ignore it but
                 // this may also be a standalone WIT file or a `*.wasm` or
                 // `*.wat` encoded package.
                 let filename = dep.file_name();
-                unresolved_deps.push(match Path::new(&filename).extension().and_then(|s| s.to_str()) {
-                    Some("wit") | Some("wat") | Some("wasm") => match self._push_file(&path)? {
-                        #[cfg(feature = "decoding")]
-                        ParsedFile::Package(_) => continue,
-                        ParsedFile::Unresolved(pkgs) => pkgs,
-                    },
+                unresolved_deps.push(
+                    match Path::new(&filename).extension().and_then(|s| s.to_str()) {
+                        Some("wit") | Some("wat") | Some("wasm") => match self._push_file(&path)? {
+                            #[cfg(feature = "decoding")]
+                            ParsedFile::Package(_) => continue,
+                            ParsedFile::Unresolved(pkgs) => pkgs,
+                        },
 
-                    // Other files in deps dir are ignored for now to avoid
-                    // accidentally including things like `.DS_Store` files in
-                    // the call below to `parse_dir`.
-                    _ => continue,
-                })
+                        // Other files in deps dir are ignored for now to avoid
+                        // accidentally including things like `.DS_Store` files in
+                        // the call below to `parse_dir`.
+                        _ => continue,
+                    },
+                )
             };
         }
         Ok(unresolved_deps)
@@ -413,7 +424,7 @@ impl Resolve {
     /// Any dependency resolution error or otherwise world-elaboration error
     /// will be returned here, if successful a package identifier is returned
     /// which corresponds to the package that was just inserted.
-    /// 
+    ///
     /// The returned [PackageId]s are listed in topologically sorted order.
     pub fn append(&mut self, unresolved_groups: UnresolvedPackageGroup) -> Result<Vec<PackageId>> {
         let (pkg_ids, _) = self._sort_unresolved_packages(vec![unresolved_groups])?;

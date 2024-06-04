@@ -95,12 +95,7 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
     Ok(())
 }
 
-fn assert_print(
-    resolve: &Resolve,
-    pkg_ids: &[PackageId],
-    path: &Path,
-    is_dir: bool,
-) -> Result<()> {
+fn assert_print(resolve: &Resolve, pkg_ids: &[PackageId], path: &Path, is_dir: bool) -> Result<()> {
     let output = WitPrinter::default().print(resolve, &pkg_ids)?;
     for pkg_id in pkg_ids {
         let pkg = &resolve.packages[*pkg_id];

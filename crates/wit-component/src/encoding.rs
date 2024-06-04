@@ -2138,7 +2138,10 @@ mod test {
     #[test]
     fn it_renames_imports() {
         let mut resolve = Resolve::new();
-        let UnresolvedPackageGroup { mut packages, source_map } = UnresolvedPackageGroup::parse(
+        let UnresolvedPackageGroup {
+            mut packages,
+            source_map,
+        } = UnresolvedPackageGroup::parse(
             Path::new("test.wit"),
             r#"
 package test:wit;
@@ -2156,9 +2159,7 @@ f: func();
 "#,
         )
         .unwrap();
-        let pkg = resolve
-            .push(packages.remove(0), &source_map)
-            .unwrap();
+        let pkg = resolve.push(packages.remove(0), &source_map).unwrap();
 
         let world = resolve.select_world(pkg, None).unwrap();
 

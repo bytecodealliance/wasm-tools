@@ -21,7 +21,10 @@ pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
     let mut resolve = Resolve::default();
     let mut last = None;
     for pkg in pkgs {
-        let UnresolvedPackageGroup {mut packages, source_map} = pkg.sources.parse().unwrap();
+        let UnresolvedPackageGroup {
+            mut packages,
+            source_map,
+        } = pkg.sources.parse().unwrap();
         let id = match resolve.push(packages.remove(0), &source_map) {
             Ok(id) => id,
             Err(e) => {
