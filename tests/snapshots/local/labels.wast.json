@@ -1,0 +1,10 @@
+{
+  "source_filename": "tests/local/labels.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "labels.0.wasm"
+    }
+  ]
+}

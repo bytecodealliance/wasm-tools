@@ -1281,9 +1281,9 @@ impl Printer {
 
         let nesting_start = self.nesting;
 
-        let mut buf = String::new();
-        let mut op_printer = operator::PrintOperator::new(self, state);
-        while !body.eof() {
+        let mut op_printer =
+            operator::PrintOperator::new(self, state, operator::OperatorSeparator::Newline);
+        while !body.is_end_then_eof() {
             // Branch hints are stored in increasing order of their body offset
             // so print them whenever their instruction comes up.
             if let Some(((hint_offset, hint), rest)) = branch_hints.split_first() {
@@ -1299,48 +1299,8 @@ impl Printer {
                 }
             }
 
-            let offset = body.original_position();
-            mem::swap(&mut buf, &mut op_printer.printer.result);
-            let op_kind = body.visit_operator(&mut op_printer)??;
-            mem::swap(&mut buf, &mut op_printer.printer.result);
-
-            match op_kind {
-                // The final `end` in a reader is not printed, it's implied
-                // in the text format.
-                operator::OpKind::End if body.eof() => break,
-
-                // When we start a block we newline to the current
-                // indentation, then we increase the indentation so further
-                // instructions are tabbed over.
-                operator::OpKind::BlockStart => {
-                    op_printer.printer.newline(offset);
-                    op_printer.printer.nesting += 1;
-                }
-
-                // `else`/`catch` are special in that it's printed at
-                // the previous indentation, but it doesn't actually change
-                // our nesting level.
-                operator::OpKind::BlockMid => {
-                    op_printer.printer.nesting -= 1;
-                    op_printer.printer.newline(offset);
-                    op_printer.printer.nesting += 1;
-                }
-
-                // Exiting a block prints `end` at the previous indentation
-                // level.
-                operator::OpKind::End | operator::OpKind::Delegate
-                    if op_printer.printer.nesting > nesting_start =>
-                {
-                    op_printer.printer.nesting -= 1;
-                    op_printer.printer.newline(offset);
-                }
-
-                // .. otherwise everything else just has a normal newline
-                // out in front.
-                _ => op_printer.printer.newline(offset),
-            }
-            op_printer.printer.result.push_str(&buf);
-            buf.truncate(0);
+            op_printer.op_offset = body.original_position();
+            body.visit_operator(&mut op_printer)??;
         }
 
         // If this was an invalid function body then the nesting may not
@@ -1596,40 +1556,14 @@ impl Printer {
         explicit: &str,
     ) -> Result<()> {
         self.start_group("");
-        let mut prev = mem::take(&mut self.result);
         let mut reader = expr.get_operators_reader();
-        let mut op_printer = operator::PrintOperator::new(self, state);
-        let mut first_op = None;
-        for i in 0.. {
-            if reader.eof() {
-                break;
-            }
-            match reader.visit_operator(&mut op_printer)?? {
-                operator::OpKind::End if reader.eof() => {}
 
-                _ if i == 0 => first_op = Some(mem::take(&mut op_printer.printer.result)),
-
-                _ => {
-                    if i == 1 {
-                        prev.push_str(explicit);
-                        prev.push(' ');
-                        prev.push_str(&first_op.take().unwrap());
-                    }
-                    prev.push(' ');
-                    prev.push_str(&op_printer.printer.result);
-                }
-            }
-
-            op_printer.printer.result.truncate(0);
+        if reader.read().is_ok() && !reader.is_end_then_eof() {
+            write!(self.result, "{explicit} ")?;
         }
 
-        // If `first_op` is still set here then it means we don't need to print
-        // an expression with `explicit` as the leading token, instead we can
-        // print the single operator.
-        if let Some(op) = first_op {
-            prev.push_str(&op);
-        }
-        self.result = prev;
+        self.print_const_expr(state, expr)?;
+
         self.end_group();
         Ok(())
     }
@@ -1639,23 +1573,16 @@ impl Printer {
         let mut reader = expr.get_operators_reader();
         let mut first = true;
 
-        let mut result = mem::take(&mut self.result);
-        let mut op_printer = operator::PrintOperator::new(self, state);
-        while !reader.eof() {
+        let mut op_printer =
+            operator::PrintOperator::new(self, state, operator::OperatorSeparator::None);
+        while !reader.is_end_then_eof() {
             if first {
                 first = false;
             } else {
                 op_printer.printer.result.push(' ');
             }
-            match reader.visit_operator(&mut op_printer)?? {
-                operator::OpKind::End if reader.eof() => {}
-                _ => {
-                    result.push_str(&op_printer.printer.result);
-                    op_printer.printer.result.truncate(0);
-                }
-            }
+            reader.visit_operator(&mut op_printer)??;
         }
-        self.result = result;
         Ok(())
     }
 

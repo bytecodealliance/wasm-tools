@@ -209,6 +209,12 @@ impl<'a> OperatorsReader<'a> {
     pub fn get_binary_reader(&self) -> BinaryReader<'a> {
         self.reader.clone()
     }
+
+    /// Returns whether there is an `end` opcode followed by eof remaining in
+    /// this reader.
+    pub fn is_end_then_eof(&self) -> bool {
+        self.reader.is_end_then_eof()
+    }
 }
 
 impl<'a> IntoIterator for OperatorsReader<'a> {
