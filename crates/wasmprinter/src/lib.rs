@@ -889,12 +889,13 @@ impl Printer {
         }
         params.finish(self)?;
         if !ty.results().is_empty() {
-            write!(self.result, " (result")?;
+            write!(self.result, " ")?;
+            self.start_group("result")?;
             for result in ty.results().iter() {
                 write!(self.result, " ")?;
                 self.print_valtype(state, *result)?;
             }
-            write!(self.result, ")")?;
+            self.end_group()?;
         }
         Ok(ty.params().len() as u32)
     }
@@ -985,15 +986,16 @@ impl Printer {
                 RefType::EXN => write!(self.result, "exnref")?,
                 RefType::NOEXN => write!(self.result, "nullexnref")?,
                 _ => {
-                    write!(self.result, "(ref null ")?;
+                    self.start_group("ref")?;
+                    write!(self.result, " null ")?;
                     self.print_heaptype(state, ty.heap_type())?;
-                    write!(self.result, ")")?;
+                    self.end_group()?;
                 }
             }
         } else {
-            write!(self.result, "(ref ")?;
+            self.start_group("ref ")?;
             self.print_heaptype(state, ty.heap_type())?;
-            write!(self.result, ")")?;
+            self.end_group()?;
         }
         Ok(())
     }
@@ -1366,41 +1368,43 @@ impl Printer {
     }
 
     fn print_external_kind(&mut self, state: &State, kind: ExternalKind, index: u32) -> Result<()> {
-        write!(self.result, "(")?;
         match kind {
             ExternalKind::Func => {
-                write!(self.result, "func ")?;
+                self.start_group("func ")?;
                 self.print_idx(&state.core.func_names, index)?;
             }
             ExternalKind::Table => {
-                write!(self.result, "table ")?;
+                self.start_group("table ")?;
                 self.print_idx(&state.core.table_names, index)?;
             }
             ExternalKind::Global => {
-                write!(self.result, "global ")?;
+                self.start_group("global ")?;
                 self.print_idx(&state.core.global_names, index)?;
             }
             ExternalKind::Memory => {
-                write!(self.result, "memory ")?;
+                self.start_group("memory ")?;
                 self.print_idx(&state.core.memory_names, index)?;
             }
-            ExternalKind::Tag => write!(self.result, "tag {}", index)?,
+            ExternalKind::Tag => {
+                self.start_group("tag ")?;
+                write!(self.result, "{index}")?;
+            }
         }
-        write!(self.result, ")")?;
+        self.end_group()?;
         Ok(())
     }
 
     fn print_core_type_ref(&mut self, state: &State, idx: u32) -> Result<()> {
-        write!(self.result, "(type ")?;
+        self.start_group("type ")?;
         self.print_idx(&state.core.type_names, idx)?;
-        write!(self.result, ")")?;
+        self.end_group()?;
         Ok(())
     }
 
     fn print_component_type_ref(&mut self, state: &State, idx: u32) -> Result<()> {
-        write!(self.result, "(type ")?;
+        self.start_group("type ")?;
         self.print_idx(&state.component.type_names, idx)?;
-        write!(self.result, ")")?;
+        self.end_group()?;
         Ok(())
     }
 
@@ -2840,7 +2844,7 @@ impl NamedLocalPrinter {
         // Named locals must be in their own group, so if we have a name we need
         // to terminate the previous group.
         if name.is_some() && self.in_group {
-            write!(dst.result, ")")?;
+            dst.end_group()?;
             self.in_group = false;
         }
 
@@ -2853,7 +2857,8 @@ impl NamedLocalPrinter {
         // Next we either need a separator if we're already in a group or we
         // need to open a group for our new local.
         if !self.in_group {
-            write!(dst.result, "({} ", self.group_name)?;
+            dst.start_group(self.group_name)?;
+            write!(dst.result, " ")?;
             self.in_group = true;
         }
 
@@ -2877,7 +2882,7 @@ impl NamedLocalPrinter {
 
     fn end_local(&mut self, dst: &mut Printer) -> Result<()> {
         if self.end_group_after_local {
-            write!(dst.result, ")")?;
+            dst.end_group()?;
             self.end_group_after_local = false;
             self.in_group = false;
         }
@@ -2885,7 +2890,7 @@ impl NamedLocalPrinter {
     }
     fn finish(self, dst: &mut Printer) -> Result<()> {
         if self.in_group {
-            write!(dst.result, ")")?;
+            dst.end_group()?;
         }
         Ok(())
     }

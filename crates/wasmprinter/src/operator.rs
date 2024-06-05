@@ -102,9 +102,10 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         match ty {
             BlockType::Empty => {}
             BlockType::Type(t) => {
-                self.push_str(" (result ");
+                self.push_str(" ");
+                self.printer.start_group("result ")?;
                 self.printer.print_valtype(self.state, t)?;
-                self.push_str(")");
+                self.printer.end_group()?;
             }
             BlockType::FuncType(idx) => {
                 self.push_str(" ");
@@ -457,9 +458,10 @@ macro_rules! define_visit {
         $self.printer.print_idx(&$self.state.core.type_names, $ty)?;
     );
     (payload $self:ident TypedSelect $ty:ident) => (
-        $self.push_str(" (result ");
+        $self.push_str(" ");
+        $self.printer.start_group("result ")?;
         $self.printer.print_valtype($self.state, $ty)?;
-        $self.push_str(")")
+        $self.printer.end_group()?;
     );
     (payload $self:ident RefNull $hty:ident) => (
         $self.push_str(" ");
