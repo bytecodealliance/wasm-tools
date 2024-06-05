@@ -212,7 +212,7 @@ impl<'a> OperatorsReader<'a> {
 
     /// Returns whether there is an `end` opcode followed by eof remaining in
     /// this reader.
-    pub fn is_end_then_eof(&mut self) -> bool {
+    pub fn is_end_then_eof(&self) -> bool {
         self.reader.is_end_then_eof()
     }
 }
