@@ -1295,8 +1295,7 @@ impl Printer {
                     let desc = if hint.taken { "\"\\01\"" } else { "\"\\00\"" };
                     write!(
                         op_printer.printer.result,
-                        "(@metadata.code.branch_hint {})",
-                        desc
+                        "(@metadata.code.branch_hint {desc})",
                     )?;
                 }
             }
@@ -1334,7 +1333,7 @@ impl Printer {
 
         if self.print_offsets {
             match offset {
-                Some(offset) => write!(self.result, "(;@{offset:<6x};)").unwrap(),
+                Some(offset) => write!(self.result, "(;@{offset:<6x};)")?,
                 None => write!(self.result, "           ")?,
             }
         }
@@ -1622,7 +1621,7 @@ impl Printer {
             self.print_str(name)?;
             write!(self.result, " ")?;
             self.print_component_val_type(state, ty)?;
-            self.end_group()?
+            self.end_group()?;
         }
         self.end_group()?;
         Ok(())
@@ -1646,7 +1645,7 @@ impl Printer {
                 write!(&mut self.result, "{}", refines)?;
                 self.end_group()?;
             }
-            self.end_group()?
+            self.end_group()?;
         }
         self.end_group()?;
 
@@ -1740,11 +1739,9 @@ impl Printer {
 
     fn print_component_val_type(&mut self, state: &State, ty: &ComponentValType) -> Result<()> {
         match ty {
-            ComponentValType::Primitive(ty) => self.print_primitive_val_type(ty)?,
-            ComponentValType::Type(idx) => self.print_idx(&state.component.type_names, *idx)?,
+            ComponentValType::Primitive(ty) => self.print_primitive_val_type(ty),
+            ComponentValType::Type(idx) => self.print_idx(&state.component.type_names, *idx),
         }
-
-        Ok(())
     }
 
     fn print_module_type(
@@ -1870,7 +1867,7 @@ impl Printer {
         if let Some(name) = outer.name.as_ref() {
             name.write(&mut self.result);
         } else {
-            self.result.push_str(count.to_string().as_str());
+            write!(self.result, "{count}")?;
         }
         write!(self.result, " ")?;
         match kind {
@@ -1900,7 +1897,7 @@ impl Printer {
             self.print_str(name)?;
             write!(self.result, " ")?;
             self.print_component_val_type(state, ty)?;
-            self.end_group()?
+            self.end_group()?;
         }
 
         for (name, ty) in ty.results.iter() {
@@ -1911,7 +1908,7 @@ impl Printer {
                 write!(self.result, " ")?;
             }
             self.print_component_val_type(state, ty)?;
-            self.end_group()?
+            self.end_group()?;
         }
 
         self.end_group()?;
@@ -3017,11 +3014,7 @@ impl Naming {
             || name.starts_with('#')
             || used.map(|set| !set.insert(name)).unwrap_or(false)
         {
-            let mut id = String::new();
-            id.push('#');
-            id.push_str(group);
-            write!(id, "{}", index).unwrap();
-            id.push('<');
+            let mut id = format!("#{group}{index}<");
             id.extend(name.chars().map(|c| if is_idchar(c) { c } else { '_' }));
             id.push('>');
             identifier = Some(id);
