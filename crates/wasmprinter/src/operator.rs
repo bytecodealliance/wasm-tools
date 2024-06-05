@@ -3,8 +3,8 @@ use anyhow::{anyhow, bail, Result};
 use std::fmt::Write;
 use wasmparser::{BlockType, BrTable, Catch, MemArg, Ordering, RefType, TryTable, VisitOperator};
 
-pub struct PrintOperator<'a, 'b> {
-    pub(super) printer: &'a mut Printer,
+pub struct PrintOperator<'cfg, 'a, 'b> {
+    pub(super) printer: &'a mut Printer<'cfg>,
     pub(super) op_offset: usize,
     nesting_start: u32,
     state: &'b mut State,
@@ -18,12 +18,12 @@ pub enum OperatorSeparator {
     None,
 }
 
-impl<'a, 'b> PrintOperator<'a, 'b> {
+impl<'cfg, 'a, 'b> PrintOperator<'cfg, 'a, 'b> {
     pub(super) fn new(
-        printer: &'a mut Printer,
+        printer: &'a mut Printer<'cfg>,
         state: &'b mut State,
         sep: OperatorSeparator,
-    ) -> PrintOperator<'a, 'b> {
+    ) -> Self {
         PrintOperator {
             nesting_start: printer.nesting,
             op_offset: 0,
@@ -90,7 +90,7 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
                 name.write(&mut self.printer.result);
                 true
             }
-            None if self.printer.name_unnamed => {
+            None if self.printer.config.name_unnamed => {
                 // Subtract one from the depth here because the label was
                 // already pushed onto our stack when the instruction was
                 // entered so its own label is one less.
@@ -184,7 +184,7 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
                     // Note that synthesized label names don't handle the
                     // function itself, so i==0, branching to a function label,
                     // is not supported and otherwise labels are offset by 1.
-                    None if !name_conflict && self.printer.name_unnamed && i > 0 => {
+                    None if !name_conflict && self.printer.config.name_unnamed && i > 0 => {
                         write!(self.result(), "$#label{}", i - 1)?
                     }
 
@@ -1166,7 +1166,7 @@ macro_rules! define_visit {
     (name GlobalAtomicRmwCmpxchg) => ("global.atomic.rmw.cmpxchg");
 }
 
-impl<'a> VisitOperator<'a> for PrintOperator<'_, '_> {
+impl<'a> VisitOperator<'a> for PrintOperator<'_, '_, '_> {
     type Output = Result<()>;
 
     wasmparser::for_each_operator!(define_visit);

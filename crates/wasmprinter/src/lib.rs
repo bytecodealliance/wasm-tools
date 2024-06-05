@@ -28,25 +28,33 @@ mod operator;
 pub fn print_file(file: impl AsRef<Path>) -> Result<String> {
     let file = file.as_ref();
     let contents = std::fs::read(file).context(format!("failed to read `{}`", file.display()))?;
-    Printer::new().print(&contents)
+    print_bytes(contents)
 }
 
 /// Prints an in-memory `wasm` binary blob into an in-memory `String` which is
 /// its textual representation.
 pub fn print_bytes(wasm: impl AsRef<[u8]>) -> Result<String> {
-    Printer::new().print(wasm.as_ref())
+    let mut dst = String::new();
+    Config::new().print(wasm.as_ref(), &mut dst)?;
+    Ok(dst)
 }
 
-/// Context used for printing a WebAssembly binary.
+/// Configuration used to print a WebAssembly binary.
 ///
-/// This is largely only required if you'd like to register custom printers for
-/// custom sections in a wasm binary.
+/// This structure is used to control the overal structure of how wasm binaries
+/// are printed and tweaks various ways that configures the output.
 #[derive(Default)]
-pub struct Printer {
+pub struct Config {
     print_offsets: bool,
     print_skeleton: bool,
-    printers: HashMap<String, Box<dyn FnMut(&mut Printer, usize, &[u8]) -> Result<()>>>,
-    result: String,
+    printers: HashMap<String, Box<dyn Fn(&mut Printer, usize, &[u8]) -> Result<()>>>,
+    name_unnamed: bool,
+}
+
+/// This structure is the actual structure that prints WebAssembly binaries.
+pub struct Printer<'cfg> {
+    config: &'cfg Config,
+    result: &'cfg mut String,
     /// The `i`th line in `result` is at offset `lines[i]`.
     lines: Vec<usize>,
     /// The binary offset for the `i`th line is `line_offsets[i]`.
@@ -55,7 +63,6 @@ pub struct Printer {
     line: usize,
     group_lines: Vec<usize>,
     code_section_hints: Vec<(u32, Vec<(usize, BranchHint)>)>,
-    name_unnamed: bool,
 }
 
 #[derive(Default)]
@@ -145,8 +152,8 @@ struct Naming {
     name: String,
 }
 
-impl Printer {
-    /// Creates a new `Printer` object that's ready to start printing wasm
+impl Config {
+    /// Creates a new [`Config`] object that's ready to start printing wasm
     /// binaries to strings.
     pub fn new() -> Self {
         Self::default()
@@ -196,38 +203,58 @@ impl Printer {
     pub fn add_custom_section_printer(
         &mut self,
         section: &str,
-        printer: impl FnMut(&mut Printer, usize, &[u8]) -> Result<()> + 'static,
+        printer: impl Fn(&mut Printer, usize, &[u8]) -> Result<()> + 'static,
     ) {
         self.printers.insert(section.to_string(), Box::new(printer));
-    }
-
-    /// Gets the output result of this `Printer`, or where all output is going.
-    pub fn result_mut(&mut self) -> &mut String {
-        &mut self.result
     }
 
     /// Prints a WebAssembly binary into a `String`
     ///
     /// This function takes an entire `wasm` binary blob and will print it to
     /// the WebAssembly Text Format and return the result as a `String`.
-    pub fn print(&mut self, wasm: &[u8]) -> Result<String> {
-        self.print_contents(wasm)?;
-        Ok(mem::take(&mut self.result))
+    pub fn print(&mut self, wasm: &[u8], dst: &mut String) -> Result<()> {
+        Printer {
+            config: self,
+            result: dst,
+            code_section_hints: Vec::new(),
+            group_lines: Vec::new(),
+            line: 0,
+            nesting: 0,
+            lines: Vec::new(),
+            line_offsets: Vec::new(),
+        }
+        .print_contents(wasm)
     }
 
     /// Get the line-by-line WAT disassembly for the given Wasm, along with the
     /// binary offsets for each line.
     pub fn offsets_and_lines<'a>(
-        &'a mut self,
+        &self,
         wasm: &[u8],
+        storage: &'a mut String,
     ) -> Result<impl Iterator<Item = (Option<usize>, &'a str)> + 'a> {
-        self.print_contents(wasm)?;
+        let mut printer = Printer {
+            config: self,
+            result: storage,
+            code_section_hints: Vec::new(),
+            group_lines: Vec::new(),
+            line: 0,
+            nesting: 0,
+            lines: Vec::new(),
+            line_offsets: Vec::new(),
+        };
+        printer.print_contents(wasm)?;
 
-        let end = self.result.len();
-        let result = &self.result;
+        let Printer {
+            lines,
+            line_offsets,
+            ..
+        } = printer;
+        let end = storage.len();
+        let result = &storage[..];
 
-        let mut offsets = self.line_offsets.iter().copied();
-        let mut lines = self.lines.iter().copied().peekable();
+        let mut offsets = line_offsets.into_iter();
+        let mut lines = lines.into_iter().peekable();
 
         Ok(std::iter::from_fn(move || {
             let offset = offsets.next()?;
@@ -237,7 +264,9 @@ impl Printer {
             Some((offset, line))
         }))
     }
+}
 
+impl Printer<'_> {
     fn read_names_and_code<'a>(
         &mut self,
         mut bytes: &'a [u8],
@@ -405,12 +434,12 @@ impl Printer {
                 }
                 Payload::CustomSection(c) => {
                     let mut printed = false;
-                    let mut printers = mem::take(&mut self.printers);
-                    if let Some(printer) = printers.get_mut(c.name()) {
+                    // let mut printers = mem::take(&mut self.printers);
+                    if let Some(printer) = self.config.printers.get(c.name()) {
                         printer(self, c.data_offset(), c.data())?;
                         printed = true;
                     }
-                    self.printers = printers;
+                    // self.printers = printers;
 
                     if printed {
                         continue;
@@ -591,7 +620,7 @@ impl Printer {
                         parser = parsers.pop().unwrap();
                     } else {
                         self.newline(offset)?;
-                        if self.print_offsets {
+                        if self.config.print_offsets {
                             write!(self.result, "\n")?;
                         }
                         break;
@@ -915,7 +944,7 @@ impl Printer {
         if let Some(idxs @ (_, field_idx)) = ty_field_idx {
             match state.core.field_names.index_to_name.get(&idxs) {
                 Some(name) => write!(self.result, "${} ", name.identifier())?,
-                None if self.name_unnamed => write!(self.result, "$#field{field_idx} ")?,
+                None if self.config.name_unnamed => write!(self.result, "$#field{field_idx} ")?,
                 None => {}
             }
         }
@@ -1237,7 +1266,7 @@ impl Printer {
                 _ => Vec::new(),
             };
 
-            if self.print_skeleton {
+            if self.config.print_skeleton {
                 write!(self.result, " ...")?;
             } else {
                 self.print_func_body(state, func_idx, params, &mut body, &hints)?;
@@ -1336,7 +1365,7 @@ impl Printer {
         self.lines.push(self.result.len());
         self.line_offsets.push(offset);
 
-        if self.print_offsets {
+        if self.config.print_offsets {
             match offset {
                 Some(offset) => write!(self.result, "(;@{offset:<6x};)")?,
                 None => write!(self.result, "           ")?,
@@ -1422,7 +1451,7 @@ impl Printer {
     fn _print_idx(&mut self, names: &HashMap<u32, Naming>, idx: u32, desc: &str) -> Result<()> {
         match names.get(&idx) {
             Some(name) => write!(self.result, "${}", name.identifier())?,
-            None if self.name_unnamed => write!(self.result, "$#{desc}{idx}")?,
+            None if self.config.name_unnamed => write!(self.result, "$#{desc}{idx}")?,
             None => write!(self.result, "{idx}")?,
         }
         Ok(())
@@ -1431,7 +1460,7 @@ impl Printer {
     fn print_local_idx(&mut self, state: &State, func: u32, idx: u32) -> Result<()> {
         match state.core.local_names.index_to_name.get(&(func, idx)) {
             Some(name) => write!(self.result, "${}", name.identifier())?,
-            None if self.name_unnamed => write!(self.result, "$#local{idx}")?,
+            None if self.config.name_unnamed => write!(self.result, "$#local{idx}")?,
             None => write!(self.result, "{}", idx)?,
         }
         Ok(())
@@ -1440,7 +1469,7 @@ impl Printer {
     fn print_field_idx(&mut self, state: &State, ty: u32, idx: u32) -> Result<()> {
         match state.core.field_names.index_to_name.get(&(ty, idx)) {
             Some(name) => write!(self.result, "${}", name.identifier())?,
-            None if self.name_unnamed => write!(self.result, "$#field{idx}")?,
+            None if self.config.name_unnamed => write!(self.result, "$#field{idx}")?,
             None => write!(self.result, "{}", idx)?,
         }
         Ok(())
@@ -1464,7 +1493,7 @@ impl Printer {
                 name.write(&mut self.result);
                 write!(self.result, " ")?;
             }
-            None if self.name_unnamed => {
+            None if self.config.name_unnamed => {
                 write!(self.result, "$#{desc}{cur_idx} ")?;
             }
             None => {}
@@ -1498,7 +1527,7 @@ impl Printer {
             }
             write!(self.result, " ")?;
 
-            if self.print_skeleton {
+            if self.config.print_skeleton {
                 write!(self.result, "...")?;
             } else {
                 match elem.items {
@@ -1545,7 +1574,7 @@ impl Printer {
                     write!(self.result, " ")?;
                 }
             }
-            if self.print_skeleton {
+            if self.config.print_skeleton {
                 write!(self.result, "...")?;
             } else {
                 self.print_bytes(data.data)?;
@@ -2871,7 +2900,7 @@ impl NamedLocalPrinter {
                 write!(dst.result, " ")?;
                 self.end_group_after_local = true;
             }
-            None if dst.name_unnamed => {
+            None if dst.config.name_unnamed => {
                 write!(dst.result, "$#local{local} ")?;
                 self.end_group_after_local = true;
             }
@@ -2982,7 +3011,7 @@ macro_rules! print_float {
     };
 }
 
-impl Printer {
+impl Printer<'_> {
     print_float!(print_f32 f32 u32 i32 8);
     print_float!(print_f64 f64 u64 i64 11);
 }
