@@ -35,8 +35,9 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         }
     }
 
-    fn push_str(&mut self, s: &str) {
+    fn push_str(&mut self, s: &str) -> Result<()> {
         self.printer.result.push_str(s);
+        Ok(())
     }
 
     fn result(&mut self) -> &mut String {
@@ -102,13 +103,13 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         match ty {
             BlockType::Empty => {}
             BlockType::Type(t) => {
-                self.push_str(" ");
+                self.push_str(" ")?;
                 self.printer.start_group("result ")?;
                 self.printer.print_valtype(self.state, t)?;
                 self.printer.end_group()?;
             }
             BlockType::FuncType(idx) => {
-                self.push_str(" ");
+                self.push_str(" ")?;
                 self.printer
                     .print_core_functype_idx(self.state, idx, None)?;
             }
@@ -119,7 +120,7 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
     fn maybe_blockty_label_comment(&mut self, has_name: bool) -> Result<()> {
         if !has_name {
             let depth = self.cur_depth();
-            self.push_str(" ");
+            self.push_str(" ")?;
             write!(self.result(), ";; label = @{}", depth)?;
         }
 
@@ -132,13 +133,13 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
     }
 
     fn tag_index(&mut self, index: u32) -> Result<()> {
-        self.push_str(" ");
+        self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.tag_names, index)?;
         Ok(())
     }
 
     fn relative_depth(&mut self, depth: u32) -> Result<()> {
-        self.push_str(" ");
+        self.push_str(" ")?;
         match self.cur_depth().checked_sub(depth) {
             // If this relative depth is in-range relative to the current depth,
             // then try to print a name for this label. Label names are tracked
@@ -219,23 +220,23 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
     }
 
     fn function_index(&mut self, idx: u32) -> Result<()> {
-        self.push_str(" ");
+        self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.func_names, idx)
     }
 
     fn local_index(&mut self, idx: u32) -> Result<()> {
-        self.push_str(" ");
+        self.push_str(" ")?;
         self.printer
             .print_local_idx(self.state, self.state.core.funcs, idx)
     }
 
     fn global_index(&mut self, idx: u32) -> Result<()> {
-        self.push_str(" ");
+        self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.global_names, idx)
     }
 
     fn table_index(&mut self, idx: u32) -> Result<()> {
-        self.push_str(" ");
+        self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.table_names, idx)
     }
 
@@ -244,27 +245,27 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
     }
 
     fn memory_index(&mut self, idx: u32) -> Result<()> {
-        self.push_str(" ");
+        self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.memory_names, idx)
     }
 
     fn type_index(&mut self, idx: u32) -> Result<()> {
-        self.push_str(" ");
+        self.push_str(" ")?;
         self.printer.print_core_type_ref(self.state, idx)
     }
 
     fn array_type_index(&mut self, idx: u32) -> Result<()> {
-        self.push_str(" ");
+        self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.type_names, idx)
     }
 
     fn array_type_index_dst(&mut self, idx: u32) -> Result<()> {
-        self.push_str(" ");
+        self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.type_names, idx)
     }
 
     fn array_type_index_src(&mut self, idx: u32) -> Result<()> {
-        self.push_str(" ");
+        self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.type_names, idx)
     }
 
@@ -274,37 +275,37 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
     }
 
     fn struct_type_index(&mut self, idx: u32) -> Result<()> {
-        self.push_str(" ");
+        self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.type_names, idx)
     }
 
     fn from_ref_type(&mut self, ref_ty: RefType) -> Result<()> {
-        self.push_str(" ");
+        self.push_str(" ")?;
         self.printer.print_reftype(self.state, ref_ty)
     }
 
     fn to_ref_type(&mut self, ref_ty: RefType) -> Result<()> {
-        self.push_str(" ");
+        self.push_str(" ")?;
         self.printer.print_reftype(self.state, ref_ty)
     }
 
     fn data_index(&mut self, idx: u32) -> Result<()> {
-        self.push_str(" ");
+        self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.data_names, idx)
     }
 
     fn array_data_index(&mut self, idx: u32) -> Result<()> {
-        self.push_str(" ");
+        self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.data_names, idx)
     }
 
     fn elem_index(&mut self, idx: u32) -> Result<()> {
-        self.push_str(" ");
+        self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.element_names, idx)
     }
 
     fn array_elem_index(&mut self, idx: u32) -> Result<()> {
-        self.push_str(" ");
+        self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.element_names, idx)
     }
 
@@ -401,7 +402,7 @@ macro_rules! define_visit {
     ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident )*) => ($(
         fn $visit(&mut self $( , $($arg: $argty),* )?) -> Self::Output {
             define_visit!(before_op self $op);
-            self.push_str(define_visit!(name $op));
+            self.push_str(define_visit!(name $op))?;
             $(
                 define_visit!(payload self $op $($arg)*);
             )?
@@ -450,21 +451,21 @@ macro_rules! define_visit {
         $self.type_index($ty)?;
     );
     (payload $self:ident CallRef $ty:ident) => (
-        $self.push_str(" ");
+        $self.push_str(" ")?;
         $self.printer.print_idx(&$self.state.core.type_names, $ty)?;
     );
     (payload $self:ident ReturnCallRef $ty:ident) => (
-        $self.push_str(" ");
+        $self.push_str(" ")?;
         $self.printer.print_idx(&$self.state.core.type_names, $ty)?;
     );
     (payload $self:ident TypedSelect $ty:ident) => (
-        $self.push_str(" ");
+        $self.push_str(" ")?;
         $self.printer.start_group("result ")?;
         $self.printer.print_valtype($self.state, $ty)?;
         $self.printer.end_group()?;
     );
     (payload $self:ident RefNull $hty:ident) => (
-        $self.push_str(" ");
+        $self.push_str(" ")?;
         $self.printer.print_heaptype($self.state, $hty)?;
     );
     (payload $self:ident TableInit $segment:ident $table:ident) => (
@@ -514,15 +515,15 @@ macro_rules! define_visit {
     (payload $self:ident I32Const $val:ident) => (write!($self.result(), " {}", $val)?);
     (payload $self:ident I64Const $val:ident) => (write!($self.result(), " {}", $val)?);
     (payload $self:ident F32Const $val:ident) => (
-        $self.push_str(" ");
+        $self.push_str(" ")?;
         $self.printer.print_f32($val.bits())?;
     );
     (payload $self:ident F64Const $val:ident) => (
-        $self.push_str(" ");
+        $self.push_str(" ")?;
         $self.printer.print_f64($val.bits())?;
     );
     (payload $self:ident V128Const $val:ident) => (
-        $self.push_str(" i32x4");
+        $self.push_str(" i32x4")?;
         for chunk in $val.bytes().chunks(4) {
             write!(
                 $self.result(),
@@ -535,47 +536,47 @@ macro_rules! define_visit {
         }
     );
     (payload $self:ident RefTestNonNull $hty:ident) => (
-        $self.push_str(" ");
+        $self.push_str(" ")?;
         let rty = RefType::new(false, $hty)
             .ok_or_else(|| anyhow!("implementation limit: type index too large"))?;
         $self.printer.print_reftype($self.state, rty)?;
     );
     (payload $self:ident RefTestNullable $hty:ident) => (
-        $self.push_str(" ");
+        $self.push_str(" ")?;
         let rty = RefType::new(true, $hty)
             .ok_or_else(|| anyhow!("implementation limit: type index too large"))?;
         $self.printer.print_reftype($self.state, rty)?;
     );
     (payload $self:ident RefCastNonNull $hty:ident) => (
-        $self.push_str(" ");
+        $self.push_str(" ")?;
         let rty = RefType::new(false, $hty)
             .ok_or_else(|| anyhow!("implementation limit: type index too large"))?;
         $self.printer.print_reftype($self.state, rty)?;
     );
     (payload $self:ident RefCastNullable $hty:ident) => (
-        $self.push_str(" ");
+        $self.push_str(" ")?;
         let rty = RefType::new(true, $hty)
             .ok_or_else(|| anyhow!("implementation limit: type index too large"))?;
         $self.printer.print_reftype($self.state, rty)?;
     );
     (payload $self:ident StructGet $ty:ident $field:ident) => (
         $self.struct_type_index($ty)?;
-        $self.push_str(" ");
+        $self.push_str(" ")?;
         $self.printer.print_field_idx($self.state, $ty, $field)?;
     );
     (payload $self:ident StructGetS $ty:ident $field:ident) => (
         $self.struct_type_index($ty)?;
-        $self.push_str(" ");
+        $self.push_str(" ")?;
         $self.printer.print_field_idx($self.state, $ty, $field)?;
     );
     (payload $self:ident StructGetU $ty:ident $field:ident) => (
         $self.struct_type_index($ty)?;
-        $self.push_str(" ");
+        $self.push_str(" ")?;
         $self.printer.print_field_idx($self.state, $ty, $field)?;
     );
     (payload $self:ident StructSet $ty:ident $field:ident) => (
         $self.struct_type_index($ty)?;
-        $self.push_str(" ");
+        $self.push_str(" ")?;
         $self.printer.print_field_idx($self.state, $ty, $field)?;
     );
     (payload $self:ident $op:ident $($arg:ident)*) => (
