@@ -6,3 +6,4 @@ publish
 *.wat
 test.config
 
+.vscode/
