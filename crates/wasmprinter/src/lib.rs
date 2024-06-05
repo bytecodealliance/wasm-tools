@@ -883,11 +883,11 @@ impl Printer {
         // we need to be careful to terminate previous param blocks and open
         // a new one if that's the case with a named parameter.
         for (i, param) in ty.params().iter().enumerate() {
-            params.start_local(names_for.unwrap_or(u32::MAX), i as u32, self, state);
+            params.start_local(names_for.unwrap_or(u32::MAX), i as u32, self, state)?;
             self.print_valtype(state, *param)?;
-            params.end_local(&mut self.result);
+            params.end_local(self)?;
         }
-        params.finish(&mut self.result);
+        params.finish(self)?;
         if !ty.results().is_empty() {
             write!(self.result, " (result")?;
             for result in ty.results().iter() {
@@ -1271,13 +1271,13 @@ impl Printer {
                     self.newline(offset)?;
                     first = false;
                 }
-                locals.start_local(func_idx, params + local_idx, self, state);
+                locals.start_local(func_idx, params + local_idx, self, state)?;
                 self.print_valtype(state, ty)?;
-                locals.end_local(&mut self.result);
+                locals.end_local(self)?;
                 local_idx += 1;
             }
         }
-        locals.finish(&mut self.result);
+        locals.finish(self)?;
 
         let nesting_start = self.nesting;
 
@@ -2828,28 +2828,32 @@ impl NamedLocalPrinter {
         }
     }
 
-    fn start_local(&mut self, func: u32, local: u32, dst: &mut Printer, state: &State) {
+    fn start_local(
+        &mut self,
+        func: u32,
+        local: u32,
+        dst: &mut Printer,
+        state: &State,
+    ) -> Result<()> {
         let name = state.core.local_names.index_to_name.get(&(func, local));
 
         // Named locals must be in their own group, so if we have a name we need
         // to terminate the previous group.
         if name.is_some() && self.in_group {
-            dst.result.push(')');
+            write!(dst.result, ")")?;
             self.in_group = false;
         }
 
         if self.first {
             self.first = false;
         } else {
-            dst.result.push(' ');
+            write!(dst.result, " ")?;
         }
 
         // Next we either need a separator if we're already in a group or we
         // need to open a group for our new local.
         if !self.in_group {
-            dst.result.push('(');
-            dst.result.push_str(self.group_name);
-            dst.result.push(' ');
+            write!(dst.result, "({} ", self.group_name)?;
             self.in_group = true;
         }
 
@@ -2857,30 +2861,33 @@ impl NamedLocalPrinter {
         match name {
             Some(name) => {
                 name.write(&mut dst.result);
-                dst.result.push(' ');
+                write!(dst.result, " ")?;
                 self.end_group_after_local = true;
             }
             None if dst.name_unnamed => {
-                dst.result.push_str(&format!("$#local{local} "));
+                write!(dst.result, "$#local{local} ")?;
                 self.end_group_after_local = true;
             }
             None => {
                 self.end_group_after_local = false;
             }
         }
+        Ok(())
     }
 
-    fn end_local(&mut self, dst: &mut String) {
+    fn end_local(&mut self, dst: &mut Printer) -> Result<()> {
         if self.end_group_after_local {
-            dst.push(')');
+            write!(dst.result, ")")?;
             self.end_group_after_local = false;
             self.in_group = false;
         }
+        Ok(())
     }
-    fn finish(self, dst: &mut String) {
+    fn finish(self, dst: &mut Printer) -> Result<()> {
         if self.in_group {
-            dst.push(')');
+            write!(dst.result, ")")?;
         }
+        Ok(())
     }
 }
 
