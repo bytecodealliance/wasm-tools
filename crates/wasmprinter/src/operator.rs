@@ -43,36 +43,37 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         &mut self.printer.result
     }
 
-    fn separator(&mut self) {
+    fn separator(&mut self) -> Result<()> {
         match self.sep {
-            OperatorSeparator::Newline => {
-                self.printer.newline(self.op_offset);
-            }
-            OperatorSeparator::None => {}
+            OperatorSeparator::Newline => self.printer.newline(self.op_offset),
+            OperatorSeparator::None => Ok(()),
         }
     }
 
     /// Called just before an instruction that introduces a block such as
     /// `block`, `if`, `loop`, etc.
-    fn block_start(&mut self) {
-        self.separator();
+    fn block_start(&mut self) -> Result<()> {
+        self.separator()?;
         self.printer.nesting += 1;
         self.label_indices.push(self.label);
+        Ok(())
     }
 
     /// Used for `else` and `delegate`
-    fn block_mid(&mut self) {
+    fn block_mid(&mut self) -> Result<()> {
         self.printer.nesting -= 1;
-        self.separator();
+        self.separator()?;
         self.printer.nesting += 1;
+        Ok(())
     }
 
     /// Used for `end` to terminate the prior block.
-    fn block_end(&mut self) {
+    fn block_end(&mut self) -> Result<()> {
         if self.printer.nesting > self.nesting_start {
             self.printer.nesting -= 1;
-            self.separator();
+            self.separator()?;
         }
+        Ok(())
     }
 
     fn blockty(&mut self, ty: BlockType) -> Result<()> {
@@ -413,17 +414,17 @@ macro_rules! define_visit {
     // depth as well as the stack of labels.
     //
     // The catch-all for "before an op" is "print an newline"
-    (before_op $self:ident Loop) => ($self.block_start(););
-    (before_op $self:ident Block) => ($self.block_start(););
-    (before_op $self:ident If) => ($self.block_start(););
-    (before_op $self:ident Try) => ($self.block_start(););
-    (before_op $self:ident TryTable) => ($self.block_start(););
-    (before_op $self:ident Catch) => ($self.block_mid(););
-    (before_op $self:ident CatchAll) => ($self.block_mid(););
-    (before_op $self:ident Delegate) => ($self.block_end(););
-    (before_op $self:ident Else) => ($self.block_mid(););
-    (before_op $self:ident End) => ($self.block_end(););
-    (before_op $self:ident $op:ident) => ($self.separator(););
+    (before_op $self:ident Loop) => ($self.block_start()?;);
+    (before_op $self:ident Block) => ($self.block_start()?;);
+    (before_op $self:ident If) => ($self.block_start()?;);
+    (before_op $self:ident Try) => ($self.block_start()?;);
+    (before_op $self:ident TryTable) => ($self.block_start()?;);
+    (before_op $self:ident Catch) => ($self.block_mid()?;);
+    (before_op $self:ident CatchAll) => ($self.block_mid()?;);
+    (before_op $self:ident Delegate) => ($self.block_end()?;);
+    (before_op $self:ident Else) => ($self.block_mid()?;);
+    (before_op $self:ident End) => ($self.block_end()?;);
+    (before_op $self:ident $op:ident) => ($self.separator()?;);
 
     // After some opcodes the label stack is popped.
     // (after_op $self:ident Delegate) => ($self.label_indices.pop(););
