@@ -360,26 +360,26 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
             self.result().push(' ');
             match catch {
                 Catch::One { tag, label } => {
-                    self.printer.start_group("catch");
+                    self.printer.start_group("catch")?;
                     self.tag_index(tag)?;
                     self.relative_depth(label)?;
-                    self.printer.end_group();
+                    self.printer.end_group()?;
                 }
                 Catch::OneRef { tag, label } => {
-                    self.printer.start_group("catch_ref");
+                    self.printer.start_group("catch_ref")?;
                     self.tag_index(tag)?;
                     self.relative_depth(label)?;
-                    self.printer.end_group();
+                    self.printer.end_group()?;
                 }
                 Catch::All { label } => {
-                    self.printer.start_group("catch_all");
+                    self.printer.start_group("catch_all")?;
                     self.relative_depth(label)?;
-                    self.printer.end_group();
+                    self.printer.end_group()?;
                 }
                 Catch::AllRef { label } => {
-                    self.printer.start_group("catch_all_ref");
+                    self.printer.start_group("catch_all_ref")?;
                     self.relative_depth(label)?;
-                    self.printer.end_group();
+                    self.printer.end_group()?;
                 }
             }
         }

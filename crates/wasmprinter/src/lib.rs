@@ -360,9 +360,9 @@ impl Printer {
                             states.push(State::new(Encoding::Module));
                             states.last_mut().unwrap().custom_section_place = Some("before first");
                             if states.len() > 1 {
-                                self.start_group("core module");
+                                self.start_group("core module")?;
                             } else {
-                                self.start_group("module");
+                                self.start_group("module")?;
                             }
 
                             if states.len() > 1 {
@@ -373,7 +373,7 @@ impl Printer {
                         }
                         Encoding::Component => {
                             states.push(State::new(Encoding::Component));
-                            self.start_group("component");
+                            self.start_group("component")?;
 
                             if states.len() > 1 {
                                 let parent = &states[states.len() - 2];
@@ -489,9 +489,9 @@ impl Printer {
                     self.update_custom_section_place(&mut states, "after start");
                     Self::ensure_module(&states)?;
                     self.newline(range.start);
-                    self.start_group("start ");
+                    self.start_group("start ")?;
                     self.print_idx(&states.last().unwrap().core.func_names, func)?;
-                    self.end_group();
+                    self.end_group()?;
                 }
                 Payload::ElementSection(s) => {
                     self.update_custom_section_place(&mut states, "after element");
@@ -572,7 +572,7 @@ impl Printer {
                 }
 
                 Payload::End(offset) => {
-                    self.end_group(); // close the `module` or `component` group
+                    self.end_group()?; // close the `module` or `component` group
 
                     let state = states.pop().unwrap();
                     if let Some(parent) = states.last_mut() {
@@ -609,14 +609,15 @@ impl Printer {
         }
     }
 
-    fn start_group(&mut self, name: &str) {
+    fn start_group(&mut self, name: &str) -> Result<()> {
         self.result.push('(');
         self.result.push_str(name);
         self.nesting += 1;
         self.group_lines.push(self.line);
+        Ok(())
     }
 
-    fn end_group(&mut self) {
+    fn end_group(&mut self) -> Result<()> {
         self.nesting -= 1;
         if let Some(line) = self.group_lines.pop() {
             if line != self.line {
@@ -624,6 +625,7 @@ impl Printer {
             }
         }
         self.result.push(')');
+        Ok(())
     }
 
     fn register_names(&mut self, state: &mut State, names: NameSectionReader<'_>) -> Result<()> {
@@ -722,7 +724,7 @@ impl Printer {
     }
 
     fn print_core_type(&mut self, states: &mut Vec<State>, ty: CoreType) -> Result<()> {
-        self.start_group("core type ");
+        self.start_group("core type ")?;
         self.print_name(
             &states.last().unwrap().core.type_names,
             states.last().unwrap().core.types.len() as u32,
@@ -736,9 +738,9 @@ impl Printer {
                     }
                 };
                 self.result.push(' ');
-                self.start_group("func");
+                self.start_group("func")?;
                 self.print_func_type(states.last().unwrap(), &ty, None)?;
-                self.end_group();
+                self.end_group()?;
                 Some(SubType {
                     is_final: true,
                     supertype_idx: None,
@@ -750,7 +752,7 @@ impl Printer {
                 None
             }
         };
-        self.end_group(); // `core type` itself
+        self.end_group()?; // `core type` itself
 
         states.last_mut().unwrap().core.types.push(ty);
         Ok(())
@@ -762,32 +764,32 @@ impl Printer {
         offset: usize,
         types: impl Iterator<Item = SubType>,
     ) -> Result<()> {
-        self.start_group("rec");
+        self.start_group("rec")?;
         for ty in types {
             self.newline(offset + 2);
             self.print_type(state, ty)?;
         }
-        self.end_group(); // `rec`
+        self.end_group()?; // `rec`
         Ok(())
     }
 
     fn print_type(&mut self, state: &mut State, ty: SubType) -> Result<()> {
-        self.start_group("type ");
+        self.start_group("type ")?;
         let ty_idx = state.core.types.len() as u32;
         self.print_name(&state.core.type_names, ty_idx)?;
         self.result.push(' ');
         self.print_sub(state, &ty, ty_idx)?;
-        self.end_group(); // `type`
+        self.end_group()?; // `type`
         state.core.types.push(Some(ty));
         Ok(())
     }
 
     fn print_sub(&mut self, state: &State, ty: &SubType, ty_idx: u32) -> Result<u32> {
         let r = if !ty.is_final || !ty.supertype_idx.is_none() {
-            self.start_group("sub");
+            self.start_group("sub")?;
             self.print_sub_type(state, ty)?;
             let r = self.print_composite(state, &ty.composite_type, ty_idx)?;
-            self.end_group(); // `sub`
+            self.end_group()?; // `sub`
             r
         } else {
             self.print_composite(state, &ty.composite_type, ty_idx)?
@@ -798,21 +800,21 @@ impl Printer {
     fn print_composite(&mut self, state: &State, ty: &CompositeType, ty_idx: u32) -> Result<u32> {
         let r = match &ty {
             CompositeType::Func(ty) => {
-                self.start_group("func");
+                self.start_group("func")?;
                 let r = self.print_func_type(state, ty, None)?;
-                self.end_group(); // `func`
+                self.end_group()?; // `func`
                 r
             }
             CompositeType::Array(ty) => {
-                self.start_group("array");
+                self.start_group("array")?;
                 let r = self.print_array_type(state, ty)?;
-                self.end_group(); // `array`
+                self.end_group()?; // `array`
                 r
             }
             CompositeType::Struct(ty) => {
-                self.start_group("struct");
+                self.start_group("struct")?;
                 let r = self.print_struct_type(state, ty, ty_idx)?;
-                self.end_group(); // `struct`
+                self.end_group()?; // `struct`
                 r
             }
         };
@@ -1036,20 +1038,20 @@ impl Printer {
     }
 
     fn print_import(&mut self, state: &State, import: &Import<'_>, index: bool) -> Result<()> {
-        self.start_group("import ");
+        self.start_group("import ")?;
         self.print_str(import.module)?;
         self.result.push(' ');
         self.print_str(import.name)?;
         self.result.push(' ');
         self.print_import_ty(state, &import.ty, index)?;
-        self.end_group();
+        self.end_group()?;
         Ok(())
     }
 
     fn print_import_ty(&mut self, state: &State, ty: &TypeRef, index: bool) -> Result<()> {
         match ty {
             TypeRef::Func(f) => {
-                self.start_group("func ");
+                self.start_group("func ")?;
                 if index {
                     self.print_name(&state.core.func_names, state.core.funcs)?;
                     self.result.push(' ');
@@ -1061,12 +1063,12 @@ impl Printer {
             TypeRef::Tag(f) => self.print_tag_type(state, f, index)?,
             TypeRef::Global(f) => self.print_global_type(state, f, index)?,
         }
-        self.end_group();
+        self.end_group()?;
         Ok(())
     }
 
     fn print_table_type(&mut self, state: &State, ty: &TableType, index: bool) -> Result<()> {
-        self.start_group("table ");
+        self.start_group("table ")?;
         if index {
             self.print_name(&state.core.table_names, state.core.tables)?;
             self.result.push(' ');
@@ -1081,7 +1083,7 @@ impl Printer {
     }
 
     fn print_memory_type(&mut self, state: &State, ty: &MemoryType, index: bool) -> Result<()> {
-        self.start_group("memory ");
+        self.start_group("memory ")?;
         if index {
             self.print_name(&state.core.memory_names, state.core.memories)?;
             self.result.push(' ');
@@ -1103,7 +1105,7 @@ impl Printer {
     }
 
     fn print_tag_type(&mut self, state: &State, ty: &TagType, index: bool) -> Result<()> {
-        self.start_group("tag ");
+        self.start_group("tag ")?;
         if index {
             self.print_name(&state.core.tag_names, state.core.tags)?;
             self.result.push(' ');
@@ -1124,7 +1126,7 @@ impl Printer {
     }
 
     fn print_global_type(&mut self, state: &State, ty: &GlobalType, index: bool) -> Result<()> {
-        self.start_group("global ");
+        self.start_group("global ")?;
         if index {
             self.print_name(&state.core.global_names, state.core.globals)?;
             self.result.push(' ');
@@ -1157,7 +1159,7 @@ impl Printer {
                     self.print_const_expr(state, expr)?;
                 }
             }
-            self.end_group();
+            self.end_group()?;
             state.core.tables += 1;
         }
         Ok(())
@@ -1168,7 +1170,7 @@ impl Printer {
             let (offset, memory) = memory?;
             self.newline(offset);
             self.print_memory_type(state, &memory, true)?;
-            self.end_group();
+            self.end_group()?;
             state.core.memories += 1;
         }
         Ok(())
@@ -1179,7 +1181,7 @@ impl Printer {
             let (offset, tag) = tag?;
             self.newline(offset);
             self.print_tag_type(state, &tag, true)?;
-            self.end_group();
+            self.end_group()?;
             state.core.tags += 1;
         }
         Ok(())
@@ -1192,7 +1194,7 @@ impl Printer {
             self.print_global_type(state, &global.ty, true)?;
             self.result.push(' ');
             self.print_const_expr(state, &global.init_expr)?;
-            self.end_group();
+            self.end_group()?;
             state.core.globals += 1;
         }
         Ok(())
@@ -1212,7 +1214,7 @@ impl Printer {
             let offset = body.original_position();
             let ty = ty?;
             self.newline(offset);
-            self.start_group("func ");
+            self.start_group("func ")?;
             let func_idx = state.core.funcs;
             self.print_name(&state.core.func_names, func_idx)?;
             self.result.push(' ');
@@ -1236,7 +1238,7 @@ impl Printer {
                 self.print_func_body(state, func_idx, params, &mut body, &hints)?;
             }
 
-            self.end_group();
+            self.end_group()?;
 
             state.core.funcs += 1;
         }
@@ -1356,11 +1358,11 @@ impl Printer {
     }
 
     fn print_export(&mut self, state: &State, export: &Export) -> Result<()> {
-        self.start_group("export ");
+        self.start_group("export ")?;
         self.print_str(export.name)?;
         self.result.push(' ');
         self.print_external_kind(state, export.kind, export.index)?;
-        self.end_group(); // export
+        self.end_group()?; // export
         Ok(())
     }
 
@@ -1468,7 +1470,7 @@ impl Printer {
         for (i, elem) in data.into_iter_with_offsets().enumerate() {
             let (offset, mut elem) = elem?;
             self.newline(offset);
-            self.start_group("elem ");
+            self.start_group("elem ")?;
             self.print_name(&state.core.element_names, i as u32)?;
             match &mut elem.kind {
                 ElementKind::Passive => {}
@@ -1509,7 +1511,7 @@ impl Printer {
                     }
                 }
             }
-            self.end_group();
+            self.end_group()?;
         }
         Ok(())
     }
@@ -1518,7 +1520,7 @@ impl Printer {
         for (i, data) in data.into_iter_with_offsets().enumerate() {
             let (offset, data) = data?;
             self.newline(offset);
-            self.start_group("data ");
+            self.start_group("data ")?;
             self.print_name(&state.core.data_names, i as u32)?;
             self.result.push(' ');
             match &data.kind {
@@ -1541,7 +1543,7 @@ impl Printer {
             } else {
                 self.print_bytes(data.data)?;
             }
-            self.end_group();
+            self.end_group()?;
         }
         Ok(())
     }
@@ -1555,7 +1557,7 @@ impl Printer {
         expr: &ConstExpr,
         explicit: &str,
     ) -> Result<()> {
-        self.start_group("");
+        self.start_group("")?;
         let mut reader = expr.get_operators_reader();
 
         if reader.read().is_ok() && !reader.is_end_then_eof() {
@@ -1564,7 +1566,7 @@ impl Printer {
 
         self.print_const_expr(state, expr)?;
 
-        self.end_group();
+        self.end_group()?;
         Ok(())
     }
 
@@ -1609,24 +1611,24 @@ impl Printer {
         state: &State,
         fields: &[(&str, ComponentValType)],
     ) -> Result<()> {
-        self.start_group("record");
+        self.start_group("record")?;
         for (name, ty) in fields.iter() {
             self.result.push(' ');
-            self.start_group("field ");
+            self.start_group("field ")?;
             self.print_str(name)?;
             self.result.push(' ');
             self.print_component_val_type(state, ty)?;
-            self.end_group()
+            self.end_group()?
         }
-        self.end_group();
+        self.end_group()?;
         Ok(())
     }
 
     fn print_variant_type(&mut self, state: &State, cases: &[VariantCase]) -> Result<()> {
-        self.start_group("variant");
+        self.start_group("variant")?;
         for case in cases {
             self.result.push(' ');
-            self.start_group("case ");
+            self.start_group("case ")?;
             self.print_str(case.name)?;
 
             if let Some(ty) = case.ty {
@@ -1636,48 +1638,48 @@ impl Printer {
 
             if let Some(refines) = case.refines {
                 self.result.push(' ');
-                self.start_group("refines ");
+                self.start_group("refines ")?;
                 write!(&mut self.result, "{}", refines)?;
-                self.end_group();
+                self.end_group()?;
             }
-            self.end_group()
+            self.end_group()?
         }
-        self.end_group();
+        self.end_group()?;
 
         Ok(())
     }
 
     fn print_list_type(&mut self, state: &State, element_ty: &ComponentValType) -> Result<()> {
-        self.start_group("list ");
+        self.start_group("list ")?;
         self.print_component_val_type(state, element_ty)?;
-        self.end_group();
+        self.end_group()?;
         Ok(())
     }
 
     fn print_tuple_type(&mut self, state: &State, tys: &[ComponentValType]) -> Result<()> {
-        self.start_group("tuple");
+        self.start_group("tuple")?;
         for ty in tys {
             self.result.push(' ');
             self.print_component_val_type(state, ty)?;
         }
-        self.end_group();
+        self.end_group()?;
         Ok(())
     }
 
     fn print_flag_or_enum_type(&mut self, ty: &str, names: &[&str]) -> Result<()> {
-        self.start_group(ty);
+        self.start_group(ty)?;
         for name in names {
             self.result.push(' ');
             self.print_str(name)?;
         }
-        self.end_group();
+        self.end_group()?;
         Ok(())
     }
 
     fn print_option_type(&mut self, state: &State, inner: &ComponentValType) -> Result<()> {
-        self.start_group("option ");
+        self.start_group("option ")?;
         self.print_component_val_type(state, inner)?;
-        self.end_group();
+        self.end_group()?;
         Ok(())
     }
 
@@ -1687,7 +1689,7 @@ impl Printer {
         ok: Option<ComponentValType>,
         err: Option<ComponentValType>,
     ) -> Result<()> {
-        self.start_group("result");
+        self.start_group("result")?;
 
         if let Some(ok) = ok {
             self.result.push(' ');
@@ -1696,12 +1698,12 @@ impl Printer {
 
         if let Some(err) = err {
             self.result.push(' ');
-            self.start_group("error ");
+            self.start_group("error ")?;
             self.print_component_val_type(state, &err)?;
-            self.end_group();
+            self.end_group()?;
         }
 
-        self.end_group();
+        self.end_group()?;
 
         Ok(())
     }
@@ -1718,14 +1720,14 @@ impl Printer {
             ComponentDefinedType::Option(ty) => self.print_option_type(state, ty)?,
             ComponentDefinedType::Result { ok, err } => self.print_result_type(state, *ok, *err)?,
             ComponentDefinedType::Own(idx) => {
-                self.start_group("own ");
+                self.start_group("own ")?;
                 self.print_idx(&state.component.type_names, *idx)?;
-                self.end_group();
+                self.end_group()?;
             }
             ComponentDefinedType::Borrow(idx) => {
-                self.start_group("borrow ");
+                self.start_group("borrow ")?;
                 self.print_idx(&state.component.type_names, *idx)?;
-                self.end_group();
+                self.end_group()?;
             }
         }
 
@@ -1750,7 +1752,7 @@ impl Printer {
     ) -> Result<()> {
         states.push(State::new(Encoding::Module));
         self.newline_unknown_pos();
-        self.start_group("module");
+        self.start_group("module")?;
         for decl in decls {
             self.newline_unknown_pos();
             match decl {
@@ -1761,18 +1763,18 @@ impl Printer {
                     self.print_outer_alias(states, kind, count, index)?;
                 }
                 ModuleTypeDeclaration::Export { name, ty } => {
-                    self.start_group("export ");
+                    self.start_group("export ")?;
                     self.print_str(name)?;
                     self.result.push(' ');
                     self.print_import_ty(states.last_mut().unwrap(), &ty, false)?;
-                    self.end_group();
+                    self.end_group()?;
                 }
                 ModuleTypeDeclaration::Import(import) => {
                     self.print_import(states.last_mut().unwrap(), &import, false)?;
                 }
             }
         }
-        self.end_group();
+        self.end_group()?;
         states.pop();
         Ok(())
     }
@@ -1784,7 +1786,7 @@ impl Printer {
     ) -> Result<()> {
         states.push(State::new(Encoding::Component));
         self.newline_unknown_pos();
-        self.start_group("component");
+        self.start_group("component")?;
         for decl in decls {
             self.newline_unknown_pos();
             match decl {
@@ -1794,20 +1796,20 @@ impl Printer {
                     self.print_component_alias(states, alias)?;
                 }
                 ComponentTypeDeclaration::Export { name, ty } => {
-                    self.start_group("export ");
+                    self.start_group("export ")?;
                     self.print_component_kind_name(states.last_mut().unwrap(), ty.kind())?;
                     self.result.push(' ');
                     self.print_str(name.0)?;
                     self.result.push(' ');
                     self.print_component_import_ty(states.last_mut().unwrap(), &ty, false)?;
-                    self.end_group();
+                    self.end_group()?;
                 }
                 ComponentTypeDeclaration::Import(import) => {
                     self.print_component_import(states.last_mut().unwrap(), &import, true)?
                 }
             }
         }
-        self.end_group();
+        self.end_group()?;
         states.pop().unwrap();
         Ok(())
     }
@@ -1819,7 +1821,7 @@ impl Printer {
     ) -> Result<()> {
         states.push(State::new(Encoding::Component));
         self.newline_unknown_pos();
-        self.start_group("instance");
+        self.start_group("instance")?;
         for decl in decls {
             self.newline_unknown_pos();
             match decl {
@@ -1829,17 +1831,17 @@ impl Printer {
                     self.print_component_alias(states, alias)?;
                 }
                 InstanceTypeDeclaration::Export { name, ty } => {
-                    self.start_group("export ");
+                    self.start_group("export ")?;
                     self.print_component_kind_name(states.last_mut().unwrap(), ty.kind())?;
                     self.result.push(' ');
                     self.print_str(name.0)?;
                     self.result.push(' ');
                     self.print_component_import_ty(states.last_mut().unwrap(), &ty, false)?;
-                    self.end_group();
+                    self.end_group()?;
                 }
             }
         }
-        self.end_group();
+        self.end_group()?;
         states.pop().unwrap();
         Ok(())
     }
@@ -1862,7 +1864,7 @@ impl Printer {
     ) -> Result<()> {
         let state = states.last().unwrap();
         let outer = Self::outer_state(states, count)?;
-        self.start_group("alias outer ");
+        self.start_group("alias outer ")?;
         if let Some(name) = outer.name.as_ref() {
             name.write(&mut self.result);
         } else {
@@ -1873,12 +1875,12 @@ impl Printer {
             OuterAliasKind::Type => {
                 self.print_idx(&outer.core.type_names, index)?;
                 self.result.push(' ');
-                self.start_group("type ");
+                self.start_group("type ")?;
                 self.print_name(&state.core.type_names, state.core.types.len() as u32)?;
             }
         }
-        self.end_group(); // kind
-        self.end_group(); // alias
+        self.end_group()?; // kind
+        self.end_group()?; // alias
 
         let state = states.last_mut().unwrap();
         match kind {
@@ -1889,28 +1891,28 @@ impl Printer {
     }
 
     fn print_component_func_type(&mut self, state: &State, ty: &ComponentFuncType) -> Result<()> {
-        self.start_group("func");
+        self.start_group("func")?;
         for (name, ty) in ty.params.iter() {
             self.result.push(' ');
-            self.start_group("param ");
+            self.start_group("param ")?;
             self.print_str(name)?;
             self.result.push(' ');
             self.print_component_val_type(state, ty)?;
-            self.end_group()
+            self.end_group()?
         }
 
         for (name, ty) in ty.results.iter() {
             self.result.push(' ');
-            self.start_group("result ");
+            self.start_group("result ")?;
             if let Some(name) = name {
                 self.print_str(name)?;
                 self.result.push(' ');
             }
             self.print_component_val_type(state, ty)?;
-            self.end_group()
+            self.end_group()?
         }
 
-        self.end_group();
+        self.end_group()?;
 
         Ok(())
     }
@@ -1920,7 +1922,7 @@ impl Printer {
         states: &mut Vec<State>,
         ty: ComponentType<'a>,
     ) -> Result<()> {
-        self.start_group("type ");
+        self.start_group("type ")?;
         {
             let state = states.last_mut().unwrap();
             self.print_name(&state.component.type_names, state.component.types)?;
@@ -1942,7 +1944,7 @@ impl Printer {
             }
             ComponentType::Resource { rep, dtor } => {
                 self.result.push_str(" ");
-                self.start_group("resource");
+                self.start_group("resource")?;
                 self.result.push_str(" (rep ");
                 self.print_valtype(states.last().unwrap(), rep)?;
                 self.result.push_str(")");
@@ -1951,10 +1953,10 @@ impl Printer {
                     self.print_idx(&states.last().unwrap().core.func_names, dtor)?;
                     self.result.push_str("))");
                 }
-                self.end_group();
+                self.end_group()?;
             }
         }
-        self.end_group();
+        self.end_group()?;
 
         states.last_mut().unwrap().component.types += 1;
 
@@ -1995,11 +1997,11 @@ impl Printer {
         import: &ComponentImport,
         index: bool,
     ) -> Result<()> {
-        self.start_group("import ");
+        self.start_group("import ")?;
         self.print_str(import.name.0)?;
         self.result.push(' ');
         self.print_component_import_ty(state, &import.ty, index)?;
-        self.end_group();
+        self.end_group()?;
         Ok(())
     }
 
@@ -2011,27 +2013,27 @@ impl Printer {
     ) -> Result<()> {
         match ty {
             ComponentTypeRef::Module(idx) => {
-                self.start_group("core module ");
+                self.start_group("core module ")?;
                 if index {
                     self.print_name(&state.core.module_names, state.core.modules as u32)?;
                     self.result.push(' ');
                     state.core.modules += 1;
                 }
                 self.print_component_type_ref(state, *idx)?;
-                self.end_group();
+                self.end_group()?;
             }
             ComponentTypeRef::Func(idx) => {
-                self.start_group("func ");
+                self.start_group("func ")?;
                 if index {
                     self.print_name(&state.component.func_names, state.component.funcs)?;
                     self.result.push(' ');
                     state.component.funcs += 1;
                 }
                 self.print_component_type_ref(state, *idx)?;
-                self.end_group();
+                self.end_group()?;
             }
             ComponentTypeRef::Value(ty) => {
-                self.start_group("value ");
+                self.start_group("value ")?;
                 if index {
                     self.print_name(&state.component.value_names, state.component.values)?;
                     self.result.push(' ');
@@ -2043,7 +2045,7 @@ impl Printer {
                         self.print_component_type_ref(state, *idx)?;
                     }
                 }
-                self.end_group();
+                self.end_group()?;
             }
             ComponentTypeRef::Type(bounds) => {
                 self.result.push_str("(type ");
@@ -2065,24 +2067,24 @@ impl Printer {
                 self.result.push(')');
             }
             ComponentTypeRef::Instance(idx) => {
-                self.start_group("instance ");
+                self.start_group("instance ")?;
                 if index {
                     self.print_name(&state.component.instance_names, state.component.instances)?;
                     self.result.push(' ');
                     state.component.instances += 1;
                 }
                 self.print_component_type_ref(state, *idx)?;
-                self.end_group();
+                self.end_group()?;
             }
             ComponentTypeRef::Component(idx) => {
-                self.start_group("component ");
+                self.start_group("component ")?;
                 if index {
                     self.print_name(&state.component.component_names, state.component.components)?;
                     self.result.push(' ');
                     state.component.components += 1;
                 }
                 self.print_component_type_ref(state, *idx)?;
-                self.end_group();
+                self.end_group()?;
             }
         }
         Ok(())
@@ -2107,7 +2109,7 @@ impl Printer {
         export: &ComponentExport,
         named: bool,
     ) -> Result<()> {
-        self.start_group("export ");
+        self.start_group("export ")?;
         if named {
             self.print_component_kind_name(state, export.kind)?;
             self.result.push(' ');
@@ -2119,7 +2121,7 @@ impl Printer {
             self.result.push(' ');
             self.print_component_import_ty(state, &ty, false)?;
         }
-        self.end_group();
+        self.end_group()?;
         Ok(())
     }
 
@@ -2160,22 +2162,22 @@ impl Printer {
     fn start_component_external_kind_group(&mut self, kind: ComponentExternalKind) -> Result<()> {
         match kind {
             ComponentExternalKind::Module => {
-                self.start_group("core module ");
+                self.start_group("core module ")?;
             }
             ComponentExternalKind::Component => {
-                self.start_group("component ");
+                self.start_group("component ")?;
             }
             ComponentExternalKind::Instance => {
-                self.start_group("instance ");
+                self.start_group("instance ")?;
             }
             ComponentExternalKind::Func => {
-                self.start_group("func ");
+                self.start_group("func ")?;
             }
             ComponentExternalKind::Value => {
-                self.start_group("value ");
+                self.start_group("value ")?;
             }
             ComponentExternalKind::Type => {
-                self.start_group("type ");
+                self.start_group("type ")?;
             }
         }
         Ok(())
@@ -2208,7 +2210,7 @@ impl Printer {
                 self.print_idx(&state.component.type_names, index)?;
             }
         }
-        self.end_group();
+        self.end_group()?;
         Ok(())
     }
 
@@ -2226,19 +2228,19 @@ impl Printer {
                     self.result.push_str("string-encoding=latin1+utf16")
                 }
                 CanonicalOption::Memory(idx) => {
-                    self.start_group("memory ");
+                    self.start_group("memory ")?;
                     self.print_idx(&state.core.memory_names, *idx)?;
-                    self.end_group();
+                    self.end_group()?;
                 }
                 CanonicalOption::Realloc(idx) => {
-                    self.start_group("realloc ");
+                    self.start_group("realloc ")?;
                     self.print_idx(&state.core.func_names, *idx)?;
-                    self.end_group();
+                    self.end_group()?;
                 }
                 CanonicalOption::PostReturn(idx) => {
-                    self.start_group("post-return ");
+                    self.start_group("post-return ")?;
                     self.print_idx(&state.core.func_names, *idx)?;
-                    self.end_group();
+                    self.end_group()?;
                 }
             }
         }
@@ -2259,66 +2261,66 @@ impl Printer {
                     type_index,
                     options,
                 } => {
-                    self.start_group("func ");
+                    self.start_group("func ")?;
                     self.print_name(&state.component.func_names, state.component.funcs)?;
                     self.result.push(' ');
-                    self.start_group("type ");
+                    self.start_group("type ")?;
                     self.print_idx(&state.component.type_names, type_index)?;
-                    self.end_group();
+                    self.end_group()?;
                     self.result.push(' ');
-                    self.start_group("canon lift ");
-                    self.start_group("core func ");
+                    self.start_group("canon lift ")?;
+                    self.start_group("core func ")?;
                     self.print_idx(&state.core.func_names, core_func_index)?;
-                    self.end_group();
+                    self.end_group()?;
                     self.print_canonical_options(state, &options)?;
-                    self.end_group();
-                    self.end_group();
+                    self.end_group()?;
+                    self.end_group()?;
                     state.component.funcs += 1;
                 }
                 CanonicalFunction::Lower {
                     func_index,
                     options,
                 } => {
-                    self.start_group("core func ");
+                    self.start_group("core func ")?;
                     self.print_name(&state.core.func_names, state.core.funcs)?;
                     self.result.push(' ');
-                    self.start_group("canon lower ");
-                    self.start_group("func ");
+                    self.start_group("canon lower ")?;
+                    self.start_group("func ")?;
                     self.print_idx(&state.component.func_names, func_index)?;
-                    self.end_group();
+                    self.end_group()?;
                     self.print_canonical_options(state, &options)?;
-                    self.end_group();
-                    self.end_group();
+                    self.end_group()?;
+                    self.end_group()?;
                     state.core.funcs += 1;
                 }
                 CanonicalFunction::ResourceNew { resource } => {
-                    self.start_group("core func ");
+                    self.start_group("core func ")?;
                     self.print_name(&state.core.func_names, state.core.funcs)?;
                     self.result.push(' ');
-                    self.start_group("canon resource.new ");
+                    self.start_group("canon resource.new ")?;
                     self.print_idx(&state.component.type_names, resource)?;
-                    self.end_group();
-                    self.end_group();
+                    self.end_group()?;
+                    self.end_group()?;
                     state.core.funcs += 1;
                 }
                 CanonicalFunction::ResourceDrop { resource } => {
-                    self.start_group("core func ");
+                    self.start_group("core func ")?;
                     self.print_name(&state.core.func_names, state.core.funcs)?;
                     self.result.push(' ');
-                    self.start_group("canon resource.drop ");
+                    self.start_group("canon resource.drop ")?;
                     self.print_idx(&state.component.type_names, resource)?;
-                    self.end_group();
-                    self.end_group();
+                    self.end_group()?;
+                    self.end_group()?;
                     state.core.funcs += 1;
                 }
                 CanonicalFunction::ResourceRep { resource } => {
-                    self.start_group("core func ");
+                    self.start_group("core func ")?;
                     self.print_name(&state.core.func_names, state.core.funcs)?;
                     self.result.push(' ');
-                    self.start_group("canon resource.rep ");
+                    self.start_group("canon resource.rep ")?;
                     self.print_idx(&state.component.type_names, resource)?;
-                    self.end_group();
-                    self.end_group();
+                    self.end_group()?;
+                    self.end_group()?;
                     state.core.funcs += 1;
                 }
             }
@@ -2331,18 +2333,18 @@ impl Printer {
         for instance in parser.into_iter_with_offsets() {
             let (offset, instance) = instance?;
             self.newline(offset);
-            self.start_group("core instance ");
+            self.start_group("core instance ")?;
             self.print_name(&state.core.instance_names, state.core.instances)?;
             match instance {
                 Instance::Instantiate { module_index, args } => {
                     self.result.push(' ');
-                    self.start_group("instantiate ");
+                    self.start_group("instantiate ")?;
                     self.print_idx(&state.core.module_names, module_index)?;
                     for arg in args.iter() {
                         self.newline(offset);
                         self.print_instantiation_arg(state, arg)?;
                     }
-                    self.end_group();
+                    self.end_group()?;
                     state.core.instances += 1;
                 }
                 Instance::FromExports(exports) => {
@@ -2353,7 +2355,7 @@ impl Printer {
                     state.core.instances += 1;
                 }
             }
-            self.end_group();
+            self.end_group()?;
         }
         Ok(())
     }
@@ -2366,7 +2368,7 @@ impl Printer {
         for instance in parser.into_iter_with_offsets() {
             let (offset, instance) = instance?;
             self.newline(offset);
-            self.start_group("instance ");
+            self.start_group("instance ")?;
             self.print_name(&state.component.instance_names, state.component.instances)?;
             state.component.instances += 1;
             match instance {
@@ -2375,13 +2377,13 @@ impl Printer {
                     args,
                 } => {
                     self.result.push(' ');
-                    self.start_group("instantiate ");
+                    self.start_group("instantiate ")?;
                     self.print_idx(&state.component.component_names, component_index)?;
                     for arg in args.iter() {
                         self.newline(offset);
                         self.print_component_instantiation_arg(state, arg)?;
                     }
-                    self.end_group();
+                    self.end_group()?;
                 }
                 ComponentInstance::FromExports(exports) => {
                     for export in exports.iter() {
@@ -2390,23 +2392,23 @@ impl Printer {
                     }
                 }
             }
-            self.end_group();
+            self.end_group()?;
         }
         Ok(())
     }
 
     fn print_instantiation_arg(&mut self, state: &State, arg: &InstantiationArg) -> Result<()> {
-        self.start_group("with ");
+        self.start_group("with ")?;
         self.print_str(arg.name)?;
         self.result.push(' ');
         match arg.kind {
             InstantiationArgKind::Instance => {
-                self.start_group("instance ");
+                self.start_group("instance ")?;
                 self.print_idx(&state.core.instance_names, arg.index)?;
-                self.end_group();
+                self.end_group()?;
             }
         }
-        self.end_group();
+        self.end_group()?;
         Ok(())
     }
 
@@ -2415,11 +2417,11 @@ impl Printer {
         state: &State,
         arg: &ComponentInstantiationArg,
     ) -> Result<()> {
-        self.start_group("with ");
+        self.start_group("with ")?;
         self.print_str(arg.name)?;
         self.result.push(' ');
         self.print_component_external_kind(state, arg.kind, arg.index)?;
-        self.end_group();
+        self.end_group()?;
         Ok(())
     }
 
@@ -2430,27 +2432,27 @@ impl Printer {
         start: ComponentStartFunction,
     ) -> Result<()> {
         self.newline(pos);
-        self.start_group("start ");
+        self.start_group("start ")?;
         self.print_idx(&state.component.func_names, start.func_index)?;
 
         for arg in start.arguments.iter() {
             self.result.push(' ');
-            self.start_group("value ");
+            self.start_group("value ")?;
             self.print_idx(&state.component.value_names, *arg)?;
-            self.end_group();
+            self.end_group()?;
         }
 
         for _ in 0..start.results {
             self.result.push(' ');
-            self.start_group("result ");
-            self.start_group("value ");
+            self.start_group("result ")?;
+            self.start_group("value ")?;
             self.print_name(&state.component.value_names, state.component.values)?;
-            self.end_group();
-            self.end_group();
+            self.end_group()?;
+            self.end_group()?;
             state.component.values += 1;
         }
 
-        self.end_group(); // start
+        self.end_group()?; // start
 
         Ok(())
     }
@@ -2480,16 +2482,16 @@ impl Printer {
                 name,
             } => {
                 let state = states.last_mut().unwrap();
-                self.start_group("alias export ");
+                self.start_group("alias export ")?;
                 self.print_idx(&state.component.instance_names, instance_index)?;
                 self.result.push(' ');
                 self.print_str(name)?;
                 self.result.push(' ');
                 self.start_component_external_kind_group(kind)?;
                 self.print_component_kind_name(state, kind)?;
-                self.end_group();
+                self.end_group()?;
 
-                self.end_group(); // alias export
+                self.end_group()?; // alias export
             }
             ComponentAlias::CoreInstanceExport {
                 instance_index,
@@ -2497,50 +2499,50 @@ impl Printer {
                 name,
             } => {
                 let state = states.last_mut().unwrap();
-                self.start_group("alias core export ");
+                self.start_group("alias core export ")?;
                 self.print_idx(&state.core.instance_names, instance_index)?;
                 self.result.push(' ');
                 self.print_str(name)?;
                 self.result.push(' ');
                 match kind {
                     ExternalKind::Func => {
-                        self.start_group("core func ");
+                        self.start_group("core func ")?;
                         self.print_name(&state.core.func_names, state.core.funcs)?;
-                        self.end_group();
+                        self.end_group()?;
                         state.core.funcs += 1;
                     }
                     ExternalKind::Table => {
-                        self.start_group("core table ");
+                        self.start_group("core table ")?;
                         self.print_name(&state.core.table_names, state.core.tables)?;
-                        self.end_group();
+                        self.end_group()?;
                         state.core.tables += 1;
                     }
                     ExternalKind::Memory => {
-                        self.start_group("core memory ");
+                        self.start_group("core memory ")?;
                         self.print_name(&state.core.memory_names, state.core.memories)?;
-                        self.end_group();
+                        self.end_group()?;
                         state.core.memories += 1;
                     }
                     ExternalKind::Global => {
-                        self.start_group("core global ");
+                        self.start_group("core global ")?;
                         self.print_name(&state.core.global_names, state.core.globals)?;
-                        self.end_group();
+                        self.end_group()?;
                         state.core.globals += 1;
                     }
                     ExternalKind::Tag => {
-                        self.start_group("core tag ");
+                        self.start_group("core tag ")?;
                         self.print_name(&state.core.tag_names, state.core.tags)?;
-                        self.end_group();
+                        self.end_group()?;
                         state.core.tags += 1;
                     }
                 }
-                self.end_group(); // alias export
+                self.end_group()?; // alias export
             }
 
             ComponentAlias::Outer { kind, count, index } => {
                 let state = states.last().unwrap();
                 let outer = Self::outer_state(states, count)?;
-                self.start_group("alias outer ");
+                self.start_group("alias outer ")?;
                 if let Some(name) = outer.name.as_ref() {
                     name.write(&mut self.result);
                 } else {
@@ -2551,33 +2553,33 @@ impl Printer {
                     ComponentOuterAliasKind::CoreModule => {
                         self.print_idx(&outer.core.module_names, index)?;
                         self.result.push(' ');
-                        self.start_group("core module ");
+                        self.start_group("core module ")?;
                         self.print_name(&state.core.module_names, state.core.modules)?;
                     }
                     ComponentOuterAliasKind::CoreType => {
                         self.print_idx(&outer.core.type_names, index)?;
                         self.result.push(' ');
-                        self.start_group("core type ");
+                        self.start_group("core type ")?;
                         self.print_name(&state.core.type_names, state.core.types.len() as u32)?;
                     }
                     ComponentOuterAliasKind::Type => {
                         self.print_idx(&outer.component.type_names, index)?;
                         self.result.push(' ');
-                        self.start_group("type ");
+                        self.start_group("type ")?;
                         self.print_name(&state.component.type_names, state.component.types)?;
                     }
                     ComponentOuterAliasKind::Component => {
                         self.print_idx(&outer.component.component_names, index)?;
                         self.result.push(' ');
-                        self.start_group("component ");
+                        self.start_group("component ")?;
                         self.print_name(
                             &state.component.component_names,
                             state.component.components,
                         )?;
                     }
                 }
-                self.end_group(); // kind
-                self.end_group(); // alias
+                self.end_group()?; // kind
+                self.end_group()?; // alias
 
                 let state = states.last_mut().unwrap();
                 match kind {
@@ -2676,7 +2678,7 @@ impl Printer {
         section: CustomSectionReader<'_>,
     ) -> Result<()> {
         self.newline(section.range().start);
-        self.start_group("@custom ");
+        self.start_group("@custom ")?;
         self.print_str(section.name())?;
         if let Some(place) = state.custom_section_place {
             self.result.push_str(" (");
@@ -2685,31 +2687,31 @@ impl Printer {
         }
         self.result.push_str(" ");
         self.print_bytes(section.data())?;
-        self.end_group();
+        self.end_group()?;
         Ok(())
     }
 
     fn print_producers_section(&mut self, section: ProducersSectionReader<'_>) -> Result<()> {
-        self.start_group("@producers");
+        self.start_group("@producers")?;
         for field in section {
             let field = field?;
             for value in field.values.into_iter_with_offsets() {
                 let (offset, value) = value?;
                 self.newline(offset);
-                self.start_group(field.name);
+                self.start_group(field.name)?;
                 self.result.push_str(" ");
                 self.print_str(value.name)?;
                 self.result.push_str(" ");
                 self.print_str(value.version)?;
-                self.end_group();
+                self.end_group()?;
             }
         }
-        self.end_group();
+        self.end_group()?;
         Ok(())
     }
 
     fn print_dylink0_section(&mut self, mut section: Dylink0SectionReader<'_>) -> Result<()> {
-        self.start_group("@dylink.0");
+        self.start_group("@dylink.0")?;
         loop {
             let start = section.original_position();
             let next = match section.next() {
@@ -2720,7 +2722,7 @@ impl Printer {
             match next {
                 Dylink0Subsection::MemInfo(info) => {
                     self.newline(start);
-                    self.start_group("mem-info");
+                    self.start_group("mem-info")?;
                     if info.memory_size > 0 || info.memory_alignment > 0 {
                         write!(
                             self.result,
@@ -2735,35 +2737,35 @@ impl Printer {
                             info.table_size, info.table_alignment
                         )?;
                     }
-                    self.end_group();
+                    self.end_group()?;
                 }
                 Dylink0Subsection::Needed(needed) => {
                     self.newline(start);
-                    self.start_group("needed");
+                    self.start_group("needed")?;
                     for s in needed {
                         self.result.push_str(" ");
                         self.print_str(s)?;
                     }
-                    self.end_group();
+                    self.end_group()?;
                 }
                 Dylink0Subsection::ExportInfo(info) => {
                     for info in info {
                         self.newline(start);
-                        self.start_group("export-info ");
+                        self.start_group("export-info ")?;
                         self.print_str(info.name)?;
                         self.print_dylink0_flags(info.flags)?;
-                        self.end_group();
+                        self.end_group()?;
                     }
                 }
                 Dylink0Subsection::ImportInfo(info) => {
                     for info in info {
                         self.newline(start);
-                        self.start_group("import-info ");
+                        self.start_group("import-info ")?;
                         self.print_str(info.module)?;
                         self.result.push_str(" ");
                         self.print_str(info.field)?;
                         self.print_dylink0_flags(info.flags)?;
-                        self.end_group();
+                        self.end_group()?;
                     }
                 }
                 Dylink0Subsection::Unknown { ty, .. } => {
@@ -2771,7 +2773,7 @@ impl Printer {
                 }
             }
         }
-        self.end_group();
+        self.end_group()?;
         Ok(())
     }
 
