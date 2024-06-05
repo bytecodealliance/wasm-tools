@@ -434,8 +434,7 @@ impl Printer {
                     let msg = format!("failed to parse custom section `{}`: {err}", c.name());
                     for line in msg.lines() {
                         self.newline(c.data_offset())?;
-                        self.result.push_str(";; ");
-                        self.result.push_str(line);
+                        write!(self.result, ";; {line}")?;
                     }
                     self.newline(c.range().end)?;
                     self.print_raw_custom_section(state, c)?;
@@ -610,8 +609,7 @@ impl Printer {
     }
 
     fn start_group(&mut self, name: &str) -> Result<()> {
-        write!(self.result, "(")?;
-        self.result.push_str(name);
+        write!(self.result, "({name}")?;
         self.nesting += 1;
         self.group_lines.push(self.line);
         Ok(())
@@ -891,7 +889,7 @@ impl Printer {
         }
         params.finish(&mut self.result);
         if !ty.results().is_empty() {
-            self.result.push_str(" (result");
+            write!(self.result, " (result")?;
             for result in ty.results().iter() {
                 write!(self.result, " ")?;
                 self.print_valtype(state, *result)?;
@@ -916,11 +914,11 @@ impl Printer {
             }
         }
         if ty.mutable {
-            self.result.push_str("(mut ");
+            write!(self.result, "(mut ")?;
         }
         self.print_storage_type(state, ty.element_type)?;
         if ty.mutable {
-            self.result.push_str(")");
+            write!(self.result, ")")?;
         }
         Ok(0)
     }
@@ -931,7 +929,7 @@ impl Printer {
 
     fn print_struct_type(&mut self, state: &State, ty: &StructType, ty_idx: u32) -> Result<u32> {
         for (field_index, field) in ty.fields.iter().enumerate() {
-            self.result.push_str(" (field");
+            write!(self.result, " (field")?;
             self.print_field_type(state, field, Some((ty_idx, field_index as u32)))?;
             write!(self.result, ")")?;
         }
@@ -941,7 +939,7 @@ impl Printer {
     fn print_sub_type(&mut self, state: &State, ty: &SubType) -> Result<u32> {
         write!(self.result, " ")?;
         if ty.is_final {
-            self.result.push_str("final ");
+            write!(self.result, "final ")?;
         }
         if let Some(idx) = ty.supertype_idx {
             self.print_idx(&state.core.type_names, idx.as_module_index().unwrap())?;
@@ -952,8 +950,8 @@ impl Printer {
 
     fn print_storage_type(&mut self, state: &State, ty: StorageType) -> Result<()> {
         match ty {
-            StorageType::I8 => self.result.push_str("i8"),
-            StorageType::I16 => self.result.push_str("i16"),
+            StorageType::I8 => write!(self.result, "i8")?,
+            StorageType::I16 => write!(self.result, "i16")?,
             StorageType::Val(val_type) => self.print_valtype(state, val_type)?,
         }
         Ok(())
@@ -961,11 +959,11 @@ impl Printer {
 
     fn print_valtype(&mut self, state: &State, ty: ValType) -> Result<()> {
         match ty {
-            ValType::I32 => self.result.push_str("i32"),
-            ValType::I64 => self.result.push_str("i64"),
-            ValType::F32 => self.result.push_str("f32"),
-            ValType::F64 => self.result.push_str("f64"),
-            ValType::V128 => self.result.push_str("v128"),
+            ValType::I32 => write!(self.result, "i32")?,
+            ValType::I64 => write!(self.result, "i64")?,
+            ValType::F32 => write!(self.result, "f32")?,
+            ValType::F64 => write!(self.result, "f64")?,
+            ValType::V128 => write!(self.result, "v128")?,
             ValType::Ref(rt) => self.print_reftype(state, rt)?,
         }
         Ok(())
@@ -974,46 +972,46 @@ impl Printer {
     fn print_reftype(&mut self, state: &State, ty: RefType) -> Result<()> {
         if ty.is_nullable() {
             match ty.as_non_null() {
-                RefType::FUNC => self.result.push_str("funcref"),
-                RefType::EXTERN => self.result.push_str("externref"),
-                RefType::I31 => self.result.push_str("i31ref"),
-                RefType::ANY => self.result.push_str("anyref"),
-                RefType::NONE => self.result.push_str("nullref"),
-                RefType::NOEXTERN => self.result.push_str("nullexternref"),
-                RefType::NOFUNC => self.result.push_str("nullfuncref"),
-                RefType::EQ => self.result.push_str("eqref"),
-                RefType::STRUCT => self.result.push_str("structref"),
-                RefType::ARRAY => self.result.push_str("arrayref"),
-                RefType::EXN => self.result.push_str("exnref"),
-                RefType::NOEXN => self.result.push_str("nullexnref"),
+                RefType::FUNC => write!(self.result, "funcref")?,
+                RefType::EXTERN => write!(self.result, "externref")?,
+                RefType::I31 => write!(self.result, "i31ref")?,
+                RefType::ANY => write!(self.result, "anyref")?,
+                RefType::NONE => write!(self.result, "nullref")?,
+                RefType::NOEXTERN => write!(self.result, "nullexternref")?,
+                RefType::NOFUNC => write!(self.result, "nullfuncref")?,
+                RefType::EQ => write!(self.result, "eqref")?,
+                RefType::STRUCT => write!(self.result, "structref")?,
+                RefType::ARRAY => write!(self.result, "arrayref")?,
+                RefType::EXN => write!(self.result, "exnref")?,
+                RefType::NOEXN => write!(self.result, "nullexnref")?,
                 _ => {
-                    self.result.push_str("(ref null ");
+                    write!(self.result, "(ref null ")?;
                     self.print_heaptype(state, ty.heap_type())?;
-                    self.result.push_str(")");
+                    write!(self.result, ")")?;
                 }
             }
         } else {
-            self.result.push_str("(ref ");
+            write!(self.result, "(ref ")?;
             self.print_heaptype(state, ty.heap_type())?;
-            self.result.push_str(")");
+            write!(self.result, ")")?;
         }
         Ok(())
     }
 
     fn print_heaptype(&mut self, state: &State, ty: HeapType) -> Result<()> {
         match ty {
-            HeapType::Func => self.result.push_str("func"),
-            HeapType::Extern => self.result.push_str("extern"),
-            HeapType::Any => self.result.push_str("any"),
-            HeapType::None => self.result.push_str("none"),
-            HeapType::NoExtern => self.result.push_str("noextern"),
-            HeapType::NoFunc => self.result.push_str("nofunc"),
-            HeapType::Eq => self.result.push_str("eq"),
-            HeapType::Struct => self.result.push_str("struct"),
-            HeapType::Array => self.result.push_str("array"),
-            HeapType::I31 => self.result.push_str("i31"),
-            HeapType::Exn => self.result.push_str("exn"),
-            HeapType::NoExn => self.result.push_str("noexn"),
+            HeapType::Func => write!(self.result, "func")?,
+            HeapType::Extern => write!(self.result, "extern")?,
+            HeapType::Any => write!(self.result, "any")?,
+            HeapType::None => write!(self.result, "none")?,
+            HeapType::NoExtern => write!(self.result, "noextern")?,
+            HeapType::NoFunc => write!(self.result, "nofunc")?,
+            HeapType::Eq => write!(self.result, "eq")?,
+            HeapType::Struct => write!(self.result, "struct")?,
+            HeapType::Array => write!(self.result, "array")?,
+            HeapType::I31 => write!(self.result, "i31")?,
+            HeapType::Exn => write!(self.result, "exn")?,
+            HeapType::NoExn => write!(self.result, "noexn")?,
             HeapType::Concrete(i) => {
                 self.print_idx(&state.core.type_names, i.as_module_index().unwrap())?;
             }
@@ -1074,7 +1072,7 @@ impl Printer {
             write!(self.result, " ")?;
         }
         if ty.table64 {
-            self.result.push_str("i64 ");
+            write!(self.result, "i64 ")?;
         }
         self.print_limits(ty.initial, ty.maximum)?;
         write!(self.result, " ")?;
@@ -1089,11 +1087,11 @@ impl Printer {
             write!(self.result, " ")?;
         }
         if ty.memory64 {
-            self.result.push_str("i64 ");
+            write!(self.result, "i64 ")?;
         }
         self.print_limits(ty.initial, ty.maximum)?;
         if ty.shared {
-            self.result.push_str(" shared");
+            write!(self.result, " shared")?;
         }
         if let Some(p) = ty.page_size_log2 {
             let p = 1_u64
@@ -1134,10 +1132,10 @@ impl Printer {
         if ty.shared || ty.mutable {
             write!(self.result, "(")?;
             if ty.shared {
-                self.result.push_str("shared ");
+                write!(self.result, "shared ")?;
             }
             if ty.mutable {
-                self.result.push_str("mut ");
+                write!(self.result, "mut ")?;
             }
             self.print_valtype(state, ty.content_type)?;
             write!(self.result, ")")?;
@@ -1155,7 +1153,7 @@ impl Printer {
             match &table.init {
                 TableInit::RefNull => {}
                 TableInit::Expr(expr) => {
-                    self.result.push_str(" ");
+                    write!(self.result, " ")?;
                     self.print_const_expr(state, expr)?;
                 }
             }
@@ -1233,7 +1231,7 @@ impl Printer {
             };
 
             if self.print_skeleton {
-                self.result.push_str(" ...");
+                write!(self.result, " ...")?;
             } else {
                 self.print_func_body(state, func_idx, params, &mut body, &hints)?;
             }
@@ -1335,7 +1333,7 @@ impl Printer {
         if self.print_offsets {
             match offset {
                 Some(offset) => write!(self.result, "(;@{offset:<6x};)").unwrap(),
-                None => self.result.push_str("           "),
+                None => write!(self.result, "           ")?,
             }
         }
         self.line += 1;
@@ -1344,7 +1342,7 @@ impl Printer {
         // reasonable to avoid generating hundreds of megabytes of whitespace
         // for small-ish modules that have deep-ish nesting.
         for _ in 0..self.nesting.min(MAX_NESTING_TO_PRINT) {
-            self.result.push_str("  ");
+            write!(self.result, "  ")?;
         }
         Ok(())
     }
@@ -1371,19 +1369,19 @@ impl Printer {
         write!(self.result, "(")?;
         match kind {
             ExternalKind::Func => {
-                self.result.push_str("func ");
+                write!(self.result, "func ")?;
                 self.print_idx(&state.core.func_names, index)?;
             }
             ExternalKind::Table => {
-                self.result.push_str("table ");
+                write!(self.result, "table ")?;
                 self.print_idx(&state.core.table_names, index)?;
             }
             ExternalKind::Global => {
-                self.result.push_str("global ");
+                write!(self.result, "global ")?;
                 self.print_idx(&state.core.global_names, index)?;
             }
             ExternalKind::Memory => {
-                self.result.push_str("memory ");
+                write!(self.result, "memory ")?;
                 self.print_idx(&state.core.memory_names, index)?;
             }
             ExternalKind::Tag => write!(self.result, "tag {}", index)?,
@@ -1393,14 +1391,14 @@ impl Printer {
     }
 
     fn print_core_type_ref(&mut self, state: &State, idx: u32) -> Result<()> {
-        self.result.push_str("(type ");
+        write!(self.result, "(type ")?;
         self.print_idx(&state.core.type_names, idx)?;
         write!(self.result, ")")?;
         Ok(())
     }
 
     fn print_component_type_ref(&mut self, state: &State, idx: u32) -> Result<()> {
-        self.result.push_str("(type ");
+        write!(self.result, "(type ")?;
         self.print_idx(&state.component.type_names, idx)?;
         write!(self.result, ")")?;
         Ok(())
@@ -1482,7 +1480,7 @@ impl Printer {
                 } => {
                     let table_index = table_index.unwrap_or(0);
                     if table_index != 0 {
-                        self.result.push_str(" (table ");
+                        write!(self.result, " (table ")?;
                         self.print_idx(&state.core.table_names, table_index)?;
                         write!(self.result, ")")?;
                     }
@@ -1493,11 +1491,11 @@ impl Printer {
             write!(self.result, " ")?;
 
             if self.print_skeleton {
-                self.result.push_str("...");
+                write!(self.result, "...")?;
             } else {
                 match elem.items {
                     ElementItems::Functions(reader) => {
-                        self.result.push_str("func");
+                        write!(self.result, "func")?;
                         for idx in reader {
                             write!(self.result, " ")?;
                             self.print_idx(&state.core.func_names, idx?)?
@@ -1531,16 +1529,16 @@ impl Printer {
                     offset_expr,
                 } => {
                     if *memory_index != 0 {
-                        self.result.push_str("(memory ");
+                        write!(self.result, "(memory ")?;
                         self.print_idx(&state.core.memory_names, *memory_index)?;
-                        self.result.push_str(") ");
+                        write!(self.result, ") ")?;
                     }
                     self.print_const_expr_sugar(state, offset_expr, "offset")?;
                     write!(self.result, " ")?;
                 }
             }
             if self.print_skeleton {
-                self.result.push_str("...");
+                write!(self.result, "...")?;
             } else {
                 self.print_bytes(data.data)?;
             }
@@ -1589,22 +1587,23 @@ impl Printer {
         Ok(())
     }
 
-    fn print_primitive_val_type(&mut self, ty: &PrimitiveValType) {
+    fn print_primitive_val_type(&mut self, ty: &PrimitiveValType) -> Result<()> {
         match ty {
-            PrimitiveValType::Bool => self.result.push_str("bool"),
-            PrimitiveValType::S8 => self.result.push_str("s8"),
-            PrimitiveValType::U8 => self.result.push_str("u8"),
-            PrimitiveValType::S16 => self.result.push_str("s16"),
-            PrimitiveValType::U16 => self.result.push_str("u16"),
-            PrimitiveValType::S32 => self.result.push_str("s32"),
-            PrimitiveValType::U32 => self.result.push_str("u32"),
-            PrimitiveValType::S64 => self.result.push_str("s64"),
-            PrimitiveValType::U64 => self.result.push_str("u64"),
-            PrimitiveValType::F32 => self.result.push_str("f32"),
-            PrimitiveValType::F64 => self.result.push_str("f64"),
-            PrimitiveValType::Char => self.result.push_str("char"),
-            PrimitiveValType::String => self.result.push_str("string"),
+            PrimitiveValType::Bool => write!(self.result, "bool")?,
+            PrimitiveValType::S8 => write!(self.result, "s8")?,
+            PrimitiveValType::U8 => write!(self.result, "u8")?,
+            PrimitiveValType::S16 => write!(self.result, "s16")?,
+            PrimitiveValType::U16 => write!(self.result, "u16")?,
+            PrimitiveValType::S32 => write!(self.result, "s32")?,
+            PrimitiveValType::U32 => write!(self.result, "u32")?,
+            PrimitiveValType::S64 => write!(self.result, "s64")?,
+            PrimitiveValType::U64 => write!(self.result, "u64")?,
+            PrimitiveValType::F32 => write!(self.result, "f32")?,
+            PrimitiveValType::F64 => write!(self.result, "f64")?,
+            PrimitiveValType::Char => write!(self.result, "char")?,
+            PrimitiveValType::String => write!(self.result, "string")?,
         }
+        Ok(())
     }
 
     fn print_record_type(
@@ -1711,7 +1710,7 @@ impl Printer {
 
     fn print_defined_type(&mut self, state: &State, ty: &ComponentDefinedType) -> Result<()> {
         match ty {
-            ComponentDefinedType::Primitive(ty) => self.print_primitive_val_type(ty),
+            ComponentDefinedType::Primitive(ty) => self.print_primitive_val_type(ty)?,
             ComponentDefinedType::Record(fields) => self.print_record_type(state, fields)?,
             ComponentDefinedType::Variant(cases) => self.print_variant_type(state, cases)?,
             ComponentDefinedType::List(ty) => self.print_list_type(state, ty)?,
@@ -1737,10 +1736,8 @@ impl Printer {
 
     fn print_component_val_type(&mut self, state: &State, ty: &ComponentValType) -> Result<()> {
         match ty {
-            ComponentValType::Primitive(ty) => self.print_primitive_val_type(ty),
-            ComponentValType::Type(idx) => {
-                self.print_idx(&state.component.type_names, *idx)?;
-            }
+            ComponentValType::Primitive(ty) => self.print_primitive_val_type(ty)?,
+            ComponentValType::Type(idx) => self.print_idx(&state.component.type_names, *idx)?,
         }
 
         Ok(())
@@ -1944,15 +1941,15 @@ impl Printer {
                 self.print_instance_type(states, decls.into_vec())?;
             }
             ComponentType::Resource { rep, dtor } => {
-                self.result.push_str(" ");
+                write!(self.result, " ")?;
                 self.start_group("resource")?;
-                self.result.push_str(" (rep ");
+                write!(self.result, " (rep ")?;
                 self.print_valtype(states.last().unwrap(), rep)?;
-                self.result.push_str(")");
+                write!(self.result, ")")?;
                 if let Some(dtor) = dtor {
-                    self.result.push_str(" (dtor (func ");
+                    write!(self.result, " (dtor (func ")?;
                     self.print_idx(&states.last().unwrap().core.func_names, dtor)?;
-                    self.result.push_str("))");
+                    write!(self.result, "))")?;
                 }
                 self.end_group()?;
             }
@@ -2041,15 +2038,13 @@ impl Printer {
                     state.component.values += 1;
                 }
                 match ty {
-                    ComponentValType::Primitive(ty) => self.print_primitive_val_type(ty),
-                    ComponentValType::Type(idx) => {
-                        self.print_component_type_ref(state, *idx)?;
-                    }
+                    ComponentValType::Primitive(ty) => self.print_primitive_val_type(ty)?,
+                    ComponentValType::Type(idx) => self.print_component_type_ref(state, *idx)?,
                 }
                 self.end_group()?;
             }
             ComponentTypeRef::Type(bounds) => {
-                self.result.push_str("(type ");
+                write!(self.result, "(type ")?;
                 if index {
                     self.print_name(&state.component.type_names, state.component.types)?;
                     write!(self.result, " ")?;
@@ -2057,12 +2052,12 @@ impl Printer {
                 }
                 match bounds {
                     TypeBounds::Eq(idx) => {
-                        self.result.push_str("(eq ");
+                        write!(self.result, "(eq ")?;
                         self.print_idx(&state.component.type_names, *idx)?;
                         write!(self.result, ")")?;
                     }
                     TypeBounds::SubResource => {
-                        self.result.push_str("(sub resource)");
+                        write!(self.result, "(sub resource)")?;
                     }
                 };
                 write!(self.result, ")")?;
@@ -2223,10 +2218,10 @@ impl Printer {
         for option in options {
             write!(self.result, " ")?;
             match option {
-                CanonicalOption::UTF8 => self.result.push_str("string-encoding=utf8"),
-                CanonicalOption::UTF16 => self.result.push_str("string-encoding=utf16"),
+                CanonicalOption::UTF8 => write!(self.result, "string-encoding=utf8")?,
+                CanonicalOption::UTF16 => write!(self.result, "string-encoding=utf16")?,
                 CanonicalOption::CompactUTF16 => {
-                    self.result.push_str("string-encoding=latin1+utf16")
+                    write!(self.result, "string-encoding=latin1+utf16")?
                 }
                 CanonicalOption::Memory(idx) => {
                     self.start_group("memory ")?;
@@ -2547,7 +2542,7 @@ impl Printer {
                 if let Some(name) = outer.name.as_ref() {
                     name.write(&mut self.result);
                 } else {
-                    self.result.push_str(count.to_string().as_str());
+                    write!(self.result, "{count}")?;
                 }
                 write!(self.result, " ")?;
                 match kind {
@@ -2674,11 +2669,9 @@ impl Printer {
         self.start_group("@custom ")?;
         self.print_str(section.name())?;
         if let Some(place) = state.custom_section_place {
-            self.result.push_str(" (");
-            self.result.push_str(place);
-            self.result.push_str(")");
+            write!(self.result, " ({place})")?;
         }
-        self.result.push_str(" ");
+        write!(self.result, " ")?;
         self.print_bytes(section.data())?;
         self.end_group()?;
         Ok(())
@@ -2692,9 +2685,9 @@ impl Printer {
                 let (offset, value) = value?;
                 self.newline(offset)?;
                 self.start_group(field.name)?;
-                self.result.push_str(" ");
+                write!(self.result, " ")?;
                 self.print_str(value.name)?;
-                self.result.push_str(" ");
+                write!(self.result, " ")?;
                 self.print_str(value.version)?;
                 self.end_group()?;
             }
@@ -2736,7 +2729,7 @@ impl Printer {
                     self.newline(start)?;
                     self.start_group("needed")?;
                     for s in needed {
-                        self.result.push_str(" ");
+                        write!(self.result, " ")?;
                         self.print_str(s)?;
                     }
                     self.end_group()?;
@@ -2755,7 +2748,7 @@ impl Printer {
                         self.newline(start)?;
                         self.start_group("import-info ")?;
                         self.print_str(info.module)?;
-                        self.result.push_str(" ");
+                        write!(self.result, " ")?;
                         self.print_str(info.field)?;
                         self.print_dylink0_flags(info.flags)?;
                         self.end_group()?;
@@ -2775,7 +2768,7 @@ impl Printer {
             ($($name:ident = $text:tt)*) => ({$(
                 if flags.contains(SymbolFlags::$name) {
                     flags.remove(SymbolFlags::$name);
-                    self.result.push_str(concat!(" ", $text));
+                    write!(self.result, concat!(" ", $text))?;
                 }
             )*})
         }
@@ -2940,9 +2933,9 @@ macro_rules! print_float {
             let mut exponent = (((bits << 1) as $sint) >> (mantissa_width + 1)).wrapping_sub(bias);
             exponent = (exponent << (int_width - exp_width)) >> (int_width - exp_width);
             let mut fraction = bits & ((1 << mantissa_width) - 1);
-            self.result.push_str("0x");
+            write!(self.result, "0x")?;
             if bits == 0 {
-                self.result.push_str("0p+0");
+                write!(self.result, "0p+0")?;
             } else {
                 write!(self.result, "1")?;
                 if fraction > 0 {
