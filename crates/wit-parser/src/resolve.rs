@@ -181,17 +181,11 @@ impl Resolve {
             })
         } else {
             let ids = self.push_file(path)?;
-            let mut pkg_ids = Vec::new();
-            let mut path_bufs = Vec::new();
-            for id in ids {
-                pkg_ids.push(id);
-                path_bufs.push(path.to_path_buf());
-            }
-            Ok((pkg_ids, path_bufs))
+            Ok((ids, vec![path.to_path_buf()]))
         }
     }
 
-    fn _sort_unresolved_packages(
+    fn sort_unresolved_packages(
         &mut self,
         unresolved_groups: Vec<UnresolvedPackageGroup>,
     ) -> Result<(Vec<PackageId>, Vec<PathBuf>)> {
@@ -275,12 +269,12 @@ impl Resolve {
                 deps_path.display()
             )
         })?;
-        let (_, mut path_bufs) = self._sort_unresolved_packages(unresolved_deps)?;
+        let (_, mut path_bufs) = self.sort_unresolved_packages(unresolved_deps)?;
 
         let unresolved_top_level = UnresolvedPackageGroup::parse_dir(path)
             .with_context(|| format!("failed to parse package: {}", path.display()))?;
         let (pkgs_ids, mut top_level_path_bufs) =
-            self._sort_unresolved_packages(vec![unresolved_top_level])?;
+            self.sort_unresolved_packages(vec![unresolved_top_level])?;
 
         path_bufs.append(&mut top_level_path_bufs);
         Ok((pkgs_ids, path_bufs))
@@ -427,7 +421,7 @@ impl Resolve {
     ///
     /// The returned [PackageId]s are listed in topologically sorted order.
     pub fn append(&mut self, unresolved_groups: UnresolvedPackageGroup) -> Result<Vec<PackageId>> {
-        let (pkg_ids, _) = self._sort_unresolved_packages(vec![unresolved_groups])?;
+        let (pkg_ids, _) = self.sort_unresolved_packages(vec![unresolved_groups])?;
         Ok(pkg_ids)
     }
 
