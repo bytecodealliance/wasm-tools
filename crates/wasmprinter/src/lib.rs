@@ -412,32 +412,37 @@ impl Printer {
                     }
                     self.printers = printers;
 
-                    // Attempt to print this custom section if it wasn't already
-                    // handled specifically above. Note that custom sections are
-                    // allowed to be invalid, so any parse error here is ignored
-                    // and resets the output to what it was when this started.
-                    // Otherwise I/O errors and other things are plumbed through
-                    // in case they happen.
                     if printed {
                         continue;
                     }
-                    let cur = self.result.len();
+
+                    // If this wasn't handled specifically above then try to
+                    // print the known custom builtin sections. If this fails
+                    // because the custom section is malformed then don't fail
+                    // the whole print.
                     let state = states.last().unwrap();
+                    let start = self.nesting;
                     let err = match self.print_custom_section(state, c.clone()) {
                         Ok(()) => continue,
+                        Err(e) if !e.is::<BinaryReaderError>() => return Err(e),
                         Err(e) => e,
                     };
-                    if !err.is::<BinaryReaderError>() {
-                        return Err(err);
+
+                    // Restore the nesting level to what it was prior to
+                    // starting to print the custom section. Then emit a comment
+                    // indicating why the custom section failed to parse.
+                    //
+                    // This may leave broken syntax in the output module but
+                    // it's probably better than swallowing the error.
+                    while self.nesting > start {
+                        self.end_group()?;
                     }
-                    self.result.truncate(cur);
                     let msg = format!("failed to parse custom section `{}`: {err}", c.name());
                     for line in msg.lines() {
                         self.newline(c.data_offset())?;
                         write!(self.result, ";; {line}")?;
                     }
                     self.newline(c.range().end)?;
-                    self.print_raw_custom_section(state, c)?;
                 }
                 Payload::TypeSection(s) => {
                     self.update_custom_section_place(&mut states, "after type");
