@@ -358,7 +358,7 @@ impl<'a, 'b> PrintOperator<'a, 'b> {
         let try_table_label = self.label_indices.pop().unwrap();
 
         for catch in table.catches {
-            self.result().push(' ');
+            write!(self.result(), " ")?;
             match catch {
                 Catch::One { tag, label } => {
                     self.printer.start_group("catch")?;
