@@ -758,12 +758,20 @@ impl<'a> DFGBuilder {
                 }
 
                 Operator::RefNull {
-                    hty: wasmparser::HeapType::Extern,
+                    hty:
+                        wasmparser::HeapType::Abstract {
+                            ty: wasmparser::AbstractHeapType::Extern,
+                            ..
+                        },
                 } => {
                     self.push_node(Lang::RefNull(RefType::Extern), idx);
                 }
                 Operator::RefNull {
-                    hty: wasmparser::HeapType::Func,
+                    hty:
+                        wasmparser::HeapType::Abstract {
+                            ty: wasmparser::AbstractHeapType::Func,
+                            ..
+                        },
                 } => {
                     self.push_node(Lang::RefNull(RefType::Func), idx);
                 }

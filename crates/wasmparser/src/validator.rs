@@ -15,9 +15,9 @@
 
 use crate::prelude::*;
 use crate::{
-    limits::*, BinaryReaderError, Encoding, FromReader, FunctionBody, HeapType, Parser, Payload,
-    RefType, Result, SectionLimited, ValType, WasmFeatures, WASM_COMPONENT_VERSION,
-    WASM_MODULE_VERSION,
+    limits::*, AbstractHeapType, BinaryReaderError, Encoding, FromReader, FunctionBody, HeapType,
+    Parser, Payload, RefType, Result, SectionLimited, ValType, WasmFeatures,
+    WASM_COMPONENT_VERSION, WASM_MODULE_VERSION,
 };
 use ::core::mem;
 use ::core::ops::Range;
@@ -249,55 +249,54 @@ impl WasmFeatures {
         if !self.reference_types() {
             return Err("reference types support is not enabled");
         }
-        match (r.heap_type(), r.is_nullable()) {
-            // funcref/externref only require `reference-types`.
-            (HeapType::Func, true) | (HeapType::Extern, true) => Ok(()),
-
-            // Non-nullable func/extern references requires the
-            // `function-references` proposal.
-            (HeapType::Func | HeapType::Extern, false) => {
-                if self.function_references() {
-                    Ok(())
-                } else {
-                    Err("function references required for non-nullable types")
-                }
-            }
-
-            // Indexed types require either the function-references or gc
-            // proposal as gc implies function references here.
-            (HeapType::Concrete(_), _) => {
+        match r.heap_type() {
+            HeapType::Concrete(_) => {
+                // Indexed types require either the function-references or gc
+                // proposal as gc implies function references here.
                 if self.function_references() || self.gc() {
                     Ok(())
                 } else {
                     Err("function references required for index reference types")
                 }
             }
-
-            // These types were added in the gc proposal.
-            (
-                HeapType::Any
-                | HeapType::None
-                | HeapType::Eq
-                | HeapType::Struct
-                | HeapType::Array
-                | HeapType::I31
-                | HeapType::NoExtern
-                | HeapType::NoFunc,
-                _,
-            ) => {
-                if self.gc() {
-                    Ok(())
-                } else {
-                    Err("heap types not supported without the gc feature")
+            HeapType::Abstract { shared, ty } => {
+                use AbstractHeapType::*;
+                if shared && !self.shared_everything_threads() {
+                    return Err(
+                        "shared reference types require the shared-everything-threads proposal",
+                    );
                 }
-            }
+                match (ty, r.is_nullable()) {
+                    // funcref/externref only require `reference-types`.
+                    (Func, true) | (Extern, true) => Ok(()),
 
-            // These types were added in the exception-handling proposal.
-            (HeapType::Exn | HeapType::NoExn, _) => {
-                if self.exceptions() {
-                    Ok(())
-                } else {
-                    Err("exception refs not supported without the exception handling feature")
+                    // Non-nullable func/extern references requires the
+                    // `function-references` proposal.
+                    (Func | Extern, false) => {
+                        if self.function_references() {
+                            Ok(())
+                        } else {
+                            Err("function references required for non-nullable types")
+                        }
+                    }
+
+                    // These types were added in the gc proposal.
+                    (Any | None | Eq | Struct | Array | I31 | NoExtern | NoFunc, _) => {
+                        if self.gc() {
+                            Ok(())
+                        } else {
+                            Err("heap types not supported without the gc feature")
+                        }
+                    }
+
+                    // These types were added in the exception-handling proposal.
+                    (Exn | NoExn, _) => {
+                        if self.exceptions() {
+                            Ok(())
+                        } else {
+                            Err("exception refs not supported without the exception handling feature")
+                        }
+                    }
                 }
             }
         }

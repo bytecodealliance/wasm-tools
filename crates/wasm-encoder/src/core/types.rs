@@ -487,20 +487,24 @@ impl TryFrom<wasmparser::HeapType> for HeapType {
     type Error = ();
 
     fn try_from(heap_type: wasmparser::HeapType) -> Result<Self, Self::Error> {
+        use wasmparser::AbstractHeapType::*;
         Ok(match heap_type {
             wasmparser::HeapType::Concrete(i) => HeapType::Concrete(i.as_module_index().ok_or(())?),
-            wasmparser::HeapType::Func => HeapType::Func,
-            wasmparser::HeapType::Extern => HeapType::Extern,
-            wasmparser::HeapType::Any => HeapType::Any,
-            wasmparser::HeapType::None => HeapType::None,
-            wasmparser::HeapType::NoExtern => HeapType::NoExtern,
-            wasmparser::HeapType::NoFunc => HeapType::NoFunc,
-            wasmparser::HeapType::Eq => HeapType::Eq,
-            wasmparser::HeapType::Struct => HeapType::Struct,
-            wasmparser::HeapType::Array => HeapType::Array,
-            wasmparser::HeapType::I31 => HeapType::I31,
-            wasmparser::HeapType::Exn => HeapType::Exn,
-            wasmparser::HeapType::NoExn => HeapType::NoExn,
+            // TODO: handle shared
+            wasmparser::HeapType::Abstract { shared, ty } => match ty {
+                Func => HeapType::Func,
+                Extern => HeapType::Extern,
+                Any => HeapType::Any,
+                None => HeapType::None,
+                NoExtern => HeapType::NoExtern,
+                NoFunc => HeapType::NoFunc,
+                Eq => HeapType::Eq,
+                Struct => HeapType::Struct,
+                Array => HeapType::Array,
+                I31 => HeapType::I31,
+                Exn => HeapType::Exn,
+                NoExn => HeapType::NoExn,
+            },
         })
     }
 }

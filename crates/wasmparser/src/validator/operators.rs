@@ -22,13 +22,13 @@
 // confusing it's recommended to read over that section to see how it maps to
 // the various methods here.
 
+use crate::prelude::*;
 use crate::{
-    limits::MAX_WASM_FUNCTION_LOCALS, ArrayType, BinaryReaderError, BlockType, BrTable, Catch,
-    CompositeType, FieldType, FuncType, HeapType, Ieee32, Ieee64, MemArg, RefType, Result,
-    StorageType, StructType, SubType, TableType, TryTable, UnpackedIndex, ValType, VisitOperator,
-    WasmFeatures, WasmModuleResources, V128,
+    limits::MAX_WASM_FUNCTION_LOCALS, AbstractHeapType, ArrayType, BinaryReaderError, BlockType,
+    BrTable, Catch, CompositeType, FieldType, FuncType, GlobalType, HeapType, Ieee32, Ieee64,
+    MemArg, RefType, Result, StorageType, StructType, SubType, TableType, TryTable, UnpackedIndex,
+    ValType, VisitOperator, WasmFeatures, WasmModuleResources, V128,
 };
-use crate::{prelude::*, GlobalType};
 use core::ops::{Deref, DerefMut};
 
 pub(crate) struct OperatorValidator {
@@ -3991,7 +3991,11 @@ where
         let is_nullable = extern_ref
             .as_type()
             .map_or(false, |ty| ty.as_reference_type().unwrap().is_nullable());
-        let any_ref = RefType::new(is_nullable, HeapType::Any).unwrap();
+        let heap_type = HeapType::Abstract {
+            shared: false, // TODO: handle shared--is this always the case?
+            ty: AbstractHeapType::Any,
+        };
+        let any_ref = RefType::new(is_nullable, heap_type).unwrap();
         self.push_operand(any_ref)
     }
     fn visit_extern_convert_any(&mut self) -> Self::Output {
@@ -3999,7 +4003,11 @@ where
         let is_nullable = any_ref
             .as_type()
             .map_or(false, |ty| ty.as_reference_type().unwrap().is_nullable());
-        let extern_ref = RefType::new(is_nullable, HeapType::Extern).unwrap();
+        let heap_type = HeapType::Abstract {
+            shared: false, // TODO: handle shared--is this always the case?
+            ty: AbstractHeapType::Extern,
+        };
+        let extern_ref = RefType::new(is_nullable, heap_type).unwrap();
         self.push_operand(extern_ref)
     }
     fn visit_ref_test_non_null(&mut self, heap_type: HeapType) -> Self::Output {

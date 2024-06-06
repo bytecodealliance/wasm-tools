@@ -1017,20 +1017,9 @@ impl Module {
     }
 
     fn check_heap_type(&self, ty: &mut HeapType, offset: usize) -> Result<()> {
-        // Check that the heap type is valid
+        // Check that the heap type is valid.
         let type_index = match ty {
-            HeapType::Func
-            | HeapType::Extern
-            | HeapType::Any
-            | HeapType::None
-            | HeapType::NoExtern
-            | HeapType::NoFunc
-            | HeapType::Eq
-            | HeapType::Struct
-            | HeapType::Array
-            | HeapType::I31
-            | HeapType::Exn
-            | HeapType::NoExn => return Ok(()),
+            HeapType::Abstract { .. } => return Ok(()),
             HeapType::Concrete(type_index) => type_index,
         };
         match type_index {
@@ -1083,7 +1072,11 @@ impl Module {
                     offset,
                 ));
             }
-            if !ty.content_type.is_shared() {
+            // TODO: handle shared correctly--we need some way to look at a
+            // `TypeList` to inspect the type that concrete heap types point to
+            // really determine if the type is shared instead of assuming
+            // `false`.
+            if !ty.content_type.is_shared().unwrap_or(false) {
                 return Err(BinaryReaderError::new(
                     "shared globals must have a shared value type",
                     offset,

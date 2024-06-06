@@ -209,22 +209,26 @@ pub fn refty(t: &mut dyn Translator, ty: &wasmparser::RefType) -> Result<RefType
 }
 
 pub fn heapty(t: &mut dyn Translator, ty: &wasmparser::HeapType) -> Result<HeapType> {
+    use wasmparser::AbstractHeapType::*;
     match ty {
-        wasmparser::HeapType::Func => Ok(HeapType::Func),
-        wasmparser::HeapType::Extern => Ok(HeapType::Extern),
-        wasmparser::HeapType::Any => Ok(HeapType::Any),
-        wasmparser::HeapType::None => Ok(HeapType::None),
-        wasmparser::HeapType::NoExtern => Ok(HeapType::NoExtern),
-        wasmparser::HeapType::NoFunc => Ok(HeapType::NoFunc),
-        wasmparser::HeapType::Eq => Ok(HeapType::Eq),
-        wasmparser::HeapType::Struct => Ok(HeapType::Struct),
-        wasmparser::HeapType::Array => Ok(HeapType::Array),
-        wasmparser::HeapType::I31 => Ok(HeapType::I31),
-        wasmparser::HeapType::Exn => Ok(HeapType::Exn),
-        wasmparser::HeapType::NoExn => Ok(HeapType::NoExn),
         wasmparser::HeapType::Concrete(i) => Ok(HeapType::Concrete(
             t.remap(Item::Type, i.as_module_index().unwrap())?,
         )),
+        // TODO: handle shared.
+        wasmparser::HeapType::Abstract { shared, ty } => match ty {
+            Func => Ok(HeapType::Func),
+            Extern => Ok(HeapType::Extern),
+            Any => Ok(HeapType::Any),
+            None => Ok(HeapType::None),
+            NoExtern => Ok(HeapType::NoExtern),
+            NoFunc => Ok(HeapType::NoFunc),
+            Eq => Ok(HeapType::Eq),
+            Struct => Ok(HeapType::Struct),
+            Array => Ok(HeapType::Array),
+            I31 => Ok(HeapType::I31),
+            Exn => Ok(HeapType::Exn),
+            NoExn => Ok(HeapType::NoExn),
+        },
     }
 }
 
@@ -251,7 +255,11 @@ pub fn const_expr(
         match op {
             Operator::RefFunc { .. }
             | Operator::RefNull {
-                hty: wasmparser::HeapType::Func,
+                hty:
+                    wasmparser::HeapType::Abstract {
+                        ty: wasmparser::AbstractHeapType::Func,
+                        ..
+                    },
                 ..
             }
             | Operator::GlobalGet { .. } => {}

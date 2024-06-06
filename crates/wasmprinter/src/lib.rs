@@ -1018,20 +1018,31 @@ impl Printer<'_, '_> {
 
     fn print_heaptype(&mut self, state: &State, ty: HeapType) -> Result<()> {
         match ty {
-            HeapType::Func => self.print_type_keyword("func")?,
-            HeapType::Extern => self.print_type_keyword("extern")?,
-            HeapType::Any => self.print_type_keyword("any")?,
-            HeapType::None => self.print_type_keyword("none")?,
-            HeapType::NoExtern => self.print_type_keyword("noextern")?,
-            HeapType::NoFunc => self.print_type_keyword("nofunc")?,
-            HeapType::Eq => self.print_type_keyword("eq")?,
-            HeapType::Struct => self.print_type_keyword("struct")?,
-            HeapType::Array => self.print_type_keyword("array")?,
-            HeapType::I31 => self.print_type_keyword("i31")?,
-            HeapType::Exn => self.print_type_keyword("exn")?,
-            HeapType::NoExn => self.print_type_keyword("noexn")?,
             HeapType::Concrete(i) => {
                 self.print_idx(&state.core.type_names, i.as_module_index().unwrap())?;
+            }
+            HeapType::Abstract { shared, ty } => {
+                use AbstractHeapType::*;
+                if shared {
+                    self.start_group("shared ")?;
+                }
+                match ty {
+                    Func => self.print_type_keyword("func")?,
+                    Extern => self.print_type_keyword("extern")?,
+                    Any => self.print_type_keyword("any")?,
+                    None => self.print_type_keyword("none")?,
+                    NoExtern => self.print_type_keyword("noextern")?,
+                    NoFunc => self.print_type_keyword("nofunc")?,
+                    Eq => self.print_type_keyword("eq")?,
+                    Struct => self.print_type_keyword("struct")?,
+                    Array => self.print_type_keyword("array")?,
+                    I31 => self.print_type_keyword("i31")?,
+                    Exn => self.print_type_keyword("exn")?,
+                    NoExn => self.print_type_keyword("noexn")?,
+                }
+                if shared {
+                    self.end_group()?;
+                }
             }
         }
         Ok(())
