@@ -1,0 +1,1 @@
+WIT files cannot mix top-level explicit `package` declarations with other declaration kinds

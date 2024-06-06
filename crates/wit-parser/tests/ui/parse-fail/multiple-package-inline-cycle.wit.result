@@ -1,0 +1,5 @@
+package depends on itself
+     --> tests/ui/parse-fail/multiple-package-inline-cycle.wit:3:9
+      |
+    3 |     use foo:qux/i.{};
+      |         ^------

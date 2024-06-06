@@ -1,0 +1,5 @@
+package root:root;
+
+world root {
+  import bar:bar/my-interface;
+}

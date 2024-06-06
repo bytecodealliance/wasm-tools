@@ -13,8 +13,8 @@ pub struct Resolver<'a> {
     /// Package docs.
     package_docs: Docs,
 
-    /// All WIT files which are going to be resolved together.
-    asts: Vec<ast::Ast<'a>>,
+    /// All non-`package` WIT decls are going to be resolved together.
+    decl_lists: Vec<ast::DeclList<'a>>,
 
     // Arenas that get plumbed to the final `UnresolvedPackage`
     types: Arena<TypeDef>,
@@ -29,9 +29,9 @@ pub struct Resolver<'a> {
     /// is updated as the ASTs are walked.
     cur_ast_index: usize,
 
-    /// A map per `ast::Ast` which keeps track of the file's top level names in
-    /// scope. This maps each name onto either a world or an interface, handling
-    /// things like `use` at the top level.
+    /// A map per `ast::DeclList` which keeps track of the file's top level
+    /// names in scope. This maps each name onto either a world or an interface,
+    /// handling things like `use` at the top level.
     ast_items: Vec<IndexMap<&'a str, AstItem>>,
 
     /// A map for the entire package being created of all names defined within,
@@ -109,11 +109,11 @@ enum TypeOrItem {
 }
 
 impl<'a> Resolver<'a> {
-    pub(crate) fn push(&mut self, ast: ast::Ast<'a>) -> Result<()> {
+    pub(crate) fn push_partial(&mut self, partial: ast::PartialImplicitPackage<'a>) -> Result<()> {
         // As each WIT file is pushed into this resolver keep track of the
         // current package name assigned. Only one file needs to mention it, but
         // if multiple mention it then they must all match.
-        if let Some(cur) = &ast.package_id {
+        if let Some(cur) = &partial.package_id {
             let cur_name = cur.package_name();
             if let Some(prev) = &self.package_name {
                 if cur_name != *prev {
@@ -140,33 +140,38 @@ impl<'a> Resolver<'a> {
                 self.package_docs = docs;
             }
         }
-        self.asts.push(ast);
+        self.decl_lists.push(partial.decl_list);
         Ok(())
     }
 
-    pub(crate) fn resolve(&mut self) -> Result<UnresolvedPackage> {
+    pub(crate) fn resolve(&mut self) -> Result<Option<UnresolvedPackage>> {
         // At least one of the WIT files must have a `package` annotation.
         let name = match &self.package_name {
             Some(name) => name.clone(),
-            None => bail!("no `package` header was found in any WIT file for this package"),
+            None => {
+                if self.decl_lists.is_empty() {
+                    return Ok(None);
+                }
+                bail!("no `package` header was found in any WIT file for this package")
+            }
         };
 
         // First populate information about foreign dependencies and the general
         // structure of the package. This should resolve the "base" of many
         // `use` statements and additionally generate a topological ordering of
         // all interfaces in the package to visit.
-        let asts = mem::take(&mut self.asts);
-        self.populate_foreign_deps(&asts);
-        let (iface_order, world_order) = self.populate_ast_items(&asts)?;
-        self.populate_foreign_types(&asts)?;
+        let decl_lists = mem::take(&mut self.decl_lists);
+        self.populate_foreign_deps(&decl_lists);
+        let (iface_order, world_order) = self.populate_ast_items(&decl_lists)?;
+        self.populate_foreign_types(&decl_lists)?;
 
         // Use the topological ordering of all interfaces to resolve all
         // interfaces in-order. Note that a reverse-mapping from ID to AST is
         // generated here to assist with this.
         let mut iface_id_to_ast = IndexMap::new();
         let mut world_id_to_ast = IndexMap::new();
-        for (i, ast) in asts.iter().enumerate() {
-            for item in ast.items.iter() {
+        for (i, decl_list) in decl_lists.iter().enumerate() {
+            for item in decl_list.items.iter() {
                 match item {
                     ast::AstItem::Interface(iface) => {
                         let id = match self.ast_items[i][iface.name.name] {
@@ -199,7 +204,7 @@ impl<'a> Resolver<'a> {
             self.resolve_world(id, world)?;
         }
 
-        Ok(UnresolvedPackage {
+        Ok(Some(UnresolvedPackage {
             name,
             docs: mem::take(&mut self.package_docs),
             worlds: mem::take(&mut self.worlds),
@@ -222,61 +227,71 @@ impl<'a> Resolver<'a> {
             world_spans: mem::take(&mut self.world_spans),
             type_spans: mem::take(&mut self.type_spans),
             foreign_dep_spans: mem::take(&mut self.foreign_dep_spans),
-            source_map: SourceMap::default(),
             required_resource_types: mem::take(&mut self.required_resource_types),
-        })
+        }))
+    }
+
+    pub(crate) fn push_then_resolve(
+        &mut self,
+        package: ast::ExplicitPackage<'a>,
+    ) -> Result<Option<UnresolvedPackage>> {
+        self.package_name = Some(package.package_id.package_name());
+        self.docs(&package.package_id.docs);
+        self.decl_lists = vec![package.decl_list];
+        self.resolve()
     }
 
     /// Registers all foreign dependencies made within the ASTs provided.
     ///
     /// This will populate the `self.foreign_{deps,interfaces,worlds}` maps with all
     /// `UsePath::Package` entries.
-    fn populate_foreign_deps(&mut self, asts: &[ast::Ast<'a>]) {
+    fn populate_foreign_deps(&mut self, decl_lists: &[ast::DeclList<'a>]) {
         let mut foreign_deps = mem::take(&mut self.foreign_deps);
         let mut foreign_interfaces = mem::take(&mut self.foreign_interfaces);
         let mut foreign_worlds = mem::take(&mut self.foreign_worlds);
-        for ast in asts {
-            ast.for_each_path(|_, path, _names, world_or_iface| {
-                let (id, name) = match path {
-                    ast::UsePath::Package { id, name } => (id, name),
-                    _ => return Ok(()),
-                };
+        for decl_list in decl_lists {
+            decl_list
+                .for_each_path(|_, path, _names, world_or_iface| {
+                    let (id, name) = match path {
+                        ast::UsePath::Package { id, name } => (id, name),
+                        _ => return Ok(()),
+                    };
 
-                let deps = foreign_deps.entry(id.package_name()).or_insert_with(|| {
-                    self.foreign_dep_spans.push(id.span);
-                    IndexMap::new()
-                });
-                let id = *deps.entry(name.name).or_insert_with(|| {
-                    match world_or_iface {
-                        WorldOrInterface::World => {
-                            log::trace!(
-                                "creating a world for foreign dep: {}/{}",
-                                id.package_name(),
-                                name.name
-                            );
-                            AstItem::World(self.alloc_world(name.span))
+                    let deps = foreign_deps.entry(id.package_name()).or_insert_with(|| {
+                        self.foreign_dep_spans.push(id.span);
+                        IndexMap::new()
+                    });
+                    let id = *deps.entry(name.name).or_insert_with(|| {
+                        match world_or_iface {
+                            WorldOrInterface::World => {
+                                log::trace!(
+                                    "creating a world for foreign dep: {}/{}",
+                                    id.package_name(),
+                                    name.name
+                                );
+                                AstItem::World(self.alloc_world(name.span))
+                            }
+                            WorldOrInterface::Interface | WorldOrInterface::Unknown => {
+                                // Currently top-level `use` always assumes an interface, so the
+                                // `Unknown` case is the same as `Interface`.
+                                log::trace!(
+                                    "creating an interface for foreign dep: {}/{}",
+                                    id.package_name(),
+                                    name.name
+                                );
+                                AstItem::Interface(self.alloc_interface(name.span))
+                            }
                         }
-                        WorldOrInterface::Interface | WorldOrInterface::Unknown => {
-                            // Currently top-level `use` always assumes an interface, so the
-                            // `Unknown` case is the same as `Interface`.
-                            log::trace!(
-                                "creating an interface for foreign dep: {}/{}",
-                                id.package_name(),
-                                name.name
-                            );
-                            AstItem::Interface(self.alloc_interface(name.span))
-                        }
-                    }
-                });
+                    });
 
-                let _ = match id {
-                    AstItem::Interface(id) => foreign_interfaces.insert(id),
-                    AstItem::World(id) => foreign_worlds.insert(id),
-                };
+                    let _ = match id {
+                        AstItem::Interface(id) => foreign_interfaces.insert(id),
+                        AstItem::World(id) => foreign_worlds.insert(id),
+                    };
 
-                Ok(())
-            })
-            .unwrap();
+                    Ok(())
+                })
+                .unwrap();
         }
         self.foreign_deps = foreign_deps;
         self.foreign_interfaces = foreign_interfaces;
@@ -323,18 +338,18 @@ impl<'a> Resolver<'a> {
     /// generated for resolving use-paths later on.
     fn populate_ast_items(
         &mut self,
-        asts: &[ast::Ast<'a>],
+        decl_lists: &[ast::DeclList<'a>],
     ) -> Result<(Vec<InterfaceId>, Vec<WorldId>)> {
         let mut package_items = IndexMap::new();
 
         // Validate that all worlds and interfaces have unique names within this
         // package across all ASTs which make up the package.
         let mut names = HashMap::new();
-        let mut ast_namespaces = Vec::new();
+        let mut decl_list_namespaces = Vec::new();
         let mut order = IndexMap::new();
-        for ast in asts {
-            let mut ast_ns = IndexMap::new();
-            for item in ast.items.iter() {
+        for decl_list in decl_lists {
+            let mut decl_list_ns = IndexMap::new();
+            for item in decl_list.items.iter() {
                 match item {
                     ast::AstItem::Interface(i) => {
                         if package_items.insert(i.name.name, i.name.span).is_some() {
@@ -343,7 +358,7 @@ impl<'a> Resolver<'a> {
                                 format!("duplicate item named `{}`", i.name.name),
                             ))
                         }
-                        let prev = ast_ns.insert(i.name.name, ());
+                        let prev = decl_list_ns.insert(i.name.name, ());
                         assert!(prev.is_none());
                         let prev = order.insert(i.name.name, Vec::new());
                         assert!(prev.is_none());
@@ -357,7 +372,7 @@ impl<'a> Resolver<'a> {
                                 format!("duplicate item named `{}`", w.name.name),
                             ))
                         }
-                        let prev = ast_ns.insert(w.name.name, ());
+                        let prev = decl_list_ns.insert(w.name.name, ());
                         assert!(prev.is_none());
                         let prev = order.insert(w.name.name, Vec::new());
                         assert!(prev.is_none());
@@ -368,7 +383,7 @@ impl<'a> Resolver<'a> {
                     ast::AstItem::Use(_) => {}
                 }
             }
-            ast_namespaces.push(ast_ns);
+            decl_list_namespaces.push(decl_list_ns);
         }
 
         // Next record dependencies between interfaces as induced via `use`
@@ -380,13 +395,13 @@ impl<'a> Resolver<'a> {
             Local(ast::Id<'a>),
         }
 
-        for ast in asts {
+        for decl_list in decl_lists {
             // Record, in the context of this file, what all names are defined
             // at the top level and whether they point to other items in this
             // package or foreign items. Foreign deps are ignored for
             // topological ordering.
-            let mut ast_ns = IndexMap::new();
-            for item in ast.items.iter() {
+            let mut decl_list_ns = IndexMap::new();
+            for item in decl_list.items.iter() {
                 let (name, src) = match item {
                     ast::AstItem::Use(u) => {
                         let name = u.as_.as_ref().unwrap_or(u.item.name());
@@ -399,7 +414,7 @@ impl<'a> Resolver<'a> {
                     ast::AstItem::Interface(i) => (&i.name, ItemSource::Local(i.name.clone())),
                     ast::AstItem::World(w) => (&w.name, ItemSource::Local(w.name.clone())),
                 };
-                if ast_ns.insert(name.name, (name.span, src)).is_some() {
+                if decl_list_ns.insert(name.name, (name.span, src)).is_some() {
                     bail!(Error::new(
                         name.span,
                         format!("duplicate name `{}` in this file", name.name),
@@ -409,7 +424,7 @@ impl<'a> Resolver<'a> {
 
             // With this file's namespace information look at all `use` paths
             // and record dependencies between interfaces.
-            ast.for_each_path(|iface, path, _names, _| {
+            decl_list.for_each_path(|iface, path, _names, _| {
                 // If this import isn't contained within an interface then it's
                 // in a world and it doesn't need to participate in our
                 // topo-sort.
@@ -421,7 +436,7 @@ impl<'a> Resolver<'a> {
                     ast::UsePath::Id(id) => id,
                     ast::UsePath::Package { .. } => return Ok(()),
                 };
-                match ast_ns.get(used_name.name) {
+                match decl_list_ns.get(used_name.name) {
                     Some((_, ItemSource::Foreign)) => return Ok(()),
                     Some((_, ItemSource::Local(id))) => {
                         order[iface.name].push(id.clone());
@@ -473,9 +488,9 @@ impl<'a> Resolver<'a> {
                 ast::AstItem::Use(_) => unreachable!(),
             };
         }
-        for ast in asts {
+        for decl_list in decl_lists {
             let mut items = IndexMap::new();
-            for item in ast.items.iter() {
+            for item in decl_list.items.iter() {
                 let (name, ast_item) = match item {
                     ast::AstItem::Use(u) => {
                         if !u.attributes.is_empty() {
@@ -533,10 +548,10 @@ impl<'a> Resolver<'a> {
     /// This is done after all interfaces are generated so `self.resolve_path`
     /// can be used to determine if what's being imported from is a foreign
     /// interface or not.
-    fn populate_foreign_types(&mut self, asts: &[ast::Ast<'a>]) -> Result<()> {
-        for (i, ast) in asts.iter().enumerate() {
+    fn populate_foreign_types(&mut self, decl_lists: &[ast::DeclList<'a>]) -> Result<()> {
+        for (i, decl_list) in decl_lists.iter().enumerate() {
             self.cur_ast_index = i;
-            ast.for_each_path(|_, path, names, _| {
+            decl_list.for_each_path(|_, path, names, _| {
                 let names = match names {
                     Some(names) => names,
                     None => return Ok(()),

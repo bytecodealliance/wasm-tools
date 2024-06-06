@@ -11,9 +11,10 @@ use wasm_tools::Output;
 use wasmparser::WasmFeatures;
 use wat::Detect;
 use wit_component::{
-    embed_component_metadata, ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter,
+    embed_component_metadata, resolve_world_from_name, ComponentEncoder, DecodedWasm, Linker,
+    StringEncoding, WitPrinter,
 };
-use wit_parser::{PackageId, Resolve, UnresolvedPackage};
+use wit_parser::{PackageId, Resolve, UnresolvedPackageGroup};
 
 /// WebAssembly wit-based component tooling.
 #[derive(Parser)]
@@ -199,10 +200,10 @@ impl WitResolve {
         return resolve;
     }
 
-    fn load(&self) -> Result<(Resolve, PackageId)> {
+    fn load(&self) -> Result<(Resolve, Vec<PackageId>)> {
         let mut resolve = Self::resolve_with_features(&self.features);
-        let id = resolve.push_path(&self.wit)?.0;
-        Ok((resolve, id))
+        let (pkg_ids, _) = resolve.push_path(&self.wit)?;
+        Ok((resolve, pkg_ids))
     }
 }
 
@@ -239,11 +240,12 @@ pub struct EmbedOpts {
 
     /// The world that the component uses.
     ///
-    /// This is the path, within the `WIT` package provided as a positional
-    /// argument, to the `world` that the core wasm module works with. This can
-    /// either be a bare string which a document name that has a `default
-    /// world`, or it can be a `foo/bar` name where `foo` names a document and
-    /// `bar` names a world within that document.
+    /// This is the path, within the `WIT` source provided as a positional argument, to the `world`
+    /// that the core wasm module works with. This can either be a bare string which is a document
+    /// name that has a `default world`, or it can be a `foo/bar` name where `foo` names a document
+    /// and `bar` names a world within that document. If the `WIT` source provided contains multiple
+    /// packages, this option must be set, and must be of the fully-qualified form (ex:
+    /// "wasi:http/proxy")
     #[clap(short, long)]
     world: Option<String>,
 
@@ -275,9 +277,8 @@ impl EmbedOpts {
         } else {
             Some(self.io.parse_input_wasm()?)
         };
-        let (resolve, id) = self.resolve.load()?;
-        let world = resolve.select_world(id, self.world.as_deref())?;
-
+        let (resolve, pkg_ids) = self.resolve.load()?;
+        let world = resolve_world_from_name(&resolve, pkg_ids, self.world.as_deref())?;
         let mut wasm = wasm.unwrap_or_else(|| wit_component::dummy_module(&resolve, world));
 
         embed_component_metadata(
@@ -531,8 +532,8 @@ impl WitOpts {
         if let Some(input) = &self.input {
             if input.is_dir() {
                 let mut resolve = WitResolve::resolve_with_features(&self.features);
-                let id = resolve.push_dir(&input)?.0;
-                return Ok(DecodedWasm::WitPackage(resolve, id));
+                let (pkg_ids, _) = resolve.push_dir(&input)?;
+                return Ok(DecodedWasm::WitPackages(resolve, pkg_ids));
             }
         }
 
@@ -579,9 +580,9 @@ impl WitOpts {
                     Err(_) => bail!("input was not valid utf-8"),
                 };
                 let mut resolve = WitResolve::resolve_with_features(&self.features);
-                let pkg = UnresolvedPackage::parse(path, input)?;
-                let id = resolve.push(pkg)?;
-                Ok(DecodedWasm::WitPackage(resolve, id))
+                let pkgs = UnresolvedPackageGroup::parse(path, input)?;
+                let ids = resolve.append(pkgs)?;
+                Ok(DecodedWasm::WitPackages(resolve, ids))
             }
         }
     }
@@ -589,8 +590,12 @@ impl WitOpts {
     fn emit_wasm(&self, decoded: &DecodedWasm) -> Result<()> {
         assert!(self.wasm || self.wat);
         assert!(self.out_dir.is_none());
+        if decoded.packages().len() != 1 {
+            bail!("emitting WASM for multi-package WIT files is not yet supported")
+        }
 
-        let bytes = wit_component::encode(None, decoded.resolve(), decoded.package())?;
+        let decoded_package = decoded.packages()[0];
+        let bytes = wit_component::encode(None, decoded.resolve(), decoded_package)?;
         if !self.skip_validation {
             wasmparser::Validator::new_with_features(
                 WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL,
@@ -608,7 +613,7 @@ impl WitOpts {
         assert!(!self.wasm && !self.wat);
 
         let resolve = decoded.resolve();
-        let main = decoded.package();
+        let main = decoded.packages();
 
         let mut printer = WitPrinter::default();
         printer.emit_docs(!self.no_docs);
@@ -632,8 +637,8 @@ impl WitOpts {
                 }
 
                 for (id, pkg) in resolve.packages.iter() {
-                    let output = printer.print(resolve, id)?;
-                    let out_dir = if id == main {
+                    let output = printer.print(resolve, &[id])?;
+                    let out_dir = if main.contains(&id) {
                         dir.clone()
                     } else {
                         let dir = dir.join("deps");
@@ -659,7 +664,7 @@ impl WitOpts {
                 }
             }
             None => {
-                let output = printer.print(resolve, main)?;
+                let output = printer.print(resolve, &main)?;
                 self.output.output(Output::Wat(&output))?;
             }
         }
@@ -687,7 +692,9 @@ pub struct TargetsOpts {
     #[clap(flatten)]
     resolve: WitResolve,
 
-    /// The world used to test whether a component conforms to its signature.
+    /// The world used to test whether a component conforms to its signature. If the `WIT` source
+    /// provided contains multiple packages, this option must be set, and must be of the
+    /// fully-qualified form (ex: "wasi:http/proxy")
     #[clap(short, long)]
     world: Option<String>,
 
@@ -702,8 +709,8 @@ impl TargetsOpts {
 
     /// Executes the application.
     fn run(self) -> Result<()> {
-        let (resolve, package_id) = self.resolve.load()?;
-        let world = resolve.select_world(package_id, self.world.as_deref())?;
+        let (resolve, pkg_ids) = self.resolve.load()?;
+        let world = resolve_world_from_name(&resolve, pkg_ids, self.world.as_deref())?;
         let component_to_test = self.input.parse_wasm()?;
 
         wit_component::targets(&resolve, world, &component_to_test)?;
@@ -742,9 +749,9 @@ impl SemverCheckOpts {
     }
 
     fn run(self) -> Result<()> {
-        let (resolve, package_id) = self.resolve.load()?;
-        let prev = resolve.select_world(package_id, Some(&self.prev))?;
-        let new = resolve.select_world(package_id, Some(&self.new))?;
+        let (resolve, pkg_ids) = self.resolve.load()?;
+        let prev = resolve_world_from_name(&resolve, pkg_ids.clone(), Some(self.prev).as_deref())?;
+        let new = resolve_world_from_name(&resolve, pkg_ids, Some(self.new).as_deref())?;
         wit_component::semver_check(resolve, prev, new)?;
         Ok(())
     }

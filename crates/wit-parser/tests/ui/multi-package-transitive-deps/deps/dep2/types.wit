@@ -1,0 +1,5 @@
+package foo:dep2;
+
+interface types {
+  resource a;
+}

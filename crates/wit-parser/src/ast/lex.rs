@@ -190,6 +190,9 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    /// Three possibilities when calling this method: an `Err(...)` indicates that lexing failed, an
+    /// `Ok(Some(...))` produces the next token, and `Ok(None)` indicates that there are no more
+    /// tokens available.
     pub fn next_raw(&mut self) -> Result<Option<(Span, Token)>, Error> {
         let (str_start, ch) = match self.chars.next() {
             Some(pair) => pair,

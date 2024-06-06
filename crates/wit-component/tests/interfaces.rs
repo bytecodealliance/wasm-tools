@@ -5,7 +5,7 @@ use std::fs;
 use std::path::Path;
 use wasmparser::WasmFeatures;
 use wit_component::WitPrinter;
-use wit_parser::{PackageId, Resolve, UnresolvedPackage};
+use wit_parser::{PackageId, Resolve, UnresolvedPackageGroup};
 
 /// Tests the encoding of a WIT package as a WebAssembly binary.
 ///
@@ -48,55 +48,66 @@ fn main() -> Result<()> {
 
 fn run_test(path: &Path, is_dir: bool) -> Result<()> {
     let mut resolve = Resolve::new();
-    let package = if is_dir {
+    let packages = if is_dir {
         resolve.push_dir(path)?.0
     } else {
-        resolve.push(UnresolvedPackage::parse_file(path)?)?
+        resolve.append(UnresolvedPackageGroup::parse_file(path)?)?
     };
 
-    assert_print(&resolve, package, path, is_dir)?;
+    for package in packages {
+        assert_print(&resolve, &[package], path, is_dir)?;
 
-    let features = WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL;
+        let features = WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL;
 
-    // First convert the WIT package to a binary WebAssembly output, then
-    // convert that binary wasm to textual wasm, then assert it matches the
-    // expectation.
-    let wasm = wit_component::encode(Some(true), &resolve, package)?;
-    let wat = wasmprinter::print_bytes(&wasm)?;
-    assert_output(&path.with_extension("wat"), &wat)?;
-    wasmparser::Validator::new_with_features(features)
-        .validate_all(&wasm)
-        .context("failed to validate wasm output")?;
+        // First convert the WIT package to a binary WebAssembly output, then
+        // convert that binary wasm to textual wasm, then assert it matches the
+        // expectation.
+        let wasm = wit_component::encode(Some(true), &resolve, package)?;
+        let wat = wasmprinter::print_bytes(&wasm)?;
+        assert_output(&path.with_extension("wat"), &wat)?;
+        wasmparser::Validator::new_with_features(features)
+            .validate_all(&wasm)
+            .context("failed to validate wasm output")?;
 
-    // Next decode a fresh WIT package from the WebAssembly generated. Print
-    // this package's documents and assert they all match the expectations.
-    let decoded = wit_component::decode(&wasm)?;
-    let resolve = decoded.resolve();
+        // Next decode a fresh WIT package from the WebAssembly generated. Print
+        // this package's documents and assert they all match the expectations.
+        let decoded = wit_component::decode(&wasm)?;
+        assert_eq!(
+            1,
+            decoded.packages().len(),
+            "Each input WIT package should produce WASM that contains only one package"
+        );
 
-    assert_print(resolve, decoded.package(), path, is_dir)?;
+        let decoded_package = decoded.packages()[0];
+        let resolve = decoded.resolve();
 
-    // Finally convert the decoded package to wasm again and make sure it
-    // matches the prior wasm.
-    let wasm2 = wit_component::encode(Some(true), resolve, decoded.package())?;
-    if wasm != wasm2 {
-        let wat2 = wasmprinter::print_bytes(&wasm)?;
-        assert_eq!(wat, wat2, "document did not roundtrip correctly");
+        assert_print(resolve, decoded.packages(), path, is_dir)?;
+
+        // Finally convert the decoded package to wasm again and make sure it
+        // matches the prior wasm.
+        let wasm2 = wit_component::encode(Some(true), resolve, decoded_package)?;
+        if wasm != wasm2 {
+            let wat2 = wasmprinter::print_bytes(&wasm)?;
+            assert_eq!(wat, wat2, "document did not roundtrip correctly");
+        }
     }
 
     Ok(())
 }
 
-fn assert_print(resolve: &Resolve, package: PackageId, path: &Path, is_dir: bool) -> Result<()> {
-    let pkg = &resolve.packages[package];
-    let expected = if is_dir {
-        path.join(format!("{}.wit.print", &pkg.name.name))
-    } else {
-        path.with_extension("wit.print")
-    };
-    let output = WitPrinter::default().print(resolve, package)?;
-    assert_output(&expected, &output)?;
+fn assert_print(resolve: &Resolve, pkg_ids: &[PackageId], path: &Path, is_dir: bool) -> Result<()> {
+    let output = WitPrinter::default().print(resolve, &pkg_ids)?;
+    for pkg_id in pkg_ids {
+        let pkg = &resolve.packages[*pkg_id];
+        let expected = if is_dir {
+            path.join(format!("{}.wit.print", &pkg.name.name))
+        } else {
+            path.with_extension("wit.print")
+        };
+        assert_output(&expected, &output)?;
+    }
 
-    UnresolvedPackage::parse("foo.wit".as_ref(), &output)
+    UnresolvedPackageGroup::parse("foo.wit".as_ref(), &output)
         .context("failed to parse printed output")?;
     Ok(())
 }
