@@ -360,7 +360,7 @@ impl<'cfg, 'a, 'b> PrintOperator<'cfg, 'a, 'b> {
         let try_table_label = self.label_indices.pop().unwrap();
 
         for catch in table.catches {
-            write!(self.result(), " ")?;
+            self.result().write_str(" ")?;
             match catch {
                 Catch::One { tag, label } => {
                     self.printer.start_group("catch")?;
