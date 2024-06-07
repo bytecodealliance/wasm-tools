@@ -233,19 +233,21 @@ pub struct EmbedOpts {
     /// The expected string encoding format for the component.
     ///
     /// Supported values are: `utf8` (default), `utf16`, and `compact-utf16`.
-    /// This is only applicable to the `--wit` argument to describe the string
+    /// This is only applicable to the `wit` argument to describe the string
     /// encoding of the functions in that world.
     #[clap(long, value_name = "ENCODING")]
     encoding: Option<StringEncoding>,
 
     /// The world that the component uses.
     ///
-    /// This is the path, within the `WIT` source provided as a positional argument, to the `world`
-    /// that the core wasm module works with. This can either be a bare string which is a document
-    /// name that has a `default world`, or it can be a `foo/bar` name where `foo` names a document
-    /// and `bar` names a world within that document. If the `WIT` source provided contains multiple
-    /// packages, this option must be set, and must be of the fully-qualified form (ex:
-    /// "wasi:http/proxy")
+    /// This is the path, within the `WIT` source provided as a positional
+    /// argument, to the `world` that the core wasm module works with. If this
+    /// option is omitted then the "main package" pointed to by `WIT` must have
+    /// a single world and that's what is used to embed. Otherwise this could be
+    /// a bare string `foo` to point to the `world foo` within the main
+    /// package of WIT. Finally this can be a fully qualified name too such as
+    /// `wasi:http/proxy` which can select a world from a WIT dependency as
+    /// well.
     #[clap(short, long)]
     world: Option<String>,
 
