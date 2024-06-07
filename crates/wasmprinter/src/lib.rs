@@ -2946,16 +2946,26 @@ macro_rules! print_float {
                 self.result.write_str("-")?;
             }
             if f.is_infinite() {
-                write!(self.result, "inf (;={};)", f)?;
+                self.result.start_literal()?;
+                self.result.write_str("inf ")?;
+                self.result.start_comment()?;
+                write!(self.result, "(;={f};)")?;
+                self.result.reset_color()?;
                 return Ok(());
             }
             if f.is_nan() {
                 let payload = bits & ((1 << mantissa_width) - 1);
+                self.result.start_literal()?;
                 if payload == 1 << (mantissa_width - 1) {
-                    write!(self.result, "nan (;={};)", f)?;
+                    self.result.write_str("nan ")?;
+                    self.result.start_comment()?;
+                    write!(self.result, "(;={f};)")?;
                 } else {
-                    write!(self.result, "nan:{:#x} (;={};)", payload, f)?;
+                    write!(self.result, "nan:{:#x} ", payload)?;
+                    self.result.start_comment()?;
+                    write!(self.result, "(;={f};)")?;
                 }
+                self.result.reset_color()?;
                 return Ok(());
             }
 
@@ -2977,6 +2987,7 @@ macro_rules! print_float {
             let mut exponent = (((bits << 1) as $sint) >> (mantissa_width + 1)).wrapping_sub(bias);
             exponent = (exponent << (int_width - exp_width)) >> (int_width - exp_width);
             let mut fraction = bits & ((1 << mantissa_width) - 1);
+            self.result.start_literal()?;
             self.result.write_str("0x")?;
             if bits == 0 {
                 self.result.write_str("0p+0")?;
@@ -3006,7 +3017,9 @@ macro_rules! print_float {
                 }
                 write!(self.result, "p{:+}", exponent)?;
             }
+            self.result.start_comment()?;
             write!(self.result, " (;={};)", f)?;
+            self.result.reset_color()?;
             Ok(())
         }
     };

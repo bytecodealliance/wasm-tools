@@ -531,15 +531,11 @@ macro_rules! define_visit {
     );
     (payload $self:ident F32Const $val:ident) => (
         $self.push_str(" ")?;
-        $self.result().start_literal()?;
         $self.printer.print_f32($val.bits())?;
-        $self.result().reset_color()?;
     );
     (payload $self:ident F64Const $val:ident) => (
         $self.push_str(" ")?;
-        $self.result().start_literal()?;
         $self.printer.print_f64($val.bits())?;
-        $self.result().reset_color()?;
     );
     (payload $self:ident V128Const $val:ident) => (
         $self.printer.print_type_keyword(" i32x4")?;
