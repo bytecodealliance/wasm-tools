@@ -142,6 +142,31 @@ impl ImportSection {
         self.num_added += 1;
         self
     }
+
+    /// Parses the input `section` given from the `wasmparser` crate and adds
+    /// all the imports to this section.
+    #[cfg(feature = "wasmparser")]
+    pub fn parse_section(
+        &mut self,
+        section: wasmparser::ImportSectionReader<'_>,
+    ) -> wasmparser::Result<&mut Self> {
+        for import in section {
+            self.parse(import?);
+        }
+        Ok(self)
+    }
+
+    /// Parses the single [`wasmparser::Import`] provided and adds it to this
+    /// section.
+    #[cfg(feature = "wasmparser")]
+    pub fn parse(&mut self, import: wasmparser::Import<'_>) -> &mut Self {
+        self.import(
+            import.module,
+            import.name,
+            EntityType::try_from(import.ty).unwrap(),
+        );
+        self
+    }
 }
 
 impl Encode for ImportSection {

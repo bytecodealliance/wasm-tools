@@ -399,14 +399,6 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
         (build V128Const $arg:ident) => (I::V128Const($arg.i128()));
         (build TryTable $table:ident) => (unimplemented_try_table());
         (build $op:ident $arg:ident) => (I::$op($arg));
-        (build CallIndirect $ty:ident $table:ident) => (I::CallIndirect {
-            ty: $ty,
-            table: $table,
-        });
-        (build ReturnCallIndirect $ty:ident $table:ident) => (I::ReturnCallIndirect {
-            ty: $ty,
-            table: $table,
-        });
         (build $op:ident $($arg:ident)*) => (I::$op { $($arg),* });
     }
 

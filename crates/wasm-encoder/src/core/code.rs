@@ -103,6 +103,30 @@ impl CodeSection {
         self.num_added += 1;
         self
     }
+
+    /// Parses the input `section` given from the `wasmparser` crate and adds
+    /// all the code to this section.
+    #[cfg(feature = "wasmparser")]
+    pub fn parse_section(
+        &mut self,
+        section: wasmparser::CodeSectionReader<'_>,
+    ) -> wasmparser::Result<&mut Self> {
+        for code in section {
+            self.parse(code?)?;
+        }
+        Ok(self)
+    }
+
+    /// Parses a single [`wasmparser::Code`] and adds it to this section.
+    #[cfg(feature = "wasmparser")]
+    pub fn parse(&mut self, func: wasmparser::FunctionBody<'_>) -> wasmparser::Result<&mut Self> {
+        let mut f = Function::new_parsed_locals(&func)?;
+        let mut reader = func.get_operators_reader()?;
+        while !reader.eof() {
+            f.parse(&mut reader)?;
+        }
+        Ok(self.function(&f))
+    }
 }
 
 impl Encode for CodeSection {
@@ -214,6 +238,18 @@ impl Function {
         Function::new(locals_collected)
     }
 
+    /// Create a new [`Function`] by parsing the locals declarations from the
+    /// provided [`wasmparser::FunctionBody`].
+    #[cfg(feature = "wasmparser")]
+    pub fn new_parsed_locals(func: &wasmparser::FunctionBody<'_>) -> wasmparser::Result<Self> {
+        let mut locals = Vec::new();
+        for pair in func.get_locals_reader()? {
+            let (cnt, ty) = pair?;
+            locals.push((cnt, ty.try_into().unwrap()));
+        }
+        Ok(Function::new(locals))
+    }
+
     /// Write an instruction into this function body.
     pub fn instruction(&mut self, instruction: &Instruction) -> &mut Self {
         instruction.encode(&mut self.bytes);
@@ -236,6 +272,15 @@ impl Function {
     /// known until all the instructions are added to this function.
     pub fn byte_len(&self) -> usize {
         self.bytes.len()
+    }
+
+    /// Parses a single instruction from `reader` and adds it to `self`.
+    #[cfg(feature = "wasmparser")]
+    pub fn parse(
+        &mut self,
+        reader: &mut wasmparser::OperatorsReader<'_>,
+    ) -> wasmparser::Result<&mut Self> {
+        Ok(self.instruction(&reader.read()?.try_into().unwrap()))
     }
 }
 
@@ -276,6 +321,17 @@ impl Encode for MemArg {
     }
 }
 
+#[cfg(feature = "wasmparser")]
+impl From<wasmparser::MemArg> for MemArg {
+    fn from(arg: wasmparser::MemArg) -> MemArg {
+        MemArg {
+            offset: arg.offset,
+            align: arg.align.into(),
+            memory_index: arg.memory,
+        }
+    }
+}
+
 /// The memory ordering for atomic instructions.
 ///
 /// For an in-depth explanation of memory orderings, see the C++ documentation
@@ -304,6 +360,16 @@ impl Encode for Ordering {
     }
 }
 
+#[cfg(feature = "wasmparser")]
+impl From<wasmparser::Ordering> for Ordering {
+    fn from(arg: wasmparser::Ordering) -> Ordering {
+        match arg {
+            wasmparser::Ordering::SeqCst => Ordering::SeqCst,
+            wasmparser::Ordering::AcqRel => Ordering::AcqRel,
+        }
+    }
+}
+
 /// Describe an unchecked SIMD lane index.
 pub type Lane = u8;
 
@@ -324,6 +390,18 @@ impl Encode for BlockType {
             Self::Empty => sink.push(0x40),
             Self::Result(ty) => ty.encode(sink),
             Self::FunctionType(f) => (f as i64).encode(sink),
+        }
+    }
+}
+
+#[cfg(feature = "wasmparser")]
+impl TryFrom<wasmparser::BlockType> for BlockType {
+    type Error = ();
+    fn try_from(arg: wasmparser::BlockType) -> Result<BlockType, ()> {
+        match arg {
+            wasmparser::BlockType::Empty => Ok(BlockType::Empty),
+            wasmparser::BlockType::FuncType(n) => Ok(BlockType::FunctionType(n)),
+            wasmparser::BlockType::Type(t) => Ok(BlockType::Result(t.try_into()?)),
         }
     }
 }
@@ -350,14 +428,14 @@ pub enum Instruction<'a> {
     Call(u32),
     CallRef(u32),
     CallIndirect {
-        ty: u32,
-        table: u32,
+        type_index: u32,
+        table_index: u32,
     },
     ReturnCallRef(u32),
     ReturnCall(u32),
     ReturnCallIndirect {
-        ty: u32,
-        table: u32,
+        type_index: u32,
+        table_index: u32,
     },
     TryTable(BlockType, Cow<'a, [Catch]>),
     Throw(u32),
@@ -1119,10 +1197,13 @@ impl Encode for Instruction<'_> {
                 sink.push(0x14);
                 ty.encode(sink);
             }
-            Instruction::CallIndirect { ty, table } => {
+            Instruction::CallIndirect {
+                type_index,
+                table_index,
+            } => {
                 sink.push(0x11);
-                ty.encode(sink);
-                table.encode(sink);
+                type_index.encode(sink);
+                table_index.encode(sink);
             }
             Instruction::ReturnCallRef(ty) => {
                 sink.push(0x15);
@@ -1133,10 +1214,13 @@ impl Encode for Instruction<'_> {
                 sink.push(0x12);
                 f.encode(sink);
             }
-            Instruction::ReturnCallIndirect { ty, table } => {
+            Instruction::ReturnCallIndirect {
+                type_index,
+                table_index,
+            } => {
                 sink.push(0x13);
-                ty.encode(sink);
-                table.encode(sink);
+                type_index.encode(sink);
+                table_index.encode(sink);
             }
             Instruction::Delegate(l) => {
                 sink.push(0x18);
@@ -3278,6 +3362,64 @@ impl Encode for Instruction<'_> {
     }
 }
 
+#[cfg(feature = "wasmparser")]
+impl TryFrom<wasmparser::Operator<'_>> for Instruction<'_> {
+    type Error = ();
+
+    fn try_from(arg: wasmparser::Operator<'_>) -> Result<Self, ()> {
+        use Instruction::*;
+
+        macro_rules! define_match {
+            ($(@$p:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
+                match arg {
+                    $(
+                        wasmparser::Operator::$op $({ $($arg),* })? => {
+                            $(
+                                $(let $arg = define_match!(map $arg $arg);)*
+                            )?
+                            Ok(define_match!(mk $op $($($arg)*)?))
+                        }
+                    )*
+                }
+            };
+
+            // No-payload instructions are named the same in wasmparser as they are in
+            // wasm-encoder
+            (mk $op:ident) => ($op);
+
+            // Instructions which need "special care" to map from wasmparser to
+            // wasm-encoder
+            (mk BrTable $arg:ident) => ({BrTable($arg.0, $arg.1)});
+            (mk TryTable $arg:ident) => ({TryTable($arg.0, $arg.1)});
+
+            // Catch-all for the translation of one payload argument which is typically
+            // represented as a tuple-enum in wasm-encoder.
+            (mk $op:ident $arg:ident) => ($op($arg));
+
+            // Catch-all of everything else where the wasmparser fields are simply
+            // translated to wasm-encoder fields.
+            (mk $op:ident $($arg:ident)*) => ($op { $($arg),* });
+
+            // Special-case BrTable/TryTable conversion of arguments.
+            (map $arg:ident targets) => ((
+                $arg.targets().map(|i| i.unwrap()).collect::<Vec<_>>().into(),
+                $arg.default(),
+            ));
+            (map $arg:ident try_table) => ((
+                $arg.ty.try_into().unwrap(),
+                $arg.catches.into_iter().map(|i| i.into()).collect::<Vec<_>>().into(),
+            ));
+
+            // Everything else is converted with `TryFrom`/`From`. Note that the
+            // fallibility here has to do with how indexes are represented in
+            // `wasmparser` which we know when reading directly we'll never hit the
+            // erroneous cases here, hence the unwrap.
+            (map $arg:ident $other:ident) => {$other.try_into().unwrap()};
+        }
+        wasmparser::for_each_operator!(define_match)
+    }
+}
+
 #[derive(Clone, Debug)]
 #[allow(missing_docs)]
 pub enum Catch {
@@ -3308,6 +3450,18 @@ impl Encode for Catch {
                 sink.push(0x03);
                 label.encode(sink);
             }
+        }
+    }
+}
+
+#[cfg(feature = "wasmparser")]
+impl From<wasmparser::Catch> for Catch {
+    fn from(arg: wasmparser::Catch) -> Catch {
+        match arg {
+            wasmparser::Catch::One { tag, label } => Catch::One { tag, label },
+            wasmparser::Catch::OneRef { tag, label } => Catch::OneRef { tag, label },
+            wasmparser::Catch::All { label } => Catch::All { label },
+            wasmparser::Catch::AllRef { label } => Catch::AllRef { label },
         }
     }
 }
@@ -3492,6 +3646,13 @@ pub enum ConstExprConversionError {
     /// references an index into a module's types space, so we cannot encode it
     /// into a Wasm binary again.
     CanonicalizedTypeReference,
+}
+
+#[cfg(feature = "wasmparser")]
+impl From<wasmparser::BinaryReaderError> for ConstExprConversionError {
+    fn from(err: wasmparser::BinaryReaderError) -> ConstExprConversionError {
+        ConstExprConversionError::ParseError(err)
+    }
 }
 
 #[cfg(feature = "wasmparser")]
