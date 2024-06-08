@@ -1735,6 +1735,7 @@ dependencies = [
  "diff",
  "rayon",
  "tempfile",
+ "termcolor",
  "wasmparser 0.209.1",
  "wast",
  "wat",

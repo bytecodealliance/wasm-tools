@@ -112,7 +112,8 @@ impl Opts {
         } else {
             serde_json::to_string(&builder.ret)?
         };
-        self.output.output(wasm_tools::Output::Json(&json))?;
+        self.output
+            .output(&self.general, wasm_tools::Output::Json(&json))?;
         Ok(())
     }
 }

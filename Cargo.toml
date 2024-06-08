@@ -80,6 +80,7 @@ libtest-mimic = "0.7.0"
 bitflags = "2.5.0"
 hashbrown = { version = "0.14.3", default-features = false, features = ['ahash'] }
 ahash = { version = "0.8.11", default-features = false }
+termcolor = "1.2.0"
 
 wasm-compose = { version = "0.209.1", path = "crates/wasm-compose" }
 wasm-encoder = { version = "0.209.1", path = "crates/wasm-encoder" }
@@ -103,7 +104,7 @@ clap = { workspace = true }
 clap_complete = { workspace = true, optional = true }
 tempfile = "3.2.0"
 wat = { workspace = true }
-termcolor = "1.2.0"
+termcolor = { workspace = true }
 
 # Dependencies of `validate`
 wasmparser = { workspace = true, optional = true, features = ['validate'] }

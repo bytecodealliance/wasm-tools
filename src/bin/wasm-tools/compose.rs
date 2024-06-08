@@ -61,10 +61,7 @@ impl Opts {
 
         let bytes = ComponentComposer::new(&self.component, &config).compose()?;
 
-        self.output.output(wasm_tools::Output::Wasm {
-            bytes: &bytes,
-            wat: self.wat,
-        })?;
+        self.output.output_wasm(&self.general, &bytes, self.wat)?;
 
         if config.skip_validation {
             log::debug!("output validation was skipped");
