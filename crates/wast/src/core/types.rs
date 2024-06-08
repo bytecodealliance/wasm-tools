@@ -57,11 +57,57 @@ impl<'a> Peek for ValType<'a> {
     }
 }
 
-/// A heap type for a reference type
+/// A heap type for a reference type.
 #[allow(missing_docs)]
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum HeapType<'a> {
-    /// An untyped function reference: funcref. This is part of the reference
+    /// An abstract reference. With the shared-everything-threads proposal,
+    /// these types can also be marked `shared`.
+    Abstract { shared: bool, ty: AbstractHeapType },
+    /// A reference to a concrete function, struct, or array type defined by
+    /// Wasm: `ref T`. This is part of the function references and GC proposals.
+    Concrete(Index<'a>),
+}
+
+impl<'a> Parse<'a> for HeapType<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let mut l = parser.lookahead1();
+        if l.peek::<Index>()? {
+            Ok(HeapType::Concrete(parser.parse()?))
+        } else if l.peek::<kw::shared>()? {
+            parser.parens(|p| {
+                p.parse::<kw::shared>()?;
+                Ok(HeapType::Abstract {
+                    shared: true,
+                    ty: p.parse()?,
+                })
+            })
+        } else if l.peek::<AbstractHeapType>()? {
+            Ok(HeapType::Abstract {
+                shared: false,
+                ty: parser.parse()?,
+            })
+        } else {
+            Err(l.error())
+        }
+    }
+}
+
+impl<'a> Peek for HeapType<'a> {
+    fn peek(cursor: Cursor<'_>) -> Result<bool> {
+        Ok(AbstractHeapType::peek(cursor)?
+        || (kw::shared::peek(cursor)? && AbstractHeapType::peek2(cursor)?)
+        || (LParen::peek(cursor)? && kw::r#type::peek2(cursor)?))
+    }
+    fn display() -> &'static str {
+        "heaptype"
+    }
+}
+
+/// An abstract heap type.
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+pub enum AbstractHeapType {
+       /// An untyped function reference: funcref. This is part of the reference
     /// types proposal.
     Func,
     /// A reference to any host value: externref. This is part of the reference
@@ -89,59 +135,55 @@ pub enum HeapType<'a> {
     None,
     /// The bottom type of the exnref hierarchy. Part of the exceptions proposal.
     NoExn,
-    /// A reference to a concrete function, struct, or array type defined by
-    /// Wasm: `ref T`. This is part of the function references and GC proposals.
-    Concrete(Index<'a>),
 }
 
-impl<'a> Parse<'a> for HeapType<'a> {
+impl<'a> Parse<'a> for AbstractHeapType {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let mut l = parser.lookahead1();
         if l.peek::<kw::func>()? {
             parser.parse::<kw::func>()?;
-            Ok(HeapType::Func)
+            Ok(AbstractHeapType::Func)
         } else if l.peek::<kw::r#extern>()? {
             parser.parse::<kw::r#extern>()?;
-            Ok(HeapType::Extern)
+            Ok(AbstractHeapType::Extern)
         } else if l.peek::<kw::exn>()? {
             parser.parse::<kw::exn>()?;
-            Ok(HeapType::Exn)
+            Ok(AbstractHeapType::Exn)
         } else if l.peek::<kw::r#any>()? {
             parser.parse::<kw::r#any>()?;
-            Ok(HeapType::Any)
+            Ok(AbstractHeapType::Any)
         } else if l.peek::<kw::eq>()? {
             parser.parse::<kw::eq>()?;
-            Ok(HeapType::Eq)
+            Ok(AbstractHeapType::Eq)
         } else if l.peek::<kw::r#struct>()? {
             parser.parse::<kw::r#struct>()?;
-            Ok(HeapType::Struct)
+            Ok(AbstractHeapType::Struct)
         } else if l.peek::<kw::array>()? {
             parser.parse::<kw::array>()?;
-            Ok(HeapType::Array)
+            Ok(AbstractHeapType::Array)
         } else if l.peek::<kw::i31>()? {
             parser.parse::<kw::i31>()?;
-            Ok(HeapType::I31)
+            Ok(AbstractHeapType::I31)
         } else if l.peek::<kw::nofunc>()? {
             parser.parse::<kw::nofunc>()?;
-            Ok(HeapType::NoFunc)
+            Ok(AbstractHeapType::NoFunc)
         } else if l.peek::<kw::noextern>()? {
             parser.parse::<kw::noextern>()?;
-            Ok(HeapType::NoExtern)
+            Ok(AbstractHeapType::NoExtern)
         } else if l.peek::<kw::noexn>()? {
             parser.parse::<kw::noexn>()?;
-            Ok(HeapType::NoExn)
+            Ok(AbstractHeapType::NoExn)
         } else if l.peek::<kw::none>()? {
             parser.parse::<kw::none>()?;
-            Ok(HeapType::None)
-        } else if l.peek::<Index>()? {
-            Ok(HeapType::Concrete(parser.parse()?))
+            Ok(AbstractHeapType::None)
         } else {
             Err(l.error())
         }
     }
 }
 
-impl<'a> Peek for HeapType<'a> {
+
+impl<'a> Peek for AbstractHeapType {
     fn peek(cursor: Cursor<'_>) -> Result<bool> {
         Ok(kw::func::peek(cursor)?
             || kw::r#extern::peek(cursor)?
@@ -154,13 +196,13 @@ impl<'a> Peek for HeapType<'a> {
             || kw::nofunc::peek(cursor)?
             || kw::noextern::peek(cursor)?
             || kw::noexn::peek(cursor)?
-            || kw::none::peek(cursor)?
-            || (LParen::peek(cursor)? && kw::r#type::peek2(cursor)?))
+            || kw::none::peek(cursor)?)
     }
     fn display() -> &'static str {
-        "heaptype"
+        "absheaptype"
     }
 }
+
 
 /// A reference type in a wasm module.
 #[allow(missing_docs)]
@@ -175,7 +217,7 @@ impl<'a> RefType<'a> {
     pub fn func() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Func,
+            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::Func },
         }
     }
 
@@ -183,7 +225,7 @@ impl<'a> RefType<'a> {
     pub fn r#extern() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Extern,
+            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::Extern },
         }
     }
 
@@ -191,7 +233,7 @@ impl<'a> RefType<'a> {
     pub fn exn() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Exn,
+            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::Exn },
         }
     }
 
@@ -199,7 +241,7 @@ impl<'a> RefType<'a> {
     pub fn any() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Any,
+            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::Any },
         }
     }
 
@@ -207,7 +249,7 @@ impl<'a> RefType<'a> {
     pub fn eq() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Eq,
+            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::Eq },
         }
     }
 
@@ -215,7 +257,7 @@ impl<'a> RefType<'a> {
     pub fn r#struct() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Struct,
+            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::Struct },
         }
     }
 
@@ -223,7 +265,7 @@ impl<'a> RefType<'a> {
     pub fn array() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Array,
+            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::Array },
         }
     }
 
@@ -231,7 +273,7 @@ impl<'a> RefType<'a> {
     pub fn i31() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::I31,
+            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::I31 },
         }
     }
 
@@ -239,7 +281,7 @@ impl<'a> RefType<'a> {
     pub fn nullfuncref() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::NoFunc,
+            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::NoFunc },
         }
     }
 
@@ -247,7 +289,7 @@ impl<'a> RefType<'a> {
     pub fn nullexternref() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::NoExtern,
+            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::NoExtern },
         }
     }
 
@@ -255,7 +297,7 @@ impl<'a> RefType<'a> {
     pub fn nullref() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::None,
+            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::None },
         }
     }
 
@@ -263,7 +305,7 @@ impl<'a> RefType<'a> {
     pub fn nullexnref() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::NoExn,
+            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::NoExn },
         }
     }
 }
@@ -335,6 +377,7 @@ impl<'a> Parse<'a> for RefType<'a> {
 
 impl<'a> Peek for RefType<'a> {
     fn peek(cursor: Cursor<'_>) -> Result<bool> {
+        // TODO: handle shared
         Ok(kw::funcref::peek(cursor)?
             || kw::externref::peek(cursor)?
             || kw::exnref::peek(cursor)?
