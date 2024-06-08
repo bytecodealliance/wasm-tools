@@ -466,7 +466,10 @@ fn make_env_module<'a>(
         tables.table(TableType {
             element_type: RefType {
                 nullable: true,
-                heap_type: HeapType::Func,
+                heap_type: HeapType::Abstract {
+                    shared: false,
+                    ty: wasm_encoder::AbstractHeapType::Func,
+                },
             },
             minimum: table_offset.into(),
             maximum: None,
@@ -561,7 +564,10 @@ fn make_init_module(
         TableType {
             element_type: RefType {
                 nullable: true,
-                heap_type: HeapType::Func,
+                heap_type: HeapType::Abstract {
+                    shared: false,
+                    ty: wasm_encoder::AbstractHeapType::Func,
+                },
             },
             minimum: 0,
             maximum: None,

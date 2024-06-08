@@ -1125,21 +1125,23 @@ impl Encoder {
             HeapType::Concrete(idx) => {
                 wasm_encoder::HeapType::Concrete(self.types.remap(idx.as_module_index().unwrap()))
             }
-            // TODO: handle shared
-            HeapType::Abstract { shared, ty } => match ty {
-                Func => wasm_encoder::HeapType::Func,
-                Extern => wasm_encoder::HeapType::Extern,
-                Any => wasm_encoder::HeapType::Any,
-                None => wasm_encoder::HeapType::None,
-                NoExtern => wasm_encoder::HeapType::NoExtern,
-                NoFunc => wasm_encoder::HeapType::NoFunc,
-                Eq => wasm_encoder::HeapType::Eq,
-                Struct => wasm_encoder::HeapType::Struct,
-                Array => wasm_encoder::HeapType::Array,
-                I31 => wasm_encoder::HeapType::I31,
-                Exn => wasm_encoder::HeapType::Exn,
-                NoExn => wasm_encoder::HeapType::NoExn,
-            },
+            HeapType::Abstract { shared, ty } => {
+                let ty = match ty {
+                    Func => wasm_encoder::AbstractHeapType::Func,
+                    Extern => wasm_encoder::AbstractHeapType::Extern,
+                    Any => wasm_encoder::AbstractHeapType::Any,
+                    None => wasm_encoder::AbstractHeapType::None,
+                    NoExtern => wasm_encoder::AbstractHeapType::NoExtern,
+                    NoFunc => wasm_encoder::AbstractHeapType::NoFunc,
+                    Eq => wasm_encoder::AbstractHeapType::Eq,
+                    Struct => wasm_encoder::AbstractHeapType::Struct,
+                    Array => wasm_encoder::AbstractHeapType::Array,
+                    I31 => wasm_encoder::AbstractHeapType::I31,
+                    Exn => wasm_encoder::AbstractHeapType::Exn,
+                    NoExn => wasm_encoder::AbstractHeapType::NoExn,
+                };
+                wasm_encoder::HeapType::Abstract { shared, ty }
+            }
         }
     }
 }

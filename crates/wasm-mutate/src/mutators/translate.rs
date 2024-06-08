@@ -214,21 +214,26 @@ pub fn heapty(t: &mut dyn Translator, ty: &wasmparser::HeapType) -> Result<HeapT
         wasmparser::HeapType::Concrete(i) => Ok(HeapType::Concrete(
             t.remap(Item::Type, i.as_module_index().unwrap())?,
         )),
-        // TODO: handle shared.
-        wasmparser::HeapType::Abstract { shared, ty } => match ty {
-            Func => Ok(HeapType::Func),
-            Extern => Ok(HeapType::Extern),
-            Any => Ok(HeapType::Any),
-            None => Ok(HeapType::None),
-            NoExtern => Ok(HeapType::NoExtern),
-            NoFunc => Ok(HeapType::NoFunc),
-            Eq => Ok(HeapType::Eq),
-            Struct => Ok(HeapType::Struct),
-            Array => Ok(HeapType::Array),
-            I31 => Ok(HeapType::I31),
-            Exn => Ok(HeapType::Exn),
-            NoExn => Ok(HeapType::NoExn),
-        },
+        wasmparser::HeapType::Abstract { shared, ty } => {
+            let ty = match ty {
+                Func => AbstractHeapType::Func,
+                Extern => AbstractHeapType::Extern,
+                Any => AbstractHeapType::Any,
+                None => AbstractHeapType::None,
+                NoExtern => AbstractHeapType::NoExtern,
+                NoFunc => AbstractHeapType::NoFunc,
+                Eq => AbstractHeapType::Eq,
+                Struct => AbstractHeapType::Struct,
+                Array => AbstractHeapType::Array,
+                I31 => AbstractHeapType::I31,
+                Exn => AbstractHeapType::Exn,
+                NoExn => AbstractHeapType::NoExn,
+            };
+            Ok(HeapType::Abstract {
+                shared: *shared,
+                ty,
+            })
+        }
     }
 }
 

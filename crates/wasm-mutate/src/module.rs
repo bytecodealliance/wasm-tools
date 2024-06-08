@@ -1,5 +1,5 @@
 use crate::Result;
-use wasm_encoder::{BlockType, HeapType, RefType, ValType};
+use wasm_encoder::{AbstractHeapType, BlockType, HeapType, RefType, ValType};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum PrimitiveTypeInfo {
@@ -82,21 +82,23 @@ pub fn map_ref_type(ref_ty: wasmparser::RefType) -> Result<RefType> {
         nullable: ref_ty.is_nullable(),
         heap_type: match ref_ty.heap_type() {
             wasmparser::HeapType::Concrete(i) => HeapType::Concrete(i.as_module_index().unwrap()),
-            // TODO: handle shared
-            wasmparser::HeapType::Abstract { shared, ty } => match ty {
-                Func => HeapType::Func,
-                Extern => HeapType::Extern,
-                Any => HeapType::Any,
-                None => HeapType::None,
-                NoExtern => HeapType::NoExtern,
-                NoFunc => HeapType::NoFunc,
-                Eq => HeapType::Eq,
-                Struct => HeapType::Struct,
-                Array => HeapType::Array,
-                I31 => HeapType::I31,
-                Exn => HeapType::Exn,
-                NoExn => HeapType::NoExn,
-            },
+            wasmparser::HeapType::Abstract { shared, ty } => {
+                let ty = match ty {
+                    Func => AbstractHeapType::Func,
+                    Extern => AbstractHeapType::Extern,
+                    Any => AbstractHeapType::Any,
+                    None => AbstractHeapType::None,
+                    NoExtern => AbstractHeapType::NoExtern,
+                    NoFunc => AbstractHeapType::NoFunc,
+                    Eq => AbstractHeapType::Eq,
+                    Struct => AbstractHeapType::Struct,
+                    Array => AbstractHeapType::Array,
+                    I31 => AbstractHeapType::I31,
+                    Exn => AbstractHeapType::Exn,
+                    NoExn => AbstractHeapType::NoExn,
+                };
+                HeapType::Abstract { shared, ty }
+            }
         },
     })
 }

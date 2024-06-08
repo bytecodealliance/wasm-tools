@@ -594,9 +594,16 @@ impl From<core::RefType<'_>> for wasm_encoder::RefType {
 
 impl From<core::HeapType<'_>> for wasm_encoder::HeapType {
     fn from(r: core::HeapType<'_>) -> Self {
+        use wasm_encoder::AbstractHeapType::*;
         match r {
-            core::HeapType::Func => Self::Func,
-            core::HeapType::Extern => Self::Extern,
+            core::HeapType::Func => Self::Abstract {
+                shared: false,
+                ty: Func,
+            },
+            core::HeapType::Extern => Self::Abstract {
+                shared: false,
+                ty: Extern,
+            },
             core::HeapType::Exn | core::HeapType::NoExn => {
                 todo!("encoding of exceptions proposal types not yet implemented")
             }
