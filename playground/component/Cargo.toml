@@ -1,0 +1,24 @@
+[package]
+name = "component"
+edition = "2021"
+
+[dependencies]
+wit-bindgen-rt = { version = "0.26.0", features = ["bitflags"] }
+wat = { path = "../../crates/wat" }
+
+[lib]
+crate-type = ["cdylib"]
+
+[workspace]
+
+[profile.release]
+codegen-units = 1
+opt-level = "s"
+debug = false
+strip = true
+lto = true
+
+[package.metadata.component]
+package = "component:component"
+
+[package.metadata.component.dependencies]
