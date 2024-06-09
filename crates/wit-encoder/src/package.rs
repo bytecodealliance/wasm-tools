@@ -41,8 +41,10 @@ impl Package {
 impl Render for Package {
     fn render(&self, f: &mut fmt::Formatter<'_>, opts: &RenderOpts) -> fmt::Result {
         write!(f, "{}package {};\n", opts.spaces(), self.name)?;
-        write!(f, "\n")?;
-        for item in &self.items {
+        for (index, item) in self.items.iter().enumerate() {
+            if index == 0 {
+                write!(f, "\n")?;
+            }
             match item {
                 PackageItem::Interface(interface) => {
                     if let Some(docs) = &interface.docs {

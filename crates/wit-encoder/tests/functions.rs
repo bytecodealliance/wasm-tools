@@ -1,12 +1,11 @@
 use pretty_assertions::assert_eq;
-use wit_encoder::{Params, Result_, Results, StandaloneFunc, Type};
+use wit_encoder::{Package, PackageName, Params, Result_, Results, StandaloneFunc, Type};
 
 const PACKAGE: &str = include_str!("./functions.wit");
 
 #[test]
-fn smoke() {
-    let name = wit_encoder::PackageName::new("foo", "functions", None);
-    let mut package = wit_encoder::Package::new(name);
+fn concrete_types() {
+    let mut package = Package::new(PackageName::new("foo", "functions", None));
 
     package.interface({
         let mut interface = wit_encoder::Interface::new("functions");
