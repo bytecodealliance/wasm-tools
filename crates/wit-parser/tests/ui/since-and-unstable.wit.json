@@ -6,8 +6,9 @@
       "exports": {},
       "package": 0,
       "stability": {
-        "type": "stable",
-        "since": "1.0.1"
+        "stable": {
+          "since": "1.0.1"
+        }
       }
     },
     {
@@ -16,8 +17,9 @@
       "exports": {},
       "package": 0,
       "stability": {
-        "type": "stable",
-        "since": "1.0.0"
+        "stable": {
+          "since": "1.0.0"
+        }
       }
     },
     {
@@ -27,8 +29,9 @@
           "interface": {
             "id": 5,
             "stability": {
-              "type": "stable",
-              "since": "1.0.0"
+              "stable": {
+                "since": "1.0.0"
+              }
             }
           }
         },
@@ -36,8 +39,9 @@
           "interface": {
             "id": 4,
             "stability": {
-              "type": "stable",
-              "since": "1.0.0"
+              "stable": {
+                "since": "1.0.0"
+              }
             }
           }
         },
@@ -69,8 +73,9 @@
             "params": [],
             "results": [],
             "stability": {
-              "type": "stable",
-              "since": "1.0.0"
+              "stable": {
+                "since": "1.0.0"
+              }
             }
           }
         },
@@ -87,8 +92,9 @@
               }
             ],
             "stability": {
-              "type": "stable",
-              "since": "1.0.0"
+              "stable": {
+                "since": "1.0.0"
+              }
             }
           }
         }
@@ -101,8 +107,9 @@
             "params": [],
             "results": [],
             "stability": {
-              "type": "stable",
-              "since": "1.0.0"
+              "stable": {
+                "since": "1.0.0"
+              }
             }
           }
         },
@@ -110,8 +117,9 @@
           "interface": {
             "id": 6,
             "stability": {
-              "type": "stable",
-              "since": "1.0.0"
+              "stable": {
+                "since": "1.0.0"
+              }
             }
           }
         },
@@ -119,8 +127,9 @@
           "interface": {
             "id": 4,
             "stability": {
-              "type": "stable",
-              "since": "1.0.0"
+              "stable": {
+                "since": "1.0.0"
+              }
             }
           }
         }
@@ -134,8 +143,9 @@
       "types": {},
       "functions": {},
       "stability": {
-        "type": "stable",
-        "since": "1.0.0"
+        "stable": {
+          "since": "1.0.0"
+        }
       },
       "package": 0
     },
@@ -144,9 +154,10 @@
       "types": {},
       "functions": {},
       "stability": {
-        "type": "stable",
-        "since": "1.0.0",
-        "feature": "foo"
+        "stable": {
+          "since": "1.0.0",
+          "feature": "foo"
+        }
       },
       "package": 0
     },
@@ -155,9 +166,10 @@
       "types": {},
       "functions": {},
       "stability": {
-        "type": "stable",
-        "since": "1.0.0",
-        "feature": "foo-bar"
+        "stable": {
+          "since": "1.0.0",
+          "feature": "foo-bar"
+        }
       },
       "package": 0
     },
@@ -180,8 +192,9 @@
           "params": [],
           "results": [],
           "stability": {
-            "type": "stable",
-            "since": "1.0.0"
+            "stable": {
+              "since": "1.0.0"
+            }
           }
         },
         "[constructor]r3": {
@@ -196,8 +209,9 @@
             }
           ],
           "stability": {
-            "type": "stable",
-            "since": "1.0.0"
+            "stable": {
+              "since": "1.0.0"
+            }
           }
         },
         "[static]r3.x1": {
@@ -208,8 +222,9 @@
           "params": [],
           "results": [],
           "stability": {
-            "type": "stable",
-            "since": "1.0.0"
+            "stable": {
+              "since": "1.0.0"
+            }
           }
         },
         "[method]r3.x2": {
@@ -225,8 +240,9 @@
           ],
           "results": [],
           "stability": {
-            "type": "stable",
-            "since": "1.0.0"
+            "stable": {
+              "since": "1.0.0"
+            }
           }
         }
       },
@@ -243,8 +259,9 @@
       "types": {},
       "functions": {},
       "stability": {
-        "type": "stable",
-        "since": "1.0.0"
+        "stable": {
+          "since": "1.0.0"
+        }
       },
       "package": 0
     },
@@ -253,8 +270,9 @@
       "types": {},
       "functions": {},
       "stability": {
-        "type": "stable",
-        "since": "1.0.0"
+        "stable": {
+          "since": "1.0.0"
+        }
       },
       "package": 0
     }
@@ -267,8 +285,9 @@
         "interface": 3
       },
       "stability": {
-        "type": "stable",
-        "since": "1.0.0"
+        "stable": {
+          "since": "1.0.0"
+        }
       }
     },
     {
@@ -278,8 +297,9 @@
         "interface": 3
       },
       "stability": {
-        "type": "stable",
-        "since": "1.0.0"
+        "stable": {
+          "since": "1.0.0"
+        }
       }
     },
     {
@@ -291,8 +311,9 @@
         "interface": 3
       },
       "stability": {
-        "type": "stable",
-        "since": "1.0.0"
+        "stable": {
+          "since": "1.0.0"
+        }
       }
     },
     {
@@ -311,8 +332,9 @@
         "interface": 3
       },
       "stability": {
-        "type": "stable",
-        "since": "1.0.0"
+        "stable": {
+          "since": "1.0.0"
+        }
       }
     },
     {
@@ -330,8 +352,9 @@
         "interface": 3
       },
       "stability": {
-        "type": "stable",
-        "since": "1.0.0"
+        "stable": {
+          "since": "1.0.0"
+        }
       }
     },
     {
@@ -349,8 +372,9 @@
         "interface": 3
       },
       "stability": {
-        "type": "stable",
-        "since": "1.0.0"
+        "stable": {
+          "since": "1.0.0"
+        }
       }
     },
     {
@@ -369,8 +393,9 @@
         "interface": 3
       },
       "stability": {
-        "type": "stable",
-        "since": "1.0.0"
+        "stable": {
+          "since": "1.0.0"
+        }
       }
     },
     {
@@ -380,8 +405,9 @@
         "interface": 3
       },
       "stability": {
-        "type": "stable",
-        "since": "1.0.0"
+        "stable": {
+          "since": "1.0.0"
+        }
       }
     },
     {
@@ -393,8 +419,9 @@
       },
       "owner": null,
       "stability": {
-        "type": "stable",
-        "since": "1.0.0"
+        "stable": {
+          "since": "1.0.0"
+        }
       }
     },
     {
@@ -413,8 +440,9 @@
         "world": 2
       },
       "stability": {
-        "type": "stable",
-        "since": "1.0.0"
+        "stable": {
+          "since": "1.0.0"
+        }
       }
     },
     {
@@ -432,8 +460,9 @@
         "world": 2
       },
       "stability": {
-        "type": "stable",
-        "since": "1.0.0"
+        "stable": {
+          "since": "1.0.0"
+        }
       }
     },
     {
@@ -452,8 +481,9 @@
         "world": 2
       },
       "stability": {
-        "type": "stable",
-        "since": "1.0.0"
+        "stable": {
+          "since": "1.0.0"
+        }
       }
     },
     {
@@ -471,8 +501,9 @@
         "world": 2
       },
       "stability": {
-        "type": "stable",
-        "since": "1.0.0"
+        "stable": {
+          "since": "1.0.0"
+        }
       }
     },
     {
@@ -484,8 +515,9 @@
         "world": 2
       },
       "stability": {
-        "type": "stable",
-        "since": "1.0.0"
+        "stable": {
+          "since": "1.0.0"
+        }
       }
     },
     {
@@ -495,8 +527,9 @@
         "world": 2
       },
       "stability": {
-        "type": "stable",
-        "since": "1.0.0"
+        "stable": {
+          "since": "1.0.0"
+        }
       }
     },
     {
@@ -506,8 +539,9 @@
         "world": 2
       },
       "stability": {
-        "type": "stable",
-        "since": "1.0.0"
+        "stable": {
+          "since": "1.0.0"
+        }
       }
     },
     {
