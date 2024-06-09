@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>wasm-tools print</title>
+  <script type="module" src="print.js"></script>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .textarea-container {
+      flex-grow: 1;
+      padding: .4rem;
+      display: grid;
+      grid-column-gap: calc(.8rem + 8px);;
+      grid-template-rows: min-content auto 1fr;
+      grid-template-areas:
+        "h"
+        "a"
+        "o"
+    }
+
+    textarea {
+      resize: none;
+      box-sizing: border-box;
+      padding: .4rem;
+      height: calc(100% - .4rem);
+      width: 100%;
+    }
+
+    button {
+      font-size: inherit;
+      /* color: #505050; */
+    }
+
+    .description {
+      grid-area: h;
+    }
+
+    .output-header {
+      grid-area: a;
+      padding-bottom: .4rem;
+    }
+
+    .output {
+      grid-area: o
+    }
+
+    #overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, .2);
+      display: none;
+      /* display: flex; */
+      justify-content: center;
+      align-items: center;
+      /* color: white; */
+      text-shadow: 0 0 2px white;
+      font-size: 24px;
+      pointer-events: none;
+    }
+  </style>
+</head>
+
+<header>
+  <h1>wasm-tools print</h1>
+</header>
+
+<div id="overlay">Drop .wasm file here</div>
+
+<div class="textarea-container">
+  <div class="description">
+    <p>Translate WebAssembly binaries to text format using <a href="https://github.com/bytecodealliance/wasm-tools"><code>wasm-tools print</code></a>.</p>
+  </div>
+
+  <div class="output-header">
+    Drop a file on this page, or <button id="upload">manually select a file</button>.
+    <input type="file" id="fileInput" accept=".wasm" style="display:none;">
+  </div>
+  <div class="output">
+    <textarea id="output">(module
+  (import "foo" "bar" (func (param f32)))
+  (memory (data "hi"))
+  (type (func (param i32) (result i32)))
+  (start 1)
+  (table 0 1 funcref)
+  (func)
+  (func (type 1)
+    i32.const 42
+    drop)
+  (export "e" (func 1)))</textarea>
+  </div>
+</div>

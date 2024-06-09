@@ -1,0 +1,24 @@
+[package]
+name = "component"
+publish = false
+edition.workspace = true
+
+[dependencies]
+wit-bindgen-rt = { version = "0.26.0", features = ["bitflags"] }
+wat = { workspace = true }
+wasmprinter = { workspace = true }
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+codegen-units = 1
+opt-level = "s"
+debug = false
+strip = true
+lto = true
+
+[package.metadata.component]
+package = "component:component"
+
+[package.metadata.component.dependencies]
