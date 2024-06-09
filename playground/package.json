@@ -5,8 +5,8 @@
     "build-component": "cd component && cargo component build --release --target wasm32-wasi",
     "bundle": "esbuild --bundle --format=esm src/index.ts --outdir=dist && esbuild --bundle --format=esm src/worker.ts --outdir=dist",
     "copy-files": "cp index.html component-built/*.wasm dist",
-    "clean": "rm -rf component/src/bindings.rs component/target component-built dist",
-    "transpile": "jco transpile --no-nodejs-compat component/target/wasm32-wasi/release/component.wasm --out-dir component-built",
+    "clean": "rm -rf component/src/bindings.rs component-built dist && echo '## you will need to run `cargo clean` seperately to delete cargo artifacts'",
+    "transpile": "jco transpile --no-nodejs-compat ../target/wasm32-wasi/release/component.wasm --out-dir component-built",
     "typecheck": "tsc"
   },
   "dependencies": {

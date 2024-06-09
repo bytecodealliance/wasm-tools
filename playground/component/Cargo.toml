@@ -1,15 +1,17 @@
 [package]
 name = "component"
-edition = "2021"
+publish = false
+edition.workspace = true
+
+[lints]
+workspace = true
 
 [dependencies]
 wit-bindgen-rt = { version = "0.26.0", features = ["bitflags"] }
-wat = { path = "../../crates/wat" }
+wat = { workspace = true }
 
 [lib]
 crate-type = ["cdylib"]
-
-[workspace]
 
 [profile.release]
 codegen-units = 1
