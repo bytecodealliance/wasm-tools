@@ -3,8 +3,8 @@ use wit_encoder::{Interface, StandaloneFunc, Type};
 
 const PACKAGE: &str = "package foo:functions;
 
-interface error-reporter {
-}
+interface error-reporter {}
+
 world %world {
   /// inline interface
   export example: interface {

@@ -28,8 +28,7 @@ interface type-defs {
   type t17 = result<u32>;
   /// this is a documentation comment
   type t18 = result;
-  record t20 {
-  }
+  record t20 {  }
   record t21 {
     a: u32,
   }

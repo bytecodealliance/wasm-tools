@@ -317,8 +317,11 @@ impl Render for TypeDef {
                 if let Some(docs) = &self.docs {
                     docs.render(f, opts)?;
                 }
-                write!(f, "{}record {} {{\n", opts.spaces(), self.name)?;
-                for field in &record.fields {
+                write!(f, "{}record {} {{", opts.spaces(), self.name)?;
+                for (index, field) in record.fields.iter().enumerate() {
+                    if index == 0 {
+                        write!(f, "\n")?;
+                    }
                     let opts = opts.indent();
                     if let Some(docs) = &field.docs {
                         docs.render(f, &opts)?;
