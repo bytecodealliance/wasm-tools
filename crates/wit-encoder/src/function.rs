@@ -108,7 +108,7 @@ where
 impl Results {
     // For the common case of an empty results list.
     pub fn empty() -> Results {
-        Results::Named(Default::default())
+        Results::Named(Params::empty())
     }
 
     pub fn anon(type_: Type) -> Results {
@@ -164,5 +164,16 @@ impl StandaloneFunc {
 
     pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
         self.docs = docs.map(|d| d.into());
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::Results;
+
+    #[test]
+    fn is_empty() {
+        let res = Results::empty();
+        assert!(res.is_empty());
     }
 }
