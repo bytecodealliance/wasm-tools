@@ -92,7 +92,6 @@ impl Render for World {
                     }
                     import(f, opts)?;
                     write!(f, "{}: interface {{", interface.name)?;
-                    // TODO: `impl Render for Interface`
                     if !interface.items.is_empty() {
                         write!(f, "\n")?;
                         interface.items.render(f, &opts.indent())?;
@@ -107,7 +106,6 @@ impl Render for World {
                     }
                     export(f, opts)?;
                     write!(f, "{}: interface {{", interface.name)?;
-                    // TODO: `impl Render for Interface`
                     if !interface.items.is_empty() {
                         write!(f, "\n")?;
                         interface.items.render(f, &opts.indent())?;
