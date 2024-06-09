@@ -74,6 +74,10 @@ pub struct Resolve {
     /// set.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub features: IndexSet<String>,
+
+    /// Activate all features for this [`Resolve`].
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub all_features: bool,
 }
 
 /// A WIT package within a `Resolve`.
@@ -1142,7 +1146,7 @@ impl Resolve {
     fn include_stability(&self, stability: &Stability) -> bool {
         match stability {
             Stability::Stable { .. } | Stability::Unknown => true,
-            Stability::Unstable { feature } => self.features.contains(feature),
+            Stability::Unstable { feature } => self.features.contains(feature) || self.all_features,
         }
     }
 }
