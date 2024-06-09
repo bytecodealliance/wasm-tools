@@ -6,15 +6,15 @@ const PACKAGE: &str = "package foo:functions;
 interface error-reporter {
 }
 world %world {
-    /// inline interface
-    export example: interface {
-        /// func docs
-        do-nothing: func();
-    }
-    /// scan stuff
-    export scan: func() -> list<u8>;
-    import error-reporter;
-    import print: func(s: string);
+  /// inline interface
+  export example: interface {
+    /// func docs
+    do-nothing: func();
+  }
+  /// scan stuff
+  export scan: func() -> list<u8>;
+  import error-reporter;
+  import print: func(s: string);
 }
 ";
 
