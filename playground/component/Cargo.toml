@@ -3,9 +3,6 @@ name = "component"
 publish = false
 edition.workspace = true
 
-[lints]
-workspace = true
-
 [dependencies]
 wit-bindgen-rt = { version = "0.26.0", features = ["bitflags"] }
 wat = { workspace = true }
