@@ -6,6 +6,7 @@ edition.workspace = true
 [dependencies]
 wit-bindgen-rt = { version = "0.26.0", features = ["bitflags"] }
 wat = { workspace = true }
+wasmprinter = { workspace = true }
 
 [lib]
 crate-type = ["cdylib"]

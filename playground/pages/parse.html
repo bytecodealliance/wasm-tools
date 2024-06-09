@@ -2,40 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>wasm-tools playground</title>
-  <script type="module" src="index.js"></script>
+  <title>wasm-tools parse</title>
+  <script type="module" src="parse.js"></script>
+  <link rel="stylesheet" href="style.css">
   <style>
-    :root {
-      --text-color: #404040;
-    }
-
-    html {
-      height: 100%;
-    }
-
-    body {
-      font-family: system,-apple-system,system-ui,BlinkMacSystemFont,sans-serif;
-      color: var(--text-color);
-      font-size: 1.2rem;
-      line-height: 1.3;
-      height: calc(100% - 16px - .4rem);
-      display: flex;
-      flex-direction: column;
-      padding: .4rem
-    }
-
-    header {
-      text-align: center;
-    }
-
-    h1 {
-      margin: 0px;
-    }
-
-    a {
-      color: var(--text-color);
-    }
-
     .textarea-container {
       flex-grow: 1;
       padding: .4rem;
@@ -47,9 +17,6 @@
         "h h"
         "a b"
         "c d"
-
-      /* justify-content: space-between; */
-      /* background: lightgray; */
     }
 
     textarea {
@@ -87,12 +54,12 @@
 </head>
 
 <header>
-  <h1>wasm-tools playground</h1>
+  <h1>wasm-tools parse</h1>
 </header>
 
 <div class="textarea-container">
   <div class="description">
-    <p>Translate the WebAssembly text format to binary using <a href="https://github.com/bytecodealliance/wasm-tools"><code>wasm-tools parse</code></a>.</p>
+    <p>Translate from the WebAssembly text format to binary using <a href="https://github.com/bytecodealliance/wasm-tools"><code>wasm-tools parse</code></a>.</p>
   </div>
   <div class="input-header">wat</div>
   <div class="input">

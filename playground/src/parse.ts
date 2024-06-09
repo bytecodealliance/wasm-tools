@@ -1,15 +1,4 @@
-function debounce(f: (...args: unknown[]) => void, ms: number) {
-  let timeout: number | null;
-  return function (this: unknown, ...args: unknown[]) {
-    let fresh = timeout == null;
-    if (!fresh) clearTimeout(timeout!);
-    timeout = setTimeout(() => {
-      timeout = null;
-      if (!fresh) f.apply(this, args);
-    }, ms);
-    if (fresh) f.apply(this, args);
-  };
-}
+import { type MessageToWorker, debounce } from './utilities.js';
 
 // TODO replace this function once https://github.com/tc39/proposal-arraybuffer-base64 ships
 function base64(bytes: Uint8Array) {
@@ -34,7 +23,7 @@ worker.addEventListener('message', () => {
   update();
 }, { once: true });
 
-function gotMessage({ data }: { data: { success: true, bytes: Uint8Array} | { success: false, error: string }}) {
+function gotMessage({ data }: { data: { success: true, bytes: Uint8Array } | { success: false, error: string }}) {
   clearTimeout(statusMessageTimeout);
   if (input.value === sent) {
     if (data.success) {
@@ -47,16 +36,15 @@ function gotMessage({ data }: { data: { success: true, bytes: Uint8Array} | { su
     }
   } else {
     // the user has already moved on, ignore this result and re-run
-    sent = input.value;
-    worker.postMessage(sent);
+    update();
   }
 }
 
 function update() {
   sent = input.value;
-  worker.postMessage(input.value);
+  worker.postMessage({ kind: 'parse', source: input.value } satisfies MessageToWorker);
 
-  // wait a bit before updating the message to avoid rapid changes when the output can be parsed quickly
+  // wait a bit before updating the output to avoid rapid changes when the output can be parsed quickly
   statusMessageTimeout = setTimeout(() => {
     output.value = 'working...';
     downloadButton.disabled = true;
