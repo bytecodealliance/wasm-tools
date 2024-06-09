@@ -88,18 +88,30 @@ impl Render for World {
                         docs.render(f, opts)?;
                     }
                     import(f, opts)?;
-                    write!(f, "{}: interface {{\n", interface.name)?;
-                    interface.items.render(f, &opts.indent())?;
-                    write!(f, "{}}}\n", opts.spaces())?;
+                    write!(f, "{}: interface {{", interface.name)?;
+                    // TODO: `impl Render for Interface`
+                    if !interface.items.is_empty() {
+                        write!(f, "\n")?;
+                        interface.items.render(f, &opts.indent())?;
+                        write!(f, "{}}}\n", opts.spaces())?;
+                    } else {
+                        write!(f, "}}\n")?;
+                    }
                 }
                 WorldItem::InlineInterfaceExport(interface) => {
                     if let Some(docs) = &interface.docs {
                         docs.render(f, opts)?;
                     }
                     export(f, opts)?;
-                    write!(f, "{}: interface {{\n", interface.name)?;
-                    interface.items.render(f, &opts.indent())?;
-                    write!(f, "{}}}\n", opts.spaces())?;
+                    write!(f, "{}: interface {{", interface.name)?;
+                    // TODO: `impl Render for Interface`
+                    if !interface.items.is_empty() {
+                        write!(f, "\n")?;
+                        interface.items.render(f, &opts.indent())?;
+                        write!(f, "{}}}\n", opts.spaces())?;
+                    } else {
+                        write!(f, "}}\n")?;
+                    }
                 }
                 WorldItem::NamedInterfaceImport(interface) => {
                     if let Some(docs) = &interface.docs {
