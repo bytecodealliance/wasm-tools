@@ -1241,6 +1241,15 @@ impl RefType {
         Self::from_u32(self.as_u32() | Self::NULLABLE_BIT)
     }
 
+    /// Get the shared version of this ref type as long as it is abstract.
+    pub const fn shared(&self) -> Option<Self> {
+        if self.is_concrete_type_ref() {
+            None
+        } else {
+            Some(Self::from_u32(self.as_u32() | Self::SHARED_BIT))
+        }
+    }
+
     /// Get the heap type that this is a reference to.
     pub fn heap_type(&self) -> HeapType {
         let s = self.as_u32();
@@ -1525,7 +1534,7 @@ impl<'a> FromReader<'a> for ValType {
 
 impl<'a> FromReader<'a> for RefType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        match reader.read()? {
+        let absheapty = |byte, pos| match byte {
             0x70 => Ok(RefType::FUNC.nullable()),
             0x6F => Ok(RefType::EXTERN.nullable()),
             0x6E => Ok(RefType::ANY.nullable()),
@@ -1538,7 +1547,19 @@ impl<'a> FromReader<'a> for RefType {
             0x6C => Ok(RefType::I31.nullable()),
             0x69 => Ok(RefType::EXN.nullable()),
             0x74 => Ok(RefType::NOEXN.nullable()),
-            0x65 => todo!(),
+            _ => bail!(pos, "invalid abstract heap type"),
+        };
+        match reader.read()? {
+            byte @ (0x70 | 0x6F | 0x6E | 0x71 | 0x72 | 0x73 | 0x6D | 0x6B | 0x6A | 0x6C | 0x69
+            | 0x74) => {
+                let pos = reader.original_position();
+                Ok(absheapty(byte, pos)?)
+            }
+            0x65 => {
+                let byte = reader.read()?;
+                let pos = reader.original_position();
+                Ok(absheapty(byte, pos)?.shared().expect("must be abstract"))
+            }
             byte @ (0x63 | 0x64) => {
                 let nullable = byte == 0x63;
                 let pos = reader.original_position();
