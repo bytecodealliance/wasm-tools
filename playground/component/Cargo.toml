@@ -12,6 +12,7 @@ wasmprinter = { workspace = true }
 crate-type = ["cdylib"]
 test = false
 doctest = false
+doc = false
 
 [package.metadata.component]
 package = "component:component"
