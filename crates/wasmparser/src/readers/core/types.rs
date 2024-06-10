@@ -1369,6 +1369,20 @@ pub enum HeapType {
     Concrete(UnpackedIndex),
 }
 
+impl HeapType {
+    /// Alias for an unshared `func` heap type.
+    pub const FUNC: Self = Self::Abstract {
+        shared: false,
+        ty: AbstractHeapType::Func,
+    };
+
+    /// Alias for an unshared `extern` heap type.
+    pub const EXTERN: Self = Self::Abstract {
+        shared: false,
+        ty: AbstractHeapType::Extern,
+    };
+}
+
 /// An abstract heap type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum AbstractHeapType {
