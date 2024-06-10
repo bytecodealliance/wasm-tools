@@ -30,9 +30,11 @@ function gotMessage({ data }: { data: { success: true, bytes: Uint8Array } | { s
       lastBytes = data.bytes;
       output.value = base64(lastBytes);
       downloadButton.disabled = false;
+      output.style.color = '';
     } else {
       output.value = data.error;
       downloadButton.disabled = true;
+      output.style.color = '#a00';
     }
   } else {
     // the user has already moved on, ignore this result and re-run
