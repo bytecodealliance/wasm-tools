@@ -583,7 +583,11 @@ impl Encode for Elem<'_> {
                         RefType {
                             nullable: true,
                             // TODO: handle shared--is this always the case?
-                            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::Func},
+                            heap:
+                                HeapType::Abstract {
+                                    shared: false,
+                                    ty: AbstractHeapType::Func,
+                                },
                         },
                     ..
                 },

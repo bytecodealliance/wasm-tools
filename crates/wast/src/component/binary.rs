@@ -596,35 +596,25 @@ impl From<core::HeapType<'_>> for wasm_encoder::HeapType {
     fn from(r: core::HeapType<'_>) -> Self {
         use wasm_encoder::AbstractHeapType::*;
         match r {
-            core::HeapType::Abstract { shared, ty } => {
-                match ty {
-                    core::AbstractHeapType::Func => Self::Abstract {
-                        shared,
-                        ty: Func,
-                    },
-                    core::AbstractHeapType::Extern => Self::Abstract {
-                        shared,
-                        ty: Extern,
-                    },
-                    core::AbstractHeapType::Exn | core::AbstractHeapType::NoExn => {
-                        todo!("encoding of exceptions proposal types not yet implemented")
-                    }
-                    core::AbstractHeapType::Any
-                    | core::AbstractHeapType::Eq
-                    | core::AbstractHeapType::Struct
-                    | core::AbstractHeapType::Array
-                    | core::AbstractHeapType::NoFunc
-                    | core::AbstractHeapType::NoExtern
-                    | core::AbstractHeapType::None
-                    | core::AbstractHeapType::I31 => {
-                        todo!("encoding of GC proposal types not yet implemented")
-                    }
+            core::HeapType::Abstract { shared, ty } => match ty {
+                core::AbstractHeapType::Func => Self::Abstract { shared, ty: Func },
+                core::AbstractHeapType::Extern => Self::Abstract { shared, ty: Extern },
+                core::AbstractHeapType::Exn | core::AbstractHeapType::NoExn => {
+                    todo!("encoding of exceptions proposal types not yet implemented")
                 }
-
+                core::AbstractHeapType::Any
+                | core::AbstractHeapType::Eq
+                | core::AbstractHeapType::Struct
+                | core::AbstractHeapType::Array
+                | core::AbstractHeapType::NoFunc
+                | core::AbstractHeapType::NoExtern
+                | core::AbstractHeapType::None
+                | core::AbstractHeapType::I31 => {
+                    todo!("encoding of GC proposal types not yet implemented")
+                }
             },
             core::HeapType::Concrete(Index::Num(i, _)) => Self::Concrete(i),
             core::HeapType::Concrete(_) => panic!("unresolved index"),
-
         }
     }
 }

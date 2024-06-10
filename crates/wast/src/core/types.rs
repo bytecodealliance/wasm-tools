@@ -96,8 +96,8 @@ impl<'a> Parse<'a> for HeapType<'a> {
 impl<'a> Peek for HeapType<'a> {
     fn peek(cursor: Cursor<'_>) -> Result<bool> {
         Ok(AbstractHeapType::peek(cursor)?
-        || (kw::shared::peek(cursor)? && AbstractHeapType::peek2(cursor)?)
-        || (LParen::peek(cursor)? && kw::r#type::peek2(cursor)?))
+            || (kw::shared::peek(cursor)? && AbstractHeapType::peek2(cursor)?)
+            || (LParen::peek(cursor)? && kw::r#type::peek2(cursor)?))
     }
     fn display() -> &'static str {
         "heaptype"
@@ -107,7 +107,7 @@ impl<'a> Peek for HeapType<'a> {
 /// An abstract heap type.
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum AbstractHeapType {
-       /// An untyped function reference: funcref. This is part of the reference
+    /// An untyped function reference: funcref. This is part of the reference
     /// types proposal.
     Func,
     /// A reference to any host value: externref. This is part of the reference
@@ -182,7 +182,6 @@ impl<'a> Parse<'a> for AbstractHeapType {
     }
 }
 
-
 impl<'a> Peek for AbstractHeapType {
     fn peek(cursor: Cursor<'_>) -> Result<bool> {
         Ok(kw::func::peek(cursor)?
@@ -203,7 +202,6 @@ impl<'a> Peek for AbstractHeapType {
     }
 }
 
-
 /// A reference type in a wasm module.
 #[allow(missing_docs)]
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
@@ -217,7 +215,10 @@ impl<'a> RefType<'a> {
     pub fn func() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::Func },
+            heap: HeapType::Abstract {
+                shared: false,
+                ty: AbstractHeapType::Func,
+            },
         }
     }
 
@@ -225,7 +226,10 @@ impl<'a> RefType<'a> {
     pub fn r#extern() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::Extern },
+            heap: HeapType::Abstract {
+                shared: false,
+                ty: AbstractHeapType::Extern,
+            },
         }
     }
 
@@ -233,7 +237,10 @@ impl<'a> RefType<'a> {
     pub fn exn() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::Exn },
+            heap: HeapType::Abstract {
+                shared: false,
+                ty: AbstractHeapType::Exn,
+            },
         }
     }
 
@@ -241,7 +248,10 @@ impl<'a> RefType<'a> {
     pub fn any() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::Any },
+            heap: HeapType::Abstract {
+                shared: false,
+                ty: AbstractHeapType::Any,
+            },
         }
     }
 
@@ -249,7 +259,10 @@ impl<'a> RefType<'a> {
     pub fn eq() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::Eq },
+            heap: HeapType::Abstract {
+                shared: false,
+                ty: AbstractHeapType::Eq,
+            },
         }
     }
 
@@ -257,7 +270,10 @@ impl<'a> RefType<'a> {
     pub fn r#struct() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::Struct },
+            heap: HeapType::Abstract {
+                shared: false,
+                ty: AbstractHeapType::Struct,
+            },
         }
     }
 
@@ -265,7 +281,10 @@ impl<'a> RefType<'a> {
     pub fn array() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::Array },
+            heap: HeapType::Abstract {
+                shared: false,
+                ty: AbstractHeapType::Array,
+            },
         }
     }
 
@@ -273,7 +292,10 @@ impl<'a> RefType<'a> {
     pub fn i31() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::I31 },
+            heap: HeapType::Abstract {
+                shared: false,
+                ty: AbstractHeapType::I31,
+            },
         }
     }
 
@@ -281,7 +303,10 @@ impl<'a> RefType<'a> {
     pub fn nullfuncref() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::NoFunc },
+            heap: HeapType::Abstract {
+                shared: false,
+                ty: AbstractHeapType::NoFunc,
+            },
         }
     }
 
@@ -289,7 +314,10 @@ impl<'a> RefType<'a> {
     pub fn nullexternref() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::NoExtern },
+            heap: HeapType::Abstract {
+                shared: false,
+                ty: AbstractHeapType::NoExtern,
+            },
         }
     }
 
@@ -297,7 +325,10 @@ impl<'a> RefType<'a> {
     pub fn nullref() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::None },
+            heap: HeapType::Abstract {
+                shared: false,
+                ty: AbstractHeapType::None,
+            },
         }
     }
 
@@ -305,7 +336,10 @@ impl<'a> RefType<'a> {
     pub fn nullexnref() -> Self {
         RefType {
             nullable: true,
-            heap: HeapType::Abstract { shared: false, ty: AbstractHeapType::NoExn },
+            heap: HeapType::Abstract {
+                shared: false,
+                ty: AbstractHeapType::NoExn,
+            },
         }
     }
 }
