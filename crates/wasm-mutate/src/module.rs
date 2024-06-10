@@ -1,5 +1,5 @@
 use crate::Result;
-use wasm_encoder::{AbstractHeapType, BlockType, HeapType, RefType, ValType};
+use wasm_encoder::{BlockType, HeapType, RefType, ValType};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum PrimitiveTypeInfo {
@@ -77,26 +77,12 @@ pub fn map_type(tpe: wasmparser::ValType) -> Result<ValType> {
 }
 
 pub fn map_ref_type(ref_ty: wasmparser::RefType) -> Result<RefType> {
-    use wasmparser::AbstractHeapType::*;
     Ok(RefType {
         nullable: ref_ty.is_nullable(),
         heap_type: match ref_ty.heap_type() {
             wasmparser::HeapType::Concrete(i) => HeapType::Concrete(i.as_module_index().unwrap()),
             wasmparser::HeapType::Abstract { shared, ty } => {
-                let ty = match ty {
-                    Func => AbstractHeapType::Func,
-                    Extern => AbstractHeapType::Extern,
-                    Any => AbstractHeapType::Any,
-                    None => AbstractHeapType::None,
-                    NoExtern => AbstractHeapType::NoExtern,
-                    NoFunc => AbstractHeapType::NoFunc,
-                    Eq => AbstractHeapType::Eq,
-                    Struct => AbstractHeapType::Struct,
-                    Array => AbstractHeapType::Array,
-                    I31 => AbstractHeapType::I31,
-                    Exn => AbstractHeapType::Exn,
-                    NoExn => AbstractHeapType::NoExn,
-                };
+                let ty = ty.into();
                 HeapType::Abstract { shared, ty }
             }
         },

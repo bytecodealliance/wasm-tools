@@ -209,26 +209,12 @@ pub fn refty(t: &mut dyn Translator, ty: &wasmparser::RefType) -> Result<RefType
 }
 
 pub fn heapty(t: &mut dyn Translator, ty: &wasmparser::HeapType) -> Result<HeapType> {
-    use wasmparser::AbstractHeapType::*;
     match ty {
         wasmparser::HeapType::Concrete(i) => Ok(HeapType::Concrete(
             t.remap(Item::Type, i.as_module_index().unwrap())?,
         )),
         wasmparser::HeapType::Abstract { shared, ty } => {
-            let ty = match ty {
-                Func => AbstractHeapType::Func,
-                Extern => AbstractHeapType::Extern,
-                Any => AbstractHeapType::Any,
-                None => AbstractHeapType::None,
-                NoExtern => AbstractHeapType::NoExtern,
-                NoFunc => AbstractHeapType::NoFunc,
-                Eq => AbstractHeapType::Eq,
-                Struct => AbstractHeapType::Struct,
-                Array => AbstractHeapType::Array,
-                I31 => AbstractHeapType::I31,
-                Exn => AbstractHeapType::Exn,
-                NoExn => AbstractHeapType::NoExn,
-            };
+            let ty = (*ty).into();
             Ok(HeapType::Abstract {
                 shared: *shared,
                 ty,
