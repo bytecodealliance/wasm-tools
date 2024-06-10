@@ -22,6 +22,10 @@
       font-size: inherit;
     }
 
+    .config {
+      float: right;
+    }
+
     .description {
       grid-area: h;
     }
@@ -33,16 +37,18 @@
 
     .output-container {
       grid-area: o;
+      overflow-x: scroll;
     }
 
     #output {
       box-sizing: border-box;
       padding: .4rem;
-      height: calc(100% - .4rem);
+      min-height: calc(100% - .4rem);
       width: 100%;
       margin: 0;
       border: 1px solid black;
       border-radius: 5px;
+      overflow-x: scroll;
     }
 
     #overlay {
@@ -93,10 +99,13 @@
     <p>Translate WebAssembly binaries to text format using <a href="https://github.com/bytecodealliance/wasm-tools"><code>wasm-tools print</code></a>.</p>
   </div>
 
-  <!-- todo skeleton -->
   <div class="output-header">
     Drop a file on this page, or <button id="upload">manually select a file</button>.
     <input type="file" id="fileInput" accept=".wasm" style="display:none;">
+    <span class="config">
+      <input type="checkbox" id="skeleton">
+      <label for="skeleton">Skip function bodies (recommended for large files)</label>
+    </span>
   </div>
   <div class="output-container">
     <!-- adding contenteditable is the easiest way to let the user copy-paste the whole contents -->

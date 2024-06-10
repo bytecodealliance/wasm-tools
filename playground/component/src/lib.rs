@@ -49,8 +49,9 @@ impl Guest for Component {
         wat::parse_str(contents).map_err(|e| e.to_string())
     }
 
-    fn print(contents: Vec<u8>) -> Result<Vec<PrintPart>, String> {
-        let config = wasmprinter::Config::new();
+    fn print(contents: Vec<u8>, skeleton: bool) -> Result<Vec<PrintPart>, String> {
+        let mut config = wasmprinter::Config::new();
+        config.print_skeleton(skeleton);
 
         let mut writer = StringWriter(Vec::new());
         let result = config.print(&contents, &mut writer);

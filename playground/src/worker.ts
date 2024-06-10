@@ -1,6 +1,9 @@
 import { parse, print } from '../component-built/component.js';
 import type { MessageToWorker } from './utilities.js'
 
+// workaround for https://github.com/Microsoft/TypeScript/issues/20595
+declare function postMessage(message: any, transfer?: Transferable[]): void;
+
 postMessage('loaded');
 
 addEventListener('message', ({ data }: { data: MessageToWorker }) => {
@@ -16,7 +19,7 @@ addEventListener('message', ({ data }: { data: MessageToWorker }) => {
     }
     case 'print': {
       try {
-        let source = print(data.bytes);
+        let source = print(data.bytes, data.skeleton);
         postMessage({ success: true, messageId: data.messageId, source });
       } catch (e) {
         postMessage({ success: false, messageId: data.messageId, error: (e as Error).message });

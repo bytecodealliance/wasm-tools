@@ -12,5 +12,5 @@ world wasm-tools {
         comment,
         reset,
     }
-    export print: func(contents: list<u8>) -> result<list<print-part>, string>;
+    export print: func(contents: list<u8>, skeleton: bool) -> result<list<print-part>, string>;
 }
