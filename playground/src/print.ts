@@ -77,7 +77,7 @@ function gotMessage({ data }: {
     output.append(toDOM(data.source));
   } else {
     let span = document.createElement('span');
-    span.style.color = 'red';
+    span.style.color = '#a00';
     span.append(data.error);
     output.append(span);
   }
