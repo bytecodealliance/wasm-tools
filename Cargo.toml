@@ -39,6 +39,7 @@ members = [
   'fuzz',
   'crates/wit-parser/fuzz',
   'crates/wit-component/dl',
+  'playground/component',
 ]
 
 [workspace.lints.rust]
