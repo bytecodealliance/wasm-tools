@@ -182,11 +182,19 @@ struct WitResolve {
     /// items are otherwise hidden by default.
     #[clap(long)]
     features: Vec<String>,
+
+    /// Enable all features when parsing the `wit` option.
+    ///
+    /// This flag enables all `@unstable` features in WIT documents where the
+    /// items are otherwise hidden by default.
+    #[clap(long)]
+    all_features: bool,
 }
 
 impl WitResolve {
-    fn resolve_with_features(features: &[String]) -> Resolve {
+    fn resolve_with_features(features: &[String], all_features: bool) -> Resolve {
         let mut resolve = Resolve::default();
+        resolve.all_features = all_features;
         for feature in features {
             for f in feature.split_whitespace() {
                 for f in f.split(',').filter(|s| !s.is_empty()) {
@@ -198,7 +206,7 @@ impl WitResolve {
     }
 
     fn load(&self) -> Result<(Resolve, Vec<PackageId>)> {
-        let mut resolve = Self::resolve_with_features(&self.features);
+        let mut resolve = Self::resolve_with_features(&self.features, self.all_features);
         let (pkg_ids, _) = resolve.push_path(&self.wit)?;
         Ok((resolve, pkg_ids))
     }
@@ -494,6 +502,13 @@ pub struct WitOpts {
     /// items are otherwise hidden by default.
     #[clap(long)]
     features: Vec<String>,
+
+    /// Enable all features when parsing the `wit` option.
+    ///
+    /// This flag enables all `@unstable` features in WIT documents where the
+    /// items are otherwise hidden by default.
+    #[clap(long)]
+    all_features: bool,
 }
 
 impl WitOpts {
@@ -524,7 +539,8 @@ impl WitOpts {
         // `parse_wit_from_path`.
         if let Some(input) = &self.input {
             if input.is_dir() {
-                let mut resolve = WitResolve::resolve_with_features(&self.features);
+                let mut resolve =
+                    WitResolve::resolve_with_features(&self.features, self.all_features);
                 let (pkg_ids, _) = resolve.push_dir(&input)?;
                 return Ok(DecodedWasm::WitPackages(resolve, pkg_ids));
             }
@@ -572,7 +588,8 @@ impl WitOpts {
                     Ok(s) => s,
                     Err(_) => bail!("input was not valid utf-8"),
                 };
-                let mut resolve = WitResolve::resolve_with_features(&self.features);
+                let mut resolve =
+                    WitResolve::resolve_with_features(&self.features, self.all_features);
                 let pkgs = UnresolvedPackageGroup::parse(path, input)?;
                 let ids = resolve.append(pkgs)?;
                 Ok(DecodedWasm::WitPackages(resolve, ids))
