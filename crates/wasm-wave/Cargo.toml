@@ -1,0 +1,32 @@
+[package]
+name = "wasm-wave"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors = ["lann.martin@fermyon.com"]
+description = "WebAssembly Value Encoding"
+documentation = "https://docs.rs/wasm-wave"
+categories = ["wasm", "encoding", "parser-implementations"]
+repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-wave"
+readme = "README.md"
+
+[features]
+default = ["wit"]
+# wasmtime = ["dep:wasmtime"]
+wit = ["dep:wit-parser"]
+
+[dependencies]
+indexmap.workspace = true
+logos = "0.14.0"
+thiserror = "1.0.48"
+# wasmtime = { workspace = true, optional = true }
+wit-parser = { workspace = true, optional = true }
+
+[[test]]
+name = "ui"
+path = "tests/ui.rs"
+harness = false
+
+[dev-dependencies]
+snapbox = { version = "0.5.6", features = ["harness"] }
+wasmtime = { workspace = true, optional = false, features = ["cranelift"] }

@@ -36,6 +36,7 @@ members = [
   'crates/c-api',
   'crates/fuzz-stats',
   'crates/wasm-mutate-stats',
+  'crates/wasm-wave',
   'fuzz',
   'crates/wit-encoder',
   'crates/wit-parser/fuzz',
