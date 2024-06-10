@@ -45,11 +45,10 @@ impl Display for Result_ {
             write!(f, "<")?;
             if let Some(type_) = &self.ok {
                 type_.fmt(f)?;
+            } else {
+                write!(f, "_")?;
             }
             if let Some(type_) = &self.err {
-                if self.ok.is_none() {
-                    write!(f, "_")?;
-                }
                 write!(f, ", ")?;
                 type_.fmt(f)?;
             }

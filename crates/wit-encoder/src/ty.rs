@@ -62,6 +62,21 @@ impl Type {
         Type::Named(name.into())
     }
 }
+impl From<Result_> for Type {
+    fn from(value: Result_) -> Self {
+        Self::result(value)
+    }
+}
+impl From<Tuple> for Type {
+    fn from(value: Tuple) -> Self {
+        Type::Tuple(value)
+    }
+}
+impl From<Ident> for Type {
+    fn from(value: Ident) -> Self {
+        Self::named(value)
+    }
+}
 
 impl Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
