@@ -1492,18 +1492,10 @@ impl AbstractHeapType {
     }
 }
 
-impl ValType {
-    pub(crate) fn is_valtype_byte(byte: u8) -> bool {
-        match byte {
-            0x7F | 0x7E | 0x7D | 0x7C | 0x7B | 0x70 | 0x6F | 0x64 | 0x63 | 0x6E | 0x71 | 0x72
-            | 0x74 | 0x73 | 0x6D | 0x6B | 0x6A | 0x6C | 0x69 => true,
-            _ => false,
-        }
-    }
-}
-
 impl<'a> FromReader<'a> for StorageType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        // NB: See `FromReader<'a> for ValType` for a table of how this
+        // interacts with other value encodings.
         match reader.peek()? {
             0x78 => {
                 reader.read_u8()?;
@@ -1520,6 +1512,53 @@ impl<'a> FromReader<'a> for StorageType {
 
 impl<'a> FromReader<'a> for ValType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        // Decoding value types is sort of subtle because the space of what's
+        // being decoded here is actually spread out across an number of
+        // locations. This comment here is intended to serve as a bit of a
+        // reference to what's being decoded here and how it interacts with
+        // other locations.
+        //
+        // Note that all value types are encoded as canonical-form negative
+        // numbers in the sleb128 encoding scheme. Currently in the wasm spec
+        // sleb128 isn't actually used but it looks to be modelled to allow it
+        // one day. In the meantime the current values used are:
+        //
+        // | sleb128 | decimal | type         | notes                        |
+        // |---------|---------|--------------|------------------------------|
+        // | 0x7F    | -1      | i32          |                              |
+        // | 0x7E    | -2      | i64          |                              |
+        // | 0x7D    | -3      | f32          |                              |
+        // | 0x7C    | -4      | f64          |                              |
+        // | 0x7B    | -5      | v128         | simd proposal                |
+        // | 0x78    | -8      | i8           | gc proposal, in `FieldType`  |
+        // | 0x77    | -9      | i16          | gc proposal, in `FieldType`  |
+        // | 0x74    | -12     | noexn        | gc + exceptions proposal     |
+        // | 0x73    | -13     | nofunc       | gc proposal                  |
+        // | 0x72    | -14     | noextern     | gc proposal                  |
+        // | 0x71    | -15     | nullref      | gc proposal                  |
+        // | 0x70    | -16     | func         | reference types proposal     |
+        // | 0x6F    | -17     | extern       | reference types proposal     |
+        // | 0x6E    | -18     | any          | gc proposal                  |
+        // | 0x6D    | -19     | eq           | gc proposal                  |
+        // | 0x6C    | -20     | i31          | gc proposal                  |
+        // | 0x6B    | -21     | struct       | gc proposal                  |
+        // | 0x6A    | -22     | array        | gc proposal                  |
+        // | 0x69    | -23     | exnref       | gc + exceptions proposal     |
+        // | 0x64    | -28     | ref $t       | gc proposal, prefix byte     |
+        // | 0x63    | -29     | ref null $t  | gc proposal, prefix byte     |
+        // | 0x60    | -32     | func $t      | prefix byte                  |
+        // | 0x5f    | -33     | struct $t    | gc proposal, prefix byte     |
+        // | 0x5e    | -34     | array $t     | gc proposal, prefix byte     |
+        // | 0x50    | -48     | sub $t       | gc proposal, prefix byte     |
+        // | 0x4F    | -49     | sub final $t | gc proposal, prefix byte     |
+        // | 0x4E    | -50     | rec $t       | gc proposal, prefix byte     |
+        // | 0x40    | -64     | ε            | empty block type             |
+        //
+        // Note that not all of these encodings are parsed here, for example
+        // 0x78 as the encoding for `i8` is parsed only in `FieldType`. The
+        // parsing of `FieldType` will delegate here without actually consuming
+        // anything though so the encoding 0x78 still must be disjoint and not
+        // read here otherwise.
         match reader.peek()? {
             0x7F => {
                 reader.read_u8()?;
@@ -1565,6 +1604,9 @@ impl<'a> FromReader<'a> for RefType {
             0x74 => Ok(RefType::NOEXN.nullable()),
             _ => bail!(pos, "invalid abstract heap type"),
         };
+
+        // NB: See `FromReader<'a> for ValType` for a table of how this
+        // interacts with other value encodings.
         match reader.read()? {
             byte @ (0x70 | 0x6F | 0x6E | 0x71 | 0x72 | 0x73 | 0x6D | 0x6B | 0x6A | 0x6C | 0x69
             | 0x74) => {
@@ -1589,6 +1631,8 @@ impl<'a> FromReader<'a> for RefType {
 
 impl<'a> FromReader<'a> for HeapType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        // NB: See `FromReader<'a> for ValType` for a table of how this
+        // interacts with other value encodings.
         match reader.peek()? {
             0x65 => {
                 reader.read_u8()?;
@@ -1789,6 +1833,8 @@ fn read_composite_type(
     opcode: u8,
     reader: &mut BinaryReader,
 ) -> Result<CompositeType, BinaryReaderError> {
+    // NB: See `FromReader<'a> for ValType` for a table of how this
+    // interacts with other value encodings.
     Ok(match opcode {
         0x60 => CompositeType::Func(reader.read()?),
         0x5e => CompositeType::Array(reader.read()?),
@@ -1799,6 +1845,8 @@ fn read_composite_type(
 
 impl<'a> FromReader<'a> for RecGroup {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        // NB: See `FromReader<'a> for ValType` for a table of how this
+        // interacts with other value encodings.
         match reader.peek()? {
             0x4e => {
                 reader.read_u8()?;
@@ -1822,6 +1870,8 @@ impl<'a> FromReader<'a> for RecGroup {
 impl<'a> FromReader<'a> for SubType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let pos = reader.original_position();
+        // NB: See `FromReader<'a> for ValType` for a table of how this
+        // interacts with other value encodings.
         Ok(match reader.read_u8()? {
             opcode @ (0x4f | 0x50) => {
                 let idx_iter = reader.read_iter(MAX_WASM_SUPERTYPES, "supertype idxs")?;
