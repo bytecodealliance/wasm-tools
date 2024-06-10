@@ -476,6 +476,12 @@ pub enum HeapType {
 }
 
 impl HeapType {
+    /// Alias for the unshared `any` heap type.
+    pub const ANY: Self = Self::Abstract {
+        shared: false,
+        ty: AbstractHeapType::Any,
+    };
+
     /// Alias for the unshared `func` heap type.
     pub const FUNC: Self = Self::Abstract {
         shared: false,
@@ -486,6 +492,12 @@ impl HeapType {
     pub const EXTERN: Self = Self::Abstract {
         shared: false,
         ty: AbstractHeapType::Extern,
+    };
+
+    /// Alias for the unshared `i31` heap type.
+    pub const I31: Self = Self::Abstract {
+        shared: false,
+        ty: AbstractHeapType::I31,
     };
 }
 

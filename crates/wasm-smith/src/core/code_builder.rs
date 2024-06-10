@@ -6575,10 +6575,7 @@ fn i31_get_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
             module,
             ValType::Ref(RefType {
                 nullable: true,
-                heap_type: HeapType::Abstract {
-                    shared: false, // TODO: handle shared
-                    ty: AbstractHeapType::I31,
-                },
+                heap_type: HeapType::I31,
             }),
         )
 }
@@ -6606,10 +6603,7 @@ fn any_convert_extern_valid(module: &Module, builder: &mut CodeBuilder) -> bool 
             module,
             ValType::Ref(RefType {
                 nullable: true,
-                heap_type: HeapType::Abstract {
-                    shared: false, // TODO: handle shared
-                    ty: AbstractHeapType::Extern,
-                },
+                heap_type: HeapType::EXTERN,
             }),
         )
 }
@@ -6626,10 +6620,7 @@ fn any_convert_extern(
     };
     builder.push_operand(Some(ValType::Ref(RefType {
         nullable,
-        heap_type: HeapType::Abstract {
-            shared: false, // TODO: handle shared
-            ty: AbstractHeapType::Any,
-        },
+        heap_type: HeapType::ANY,
     })));
     instructions.push(Instruction::AnyConvertExtern);
     Ok(())
