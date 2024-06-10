@@ -10,6 +10,8 @@ wasmprinter = { workspace = true }
 
 [lib]
 crate-type = ["cdylib"]
+test = false
+doctest = false
 
 [profile.release]
 codegen-units = 1
