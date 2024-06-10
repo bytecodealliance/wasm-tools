@@ -1465,7 +1465,7 @@ impl AbstractHeapType {
             (false, NoExtern) => "noextern",
             (true, NoFunc) => "nullfunc",
             (false, NoFunc) => "nofunc",
-            (_, Eq) => "eqf",
+            (_, Eq) => "eq",
             (_, Struct) => "struct",
             (_, Array) => "array",
             (_, I31) => "i31",
