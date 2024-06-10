@@ -551,7 +551,8 @@ impl WitOpts {
         // `parse_wit_from_path`.
         if let Some(input) = &self.input {
             if input.is_dir() {
-                let mut resolve = WitResolve::resolve_with_features(&self.features, self.all_features);
+                let mut resolve =
+                    WitResolve::resolve_with_features(&self.features, self.all_features);
                 let (pkg_ids, _) = resolve.push_dir(&input)?;
                 return Ok(DecodedWasm::WitPackages(resolve, pkg_ids));
             }
@@ -599,7 +600,8 @@ impl WitOpts {
                     Ok(s) => s,
                     Err(_) => bail!("input was not valid utf-8"),
                 };
-                let mut resolve = WitResolve::resolve_with_features(&self.features, self.all_features);
+                let mut resolve =
+                    WitResolve::resolve_with_features(&self.features, self.all_features);
                 let pkgs = UnresolvedPackageGroup::parse(path, input)?;
                 let ids = resolve.append(pkgs)?;
                 Ok(DecodedWasm::WitPackages(resolve, ids))
