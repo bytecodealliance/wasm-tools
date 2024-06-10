@@ -180,7 +180,6 @@ struct WitResolve {
     wit: PathBuf,
 
     /// Features to enable when parsing the `wit` option.
-    /// Pass `.` to enable all features (alias of --`all-features`).
     ///
     /// This flag enables the `@unstable` feature in WIT documents where the
     /// items are otherwise hidden by default.
@@ -205,9 +204,6 @@ impl WitResolve {
                     resolve.features.insert(f.to_string());
                 }
             }
-        }
-        if resolve.features.contains(".") {
-            resolve.all_features = true;
         }
         return resolve;
     }
@@ -508,7 +504,6 @@ pub struct WitOpts {
     json: bool,
 
     /// Features to enable when parsing the `wit` option.
-    /// Pass `.` to enable all features (alias of --`all-features`).
     ///
     /// This flag enables the `@unstable` feature in WIT documents where the
     /// items are otherwise hidden by default.
