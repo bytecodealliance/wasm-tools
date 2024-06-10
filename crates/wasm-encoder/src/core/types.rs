@@ -475,6 +475,20 @@ pub enum HeapType {
     Concrete(u32),
 }
 
+impl HeapType {
+    /// Alias for the unshared `func` heap type.
+    pub const FUNC: Self = Self::Abstract {
+        shared: false,
+        ty: AbstractHeapType::Func,
+    };
+
+    /// Alias for the unshared `extern` heap type.
+    pub const EXTERN: Self = Self::Abstract {
+        shared: false,
+        ty: AbstractHeapType::Extern,
+    };
+}
+
 impl Encode for HeapType {
     fn encode(&self, sink: &mut Vec<u8>) {
         match self {

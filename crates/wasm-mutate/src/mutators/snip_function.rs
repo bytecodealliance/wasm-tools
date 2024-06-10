@@ -61,16 +61,10 @@ impl Mutator for SnipMutator {
                                 f.instruction(&Instruction::V128Const(0));
                             }
                             PrimitiveTypeInfo::FuncRef => {
-                                f.instruction(&Instruction::RefNull(HeapType::Abstract {
-                                    shared: false, // TODO: handle shared
-                                    ty: wasm_encoder::AbstractHeapType::Func,
-                                }));
+                                f.instruction(&Instruction::RefNull(HeapType::FUNC));
                             }
                             PrimitiveTypeInfo::ExternRef => {
-                                f.instruction(&Instruction::RefNull(HeapType::Abstract {
-                                    shared: false, // TODO: handle shared
-                                    ty: wasm_encoder::AbstractHeapType::Extern,
-                                }));
+                                f.instruction(&Instruction::RefNull(HeapType::EXTERN));
                             }
                             PrimitiveTypeInfo::Empty => {
                                 unreachable!()
