@@ -2,5 +2,15 @@ package component:component;
 
 world wasm-tools {
     export parse: func(contents: string) -> result<list<u8>, string>;
-    export print: func(contents: list<u8>) -> result<string, string>;
+
+    variant print-part {
+        str(string),
+        name,
+        literal,
+        keyword,
+        %type,
+        comment,
+        reset,
+    }
+    export print: func(contents: list<u8>) -> result<list<print-part>, string>;
 }
