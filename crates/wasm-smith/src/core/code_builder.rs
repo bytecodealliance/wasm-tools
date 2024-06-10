@@ -5456,13 +5456,7 @@ fn ref_as_non_null(
 
 #[inline]
 fn ref_eq_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    let eq_ref = ValType::Ref(RefType {
-        nullable: true,
-        heap_type: HeapType::Abstract {
-            shared: false, // TODO: handle shared
-            ty: AbstractHeapType::Eq,
-        },
-    });
+    let eq_ref = ValType::Ref(RefType::EQREF);
     module.config.gc_enabled && builder.types_on_stack(module, &[eq_ref, eq_ref])
 }
 
@@ -6361,17 +6355,7 @@ fn array_set(
 
 #[inline]
 fn array_len_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.gc_enabled
-        && builder.type_on_stack(
-            module,
-            ValType::Ref(RefType {
-                nullable: true,
-                heap_type: HeapType::Abstract {
-                    shared: false, // TODO: handle shared
-                    ty: AbstractHeapType::Array,
-                },
-            }),
-        )
+    module.config.gc_enabled && builder.type_on_stack(module, ValType::Ref(RefType::ARRAYREF))
 }
 
 fn array_len(
@@ -6579,13 +6563,7 @@ fn ref_i31(
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
     builder.pop_operand();
-    builder.push_operand(Some(ValType::Ref(RefType {
-        nullable: false,
-        heap_type: HeapType::Abstract {
-            shared: false, // TODO: handle shared
-            ty: AbstractHeapType::I31,
-        },
-    })));
+    builder.push_operand(Some(ValType::Ref(RefType::I31REF)));
     instructions.push(Instruction::RefI31);
     Ok(())
 }
@@ -6659,17 +6637,7 @@ fn any_convert_extern(
 
 #[inline]
 fn extern_convert_any_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.gc_enabled
-        && builder.type_on_stack(
-            module,
-            ValType::Ref(RefType {
-                nullable: true,
-                heap_type: HeapType::Abstract {
-                    shared: false, // TODO: handle shared
-                    ty: AbstractHeapType::Any,
-                },
-            }),
-        )
+    module.config.gc_enabled && builder.type_on_stack(module, ValType::Ref(RefType::ANYREF))
 }
 
 fn extern_convert_any(
@@ -6682,13 +6650,12 @@ fn extern_convert_any(
         None => u.arbitrary()?,
         Some(r) => r.nullable,
     };
-    builder.push_operand(Some(ValType::Ref(RefType {
-        nullable,
-        heap_type: HeapType::Abstract {
-            shared: false, // TODO: handle shared
-            ty: AbstractHeapType::Extern,
-        },
-    })));
+    let ty = if nullable {
+        RefType::EXTERNREF.nullable(true)
+    } else {
+        RefType::EXTERNREF
+    };
+    builder.push_operand(Some(ValType::Ref(ty)));
     instructions.push(Instruction::ExternConvertAny);
     Ok(())
 }

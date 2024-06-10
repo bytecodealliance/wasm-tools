@@ -344,7 +344,25 @@ pub struct RefType {
 }
 
 impl RefType {
-    /// Alias for the `funcref` type in WebAssembly
+    /// Alias for the `anyref` type in WebAssembly.
+    pub const ANYREF: RefType = RefType {
+        nullable: true,
+        heap_type: HeapType::Abstract {
+            shared: false,
+            ty: AbstractHeapType::Any,
+        },
+    };
+
+    /// Alias for the `anyref` type in WebAssembly.
+    pub const EQREF: RefType = RefType {
+        nullable: true,
+        heap_type: HeapType::Abstract {
+            shared: false,
+            ty: AbstractHeapType::Eq,
+        },
+    };
+
+    /// Alias for the `funcref` type in WebAssembly.
     pub const FUNCREF: RefType = RefType {
         nullable: true,
         heap_type: HeapType::Abstract {
@@ -353,7 +371,7 @@ impl RefType {
         },
     };
 
-    /// Alias for the `externref` type in WebAssembly
+    /// Alias for the `externref` type in WebAssembly.
     pub const EXTERNREF: RefType = RefType {
         nullable: true,
         heap_type: HeapType::Abstract {
@@ -362,7 +380,25 @@ impl RefType {
         },
     };
 
-    /// Alias for the `exnref` type in WebAssembly
+    /// Alias for the `i31ref` type in WebAssembly.
+    pub const I31REF: RefType = RefType {
+        nullable: true,
+        heap_type: HeapType::Abstract {
+            shared: false,
+            ty: AbstractHeapType::I31,
+        },
+    };
+
+    /// Alias for the `arrayref` type in WebAssembly.
+    pub const ARRAYREF: RefType = RefType {
+        nullable: true,
+        heap_type: HeapType::Abstract {
+            shared: false,
+            ty: AbstractHeapType::Array,
+        },
+    };
+
+    /// Alias for the `exnref` type in WebAssembly.
     pub const EXNREF: RefType = RefType {
         nullable: true,
         heap_type: HeapType::Abstract {
@@ -370,6 +406,12 @@ impl RefType {
             ty: AbstractHeapType::Exn,
         },
     };
+
+    /// Set the nullability of this reference type.
+    pub fn nullable(mut self, nullable: bool) -> Self {
+        self.nullable = nullable;
+        self
+    }
 }
 
 impl Encode for RefType {
