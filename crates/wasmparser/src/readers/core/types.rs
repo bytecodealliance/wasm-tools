@@ -1135,7 +1135,7 @@ impl RefType {
             HeapType::Concrete(index) => Some(RefType::concrete(nullable, index.pack()?)),
             HeapType::Abstract { shared, ty } => {
                 use AbstractHeapType::*;
-                let base32 = base32 | Self::SHARED_BIT * (shared as u32);
+                let base32 = base32 | (Self::SHARED_BIT * (shared as u32));
                 match ty {
                     Func => Some(Self::from_u32(base32 | Self::FUNC_ABSTYPE)),
                     Extern => Some(Self::from_u32(base32 | Self::EXTERN_ABSTYPE)),
