@@ -464,13 +464,7 @@ fn make_env_module<'a>(
     {
         let mut tables = TableSection::new();
         tables.table(TableType {
-            element_type: RefType {
-                nullable: true,
-                heap_type: HeapType::Abstract {
-                    shared: false,
-                    ty: wasm_encoder::AbstractHeapType::Func,
-                },
-            },
+            element_type: RefType::FUNCREF,
             minimum: table_offset.into(),
             maximum: None,
             table64: false,
@@ -562,13 +556,7 @@ fn make_init_module(
         "env",
         "__indirect_function_table",
         TableType {
-            element_type: RefType {
-                nullable: true,
-                heap_type: HeapType::Abstract {
-                    shared: false,
-                    ty: wasm_encoder::AbstractHeapType::Func,
-                },
-            },
+            element_type: RefType::FUNCREF,
             minimum: 0,
             maximum: None,
             table64: false,
