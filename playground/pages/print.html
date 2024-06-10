@@ -18,17 +18,8 @@
         "o"
     }
 
-    textarea {
-      resize: none;
-      box-sizing: border-box;
-      padding: .4rem;
-      height: calc(100% - .4rem);
-      width: 100%;
-    }
-
     button {
       font-size: inherit;
-      /* color: #505050; */
     }
 
     .description {
@@ -40,8 +31,18 @@
       padding-bottom: .4rem;
     }
 
-    .output {
-      grid-area: o
+    .output-container {
+      grid-area: o;
+    }
+
+    #output {
+      box-sizing: border-box;
+      padding: .4rem;
+      height: calc(100% - .4rem);
+      width: 100%;
+      margin: 0;
+      border: 1px solid black;
+      border-radius: 5px;
     }
 
     #overlay {
@@ -52,13 +53,31 @@
       height: 100%;
       background-color: rgba(0, 0, 0, .2);
       display: none;
-      /* display: flex; */
       justify-content: center;
       align-items: center;
-      /* color: white; */
       text-shadow: 0 0 2px white;
       font-size: 24px;
       pointer-events: none;
+    }
+
+    .print-name {
+      color: #9F00BD;
+    }
+
+    .print-literal {
+      color: #FB0416;
+    }
+
+    .print-keyword {
+      font-weight: bold;
+    }
+
+    .print-type {
+      color: #328A5D;
+    }
+
+    .print-comment {
+      color: #B3B3B3;
     }
   </style>
 </head>
@@ -74,21 +93,13 @@
     <p>Translate WebAssembly binaries to text format using <a href="https://github.com/bytecodealliance/wasm-tools"><code>wasm-tools print</code></a>.</p>
   </div>
 
+  <!-- todo skeleton -->
   <div class="output-header">
     Drop a file on this page, or <button id="upload">manually select a file</button>.
     <input type="file" id="fileInput" accept=".wasm" style="display:none;">
   </div>
-  <div class="output">
-    <textarea id="output">(module
-  (import "foo" "bar" (func (param f32)))
-  (memory (data "hi"))
-  (type (func (param i32) (result i32)))
-  (start 1)
-  (table 0 1 funcref)
-  (func)
-  (func (type 1)
-    i32.const 42
-    drop)
-  (export "e" (func 1)))</textarea>
+  <div class="output-container">
+    <!-- adding contenteditable is the easiest way to let the user copy-paste the whole contents -->
+    <pre id="output" class="iobox" contenteditable="plaintext-only" spellcheck="false"></pre>
   </div>
 </div>
