@@ -20,7 +20,7 @@ pub enum Type {
     F64,
     Char,
     String,
-    Borrow(Box<Type>),
+    Borrow(Ident),
     Option(Box<Type>),
     Result(Box<Result_>),
     List(Box<Type>),
@@ -29,8 +29,8 @@ pub enum Type {
 }
 
 impl Type {
-    pub fn borrow(type_: Type) -> Self {
-        Type::Borrow(Box::new(type_))
+    pub fn borrow(name: impl Into<Ident>) -> Self {
+        Type::Borrow(name.into())
     }
     pub fn option(type_: Type) -> Self {
         Type::Option(Box::new(type_))
