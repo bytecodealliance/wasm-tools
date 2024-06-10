@@ -732,14 +732,27 @@ impl<'a> BinaryReader<'a> {
     pub(crate) fn read_block_type(&mut self) -> Result<BlockType> {
         let b = self.peek()?;
 
-        // Check for empty block
-        if b == 0x40 {
-            self.position += 1;
-            return Ok(BlockType::Empty);
-        }
-
-        // Check for a block type of form [] -> [t].
-        if ValType::is_valtype_byte(b) {
+        // Block types are encoded as either 0x40, a `valtype`, or `s33`. All
+        // current `valtype` encodings are negative numbers when encoded with
+        // sleb128, but it's also required that valtype encodings are in their
+        // canonical form. For example an overlong encoding of -1 as `0xff 0x7f`
+        // is not valid and it is required to be `0x7f`. This means that we
+        // can't simply match on the `s33` that pops out below since reading the
+        // whole `s33` might read an overlong encoding.
+        //
+        // To test for this the first byte `b` is inspected. The highest bit,
+        // the continuation bit in LEB128 encoding, must be clear. The next bit,
+        // the sign bit, must be set to indicate that the number is negative. If
+        // these two conditions hold then we're guaranteed that this is a
+        // negative number.
+        //
+        // After this a value type is read directly instead of looking for an
+        // indexed value type.
+        if b & 0x80 == 0 && b & 0x40 != 0 {
+            if b == 0x40 {
+                self.position += 1;
+                return Ok(BlockType::Empty);
+            }
             return Ok(BlockType::Type(self.read()?));
         }
 
