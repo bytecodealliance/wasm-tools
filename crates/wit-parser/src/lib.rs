@@ -827,7 +827,7 @@ impl Function {
 /// annotations were added to WIT.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde_derive::Deserialize, Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase", tag = "type"))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum Stability {
     /// `@since(version = 1.2.3)`
     ///

@@ -7,8 +7,9 @@
           "interface": {
             "id": 4,
             "stability": {
-              "type": "unstable",
-              "feature": "active"
+              "unstable": {
+                "feature": "active"
+              }
             }
           }
         }
@@ -18,16 +19,18 @@
           "interface": {
             "id": 4,
             "stability": {
-              "type": "unstable",
-              "feature": "active"
+              "unstable": {
+                "feature": "active"
+              }
             }
           }
         }
       },
       "package": 0,
       "stability": {
-        "type": "unstable",
-        "feature": "active"
+        "unstable": {
+          "feature": "active"
+        }
       }
     },
     {
@@ -37,8 +40,9 @@
           "interface": {
             "id": 4,
             "stability": {
-              "type": "unstable",
-              "feature": "active"
+              "unstable": {
+                "feature": "active"
+              }
             }
           }
         }
@@ -48,8 +52,9 @@
           "interface": {
             "id": 4,
             "stability": {
-              "type": "unstable",
-              "feature": "active"
+              "unstable": {
+                "feature": "active"
+              }
             }
           }
         }
@@ -68,14 +73,16 @@
           "params": [],
           "results": [],
           "stability": {
-            "type": "unstable",
-            "feature": "active"
+            "unstable": {
+              "feature": "active"
+            }
           }
         }
       },
       "stability": {
-        "type": "unstable",
-        "feature": "active"
+        "unstable": {
+          "feature": "active"
+        }
       },
       "package": 0
     },
@@ -87,8 +94,9 @@
       },
       "functions": {},
       "stability": {
-        "type": "unstable",
-        "feature": "active"
+        "unstable": {
+          "feature": "active"
+        }
       },
       "package": 0
     },
@@ -99,8 +107,9 @@
       },
       "functions": {},
       "stability": {
-        "type": "unstable",
-        "feature": "active"
+        "unstable": {
+          "feature": "active"
+        }
       },
       "package": 0
     },
@@ -111,8 +120,9 @@
       },
       "functions": {},
       "stability": {
-        "type": "unstable",
-        "feature": "active"
+        "unstable": {
+          "feature": "active"
+        }
       },
       "package": 0
     },
@@ -121,8 +131,9 @@
       "types": {},
       "functions": {},
       "stability": {
-        "type": "unstable",
-        "feature": "active"
+        "unstable": {
+          "feature": "active"
+        }
       },
       "package": 0
     },
@@ -144,8 +155,9 @@
             }
           ],
           "stability": {
-            "type": "unstable",
-            "feature": "active"
+            "unstable": {
+              "feature": "active"
+            }
           }
         },
         "[static]ungated.x": {
@@ -156,8 +168,9 @@
           "params": [],
           "results": [],
           "stability": {
-            "type": "unstable",
-            "feature": "active"
+            "unstable": {
+              "feature": "active"
+            }
           }
         },
         "[method]ungated.y": {
@@ -173,8 +186,9 @@
           ],
           "results": [],
           "stability": {
-            "type": "unstable",
-            "feature": "active"
+            "unstable": {
+              "feature": "active"
+            }
           }
         }
       },
@@ -191,8 +205,9 @@
         "interface": 1
       },
       "stability": {
-        "type": "unstable",
-        "feature": "active"
+        "unstable": {
+          "feature": "active"
+        }
       }
     },
     {
@@ -204,8 +219,9 @@
         "interface": 1
       },
       "stability": {
-        "type": "unstable",
-        "feature": "active"
+        "unstable": {
+          "feature": "active"
+        }
       }
     },
     {
@@ -217,8 +233,9 @@
         "interface": 2
       },
       "stability": {
-        "type": "unstable",
-        "feature": "active"
+        "unstable": {
+          "feature": "active"
+        }
       }
     },
     {
@@ -230,8 +247,9 @@
         "interface": 3
       },
       "stability": {
-        "type": "unstable",
-        "feature": "active"
+        "unstable": {
+          "feature": "active"
+        }
       }
     },
     {
@@ -241,8 +259,9 @@
         "interface": 5
       },
       "stability": {
-        "type": "unstable",
-        "feature": "active"
+        "unstable": {
+          "feature": "active"
+        }
       }
     },
     {
@@ -254,8 +273,9 @@
       },
       "owner": null,
       "stability": {
-        "type": "unstable",
-        "feature": "active"
+        "unstable": {
+          "feature": "active"
+        }
       }
     },
     {
