@@ -17,7 +17,7 @@ defaults:
 
 jobs:
   build:
-    name: Build
+    name: Build playground deployment
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,7 +44,7 @@ jobs:
           path: "./playground/dist"
 
   deploy:
-    name: Deploy
+    name: Deploy playground
     if: github.ref == 'refs/heads/main'
     needs: build
     permissions:
