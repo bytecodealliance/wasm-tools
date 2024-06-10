@@ -2766,7 +2766,14 @@ impl TypeList {
                         (NoFunc, Func) => true,
                         (None, I31 | Array | Struct) => true,
                         (NoExn, Exn) => true,
-                        _ => false,
+                        // Nothing else matches. (Avoid full wildcard matches so
+                        // that adding/modifying variants is easier in the
+                        // future.)
+                        (
+                            Func | Extern | Exn | Any | Eq | Array | I31 | Struct | None | NoFunc
+                            | NoExtern | NoExn,
+                            _,
+                        ) => false,
                     }
             }
 
@@ -2789,7 +2796,9 @@ impl TypeList {
                     Func => {
                         matches!(subtype(a_group, a).composite_type, CompositeType::Func(_))
                     }
-                    _ => false,
+                    // Nothing else matches. (Avoid full wildcard matches so
+                    // that adding/modifying variants is easier in the future.)
+                    Extern | Exn | I31 | None | NoFunc | NoExtern | NoExn => false,
                 }
             }
 
@@ -2804,7 +2813,11 @@ impl TypeList {
                         CompositeType::Array(_) | CompositeType::Struct(_)
                     ),
                     NoFunc => matches!(subtype(b_group, b).composite_type, CompositeType::Func(_)),
-                    _ => false,
+                    // Nothing else matches. (Avoid full wildcard matches so
+                    // that adding/modifying variants is easier in the future.)
+                    Func | Extern | Exn | Any | Eq | Array | I31 | Struct | NoExtern | NoExn => {
+                        false
+                    }
                 }
             }
 
