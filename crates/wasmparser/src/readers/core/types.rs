@@ -1357,6 +1357,8 @@ pub enum HeapType {
     /// An abstract heap type; e.g., `anyref`.
     Abstract {
         /// Whether the type is shared.
+        ///
+        /// Introduced in the shared-everything-threads proposal.
         shared: bool,
         /// The actual heap type.
         ty: AbstractHeapType,
