@@ -197,13 +197,15 @@ struct WitResolve {
 impl WitResolve {
     fn resolve_with_features(features: &[String], all_features: bool) -> Resolve {
         let mut resolve = Resolve::default();
-        resolve.all_features = all_features;
         for feature in features {
             for f in feature.split_whitespace() {
                 for f in f.split(',').filter(|s| !s.is_empty()) {
                     resolve.features.insert(f.to_string());
                 }
             }
+        }
+        if all_features {
+            resolve.features.insert("*".to_string());
         }
         return resolve;
     }
