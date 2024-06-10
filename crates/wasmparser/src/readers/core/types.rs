@@ -1544,6 +1544,7 @@ impl<'a> FromReader<'a> for ValType {
         // | 0x6B    | -21     | struct       | gc proposal                  |
         // | 0x6A    | -22     | array        | gc proposal                  |
         // | 0x69    | -23     | exnref       | gc + exceptions proposal     |
+        // | 0x65    | -27     | shared $t    | shared-everything proposal   |
         // | 0x64    | -28     | ref $t       | gc proposal, prefix byte     |
         // | 0x63    | -29     | ref null $t  | gc proposal, prefix byte     |
         // | 0x60    | -32     | func $t      | prefix byte                  |
@@ -1580,7 +1581,7 @@ impl<'a> FromReader<'a> for ValType {
                 reader.read_u8()?;
                 Ok(ValType::V128)
             }
-            0x70 | 0x6F | 0x64 | 0x63 | 0x6E | 0x71 | 0x72 | 0x73 | 0x74 | 0x6D | 0x6B | 0x6A
+            0x70 | 0x6F | 0x65 | 0x64 | 0x63 | 0x6E | 0x71 | 0x72 | 0x73 | 0x74 | 0x6D | 0x6B | 0x6A
             | 0x6C | 0x69 => Ok(ValType::Ref(reader.read()?)),
             _ => bail!(reader.original_position(), "invalid value type"),
         }
