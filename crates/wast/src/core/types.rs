@@ -411,7 +411,6 @@ impl<'a> Parse<'a> for RefType<'a> {
 
 impl<'a> Peek for RefType<'a> {
     fn peek(cursor: Cursor<'_>) -> Result<bool> {
-        // TODO: handle shared
         Ok(kw::funcref::peek(cursor)?
             || kw::externref::peek(cursor)?
             || kw::exnref::peek(cursor)?
@@ -424,6 +423,7 @@ impl<'a> Peek for RefType<'a> {
             || kw::nullexternref::peek(cursor)?
             || kw::nullexnref::peek(cursor)?
             || kw::nullref::peek(cursor)?
+            || (LParen::peek(cursor)? && kw::shared::peek2(cursor)?)
             || (LParen::peek(cursor)? && kw::r#ref::peek2(cursor)?))
     }
     fn display() -> &'static str {
