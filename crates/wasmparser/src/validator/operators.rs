@@ -3992,10 +3992,10 @@ where
             .as_type()
             .map_or(false, |ty| ty.as_reference_type().unwrap().is_nullable());
         let heap_type = HeapType::Abstract {
-            shared: false, // TODO: handle shared--is this always the case?
+            shared: false, // TODO: handle shared--see https://github.com/WebAssembly/shared-everything-threads/issues/65.
             ty: AbstractHeapType::Any,
         };
-        let any_ref = RefType::new(is_nullable, heap_type).unwrap();
+        let any_ref = RefType::new(is_nullable, HeapType::Any).unwrap();
         self.push_operand(any_ref)
     }
     fn visit_extern_convert_any(&mut self) -> Self::Output {
@@ -4004,7 +4004,7 @@ where
             .as_type()
             .map_or(false, |ty| ty.as_reference_type().unwrap().is_nullable());
         let heap_type = HeapType::Abstract {
-            shared: false, // TODO: handle shared--is this always the case?
+            shared: false, // TODO: handle shared--see https://github.com/WebAssembly/shared-everything-threads/issues/65.
             ty: AbstractHeapType::Extern,
         };
         let extern_ref = RefType::new(is_nullable, heap_type).unwrap();
