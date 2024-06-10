@@ -35,9 +35,9 @@ use {
     },
     wasm_encoder::{
         CodeSection, ConstExpr, DataSection, ElementSection, Elements, EntityType, ExportKind,
-        ExportSection, Function, FunctionSection, GlobalSection, HeapType, ImportSection,
-        Instruction as Ins, MemArg, MemorySection, MemoryType, Module, RawCustomSection, RefType,
-        StartSection, TableSection, TableType, TypeSection, ValType,
+        ExportSection, Function, FunctionSection, GlobalSection, ImportSection, Instruction as Ins,
+        MemArg, MemorySection, MemoryType, Module, RawCustomSection, RefType, StartSection,
+        TableSection, TableType, TypeSection, ValType,
     },
     wasmparser::SymbolFlags,
 };

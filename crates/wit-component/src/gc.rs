@@ -1120,26 +1120,12 @@ impl Encoder {
     }
 
     fn heapty(&self, ht: wasmparser::HeapType) -> wasm_encoder::HeapType {
-        use wasmparser::AbstractHeapType::*;
         match ht {
             HeapType::Concrete(idx) => {
                 wasm_encoder::HeapType::Concrete(self.types.remap(idx.as_module_index().unwrap()))
             }
             HeapType::Abstract { shared, ty } => {
-                let ty = match ty {
-                    Func => wasm_encoder::AbstractHeapType::Func,
-                    Extern => wasm_encoder::AbstractHeapType::Extern,
-                    Any => wasm_encoder::AbstractHeapType::Any,
-                    None => wasm_encoder::AbstractHeapType::None,
-                    NoExtern => wasm_encoder::AbstractHeapType::NoExtern,
-                    NoFunc => wasm_encoder::AbstractHeapType::NoFunc,
-                    Eq => wasm_encoder::AbstractHeapType::Eq,
-                    Struct => wasm_encoder::AbstractHeapType::Struct,
-                    Array => wasm_encoder::AbstractHeapType::Array,
-                    I31 => wasm_encoder::AbstractHeapType::I31,
-                    Exn => wasm_encoder::AbstractHeapType::Exn,
-                    NoExn => wasm_encoder::AbstractHeapType::NoExn,
-                };
+                let ty = ty.into();
                 wasm_encoder::HeapType::Abstract { shared, ty }
             }
         }
