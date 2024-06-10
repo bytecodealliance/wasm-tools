@@ -1,9 +1,14 @@
-name: Build playground
+name: Deploy playground
 on:
   push:
     branches: [main]
-  pull_request:
-  merge_group:
+  # pull_request:
+  # merge_group:
+  # workflow_run:
+  #   workflows: [CI]
+  #   branches: [main]
+  #   types:
+  #     - completed
 
 # Cancel any in-flight jobs for the same PR/branch so there's only one active
 # at a time
@@ -16,37 +21,35 @@ defaults:
     shell: bash
 
 jobs:
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
-      - uses: cargo-bins/cargo-binstall@v1.6.9
-      - run: cargo binstall cargo-component -y
-      - run: rustup component add rustfmt # needed for cargo-component, apparently?
-      - run: npm ci
-        working-directory: playground
-      - run: npm run build
-        working-directory: playground
+#   build:
+#     name: Build
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#         with:
+#           submodules: true
+#       - uses: actions/setup-node@v4
+#         with:
+#           node-version: 20
+#       - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
+#       - uses: cargo-bins/cargo-binstall@v1.6.9
+#       - run: cargo binstall cargo-component -y
+#       - run: rustup component add rustfmt # needed for cargo-component, apparently?
+#       - run: npm ci
+#         working-directory: playground
+#       - run: npm run build
+#         working-directory: playground
 
-      # also prepare to deploy GH pages on main
-      - if: github.ref == 'refs/heads/main'
-        uses: actions/configure-pages@v5
-      - if: github.ref == 'refs/heads/main'
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: "./playground/dist"
+#       # also prepare to deploy GH pages on main
+#       - if: github.ref == 'refs/heads/main'
+#         uses: actions/configure-pages@v5
+#       - if: github.ref == 'refs/heads/main'
+#         uses: actions/upload-pages-artifact@v3
+#         with:
+#           path: "./playground/dist"
 
   deploy:
     name: Deploy
-    if: github.ref == 'refs/heads/main'
-    needs: build
     permissions:
       pages: write
       id-token: write
@@ -55,5 +58,27 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+    - id: run-id
+      run: |
+        sha=${{ github.sha }}
+        run_id=$(
+          gh api -H 'Accept: application/vnd.github+json' \
+              /repos/${{ github.repository }}/actions/workflows/main.yml/runs\?exclude_pull_requests=true \
+              | jq '.workflow_runs' \
+              | jq "map(select(.head_commit.id == \"$sha\"))[0].id" \
+        )
+        echo "run_id=$run_id >> $GITHUB_OUTPUT"
+      env:
+        GH_TOKEN: ${{ github.token }}
+    - uses: actions/download-artifact@v4
+      with:
+        name: gh-pages
+        run-id: ${{ steps.run-id.outputs.run_id }}
+        path: dist
+        github-token: ${{ github.token }}
+    - run: ls -R
+    - uses: actions/configure-pages@v5
+    - id: deployment
+      uses: actions/deploy-pages@v4
+      with:
+        path: dist
