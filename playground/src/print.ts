@@ -9,6 +9,7 @@ let overlay: HTMLDivElement = document.querySelector('#overlay')!;
 let upload: HTMLButtonElement = document.querySelector('#upload')!;
 let fileInput: HTMLInputElement = document.querySelector('#fileInput')!;
 let output: HTMLPreElement = document.querySelector('#output')!;
+let skeletonCheckbox: HTMLInputElement = document.querySelector('#skeleton')!;
 
 let lastTarget: EventTarget | null;
 let hideOverlayTimer: number;
@@ -40,8 +41,9 @@ addEventListener('drop', (e: DragEvent) => {
 let messageId = 0;
 async function print(f: Promise<ArrayBuffer>) {
   output.innerHTML = 'working...';
+  let skeleton = skeletonCheckbox.checked;
   let bytes = new Uint8Array(await f);
-  worker.postMessage({ kind: 'print', messageId, bytes } satisfies MessageToWorker, [bytes.buffer]);
+  worker.postMessage({ kind: 'print', messageId, bytes, skeleton } satisfies MessageToWorker, [bytes.buffer]);
   ++messageId;
 }
 

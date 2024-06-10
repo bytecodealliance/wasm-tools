@@ -7,6 +7,6 @@
       "strict": true,
       "verbatimModuleSyntax": true,
       "noEmit": true,
-      "lib": ["es2022", "dom", "dom.iterable", "webworker"],
+      "lib": ["es2022", "dom", "dom.iterable"],
   }
 }

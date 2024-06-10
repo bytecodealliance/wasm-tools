@@ -1,7 +1,7 @@
 {
   "type": "module",
   "scripts": {
-    "build": "npm run build-component && npm run transpile && npm run bundle && npm run copy-files",
+    "build": "npm run build-component && npm run transpile && npm run typecheck && npm run bundle && npm run copy-files",
     "build-component": "cd component && cargo component build --release --target wasm32-wasi",
     "bundle": "for source in worker.ts parse.ts print.ts; do esbuild --bundle --format=esm src/$source --outdir=dist; done",
     "copy-files": "cp pages/* component-built/*.wasm dist",
