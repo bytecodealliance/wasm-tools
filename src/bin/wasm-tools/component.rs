@@ -583,12 +583,9 @@ impl WitOpts {
     fn emit_wasm(&self, decoded: &DecodedWasm) -> Result<()> {
         assert!(self.wasm || self.wat);
         assert!(self.out_dir.is_none());
-        if decoded.packages().len() != 1 {
-            bail!("emitting WASM for multi-package WIT files is not yet supported")
-        }
 
-        let decoded_package = decoded.packages()[0];
-        let bytes = wit_component::encode(None, decoded.resolve(), decoded_package)?;
+        let decoded_packages = decoded.packages();
+        let bytes = wit_component::encode(None, decoded.resolve(), decoded_packages)?;
         if !self.skip_validation {
             wasmparser::Validator::new_with_features(
                 WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL,

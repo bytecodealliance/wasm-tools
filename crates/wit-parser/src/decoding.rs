@@ -1,6 +1,7 @@
 use crate::*;
 use anyhow::{anyhow, bail};
 use indexmap::IndexSet;
+use std::collections::HashSet;
 use std::mem;
 use std::slice;
 use std::{collections::HashMap, io::Read};
@@ -181,7 +182,7 @@ impl ComponentInfo {
         }
     }
 
-    fn decode_wit_v1_package(&self) -> Result<(Resolve, PackageId)> {
+    fn decode_wit_v1_package(&self) -> Result<(Resolve, Vec<PackageId>)> {
         let mut decoder = WitPackageDecoder::new(&self.types);
 
         let mut pkg = None;
@@ -204,17 +205,19 @@ impl ComponentInfo {
         }
 
         let pkg = pkg.ok_or_else(|| anyhow!("no exported component type found"))?;
-        let (mut resolve, package) = decoder.finish(pkg);
-        if let Some(package_metadata) = &self.package_metadata {
-            package_metadata.inject(&mut resolve, package)?;
+        let (mut resolve, packages) = decoder.finish(&[pkg]);
+        for package in &packages {
+            if let Some(package_metadata) = &self.package_metadata {
+                package_metadata.inject(&mut resolve, *package)?;
+            }
         }
-        Ok((resolve, package))
+        Ok((resolve, packages))
     }
 
-    fn decode_wit_v2_package(&self) -> Result<(Resolve, PackageId)> {
+    fn decode_wit_v2_packages(&self) -> Result<(Resolve, Vec<PackageId>)> {
         let mut decoder = WitPackageDecoder::new(&self.types);
 
-        let mut pkg_name = None;
+        let mut pkg_names = HashSet::new();
 
         let mut interfaces = IndexMap::new();
         let mut worlds = IndexMap::new();
@@ -262,33 +265,26 @@ impl ComponentInfo {
                 _ => unreachable!(),
             };
 
-            if let Some(pkg_name) = pkg_name.as_ref() {
-                // TODO: when we have fully switched to the v2 format, we should switch to parsing
-                // multiple wit documents instead of bailing.
-                if pkg_name != &name {
-                    bail!("item defined with mismatched package name")
-                }
-            } else {
-                pkg_name.replace(name);
-            }
+            pkg_names.insert(name);
         }
 
-        let pkg = if let Some(name) = pkg_name {
-            Package {
-                name,
+        let mut pkg_ids = Vec::new();
+        for pkg_name in pkg_names {
+            let pkg = Package {
+                name: pkg_name,
                 docs: Docs::default(),
-                interfaces,
-                worlds,
-            }
-        } else {
-            bail!("no exported component type found");
-        };
-
-        let (mut resolve, package) = decoder.finish(pkg);
-        if let Some(package_metadata) = &self.package_metadata {
-            package_metadata.inject(&mut resolve, package)?;
+                interfaces: interfaces.clone(),
+                worlds: worlds.clone(),
+            };
+            pkg_ids.push(pkg);
         }
-        Ok((resolve, package))
+        let (mut resolve, packages) = decoder.finish(&pkg_ids);
+        for package in &packages {
+            if let Some(package_metadata) = &self.package_metadata {
+                package_metadata.inject(&mut resolve, package.clone())?;
+            }
+        }
+        Ok((resolve, packages))
     }
 
     fn decode_component(&self) -> Result<(Resolve, WorldId)> {
@@ -338,7 +334,7 @@ impl ComponentInfo {
             }
         }
 
-        let (resolve, _) = decoder.finish(package);
+        let (resolve, _) = decoder.finish(&[package]);
         Ok((resolve, world))
     }
 }
@@ -386,12 +382,12 @@ pub fn decode_reader(reader: impl Read) -> Result<DecodedWasm> {
             WitEncodingVersion::V1 => {
                 log::debug!("decoding a v1 WIT package encoded as wasm");
                 let (resolve, pkg) = info.decode_wit_v1_package()?;
-                Ok(DecodedWasm::WitPackages(resolve, vec![pkg]))
+                Ok(DecodedWasm::WitPackages(resolve, pkg.to_vec()))
             }
             WitEncodingVersion::V2 => {
                 log::debug!("decoding a v2 WIT package encoded as wasm");
-                let (resolve, pkg) = info.decode_wit_v2_package()?;
-                Ok(DecodedWasm::WitPackages(resolve, vec![pkg]))
+                let (resolve, pkgs) = info.decode_wit_v2_packages()?;
+                Ok(DecodedWasm::WitPackages(resolve, pkgs))
             }
         }
     } else {
@@ -482,15 +478,15 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
             worlds: &mut worlds,
         },
     )?;
-    let (resolve, pkg) = decoder.finish(Package {
+    let (resolve, pkgs) = decoder.finish(&[Package {
         name,
         interfaces,
         worlds,
         docs: Default::default(),
-    });
+    }]);
     // The package decoded here should only have a single world so extract that
     // here to return.
-    let world = *resolve.packages[pkg].worlds.iter().next().unwrap().1;
+    let world = *resolve.packages[pkgs[0]].worlds.iter().next().unwrap().1;
     Ok((resolve, world))
 }
 
@@ -1433,7 +1429,7 @@ impl WitPackageDecoder<'_> {
     /// their topological ordering within the returned `Resolve`.
     ///
     /// Takes the root package as an argument to insert.
-    fn finish(mut self, package: Package) -> (Resolve, PackageId) {
+    fn finish(mut self, packages: &[Package]) -> (Resolve, Vec<PackageId>) {
         // Build a topological ordering is then calculated by visiting all the
         // transitive dependencies of packages.
         let mut order = IndexSet::new();
@@ -1461,14 +1457,18 @@ impl WitPackageDecoder<'_> {
             self.insert_package(pkg);
         }
 
-        let id = self.insert_package(package);
-        assert!(self.resolve.worlds.iter().all(|(_, w)| w.package.is_some()));
-        assert!(self
-            .resolve
-            .interfaces
-            .iter()
-            .all(|(_, i)| i.package.is_some()));
-        (self.resolve, id)
+        let mut resolved = Vec::new();
+        for package in packages {
+            let id = self.insert_package(package.clone());
+            assert!(self.resolve.worlds.iter().all(|(_, w)| w.package.is_some()));
+            assert!(self
+                .resolve
+                .interfaces
+                .iter()
+                .all(|(_, i)| i.package.is_some()));
+            resolved.push(id);
+        }
+        (self.resolve, resolved)
     }
 
     fn insert_package(&mut self, package: Package) -> PackageId {

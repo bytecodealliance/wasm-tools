@@ -62,7 +62,7 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
         // First convert the WIT package to a binary WebAssembly output, then
         // convert that binary wasm to textual wasm, then assert it matches the
         // expectation.
-        let wasm = wit_component::encode(Some(true), &resolve, package)?;
+        let wasm = wit_component::encode(Some(true), &resolve, &[package])?;
         let wat = wasmprinter::print_bytes(&wasm)?;
         assert_output(&path.with_extension("wat"), &wat)?;
         wasmparser::Validator::new_with_features(features)
@@ -72,11 +72,6 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
         // Next decode a fresh WIT package from the WebAssembly generated. Print
         // this package's documents and assert they all match the expectations.
         let decoded = wit_component::decode(&wasm)?;
-        assert_eq!(
-            1,
-            decoded.packages().len(),
-            "Each input WIT package should produce WASM that contains only one package"
-        );
 
         let decoded_package = decoded.packages()[0];
         let resolve = decoded.resolve();
@@ -85,7 +80,7 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
 
         // Finally convert the decoded package to wasm again and make sure it
         // matches the prior wasm.
-        let wasm2 = wit_component::encode(Some(true), resolve, decoded_package)?;
+        let wasm2 = wit_component::encode(Some(true), resolve, &[decoded_package])?;
         if wasm != wasm2 {
             let wat2 = wasmprinter::print_bytes(&wasm)?;
             assert_eq!(wat, wat2, "document did not roundtrip correctly");

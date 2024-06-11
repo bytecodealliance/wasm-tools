@@ -24,19 +24,21 @@ use wit_parser::*;
 ///
 /// The binary returned can be [`decode`d](crate::decode) to recover the WIT
 /// package provided.
-pub fn encode_component(resolve: &Resolve, package: PackageId) -> Result<ComponentBuilder> {
+pub fn encode_component(resolve: &Resolve, packages: &[PackageId]) -> Result<ComponentBuilder> {
     let mut encoder = Encoder {
         component: ComponentBuilder::default(),
         resolve,
-        package,
+        packages,
     };
     encoder.run()?;
 
-    let package_metadata = PackageMetadata::extract(resolve, package);
-    encoder.component.custom_section(&CustomSection {
-        name: PackageMetadata::SECTION_NAME.into(),
-        data: package_metadata.encode()?.into(),
-    });
+    for package in packages {
+        let package_metadata = PackageMetadata::extract(resolve, *package);
+        encoder.component.custom_section(&CustomSection {
+            name: PackageMetadata::SECTION_NAME.into(),
+            data: package_metadata.encode()?.into(),
+        });
+    }
 
     Ok(encoder.component)
 }
@@ -44,7 +46,7 @@ pub fn encode_component(resolve: &Resolve, package: PackageId) -> Result<Compone
 struct Encoder<'a> {
     component: ComponentBuilder,
     resolve: &'a Resolve,
-    package: PackageId,
+    packages: &'a [PackageId],
 }
 
 impl Encoder<'_> {
@@ -57,33 +59,35 @@ impl Encoder<'_> {
         // decoding process where everyone's view of a foreign document agrees
         // notably on the order that types are defined in to assist with
         // roundtripping.
-        for (name, &id) in self.resolve.packages[self.package].interfaces.iter() {
-            let component_ty = self.encode_interface(id)?;
-            let ty = self.component.type_component(&component_ty);
-            self.component
-                .export(name.as_ref(), ComponentExportKind::Type, ty, None);
-        }
+        for pkg in self.packages {
+            for (name, &id) in self.resolve.packages[*pkg].interfaces.iter() {
+                let component_ty = self.encode_interface(id, pkg)?;
+                let ty = self.component.type_component(&component_ty);
+                self.component
+                    .export(name.as_ref(), ComponentExportKind::Type, ty, None);
+            }
 
-        for (name, &world) in self.resolve.packages[self.package].worlds.iter() {
-            // Encode the `world` directly as a component, then create a wrapper
-            // component that exports that component.
-            let component_ty = super::encode_world(self.resolve, world)?;
+            for (name, &world) in self.resolve.packages[*pkg].worlds.iter() {
+                // Encode the `world` directly as a component, then create a wrapper
+                // component that exports that component.
+                let component_ty = super::encode_world(self.resolve, world)?;
 
-            let world = &self.resolve.worlds[world];
-            let mut wrapper = ComponentType::new();
-            wrapper.ty().component(&component_ty);
-            let pkg = &self.resolve.packages[world.package.unwrap()];
-            wrapper.export(&pkg.name.interface_id(name), ComponentTypeRef::Component(0));
+                let world = &self.resolve.worlds[world];
+                let mut wrapper = ComponentType::new();
+                wrapper.ty().component(&component_ty);
+                let pkg = &self.resolve.packages[world.package.unwrap()];
+                wrapper.export(&pkg.name.interface_id(name), ComponentTypeRef::Component(0));
 
-            let ty = self.component.type_component(&wrapper);
-            self.component
-                .export(name.as_ref(), ComponentExportKind::Type, ty, None);
+                let ty = self.component.type_component(&wrapper);
+                self.component
+                    .export(name.as_ref(), ComponentExportKind::Type, ty, None);
+            }
         }
 
         Ok(())
     }
 
-    fn encode_interface(&mut self, id: InterfaceId) -> Result<ComponentType> {
+    fn encode_interface(&mut self, id: InterfaceId, pkg: &PackageId) -> Result<ComponentType> {
         // Build a set of interfaces reachable from this document, including the
         // interfaces in the document itself. This is used to import instances
         // into the component type we're encoding. Note that entire interfaces
@@ -101,7 +105,7 @@ impl Encoder<'_> {
         let mut used_names = IndexSet::new();
         for id in interfaces.iter() {
             let iface = &self.resolve.interfaces[*id];
-            if iface.package == Some(self.package) {
+            if iface.package == Some(*pkg) {
                 let first = used_names.insert(iface.name.as_ref().unwrap().clone());
                 assert!(first);
             }

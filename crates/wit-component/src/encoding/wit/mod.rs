@@ -32,8 +32,8 @@ fn use_v2_encoding() -> bool {
 ///
 /// The binary returned can be [`decode`d](crate::decode) to recover the WIT
 /// package provided.
-pub fn encode(use_v2: Option<bool>, resolve: &Resolve, package: PackageId) -> Result<Vec<u8>> {
-    let mut component = encode_component(use_v2, resolve, package)?;
+pub fn encode(use_v2: Option<bool>, resolve: &Resolve, packages: &[PackageId]) -> Result<Vec<u8>> {
+    let mut component = encode_component(use_v2, resolve, packages)?;
     component.raw_custom_section(&crate::base_producers().raw_custom_section());
     Ok(component.finish())
 }
@@ -43,12 +43,12 @@ pub fn encode(use_v2: Option<bool>, resolve: &Resolve, package: PackageId) -> Re
 pub fn encode_component(
     use_v2: Option<bool>,
     resolve: &Resolve,
-    package: PackageId,
+    packages: &[PackageId],
 ) -> Result<ComponentBuilder> {
     if use_v2.unwrap_or_else(use_v2_encoding) {
-        v2::encode_component(resolve, package)
+        v2::encode_component(resolve, packages)
     } else {
-        v1::encode_component(resolve, package)
+        v1::encode_component(resolve, packages)
     }
 }
 
