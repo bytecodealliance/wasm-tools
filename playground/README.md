@@ -1,6 +1,6 @@
 # Playground
 
-This is a simple online playground for `wasm-tools parse`, available at https://bytecodealliance.gthub.io/wasm-tools/.
+This is a simple online playground for `wasm-tools parse`, available at https://bytecodealliance.github.io/wasm-tools/.
 
 ## Building
 
