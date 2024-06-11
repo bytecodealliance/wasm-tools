@@ -1,0 +1,19 @@
+// Reject "-nan".
+invalid token at 8..9
+invalid token at 8..9
+unexpected token: LabelOrKeyword at 9..10
+unexpected token: LabelOrKeyword at 9..10
+// Reject "infinity", "-infinity", and uppercase variations.
+invalid value type at 8..16
+unexpected token: LabelOrKeyword at 12..17
+invalid value type at 8..16
+invalid token at 8..9
+unexpected token: LabelOrKeyword at 9..16
+invalid token at 8..9
+unexpected token: LabelOrKeyword at 9..16
+invalid token at 8..9
+// Reject mixed case variations of "inf" and "nan".
+unexpected token: LabelOrKeyword at 9..11
+invalid token at 8..9
+invalid value type at 8..11
+invalid token at 8..9
