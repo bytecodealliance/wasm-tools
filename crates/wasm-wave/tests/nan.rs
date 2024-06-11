@@ -31,19 +31,6 @@ fn nan() {
                 expected
             );
         }
-
-        #[cfg(feature = "wasmtime")]
-        {
-            use wasmtime::component::Val;
-
-            let v = Val::make_float32(val);
-            match v {
-                Val::Float32(val) => assert_eq!(val.to_bits(), expected),
-                _ => unreachable!(),
-            }
-
-            assert_eq!(Val::Float32(val).unwrap_float32().to_bits(), expected);
-        }
     }
 
     for bits in [
@@ -69,19 +56,6 @@ fn nan() {
                 Value::make_float64(val).unwrap_float64().to_bits(),
                 expected
             );
-        }
-
-        #[cfg(feature = "wasmtime")]
-        {
-            use wasmtime::component::Val;
-
-            let v = Val::make_float64(val);
-            match v {
-                Val::Float64(val) => assert_eq!(val.to_bits(), expected),
-                _ => unreachable!(),
-            }
-
-            assert_eq!(Val::Float64(val).unwrap_float64().to_bits(), expected);
         }
     }
 }

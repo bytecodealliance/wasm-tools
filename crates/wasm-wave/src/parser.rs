@@ -448,96 +448,8 @@ impl Display for ParserErrorKind {
 
 #[cfg(test)]
 mod tests {
-    use wasmtime::component;
-
-    use crate::value::{Type, Value};
-    use crate::{canonicalize_nan32, canonicalize_nan64};
-
     use super::*;
-
-    fn local_ty(val: &component::Val) -> component::Type {
-        match val {
-            component::Val::Bool(_) => component::Type::Bool,
-            component::Val::S8(_) => component::Type::S8,
-            component::Val::U8(_) => component::Type::U8,
-            component::Val::S16(_) => component::Type::S16,
-            component::Val::U16(_) => component::Type::U16,
-            component::Val::S32(_) => component::Type::S32,
-            component::Val::U32(_) => component::Type::U32,
-            component::Val::S64(_) => component::Type::S64,
-            component::Val::U64(_) => component::Type::U64,
-            component::Val::Float32(_) => component::Type::Float32,
-            component::Val::Float64(_) => component::Type::Float64,
-            component::Val::Char(_) => component::Type::Char,
-            component::Val::String(_) => component::Type::String,
-            _ => unimplemented!(),
-            /*
-            component::Val::List(_) => component::Type::List ...,
-            component::Val::Record(_) => component::Type::Record ...,
-            component::Val::Tuple(_) => component::Type::Tuple ...,
-            component::Val::Variant(_, _) => component::Type::Variant ...,
-            component::Val::Enum(_) => component::Type::Enum ...,
-            component::Val::Option(_) => component::Type::Option ...,
-            component::Val::Result(_) => component::Type::Result ...,
-            component::Val::Flags(_) => component::Type::Flags ...,
-            component::Val::Resource(_) => todo!(),
-             */
-        }
-    }
-    #[test]
-    fn component_vals_smoke_test() {
-        use wasmtime::component::Val;
-        for (input, want) in [
-            ("false", Val::Bool(false)),
-            ("true", Val::Bool(true)),
-            ("0", Val::S8(0)),
-            ("-1", Val::S16(-1)),
-            ("2147483647", Val::S32(2147483647)),
-            ("-12345678910", Val::S64(-12345678910)),
-            ("255", Val::U8(255)),
-            ("65535", Val::U16(65535)),
-            ("1", Val::U32(1)),
-            ("2", Val::U64(2)),
-            ("1.1", Val::Float32(1.1)),
-            ("-1.1e+10", Val::Float32(-1.1e+10)),
-            ("nan", Val::Float32(canonicalize_nan32(f32::NAN))),
-            ("inf", Val::Float32(f32::INFINITY)),
-            ("-inf", Val::Float32(f32::NEG_INFINITY)),
-            ("1.1e-123", Val::Float64(1.1e-123)),
-            ("nan", Val::Float64(canonicalize_nan64(f64::NAN))),
-            ("inf", Val::Float64(f64::INFINITY)),
-            ("-inf", Val::Float64(f64::NEG_INFINITY)),
-            ("'x'", Val::Char('x')),
-            ("'☃'", Val::Char('☃')),
-            (r"'\\'", Val::Char('\\')),
-            (r"'\''", Val::Char('\'')),
-            (r"'\n'", Val::Char('\n')),
-            (r"'\u{0}'", Val::Char('\0')),
-            (r"'\u{1b}'", Val::Char('\x1b')),
-            (r"'\u{7F}'", Val::Char('\x7f')),
-            (r"'\u{10ffff}'", Val::Char('\u{10ffff}')),
-            (r#""abc""#, Val::String("abc".into())),
-            (r#""☃\\\"\n""#, Val::String("☃\\\"\n".into())),
-            (r#""\u{0}\u{7f}""#, Val::String("\x00\x7F".into())),
-        ] {
-            assert_eq!(parse_unwrap::<Val>(input, local_ty(&want)), want);
-        }
-    }
-
-    #[test]
-    fn core_vals_smoke_test() {
-        use wasmtime::{Val, ValType};
-
-        assert_eq!(parse_unwrap::<Val>("10", ValType::I32).unwrap_i32(), 10);
-        assert_eq!(parse_unwrap::<Val>("-10", ValType::I64).unwrap_i64(), -10);
-        assert_eq!(parse_unwrap::<Val>("1.5", ValType::F32).unwrap_f32(), 1.5);
-        assert_eq!(parse_unwrap::<Val>("-1.5", ValType::F64).unwrap_f64(), -1.5);
-        assert_eq!(
-            parse_unwrap::<Val>("(1234605616436508552,1311768467294899695)", ValType::V128)
-                .unwrap_v128(),
-            0x1234567890abcdef1122334455667788.into()
-        );
-    }
+    use crate::value::{Type, Value};
 
     #[test]
     fn parse_option_or_result() {
@@ -751,12 +663,6 @@ mod tests {
             .parse_value::<Value>(&ty)
             .unwrap_err();
         assert_eq!(err.kind(), ParserErrorKind::InvalidType);
-    }
-
-    fn parse_unwrap<V: WasmValue>(input: &str, ty: V::Type) -> V {
-        Parser::new(input)
-            .parse_value(&ty)
-            .unwrap_or_else(|err| panic!("error decoding {input:?}: {err}"))
     }
 
     fn parse_value(input: &str, ty: &Type) -> Value {

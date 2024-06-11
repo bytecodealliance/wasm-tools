@@ -11,7 +11,6 @@ pub use ty::{WasmType, WasmTypeKind};
 pub use val::WasmValue;
 
 pub(crate) use ty::maybe_unwrap_type;
-pub(crate) use val::unwrap_2val;
 pub(crate) use val::unwrap_val;
 
 /// Returns an error if the given [`WasmType`] is not of the given [`WasmTypeKind`].
@@ -48,10 +47,6 @@ impl WasmValueError {
             ty: DisplayType(ty).to_string(),
             val: DisplayValue(val).to_string(),
         }
-    }
-
-    pub(crate) fn other(msg: impl std::fmt::Display) -> Self {
-        Self::Other(msg.to_string())
     }
 }
 
