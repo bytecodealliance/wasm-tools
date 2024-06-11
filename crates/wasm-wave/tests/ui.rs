@@ -5,18 +5,18 @@ use std::{
     sync::OnceLock,
 };
 
-use snapbox::harness::{Case, Harness};
+use tryfn::{Case, Harness};
 use wasm_wave::{
     parser::ParserError,
     untyped::UntypedFuncCall,
     value::{resolve_wit_func_type, FuncType, Value},
     wasm::{DisplayValue, WasmFunc},
 };
-use wit_parser::{Resolve, UnresolvedPackage};
+use wit_parser::Resolve;
 
 fn setup(path: PathBuf) -> Case {
     let name = format!("ui::{}", path.file_stem().unwrap().to_string_lossy());
-    let expected = path.with_extension("out");
+    let expected = tryfn::Data::read_from(&path.with_extension("out"), None);
     Case {
         name,
         fixture: path,
@@ -88,10 +88,8 @@ fn get_func_type(func_name: &str) -> Option<&'static FuncType> {
     static FUNC_TYPES: OnceLock<HashMap<String, FuncType>> = OnceLock::new();
     FUNC_TYPES
         .get_or_init(|| {
-            let path = Path::new("tests/ui/ui.wit");
-            let unresolved = UnresolvedPackage::parse_path(path).unwrap();
             let mut resolve = Resolve::new();
-            resolve.push(unresolved).unwrap();
+            resolve.push_path("tests/ui/ui.wit").unwrap();
             resolve
                 .interfaces
                 .iter()
@@ -103,12 +101,13 @@ fn get_func_type(func_name: &str) -> Option<&'static FuncType> {
 }
 
 fn main() {
+    use snapbox::assert::{Action, Assert};
     let action = match std::env::var("BLESS").unwrap_or_default().as_str() {
-        "" => snapbox::Action::Verify,
-        _ => snapbox::Action::Overwrite,
+        "" => Action::Skip,
+        _ => Action::Overwrite,
     };
     Harness::new("tests/ui", setup, test)
         .select(["*.waves"])
-        .action(action)
+        .with_assert(Assert::new().action(action))
         .test();
 }

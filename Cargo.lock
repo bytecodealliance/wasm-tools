@@ -1396,14 +1396,12 @@ checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
 
 [[package]]
 name = "snapbox"
-version = "0.5.14"
+version = "0.6.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f37d101fcafc8e73748fd8a1b7048f5979f93d372fd17027d7724c1643bc379b"
+checksum = "40e14d10e4c2b4331ac24c33baa5a03e1fbca81c045b285b53b2a612d28569fb"
 dependencies = [
  "anstream",
  "anstyle",
- "ignore",
- "libtest-mimic",
  "normalize-line-endings",
  "similar",
  "snapbox-macros",
@@ -1543,6 +1541,17 @@ checksum = "be4d6b5f19ff7664e8c98d03e2139cb510db9b0a60b55f8e8709b689d939b6bc"
 dependencies = [
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "tryfn"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "493e1390312bb94363f762687be32a1bd01c3333dfad25a5a7fffab1edc64839"
+dependencies = [
+ "ignore",
+ "libtest-mimic",
+ "snapbox",
 ]
 
 [[package]]
@@ -1829,6 +1838,7 @@ dependencies = [
  "logos",
  "snapbox",
  "thiserror",
+ "tryfn",
  "wasmtime",
  "wit-parser 0.210.0",
 ]

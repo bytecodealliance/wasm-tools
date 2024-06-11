@@ -28,5 +28,6 @@ path = "tests/ui.rs"
 harness = false
 
 [dev-dependencies]
-snapbox = { version = "0.5.6", features = ["harness"] }
+snapbox = "0.6.10"
+tryfn = "0.2.1"
 wasmtime = { workspace = true, optional = false, features = ["cranelift"] }
