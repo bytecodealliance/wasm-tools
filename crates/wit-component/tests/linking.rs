@@ -1,8 +1,7 @@
 use {
     anyhow::{Context, Result},
-    std::path::Path,
     wit_component::StringEncoding,
-    wit_parser::{Resolve, UnresolvedPackageGroup},
+    wit_parser::Resolve,
 };
 
 const FOO: &str = r#"
@@ -141,8 +140,7 @@ fn encode(wat: &str, wit: Option<&str>) -> Result<Vec<u8>> {
 
     if let Some(wit) = wit {
         let mut resolve = Resolve::default();
-        let group = UnresolvedPackageGroup::parse(Path::new("wit"), wit)?;
-        let pkgs = resolve.append(group)?;
+        let pkgs = resolve.push_str("test.wit", wit)?;
         let world = resolve.select_world(&pkgs, None)?;
 
         wit_component::embed_component_metadata(

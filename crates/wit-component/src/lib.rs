@@ -108,11 +108,9 @@ pub fn embed_component_metadata(
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-
     use anyhow::Result;
     use wasmparser::Payload;
-    use wit_parser::{Resolve, UnresolvedPackageGroup};
+    use wit_parser::Resolve;
 
     use super::{embed_component_metadata, StringEncoding};
 
@@ -147,8 +145,7 @@ world test-world {}
 
         // Parse pre-canned WIT to build resolver
         let mut resolver = Resolve::default();
-        let group = UnresolvedPackageGroup::parse(&Path::new("in-code.wit"), COMPONENT_WIT)?;
-        let pkgs = resolver.append(group)?;
+        let pkgs = resolver.push_str("in-code.wit", COMPONENT_WIT)?;
         let world = resolver.select_world(&pkgs, Some("test-world"))?;
 
         // Embed component metadata
