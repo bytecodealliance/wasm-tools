@@ -2843,6 +2843,23 @@ impl TypeList {
         }
     }
 
+    /// Is `ty` shared?
+    ///
+    /// This is complicated by reference types, since they may have concrete
+    /// heap types whose shared-ness must be checked by looking at the type they
+    /// point to.
+    pub fn valtype_is_shared(&self, ty: ValType) -> bool {
+        match ty {
+            ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => true,
+            ValType::Ref(rt) => match rt.heap_type() {
+                HeapType::Abstract { shared, .. } => shared,
+                HeapType::Concrete(index) => self[index.as_core_type_id().unwrap()]
+                    .composite_type
+                    .is_shared(),
+            },
+        }
+    }
+
     /// Get the top type of the given heap type.
     ///
     /// Concrete types must have had their indices canonicalized to core type

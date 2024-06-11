@@ -570,6 +570,11 @@ impl CompositeType {
             _ => panic!("not a struct"),
         }
     }
+
+    /// Is the composite type `shared`?
+    pub fn is_shared(&self) -> bool {
+        todo!("shared composite types are not yet implemented")
+    }
 }
 
 /// Represents a type of a function in a WebAssembly module.
@@ -815,17 +820,6 @@ impl ValType {
         match *self {
             Self::I32 | Self::I64 | Self::F32 | Self::F64 | Self::V128 => true,
             Self::Ref(rt) => rt.is_nullable(),
-        }
-    }
-
-    /// Whether the type is `shared`.
-    ///
-    /// Note that in the case of `(ref $ty_index)`, we cannot determine if the
-    /// indexed type is shared without inspecting it and thus return `None`.
-    pub fn is_shared(&self) -> Option<bool> {
-        match *self {
-            Self::I32 | Self::I64 | Self::F32 | Self::F64 | Self::V128 => Some(true),
-            Self::Ref(ty) => ty.is_shared(),
         }
     }
 
@@ -1172,18 +1166,6 @@ impl RefType {
     /// Is this a reference to an concrete type?
     pub const fn is_concrete_type_ref(&self) -> bool {
         self.as_u32() & Self::CONCRETE_BIT != 0
-    }
-
-    /// Is this a reference to a shared type?
-    ///
-    /// Note that we cannot know if a concrete type is shared unless we read the
-    /// type at the index, which is not possible here (i.e., `None`).
-    pub const fn is_shared(&self) -> Option<bool> {
-        if self.is_concrete_type_ref() {
-            None
-        } else {
-            Some(self.as_u32() & Self::SHARED_BIT != 0)
-        }
     }
 
     /// If this is a reference to a concrete Wasm-defined type, get its

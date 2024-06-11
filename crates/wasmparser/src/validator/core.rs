@@ -132,7 +132,7 @@ impl ModuleState {
         offset: usize,
     ) -> Result<()> {
         self.module
-            .check_global_type(&mut global.ty, features, offset)?;
+            .check_global_type(&mut global.ty, features, types, offset)?;
         self.check_const_expr(&global.init_expr, global.ty.content_type, features, types)?;
         self.module.assert_mut().globals.push(global.ty);
         Ok(())
@@ -855,7 +855,7 @@ impl Module {
                 EntityType::Tag(self.types[t.func_type_idx as usize])
             }
             TypeRef::Global(t) => {
-                self.check_global_type(t, features, offset)?;
+                self.check_global_type(t, features, types, offset)?;
                 EntityType::Global(*t)
             }
         })
@@ -1062,6 +1062,7 @@ impl Module {
         &self,
         ty: &mut GlobalType,
         features: &WasmFeatures,
+        types: &TypeList,
         offset: usize,
     ) -> Result<()> {
         self.check_value_type(&mut ty.content_type, features, offset)?;
@@ -1072,11 +1073,7 @@ impl Module {
                     offset,
                 ));
             }
-            // TODO: handle shared correctly--we need some way to look at a
-            // `TypeList` to inspect the type that concrete heap types point to
-            // really determine if the type is shared instead of assuming
-            // `false`.
-            if !ty.content_type.is_shared().unwrap_or(false) {
+            if !types.valtype_is_shared(ty.content_type) {
                 return Err(BinaryReaderError::new(
                     "shared globals must have a shared value type",
                     offset,

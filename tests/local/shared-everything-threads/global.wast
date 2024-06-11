@@ -35,7 +35,6 @@
   "shared value type")
 
 ;; Check global.atomic.get, global.atomic.set.
-
 (module
   (global $a (import "spectest" "global_i32") (shared i32))
   (global $b (import "spectest" "global_i64") (shared mut i64))
