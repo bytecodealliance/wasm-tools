@@ -11,8 +11,7 @@ use wasm_tools::Output;
 use wasmparser::WasmFeatures;
 use wat::Detect;
 use wit_component::{
-    embed_component_metadata, resolve_world_from_name, ComponentEncoder, DecodedWasm, Linker,
-    StringEncoding, WitPrinter,
+    embed_component_metadata, ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter,
 };
 use wit_parser::{PackageId, Resolve, UnresolvedPackageGroup};
 
@@ -285,7 +284,7 @@ impl EmbedOpts {
             Some(self.io.parse_input_wasm()?)
         };
         let (resolve, pkg_ids) = self.resolve.load()?;
-        let world = resolve_world_from_name(&resolve, pkg_ids, self.world.as_deref())?;
+        let world = resolve.select_world(&pkg_ids, self.world.as_deref())?;
         let mut wasm = wasm.unwrap_or_else(|| wit_component::dummy_module(&resolve, world));
 
         embed_component_metadata(
@@ -723,7 +722,7 @@ impl TargetsOpts {
     /// Executes the application.
     fn run(self) -> Result<()> {
         let (resolve, pkg_ids) = self.resolve.load()?;
-        let world = resolve_world_from_name(&resolve, pkg_ids, self.world.as_deref())?;
+        let world = resolve.select_world(&pkg_ids, self.world.as_deref())?;
         let component_to_test = self.input.parse_wasm()?;
 
         wit_component::targets(&resolve, world, &component_to_test)?;
@@ -763,8 +762,8 @@ impl SemverCheckOpts {
 
     fn run(self) -> Result<()> {
         let (resolve, pkg_ids) = self.resolve.load()?;
-        let prev = resolve_world_from_name(&resolve, pkg_ids.clone(), Some(self.prev).as_deref())?;
-        let new = resolve_world_from_name(&resolve, pkg_ids, Some(self.new).as_deref())?;
+        let prev = resolve.select_world(&pkg_ids, Some(self.prev.as_str()))?;
+        let new = resolve.select_world(&pkg_ids, Some(self.new.as_str()))?;
         wit_component::semver_check(resolve, prev, new)?;
         Ok(())
     }

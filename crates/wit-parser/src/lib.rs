@@ -228,7 +228,8 @@ impl UnresolvedPackageGroup {
     /// Parses the given string as a wit document.
     ///
     /// The `path` argument is used for error reporting. The `contents` provided
-    /// will not be able to use `pkg` use paths to other documents.
+    /// are considered to be the contents of `path`. This function does not read
+    /// the filesystem.
     pub fn parse(path: &Path, contents: &str) -> Result<UnresolvedPackageGroup> {
         let mut map = SourceMap::default();
         map.push(path, contents);
@@ -250,8 +251,8 @@ impl UnresolvedPackageGroup {
 
     /// Parses a WIT package from the file provided.
     ///
-    /// The WIT package returned will be a single-document package and will not
-    /// be able to use `pkg` paths to other documents.
+    /// The return value represents all packages found in the WIT file which
+    /// might be either one or multiple depending on the syntax used.
     pub fn parse_file(path: &Path) -> Result<UnresolvedPackageGroup> {
         let contents = std::fs::read_to_string(path)
             .with_context(|| format!("failed to read file {path:?}"))?;
@@ -260,8 +261,10 @@ impl UnresolvedPackageGroup {
 
     /// Parses a WIT package from the directory provided.
     ///
-    /// All files with the extension `*.wit` or `*.wit.md` will be loaded from
-    /// `path` into the returned package.
+    /// This method will look at all files under the `path` specified. All
+    /// `*.wit` files are parsed and assumed to be part of the same package
+    /// grouping. This is useful when a WIT package is split across multiple
+    /// files.
     pub fn parse_dir(path: &Path) -> Result<UnresolvedPackageGroup> {
         let mut map = SourceMap::default();
         let cx = || format!("failed to read directory {path:?}");
@@ -281,7 +284,7 @@ impl UnresolvedPackageGroup {
                 Some(name) => name,
                 None => continue,
             };
-            if !filename.ends_with(".wit") && !filename.ends_with(".wit.md") {
+            if !filename.ends_with(".wit") {
                 continue;
             }
             map.push_file(&path)?;

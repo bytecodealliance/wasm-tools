@@ -2138,30 +2138,26 @@ mod test {
     #[test]
     fn it_renames_imports() {
         let mut resolve = Resolve::new();
-        let UnresolvedPackageGroup {
-            mut packages,
-            source_map,
-        } = UnresolvedPackageGroup::parse(
+        let group = UnresolvedPackageGroup::parse(
             Path::new("test.wit"),
             r#"
 package test:wit;
 
 interface i {
-f: func();
+    f: func();
 }
 
 world test {
-import i;
-import foo: interface {
-f: func();
-}
+    import i;
+    import foo: interface {
+        f: func();
+    }
 }
 "#,
         )
         .unwrap();
-        let pkg = resolve.push(packages.remove(0), &source_map).unwrap();
-
-        let world = resolve.select_world(pkg, None).unwrap();
+        let pkgs = resolve.append(group).unwrap();
+        let world = resolve.select_world(&pkgs, None).unwrap();
 
         let mut module = dummy_module(&resolve, world);
 
