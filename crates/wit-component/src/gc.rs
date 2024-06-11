@@ -315,7 +315,11 @@ impl<'a> Module<'a> {
                         self.funcs.push(Func {
                             // Specify a dummy definition to get filled in later
                             // when parsing the code section.
-                            def: Definition::Local(FunctionBody::new(0, &[])),
+                            def: Definition::Local(FunctionBody::new(BinaryReader::new(
+                                &[],
+                                0,
+                                WasmFeatures::all(),
+                            ))),
                             ty,
                         });
                     }
@@ -329,14 +333,11 @@ impl<'a> Module<'a> {
 
                 // Ignore all custom sections except for the `name` and
                 // `producers` sections which we parse, but ignore errors within.
-                Payload::CustomSection(s) => {
-                    if s.name() == "name" {
-                        drop(self.parse_name_section(&s));
-                    }
-                    if s.name() == "producers" {
-                        drop(self.parse_producers_section(&s));
-                    }
-                }
+                Payload::CustomSection(s) => match s.as_known() {
+                    KnownCustom::Name(s) => drop(self.parse_name_section(s)),
+                    KnownCustom::Producers(_) => drop(self.parse_producers_section(&s)),
+                    _ => {}
+                },
 
                 // sections that shouldn't appear in the specially-crafted core wasm
                 // adapter self we're processing
@@ -369,8 +370,7 @@ impl<'a> Module<'a> {
         Ok(())
     }
 
-    fn parse_name_section(&mut self, section: &CustomSectionReader<'a>) -> Result<()> {
-        let section = NameSectionReader::new(section.data(), section.data_offset());
+    fn parse_name_section(&mut self, section: NameSectionReader<'a>) -> Result<()> {
         for s in section {
             match s? {
                 Name::Function(map) => {
@@ -603,6 +603,7 @@ impl<'a> Module<'a> {
                 minimum: table.ty.initial,
                 maximum: table.ty.maximum,
                 element_type: map.refty(table.ty.element_type),
+                table64: table.ty.table64,
             };
             match &table.def {
                 Definition::Import(m, n) => {
@@ -1032,8 +1033,6 @@ macro_rules! define_visit {
     (mark_live $self:ident $arg:ident lanes) => {};
     (mark_live $self:ident $arg:ident flags) => {};
     (mark_live $self:ident $arg:ident value) => {};
-    (mark_live $self:ident $arg:ident mem_byte) => {};
-    (mark_live $self:ident $arg:ident table_byte) => {};
     (mark_live $self:ident $arg:ident local_index) => {};
     (mark_live $self:ident $arg:ident relative_depth) => {};
     (mark_live $self:ident $arg:ident tag_index) => {};
@@ -1046,6 +1045,7 @@ macro_rules! define_visit {
     (mark_live $self:ident $arg:ident field_index) => {};
     (mark_live $self:ident $arg:ident from_type_nullable) => {};
     (mark_live $self:ident $arg:ident to_type_nullable) => {};
+    (mark_live $self:ident $arg:ident ordering) => {};
     (mark_live $self:ident $arg:ident try_table) => {unimplemented!();};
 }
 
@@ -1094,6 +1094,13 @@ impl Encoder {
             offset: ty.offset,
             align: ty.align.into(),
             memory_index: self.memories.remap(ty.memory),
+        }
+    }
+
+    fn ordering(&self, ord: Ordering) -> wasm_encoder::Ordering {
+        match ord {
+            Ordering::AcqRel => wasm_encoder::Ordering::AcqRel,
+            Ordering::SeqCst => wasm_encoder::Ordering::SeqCst,
         }
     }
 
@@ -1177,21 +1184,12 @@ macro_rules! define_encode {
     (mk BrTable $arg:ident) => ({
         BrTable($arg.0, $arg.1)
     });
-    (mk CallIndirect $ty:ident $table:ident $table_byte:ident) => ({
-        let _ = $table_byte;
+    (mk CallIndirect $ty:ident $table:ident) => ({
         CallIndirect { ty: $ty, table: $table }
     });
     (mk ReturnCallIndirect $ty:ident $table:ident) => (
         ReturnCallIndirect { ty: $ty, table: $table }
     );
-    (mk MemorySize $mem:ident $mem_byte:ident) => ({
-        let _ = $mem_byte;
-        MemorySize($mem)
-    });
-    (mk MemoryGrow $mem:ident $mem_byte:ident) => ({
-        let _ = $mem_byte;
-        MemoryGrow($mem)
-    });
     (mk TryTable $try_table:ident) => ({
         let _ = $try_table;
         unimplemented_try_table()
@@ -1213,6 +1211,7 @@ macro_rules! define_encode {
     // Individual cases of mapping one argument type to another, similar to the
     // `define_visit` macro above.
     (map $self:ident $arg:ident memarg) => {$self.memarg($arg)};
+    (map $self:ident $arg:ident ordering) => {$self.ordering($arg)};
     (map $self:ident $arg:ident blockty) => {$self.blockty($arg)};
     (map $self:ident $arg:ident hty) => {$self.heapty($arg)};
     (map $self:ident $arg:ident from_ref_type) => {$self.refty($arg)};

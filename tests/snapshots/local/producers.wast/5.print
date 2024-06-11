@@ -1,6 +1,5 @@
 (module
-    ;; failed to parse custom section `producers`: unexpected end-of-file (at offset 0x15)
-    
-    (@custom "producers" (before first) "\01")
-  )
+  (@producers)
+  ;; failed to parse custom section `producers`: unexpected end-of-file (at offset 0x15)
   
+)

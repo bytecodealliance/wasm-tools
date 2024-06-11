@@ -287,21 +287,23 @@
   (component (import "url=<<>" (func)))
   "url cannot contain `<`")
 
-(component
-  (import "relative-url=<>" (func))
-  (import "relative-url=<a>" (func))
-  (import "relative-url=<a>,integrity=<sha256-a>" (func))
-)
+(assert_invalid
+  (component
+    (import "relative-url=<>" (func))
+    (import "relative-url=<a>" (func))
+    (import "relative-url=<a>,integrity=<sha256-a>" (func))
+  )
+  "not a valid extern name")
 
 (assert_invalid
   (component (import "relative-url=" (func)))
-  "expected `<` at ``")
+  "not a valid extern name")
 (assert_invalid
   (component (import "relative-url=<" (func)))
-  "failed to find `>`")
+  "not a valid extern name")
 (assert_invalid
   (component (import "relative-url=<<>" (func)))
-  "relative-url cannot contain `<`")
+  "not a valid extern name")
 
 (component
   (import "integrity=<sha256-a>" (func))

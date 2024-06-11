@@ -162,10 +162,6 @@ impl<'a> Tokenizer<'a> {
         Ok(())
     }
 
-    pub fn input(&self) -> &'a str {
-        self.input
-    }
-
     pub fn get_span(&self, span: Span) -> &'a str {
         let start = usize::try_from(span.start - self.span_offset).unwrap();
         let end = usize::try_from(span.end - self.span_offset).unwrap();
@@ -194,6 +190,9 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    /// Three possibilities when calling this method: an `Err(...)` indicates that lexing failed, an
+    /// `Ok(Some(...))` produces the next token, and `Ok(None)` indicates that there are no more
+    /// tokens available.
     pub fn next_raw(&mut self) -> Result<Option<(Span, Token)>, Error> {
         let (str_start, ch) = match self.chars.next() {
             Some(pair) => pair,
@@ -394,6 +393,11 @@ impl<'a> Tokenizer<'a> {
             }
             _ => false,
         }
+    }
+
+    pub fn eof_span(&self) -> Span {
+        let end = self.span_offset + u32::try_from(self.input.len()).unwrap();
+        Span { start: end, end }
     }
 }
 

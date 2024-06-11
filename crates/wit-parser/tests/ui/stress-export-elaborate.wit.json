@@ -4,36 +4,56 @@
       "name": "foo",
       "imports": {
         "interface-0": {
-          "interface": 0
+          "interface": {
+            "id": 0
+          }
         },
         "interface-1": {
-          "interface": 1
+          "interface": {
+            "id": 1
+          }
         },
         "interface-2": {
-          "interface": 2
+          "interface": {
+            "id": 2
+          }
         },
         "interface-3": {
-          "interface": 3
+          "interface": {
+            "id": 3
+          }
         },
         "interface-4": {
-          "interface": 4
+          "interface": {
+            "id": 4
+          }
         },
         "interface-5": {
-          "interface": 5
+          "interface": {
+            "id": 5
+          }
         },
         "interface-6": {
-          "interface": 6
+          "interface": {
+            "id": 6
+          }
         },
         "interface-7": {
-          "interface": 7
+          "interface": {
+            "id": 7
+          }
         },
         "interface-8": {
-          "interface": 8
+          "interface": {
+            "id": 8
+          }
         }
       },
       "exports": {
         "interface-9": {
-          "interface": 9
+          "interface": {
+            "id": 9
+          }
         }
       },
       "package": 0

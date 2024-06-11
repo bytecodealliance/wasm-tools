@@ -9,7 +9,7 @@ fn parse_wit_dir() -> Result<()> {
     drop(env_logger::try_init());
 
     let mut resolver = Resolve::default();
-    let package_id = resolver.push_path("tests/wit/parse-dir/wit")?.0;
+    let package_id = resolver.push_path("tests/wit/parse-dir/wit")?.0[0];
     assert!(resolver
         .select_world(package_id, "foo-world".into())
         .is_ok());
@@ -25,7 +25,7 @@ fn parse_wit_file() -> Result<()> {
     let mut resolver = Resolve::default();
     let package_id = resolver
         .push_path("tests/wit/parse-dir/wit/deps/bar/bar.wit")?
-        .0;
+        .0[0];
     resolver.select_world(package_id, "bar-world".into())?;
     assert!(resolver
         .interfaces

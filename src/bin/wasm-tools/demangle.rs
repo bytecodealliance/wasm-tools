@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use wasm_encoder::{IndirectNameMap, NameMap, NameSection, RawSection};
-use wasmparser::{Name, NameSectionReader, Parser, Payload::*};
+use wasmparser::{KnownCustom, Name, NameSectionReader, Parser, Payload::*};
 
 /// Demangle Rust and C++ symbol names in the `name` section.
 ///
@@ -30,13 +30,15 @@ impl Opts {
         for payload in Parser::new(0).parse_all(&input) {
             let payload = payload?;
             match &payload {
-                CustomSection(c) if c.name() == "name" => {
-                    match self.demangle(c.data(), c.data_offset()) {
-                        Ok(new_section) => {
-                            module.section(&new_section);
-                            continue;
+                CustomSection(c) => {
+                    if let KnownCustom::Name(s) = c.as_known() {
+                        match self.demangle(s) {
+                            Ok(new_section) => {
+                                module.section(&new_section);
+                                continue;
+                            }
+                            Err(e) => log::debug!("error parsing name section {e:?}"),
                         }
-                        Err(e) => log::debug!("error parsing name section {e:?}"),
                     }
                 }
                 Version { encoding, .. } if *encoding == wasmparser::Encoding::Component => {
@@ -52,16 +54,13 @@ impl Opts {
             }
         }
 
-        self.io.output(wasm_tools::Output::Wasm {
-            bytes: module.as_slice(),
-            wat: self.wat,
-        })?;
+        self.io.output_wasm(module.as_slice(), self.wat)?;
         Ok(())
     }
 
-    fn demangle(&self, section: &[u8], offset: usize) -> Result<NameSection> {
+    fn demangle(&self, section: NameSectionReader<'_>) -> Result<NameSection> {
         let mut new_section = NameSection::new();
-        for section in NameSectionReader::new(section, offset) {
+        for section in section {
             match section? {
                 Name::Module { name, .. } => new_section.module(name),
                 Name::Memory(names) => new_section.memories(&self.name_map(names)?),
@@ -73,6 +72,7 @@ impl Opts {
                 Name::Data(names) => new_section.data(&self.name_map(names)?),
                 Name::Local(names) => new_section.locals(&self.indirect_name_map(names)?),
                 Name::Label(names) => new_section.labels(&self.indirect_name_map(names)?),
+                Name::Field(names) => new_section.fields(&self.indirect_name_map(names)?),
                 Name::Tag(names) => new_section.tags(&self.name_map(names)?),
                 Name::Unknown { .. } => bail!("unknown name section"),
             }

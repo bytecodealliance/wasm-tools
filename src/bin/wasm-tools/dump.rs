@@ -446,23 +446,86 @@ impl<'a> Dump<'a> {
                     self.color_print(c.range().start)?;
                     write!(self.state, "name: {:?}", c.name())?;
                     self.print(c.data_offset())?;
-                    if c.name() == "name" {
-                        let iter = NameSectionReader::new(c.data(), c.data_offset());
-                        self.print_custom_name_section(iter, |me, item, pos| {
-                            me.print_core_name(item, pos)
-                        })?;
-                    } else if c.name() == "component-name" {
-                        let iter = ComponentNameSectionReader::new(c.data(), c.data_offset());
-                        self.print_custom_name_section(iter, |me, item, pos| {
-                            me.print_component_name(item, pos)
-                        })?;
-                    } else {
-                        self.print_byte_header()?;
-                        for _ in 0..NBYTES {
-                            write!(self.dst, "---")?;
+                    match c.as_known() {
+                        KnownCustom::Name(iter) => {
+                            self.print_subsections(iter, |me, item, pos| {
+                                me.print_core_name(item, pos)
+                            })?;
                         }
-                        writeln!(self.dst, "-| ... {} bytes of data", c.data().len())?;
-                        self.cur += c.data().len();
+                        KnownCustom::ComponentName(iter) => {
+                            self.print_subsections(iter, |me, item, pos| {
+                                me.print_component_name(item, pos)
+                            })?;
+                        }
+                        KnownCustom::Producers(iter) => {
+                            self.print_iter(iter, |me, _pos, item| {
+                                write!(me.state, "field: {}", item.name)?;
+                                me.print(item.values.range().start)?;
+
+                                me.print_iter(item.values, |me, pos, item| {
+                                    write!(me.state, "{item:?}")?;
+                                    me.print(pos)
+                                })
+                            })?;
+                        }
+                        KnownCustom::Dylink0(iter) => {
+                            self.print_subsections(iter, |me, item, pos| {
+                                write!(me.state, "{item:?}")?;
+                                me.print(pos)
+                            })?;
+                        }
+                        KnownCustom::BranchHints(iter) => {
+                            self.print_iter(iter, |me, _pos, item| {
+                                write!(me.state, "func: {}", item.func)?;
+                                me.print(item.hints.range().start)?;
+
+                                me.print_iter(item.hints, |me, pos, item| {
+                                    write!(me.state, "{item:?}")?;
+                                    me.print(pos)
+                                })
+                            })?;
+                        }
+                        KnownCustom::CoreDump(s) => {
+                            write!(self.state, "name: {}", s.name)?;
+                            self.print(c.range().end)?;
+                        }
+                        KnownCustom::CoreDumpModules(s) => {
+                            write!(self.state, "modules: {:?}", s.modules)?;
+                            self.print(c.range().end)?;
+                        }
+                        KnownCustom::CoreDumpInstances(s) => {
+                            write!(self.state, "instances: {:?}", s.instances)?;
+                            self.print(c.range().end)?;
+                        }
+                        KnownCustom::CoreDumpStack(s) => {
+                            write!(self.state, "stacks: {} / {:?}", s.name, s.frames)?;
+                            self.print(c.range().end)?;
+                        }
+                        KnownCustom::Linking(s) => {
+                            let subsections = s.subsections();
+                            write!(self.state, "linking version {}", s.version())?;
+                            self.print(subsections.range().start)?;
+                            self.print_subsections(subsections, |me, item, pos| {
+                                me.print_linking_subsection(item, pos)
+                            })?;
+                        }
+                        KnownCustom::Reloc(s) => {
+                            let entries = s.entries();
+                            write!(self.state, "section {}", s.section_index())?;
+                            self.print(entries.range().start)?;
+                            self.print_iter(entries, |me, pos, item| {
+                                write!(me.state, "{item:?}")?;
+                                me.print(pos)
+                            })?;
+                        }
+                        KnownCustom::Unknown => {
+                            self.print_byte_header()?;
+                            for _ in 0..NBYTES {
+                                write!(self.dst, "---")?;
+                            }
+                            writeln!(self.dst, "-| ... {} bytes of data", c.data().len())?;
+                            self.cur += c.data().len();
+                        }
                     }
                 }
                 Payload::UnknownSection {
@@ -510,7 +573,7 @@ impl<'a> Dump<'a> {
         })
     }
 
-    fn print_custom_name_section<'b, T>(
+    fn print_subsections<'b, T>(
         &mut self,
         mut section: Subsections<'b, T>,
         print_item: impl Fn(&mut Self, T, usize) -> Result<()>,
@@ -566,6 +629,7 @@ impl<'a> Dump<'a> {
             Name::Global(n) => self.print_name_map("global", n)?,
             Name::Element(n) => self.print_name_map("element", n)?,
             Name::Data(n) => self.print_name_map("data", n)?,
+            Name::Field(n) => self.print_indirect_name_map("type", "field", n)?,
             Name::Tag(n) => self.print_name_map("tag", n)?,
             Name::Unknown { ty, range, .. } => {
                 write!(self.state, "unknown names: {}", ty)?;
@@ -603,6 +667,32 @@ impl<'a> Dump<'a> {
             }
         }
         Ok(())
+    }
+
+    fn print_linking_subsection(&mut self, s: Linking<'_>, end: usize) -> Result<()> {
+        match s {
+            Linking::SegmentInfo(map) => self.section(map, "segment info", |me, pos, item| {
+                write!(me.state, "{item:?}")?;
+                me.print(pos)
+            }),
+            Linking::InitFuncs(map) => self.section(map, "init funcs", |me, pos, item| {
+                write!(me.state, "{item:?}")?;
+                me.print(pos)
+            }),
+            Linking::ComdatInfo(map) => self.section(map, "comdat info", |me, pos, item| {
+                write!(me.state, "{item:?}")?;
+                me.print(pos)
+            }),
+            Linking::SymbolTable(map) => self.section(map, "symbol table", |me, pos, item| {
+                write!(me.state, "{item:?}")?;
+                me.print(pos)
+            }),
+            Linking::Unknown { ty, range, .. } => {
+                write!(self.state, "unknown subsection: {}", ty)?;
+                self.print(range.start)?;
+                self.print(end)
+            }
+        }
     }
 
     fn section<'b, T>(

@@ -97,3 +97,20 @@
   )
   "`DOWn` is not in kebab case"
 )
+
+(assert_invalid
+  (component
+    (instance (import "A:b/c"))
+  )
+  "character `A` is not lowercase in package name/namespace"
+)
+(assert_invalid
+  (component
+    (instance (import "a:B/c"))
+  )
+  "character `B` is not lowercase in package name/namespace"
+)
+(component
+  (instance (import "a:b/c"))
+  (instance (import "a1:b1/c"))
+)

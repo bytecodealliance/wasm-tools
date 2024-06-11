@@ -17,12 +17,17 @@ use crate::limits::{
     MAX_WASM_FUNCTION_PARAMS, MAX_WASM_FUNCTION_RETURNS, MAX_WASM_STRUCT_FIELDS,
     MAX_WASM_SUPERTYPES, MAX_WASM_TYPES,
 };
+use crate::prelude::*;
+#[cfg(feature = "validate")]
 use crate::types::CoreTypeId;
 use crate::{BinaryReader, BinaryReaderError, FromReader, Result, SectionLimited};
-use std::fmt::{self, Debug, Write};
-use std::hash::{Hash, Hasher};
+use core::cmp::Ordering;
+use core::fmt::{self, Debug};
+use core::hash::{Hash, Hasher};
 
+#[cfg(feature = "validate")]
 mod matches;
+#[cfg(feature = "validate")]
 pub(crate) use self::matches::{Matches, WithRecGroup};
 
 /// A packed representation of a type index.
@@ -54,7 +59,7 @@ pub(crate) use self::matches::{Matches, WithRecGroup};
 // * `01`: The `index` is an index into the containing type's recursion group.
 //
 // * `10`: The `index` is a `CoreTypeId`.
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PackedIndex(u32);
 
 // Assert that we can fit indices up to `MAX_WASM_TYPES` inside `RefType`.
@@ -82,6 +87,7 @@ impl PackedIndex {
 
     const MODULE_KIND: u32 = 0b00 << 20;
     const REC_GROUP_KIND: u32 = 0b01 << 20;
+    #[cfg(feature = "validate")]
     const ID_KIND: u32 = 0b10 << 20;
 
     #[inline]
@@ -135,6 +141,7 @@ impl PackedIndex {
 
     /// Construct a `PackedIndex` from the given `CoreTypeId`.
     #[inline]
+    #[cfg(feature = "validate")]
     pub fn from_id(id: CoreTypeId) -> Option<Self> {
         let index = u32::try_from(crate::types::TypeIdentifier::index(&id)).unwrap();
         if PackedIndex::can_represent_index(index) {
@@ -146,6 +153,7 @@ impl PackedIndex {
 
     /// Is this index in canonical form?
     #[inline]
+    #[cfg(feature = "validate")]
     pub fn is_canonical(&self) -> bool {
         match self.kind() {
             Self::REC_GROUP_KIND | Self::ID_KIND => true,
@@ -161,6 +169,7 @@ impl PackedIndex {
         match self.kind() {
             Self::MODULE_KIND => UnpackedIndex::Module(self.index()),
             Self::REC_GROUP_KIND => UnpackedIndex::RecGroup(self.index()),
+            #[cfg(feature = "validate")]
             Self::ID_KIND => UnpackedIndex::Id(
                 <CoreTypeId as crate::types::TypeIdentifier>::from_index(self.index()),
             ),
@@ -190,6 +199,7 @@ impl PackedIndex {
 
     /// Get the underlying `CoreTypeId`, if any.
     #[inline]
+    #[cfg(feature = "validate")]
     pub fn as_core_type_id(&self) -> Option<CoreTypeId> {
         if self.kind() == Self::ID_KIND {
             Some(<CoreTypeId as crate::types::TypeIdentifier>::from_index(
@@ -201,14 +211,15 @@ impl PackedIndex {
     }
 }
 
-impl std::fmt::Debug for PackedIndex {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for PackedIndex {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("CoreTypeIndex")
             .field(
                 "kind",
                 match self.kind() {
                     Self::MODULE_KIND => &"module",
                     Self::REC_GROUP_KIND => &"recgroup",
+                    #[cfg(feature = "validate")]
                     Self::ID_KIND => &"id",
                     _ => unreachable!(),
                 },
@@ -218,9 +229,9 @@ impl std::fmt::Debug for PackedIndex {
     }
 }
 
-impl std::fmt::Display for PackedIndex {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Display::fmt(&self.unpack(), f)
+impl fmt::Display for PackedIndex {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> core::fmt::Result {
+        fmt::Display::fmt(&self.unpack(), f)
     }
 }
 
@@ -236,6 +247,7 @@ pub enum UnpackedIndex {
     RecGroup(u32),
 
     /// A type identifier.
+    #[cfg(feature = "validate")]
     Id(CoreTypeId),
 }
 
@@ -247,12 +259,14 @@ impl UnpackedIndex {
         match self {
             UnpackedIndex::Module(i) => PackedIndex::from_module_index(*i),
             UnpackedIndex::RecGroup(i) => PackedIndex::from_rec_group_index(*i),
+            #[cfg(feature = "validate")]
             UnpackedIndex::Id(id) => PackedIndex::from_id(*id),
         }
     }
 
     /// Is this index in canonical form?
     #[inline]
+    #[cfg(feature = "validate")]
     pub fn is_canonical(&self) -> bool {
         matches!(self, UnpackedIndex::RecGroup(_) | UnpackedIndex::Id(_))
     }
@@ -279,6 +293,7 @@ impl UnpackedIndex {
 
     /// Get the underlying `CoreTypeId`, if any.
     #[inline]
+    #[cfg(feature = "validate")]
     pub fn as_core_type_id(&self) -> Option<CoreTypeId> {
         if let Self::Id(id) = *self {
             Some(id)
@@ -288,11 +303,12 @@ impl UnpackedIndex {
     }
 }
 
-impl std::fmt::Display for UnpackedIndex {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for UnpackedIndex {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             UnpackedIndex::Module(i) => write!(f, "(module {i})"),
             UnpackedIndex::RecGroup(i) => write!(f, "(recgroup {i})"),
+            #[cfg(feature = "validate")]
             UnpackedIndex::Id(id) => write!(f, "(id {})", crate::types::TypeIdentifier::index(id)),
         }
     }
@@ -334,7 +350,7 @@ impl RecGroup {
     /// Returns the list of subtypes in the recursive type group.
     pub fn types(&self) -> impl ExactSizeIterator<Item = &SubType> + '_ {
         let types = match &self.inner {
-            RecGroupInner::Implicit(ty) => std::slice::from_ref(ty),
+            RecGroupInner::Implicit(ty) => core::slice::from_ref(ty),
             RecGroupInner::Explicit(types) => types,
         };
         types.iter().map(|(_, ty)| ty)
@@ -342,9 +358,10 @@ impl RecGroup {
 
     /// Return a mutable borrow of the list of subtypes in this
     /// recursive type group.
+    #[cfg(feature = "validate")]
     pub(crate) fn types_mut(&mut self) -> impl ExactSizeIterator<Item = &mut SubType> + '_ {
         let types = match &mut self.inner {
-            RecGroupInner::Implicit(ty) => std::slice::from_mut(ty),
+            RecGroupInner::Implicit(ty) => core::slice::from_mut(ty),
             RecGroupInner::Explicit(types) => types,
         };
         types.iter_mut().map(|(_, ty)| ty)
@@ -366,7 +383,7 @@ impl RecGroup {
 
         enum Iter {
             Implicit(Option<(usize, SubType)>),
-            Explicit(std::vec::IntoIter<(usize, SubType)>),
+            Explicit(alloc::vec::IntoIter<(usize, SubType)>),
         }
 
         impl Iterator for Iter {
@@ -412,8 +429,22 @@ impl PartialEq for RecGroup {
 
 impl Eq for RecGroup {}
 
+impl Ord for RecGroup {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let self_tys = self.types();
+        let other_tys = other.types();
+        self_tys.cmp(other_tys)
+    }
+}
+
+impl PartialOrd for RecGroup {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 /// Represents a subtype of possible other types in a WebAssembly module.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SubType {
     /// Is the subtype final.
     pub is_final: bool,
@@ -423,10 +454,10 @@ pub struct SubType {
     pub composite_type: CompositeType,
 }
 
-impl std::fmt::Display for SubType {
+impl fmt::Display for SubType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.is_final && self.supertype_idx.is_none() {
-            std::fmt::Display::fmt(&self.composite_type, f)
+            fmt::Display::fmt(&self.composite_type, f)
         } else {
             write!(f, "(sub ")?;
             if self.is_final {
@@ -435,7 +466,7 @@ impl std::fmt::Display for SubType {
             if let Some(idx) = self.supertype_idx {
                 write!(f, "{idx} ")?;
             }
-            std::fmt::Display::fmt(&self.composite_type, f)?;
+            fmt::Display::fmt(&self.composite_type, f)?;
             write!(f, ")")
         }
     }
@@ -464,6 +495,7 @@ impl SubType {
     }
 
     /// Maps any `UnpackedIndex` via the specified closure.
+    #[cfg(feature = "validate")]
     pub(crate) fn remap_indices(
         &mut self,
         f: &mut dyn FnMut(&mut PackedIndex) -> Result<()>,
@@ -494,7 +526,7 @@ impl SubType {
 }
 
 /// Represents a composite type in a WebAssembly module.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CompositeType {
     /// The type is for a function.
     Func(FuncType),
@@ -504,7 +536,7 @@ pub enum CompositeType {
     Struct(StructType),
 }
 
-impl std::fmt::Display for CompositeType {
+impl fmt::Display for CompositeType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             Self::Array(_) => write!(f, "(array ...)"),
@@ -541,7 +573,7 @@ impl CompositeType {
 }
 
 /// Represents a type of a function in a WebAssembly module.
-#[derive(Clone, Eq, PartialEq, Hash)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct FuncType {
     /// The combined parameters and result types.
     params_results: Box<[ValType]>,
@@ -549,8 +581,8 @@ pub struct FuncType {
     len_params: usize,
 }
 
-impl std::fmt::Debug for FuncType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for FuncType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FuncType")
             .field("params", &self.params())
             .field("results", &self.results())
@@ -596,6 +628,7 @@ impl FuncType {
     /// Returns an exclusive slice to the parameter types of the
     /// [`FuncType`].
     #[inline]
+    #[cfg(feature = "validate")]
     pub(crate) fn params_mut(&mut self) -> &mut [ValType] {
         &mut self.params_results[..self.len_params]
     }
@@ -609,11 +642,15 @@ impl FuncType {
     /// Returns an exclusive slice to the result types of the
     /// [`FuncType`].
     #[inline]
+    #[cfg(feature = "validate")]
     pub(crate) fn results_mut(&mut self) -> &mut [ValType] {
         &mut self.params_results[self.len_params..]
     }
 
+    #[cfg(feature = "validate")]
     pub(crate) fn desc(&self) -> String {
+        use core::fmt::Write;
+
         let mut s = String::new();
         s.push_str("[");
         for (i, param) in self.params().iter().enumerate() {
@@ -635,11 +672,11 @@ impl FuncType {
 }
 
 /// Represents a type of an array in a WebAssembly module.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct ArrayType(pub FieldType);
 
 /// Represents a field type of an array or a struct.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct FieldType {
     /// Array element type.
     pub element_type: StorageType,
@@ -649,6 +686,7 @@ pub struct FieldType {
 
 impl FieldType {
     /// Maps any `UnpackedIndex` via the specified closure.
+    #[cfg(feature = "validate")]
     pub(crate) fn remap_indices(
         &mut self,
         f: &mut dyn FnMut(&mut PackedIndex) -> Result<()>,
@@ -661,7 +699,7 @@ impl FieldType {
 }
 
 /// Represents storage types introduced in the GC spec for array and struct fields.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum StorageType {
     /// The storage type is i8.
     I8,
@@ -671,12 +709,12 @@ pub enum StorageType {
     Val(ValType),
 }
 
-impl std::fmt::Display for StorageType {
+impl fmt::Display for StorageType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::I8 => write!(f, "i8"),
             Self::I16 => write!(f, "i16"),
-            Self::Val(v) => std::fmt::Display::fmt(v, f),
+            Self::Val(v) => fmt::Display::fmt(v, f),
         }
     }
 }
@@ -702,14 +740,14 @@ impl StorageType {
 }
 
 /// Represents a type of a struct in a WebAssembly module.
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct StructType {
     /// Struct fields.
     pub fields: Box<[FieldType]>,
 }
 
 /// Represents the types of values in a WebAssembly module.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ValType {
     /// The value type is i32.
     I32,
@@ -732,15 +770,15 @@ impl From<RefType> for ValType {
     }
 }
 
-impl std::fmt::Display for ValType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for ValType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ValType::I32 => f.write_str("i32"),
             ValType::I64 => f.write_str("i64"),
             ValType::F32 => f.write_str("f32"),
             ValType::F64 => f.write_str("f64"),
             ValType::V128 => f.write_str("v128"),
-            ValType::Ref(r) => std::fmt::Display::fmt(r, f),
+            ValType::Ref(r) => fmt::Display::fmt(r, f),
         }
     }
 }
@@ -780,7 +818,17 @@ impl ValType {
         }
     }
 
+    /// Whether the type is `shared`.
+    pub fn is_shared(&self) -> bool {
+        match *self {
+            Self::I32 | Self::I64 | Self::F32 | Self::F64 | Self::V128 => true,
+            // TODO: parsing of `shared` refs is not yet implemented.
+            Self::Ref(_) => false,
+        }
+    }
+
     /// Maps any `UnpackedIndex` via the specified closure.
+    #[cfg(feature = "validate")]
     pub(crate) fn remap_indices(
         &mut self,
         map: &mut dyn FnMut(&mut PackedIndex) -> Result<()>,
@@ -850,11 +898,11 @@ impl ValType {
 //
 //   0000 = none
 //   ```
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RefType([u8; 3]);
 
-impl std::fmt::Debug for RefType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for RefType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match (self.is_nullable(), self.heap_type()) {
             (true, HeapType::Any) => write!(f, "anyref"),
             (false, HeapType::Any) => write!(f, "(ref any)"),
@@ -886,9 +934,9 @@ impl std::fmt::Debug for RefType {
     }
 }
 
-impl std::fmt::Display for RefType {
+impl fmt::Display for RefType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        std::fmt::Debug::fmt(self, f)
+        fmt::Debug::fmt(self, f)
     }
 }
 
@@ -1076,9 +1124,8 @@ impl RefType {
 
     /// Create a new `RefType`.
     ///
-    /// Returns `None` when the heap type's type index (if any) is
-    /// beyond this crate's implementation limits and therfore is not
-    /// representable.
+    /// Returns `None` when the heap type's type index (if any) is beyond this
+    /// crate's implementation limits and therefore is not representable.
     pub fn new(nullable: bool, heap_type: HeapType) -> Option<Self> {
         let nullable32 = Self::NULLABLE_BIT * (nullable as u32);
         match heap_type {
@@ -1199,6 +1246,7 @@ impl RefType {
 
     // Note that this is similar to `Display for RefType` except that it has
     // the indexes stubbed out.
+    #[cfg(feature = "validate")]
     pub(crate) fn wat(&self) -> &'static str {
         match (self.is_nullable(), self.heap_type()) {
             (true, HeapType::Func) => "funcref",
@@ -1321,25 +1369,17 @@ pub enum HeapType {
     NoExn,
 }
 
-impl ValType {
-    pub(crate) fn is_valtype_byte(byte: u8) -> bool {
-        match byte {
-            0x7F | 0x7E | 0x7D | 0x7C | 0x7B | 0x70 | 0x6F | 0x64 | 0x63 | 0x6E | 0x71 | 0x72
-            | 0x74 | 0x73 | 0x6D | 0x6B | 0x6A | 0x6C | 0x69 => true,
-            _ => false,
-        }
-    }
-}
-
 impl<'a> FromReader<'a> for StorageType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        // NB: See `FromReader<'a> for ValType` for a table of how this
+        // interacts with other value encodings.
         match reader.peek()? {
             0x78 => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(StorageType::I8)
             }
             0x77 => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(StorageType::I16)
             }
             _ => Ok(StorageType::Val(reader.read()?)),
@@ -1349,25 +1389,72 @@ impl<'a> FromReader<'a> for StorageType {
 
 impl<'a> FromReader<'a> for ValType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        // Decoding value types is sort of subtle because the space of what's
+        // being decoded here is actually spread out across an number of
+        // locations. This comment here is intended to serve as a bit of a
+        // reference to what's being decoded here and how it interacts with
+        // other locations.
+        //
+        // Note that all value types are encoded as canonical-form negative
+        // numbers in the sleb128 encoding scheme. Currently in the wasm spec
+        // sleb128 isn't actually used but it looks to be modelled to allow it
+        // one day. In the meantime the current values used are:
+        //
+        // | sleb128 | decimal | type         | notes                        |
+        // |---------|---------|--------------|------------------------------|
+        // | 0x7F    | -1      | i32          |                              |
+        // | 0x7E    | -2      | i64          |                              |
+        // | 0x7D    | -3      | f32          |                              |
+        // | 0x7C    | -4      | f64          |                              |
+        // | 0x7B    | -5      | v128         | simd proposal                |
+        // | 0x78    | -8      | i8           | gc proposal, in `FieldType`  |
+        // | 0x77    | -9      | i16          | gc proposal, in `FieldType`  |
+        // | 0x74    | -12     | noexn        | gc + exceptions proposal     |
+        // | 0x73    | -13     | nofunc       | gc proposal                  |
+        // | 0x72    | -14     | noextern     | gc proposal                  |
+        // | 0x71    | -15     | nullref      | gc proposal                  |
+        // | 0x70    | -16     | func         | reference types proposal     |
+        // | 0x6F    | -17     | extern       | reference types proposal     |
+        // | 0x6E    | -18     | any          | gc proposal                  |
+        // | 0x6D    | -19     | eq           | gc proposal                  |
+        // | 0x6C    | -20     | i31          | gc proposal                  |
+        // | 0x6B    | -21     | struct       | gc proposal                  |
+        // | 0x6A    | -22     | array        | gc proposal                  |
+        // | 0x69    | -23     | exnref       | gc + exceptions proposal     |
+        // | 0x64    | -28     | ref $t       | gc proposal, prefix byte     |
+        // | 0x63    | -29     | ref null $t  | gc proposal, prefix byte     |
+        // | 0x60    | -32     | func $t      | prefix byte                  |
+        // | 0x5f    | -33     | struct $t    | gc proposal, prefix byte     |
+        // | 0x5e    | -34     | array $t     | gc proposal, prefix byte     |
+        // | 0x50    | -48     | sub $t       | gc proposal, prefix byte     |
+        // | 0x4F    | -49     | sub final $t | gc proposal, prefix byte     |
+        // | 0x4E    | -50     | rec $t       | gc proposal, prefix byte     |
+        // | 0x40    | -64     | ε            | empty block type             |
+        //
+        // Note that not all of these encodings are parsed here, for example
+        // 0x78 as the encoding for `i8` is parsed only in `FieldType`. The
+        // parsing of `FieldType` will delegate here without actually consuming
+        // anything though so the encoding 0x78 still must be disjoint and not
+        // read here otherwise.
         match reader.peek()? {
             0x7F => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(ValType::I32)
             }
             0x7E => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(ValType::I64)
             }
             0x7D => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(ValType::F32)
             }
             0x7C => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(ValType::F64)
             }
             0x7B => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(ValType::V128)
             }
             0x70 | 0x6F | 0x64 | 0x63 | 0x6E | 0x71 | 0x72 | 0x73 | 0x74 | 0x6D | 0x6B | 0x6A
@@ -1379,25 +1466,27 @@ impl<'a> FromReader<'a> for ValType {
 
 impl<'a> FromReader<'a> for RefType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        // NB: See `FromReader<'a> for ValType` for a table of how this
+        // interacts with other value encodings.
         match reader.read()? {
-            0x70 => Ok(RefType::FUNC.nullable()),
-            0x6F => Ok(RefType::EXTERN.nullable()),
-            0x6E => Ok(RefType::ANY.nullable()),
-            0x71 => Ok(RefType::NONE.nullable()),
-            0x72 => Ok(RefType::NOEXTERN.nullable()),
-            0x73 => Ok(RefType::NOFUNC.nullable()),
-            0x6D => Ok(RefType::EQ.nullable()),
-            0x6B => Ok(RefType::STRUCT.nullable()),
-            0x6A => Ok(RefType::ARRAY.nullable()),
-            0x6C => Ok(RefType::I31.nullable()),
-            0x69 => Ok(RefType::EXN.nullable()),
-            0x74 => Ok(RefType::NOEXN.nullable()),
             byte @ (0x63 | 0x64) => {
                 let nullable = byte == 0x63;
                 let pos = reader.original_position();
                 RefType::new(nullable, reader.read()?)
                     .ok_or_else(|| crate::BinaryReaderError::new("type index too large", pos))
             }
+            0x69 => Ok(RefType::EXN.nullable()),
+            0x6A => Ok(RefType::ARRAY.nullable()),
+            0x6B => Ok(RefType::STRUCT.nullable()),
+            0x6C => Ok(RefType::I31.nullable()),
+            0x6D => Ok(RefType::EQ.nullable()),
+            0x6E => Ok(RefType::ANY.nullable()),
+            0x6F => Ok(RefType::EXTERN.nullable()),
+            0x70 => Ok(RefType::FUNC.nullable()),
+            0x71 => Ok(RefType::NONE.nullable()),
+            0x72 => Ok(RefType::NOEXTERN.nullable()),
+            0x73 => Ok(RefType::NOFUNC.nullable()),
+            0x74 => Ok(RefType::NOEXN.nullable()),
             _ => bail!(reader.original_position(), "malformed reference type"),
         }
     }
@@ -1405,53 +1494,55 @@ impl<'a> FromReader<'a> for RefType {
 
 impl<'a> FromReader<'a> for HeapType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        // NB: See `FromReader<'a> for ValType` for a table of how this
+        // interacts with other value encodings.
         match reader.peek()? {
             0x70 => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::Func)
             }
             0x6F => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::Extern)
             }
             0x6E => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::Any)
             }
             0x71 => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::None)
             }
             0x72 => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::NoExtern)
             }
             0x73 => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::NoFunc)
             }
             0x6D => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::Eq)
             }
             0x6B => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::Struct)
             }
             0x6A => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::Array)
             }
             0x6C => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::I31)
             }
             0x69 => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::Exn)
             }
             0x74 => {
-                reader.position += 1;
+                reader.read_u8()?;
                 Ok(HeapType::NoExn)
             }
             _ => {
@@ -1478,10 +1569,31 @@ impl<'a> FromReader<'a> for HeapType {
 pub struct TableType {
     /// The table's element type.
     pub element_type: RefType,
+    /// Whether or not this is a 64-bit table.
+    ///
+    /// This is part of the memory64 proposal in WebAssembly.
+    pub table64: bool,
     /// Initial size of this table, in elements.
-    pub initial: u32,
+    ///
+    /// For 32-bit tables (when `table64` is `false`) this is guaranteed to
+    /// be at most `u32::MAX` for valid types.
+    pub initial: u64,
     /// Optional maximum size of the table, in elements.
-    pub maximum: Option<u32>,
+    ///
+    /// For 32-bit tables (when `table64` is `false`) this is guaranteed to
+    /// be at most `u32::MAX` for valid types.
+    pub maximum: Option<u64>,
+}
+
+impl TableType {
+    /// Gets the index type for the table.
+    pub fn index_type(&self) -> ValType {
+        if self.table64 {
+            ValType::I64
+        } else {
+            ValType::I32
+        }
+    }
 }
 
 /// Represents a memory's type.
@@ -1600,6 +1712,8 @@ fn read_composite_type(
     opcode: u8,
     reader: &mut BinaryReader,
 ) -> Result<CompositeType, BinaryReaderError> {
+    // NB: See `FromReader<'a> for ValType` for a table of how this
+    // interacts with other value encodings.
     Ok(match opcode {
         0x60 => CompositeType::Func(reader.read()?),
         0x5e => CompositeType::Array(reader.read()?),
@@ -1610,6 +1724,8 @@ fn read_composite_type(
 
 impl<'a> FromReader<'a> for RecGroup {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        // NB: See `FromReader<'a> for ValType` for a table of how this
+        // interacts with other value encodings.
         match reader.peek()? {
             0x4e => {
                 reader.read_u8()?;
@@ -1633,6 +1749,8 @@ impl<'a> FromReader<'a> for RecGroup {
 impl<'a> FromReader<'a> for SubType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let pos = reader.original_position();
+        // NB: See `FromReader<'a> for ValType` for a table of how this
+        // interacts with other value encodings.
         Ok(match reader.read_u8()? {
             opcode @ (0x4f | 0x50) => {
                 let idx_iter = reader.read_iter(MAX_WASM_SUPERTYPES, "supertype idxs")?;

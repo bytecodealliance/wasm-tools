@@ -1,10 +1,11 @@
 use anyhow::{Context, Result};
+use libtest_mimic::{Arguments, Trial};
 use pretty_assertions::assert_eq;
 use std::fs;
 use std::path::Path;
 use wasmparser::WasmFeatures;
 use wit_component::WitPrinter;
-use wit_parser::{PackageId, Resolve, UnresolvedPackage};
+use wit_parser::{PackageId, Resolve, UnresolvedPackageGroup};
 
 /// Tests the encoding of a WIT package as a WebAssembly binary.
 ///
@@ -17,10 +18,10 @@ use wit_parser::{PackageId, Resolve, UnresolvedPackage};
 ///
 /// Run the test with the environment variable `BLESS` set to update
 /// the baseline files.
-#[test]
-fn interface_encoding() -> Result<()> {
+fn main() -> Result<()> {
     env_logger::init();
 
+    let mut trials = Vec::new();
     for entry in fs::read_dir("tests/interfaces")? {
         let path = entry?.path();
         let name = match path.file_name().and_then(|s| s.to_str()) {
@@ -30,65 +31,83 @@ fn interface_encoding() -> Result<()> {
         let is_dir = path.is_dir();
         let is_test = is_dir || name.ends_with(".wit");
         if is_test {
-            run_test(&path, is_dir).context(format!("failed test `{}`", path.display()))?;
+            trials.push(Trial::test(name.to_string(), move || {
+                run_test(&path, is_dir)
+                    .context(format!("failed test `{}`", path.display()))
+                    .map_err(|e| format!("{e:?}").into())
+            }));
+        }
+    }
+
+    let mut args = Arguments::from_args();
+    if cfg!(target_family = "wasm") && !cfg!(target_feature = "atomics") {
+        args.test_threads = Some(1);
+    }
+    libtest_mimic::run(&args, trials).exit();
+}
+
+fn run_test(path: &Path, is_dir: bool) -> Result<()> {
+    let mut resolve = Resolve::new();
+    let packages = if is_dir {
+        resolve.push_dir(path)?.0
+    } else {
+        resolve.append(UnresolvedPackageGroup::parse_file(path)?)?
+    };
+
+    for package in packages {
+        assert_print(&resolve, &[package], path, is_dir)?;
+
+        let features = WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL;
+
+        // First convert the WIT package to a binary WebAssembly output, then
+        // convert that binary wasm to textual wasm, then assert it matches the
+        // expectation.
+        let wasm = wit_component::encode(Some(true), &resolve, package)?;
+        let wat = wasmprinter::print_bytes(&wasm)?;
+        assert_output(&path.with_extension("wat"), &wat)?;
+        wasmparser::Validator::new_with_features(features)
+            .validate_all(&wasm)
+            .context("failed to validate wasm output")?;
+
+        // Next decode a fresh WIT package from the WebAssembly generated. Print
+        // this package's documents and assert they all match the expectations.
+        let decoded = wit_component::decode(&wasm)?;
+        assert_eq!(
+            1,
+            decoded.packages().len(),
+            "Each input WIT package should produce WASM that contains only one package"
+        );
+
+        let decoded_package = decoded.packages()[0];
+        let resolve = decoded.resolve();
+
+        assert_print(resolve, decoded.packages(), path, is_dir)?;
+
+        // Finally convert the decoded package to wasm again and make sure it
+        // matches the prior wasm.
+        let wasm2 = wit_component::encode(Some(true), resolve, decoded_package)?;
+        if wasm != wasm2 {
+            let wat2 = wasmprinter::print_bytes(&wasm)?;
+            assert_eq!(wat, wat2, "document did not roundtrip correctly");
         }
     }
 
     Ok(())
 }
 
-fn run_test(path: &Path, is_dir: bool) -> Result<()> {
-    println!("running test at {path:?}");
-    let mut resolve = Resolve::new();
-    let package = if is_dir {
-        resolve.push_dir(path)?.0
-    } else {
-        resolve.push(UnresolvedPackage::parse_file(path)?)?
-    };
-
-    assert_print(&resolve, package, path, is_dir)?;
-
-    let features = WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL;
-
-    // First convert the WIT package to a binary WebAssembly output, then
-    // convert that binary wasm to textual wasm, then assert it matches the
-    // expectation.
-    let wasm = wit_component::encode(Some(true), &resolve, package)?;
-    let wat = wasmprinter::print_bytes(&wasm)?;
-    assert_output(&path.with_extension("wat"), &wat)?;
-    wasmparser::Validator::new_with_features(features)
-        .validate_all(&wasm)
-        .context("failed to validate wasm output")?;
-
-    // Next decode a fresh WIT package from the WebAssembly generated. Print
-    // this package's documents and assert they all match the expectations.
-    let decoded = wit_component::decode(&wasm)?;
-    let resolve = decoded.resolve();
-
-    assert_print(resolve, decoded.package(), path, is_dir)?;
-
-    // Finally convert the decoded package to wasm again and make sure it
-    // matches the prior wasm.
-    let wasm2 = wit_component::encode(Some(true), resolve, decoded.package())?;
-    if wasm != wasm2 {
-        let wat2 = wasmprinter::print_bytes(&wasm)?;
-        assert_eq!(wat, wat2, "document did not roundtrip correctly");
+fn assert_print(resolve: &Resolve, pkg_ids: &[PackageId], path: &Path, is_dir: bool) -> Result<()> {
+    let output = WitPrinter::default().print(resolve, &pkg_ids)?;
+    for pkg_id in pkg_ids {
+        let pkg = &resolve.packages[*pkg_id];
+        let expected = if is_dir {
+            path.join(format!("{}.wit.print", &pkg.name.name))
+        } else {
+            path.with_extension("wit.print")
+        };
+        assert_output(&expected, &output)?;
     }
 
-    Ok(())
-}
-
-fn assert_print(resolve: &Resolve, package: PackageId, path: &Path, is_dir: bool) -> Result<()> {
-    let pkg = &resolve.packages[package];
-    let expected = if is_dir {
-        path.join(format!("{}.wit.print", &pkg.name.name))
-    } else {
-        path.with_extension("wit.print")
-    };
-    let output = WitPrinter::default().print(resolve, package)?;
-    assert_output(&expected, &output)?;
-
-    UnresolvedPackage::parse("foo.wit".as_ref(), &output)
+    UnresolvedPackageGroup::parse("foo.wit".as_ref(), &output)
         .context("failed to parse printed output")?;
     Ok(())
 }

@@ -13,6 +13,8 @@
  * limitations under the License.
  */
 
+#![cfg_attr(not(feature = "validate"), allow(dead_code))]
+
 // The following limits are imposed by wasmparser on WebAssembly modules.
 // The limits are agreed upon with other engines for consistency.
 pub const MAX_WASM_TYPES: usize = 1_000_000;
@@ -35,6 +37,7 @@ pub const MAX_WASM_TAGS: usize = 1_000_000;
 pub const MAX_WASM_BR_TABLE_SIZE: usize = MAX_WASM_FUNCTION_SIZE;
 pub const MAX_WASM_STRUCT_FIELDS: usize = 10_000;
 pub const MAX_WASM_CATCHES: usize = 10_000;
+pub const MAX_WASM_SUBTYPING_DEPTH: usize = 63;
 
 pub const DEFAULT_WASM_PAGE_SIZE: u64 = 1 << 16;
 

@@ -4,10 +4,14 @@
       "name": "bar-a",
       "imports": {
         "interface-0": {
-          "interface": 0
+          "interface": {
+            "id": 0
+          }
         },
         "interface-1": {
-          "interface": 1
+          "interface": {
+            "id": 1
+          }
         }
       },
       "exports": {},
@@ -17,10 +21,14 @@
       "name": "baz-a",
       "imports": {
         "interface-2": {
-          "interface": 2
+          "interface": {
+            "id": 2
+          }
         },
         "interface-3": {
-          "interface": 3
+          "interface": {
+            "id": 3
+          }
         }
       },
       "exports": {},
@@ -30,10 +38,14 @@
       "name": "a",
       "imports": {
         "interface-4": {
-          "interface": 4
+          "interface": {
+            "id": 4
+          }
         },
         "interface-5": {
-          "interface": 5
+          "interface": {
+            "id": 5
+          }
         }
       },
       "exports": {},
@@ -43,10 +55,14 @@
       "name": "b",
       "imports": {
         "interface-0": {
-          "interface": 0
+          "interface": {
+            "id": 0
+          }
         },
         "interface-1": {
-          "interface": 1
+          "interface": {
+            "id": 1
+          }
         }
       },
       "exports": {},
@@ -56,10 +72,14 @@
       "name": "c",
       "imports": {
         "interface-0": {
-          "interface": 0
+          "interface": {
+            "id": 0
+          }
         },
         "interface-1": {
-          "interface": 1
+          "interface": {
+            "id": 1
+          }
         }
       },
       "exports": {},
@@ -69,22 +89,34 @@
       "name": "union-world",
       "imports": {
         "interface-4": {
-          "interface": 4
+          "interface": {
+            "id": 4
+          }
         },
         "interface-5": {
-          "interface": 5
+          "interface": {
+            "id": 5
+          }
         },
         "interface-0": {
-          "interface": 0
+          "interface": {
+            "id": 0
+          }
         },
         "interface-1": {
-          "interface": 1
+          "interface": {
+            "id": 1
+          }
         },
         "interface-2": {
-          "interface": 2
+          "interface": {
+            "id": 2
+          }
         },
         "interface-3": {
-          "interface": 3
+          "interface": {
+            "id": 3
+          }
         }
       },
       "exports": {},

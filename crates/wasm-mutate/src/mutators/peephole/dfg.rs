@@ -43,8 +43,6 @@ pub struct BBlock {
 pub struct StackEntry {
     /// Lang enode operator mapping
     pub operator: Lang,
-    /// Index in the MiniDFG entries collection
-    pub entry_idx: usize,
     /// Color of the dfg part
     pub color: u32,
     /// Instruction index if its apply
@@ -292,7 +290,6 @@ impl<'a> DFGBuilder {
 
         let new_node = StackEntry {
             operator,
-            entry_idx,
             color: self.color,
             operator_idx,
         };
@@ -321,7 +318,6 @@ impl<'a> DFGBuilder {
 
                 let leaf = StackEntry {
                     operator: Lang::Undef,
-                    entry_idx,
                     color: UNDEF_COLOR,
                     operator_idx,
                 };
@@ -644,11 +640,11 @@ impl<'a> DFGBuilder {
                         idx,
                     );
                 }
-                Operator::MemoryGrow { mem, mem_byte: _ } => {
+                Operator::MemoryGrow { mem } => {
                     let arg = self.pop_operand(idx, false);
                     self.push_node(Lang::MemoryGrow(*mem, Id::from(arg)), idx);
                 }
-                Operator::MemorySize { mem, mem_byte: _ } => {
+                Operator::MemorySize { mem } => {
                     self.push_node(Lang::MemorySize(*mem), idx);
                 }
                 Operator::TableGrow { table } => {

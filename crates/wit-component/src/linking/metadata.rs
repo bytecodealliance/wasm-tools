@@ -8,15 +8,10 @@ use {
         fmt,
     },
     wasmparser::{
-        BinaryReader, BinaryReaderError, ExternalKind, FuncType, Parser, Payload, RefType,
-        Subsection, Subsections, SymbolFlags, TableType, TypeRef, ValType,
+        Dylink0Subsection, ExternalKind, FuncType, KnownCustom, MemInfo, Parser, Payload, RefType,
+        SymbolFlags, TableType, TypeRef, ValType,
     },
 };
-
-pub const WASM_DYLINK_MEM_INFO: u8 = 1;
-pub const WASM_DYLINK_NEEDED: u8 = 2;
-pub const WASM_DYLINK_EXPORT_INFO: u8 = 3;
-pub const WASM_DYLINK_IMPORT_INFO: u8 = 4;
 
 /// Represents a core Wasm value type (not including V128 or reference types, which are not yet supported)
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -155,26 +150,6 @@ pub struct Export<'a> {
     pub flags: SymbolFlags,
 }
 
-/// Represents a `WASM_DYLINK_MEM_INFO` value
-#[derive(Debug, Copy, Clone)]
-pub struct MemInfo {
-    pub memory_size: u32,
-    pub memory_alignment: u32,
-    pub table_size: u32,
-    pub table_alignment: u32,
-}
-
-impl Default for MemInfo {
-    fn default() -> Self {
-        Self {
-            memory_size: 0,
-            memory_alignment: 1,
-            table_size: 0,
-            table_alignment: 1,
-        }
-    }
-}
-
 /// Metadata extracted from a dynamic library module
 #[derive(Debug)]
 pub struct Metadata<'a> {
@@ -232,70 +207,6 @@ pub struct Metadata<'a> {
     pub imports: BTreeSet<Import<'a>>,
 }
 
-#[derive(Debug)]
-struct ExportInfo<'a> {
-    name: &'a str,
-    flags: SymbolFlags,
-}
-
-#[derive(Debug)]
-struct ImportInfo<'a> {
-    module: &'a str,
-    field: &'a str,
-    flags: SymbolFlags,
-}
-
-#[derive(Debug)]
-enum DylinkSubsection<'a> {
-    MemInfo(MemInfo),
-    Needed(Vec<&'a str>),
-    ExportInfo(Vec<ExportInfo<'a>>),
-    ImportInfo(Vec<ImportInfo<'a>>),
-    Unknown(u8),
-}
-
-type DylinkSectionReader<'a> = Subsections<'a, DylinkSubsection<'a>>;
-
-impl<'a> Subsection<'a> for DylinkSubsection<'a> {
-    fn from_reader(id: u8, mut reader: BinaryReader<'a>) -> Result<Self, BinaryReaderError> {
-        Ok(match id {
-            WASM_DYLINK_MEM_INFO => Self::MemInfo(MemInfo {
-                memory_size: reader.read_var_u32()?,
-                memory_alignment: reader.read_var_u32()?,
-                table_size: reader.read_var_u32()?,
-                table_alignment: reader.read_var_u32()?,
-            }),
-            WASM_DYLINK_NEEDED => Self::Needed(
-                (0..reader.read_var_u32()?)
-                    .map(|_| reader.read_string())
-                    .collect::<Result<_, _>>()?,
-            ),
-            WASM_DYLINK_EXPORT_INFO => Self::ExportInfo(
-                (0..reader.read_var_u32()?)
-                    .map(|_| {
-                        Ok(ExportInfo {
-                            name: reader.read_string()?,
-                            flags: reader.read()?,
-                        })
-                    })
-                    .collect::<Result<_, _>>()?,
-            ),
-            WASM_DYLINK_IMPORT_INFO => Self::ImportInfo(
-                (0..reader.read_var_u32()?)
-                    .map(|_| {
-                        Ok(ImportInfo {
-                            module: reader.read_string()?,
-                            field: reader.read_string()?,
-                            flags: reader.read()?,
-                        })
-                    })
-                    .collect::<Result<_, _>>()?,
-            ),
-            _ => Self::Unknown(id),
-        })
-    }
-}
-
 impl<'a> Metadata<'a> {
     /// Parse the specified module and extract its metadata.
     pub fn try_new(
@@ -310,7 +221,12 @@ impl<'a> Metadata<'a> {
         let mut result = Self {
             name,
             dl_openable,
-            mem_info: MemInfo::default(),
+            mem_info: MemInfo {
+                memory_size: 0,
+                memory_alignment: 1,
+                table_size: 0,
+                table_alignment: 1,
+            },
             needed_libs: Vec::new(),
             has_data_relocs: false,
             has_ctors: false,
@@ -333,23 +249,27 @@ impl<'a> Metadata<'a> {
 
         for payload in Parser::new(0).parse_all(module) {
             match payload? {
-                Payload::CustomSection(section) if section.name() == "dylink.0" => {
-                    let reader = DylinkSectionReader::new(section.data(), section.data_offset());
-                    for subsection in reader {
-                        match subsection.context("failed to parse `dylink.0` subsection")? {
-                            DylinkSubsection::MemInfo(info) => result.mem_info = info,
-                            DylinkSubsection::Needed(needed) => result.needed_libs = needed.clone(),
-                            DylinkSubsection::ExportInfo(info) => {
-                                export_info.extend(info.iter().map(|info| (info.name, info.flags)));
-                            }
-                            DylinkSubsection::ImportInfo(info) => {
-                                import_info.extend(
-                                    info.iter()
-                                        .map(|info| ((info.module, info.field), info.flags)),
-                                );
-                            }
-                            DylinkSubsection::Unknown(index) => {
-                                bail!("unrecognized `dylink.0` subsection: {index}")
+                Payload::CustomSection(section) => {
+                    if let KnownCustom::Dylink0(reader) = section.as_known() {
+                        for subsection in reader {
+                            match subsection.context("failed to parse `dylink.0` subsection")? {
+                                Dylink0Subsection::MemInfo(info) => result.mem_info = info,
+                                Dylink0Subsection::Needed(needed) => {
+                                    result.needed_libs = needed.clone()
+                                }
+                                Dylink0Subsection::ExportInfo(info) => {
+                                    export_info
+                                        .extend(info.iter().map(|info| (info.name, info.flags)));
+                                }
+                                Dylink0Subsection::ImportInfo(info) => {
+                                    import_info.extend(
+                                        info.iter()
+                                            .map(|info| ((info.module, info.field), info.flags)),
+                                    );
+                                }
+                                Dylink0Subsection::Unknown { ty, .. } => {
+                                    bail!("unrecognized `dylink.0` subsection: {ty}")
+                                }
                             }
                         }
                     }

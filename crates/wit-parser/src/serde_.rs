@@ -1,8 +1,9 @@
 use crate::{Params, Type};
 use id_arena::{Arena, Id};
 use indexmap::IndexMap;
+use semver::Version;
 use serde::ser::{SerializeMap, SerializeSeq, Serializer};
-use serde::Serialize;
+use serde::{de::Error, Deserialize, Serialize};
 
 pub fn serialize_none<S>(serializer: S) -> Result<S::Ok, S::Error>
 where
@@ -105,4 +106,19 @@ struct Param {
     pub name: String,
     #[serde(rename = "type")]
     pub typ: Type,
+}
+
+pub fn serialize_version<S>(version: &Version, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    version.to_string().serialize(serializer)
+}
+
+pub fn deserialize_version<'de, D>(deserializer: D) -> Result<Version, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+{
+    let version: String = String::deserialize(deserializer)?;
+    version.parse().map_err(|e| D::Error::custom(e))
 }

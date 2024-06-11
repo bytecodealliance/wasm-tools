@@ -32,10 +32,10 @@ pub fn encode_component(resolve: &Resolve, package: PackageId) -> Result<Compone
     };
     encoder.run()?;
 
-    let package_docs = PackageDocs::extract(resolve, package);
+    let package_metadata = PackageMetadata::extract(resolve, package);
     encoder.component.custom_section(&CustomSection {
-        name: PackageDocs::SECTION_NAME.into(),
-        data: package_docs.encode()?.into(),
+        name: PackageMetadata::SECTION_NAME.into(),
+        data: package_metadata.encode()?.into(),
     });
 
     Ok(encoder.component)
@@ -351,9 +351,9 @@ pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentTyp
         let name = resolve.name_world_key(name);
         log::trace!("encoding import {name}");
         let ty = match import {
-            WorldItem::Interface(i) => {
-                component.interface = Some(*i);
-                let idx = component.encode_instance(*i)?;
+            WorldItem::Interface { id, .. } => {
+                component.interface = Some(*id);
+                let idx = component.encode_instance(*id)?;
                 ComponentTypeRef::Instance(idx)
             }
             WorldItem::Function(f) => {
@@ -376,9 +376,9 @@ pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentTyp
         let name = resolve.name_world_key(name);
         log::trace!("encoding export {name}");
         let ty = match export {
-            WorldItem::Interface(i) => {
-                component.interface = Some(*i);
-                let idx = component.encode_instance(*i)?;
+            WorldItem::Interface { id, .. } => {
+                component.interface = Some(*id);
+                let idx = component.encode_instance(*id)?;
                 ComponentTypeRef::Instance(idx)
             }
             WorldItem::Function(f) => {

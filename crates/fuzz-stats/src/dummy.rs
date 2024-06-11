@@ -38,9 +38,19 @@ pub fn dummy_value(val_ty: ValType) -> Val {
         ValType::I64 => Val::I64(0),
         ValType::F32 => Val::F32(0),
         ValType::F64 => Val::F64(0),
-        ValType::V128 => Val::V128(0),
-        ValType::ExternRef => Val::ExternRef(None),
-        ValType::FuncRef => Val::FuncRef(None),
+        ValType::V128 => Val::V128(0.into()),
+        ValType::Ref(r) => dummy_ref(&r).into(),
+    }
+}
+
+/// Construct a dummy value for the given value type.
+pub fn dummy_ref(ty: &RefType) -> Ref {
+    assert!(ty.is_nullable());
+    match ty.heap_type() {
+        HeapType::Extern => Ref::Extern(None),
+        HeapType::NoFunc | HeapType::Func => Ref::Func(None),
+        HeapType::Any | HeapType::I31 | HeapType::None => Ref::Any(None),
+        HeapType::Concrete(_) => unimplemented!(),
     }
 }
 
@@ -57,7 +67,7 @@ pub fn dummy_global<T>(store: &mut Store<T>, ty: GlobalType) -> Global {
 
 /// Construct a dummy table for the given table type.
 pub fn dummy_table<T>(store: &mut Store<T>, ty: TableType) -> Result<Table> {
-    let init_val = dummy_value(ty.element());
+    let init_val = dummy_ref(ty.element());
     Table::new(store, ty, init_val)
 }
 

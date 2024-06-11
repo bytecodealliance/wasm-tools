@@ -1813,6 +1813,48 @@
           "value": "0"
         }
       ]
+    },
+    {
+      "type": "assert_invalid",
+      "line": 873,
+      "filename": "align.108.wasm",
+      "text": "alignment must not be larger than natural",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 892,
+      "filename": "align.109.wasm",
+      "text": "malformed memop flags",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 911,
+      "filename": "align.110.wasm",
+      "text": "malformed memop flags",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 930,
+      "filename": "align.111.wasm",
+      "text": "malformed memop flags",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 949,
+      "filename": "align.112.wasm",
+      "text": "malformed memop flags",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 968,
+      "filename": "align.113.wasm",
+      "text": "malformed memop flags",
+      "module_type": "binary"
     }
   ]
 }

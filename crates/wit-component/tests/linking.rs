@@ -2,7 +2,7 @@ use {
     anyhow::{Context, Result},
     std::path::Path,
     wit_component::StringEncoding,
-    wit_parser::{Resolve, UnresolvedPackage},
+    wit_parser::{Resolve, UnresolvedPackageGroup},
 };
 
 const FOO: &str = r#"
@@ -141,7 +141,11 @@ fn encode(wat: &str, wit: Option<&str>) -> Result<Vec<u8>> {
 
     if let Some(wit) = wit {
         let mut resolve = Resolve::default();
-        let pkg = resolve.push(UnresolvedPackage::parse(Path::new("wit"), wit)?)?;
+        let UnresolvedPackageGroup {
+            mut packages,
+            source_map,
+        } = UnresolvedPackageGroup::parse(Path::new("wit"), wit)?;
+        let pkg = resolve.push(packages.remove(0), &source_map)?;
         let world = resolve.select_world(pkg, None)?;
 
         wit_component::embed_component_metadata(

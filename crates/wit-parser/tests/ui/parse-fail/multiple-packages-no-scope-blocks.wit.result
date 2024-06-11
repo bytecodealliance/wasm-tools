@@ -1,0 +1,5 @@
+expected `world`, `interface` or `use`, found keyword `package`
+     --> tests/ui/parse-fail/multiple-packages-no-scope-blocks.wit:7:1
+      |
+    7 | package bar:name;
+      | ^------

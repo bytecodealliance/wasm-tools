@@ -11,13 +11,15 @@ documentation = "https://docs.rs/wasmprinter"
 description = """
 Rust converter from the WebAssembly binary format to the text format.
 """
+rust-version.workspace = true
 
 [lints]
 workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-wasmparser = { workspace = true }
+wasmparser = { workspace = true, features = ['std'] }
+termcolor = { workspace = true }
 
 [dev-dependencies]
 diff = "0.1"

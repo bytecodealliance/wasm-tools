@@ -5,7 +5,7 @@
   )
   (rec
     (type $f2 (;2;) (sub (func)))
-    (type (;3;) (struct (field (ref $f1))))
+    (type (;3;) (struct (field (ref $f2))))
   )
   (rec
     (type $g1 (;4;) (sub $f1 (func)))

@@ -457,6 +457,18 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.resolver.resolve(i, Ns::Global)?;
             }
 
+            GlobalAtomicSet(i)
+            | GlobalAtomicGet(i)
+            | GlobalAtomicRmwAdd(i)
+            | GlobalAtomicRmwSub(i)
+            | GlobalAtomicRmwAnd(i)
+            | GlobalAtomicRmwOr(i)
+            | GlobalAtomicRmwXor(i)
+            | GlobalAtomicRmwXchg(i)
+            | GlobalAtomicRmwCmpxchg(i) => {
+                self.resolver.resolve(&mut i.index, Ns::Global)?;
+            }
+
             LocalSet(i) | LocalGet(i) | LocalTee(i) => {
                 assert!(self.scopes.len() > 0);
                 // Resolve a local by iterating over scopes from most recent

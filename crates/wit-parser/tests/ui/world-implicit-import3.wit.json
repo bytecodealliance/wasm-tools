@@ -4,7 +4,9 @@
       "name": "w",
       "imports": {
         "interface-0": {
-          "interface": 0
+          "interface": {
+            "id": 0
+          }
         },
         "g": {
           "type": 1

@@ -13,7 +13,9 @@
 [Precompiled artifacts built on CI][artifacts] are available for download for
 each release.
 
-If you'd prefer to build from source then first [install Rust for your
+[artifacts]: https://github.com/bytecodealliance/wasm-tools/releases
+
+To build from source first [install Rust for your
 platform](https://www.rust-lang.org/tools/install) and then use the included
 Cargo package manager to install:
 
@@ -21,7 +23,13 @@ Cargo package manager to install:
 $ cargo install wasm-tools
 ```
 
-[artifacts]: https://github.com/bytecodealliance/wasm-tools/releases
+Alternatively if you use [`cargo
+binstall`](https://github.com/cargo-bins/cargo-binstall) then that can be used
+to install [the precompiled artifacts][artifacts] instead:
+
+```
+$ cargo binstall wasm-tools
+```
 
 Installation can be confirmed with:
 
@@ -134,7 +142,7 @@ that can be use programmatically as well:
 | `wasm-tools objdump` |   | Print debugging information about section headers |
 | `wasm-tools strip` |   | Remove custom sections from a WebAssembly file |
 | `wasm-tools demangle` |   | Demangle Rust and C++ symbol names in the `name` section |
-| `wasm-tools compose` | [wasm-compose] | Compose wasm components together |
+| `wasm-tools compose` | [wasm-compose] | Compose wasm components together (*deprecated*) |
 | `wasm-tools component new` | [wit-component] | Create a component from a core wasm binary |
 | `wasm-tools component wit` |  | Extract a `*.wit` interface from a component |
 | `wasm-tools component embed` |  | Embed a `component-type` custom section in a core wasm binary |

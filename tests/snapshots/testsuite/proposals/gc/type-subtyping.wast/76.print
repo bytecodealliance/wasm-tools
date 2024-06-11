@@ -1,26 +1,20 @@
 (module
   (rec
-    (type $f11 (;0;) (sub (func (result (ref func)))))
-    (type $f12 (;1;) (sub $f11 (func (result (ref $f11)))))
+    (type $f1 (;0;) (sub (func)))
+    (type $s1 (;1;) (sub (struct (field (ref $f1)))))
   )
   (rec
-    (type $f21 (;2;) (sub (func (result (ref func)))))
-    (type $f22 (;3;) (sub $f21 (func (result (ref $f21)))))
+    (type $f2 (;2;) (sub (func)))
+    (type $s2 (;3;) (sub (struct (field (ref $f2)))))
   )
   (rec
-    (type $g11 (;4;) (sub $f11 (func (result (ref func)))))
-    (type $g12 (;5;) (sub $g11 (func (result (ref $g11)))))
+    (type $g1 (;4;) (sub $f1 (func)))
+    (type (;5;) (sub $s1 (struct (field (ref $f1)) (field (ref $f1)) (field (ref $f2)) (field (ref $f2)) (field (ref $g1)))))
   )
   (rec
-    (type $g21 (;6;) (sub $f21 (func (result (ref func)))))
-    (type $g22 (;7;) (sub $g21 (func (result (ref $g21)))))
+    (type $h (;6;) (sub $g1 (func)))
+    (type (;7;) (struct))
   )
-  (func (;0;) (type $g11) (result (ref func))
-    unreachable
-  )
-  (func (;1;) (type $g12) (result (ref $g11))
-    unreachable
-  )
-  (export "g11" (func 0))
-  (export "g12" (func 1))
+  (import "M7" "h" (func (;0;) (type $f1)))
+  (import "M7" "h" (func (;1;) (type $g1)))
 )

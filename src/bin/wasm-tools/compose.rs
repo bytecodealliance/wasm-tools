@@ -53,15 +53,15 @@ impl Opts {
     }
 
     pub fn run(self) -> Result<()> {
+        eprintln!("WARNING: `wasm-tools compose` has been deprecated.");
+        eprintln!("");
+        eprintln!("Please use `wac` instead. You can find more information about `wac` at https://github.com/bytecodealliance/wac.");
         let config = self.create_config()?;
         log::debug!("configuration:\n{:#?}", config);
 
         let bytes = ComponentComposer::new(&self.component, &config).compose()?;
 
-        self.output.output(wasm_tools::Output::Wasm {
-            bytes: &bytes,
-            wat: self.wat,
-        })?;
+        self.output.output_wasm(&self.general, &bytes, self.wat)?;
 
         if config.skip_validation {
             log::debug!("output validation was skipped");

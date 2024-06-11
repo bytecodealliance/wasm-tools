@@ -32,7 +32,7 @@
   (func (;5;) (type 0)
     try ;; label = @1
       try ;; label = @2
-      delegate 0 (;@2;)
+      delegate 0 (;@1;)
     catch 0
     end
   )

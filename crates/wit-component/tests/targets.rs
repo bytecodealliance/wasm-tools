@@ -1,6 +1,6 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use std::{fs, path::Path};
-use wit_parser::{Resolve, UnresolvedPackage, WorldId};
+use wit_parser::{Resolve, UnresolvedPackageGroup, WorldId};
 
 /// Tests whether a component targets a world.
 ///
@@ -79,11 +79,20 @@ fn load_test_wit(path: &Path) -> Result<(Resolve, WorldId)> {
     const TEST_TARGET_WORLD_ID: &str = "foobar";
 
     let test_wit_path = path.join("test.wit");
-    let package =
-        UnresolvedPackage::parse_file(&test_wit_path).context("failed to parse WIT package")?;
+    let UnresolvedPackageGroup {
+        mut packages,
+        source_map,
+    } = UnresolvedPackageGroup::parse_file(&test_wit_path)
+        .context("failed to parse WIT package")?;
+    if packages.is_empty() {
+        bail!("Files were completely empty - are you sure these are the files you're looking for?")
+    }
+    if packages.len() > 1 {
+        bail!("Multi-package targeting tests are not yet supported.")
+    }
 
     let mut resolve = Resolve::default();
-    let package_id = resolve.push(package)?;
+    let package_id = resolve.push(packages.remove(0), &source_map)?;
 
     let world_id = resolve
         .select_world(package_id, Some(TEST_TARGET_WORLD_ID))

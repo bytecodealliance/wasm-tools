@@ -110,6 +110,13 @@
           "value": "9"
         }
       ]
+    },
+    {
+      "type": "assert_invalid",
+      "line": 78,
+      "filename": "br_on_non_null.3.wasm",
+      "text": "type mismatch",
+      "module_type": "binary"
     }
   ]
 }

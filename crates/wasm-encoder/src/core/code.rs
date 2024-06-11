@@ -83,11 +83,13 @@ impl CodeSection {
     /// into a new code section encoder:
     ///
     /// ```
+    /// # use wasmparser::{BinaryReader, WasmFeatures, CodeSectionReader};
     /// //                  id, size, # entries, entry
     /// let code_section = [10, 6,    1,         4, 0, 65, 0, 11];
     ///
     /// // Parse the code section.
-    /// let reader = wasmparser::CodeSectionReader::new(&code_section, 0).unwrap();
+    /// let reader = BinaryReader::new(&code_section, 0, WasmFeatures::all());
+    /// let reader = CodeSectionReader::new(reader).unwrap();
     /// let body = reader.into_iter().next().unwrap().unwrap();
     /// let body_range = body.range();
     ///
@@ -271,6 +273,34 @@ impl Encode for MemArg {
             self.memory_index.encode(sink);
             self.offset.encode(sink);
         }
+    }
+}
+
+/// The memory ordering for atomic instructions.
+///
+/// For an in-depth explanation of memory orderings, see the C++ documentation
+/// for [`memory_order`] or the Rust documentation for [`atomic::Ordering`].
+///
+/// [`memory_order`]: https://en.cppreference.com/w/cpp/atomic/memory_order
+/// [`atomic::Ordering`]: https://doc.rust-lang.org/std/sync/atomic/enum.Ordering.html
+#[derive(Clone, Copy, Debug)]
+pub enum Ordering {
+    /// For a load, it acquires; this orders all operations before the last
+    /// "releasing" store. For a store, it releases; this orders all operations
+    /// before it at the next "acquiring" load.
+    AcqRel,
+    /// Like `AcqRel` but all threads see all sequentially consistent operations
+    /// in the same order.
+    SeqCst,
+}
+
+impl Encode for Ordering {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        let flag: u8 = match self {
+            Ordering::SeqCst => 0,
+            Ordering::AcqRel => 1,
+        };
+        sink.push(flag);
     }
 }
 
@@ -980,6 +1010,44 @@ pub enum Instruction<'a> {
     I64AtomicRmw8CmpxchgU(MemArg),
     I64AtomicRmw16CmpxchgU(MemArg),
     I64AtomicRmw32CmpxchgU(MemArg),
+
+    // More atomic instructions (the shared-everything-threads proposal)
+    GlobalAtomicGet {
+        ordering: Ordering,
+        global_index: u32,
+    },
+    GlobalAtomicSet {
+        ordering: Ordering,
+        global_index: u32,
+    },
+    GlobalAtomicRmwAdd {
+        ordering: Ordering,
+        global_index: u32,
+    },
+    GlobalAtomicRmwSub {
+        ordering: Ordering,
+        global_index: u32,
+    },
+    GlobalAtomicRmwAnd {
+        ordering: Ordering,
+        global_index: u32,
+    },
+    GlobalAtomicRmwOr {
+        ordering: Ordering,
+        global_index: u32,
+    },
+    GlobalAtomicRmwXor {
+        ordering: Ordering,
+        global_index: u32,
+    },
+    GlobalAtomicRmwXchg {
+        ordering: Ordering,
+        global_index: u32,
+    },
+    GlobalAtomicRmwCmpxchg {
+        ordering: Ordering,
+        global_index: u32,
+    },
 }
 
 impl Encode for Instruction<'_> {
@@ -2787,7 +2855,7 @@ impl Encode for Instruction<'_> {
                 0x113u32.encode(sink);
             }
 
-            // Atmoic instructions from the thread proposal
+            // Atomic instructions from the thread proposal
             Instruction::MemoryAtomicNotify(memarg) => {
                 sink.push(0xFE);
                 sink.push(0x00);
@@ -3123,6 +3191,89 @@ impl Encode for Instruction<'_> {
                 sink.push(0x4E);
                 memarg.encode(sink);
             }
+
+            // Atomic instructions from the shared-everything-threads proposal
+            Instruction::GlobalAtomicGet {
+                ordering,
+                global_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x4F);
+                ordering.encode(sink);
+                global_index.encode(sink);
+            }
+            Instruction::GlobalAtomicSet {
+                ordering,
+                global_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x50);
+                ordering.encode(sink);
+                global_index.encode(sink);
+            }
+            Instruction::GlobalAtomicRmwAdd {
+                ordering,
+                global_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x51);
+                ordering.encode(sink);
+                global_index.encode(sink);
+            }
+            Instruction::GlobalAtomicRmwSub {
+                ordering,
+                global_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x52);
+                ordering.encode(sink);
+                global_index.encode(sink);
+            }
+            Instruction::GlobalAtomicRmwAnd {
+                ordering,
+                global_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x53);
+                ordering.encode(sink);
+                global_index.encode(sink);
+            }
+            Instruction::GlobalAtomicRmwOr {
+                ordering,
+                global_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x54);
+                ordering.encode(sink);
+                global_index.encode(sink);
+            }
+            Instruction::GlobalAtomicRmwXor {
+                ordering,
+                global_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x55);
+                ordering.encode(sink);
+                global_index.encode(sink);
+            }
+            Instruction::GlobalAtomicRmwXchg {
+                ordering,
+                global_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x56);
+                ordering.encode(sink);
+                global_index.encode(sink);
+            }
+            Instruction::GlobalAtomicRmwCmpxchg {
+                ordering,
+                global_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x57);
+                ordering.encode(sink);
+                global_index.encode(sink);
+            }
         }
     }
 }
@@ -3380,10 +3531,10 @@ impl<'a> TryFrom<wasmparser::ConstExpr<'a>> for ConstExpr {
             Some(Ok(wasmparser::Operator::I32Const { value })) => ConstExpr::i32_const(value),
             Some(Ok(wasmparser::Operator::I64Const { value })) => ConstExpr::i64_const(value),
             Some(Ok(wasmparser::Operator::F32Const { value })) => {
-                ConstExpr::f32_const(value.bits() as _)
+                ConstExpr::f32_const(f32::from_bits(value.bits()))
             }
             Some(Ok(wasmparser::Operator::F64Const { value })) => {
-                ConstExpr::f64_const(value.bits() as _)
+                ConstExpr::f64_const(f64::from_bits(value.bits()))
             }
             Some(Ok(wasmparser::Operator::V128Const { value })) => {
                 ConstExpr::v128_const(i128::from_le_bytes(*value.bytes()))

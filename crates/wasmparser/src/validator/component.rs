@@ -10,6 +10,8 @@ use super::{
         ModuleType, RecordType, Remapping, ResourceId, TypeAlloc, TypeList, VariantCase,
     },
 };
+use crate::collections::index_map::Entry;
+use crate::prelude::*;
 use crate::validator::names::{ComponentName, ComponentNameKind, KebabStr, KebabString};
 use crate::{
     limits::*,
@@ -23,9 +25,7 @@ use crate::{
     InstantiationArgKind, MemoryType, RecGroup, Result, SubType, TableType, TypeBounds, ValType,
     WasmFeatures,
 };
-use indexmap::{map::Entry, IndexMap, IndexSet};
-use std::collections::{HashMap, HashSet};
-use std::mem;
+use core::mem;
 
 fn to_kebab_str<'a>(s: &'a str, desc: &str, offset: usize) -> Result<&'a KebabStr> {
     match KebabStr::new(s) {
@@ -152,10 +152,10 @@ pub(crate) struct ComponentState {
     ///
     /// This set is consulted whenever an exported item is added since all
     /// referenced types must be members of this set.
-    exported_types: HashSet<ComponentAnyTypeId>,
+    exported_types: Set<ComponentAnyTypeId>,
 
     /// Same as `exported_types`, but for imports.
-    imported_types: HashSet<ComponentAnyTypeId>,
+    imported_types: Set<ComponentAnyTypeId>,
 
     /// The set of top-level resource exports and their names.
     ///
@@ -185,7 +185,7 @@ pub enum ComponentKind {
 struct ComponentNameContext {
     /// A map from a resource type id to an index in the `all_resource_names`
     /// set for the name of that resource.
-    resource_name_map: HashMap<AliasableResourceId, usize>,
+    resource_name_map: Map<AliasableResourceId, usize>,
 
     /// All known resource names in this context, used to validate static method
     /// names to by ensuring that static methods' resource names are somewhere
@@ -669,7 +669,7 @@ impl ComponentState {
         &self,
         types: &TypeAlloc,
         id: ComponentAnyTypeId,
-        set: &HashSet<ComponentAnyTypeId>,
+        set: &Set<ComponentAnyTypeId>,
     ) -> bool {
         match id {
             // Resource types, in isolation, are always valid to import or
@@ -694,7 +694,7 @@ impl ComponentState {
         &self,
         types: &TypeAlloc,
         id: ComponentInstanceTypeId,
-        set: &HashSet<ComponentAnyTypeId>,
+        set: &Set<ComponentAnyTypeId>,
     ) -> bool {
         // Instances must recursively have all referenced types named.
         let ty = &types[id];
@@ -719,7 +719,7 @@ impl ComponentState {
         &self,
         types: &TypeAlloc,
         id: ComponentDefinedTypeId,
-        set: &HashSet<ComponentAnyTypeId>,
+        set: &Set<ComponentAnyTypeId>,
     ) -> bool {
         let ty = &types[id];
         match ty {
@@ -757,7 +757,7 @@ impl ComponentState {
 
             // The resource referred to by own/borrow must be named.
             ComponentDefinedType::Own(id) | ComponentDefinedType::Borrow(id) => {
-                set.contains(&(*id).into())
+                set.contains(&ComponentAnyTypeId::from(*id))
             }
         }
     }
@@ -766,7 +766,7 @@ impl ComponentState {
         &self,
         types: &TypeAlloc,
         id: ComponentFuncTypeId,
-        set: &HashSet<ComponentAnyTypeId>,
+        set: &Set<ComponentAnyTypeId>,
     ) -> bool {
         let ty = &types[id];
         // Function types must have all their parameters/results named.
@@ -1006,7 +1006,7 @@ impl ComponentState {
         self.check_options(None, &info, &options, types, offset)?;
 
         let lowered_ty = SubType {
-            is_final: false,
+            is_final: true,
             supertype_idx: None,
             composite_type: CompositeType::Func(info.into_func_type()),
         };
@@ -1027,7 +1027,7 @@ impl ComponentState {
     ) -> Result<()> {
         let rep = self.check_local_resource(resource, types, offset)?;
         let core_ty = SubType {
-            is_final: false,
+            is_final: true,
             supertype_idx: None,
             composite_type: CompositeType::Func(FuncType::new([rep], [ValType::I32])),
         };
@@ -1046,7 +1046,7 @@ impl ComponentState {
     ) -> Result<()> {
         self.resource_at(resource, types, offset)?;
         let core_ty = SubType {
-            is_final: false,
+            is_final: true,
             supertype_idx: None,
             composite_type: CompositeType::Func(FuncType::new([ValType::I32], [])),
         };
@@ -1065,7 +1065,7 @@ impl ComponentState {
     ) -> Result<()> {
         let rep = self.check_local_resource(resource, types, offset)?;
         let core_ty = SubType {
-            is_final: false,
+            is_final: true,
             supertype_idx: None,
             composite_type: CompositeType::Func(FuncType::new([ValType::I32], [rep])),
         };
@@ -1191,7 +1191,7 @@ impl ComponentState {
         types: &mut TypeList,
         offset: usize,
     ) -> Result<()> {
-        if !features.contains(WasmFeatures::COMPONENT_MODEL_VALUES) {
+        if !features.component_model_values() {
             bail!(
                 offset,
                 "support for component model `value`s is not enabled"
@@ -1503,13 +1503,6 @@ impl ComponentState {
                     state.add_export(name, ty, features, offset, true, types)?;
                 }
                 crate::ModuleTypeDeclaration::OuterAlias { kind, count, index } => {
-                    if count > 1 {
-                        return Err(BinaryReaderError::new(
-                            "outer type aliases in module type declarations are limited to a \
-                             maximum count of 1",
-                            offset,
-                        ));
-                    }
                     match kind {
                         crate::OuterAliasKind::Type => {
                             let ty = if count == 0 {
@@ -1656,14 +1649,15 @@ impl ComponentState {
     ) -> Result<ComponentFuncType> {
         let mut info = TypeInfo::new();
 
-        let mut set =
-            HashSet::with_capacity(std::cmp::max(ty.params.len(), ty.results.type_count()));
+        let mut set = Set::default();
+        #[cfg(not(feature = "no-hash-maps"))] // TODO: remove when unified map type is available
+        set.reserve(core::cmp::max(ty.params.len(), ty.results.type_count()));
 
         let params = ty
             .params
             .iter()
             .map(|(name, ty)| {
-                let name = to_kebab_str(name, "function parameter", offset)?;
+                let name: &KebabStr = to_kebab_str(name, "function parameter", offset)?;
                 if !set.insert(name) {
                     bail!(
                         offset,
@@ -1740,7 +1734,7 @@ impl ComponentState {
         }
 
         let module_type_id = self.module_at(module_index, offset)?;
-        let mut args = IndexMap::new();
+        let mut args = IndexMap::default();
 
         // Populate the arguments
         for module_arg in module_args {
@@ -1802,7 +1796,7 @@ impl ComponentState {
         offset: usize,
     ) -> Result<ComponentInstanceTypeId> {
         let component_type_id = self.component_at(component_index, offset)?;
-        let mut args = IndexMap::new();
+        let mut args = IndexMap::default();
 
         // Populate the arguments
         for component_arg in component_args {
@@ -2025,7 +2019,7 @@ impl ComponentState {
         //
         // In debug mode, however, do a sanity check.
         if cfg!(debug_assertions) {
-            let mut free = IndexSet::new();
+            let mut free = IndexSet::default();
             for ty in exports.values() {
                 types.free_variables_component_entity(ty, &mut free);
             }
@@ -2070,9 +2064,9 @@ impl ComponentState {
         offset: usize,
     ) -> Result<ComponentInstanceTypeId> {
         let mut info = TypeInfo::new();
-        let mut inst_exports = IndexMap::new();
-        let mut explicit_resources = IndexMap::new();
-        let mut export_names = IndexSet::new();
+        let mut inst_exports = IndexMap::default();
+        let mut explicit_resources = IndexMap::default();
+        let mut export_names = IndexSet::default();
 
         // NB: It's intentional that this context is empty since no indices are
         // introduced in the bag-of-exports construct which means there's no
@@ -2209,7 +2203,7 @@ impl ComponentState {
         }
 
         let mut info = TypeInfo::new();
-        let mut inst_exports = IndexMap::new();
+        let mut inst_exports = IndexMap::default();
         for export in exports {
             match export.kind {
                 ExternalKind::Func => {
@@ -2485,7 +2479,7 @@ impl ComponentState {
         let pos_after_component = components.len() - (count as usize);
         if let Some(component) = components.get(pos_after_component) {
             if component.kind == ComponentKind::Component {
-                let mut free = IndexSet::new();
+                let mut free = IndexSet::default();
                 types.free_variables_any_type_id(ty, &mut free);
                 if !free.is_empty() {
                     bail!(
@@ -2567,7 +2561,8 @@ impl ComponentState {
         offset: usize,
     ) -> Result<ComponentDefinedType> {
         let mut info = TypeInfo::new();
-        let mut field_map = IndexMap::with_capacity(fields.len());
+        let mut field_map = IndexMap::default();
+        field_map.reserve(fields.len());
 
         if fields.is_empty() {
             bail!(offset, "record type must have at least one field");
@@ -2603,7 +2598,8 @@ impl ComponentState {
         offset: usize,
     ) -> Result<ComponentDefinedType> {
         let mut info = TypeInfo::new();
-        let mut case_map: IndexMap<KebabString, VariantCase> = IndexMap::with_capacity(cases.len());
+        let mut case_map: IndexMap<KebabString, VariantCase> = IndexMap::default();
+        case_map.reserve(cases.len());
 
         if cases.is_empty() {
             bail!(offset, "variant type must have at least one case");
@@ -2686,7 +2682,8 @@ impl ComponentState {
     }
 
     fn create_flags_type(&self, names: &[&str], offset: usize) -> Result<ComponentDefinedType> {
-        let mut names_set = IndexSet::with_capacity(names.len());
+        let mut names_set = IndexSet::default();
+        names_set.reserve(names.len());
 
         if names.is_empty() {
             bail!(offset, "flags must have at least one entry");
@@ -2718,7 +2715,8 @@ impl ComponentState {
             bail!(offset, "enum type must have at least one variant");
         }
 
-        let mut tags = IndexSet::with_capacity(cases.len());
+        let mut tags = IndexSet::default();
+        tags.reserve(cases.len());
 
         for tag in cases {
             let tag = to_kebab_str(tag, "enum tag", offset)?;
@@ -2987,7 +2985,7 @@ impl ComponentState {
     }
 
     fn check_value_support(&self, features: &WasmFeatures, offset: usize) -> Result<()> {
-        if !features.contains(WasmFeatures::COMPONENT_MODEL_VALUES) {
+        if !features.component_model_values() {
             bail!(
                 offset,
                 "support for component model `value`s is not enabled"
@@ -3199,15 +3197,15 @@ impl ComponentNameContext {
 use self::append_only::*;
 
 mod append_only {
-    use indexmap::IndexMap;
-    use std::hash::Hash;
-    use std::ops::Deref;
+    use crate::prelude::IndexMap;
+    use core::hash::Hash;
+    use core::ops::Deref;
 
     pub struct IndexMapAppendOnly<K, V>(IndexMap<K, V>);
 
     impl<K, V> IndexMapAppendOnly<K, V>
     where
-        K: Hash + Eq + PartialEq,
+        K: Hash + Eq + Ord + PartialEq + Clone,
     {
         pub fn insert(&mut self, key: K, value: V) {
             let prev = self.0.insert(key, value);

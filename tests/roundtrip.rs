@@ -116,9 +116,8 @@ fn find_tests() -> Vec<PathBuf> {
 /// Note that this is used to skip tests for all crates, not just one at a
 /// time. There's further filters applied while testing.
 fn skip_test(test: &Path, contents: &[u8]) -> bool {
-    // currently no tests are skipped
-    let _ = (test, contents);
-    false
+    let _ = contents;
+    test.iter().any(|p| p == "exception-handling") && test.iter().any(|p| p == "legacy")
 }
 
 fn skip_validation(_test: &Path) -> bool {
@@ -651,6 +650,7 @@ fn error_matches(error: &str, message: &str) -> bool {
         || message == "malformed annotation id"
         || message == "alignment must be a power of two"
         || message == "i32 constant out of range"
+        || message == "constant expression required"
     {
         return error.contains("expected ")
             || error.contains("constant out of range")
@@ -666,16 +666,8 @@ fn error_matches(error: &str, message: &str) -> bool {
         return error.contains("unexpected end-of-file");
     }
 
-    if message == "malformed UTF-8 encoding" {
-        return error.contains("invalid UTF-8 encoding");
-    }
-
     if message == "duplicate identifier" {
         return error.contains("duplicate") && error.contains("identifier");
-    }
-
-    if message == "unknown memory" {
-        return error.contains("no linear memories are present");
     }
 
     // wasmparser differentiates these cases, the spec interpreter apparently
@@ -714,9 +706,7 @@ fn error_matches(error: &str, message: &str) -> bool {
             // the spec interpreter will read past section boundaries when
             // decoding, wasmparser won't, producing different errors.
             || error.contains("unexpected end-of-file")
-            || error.contains("malformed section id")
-            // FIXME(WebAssembly/memory64#45)
-            || error.contains("trailing bytes at end of section");
+            || error.contains("malformed section id");
     }
 
     if message == "integer too large" {
@@ -731,19 +721,14 @@ fn error_matches(error: &str, message: &str) -> bool {
             // were inflated to a larger size while not updating the binary
             // encoding of the size of the section.
             || error.contains("invalid var_u32: integer representation too long")
-            || error.contains("malformed section id")
-            // FIXME(WebAssembly/memory64#45)
-            || error.contains("trailing bytes at end of section");
+            || error.contains("malformed section id");
     }
 
     // wasmparser blames a truncated file here, the spec interpreter blames the
     // section counts/lengths.
     if message == "length out of bounds" || message == "unexpected end of section or function" {
         return error.contains("unexpected end-of-file")
-            || error.contains("control frames remain at end of function")
-            // This is the same case as "unexpected end" (below) but in
-            // function-references fsr it includes "of section or function"
-            || error.contains("type index out of bounds");
+            || error.contains("control frames remain at end of function");
     }
 
     // binary.wast includes a test in which a 0b (End) is eaten by a botched
@@ -766,16 +751,6 @@ fn error_matches(error: &str, message: &str) -> bool {
             || error.contains("unexpected end-of-file");
     }
 
-    if message == "zero flag expected" {
-        return error.contains("zero byte expected")
-            // wasmparser defers some of these errors to validation
-            || error.contains("trailing bytes at end of section");
-    }
-
-    if message == "junk after last section" {
-        return error.contains("section out of order");
-    }
-
     // Our error for these tests is happening as a parser error of
     // the text file, not a validation error of the binary.
     if message == "memory size must be at most 65536 pages (4GiB)" {
@@ -783,17 +758,12 @@ fn error_matches(error: &str, message: &str) -> bool {
     }
 
     if message == "illegal opcode" {
-        // The test suite includes "bad opcodes" that later became valid opcodes
-        // (0xd4, function references proposal). However, they are still not
-        // constant expressions, so we can sidestep by checking for that error
-        // instead
-        return error.contains("constant expression required")
-            // The test suite contains a test with a global section where the
-            // init expression is truncated and doesn't have an "end"
-            // instruction. That's reported with wasmparser as end-of-file
-            // because the end of the section was reached while the spec
-            // interpreter says "illegal opcode".
-            || error.contains("unexpected end-of-file");
+        // The test suite contains a test with a global section where the
+        // init expression is truncated and doesn't have an "end"
+        // instruction. That's reported with wasmparser as end-of-file
+        // because the end of the section was reached while the spec
+        // interpreter says "illegal opcode".
+        return error.contains("unexpected end-of-file");
     }
     if message == "unknown global" {
         return error.contains("global.get of locally defined global");
@@ -801,10 +771,6 @@ fn error_matches(error: &str, message: &str) -> bool {
 
     if message == "immutable global" {
         return error.contains("global is immutable");
-    }
-
-    if message == "sub type" {
-        return error.contains("subtype");
     }
 
     if message.starts_with("unknown operator") {
@@ -815,14 +781,14 @@ fn error_matches(error: &str, message: &str) -> bool {
         return error.starts_with("type mismatch");
     }
 
-    if message == "malformed mutability" {
-        // When parsing a global `shared` type (e.g., `global (mut shared i32)
-        // ...`), many spec tests expect a `malformed mutability` error.
-        // Previously, `0x2` was an invalid flag but it now means `shared`. We
-        // accept either (a) a new, more accurate error message or (b) a
-        // validation error instead.
-        return error.contains("malformed global flags")
-            || error.contains("require the shared-everything-threads proposal");
+    if message == "table size must be at most 2^32-1" {
+        return error.contains("invalid u32 number: constant out of range");
+    }
+
+    // WebAssembly/annotations#25 - the spec interpreter's lexer is different
+    // than ours which produces a different error message.
+    if message == "empty identifier" || message == "empty annotation id" {
+        return error.contains("invalid character in string");
     }
 
     return false;

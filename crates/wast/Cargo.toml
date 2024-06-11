@@ -1,6 +1,6 @@
 [package]
 name = "wast"
-version = "204.0.0"
+version = "210.0.0"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 edition.workspace = true
 license = "Apache-2.0 WITH LLVM-exception"
@@ -11,6 +11,7 @@ documentation = "https://docs.rs/wast"
 description = """
 Customizable Rust parsers for the WebAssembly Text formats WAT and WAST
 """
+rust-version.workspace = true
 
 [lints]
 workspace = true

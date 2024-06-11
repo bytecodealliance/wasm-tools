@@ -1,0 +1,75 @@
+(module
+  (type (;0;) (func))
+  (func $fg (;0;) (type 0))
+  (func (;1;) (type 0)
+    call $fg
+  )
+  (func $03 (;2;) (type 0))
+  (func (;3;) (type 0)
+    call $03
+  )
+  (func $!?@#a$%^&*b-+_.:9'`|/\<=>~ (;4;) (type 0))
+  (func (;5;) (type 0)
+    call $!?@#a$%^&*b-+_.:9'`|/\<=>~
+  )
+  (func $#func6<_random_____stuff_> (@name " random \t \n stuff ") (;6;) (type 0))
+  (func (;7;) (type 0)
+    call $#func6<_random_____stuff_>
+  )
+  (func $#func8<___> (@name " ") (;8;) (type 0))
+  (func (;9;) (type 0)
+    call $#func8<___>
+  )
+  (func $fh (;10;) (type 0))
+  (func (;11;) (type 0)
+    call $fh
+  )
+  (func $fi (;12;) (type 0))
+  (func (;13;) (type 0)
+    call $fi
+  )
+  (func $!?@#a$%^&*-+_.:9'`|/\<=>~ (;14;) (type 0))
+  (func (;15;) (type 0)
+    call $!?@#a$%^&*-+_.:9'`|/\<=>~
+  )
+  (func $AB (;16;) (type 0))
+  (func (;17;) (type 0)
+    call $AB
+    call $AB
+    call $AB
+    call $AB
+  )
+  (func $#func18<_> (@name "\t") (;18;) (type 0))
+  (func (;19;) (type 0)
+    call $#func18<_>
+    call $#func18<_>
+  )
+  (func $#func20<__> (@name "") (;20;) (type 0))
+  (func (;21;) (type 0)
+    call $#func20<__>
+    call $#func20<__>
+  )
+  (func (;22;) (type 0)
+    block $l1
+      br $l1
+    end
+    block $007
+      br $007
+    end
+    block $!?@#a$%^&*-+_.:9'`|/\<=>~
+    end
+    i32.const 0
+    if $AB
+      br $AB
+    else
+    end
+    i32.const 0
+    if $#label4<_> (@name "\t")
+    else
+    end
+    i32.const 0
+    if $#label5<___> (@name " ")
+    else
+    end
+  )
+)

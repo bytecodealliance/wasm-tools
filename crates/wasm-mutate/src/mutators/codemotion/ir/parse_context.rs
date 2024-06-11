@@ -51,7 +51,6 @@ pub enum Node {
         alternative: Option<Vec<usize>>,
         /// The block type for the branches.
         ty: BlockType,
-        range: Range<usize>,
     },
     /// Code node
     Code {
@@ -73,8 +72,6 @@ pub enum Node {
         body: Vec<usize>,
         /// Block type
         ty: BlockType,
-        /// Range on the instructions stream
-        range: Range<usize>,
     },
     /// Special node to wrap the root nodes of the Ast
     Root(Vec<usize>),
@@ -147,7 +144,6 @@ impl ParseContext {
                 consequent: _,
                 alternative: _,
                 ty: _,
-                range: _,
             } => self.ifs.push(id),
             Node::Loop { .. } => self.loops.push(id),
             Node::Block { .. } => self.blocks.push(id),

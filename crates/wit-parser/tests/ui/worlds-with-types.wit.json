@@ -35,7 +35,9 @@
       "name": "bar",
       "imports": {
         "interface-0": {
-          "interface": 0
+          "interface": {
+            "id": 0
+          }
         },
         "t": {
           "type": 3

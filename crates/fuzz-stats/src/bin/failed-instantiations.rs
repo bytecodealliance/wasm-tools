@@ -40,11 +40,8 @@ fn under_10_percent() {
 
 impl State {
     fn new() -> State {
-        let mut config = Config::new();
-        config.wasm_multi_memory(true);
-        config.wasm_simd(true);
         State {
-            engine: Engine::new(&config).unwrap(),
+            engine: Engine::default(),
             print: true,
             total: AtomicUsize::new(0),
             remaining: AtomicIsize::new(isize::max_value()),
@@ -101,6 +98,10 @@ impl State {
         // enabled until that's been worked on.
         let mut config = wasm_smith::Config::arbitrary(&mut u)?;
         config.allow_start_export = false;
+
+        // NB: just added "table64" support to this and wasmtime doesn't
+        // implement that yet
+        config.memory64_enabled = false;
 
         // Wasmtime doesn't support these proposals yet.
         config.gc_enabled = false;

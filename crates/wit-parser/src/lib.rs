@@ -9,14 +9,15 @@ use std::path::Path;
 #[cfg(feature = "decoding")]
 pub mod decoding;
 #[cfg(feature = "decoding")]
-mod docs;
+mod metadata;
 #[cfg(feature = "decoding")]
-pub use docs::PackageDocs;
+pub use metadata::PackageMetadata;
 
 pub mod abi;
 mod ast;
 use ast::lex::Span;
 pub use ast::SourceMap;
+pub use ast::{parse_use_path, ParsedUsePath};
 mod sizealign;
 pub use sizealign::*;
 mod resolve;
@@ -29,10 +30,7 @@ use serde_derive::Serialize;
 #[cfg(feature = "serde")]
 mod serde_;
 #[cfg(feature = "serde")]
-use serde_::{
-    serialize_anon_result, serialize_id, serialize_id_map, serialize_none, serialize_optional_id,
-    serialize_params,
-};
+use serde_::*;
 
 /// Checks if the given string is a legal identifier in wit.
 pub fn validate_id(s: &str) -> Result<()> {
@@ -111,9 +109,19 @@ pub struct UnresolvedPackage {
     unknown_type_spans: Vec<Span>,
     interface_spans: Vec<InterfaceSpan>,
     world_spans: Vec<WorldSpan>,
+    type_spans: Vec<Span>,
     foreign_dep_spans: Vec<Span>,
-    source_map: SourceMap,
     required_resource_types: Vec<(TypeId, Span)>,
+}
+
+/// Tracks a set of packages, all pulled from the same group of WIT source files.
+#[derive(Default)]
+pub struct UnresolvedPackageGroup {
+    /// A set of packages that share source file(s).
+    pub packages: Vec<UnresolvedPackage>,
+
+    /// A set of processed source files from which these packages have been parsed.
+    pub source_map: SourceMap,
 }
 
 #[derive(Clone)]
@@ -190,22 +198,38 @@ impl fmt::Display for PackageName {
 struct Error {
     span: Span,
     msg: String,
+    highlighted: Option<String>,
+}
+
+impl Error {
+    fn new(span: Span, msg: impl Into<String>) -> Error {
+        Error {
+            span,
+            msg: msg.into(),
+            highlighted: None,
+        }
+    }
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.msg.fmt(f)
+        self.highlighted.as_ref().unwrap_or(&self.msg).fmt(f)
     }
 }
 
 impl std::error::Error for Error {}
 
-impl UnresolvedPackage {
+impl UnresolvedPackageGroup {
+    /// Creates an empty set of packages.
+    pub fn new() -> UnresolvedPackageGroup {
+        UnresolvedPackageGroup::default()
+    }
+
     /// Parses the given string as a wit document.
     ///
     /// The `path` argument is used for error reporting. The `contents` provided
     /// will not be able to use `pkg` use paths to other documents.
-    pub fn parse(path: &Path, contents: &str) -> Result<Self> {
+    pub fn parse(path: &Path, contents: &str) -> Result<UnresolvedPackageGroup> {
         let mut map = SourceMap::default();
         map.push(path, contents);
         map.parse()
@@ -214,13 +238,13 @@ impl UnresolvedPackage {
     /// Parse a WIT package at the provided path.
     ///
     /// The path provided is inferred whether it's a file or a directory. A file
-    /// is parsed with [`UnresolvedPackage::parse_file`] and a directory is
-    /// parsed with [`UnresolvedPackage::parse_dir`].
-    pub fn parse_path(path: &Path) -> Result<Self> {
+    /// is parsed with [`UnresolvedPackageGroup::parse_file`] and a directory is
+    /// parsed with [`UnresolvedPackageGroup::parse_dir`].
+    pub fn parse_path(path: &Path) -> Result<UnresolvedPackageGroup> {
         if path.is_dir() {
-            UnresolvedPackage::parse_dir(path)
+            UnresolvedPackageGroup::parse_dir(path)
         } else {
-            UnresolvedPackage::parse_file(path)
+            UnresolvedPackageGroup::parse_file(path)
         }
     }
 
@@ -228,7 +252,7 @@ impl UnresolvedPackage {
     ///
     /// The WIT package returned will be a single-document package and will not
     /// be able to use `pkg` paths to other documents.
-    pub fn parse_file(path: &Path) -> Result<Self> {
+    pub fn parse_file(path: &Path) -> Result<UnresolvedPackageGroup> {
         let contents = std::fs::read_to_string(path)
             .with_context(|| format!("failed to read file {path:?}"))?;
         Self::parse(path, &contents)
@@ -238,7 +262,7 @@ impl UnresolvedPackage {
     ///
     /// All files with the extension `*.wit` or `*.wit.md` will be loaded from
     /// `path` into the returned package.
-    pub fn parse_dir(path: &Path) -> Result<Self> {
+    pub fn parse_dir(path: &Path) -> Result<UnresolvedPackageGroup> {
         let mut map = SourceMap::default();
         let cx = || format!("failed to read directory {path:?}");
         for entry in path.read_dir().with_context(&cx)? {
@@ -264,12 +288,6 @@ impl UnresolvedPackage {
         }
         map.parse()
     }
-
-    /// Returns an iterator over the list of source files that were read when
-    /// parsing this package.
-    pub fn source_files(&self) -> impl Iterator<Item = &Path> {
-        self.source_map.source_files()
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -292,9 +310,16 @@ pub struct World {
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
 
+    /// Stability annotation for this world itself.
+    #[cfg_attr(
+        feature = "serde",
+        serde(skip_serializing_if = "Stability::is_unknown")
+    )]
+    pub stability: Stability,
+
     /// All the included worlds from this world. Empty if this is fully resolved
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub includes: Vec<WorldId>,
+    pub includes: Vec<(Stability, WorldId)>,
 
     /// All the included worlds names. Empty if this is fully resolved
     #[cfg_attr(feature = "serde", serde(skip))]
@@ -348,8 +373,15 @@ impl WorldKey {
 pub enum WorldItem {
     /// An interface is being imported or exported from a world, indicating that
     /// it's a namespace of functions.
-    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
-    Interface(InterfaceId),
+    Interface {
+        #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
+        id: InterfaceId,
+        #[cfg_attr(
+            feature = "serde",
+            serde(skip_serializing_if = "Stability::is_unknown")
+        )]
+        stability: Stability,
+    },
 
     /// A function is being directly imported or exported from this world.
     Function(Function),
@@ -359,6 +391,16 @@ pub enum WorldItem {
     /// Note that types are never imported into worlds at this time.
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
     Type(TypeId),
+}
+
+impl WorldItem {
+    pub fn stability<'a>(&'a self, resolve: &'a Resolve) -> &'a Stability {
+        match self {
+            WorldItem::Interface { stability, .. } => stability,
+            WorldItem::Function(f) => &f.stability,
+            WorldItem::Type(id) => &resolve.types[*id].stability,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -383,6 +425,13 @@ pub struct Interface {
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
 
+    /// Stability attribute for this interface.
+    #[cfg_attr(
+        feature = "serde",
+        serde(skip_serializing_if = "Stability::is_unknown")
+    )]
+    pub stability: Stability,
+
     /// The package that owns this interface.
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_optional_id"))]
     pub package: Option<PackageId>,
@@ -396,6 +445,12 @@ pub struct TypeDef {
     pub owner: TypeOwner,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
+    /// Stability attribute for this type.
+    #[cfg_attr(
+        feature = "serde",
+        serde(skip_serializing_if = "Stability::is_unknown")
+    )]
+    pub stability: Stability,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -724,6 +779,12 @@ pub struct Function {
     pub results: Results,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
+    /// Stability attribute for this function.
+    #[cfg_attr(
+        feature = "serde",
+        serde(skip_serializing_if = "Stability::is_unknown")
+    )]
+    pub stability: Stability,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -756,6 +817,50 @@ impl Function {
             Some(interface) => Cow::Owned(format!("{interface}#{}", self.name)),
             None => Cow::Borrowed(&self.name),
         }
+    }
+}
+
+/// Representation of the stability attributes associated with a world,
+/// interface, function, or type.
+///
+/// This is added for WebAssembly/component-model#332 where @since and @unstable
+/// annotations were added to WIT.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde_derive::Deserialize, Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+pub enum Stability {
+    /// `@since(version = 1.2.3)`
+    ///
+    /// This item is explicitly tagged with `@since` as stable since the
+    /// specified version.  This may optionally have a feature listed as well.
+    Stable {
+        #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_version"))]
+        #[cfg_attr(feature = "serde", serde(deserialize_with = "deserialize_version"))]
+        since: Version,
+        #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+        feature: Option<String>,
+    },
+
+    /// `@unstable(feature = foo)`
+    ///
+    /// This item is explicitly tagged `@unstable`. A feature name is listed and
+    /// this item is excluded by default in `Resolve` unless explicitly enabled.
+    Unstable { feature: String },
+
+    /// This item does not have either `@since` or `@unstable`.
+    Unknown,
+}
+
+impl Stability {
+    /// Returns whether this is `Stability::Unknown`.
+    pub fn is_unknown(&self) -> bool {
+        matches!(self, Stability::Unknown)
+    }
+}
+
+impl Default for Stability {
+    fn default() -> Stability {
+        Stability::Unknown
     }
 }
 

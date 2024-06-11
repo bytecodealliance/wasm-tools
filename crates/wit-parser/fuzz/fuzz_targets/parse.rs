@@ -10,5 +10,8 @@ fuzz_target!(|data: &[u8]| {
         Err(_) => return,
     };
 
-    drop(wit_parser::UnresolvedPackage::parse("foo".as_ref(), &data));
+    drop(wit_parser::UnresolvedPackageGroup::parse(
+        "foo".as_ref(),
+        &data,
+    ));
 });

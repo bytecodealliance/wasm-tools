@@ -17,7 +17,7 @@
  0x20 | 01          | [func 3] type 1
  0x21 | 04 04       | table section
  0x23 | 01          | 1 count
- 0x24 | 70 00 01    | [table 0] Table { ty: TableType { element_type: funcref, initial: 1, maximum: None }, init: RefNull }
+ 0x24 | 70 00 01    | [table 0] Table { ty: TableType { element_type: funcref, table64: false, initial: 1, maximum: None }, init: RefNull }
  0x27 | 05 03       | memory section
  0x29 | 01          | 1 count
  0x2a | 00 01       | [memory 0] MemoryType { memory64: false, shared: false, initial: 1, maximum: None, page_size_log2: None }

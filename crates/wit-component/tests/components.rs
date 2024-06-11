@@ -1,9 +1,10 @@
 use anyhow::{bail, Context, Error, Result};
+use libtest_mimic::{Arguments, Trial};
 use pretty_assertions::assert_eq;
 use std::{borrow::Cow, fs, path::Path};
 use wasm_encoder::{Encode, Section};
 use wit_component::{ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter};
-use wit_parser::{PackageId, Resolve, UnresolvedPackage};
+use wit_parser::{PackageId, Resolve, UnresolvedPackageGroup};
 
 /// Tests the encoding of components.
 ///
@@ -50,31 +51,56 @@ use wit_parser::{PackageId, Resolve, UnresolvedPackage};
 ///
 /// Run the test with the environment variable `BLESS` set to update
 /// either `component.wat` or `error.txt` depending on the outcome of the encoding.
-#[test]
-fn component_encoding_via_flags() -> Result<()> {
+fn main() -> Result<()> {
     drop(env_logger::try_init());
 
+    let mut trials = Vec::new();
     for entry in fs::read_dir("tests/components")? {
         let path = entry?.path();
         if !path.is_dir() {
             continue;
         }
 
-        let test_case = path.file_stem().unwrap().to_str().unwrap();
-        println!("testing {test_case}");
+        trials.push(Trial::test(path.to_str().unwrap().to_string(), move || {
+            run_test(&path).map_err(|e| format!("{e:?}").into())
+        }));
+    }
 
-        let mut resolve = Resolve::default();
-        let (pkg, _) = resolve.push_dir(&path)?;
+    let mut args = Arguments::from_args();
+    if cfg!(target_family = "wasm") && !cfg!(target_feature = "atomics") {
+        args.test_threads = Some(1);
+    }
+    libtest_mimic::run(&args, trials).exit();
+}
+
+fn run_test(path: &Path) -> Result<()> {
+    let test_case = path.file_stem().unwrap().to_str().unwrap();
+    let mut resolve = Resolve::default();
+    let (pkg_ids, _) = resolve.push_dir(&path)?;
+    let pkg_count = pkg_ids.len();
+
+    for pkg_id in pkg_ids {
+        // If this test case contained multiple packages, create separate sub-directories for
+        // each.
+        let mut path = path.to_path_buf();
+        if pkg_count > 1 {
+            let pkg_name = &resolve.packages[pkg_id].name;
+            path.push(pkg_name.namespace.clone());
+            path.push(pkg_name.name.clone());
+            fs::create_dir_all(path.clone())?;
+        }
 
         let module_path = path.join("module.wat");
         let mut adapters = glob::glob(path.join("adapt-*.wat").to_str().unwrap())?;
         let result = if module_path.is_file() {
-            let module = read_core_module(&module_path, &resolve, pkg)?;
+            let module = read_core_module(&module_path, &resolve, pkg_id)
+                .with_context(|| format!("failed to read core module at {module_path:?}"))?;
             adapters
                 .try_fold(
                     ComponentEncoder::default().module(&module)?.validate(true),
                     |encoder, path| {
-                        let (name, wasm) = read_name_and_module("adapt-", &path?, &resolve, pkg)?;
+                        let (name, wasm) =
+                            read_name_and_module("adapt-", &path?, &resolve, pkg_id)?;
                         Ok::<_, Error>(encoder.adapter(&name, &wasm)?)
                     },
                 )?
@@ -104,13 +130,13 @@ fn component_encoding_via_flags() -> Result<()> {
             let linker =
                 libs.into_iter()
                     .try_fold(linker, |linker, (prefix, path, dl_openable)| {
-                        let (name, wasm) = read_name_and_module(prefix, &path, &resolve, pkg)?;
+                        let (name, wasm) = read_name_and_module(prefix, &path, &resolve, pkg_id)?;
                         Ok::<_, Error>(linker.library(&name, &wasm, dl_openable)?)
                     })?;
 
             adapters
                 .try_fold(linker, |linker, path| {
-                    let (name, wasm) = read_name_and_module("adapt-", &path?, &resolve, pkg)?;
+                    let (name, wasm) = read_name_and_module("adapt-", &path?, &resolve, pkg_id)?;
                     Ok::<_, Error>(linker.adapter(&name, &wasm)?)
                 })?
                 .encode()
@@ -131,22 +157,25 @@ fn component_encoding_via_flags() -> Result<()> {
                     return Err(err);
                 }
                 assert_output(&format!("{err:?}"), &error_path)?;
-                continue;
+                return Ok(());
             }
         };
 
-        let wat = wasmprinter::print_bytes(&bytes)?;
+        let wat = wasmprinter::print_bytes(&bytes).context("failed to print bytes")?;
         assert_output(&wat, &component_path)?;
-        let (pkg, resolve) = match wit_component::decode(&bytes)? {
-            DecodedWasm::WitPackage(..) => unreachable!(),
-            DecodedWasm::Component(resolve, world) => {
-                (resolve.worlds[world].package.unwrap(), resolve)
-            }
-        };
-        let wit = WitPrinter::default().print(&resolve, pkg)?;
+        let (pkg, resolve) =
+            match wit_component::decode(&bytes).context("failed to decode resolve")? {
+                DecodedWasm::WitPackages(..) => unreachable!(),
+                DecodedWasm::Component(resolve, world) => {
+                    (resolve.worlds[world].package.unwrap(), resolve)
+                }
+            };
+        let wit = WitPrinter::default()
+            .print(&resolve, &[pkg])
+            .context("failed to print WIT")?;
         assert_output(&wit, &component_wit_path)?;
 
-        UnresolvedPackage::parse(&component_wit_path, &wit)
+        UnresolvedPackageGroup::parse(&component_wit_path, &wit)
             .context("failed to parse printed WIT")?;
 
         // Check that the producer data got piped through properly
@@ -192,7 +221,8 @@ fn read_name_and_module(
     resolve: &Resolve,
     pkg: PackageId,
 ) -> Result<(String, Vec<u8>)> {
-    let wasm = read_core_module(path, resolve, pkg)?;
+    let wasm = read_core_module(path, resolve, pkg)
+        .with_context(|| format!("failed to read core module at {path:?}"))?;
     let stem = path.file_stem().unwrap().to_str().unwrap();
     let name = if let Some(name) = fs::read_to_string(path)?
         .lines()

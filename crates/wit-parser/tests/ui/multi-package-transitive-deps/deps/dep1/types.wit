@@ -1,0 +1,9 @@
+package foo:dep1;
+
+interface types {
+  use foo:dep2/types.{a};
+
+  record r {
+    f: u8,
+  }
+}
