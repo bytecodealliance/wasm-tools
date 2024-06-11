@@ -228,10 +228,11 @@ impl UnresolvedPackageGroup {
     /// Parses the given string as a wit document.
     ///
     /// The `path` argument is used for error reporting. The `contents` provided
-    /// will not be able to use `pkg` use paths to other documents.
-    pub fn parse(path: &Path, contents: &str) -> Result<UnresolvedPackageGroup> {
+    /// are considered to be the contents of `path`. This function does not read
+    /// the filesystem.
+    pub fn parse(path: impl AsRef<Path>, contents: &str) -> Result<UnresolvedPackageGroup> {
         let mut map = SourceMap::default();
-        map.push(path, contents);
+        map.push(path.as_ref(), contents);
         map.parse()
     }
 
@@ -240,7 +241,8 @@ impl UnresolvedPackageGroup {
     /// The path provided is inferred whether it's a file or a directory. A file
     /// is parsed with [`UnresolvedPackageGroup::parse_file`] and a directory is
     /// parsed with [`UnresolvedPackageGroup::parse_dir`].
-    pub fn parse_path(path: &Path) -> Result<UnresolvedPackageGroup> {
+    pub fn parse_path(path: impl AsRef<Path>) -> Result<UnresolvedPackageGroup> {
+        let path = path.as_ref();
         if path.is_dir() {
             UnresolvedPackageGroup::parse_dir(path)
         } else {
@@ -250,9 +252,10 @@ impl UnresolvedPackageGroup {
 
     /// Parses a WIT package from the file provided.
     ///
-    /// The WIT package returned will be a single-document package and will not
-    /// be able to use `pkg` paths to other documents.
-    pub fn parse_file(path: &Path) -> Result<UnresolvedPackageGroup> {
+    /// The return value represents all packages found in the WIT file which
+    /// might be either one or multiple depending on the syntax used.
+    pub fn parse_file(path: impl AsRef<Path>) -> Result<UnresolvedPackageGroup> {
+        let path = path.as_ref();
         let contents = std::fs::read_to_string(path)
             .with_context(|| format!("failed to read file {path:?}"))?;
         Self::parse(path, &contents)
@@ -260,9 +263,12 @@ impl UnresolvedPackageGroup {
 
     /// Parses a WIT package from the directory provided.
     ///
-    /// All files with the extension `*.wit` or `*.wit.md` will be loaded from
-    /// `path` into the returned package.
-    pub fn parse_dir(path: &Path) -> Result<UnresolvedPackageGroup> {
+    /// This method will look at all files under the `path` specified. All
+    /// `*.wit` files are parsed and assumed to be part of the same package
+    /// grouping. This is useful when a WIT package is split across multiple
+    /// files.
+    pub fn parse_dir(path: impl AsRef<Path>) -> Result<UnresolvedPackageGroup> {
+        let path = path.as_ref();
         let mut map = SourceMap::default();
         let cx = || format!("failed to read directory {path:?}");
         for entry in path.read_dir().with_context(&cx)? {
@@ -281,7 +287,7 @@ impl UnresolvedPackageGroup {
                 Some(name) => name,
                 None => continue,
             };
-            if !filename.ends_with(".wit") && !filename.ends_with(".wit.md") {
+            if !filename.ends_with(".wit") {
                 continue;
             }
             map.push_file(&path)?;
