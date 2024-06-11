@@ -10,6 +10,8 @@
 
 # Installation
 
+[`wasm-tools parse`](https://bytecodealliance.github.io/wasm-tools/parse) and [`wasm-tools print`](https://bytecodealliance.github.io/wasm-tools/print) can be used from the web.
+
 [Precompiled artifacts built on CI][artifacts] are available for download for
 each release.
 
