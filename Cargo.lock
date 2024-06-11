@@ -1892,6 +1892,7 @@ dependencies = [
  "wast",
  "wat",
  "wit-component",
+ "wit-encoder",
  "wit-parser 0.204.0",
  "wit-smith",
 ]
