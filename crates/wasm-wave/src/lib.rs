@@ -20,10 +20,10 @@ use writer::Writer;
 
 /// Parses a [`WasmValue`] from the given WAVE-encoded string.
 /// ```
-/// use wasmtime::component::{Type, Val};
 /// # fn main() -> Result<(), wasm_wave::parser::ParserError> {
-/// let val: Val = wasm_wave::from_str(&Type::Char, r"'\u{1F44B}'")?;
-/// assert_eq!(val, Val::Char('👋'));
+/// use wasm_wave::{wasm::WasmValue, value::{Type, Value}};
+/// let val: Value = wasm_wave::from_str(&Type::CHAR, r"'\u{1F44B}'")?;
+/// assert_eq!(val, Value::make_char('👋'));
 /// # Ok(())
 /// # }
 /// ```
@@ -40,9 +40,9 @@ pub fn from_str<V: WasmValue>(ty: &V::Type, s: &str) -> Result<V, parser::Parser
 
 /// Returns the given [`WasmValue`] as a WAVE-encoded string.
 /// ```
-/// use wasmtime::component::Val;
 /// # fn main() -> Result<(), wasm_wave::writer::WriterError> {
-/// let wave_str = wasm_wave::to_string(&Val::Char('\u{1F44B}'))?;
+/// use wasm_wave::{wasm::WasmValue, value::Value};
+/// let wave_str = wasm_wave::to_string(&Value::make_char('\u{1F44B}'))?;
 /// assert_eq!(wave_str, "'👋'");
 /// # Ok(())
 /// # }
