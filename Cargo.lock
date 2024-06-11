@@ -1653,9 +1653,8 @@ dependencies = [
  "wast",
  "wat",
  "wit-component",
- 
+ "wit-encoder",
  "wit-parser 0.210.0",
- "wit-encoder 0.210.0",
  "wit-smith",
 ]
 
@@ -2142,7 +2141,7 @@ dependencies = [
 
 [[package]]
 name = "wit-encoder"
-version = "0.204.0"
+version = "0.210.0"
 dependencies = [
  "pretty_assertions",
  "semver",
