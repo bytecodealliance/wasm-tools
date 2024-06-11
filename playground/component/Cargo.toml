@@ -10,13 +10,9 @@ wasmprinter = { workspace = true }
 
 [lib]
 crate-type = ["cdylib"]
-
-[profile.release]
-codegen-units = 1
-opt-level = "s"
-debug = false
-strip = true
-lto = true
+test = false
+doctest = false
+doc = false
 
 [package.metadata.component]
 package = "component:component"
