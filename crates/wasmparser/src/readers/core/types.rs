@@ -1594,7 +1594,7 @@ impl<'a> FromReader<'a> for RefType {
             byte @ (0x70 | 0x6F | 0x6E | 0x71 | 0x72 | 0x73 | 0x6D | 0x6B | 0x6A | 0x6C | 0x69
             | 0x74) => {
                 let pos = reader.original_position();
-                Ok(absheapty(byte, pos)?)
+                absheapty(byte, pos)
             }
             0x65 => {
                 let byte = reader.read()?;

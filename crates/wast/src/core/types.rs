@@ -1,5 +1,6 @@
 use crate::core::*;
 use crate::kw;
+use crate::parser::Lookahead1;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Id, Index, LParen, NameAnnotation, Span};
 use crate::Error;
@@ -74,7 +75,7 @@ impl<'a> Parse<'a> for HeapType<'a> {
         let mut l = parser.lookahead1();
         if l.peek::<Index>()? {
             Ok(HeapType::Concrete(parser.parse()?))
-        } else if l.peek::<kw::shared>()? {
+        } else if l.peek::<LParen>()? {
             parser.parens(|p| {
                 p.parse::<kw::shared>()?;
                 Ok(HeapType::Abstract {
@@ -96,7 +97,7 @@ impl<'a> Parse<'a> for HeapType<'a> {
 impl<'a> Peek for HeapType<'a> {
     fn peek(cursor: Cursor<'_>) -> Result<bool> {
         Ok(AbstractHeapType::peek(cursor)?
-            || (kw::shared::peek(cursor)? && AbstractHeapType::peek2(cursor)?)
+            || (LParen::peek(cursor)? && kw::shared::peek2(cursor)?)
             || (LParen::peek(cursor)? && kw::r#type::peek2(cursor)?))
     }
     fn display() -> &'static str {
@@ -342,11 +343,40 @@ impl<'a> RefType<'a> {
             },
         }
     }
-}
 
-impl<'a> Parse<'a> for RefType<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        let mut l = parser.lookahead1();
+    /// Make the reference type a `shared` one.
+    ///
+    /// Note that this is not possible for concrete references (e.g., `(ref
+    /// $t)`) so `None` is returned in that case.
+    pub fn shared(self) -> Option<Self> {
+        match self.heap {
+            HeapType::Abstract { ty, .. } => Some(RefType {
+                nullable: self.nullable,
+                heap: HeapType::Abstract { shared: true, ty },
+            }),
+            _ => None,
+        }
+    }
+
+    /// Helper for checking if shorthand forms of reference types can be parsed
+    /// next; e.g., `funcref`.
+    fn peek_shorthand(l: &mut Lookahead1) -> Result<bool> {
+        Ok(l.peek::<kw::funcref>()?
+            || l.peek::<kw::externref>()?
+            || l.peek::<kw::exnref>()?
+            || l.peek::<kw::anyref>()?
+            || l.peek::<kw::eqref>()?
+            || l.peek::<kw::structref>()?
+            || l.peek::<kw::arrayref>()?
+            || l.peek::<kw::i31ref>()?
+            || l.peek::<kw::nullfuncref>()?
+            || l.peek::<kw::nullexternref>()?
+            || l.peek::<kw::nullexnref>()?
+            || l.peek::<kw::nullref>()?)
+    }
+
+    /// Helper for parsing shorthand forms of reference types; e.g., `funcref`.
+    fn parse_shorthand(mut l: Lookahead1, parser: Parser<'a>) -> Result<Self> {
         if l.peek::<kw::funcref>()? {
             parser.parse::<kw::funcref>()?;
             Ok(RefType::func())
@@ -383,10 +413,23 @@ impl<'a> Parse<'a> for RefType<'a> {
         } else if l.peek::<kw::nullref>()? {
             parser.parse::<kw::nullref>()?;
             Ok(RefType::nullref())
+        } else {
+            Err(l.error())
+        }
+    }
+}
+
+impl<'a> Parse<'a> for RefType<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let mut l = parser.lookahead1();
+        if RefType::peek_shorthand(&mut l)? {
+            // I.e., `*ref`.
+            RefType::parse_shorthand(l, parser)
         } else if l.peek::<LParen>()? {
             parser.parens(|p| {
                 let mut l = parser.lookahead1();
                 if l.peek::<kw::r#ref>()? {
+                    // I.e., `(ref null? ...)`.
                     p.parse::<kw::r#ref>()?;
 
                     let mut nullable = false;
@@ -399,6 +442,11 @@ impl<'a> Parse<'a> for RefType<'a> {
                         nullable,
                         heap: parser.parse()?,
                     })
+                } else if l.peek::<kw::shared>()? {
+                    // I.e., `(shared *ref)`.
+                    p.parse::<kw::shared>()?;
+                    let reftype = RefType::parse_shorthand(l, parser)?;
+                    Ok(reftype.shared().expect("only abstract heap types are used"))
                 } else {
                     Err(l.error())
                 }
