@@ -486,18 +486,7 @@ impl<'a> Module<'a> {
 
     fn heapty(&mut self, ty: HeapType) {
         match ty {
-            HeapType::Func
-            | HeapType::Extern
-            | HeapType::Any
-            | HeapType::None
-            | HeapType::NoExtern
-            | HeapType::NoFunc
-            | HeapType::Eq
-            | HeapType::Struct
-            | HeapType::Array
-            | HeapType::I31
-            | HeapType::Exn
-            | HeapType::NoExn => {}
+            HeapType::Abstract { .. } => {}
             HeapType::Concrete(i) => self.ty(i.as_module_index().unwrap()),
         }
     }
@@ -1132,20 +1121,12 @@ impl Encoder {
 
     fn heapty(&self, ht: wasmparser::HeapType) -> wasm_encoder::HeapType {
         match ht {
-            HeapType::Func => wasm_encoder::HeapType::Func,
-            HeapType::Extern => wasm_encoder::HeapType::Extern,
-            HeapType::Any => wasm_encoder::HeapType::Any,
-            HeapType::None => wasm_encoder::HeapType::None,
-            HeapType::NoExtern => wasm_encoder::HeapType::NoExtern,
-            HeapType::NoFunc => wasm_encoder::HeapType::NoFunc,
-            HeapType::Eq => wasm_encoder::HeapType::Eq,
-            HeapType::Struct => wasm_encoder::HeapType::Struct,
-            HeapType::Array => wasm_encoder::HeapType::Array,
-            HeapType::I31 => wasm_encoder::HeapType::I31,
-            HeapType::Exn => wasm_encoder::HeapType::Exn,
-            HeapType::NoExn => wasm_encoder::HeapType::NoExn,
             HeapType::Concrete(idx) => {
                 wasm_encoder::HeapType::Concrete(self.types.remap(idx.as_module_index().unwrap()))
+            }
+            HeapType::Abstract { shared, ty } => {
+                let ty = ty.into();
+                wasm_encoder::HeapType::Abstract { shared, ty }
             }
         }
     }

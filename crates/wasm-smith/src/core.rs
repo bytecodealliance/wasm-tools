@@ -15,8 +15,8 @@ use std::ops::Range;
 use std::rc::Rc;
 use std::str::{self, FromStr};
 use wasm_encoder::{
-    ArrayType, BlockType, ConstExpr, ExportKind, FieldType, HeapType, RefType, StorageType,
-    StructType, ValType,
+    AbstractHeapType, ArrayType, BlockType, ConstExpr, ExportKind, FieldType, HeapType, RefType,
+    StorageType, StructType, ValType,
 };
 pub(crate) use wasm_encoder::{GlobalType, MemoryType, TableType};
 
@@ -449,31 +449,69 @@ impl Module {
     }
 
     fn heap_type_is_sub_type(&self, a: HeapType, b: HeapType) -> bool {
+        use AbstractHeapType::*;
         use HeapType as HT;
         match (a, b) {
             (a, b) if a == b => true,
 
-            (HT::Eq | HT::I31 | HT::Struct | HT::Array | HT::None, HT::Any) => true,
-            (HT::I31 | HT::Struct | HT::Array | HT::None, HT::Eq) => true,
-            (HT::NoExtern, HT::Extern) => true,
-            (HT::NoFunc, HT::Func) => true,
-            (HT::None, HT::I31 | HT::Array | HT::Struct) => true,
-
-            (HT::Concrete(a), HT::Eq | HT::Any) => matches!(
-                self.ty(a).composite_type,
-                CompositeType::Array(_) | CompositeType::Struct(_)
-            ),
-
-            (HT::Concrete(a), HT::Struct) => {
-                matches!(self.ty(a).composite_type, CompositeType::Struct(_))
+            (
+                HT::Abstract {
+                    shared: a_shared,
+                    ty: a_ty,
+                },
+                HT::Abstract {
+                    shared: b_shared,
+                    ty: b_ty,
+                },
+            ) => {
+                a_shared == b_shared
+                    && match (a_ty, b_ty) {
+                        (Eq | I31 | Struct | Array | None, Any) => true,
+                        (I31 | Struct | Array | None, Eq) => true,
+                        (NoExtern, Extern) => true,
+                        (NoFunc, Func) => true,
+                        (None, I31 | Array | Struct) => true,
+                        (NoExn, Exn) => true,
+                        _ => false,
+                    }
             }
 
-            (HT::Concrete(a), HT::Array) => {
-                matches!(self.ty(a).composite_type, CompositeType::Array(_))
+            (HT::Concrete(a), HT::Abstract { shared, ty }) => {
+                if shared {
+                    // TODO: handle shared
+                    todo!("check shared-ness of concrete type");
+                }
+                match ty {
+                    Eq | Any => matches!(
+                        self.ty(a).composite_type,
+                        CompositeType::Array(_) | CompositeType::Struct(_)
+                    ),
+                    Struct => {
+                        matches!(self.ty(a).composite_type, CompositeType::Struct(_))
+                    }
+                    Array => {
+                        matches!(self.ty(a).composite_type, CompositeType::Array(_))
+                    }
+                    Func => {
+                        matches!(self.ty(a).composite_type, CompositeType::Func(_))
+                    }
+                    _ => false,
+                }
             }
 
-            (HT::Concrete(a), HT::Func) => {
-                matches!(self.ty(a).composite_type, CompositeType::Func(_))
+            (HT::Abstract { shared, ty }, HT::Concrete(b)) => {
+                if shared {
+                    // TODO: handle shared
+                    todo!("check shared-ness of concrete type");
+                }
+                match ty {
+                    None => matches!(
+                        self.ty(b).composite_type,
+                        CompositeType::Array(_) | CompositeType::Struct(_)
+                    ),
+                    NoFunc => matches!(self.ty(b).composite_type, CompositeType::Func(_)),
+                    _ => false,
+                }
             }
 
             (HT::Concrete(mut a), HT::Concrete(b)) => loop {
@@ -486,33 +524,6 @@ impl Module {
                     return false;
                 }
             },
-
-            (HT::None, HT::Concrete(b)) => matches!(
-                self.ty(b).composite_type,
-                CompositeType::Array(_) | CompositeType::Struct(_)
-            ),
-
-            (HT::NoFunc, HT::Concrete(b)) => {
-                matches!(self.ty(b).composite_type, CompositeType::Func(_))
-            }
-
-            (HT::NoExn, HT::Exn) => true,
-
-            // Nothing else matches. (Avoid full wildcard matches so that
-            // adding/modifying variants is easier in the future.)
-            (HT::Concrete(_), _)
-            | (HT::Func, _)
-            | (HT::Extern, _)
-            | (HT::Any, _)
-            | (HT::None, _)
-            | (HT::NoExtern, _)
-            | (HT::NoFunc, _)
-            | (HT::Eq, _)
-            | (HT::Struct, _)
-            | (HT::Array, _)
-            | (HT::I31, _)
-            | (HT::Exn, _)
-            | (HT::NoExn, _) => false,
         }
     }
 
@@ -731,26 +742,40 @@ impl Module {
         use HeapType as HT;
         let mut choices = vec![ty];
         match ty {
-            HT::Any => {
-                choices.extend([HT::Eq, HT::Struct, HT::Array, HT::I31, HT::None]);
-                choices.extend(self.array_types.iter().copied().map(HT::Concrete));
-                choices.extend(self.struct_types.iter().copied().map(HT::Concrete));
-            }
-            HT::Eq => {
-                choices.extend([HT::Struct, HT::Array, HT::I31, HT::None]);
-                choices.extend(self.array_types.iter().copied().map(HT::Concrete));
-                choices.extend(self.struct_types.iter().copied().map(HT::Concrete));
-            }
-            HT::Struct => {
-                choices.extend([HT::Struct, HT::None]);
-                choices.extend(self.struct_types.iter().copied().map(HT::Concrete));
-            }
-            HT::Array => {
-                choices.extend([HT::Array, HT::None]);
-                choices.extend(self.array_types.iter().copied().map(HT::Concrete));
-            }
-            HT::I31 => {
-                choices.push(HT::None);
+            HT::Abstract { shared, ty } => {
+                use AbstractHeapType::*;
+                let ht = |ty| HT::Abstract { shared, ty };
+                match ty {
+                    Any => {
+                        choices.extend([ht(Eq), ht(Struct), ht(Array), ht(I31), ht(None)]);
+                        choices.extend(self.array_types.iter().copied().map(HT::Concrete));
+                        choices.extend(self.struct_types.iter().copied().map(HT::Concrete));
+                    }
+                    Eq => {
+                        choices.extend([ht(Struct), ht(Array), ht(I31), ht(None)]);
+                        choices.extend(self.array_types.iter().copied().map(HT::Concrete));
+                        choices.extend(self.struct_types.iter().copied().map(HT::Concrete));
+                    }
+                    Struct => {
+                        choices.extend([ht(Struct), ht(None)]);
+                        choices.extend(self.struct_types.iter().copied().map(HT::Concrete));
+                    }
+                    Array => {
+                        choices.extend([ht(Array), ht(None)]);
+                        choices.extend(self.array_types.iter().copied().map(HT::Concrete));
+                    }
+                    I31 => {
+                        choices.push(ht(None));
+                    }
+                    Func => {
+                        choices.extend(self.func_types.iter().copied().map(HT::Concrete));
+                        choices.push(ht(NoFunc));
+                    }
+                    Extern => {
+                        choices.push(ht(NoExtern));
+                    }
+                    Exn | NoExn | None | NoExtern | NoFunc => {}
+                }
             }
             HT::Concrete(idx) => {
                 if let Some(subs) = self.super_to_sub_types.get(&idx) {
@@ -762,9 +787,15 @@ impl Module {
                     .map(|ty| &ty.composite_type)
                 {
                     Some(CompositeType::Array(_)) | Some(CompositeType::Struct(_)) => {
-                        choices.push(HT::None)
+                        choices.push(HT::Abstract {
+                            shared: false, // TODO: handle shared
+                            ty: AbstractHeapType::None,
+                        })
                     }
-                    Some(CompositeType::Func(_)) => choices.push(HT::NoFunc),
+                    Some(CompositeType::Func(_)) => choices.push(HT::Abstract {
+                        shared: false, // TODO: handle shared
+                        ty: AbstractHeapType::NoFunc,
+                    }),
                     None => {
                         // The referenced type might be part of this same rec
                         // group we are currently generating, but not generated
@@ -774,14 +805,6 @@ impl Module {
                     }
                 }
             }
-            HT::Func => {
-                choices.extend(self.func_types.iter().copied().map(HT::Concrete));
-                choices.push(HT::NoFunc);
-            }
-            HT::Extern => {
-                choices.push(HT::NoExtern);
-            }
-            HT::Exn | HT::NoExn | HT::None | HT::NoExtern | HT::NoFunc => {}
         }
         Ok(*u.choose(&choices)?)
     }
@@ -848,35 +871,58 @@ impl Module {
         use HeapType as HT;
         let mut choices = vec![ty];
         match ty {
-            HT::None => {
-                choices.extend([HT::Any, HT::Eq, HT::Struct, HT::Array, HT::I31]);
-                choices.extend(self.array_types.iter().copied().map(HT::Concrete));
-                choices.extend(self.struct_types.iter().copied().map(HT::Concrete));
-            }
-            HT::NoExtern => {
-                choices.push(HT::Extern);
-            }
-            HT::NoFunc => {
-                choices.extend(self.func_types.iter().copied().map(HT::Concrete));
-                choices.push(HT::Func);
-            }
-            HT::NoExn => {
-                choices.push(HT::Exn);
+            HT::Abstract { shared, ty } => {
+                use AbstractHeapType::*;
+                let ht = |ty| HT::Abstract { shared, ty };
+                match ty {
+                    None => {
+                        choices.extend([ht(Any), ht(Eq), ht(Struct), ht(Array), ht(I31)]);
+                        choices.extend(self.array_types.iter().copied().map(HT::Concrete));
+                        choices.extend(self.struct_types.iter().copied().map(HT::Concrete));
+                    }
+                    NoExtern => {
+                        choices.push(ht(Extern));
+                    }
+                    NoFunc => {
+                        choices.extend(self.func_types.iter().copied().map(HT::Concrete));
+                        choices.push(ht(Func));
+                    }
+                    NoExn => {
+                        choices.push(ht(Exn));
+                    }
+                    Struct | Array | I31 => {
+                        choices.extend([ht(Any), ht(Eq)]);
+                    }
+                    Eq => {
+                        choices.push(ht(Any));
+                    }
+                    Exn | Any | Func | Extern => {}
+                }
             }
             HT::Concrete(mut idx) => {
+                // TODO: handle shared
+                let ht = |ty| HT::Abstract { shared: false, ty };
                 match &self
                     .types
                     .get(usize::try_from(idx).unwrap())
                     .map(|ty| &ty.composite_type)
                 {
                     Some(CompositeType::Array(_)) => {
-                        choices.extend([HT::Any, HT::Eq, HT::Array]);
+                        choices.extend([
+                            ht(AbstractHeapType::Any),
+                            ht(AbstractHeapType::Eq),
+                            ht(AbstractHeapType::Array),
+                        ]);
                     }
                     Some(CompositeType::Func(_)) => {
-                        choices.push(HT::Func);
+                        choices.push(ht(AbstractHeapType::Func));
                     }
                     Some(CompositeType::Struct(_)) => {
-                        choices.extend([HT::Any, HT::Eq, HT::Struct]);
+                        choices.extend([
+                            ht(AbstractHeapType::Any),
+                            ht(AbstractHeapType::Eq),
+                            ht(AbstractHeapType::Struct),
+                        ]);
                     }
                     None => {
                         // Same as in `arbitrary_matching_heap_type`: this was a
@@ -896,13 +942,6 @@ impl Module {
                     idx = supertype;
                 }
             }
-            HT::Struct | HT::Array | HT::I31 => {
-                choices.extend([HT::Any, HT::Eq]);
-            }
-            HT::Eq => {
-                choices.push(HT::Any);
-            }
-            HT::Exn | HT::Any | HT::Func | HT::Extern => {}
         }
         Ok(*u.choose(&choices)?)
     }
@@ -972,27 +1011,23 @@ impl Module {
             return Ok(HeapType::Concrete(idx));
         }
 
-        let mut choices = vec![HeapType::Func, HeapType::Extern];
+        use AbstractHeapType::*;
+        let mut choices = vec![Func, Extern];
         if self.config.exceptions_enabled {
-            choices.push(HeapType::Exn);
+            choices.push(Exn);
         }
         if self.config.gc_enabled {
             choices.extend(
-                [
-                    HeapType::Any,
-                    HeapType::None,
-                    HeapType::NoExtern,
-                    HeapType::NoFunc,
-                    HeapType::Eq,
-                    HeapType::Struct,
-                    HeapType::Array,
-                    HeapType::I31,
-                ]
-                .iter()
-                .copied(),
+                [Any, None, NoExtern, NoFunc, Eq, Struct, Array, I31]
+                    .iter()
+                    .copied(),
             );
         }
-        u.choose(&choices).copied()
+
+        Ok(HeapType::Abstract {
+            shared: false, // TODO: turn on shared attribute with shared-everything-threads.
+            ty: *u.choose(&choices)?,
+        })
     }
 
     fn arbitrary_func_type(&mut self, u: &mut Unstructured) -> Result<Rc<FuncType>> {
@@ -1572,7 +1607,10 @@ impl Module {
                 }
 
                 match ty.heap_type {
-                    HeapType::Func if num_funcs > 0 => {
+                    HeapType::Abstract {
+                        ty: AbstractHeapType::Func,
+                        ..
+                    } if num_funcs > 0 => {
                         choices.push(Box::new(move |u, _| {
                             let func = u.int_in_range(0..=num_funcs - 1)?;
                             Ok(ConstExpr::ref_func(func))
@@ -1636,22 +1674,31 @@ impl Module {
     #[cfg(feature = "wasmparser")]
     fn _required_exports(&mut self, u: &mut Unstructured, example_module: &[u8]) -> Result<()> {
         fn convert_heap_type(ty: &wasmparser::HeapType) -> HeapType {
+            use wasmparser::AbstractHeapType::*;
             match ty {
                 wasmparser::HeapType::Concrete(_) => {
                     panic!("Unable to handle concrete types in exports")
                 }
-                wasmparser::HeapType::Func => HeapType::Func,
-                wasmparser::HeapType::Extern => HeapType::Extern,
-                wasmparser::HeapType::Any => HeapType::Any,
-                wasmparser::HeapType::None => HeapType::None,
-                wasmparser::HeapType::NoExtern => HeapType::NoExtern,
-                wasmparser::HeapType::NoFunc => HeapType::NoFunc,
-                wasmparser::HeapType::Eq => HeapType::Eq,
-                wasmparser::HeapType::Struct => HeapType::Struct,
-                wasmparser::HeapType::Array => HeapType::Array,
-                wasmparser::HeapType::I31 => HeapType::I31,
-                wasmparser::HeapType::Exn => HeapType::Exn,
-                wasmparser::HeapType::NoExn => HeapType::NoExn,
+                wasmparser::HeapType::Abstract { shared, ty } => {
+                    let ty = match ty {
+                        Func => AbstractHeapType::Func,
+                        Extern => AbstractHeapType::Extern,
+                        Any => AbstractHeapType::Any,
+                        None => AbstractHeapType::None,
+                        NoExtern => AbstractHeapType::NoExtern,
+                        NoFunc => AbstractHeapType::NoFunc,
+                        Eq => AbstractHeapType::Eq,
+                        Struct => AbstractHeapType::Struct,
+                        Array => AbstractHeapType::Array,
+                        I31 => AbstractHeapType::I31,
+                        Exn => AbstractHeapType::Exn,
+                        NoExn => AbstractHeapType::NoExn,
+                    };
+                    HeapType::Abstract {
+                        shared: *shared,
+                        ty,
+                    }
+                }
             }
         }
 
@@ -2016,7 +2063,10 @@ impl Module {
                 let mut func_candidates = Vec::new();
                 if can_use_function_list {
                     match ty.heap_type {
-                        HeapType::Func => {
+                        HeapType::Abstract {
+                            ty: AbstractHeapType::Func,
+                            ..
+                        } => {
                             func_candidates.extend(0..self.funcs.len() as u32);
                         }
                         HeapType::Concrete(ty) => {
@@ -2450,21 +2500,14 @@ pub(crate) fn configured_valtypes(config: &Config) -> Vec<ValType> {
             // contain a non-null self-reference are also impossible to create).
             true,
         ] {
-            for heap_type in [
-                HeapType::Any,
-                HeapType::Eq,
-                HeapType::I31,
-                HeapType::Array,
-                HeapType::Struct,
-                HeapType::None,
-                HeapType::Func,
-                HeapType::NoFunc,
-                HeapType::Extern,
-                HeapType::NoExtern,
+            use AbstractHeapType::*;
+            for ty in [
+                Any, Eq, I31, Array, Struct, None, Func, NoFunc, Extern, NoExtern,
             ] {
                 valtypes.push(ValType::Ref(RefType {
                     nullable,
-                    heap_type,
+                    // TODO: handle shared
+                    heap_type: HeapType::Abstract { shared: false, ty },
                 }));
             }
         }

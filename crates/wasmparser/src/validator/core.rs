@@ -132,7 +132,7 @@ impl ModuleState {
         offset: usize,
     ) -> Result<()> {
         self.module
-            .check_global_type(&mut global.ty, features, offset)?;
+            .check_global_type(&mut global.ty, features, types, offset)?;
         self.check_const_expr(&global.init_expr, global.ty.content_type, features, types)?;
         self.module.assert_mut().globals.push(global.ty);
         Ok(())
@@ -855,7 +855,7 @@ impl Module {
                 EntityType::Tag(self.types[t.func_type_idx as usize])
             }
             TypeRef::Global(t) => {
-                self.check_global_type(t, features, offset)?;
+                self.check_global_type(t, features, types, offset)?;
                 EntityType::Global(*t)
             }
         })
@@ -1017,20 +1017,9 @@ impl Module {
     }
 
     fn check_heap_type(&self, ty: &mut HeapType, offset: usize) -> Result<()> {
-        // Check that the heap type is valid
+        // Check that the heap type is valid.
         let type_index = match ty {
-            HeapType::Func
-            | HeapType::Extern
-            | HeapType::Any
-            | HeapType::None
-            | HeapType::NoExtern
-            | HeapType::NoFunc
-            | HeapType::Eq
-            | HeapType::Struct
-            | HeapType::Array
-            | HeapType::I31
-            | HeapType::Exn
-            | HeapType::NoExn => return Ok(()),
+            HeapType::Abstract { .. } => return Ok(()),
             HeapType::Concrete(type_index) => type_index,
         };
         match type_index {
@@ -1073,6 +1062,7 @@ impl Module {
         &self,
         ty: &mut GlobalType,
         features: &WasmFeatures,
+        types: &TypeList,
         offset: usize,
     ) -> Result<()> {
         self.check_value_type(&mut ty.content_type, features, offset)?;
@@ -1083,7 +1073,7 @@ impl Module {
                     offset,
                 ));
             }
-            if !ty.content_type.is_shared() {
+            if !types.valtype_is_shared(ty.content_type) {
                 return Err(BinaryReaderError::new(
                     "shared globals must have a shared value type",
                     offset,

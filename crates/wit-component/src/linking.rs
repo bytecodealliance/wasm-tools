@@ -35,9 +35,9 @@ use {
     },
     wasm_encoder::{
         CodeSection, ConstExpr, DataSection, ElementSection, Elements, EntityType, ExportKind,
-        ExportSection, Function, FunctionSection, GlobalSection, HeapType, ImportSection,
-        Instruction as Ins, MemArg, MemorySection, MemoryType, Module, RawCustomSection, RefType,
-        StartSection, TableSection, TableType, TypeSection, ValType,
+        ExportSection, Function, FunctionSection, GlobalSection, ImportSection, Instruction as Ins,
+        MemArg, MemorySection, MemoryType, Module, RawCustomSection, RefType, StartSection,
+        TableSection, TableType, TypeSection, ValType,
     },
     wasmparser::SymbolFlags,
 };
@@ -464,10 +464,7 @@ fn make_env_module<'a>(
     {
         let mut tables = TableSection::new();
         tables.table(TableType {
-            element_type: RefType {
-                nullable: true,
-                heap_type: HeapType::Func,
-            },
+            element_type: RefType::FUNCREF,
             minimum: table_offset.into(),
             maximum: None,
             table64: false,
@@ -559,10 +556,7 @@ fn make_init_module(
         "env",
         "__indirect_function_table",
         TableType {
-            element_type: RefType {
-                nullable: true,
-                heap_type: HeapType::Func,
-            },
+            element_type: RefType::FUNCREF,
             minimum: 0,
             maximum: None,
             table64: false,

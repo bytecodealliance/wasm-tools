@@ -124,8 +124,14 @@ impl<'cfg, 'wasm> Translator for InitTranslator<'cfg, 'wasm> {
                 } else {
                     f64::from_bits(self.config.rng().gen())
                 }),
-                T::FUNCREF => CE::ref_null(wasm_encoder::HeapType::Func),
-                T::EXTERNREF => CE::ref_null(wasm_encoder::HeapType::Extern),
+                T::FUNCREF => CE::ref_null(wasm_encoder::HeapType::Abstract {
+                    shared: false,
+                    ty: wasm_encoder::AbstractHeapType::Func,
+                }),
+                T::EXTERNREF => CE::ref_null(wasm_encoder::HeapType::Abstract {
+                    shared: false,
+                    ty: wasm_encoder::AbstractHeapType::Func,
+                }),
                 T::Ref(_) => unimplemented!(),
             }
         } else {

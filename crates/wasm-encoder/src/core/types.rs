@@ -344,33 +344,91 @@ pub struct RefType {
 }
 
 impl RefType {
-    /// Alias for the `funcref` type in WebAssembly
+    /// Alias for the `anyref` type in WebAssembly.
+    pub const ANYREF: RefType = RefType {
+        nullable: true,
+        heap_type: HeapType::Abstract {
+            shared: false,
+            ty: AbstractHeapType::Any,
+        },
+    };
+
+    /// Alias for the `anyref` type in WebAssembly.
+    pub const EQREF: RefType = RefType {
+        nullable: true,
+        heap_type: HeapType::Abstract {
+            shared: false,
+            ty: AbstractHeapType::Eq,
+        },
+    };
+
+    /// Alias for the `funcref` type in WebAssembly.
     pub const FUNCREF: RefType = RefType {
         nullable: true,
-        heap_type: HeapType::Func,
+        heap_type: HeapType::Abstract {
+            shared: false,
+            ty: AbstractHeapType::Func,
+        },
     };
 
-    /// Alias for the `externref` type in WebAssembly
+    /// Alias for the `externref` type in WebAssembly.
     pub const EXTERNREF: RefType = RefType {
         nullable: true,
-        heap_type: HeapType::Extern,
+        heap_type: HeapType::Abstract {
+            shared: false,
+            ty: AbstractHeapType::Extern,
+        },
     };
 
-    /// Alias for the `exnref` type in WebAssembly
+    /// Alias for the `i31ref` type in WebAssembly.
+    pub const I31REF: RefType = RefType {
+        nullable: true,
+        heap_type: HeapType::Abstract {
+            shared: false,
+            ty: AbstractHeapType::I31,
+        },
+    };
+
+    /// Alias for the `arrayref` type in WebAssembly.
+    pub const ARRAYREF: RefType = RefType {
+        nullable: true,
+        heap_type: HeapType::Abstract {
+            shared: false,
+            ty: AbstractHeapType::Array,
+        },
+    };
+
+    /// Alias for the `exnref` type in WebAssembly.
     pub const EXNREF: RefType = RefType {
         nullable: true,
-        heap_type: HeapType::Exn,
+        heap_type: HeapType::Abstract {
+            shared: false,
+            ty: AbstractHeapType::Exn,
+        },
     };
+
+    /// Set the nullability of this reference type.
+    pub fn nullable(mut self, nullable: bool) -> Self {
+        self.nullable = nullable;
+        self
+    }
 }
 
 impl Encode for RefType {
     fn encode(&self, sink: &mut Vec<u8>) {
         if self.nullable {
             // Favor the original encodings of `funcref` and `externref` where
-            // possible
+            // possible.
+            use AbstractHeapType::*;
             match self.heap_type {
-                HeapType::Func => return sink.push(0x70),
-                HeapType::Extern => return sink.push(0x6f),
+                HeapType::Abstract {
+                    shared: false,
+                    ty: Func,
+                } => return sink.push(0x70),
+                HeapType::Abstract {
+                    shared: false,
+                    ty: Extern,
+                } => return sink.push(0x6f),
                 _ => {}
             }
         }
@@ -405,6 +463,78 @@ impl From<RefType> for ValType {
 /// Part of the function references proposal.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum HeapType {
+    /// An abstract heap type; e.g., `anyref`.
+    Abstract {
+        /// Whether the type is shared.
+        shared: bool,
+        /// The actual heap type.
+        ty: AbstractHeapType,
+    },
+
+    /// A concrete Wasm-defined type at the given index.
+    Concrete(u32),
+}
+
+impl HeapType {
+    /// Alias for the unshared `any` heap type.
+    pub const ANY: Self = Self::Abstract {
+        shared: false,
+        ty: AbstractHeapType::Any,
+    };
+
+    /// Alias for the unshared `func` heap type.
+    pub const FUNC: Self = Self::Abstract {
+        shared: false,
+        ty: AbstractHeapType::Func,
+    };
+
+    /// Alias for the unshared `extern` heap type.
+    pub const EXTERN: Self = Self::Abstract {
+        shared: false,
+        ty: AbstractHeapType::Extern,
+    };
+
+    /// Alias for the unshared `i31` heap type.
+    pub const I31: Self = Self::Abstract {
+        shared: false,
+        ty: AbstractHeapType::I31,
+    };
+}
+
+impl Encode for HeapType {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        match self {
+            HeapType::Abstract { shared, ty } => {
+                if *shared {
+                    sink.push(0x65);
+                }
+                ty.encode(sink);
+            }
+            // Note that this is encoded as a signed type rather than unsigned
+            // as it's decoded as an s33
+            HeapType::Concrete(i) => i64::from(*i).encode(sink),
+        }
+    }
+}
+
+#[cfg(feature = "wasmparser")]
+impl TryFrom<wasmparser::HeapType> for HeapType {
+    type Error = ();
+
+    fn try_from(heap_type: wasmparser::HeapType) -> Result<Self, Self::Error> {
+        Ok(match heap_type {
+            wasmparser::HeapType::Concrete(i) => HeapType::Concrete(i.as_module_index().ok_or(())?),
+            wasmparser::HeapType::Abstract { shared, ty } => HeapType::Abstract {
+                shared,
+                ty: ty.into(),
+            },
+        })
+    }
+}
+
+/// An abstract heap type.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub enum AbstractHeapType {
     /// Untyped (any) function.
     Func,
 
@@ -455,53 +585,46 @@ pub enum HeapType {
 
     /// The abstract `noexn` heap type.
     NoExn,
-
-    /// A concrete Wasm-defined type at the given index.
-    Concrete(u32),
 }
 
-impl Encode for HeapType {
+impl Encode for AbstractHeapType {
     fn encode(&self, sink: &mut Vec<u8>) {
+        use AbstractHeapType::*;
         match self {
-            HeapType::Func => sink.push(0x70),
-            HeapType::Extern => sink.push(0x6F),
-            HeapType::Any => sink.push(0x6E),
-            HeapType::None => sink.push(0x71),
-            HeapType::NoExtern => sink.push(0x72),
-            HeapType::NoFunc => sink.push(0x73),
-            HeapType::Eq => sink.push(0x6D),
-            HeapType::Struct => sink.push(0x6B),
-            HeapType::Array => sink.push(0x6A),
-            HeapType::I31 => sink.push(0x6C),
-            HeapType::Exn => sink.push(0x69),
-            HeapType::NoExn => sink.push(0x74),
-            // Note that this is encoded as a signed type rather than unsigned
-            // as it's decoded as an s33
-            HeapType::Concrete(i) => i64::from(*i).encode(sink),
+            Func => sink.push(0x70),
+            Extern => sink.push(0x6F),
+            Any => sink.push(0x6E),
+            None => sink.push(0x71),
+            NoExtern => sink.push(0x72),
+            NoFunc => sink.push(0x73),
+            Eq => sink.push(0x6D),
+            Struct => sink.push(0x6B),
+            Array => sink.push(0x6A),
+            I31 => sink.push(0x6C),
+            Exn => sink.push(0x69),
+            NoExn => sink.push(0x74),
         }
     }
 }
 
 #[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::HeapType> for HeapType {
-    type Error = ();
-
-    fn try_from(heap_type: wasmparser::HeapType) -> Result<Self, Self::Error> {
-        Ok(match heap_type {
-            wasmparser::HeapType::Concrete(i) => HeapType::Concrete(i.as_module_index().ok_or(())?),
-            wasmparser::HeapType::Func => HeapType::Func,
-            wasmparser::HeapType::Extern => HeapType::Extern,
-            wasmparser::HeapType::Any => HeapType::Any,
-            wasmparser::HeapType::None => HeapType::None,
-            wasmparser::HeapType::NoExtern => HeapType::NoExtern,
-            wasmparser::HeapType::NoFunc => HeapType::NoFunc,
-            wasmparser::HeapType::Eq => HeapType::Eq,
-            wasmparser::HeapType::Struct => HeapType::Struct,
-            wasmparser::HeapType::Array => HeapType::Array,
-            wasmparser::HeapType::I31 => HeapType::I31,
-            wasmparser::HeapType::Exn => HeapType::Exn,
-            wasmparser::HeapType::NoExn => HeapType::NoExn,
-        })
+impl From<wasmparser::AbstractHeapType> for AbstractHeapType {
+    fn from(value: wasmparser::AbstractHeapType) -> Self {
+        use wasmparser::AbstractHeapType::*;
+        match value {
+            Func => AbstractHeapType::Func,
+            Extern => AbstractHeapType::Extern,
+            Any => AbstractHeapType::Any,
+            None => AbstractHeapType::None,
+            NoExtern => AbstractHeapType::NoExtern,
+            NoFunc => AbstractHeapType::NoFunc,
+            Eq => AbstractHeapType::Eq,
+            Struct => AbstractHeapType::Struct,
+            Array => AbstractHeapType::Array,
+            I31 => AbstractHeapType::I31,
+            Exn => AbstractHeapType::Exn,
+            NoExn => AbstractHeapType::NoExn,
+        }
     }
 }
 
