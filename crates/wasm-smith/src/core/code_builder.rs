@@ -2044,6 +2044,14 @@ fn call_ref(
 
 #[inline]
 fn call_indirect_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    call_indirect_valid_impl(module, builder, false)
+}
+
+fn call_indirect_valid_impl(
+    module: &Module,
+    builder: &mut CodeBuilder,
+    is_return_call: bool,
+) -> bool {
     if module.config.disallow_traps {
         // We have no way to reflect, at run time, on a `funcref` in
         // the `i`th slot in a table and dynamically avoid trapping
@@ -2059,9 +2067,10 @@ fn call_indirect_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
         return false;
     }
     let ty = builder.allocs.operands.pop().unwrap();
-    let is_valid = module
-        .func_types()
-        .any(|(_, ty)| builder.types_on_stack(module, &ty.params));
+    let is_valid = module.func_types().any(|(_, ty)| {
+        builder.types_on_stack(module, &ty.params)
+            && (!is_return_call || builder.allocs.controls[0].label_types() == &ty.results)
+    });
     builder.allocs.operands.push(ty);
     is_valid
 }
@@ -2194,11 +2203,7 @@ fn return_call_ref(
 
 #[inline]
 fn return_call_indirect_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    if !module.config.tail_call_enabled {
-        return false;
-    }
-
-    call_indirect_valid(module, builder)
+    call_indirect_valid_impl(module, builder, true)
 }
 
 fn return_call_indirect(
