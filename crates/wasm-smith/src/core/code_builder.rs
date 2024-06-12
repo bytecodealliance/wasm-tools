@@ -2203,6 +2203,9 @@ fn return_call_ref(
 
 #[inline]
 fn return_call_indirect_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    if !module.config.tail_call_enabled {
+        return false;
+    }
     call_indirect_valid_impl(module, builder, true)
 }
 
