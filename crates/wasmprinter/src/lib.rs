@@ -147,8 +147,14 @@ impl State {
 }
 
 struct Naming {
-    identifier: Option<String>,
     name: String,
+    kind: NamingKind,
+}
+
+enum NamingKind {
+    DollarName,
+    DollarQuotedName,
+    SyntheticPrefix(String),
 }
 
 impl Config {
@@ -410,7 +416,7 @@ impl Printer<'_, '_> {
                     if len == 1 {
                         if let Some(name) = state.name.as_ref() {
                             self.result.write_str(" ")?;
-                            name.write(self.result)?;
+                            name.write(self)?;
                         }
                     }
                 }
@@ -925,7 +931,10 @@ impl Printer<'_, '_> {
         self.result.write_str(" ")?;
         if let Some(idxs @ (_, field_idx)) = ty_field_idx {
             match state.core.field_names.index_to_name.get(&idxs) {
-                Some(name) => write!(self.result, "${} ", name.identifier())?,
+                Some(name) => {
+                    name.write_identifier(self)?;
+                    self.result.write_str(" ")?;
+                }
                 None if self.config.name_unnamed => write!(self.result, "$#field{field_idx} ")?,
                 None => {}
             }
@@ -1453,7 +1462,7 @@ impl Printer<'_, '_> {
     fn _print_idx(&mut self, names: &HashMap<u32, Naming>, idx: u32, desc: &str) -> Result<()> {
         self.result.start_name()?;
         match names.get(&idx) {
-            Some(name) => write!(self.result, "${}", name.identifier())?,
+            Some(name) => name.write_identifier(self)?,
             None if self.config.name_unnamed => write!(self.result, "$#{desc}{idx}")?,
             None => write!(self.result, "{idx}")?,
         }
@@ -1464,7 +1473,7 @@ impl Printer<'_, '_> {
     fn print_local_idx(&mut self, state: &State, func: u32, idx: u32) -> Result<()> {
         self.result.start_name()?;
         match state.core.local_names.index_to_name.get(&(func, idx)) {
-            Some(name) => write!(self.result, "${}", name.identifier())?,
+            Some(name) => name.write_identifier(self)?,
             None if self.config.name_unnamed => write!(self.result, "$#local{idx}")?,
             None => write!(self.result, "{}", idx)?,
         }
@@ -1475,7 +1484,7 @@ impl Printer<'_, '_> {
     fn print_field_idx(&mut self, state: &State, ty: u32, idx: u32) -> Result<()> {
         self.result.start_name()?;
         match state.core.field_names.index_to_name.get(&(ty, idx)) {
-            Some(name) => write!(self.result, "${}", name.identifier())?,
+            Some(name) => name.write_identifier(self)?,
             None if self.config.name_unnamed => write!(self.result, "$#field{idx}")?,
             None => write!(self.result, "{}", idx)?,
         }
@@ -1499,7 +1508,7 @@ impl Printer<'_, '_> {
         self.result.start_name()?;
         match names.get(&cur_idx) {
             Some(name) => {
-                name.write(self.result)?;
+                name.write(self)?;
                 self.result.write_str(" ")?;
             }
             None if self.config.name_unnamed => {
@@ -1911,7 +1920,7 @@ impl Printer<'_, '_> {
         let outer = Self::outer_state(states, count)?;
         self.start_group("alias outer ")?;
         if let Some(name) = outer.name.as_ref() {
-            name.write(self.result)?;
+            name.write(self)?;
         } else {
             write!(self.result, "{count}")?;
         }
@@ -2592,7 +2601,7 @@ impl Printer<'_, '_> {
                 let outer = Self::outer_state(states, count)?;
                 self.start_group("alias outer ")?;
                 if let Some(name) = outer.name.as_ref() {
-                    name.write(self.result)?;
+                    name.write(self)?;
                 } else {
                     write!(self.result, "{count}")?;
                 }
@@ -2643,20 +2652,22 @@ impl Printer<'_, '_> {
 
     fn print_str(&mut self, name: &str) -> Result<()> {
         self.result.start_literal()?;
-        let mut bytes = [0; 4];
         self.result.write_str("\"")?;
+        self.print_str_contents(name)?;
+        self.result.write_str("\"")?;
+        self.result.reset_color()?;
+        Ok(())
+    }
+
+    fn print_str_contents(&mut self, name: &str) -> Result<()> {
         for c in name.chars() {
             let v = c as u32;
             if (0x20..0x7f).contains(&v) && c != '"' && c != '\\' && v < 0xff {
                 write!(self.result, "{c}")?;
             } else {
-                for byte in c.encode_utf8(&mut bytes).as_bytes() {
-                    self.hex_byte(*byte)?;
-                }
+                write!(self.result, "\\u{{{v:x}}}",)?;
             }
         }
-        self.result.write_str("\"")?;
-        self.result.reset_color()?;
         Ok(())
     }
 
@@ -2917,7 +2928,7 @@ impl NamedLocalPrinter {
         // Print the optional name if given...
         match name {
             Some(name) => {
-                name.write(dst.result)?;
+                name.write(dst)?;
                 dst.result.write_str(" ")?;
                 self.end_group_after_local = true;
             }
@@ -3057,7 +3068,10 @@ impl Naming {
         group: &str,
         used: Option<&mut HashSet<&'a str>>,
     ) -> Naming {
-        let mut identifier = None;
+        let mut kind = NamingKind::DollarName;
+        if name.chars().any(|c| !is_idchar(c)) {
+            kind = NamingKind::DollarQuotedName;
+        }
 
         // If the `name` provided can't be used as the raw identifier for the
         // item that it's describing then a synthetic name must be made. The
@@ -3078,17 +3092,13 @@ impl Naming {
         // valid identifier characters of `name` still appear in the returned
         // name).
         if name.is_empty()
-            || name.chars().any(|c| !is_idchar(c))
             || name.starts_with('#')
             || used.map(|set| !set.insert(name)).unwrap_or(false)
         {
-            let mut id = format!("#{group}{index}<");
-            id.extend(name.chars().map(|c| if is_idchar(c) { c } else { '_' }));
-            id.push('>');
-            identifier = Some(id);
+            kind = NamingKind::SyntheticPrefix(format!("#{group}{index}"));
         }
         return Naming {
-            identifier,
+            kind,
             name: name.to_string(),
         };
 
@@ -3126,37 +3136,39 @@ impl Naming {
         }
     }
 
-    fn identifier(&self) -> &str {
-        match &self.identifier {
-            Some(s) => s,
-            None => &self.name,
+    fn write_identifier(&self, printer: &mut Printer<'_, '_>) -> Result<()> {
+        match &self.kind {
+            NamingKind::DollarName => {
+                printer.result.write_str("$")?;
+                printer.result.write_str(&self.name)?;
+            }
+            NamingKind::DollarQuotedName => {
+                printer.result.write_str("$\"")?;
+                printer.print_str_contents(&self.name)?;
+                printer.result.write_str("\"")?;
+            }
+            NamingKind::SyntheticPrefix(prefix) => {
+                printer.result.write_str("$\"")?;
+                printer.result.write_str(&prefix)?;
+                printer.result.write_str(" ")?;
+                printer.print_str_contents(&self.name)?;
+                printer.result.write_str("\"")?;
+            }
         }
+        Ok(())
     }
 
-    fn write(&self, dst: &mut dyn Print) -> Result<()> {
-        match &self.identifier {
-            Some(alternate) => {
-                assert!(*alternate != self.name);
-                write!(dst, "${alternate} (@name \"")?;
-                // https://webassembly.github.io/spec/core/text/values.html#text-string
-                for c in self.name.chars() {
-                    match c {
-                        '\t' => write!(dst, "\\t")?,
-                        '\n' => write!(dst, "\\n")?,
-                        '\r' => write!(dst, "\\r")?,
-                        '"' => write!(dst, "\\\"")?,
-                        '\'' => write!(dst, "\\'")?,
-                        '\\' => write!(dst, "\\\\")?,
-                        c if (c as u32) < 0x20 || c as u32 == 0x7f => {
-                            write!(dst, "\\u{{{:x}}}", c as u32)?;
-                        }
-                        other => write!(dst, "{other}")?,
-                    }
-                }
-                write!(dst, "\")")?;
-            }
-            None => {
-                write!(dst, "${}", self.name)?;
+    fn write(&self, dst: &mut Printer<'_, '_>) -> Result<()> {
+        self.write_identifier(dst)?;
+        match &self.kind {
+            NamingKind::DollarName | NamingKind::DollarQuotedName => {}
+
+            NamingKind::SyntheticPrefix(_) => {
+                dst.result.write_str(" ")?;
+                dst.start_group("@name \"")?;
+                dst.print_str_contents(&self.name)?;
+                dst.result.write_str("\"")?;
+                dst.end_group()?;
             }
         }
         Ok(())
