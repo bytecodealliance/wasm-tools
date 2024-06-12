@@ -1318,10 +1318,12 @@ impl Printer<'_, '_> {
                     branch_hints = rest;
                     op_printer.printer.newline(*hint_offset)?;
                     let desc = if hint.taken { "\"\\01\"" } else { "\"\\00\"" };
+                    op_printer.printer.result.start_comment()?;
                     write!(
                         op_printer.printer.result,
                         "(@metadata.code.branch_hint {desc})",
                     )?;
+                    op_printer.printer.result.reset_color()?;
                 }
             }
 
@@ -1514,9 +1516,10 @@ impl Printer<'_, '_> {
                 } => {
                     let table_index = table_index.unwrap_or(0);
                     if table_index != 0 {
-                        self.result.write_str(" (table ")?;
+                        self.result.write_str(" ")?;
+                        self.start_group("table ")?;
                         self.print_idx(&state.core.table_names, table_index)?;
-                        self.result.write_str(")")?;
+                        self.end_group()?;
                     }
                     self.result.write_str(" ")?;
                     self.print_const_expr_sugar(state, offset_expr, "offset")?;
@@ -1563,9 +1566,10 @@ impl Printer<'_, '_> {
                     offset_expr,
                 } => {
                     if *memory_index != 0 {
-                        self.result.write_str("(memory ")?;
+                        self.start_group("memory ")?;
                         self.print_idx(&state.core.memory_names, *memory_index)?;
-                        self.result.write_str(") ")?;
+                        self.end_group()?;
+                        self.result.write_str(" ")?;
                     }
                     self.print_const_expr_sugar(state, offset_expr, "offset")?;
                     self.result.write_str(" ")?;
@@ -1623,19 +1627,19 @@ impl Printer<'_, '_> {
 
     fn print_primitive_val_type(&mut self, ty: &PrimitiveValType) -> Result<()> {
         match ty {
-            PrimitiveValType::Bool => self.result.write_str("bool")?,
-            PrimitiveValType::S8 => self.result.write_str("s8")?,
-            PrimitiveValType::U8 => self.result.write_str("u8")?,
-            PrimitiveValType::S16 => self.result.write_str("s16")?,
-            PrimitiveValType::U16 => self.result.write_str("u16")?,
-            PrimitiveValType::S32 => self.result.write_str("s32")?,
-            PrimitiveValType::U32 => self.result.write_str("u32")?,
-            PrimitiveValType::S64 => self.result.write_str("s64")?,
-            PrimitiveValType::U64 => self.result.write_str("u64")?,
-            PrimitiveValType::F32 => self.result.write_str("f32")?,
-            PrimitiveValType::F64 => self.result.write_str("f64")?,
-            PrimitiveValType::Char => self.result.write_str("char")?,
-            PrimitiveValType::String => self.result.write_str("string")?,
+            PrimitiveValType::Bool => self.print_type_keyword("bool")?,
+            PrimitiveValType::S8 => self.print_type_keyword("s8")?,
+            PrimitiveValType::U8 => self.print_type_keyword("u8")?,
+            PrimitiveValType::S16 => self.print_type_keyword("s16")?,
+            PrimitiveValType::U16 => self.print_type_keyword("u16")?,
+            PrimitiveValType::S32 => self.print_type_keyword("s32")?,
+            PrimitiveValType::U32 => self.print_type_keyword("u32")?,
+            PrimitiveValType::S64 => self.print_type_keyword("s64")?,
+            PrimitiveValType::U64 => self.print_type_keyword("u64")?,
+            PrimitiveValType::F32 => self.print_type_keyword("f32")?,
+            PrimitiveValType::F64 => self.print_type_keyword("f64")?,
+            PrimitiveValType::Char => self.print_type_keyword("char")?,
+            PrimitiveValType::String => self.print_type_keyword("string")?,
         }
         Ok(())
     }
@@ -1974,14 +1978,17 @@ impl Printer<'_, '_> {
             }
             ComponentType::Resource { rep, dtor } => {
                 self.result.write_str(" ")?;
-                self.start_group("resource")?;
-                self.result.write_str(" (rep ")?;
+                self.start_group("resource ")?;
+                self.start_group("rep ")?;
                 self.print_valtype(states.last().unwrap(), rep)?;
-                self.result.write_str(")")?;
+                self.end_group()?;
                 if let Some(dtor) = dtor {
-                    self.result.write_str(" (dtor (func ")?;
+                    self.result.write_str(" ")?;
+                    self.start_group("dtor ")?;
+                    self.start_group("func ")?;
                     self.print_idx(&states.last().unwrap().core.func_names, dtor)?;
-                    self.result.write_str("))")?;
+                    self.end_group()?;
+                    self.end_group()?;
                 }
                 self.end_group()?;
             }
@@ -2076,7 +2083,7 @@ impl Printer<'_, '_> {
                 self.end_group()?;
             }
             ComponentTypeRef::Type(bounds) => {
-                self.result.write_str("(type ")?;
+                self.start_group("type ")?;
                 if index {
                     self.print_name(&state.component.type_names, state.component.types)?;
                     self.result.write_str(" ")?;
@@ -2084,15 +2091,17 @@ impl Printer<'_, '_> {
                 }
                 match bounds {
                     TypeBounds::Eq(idx) => {
-                        self.result.write_str("(eq ")?;
+                        self.start_group("eq ")?;
                         self.print_idx(&state.component.type_names, *idx)?;
-                        self.result.write_str(")")?;
+                        self.end_group()?;
                     }
                     TypeBounds::SubResource => {
-                        self.result.write_str("(sub resource)")?;
+                        self.start_group("sub ")?;
+                        self.print_type_keyword("resource")?;
+                        self.end_group()?;
                     }
                 };
-                self.result.write_str(")")?;
+                self.end_group()?;
             }
             ComponentTypeRef::Instance(idx) => {
                 self.start_group("instance ")?;
