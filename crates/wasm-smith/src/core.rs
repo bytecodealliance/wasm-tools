@@ -2472,12 +2472,27 @@ pub(crate) fn arbitrary_limits64(
     max_required: bool,
     max_inbounds: u64,
 ) -> Result<(u64, Option<u64>)> {
+    assert!(
+        min_minimum.unwrap_or(0) <= max_minimum,
+        "{} <= {max_minimum}",
+        min_minimum.unwrap_or(0),
+    );
+    assert!(
+        min_minimum.unwrap_or(0) <= max_inbounds,
+        "{} <= {max_inbounds}",
+        min_minimum.unwrap_or(0),
+    );
+
     let min = gradually_grow(u, min_minimum.unwrap_or(0), max_inbounds, max_minimum)?;
+    assert!(min <= max_minimum, "{min} <= {max_minimum}");
+
     let max = if max_required || u.arbitrary().unwrap_or(false) {
         Some(u.int_in_range(min..=max_minimum)?)
     } else {
         None
     };
+    assert!(min <= max.unwrap_or(min), "{min} <= {}", max.unwrap_or(min));
+
     Ok((min, max))
 }
 
@@ -2555,15 +2570,14 @@ pub(crate) fn arbitrary_memtype(u: &mut Unstructured, config: &Config) -> Result
     // When threads are enabled, we only want to generate shared memories about
     // 25% of the time.
     let shared = config.threads_enabled && u.ratio(1, 4)?;
-    // We want to favor memories <= 1gb in size, allocate at most 16k pages,
-    // depending on the maximum number of memories.
+
     let memory64 = config.memory64_enabled && u.arbitrary()?;
     let page_size_log2 = if config.custom_page_sizes_enabled && u.arbitrary()? {
         Some(if u.arbitrary()? { 0 } else { 16 })
     } else {
         None
     };
-    let max_inbounds = 16 * 1024 / u64::try_from(config.max_memories).unwrap();
+
     let min_pages = if config.disallow_traps { Some(1) } else { None };
     let max_pages = min_pages.unwrap_or(0).max(if memory64 {
         u64::try_from(config.max_memory64_bytes >> page_size_log2.unwrap_or(16))
@@ -2572,16 +2586,27 @@ pub(crate) fn arbitrary_memtype(u: &mut Unstructured, config: &Config) -> Result
             // saturate to `u64::MAX`.
             .unwrap_or(u64::MAX as u64)
     } else {
-        // Unlike above, this can never fail.
-        u64::try_from(config.max_memory32_bytes >> page_size_log2.unwrap_or(16)).unwrap()
+        u32::try_from(config.max_memory32_bytes >> page_size_log2.unwrap_or(16))
+            // Similar case as above, but while we could represent `2**32` in our
+            // `u64` here, 32-bit memories' limits must fit in a `u32`.
+            .unwrap_or(u32::MAX)
+            .into()
     });
+
+    // We want to favor keeping the total memories <= 1gb in size.
+    let max_all_mems_in_bytes = 1 << 30;
+    let max_this_mem_in_bytes = max_all_mems_in_bytes / u64::try_from(config.max_memories).unwrap();
+    let max_inbounds = max_this_mem_in_bytes >> page_size_log2.unwrap_or(16);
+    let max_inbounds = max_inbounds.clamp(min_pages.unwrap_or(0), max_pages);
+
     let (minimum, maximum) = arbitrary_limits64(
         u,
         min_pages,
         max_pages,
         config.memory_max_size_required || shared,
-        max_inbounds.min(max_pages),
+        max_inbounds,
     )?;
+
     Ok(MemoryType {
         minimum,
         maximum,
@@ -2615,18 +2640,26 @@ fn gradually_grow(u: &mut Unstructured, min: u64, max_inbounds: u64, max: u64) -
     if min == max {
         return Ok(min);
     }
-    let min = min as f64;
-    let max = max as f64;
-    let max_inbounds = max_inbounds as f64;
-    let x = u.arbitrary::<u32>()?;
-    let x = f64::from(x);
-    let x = map_custom(
-        x,
-        f64::from(u32::MIN)..f64::from(u32::MAX),
-        min..max_inbounds,
-        min..max,
-    );
-    return Ok(x.round() as u64);
+    let x = {
+        let min = min as f64;
+        let max = max as f64;
+        let max_inbounds = max_inbounds as f64;
+        let x = u.arbitrary::<u32>()?;
+        let x = f64::from(x);
+        let x = map_custom(
+            x,
+            f64::from(u32::MIN)..f64::from(u32::MAX),
+            min..max_inbounds,
+            min..max,
+        );
+        assert!(min <= x, "{min} <= {x}");
+        assert!(x <= max, "{x} <= {max}");
+        x.round() as u64
+    };
+
+    // Conversion between `u64` and `f64` is lossy, especially for large
+    // numbers, so just clamp the final result.
+    return Ok(x.clamp(min, max));
 
     /// Map a value from within the input range to the output range(s).
     ///
