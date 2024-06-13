@@ -2558,17 +2558,22 @@ pub(crate) fn arbitrary_memtype(u: &mut Unstructured, config: &Config) -> Result
     // We want to favor memories <= 1gb in size, allocate at most 16k pages,
     // depending on the maximum number of memories.
     let memory64 = config.memory64_enabled && u.arbitrary()?;
-    let page_size = if config.custom_page_sizes_enabled && u.arbitrary()? {
-        Some(1 << u.int_in_range(0..=16)?)
+    let page_size_log2 = if config.custom_page_sizes_enabled && u.arbitrary()? {
+        Some(if u.arbitrary()? { 0 } else { 16 })
     } else {
         None
     };
     let max_inbounds = 16 * 1024 / u64::try_from(config.max_memories).unwrap();
     let min_pages = if config.disallow_traps { Some(1) } else { None };
     let max_pages = min_pages.unwrap_or(0).max(if memory64 {
-        config.max_memory64_pages
+        u64::try_from(config.max_memory64_bytes >> page_size_log2.unwrap_or(16))
+            // Can only fail when we have a custom page size of 1 byte and a
+            // memory size of `2**64 == u64::MAX + 1`. In this case, just
+            // saturate to `u64::MAX`.
+            .unwrap_or(u64::MAX as u64)
     } else {
-        config.max_memory32_pages
+        // Unlike above, this can never fail.
+        u64::try_from(config.max_memory32_bytes >> page_size_log2.unwrap_or(16)).unwrap()
     });
     let (minimum, maximum) = arbitrary_limits64(
         u,
@@ -2582,7 +2587,7 @@ pub(crate) fn arbitrary_memtype(u: &mut Unstructured, config: &Config) -> Result
         maximum,
         memory64,
         shared,
-        page_size_log2: page_size,
+        page_size_log2,
     })
 }
 
