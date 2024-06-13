@@ -1,5 +1,12 @@
-use super::{ParamList, ResultList, WorldOrInterface};
+use super::{
+    // AstItem as RootAstItem, Interface as RootInterface,
+    Nest,
+    ParamList,
+    ResultList,
+    WorldOrInterface,
+};
 use crate::ast::toposort::toposort;
+use crate::ast::InterfaceItem;
 use crate::*;
 use anyhow::bail;
 use std::collections::{HashMap, HashSet};
@@ -100,9 +107,11 @@ enum Key {
 
 enum TypeItem<'a, 'b> {
     Use(&'b ast::Use<'a>),
+    Nest(&'b ast::Nest<'a>),
     Def(&'b ast::TypeDef<'a>),
 }
 
+#[derive(Debug)]
 enum TypeOrItem {
     Type(TypeId),
     Item(&'static str),
@@ -174,6 +183,15 @@ impl<'a> Resolver<'a> {
             for item in decl_list.items.iter() {
                 match item {
                     ast::AstItem::Interface(iface) => {
+                        for item in &iface.items {
+                            if let InterfaceItem::Nest(n) = item {
+                                let id = match self.ast_items[i][n.name.name] {
+                                    AstItem::Interface(id) => id,
+                                    AstItem::World(_) => unreachable!(),
+                                };
+                                iface_id_to_ast.insert(id, (iface, i));
+                            }
+                        }
                         let id = match self.ast_items[i][iface.name.name] {
                             AstItem::Interface(id) => id,
                             AstItem::World(_) => unreachable!(),
@@ -292,6 +310,30 @@ impl<'a> Resolver<'a> {
                     Ok(())
                 })
                 .unwrap();
+            decl_list
+                .for_each_nest(|nest: &Nest| {
+                    let deps = foreign_deps
+                        .entry(nest.id.package_name())
+                        .or_insert_with(|| {
+                            self.foreign_dep_spans.push(nest.id.span);
+                            IndexMap::new()
+                        });
+                    let id = *deps.entry(nest.name.name).or_insert_with(|| {
+                        log::trace!(
+                            "creating an interface for foreign dep: {}/{}",
+                            nest.id.package_name(),
+                            nest.name.name
+                        );
+
+                        AstItem::Interface(self.alloc_interface(nest.name.span))
+                    });
+                    match id {
+                        AstItem::Interface(id) => foreign_interfaces.insert(id),
+                        AstItem::World(_) => unreachable!(),
+                    };
+                    Ok(())
+                })
+                .unwrap();
         }
         self.foreign_deps = foreign_deps;
         self.foreign_interfaces = foreign_interfaces;
@@ -306,6 +348,7 @@ impl<'a> Resolver<'a> {
         });
         self.interfaces.alloc(Interface {
             name: None,
+            nested: IndexMap::new(),
             types: IndexMap::new(),
             docs: Docs::default(),
             stability: Default::default(),
@@ -364,6 +407,28 @@ impl<'a> Resolver<'a> {
                         assert!(prev.is_none());
                         let prev = names.insert(i.name.name, item);
                         assert!(prev.is_none());
+                        for nestitem in i.items.iter() {
+                            if let InterfaceItem::Nest(n) = nestitem {
+                                if package_items.insert(n.name.name, n.name.span).is_some() {
+                                    bail!(Error::new(
+                                        n.name.span,
+                                        format!("duplicate item named `{}`", n.name.name),
+                                    ))
+                                }
+                                let prev = decl_list_ns.insert(n.name.name, ());
+                                assert!(prev.is_none());
+                                let prev = order.insert(n.name.name, Vec::new());
+                                assert!(prev.is_none());
+                                // let i = RootAstItem::Interface(RootInterface {
+                                //     docs: Default::default(),
+                                //     attributes: vec![],
+                                //     name: n.name.clone(),
+                                //     items: vec![],
+                                // });
+                                // let prev = names.insert(n.name.name, &i);
+                                // assert!(prev.is_none());
+                            }
+                        }
                     }
                     ast::AstItem::World(w) => {
                         if package_items.insert(w.name.name, w.name.span).is_some() {
@@ -380,7 +445,7 @@ impl<'a> Resolver<'a> {
                         assert!(prev.is_none());
                     }
                     // These are processed down below.
-                    ast::AstItem::Use(_) => {}
+                    ast::AstItem::Use(_) => {} // ast::AstItem::Nest(_) => todo!(),
                 }
             }
             decl_list_namespaces.push(decl_list_ns);
@@ -458,6 +523,29 @@ impl<'a> Resolver<'a> {
                 }
                 Ok(())
             })?;
+            decl_list.for_each_nest(|nest: &Nest| {
+                match decl_list_ns.get(nest.name.name) {
+                    Some((_, ItemSource::Foreign)) => return Ok(()),
+                    Some((_, ItemSource::Local(id))) => {
+                        order[nest.name.name].push(id.clone());
+                    }
+                    None => match package_items.get(nest.name.name) {
+                        Some(_) => {
+                            // order[nest.name.name].push(nest.name.clone());
+                        }
+                        None => {
+                            bail!(Error::new(
+                                nest.name.span,
+                                format!(
+                                    "interface or world `{name}` not found in package",
+                                    name = nest.name.name
+                                ),
+                            ))
+                        }
+                    },
+                }
+                Ok(())
+            })?;
         }
 
         let order = toposort("interface or world", &order)?;
@@ -470,22 +558,32 @@ impl<'a> Resolver<'a> {
         let mut iface_id_order = Vec::new();
         let mut world_id_order = Vec::new();
         for name in order {
-            match names.get(name).unwrap() {
-                ast::AstItem::Interface(_) => {
+            match names.get(name) {
+                Some(ast::AstItem::Interface(i)) => {
+                    for item in &i.items {
+                        if let InterfaceItem::Nest(n) = item {
+                            let id = self.alloc_interface(package_items[name]);
+                            self.interfaces[id].name = Some(name.to_string());
+                            let prev = ids.insert(n.name.name, AstItem::Interface(id));
+                            assert!(prev.is_none());
+                            iface_id_order.push(id);
+                        }
+                    }
                     let id = self.alloc_interface(package_items[name]);
                     self.interfaces[id].name = Some(name.to_string());
                     let prev = ids.insert(name, AstItem::Interface(id));
                     assert!(prev.is_none());
                     iface_id_order.push(id);
                 }
-                ast::AstItem::World(_) => {
+                Some(ast::AstItem::World(_)) => {
                     let id = self.alloc_world(package_items[name]);
                     self.worlds[id].name = name.to_string();
                     let prev = ids.insert(name, AstItem::World(id));
                     assert!(prev.is_none());
                     world_id_order.push(id);
                 }
-                ast::AstItem::Use(_) => unreachable!(),
+                Some(ast::AstItem::Use(_)) => unreachable!(),
+                None => {}
             };
         }
         for decl_list in decl_lists {
@@ -517,6 +615,15 @@ impl<'a> Resolver<'a> {
                         (name.name, item)
                     }
                     ast::AstItem::Interface(i) => {
+                        for item in &i.items {
+                            if let InterfaceItem::Nest(n) = item {
+                                let iface_item = ids[n.name.name];
+                                let prev = items.insert(n.name.name, iface_item);
+                                assert!(prev.is_none());
+                                let prev = self.package_items.insert(n.name.name, iface_item);
+                                assert!(prev.is_none());
+                            }
+                        }
                         let iface_item = ids[i.name.name];
                         assert!(matches!(iface_item, AstItem::Interface(_)));
                         (i.name.name, iface_item)
@@ -585,6 +692,12 @@ impl<'a> Resolver<'a> {
                         .insert(name.name.name.to_string(), id);
                 }
 
+                Ok(())
+            })?;
+            decl_list.for_each_nest(|nest| {
+                let (item, name, span) = self.resolve_ast_item_nest(nest)?;
+                let iface = self.extract_iface_from_item(&item, &name, span)?;
+                let lookup = &mut self.interface_types[iface.index()];
                 Ok(())
             })?;
         }
@@ -784,6 +897,7 @@ impl<'a> Resolver<'a> {
                 ast::InterfaceItem::Use(u) => Some(TypeItem::Use(u)),
                 ast::InterfaceItem::TypeDef(t) => Some(TypeItem::Def(t)),
                 ast::InterfaceItem::Func(_) => None,
+                ast::InterfaceItem::Nest(n) => Some(TypeItem::Nest(n)),
             }),
         )?;
 
@@ -830,6 +944,7 @@ impl<'a> Resolver<'a> {
                     }
                 }
                 ast::InterfaceItem::TypeDef(_) => {}
+                ast::InterfaceItem::Nest(_) => {}
             }
         }
         for func in funcs {
@@ -860,6 +975,9 @@ impl<'a> Resolver<'a> {
             match field {
                 TypeItem::Use(u) => {
                     self.resolve_use(owner, u)?;
+                }
+                TypeItem::Nest(n) => {
+                    self.resolve_nest(owner, n)?;
                 }
                 TypeItem::Def(_) => {}
             }
@@ -892,6 +1010,7 @@ impl<'a> Resolver<'a> {
                         type_defs.insert(name.name, None);
                     }
                 }
+                TypeItem::Nest(n) => {}
             }
         }
         let order = toposort("type", &type_deps)?;
@@ -947,6 +1066,16 @@ impl<'a> Resolver<'a> {
             });
             self.define_interface_name(name, TypeOrItem::Type(id))?;
         }
+        Ok(())
+    }
+
+    fn resolve_nest(&mut self, owner: TypeOwner, n: &ast::Nest<'a>) -> Result<()> {
+        let (item, name, span) = self.resolve_ast_item_nest(&n)?;
+        let use_from = self.extract_iface_from_item(&item, &name, span)?;
+        let extracted = &self.interfaces[use_from];
+
+        let stability = self.stability(&n.attributes)?;
+        let lookup = &self.interface_types[use_from.index()];
         Ok(())
     }
 
@@ -1048,6 +1177,21 @@ impl<'a> Resolver<'a> {
                 name.name.into(),
                 name.span,
             )),
+        }
+    }
+
+    fn resolve_ast_item_nest(&self, nest: &ast::Nest<'a>) -> Result<(AstItem, String, Span)> {
+        let item: Option<&AstItem> = self.ast_items[self.cur_ast_index]
+            .get(nest.name.name)
+            .or_else(|| self.package_items.get(nest.name.name));
+        match item {
+            Some(item) => Ok((*item, nest.name.name.to_string(), nest.id.span)),
+            None => {
+                bail!(Error::new(
+                    nest.id.span,
+                    format!("interface or world `{}` does not exist", nest.name.name),
+                ))
+            }
         }
     }
 

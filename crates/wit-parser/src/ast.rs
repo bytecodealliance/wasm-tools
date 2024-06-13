@@ -220,6 +220,19 @@ impl<'a> DeclList<'a> {
         }
         Ok(())
     }
+
+    fn for_each_nest<'b>(&'b self, mut f: impl FnMut(&'b Nest<'a>) -> Result<()>) -> Result<()> {
+        for item in self.items.iter() {
+            if let AstItem::Interface(i) = item {
+                for item in i.items.iter() {
+                    if let InterfaceItem::Nest(n) = item {
+                        f(n)?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 enum AstItem<'a> {
@@ -545,6 +558,42 @@ enum InterfaceItem<'a> {
     TypeDef(TypeDef<'a>),
     Func(NamedFunc<'a>),
     Use(Use<'a>),
+    Nest(Nest<'a>),
+}
+
+struct Nest<'a> {
+    id: PackageName<'a>,
+    name: Id<'a>,
+    attributes: Vec<Attribute<'a>>,
+}
+
+impl<'a> Nest<'a> {
+    fn parse(tokens: &mut Tokenizer<'a>, attributes: Vec<Attribute<'a>>) -> Result<Self> {
+        tokens.eat(Token::Nest)?;
+        let id = parse_id(tokens)?;
+        tokens.expect(Token::Colon)?;
+        // `foo:bar/baz@1.0`
+        let namespace = id;
+        let pkg_name = parse_id(tokens)?;
+        tokens.expect(Token::Slash)?;
+        let name = parse_id(tokens)?;
+        let version = parse_opt_version(tokens)?;
+        tokens.expect_semicolon()?;
+        Ok(Self {
+            id: PackageName {
+                docs: Default::default(),
+                span: Span {
+                    start: namespace.span.start,
+                    end: pkg_name.span.end,
+                },
+                namespace,
+                name: pkg_name,
+                version,
+            },
+            name,
+            attributes,
+        })
+    }
 }
 
 struct Use<'a> {
@@ -983,6 +1032,7 @@ impl<'a> InterfaceItem<'a> {
                 NamedFunc::parse(tokens, docs, attributes).map(InterfaceItem::Func)
             }
             Some((_span, Token::Use)) => Use::parse(tokens, attributes).map(InterfaceItem::Use),
+            Some((_span, Token::Nest)) => Nest::parse(tokens, attributes).map(InterfaceItem::Nest),
             other => Err(err_expected(tokens, "`type`, `resource` or `func`", other).into()),
         }
     }

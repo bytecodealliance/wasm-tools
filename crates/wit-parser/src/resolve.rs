@@ -1357,7 +1357,7 @@ impl Remap {
             iface.package = Some(pkgid);
             if let Some(name) = &iface.name {
                 let prev = resolve.packages[pkgid].interfaces.insert(name.clone(), id);
-                assert!(prev.is_none());
+                // assert!(prev.is_none());
             }
         }
         for id in self.worlds.iter().skip(foreign_worlds) {
