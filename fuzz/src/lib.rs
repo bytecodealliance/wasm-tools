@@ -28,6 +28,7 @@ pub fn generate_valid_module(
     config.exceptions_enabled = u.arbitrary()?;
     config.canonicalize_nans = u.arbitrary()?;
     config.tail_call_enabled = u.arbitrary()?;
+    config.custom_page_sizes_enabled = u.arbitrary()?;
 
     config.gc_enabled = u.arbitrary()?;
     config.reference_types_enabled = config.reference_types_enabled || config.gc_enabled;
@@ -91,6 +92,10 @@ pub fn validator_for_config(config: &Config) -> wasmparser::Validator {
     features.set(WasmFeatures::MEMORY64, config.memory64_enabled);
     features.set(WasmFeatures::THREADS, config.threads_enabled);
     features.set(WasmFeatures::EXCEPTIONS, config.exceptions_enabled);
+    features.set(
+        WasmFeatures::CUSTOM_PAGE_SIZES,
+        config.custom_page_sizes_enabled,
+    );
     // TODO: determine our larger story for function-references in
     // wasm-tools and whether we should just have a Wasm GC flag since
     // function-references is effectively part of the Wasm GC proposal at
