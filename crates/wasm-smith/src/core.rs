@@ -265,33 +265,62 @@ impl SubType {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub(crate) enum CompositeType {
-    Array(ArrayType),
-    Func(Rc<FuncType>),
-    Struct(StructType),
+pub(crate) struct CompositeType {
+    pub inner: CompositeInnerType,
+    pub shared: bool,
 }
 
 impl CompositeType {
-    fn unwrap_struct(&self) -> &StructType {
-        match self {
-            CompositeType::Struct(s) => s,
-            _ => panic!("not a struct"),
+    pub(crate) fn new_func(func: Rc<FuncType>, shared: bool) -> Self {
+        Self {
+            inner: CompositeInnerType::Func(func),
+            shared,
         }
     }
 
     fn unwrap_func(&self) -> &Rc<FuncType> {
-        match self {
-            CompositeType::Func(f) => f,
+        match &self.inner {
+            CompositeInnerType::Func(f) => f,
             _ => panic!("not a func"),
         }
     }
 
     fn unwrap_array(&self) -> &ArrayType {
-        match self {
-            CompositeType::Array(a) => a,
+        match &self.inner {
+            CompositeInnerType::Array(a) => a,
             _ => panic!("not an array"),
         }
     }
+
+    fn unwrap_struct(&self) -> &StructType {
+        match &self.inner {
+            CompositeInnerType::Struct(s) => s,
+            _ => panic!("not a struct"),
+        }
+    }
+}
+
+impl From<&CompositeType> for wasm_encoder::CompositeType {
+    fn from(ty: &CompositeType) -> Self {
+        let inner = match &ty.inner {
+            CompositeInnerType::Array(a) => wasm_encoder::CompositeInnerType::Array(a.clone()),
+            CompositeInnerType::Func(f) => wasm_encoder::CompositeInnerType::Func(
+                wasm_encoder::FuncType::new(f.params.iter().cloned(), f.results.iter().cloned()),
+            ),
+            CompositeInnerType::Struct(s) => wasm_encoder::CompositeInnerType::Struct(s.clone()),
+        };
+        wasm_encoder::CompositeType {
+            shared: ty.shared,
+            inner,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub(crate) enum CompositeInnerType {
+    Array(ArrayType),
+    Func(Rc<FuncType>),
+    Struct(StructType),
 }
 
 /// A function signature.
@@ -450,6 +479,7 @@ impl Module {
 
     fn heap_type_is_sub_type(&self, a: HeapType, b: HeapType) -> bool {
         use AbstractHeapType::*;
+        use CompositeInnerType as CT;
         use HeapType as HT;
         match (a, b) {
             (a, b) if a == b => true,
@@ -477,39 +507,27 @@ impl Module {
             }
 
             (HT::Concrete(a), HT::Abstract { shared, ty }) => {
-                if shared {
-                    // TODO: handle shared
-                    todo!("check shared-ness of concrete type");
+                let a_ty = &self.ty(a).composite_type;
+                if a_ty.shared == shared {
+                    return false;
                 }
                 match ty {
-                    Eq | Any => matches!(
-                        self.ty(a).composite_type,
-                        CompositeType::Array(_) | CompositeType::Struct(_)
-                    ),
-                    Struct => {
-                        matches!(self.ty(a).composite_type, CompositeType::Struct(_))
-                    }
-                    Array => {
-                        matches!(self.ty(a).composite_type, CompositeType::Array(_))
-                    }
-                    Func => {
-                        matches!(self.ty(a).composite_type, CompositeType::Func(_))
-                    }
+                    Eq | Any => matches!(a_ty.inner, CT::Array(_) | CT::Struct(_)),
+                    Struct => matches!(a_ty.inner, CT::Struct(_)),
+                    Array => matches!(a_ty.inner, CT::Array(_)),
+                    Func => matches!(a_ty.inner, CT::Func(_)),
                     _ => false,
                 }
             }
 
             (HT::Abstract { shared, ty }, HT::Concrete(b)) => {
-                if shared {
-                    // TODO: handle shared
-                    todo!("check shared-ness of concrete type");
+                let b_ty = &self.ty(b).composite_type;
+                if shared == b_ty.shared {
+                    return false;
                 }
                 match ty {
-                    None => matches!(
-                        self.ty(b).composite_type,
-                        CompositeType::Array(_) | CompositeType::Struct(_)
-                    ),
-                    NoFunc => matches!(self.ty(b).composite_type, CompositeType::Func(_)),
+                    None => matches!(b_ty.inner, CT::Array(_) | CT::Struct(_)),
+                    NoFunc => matches!(b_ty.inner, CT::Func(_)),
                     _ => false,
                 }
             }
@@ -552,10 +570,10 @@ impl Module {
                 .push(index);
         }
 
-        let list = match &ty.composite_type {
-            CompositeType::Array(_) => &mut self.array_types,
-            CompositeType::Func(_) => &mut self.func_types,
-            CompositeType::Struct(_) => &mut self.struct_types,
+        let list = match &ty.composite_type.inner {
+            CompositeInnerType::Array(_) => &mut self.array_types,
+            CompositeInnerType::Func(_) => &mut self.func_types,
+            CompositeInnerType::Struct(_) => &mut self.struct_types,
         };
         list.push(index);
 
@@ -631,10 +649,14 @@ impl Module {
 
     fn arbitrary_sub_type(&mut self, u: &mut Unstructured) -> Result<SubType> {
         if !self.config.gc_enabled {
+            let composite_type = CompositeType {
+                inner: CompositeInnerType::Func(self.arbitrary_func_type(u)?),
+                shared: false,
+            };
             return Ok(SubType {
                 is_final: true,
                 supertype: None,
-                composite_type: CompositeType::Func(self.arbitrary_func_type(u)?),
+                composite_type,
             });
         }
 
@@ -654,14 +676,14 @@ impl Module {
         let mut composite_type = self.types[usize::try_from(supertype).unwrap()]
             .composite_type
             .clone();
-        match &mut composite_type {
-            CompositeType::Array(a) => {
+        match &mut composite_type.inner {
+            CompositeInnerType::Array(a) => {
                 a.0 = self.arbitrary_matching_field_type(u, a.0)?;
             }
-            CompositeType::Func(f) => {
+            CompositeInnerType::Func(f) => {
                 *f = self.arbitrary_matching_func_type(u, f)?;
             }
-            CompositeType::Struct(s) => {
+            CompositeInnerType::Struct(s) => {
                 *s = self.arbitrary_matching_struct_type(u, s)?;
             }
         }
@@ -739,6 +761,7 @@ impl Module {
         if !self.config.gc_enabled {
             return Ok(ty);
         }
+        use CompositeInnerType as CT;
         use HeapType as HT;
         let mut choices = vec![ty];
         match ty {
@@ -784,16 +807,14 @@ impl Module {
                 match self
                     .types
                     .get(usize::try_from(idx).unwrap())
-                    .map(|ty| &ty.composite_type)
+                    .map(|ty| (ty.composite_type.shared, &ty.composite_type.inner))
                 {
-                    Some(CompositeType::Array(_)) | Some(CompositeType::Struct(_)) => {
-                        choices.push(HT::Abstract {
-                            shared: false, // TODO: handle shared
-                            ty: AbstractHeapType::None,
-                        })
-                    }
-                    Some(CompositeType::Func(_)) => choices.push(HT::Abstract {
-                        shared: false, // TODO: handle shared
+                    Some((shared, CT::Array(_) | CT::Struct(_))) => choices.push(HT::Abstract {
+                        shared,
+                        ty: AbstractHeapType::None,
+                    }),
+                    Some((shared, CT::Func(_))) => choices.push(HT::Abstract {
+                        shared,
                         ty: AbstractHeapType::NoFunc,
                     }),
                     None => {
@@ -868,6 +889,7 @@ impl Module {
         if !self.config.gc_enabled {
             return Ok(ty);
         }
+        use CompositeInnerType as CT;
         use HeapType as HT;
         let mut choices = vec![ty];
         match ty {
@@ -900,38 +922,37 @@ impl Module {
                 }
             }
             HT::Concrete(mut idx) => {
-                // TODO: handle shared
-                let ht = |ty| HT::Abstract { shared: false, ty };
-                match &self
-                    .types
-                    .get(usize::try_from(idx).unwrap())
-                    .map(|ty| &ty.composite_type)
-                {
-                    Some(CompositeType::Array(_)) => {
-                        choices.extend([
-                            ht(AbstractHeapType::Any),
-                            ht(AbstractHeapType::Eq),
-                            ht(AbstractHeapType::Array),
-                        ]);
+                if let Some(sub_ty) = &self.types.get(usize::try_from(idx).unwrap()) {
+                    let ht = |ty| HT::Abstract {
+                        shared: sub_ty.composite_type.shared,
+                        ty,
+                    };
+                    match &sub_ty.composite_type.inner {
+                        CT::Array(_) => {
+                            choices.extend([
+                                ht(AbstractHeapType::Any),
+                                ht(AbstractHeapType::Eq),
+                                ht(AbstractHeapType::Array),
+                            ]);
+                        }
+                        CT::Func(_) => {
+                            choices.push(ht(AbstractHeapType::Func));
+                        }
+                        CT::Struct(_) => {
+                            choices.extend([
+                                ht(AbstractHeapType::Any),
+                                ht(AbstractHeapType::Eq),
+                                ht(AbstractHeapType::Struct),
+                            ]);
+                        }
                     }
-                    Some(CompositeType::Func(_)) => {
-                        choices.push(ht(AbstractHeapType::Func));
-                    }
-                    Some(CompositeType::Struct(_)) => {
-                        choices.extend([
-                            ht(AbstractHeapType::Any),
-                            ht(AbstractHeapType::Eq),
-                            ht(AbstractHeapType::Struct),
-                        ]);
-                    }
-                    None => {
-                        // Same as in `arbitrary_matching_heap_type`: this was a
-                        // forward reference to a concrete type that is part of
-                        // this same rec group we are generating right now, and
-                        // therefore we haven't generated that type yet. Just
-                        // leave `choices` as it is and we will choose the
-                        // original type again down below.
-                    }
+                } else {
+                    // Same as in `arbitrary_matching_heap_type`: this was a
+                    // forward reference to a concrete type that is part of
+                    // this same rec group we are generating right now, and
+                    // therefore we haven't generated that type yet. Just
+                    // leave `choices` as it is and we will choose the
+                    // original type again down below.
                 }
                 while let Some(supertype) = self
                     .types
@@ -947,16 +968,28 @@ impl Module {
     }
 
     fn arbitrary_composite_type(&mut self, u: &mut Unstructured) -> Result<CompositeType> {
+        use CompositeInnerType as CT;
+        let shared = false; // TODO: handle shared
         if !self.config.gc_enabled {
-            return Ok(CompositeType::Func(self.arbitrary_func_type(u)?));
+            return Ok(CompositeType {
+                shared,
+                inner: CT::Func(self.arbitrary_func_type(u)?),
+            });
         }
 
         match u.int_in_range(0..=2)? {
-            0 => Ok(CompositeType::Array(ArrayType(
-                self.arbitrary_field_type(u)?,
-            ))),
-            1 => Ok(CompositeType::Func(self.arbitrary_func_type(u)?)),
-            2 => Ok(CompositeType::Struct(self.arbitrary_struct_type(u)?)),
+            0 => Ok(CompositeType {
+                shared,
+                inner: CT::Array(ArrayType(self.arbitrary_field_type(u)?)),
+            }),
+            1 => Ok(CompositeType {
+                shared,
+                inner: CT::Func(self.arbitrary_func_type(u)?),
+            }),
+            2 => Ok(CompositeType {
+                shared,
+                inner: CT::Struct(self.arbitrary_struct_type(u)?),
+            }),
             _ => unreachable!(),
         }
     }
@@ -1266,13 +1299,16 @@ impl Module {
                     new_types.push(SubType {
                         is_final: true,
                         supertype: None,
-                        composite_type: CompositeType::Func(Rc::clone(&func_type)),
+                        composite_type: CompositeType::new_func(Rc::clone(&func_type), false), // TODO: handle shared
                     });
                     new_index
                 }
             };
-            match &new_types[serialized_sig_idx - first_type_index].composite_type {
-                CompositeType::Func(f) => Some((serialized_sig_idx as u32, Rc::clone(f))),
+            match &new_types[serialized_sig_idx - first_type_index]
+                .composite_type
+                .inner
+            {
+                CompositeInnerType::Func(f) => Some((serialized_sig_idx as u32, Rc::clone(f))),
                 _ => unimplemented!(),
             }
         };
@@ -1394,8 +1430,8 @@ impl Module {
     }
 
     fn func_type(&self, idx: u32) -> &Rc<FuncType> {
-        match &self.ty(idx).composite_type {
-            CompositeType::Func(f) => f,
+        match &self.ty(idx).composite_type.inner {
+            CompositeInnerType::Func(f) => f,
             _ => panic!("types[{idx}] is not a func type"),
         }
     }
@@ -1708,8 +1744,8 @@ impl Module {
                             id
                         )
                     });
-                    match &subtype.composite_type {
-                        wasmparser::CompositeType::Func(func_type) => {
+                    match &subtype.composite_type.inner {
+                        wasmparser::CompositeInnerType::Func(func_type) => {
                             assert!(
                                 subtype.is_final,
                                 "Subtype {:?} from `exports` Wasm is not final",
@@ -1738,7 +1774,10 @@ impl Module {
                             let type_index = self.add_type(SubType {
                                 is_final: true,
                                 supertype: None,
-                                composite_type: CompositeType::Func(Rc::clone(&new_type)),
+                                composite_type: CompositeType::new_func(
+                                    Rc::clone(&new_type),
+                                    false,
+                                ), // TODO: handle shared
                             });
                             let func_index = self.funcs.len() as u32;
                             self.funcs.push((type_index, new_type));
