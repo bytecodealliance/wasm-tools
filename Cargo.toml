@@ -37,6 +37,7 @@ members = [
   'crates/fuzz-stats',
   'crates/wasm-mutate-stats',
   'fuzz',
+  'crates/wit-encoder',
   'crates/wit-parser/fuzz',
   'crates/wit-component/dl',
   'playground/component',
@@ -94,6 +95,7 @@ wasmprinter = { version = "0.210.0", path = "crates/wasmprinter" }
 wast = { version = "210.0.0", path = "crates/wast" }
 wat = { version = "1.210.0", path = "crates/wat" }
 wit-component = { version = "0.210.0", path = "crates/wit-component" }
+wit-encoder = { version = "0.210.0", path = "crates/wit-encoder" }
 wit-parser = { version = "0.210.0", path = "crates/wit-parser" }
 wit-smith = { version = "0.210.0", path = "crates/wit-smith" }
 
@@ -140,6 +142,7 @@ cpp_demangle = { version = "0.4.0", optional = true }
 
 # Dependencies of `component`
 wit-component = { workspace = true, optional = true, features = ['dummy-module', 'wat', 'semver-check'] }
+wit-encoder = { workspace = true, optional = true }
 wit-parser = { workspace = true, optional = true, features = ['decoding', 'wat', 'serde'] }
 wast = { workspace = true, optional = true }
 
@@ -208,6 +211,7 @@ compose = ['wasm-compose', 'dep:wasmparser']
 demangle = ['rustc-demangle', 'cpp_demangle', 'dep:wasmparser', 'wasm-encoder']
 component = [
   'wit-component',
+  'wit-encoder',
   'wit-parser',
   'dep:wast',
   'wasm-encoder',
