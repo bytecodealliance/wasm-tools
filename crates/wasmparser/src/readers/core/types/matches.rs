@@ -14,8 +14,8 @@
 
 use crate::{
     types::{CoreTypeId, RecGroupId, TypeList},
-    ArrayType, CompositeType, FieldType, FuncType, RefType, StorageType, StructType, SubType,
-    ValType,
+    ArrayType, CompositeInnerType, CompositeType, FieldType, FuncType, RefType, StorageType,
+    StructType, SubType, ValType,
 };
 
 /// Wasm type matching.
@@ -103,27 +103,28 @@ impl<'a> Matches for WithRecGroup<&'a SubType> {
 
 impl<'a> Matches for WithRecGroup<&'a CompositeType> {
     fn matches(types: &TypeList, a: Self, b: Self) -> bool {
-        match (&*a, &*b) {
-            (CompositeType::Func(fa), CompositeType::Func(fb)) => Matches::matches(
+        use CompositeInnerType::*;
+        match (&(*a).inner, &(*b).inner) {
+            (Func(fa), Func(fb)) => Matches::matches(
                 types,
                 WithRecGroup::map(a, |_| fa),
                 WithRecGroup::map(b, |_| fb),
             ),
-            (CompositeType::Func(_), _) => false,
+            (Func(_), _) => false,
 
-            (CompositeType::Array(aa), CompositeType::Array(ab)) => Matches::matches(
+            (Array(aa), Array(ab)) => Matches::matches(
                 types,
                 WithRecGroup::map(a, |_| *aa),
                 WithRecGroup::map(b, |_| *ab),
             ),
-            (CompositeType::Array(_), _) => false,
+            (Array(_), _) => false,
 
-            (CompositeType::Struct(sa), CompositeType::Struct(sb)) => Matches::matches(
+            (Struct(sa), Struct(sb)) => Matches::matches(
                 types,
                 WithRecGroup::map(a, |_| sa),
                 WithRecGroup::map(b, |_| sb),
             ),
-            (CompositeType::Struct(_), _) => false,
+            (Struct(_), _) => false,
         }
     }
 }
