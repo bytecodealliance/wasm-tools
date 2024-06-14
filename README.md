@@ -131,7 +131,7 @@ with wasm modules and component. Many subcommands also come with Rust crates
 that can be use programmatically as well:
 
 | CLI | Rust Crate | Playground | Description |
-|------|------|------------|
+|------|------|--------|------------|
 | `wasm-tools validate` | [wasmparser] |  | Validate a WebAssembly file |
 | `wasm-tools parse` | [wat] and [wast] | [parse](https://bytecodealliance.github.io/wasm-tools/parse) | Translate the WebAssembly text format to binary |
 | `wasm-tools print` | [wasmprinter] | [print](https://bytecodealliance.github.io/wasm-tools/print) | Translate the WebAssembly binary format to text |
