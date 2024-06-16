@@ -1,11 +1,6 @@
-use std::{
-    collections::HashMap,
-    fmt::Write,
-    path::{Path, PathBuf},
-    sync::OnceLock,
-};
+use anyhow::{Context, Result};
+use std::{collections::HashMap, fmt::Write, fs, path::Path, sync::OnceLock};
 
-use tryfn::{Case, Harness};
 use wasm_wave::{
     parser::ParserError,
     untyped::UntypedFuncCall,
@@ -14,17 +9,7 @@ use wasm_wave::{
 };
 use wit_parser::Resolve;
 
-fn setup(path: PathBuf) -> Case {
-    let name = format!("ui::{}", path.file_stem().unwrap().to_string_lossy());
-    let expected = tryfn::Data::read_from(&path.with_extension("out"), None);
-    Case {
-        name,
-        fixture: path,
-        expected,
-    }
-}
-
-fn test(path: &Path) -> Result<String, Box<dyn std::error::Error>> {
+fn test(path: &Path) -> Result<String> {
     let filename = path.file_name().unwrap().to_string_lossy();
     let inputs = std::fs::read_to_string(path)?;
     let mut output = String::new();
@@ -100,14 +85,33 @@ fn get_func_type(func_name: &str) -> Option<&'static FuncType> {
         .get(func_name)
 }
 
-fn main() {
-    use snapbox::assert::{Action, Assert};
-    let action = match std::env::var("BLESS").unwrap_or_default().as_str() {
-        "" => Action::Skip,
-        _ => Action::Overwrite,
-    };
-    Harness::new("tests/ui", setup, test)
-        .select(["*.waves"])
-        .with_assert(Assert::new().action(action))
-        .test();
+#[test]
+fn ui() -> Result<()> {
+    for entry in fs::read_dir("tests/ui")? {
+        let path = entry?.path();
+        if path.extension().is_none() {
+            continue;
+        }
+        if path.extension().unwrap() != "waves" {
+            continue;
+        }
+
+        println!("testing {path:?}");
+        let actual = test(&path)?;
+        let expected = path.with_extension("out");
+        if std::env::var_os("BLESS").is_some() {
+            fs::write(&expected, actual)
+                .with_context(|| format!("failed to write {expected:?}"))?;
+        } else {
+            let expected = fs::read_to_string(&expected)
+                .with_context(|| format!("failed to read {expected:?}"))?;
+            assert_eq!(
+                expected, actual,
+                "expectation `{}` did not match actual `{}`",
+                expected, actual,
+            );
+        }
+    }
+
+    Ok(())
 }
