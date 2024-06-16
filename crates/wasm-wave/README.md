@@ -1,7 +1,7 @@
 # WAVE: Web Assembly Value Encoding
 
 WAVE is a human-oriented text encoding of WebAssembly Component Model values. It is designed to be consistent with the
-[WIT IDL format](https://github.com/WebAssembly/component-model/blob/673d5c43c3cc0f4aeb8996a5c0931af623f16808/design/mvp/WIT.md).
+[WIT IDL format](https://github.com/WebAssembly/component-model/blob/main/design/mvp/WIT.md).
 
 |Type|Example Values
 |---|---
