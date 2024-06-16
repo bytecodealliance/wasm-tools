@@ -159,7 +159,7 @@ mod tests {
             mut packages,
             source_map,
         } = UnresolvedPackageGroup::parse(
-            "test.wit".as_ref(),
+            "test.wit",
             r#"
             package test:types;
             interface types {
@@ -182,7 +182,7 @@ mod tests {
             mut packages,
             source_map,
         } = UnresolvedPackageGroup::parse(
-            "test.wit".as_ref(),
+            "test.wit",
             r#"
             package test:types;
             interface types {
