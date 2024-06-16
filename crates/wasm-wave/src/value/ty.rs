@@ -3,10 +3,10 @@ use std::{borrow::Cow, sync::Arc};
 use crate::wasm::{maybe_unwrap_type, WasmType, WasmTypeKind};
 
 /// The [`WasmType`] of a [`Value`](super::Value).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Type(pub(super) TypeEnum);
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum TypeEnum {
     Simple(SimpleType),
     List(Arc<ListType>),
@@ -132,7 +132,7 @@ impl Type {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SimpleType(WasmTypeKind);
 
 const fn is_simple(kind: WasmTypeKind) -> bool {
@@ -143,43 +143,43 @@ const fn is_simple(kind: WasmTypeKind) -> bool {
     )
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ListType {
     pub(super) element: Type,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct RecordType {
     pub(super) fields: Box<[(Box<str>, Type)]>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct TupleType {
     pub(super) elements: Box<[Type]>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct VariantType {
     pub(super) cases: Box<[(Box<str>, Option<Type>)]>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct EnumType {
     pub(super) cases: Box<[Box<str>]>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct OptionType {
     pub(super) some: Type,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ResultType {
     pub(super) ok: Option<Type>,
     pub(super) err: Option<Type>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct FlagsType {
     pub(super) flags: Box<[Box<str>]>,
 }

@@ -2,7 +2,7 @@ use std::{borrow::Cow, fmt::Debug};
 
 /// The kind of a [`WasmType`]. These correspond to the value types defined by the
 /// [Component Model design](https://github.com/WebAssembly/component-model/blob/673d5c43c3cc0f4aeb8996a5c0931af623f16808/design/mvp/WIT.md).
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[allow(missing_docs)]
 #[non_exhaustive]
 pub enum WasmTypeKind {
