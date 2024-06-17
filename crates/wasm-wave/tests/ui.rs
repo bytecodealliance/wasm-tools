@@ -85,6 +85,8 @@ fn get_func_type(func_name: &str) -> Option<&'static FuncType> {
         .get(func_name)
 }
 
+// TODO: this ought to be be migrated to use `libtest-mimic`, which other crates in this workspace
+// use as well
 #[test]
 fn ui() -> Result<()> {
     for entry in fs::read_dir("tests/ui")? {
