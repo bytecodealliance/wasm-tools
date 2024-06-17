@@ -31,6 +31,7 @@ const CRATES_TO_PUBLISH: &[&str] = &[
     "wit-encoder",
     "wasm-compose",
     "wit-smith",
+    "wasm-wave",
     "wasm-tools",
 ];
 
