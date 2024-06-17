@@ -11,7 +11,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/lann/wasm-wave"
+    "url": "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-wave"
   },
   "contributes": {
     "languages": [{

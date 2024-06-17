@@ -2,7 +2,7 @@
 //!
 //! WAVE is a human-oriented text encoding of WebAssembly Component Model values.
 //!
-//! For more information, see the [README](https://github.com/lann/wasm-wave#readme).
+//! For more information, see the [README](https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-wave#readme).
 #![deny(missing_docs)]
 
 pub mod ast;
