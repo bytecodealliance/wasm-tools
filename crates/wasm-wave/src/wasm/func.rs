@@ -2,6 +2,9 @@ use std::borrow::Cow;
 
 use crate::wasm::WasmType;
 
+// TODO: Given recent versions of rustc we may want to take a look at changing the returns of boxed
+// iterators to -> impl Iterator
+
 /// The WasmFunc trait may be implemented to represent Wasm func type
 /// signatures to be (de)serialized with WAVE.
 pub trait WasmFunc {
