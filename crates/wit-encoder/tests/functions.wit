@@ -9,4 +9,7 @@ interface functions {
   f8: func(a: option<u32>) -> result<u32, f32>;
   f9: func() -> (u: u32, f: f32);
   f10: func() -> (u: u32);
+  f11: func() -> result<f32>;
+  f12: func() -> result<_, f32>;
+  f13: func() -> result;
 }

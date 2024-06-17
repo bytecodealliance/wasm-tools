@@ -1,14 +1,17 @@
 use pretty_assertions::assert_eq;
-use wit_encoder::{Package, PackageName, Params, Result_, Results, StandaloneFunc, Type};
+use wit_encoder::{
+    Interface, Package, PackageName, Params, Result_, Results, StandaloneFunc, Type,
+};
 
 const PACKAGE: &str = include_str!("./functions.wit");
 
 #[test]
 fn concrete_types() {
-    let mut package = Package::new(PackageName::new("foo", "functions", None));
+    let name = PackageName::new("foo", "functions", None);
+    let mut package = Package::new(name);
 
     package.interface({
-        let mut interface = wit_encoder::Interface::new("functions");
+        let mut interface = Interface::new("functions");
         interface.function(StandaloneFunc::new("f1"));
         interface.function({
             let mut func = StandaloneFunc::new("f2");
@@ -48,17 +51,17 @@ fn concrete_types() {
             func
         });
         interface.function({
-            let mut func = StandaloneFunc::new("f9");
+            let mut func = StandaloneFunc::new("f11");
             func.results(Type::result(Result_::ok(Type::F32)));
             func
         });
         interface.function({
-            let mut func = StandaloneFunc::new("f10");
+            let mut func = StandaloneFunc::new("f12");
             func.results(Type::result(Result_::err(Type::F32)));
             func
         });
         interface.function({
-            let mut func = StandaloneFunc::new("f11");
+            let mut func = StandaloneFunc::new("f13");
             func.results(Type::result(Result_::empty()));
             func
         });
