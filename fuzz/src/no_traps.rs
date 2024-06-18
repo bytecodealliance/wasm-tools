@@ -113,24 +113,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
 
 fn validate_module(config: wasm_smith::Config, wasm_bytes: &Vec<u8>) {
     // Validate the module or component and assert that it passes validation.
-    let mut validator = wasmparser::Validator::new_with_features({
-        let mut features = WasmFeatures::default();
-        features.remove(WasmFeatures::COMPONENT_MODEL);
-        features.set(WasmFeatures::MULTI_VALUE, config.multi_value_enabled);
-        features.set(WasmFeatures::MULTI_MEMORY, config.max_memories > 1);
-        features.insert(WasmFeatures::BULK_MEMORY);
-        features.insert(WasmFeatures::REFERENCE_TYPES);
-        features.set(WasmFeatures::SIMD, config.simd_enabled);
-        features.set(WasmFeatures::RELAXED_SIMD, config.relaxed_simd_enabled);
-        features.set(WasmFeatures::MEMORY64, config.memory64_enabled);
-        features.set(WasmFeatures::THREADS, config.threads_enabled);
-        features.set(WasmFeatures::EXCEPTIONS, config.exceptions_enabled);
-        features.set(
-            WasmFeatures::CUSTOM_PAGE_SIZES,
-            config.custom_page_sizes_enabled,
-        );
-        features
-    });
+    let mut validator = wasmparser::Validator::new_with_features(WasmFeatures::all());
     if let Err(e) = validator.validate_all(wasm_bytes) {
         panic!("Invalid module: {}", e);
     }
