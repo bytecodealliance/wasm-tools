@@ -1,6 +1,9 @@
 package foo:nestee;
 
 interface things {
+  //nesting can be documented
+  @since(version = 1.0.0)
+  nest foo:nestnest/deep;
   record nestrecord {
     foo: string
   }

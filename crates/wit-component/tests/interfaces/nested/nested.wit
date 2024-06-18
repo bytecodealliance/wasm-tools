@@ -2,7 +2,9 @@ package foo:thing;
 
 interface something {
   use foo:nestee/usable.{usable-record};
+  //nesting can be documented
   nest foo:nestee/things;
+  @since(version = 1.0.0)
   nest foo:nestee/more;
   @since(version = 1.0.0)
   record my-record {

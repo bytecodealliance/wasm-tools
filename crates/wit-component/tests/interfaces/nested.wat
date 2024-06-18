@@ -21,6 +21,13 @@
             (instance
               (type (;0;) (record (field "foo" string)))
               (export (;1;) "nestrecord" (type (eq 0)))
+              (type (;2;)
+                (instance
+                  (type (;0;) (record (field "foo" string)))
+                  (export (;1;) "nestrecord" (type (eq 0)))
+                )
+              )
+              (export (;0;) "foo:nestnest/deep" (instance (type 2)))
             )
           )
           (export (;0;) "foo:nestee/things" (instance (type 5)))
@@ -102,7 +109,7 @@
     )
   )
   (export (;5;) "my-world" (type 4))
-  (@custom "package-docs" "\01{\22interfaces\22:{\22something\22:{\22types\22:{\22my-record\22:{\22stability\22:{\22stable\22:{\22since\22:\221.0.0\22}}}}}}}")
+  (@custom "package-docs" "\01{\22interfaces\22:{\22something\22:{\22types\22:{\22my-record\22:{\22stability\22:{\22stable\22:{\22since\22:\221.0.0\22}}}},\22nested\22:{\22foo:nestee/things\22:{\22docs\22:{\22contents\22:\22nesting can be documented\22},\22stability\22:\22unknown\22},\22foo:nestee/more\22:{\22docs\22:{\22contents\22:null},\22stability\22:{\22stable\22:{\22since\22:\221.0.0\22}}}}}}}")
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

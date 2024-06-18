@@ -814,7 +814,19 @@ impl WitPackageDecoder<'_> {
                         }
                     }
                 }
-                types::ComponentEntityType::Instance(_) => todo!(),
+                types::ComponentEntityType::Instance(i) => {
+                    let ty = &self.types[i];
+                    let deep = self.register_export(name, ty)?;
+                    let iface = &mut self.resolve.interfaces[interface];
+                    iface.nested.insert(
+                        name.to_string(),
+                        Nest {
+                            id: deep,
+                            docs: Default::default(),
+                            stability: Default::default(),
+                        },
+                    );
+                }
                 types::ComponentEntityType::Component(_) => todo!(),
             }
         }
@@ -1077,7 +1089,14 @@ impl WitPackageDecoder<'_> {
                 types::ComponentEntityType::Instance(inst) => {
                     let ty = &self.types[inst];
                     let iface = self.register_export(&name, &ty)?;
-                    interface.nested.insert(name.to_string(), iface);
+                    interface.nested.insert(
+                        name.to_string(),
+                        Nest {
+                            id: iface,
+                            docs: Default::default(),
+                            stability: Default::default(),
+                        },
+                    );
                 }
                 _ => bail!("instance type export `{name}` is not a type or function"),
             };

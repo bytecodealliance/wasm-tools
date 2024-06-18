@@ -1,10 +1,4 @@
-use super::{
-    // AstItem as RootAstItem, Interface as RootInterface,
-    Nest,
-    ParamList,
-    ResultList,
-    WorldOrInterface,
-};
+use super::{Nest, ParamList, ResultList, WorldOrInterface};
 use crate::ast::toposort::toposort;
 use crate::ast::InterfaceItem;
 use crate::*;
@@ -569,9 +563,15 @@ impl<'a> Resolver<'a> {
                             } else {
                                 bail!("Expected interface item")
                             };
+                            let stability = self.stability(&n.attributes)?;
+                            let docs = self.docs(&n.docs);
                             self.interfaces[id].nested.insert(
                                 format!("{}/{}", n.id.package_name(), n.name.name.to_string()),
-                                *nested_id,
+                                crate::Nest {
+                                    id: *nested_id,
+                                    docs,
+                                    stability,
+                                },
                             );
                             let prev = ids.insert(n.name.name, AstItem::Interface(id));
                             assert!(prev.is_none());
@@ -1457,7 +1457,7 @@ impl<'a> Resolver<'a> {
         Type::Id(*id)
     }
 
-    fn docs(&mut self, doc: &super::Docs<'_>) -> Docs {
+    fn docs(&self, doc: &super::Docs<'_>) -> Docs {
         let mut docs = vec![];
         for doc in doc.docs.iter() {
             if let Some(doc) = doc.strip_prefix("/**") {
@@ -1490,7 +1490,7 @@ impl<'a> Resolver<'a> {
         Docs { contents }
     }
 
-    fn stability(&mut self, attrs: &[ast::Attribute<'_>]) -> Result<Stability> {
+    fn stability(&self, attrs: &[ast::Attribute<'_>]) -> Result<Stability> {
         match attrs {
             [] => Ok(Stability::Unknown),
             [ast::Attribute::Since {

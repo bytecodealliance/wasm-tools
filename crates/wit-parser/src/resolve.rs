@@ -899,23 +899,6 @@ impl Resolve {
         }
     }
 
-    // pub fn type_interface_nest(&self, id: TypeId) -> Option<InterfaceId> {
-    //     let ty = &self.types[id];
-    //     let dep = match ty.kind {
-    //         TypeDefKind::Type(Type::Id(id)) => id,
-    //         _ => return None,
-    //     };
-    //     let other = &self.types[dep];
-    //     if ty.owner == other.owner {
-    //         None
-    //     } else {
-    //         match other.owner {
-    //             TypeOwner::Interface(id) => Some(id),
-    //             _ => unreachable!(),
-    //         }
-    //     }
-    // }
-
     /// Returns an iterator of all interfaces that the interface `id` depends
     /// on.
     ///
@@ -930,11 +913,6 @@ impl Resolve {
             .types
             .iter()
             .filter_map(move |(_name, ty)| self.type_interface_dep(*ty))
-    }
-
-    pub fn interface_nests(&self, id: InterfaceId) -> impl Iterator<Item = InterfaceId> + '_ {
-        self.interfaces[id].nested.iter().map(|n| n.1.clone())
-        // .filter_map(move |(_name, ty)| self.type_interface_dep(*ty))
     }
 
     /// Returns an iterator of all packages that the package `id` depends

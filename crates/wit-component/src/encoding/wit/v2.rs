@@ -1,5 +1,5 @@
 use crate::encoding::types::{FunctionKey, ValtypeEncoder};
-use anyhow::{bail, Result};
+use anyhow::Result;
 use indexmap::IndexSet;
 use std::collections::HashMap;
 use std::mem;
@@ -226,6 +226,20 @@ impl InterfaceEncoder<'_> {
                 .export(name, ComponentTypeRef::Func(ty));
         }
         let mut instance = self.pop_instance();
+        self.encode_nested(iface, &mut instance)?;
+
+        let idx = self.outer.type_count();
+        self.outer.ty().instance(&instance);
+        self.import_map.insert(interface, self.instances);
+        self.instances += 1;
+        Ok(idx)
+    }
+
+    fn encode_nested<'a>(
+        &'a mut self,
+        iface: &Interface,
+        instance: &'a mut InstanceType,
+    ) -> Result<&mut InstanceType> {
         for (orig_name, _) in &iface.nested {
             let mut pkg_parts = orig_name.split("/");
             let pkg = pkg_parts.next().expect("expected projection");
@@ -255,23 +269,40 @@ impl InterfaceEncoder<'_> {
                 }
                 inst.encode_valtype(self.resolve, &Type::Id(*id))?;
             }
-            for (_, _) in &nested_iface.nested {
-                bail!("Using `nest` in a nested interface is not yet supported");
-            }
             let ty = instance.ty();
-            let nested = inst.pop_instance();
-            ty.instance(&nested);
+            let nested_instance = &mut inst.pop_instance();
+            for (orig_name, _) in &nested_iface.nested {
+                let mut nest_package_parts = orig_name.split("/");
+                let nest_pkg = nest_package_parts.next().unwrap();
+                let nest_iface = nest_package_parts.next().unwrap();
+                let mut parts = nest_pkg.split(":");
+                let ns = parts.next().unwrap();
+                let name = parts.next().unwrap();
+                let name = PackageName {
+                    namespace: ns.to_string(),
+                    name: name.to_string(),
+                    version: None,
+                };
+                let nest_pkg_id = self.resolve.package_names.get(&name).unwrap();
+                let nested_package = &self.resolve.packages[*nest_pkg_id];
+                let myguy = nested_package.interfaces.get(nest_iface).unwrap();
+                let nest = &self.resolve.interfaces[*myguy];
+                let mut clone = nested_instance.clone();
+                let deep_instance = self.encode_nested(nest, &mut clone)?;
+                let deep_ty = nested_instance.ty();
+                deep_ty.instance(&deep_instance);
+                nested_instance.export(
+                    orig_name,
+                    ComponentTypeRef::Instance(deep_instance.type_count()),
+                );
+            }
+            ty.instance(&nested_instance);
             instance.export(
                 orig_name,
                 ComponentTypeRef::Instance(instance.type_count() - 1),
             );
         }
-
-        let idx = self.outer.type_count();
-        self.outer.ty().instance(&instance);
-        self.import_map.insert(interface, self.instances);
-        self.instances += 1;
-        Ok(idx)
+        Ok(instance)
     }
 
     fn push_instance(&mut self) {

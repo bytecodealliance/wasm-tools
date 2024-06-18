@@ -562,13 +562,18 @@ enum InterfaceItem<'a> {
 }
 
 struct Nest<'a> {
+    docs: Docs<'a>,
     id: PackageName<'a>,
     name: Id<'a>,
-    // attributes: Vec<Attribute<'a>>,
+    attributes: Vec<Attribute<'a>>,
 }
 
 impl<'a> Nest<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>, _attributes: Vec<Attribute<'a>>) -> Result<Self> {
+    fn parse(
+        tokens: &mut Tokenizer<'a>,
+        docs: Docs<'a>,
+        attributes: Vec<Attribute<'a>>,
+    ) -> Result<Self> {
         tokens.eat(Token::Nest)?;
         let id = parse_id(tokens)?;
         tokens.expect(Token::Colon)?;
@@ -590,8 +595,9 @@ impl<'a> Nest<'a> {
                 name: pkg_name,
                 version,
             },
+            docs,
             name,
-            // attributes,
+            attributes,
         })
     }
 }
@@ -1032,7 +1038,9 @@ impl<'a> InterfaceItem<'a> {
                 NamedFunc::parse(tokens, docs, attributes).map(InterfaceItem::Func)
             }
             Some((_span, Token::Use)) => Use::parse(tokens, attributes).map(InterfaceItem::Use),
-            Some((_span, Token::Nest)) => Nest::parse(tokens, attributes).map(InterfaceItem::Nest),
+            Some((_span, Token::Nest)) => {
+                Nest::parse(tokens, docs, attributes).map(InterfaceItem::Nest)
+            }
             other => Err(err_expected(tokens, "`type`, `resource` or `func`", other).into()),
         }
     }

@@ -15,7 +15,7 @@
 //! format to store this information inline.
 
 use crate::{
-    Docs, Function, InterfaceId, PackageId, Resolve, Stability, TypeDefKind, TypeId, WorldId,
+    Docs, Function, InterfaceId, Nest, PackageId, Resolve, Stability, TypeDefKind, TypeId, WorldId,
     WorldItem, WorldKey,
 };
 use anyhow::{bail, Result};
@@ -521,6 +521,7 @@ struct InterfaceMetadata {
         serde(default, skip_serializing_if = "StringMap::is_empty")
     )]
     types: StringMap<TypeMetadata>,
+    nested: StringMap<NestMetadata>,
 }
 
 impl InterfaceMetadata {
@@ -539,12 +540,18 @@ impl InterfaceMetadata {
             .map(|(name, id)| (name.to_string(), TypeMetadata::extract(resolve, *id)))
             .filter(|(_, item)| !item.is_empty())
             .collect();
+        let nested: IndexMap<String, NestMetadata> = interface
+            .nested
+            .iter()
+            .map(|n| (n.0.clone(), NestMetadata::extract(n.1.clone())))
+            .collect();
 
         Self {
             docs: interface.docs.contents.clone(),
             stability: interface.stability.clone(),
             funcs,
             types,
+            nested,
         }
     }
 
@@ -566,6 +573,12 @@ impl InterfaceMetadata {
             interface.docs.contents = Some(docs.to_string());
         }
         interface.stability = self.stability.clone();
+        for (name, data) in &self.nested {
+            let Some(f) = interface.nested.get_mut(name) else {
+                bail!("missing func {name:?}");
+            };
+            data.inject(f)?;
+        }
         Ok(())
     }
 
@@ -654,6 +667,26 @@ impl FunctionMetadata {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
+struct NestMetadata {
+    docs: Docs,
+    stability: Stability,
+}
+
+impl NestMetadata {
+    fn extract(nest: Nest) -> Self {
+        Self {
+            docs: nest.docs,
+            stability: nest.stability,
+        }
+    }
+    fn inject(&self, nest: &mut Nest) -> Result<()> {
+        nest.stability = self.stability.clone();
+        nest.docs = self.docs.clone();
+        Ok(())
+    }
+}
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
 struct TypeMetadata {
