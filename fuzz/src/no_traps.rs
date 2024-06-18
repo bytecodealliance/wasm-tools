@@ -24,7 +24,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         config.memory64_enabled = false;
         Ok(())
     })?;
-    validate_module(config.clone(), &wasm_bytes);
+    validate_module(&wasm_bytes);
 
     // Tail calls aren't implemented in wasmtime, so don't try to run them
     // there.
@@ -111,7 +111,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     Ok(())
 }
 
-fn validate_module(config: wasm_smith::Config, wasm_bytes: &Vec<u8>) {
+fn validate_module(wasm_bytes: &Vec<u8>) {
     // Validate the module or component and assert that it passes validation.
     let mut validator = wasmparser::Validator::new_with_features(WasmFeatures::all());
     if let Err(e) = validator.validate_all(wasm_bytes) {
