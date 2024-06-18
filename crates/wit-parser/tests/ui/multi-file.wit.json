@@ -49,6 +49,7 @@
   "interfaces": [
     {
       "name": "irrelevant-name",
+      "nested": {},
       "types": {
         "a-name": 0
       },
@@ -57,6 +58,7 @@
     },
     {
       "name": "depend-on-me",
+      "nested": {},
       "types": {
         "x": 1
       },
@@ -65,6 +67,7 @@
     },
     {
       "name": "depends-on-later-item",
+      "nested": {},
       "types": {
         "x": 2
       },
@@ -73,12 +76,14 @@
     },
     {
       "name": "later-interface",
+      "nested": {},
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": "cycle1",
+      "nested": {},
       "types": {
         "t": 3
       },
@@ -87,6 +92,7 @@
     },
     {
       "name": "cycle2",
+      "nested": {},
       "types": {
         "t": 4
       },
@@ -95,6 +101,7 @@
     },
     {
       "name": "cycle3",
+      "nested": {},
       "types": {
         "t": 5
       },
@@ -103,6 +110,7 @@
     },
     {
       "name": "foo",
+      "nested": {},
       "types": {
         "x": 6
       },
@@ -111,6 +119,7 @@
     },
     {
       "name": "something-else",
+      "nested": {},
       "types": {
         "y": 7
       },
@@ -119,6 +128,7 @@
     },
     {
       "name": "bar",
+      "nested": {},
       "types": {
         "x": 8,
         "x2": 9,

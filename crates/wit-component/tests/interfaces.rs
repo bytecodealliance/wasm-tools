@@ -53,7 +53,6 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
     } else {
         resolve.append(UnresolvedPackageGroup::parse_file(path)?)?
     };
-
     for package in packages {
         assert_print(&resolve, &[package], path, is_dir)?;
 
@@ -77,7 +76,6 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
             decoded.packages().len(),
             "Each input WIT package should produce WASM that contains only one package"
         );
-
         let decoded_package = decoded.packages()[0];
         let resolve = decoded.resolve();
 

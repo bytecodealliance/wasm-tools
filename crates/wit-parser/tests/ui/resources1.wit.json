@@ -3,6 +3,7 @@
   "interfaces": [
     {
       "name": "resources1",
+      "nested": {},
       "types": {
         "r1": 0
       },

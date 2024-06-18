@@ -111,6 +111,7 @@
   "interfaces": [
     {
       "name": "disambiguate",
+      "nested": {},
       "types": {
         "t": 0
       },

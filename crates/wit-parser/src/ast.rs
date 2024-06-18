@@ -564,11 +564,11 @@ enum InterfaceItem<'a> {
 struct Nest<'a> {
     id: PackageName<'a>,
     name: Id<'a>,
-    attributes: Vec<Attribute<'a>>,
+    // attributes: Vec<Attribute<'a>>,
 }
 
 impl<'a> Nest<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>, attributes: Vec<Attribute<'a>>) -> Result<Self> {
+    fn parse(tokens: &mut Tokenizer<'a>, _attributes: Vec<Attribute<'a>>) -> Result<Self> {
         tokens.eat(Token::Nest)?;
         let id = parse_id(tokens)?;
         tokens.expect(Token::Colon)?;
@@ -591,7 +591,7 @@ impl<'a> Nest<'a> {
                 version,
             },
             name,
-            attributes,
+            // attributes,
         })
     }
 }

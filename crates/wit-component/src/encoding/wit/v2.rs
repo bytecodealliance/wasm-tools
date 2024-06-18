@@ -1,5 +1,5 @@
 use crate::encoding::types::{FunctionKey, ValtypeEncoder};
-use anyhow::Result;
+use anyhow::{bail, Result};
 use indexmap::IndexSet;
 use std::collections::HashMap;
 use std::mem;
@@ -184,6 +184,13 @@ impl InterfaceEncoder<'_> {
         let iface = &self.resolve.interfaces[interface];
         let mut type_order = IndexSet::new();
         for (_, id) in iface.types.iter() {
+            let ty = &self.resolve.types[*id];
+            match ty.owner {
+                TypeOwner::Interface(iface_id) => {
+                    self.interface = Some(iface_id);
+                }
+                _ => unreachable!(),
+            }
             self.encode_valtype(self.resolve, &Type::Id(*id))?;
             type_order.insert(*id);
         }
@@ -218,7 +225,48 @@ impl InterfaceEncoder<'_> {
                 .unwrap()
                 .export(name, ComponentTypeRef::Func(ty));
         }
-        let instance = self.pop_instance();
+        let mut instance = self.pop_instance();
+        for (orig_name, _) in &iface.nested {
+            let mut pkg_parts = orig_name.split("/");
+            let pkg = pkg_parts.next().expect("expected projection");
+            let iface_name = pkg_parts.next().expect("expected projection");
+            let mut parts = pkg.split(":");
+            let namespace = parts.next().expect("expected <namespace>:<id>");
+            let name = parts.next().expect("expected <namespace>:<id>");
+            let name = PackageName {
+                namespace: namespace.to_string(),
+                name: name.to_string(),
+                version: None,
+            };
+
+            let package_id = self.resolve.package_names.get(&name).unwrap();
+            let package = &self.resolve.packages[*package_id];
+            let nested = package.interfaces.get(iface_name).unwrap();
+            let nested_iface = &self.resolve.interfaces[*nested];
+            let mut inst = InterfaceEncoder::new(&self.resolve);
+            inst.push_instance();
+            for (_, id) in &nested_iface.types {
+                let ty = &self.resolve.types[*id];
+                match ty.owner {
+                    TypeOwner::Interface(iface_id) => {
+                        inst.interface = Some(iface_id);
+                    }
+                    _ => unreachable!(),
+                }
+                inst.encode_valtype(self.resolve, &Type::Id(*id))?;
+            }
+            for (_, _) in &nested_iface.nested {
+                bail!("Using `nest` in a nested interface is not yet supported");
+            }
+            let ty = instance.ty();
+            let nested = inst.pop_instance();
+            ty.instance(&nested);
+            instance.export(
+                orig_name,
+                ComponentTypeRef::Instance(instance.type_count() - 1),
+            );
+        }
+
         let idx = self.outer.type_count();
         self.outer.ty().instance(&instance);
         self.import_map.insert(interface, self.instances);

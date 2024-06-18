@@ -730,6 +730,97 @@ impl WitPackageDecoder<'_> {
         Ok(())
     }
 
+    fn register_export(
+        &mut self,
+        name: &str,
+        ty: &types::ComponentInstanceType,
+    ) -> Result<InterfaceId> {
+        let (is_local, interface) = match self.named_interfaces.get(name) {
+            Some(id) => (true, *id),
+            None => (false, self.extract_dep_interface(name)?),
+        };
+        let owner = TypeOwner::Interface(interface);
+        for (name, ty) in ty.exports.iter() {
+            match *ty {
+                types::ComponentEntityType::Module(_) => todo!(),
+                types::ComponentEntityType::Func(_) => todo!(),
+                types::ComponentEntityType::Value(_) => todo!(),
+                types::ComponentEntityType::Type {
+                    referenced,
+                    created,
+                } => {
+                    match self.resolve.interfaces[interface]
+                        .types
+                        .get(name.as_str())
+                        .copied()
+                    {
+                        // If this name is already defined as a type in the
+                        // specified interface then that's ok. For package-local
+                        // interfaces that's expected since the interface was
+                        // fully defined. For remote interfaces it means we're
+                        // using something that was already used elsewhere. In
+                        // both cases continue along.
+                        //
+                        // Notably for the remotely defined case this will also
+                        // walk over the structure of the type and register
+                        // internal wasmparser ids with wit-parser ids. This is
+                        // necessary to ensure that anonymous types like
+                        // `list<u8>` defined in original definitions are
+                        // unified with anonymous types when duplicated inside
+                        // of worlds. Overall this prevents, for example, extra
+                        // `list<u8>` types from popping up when decoding. This
+                        // is not strictly necessary but assists with
+                        // roundtripping assertions during fuzzing.
+                        Some(id) => {
+                            log::debug!("type already exist");
+                            match referenced {
+                                types::ComponentAnyTypeId::Defined(ty) => {
+                                    self.register_defined(id, &self.types[ty])?;
+                                }
+                                types::ComponentAnyTypeId::Resource(_) => {}
+                                _ => unreachable!(),
+                            }
+                            let prev = self.type_map.insert(created, id);
+                            assert!(prev.is_none());
+                        }
+
+                        // If the name is not defined, however, then there's two
+                        // possibilities:
+                        //
+                        // * For package-local interfaces this is an error
+                        //   because the package-local interface defined
+                        //   everything already and this is referencing
+                        //   something that isn't defined.
+                        //
+                        // * For remote interfaces they're never fully declared
+                        //   so it's lazily filled in here. This means that the
+                        //   view of remote interfaces ends up being the minimal
+                        //   slice needed for this resolve, which is what's
+                        //   intended.
+                        None => {
+                            if is_local {
+                                bail!("instance type export `{name}` not defined in interface");
+                            }
+                            let id = self.register_type_export(
+                                name.as_str(),
+                                owner,
+                                referenced,
+                                created,
+                            )?;
+                            let prev = self.resolve.interfaces[interface]
+                                .types
+                                .insert(name.to_string(), id);
+                            assert!(prev.is_none());
+                        }
+                    }
+                }
+                types::ComponentEntityType::Instance(_) => todo!(),
+                types::ComponentEntityType::Component(_) => todo!(),
+            }
+        }
+        Ok(interface)
+    }
+
     /// Registers that the `name` provided is either imported interface from a
     /// foreign package or  referencing a previously defined interface in this
     /// package.
@@ -960,7 +1051,8 @@ impl WitPackageDecoder<'_> {
             stability: Default::default(),
         };
 
-        let owner = TypeOwner::Interface(self.resolve.interfaces.next_id());
+        let next_id = self.resolve.interfaces.next_id();
+        let owner = TypeOwner::Interface(next_id);
         for (name, ty) in ty.exports.iter() {
             match *ty {
                 types::ComponentEntityType::Type {
@@ -981,6 +1073,11 @@ impl WitPackageDecoder<'_> {
                         .with_context(|| format!("failed to convert function '{name}'"))?;
                     let prev = interface.functions.insert(name.to_string(), func);
                     assert!(prev.is_none());
+                }
+                types::ComponentEntityType::Instance(inst) => {
+                    let ty = &self.types[inst];
+                    let iface = self.register_export(&name, &ty)?;
+                    interface.nested.insert(name.to_string(), iface);
                 }
                 _ => bail!("instance type export `{name}` is not a type or function"),
             };

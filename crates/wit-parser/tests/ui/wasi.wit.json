@@ -3,6 +3,7 @@
   "interfaces": [
     {
       "name": "wasi",
+      "nested": {},
       "types": {
         "clockid": 0,
         "timestamp": 1,

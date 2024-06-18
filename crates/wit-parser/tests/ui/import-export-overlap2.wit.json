@@ -25,6 +25,7 @@
   "interfaces": [
     {
       "name": null,
+      "nested": {},
       "types": {},
       "functions": {},
       "package": 0

@@ -1,0 +1,20 @@
+package foo:nestee;
+
+interface things {
+  record nestrecord {
+    foo: string
+  }
+  hello: func() -> string;
+}
+
+interface more {
+  resource foo {
+    bar: func() -> option<string>;
+  }
+}
+
+interface usable {
+  record usable-record {
+    foo: string
+  }
+}

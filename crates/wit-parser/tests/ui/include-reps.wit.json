@@ -40,12 +40,14 @@
   "interfaces": [
     {
       "name": "a",
+      "nested": {},
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": "b",
+      "nested": {},
       "types": {},
       "functions": {},
       "package": 0

@@ -31,6 +31,7 @@
   "interfaces": [
     {
       "name": "shared1",
+      "nested": {},
       "types": {
         "the-type": 0
       },
@@ -39,6 +40,7 @@
     },
     {
       "name": "shared2",
+      "nested": {},
       "types": {
         "the-type": 1
       },
@@ -47,6 +49,7 @@
     },
     {
       "name": null,
+      "nested": {},
       "types": {
         "the-type": 2
       },
@@ -55,6 +58,7 @@
     },
     {
       "name": null,
+      "nested": {},
       "types": {
         "the-type": 3
       },

@@ -82,6 +82,12 @@ impl WitPrinter {
                 self.output.push_str("interface ");
                 self.print_name(name);
                 self.output.push_str(" {\n");
+                let nested = &resolve.interfaces[*id].nested;
+                for item in nested {
+                    self.output.push_str("nest ");
+                    self.print_name(item.0);
+                    self.output.push_str(";\n")
+                }
                 self.print_interface(resolve, *id)?;
                 writeln!(&mut self.output, "}}\n")?;
             }

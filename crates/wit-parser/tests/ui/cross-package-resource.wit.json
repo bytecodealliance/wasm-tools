@@ -3,6 +3,7 @@
   "interfaces": [
     {
       "name": "foo",
+      "nested": {},
       "types": {
         "r": 0
       },
@@ -11,6 +12,7 @@
     },
     {
       "name": "foo",
+      "nested": {},
       "types": {
         "r": 1,
         "t": 2
