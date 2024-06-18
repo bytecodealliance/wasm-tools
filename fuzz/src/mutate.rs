@@ -68,6 +68,10 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     features.set(WasmFeatures::MULTI_MEMORY, config.max_memories > 1);
     features.set(WasmFeatures::MEMORY64, config.memory64_enabled);
     features.set(WasmFeatures::THREADS, config.threads_enabled);
+    features.set(
+        WasmFeatures::CUSTOM_PAGE_SIZES,
+        config.custom_page_sizes_enabled,
+    );
 
     for (i, mutated_wasm) in iterator.take(10).enumerate() {
         let mutated_wasm = match mutated_wasm {
