@@ -1,0 +1,7 @@
+permission-flags(flgs: {})
+permission-flags(flgs: {read})
+permission-flags(flgs: {read})
+permission-flags(flgs: {write})
+permission-flags(flgs: {read, write})
+permission-flags(flgs: {read, write})
+permission-flags(flgs: {read, write})
