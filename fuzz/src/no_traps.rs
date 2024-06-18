@@ -125,6 +125,10 @@ fn validate_module(config: wasm_smith::Config, wasm_bytes: &Vec<u8>) {
         features.set(WasmFeatures::MEMORY64, config.memory64_enabled);
         features.set(WasmFeatures::THREADS, config.threads_enabled);
         features.set(WasmFeatures::EXCEPTIONS, config.exceptions_enabled);
+        features.set(
+            WasmFeatures::CUSTOM_PAGE_SIZES,
+            config.custom_page_sizes_enabled,
+        );
         features
     });
     if let Err(e) = validator.validate_all(wasm_bytes) {
