@@ -55,23 +55,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         }
     };
 
-    // Note that on-by-default features in wasmparser are not disabled here if
-    // the feature was disabled in `config` when the module was generated. For
-    // example if the input module doesn't have simd then wasm-mutate may
-    // produce a module that uses simd, which is ok and expected.
-    //
-    // Otherwise only forward some off-by-default features which are affected by
-    // wasm-smith's generation of modules and wasm-mutate otherwise won't add
-    // itself if it doesn't already exist.
-    let mut features = WasmFeatures::default();
-    features.set(WasmFeatures::RELAXED_SIMD, config.relaxed_simd_enabled);
-    features.set(WasmFeatures::MULTI_MEMORY, config.max_memories > 1);
-    features.set(WasmFeatures::MEMORY64, config.memory64_enabled);
-    features.set(WasmFeatures::THREADS, config.threads_enabled);
-    features.set(
-        WasmFeatures::CUSTOM_PAGE_SIZES,
-        config.custom_page_sizes_enabled,
-    );
+    let features = WasmFeatures::all();
 
     for (i, mutated_wasm) in iterator.take(10).enumerate() {
         let mutated_wasm = match mutated_wasm {
