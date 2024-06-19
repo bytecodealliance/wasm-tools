@@ -101,11 +101,9 @@ enum Key {
 
 enum TypeItem<'a, 'b> {
     Use(&'b ast::Use<'a>),
-    Nest,
     Def(&'b ast::TypeDef<'a>),
 }
 
-#[derive(Debug)]
 enum TypeOrItem {
     Type(TypeId),
     Item(&'static str),
@@ -401,8 +399,8 @@ impl<'a> Resolver<'a> {
                         assert!(prev.is_none());
                         let prev = names.insert(i.name.name, item);
                         assert!(prev.is_none());
-                        for nestitem in i.items.iter() {
-                            if let InterfaceItem::Nest(n) = nestitem {
+                        for nest_item in i.items.iter() {
+                            if let InterfaceItem::Nest(n) = nest_item {
                                 if package_items.insert(n.name.name, n.name.span).is_some() {
                                     bail!(Error::new(
                                         n.name.span,
@@ -565,12 +563,30 @@ impl<'a> Resolver<'a> {
                             };
                             let stability = self.stability(&n.attributes)?;
                             let docs = self.docs(&n.docs);
+                            let name = if let Some(v) = &n.id.version {
+                                format!(
+                                    "{}:{}/{}@{}",
+                                    n.id.namespace.name,
+                                    n.id.name.name,
+                                    n.name.name,
+                                    v.1.to_string()
+                                )
+                            } else {
+                                format!("{}/{}", n.id.package_name(), n.name.name)
+                            };
                             self.interfaces[id].nested.insert(
-                                format!("{}/{}", n.id.package_name(), n.name.name.to_string()),
+                                // format!("{}/{}", n.id.package_name(), n.name.name.to_string()),
+                                name,
                                 crate::Nest {
                                     id: *nested_id,
                                     docs,
                                     stability,
+                                    package_name: PackageName {
+                                        namespace: n.id.namespace.name.to_string(),
+                                        name: n.id.name.name.to_string(),
+                                        version: n.id.version.as_ref().map(|v| v.1.clone()),
+                                    },
+                                    iface_name: n.name.name.to_string(),
                                 },
                             );
                             let prev = ids.insert(n.name.name, AstItem::Interface(id));
@@ -897,8 +913,7 @@ impl<'a> Resolver<'a> {
             fields.iter().filter_map(|i| match i {
                 ast::InterfaceItem::Use(u) => Some(TypeItem::Use(u)),
                 ast::InterfaceItem::TypeDef(t) => Some(TypeItem::Def(t)),
-                ast::InterfaceItem::Func(_) => None,
-                ast::InterfaceItem::Nest(_) => Some(TypeItem::Nest),
+                ast::InterfaceItem::Func(_) | ast::InterfaceItem::Nest(_) => None,
             }),
         )?;
 
@@ -944,8 +959,7 @@ impl<'a> Resolver<'a> {
                             .push(func.named_func().name.span);
                     }
                 }
-                ast::InterfaceItem::TypeDef(_) => {}
-                ast::InterfaceItem::Nest(_) => {}
+                ast::InterfaceItem::TypeDef(_) | ast::InterfaceItem::Nest(_) => {}
             }
         }
         for func in funcs {
@@ -1008,7 +1022,6 @@ impl<'a> Resolver<'a> {
                         type_defs.insert(name.name, None);
                     }
                 }
-                TypeItem::Nest => {}
             }
         }
         let order = toposort("type", &type_deps)?;

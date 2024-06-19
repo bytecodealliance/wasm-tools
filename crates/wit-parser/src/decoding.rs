@@ -742,9 +742,6 @@ impl WitPackageDecoder<'_> {
         let owner = TypeOwner::Interface(interface);
         for (name, ty) in ty.exports.iter() {
             match *ty {
-                types::ComponentEntityType::Module(_) => todo!(),
-                types::ComponentEntityType::Func(_) => todo!(),
-                types::ComponentEntityType::Value(_) => todo!(),
                 types::ComponentEntityType::Type {
                     referenced,
                     created,
@@ -815,19 +812,30 @@ impl WitPackageDecoder<'_> {
                     }
                 }
                 types::ComponentEntityType::Instance(i) => {
-                    let ty = &self.types[i];
-                    let deep = self.register_export(name, ty)?;
-                    let iface = &mut self.resolve.interfaces[interface];
-                    iface.nested.insert(
-                        name.to_string(),
-                        Nest {
-                            id: deep,
-                            docs: Default::default(),
-                            stability: Default::default(),
-                        },
-                    );
+                    match self.parse_component_name(name)?.kind() {
+                        ComponentNameKind::Interface(iface_name) => {
+                            let ty = &self.types[i];
+                            let deep = self.register_export(name, ty)?;
+                            let iface = &mut self.resolve.interfaces[interface];
+                            iface.nested.insert(
+                                name.to_string(),
+                                Nest {
+                                    id: deep,
+                                    docs: Default::default(),
+                                    stability: Default::default(),
+                                    package_name: PackageName {
+                                        namespace: iface_name.namespace().to_string(),
+                                        name: iface_name.package().to_string(),
+                                        version: iface_name.version(),
+                                    },
+                                    iface_name: iface_name.projection().to_string(),
+                                },
+                            );
+                        }
+                        _ => bail!("expected interface name"),
+                    }
                 }
-                types::ComponentEntityType::Component(_) => todo!(),
+                _ => bail!("instance type export `{name}` is not a type or instance"),
             }
         }
         Ok(interface)
@@ -1063,42 +1071,52 @@ impl WitPackageDecoder<'_> {
             stability: Default::default(),
         };
 
-        let next_id = self.resolve.interfaces.next_id();
-        let owner = TypeOwner::Interface(next_id);
-        for (name, ty) in ty.exports.iter() {
+        let owner = TypeOwner::Interface(self.resolve.interfaces.next_id());
+        for (exp_name, ty) in ty.exports.iter() {
             match *ty {
                 types::ComponentEntityType::Type {
                     referenced,
                     created,
                 } => {
                     let ty = self
-                        .register_type_export(name.as_str(), owner, referenced, created)
-                        .with_context(|| format!("failed to register type export '{name}'"))?;
-                    let prev = interface.types.insert(name.to_string(), ty);
+                        .register_type_export(exp_name.as_str(), owner, referenced, created)
+                        .with_context(|| format!("failed to register type export '{exp_name}'"))?;
+                    let prev = interface.types.insert(exp_name.to_string(), ty);
                     assert!(prev.is_none());
                 }
 
                 types::ComponentEntityType::Func(ty) => {
                     let ty = &self.types[ty];
                     let func = self
-                        .convert_function(name.as_str(), ty, owner)
-                        .with_context(|| format!("failed to convert function '{name}'"))?;
-                    let prev = interface.functions.insert(name.to_string(), func);
+                        .convert_function(exp_name.as_str(), ty, owner)
+                        .with_context(|| format!("failed to convert function '{exp_name}'"))?;
+                    let prev = interface.functions.insert(exp_name.to_string(), func);
                     assert!(prev.is_none());
                 }
                 types::ComponentEntityType::Instance(inst) => {
-                    let ty = &self.types[inst];
-                    let iface = self.register_export(&name, &ty)?;
-                    interface.nested.insert(
-                        name.to_string(),
-                        Nest {
-                            id: iface,
-                            docs: Default::default(),
-                            stability: Default::default(),
-                        },
-                    );
+                    match self.parse_component_name(exp_name)?.kind() {
+                        ComponentNameKind::Interface(iface_name) => {
+                            let ty = &self.types[inst];
+                            let deep = self.register_export(&exp_name, &ty)?;
+                            interface.nested.insert(
+                                exp_name.to_string(),
+                                Nest {
+                                    id: deep,
+                                    docs: Default::default(),
+                                    stability: Default::default(),
+                                    package_name: PackageName {
+                                        namespace: iface_name.namespace().to_string(),
+                                        name: iface_name.package().to_string(),
+                                        version: iface_name.version(),
+                                    },
+                                    iface_name: iface_name.projection().to_string(),
+                                },
+                            );
+                        }
+                        _ => bail!("expected interface name"),
+                    }
                 }
-                _ => bail!("instance type export `{name}` is not a type or function"),
+                _ => bail!("instance type export `{name}` is not a type, function or instance"),
             };
         }
         let id = self.resolve.interfaces.alloc(interface);

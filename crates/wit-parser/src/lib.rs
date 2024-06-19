@@ -414,6 +414,8 @@ pub struct Nest {
         serde(skip_serializing_if = "Stability::is_unknown")
     )]
     pub stability: Stability,
+    pub package_name: PackageName,
+    pub iface_name: String,
 }
 
 #[derive(Debug, Clone)]

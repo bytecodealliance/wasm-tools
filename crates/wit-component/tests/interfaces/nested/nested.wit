@@ -1,26 +1,14 @@
 package foo:thing;
 
 interface something {
-  use foo:nestee/usable.{usable-record};
   //nesting can be documented
-  nest foo:nestee/things;
+  nest foo:nestee/things@1.0.0;
   @since(version = 1.0.0)
-  nest foo:nestee/more;
+  nest foo:nestee/more@1.0.0;
   @since(version = 1.0.0)
   record my-record {
     foo: string
   }
 
   hello: func() -> string;
-}
-
-interface flat {
-  type random = list<u8>;
-}
-
-world my-world {
-  import something;
-  export something;
-  import flat;
-  export flat;
 }

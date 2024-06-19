@@ -185,11 +185,8 @@ impl InterfaceEncoder<'_> {
         let mut type_order = IndexSet::new();
         for (_, id) in iface.types.iter() {
             let ty = &self.resolve.types[*id];
-            match ty.owner {
-                TypeOwner::Interface(iface_id) => {
-                    self.interface = Some(iface_id);
-                }
-                _ => unreachable!(),
+            if let TypeOwner::Interface(iface_id) = ty.owner {
+                self.interface = Some(iface_id);
             }
             self.encode_valtype(self.resolve, &Type::Id(*id))?;
             type_order.insert(*id);
@@ -240,65 +237,47 @@ impl InterfaceEncoder<'_> {
         iface: &Interface,
         instance: &'a mut InstanceType,
     ) -> Result<&mut InstanceType> {
-        for (orig_name, _) in &iface.nested {
-            let mut pkg_parts = orig_name.split("/");
-            let pkg = pkg_parts.next().expect("expected projection");
-            let iface_name = pkg_parts.next().expect("expected projection");
-            let mut parts = pkg.split(":");
-            let namespace = parts.next().expect("expected <namespace>:<id>");
-            let name = parts.next().expect("expected <namespace>:<id>");
-            let name = PackageName {
-                namespace: namespace.to_string(),
-                name: name.to_string(),
-                version: None,
-            };
-
-            let package_id = self.resolve.package_names.get(&name).unwrap();
+        for (nest_name, nest_item) in &iface.nested {
+            let package_id = self
+                .resolve
+                .package_names
+                .get(&nest_item.package_name)
+                .unwrap();
             let package = &self.resolve.packages[*package_id];
-            let nested = package.interfaces.get(iface_name).unwrap();
+            let nested = package.interfaces.get(&nest_item.iface_name).unwrap();
             let nested_iface = &self.resolve.interfaces[*nested];
             let mut inst = InterfaceEncoder::new(&self.resolve);
             inst.push_instance();
             for (_, id) in &nested_iface.types {
                 let ty = &self.resolve.types[*id];
-                match ty.owner {
-                    TypeOwner::Interface(iface_id) => {
-                        inst.interface = Some(iface_id);
-                    }
-                    _ => unreachable!(),
+                if let TypeOwner::Interface(iface_id) = ty.owner {
+                    inst.interface = Some(iface_id);
                 }
                 inst.encode_valtype(self.resolve, &Type::Id(*id))?;
             }
             let ty = instance.ty();
             let nested_instance = &mut inst.pop_instance();
-            for (orig_name, _) in &nested_iface.nested {
-                let mut nest_package_parts = orig_name.split("/");
-                let nest_pkg = nest_package_parts.next().unwrap();
-                let nest_iface = nest_package_parts.next().unwrap();
-                let mut parts = nest_pkg.split(":");
-                let ns = parts.next().unwrap();
-                let name = parts.next().unwrap();
-                let name = PackageName {
-                    namespace: ns.to_string(),
-                    name: name.to_string(),
-                    version: None,
-                };
-                let nest_pkg_id = self.resolve.package_names.get(&name).unwrap();
-                let nested_package = &self.resolve.packages[*nest_pkg_id];
-                let myguy = nested_package.interfaces.get(nest_iface).unwrap();
-                let nest = &self.resolve.interfaces[*myguy];
+            for (nest_name, deep_nest) in &nested_iface.nested {
+                let deep_pkg_id = self
+                    .resolve
+                    .package_names
+                    .get(&deep_nest.package_name)
+                    .unwrap();
+                let deep_package = &self.resolve.packages[*deep_pkg_id];
+                let deep_iface_id = deep_package.interfaces.get(&deep_nest.iface_name).unwrap();
+                let deep_nest = &self.resolve.interfaces[*deep_iface_id];
                 let mut clone = nested_instance.clone();
-                let deep_instance = self.encode_nested(nest, &mut clone)?;
+                let deep_instance = self.encode_nested(deep_nest, &mut clone)?;
                 let deep_ty = nested_instance.ty();
                 deep_ty.instance(&deep_instance);
                 nested_instance.export(
-                    orig_name,
+                    nest_name,
                     ComponentTypeRef::Instance(deep_instance.type_count()),
                 );
             }
             ty.instance(&nested_instance);
             instance.export(
-                orig_name,
+                nest_name,
                 ComponentTypeRef::Instance(instance.type_count() - 1),
             );
         }

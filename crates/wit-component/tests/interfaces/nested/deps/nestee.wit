@@ -1,10 +1,10 @@
-package foo:nestee;
+package foo:nestee@1.0.0;
 
 interface things {
   //nesting can be documented
   @since(version = 1.0.0)
   nest foo:nestnest/deep;
-  record nestrecord {
+  record nest-record {
     foo: string
   }
   hello: func() -> string;
@@ -13,11 +13,5 @@ interface things {
 interface more {
   resource foo {
     bar: func() -> option<string>;
-  }
-}
-
-interface usable {
-  record usable-record {
-    foo: string
   }
 }

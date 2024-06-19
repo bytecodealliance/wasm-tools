@@ -574,10 +574,10 @@ impl InterfaceMetadata {
         }
         interface.stability = self.stability.clone();
         for (name, data) in &self.nested {
-            let Some(f) = interface.nested.get_mut(name) else {
-                bail!("missing func {name:?}");
+            let Some(n) = interface.nested.get_mut(name) else {
+                bail!("missing nested item {name:?}");
             };
-            data.inject(f)?;
+            data.inject(n)?;
         }
         Ok(())
     }
