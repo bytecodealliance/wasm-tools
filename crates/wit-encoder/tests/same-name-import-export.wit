@@ -1,6 +1,0 @@
-package demo:greeter;
-
-world greeter {
-    import greet: func() -> string;
-    export greet: func() -> string;
-}

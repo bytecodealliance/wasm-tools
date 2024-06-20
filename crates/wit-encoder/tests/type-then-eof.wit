@@ -1,5 +1,0 @@
-package foo:foo;
-
-interface foo {
-  foo: func() -> string;
-}
