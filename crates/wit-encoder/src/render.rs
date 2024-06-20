@@ -11,7 +11,7 @@ pub struct RenderOpts {
 impl Default for RenderOpts {
     fn default() -> Self {
         Self {
-            indent_width: 4,
+            indent_width: 2,
             ident_count: 0,
         }
     }

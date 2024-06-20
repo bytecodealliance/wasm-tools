@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{ident::Ident, Docs, Interface, Render, RenderOpts, StandaloneFunc};
+use crate::{ident::Ident, Docs, Include, Interface, Render, RenderOpts, StandaloneFunc};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct World {
@@ -52,6 +52,9 @@ impl World {
     pub fn function_export(&mut self, value: StandaloneFunc) {
         self.item(WorldItem::function_export(value));
     }
+    pub fn include(&mut self, value: impl Into<Ident>) {
+        self.item(WorldItem::include(value));
+    }
 
     /// Set the documentation
     pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
@@ -88,18 +91,28 @@ impl Render for World {
                         docs.render(f, opts)?;
                     }
                     import(f, opts)?;
-                    write!(f, "{}: interface {{\n", interface.name)?;
-                    interface.items.render(f, &opts.indent())?;
-                    write!(f, "{}}}\n", opts.spaces())?;
+                    write!(f, "{}: interface {{", interface.name)?;
+                    if !interface.items.is_empty() {
+                        write!(f, "\n")?;
+                        interface.items.render(f, &opts.indent())?;
+                        write!(f, "{}}}\n", opts.spaces())?;
+                    } else {
+                        write!(f, "}}\n")?;
+                    }
                 }
                 WorldItem::InlineInterfaceExport(interface) => {
                     if let Some(docs) = &interface.docs {
                         docs.render(f, opts)?;
                     }
                     export(f, opts)?;
-                    write!(f, "{}: interface {{\n", interface.name)?;
-                    interface.items.render(f, &opts.indent())?;
-                    write!(f, "{}}}\n", opts.spaces())?;
+                    write!(f, "{}: interface {{", interface.name)?;
+                    if !interface.items.is_empty() {
+                        write!(f, "\n")?;
+                        interface.items.render(f, &opts.indent())?;
+                        write!(f, "{}}}\n", opts.spaces())?;
+                    } else {
+                        write!(f, "}}\n")?;
+                    }
                 }
                 WorldItem::NamedInterfaceImport(interface) => {
                     if let Some(docs) = &interface.docs {
@@ -129,6 +142,7 @@ impl Render for World {
                     export(f, opts)?;
                     render_function(f, opts, function)?;
                 }
+                WorldItem::Include(include) => include.render(f, opts)?,
             }
         }
         let opts = &opts.outdent();
@@ -156,6 +170,9 @@ pub enum WorldItem {
 
     /// A function is being directly exported from this world.
     FunctionExport(StandaloneFunc),
+
+    /// Include type
+    Include(Include),
 }
 
 impl WorldItem {
@@ -176,6 +193,9 @@ impl WorldItem {
     }
     pub fn function_export(value: StandaloneFunc) -> Self {
         Self::FunctionExport(value)
+    }
+    pub fn include(value: impl Into<Ident>) -> Self {
+        Self::Include(Include::new(value))
     }
 }
 

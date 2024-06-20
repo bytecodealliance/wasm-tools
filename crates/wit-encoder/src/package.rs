@@ -41,16 +41,21 @@ impl Package {
 impl Render for Package {
     fn render(&self, f: &mut fmt::Formatter<'_>, opts: &RenderOpts) -> fmt::Result {
         write!(f, "{}package {};\n", opts.spaces(), self.name)?;
-        write!(f, "\n")?;
         for item in &self.items {
+            write!(f, "\n")?;
             match item {
                 PackageItem::Interface(interface) => {
                     if let Some(docs) = &interface.docs {
                         docs.render(f, opts)?;
                     }
-                    write!(f, "{}interface {} {{\n", opts.spaces(), interface.name)?;
-                    interface.items.render(f, &opts.indent())?;
-                    write!(f, "{}}}\n", opts.spaces())?;
+                    write!(f, "{}interface {} {{", opts.spaces(), interface.name)?;
+                    if !interface.items.is_empty() {
+                        write!(f, "\n")?;
+                        interface.items.render(f, &opts.indent())?;
+                        write!(f, "{}}}\n", opts.spaces())?;
+                    } else {
+                        write!(f, "}}\n")?;
+                    }
                 }
                 PackageItem::World(world) => {
                     world.render(f, opts)?;

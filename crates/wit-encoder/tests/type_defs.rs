@@ -3,109 +3,109 @@ use wit_encoder::{
     Field, Flag, Params, ResourceFunc, Result_, Results, Type, TypeDef, TypeDefKind, VariantCase,
 };
 
-const PACKAGE: &str = "package wit-encoder:tests;
+const PACKAGE: &str = indoc::indoc! {"
+    package wit-encoder:tests;
 
-/// interface documentation
-interface type-defs {
-    type t1 = u8;
-    type t2 = u16;
-    type t3 = u32;
-    type t4 = u64;
-    type t5 = s8;
-    type t6 = s16;
-    type t7 = s32;
-    type t8 = s64;
-    type t9a = f32;
-    type t9b = f32;
-    type t10a = f64;
-    type t10b = f64;
-    type t11 = char;
-    type t12 = list<char>;
-    type t13 = string;
-    type t14 = option<u32>;
-    type t15 = result<u32, u32>;
-    type t16 = result<_, u32>;
-    type t17 = result<u32>;
-    /// this is a documentation comment
-    type t18 = result;
-    record t20 {
-    }
-    record t21 {
+    /// interface documentation
+    interface type-defs {
+      type t1 = u8;
+      type t2 = u16;
+      type t3 = u32;
+      type t4 = u64;
+      type t5 = s8;
+      type t6 = s16;
+      type t7 = s32;
+      type t8 = s64;
+      type t9a = f32;
+      type t9b = f32;
+      type t10a = f64;
+      type t10b = f64;
+      type t11 = char;
+      type t12 = list<char>;
+      type t13 = string;
+      type t14 = option<u32>;
+      type t15 = result<u32, u32>;
+      type t16 = result<_, u32>;
+      type t17 = result<u32>;
+      /// this is a documentation comment
+      type t18 = result;
+      record t20 {  }
+      record t21 {
         a: u32,
-    }
-    record t22 {
+      }
+      record t22 {
         a: u32,
-    }
-    record t23 {
-        a: u32,
-        b: u64,
-    }
-    record t24 {
+      }
+      record t23 {
         a: u32,
         b: u64,
-    }
-    record t25 {
+      }
+      record t24 {
+        a: u32,
+        b: u64,
+      }
+      record t25 {
         x: u32,
-    }
-    record %record {
+      }
+      record %record {
         a: u32,
-    }
-    type t26 = tuple<>;
-    type t27 = tuple<u32>;
-    type t29 = tuple<u32, u64>;
-    flags t30 {
-    }
-    flags t31 {
+      }
+      type t26 = tuple<>;
+      type t27 = tuple<u32>;
+      type t29 = tuple<u32, u64>;
+      flags t30 {
+      }
+      flags t31 {
         /// option a
         a,
         /// option b
         b,
         /// option c
         c,
-    }
-    flags t32 {
+      }
+      flags t32 {
         a,
         b,
         c,
-    }
-    variant t33 {
+      }
+      variant t33 {
         a,
-    }
-    variant t34 {
-        a,
-        b,
-    }
-    variant t35 {
+      }
+      variant t34 {
         a,
         b,
-    }
-    variant t36 {
+      }
+      variant t35 {
+        a,
+        b,
+      }
+      variant t36 {
         a,
         b(u32),
-    }
-    variant t37 {
+      }
+      variant t37 {
         a,
         b(option<u32>),
-    }
-    enum t41 {
+      }
+      enum t41 {
         a,
         b,
         c,
-    }
-    enum t42 {
+      }
+      enum t42 {
         a,
         b,
         c,
-    }
-    type t43 = bool;
-    type t44 = string;
-    type t45 = list<list<list<t32>>>;
-    type t46 = t44;
-    type foo = bar;
-    type bar = u32;
-    resource t50 {
-    }
-    resource t51 {
+      }
+      type t43 = bool;
+      type t44 = string;
+      type t45 = list<list<list<t32>>>;
+      type t46 = t44;
+      type foo = bar;
+      type bar = u32;
+      resource t50 {
+      }
+      resource t51 {
         /// create a new t51
         constructor(a: u32);
         /// set a
@@ -114,9 +114,9 @@ interface type-defs {
         get-a: func() -> u32;
         /// do b
         b: static func();
+      }
     }
-}
-";
+"};
 
 #[test]
 fn types() {

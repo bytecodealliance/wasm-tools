@@ -1,22 +1,23 @@
 use pretty_assertions::assert_eq;
 use wit_encoder::{Interface, StandaloneFunc, Type};
 
-const PACKAGE: &str = "package foo:functions;
+const PACKAGE: &str = indoc::indoc! {"
+    package foo:functions;
 
-interface error-reporter {
-}
-world %world {
-    /// inline interface
-    export example: interface {
+    interface error-reporter {}
+
+    world %world {
+      /// inline interface
+      export example: interface {
         /// func docs
         do-nothing: func();
+      }
+      /// scan stuff
+      export scan: func() -> list<u8>;
+      import error-reporter;
+      import print: func(s: string);
     }
-    /// scan stuff
-    export scan: func() -> list<u8>;
-    import error-reporter;
-    import print: func(s: string);
-}
-";
+"};
 
 #[test]
 fn worlds() {
