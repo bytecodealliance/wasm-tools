@@ -3,7 +3,23 @@ use wit_encoder::{
     Interface, Package, PackageName, Params, Result_, Results, StandaloneFunc, Type,
 };
 
-const PACKAGE: &str = include_str!("./functions.wit");
+const PACKAGE: &str = indoc::indoc! {"
+    package foo:functions;
+
+    interface functions {
+      f1: func();
+      f2: func(a: u32);
+      f4: func() -> u32;
+      f6: func() -> tuple<u32, u32>;
+      f7: func(a: f32, b: f32) -> tuple<u32, u32>;
+      f8: func(a: option<u32>) -> result<u32, f32>;
+      f9: func() -> (u: u32, f: f32);
+      f10: func() -> (u: u32);
+      f11: func() -> result<f32>;
+      f12: func() -> result<_, f32>;
+      f13: func() -> result;
+    }
+"};
 
 #[test]
 fn concrete_types() {

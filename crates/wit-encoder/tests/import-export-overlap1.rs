@@ -1,7 +1,14 @@
 use pretty_assertions::assert_eq;
 use wit_encoder::{Package, PackageName, StandaloneFunc, World};
 
-const PACKAGE: &str = include_str!("./import-export-overlap1.wit");
+const PACKAGE: &str = indoc::indoc! {"
+    package foo:foo;
+    
+    world foo {
+      import a: func();
+      export a: func();
+    }
+"};
 
 #[test]
 fn concrete_types() {

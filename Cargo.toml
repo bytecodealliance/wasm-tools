@@ -84,6 +84,7 @@ bitflags = "2.5.0"
 hashbrown = { version = "0.14.3", default-features = false, features = ['ahash'] }
 ahash = { version = "0.8.11", default-features = false }
 termcolor = "1.2.0"
+indoc = "2.0.5"
 
 wasm-compose = { version = "0.211.1", path = "crates/wasm-compose" }
 wasm-encoder = { version = "0.211.1", path = "crates/wasm-encoder" }

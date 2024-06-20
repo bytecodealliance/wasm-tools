@@ -1,7 +1,24 @@
 use pretty_assertions::assert_eq;
 use wit_encoder::{Interface, Package, PackageName, World};
 
-const PACKAGE: &str = include_str!("./include-reps.wit");
+const PACKAGE: &str = indoc::indoc! {"
+    package foo:foo;
+
+    interface a {}
+
+    interface b {}
+
+    world bar {
+      import a;
+      export b;
+    }
+
+    world foo {
+      include bar;
+      include bar;
+      include bar;
+    }
+"};
 
 #[test]
 fn concrete_types() {

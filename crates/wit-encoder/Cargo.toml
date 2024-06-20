@@ -13,3 +13,6 @@ workspace = true
 [dependencies]
 semver = { workspace = true }
 pretty_assertions = { workspace = true }
+
+[dev-dependencies]
+indoc = { workspace = true }

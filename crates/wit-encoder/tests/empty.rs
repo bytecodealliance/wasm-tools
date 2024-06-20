@@ -1,7 +1,9 @@
 use pretty_assertions::assert_eq;
 use wit_encoder::{Package, PackageName};
 
-const PACKAGE: &str = include_str!("./empty.wit");
+const PACKAGE: &str = indoc::indoc! {"
+    package foo:empty;
+"};
 
 #[test]
 fn concrete_types() {
