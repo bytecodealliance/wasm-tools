@@ -46,6 +46,20 @@ impl TagSection {
         self.num_added += 1;
         self
     }
+
+    /// Parses the input `section` given from the `wasmparser` crate and adds
+    /// all the tags to this section.
+    #[cfg(feature = "wasmparser")]
+    pub fn parse_section(
+        &mut self,
+        section: wasmparser::TagSectionReader<'_>,
+    ) -> wasmparser::Result<&mut Self> {
+        for tag in section {
+            let tag = tag?;
+            self.tag(tag.into());
+        }
+        Ok(self)
+    }
 }
 
 impl Encode for TagSection {

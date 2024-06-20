@@ -568,13 +568,7 @@ impl<'a> Module<'a> {
         let mut num_memories = 0;
         for (i, mem) in self.live_memories() {
             map.memories.push(i);
-            let ty = wasm_encoder::MemoryType {
-                minimum: mem.ty.initial,
-                maximum: mem.ty.maximum,
-                shared: mem.ty.shared,
-                memory64: mem.ty.memory64,
-                page_size_log2: mem.ty.page_size_log2,
-            };
+            let ty = mem.ty.into();
             match &mem.def {
                 Definition::Import(m, n) => {
                     imports.import(m, n, ty);
@@ -1165,12 +1159,6 @@ macro_rules! define_encode {
     (mk BrTable $arg:ident) => ({
         BrTable($arg.0, $arg.1)
     });
-    (mk CallIndirect $ty:ident $table:ident) => ({
-        CallIndirect { ty: $ty, table: $table }
-    });
-    (mk ReturnCallIndirect $ty:ident $table:ident) => (
-        ReturnCallIndirect { ty: $ty, table: $table }
-    );
     (mk TryTable $try_table:ident) => ({
         let _ = $try_table;
         unimplemented_try_table()

@@ -78,6 +78,12 @@ impl Ieee32 {
     }
 }
 
+impl From<Ieee32> for f32 {
+    fn from(bits: Ieee32) -> f32 {
+        f32::from_bits(bits.bits())
+    }
+}
+
 /// An IEEE binary64 immediate floating point value, represented as a u64
 /// containing the bit pattern.
 ///
@@ -89,6 +95,12 @@ impl Ieee64 {
     /// Gets the underlying bits of the 64-bit float.
     pub fn bits(self) -> u64 {
         self.0
+    }
+}
+
+impl From<Ieee64> for f64 {
+    fn from(bits: Ieee64) -> f64 {
+        f64::from_bits(bits.bits())
     }
 }
 
@@ -105,6 +117,18 @@ impl V128 {
     /// Gets a signed 128-bit integer value from the vector's bytes.
     pub fn i128(&self) -> i128 {
         i128::from_le_bytes(self.0)
+    }
+}
+
+impl From<V128> for i128 {
+    fn from(bits: V128) -> i128 {
+        bits.i128()
+    }
+}
+
+impl From<V128> for u128 {
+    fn from(bits: V128) -> u128 {
+        u128::from_le_bytes(bits.0)
     }
 }
 

@@ -434,8 +434,8 @@ fn make_env_module<'a>(
         }
         function.instruction(&Ins::I32Const(i32::try_from(table_offset).unwrap()));
         function.instruction(&Ins::CallIndirect {
-            ty: u32::try_from(index).unwrap(),
-            table: 0,
+            type_index: u32::try_from(index).unwrap(),
+            table_index: 0,
         });
         function.instruction(&Ins::End);
         code.function(&function);

@@ -1673,59 +1673,6 @@ impl Module {
 
     #[cfg(feature = "wasmparser")]
     fn _required_exports(&mut self, u: &mut Unstructured, example_module: &[u8]) -> Result<()> {
-        fn convert_heap_type(ty: &wasmparser::HeapType) -> HeapType {
-            use wasmparser::AbstractHeapType::*;
-            match ty {
-                wasmparser::HeapType::Concrete(_) => {
-                    panic!("Unable to handle concrete types in exports")
-                }
-                wasmparser::HeapType::Abstract { shared, ty } => {
-                    let ty = match ty {
-                        Func => AbstractHeapType::Func,
-                        Extern => AbstractHeapType::Extern,
-                        Any => AbstractHeapType::Any,
-                        None => AbstractHeapType::None,
-                        NoExtern => AbstractHeapType::NoExtern,
-                        NoFunc => AbstractHeapType::NoFunc,
-                        Eq => AbstractHeapType::Eq,
-                        Struct => AbstractHeapType::Struct,
-                        Array => AbstractHeapType::Array,
-                        I31 => AbstractHeapType::I31,
-                        Exn => AbstractHeapType::Exn,
-                        NoExn => AbstractHeapType::NoExn,
-                    };
-                    HeapType::Abstract {
-                        shared: *shared,
-                        ty,
-                    }
-                }
-            }
-        }
-
-        fn convert_val_type(ty: &wasmparser::ValType) -> ValType {
-            match ty {
-                wasmparser::ValType::I32 => ValType::I32,
-                wasmparser::ValType::I64 => ValType::I64,
-                wasmparser::ValType::F32 => ValType::F32,
-                wasmparser::ValType::F64 => ValType::F64,
-                wasmparser::ValType::V128 => ValType::V128,
-                wasmparser::ValType::Ref(r) => ValType::Ref(RefType {
-                    nullable: r.is_nullable(),
-                    heap_type: convert_heap_type(&r.heap_type()),
-                }),
-            }
-        }
-
-        fn convert_export_kind(kind: &wasmparser::ExternalKind) -> ExportKind {
-            match kind {
-                wasmparser::ExternalKind::Func => ExportKind::Func,
-                wasmparser::ExternalKind::Table => ExportKind::Table,
-                wasmparser::ExternalKind::Memory => ExportKind::Memory,
-                wasmparser::ExternalKind::Global => ExportKind::Global,
-                wasmparser::ExternalKind::Tag => ExportKind::Tag,
-            }
-        }
-
         let mut required_exports: Vec<wasmparser::Export> = vec![];
         let mut validator = wasmparser::Validator::new();
         let exports_types = validator
@@ -1776,13 +1723,15 @@ impl Module {
                             let new_type = Rc::new(FuncType {
                                 params: func_type
                                     .params()
-                                    .into_iter()
-                                    .map(convert_val_type)
+                                    .iter()
+                                    .copied()
+                                    .map(|t| t.try_into().unwrap())
                                     .collect(),
                                 results: func_type
                                     .results()
-                                    .into_iter()
-                                    .map(convert_val_type)
+                                    .iter()
+                                    .copied()
+                                    .map(|t| t.try_into().unwrap())
                                     .collect(),
                             });
                             self.rec_groups.push(self.types.len()..self.types.len() + 1);
@@ -1803,15 +1752,9 @@ impl Module {
                     }
                 }
                 // For globals, add a new global.
-                wasmparser::types::EntityType::Global(global_type) => self
-                    .add_arbitrary_global_of_type(
-                        GlobalType {
-                            val_type: convert_val_type(&global_type.content_type),
-                            mutable: global_type.mutable,
-                            shared: global_type.shared,
-                        },
-                        u,
-                    )?,
+                wasmparser::types::EntityType::Global(global_type) => {
+                    self.add_arbitrary_global_of_type(global_type.try_into().unwrap(), u)?
+                }
                 wasmparser::types::EntityType::Table(_)
                 | wasmparser::types::EntityType::Memory(_)
                 | wasmparser::types::EntityType::Tag(_) => {
@@ -1821,11 +1764,8 @@ impl Module {
                     )
                 }
             };
-            self.exports.push((
-                export.name.to_string(),
-                convert_export_kind(&export.kind),
-                new_index,
-            ));
+            self.exports
+                .push((export.name.to_string(), export.kind.into(), new_index));
             self.export_names.insert(export.name.to_string());
         }
 

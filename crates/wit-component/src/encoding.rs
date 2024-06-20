@@ -1334,8 +1334,8 @@ impl<'a> EncodingState<'a> {
         }
         func.instruction(&Instruction::I32Const(func_index as i32));
         func.instruction(&Instruction::CallIndirect {
-            ty: type_index,
-            table: 0,
+            type_index,
+            table_index: 0,
         });
         func.instruction(&Instruction::End);
         code.function(&func);

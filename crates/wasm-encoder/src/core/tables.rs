@@ -62,6 +62,37 @@ impl TableSection {
         self.num_added += 1;
         self
     }
+
+    /// Parses the input `section` given from the `wasmparser` crate and adds
+    /// all the tables to this section.
+    #[cfg(feature = "wasmparser")]
+    pub fn parse_section(
+        &mut self,
+        section: wasmparser::TableSectionReader<'_>,
+    ) -> Result<&mut Self, crate::ConstExprConversionError> {
+        for table in section {
+            self.parse(table?)?;
+        }
+        Ok(self)
+    }
+
+    /// Parses a single [`wasmparser::Table`] and adds it to this section.
+    #[cfg(feature = "wasmparser")]
+    pub fn parse(
+        &mut self,
+        table: wasmparser::Table<'_>,
+    ) -> Result<&mut Self, crate::ConstExprConversionError> {
+        let ty = table.ty.try_into().unwrap();
+        match table.init {
+            wasmparser::TableInit::RefNull => {
+                self.table(ty);
+            }
+            wasmparser::TableInit::Expr(e) => {
+                self.table_with_init(ty, &e.try_into()?);
+            }
+        }
+        Ok(self)
+    }
 }
 
 impl Encode for TableSection {

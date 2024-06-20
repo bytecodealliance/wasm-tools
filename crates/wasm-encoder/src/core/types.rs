@@ -757,6 +757,31 @@ impl TypeSection {
         self.num_added += 1;
         self
     }
+
+    /// Parses the input `section` given from the `wasmparser` crate and adds
+    /// all the types to this section.
+    #[cfg(feature = "wasmparser")]
+    pub fn parse_section(
+        &mut self,
+        section: wasmparser::TypeSectionReader<'_>,
+    ) -> wasmparser::Result<&mut Self> {
+        for rec_group in section {
+            self.parse(rec_group?);
+        }
+        Ok(self)
+    }
+
+    /// Parses a single [`wasmparser::RecGroup`] and adds it to this section.
+    #[cfg(feature = "wasmparser")]
+    pub fn parse(&mut self, rec_group: wasmparser::RecGroup) -> &mut Self {
+        if rec_group.is_explicit_rec_group() {
+            self.rec(rec_group.into_types().map(|t| t.try_into().unwrap()));
+        } else {
+            let ty = rec_group.into_types().next().unwrap();
+            self.subtype(&SubType::try_from(ty).unwrap());
+        }
+        self
+    }
 }
 
 impl Encode for TypeSection {

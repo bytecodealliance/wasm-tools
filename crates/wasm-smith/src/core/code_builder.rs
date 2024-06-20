@@ -2091,8 +2091,8 @@ fn call_indirect(
     builder.pop_operands(module, &ty.params);
     builder.push_operands(&ty.results);
     instructions.push(Instruction::CallIndirect {
-        ty: *type_idx as u32,
-        table,
+        type_index: *type_idx as u32,
+        table_index: table,
     });
     Ok(())
 }
@@ -2228,8 +2228,8 @@ fn return_call_indirect(
     builder.pop_operands(module, &ty.params);
     builder.push_operands(&ty.results);
     instructions.push(Instruction::ReturnCallIndirect {
-        ty: *type_idx as u32,
-        table,
+        type_index: *type_idx as u32,
+        table_index: table,
     });
     Ok(())
 }

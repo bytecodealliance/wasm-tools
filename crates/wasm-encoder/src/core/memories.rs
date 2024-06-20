@@ -51,6 +51,20 @@ impl MemorySection {
         self.num_added += 1;
         self
     }
+
+    /// Parses the input `section` given from the `wasmparser` crate and adds
+    /// all the memories to this section.
+    #[cfg(feature = "wasmparser")]
+    pub fn parse_section(
+        &mut self,
+        section: wasmparser::MemorySectionReader<'_>,
+    ) -> wasmparser::Result<&mut Self> {
+        for memory in section {
+            let memory = memory?;
+            self.memory(memory.into());
+        }
+        Ok(self)
+    }
 }
 
 impl Encode for MemorySection {

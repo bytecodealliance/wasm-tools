@@ -60,6 +60,30 @@ impl GlobalSection {
         self.num_added += 1;
         self
     }
+
+    /// Parses the input `section` given from the `wasmparser` crate and adds
+    /// all the globals to this section.
+    #[cfg(feature = "wasmparser")]
+    pub fn parse_section(
+        &mut self,
+        section: wasmparser::GlobalSectionReader<'_>,
+    ) -> Result<&mut Self, crate::ConstExprConversionError> {
+        for global in section {
+            self.parse(global?)?;
+        }
+        Ok(self)
+    }
+
+    /// Parses the single [`wasmparser::Global`] provided and adds it to this
+    /// section.
+    #[cfg(feature = "wasmparser")]
+    pub fn parse(
+        &mut self,
+        global: wasmparser::Global<'_>,
+    ) -> Result<&mut Self, crate::ConstExprConversionError> {
+        self.global(global.ty.try_into().unwrap(), &global.init_expr.try_into()?);
+        Ok(self)
+    }
 }
 
 impl Encode for GlobalSection {
