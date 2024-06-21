@@ -23,15 +23,6 @@ impl Encode for SubType {
     }
 }
 
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::SubType> for SubType {
-    type Error = crate::reencode::Error;
-
-    fn try_from(sub_ty: wasmparser::SubType) -> Result<Self, Self::Error> {
-        crate::reencode::utils::sub_type(&mut crate::reencode::RoundtripReencoder, sub_ty)
-    }
-}
-
 /// Represents a composite type in a WebAssembly module.
 #[derive(Debug, Clone)]
 pub enum CompositeType {
@@ -61,18 +52,6 @@ impl Encode for CompositeType {
     }
 }
 
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::CompositeType> for CompositeType {
-    type Error = crate::reencode::Error;
-
-    fn try_from(composite_ty: wasmparser::CompositeType) -> Result<Self, Self::Error> {
-        crate::reencode::utils::composite_type(
-            &mut crate::reencode::RoundtripReencoder,
-            composite_ty,
-        )
-    }
-}
-
 /// Represents a type of a function in a WebAssembly module.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct FuncType {
@@ -82,42 +61,15 @@ pub struct FuncType {
     len_params: usize,
 }
 
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::FuncType> for FuncType {
-    type Error = crate::reencode::Error;
-
-    fn try_from(func_ty: wasmparser::FuncType) -> Result<Self, Self::Error> {
-        crate::reencode::utils::func_type(&mut crate::reencode::RoundtripReencoder, func_ty)
-    }
-}
-
 /// Represents a type of an array in a WebAssembly module.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct ArrayType(pub FieldType);
-
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::ArrayType> for ArrayType {
-    type Error = crate::reencode::Error;
-
-    fn try_from(array_ty: wasmparser::ArrayType) -> Result<Self, Self::Error> {
-        crate::reencode::utils::array_type(&mut crate::reencode::RoundtripReencoder, array_ty)
-    }
-}
 
 /// Represents a type of a struct in a WebAssembly module.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct StructType {
     /// Struct fields.
     pub fields: Box<[FieldType]>,
-}
-
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::StructType> for StructType {
-    type Error = crate::reencode::Error;
-
-    fn try_from(struct_ty: wasmparser::StructType) -> Result<Self, Self::Error> {
-        crate::reencode::utils::struct_type(&mut crate::reencode::RoundtripReencoder, struct_ty)
-    }
 }
 
 /// Field type in composite types (structs, arrays).
@@ -129,15 +81,6 @@ pub struct FieldType {
     pub mutable: bool,
 }
 
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::FieldType> for FieldType {
-    type Error = crate::reencode::Error;
-
-    fn try_from(field_ty: wasmparser::FieldType) -> Result<Self, Self::Error> {
-        crate::reencode::utils::field_type(&mut crate::reencode::RoundtripReencoder, field_ty)
-    }
-}
-
 /// Storage type for composite type fields.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum StorageType {
@@ -147,15 +90,6 @@ pub enum StorageType {
     I16,
     /// A value type.
     Val(ValType),
-}
-
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::StorageType> for StorageType {
-    type Error = crate::reencode::Error;
-
-    fn try_from(storage_ty: wasmparser::StorageType) -> Result<Self, Self::Error> {
-        crate::reencode::utils::storage_type(&mut crate::reencode::RoundtripReencoder, storage_ty)
-    }
 }
 
 impl StorageType {
@@ -194,15 +128,6 @@ pub enum ValType {
     /// generalization here is due to the implementation of the
     /// function-references proposal.
     Ref(RefType),
-}
-
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::ValType> for ValType {
-    type Error = crate::reencode::Error;
-
-    fn try_from(val_ty: wasmparser::ValType) -> Result<Self, Self::Error> {
-        crate::reencode::utils::val_type(&mut crate::reencode::RoundtripReencoder, val_ty)
-    }
 }
 
 impl ValType {
@@ -416,15 +341,6 @@ impl Encode for RefType {
     }
 }
 
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::RefType> for RefType {
-    type Error = crate::reencode::Error;
-
-    fn try_from(ref_type: wasmparser::RefType) -> Result<Self, Self::Error> {
-        crate::reencode::utils::ref_type(&mut crate::reencode::RoundtripReencoder, ref_type)
-    }
-}
-
 impl From<RefType> for ValType {
     fn from(ty: RefType) -> ValType {
         ValType::Ref(ty)
@@ -485,15 +401,6 @@ impl Encode for HeapType {
             // as it's decoded as an s33
             HeapType::Concrete(i) => i64::from(*i).encode(sink),
         }
-    }
-}
-
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::HeapType> for HeapType {
-    type Error = crate::reencode::Error;
-
-    fn try_from(heap_type: wasmparser::HeapType) -> Result<Self, Self::Error> {
-        crate::reencode::utils::heap_type(&mut crate::reencode::RoundtripReencoder, heap_type)
     }
 }
 
@@ -569,13 +476,6 @@ impl Encode for AbstractHeapType {
             Exn => sink.push(0x69),
             NoExn => sink.push(0x74),
         }
-    }
-}
-
-#[cfg(feature = "wasmparser")]
-impl From<wasmparser::AbstractHeapType> for AbstractHeapType {
-    fn from(value: wasmparser::AbstractHeapType) -> Self {
-        crate::reencode::utils::abstract_heap_type(&mut crate::reencode::RoundtripReencoder, value)
     }
 }
 
@@ -707,30 +607,6 @@ impl TypeSection {
         types.for_each(|t| t.encode(&mut self.bytes));
         self.num_added += 1;
         self
-    }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the types to this section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse_section(
-        &mut self,
-        section: wasmparser::TypeSectionReader<'_>,
-    ) -> crate::reencode::Result<&mut Self> {
-        crate::reencode::utils::parse_type_section(
-            &mut crate::reencode::RoundtripReencoder,
-            self,
-            section,
-        )
-    }
-
-    /// Parses a single [`wasmparser::RecGroup`] and adds it to this section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse(&mut self, rec_group: wasmparser::RecGroup) -> crate::reencode::Result<&mut Self> {
-        crate::reencode::utils::parse_recursive_type_group(
-            &mut crate::reencode::RoundtripReencoder,
-            self,
-            rec_group,
-        )
     }
 }
 

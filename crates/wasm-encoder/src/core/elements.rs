@@ -206,34 +206,6 @@ impl ElementSection {
         self.num_added += 1;
         self
     }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the elements to this section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse_section(
-        &mut self,
-        section: wasmparser::ElementSectionReader<'_>,
-    ) -> crate::reencode::Result<&mut Self> {
-        crate::reencode::utils::parse_element_section(
-            &mut crate::reencode::RoundtripReencoder,
-            self,
-            section,
-        )
-    }
-
-    /// Parses the single [`wasmparser::Element`] provided and adds it to this
-    /// section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse(
-        &mut self,
-        element: wasmparser::Element<'_>,
-    ) -> crate::reencode::Result<&mut Self> {
-        crate::reencode::utils::parse_element(
-            &mut crate::reencode::RoundtripReencoder,
-            self,
-            element,
-        )
-    }
 }
 
 impl Encode for ElementSection {

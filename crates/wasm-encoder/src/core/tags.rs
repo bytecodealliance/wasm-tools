@@ -46,20 +46,6 @@ impl TagSection {
         self.num_added += 1;
         self
     }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the tags to this section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse_section(
-        &mut self,
-        section: wasmparser::TagSectionReader<'_>,
-    ) -> crate::reencode::Result<&mut Self> {
-        crate::reencode::utils::parse_tag_section(
-            &mut crate::reencode::RoundtripReencoder,
-            self,
-            section,
-        )
-    }
 }
 
 impl Encode for TagSection {
@@ -82,13 +68,6 @@ pub enum TagKind {
     Exception = 0x0,
 }
 
-#[cfg(feature = "wasmparser")]
-impl From<wasmparser::TagKind> for TagKind {
-    fn from(kind: wasmparser::TagKind) -> Self {
-        crate::reencode::utils::tag_kind(&mut crate::reencode::RoundtripReencoder, kind)
-    }
-}
-
 /// A tag's type.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TagType {
@@ -102,12 +81,5 @@ impl Encode for TagType {
     fn encode(&self, sink: &mut Vec<u8>) {
         sink.push(self.kind as u8);
         self.func_type_idx.encode(sink);
-    }
-}
-
-#[cfg(feature = "wasmparser")]
-impl From<wasmparser::TagType> for TagType {
-    fn from(tag_ty: wasmparser::TagType) -> Self {
-        crate::reencode::utils::tag_type(&mut crate::reencode::RoundtripReencoder, tag_ty)
     }
 }

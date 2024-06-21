@@ -73,15 +73,6 @@ impl From<TagType> for EntityType {
     }
 }
 
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::TypeRef> for EntityType {
-    type Error = crate::reencode::Error;
-
-    fn try_from(type_ref: wasmparser::TypeRef) -> Result<Self, Self::Error> {
-        crate::reencode::utils::entity_type(&mut crate::reencode::RoundtripReencoder, type_ref)
-    }
-}
-
 /// An encoder for the import section of WebAssembly modules.
 ///
 /// # Example
@@ -136,27 +127,6 @@ impl ImportSection {
         ty.into().encode(&mut self.bytes);
         self.num_added += 1;
         self
-    }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the imports to this section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse_section(
-        &mut self,
-        section: wasmparser::ImportSectionReader<'_>,
-    ) -> crate::reencode::Result<&mut Self> {
-        crate::reencode::utils::parse_import_section(
-            &mut crate::reencode::RoundtripReencoder,
-            self,
-            section,
-        )
-    }
-
-    /// Parses the single [`wasmparser::Import`] provided and adds it to this
-    /// section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse(&mut self, import: wasmparser::Import<'_>) -> crate::reencode::Result<&mut Self> {
-        crate::reencode::utils::parse_import(&mut crate::reencode::RoundtripReencoder, self, import)
     }
 }
 

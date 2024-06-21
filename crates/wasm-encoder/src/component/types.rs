@@ -527,16 +527,6 @@ impl Encode for PrimitiveValType {
     }
 }
 
-#[cfg(feature = "wasmparser")]
-impl From<wasmparser::PrimitiveValType> for PrimitiveValType {
-    fn from(ty: wasmparser::PrimitiveValType) -> Self {
-        crate::reencode::utils::component_primitive_val_type(
-            &mut crate::reencode::RoundtripReencoder,
-            ty,
-        )
-    }
-}
-
 /// Represents a component value type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ComponentValType {

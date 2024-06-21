@@ -62,26 +62,6 @@ impl TableSection {
         self.num_added += 1;
         self
     }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the tables to this section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse_section(
-        &mut self,
-        section: wasmparser::TableSectionReader<'_>,
-    ) -> crate::reencode::Result<&mut Self> {
-        crate::reencode::utils::parse_table_section(
-            &mut crate::reencode::RoundtripReencoder,
-            self,
-            section,
-        )
-    }
-
-    /// Parses a single [`wasmparser::Table`] and adds it to this section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse(&mut self, table: wasmparser::Table<'_>) -> crate::reencode::Result<&mut Self> {
-        crate::reencode::utils::parse_table(&mut crate::reencode::RoundtripReencoder, self, table)
-    }
 }
 
 impl Encode for TableSection {
@@ -137,14 +117,5 @@ impl Encode for TableType {
         if let Some(max) = self.maximum {
             max.encode(sink);
         }
-    }
-}
-
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::TableType> for TableType {
-    type Error = crate::reencode::Error;
-
-    fn try_from(table_ty: wasmparser::TableType) -> Result<Self, Self::Error> {
-        crate::reencode::utils::table_type(&mut crate::reencode::RoundtripReencoder, table_ty)
     }
 }

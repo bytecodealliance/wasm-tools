@@ -44,13 +44,6 @@ impl Section for RawCustomSection<'_> {
     }
 }
 
-#[cfg(feature = "wasmparser")]
-impl<'a> From<wasmparser::CustomSectionReader<'a>> for CustomSection<'a> {
-    fn from(section: wasmparser::CustomSectionReader<'a>) -> Self {
-        crate::reencode::utils::custom_section(&mut crate::reencode::RoundtripReencoder, section)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

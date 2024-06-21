@@ -25,13 +25,6 @@ impl Encode for ExportKind {
     }
 }
 
-#[cfg(feature = "wasmparser")]
-impl From<wasmparser::ExternalKind> for ExportKind {
-    fn from(external_kind: wasmparser::ExternalKind) -> Self {
-        crate::reencode::utils::export_kind(&mut crate::reencode::RoundtripReencoder, external_kind)
-    }
-}
-
 /// An encoder for the export section of WebAssembly module.
 ///
 /// # Example
@@ -76,27 +69,6 @@ impl ExportSection {
         index.encode(&mut self.bytes);
         self.num_added += 1;
         self
-    }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the exports to this section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse_section(
-        &mut self,
-        section: wasmparser::ExportSectionReader<'_>,
-    ) -> crate::reencode::Result<&mut Self> {
-        crate::reencode::utils::parse_export_section(
-            &mut crate::reencode::RoundtripReencoder,
-            self,
-            section,
-        )
-    }
-
-    /// Parses the single [`wasmparser::Export`] provided and adds it to this
-    /// section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse(&mut self, export: wasmparser::Export<'_>) -> &mut Self {
-        crate::reencode::utils::parse_export(&mut crate::reencode::RoundtripReencoder, self, export)
     }
 }
 

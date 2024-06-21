@@ -103,33 +103,6 @@ impl CodeSection {
         self.num_added += 1;
         self
     }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the code to this section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse_section(
-        &mut self,
-        section: wasmparser::CodeSectionReader<'_>,
-    ) -> crate::reencode::Result<&mut Self> {
-        crate::reencode::utils::parse_code_section(
-            &mut crate::reencode::RoundtripReencoder,
-            self,
-            section,
-        )
-    }
-
-    /// Parses a single [`wasmparser::Code`] and adds it to this section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse(
-        &mut self,
-        func: wasmparser::FunctionBody<'_>,
-    ) -> crate::reencode::Result<&mut Self> {
-        crate::reencode::utils::parse_function_body(
-            &mut crate::reencode::RoundtripReencoder,
-            self,
-            func,
-        )
-    }
 }
 
 impl Encode for CodeSection {
@@ -241,16 +214,6 @@ impl Function {
         Function::new(locals_collected)
     }
 
-    /// Create a new [`Function`] by parsing the locals declarations from the
-    /// provided [`wasmparser::FunctionBody`].
-    #[cfg(feature = "wasmparser")]
-    pub fn new_parsed_locals(func: &wasmparser::FunctionBody<'_>) -> crate::reencode::Result<Self> {
-        crate::reencode::utils::new_function_with_parsed_locals(
-            &mut crate::reencode::RoundtripReencoder,
-            func,
-        )
-    }
-
     /// Write an instruction into this function body.
     pub fn instruction(&mut self, instruction: &Instruction) -> &mut Self {
         instruction.encode(&mut self.bytes);
@@ -313,19 +276,6 @@ impl Function {
     pub fn into_raw_body(self) -> Vec<u8> {
         self.bytes
     }
-
-    /// Parses a single instruction from `reader` and adds it to `self`.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse(
-        &mut self,
-        reader: &mut wasmparser::OperatorsReader<'_>,
-    ) -> crate::reencode::Result<&mut Self> {
-        crate::reencode::utils::parse_instruction(
-            &mut crate::reencode::RoundtripReencoder,
-            self,
-            reader,
-        )
-    }
 }
 
 impl Encode for Function {
@@ -365,13 +315,6 @@ impl Encode for MemArg {
     }
 }
 
-#[cfg(feature = "wasmparser")]
-impl From<wasmparser::MemArg> for MemArg {
-    fn from(arg: wasmparser::MemArg) -> MemArg {
-        crate::reencode::utils::mem_arg(&mut crate::reencode::RoundtripReencoder, arg)
-    }
-}
-
 /// The memory ordering for atomic instructions.
 ///
 /// For an in-depth explanation of memory orderings, see the C++ documentation
@@ -400,13 +343,6 @@ impl Encode for Ordering {
     }
 }
 
-#[cfg(feature = "wasmparser")]
-impl From<wasmparser::Ordering> for Ordering {
-    fn from(arg: wasmparser::Ordering) -> Ordering {
-        crate::reencode::utils::ordering(&mut crate::reencode::RoundtripReencoder, arg)
-    }
-}
-
 /// Describe an unchecked SIMD lane index.
 pub type Lane = u8;
 
@@ -428,15 +364,6 @@ impl Encode for BlockType {
             Self::Result(ty) => ty.encode(sink),
             Self::FunctionType(f) => (f as i64).encode(sink),
         }
-    }
-}
-
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::BlockType> for BlockType {
-    type Error = crate::reencode::Error;
-
-    fn try_from(arg: wasmparser::BlockType) -> Result<BlockType, Self::Error> {
-        crate::reencode::utils::block_type(&mut crate::reencode::RoundtripReencoder, arg)
     }
 }
 
@@ -3396,15 +3323,6 @@ impl Encode for Instruction<'_> {
     }
 }
 
-#[cfg(feature = "wasmparser")]
-impl<'a> TryFrom<wasmparser::Operator<'a>> for Instruction<'a> {
-    type Error = crate::reencode::Error;
-
-    fn try_from(arg: wasmparser::Operator<'a>) -> Result<Self, Self::Error> {
-        crate::reencode::utils::instruction(&mut crate::reencode::RoundtripReencoder, arg)
-    }
-}
-
 #[derive(Clone, Debug)]
 #[allow(missing_docs)]
 pub enum Catch {
@@ -3436,13 +3354,6 @@ impl Encode for Catch {
                 label.encode(sink);
             }
         }
-    }
-}
-
-#[cfg(feature = "wasmparser")]
-impl From<wasmparser::Catch> for Catch {
-    fn from(arg: wasmparser::Catch) -> Catch {
-        crate::reencode::utils::catch(&mut crate::reencode::RoundtripReencoder, arg)
     }
 }
 
@@ -3607,15 +3518,6 @@ impl Encode for ConstExpr {
     fn encode(&self, sink: &mut Vec<u8>) {
         sink.extend(&self.bytes);
         Instruction::End.encode(sink);
-    }
-}
-
-#[cfg(feature = "wasmparser")]
-impl<'a> TryFrom<wasmparser::ConstExpr<'a>> for ConstExpr {
-    type Error = crate::reencode::Error;
-
-    fn try_from(const_expr: wasmparser::ConstExpr) -> Result<Self, Self::Error> {
-        crate::reencode::utils::const_expr(&mut crate::reencode::RoundtripReencoder, const_expr)
     }
 }
 

@@ -151,26 +151,6 @@ impl DataSection {
         self.num_added += 1;
         self
     }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the data to this section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse_section(
-        &mut self,
-        section: wasmparser::DataSectionReader<'_>,
-    ) -> crate::reencode::Result<&mut Self> {
-        crate::reencode::utils::parse_data_section(
-            &mut crate::reencode::RoundtripReencoder,
-            self,
-            section,
-        )
-    }
-
-    /// Parses a single [`wasmparser::Data`] and adds it to this section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse(&mut self, data: wasmparser::Data<'_>) -> crate::reencode::Result<&mut Self> {
-        crate::reencode::utils::parse_data(&mut crate::reencode::RoundtripReencoder, self, data)
-    }
 }
 
 impl Encode for DataSection {
