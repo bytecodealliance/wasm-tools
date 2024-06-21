@@ -110,22 +110,25 @@ impl CodeSection {
     pub fn parse_section(
         &mut self,
         section: wasmparser::CodeSectionReader<'_>,
-    ) -> wasmparser::Result<&mut Self> {
-        for code in section {
-            self.parse(code?)?;
-        }
-        Ok(self)
+    ) -> crate::reencode::Result<&mut Self> {
+        crate::reencode::utils::parse_code_section(
+            &mut crate::reencode::RoundtripReencoder,
+            self,
+            section,
+        )
     }
 
     /// Parses a single [`wasmparser::Code`] and adds it to this section.
     #[cfg(feature = "wasmparser")]
-    pub fn parse(&mut self, func: wasmparser::FunctionBody<'_>) -> wasmparser::Result<&mut Self> {
-        let mut f = Function::new_parsed_locals(&func)?;
-        let mut reader = func.get_operators_reader()?;
-        while !reader.eof() {
-            f.parse(&mut reader)?;
-        }
-        Ok(self.function(&f))
+    pub fn parse(
+        &mut self,
+        func: wasmparser::FunctionBody<'_>,
+    ) -> crate::reencode::Result<&mut Self> {
+        crate::reencode::utils::parse_function_body(
+            &mut crate::reencode::RoundtripReencoder,
+            self,
+            func,
+        )
     }
 }
 
@@ -241,13 +244,11 @@ impl Function {
     /// Create a new [`Function`] by parsing the locals declarations from the
     /// provided [`wasmparser::FunctionBody`].
     #[cfg(feature = "wasmparser")]
-    pub fn new_parsed_locals(func: &wasmparser::FunctionBody<'_>) -> wasmparser::Result<Self> {
-        let mut locals = Vec::new();
-        for pair in func.get_locals_reader()? {
-            let (cnt, ty) = pair?;
-            locals.push((cnt, ty.try_into().unwrap()));
-        }
-        Ok(Function::new(locals))
+    pub fn new_parsed_locals(func: &wasmparser::FunctionBody<'_>) -> crate::reencode::Result<Self> {
+        crate::reencode::utils::new_function_with_parsed_locals(
+            &mut crate::reencode::RoundtripReencoder,
+            func,
+        )
     }
 
     /// Write an instruction into this function body.
@@ -318,8 +319,12 @@ impl Function {
     pub fn parse(
         &mut self,
         reader: &mut wasmparser::OperatorsReader<'_>,
-    ) -> wasmparser::Result<&mut Self> {
-        Ok(self.instruction(&reader.read()?.try_into().unwrap()))
+    ) -> crate::reencode::Result<&mut Self> {
+        crate::reencode::utils::parse_instruction(
+            &mut crate::reencode::RoundtripReencoder,
+            self,
+            reader,
+        )
     }
 }
 
@@ -363,11 +368,7 @@ impl Encode for MemArg {
 #[cfg(feature = "wasmparser")]
 impl From<wasmparser::MemArg> for MemArg {
     fn from(arg: wasmparser::MemArg) -> MemArg {
-        MemArg {
-            offset: arg.offset,
-            align: arg.align.into(),
-            memory_index: arg.memory,
-        }
+        crate::reencode::utils::mem_arg(&mut crate::reencode::RoundtripReencoder, arg)
     }
 }
 
@@ -402,10 +403,7 @@ impl Encode for Ordering {
 #[cfg(feature = "wasmparser")]
 impl From<wasmparser::Ordering> for Ordering {
     fn from(arg: wasmparser::Ordering) -> Ordering {
-        match arg {
-            wasmparser::Ordering::SeqCst => Ordering::SeqCst,
-            wasmparser::Ordering::AcqRel => Ordering::AcqRel,
-        }
+        crate::reencode::utils::ordering(&mut crate::reencode::RoundtripReencoder, arg)
     }
 }
 
@@ -437,11 +435,8 @@ impl Encode for BlockType {
 impl TryFrom<wasmparser::BlockType> for BlockType {
     type Error = ();
     fn try_from(arg: wasmparser::BlockType) -> Result<BlockType, ()> {
-        match arg {
-            wasmparser::BlockType::Empty => Ok(BlockType::Empty),
-            wasmparser::BlockType::FuncType(n) => Ok(BlockType::FunctionType(n)),
-            wasmparser::BlockType::Type(t) => Ok(BlockType::Result(t.try_into()?)),
-        }
+        crate::reencode::utils::block_type(&mut crate::reencode::RoundtripReencoder, arg)
+            .map_err(|_| ())
     }
 }
 
@@ -3402,60 +3397,12 @@ impl Encode for Instruction<'_> {
 }
 
 #[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::Operator<'_>> for Instruction<'_> {
+impl<'a> TryFrom<wasmparser::Operator<'a>> for Instruction<'a> {
     type Error = ();
 
-    fn try_from(arg: wasmparser::Operator<'_>) -> Result<Self, ()> {
-        use Instruction::*;
-
-        macro_rules! define_match {
-            ($(@$p:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
-                match arg {
-                    $(
-                        wasmparser::Operator::$op $({ $($arg),* })? => {
-                            $(
-                                $(let $arg = define_match!(map $arg $arg);)*
-                            )?
-                            Ok(define_match!(mk $op $($($arg)*)?))
-                        }
-                    )*
-                }
-            };
-
-            // No-payload instructions are named the same in wasmparser as they are in
-            // wasm-encoder
-            (mk $op:ident) => ($op);
-
-            // Instructions which need "special care" to map from wasmparser to
-            // wasm-encoder
-            (mk BrTable $arg:ident) => ({BrTable($arg.0, $arg.1)});
-            (mk TryTable $arg:ident) => ({TryTable($arg.0, $arg.1)});
-
-            // Catch-all for the translation of one payload argument which is typically
-            // represented as a tuple-enum in wasm-encoder.
-            (mk $op:ident $arg:ident) => ($op($arg));
-
-            // Catch-all of everything else where the wasmparser fields are simply
-            // translated to wasm-encoder fields.
-            (mk $op:ident $($arg:ident)*) => ($op { $($arg),* });
-
-            // Special-case BrTable/TryTable conversion of arguments.
-            (map $arg:ident targets) => ((
-                $arg.targets().map(|i| i.unwrap()).collect::<Vec<_>>().into(),
-                $arg.default(),
-            ));
-            (map $arg:ident try_table) => ((
-                $arg.ty.try_into().unwrap(),
-                $arg.catches.into_iter().map(|i| i.into()).collect::<Vec<_>>().into(),
-            ));
-
-            // Everything else is converted with `TryFrom`/`From`. Note that the
-            // fallibility here has to do with how indexes are represented in
-            // `wasmparser` which we know when reading directly we'll never hit the
-            // erroneous cases here, hence the unwrap.
-            (map $arg:ident $other:ident) => {$other.try_into().unwrap()};
-        }
-        wasmparser::for_each_operator!(define_match)
+    fn try_from(arg: wasmparser::Operator<'a>) -> Result<Self, ()> {
+        crate::reencode::utils::instruction(&mut crate::reencode::RoundtripReencoder, arg)
+            .map_err(|_| ())
     }
 }
 
@@ -3496,12 +3443,7 @@ impl Encode for Catch {
 #[cfg(feature = "wasmparser")]
 impl From<wasmparser::Catch> for Catch {
     fn from(arg: wasmparser::Catch) -> Catch {
-        match arg {
-            wasmparser::Catch::One { tag, label } => Catch::One { tag, label },
-            wasmparser::Catch::OneRef { tag, label } => Catch::OneRef { tag, label },
-            wasmparser::Catch::All { label } => Catch::All { label },
-            wasmparser::Catch::AllRef { label } => Catch::AllRef { label },
-        }
+        crate::reencode::utils::catch(&mut crate::reencode::RoundtripReencoder, arg)
     }
 }
 
@@ -3669,98 +3611,12 @@ impl Encode for ConstExpr {
     }
 }
 
-/// An error when converting a `wasmparser::ConstExpr` into a
-/// `wasm_encoder::ConstExpr`.
-#[cfg(feature = "wasmparser")]
-#[derive(Debug)]
-pub enum ConstExprConversionError {
-    /// There was an error when parsing the const expression.
-    ParseError(wasmparser::BinaryReaderError),
-
-    /// The const expression is invalid: not actually constant or something like
-    /// that.
-    Invalid,
-
-    /// There was a type reference that was canonicalized and no longer
-    /// references an index into a module's types space, so we cannot encode it
-    /// into a Wasm binary again.
-    CanonicalizedTypeReference,
-}
-
-#[cfg(feature = "wasmparser")]
-impl From<wasmparser::BinaryReaderError> for ConstExprConversionError {
-    fn from(err: wasmparser::BinaryReaderError) -> ConstExprConversionError {
-        ConstExprConversionError::ParseError(err)
-    }
-}
-
-#[cfg(feature = "wasmparser")]
-impl std::fmt::Display for ConstExprConversionError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::ParseError(_e) => {
-                write!(f, "There was an error when parsing the const expression")
-            }
-            Self::Invalid => write!(f, "The const expression was invalid"),
-            Self::CanonicalizedTypeReference => write!(
-                f,
-                "There was a canonicalized type reference without type index information"
-            ),
-        }
-    }
-}
-
-#[cfg(feature = "wasmparser")]
-impl std::error::Error for ConstExprConversionError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::ParseError(e) => Some(e),
-            Self::Invalid | Self::CanonicalizedTypeReference => None,
-        }
-    }
-}
-
 #[cfg(feature = "wasmparser")]
 impl<'a> TryFrom<wasmparser::ConstExpr<'a>> for ConstExpr {
-    type Error = ConstExprConversionError;
+    type Error = crate::reencode::Error;
 
     fn try_from(const_expr: wasmparser::ConstExpr) -> Result<Self, Self::Error> {
-        let mut ops = const_expr.get_operators_reader().into_iter();
-
-        let result = match ops.next() {
-            Some(Ok(wasmparser::Operator::I32Const { value })) => ConstExpr::i32_const(value),
-            Some(Ok(wasmparser::Operator::I64Const { value })) => ConstExpr::i64_const(value),
-            Some(Ok(wasmparser::Operator::F32Const { value })) => {
-                ConstExpr::f32_const(f32::from_bits(value.bits()))
-            }
-            Some(Ok(wasmparser::Operator::F64Const { value })) => {
-                ConstExpr::f64_const(f64::from_bits(value.bits()))
-            }
-            Some(Ok(wasmparser::Operator::V128Const { value })) => {
-                ConstExpr::v128_const(i128::from_le_bytes(*value.bytes()))
-            }
-            Some(Ok(wasmparser::Operator::RefNull { hty })) => ConstExpr::ref_null(
-                HeapType::try_from(hty)
-                    .map_err(|_| ConstExprConversionError::CanonicalizedTypeReference)?,
-            ),
-            Some(Ok(wasmparser::Operator::RefFunc { function_index })) => {
-                ConstExpr::ref_func(function_index)
-            }
-            Some(Ok(wasmparser::Operator::GlobalGet { global_index })) => {
-                ConstExpr::global_get(global_index)
-            }
-
-            // TODO: support the extended-const proposal.
-            Some(Ok(_op)) => return Err(ConstExprConversionError::Invalid),
-
-            Some(Err(e)) => return Err(ConstExprConversionError::ParseError(e)),
-            None => return Err(ConstExprConversionError::Invalid),
-        };
-
-        match (ops.next(), ops.next()) {
-            (Some(Ok(wasmparser::Operator::End)), None) => Ok(result),
-            _ => Err(ConstExprConversionError::Invalid),
-        }
+        crate::reencode::utils::const_expr(&mut crate::reencode::RoundtripReencoder, const_expr)
     }
 }
 

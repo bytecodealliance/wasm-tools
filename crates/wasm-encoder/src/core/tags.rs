@@ -53,12 +53,12 @@ impl TagSection {
     pub fn parse_section(
         &mut self,
         section: wasmparser::TagSectionReader<'_>,
-    ) -> wasmparser::Result<&mut Self> {
-        for tag in section {
-            let tag = tag?;
-            self.tag(tag.into());
-        }
-        Ok(self)
+    ) -> crate::reencode::Result<&mut Self> {
+        crate::reencode::utils::parse_tag_section(
+            &mut crate::reencode::RoundtripReencoder,
+            self,
+            section,
+        )
     }
 }
 
@@ -85,9 +85,7 @@ pub enum TagKind {
 #[cfg(feature = "wasmparser")]
 impl From<wasmparser::TagKind> for TagKind {
     fn from(kind: wasmparser::TagKind) -> Self {
-        match kind {
-            wasmparser::TagKind::Exception => TagKind::Exception,
-        }
+        crate::reencode::utils::tag_kind(&mut crate::reencode::RoundtripReencoder, kind)
     }
 }
 
@@ -110,9 +108,6 @@ impl Encode for TagType {
 #[cfg(feature = "wasmparser")]
 impl From<wasmparser::TagType> for TagType {
     fn from(tag_ty: wasmparser::TagType) -> Self {
-        TagType {
-            kind: tag_ty.kind.into(),
-            func_type_idx: tag_ty.func_type_idx,
-        }
+        crate::reencode::utils::tag_type(&mut crate::reencode::RoundtripReencoder, tag_ty)
     }
 }

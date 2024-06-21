@@ -28,14 +28,8 @@ impl TryFrom<wasmparser::SubType> for SubType {
     type Error = ();
 
     fn try_from(sub_ty: wasmparser::SubType) -> Result<Self, Self::Error> {
-        Ok(SubType {
-            is_final: sub_ty.is_final,
-            supertype_idx: sub_ty
-                .supertype_idx
-                .map(|i| i.as_module_index().ok_or(()))
-                .transpose()?,
-            composite_type: sub_ty.composite_type.try_into()?,
-        })
+        crate::reencode::utils::sub_type(&mut crate::reencode::RoundtripReencoder, sub_ty)
+            .map_err(|_| ())
     }
 }
 
@@ -72,11 +66,11 @@ impl Encode for CompositeType {
 impl TryFrom<wasmparser::CompositeType> for CompositeType {
     type Error = ();
     fn try_from(composite_ty: wasmparser::CompositeType) -> Result<Self, Self::Error> {
-        Ok(match composite_ty {
-            wasmparser::CompositeType::Func(f) => CompositeType::Func(f.try_into()?),
-            wasmparser::CompositeType::Array(a) => CompositeType::Array(a.try_into()?),
-            wasmparser::CompositeType::Struct(s) => CompositeType::Struct(s.try_into()?),
-        })
+        crate::reencode::utils::composite_type(
+            &mut crate::reencode::RoundtripReencoder,
+            composite_ty,
+        )
+        .map_err(|_| ())
     }
 }
 
@@ -93,11 +87,8 @@ pub struct FuncType {
 impl TryFrom<wasmparser::FuncType> for FuncType {
     type Error = ();
     fn try_from(func_ty: wasmparser::FuncType) -> Result<Self, Self::Error> {
-        let mut buf = Vec::with_capacity(func_ty.params().len() + func_ty.results().len());
-        for ty in func_ty.params().iter().chain(func_ty.results()).copied() {
-            buf.push(ty.try_into()?);
-        }
-        Ok(FuncType::from_parts(buf.into(), func_ty.params().len()))
+        crate::reencode::utils::func_type(&mut crate::reencode::RoundtripReencoder, func_ty)
+            .map_err(|_| ())
     }
 }
 
@@ -109,7 +100,8 @@ pub struct ArrayType(pub FieldType);
 impl TryFrom<wasmparser::ArrayType> for ArrayType {
     type Error = ();
     fn try_from(array_ty: wasmparser::ArrayType) -> Result<Self, Self::Error> {
-        Ok(ArrayType(array_ty.0.try_into()?))
+        crate::reencode::utils::array_type(&mut crate::reencode::RoundtripReencoder, array_ty)
+            .map_err(|_| ())
     }
 }
 
@@ -124,14 +116,8 @@ pub struct StructType {
 impl TryFrom<wasmparser::StructType> for StructType {
     type Error = ();
     fn try_from(struct_ty: wasmparser::StructType) -> Result<Self, Self::Error> {
-        Ok(StructType {
-            fields: struct_ty
-                .fields
-                .iter()
-                .cloned()
-                .map(TryInto::try_into)
-                .collect::<Result<_, _>>()?,
-        })
+        crate::reencode::utils::struct_type(&mut crate::reencode::RoundtripReencoder, struct_ty)
+            .map_err(|_| ())
     }
 }
 
@@ -148,10 +134,8 @@ pub struct FieldType {
 impl TryFrom<wasmparser::FieldType> for FieldType {
     type Error = ();
     fn try_from(field_ty: wasmparser::FieldType) -> Result<Self, Self::Error> {
-        Ok(FieldType {
-            element_type: field_ty.element_type.try_into()?,
-            mutable: field_ty.mutable,
-        })
+        crate::reencode::utils::field_type(&mut crate::reencode::RoundtripReencoder, field_ty)
+            .map_err(|_| ())
     }
 }
 
@@ -170,11 +154,8 @@ pub enum StorageType {
 impl TryFrom<wasmparser::StorageType> for StorageType {
     type Error = ();
     fn try_from(storage_ty: wasmparser::StorageType) -> Result<Self, Self::Error> {
-        Ok(match storage_ty {
-            wasmparser::StorageType::I8 => StorageType::I8,
-            wasmparser::StorageType::I16 => StorageType::I16,
-            wasmparser::StorageType::Val(v) => StorageType::Val(v.try_into()?),
-        })
+        crate::reencode::utils::storage_type(&mut crate::reencode::RoundtripReencoder, storage_ty)
+            .map_err(|_| ())
     }
 }
 
@@ -220,14 +201,8 @@ pub enum ValType {
 impl TryFrom<wasmparser::ValType> for ValType {
     type Error = ();
     fn try_from(val_ty: wasmparser::ValType) -> Result<Self, Self::Error> {
-        Ok(match val_ty {
-            wasmparser::ValType::I32 => ValType::I32,
-            wasmparser::ValType::I64 => ValType::I64,
-            wasmparser::ValType::F32 => ValType::F32,
-            wasmparser::ValType::F64 => ValType::F64,
-            wasmparser::ValType::V128 => ValType::V128,
-            wasmparser::ValType::Ref(r) => ValType::Ref(r.try_into()?),
-        })
+        crate::reencode::utils::val_type(&mut crate::reencode::RoundtripReencoder, val_ty)
+            .map_err(|_| ())
     }
 }
 
@@ -447,10 +422,8 @@ impl TryFrom<wasmparser::RefType> for RefType {
     type Error = ();
 
     fn try_from(ref_type: wasmparser::RefType) -> Result<Self, Self::Error> {
-        Ok(RefType {
-            nullable: ref_type.is_nullable(),
-            heap_type: ref_type.heap_type().try_into()?,
-        })
+        crate::reencode::utils::ref_type(&mut crate::reencode::RoundtripReencoder, ref_type)
+            .map_err(|_| ())
     }
 }
 
@@ -522,13 +495,8 @@ impl TryFrom<wasmparser::HeapType> for HeapType {
     type Error = ();
 
     fn try_from(heap_type: wasmparser::HeapType) -> Result<Self, Self::Error> {
-        Ok(match heap_type {
-            wasmparser::HeapType::Concrete(i) => HeapType::Concrete(i.as_module_index().ok_or(())?),
-            wasmparser::HeapType::Abstract { shared, ty } => HeapType::Abstract {
-                shared,
-                ty: ty.into(),
-            },
-        })
+        crate::reencode::utils::heap_type(&mut crate::reencode::RoundtripReencoder, heap_type)
+            .map_err(|_| ())
     }
 }
 
@@ -610,21 +578,7 @@ impl Encode for AbstractHeapType {
 #[cfg(feature = "wasmparser")]
 impl From<wasmparser::AbstractHeapType> for AbstractHeapType {
     fn from(value: wasmparser::AbstractHeapType) -> Self {
-        use wasmparser::AbstractHeapType::*;
-        match value {
-            Func => AbstractHeapType::Func,
-            Extern => AbstractHeapType::Extern,
-            Any => AbstractHeapType::Any,
-            None => AbstractHeapType::None,
-            NoExtern => AbstractHeapType::NoExtern,
-            NoFunc => AbstractHeapType::NoFunc,
-            Eq => AbstractHeapType::Eq,
-            Struct => AbstractHeapType::Struct,
-            Array => AbstractHeapType::Array,
-            I31 => AbstractHeapType::I31,
-            Exn => AbstractHeapType::Exn,
-            NoExn => AbstractHeapType::NoExn,
-        }
+        crate::reencode::utils::abstract_heap_type(&mut crate::reencode::RoundtripReencoder, value)
     }
 }
 
@@ -764,23 +718,22 @@ impl TypeSection {
     pub fn parse_section(
         &mut self,
         section: wasmparser::TypeSectionReader<'_>,
-    ) -> wasmparser::Result<&mut Self> {
-        for rec_group in section {
-            self.parse(rec_group?);
-        }
-        Ok(self)
+    ) -> crate::reencode::Result<&mut Self> {
+        crate::reencode::utils::parse_type_section(
+            &mut crate::reencode::RoundtripReencoder,
+            self,
+            section,
+        )
     }
 
     /// Parses a single [`wasmparser::RecGroup`] and adds it to this section.
     #[cfg(feature = "wasmparser")]
-    pub fn parse(&mut self, rec_group: wasmparser::RecGroup) -> &mut Self {
-        if rec_group.is_explicit_rec_group() {
-            self.rec(rec_group.into_types().map(|t| t.try_into().unwrap()));
-        } else {
-            let ty = rec_group.into_types().next().unwrap();
-            self.subtype(&SubType::try_from(ty).unwrap());
-        }
-        self
+    pub fn parse(&mut self, rec_group: wasmparser::RecGroup) -> crate::reencode::Result<&mut Self> {
+        crate::reencode::utils::parse_recursive_type_group(
+            &mut crate::reencode::RoundtripReencoder,
+            self,
+            rec_group,
+        )
     }
 }
 

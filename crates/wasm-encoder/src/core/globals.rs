@@ -67,22 +67,19 @@ impl GlobalSection {
     pub fn parse_section(
         &mut self,
         section: wasmparser::GlobalSectionReader<'_>,
-    ) -> Result<&mut Self, crate::ConstExprConversionError> {
-        for global in section {
-            self.parse(global?)?;
-        }
-        Ok(self)
+    ) -> crate::reencode::Result<&mut Self> {
+        crate::reencode::utils::parse_global_section(
+            &mut crate::reencode::RoundtripReencoder,
+            self,
+            section,
+        )
     }
 
     /// Parses the single [`wasmparser::Global`] provided and adds it to this
     /// section.
     #[cfg(feature = "wasmparser")]
-    pub fn parse(
-        &mut self,
-        global: wasmparser::Global<'_>,
-    ) -> Result<&mut Self, crate::ConstExprConversionError> {
-        self.global(global.ty.try_into().unwrap(), &global.init_expr.try_into()?);
-        Ok(self)
+    pub fn parse(&mut self, global: wasmparser::Global<'_>) -> crate::reencode::Result<&mut Self> {
+        crate::reencode::utils::parse_global(&mut crate::reencode::RoundtripReencoder, self, global)
     }
 }
 
@@ -127,10 +124,7 @@ impl Encode for GlobalType {
 impl TryFrom<wasmparser::GlobalType> for GlobalType {
     type Error = ();
     fn try_from(global_ty: wasmparser::GlobalType) -> Result<Self, Self::Error> {
-        Ok(GlobalType {
-            val_type: global_ty.content_type.try_into()?,
-            mutable: global_ty.mutable,
-            shared: global_ty.shared,
-        })
+        crate::reencode::utils::global_type(&mut crate::reencode::RoundtripReencoder, global_ty)
+            .map_err(|_| ())
     }
 }

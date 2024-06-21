@@ -55,11 +55,12 @@ impl FunctionSection {
     pub fn parse_section(
         &mut self,
         section: wasmparser::FunctionSectionReader<'_>,
-    ) -> wasmparser::Result<&mut Self> {
-        for func in section {
-            self.function(func?);
-        }
-        Ok(self)
+    ) -> crate::reencode::Result<&mut Self> {
+        crate::reencode::utils::parse_function_section(
+            &mut crate::reencode::RoundtripReencoder,
+            self,
+            section,
+        )
     }
 }
 

@@ -28,13 +28,7 @@ impl Encode for ExportKind {
 #[cfg(feature = "wasmparser")]
 impl From<wasmparser::ExternalKind> for ExportKind {
     fn from(external_kind: wasmparser::ExternalKind) -> Self {
-        match external_kind {
-            wasmparser::ExternalKind::Func => ExportKind::Func,
-            wasmparser::ExternalKind::Table => ExportKind::Table,
-            wasmparser::ExternalKind::Memory => ExportKind::Memory,
-            wasmparser::ExternalKind::Global => ExportKind::Global,
-            wasmparser::ExternalKind::Tag => ExportKind::Tag,
-        }
+        crate::reencode::utils::export_kind(&mut crate::reencode::RoundtripReencoder, external_kind)
     }
 }
 
@@ -90,18 +84,19 @@ impl ExportSection {
     pub fn parse_section(
         &mut self,
         section: wasmparser::ExportSectionReader<'_>,
-    ) -> wasmparser::Result<&mut Self> {
-        for export in section {
-            self.parse(export?);
-        }
-        Ok(self)
+    ) -> crate::reencode::Result<&mut Self> {
+        crate::reencode::utils::parse_export_section(
+            &mut crate::reencode::RoundtripReencoder,
+            self,
+            section,
+        )
     }
 
     /// Parses the single [`wasmparser::Export`] provided and adds it to this
     /// section.
     #[cfg(feature = "wasmparser")]
     pub fn parse(&mut self, export: wasmparser::Export<'_>) -> &mut Self {
-        self.export(export.name, export.kind.into(), export.index)
+        crate::reencode::utils::parse_export(&mut crate::reencode::RoundtripReencoder, self, export)
     }
 }
 

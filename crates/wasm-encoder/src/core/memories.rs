@@ -58,12 +58,12 @@ impl MemorySection {
     pub fn parse_section(
         &mut self,
         section: wasmparser::MemorySectionReader<'_>,
-    ) -> wasmparser::Result<&mut Self> {
-        for memory in section {
-            let memory = memory?;
-            self.memory(memory.into());
-        }
-        Ok(self)
+    ) -> crate::reencode::Result<&mut Self> {
+        crate::reencode::utils::parse_memory_section(
+            &mut crate::reencode::RoundtripReencoder,
+            self,
+            section,
+        )
     }
 }
 
@@ -131,12 +131,6 @@ impl Encode for MemoryType {
 #[cfg(feature = "wasmparser")]
 impl From<wasmparser::MemoryType> for MemoryType {
     fn from(memory_ty: wasmparser::MemoryType) -> Self {
-        MemoryType {
-            minimum: memory_ty.initial,
-            maximum: memory_ty.maximum,
-            memory64: memory_ty.memory64,
-            shared: memory_ty.shared,
-            page_size_log2: memory_ty.page_size_log2,
-        }
+        crate::reencode::utils::memory_type(&mut crate::reencode::RoundtripReencoder, memory_ty)
     }
 }

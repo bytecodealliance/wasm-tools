@@ -158,30 +158,18 @@ impl DataSection {
     pub fn parse_section(
         &mut self,
         section: wasmparser::DataSectionReader<'_>,
-    ) -> Result<&mut Self, crate::ConstExprConversionError> {
-        for data in section {
-            self.parse(data?)?;
-        }
-        Ok(self)
+    ) -> crate::reencode::Result<&mut Self> {
+        crate::reencode::utils::parse_data_section(
+            &mut crate::reencode::RoundtripReencoder,
+            self,
+            section,
+        )
     }
 
     /// Parses a single [`wasmparser::Data`] and adds it to this section.
     #[cfg(feature = "wasmparser")]
-    pub fn parse(
-        &mut self,
-        data: wasmparser::Data<'_>,
-    ) -> Result<&mut Self, crate::ConstExprConversionError> {
-        match data.kind {
-            wasmparser::DataKind::Active {
-                memory_index,
-                offset_expr,
-            } => Ok(self.active(
-                memory_index,
-                &ConstExpr::try_from(offset_expr)?,
-                data.data.iter().copied(),
-            )),
-            wasmparser::DataKind::Passive => Ok(self.passive(data.data.iter().copied())),
-        }
+    pub fn parse(&mut self, data: wasmparser::Data<'_>) -> crate::reencode::Result<&mut Self> {
+        crate::reencode::utils::parse_data(&mut crate::reencode::RoundtripReencoder, self, data)
     }
 }
 

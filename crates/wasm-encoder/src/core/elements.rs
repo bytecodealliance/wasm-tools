@@ -213,11 +213,12 @@ impl ElementSection {
     pub fn parse_section(
         &mut self,
         section: wasmparser::ElementSectionReader<'_>,
-    ) -> Result<&mut Self, crate::ConstExprConversionError> {
-        for element in section {
-            self.parse(element?)?;
-        }
-        Ok(self)
+    ) -> crate::reencode::Result<&mut Self> {
+        crate::reencode::utils::parse_element_section(
+            &mut crate::reencode::RoundtripReencoder,
+            self,
+            section,
+        )
     }
 
     /// Parses the single [`wasmparser::Element`] provided and adds it to this
@@ -226,33 +227,12 @@ impl ElementSection {
     pub fn parse(
         &mut self,
         element: wasmparser::Element<'_>,
-    ) -> Result<&mut Self, crate::ConstExprConversionError> {
-        let mut funcs;
-        let mut exprs;
-        let elements = match element.items {
-            wasmparser::ElementItems::Functions(f) => {
-                funcs = Vec::new();
-                for func in f {
-                    funcs.push(func?);
-                }
-                Elements::Functions(&funcs)
-            }
-            wasmparser::ElementItems::Expressions(ty, e) => {
-                exprs = Vec::new();
-                for expr in e {
-                    exprs.push(ConstExpr::try_from(expr?)?);
-                }
-                Elements::Expressions(ty.try_into().unwrap(), &exprs)
-            }
-        };
-        match element.kind {
-            wasmparser::ElementKind::Active {
-                table_index,
-                offset_expr,
-            } => Ok(self.active(table_index, &ConstExpr::try_from(offset_expr)?, elements)),
-            wasmparser::ElementKind::Passive => Ok(self.passive(elements)),
-            wasmparser::ElementKind::Declared => Ok(self.declared(elements)),
-        }
+    ) -> crate::reencode::Result<&mut Self> {
+        crate::reencode::utils::parse_element(
+            &mut crate::reencode::RoundtripReencoder,
+            self,
+            element,
+        )
     }
 }
 

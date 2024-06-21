@@ -69,29 +69,18 @@ impl TableSection {
     pub fn parse_section(
         &mut self,
         section: wasmparser::TableSectionReader<'_>,
-    ) -> Result<&mut Self, crate::ConstExprConversionError> {
-        for table in section {
-            self.parse(table?)?;
-        }
-        Ok(self)
+    ) -> crate::reencode::Result<&mut Self> {
+        crate::reencode::utils::parse_table_section(
+            &mut crate::reencode::RoundtripReencoder,
+            self,
+            section,
+        )
     }
 
     /// Parses a single [`wasmparser::Table`] and adds it to this section.
     #[cfg(feature = "wasmparser")]
-    pub fn parse(
-        &mut self,
-        table: wasmparser::Table<'_>,
-    ) -> Result<&mut Self, crate::ConstExprConversionError> {
-        let ty = table.ty.try_into().unwrap();
-        match table.init {
-            wasmparser::TableInit::RefNull => {
-                self.table(ty);
-            }
-            wasmparser::TableInit::Expr(e) => {
-                self.table_with_init(ty, &e.try_into()?);
-            }
-        }
-        Ok(self)
+    pub fn parse(&mut self, table: wasmparser::Table<'_>) -> crate::reencode::Result<&mut Self> {
+        crate::reencode::utils::parse_table(&mut crate::reencode::RoundtripReencoder, self, table)
     }
 }
 
@@ -155,11 +144,7 @@ impl Encode for TableType {
 impl TryFrom<wasmparser::TableType> for TableType {
     type Error = ();
     fn try_from(table_ty: wasmparser::TableType) -> Result<Self, Self::Error> {
-        Ok(TableType {
-            element_type: table_ty.element_type.try_into()?,
-            minimum: table_ty.initial,
-            maximum: table_ty.maximum,
-            table64: table_ty.table64,
-        })
+        crate::reencode::utils::table_type(&mut crate::reencode::RoundtripReencoder, table_ty)
+            .map_err(|_| ())
     }
 }

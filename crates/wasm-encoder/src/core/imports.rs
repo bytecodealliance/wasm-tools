@@ -77,13 +77,8 @@ impl From<TagType> for EntityType {
 impl TryFrom<wasmparser::TypeRef> for EntityType {
     type Error = ();
     fn try_from(type_ref: wasmparser::TypeRef) -> Result<Self, Self::Error> {
-        Ok(match type_ref {
-            wasmparser::TypeRef::Func(i) => EntityType::Function(i),
-            wasmparser::TypeRef::Table(t) => EntityType::Table(t.try_into()?),
-            wasmparser::TypeRef::Memory(m) => EntityType::Memory(m.into()),
-            wasmparser::TypeRef::Global(g) => EntityType::Global(g.try_into()?),
-            wasmparser::TypeRef::Tag(t) => EntityType::Tag(t.into()),
-        })
+        crate::reencode::utils::entity_type(&mut crate::reencode::RoundtripReencoder, type_ref)
+            .map_err(|_| ())
     }
 }
 
@@ -149,23 +144,19 @@ impl ImportSection {
     pub fn parse_section(
         &mut self,
         section: wasmparser::ImportSectionReader<'_>,
-    ) -> wasmparser::Result<&mut Self> {
-        for import in section {
-            self.parse(import?);
-        }
-        Ok(self)
+    ) -> crate::reencode::Result<&mut Self> {
+        crate::reencode::utils::parse_import_section(
+            &mut crate::reencode::RoundtripReencoder,
+            self,
+            section,
+        )
     }
 
     /// Parses the single [`wasmparser::Import`] provided and adds it to this
     /// section.
     #[cfg(feature = "wasmparser")]
-    pub fn parse(&mut self, import: wasmparser::Import<'_>) -> &mut Self {
-        self.import(
-            import.module,
-            import.name,
-            EntityType::try_from(import.ty).unwrap(),
-        );
-        self
+    pub fn parse(&mut self, import: wasmparser::Import<'_>) -> crate::reencode::Result<&mut Self> {
+        crate::reencode::utils::parse_import(&mut crate::reencode::RoundtripReencoder, self, import)
     }
 }
 
