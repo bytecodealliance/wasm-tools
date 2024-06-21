@@ -1,5 +1,9 @@
-#![allow(missing_docs)] // FIXME
+//! Conversions from `wasmparser` to `wasm-encoder` to [`Reencode`] parsed wasm.
+//!
+//! The [`RoundtripReencoder`] allows encoding identical wasm to the parsed
+//! input.
 
+/// An error when re-encoding from `wasmparser` to `wasm-encoder`.
 #[derive(Debug)]
 pub enum Error {
     /// There was a type reference that was canonicalized and no longer
@@ -51,8 +55,10 @@ impl std::error::Error for Error {
     }
 }
 
+/// A result when re-encoding from `wasmparser` to `wasm-encoder`.
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
+#[allow(missing_docs)] // FIXME
 pub trait Reencode {
     fn parse_core_section(
         &mut self,
@@ -439,6 +445,8 @@ pub trait Reencode {
     }
 }
 
+/// Reencodes `wasmparser` into `wasm-encoder` so that the encoded wasm is
+/// identical to the input and can be parsed and encoded again.
 #[derive(Debug)]
 pub struct RoundtripReencoder;
 
@@ -464,6 +472,7 @@ pub enum Chunk {
     },
 }
 
+#[allow(missing_docs)] // FIXME
 pub mod utils {
     use super::{Chunk, Error, Reencode, Result};
 
