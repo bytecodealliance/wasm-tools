@@ -9,6 +9,8 @@ pub enum Error {
     /// The const expression is invalid: not actually constant or something like
     /// that.
     InvalidConstExpr,
+    /// There was a section that does not belong into a core wasm module.
+    UnexpectedNonCoreModuleSection,
     /// There was an error when parsing.
     ParseError(wasmparser::BinaryReaderError),
 }
@@ -26,6 +28,10 @@ impl std::fmt::Display for Error {
                 write!(fmt, "There was an error when parsing")
             }
             Self::InvalidConstExpr => write!(fmt, "The const expression was invalid"),
+            Self::UnexpectedNonCoreModuleSection => write!(
+                fmt,
+                "There was a section that does not belong into a core wasm module"
+            ),
             Self::CanonicalizedHeapTypeReference => write!(
                 fmt,
                 "There was a canonicalized heap type reference without type index information"
@@ -38,7 +44,9 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::ParseError(e) => Some(e),
-            Self::InvalidConstExpr | Self::CanonicalizedHeapTypeReference => None,
+            Self::InvalidConstExpr
+            | Self::CanonicalizedHeapTypeReference
+            | Self::UnexpectedNonCoreModuleSection => None,
         }
     }
 }
@@ -46,12 +54,23 @@ impl std::error::Error for Error {
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 pub trait Reencode {
-    fn core_module<'a, 'b>(
+    fn parse_core_section(
         &mut self,
         module: &mut crate::Module,
-        sections: impl Iterator<Item = Result<wasmparser::Payload<'b>, wasmparser::BinaryReaderError>>,
+        parser: &mut wasmparser::Parser,
+        data: &[u8],
+        eof: bool,
+    ) -> Result<Chunk> {
+        utils::parse_core_section(self, module, parser, data, eof)
+    }
+
+    fn parse_core_module<'a, 'b>(
+        &mut self,
+        module: &'a mut crate::Module,
+        parser: wasmparser::Parser,
+        data: &[u8],
     ) -> Result<()> {
-        utils::core_module(self, module, sections)
+        utils::parse_core_module(self, module, parser, data)
     }
 
     fn component_primitive_val_type(
@@ -409,6 +428,15 @@ pub trait Reencode {
     ) -> Result<()> {
         utils::parse_instruction(self, function, reader)
     }
+
+    fn parse_unknown_section(
+        &mut self,
+        module: &mut crate::Module,
+        id: u8,
+        contents: &[u8],
+    ) -> Result<()> {
+        utils::parse_unknown_section(self, module, id, contents)
+    }
 }
 
 #[derive(Debug)]
@@ -416,107 +444,266 @@ pub struct RoundtripReencoder;
 
 impl Reencode for RoundtripReencoder {}
 
-pub mod utils {
-    use super::{Error, Reencode, Result};
+/// A successful return payload from [`Reencode::parse_core_module_section`].
+///
+/// On success one of two possible values can be returned, either that more data
+/// is needed to continue parsing or how much of the input was parsed.
+#[derive(Debug)]
+pub enum Chunk {
+    /// This can be returned at any time and indicates that more data is needed
+    /// to proceed with parsing. Zero bytes were consumed from the input to
+    /// [`Reencode::parse_core_module_section`]. The `u64` value here is a hint
+    /// as to how many more bytes are needed to continue parsing.
+    NeedMoreData(u64),
 
-    pub fn core_module<'a, 'b>(
+    /// A chunk was successfully parsed.
+    Parsed {
+        /// This many bytes of the `data` input to
+        /// [`Reencode::parse_core_module_section`] were consumed.
+        consumed: usize,
+    },
+}
+
+pub mod utils {
+    use super::{Chunk, Error, Reencode, Result};
+
+    pub fn parse_core_section(
         reencoder: &mut (impl ?Sized + Reencode),
-        module: &'a mut crate::Module,
-        sections: impl Iterator<Item = Result<wasmparser::Payload<'b>, wasmparser::BinaryReaderError>>,
-    ) -> Result<()> {
-        fn module_section_flush_codes(
-            module: &mut crate::Module,
-            section: &impl crate::Section,
-            codes: &mut Option<crate::CodeSection>,
-        ) {
-            if let Some(codes) = codes.take() {
+        module: &mut crate::Module,
+        parser: &mut wasmparser::Parser,
+        data: &[u8],
+        eof: bool,
+    ) -> Result<Chunk> {
+        let parser_backup = parser.clone();
+
+        let (mut consumed, section) = match parser.parse(data, eof)? {
+            wasmparser::Chunk::Parsed { consumed, payload } => (consumed, payload),
+            wasmparser::Chunk::NeedMoreData(need) => return Ok(Chunk::NeedMoreData(need)),
+        };
+
+        match section {
+            wasmparser::Payload::Version {
+                encoding: wasmparser::Encoding::Module,
+                ..
+            } => (),
+            wasmparser::Payload::Version { .. } => {
+                return Err(Error::UnexpectedNonCoreModuleSection)
+            }
+            wasmparser::Payload::TypeSection(section) => {
+                let mut types = crate::TypeSection::new();
+                reencoder.parse_type_section(&mut types, section)?;
+                module.section(&types);
+            }
+            wasmparser::Payload::ImportSection(section) => {
+                let mut imports = crate::ImportSection::new();
+                reencoder.parse_import_section(&mut imports, section)?;
+                module.section(&imports);
+            }
+            wasmparser::Payload::FunctionSection(section) => {
+                let mut functions = crate::FunctionSection::new();
+                reencoder.parse_function_section(&mut functions, section)?;
+                module.section(&functions);
+            }
+            wasmparser::Payload::TableSection(section) => {
+                let mut tables = crate::TableSection::new();
+                reencoder.parse_table_section(&mut tables, section)?;
+                module.section(&tables);
+            }
+            wasmparser::Payload::MemorySection(section) => {
+                let mut memories = crate::MemorySection::new();
+                reencoder.parse_memory_section(&mut memories, section)?;
+                module.section(&memories);
+            }
+            wasmparser::Payload::TagSection(section) => {
+                let mut tags = crate::TagSection::new();
+                reencoder.parse_tag_section(&mut tags, section)?;
+                module.section(&tags);
+            }
+            wasmparser::Payload::GlobalSection(section) => {
+                let mut globals = crate::GlobalSection::new();
+                reencoder.parse_global_section(&mut globals, section)?;
+                module.section(&globals);
+            }
+            wasmparser::Payload::ExportSection(section) => {
+                let mut exports = crate::ExportSection::new();
+                reencoder.parse_export_section(&mut exports, section)?;
+                module.section(&exports);
+            }
+            wasmparser::Payload::StartSection { func, .. } => {
+                module.section(&crate::StartSection {
+                    function_index: reencoder.function_index(func),
+                });
+            }
+            wasmparser::Payload::ElementSection(section) => {
+                let mut elements = crate::ElementSection::new();
+                reencoder.parse_element_section(&mut elements, section)?;
+                module.section(&elements);
+            }
+            wasmparser::Payload::DataCountSection { count, .. } => {
+                module.section(&crate::DataCountSection { count });
+            }
+            wasmparser::Payload::DataSection(section) => {
+                let mut data = crate::DataSection::new();
+                reencoder.parse_data_section(&mut data, section)?;
+                module.section(&data);
+            }
+            wasmparser::Payload::CodeSectionStart { count, .. } => {
+                let mut codes = crate::CodeSection::new();
+                for _ in 0..count {
+                    match parser.parse(data, eof)? {
+                        wasmparser::Chunk::Parsed {
+                            consumed: consumed_extra,
+                            payload: wasmparser::Payload::CodeSectionEntry(section),
+                        } => {
+                            reencoder.parse_function_body(&mut codes, section)?;
+                            consumed += consumed_extra;
+                        }
+                        wasmparser::Chunk::Parsed { .. } => {
+                            return Err(Error::UnexpectedNonCoreModuleSection)
+                        }
+                        wasmparser::Chunk::NeedMoreData(need) => {
+                            *parser = parser_backup;
+                            return Ok(Chunk::NeedMoreData((consumed as u64) + need));
+                        }
+                    };
+                }
                 module.section(&codes);
             }
+            wasmparser::Payload::CodeSectionEntry(section) => {
+                // we can't do better than emit one code section per function body here
+                let mut codes = crate::CodeSection::new();
+                reencoder.parse_function_body(&mut codes, section)?;
+                module.section(&codes);
+            }
+            wasmparser::Payload::ModuleSection { .. }
+            | wasmparser::Payload::InstanceSection(_)
+            | wasmparser::Payload::CoreTypeSection(_)
+            | wasmparser::Payload::ComponentSection { .. }
+            | wasmparser::Payload::ComponentInstanceSection(_)
+            | wasmparser::Payload::ComponentAliasSection(_)
+            | wasmparser::Payload::ComponentTypeSection(_)
+            | wasmparser::Payload::ComponentCanonicalSection(_)
+            | wasmparser::Payload::ComponentStartSection { .. }
+            | wasmparser::Payload::ComponentImportSection(_)
+            | wasmparser::Payload::ComponentExportSection(_) => {
+                return Err(Error::UnexpectedNonCoreModuleSection)
+            }
+            wasmparser::Payload::CustomSection(section) => {
+                module.section(&reencoder.custom_section(section));
+            }
+            wasmparser::Payload::UnknownSection { id, contents, .. } => {
+                reencoder.parse_unknown_section(module, id, contents)?;
+            }
+            wasmparser::Payload::End(_) => (),
+        };
 
-            module.section(section);
-        }
+        Ok(Chunk::Parsed { consumed })
+    }
 
-        let mut codes = None;
+    pub fn parse_core_module<'a, 'b>(
+        reencoder: &mut (impl ?Sized + Reencode),
+        module: &'a mut crate::Module,
+        parser: wasmparser::Parser,
+        data: &[u8],
+    ) -> Result<()> {
+        let mut sections = parser.parse_all(data);
+        let mut next_section = sections.next();
 
-        for section in sections {
-            let section = section?;
-
-            match section {
-                wasmparser::Payload::Version { .. } => (),
+        'outer: while let Some(section) = next_section {
+            match section? {
+                wasmparser::Payload::Version {
+                    encoding: wasmparser::Encoding::Module,
+                    ..
+                } => (),
+                wasmparser::Payload::Version { .. } => {
+                    return Err(Error::UnexpectedNonCoreModuleSection)
+                }
                 wasmparser::Payload::TypeSection(section) => {
                     let mut types = crate::TypeSection::new();
                     reencoder.parse_type_section(&mut types, section)?;
-                    module_section_flush_codes(module, &types, &mut codes);
+                    module.section(&types);
                 }
                 wasmparser::Payload::ImportSection(section) => {
                     let mut imports = crate::ImportSection::new();
                     reencoder.parse_import_section(&mut imports, section)?;
-                    module_section_flush_codes(module, &imports, &mut codes);
+                    module.section(&imports);
                 }
                 wasmparser::Payload::FunctionSection(section) => {
                     let mut functions = crate::FunctionSection::new();
                     reencoder.parse_function_section(&mut functions, section)?;
-                    module_section_flush_codes(module, &functions, &mut codes);
+                    module.section(&functions);
                 }
                 wasmparser::Payload::TableSection(section) => {
                     let mut tables = crate::TableSection::new();
                     reencoder.parse_table_section(&mut tables, section)?;
-                    module_section_flush_codes(module, &tables, &mut codes);
+                    module.section(&tables);
                 }
                 wasmparser::Payload::MemorySection(section) => {
                     let mut memories = crate::MemorySection::new();
                     reencoder.parse_memory_section(&mut memories, section)?;
-                    module_section_flush_codes(module, &memories, &mut codes);
+                    module.section(&memories);
                 }
                 wasmparser::Payload::TagSection(section) => {
                     let mut tags = crate::TagSection::new();
                     reencoder.parse_tag_section(&mut tags, section)?;
-                    module_section_flush_codes(module, &tags, &mut codes);
+                    module.section(&tags);
                 }
                 wasmparser::Payload::GlobalSection(section) => {
                     let mut globals = crate::GlobalSection::new();
                     reencoder.parse_global_section(&mut globals, section)?;
-                    module_section_flush_codes(module, &globals, &mut codes);
+                    module.section(&globals);
                 }
                 wasmparser::Payload::ExportSection(section) => {
                     let mut exports = crate::ExportSection::new();
                     reencoder.parse_export_section(&mut exports, section)?;
-                    module_section_flush_codes(module, &exports, &mut codes);
+                    module.section(&exports);
                 }
                 wasmparser::Payload::StartSection { func, .. } => {
-                    module_section_flush_codes(
-                        module,
-                        &crate::StartSection {
-                            function_index: reencoder.function_index(func),
-                        },
-                        &mut codes,
-                    );
+                    module.section(&crate::StartSection {
+                        function_index: reencoder.function_index(func),
+                    });
                 }
                 wasmparser::Payload::ElementSection(section) => {
                     let mut elements = crate::ElementSection::new();
                     reencoder.parse_element_section(&mut elements, section)?;
-                    module_section_flush_codes(module, &elements, &mut codes);
+                    module.section(&elements);
                 }
                 wasmparser::Payload::DataCountSection { count, .. } => {
-                    module_section_flush_codes(
-                        module,
-                        &crate::DataCountSection { count },
-                        &mut codes,
-                    );
+                    module.section(&crate::DataCountSection { count });
                 }
                 wasmparser::Payload::DataSection(section) => {
                     let mut data = crate::DataSection::new();
                     reencoder.parse_data_section(&mut data, section)?;
-                    module_section_flush_codes(module, &data, &mut codes);
+                    module.section(&data);
                 }
-                wasmparser::Payload::CodeSectionStart { .. } => {
-                    if let Some(codes) = codes.replace(crate::CodeSection::new()) {
-                        module.section(&codes);
+                wasmparser::Payload::CodeSectionStart { count, .. } => {
+                    let mut codes = crate::CodeSection::new();
+                    for _ in 0..count {
+                        if let Some(Ok(wasmparser::Payload::CodeSectionEntry(section))) =
+                            sections.next()
+                        {
+                            reencoder.parse_function_body(&mut codes, section)?;
+                        } else {
+                            return Err(Error::UnexpectedNonCoreModuleSection);
+                        }
                     }
+                    module.section(&codes);
                 }
                 wasmparser::Payload::CodeSectionEntry(section) => {
-                    let codes = codes.get_or_insert_with(crate::CodeSection::new);
-                    reencoder.parse_function_body(codes, section)?;
+                    // we can't do better than start a new code section here
+                    let mut codes = crate::CodeSection::new();
+                    reencoder.parse_function_body(&mut codes, section)?;
+                    while let Some(section) = sections.next() {
+                        let section = section?;
+                        if let wasmparser::Payload::CodeSectionEntry(section) = section {
+                            reencoder.parse_function_body(&mut codes, section)?;
+                        } else {
+                            module.section(&codes);
+                            next_section = Some(Ok(section));
+                            continue 'outer;
+                        }
+                    }
+                    module.section(&codes);
                 }
                 wasmparser::Payload::ModuleSection { .. }
                 | wasmparser::Payload::InstanceSection(_)
@@ -529,24 +716,18 @@ pub mod utils {
                 | wasmparser::Payload::ComponentStartSection { .. }
                 | wasmparser::Payload::ComponentImportSection(_)
                 | wasmparser::Payload::ComponentExportSection(_) => {
-                    unreachable!("wasm component model section is not allowed in core wasm module")
+                    return Err(Error::UnexpectedNonCoreModuleSection)
                 }
                 wasmparser::Payload::CustomSection(section) => {
-                    module_section_flush_codes(
-                        module,
-                        &reencoder.custom_section(section),
-                        &mut codes,
-                    );
+                    module.section(&reencoder.custom_section(section));
                 }
-                wasmparser::Payload::UnknownSection { id, .. } => {
-                    unreachable!("unknown wasm section with id {id}")
+                wasmparser::Payload::UnknownSection { id, contents, .. } => {
+                    reencoder.parse_unknown_section(module, id, contents)?;
                 }
                 wasmparser::Payload::End(_) => (),
             }
-        }
 
-        if let Some(codes) = codes {
-            module.section(&codes);
+            next_section = sections.next();
         }
 
         Ok(())
@@ -1362,6 +1543,16 @@ pub mod utils {
         reader: &mut wasmparser::OperatorsReader<'_>,
     ) -> Result<()> {
         function.instruction(&reencoder.instruction(reader.read()?)?);
+        Ok(())
+    }
+
+    pub fn parse_unknown_section(
+        _reencoder: &mut (impl ?Sized + Reencode),
+        module: &mut crate::Module,
+        id: u8,
+        contents: &[u8],
+    ) -> Result<()> {
+        module.section(&crate::RawSection { id, data: contents });
         Ok(())
     }
 }
