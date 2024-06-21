@@ -42,9 +42,9 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 pub trait WasmParserToWasmEncoder {
     fn core_module<'a, 'b>(
         &mut self,
-        module: &'a mut crate::Module,
+        module: &mut crate::Module,
         sections: impl Iterator<Item = Result<wasmparser::Payload<'b>, wasmparser::BinaryReaderError>>,
-    ) -> Result<&'a crate::Module> {
+    ) -> Result<()> {
         utils::core_module(self, module, sections)
     }
 
@@ -119,20 +119,20 @@ pub trait WasmParserToWasmEncoder {
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
     /// all the types to the `types` section.
-    fn parse_type_section<'a>(
+    fn parse_type_section(
         &mut self,
-        types: &'a mut crate::TypeSection,
+        types: &mut crate::TypeSection,
         section: wasmparser::TypeSectionReader<'_>,
-    ) -> Result<&'a mut crate::TypeSection> {
+    ) -> Result<()> {
         utils::parse_type_section(self, types, section)
     }
 
     /// Parses a single [`wasmparser::RecGroup`] and adds it to the `types` section.
-    fn parse_recursive_type_group<'a>(
+    fn parse_recursive_type_group(
         &mut self,
-        types: &'a mut crate::TypeSection,
+        types: &mut crate::TypeSection,
         rec_group: wasmparser::RecGroup,
-    ) -> Result<&'a mut crate::TypeSection> {
+    ) -> Result<()> {
         utils::parse_recursive_type_group(self, types, rec_group)
     }
 
@@ -181,20 +181,20 @@ pub trait WasmParserToWasmEncoder {
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
     /// all the tables to the `tables` section.
-    fn parse_table_section<'a>(
+    fn parse_table_section(
         &mut self,
-        tables: &'a mut crate::TableSection,
+        tables: &mut crate::TableSection,
         section: wasmparser::TableSectionReader<'_>,
-    ) -> Result<&'a mut crate::TableSection> {
+    ) -> Result<()> {
         utils::parse_table_section(self, tables, section)
     }
 
     /// Parses a single [`wasmparser::Table`] and adds it to the `tables` section.
-    fn parse_table<'a>(
+    fn parse_table(
         &mut self,
-        tables: &'a mut crate::TableSection,
+        tables: &mut crate::TableSection,
         table: wasmparser::Table<'_>,
-    ) -> Result<&'a mut crate::TableSection> {
+    ) -> Result<()> {
         utils::parse_table(self, tables, table)
     }
 
@@ -204,21 +204,21 @@ pub trait WasmParserToWasmEncoder {
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
     /// all the tags to the `tags` section.
-    fn parse_tag_section<'a>(
+    fn parse_tag_section(
         &mut self,
-        tags: &'a mut crate::TagSection,
+        tags: &mut crate::TagSection,
         section: wasmparser::TagSectionReader<'_>,
-    ) -> Result<&'a mut crate::TagSection> {
+    ) -> Result<()> {
         utils::parse_tag_section(self, tags, section)
     }
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
     /// all the exports to the `exports` section.
-    fn parse_export_section<'a>(
+    fn parse_export_section(
         &mut self,
-        exports: &'a mut crate::ExportSection,
+        exports: &mut crate::ExportSection,
         section: wasmparser::ExportSectionReader<'_>,
-    ) -> Result<&'a mut crate::ExportSection> {
+    ) -> Result<()> {
         utils::parse_export_section(self, exports, section)
     }
 
@@ -228,31 +228,27 @@ pub trait WasmParserToWasmEncoder {
 
     /// Parses the single [`wasmparser::Export`] provided and adds it to the
     /// `exports` section.
-    fn parse_export<'a>(
-        &mut self,
-        exports: &'a mut crate::ExportSection,
-        export: wasmparser::Export<'_>,
-    ) -> &'a mut crate::ExportSection {
+    fn parse_export(&mut self, exports: &mut crate::ExportSection, export: wasmparser::Export<'_>) {
         utils::parse_export(self, exports, export)
     }
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
     /// all the globals to the `globals` section.
-    fn parse_global_section<'a>(
+    fn parse_global_section(
         &mut self,
-        globals: &'a mut crate::GlobalSection,
+        globals: &mut crate::GlobalSection,
         section: wasmparser::GlobalSectionReader<'_>,
-    ) -> Result<&'a mut crate::GlobalSection> {
+    ) -> Result<()> {
         utils::parse_global_section(self, globals, section)
     }
 
     /// Parses the single [`wasmparser::Global`] provided and adds it to the
     /// `globals` section.
-    fn parse_global<'a>(
+    fn parse_global(
         &mut self,
-        globals: &'a mut crate::GlobalSection,
+        globals: &mut crate::GlobalSection,
         global: wasmparser::Global<'_>,
-    ) -> Result<&'a mut crate::GlobalSection> {
+    ) -> Result<()> {
         utils::parse_global(self, globals, global)
     }
 
@@ -266,80 +262,80 @@ pub trait WasmParserToWasmEncoder {
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
     /// all the imports to the `import` section.
-    fn parse_import_section<'a>(
+    fn parse_import_section(
         &mut self,
-        imports: &'a mut crate::ImportSection,
+        imports: &mut crate::ImportSection,
         section: wasmparser::ImportSectionReader<'_>,
-    ) -> Result<&'a mut crate::ImportSection> {
+    ) -> Result<()> {
         utils::parse_import_section(self, imports, section)
     }
 
     /// Parses the single [`wasmparser::Import`] provided and adds it to the
     /// `import` section.
-    fn parse_import<'a>(
+    fn parse_import(
         &mut self,
-        imports: &'a mut crate::ImportSection,
+        imports: &mut crate::ImportSection,
         import: wasmparser::Import<'_>,
-    ) -> Result<&'a mut crate::ImportSection> {
+    ) -> Result<()> {
         utils::parse_import(self, imports, import)
     }
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
     /// all the memories to the `memories` section.
-    fn parse_memory_section<'a>(
+    fn parse_memory_section(
         &mut self,
-        memories: &'a mut crate::MemorySection,
+        memories: &mut crate::MemorySection,
         section: wasmparser::MemorySectionReader<'_>,
-    ) -> Result<&'a mut crate::MemorySection> {
+    ) -> Result<()> {
         utils::parse_memory_section(self, memories, section)
     }
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
     /// all the functions to the `functions` section.
-    fn parse_function_section<'a>(
+    fn parse_function_section(
         &mut self,
-        functions: &'a mut crate::FunctionSection,
+        functions: &mut crate::FunctionSection,
         section: wasmparser::FunctionSectionReader<'_>,
-    ) -> Result<&'a mut crate::FunctionSection> {
+    ) -> Result<()> {
         utils::parse_function_section(self, functions, section)
     }
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
     /// all the data to the `data` section.
-    fn parse_data_section<'a>(
+    fn parse_data_section(
         &mut self,
-        data: &'a mut crate::DataSection,
+        data: &mut crate::DataSection,
         section: wasmparser::DataSectionReader<'_>,
-    ) -> Result<&'a mut crate::DataSection> {
+    ) -> Result<()> {
         utils::parse_data_section(self, data, section)
     }
 
     /// Parses a single [`wasmparser::Data`] and adds it to the `data` section.
-    fn parse_data<'a>(
+    fn parse_data(
         &mut self,
-        data: &'a mut crate::DataSection,
+        data: &mut crate::DataSection,
         datum: wasmparser::Data<'_>,
-    ) -> Result<&'a mut crate::DataSection> {
+    ) -> Result<()> {
         utils::parse_data(self, data, datum)
     }
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
     /// all the elements to the `element` section.
-    fn parse_element_section<'a>(
+    fn parse_element_section(
         &mut self,
-        elements: &'a mut crate::ElementSection,
+        elements: &mut crate::ElementSection,
         section: wasmparser::ElementSectionReader<'_>,
-    ) -> Result<&'a mut crate::ElementSection> {
+    ) -> Result<()> {
         utils::parse_element_section(self, elements, section)
     }
 
     /// Parses the single [`wasmparser::Element`] provided and adds it to the
     /// `element` section.
-    fn parse_element<'a>(
+    fn parse_element(
         &mut self,
-        elements: &'a mut crate::ElementSection,
+        elements: &mut crate::ElementSection,
         element: wasmparser::Element<'_>,
-    ) -> Result<&'a mut crate::ElementSection> {
+    ) -> Result<()> {
         utils::parse_element(self, elements, element)
     }
 
@@ -373,20 +369,20 @@ pub trait WasmParserToWasmEncoder {
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
     /// all the code to the `code` section.
-    fn parse_code_section<'a>(
+    fn parse_code_section(
         &mut self,
-        code: &'a mut crate::CodeSection,
+        code: &mut crate::CodeSection,
         section: wasmparser::CodeSectionReader<'_>,
-    ) -> Result<&'a mut crate::CodeSection> {
+    ) -> Result<()> {
         utils::parse_code_section(self, code, section)
     }
 
     /// Parses a single [`wasmparser::FunctionBody`] and adds it to the `code` section.
-    fn parse_function_body<'a>(
+    fn parse_function_body(
         &mut self,
-        code: &'a mut crate::CodeSection,
+        code: &mut crate::CodeSection,
         func: wasmparser::FunctionBody<'_>,
-    ) -> Result<&'a mut crate::CodeSection> {
+    ) -> Result<()> {
         utils::parse_function_body(self, code, func)
     }
 
@@ -400,11 +396,11 @@ pub trait WasmParserToWasmEncoder {
     }
 
     /// Parses a single instruction from `reader` and adds it to `function`.
-    fn parse_instruction<'a>(
+    fn parse_instruction(
         &mut self,
-        function: &'a mut crate::Function,
+        function: &mut crate::Function,
         reader: &mut wasmparser::OperatorsReader<'_>,
-    ) -> Result<&'a mut crate::Function> {
+    ) -> Result<()> {
         utils::parse_instruction(self, function, reader)
     }
 }
@@ -421,7 +417,7 @@ pub mod utils {
         reencoder: &mut (impl ?Sized + WasmParserToWasmEncoder),
         module: &'a mut crate::Module,
         sections: impl Iterator<Item = Result<wasmparser::Payload<'b>, wasmparser::BinaryReaderError>>,
-    ) -> Result<&'a crate::Module> {
+    ) -> Result<()> {
         fn module_section_flush_codes(
             module: &mut crate::Module,
             section: &impl crate::Section,
@@ -541,7 +537,7 @@ pub mod utils {
             module.section(&codes);
         }
 
-        Ok(module)
+        Ok(())
     }
 
     pub fn component_primitive_val_type(
@@ -715,23 +711,23 @@ pub mod utils {
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
     /// all the types to the `types` section.
-    pub fn parse_type_section<'a>(
+    pub fn parse_type_section(
         reencoder: &mut (impl ?Sized + WasmParserToWasmEncoder),
-        types: &'a mut crate::TypeSection,
+        types: &mut crate::TypeSection,
         section: wasmparser::TypeSectionReader<'_>,
-    ) -> Result<&'a mut crate::TypeSection> {
+    ) -> Result<()> {
         for rec_group in section {
             reencoder.parse_recursive_type_group(types, rec_group.map_err(Error::ParseError)?)?;
         }
-        Ok(types)
+        Ok(())
     }
 
     /// Parses a single [`wasmparser::RecGroup`] and adds it to the `types` section.
-    pub fn parse_recursive_type_group<'a>(
+    pub fn parse_recursive_type_group(
         reencoder: &mut (impl ?Sized + WasmParserToWasmEncoder),
-        types: &'a mut crate::TypeSection,
+        types: &mut crate::TypeSection,
         rec_group: wasmparser::RecGroup,
-    ) -> Result<&'a mut crate::TypeSection> {
+    ) -> Result<()> {
         if rec_group.is_explicit_rec_group() {
             let subtypes = rec_group
                 .into_types()
@@ -742,7 +738,7 @@ pub mod utils {
             let ty = rec_group.into_types().next().unwrap();
             types.subtype(&reencoder.sub_type(ty)?);
         }
-        Ok(types)
+        Ok(())
     }
 
     pub fn sub_type(
@@ -878,23 +874,23 @@ pub mod utils {
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
     /// all the tables to the `tables` section.
-    pub fn parse_table_section<'a>(
+    pub fn parse_table_section(
         reencoder: &mut (impl ?Sized + WasmParserToWasmEncoder),
-        tables: &'a mut crate::TableSection,
+        tables: &mut crate::TableSection,
         section: wasmparser::TableSectionReader<'_>,
-    ) -> Result<&'a mut crate::TableSection> {
+    ) -> Result<()> {
         for table in section {
             reencoder.parse_table(tables, table.map_err(Error::ParseError)?)?;
         }
-        Ok(tables)
+        Ok(())
     }
 
     /// Parses a single [`wasmparser::Table`] and adds it to the `tables` section.
-    pub fn parse_table<'a>(
+    pub fn parse_table(
         reencoder: &mut (impl ?Sized + WasmParserToWasmEncoder),
-        tables: &'a mut crate::TableSection,
+        tables: &mut crate::TableSection,
         table: wasmparser::Table<'_>,
-    ) -> Result<&'a mut crate::TableSection> {
+    ) -> Result<()> {
         let ty = reencoder.table_type(table.ty)?;
         match table.init {
             wasmparser::TableInit::RefNull => {
@@ -904,7 +900,7 @@ pub mod utils {
                 tables.table_with_init(ty, &reencoder.const_expr(e)?);
             }
         }
-        Ok(tables)
+        Ok(())
     }
 
     pub fn table_type(
@@ -921,29 +917,29 @@ pub mod utils {
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
     /// all the tags to the `tags` section.
-    pub fn parse_tag_section<'a>(
+    pub fn parse_tag_section(
         reencoder: &mut (impl ?Sized + WasmParserToWasmEncoder),
-        tags: &'a mut crate::TagSection,
+        tags: &mut crate::TagSection,
         section: wasmparser::TagSectionReader<'_>,
-    ) -> Result<&'a mut crate::TagSection> {
+    ) -> Result<()> {
         for tag in section {
             let tag = tag.map_err(Error::ParseError)?;
             tags.tag(reencoder.tag_type(tag));
         }
-        Ok(tags)
+        Ok(())
     }
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
     /// all the exports to the `exports` section.
-    pub fn parse_export_section<'a>(
+    pub fn parse_export_section(
         reencoder: &mut (impl ?Sized + WasmParserToWasmEncoder),
-        exports: &'a mut crate::ExportSection,
+        exports: &mut crate::ExportSection,
         section: wasmparser::ExportSectionReader<'_>,
-    ) -> Result<&'a mut crate::ExportSection> {
+    ) -> Result<()> {
         for export in section {
             reencoder.parse_export(exports, export.map_err(Error::ParseError)?);
         }
-        Ok(exports)
+        Ok(())
     }
 
     pub fn export_index(
@@ -955,43 +951,43 @@ pub mod utils {
 
     /// Parses the single [`wasmparser::Export`] provided and adds it to the
     /// `exports` section.
-    pub fn parse_export<'a>(
+    pub fn parse_export(
         reencoder: &mut (impl ?Sized + WasmParserToWasmEncoder),
-        exports: &'a mut crate::ExportSection,
+        exports: &mut crate::ExportSection,
         export: wasmparser::Export<'_>,
-    ) -> &'a mut crate::ExportSection {
+    ) {
         exports.export(
             export.name,
             reencoder.export_kind(export.kind),
             reencoder.export_index(export.index),
-        )
+        );
     }
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
     /// all the globals to the `globals` section.
-    pub fn parse_global_section<'a>(
+    pub fn parse_global_section(
         reencoder: &mut (impl ?Sized + WasmParserToWasmEncoder),
-        globals: &'a mut crate::GlobalSection,
+        globals: &mut crate::GlobalSection,
         section: wasmparser::GlobalSectionReader<'_>,
-    ) -> Result<&'a mut crate::GlobalSection> {
+    ) -> Result<()> {
         for global in section {
             reencoder.parse_global(globals, global.map_err(Error::ParseError)?)?;
         }
-        Ok(globals)
+        Ok(())
     }
 
     /// Parses the single [`wasmparser::Global`] provided and adds it to the
     /// `globals` section.
-    pub fn parse_global<'a>(
+    pub fn parse_global(
         reencoder: &mut (impl ?Sized + WasmParserToWasmEncoder),
-        globals: &'a mut crate::GlobalSection,
+        globals: &mut crate::GlobalSection,
         global: wasmparser::Global<'_>,
-    ) -> Result<&'a mut crate::GlobalSection> {
+    ) -> Result<()> {
         globals.global(
             reencoder.global_type(global.ty)?,
             &reencoder.const_expr(global.init_expr)?,
         );
-        Ok(globals)
+        Ok(())
     }
 
     pub fn global_type(
@@ -1020,111 +1016,112 @@ pub mod utils {
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
     /// all the imports to the `import` section.
-    pub fn parse_import_section<'a>(
+    pub fn parse_import_section(
         reencoder: &mut (impl ?Sized + WasmParserToWasmEncoder),
-        imports: &'a mut crate::ImportSection,
+        imports: &mut crate::ImportSection,
         section: wasmparser::ImportSectionReader<'_>,
-    ) -> Result<&'a mut crate::ImportSection> {
+    ) -> Result<()> {
         for import in section {
             reencoder.parse_import(imports, import.map_err(Error::ParseError)?)?;
         }
-        Ok(imports)
+        Ok(())
     }
 
     /// Parses the single [`wasmparser::Import`] provided and adds it to the
     /// `import` section.
-    pub fn parse_import<'a>(
+    pub fn parse_import(
         reencoder: &mut (impl ?Sized + WasmParserToWasmEncoder),
-        imports: &'a mut crate::ImportSection,
+        imports: &mut crate::ImportSection,
         import: wasmparser::Import<'_>,
-    ) -> Result<&'a mut crate::ImportSection> {
+    ) -> Result<()> {
         imports.import(
             import.module,
             import.name,
             reencoder.entity_type(import.ty)?,
         );
-        Ok(imports)
+        Ok(())
     }
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
     /// all the memories to the `memories` section.
-    pub fn parse_memory_section<'a>(
+    pub fn parse_memory_section(
         reencoder: &mut (impl ?Sized + WasmParserToWasmEncoder),
-        memories: &'a mut crate::MemorySection,
+        memories: &mut crate::MemorySection,
         section: wasmparser::MemorySectionReader<'_>,
-    ) -> Result<&'a mut crate::MemorySection> {
+    ) -> Result<()> {
         for memory in section {
             let memory = memory.map_err(Error::ParseError)?;
             memories.memory(reencoder.memory_type(memory));
         }
-        Ok(memories)
+        Ok(())
     }
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
     /// all the functions to the `functions` section.
-    pub fn parse_function_section<'a>(
+    pub fn parse_function_section(
         reencoder: &mut (impl ?Sized + WasmParserToWasmEncoder),
-        functions: &'a mut crate::FunctionSection,
+        functions: &mut crate::FunctionSection,
         section: wasmparser::FunctionSectionReader<'_>,
-    ) -> Result<&'a mut crate::FunctionSection> {
+    ) -> Result<()> {
         for func in section {
             functions.function(reencoder.type_index(func.map_err(Error::ParseError)?));
         }
-        Ok(functions)
+        Ok(())
     }
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
     /// all the data to the `data` section.
-    pub fn parse_data_section<'a>(
+    pub fn parse_data_section(
         reencoder: &mut (impl ?Sized + WasmParserToWasmEncoder),
-        data: &'a mut crate::DataSection,
+        data: &mut crate::DataSection,
         section: wasmparser::DataSectionReader<'_>,
-    ) -> Result<&'a mut crate::DataSection> {
+    ) -> Result<()> {
         for datum in section {
             reencoder.parse_data(data, datum.map_err(Error::ParseError)?)?;
         }
-        Ok(data)
+        Ok(())
     }
 
     /// Parses a single [`wasmparser::Data`] and adds it to the `data` section.
-    pub fn parse_data<'a>(
+    pub fn parse_data(
         reencoder: &mut (impl ?Sized + WasmParserToWasmEncoder),
-        data: &'a mut crate::DataSection,
+        data: &mut crate::DataSection,
         datum: wasmparser::Data<'_>,
-    ) -> Result<&'a mut crate::DataSection> {
+    ) -> Result<()> {
         match datum.kind {
             wasmparser::DataKind::Active {
                 memory_index,
                 offset_expr,
-            } => Ok(data.active(
+            } => data.active(
                 reencoder.memory_index(memory_index),
                 &reencoder.const_expr(offset_expr)?,
                 datum.data.iter().copied(),
-            )),
-            wasmparser::DataKind::Passive => Ok(data.passive(datum.data.iter().copied())),
-        }
+            ),
+            wasmparser::DataKind::Passive => data.passive(datum.data.iter().copied()),
+        };
+        Ok(())
     }
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
     /// all the elements to the `element` section.
-    pub fn parse_element_section<'a>(
+    pub fn parse_element_section(
         reencoder: &mut (impl ?Sized + WasmParserToWasmEncoder),
-        elements: &'a mut crate::ElementSection,
+        elements: &mut crate::ElementSection,
         section: wasmparser::ElementSectionReader<'_>,
-    ) -> Result<&'a mut crate::ElementSection> {
+    ) -> Result<()> {
         for element in section {
             reencoder.parse_element(elements, element.map_err(Error::ParseError)?)?;
         }
-        Ok(elements)
+        Ok(())
     }
 
     /// Parses the single [`wasmparser::Element`] provided and adds it to the
     /// `element` section.
-    pub fn parse_element<'a>(
+    pub fn parse_element(
         reencoder: &mut (impl ?Sized + WasmParserToWasmEncoder),
-        elements: &'a mut crate::ElementSection,
+        elements: &mut crate::ElementSection,
         element: wasmparser::Element<'_>,
-    ) -> Result<&'a mut crate::ElementSection> {
+    ) -> Result<()> {
         let mut funcs;
         let mut exprs;
         let elems = match element.items {
@@ -1147,14 +1144,15 @@ pub mod utils {
             wasmparser::ElementKind::Active {
                 table_index,
                 offset_expr,
-            } => Ok(elements.active(
+            } => elements.active(
                 table_index.map(|t| reencoder.table_index(t)),
                 &reencoder.const_expr(offset_expr)?,
                 elems,
-            )),
-            wasmparser::ElementKind::Passive => Ok(elements.passive(elems)),
-            wasmparser::ElementKind::Declared => Ok(elements.declared(elems)),
-        }
+            ),
+            wasmparser::ElementKind::Passive => elements.passive(elems),
+            wasmparser::ElementKind::Declared => elements.declared(elems),
+        };
+        Ok(())
     }
 
     pub fn table_index(
@@ -1329,29 +1327,30 @@ pub mod utils {
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
     /// all the code to the `code` section.
-    pub fn parse_code_section<'a>(
+    pub fn parse_code_section(
         reencoder: &mut (impl ?Sized + WasmParserToWasmEncoder),
-        code: &'a mut crate::CodeSection,
+        code: &mut crate::CodeSection,
         section: wasmparser::CodeSectionReader<'_>,
-    ) -> Result<&'a mut crate::CodeSection> {
+    ) -> Result<()> {
         for func in section {
             reencoder.parse_function_body(code, func.map_err(Error::ParseError)?)?;
         }
-        Ok(code)
+        Ok(())
     }
 
     /// Parses a single [`wasmparser::FunctionBody`] and adds it to the `code` section.
-    pub fn parse_function_body<'a>(
+    pub fn parse_function_body(
         reencoder: &mut (impl ?Sized + WasmParserToWasmEncoder),
-        code: &'a mut crate::CodeSection,
+        code: &mut crate::CodeSection,
         func: wasmparser::FunctionBody<'_>,
-    ) -> Result<&'a mut crate::CodeSection> {
+    ) -> Result<()> {
         let mut f = reencoder.new_function_with_parsed_locals(&func)?;
         let mut reader = func.get_operators_reader().map_err(Error::ParseError)?;
         while !reader.eof() {
             reencoder.parse_instruction(&mut f, &mut reader)?;
         }
-        Ok(code.function(&f))
+        code.function(&f);
+        Ok(())
     }
 
     /// Create a new [`crate::Function`] by parsing the locals declarations from the
@@ -1369,15 +1368,13 @@ pub mod utils {
     }
 
     /// Parses a single instruction from `reader` and adds it to `function`.
-    pub fn parse_instruction<'a>(
+    pub fn parse_instruction(
         reencoder: &mut (impl ?Sized + WasmParserToWasmEncoder),
-        function: &'a mut crate::Function,
+        function: &mut crate::Function,
         reader: &mut wasmparser::OperatorsReader<'_>,
-    ) -> Result<&'a mut crate::Function> {
-        Ok(
-            function
-                .instruction(&reencoder.instruction(reader.read().map_err(Error::ParseError)?)?),
-        )
+    ) -> Result<()> {
+        function.instruction(&reencoder.instruction(reader.read().map_err(Error::ParseError)?)?);
+        Ok(())
     }
 }
 
