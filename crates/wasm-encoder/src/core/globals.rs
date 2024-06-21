@@ -122,9 +122,9 @@ impl Encode for GlobalType {
 
 #[cfg(feature = "wasmparser")]
 impl TryFrom<wasmparser::GlobalType> for GlobalType {
-    type Error = ();
+    type Error = crate::reencode::Error;
+
     fn try_from(global_ty: wasmparser::GlobalType) -> Result<Self, Self::Error> {
         crate::reencode::utils::global_type(&mut crate::reencode::RoundtripReencoder, global_ty)
-            .map_err(|_| ())
     }
 }

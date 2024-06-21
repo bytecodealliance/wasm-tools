@@ -75,10 +75,10 @@ impl From<TagType> for EntityType {
 
 #[cfg(feature = "wasmparser")]
 impl TryFrom<wasmparser::TypeRef> for EntityType {
-    type Error = ();
+    type Error = crate::reencode::Error;
+
     fn try_from(type_ref: wasmparser::TypeRef) -> Result<Self, Self::Error> {
         crate::reencode::utils::entity_type(&mut crate::reencode::RoundtripReencoder, type_ref)
-            .map_err(|_| ())
     }
 }
 

@@ -433,10 +433,10 @@ impl Encode for BlockType {
 
 #[cfg(feature = "wasmparser")]
 impl TryFrom<wasmparser::BlockType> for BlockType {
-    type Error = ();
-    fn try_from(arg: wasmparser::BlockType) -> Result<BlockType, ()> {
+    type Error = crate::reencode::Error;
+
+    fn try_from(arg: wasmparser::BlockType) -> Result<BlockType, Self::Error> {
         crate::reencode::utils::block_type(&mut crate::reencode::RoundtripReencoder, arg)
-            .map_err(|_| ())
     }
 }
 
@@ -3398,11 +3398,10 @@ impl Encode for Instruction<'_> {
 
 #[cfg(feature = "wasmparser")]
 impl<'a> TryFrom<wasmparser::Operator<'a>> for Instruction<'a> {
-    type Error = ();
+    type Error = crate::reencode::Error;
 
-    fn try_from(arg: wasmparser::Operator<'a>) -> Result<Self, ()> {
+    fn try_from(arg: wasmparser::Operator<'a>) -> Result<Self, Self::Error> {
         crate::reencode::utils::instruction(&mut crate::reencode::RoundtripReencoder, arg)
-            .map_err(|_| ())
     }
 }
 

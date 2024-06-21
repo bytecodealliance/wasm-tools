@@ -142,9 +142,9 @@ impl Encode for TableType {
 
 #[cfg(feature = "wasmparser")]
 impl TryFrom<wasmparser::TableType> for TableType {
-    type Error = ();
+    type Error = crate::reencode::Error;
+
     fn try_from(table_ty: wasmparser::TableType) -> Result<Self, Self::Error> {
         crate::reencode::utils::table_type(&mut crate::reencode::RoundtripReencoder, table_ty)
-            .map_err(|_| ())
     }
 }
