@@ -3,6 +3,396 @@
 //! The [`RoundtripReencoder`] allows encoding identical wasm to the parsed
 //! input.
 
+#[allow(missing_docs)] // FIXME
+pub trait Reencode {
+    fn export_index(&mut self, export: u32) -> u32 {
+        utils::export_index(self, export)
+    }
+
+    fn data_index(&mut self, data: u32) -> u32 {
+        utils::data_index(self, data)
+    }
+
+    fn element_index(&mut self, element: u32) -> u32 {
+        utils::element_index(self, element)
+    }
+
+    fn function_index(&mut self, func: u32) -> u32 {
+        utils::function_index(self, func)
+    }
+
+    fn global_index(&mut self, global: u32) -> u32 {
+        utils::global_index(self, global)
+    }
+
+    fn label_index(&mut self, label: u32) -> u32 {
+        utils::label_index(self, label)
+    }
+
+    fn memory_index(&mut self, memory: u32) -> u32 {
+        utils::memory_index(self, memory)
+    }
+
+    fn table_index(&mut self, table: u32) -> u32 {
+        utils::table_index(self, table)
+    }
+
+    fn tag_index(&mut self, tag: u32) -> u32 {
+        utils::tag_index(self, tag)
+    }
+
+    fn type_index(&mut self, ty: u32) -> u32 {
+        utils::type_index(self, ty)
+    }
+
+    fn abstract_heap_type(
+        &mut self,
+        value: wasmparser::AbstractHeapType,
+    ) -> crate::AbstractHeapType {
+        utils::abstract_heap_type(self, value)
+    }
+
+    fn array_type(&mut self, array_ty: wasmparser::ArrayType) -> Result<crate::ArrayType> {
+        utils::array_type(self, array_ty)
+    }
+
+    fn block_type(&mut self, arg: wasmparser::BlockType) -> Result<crate::BlockType> {
+        utils::block_type(self, arg)
+    }
+
+    fn component_primitive_val_type(
+        &mut self,
+        ty: wasmparser::PrimitiveValType,
+    ) -> crate::component::PrimitiveValType {
+        utils::component_primitive_val_type(self, ty)
+    }
+
+    fn const_expr(&mut self, const_expr: wasmparser::ConstExpr) -> Result<crate::ConstExpr> {
+        utils::const_expr(self, const_expr)
+    }
+
+    fn catch(&mut self, arg: wasmparser::Catch) -> crate::Catch {
+        utils::catch(self, arg)
+    }
+
+    fn composite_type(
+        &mut self,
+        composite_ty: wasmparser::CompositeType,
+    ) -> Result<crate::CompositeType> {
+        utils::composite_type(self, composite_ty)
+    }
+
+    fn entity_type(&mut self, type_ref: wasmparser::TypeRef) -> Result<crate::EntityType> {
+        utils::entity_type(self, type_ref)
+    }
+
+    fn export_kind(&mut self, external_kind: wasmparser::ExternalKind) -> crate::ExportKind {
+        utils::export_kind(self, external_kind)
+    }
+
+    fn field_type(&mut self, field_ty: wasmparser::FieldType) -> Result<crate::FieldType> {
+        utils::field_type(self, field_ty)
+    }
+
+    fn func_type(&mut self, func_ty: wasmparser::FuncType) -> Result<crate::FuncType> {
+        utils::func_type(self, func_ty)
+    }
+
+    fn global_type(&mut self, global_ty: wasmparser::GlobalType) -> Result<crate::GlobalType> {
+        utils::global_type(self, global_ty)
+    }
+
+    fn heap_type(&mut self, heap_type: wasmparser::HeapType) -> Result<crate::HeapType> {
+        utils::heap_type(self, heap_type)
+    }
+
+    fn instruction<'a>(&mut self, arg: wasmparser::Operator<'a>) -> Result<crate::Instruction<'a>> {
+        utils::instruction(self, arg)
+    }
+
+    fn memory_type(&mut self, memory_ty: wasmparser::MemoryType) -> crate::MemoryType {
+        utils::memory_type(self, memory_ty)
+    }
+
+    fn mem_arg(&mut self, arg: wasmparser::MemArg) -> crate::MemArg {
+        utils::mem_arg(self, arg)
+    }
+
+    fn ordering(&mut self, arg: wasmparser::Ordering) -> crate::Ordering {
+        utils::ordering(self, arg)
+    }
+
+    fn ref_type(&mut self, ref_type: wasmparser::RefType) -> Result<crate::RefType> {
+        utils::ref_type(self, ref_type)
+    }
+
+    fn storage_type(&mut self, storage_ty: wasmparser::StorageType) -> Result<crate::StorageType> {
+        utils::storage_type(self, storage_ty)
+    }
+
+    fn struct_type(&mut self, struct_ty: wasmparser::StructType) -> Result<crate::StructType> {
+        utils::struct_type(self, struct_ty)
+    }
+
+    fn sub_type(&mut self, sub_ty: wasmparser::SubType) -> Result<crate::SubType> {
+        utils::sub_type(self, sub_ty)
+    }
+
+    fn table_type(&mut self, table_ty: wasmparser::TableType) -> Result<crate::TableType> {
+        utils::table_type(self, table_ty)
+    }
+
+    fn tag_kind(&mut self, kind: wasmparser::TagKind) -> crate::TagKind {
+        utils::tag_kind(self, kind)
+    }
+
+    fn tag_type(&mut self, tag_ty: wasmparser::TagType) -> crate::TagType {
+        utils::tag_type(self, tag_ty)
+    }
+
+    fn val_type(&mut self, val_ty: wasmparser::ValType) -> Result<crate::ValType> {
+        utils::val_type(self, val_ty)
+    }
+
+    fn custom_section<'a>(
+        &mut self,
+        section: wasmparser::CustomSectionReader<'a>,
+    ) -> crate::CustomSection<'a> {
+        utils::custom_section(self, section)
+    }
+
+    /// Parses the input `section` given from the `wasmparser` crate and adds
+    /// all the code to the `code` section.
+    fn parse_code_section(
+        &mut self,
+        code: &mut crate::CodeSection,
+        section: wasmparser::CodeSectionReader<'_>,
+    ) -> Result<()> {
+        utils::parse_code_section(self, code, section)
+    }
+
+    /// Parses a single [`wasmparser::FunctionBody`] and adds it to the `code` section.
+    fn parse_function_body(
+        &mut self,
+        code: &mut crate::CodeSection,
+        func: wasmparser::FunctionBody<'_>,
+    ) -> Result<()> {
+        utils::parse_function_body(self, code, func)
+    }
+
+    /// Create a new [`crate::Function`] by parsing the locals declarations from the
+    /// provided [`wasmparser::FunctionBody`].
+    fn new_function_with_parsed_locals(
+        &mut self,
+        func: &wasmparser::FunctionBody<'_>,
+    ) -> Result<crate::Function> {
+        utils::new_function_with_parsed_locals(self, func)
+    }
+
+    /// Parses a single instruction from `reader` and adds it to `function`.
+    fn parse_instruction(
+        &mut self,
+        function: &mut crate::Function,
+        reader: &mut wasmparser::OperatorsReader<'_>,
+    ) -> Result<()> {
+        utils::parse_instruction(self, function, reader)
+    }
+
+    /// Parses the input `section` given from the `wasmparser` crate and adds
+    /// all the data to the `data` section.
+    fn parse_data_section(
+        &mut self,
+        data: &mut crate::DataSection,
+        section: wasmparser::DataSectionReader<'_>,
+    ) -> Result<()> {
+        utils::parse_data_section(self, data, section)
+    }
+
+    /// Parses a single [`wasmparser::Data`] and adds it to the `data` section.
+    fn parse_data(
+        &mut self,
+        data: &mut crate::DataSection,
+        datum: wasmparser::Data<'_>,
+    ) -> Result<()> {
+        utils::parse_data(self, data, datum)
+    }
+
+    /// Parses the input `section` given from the `wasmparser` crate and adds
+    /// all the elements to the `element` section.
+    fn parse_element_section(
+        &mut self,
+        elements: &mut crate::ElementSection,
+        section: wasmparser::ElementSectionReader<'_>,
+    ) -> Result<()> {
+        utils::parse_element_section(self, elements, section)
+    }
+
+    /// Parses the single [`wasmparser::Element`] provided and adds it to the
+    /// `element` section.
+    fn parse_element(
+        &mut self,
+        elements: &mut crate::ElementSection,
+        element: wasmparser::Element<'_>,
+    ) -> Result<()> {
+        utils::parse_element(self, elements, element)
+    }
+
+    /// Parses the input `section` given from the `wasmparser` crate and adds
+    /// all the exports to the `exports` section.
+    fn parse_export_section(
+        &mut self,
+        exports: &mut crate::ExportSection,
+        section: wasmparser::ExportSectionReader<'_>,
+    ) -> Result<()> {
+        utils::parse_export_section(self, exports, section)
+    }
+
+    /// Parses the single [`wasmparser::Export`] provided and adds it to the
+    /// `exports` section.
+    fn parse_export(&mut self, exports: &mut crate::ExportSection, export: wasmparser::Export<'_>) {
+        utils::parse_export(self, exports, export)
+    }
+
+    /// Parses the input `section` given from the `wasmparser` crate and adds
+    /// all the functions to the `functions` section.
+    fn parse_function_section(
+        &mut self,
+        functions: &mut crate::FunctionSection,
+        section: wasmparser::FunctionSectionReader<'_>,
+    ) -> Result<()> {
+        utils::parse_function_section(self, functions, section)
+    }
+
+    /// Parses the input `section` given from the `wasmparser` crate and adds
+    /// all the globals to the `globals` section.
+    fn parse_global_section(
+        &mut self,
+        globals: &mut crate::GlobalSection,
+        section: wasmparser::GlobalSectionReader<'_>,
+    ) -> Result<()> {
+        utils::parse_global_section(self, globals, section)
+    }
+
+    /// Parses the single [`wasmparser::Global`] provided and adds it to the
+    /// `globals` section.
+    fn parse_global(
+        &mut self,
+        globals: &mut crate::GlobalSection,
+        global: wasmparser::Global<'_>,
+    ) -> Result<()> {
+        utils::parse_global(self, globals, global)
+    }
+
+    /// Parses the input `section` given from the `wasmparser` crate and adds
+    /// all the imports to the `import` section.
+    fn parse_import_section(
+        &mut self,
+        imports: &mut crate::ImportSection,
+        section: wasmparser::ImportSectionReader<'_>,
+    ) -> Result<()> {
+        utils::parse_import_section(self, imports, section)
+    }
+
+    /// Parses the single [`wasmparser::Import`] provided and adds it to the
+    /// `import` section.
+    fn parse_import(
+        &mut self,
+        imports: &mut crate::ImportSection,
+        import: wasmparser::Import<'_>,
+    ) -> Result<()> {
+        utils::parse_import(self, imports, import)
+    }
+
+    /// Parses the input `section` given from the `wasmparser` crate and adds
+    /// all the memories to the `memories` section.
+    fn parse_memory_section(
+        &mut self,
+        memories: &mut crate::MemorySection,
+        section: wasmparser::MemorySectionReader<'_>,
+    ) -> Result<()> {
+        utils::parse_memory_section(self, memories, section)
+    }
+
+    /// Parses the input `section` given from the `wasmparser` crate and adds
+    /// all the tables to the `tables` section.
+    fn parse_table_section(
+        &mut self,
+        tables: &mut crate::TableSection,
+        section: wasmparser::TableSectionReader<'_>,
+    ) -> Result<()> {
+        utils::parse_table_section(self, tables, section)
+    }
+
+    /// Parses a single [`wasmparser::Table`] and adds it to the `tables` section.
+    fn parse_table(
+        &mut self,
+        tables: &mut crate::TableSection,
+        table: wasmparser::Table<'_>,
+    ) -> Result<()> {
+        utils::parse_table(self, tables, table)
+    }
+
+    /// Parses the input `section` given from the `wasmparser` crate and adds
+    /// all the tags to the `tags` section.
+    fn parse_tag_section(
+        &mut self,
+        tags: &mut crate::TagSection,
+        section: wasmparser::TagSectionReader<'_>,
+    ) -> Result<()> {
+        utils::parse_tag_section(self, tags, section)
+    }
+
+    /// Parses the input `section` given from the `wasmparser` crate and adds
+    /// all the types to the `types` section.
+    fn parse_type_section(
+        &mut self,
+        types: &mut crate::TypeSection,
+        section: wasmparser::TypeSectionReader<'_>,
+    ) -> Result<()> {
+        utils::parse_type_section(self, types, section)
+    }
+
+    /// Parses a single [`wasmparser::RecGroup`] and adds it to the `types` section.
+    fn parse_recursive_type_group(
+        &mut self,
+        types: &mut crate::TypeSection,
+        rec_group: wasmparser::RecGroup,
+    ) -> Result<()> {
+        utils::parse_recursive_type_group(self, types, rec_group)
+    }
+
+    fn parse_unknown_section(
+        &mut self,
+        module: &mut crate::Module,
+        id: u8,
+        contents: &[u8],
+    ) -> Result<()> {
+        utils::parse_unknown_section(self, module, id, contents)
+    }
+
+    fn parse_core_module<'a, 'b>(
+        &mut self,
+        module: &'a mut crate::Module,
+        parser: wasmparser::Parser,
+        data: &[u8],
+    ) -> Result<()> {
+        utils::parse_core_module(self, module, parser, data)
+    }
+
+    fn parse_core_section(
+        &mut self,
+        module: &mut crate::Module,
+        parser: &mut wasmparser::Parser,
+        data: &[u8],
+        eof: bool,
+    ) -> Result<Chunk> {
+        utils::parse_core_section(self, module, parser, data, eof)
+    }
+}
+
+/// A result when re-encoding from `wasmparser` to `wasm-encoder`.
+pub type Result<T, E = Error> = std::result::Result<T, E>;
+
 /// An error when re-encoding from `wasmparser` to `wasm-encoder`.
 #[derive(Debug)]
 pub enum Error {
@@ -55,403 +445,6 @@ impl std::error::Error for Error {
     }
 }
 
-/// A result when re-encoding from `wasmparser` to `wasm-encoder`.
-pub type Result<T, E = Error> = std::result::Result<T, E>;
-
-#[allow(missing_docs)] // FIXME
-pub trait Reencode {
-    fn parse_core_section(
-        &mut self,
-        module: &mut crate::Module,
-        parser: &mut wasmparser::Parser,
-        data: &[u8],
-        eof: bool,
-    ) -> Result<Chunk> {
-        utils::parse_core_section(self, module, parser, data, eof)
-    }
-
-    fn parse_core_module<'a, 'b>(
-        &mut self,
-        module: &'a mut crate::Module,
-        parser: wasmparser::Parser,
-        data: &[u8],
-    ) -> Result<()> {
-        utils::parse_core_module(self, module, parser, data)
-    }
-
-    fn component_primitive_val_type(
-        &mut self,
-        ty: wasmparser::PrimitiveValType,
-    ) -> crate::component::PrimitiveValType {
-        utils::component_primitive_val_type(self, ty)
-    }
-
-    fn memory_index(&mut self, memory: u32) -> u32 {
-        utils::memory_index(self, memory)
-    }
-
-    fn mem_arg(&mut self, arg: wasmparser::MemArg) -> crate::MemArg {
-        utils::mem_arg(self, arg)
-    }
-
-    fn ordering(&mut self, arg: wasmparser::Ordering) -> crate::Ordering {
-        utils::ordering(self, arg)
-    }
-
-    fn function_index(&mut self, func: u32) -> u32 {
-        utils::function_index(self, func)
-    }
-
-    fn tag_index(&mut self, tag: u32) -> u32 {
-        utils::tag_index(self, tag)
-    }
-
-    fn label_index(&mut self, label: u32) -> u32 {
-        utils::label_index(self, label)
-    }
-
-    fn catch(&mut self, arg: wasmparser::Catch) -> crate::Catch {
-        utils::catch(self, arg)
-    }
-
-    fn custom_section<'a>(
-        &mut self,
-        section: wasmparser::CustomSectionReader<'a>,
-    ) -> crate::CustomSection<'a> {
-        utils::custom_section(self, section)
-    }
-
-    fn export_kind(&mut self, external_kind: wasmparser::ExternalKind) -> crate::ExportKind {
-        utils::export_kind(self, external_kind)
-    }
-
-    fn memory_type(&mut self, memory_ty: wasmparser::MemoryType) -> crate::MemoryType {
-        utils::memory_type(self, memory_ty)
-    }
-
-    fn tag_kind(&mut self, kind: wasmparser::TagKind) -> crate::TagKind {
-        utils::tag_kind(self, kind)
-    }
-
-    fn type_index(&mut self, ty: u32) -> u32 {
-        utils::type_index(self, ty)
-    }
-
-    fn tag_type(&mut self, tag_ty: wasmparser::TagType) -> crate::TagType {
-        utils::tag_type(self, tag_ty)
-    }
-
-    fn abstract_heap_type(
-        &mut self,
-        value: wasmparser::AbstractHeapType,
-    ) -> crate::AbstractHeapType {
-        utils::abstract_heap_type(self, value)
-    }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the types to the `types` section.
-    fn parse_type_section(
-        &mut self,
-        types: &mut crate::TypeSection,
-        section: wasmparser::TypeSectionReader<'_>,
-    ) -> Result<()> {
-        utils::parse_type_section(self, types, section)
-    }
-
-    /// Parses a single [`wasmparser::RecGroup`] and adds it to the `types` section.
-    fn parse_recursive_type_group(
-        &mut self,
-        types: &mut crate::TypeSection,
-        rec_group: wasmparser::RecGroup,
-    ) -> Result<()> {
-        utils::parse_recursive_type_group(self, types, rec_group)
-    }
-
-    fn sub_type(&mut self, sub_ty: wasmparser::SubType) -> Result<crate::SubType> {
-        utils::sub_type(self, sub_ty)
-    }
-
-    fn composite_type(
-        &mut self,
-        composite_ty: wasmparser::CompositeType,
-    ) -> Result<crate::CompositeType> {
-        utils::composite_type(self, composite_ty)
-    }
-
-    fn func_type(&mut self, func_ty: wasmparser::FuncType) -> Result<crate::FuncType> {
-        utils::func_type(self, func_ty)
-    }
-
-    fn array_type(&mut self, array_ty: wasmparser::ArrayType) -> Result<crate::ArrayType> {
-        utils::array_type(self, array_ty)
-    }
-
-    fn struct_type(&mut self, struct_ty: wasmparser::StructType) -> Result<crate::StructType> {
-        utils::struct_type(self, struct_ty)
-    }
-
-    fn field_type(&mut self, field_ty: wasmparser::FieldType) -> Result<crate::FieldType> {
-        utils::field_type(self, field_ty)
-    }
-
-    fn storage_type(&mut self, storage_ty: wasmparser::StorageType) -> Result<crate::StorageType> {
-        utils::storage_type(self, storage_ty)
-    }
-
-    fn val_type(&mut self, val_ty: wasmparser::ValType) -> Result<crate::ValType> {
-        utils::val_type(self, val_ty)
-    }
-
-    fn ref_type(&mut self, ref_type: wasmparser::RefType) -> Result<crate::RefType> {
-        utils::ref_type(self, ref_type)
-    }
-
-    fn heap_type(&mut self, heap_type: wasmparser::HeapType) -> Result<crate::HeapType> {
-        utils::heap_type(self, heap_type)
-    }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the tables to the `tables` section.
-    fn parse_table_section(
-        &mut self,
-        tables: &mut crate::TableSection,
-        section: wasmparser::TableSectionReader<'_>,
-    ) -> Result<()> {
-        utils::parse_table_section(self, tables, section)
-    }
-
-    /// Parses a single [`wasmparser::Table`] and adds it to the `tables` section.
-    fn parse_table(
-        &mut self,
-        tables: &mut crate::TableSection,
-        table: wasmparser::Table<'_>,
-    ) -> Result<()> {
-        utils::parse_table(self, tables, table)
-    }
-
-    fn table_type(&mut self, table_ty: wasmparser::TableType) -> Result<crate::TableType> {
-        utils::table_type(self, table_ty)
-    }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the tags to the `tags` section.
-    fn parse_tag_section(
-        &mut self,
-        tags: &mut crate::TagSection,
-        section: wasmparser::TagSectionReader<'_>,
-    ) -> Result<()> {
-        utils::parse_tag_section(self, tags, section)
-    }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the exports to the `exports` section.
-    fn parse_export_section(
-        &mut self,
-        exports: &mut crate::ExportSection,
-        section: wasmparser::ExportSectionReader<'_>,
-    ) -> Result<()> {
-        utils::parse_export_section(self, exports, section)
-    }
-
-    fn export_index(&mut self, export: u32) -> u32 {
-        utils::export_index(self, export)
-    }
-
-    /// Parses the single [`wasmparser::Export`] provided and adds it to the
-    /// `exports` section.
-    fn parse_export(&mut self, exports: &mut crate::ExportSection, export: wasmparser::Export<'_>) {
-        utils::parse_export(self, exports, export)
-    }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the globals to the `globals` section.
-    fn parse_global_section(
-        &mut self,
-        globals: &mut crate::GlobalSection,
-        section: wasmparser::GlobalSectionReader<'_>,
-    ) -> Result<()> {
-        utils::parse_global_section(self, globals, section)
-    }
-
-    /// Parses the single [`wasmparser::Global`] provided and adds it to the
-    /// `globals` section.
-    fn parse_global(
-        &mut self,
-        globals: &mut crate::GlobalSection,
-        global: wasmparser::Global<'_>,
-    ) -> Result<()> {
-        utils::parse_global(self, globals, global)
-    }
-
-    fn global_type(&mut self, global_ty: wasmparser::GlobalType) -> Result<crate::GlobalType> {
-        utils::global_type(self, global_ty)
-    }
-
-    fn entity_type(&mut self, type_ref: wasmparser::TypeRef) -> Result<crate::EntityType> {
-        utils::entity_type(self, type_ref)
-    }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the imports to the `import` section.
-    fn parse_import_section(
-        &mut self,
-        imports: &mut crate::ImportSection,
-        section: wasmparser::ImportSectionReader<'_>,
-    ) -> Result<()> {
-        utils::parse_import_section(self, imports, section)
-    }
-
-    /// Parses the single [`wasmparser::Import`] provided and adds it to the
-    /// `import` section.
-    fn parse_import(
-        &mut self,
-        imports: &mut crate::ImportSection,
-        import: wasmparser::Import<'_>,
-    ) -> Result<()> {
-        utils::parse_import(self, imports, import)
-    }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the memories to the `memories` section.
-    fn parse_memory_section(
-        &mut self,
-        memories: &mut crate::MemorySection,
-        section: wasmparser::MemorySectionReader<'_>,
-    ) -> Result<()> {
-        utils::parse_memory_section(self, memories, section)
-    }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the functions to the `functions` section.
-    fn parse_function_section(
-        &mut self,
-        functions: &mut crate::FunctionSection,
-        section: wasmparser::FunctionSectionReader<'_>,
-    ) -> Result<()> {
-        utils::parse_function_section(self, functions, section)
-    }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the data to the `data` section.
-    fn parse_data_section(
-        &mut self,
-        data: &mut crate::DataSection,
-        section: wasmparser::DataSectionReader<'_>,
-    ) -> Result<()> {
-        utils::parse_data_section(self, data, section)
-    }
-
-    /// Parses a single [`wasmparser::Data`] and adds it to the `data` section.
-    fn parse_data(
-        &mut self,
-        data: &mut crate::DataSection,
-        datum: wasmparser::Data<'_>,
-    ) -> Result<()> {
-        utils::parse_data(self, data, datum)
-    }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the elements to the `element` section.
-    fn parse_element_section(
-        &mut self,
-        elements: &mut crate::ElementSection,
-        section: wasmparser::ElementSectionReader<'_>,
-    ) -> Result<()> {
-        utils::parse_element_section(self, elements, section)
-    }
-
-    /// Parses the single [`wasmparser::Element`] provided and adds it to the
-    /// `element` section.
-    fn parse_element(
-        &mut self,
-        elements: &mut crate::ElementSection,
-        element: wasmparser::Element<'_>,
-    ) -> Result<()> {
-        utils::parse_element(self, elements, element)
-    }
-
-    fn table_index(&mut self, table: u32) -> u32 {
-        utils::table_index(self, table)
-    }
-
-    fn global_index(&mut self, global: u32) -> u32 {
-        utils::global_index(self, global)
-    }
-
-    fn data_index(&mut self, data: u32) -> u32 {
-        utils::data_index(self, data)
-    }
-
-    fn element_index(&mut self, element: u32) -> u32 {
-        utils::element_index(self, element)
-    }
-
-    fn const_expr(&mut self, const_expr: wasmparser::ConstExpr) -> Result<crate::ConstExpr> {
-        utils::const_expr(self, const_expr)
-    }
-
-    fn block_type(&mut self, arg: wasmparser::BlockType) -> Result<crate::BlockType> {
-        utils::block_type(self, arg)
-    }
-
-    fn instruction<'a>(&mut self, arg: wasmparser::Operator<'a>) -> Result<crate::Instruction<'a>> {
-        utils::instruction(self, arg)
-    }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the code to the `code` section.
-    fn parse_code_section(
-        &mut self,
-        code: &mut crate::CodeSection,
-        section: wasmparser::CodeSectionReader<'_>,
-    ) -> Result<()> {
-        utils::parse_code_section(self, code, section)
-    }
-
-    /// Parses a single [`wasmparser::FunctionBody`] and adds it to the `code` section.
-    fn parse_function_body(
-        &mut self,
-        code: &mut crate::CodeSection,
-        func: wasmparser::FunctionBody<'_>,
-    ) -> Result<()> {
-        utils::parse_function_body(self, code, func)
-    }
-
-    /// Create a new [`crate::Function`] by parsing the locals declarations from the
-    /// provided [`wasmparser::FunctionBody`].
-    fn new_function_with_parsed_locals(
-        &mut self,
-        func: &wasmparser::FunctionBody<'_>,
-    ) -> Result<crate::Function> {
-        utils::new_function_with_parsed_locals(self, func)
-    }
-
-    /// Parses a single instruction from `reader` and adds it to `function`.
-    fn parse_instruction(
-        &mut self,
-        function: &mut crate::Function,
-        reader: &mut wasmparser::OperatorsReader<'_>,
-    ) -> Result<()> {
-        utils::parse_instruction(self, function, reader)
-    }
-
-    fn parse_unknown_section(
-        &mut self,
-        module: &mut crate::Module,
-        id: u8,
-        contents: &[u8],
-    ) -> Result<()> {
-        utils::parse_unknown_section(self, module, id, contents)
-    }
-}
-
-/// Reencodes `wasmparser` into `wasm-encoder` so that the encoded wasm is
-/// identical to the input and can be parsed and encoded again.
-#[derive(Debug)]
-pub struct RoundtripReencoder;
-
-impl Reencode for RoundtripReencoder {}
-
 /// A successful return payload from [`Reencode::parse_core_module_section`].
 ///
 /// On success one of two possible values can be returned, either that more data
@@ -471,6 +464,13 @@ pub enum Chunk {
         consumed: usize,
     },
 }
+
+/// Reencodes `wasmparser` into `wasm-encoder` so that the encoded wasm is
+/// identical to the input and can be parsed and encoded again.
+#[derive(Debug)]
+pub struct RoundtripReencoder;
+
+impl Reencode for RoundtripReencoder {}
 
 #[allow(missing_docs)] // FIXME
 pub mod utils {
