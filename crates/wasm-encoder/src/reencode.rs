@@ -497,7 +497,13 @@ pub mod utils {
                     reencoder.parse_element_section(&mut elements, section)?;
                     module_section_flush_codes(module, &elements, &mut codes);
                 }
-                wasmparser::Payload::DataCountSection { .. } => (),
+                wasmparser::Payload::DataCountSection { count, .. } => {
+                    module_section_flush_codes(
+                        module,
+                        &crate::DataCountSection { count },
+                        &mut codes,
+                    );
+                }
                 wasmparser::Payload::DataSection(section) => {
                     let mut data = crate::DataSection::new();
                     reencoder.parse_data_section(&mut data, section)?;
