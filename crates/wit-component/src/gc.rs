@@ -4,6 +4,7 @@ use indexmap::{IndexMap, IndexSet};
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
+    convert::Infallible,
     mem,
     ops::Deref,
 };
@@ -1054,6 +1055,8 @@ struct Encoder {
 }
 
 impl Reencode for Encoder {
+    type Error = Infallible;
+
     fn type_index(&mut self, i: u32) -> u32 {
         self.types.remap(i)
     }
