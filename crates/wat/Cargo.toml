@@ -13,8 +13,17 @@ Rust parser for the WebAssembly Text format, WAT
 """
 rust-version.workspace = true
 
+[package.metadata.docs.rs]
+all-features = true
+
 [lints]
 workspace = true
 
 [dependencies]
 wast = { workspace = true }
+
+[features]
+# Off-by-default feature to support emitting DWARF debugging information in
+# parsed binaries pointing back to source locations in the original `*.wat`
+# source.
+dwarf = ['wast/dwarf']
