@@ -530,6 +530,17 @@ impl TypeSection {
         self
     }
 
+    /// Define a function type in this type section.
+    pub fn func_type(&mut self, ty: &FuncType) -> &mut Self {
+        Self::encode_function(
+            &mut self.bytes,
+            ty.params().iter().cloned(),
+            ty.results().iter().cloned(),
+        );
+        self.num_added += 1;
+        self
+    }
+
     fn encode_function<P, R>(sink: &mut Vec<u8>, params: P, results: R)
     where
         P: IntoIterator<Item = ValType>,
