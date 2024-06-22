@@ -1,5 +1,5 @@
 use pretty_assertions::assert_eq;
-use wit_encoder::{Interface, Package, PackageName, World};
+use wit_encoder::{Include, Interface, Package, PackageName, World};
 
 const PACKAGE: &str = indoc::indoc! {"
     package foo:foo;
@@ -33,9 +33,9 @@ fn concrete_types() {
     package.world(world);
 
     let mut world = World::new("foo");
-    world.include("bar");
-    world.include("bar");
-    world.include("bar");
+    world.include(Include::new("bar"));
+    world.include(Include::new("bar"));
+    world.include(Include::new("bar"));
     package.world(world);
 
     assert_eq!(package.to_string(), PACKAGE);
