@@ -274,6 +274,45 @@ impl Function {
         self.bytes.len()
     }
 
+    /// Unwraps and returns the raw byte encoding of this function.
+    ///
+    /// This encoding doesn't include the variable-width size field
+    /// that `encode` will write before the added bytes. As such, its
+    /// length will match the return value of [`byte_len`].
+    ///
+    /// # Use Case
+    ///
+    /// This raw byte form is suitable for later using with
+    /// [`CodeSection::raw`]. Note that it *differs* from what results
+    /// from [`Function::encode`] precisely due to the *lack* of the
+    /// length prefix; [`CodeSection::raw`] will use this. Using
+    /// [`Function::encode`] instead produces bytes that cannot be fed
+    /// into other wasm-encoder types without stripping off the length
+    /// prefix, which is awkward and error-prone.
+    ///
+    /// This method combined with [`CodeSection::raw`] may be useful
+    /// together if one wants to save the result of function encoding
+    /// and use it later: for example, caching the result of some code
+    /// generation process.
+    ///
+    /// For example:
+    ///
+    /// ```
+    /// # use wasm_encoder::{CodeSection, Function, Instruction};
+    /// let mut f = Function::new([]);
+    /// f.instruction(&Instruction::End);
+    /// let bytes = f.into_raw_body();
+    /// // (save `bytes` somewhere for later use)
+    /// let mut code = CodeSection::new();
+    /// code.raw(&bytes[..]);
+    ///
+    /// assert_eq!(2, bytes.len());  // Locals count, then `end`
+    /// assert_eq!(3, code.byte_len()); // Function length byte, function body
+    /// ```
+    pub fn into_raw_body(self) -> Vec<u8> {
+        self.bytes
+    }
+
     /// Parses a single instruction from `reader` and adds it to `self`.
     #[cfg(feature = "wasmparser")]
     pub fn parse(
@@ -3752,5 +3791,24 @@ mod tests {
         ]);
 
         assert_eq!(f1.bytes, f2.bytes)
+    }
+
+    #[test]
+    fn func_raw_bytes() {
+        use super::*;
+
+        let mut f = Function::new([(1, ValType::I32), (1, ValType::F32)]);
+        f.instruction(&Instruction::End);
+        let mut code_from_func = CodeSection::new();
+        code_from_func.function(&f);
+        let bytes = f.into_raw_body();
+        let mut code_from_raw = CodeSection::new();
+        code_from_raw.raw(&bytes[..]);
+
+        let mut c1 = vec![];
+        code_from_func.encode(&mut c1);
+        let mut c2 = vec![];
+        code_from_raw.encode(&mut c2);
+        assert_eq!(c1, c2);
     }
 }
