@@ -6,7 +6,7 @@ use crate::{Ident, Render};
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Include {
     use_path: Ident,
-    include_names_list: Vec<String>,
+    include_names_list: Vec<(String, String)>,
 }
 
 impl Include {
@@ -16,11 +16,29 @@ impl Include {
             include_names_list: vec![],
         }
     }
+
+    pub fn with(&mut self, id: &str, alias: &str) {
+        self.include_names_list
+            .push((id.to_string(), alias.to_string()));
+    }
 }
 
 impl Render for Include {
     fn render(&self, f: &mut fmt::Formatter<'_>, opts: &crate::RenderOpts) -> fmt::Result {
-        write!(f, "{}include {};\n", opts.spaces(), self.use_path)?;
+        match self.include_names_list.len() {
+            0 => write!(f, "{}include {};\n", opts.spaces(), self.use_path)?,
+            len => {
+                write!(f, "{}include {} with {{ ", opts.spaces(), self.use_path)?;
+                for (i, (id, alias)) in self.include_names_list.iter().enumerate() {
+                    if i == len - 1 {
+                        write!(f, "{id} as {alias}")?;
+                    } else {
+                        write!(f, "{id} as {alias}, ")?;
+                    }
+                }
+                write!(f, " }};\n")?;
+            }
+        }
         Ok(())
     }
 }

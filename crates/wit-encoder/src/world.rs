@@ -52,8 +52,8 @@ impl World {
     pub fn function_export(&mut self, value: StandaloneFunc) {
         self.item(WorldItem::function_export(value));
     }
-    pub fn include(&mut self, value: impl Into<Ident>) {
-        self.item(WorldItem::include(value));
+    pub fn include(&mut self, include: Include) {
+        self.item(WorldItem::Include(include));
     }
 
     /// Set the documentation
