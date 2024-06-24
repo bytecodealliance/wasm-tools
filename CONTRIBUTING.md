@@ -107,7 +107,7 @@ merged once all tests are passing. CI checks currently include:
 * Code is all formatted correctly (use `cargo fmt` locally to pass this)
 * Tests pass on Rust stable, beta, and Nightly.
 * Tests pass on Linux, macOS, and Windows.
-* This tool can be compiled to WebAssembly using the `wasm32-wasi` target.
+* This tool can be compiled to WebAssembly using the `wasm32-wasip1` target.
 * Fuzzers can be built.
 * Various miscellaneous checks such as building the tool with various
   combinations of Cargo features.
