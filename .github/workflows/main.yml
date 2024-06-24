@@ -132,11 +132,11 @@ jobs:
         submodules: true
     - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
       with:
-        toolchain: 1.77.0
+        toolchain: 1.79.0
     - run: |
-        curl -LO https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-21/wasi-sdk-21.0-linux.tar.gz
-        tar xf wasi-sdk-21.0-linux.tar.gz
-        export WASI_SDK_PATH=$(pwd)/wasi-sdk-21.0
+        curl -LO https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-22/wasi-sdk-22.0-linux.tar.gz
+        tar xf wasi-sdk-22.0-linux.tar.gz
+        export WASI_SDK_PATH=$(pwd)/wasi-sdk-22.0
         cd crates/wit-component/dl && bash check.sh
 
   wasm:
