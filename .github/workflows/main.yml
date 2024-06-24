@@ -147,6 +147,7 @@ jobs:
       with:
         submodules: true
     - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
+    - run: rustup target add wasm32-wasip1
     - run: |
         tag=v10.0.1
         curl -LO https://github.com/bytecodealliance/wasmtime/releases/download/${tag}/wasmtime-${tag}-x86_64-linux.tar.xz
