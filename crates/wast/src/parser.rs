@@ -989,6 +989,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    #[cfg(feature = "wasm-module")]
     pub(crate) fn track_instr_spans(&self) -> bool {
         self.buf.track_instr_spans
     }
