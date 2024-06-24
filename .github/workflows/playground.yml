@@ -30,6 +30,7 @@ jobs:
       - uses: cargo-bins/cargo-binstall@v1.6.9
       - run: cargo binstall cargo-component -y
       - run: rustup component add rustfmt # needed for cargo-component, apparently?
+      - run: rustup target add wasm32-wasip1
       - run: npm ci
         working-directory: playground
       - run: npm run build
