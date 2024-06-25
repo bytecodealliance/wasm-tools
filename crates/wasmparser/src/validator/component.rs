@@ -348,7 +348,7 @@ impl ComponentState {
 
         let id = match ty {
             crate::ComponentType::Defined(ty) => {
-                let ty = current(components).create_defined_type(ty, types, offset)?;
+                let ty = current(components).create_defined_type(ty, types, features, offset)?;
                 types.push(ty).into()
             }
             crate::ComponentType::Func(ty) => {
@@ -2512,6 +2512,7 @@ impl ComponentState {
         &self,
         ty: crate::ComponentDefinedType,
         types: &TypeList,
+        features: &WasmFeatures,
         offset: usize,
     ) -> Result<ComponentDefinedType> {
         match ty {
@@ -2529,7 +2530,7 @@ impl ComponentState {
                 self.create_tuple_type(tys.as_ref(), types, offset)
             }
             crate::ComponentDefinedType::Flags(names) => {
-                self.create_flags_type(names.as_ref(), offset)
+                self.create_flags_type(names.as_ref(), features, offset)
             }
             crate::ComponentDefinedType::Enum(cases) => {
                 self.create_enum_type(cases.as_ref(), offset)
@@ -2681,12 +2682,27 @@ impl ComponentState {
         Ok(ComponentDefinedType::Tuple(TupleType { info, types }))
     }
 
-    fn create_flags_type(&self, names: &[&str], offset: usize) -> Result<ComponentDefinedType> {
+    fn create_flags_type(
+        &self,
+        names: &[&str],
+        features: &WasmFeatures,
+        offset: usize,
+    ) -> Result<ComponentDefinedType> {
         let mut names_set = IndexSet::default();
         names_set.reserve(names.len());
 
         if names.is_empty() {
             bail!(offset, "flags must have at least one entry");
+        }
+
+        if names.len() > 32 && !features.component_model_more_flags() {
+            bail!(
+                offset,
+                "cannot have more than 32 flags; this was previously \
+                 accepted and if this is required for your project please \
+                 leave a comment on \
+                 https://github.com/WebAssembly/component-model/issues/370"
+            );
         }
 
         for name in names {
