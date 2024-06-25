@@ -195,20 +195,23 @@ pub trait Reencode {
         utils::val_type(self, val_ty)
     }
 
+    /// Parses the input `section` given from the `wasmparser` crate and
+    /// adds the custom section to the `module`.
+    fn parse_custom_section(
+        &mut self,
+        module: &mut crate::Module,
+        section: wasmparser::CustomSectionReader<'_>,
+    ) -> Result<(), Error<Self::Error>> {
+        utils::parse_custom_section(self, module, section)
+    }
+
+    /// Converts the input `section` given from the `wasmparser` crate into an
+    /// encoded custom section.
     fn custom_section<'a>(
         &mut self,
         section: wasmparser::CustomSectionReader<'a>,
     ) -> crate::CustomSection<'a> {
         utils::custom_section(self, section)
-    }
-
-    fn intersperse_section_hook(
-        &mut self,
-        module: &mut crate::Module,
-        after: Option<crate::SectionId>,
-        before: Option<crate::SectionId>,
-    ) -> Result<(), Error<Self::Error>> {
-        utils::intersperse_section_hook(self, module, after, before)
     }
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
@@ -418,6 +421,32 @@ pub trait Reencode {
         contents: &[u8],
     ) -> Result<(), Error<Self::Error>> {
         utils::parse_unknown_section(self, module, id, contents)
+    }
+
+    /// A hook method that is called inside [`Reencode::parse_core_module`]
+    /// before and after every non-custom core wasm section.
+    ///
+    /// This method can be used to insert new custom sections in between those
+    /// sections, or to detect when a non-custom section is missing and insert
+    /// it in the [proper order].
+    ///
+    /// The `after` parameter is `None` iff the hook is called before the first
+    /// non-custom section, and `Some(s)` afterwards, where `s` is the
+    /// [`SectionId`] of the previous non-custom section.
+    ///
+    /// The `before` parameter is `None` iff the hook is called after the last
+    /// non-custom section, and `Some(s)` beforehand, where `s` is the
+    /// [`SectionId`] of the following non-custom section.
+    ///
+    /// [proper order]: https://webassembly.github.io/spec/core/binary/modules.html#binary-module
+    /// [`SectionId`]: crate::SectionId
+    fn intersperse_section_hook(
+        &mut self,
+        module: &mut crate::Module,
+        after: Option<crate::SectionId>,
+        before: Option<crate::SectionId>,
+    ) -> Result<(), Error<Self::Error>> {
+        utils::intersperse_section_hook(self, module, after, before)
     }
 
     fn parse_core_module(
@@ -714,13 +743,7 @@ pub mod utils {
                     return Err(Error::UnexpectedNonCoreModuleSection)
                 }
                 wasmparser::Payload::CustomSection(section) => {
-                    handle_intersperse_section_hook(
-                        reencoder,
-                        module,
-                        &mut last_section,
-                        Some(crate::SectionId::Custom),
-                    )?;
-                    module.section(&reencoder.custom_section(section));
+                    reencoder.parse_custom_section(module, section)?;
                 }
                 wasmparser::Payload::UnknownSection { id, contents, .. } => {
                     reencoder.parse_unknown_section(module, id, contents)?;
@@ -736,6 +759,23 @@ pub mod utils {
         Ok(())
     }
 
+    /// A hook method that is called inside [`Reencode::parse_core_module`]
+    /// before and after every non-custom core wasm section.
+    ///
+    /// This method can be used to insert new custom sections in between those
+    /// sections, or to detect when a non-custom section is missing and insert
+    /// it in the [proper order].
+    ///
+    /// The `after` parameter is `None` iff the hook is called before the first
+    /// non-custom section, and `Some(s)` afterwards, where `s` is the
+    /// [`SectionId`] of the previous non-custom section.
+    ///
+    /// The `before` parameter is `None` iff the hook is called after the last
+    /// non-custom section, and `Some(s)` beforehand, where `s` is the
+    /// [`SectionId`] of the following non-custom section.
+    ///
+    /// [proper order]: https://webassembly.github.io/spec/core/binary/modules.html#binary-module
+    /// [`SectionId`]: crate::SectionId
     pub fn intersperse_section_hook<T: ?Sized + Reencode>(
         _reencoder: &mut T,
         _module: &mut crate::Module,
@@ -814,6 +854,19 @@ pub mod utils {
         }
     }
 
+    /// Parses the input `section` given from the `wasmparser` crate and
+    /// adds the custom section to the `module`.
+    pub fn parse_custom_section<T: ?Sized + Reencode>(
+        reencoder: &mut T,
+        module: &mut crate::Module,
+        section: wasmparser::CustomSectionReader<'_>,
+    ) -> Result<(), Error<T::Error>> {
+        module.section(&reencoder.custom_section(section));
+        Ok(())
+    }
+
+    /// Converts the input `section` given from the `wasmparser` crate into an
+    /// encoded custom section.
     pub fn custom_section<'a, T: ?Sized + Reencode>(
         _reencoder: &mut T,
         section: wasmparser::CustomSectionReader<'a>,
