@@ -51,20 +51,6 @@ impl MemorySection {
         self.num_added += 1;
         self
     }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the memories to this section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse_section(
-        &mut self,
-        section: wasmparser::MemorySectionReader<'_>,
-    ) -> wasmparser::Result<&mut Self> {
-        for memory in section {
-            let memory = memory?;
-            self.memory(memory.into());
-        }
-        Ok(self)
-    }
 }
 
 impl Encode for MemorySection {
@@ -124,19 +110,6 @@ impl Encode for MemoryType {
         }
         if let Some(p) = self.page_size_log2 {
             p.encode(sink);
-        }
-    }
-}
-
-#[cfg(feature = "wasmparser")]
-impl From<wasmparser::MemoryType> for MemoryType {
-    fn from(memory_ty: wasmparser::MemoryType) -> Self {
-        MemoryType {
-            minimum: memory_ty.initial,
-            maximum: memory_ty.maximum,
-            memory64: memory_ty.memory64,
-            shared: memory_ty.shared,
-            page_size_log2: memory_ty.page_size_log2,
         }
     }
 }

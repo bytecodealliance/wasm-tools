@@ -23,22 +23,6 @@ impl Encode for SubType {
     }
 }
 
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::SubType> for SubType {
-    type Error = ();
-
-    fn try_from(sub_ty: wasmparser::SubType) -> Result<Self, Self::Error> {
-        Ok(SubType {
-            is_final: sub_ty.is_final,
-            supertype_idx: sub_ty
-                .supertype_idx
-                .map(|i| i.as_module_index().ok_or(()))
-                .transpose()?,
-            composite_type: sub_ty.composite_type.try_into()?,
-        })
-    }
-}
-
 /// Represents a composite type in a WebAssembly module.
 #[derive(Debug, Clone)]
 pub enum CompositeType {
@@ -68,18 +52,6 @@ impl Encode for CompositeType {
     }
 }
 
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::CompositeType> for CompositeType {
-    type Error = ();
-    fn try_from(composite_ty: wasmparser::CompositeType) -> Result<Self, Self::Error> {
-        Ok(match composite_ty {
-            wasmparser::CompositeType::Func(f) => CompositeType::Func(f.try_into()?),
-            wasmparser::CompositeType::Array(a) => CompositeType::Array(a.try_into()?),
-            wasmparser::CompositeType::Struct(s) => CompositeType::Struct(s.try_into()?),
-        })
-    }
-}
-
 /// Represents a type of a function in a WebAssembly module.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct FuncType {
@@ -89,50 +61,15 @@ pub struct FuncType {
     len_params: usize,
 }
 
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::FuncType> for FuncType {
-    type Error = ();
-    fn try_from(func_ty: wasmparser::FuncType) -> Result<Self, Self::Error> {
-        let mut buf = Vec::with_capacity(func_ty.params().len() + func_ty.results().len());
-        for ty in func_ty.params().iter().chain(func_ty.results()).copied() {
-            buf.push(ty.try_into()?);
-        }
-        Ok(FuncType::from_parts(buf.into(), func_ty.params().len()))
-    }
-}
-
 /// Represents a type of an array in a WebAssembly module.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct ArrayType(pub FieldType);
-
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::ArrayType> for ArrayType {
-    type Error = ();
-    fn try_from(array_ty: wasmparser::ArrayType) -> Result<Self, Self::Error> {
-        Ok(ArrayType(array_ty.0.try_into()?))
-    }
-}
 
 /// Represents a type of a struct in a WebAssembly module.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct StructType {
     /// Struct fields.
     pub fields: Box<[FieldType]>,
-}
-
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::StructType> for StructType {
-    type Error = ();
-    fn try_from(struct_ty: wasmparser::StructType) -> Result<Self, Self::Error> {
-        Ok(StructType {
-            fields: struct_ty
-                .fields
-                .iter()
-                .cloned()
-                .map(TryInto::try_into)
-                .collect::<Result<_, _>>()?,
-        })
-    }
 }
 
 /// Field type in composite types (structs, arrays).
@@ -144,17 +81,6 @@ pub struct FieldType {
     pub mutable: bool,
 }
 
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::FieldType> for FieldType {
-    type Error = ();
-    fn try_from(field_ty: wasmparser::FieldType) -> Result<Self, Self::Error> {
-        Ok(FieldType {
-            element_type: field_ty.element_type.try_into()?,
-            mutable: field_ty.mutable,
-        })
-    }
-}
-
 /// Storage type for composite type fields.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum StorageType {
@@ -164,18 +90,6 @@ pub enum StorageType {
     I16,
     /// A value type.
     Val(ValType),
-}
-
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::StorageType> for StorageType {
-    type Error = ();
-    fn try_from(storage_ty: wasmparser::StorageType) -> Result<Self, Self::Error> {
-        Ok(match storage_ty {
-            wasmparser::StorageType::I8 => StorageType::I8,
-            wasmparser::StorageType::I16 => StorageType::I16,
-            wasmparser::StorageType::Val(v) => StorageType::Val(v.try_into()?),
-        })
-    }
 }
 
 impl StorageType {
@@ -214,21 +128,6 @@ pub enum ValType {
     /// generalization here is due to the implementation of the
     /// function-references proposal.
     Ref(RefType),
-}
-
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::ValType> for ValType {
-    type Error = ();
-    fn try_from(val_ty: wasmparser::ValType) -> Result<Self, Self::Error> {
-        Ok(match val_ty {
-            wasmparser::ValType::I32 => ValType::I32,
-            wasmparser::ValType::I64 => ValType::I64,
-            wasmparser::ValType::F32 => ValType::F32,
-            wasmparser::ValType::F64 => ValType::F64,
-            wasmparser::ValType::V128 => ValType::V128,
-            wasmparser::ValType::Ref(r) => ValType::Ref(r.try_into()?),
-        })
-    }
 }
 
 impl ValType {
@@ -442,18 +341,6 @@ impl Encode for RefType {
     }
 }
 
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::RefType> for RefType {
-    type Error = ();
-
-    fn try_from(ref_type: wasmparser::RefType) -> Result<Self, Self::Error> {
-        Ok(RefType {
-            nullable: ref_type.is_nullable(),
-            heap_type: ref_type.heap_type().try_into()?,
-        })
-    }
-}
-
 impl From<RefType> for ValType {
     fn from(ty: RefType) -> ValType {
         ValType::Ref(ty)
@@ -514,21 +401,6 @@ impl Encode for HeapType {
             // as it's decoded as an s33
             HeapType::Concrete(i) => i64::from(*i).encode(sink),
         }
-    }
-}
-
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::HeapType> for HeapType {
-    type Error = ();
-
-    fn try_from(heap_type: wasmparser::HeapType) -> Result<Self, Self::Error> {
-        Ok(match heap_type {
-            wasmparser::HeapType::Concrete(i) => HeapType::Concrete(i.as_module_index().ok_or(())?),
-            wasmparser::HeapType::Abstract { shared, ty } => HeapType::Abstract {
-                shared,
-                ty: ty.into(),
-            },
-        })
     }
 }
 
@@ -607,27 +479,6 @@ impl Encode for AbstractHeapType {
     }
 }
 
-#[cfg(feature = "wasmparser")]
-impl From<wasmparser::AbstractHeapType> for AbstractHeapType {
-    fn from(value: wasmparser::AbstractHeapType) -> Self {
-        use wasmparser::AbstractHeapType::*;
-        match value {
-            Func => AbstractHeapType::Func,
-            Extern => AbstractHeapType::Extern,
-            Any => AbstractHeapType::Any,
-            None => AbstractHeapType::None,
-            NoExtern => AbstractHeapType::NoExtern,
-            NoFunc => AbstractHeapType::NoFunc,
-            Eq => AbstractHeapType::Eq,
-            Struct => AbstractHeapType::Struct,
-            Array => AbstractHeapType::Array,
-            I31 => AbstractHeapType::I31,
-            Exn => AbstractHeapType::Exn,
-            NoExn => AbstractHeapType::NoExn,
-        }
-    }
-}
-
 /// An encoder for the type section of WebAssembly modules.
 ///
 /// # Example
@@ -675,6 +526,17 @@ impl TypeSection {
         R::IntoIter: ExactSizeIterator,
     {
         Self::encode_function(&mut self.bytes, params, results);
+        self.num_added += 1;
+        self
+    }
+
+    /// Define a function type in this type section.
+    pub fn func_type(&mut self, ty: &FuncType) -> &mut Self {
+        Self::encode_function(
+            &mut self.bytes,
+            ty.params().iter().cloned(),
+            ty.results().iter().cloned(),
+        );
         self.num_added += 1;
         self
     }
@@ -755,31 +617,6 @@ impl TypeSection {
         types.len().encode(&mut self.bytes);
         types.for_each(|t| t.encode(&mut self.bytes));
         self.num_added += 1;
-        self
-    }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the types to this section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse_section(
-        &mut self,
-        section: wasmparser::TypeSectionReader<'_>,
-    ) -> wasmparser::Result<&mut Self> {
-        for rec_group in section {
-            self.parse(rec_group?);
-        }
-        Ok(self)
-    }
-
-    /// Parses a single [`wasmparser::RecGroup`] and adds it to this section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse(&mut self, rec_group: wasmparser::RecGroup) -> &mut Self {
-        if rec_group.is_explicit_rec_group() {
-            self.rec(rec_group.into_types().map(|t| t.try_into().unwrap()));
-        } else {
-            let ty = rec_group.into_types().next().unwrap();
-            self.subtype(&SubType::try_from(ty).unwrap());
-        }
         self
     }
 }

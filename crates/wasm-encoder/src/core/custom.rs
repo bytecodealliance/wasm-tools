@@ -44,16 +44,6 @@ impl Section for RawCustomSection<'_> {
     }
 }
 
-#[cfg(feature = "wasmparser")]
-impl<'a> From<wasmparser::CustomSectionReader<'a>> for CustomSection<'a> {
-    fn from(section: wasmparser::CustomSectionReader<'a>) -> Self {
-        CustomSection {
-            data: section.data().into(),
-            name: section.name().into(),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

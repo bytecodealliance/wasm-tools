@@ -20,7 +20,7 @@ pub type TableSectionReader<'a> = SectionLimited<'a, Table<'a>>;
 
 /// Type information about a table defined in the table section of a WebAssembly
 /// module.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Table<'a> {
     /// The type of this table, including its element type and its limits.
     pub ty: TableType,
@@ -29,7 +29,7 @@ pub struct Table<'a> {
 }
 
 /// Different modes of initializing a table.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum TableInit<'a> {
     /// The table is initialized to all null elements.
     RefNull,

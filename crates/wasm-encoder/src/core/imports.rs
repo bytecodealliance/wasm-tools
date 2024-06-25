@@ -73,20 +73,6 @@ impl From<TagType> for EntityType {
     }
 }
 
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::TypeRef> for EntityType {
-    type Error = ();
-    fn try_from(type_ref: wasmparser::TypeRef) -> Result<Self, Self::Error> {
-        Ok(match type_ref {
-            wasmparser::TypeRef::Func(i) => EntityType::Function(i),
-            wasmparser::TypeRef::Table(t) => EntityType::Table(t.try_into()?),
-            wasmparser::TypeRef::Memory(m) => EntityType::Memory(m.into()),
-            wasmparser::TypeRef::Global(g) => EntityType::Global(g.try_into()?),
-            wasmparser::TypeRef::Tag(t) => EntityType::Tag(t.into()),
-        })
-    }
-}
-
 /// An encoder for the import section of WebAssembly modules.
 ///
 /// # Example
@@ -140,31 +126,6 @@ impl ImportSection {
         field.encode(&mut self.bytes);
         ty.into().encode(&mut self.bytes);
         self.num_added += 1;
-        self
-    }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the imports to this section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse_section(
-        &mut self,
-        section: wasmparser::ImportSectionReader<'_>,
-    ) -> wasmparser::Result<&mut Self> {
-        for import in section {
-            self.parse(import?);
-        }
-        Ok(self)
-    }
-
-    /// Parses the single [`wasmparser::Import`] provided and adds it to this
-    /// section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse(&mut self, import: wasmparser::Import<'_>) -> &mut Self {
-        self.import(
-            import.module,
-            import.name,
-            EntityType::try_from(import.ty).unwrap(),
-        );
         self
     }
 }

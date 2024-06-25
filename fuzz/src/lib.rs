@@ -7,6 +7,7 @@ pub mod incremental_parse;
 pub mod mutate;
 pub mod no_traps;
 pub mod print;
+pub mod reencode;
 pub mod roundtrip;
 pub mod roundtrip_wit;
 pub mod text_parser;

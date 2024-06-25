@@ -60,30 +60,6 @@ impl GlobalSection {
         self.num_added += 1;
         self
     }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the globals to this section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse_section(
-        &mut self,
-        section: wasmparser::GlobalSectionReader<'_>,
-    ) -> Result<&mut Self, crate::ConstExprConversionError> {
-        for global in section {
-            self.parse(global?)?;
-        }
-        Ok(self)
-    }
-
-    /// Parses the single [`wasmparser::Global`] provided and adds it to this
-    /// section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse(
-        &mut self,
-        global: wasmparser::Global<'_>,
-    ) -> Result<&mut Self, crate::ConstExprConversionError> {
-        self.global(global.ty.try_into().unwrap(), &global.init_expr.try_into()?);
-        Ok(self)
-    }
 }
 
 impl Encode for GlobalSection {
@@ -120,17 +96,5 @@ impl Encode for GlobalType {
             flag |= 0b10;
         }
         sink.push(flag);
-    }
-}
-
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::GlobalType> for GlobalType {
-    type Error = ();
-    fn try_from(global_ty: wasmparser::GlobalType) -> Result<Self, Self::Error> {
-        Ok(GlobalType {
-            val_type: global_ty.content_type.try_into()?,
-            mutable: global_ty.mutable,
-            shared: global_ty.shared,
-        })
     }
 }

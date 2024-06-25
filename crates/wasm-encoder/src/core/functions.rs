@@ -48,19 +48,6 @@ impl FunctionSection {
         self.num_added += 1;
         self
     }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the functions to this section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse_section(
-        &mut self,
-        section: wasmparser::FunctionSectionReader<'_>,
-    ) -> wasmparser::Result<&mut Self> {
-        for func in section {
-            self.function(func?);
-        }
-        Ok(self)
-    }
 }
 
 impl Encode for FunctionSection {

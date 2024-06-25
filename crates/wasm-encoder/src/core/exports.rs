@@ -25,19 +25,6 @@ impl Encode for ExportKind {
     }
 }
 
-#[cfg(feature = "wasmparser")]
-impl From<wasmparser::ExternalKind> for ExportKind {
-    fn from(external_kind: wasmparser::ExternalKind) -> Self {
-        match external_kind {
-            wasmparser::ExternalKind::Func => ExportKind::Func,
-            wasmparser::ExternalKind::Table => ExportKind::Table,
-            wasmparser::ExternalKind::Memory => ExportKind::Memory,
-            wasmparser::ExternalKind::Global => ExportKind::Global,
-            wasmparser::ExternalKind::Tag => ExportKind::Tag,
-        }
-    }
-}
-
 /// An encoder for the export section of WebAssembly module.
 ///
 /// # Example
@@ -82,26 +69,6 @@ impl ExportSection {
         index.encode(&mut self.bytes);
         self.num_added += 1;
         self
-    }
-
-    /// Parses the input `section` given from the `wasmparser` crate and adds
-    /// all the exports to this section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse_section(
-        &mut self,
-        section: wasmparser::ExportSectionReader<'_>,
-    ) -> wasmparser::Result<&mut Self> {
-        for export in section {
-            self.parse(export?);
-        }
-        Ok(self)
-    }
-
-    /// Parses the single [`wasmparser::Export`] provided and adds it to this
-    /// section.
-    #[cfg(feature = "wasmparser")]
-    pub fn parse(&mut self, export: wasmparser::Export<'_>) -> &mut Self {
-        self.export(export.name, export.kind.into(), export.index)
     }
 }
 
