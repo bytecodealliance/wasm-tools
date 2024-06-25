@@ -2696,7 +2696,13 @@ impl ComponentState {
         }
 
         if names.len() > 32 && !features.component_model_more_flags() {
-            bail!(offset, "cannot have more than 32 flags");
+            bail!(
+                offset,
+                "cannot have more than 32 flags; this was previously \
+                 accepted and if this is required for your project please \
+                 leave a comment on \
+                 https://github.com/WebAssembly/component-model/issues/370"
+            );
         }
 
         for name in names {
