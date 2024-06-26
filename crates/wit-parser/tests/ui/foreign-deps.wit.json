@@ -301,6 +301,7 @@
   "packages": [
     {
       "name": "foo:another-pkg",
+      "kind": "Implicit",
       "interfaces": {
         "other-interface": 0
       },
@@ -308,6 +309,7 @@
     },
     {
       "name": "foo:corp",
+      "kind": "Implicit",
       "interfaces": {
         "saas": 1
       },
@@ -315,6 +317,7 @@
     },
     {
       "name": "foo:different-pkg",
+      "kind": "Implicit",
       "interfaces": {
         "i": 2
       },
@@ -322,6 +325,7 @@
     },
     {
       "name": "foo:foreign-pkg",
+      "kind": "Implicit",
       "interfaces": {
         "the-default": 3
       },
@@ -329,6 +333,7 @@
     },
     {
       "name": "foo:some-pkg",
+      "kind": "Implicit",
       "interfaces": {
         "the-default": 4,
         "some-interface": 5,
@@ -338,6 +343,7 @@
     },
     {
       "name": "foo:wasi",
+      "kind": "Implicit",
       "interfaces": {
         "clocks": 7,
         "filesystem": 8
@@ -346,6 +352,7 @@
     },
     {
       "name": "foo:root",
+      "kind": "Implicit",
       "interfaces": {
         "foo": 9,
         "bar": 10,

@@ -62,6 +62,7 @@
   "packages": [
     {
       "name": "foo:bar",
+      "kind": "Implicit",
       "interfaces": {},
       "worlds": {
         "foo": 0,

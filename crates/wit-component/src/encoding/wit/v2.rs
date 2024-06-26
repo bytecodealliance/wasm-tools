@@ -32,14 +32,6 @@ pub fn encode_component(resolve: &Resolve, packages: &[PackageId]) -> Result<Com
     };
     encoder.run()?;
 
-    for package in packages {
-        let package_metadata = PackageMetadata::extract(resolve, *package);
-        encoder.component.custom_section(&CustomSection {
-            name: PackageMetadata::SECTION_NAME.into(),
-            data: package_metadata.encode()?.into(),
-        });
-    }
-
     Ok(encoder.component)
 }
 
@@ -59,30 +51,80 @@ impl Encoder<'_> {
         // decoding process where everyone's view of a foreign document agrees
         // notably on the order that types are defined in to assist with
         // roundtripping.
+        let mut names = NameMap::new();
         for pkg in self.packages {
-            for (name, &id) in self.resolve.packages[*pkg].interfaces.iter() {
-                let component_ty = self.encode_interface(id, pkg)?;
-                let ty = self.component.type_component(&component_ty);
-                self.component
-                    .export(name.as_ref(), ComponentExportKind::Type, ty, None);
-            }
+            let package = &self.resolve.packages[*pkg];
+            if let PackageKind::Explicit = package.kind {
+                let mut sub_encoder = Encoder {
+                    component: ComponentBuilder::default(),
+                    resolve: self.resolve,
+                    packages: self.packages,
+                };
+                let package_metadata = PackageMetadata::extract(self.resolve, *pkg);
+                sub_encoder.component.custom_section(&CustomSection {
+                    name: PackageMetadata::SECTION_NAME.into(),
+                    data: package_metadata.encode()?.into(),
+                });
+                for (name, &id) in self.resolve.packages[*pkg].interfaces.iter() {
+                    let component_ty = sub_encoder.encode_interface(id, pkg)?;
+                    let ty = sub_encoder.component.type_component(&component_ty);
+                    sub_encoder.component.export(
+                        name.as_ref(),
+                        ComponentExportKind::Type,
+                        ty,
+                        None,
+                    );
+                }
+                for (name, &world) in self.resolve.packages[*pkg].worlds.iter() {
+                    // Encode the `world` directly as a component, then create a wrapper
+                    // component that exports that component.
+                    let component_ty = super::encode_world(self.resolve, world)?;
 
-            for (name, &world) in self.resolve.packages[*pkg].worlds.iter() {
-                // Encode the `world` directly as a component, then create a wrapper
-                // component that exports that component.
-                let component_ty = super::encode_world(self.resolve, world)?;
-
-                let world = &self.resolve.worlds[world];
-                let mut wrapper = ComponentType::new();
-                wrapper.ty().component(&component_ty);
-                let pkg = &self.resolve.packages[world.package.unwrap()];
-                wrapper.export(&pkg.name.interface_id(name), ComponentTypeRef::Component(0));
-
-                let ty = self.component.type_component(&wrapper);
-                self.component
-                    .export(name.as_ref(), ComponentExportKind::Type, ty, None);
+                    let world = &sub_encoder.resolve.worlds[world];
+                    let mut wrapper = ComponentType::new();
+                    wrapper.ty().component(&component_ty);
+                    let pkg = &sub_encoder.resolve.packages[world.package.unwrap()];
+                    wrapper.export(&pkg.name.interface_id(name), ComponentTypeRef::Component(0));
+                    let ty = sub_encoder.component.type_component(&wrapper);
+                    sub_encoder.component.export(
+                        name.as_ref(),
+                        ComponentExportKind::Type,
+                        ty,
+                        None,
+                    );
+                }
+                let sub = self.component.component(sub_encoder.component);
+                names.append(sub, &package.name.to_string());
+            } else {
+                for (name, &id) in self.resolve.packages[*pkg].interfaces.iter() {
+                    let component_ty = self.encode_interface(id, pkg)?;
+                    let ty = self.component.type_component(&component_ty);
+                    self.component
+                        .export(name.as_ref(), ComponentExportKind::Type, ty, None);
+                }
+                for (name, &world) in self.resolve.packages[*pkg].worlds.iter() {
+                    // Encode the `world` directly as a component, then create a wrapper
+                    // component that exports that component.
+                    let component_ty = super::encode_world(self.resolve, world)?;
+                    let world = &self.resolve.worlds[world];
+                    let mut wrapper = ComponentType::new();
+                    wrapper.ty().component(&component_ty);
+                    let pkg = &self.resolve.packages[world.package.unwrap()];
+                    wrapper.export(&pkg.name.interface_id(name), ComponentTypeRef::Component(0));
+                    let ty = self.component.type_component(&wrapper);
+                    self.component
+                        .export(name.as_ref(), ComponentExportKind::Type, ty, None);
+                }
+                let package_metadata = PackageMetadata::extract(self.resolve, *pkg);
+                self.component.custom_section(&CustomSection {
+                    name: PackageMetadata::SECTION_NAME.into(),
+                    data: package_metadata.encode()?.into(),
+                });
             }
         }
+        let mut final_names = ComponentNameSection::new();
+        final_names.components(&names);
+        self.component.names(&final_names);
 
         Ok(())
     }

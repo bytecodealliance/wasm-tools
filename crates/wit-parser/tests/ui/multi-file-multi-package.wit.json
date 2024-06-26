@@ -212,6 +212,7 @@
   "packages": [
     {
       "name": "bar:name",
+      "kind": "Explicit",
       "interfaces": {
         "i2": 0
       },
@@ -221,6 +222,7 @@
     },
     {
       "name": "baz:name",
+      "kind": "Explicit",
       "interfaces": {
         "i3": 2
       },
@@ -230,6 +232,7 @@
     },
     {
       "name": "foo:name",
+      "kind": "Explicit",
       "interfaces": {
         "i1": 4
       },
@@ -239,6 +242,7 @@
     },
     {
       "name": "qux:name",
+      "kind": "Explicit",
       "interfaces": {
         "i4": 6
       },

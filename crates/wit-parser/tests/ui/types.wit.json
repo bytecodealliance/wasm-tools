@@ -765,6 +765,7 @@
   "packages": [
     {
       "name": "foo:types",
+      "kind": "Implicit",
       "interfaces": {
         "types": 0
       },

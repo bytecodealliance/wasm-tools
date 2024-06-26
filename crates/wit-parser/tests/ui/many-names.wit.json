@@ -31,6 +31,7 @@
   "packages": [
     {
       "name": "foo:name",
+      "kind": "Implicit",
       "interfaces": {
         "x": 0
       },

@@ -54,38 +54,37 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
         resolve.append(UnresolvedPackageGroup::parse_file(path)?)?
     };
 
-    for package in packages {
-        assert_print(&resolve, &[package], path, is_dir)?;
+    assert_print(&resolve, &packages, path, is_dir)?;
 
-        let features = WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL;
+    let features = WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL;
 
-        // First convert the WIT package to a binary WebAssembly output, then
-        // convert that binary wasm to textual wasm, then assert it matches the
-        // expectation.
-        let wasm = wit_component::encode(Some(true), &resolve, &[package])?;
-        let wat = wasmprinter::print_bytes(&wasm)?;
-        assert_output(&path.with_extension("wat"), &wat)?;
-        wasmparser::Validator::new_with_features(features)
-            .validate_all(&wasm)
-            .context("failed to validate wasm output")?;
+    // First convert the WIT package to a binary WebAssembly output, then
+    // convert that binary wasm to textual wasm, then assert it matches the
+    // expectation.
+    let wasm = wit_component::encode(Some(true), &resolve, &packages)?;
+    let wat = wasmprinter::print_bytes(&wasm)?;
+    assert_output(&path.with_extension("wat"), &wat)?;
+    wasmparser::Validator::new_with_features(features)
+        .validate_all(&wasm)
+        .context("failed to validate wasm output")?;
 
-        // Next decode a fresh WIT package from the WebAssembly generated. Print
-        // this package's documents and assert they all match the expectations.
-        let decoded = wit_component::decode(&wasm)?;
+    // Next decode a fresh WIT package from the WebAssembly generated. Print
+    // this package's documents and assert they all match the expectations.
+    let decoded = wit_component::decode(&wasm)?;
 
-        let decoded_package = decoded.packages()[0];
-        let resolve = decoded.resolve();
+    let decoded_package = decoded.packages()[0];
+    let resolve = decoded.resolve();
 
-        assert_print(resolve, decoded.packages(), path, is_dir)?;
+    assert_print(resolve, decoded.packages(), path, is_dir)?;
 
-        // Finally convert the decoded package to wasm again and make sure it
-        // matches the prior wasm.
-        let wasm2 = wit_component::encode(Some(true), resolve, &[decoded_package])?;
-        if wasm != wasm2 {
-            let wat2 = wasmprinter::print_bytes(&wasm)?;
-            assert_eq!(wat, wat2, "document did not roundtrip correctly");
-        }
+    // Finally convert the decoded package to wasm again and make sure it
+    // matches the prior wasm.
+    let wasm2 = wit_component::encode(Some(true), resolve, &[decoded_package])?;
+    if wasm != wasm2 {
+        let wat2 = wasmprinter::print_bytes(&wasm)?;
+        assert_eq!(wat, wat2, "document did not roundtrip correctly");
     }
+    // }
 
     Ok(())
 }

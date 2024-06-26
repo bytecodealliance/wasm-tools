@@ -63,6 +63,7 @@
   "packages": [
     {
       "name": "foo:resources-empty",
+      "kind": "Implicit",
       "interfaces": {
         "resources-empty": 0
       },

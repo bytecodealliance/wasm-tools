@@ -74,6 +74,7 @@
   "packages": [
     {
       "name": "foo:resources1",
+      "kind": "Implicit",
       "interfaces": {
         "resources1": 0
       },

@@ -157,6 +157,7 @@
   "packages": [
     {
       "name": "foo:functions",
+      "kind": "Implicit",
       "interfaces": {
         "functions": 0
       },

@@ -291,6 +291,7 @@
   "packages": [
     {
       "name": "a:b",
+      "kind": "Implicit",
       "interfaces": {
         "ungated": 0,
         "ungated2": 1,

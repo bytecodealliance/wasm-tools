@@ -111,6 +111,7 @@
   "packages": [
     {
       "name": "foo:foo",
+      "kind": "Implicit",
       "interfaces": {
         "shared-items": 0,
         "i1": 1,

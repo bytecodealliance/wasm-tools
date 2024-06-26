@@ -71,6 +71,7 @@
   "packages": [
     {
       "name": "foo:name",
+      "kind": "Explicit",
       "interfaces": {
         "i1": 0
       },
@@ -78,6 +79,7 @@
     },
     {
       "name": "bar:name",
+      "kind": "Explicit",
       "interfaces": {},
       "worlds": {
         "w1": 0

@@ -38,6 +38,7 @@
   "packages": [
     {
       "name": "demo:greeter",
+      "kind": "Implicit",
       "interfaces": {},
       "worlds": {
         "greeter": 0

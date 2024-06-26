@@ -16,6 +16,9 @@ enum Subsection {
 }
 
 impl ComponentNameSection {
+    /// Human readable component names
+    pub const SECTION_NAME: &'static str = "component-name";
+
     /// Creates a new blank `name` custom section.
     pub fn new() -> Self {
         Self::default()

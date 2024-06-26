@@ -21,7 +21,7 @@ pub use ast::{parse_use_path, ParsedUsePath};
 mod sizealign;
 pub use sizealign::*;
 mod resolve;
-pub use resolve::{Package, PackageId, Remap, Resolve};
+pub use resolve::{Package, PackageId, PackageKind, Remap, Resolve};
 mod live;
 pub use live::LiveTypes;
 
@@ -71,6 +71,9 @@ pub type TypeId = Id<TypeDef>;
 pub struct UnresolvedPackage {
     /// The namespace, name, and version information for this package.
     pub name: PackageName,
+
+    /// Kind
+    pub kind: PackageKind,
 
     /// All worlds from all documents within this package.
     ///

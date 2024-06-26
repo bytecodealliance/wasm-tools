@@ -48,7 +48,7 @@ pub fn encode_component(
     if use_v2.unwrap_or_else(use_v2_encoding) {
         v2::encode_component(resolve, packages)
     } else {
-        v1::encode_component(resolve, packages)
+        v1::encode_component(resolve, packages[0])
     }
 }
 

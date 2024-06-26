@@ -59,6 +59,7 @@
   "packages": [
     {
       "name": "foo:name",
+      "kind": "Explicit",
       "interfaces": {
         "i1": 0
       },
