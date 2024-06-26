@@ -1046,6 +1046,11 @@ fn find_dependencies(
     }
 }
 
+struct EnvFunctionExports<'a> {
+    exports: Vec<(&'a str, &'a FunctionType, usize)>,
+    reexport_cabi_realloc: bool,
+}
+
 /// Analyze the specified metadata and generate a list of functions which should be re-exported as a
 /// `call.indirect`-based function by the main (AKA "env") module, including the offset of the library containing
 /// the original export.
@@ -1053,7 +1058,7 @@ fn env_function_exports<'a>(
     metadata: &'a [Metadata<'a>],
     exporters: &'a IndexMap<&'a ExportKey, (&'a str, &Export)>,
     topo_sorted: &[usize],
-) -> Result<Vec<(&'a str, &'a FunctionType, usize)>> {
+) -> Result<EnvFunctionExports<'a>> {
     let function_exporters = exporters
         .iter()
         .filter_map(|(export, exporter)| {
@@ -1103,7 +1108,12 @@ fn env_function_exports<'a>(
         seen.insert(index);
     }
 
-    Ok(result)
+    let reexport_cabi_realloc = exported.contains("cabi_realloc");
+
+    Ok(EnvFunctionExports {
+        exports: result,
+        reexport_cabi_realloc,
+    })
 }
 
 /// Synthesize a module which contains trapping stub exports for the specified functions.
@@ -1385,12 +1395,21 @@ impl Linker {
 
         let topo_sorted = topo_sort(metadata.len(), &dependencies)?;
 
-        let env_function_exports = env_function_exports(&metadata, &exporters, &topo_sorted)?;
+        let EnvFunctionExports {
+            exports: env_function_exports,
+            reexport_cabi_realloc,
+        } = env_function_exports(&metadata, &exporters, &topo_sorted)?;
 
         let (env_module, dl_openables, table_base) = make_env_module(
             &metadata,
             &env_function_exports,
-            cabi_realloc_exporter,
+            if reexport_cabi_realloc {
+                // If "env" module already reexports "cabi_realloc", we don't need to
+                // reexport it again.
+                None
+            } else {
+                cabi_realloc_exporter
+            },
             self.stack_size.unwrap_or(DEFAULT_STACK_SIZE_BYTES),
         );
 
