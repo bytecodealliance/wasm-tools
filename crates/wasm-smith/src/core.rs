@@ -2730,17 +2730,6 @@ impl EntityType {
     }
 }
 
-// A helper structure used when generating module/instance types to limit the
-// amount of each kind of import created.
-#[derive(Default, Clone, Copy, PartialEq)]
-struct Entities {
-    globals: usize,
-    memories: usize,
-    tables: usize,
-    funcs: usize,
-    tags: usize,
-}
-
 /// A container for the kinds of instructions that wasm-smith is allowed to
 /// emit.
 ///
