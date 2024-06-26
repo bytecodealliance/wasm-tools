@@ -1474,7 +1474,7 @@ pub mod utils {
         use crate::Instruction;
 
         macro_rules! translate {
-            ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
+            ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
                 Ok(match arg {
                     $(
                         wasmparser::Operator::$op $({ $($arg),* })? => {

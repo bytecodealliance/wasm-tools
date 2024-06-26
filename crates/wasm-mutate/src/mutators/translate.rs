@@ -325,7 +325,7 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
     use wasm_encoder::Instruction as I;
 
     macro_rules! translate {
-        ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
+        ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
             Ok(match op {
                 $(
                     wasmparser::Operator::$op $({ $($arg),* })? => {
