@@ -447,7 +447,7 @@ macro_rules! define_visit {
     //
     // * Print the name of the insruction as defined in this macro
     // * Print any payload, as necessary
-    ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident )*) => ($(
+    ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*) )*) => ($(
         fn $visit(&mut self $( , $($arg: $argty),* )?) -> Self::Output {
             define_visit!(before_op self $op);
             self.push_str(define_visit!(name $op))?;

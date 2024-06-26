@@ -1,6 +1,6 @@
 use super::operators::{Frame, OperatorValidator, OperatorValidatorAllocations};
 use crate::{BinaryReader, Result, ValType, VisitOperator};
-use crate::{FunctionBody, Operator, WasmFeatures, WasmModuleResources};
+use crate::{FunctionBody, ModuleArity, Operator, WasmFeatures, WasmModuleResources};
 
 /// Resources necessary to perform validation of a function.
 ///
@@ -85,7 +85,34 @@ impl<T: WasmModuleResources> FuncValidator<T> {
             reader.set_features(self.validator.features);
         }
         while !reader.eof() {
+            // In a debug build, verify that the validator's pops and pushes to and from
+            // the operand stack match the operator's arity.
+            #[cfg(debug_assertions)]
+            let (pop_push_snapshot, arity) = (
+                self.validator.pop_push_count,
+                reader
+                    .clone()
+                    .read_operator()?
+                    .operator_arity(&self.visitor(reader.original_position())),
+            );
+
             reader.visit_operator(&mut self.visitor(reader.original_position()))??;
+
+            #[cfg(debug_assertions)]
+            {
+                let (params, results) = arity.ok_or(format_err!(
+                    reader.original_position(),
+                    "could not calculate operator arity"
+                ))?;
+
+                let pop_count = self.validator.pop_push_count.0 - pop_push_snapshot.0;
+                let push_count = self.validator.pop_push_count.1 - pop_push_snapshot.1;
+
+                if pop_count != params || push_count != results {
+                    panic!("arity mismatch in validation. Expecting {} operands popped, {} pushed, but got {} popped, {} pushed.",
+                           params, results, pop_count, push_count);
+                }
+            }
         }
         self.finish(reader.original_position())
     }
@@ -146,7 +173,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     pub fn visitor<'this, 'a: 'this>(
         &'this mut self,
         offset: usize,
-    ) -> impl VisitOperator<'a, Output = Result<()>> + 'this {
+    ) -> impl VisitOperator<'a, Output = Result<()>> + ModuleArity + 'this {
         self.validator.with_resources(&self.resources, offset)
     }
 

@@ -24,9 +24,9 @@
 
 use crate::{
     limits::MAX_WASM_FUNCTION_LOCALS, AbstractHeapType, BinaryReaderError, BlockType, BrTable,
-    Catch, ContType, FieldType, FuncType, GlobalType, Handle, HeapType, Ieee32, Ieee64, MemArg,
-    RefType, Result, ResumeTable, StorageType, StructType, SubType, TableType, TryTable,
-    UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources, V128,
+    Catch, ContType, FieldType, FrameKind, FuncType, GlobalType, Handle, HeapType, Ieee32, Ieee64,
+    MemArg, ModuleArity, RefType, Result, ResumeTable, StorageType, StructType, SubType, TableType,
+    TryTable, UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources, V128,
 };
 use crate::{prelude::*, CompositeInnerType, Ordering};
 use core::ops::{Deref, DerefMut};
@@ -39,8 +39,7 @@ pub(crate) struct OperatorValidator {
     // instructions.
     pub(crate) features: WasmFeatures,
 
-    // Temporary storage used during `pop_push_label_types` and various
-    // branching instructions.
+    // Temporary storage used during `match_stack_operands`
     popped_types_tmp: Vec<MaybeType>,
 
     /// The `control` list is the list of blocks that we're currently in.
@@ -57,6 +56,9 @@ pub(crate) struct OperatorValidator {
 
     /// Whether validation is happening in a shared context.
     shared: bool,
+
+    #[cfg(debug_assertions)]
+    pub(crate) pop_push_count: (u32, u32),
 }
 
 // No science was performed in the creation of this number, feel free to change
@@ -105,43 +107,6 @@ pub struct Frame {
     pub unreachable: bool,
     /// The number of initializations in the stack at the time of its creation
     pub init_height: usize,
-}
-
-/// The kind of a control flow [`Frame`].
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum FrameKind {
-    /// A Wasm `block` control block.
-    Block,
-    /// A Wasm `if` control block.
-    If,
-    /// A Wasm `else` control block.
-    Else,
-    /// A Wasm `loop` control block.
-    Loop,
-    /// A Wasm `try` control block.
-    ///
-    /// # Note
-    ///
-    /// This belongs to the Wasm exception handling proposal.
-    TryTable,
-    /// A Wasm legacy `try` control block.
-    ///
-    /// # Note
-    ///
-    /// See: `WasmFeatures::legacy_exceptions` Note in `crates/wasmparser/src/features.rs`
-    LegacyTry,
-    /// A Wasm legacy `catch` control block.
-    ///
-    /// # Note
-    ///
-    /// See: `WasmFeatures::legacy_exceptions` Note in `crates/wasmparser/src/features.rs`
-    LegacyCatch,
-    /// A Wasm legacy `catch_all` control block.
-    ///
-    /// # Note
-    ///
-    /// See: `WasmFeatures::legacy_exceptions` Note in `crates/wasmparser/src/features.rs`
-    LegacyCatchAll,
 }
 
 struct OperatorValidatorTemp<'validator, 'resources, T> {
@@ -286,6 +251,8 @@ impl OperatorValidator {
             control,
             end_which_emptied_control: None,
             shared: false,
+            #[cfg(debug_assertions)]
+            pop_push_count: (0, 0),
         }
     }
 
@@ -417,7 +384,7 @@ impl OperatorValidator {
         &'validator mut self,
         resources: &'resources T,
         offset: usize,
-    ) -> impl VisitOperator<'a, Output = Result<()>> + 'validator
+    ) -> impl VisitOperator<'a, Output = Result<()>> + ModuleArity + 'validator
     where
         T: WasmModuleResources,
         'resources: 'validator,
@@ -464,6 +431,20 @@ impl OperatorValidator {
             inits: clear(self.inits),
             locals_first: clear(self.locals.first),
             locals_all: clear(self.locals.all),
+        }
+    }
+
+    fn record_pop(&mut self) {
+        #[cfg(debug_assertions)]
+        {
+            self.pop_push_count.0 += 1;
+        }
+    }
+
+    fn record_push(&mut self) {
+        #[cfg(debug_assertions)]
+        {
+            self.pop_push_count.1 += 1;
         }
     }
 }
@@ -513,6 +494,7 @@ where
         }
 
         self.operands.push(maybe_ty);
+        self.record_push();
         Ok(())
     }
 
@@ -594,6 +576,7 @@ where
                 if Some(actual_ty) == expected {
                     if let Some(control) = self.control.last() {
                         if self.operands.len() >= control.height {
+                            self.record_pop();
                             return Ok(MaybeType::Known(actual_ty));
                         }
                     }
@@ -693,7 +676,48 @@ where
                 }
             }
         }
+        self.record_pop();
         Ok(actual)
+    }
+
+    /// Match expected vs. actual operand.
+    fn match_operand(
+        &mut self,
+        actual: ValType,
+        expected: ValType,
+    ) -> Result<(), BinaryReaderError> {
+        #[cfg(debug_assertions)]
+        let tmp = self.pop_push_count;
+        self.push_operand(actual)?;
+        self.pop_operand(Some(expected))?;
+        #[cfg(debug_assertions)]
+        {
+            self.pop_push_count = tmp;
+        }
+        Ok(())
+    }
+
+    /// Match a type sequence to the top of the stack.
+    fn match_stack_operands(
+        &mut self,
+        expected_tys: impl PreciseIterator<Item = ValType> + 'resources,
+    ) -> Result<()> {
+        debug_assert!(self.popped_types_tmp.is_empty());
+        self.popped_types_tmp.reserve(expected_tys.len());
+        #[cfg(debug_assertions)]
+        let tmp = self.pop_push_count;
+        for expected_ty in expected_tys.rev() {
+            let actual_ty = self.pop_operand(Some(expected_ty))?;
+            self.popped_types_tmp.push(actual_ty);
+        }
+        for ty in self.inner.popped_types_tmp.drain(..).rev() {
+            self.inner.operands.push(ty.into());
+        }
+        #[cfg(debug_assertions)]
+        {
+            self.pop_push_count = tmp;
+        }
+        Ok(())
     }
 
     /// Pop a reference type from the operand stack.
@@ -967,8 +991,25 @@ where
     /// Similar to `check_call_ty` except used for tail-call instructions.
     fn check_return_call_ty(&mut self, ty: &FuncType) -> Result<()> {
         self.check_func_type_same_results(ty)?;
-        self.check_call_ty(ty)?;
-        self.check_return()
+        for &ty in ty.params().iter().rev() {
+            debug_assert_type_indices_are_ids(ty);
+            self.pop_operand(Some(ty))?;
+        }
+
+        // Match the results with this function's, but don't include in pop/push counts.
+        #[cfg(debug_assertions)]
+        let tmp = self.pop_push_count;
+        for &ty in ty.results() {
+            debug_assert_type_indices_are_ids(ty);
+            self.push_operand(ty)?;
+        }
+        self.check_return()?;
+        #[cfg(debug_assertions)]
+        {
+            self.pop_push_count = tmp;
+        }
+
+        Ok(())
     }
 
     /// Checks the immediate `type_index` of a `call_ref`-style instruction
@@ -1634,7 +1675,7 @@ impl<T> WasmProposalValidator<'_, '_, T> {
 }
 
 macro_rules! validate_proposal {
-    ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
+    ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
         $(
             fn $visit(&mut self $($(,$arg: $argty)*)?) -> Result<()> {
                 validate_proposal!(validate self $proposal);
@@ -1755,8 +1796,7 @@ where
                         );
                     }
                     for (expected, actual) in types.zip(params) {
-                        self.push_operand(*actual)?;
-                        self.pop_operand(Some(expected))?;
+                        self.match_operand(*actual, expected)?;
                     }
                 }
                 Catch::OneRef { tag, label } => {
@@ -1771,11 +1811,10 @@ where
                              more type than tag types",
                         );
                     }
-                    for (expected_label_tyep, actual_tag_param) in
+                    for (expected_label_type, actual_tag_param) in
                         label_types.zip(tag_params.chain([exn_type]))
                     {
-                        self.push_operand(actual_tag_param)?;
-                        self.pop_operand(Some(expected_label_tyep))?;
+                        self.match_operand(actual_tag_param, expected_label_type)?;
                     }
                 }
 
@@ -1881,16 +1920,7 @@ where
                     "type mismatch: br_table target labels have different number of types"
                 );
             }
-
-            debug_assert!(self.popped_types_tmp.is_empty());
-            self.popped_types_tmp.reserve(label_tys.len());
-            for expected_ty in label_tys.rev() {
-                let actual_ty = self.pop_operand(Some(expected_ty))?;
-                self.popped_types_tmp.push(actual_ty);
-            }
-            for ty in self.inner.popped_types_tmp.drain(..).rev() {
-                self.inner.operands.push(ty.into());
-            }
+            self.match_stack_operands(label_tys)?;
         }
         for ty in default_types.rev() {
             self.pop_operand(Some(ty))?;
@@ -5107,5 +5137,42 @@ impl Locals {
             // list at index `i`.
             Ok(i) | Err(i) => Some(self.all[i].1),
         }
+    }
+}
+
+impl<R> ModuleArity for WasmProposalValidator<'_, '_, R>
+where
+    R: WasmModuleResources,
+{
+    fn tag_type_arity(&self, at: u32) -> Option<(u32, u32)> {
+        self.0
+            .resources
+            .tag_at(at)
+            .map(|x| (x.params().len() as u32, x.results().len() as u32))
+    }
+
+    fn type_index_of_function(&self, function_idx: u32) -> Option<u32> {
+        self.0.resources.type_index_of_function(function_idx)
+    }
+
+    fn sub_type_at(&self, type_idx: u32) -> Option<&SubType> {
+        Some(self.0.sub_type_at(type_idx).ok()?)
+    }
+
+    fn func_type_of_cont_type(&self, c: &ContType) -> Option<&FuncType> {
+        Some(self.0.func_type_of_cont_type(c))
+    }
+
+    fn sub_type_of_ref_type(&self, rt: &RefType) -> Option<&SubType> {
+        let id = rt.type_index()?.as_core_type_id()?;
+        Some(self.0.resources.sub_type_at_id(id))
+    }
+
+    fn control_stack_height(&self) -> u32 {
+        self.0.control.len() as u32
+    }
+
+    fn label_block(&self, depth: u32) -> Option<(BlockType, FrameKind)> {
+        self.0.jump(depth).ok()
     }
 }

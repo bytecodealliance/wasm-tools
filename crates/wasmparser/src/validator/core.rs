@@ -408,7 +408,7 @@ impl ModuleState {
         }
 
         macro_rules! define_visit_operator {
-            ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
+            ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
                 $(
                     #[allow(unused_variables)]
                     fn $visit(&mut self $($(,$arg: $argty)*)?) -> Self::Output {
