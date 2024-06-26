@@ -1,5 +1,6 @@
 use crate::component::*;
 use crate::core;
+use crate::core::EncodeOptions;
 use crate::token::{Id, Index, NameAnnotation, Span};
 use wasm_encoder::{
     CanonicalFunctionSection, ComponentAliasSection, ComponentDefinedTypeEncoder,
@@ -9,10 +10,10 @@ use wasm_encoder::{
     NestedComponentSection, RawSection, SectionId,
 };
 
-pub fn encode(component: &Component<'_>) -> Vec<u8> {
+pub fn encode(component: &Component<'_>, options: &EncodeOptions) -> Vec<u8> {
     match &component.kind {
         ComponentKind::Text(fields) => {
-            encode_fields(&component.id, &component.name, fields).finish()
+            encode_fields(&component.id, &component.name, fields, options).finish()
         }
         ComponentKind::Binary(bytes) => bytes.iter().flat_map(|b| b.iter().copied()).collect(),
     }
@@ -23,15 +24,16 @@ fn encode_fields(
     component_id: &Option<Id<'_>>,
     component_name: &Option<NameAnnotation<'_>>,
     fields: &[ComponentField<'_>],
+    options: &EncodeOptions,
 ) -> wasm_encoder::Component {
     let mut e = Encoder::default();
 
     for field in fields {
         match field {
-            ComponentField::CoreModule(m) => e.encode_core_module(m),
+            ComponentField::CoreModule(m) => e.encode_core_module(m, options),
             ComponentField::CoreInstance(i) => e.encode_core_instance(i),
             ComponentField::CoreType(t) => e.encode_core_type(t),
-            ComponentField::Component(c) => e.encode_component(c),
+            ComponentField::Component(c) => e.encode_component(c, options),
             ComponentField::Instance(i) => e.encode_instance(i),
             ComponentField::Alias(a) => e.encode_alias(a),
             ComponentField::Type(t) => e.encode_type(t),
@@ -191,7 +193,7 @@ impl<'a> Encoder<'a> {
         })
     }
 
-    fn encode_core_module(&mut self, module: &CoreModule<'a>) {
+    fn encode_core_module(&mut self, module: &CoreModule<'a>, options: &EncodeOptions) {
         // Flush any in-progress section before encoding the module
         self.flush(None);
 
@@ -202,7 +204,7 @@ impl<'a> Encoder<'a> {
             CoreModuleKind::Import { .. } => unreachable!("should be expanded already"),
             CoreModuleKind::Inline { fields } => {
                 // TODO: replace this with a wasm-encoder based encoding (should return `wasm_encoder::Module`)
-                let data = crate::core::binary::encode(&module.id, &module.name, fields);
+                let data = crate::core::binary::encode(&module.id, &module.name, fields, options);
                 self.component.section(&RawSection {
                     id: ComponentSectionId::CoreModule.into(),
                     data: &data,
@@ -238,7 +240,7 @@ impl<'a> Encoder<'a> {
         self.flush(Some(self.core_types.id()));
     }
 
-    fn encode_component(&mut self, component: &NestedComponent<'a>) {
+    fn encode_component(&mut self, component: &NestedComponent<'a>, options: &EncodeOptions) {
         self.component_names
             .push(get_name(&component.id, &component.name));
         // Flush any in-progress section before encoding the component
@@ -252,6 +254,7 @@ impl<'a> Encoder<'a> {
                         &component.id,
                         &component.name,
                         fields,
+                        options,
                     )));
             }
         }

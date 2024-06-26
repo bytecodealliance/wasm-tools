@@ -2036,9 +2036,11 @@ version = "211.0.1"
 dependencies = [
  "anyhow",
  "bumpalo",
+ "gimli 0.29.0",
  "leb128",
  "libtest-mimic",
  "memchr",
+ "rand",
  "unicode-width",
  "wasm-encoder 0.211.1",
  "wasmparser 0.211.1",

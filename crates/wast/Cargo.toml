@@ -13,6 +13,9 @@ Customizable Rust parsers for the WebAssembly Text formats WAT and WAST
 """
 rust-version.workspace = true
 
+[package.metadata.docs.rs]
+all-features = true
+
 [lints]
 workspace = true
 
@@ -22,12 +25,14 @@ unicode-width = "0.1.9"
 memchr = "2.4.1"
 wasm-encoder = { workspace = true }
 bumpalo = "3.14.0"
+gimli = { workspace = true, optional = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
 libtest-mimic = { workspace = true }
 wasmparser = { path = "../wasmparser" }
 wat = { path = "../wat" }
+rand = { workspace = true }
 
 [features]
 default = ['wasm-module']
@@ -39,6 +44,11 @@ default = ['wasm-module']
 #
 # This feature is turned on by default.
 wasm-module = []
+
+# Off-by-default feature to support emitting DWARF debugging information in
+# parsed binaries pointing back to source locations in the original `*.wat`
+# source.
+dwarf = ["dep:gimli"]
 
 [[test]]
 name = "parse-fail"

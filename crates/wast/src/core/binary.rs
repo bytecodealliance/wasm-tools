@@ -1,11 +1,105 @@
+use crate::component::Component;
 use crate::core::*;
 use crate::encode::Encode;
 use crate::token::*;
+use crate::Wat;
+use std::marker;
+#[cfg(feature = "dwarf")]
+use std::path::Path;
 
-pub fn encode(
+/// Options that can be specified when encoding a component or a module to
+/// customize what the final binary looks like.
+///
+/// Methods such as [`Module::encode`], [`Wat::encode`], and
+/// [`Component::encode`] will use the default options.
+#[derive(Default)]
+pub struct EncodeOptions<'a> {
+    #[cfg(feature = "dwarf")]
+    dwarf_info: Option<(&'a Path, &'a str, GenerateDwarf)>,
+
+    _marker: marker::PhantomData<&'a str>,
+}
+
+#[cfg(feature = "dwarf")]
+mod dwarf;
+
+#[cfg(not(feature = "dwarf"))]
+mod dwarf_disabled;
+#[cfg(not(feature = "dwarf"))]
+use self::dwarf_disabled as dwarf;
+
+/// Configuration of how DWARF debugging information may be generated.
+#[derive(Copy, Clone, Debug)]
+#[non_exhaustive]
+pub enum GenerateDwarf {
+    /// Only generate line tables to map binary offsets back to source
+    /// locations.
+    Lines,
+
+    /// Generate full debugging information for both line numbers and
+    /// variables/locals/operands.
+    Full,
+}
+
+impl<'a> EncodeOptions<'a> {
+    /// Creates a new set of default encoding options.
+    pub fn new() -> EncodeOptions<'a> {
+        EncodeOptions::default()
+    }
+
+    /// Enables emission of DWARF debugging information in the final binary.
+    ///
+    /// This method will use the `file` specified as the source file for the
+    /// `*.wat` file whose `contents` must also be supplied here. These are
+    /// used to calculate filenames/line numbers and are referenced from the
+    /// generated DWARF.
+    #[cfg(feature = "dwarf")]
+    pub fn dwarf(&mut self, file: &'a Path, contents: &'a str, style: GenerateDwarf) -> &mut Self {
+        self.dwarf_info = Some((file, contents, style));
+        self
+    }
+
+    /// Encodes the given [`Module`] with these options.
+    ///
+    /// For more information see [`Module::encode`].
+    pub fn encode_module(
+        &self,
+        module: &mut Module<'_>,
+    ) -> std::result::Result<Vec<u8>, crate::Error> {
+        module.resolve()?;
+        Ok(match &module.kind {
+            ModuleKind::Text(fields) => encode(&module.id, &module.name, fields, self),
+            ModuleKind::Binary(blobs) => blobs.iter().flat_map(|b| b.iter().cloned()).collect(),
+        })
+    }
+
+    /// Encodes the given [`Component`] with these options.
+    ///
+    /// For more information see [`Component::encode`].
+    pub fn encode_component(
+        &self,
+        component: &mut Component<'_>,
+    ) -> std::result::Result<Vec<u8>, crate::Error> {
+        component.resolve()?;
+        Ok(crate::component::binary::encode(component, self))
+    }
+
+    /// Encodes the given [`Wat`] with these options.
+    ///
+    /// For more information see [`Wat::encode`].
+    pub fn encode_wat(&self, wat: &mut Wat<'_>) -> std::result::Result<Vec<u8>, crate::Error> {
+        match wat {
+            Wat::Module(m) => self.encode_module(m),
+            Wat::Component(c) => self.encode_component(c),
+        }
+    }
+}
+
+pub(crate) fn encode(
     module_id: &Option<Id<'_>>,
     module_name: &Option<NameAnnotation<'_>>,
     fields: &[ModuleField<'_>],
+    opts: &EncodeOptions,
 ) -> Vec<u8> {
     use CustomPlace::*;
     use CustomPlaceAnchor::*;
@@ -69,14 +163,27 @@ pub fn encode(
     if needs_data_count(&funcs) {
         e.section(12, &data.len());
     }
-    e.code_section(&funcs, &imports);
+
+    // Prepare to and emit the code section. This is where DWARF may optionally
+    // be emitted depending on configuration settings. Note that `code_section`
+    // will internally emit the branch hints section if necessary.
+    let names = find_names(module_id, module_name, fields);
+    let num_import_funcs = imports
+        .iter()
+        .filter(|i| matches!(i.item.kind, ItemKind::Func(..)))
+        .count() as u32;
+    let mut dwarf = dwarf::Dwarf::new(num_import_funcs, opts, &names, &types);
+    e.code_section(&funcs, num_import_funcs, dwarf.as_mut());
+
     e.section_list(11, Data, &data);
 
-    let names = find_names(module_id, module_name, fields);
     if !names.is_empty() {
         e.section(0, &("name", names));
     }
     e.custom_sections(AfterLast);
+    if let Some(dwarf) = &mut dwarf {
+        dwarf.emit(&mut e);
+    }
 
     return e.wasm;
 
@@ -109,9 +216,19 @@ impl Encoder<'_> {
     fn custom_sections(&mut self, place: CustomPlace) {
         for entry in self.customs.iter() {
             if entry.place() == place {
-                self.section(0, &(entry.name(), entry));
+                let mut data = Vec::new();
+                entry.encode(&mut data);
+                self.custom_section(entry.name(), &data);
             }
         }
+    }
+
+    fn custom_section(&mut self, name: &str, data: &[u8]) {
+        self.tmp.truncate(0);
+        name.encode(&mut self.tmp);
+        self.tmp.extend_from_slice(data);
+        self.wasm.push(0);
+        self.tmp.encode(&mut self.wasm);
     }
 
     fn section_list(&mut self, id: u8, anchor: CustomPlaceAnchor, list: &[impl Encode]) {
@@ -130,7 +247,17 @@ impl Encoder<'_> {
     /// each instruction and we save its offset. If needed, we use this
     /// information to build the branch hint section and insert it before the
     /// code section.
-    fn code_section<'a>(&'a mut self, list: &[&'a Func<'_>], imports: &[&Import<'_>]) {
+    ///
+    /// The `list` provided is the list of functions that are emitted into the
+    /// code section. The `func_index` provided is the initial index of defined
+    /// functions, so it's the count of imported functions. The `dwarf` field is
+    /// optionally used to track debugging information.
+    fn code_section<'a>(
+        &'a mut self,
+        list: &[&'a Func<'_>],
+        mut func_index: u32,
+        mut dwarf: Option<&mut dwarf::Dwarf>,
+    ) {
         self.custom_sections(CustomPlace::Before(CustomPlaceAnchor::Code));
 
         if !list.is_empty() {
@@ -138,12 +265,8 @@ impl Encoder<'_> {
             let mut code_section = Vec::new();
 
             list.len().encode(&mut code_section);
-            let mut func_index = imports
-                .iter()
-                .filter(|i| matches!(i.item.kind, ItemKind::Func(..)))
-                .count() as u32;
             for func in list.iter() {
-                let hints = func.encode(&mut code_section);
+                let hints = func.encode(&mut code_section, dwarf.as_deref_mut());
                 if !hints.is_empty() {
                     branch_hints.push(FunctionBranchHints { func_index, hints });
                 }
@@ -159,6 +282,10 @@ impl Encoder<'_> {
             // Finally, insert the Code section from the tmp buffer
             self.wasm.push(10);
             code_section.encode(&mut self.wasm);
+
+            if let Some(dwarf) = &mut dwarf {
+                dwarf.set_code_section_size(code_section.len());
+            }
         }
         self.custom_sections(CustomPlace::After(CustomPlaceAnchor::Code));
     }
@@ -496,7 +623,7 @@ impl Encode for Table<'_> {
                 e.push(0x40);
                 e.push(0x00);
                 ty.encode(e);
-                init_expr.encode(e, 0);
+                init_expr.encode(e, None);
             }
             _ => panic!("TableKind should be normal during encoding"),
         }
@@ -519,7 +646,7 @@ impl Encode for Global<'_> {
         self.ty.encode(e);
         match &self.kind {
             GlobalKind::Inline(expr) => {
-                let _hints = expr.encode(e, 0);
+                let _hints = expr.encode(e, None);
             }
             _ => panic!("GlobalKind should be inline during encoding"),
         }
@@ -557,7 +684,7 @@ impl Encode for Elem<'_> {
                 ElemPayload::Indices(_),
             ) => {
                 e.push(0x00);
-                offset.encode(e, 0);
+                offset.encode(e, None);
             }
             (ElemKind::Passive, ElemPayload::Indices(_)) => {
                 e.push(0x01); // flags
@@ -566,7 +693,7 @@ impl Encode for Elem<'_> {
             (ElemKind::Active { table, offset }, ElemPayload::Indices(_)) => {
                 e.push(0x02); // flags
                 table.encode(e);
-                offset.encode(e, 0);
+                offset.encode(e, None);
                 e.push(0x00); // extern_kind
             }
             (ElemKind::Declared, ElemPayload::Indices(_)) => {
@@ -592,7 +719,7 @@ impl Encode for Elem<'_> {
                 },
             ) => {
                 e.push(0x04);
-                offset.encode(e, 0);
+                offset.encode(e, None);
             }
             (ElemKind::Passive, ElemPayload::Exprs { ty, .. }) => {
                 e.push(0x05);
@@ -601,7 +728,7 @@ impl Encode for Elem<'_> {
             (ElemKind::Active { table, offset }, ElemPayload::Exprs { ty, .. }) => {
                 e.push(0x06);
                 table.encode(e);
-                offset.encode(e, 0);
+                offset.encode(e, None);
                 ty.encode(e);
             }
             (ElemKind::Declared, ElemPayload::Exprs { ty, .. }) => {
@@ -621,7 +748,7 @@ impl Encode for ElemPayload<'_> {
             ElemPayload::Exprs { exprs, ty: _ } => {
                 exprs.len().encode(e);
                 for expr in exprs {
-                    expr.encode(e, 0);
+                    expr.encode(e, None);
                 }
             }
         }
@@ -637,12 +764,12 @@ impl Encode for Data<'_> {
                 offset,
             } => {
                 e.push(0x00);
-                offset.encode(e, 0);
+                offset.encode(e, None);
             }
             DataKind::Active { memory, offset } => {
                 e.push(0x02);
                 memory.encode(e);
-                offset.encode(e, 0);
+                offset.encode(e, None);
             }
         }
         self.data.iter().map(|l| l.len()).sum::<usize>().encode(e);
@@ -655,20 +782,35 @@ impl Encode for Data<'_> {
 impl Func<'_> {
     /// Encodes the function into `e` while returning all branch hints with
     /// known relative offsets after encoding.
-    fn encode(&self, e: &mut Vec<u8>) -> Vec<BranchHint> {
+    ///
+    /// The `dwarf` field is optional and used to track debugging information
+    /// for each instruction.
+    fn encode(&self, e: &mut Vec<u8>, mut dwarf: Option<&mut dwarf::Dwarf>) -> Vec<BranchHint> {
         assert!(self.exports.names.is_empty());
         let (expr, locals) = match &self.kind {
             FuncKind::Inline { expression, locals } => (expression, locals),
             _ => panic!("should only have inline functions in emission"),
         };
 
+        if let Some(dwarf) = &mut dwarf {
+            let index = match self.ty.index.as_ref().unwrap() {
+                Index::Num(n, _) => *n,
+                _ => unreachable!(),
+            };
+            dwarf.start_func(self.span, index, locals);
+        }
+
         // Encode the function into a temporary vector because functions are
         // prefixed with their length. The temporary vector, when encoded,
         // encodes its length first then the body.
         let mut tmp = Vec::new();
         locals.encode(&mut tmp);
-        let branch_hints = expr.encode(&mut tmp, 0);
+        let branch_hints = expr.encode(&mut tmp, dwarf.as_deref_mut());
         tmp.encode(e);
+
+        if let Some(dwarf) = &mut dwarf {
+            dwarf.end_func(tmp.len(), e.len());
+        }
 
         branch_hints
     }
@@ -690,20 +832,35 @@ impl Encode for Box<[Local<'_>]> {
     }
 }
 
-// Encode the expression and store the offset from the beginning
-// for each instruction.
 impl Expression<'_> {
-    fn encode(&self, e: &mut Vec<u8>, relative_start: usize) -> Vec<BranchHint> {
+    /// Encodes this expression into `e` and optionally tracks debugging
+    /// information for each instruction in `dwarf`.
+    ///
+    /// Returns all branch hints, if any, found while parsing this function.
+    fn encode(&self, e: &mut Vec<u8>, mut dwarf: Option<&mut dwarf::Dwarf>) -> Vec<BranchHint> {
         let mut hints = Vec::with_capacity(self.branch_hints.len());
         let mut next_hint = self.branch_hints.iter().peekable();
 
         for (i, instr) in self.instrs.iter().enumerate() {
+            // Branch hints are stored in order of increasing `instr_index` so
+            // check to see if the next branch hint matches this instruction's
+            // index.
             if let Some(hint) = next_hint.next_if(|h| h.instr_index == i) {
                 hints.push(BranchHint {
-                    branch_func_offset: u32::try_from(e.len() - relative_start).unwrap(),
+                    branch_func_offset: u32::try_from(e.len()).unwrap(),
                     branch_hint_value: hint.value,
                 });
             }
+
+            // If DWARF is enabled then track this instruction's binary offset
+            // and source location.
+            if let Some(dwarf) = &mut dwarf {
+                if let Some(span) = self.instr_spans.as_ref().map(|s| s[i]) {
+                    dwarf.instr(e.len(), span);
+                }
+            }
+
+            // Finally emit the instruction and move to the next.
             instr.encode(e);
         }
         e.push(0x0b);
