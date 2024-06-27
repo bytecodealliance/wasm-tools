@@ -6,8 +6,11 @@ use std::mem;
 use std::slice;
 use std::{collections::HashMap, io::Read};
 use wasmparser::Chunk;
+#[cfg(feature = "serde")]
 use wasmparser::ComponentNameSectionReader;
+#[cfg(feature = "serde")]
 use wasmparser::KnownCustom;
+#[cfg(feature = "serde")]
 use wasmparser::NameMap;
 use wasmparser::{
     names::{ComponentName, ComponentNameKind},
@@ -42,7 +45,7 @@ struct ExplicitPackageInfo {
     types: Option<types::Types>,
     /// List of all imports and exports from this component.
     externs: Vec<(String, Extern)>,
-    // / Decoded package metadata
+    /// Decoded package metadata
     package_metadata: Option<PackageMetadata>,
 }
 
@@ -63,6 +66,7 @@ enum WitEncodingVersion {
     V2,
 }
 
+#[cfg(feature = "serde")]
 fn register_names(
     names: ComponentNameSectionReader,
     explicit: &mut ExplicitPackageInfo,
@@ -98,7 +102,7 @@ impl ComponentInfo {
     /// Creates a new component info by parsing the given WebAssembly component bytes.
 
     fn from_reader(mut reader: impl Read) -> Result<Self> {
-        let mut packages = Vec::new();
+        let mut _packages = Vec::new();
         let mut explicit = Vec::new();
         let mut cur_package = ExplicitPackageInfo::default();
         let mut is_implicit = true;
@@ -106,7 +110,7 @@ impl ComponentInfo {
         let mut externs = Vec::new();
         let mut depth = 1;
         let mut types = None;
-        let mut package_metadata = None;
+        let mut _package_metadata = None;
         let mut cur = Parser::new(0);
         let mut eof = false;
         let mut stack = Vec::new();
@@ -196,14 +200,14 @@ impl ComponentInfo {
                 #[cfg(feature = "serde")]
                 Payload::CustomSection(s) => {
                     if s.name() == PackageMetadata::SECTION_NAME {
-                        package_metadata = Some(PackageMetadata::decode(s.data())?);
-                        cur_package.package_metadata = package_metadata.clone();
+                        _package_metadata = Some(PackageMetadata::decode(s.data())?);
+                        cur_package.package_metadata = _package_metadata.clone();
                     } else if s.name() == "component-name" {
                         if let KnownCustom::ComponentName(reader) = s.as_known() {
-                            packages = register_names(reader, &mut cur_package)?;
-                            if packages.len() == explicit.len() {
+                            _packages = register_names(reader, &mut cur_package)?;
+                            if _packages.len() == explicit.len() {
                                 for (i, exp) in explicit.iter_mut().enumerate() {
-                                    exp.name = Some(packages[i].clone());
+                                    exp.name = Some(_packages[i].clone());
                                 }
                             }
                         } else {
@@ -236,9 +240,9 @@ impl ComponentInfo {
         Ok(Self {
             types: types.unwrap(),
             explicit,
-            packages,
+            packages: _packages,
             externs,
-            package_metadata,
+            package_metadata: _package_metadata,
         })
     }
 
