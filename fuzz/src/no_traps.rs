@@ -26,9 +26,8 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     })?;
     validate_module(&wasm_bytes);
 
-    // Tail calls aren't implemented in wasmtime, so don't try to run them
-    // there.
-    if config.tail_call_enabled {
+    // Don't try to run these modules until we update to Wasmtime >=23.
+    if config.custom_page_sizes_enabled {
         return Ok(());
     }
 
@@ -38,6 +37,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         let mut eng_conf = wasmtime::Config::new();
         eng_conf.wasm_memory64(true);
         eng_conf.wasm_multi_memory(true);
+        eng_conf.wasm_tail_call(true);
         eng_conf.consume_fuel(true);
         let engine = Engine::new(&eng_conf).unwrap();
         let module = match Module::from_binary(&engine, &wasm_bytes) {
