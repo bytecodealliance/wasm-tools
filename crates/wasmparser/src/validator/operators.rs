@@ -966,7 +966,7 @@ where
         Ok(())
     }
 
-    /// Checks the validity of a common conversion operator.
+    /// Checks the validity of a common float conversion operator.
     fn check_fconversion_op(&mut self, into: ValType, from: ValType) -> Result<()> {
         debug_assert!(matches!(into, ValType::F32 | ValType::F64));
         self.check_floats_enabled()?;
@@ -1044,14 +1044,14 @@ where
         self.check_v128_binary_op()
     }
 
-    /// Checks a [`V128`] binary operator.
+    /// Checks a [`V128`] unary operator.
     fn check_v128_unary_op(&mut self) -> Result<()> {
         self.pop_operand(Some(ValType::V128))?;
         self.push_operand(ValType::V128)?;
         Ok(())
     }
 
-    /// Checks a [`V128`] binary operator.
+    /// Checks a [`V128`] unary float operator.
     fn check_v128_funary_op(&mut self) -> Result<()> {
         self.check_floats_enabled()?;
         self.check_v128_unary_op()
@@ -1066,14 +1066,14 @@ where
         Ok(())
     }
 
-    /// Checks a [`V128`] relaxed ternary operator.
+    /// Checks a [`V128`] test operator.
     fn check_v128_bitmask_op(&mut self) -> Result<()> {
         self.pop_operand(Some(ValType::V128))?;
         self.push_operand(ValType::I32)?;
         Ok(())
     }
 
-    /// Checks a [`V128`] relaxed ternary operator.
+    /// Checks a [`V128`] shift operator.
     fn check_v128_shift_op(&mut self) -> Result<()> {
         self.pop_operand(Some(ValType::I32))?;
         self.pop_operand(Some(ValType::V128))?;

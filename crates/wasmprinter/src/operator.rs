@@ -405,7 +405,6 @@ macro_rules! define_visit {
     //
     // * Print the name of the insruction as defined in this macro
     // * Print any payload, as necessary
-    // * Return the `OpKind`, as defined by this macro
     ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident )*) => ($(
         fn $visit(&mut self $( , $($arg: $argty),* )?) -> Self::Output {
             define_visit!(before_op self $op);
