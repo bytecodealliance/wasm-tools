@@ -904,6 +904,9 @@ where
     /// Check that the given type has the same result types as the current
     /// function's results.
     fn check_func_type_same_results(&self, callee_ty: &FuncType) -> Result<()> {
+        if self.control.is_empty() {
+            return Err(self.err_beyond_end(self.offset));
+        }
         let caller_rets = self.results(self.control[0].block_type)?;
         if callee_ty.results().len() != caller_rets.len()
             || !caller_rets
