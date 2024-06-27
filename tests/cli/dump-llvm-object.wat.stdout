@@ -47,7 +47,7 @@
        | 39 65 32 32
        | 65 30 65 45
        | 00 02      
-  0x98 | 03 65 6e 76 | import [table 0] Import { module: "env", name: "__indirect_function_table", ty: Table(TableType { element_type: funcref, table64: false, initial: 4, maximum: None }) }
+  0x98 | 03 65 6e 76 | import [table 0] Import { module: "env", name: "__indirect_function_table", ty: Table(TableType { element_type: funcref, table64: false, initial: 4, maximum: None, shared: false }) }
        | 19 5f 5f 69
        | 6e 64 69 72
        | 65 63 74 5f

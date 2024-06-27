@@ -133,7 +133,7 @@
    0x161 | 00          | [func 0] type 0
    0x162 | 04 04       | table section
    0x164 | 01          | 1 count
-   0x165 | 70 00 01    | [table 0] Table { ty: TableType { element_type: funcref, table64: false, initial: 1, maximum: None }, init: RefNull }
+   0x165 | 70 00 01    | [table 0] Table { ty: TableType { element_type: funcref, table64: false, initial: 1, maximum: None, shared: false }, init: RefNull }
    0x168 | 05 03       | memory section
    0x16a | 01          | 1 count
    0x16b | 00 01       | [memory 0] MemoryType { memory64: false, shared: false, initial: 1, maximum: None, page_size_log2: None }
@@ -173,7 +173,7 @@
          | 00 01      
    0x1b6 | 00 01 33 03 | import [global 0] Import { module: "", name: "3", ty: Global(GlobalType { content_type: I32, mutable: false, shared: false }) }
          | 7f 00      
-   0x1bc | 00 01 34 01 | import [table 0] Import { module: "", name: "4", ty: Table(TableType { element_type: funcref, table64: false, initial: 1, maximum: None }) }
+   0x1bc | 00 01 34 01 | import [table 0] Import { module: "", name: "4", ty: Table(TableType { element_type: funcref, table64: false, initial: 1, maximum: None, shared: false }) }
          | 70 00 01   
    0x1c3 | 00 0a       | custom section
    0x1c5 | 04 6e 61 6d | name: "name"

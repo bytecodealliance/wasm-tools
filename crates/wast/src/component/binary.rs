@@ -648,6 +648,7 @@ impl From<core::TableType<'_>> for wasm_encoder::TableType {
             minimum: ty.limits.min,
             maximum: ty.limits.max,
             table64: ty.limits.is64,
+            shared: ty.shared,
         }
     }
 }

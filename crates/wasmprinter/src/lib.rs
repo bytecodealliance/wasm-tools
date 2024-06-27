@@ -1130,6 +1130,9 @@ impl Printer<'_, '_> {
             self.print_name(&state.core.table_names, state.core.tables)?;
             self.result.write_str(" ")?;
         }
+        if ty.shared {
+            self.print_type_keyword("shared ")?;
+        }
         if ty.table64 {
             self.print_type_keyword("i64 ")?;
         }

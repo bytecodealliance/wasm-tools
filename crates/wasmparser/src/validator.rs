@@ -1537,6 +1537,7 @@ mod tests {
                 maximum: None,
                 element_type: RefType::FUNCREF,
                 table64: false,
+                shared: false,
             }
         );
 

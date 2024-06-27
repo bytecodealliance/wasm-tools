@@ -2542,6 +2542,7 @@ pub(crate) fn arbitrary_table_type(
         minimum,
         maximum,
         table64,
+        shared: false, // TODO: handle shared
     })
 }
 

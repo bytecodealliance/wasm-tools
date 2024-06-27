@@ -1700,6 +1700,10 @@ pub struct TableType {
     /// For 32-bit tables (when `table64` is `false`) this is guaranteed to
     /// be at most `u32::MAX` for valid types.
     pub maximum: Option<u64>,
+    /// Whether this table is shared or not.
+    ///
+    /// This is included the shared-everything-threads proposal.
+    pub shared: bool,
 }
 
 impl TableType {

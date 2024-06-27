@@ -156,6 +156,7 @@ pub fn table_type(
         minimum: ty.initial,
         maximum: ty.maximum,
         table64: ty.table64,
+        shared: ty.shared,
     })
 }
 
