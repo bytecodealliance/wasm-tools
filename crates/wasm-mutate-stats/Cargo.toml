@@ -14,10 +14,10 @@ num_cpus = { workspace = true }
 rand = { workspace = true }
 wasm-mutate = { workspace = true }
 wasmprinter = { workspace = true }
-wasmparser = { workspace = true }
+wasmparser = { workspace = true, features = ['validate'] }
 wasmtime = { workspace = true }
 env_logger = { workspace = true }
-itertools = "0.12.0"
+itertools = "0.13.0"
 clap = { workspace = true }
 log = { workspace = true }
 
