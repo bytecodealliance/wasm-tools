@@ -71,8 +71,8 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
     fn block_end(&mut self) -> Result<()> {
         if self.printer.nesting > self.nesting_start {
             self.printer.nesting -= 1;
-            self.separator()?;
         }
+        self.separator()?;
         Ok(())
     }
 
