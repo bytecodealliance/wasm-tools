@@ -1,5 +1,6 @@
 use super::{
-    CompositeInnerType, Elements, FuncType, Instruction, InstructionKind::*, InstructionKinds, Module, ValType
+    CompositeInnerType, Elements, FuncType, Instruction, InstructionKind::*, InstructionKinds,
+    Module, ValType,
 };
 use crate::{unique_string, MemoryOffsetChoices};
 use arbitrary::{Result, Unstructured};
@@ -1206,7 +1207,9 @@ impl CodeBuilder<'_> {
                 nullable,
                 heap_type: HeapType::Concrete(idx),
             }))) => match &module.ty(*idx).composite_type.inner {
-                CompositeInnerType::Struct(s) => !s.fields.is_empty() && (!nullable || allow_null_refs),
+                CompositeInnerType::Struct(s) => {
+                    !s.fields.is_empty() && (!nullable || allow_null_refs)
+                }
                 _ => false,
             },
             _ => false,

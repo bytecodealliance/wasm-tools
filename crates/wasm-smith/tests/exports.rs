@@ -2,7 +2,6 @@
 
 use arbitrary::{Arbitrary, Unstructured};
 use rand::{rngs::SmallRng, RngCore, SeedableRng};
-use wasm_encoder::CompositeInnerType;
 use wasm_smith::{Config, Module};
 use wasmparser::{
     types::EntityType, CompositeType, FuncType, GlobalType, Parser, Validator, WasmFeatures,
