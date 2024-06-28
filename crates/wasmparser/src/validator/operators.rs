@@ -28,7 +28,7 @@ use crate::{
     Result, StorageType, StructType, SubType, TableType, TryTable, UnpackedIndex, ValType,
     VisitOperator, WasmFeatures, WasmModuleResources, V128,
 };
-use crate::{prelude::*, CompositeInnerType};
+use crate::{prelude::*, CompositeInnerType, Ordering};
 use core::ops::{Deref, DerefMut};
 
 pub(crate) struct OperatorValidator {
@@ -740,17 +740,6 @@ where
         Ok(index_ty)
     }
 
-    /// Validates that the `table` is valid and returns the type it points to.
-    fn check_table_index(&self, table: u32) -> Result<TableType> {
-        match self.resources.table_at(table) {
-            Some(ty) => Ok(ty),
-            None => bail!(
-                self.offset,
-                "unknown table {table}: table index out of bounds"
-            ),
-        }
-    }
-
     fn check_floats_enabled(&self) -> Result<()> {
         if !self.features.floats() {
             bail!(self.offset, "floating-point instruction disallowed");
@@ -874,7 +863,7 @@ where
         type_index: u32,
         table_index: u32,
     ) -> Result<&'resources FuncType> {
-        let tab = self.check_table_index(table_index)?;
+        let tab = self.table_type_at(table_index)?;
         if !self
             .resources
             .is_subtype(ValType::Ref(tab.element_type), ValType::FUNCREF)
@@ -1155,6 +1144,40 @@ where
         Ok(ty)
     }
 
+    /// Common helper for checking the types of structs accessed with atomic RMW
+    /// instructions, which only allow `i32` and `i64`.
+    fn check_atomic_struct_rmw_ty(
+        &self,
+        struct_type_index: u32,
+        field_index: u32,
+    ) -> Result<ValType> {
+        let ty = self
+            .struct_field_at(struct_type_index, field_index)?
+            .element_type;
+        match ty {
+            StorageType::Val(ValType::I32) => Ok(ValType::I32),
+            StorageType::Val(ValType::I64) => Ok(ValType::I64),
+            _ => bail!(
+                self.offset,
+                "invalid type: `struct.atomic.rmw.*` only allows `i32` and `i64`"
+            ),
+        }
+    }
+
+    /// Common helper for checking the types of arrays accessed with atomic RMW
+    /// instructions, which only allow `i32` and `i64`.
+    fn check_atomic_array_rmw_ty(&self, type_index: u32) -> Result<ValType> {
+        let elem_ty = self.array_type_at(type_index)?.0.element_type;
+        match elem_ty {
+            StorageType::Val(ValType::I32) => Ok(ValType::I32),
+            StorageType::Val(ValType::I64) => Ok(ValType::I64),
+            _ => bail!(
+                self.offset,
+                "invalid type: `struct.atomic.rmw.*` only allows `i32` and `i64`"
+            ),
+        }
+    }
+
     fn element_type_at(&self, elem_index: u32) -> Result<RefType> {
         match self.resources.element_type_at(elem_index) {
             Some(ty) => Ok(ty),
@@ -1232,6 +1255,17 @@ where
             Ok(ty)
         } else {
             bail!(self.offset, "unknown global: global index out of bounds");
+        }
+    }
+
+    /// Validates that the `table` is valid and returns the type it points to.
+    fn table_type_at(&self, table: u32) -> Result<TableType> {
+        match self.resources.table_at(table) {
+            Some(ty) => Ok(ty),
+            None => bail!(
+                self.offset,
+                "unknown table {table}: table index out of bounds"
+            ),
         }
     }
 
@@ -1687,11 +1721,7 @@ where
         self.push_operand(ty)?;
         Ok(())
     }
-    fn visit_global_atomic_get(
-        &mut self,
-        _ordering: crate::Ordering,
-        global_index: u32,
-    ) -> Self::Output {
+    fn visit_global_atomic_get(&mut self, _ordering: Ordering, global_index: u32) -> Self::Output {
         self.visit_global_get(global_index)?;
         // No validation of `ordering` is needed because `global.atomic.get` can
         // be used on both shared and unshared globals. But we do need to limit
@@ -1714,11 +1744,7 @@ where
         self.pop_operand(Some(ty.content_type))?;
         Ok(())
     }
-    fn visit_global_atomic_set(
-        &mut self,
-        _ordering: crate::Ordering,
-        global_index: u32,
-    ) -> Self::Output {
+    fn visit_global_atomic_set(&mut self, _ordering: Ordering, global_index: u32) -> Self::Output {
         self.visit_global_set(global_index)?;
         // No validation of `ordering` is needed because `global.atomic.get` can
         // be used on both shared and unshared globals.
@@ -3612,7 +3638,7 @@ where
         Ok(())
     }
     fn visit_table_init(&mut self, segment: u32, table: u32) -> Self::Output {
-        let table = self.check_table_index(table)?;
+        let table = self.table_type_at(table)?;
         let segment_ty = self.element_type_at(segment)?;
         if !self
             .resources
@@ -3636,8 +3662,8 @@ where
         Ok(())
     }
     fn visit_table_copy(&mut self, dst_table: u32, src_table: u32) -> Self::Output {
-        let src = self.check_table_index(src_table)?;
-        let dst = self.check_table_index(dst_table)?;
+        let src = self.table_type_at(src_table)?;
+        let dst = self.table_type_at(dst_table)?;
         if !self.resources.is_subtype(
             ValType::Ref(src.element_type),
             ValType::Ref(dst.element_type),
@@ -3659,21 +3685,49 @@ where
         Ok(())
     }
     fn visit_table_get(&mut self, table: u32) -> Self::Output {
-        let table = self.check_table_index(table)?;
+        let table = self.table_type_at(table)?;
         debug_assert_type_indices_are_ids(table.element_type.into());
         self.pop_operand(Some(table.index_type()))?;
         self.push_operand(table.element_type)?;
         Ok(())
     }
+    fn visit_table_atomic_get(&mut self, _ordering: Ordering, table: u32) -> Self::Output {
+        self.visit_table_get(table)?;
+        // No validation of `ordering` is needed because `table.atomic.get` can
+        // be used on both shared and unshared tables. But we do need to limit
+        // which types can be used with this instruction.
+        let ty = self.table_type_at(table)?.element_type;
+        if !self.resources.is_subtype(ty.into(), RefType::ANYREF.into()) {
+            bail!(
+                self.offset,
+                "invalid type: `table.atomic.get` only allows subtypes of `anyref`"
+            );
+        }
+        Ok(())
+    }
     fn visit_table_set(&mut self, table: u32) -> Self::Output {
-        let table = self.check_table_index(table)?;
+        let table = self.table_type_at(table)?;
         debug_assert_type_indices_are_ids(table.element_type.into());
         self.pop_operand(Some(table.element_type.into()))?;
         self.pop_operand(Some(table.index_type()))?;
         Ok(())
     }
+    fn visit_table_atomic_set(&mut self, _ordering: Ordering, table: u32) -> Self::Output {
+        self.visit_table_set(table)?;
+        // No validation of `ordering` is needed because `table.atomic.set` can
+        // be used on both shared and unshared tables. But we do need to limit
+        // which types can be used with this instruction.
+        let ty = self.table_type_at(table)?.element_type;
+        if !self.resources.is_subtype(ty.into(), RefType::ANYREF.into()) {
+            bail!(
+                self.offset,
+                "invalid type: `table.atomic.set` only allows subtypes of `anyref`"
+            );
+        }
+        Ok(())
+    }
     fn visit_table_grow(&mut self, table: u32) -> Self::Output {
-        let table = self.check_table_index(table)?;
+        let table = self.table_type_at(table)?;
         debug_assert_type_indices_are_ids(table.element_type.into());
         self.pop_operand(Some(table.index_type()))?;
         self.pop_operand(Some(table.element_type.into()))?;
@@ -3681,16 +3735,47 @@ where
         Ok(())
     }
     fn visit_table_size(&mut self, table: u32) -> Self::Output {
-        let table = self.check_table_index(table)?;
+        let table = self.table_type_at(table)?;
         self.push_operand(table.index_type())?;
         Ok(())
     }
     fn visit_table_fill(&mut self, table: u32) -> Self::Output {
-        let table = self.check_table_index(table)?;
+        let table = self.table_type_at(table)?;
         debug_assert_type_indices_are_ids(table.element_type.into());
         self.pop_operand(Some(table.index_type()))?;
         self.pop_operand(Some(table.element_type.into()))?;
         self.pop_operand(Some(table.index_type()))?;
+        Ok(())
+    }
+    fn visit_table_atomic_rmw_xchg(&mut self, _ordering: Ordering, table: u32) -> Self::Output {
+        let table = self.table_type_at(table)?;
+        let elem_ty = table.element_type.into();
+        debug_assert_type_indices_are_ids(elem_ty);
+        if !self.resources.is_subtype(elem_ty, RefType::ANYREF.into()) {
+            bail!(
+                self.offset,
+                "invalid type: `table.atomic.rmw.xchg` only allows subtypes of `anyref`"
+            );
+        }
+        self.pop_operand(Some(table.index_type()))?;
+        self.pop_operand(Some(elem_ty))?;
+        self.push_operand(elem_ty)?;
+        Ok(())
+    }
+    fn visit_table_atomic_rmw_cmpxchg(&mut self, _ordering: Ordering, table: u32) -> Self::Output {
+        let table = self.table_type_at(table)?;
+        let elem_ty = table.element_type.into();
+        debug_assert_type_indices_are_ids(elem_ty);
+        if !self.resources.is_subtype(elem_ty, RefType::EQREF.into()) {
+            bail!(
+                self.offset,
+                "invalid type: `table.atomic.rmw.cmpxchg` only allows subtypes of `eqref`"
+            );
+        }
+        self.pop_operand(Some(table.index_type()))?;
+        self.pop_operand(Some(elem_ty))?;
+        self.pop_operand(Some(elem_ty))?;
+        self.push_operand(elem_ty)?;
         Ok(())
     }
     fn visit_struct_new(&mut self, struct_type_index: u32) -> Self::Output {
@@ -3726,6 +3811,30 @@ where
         self.pop_concrete_ref(true, struct_type_index)?;
         self.push_operand(field_ty.element_type.unpack())
     }
+    fn visit_struct_atomic_get(
+        &mut self,
+        _ordering: Ordering,
+        struct_type_index: u32,
+        field_index: u32,
+    ) -> Self::Output {
+        self.visit_struct_get(struct_type_index, field_index)?;
+        // The `atomic` version has some additional type restrictions.
+        let ty = self
+            .struct_field_at(struct_type_index, field_index)?
+            .element_type;
+        let is_valid_type = match ty {
+            StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
+            StorageType::Val(v) => self.resources.is_subtype(v, RefType::ANYREF.into()),
+            _ => false,
+        };
+        if !is_valid_type {
+            bail!(
+                self.offset,
+                "invalid type: `struct.atomic.get` only allows `i32`, `i64` and subtypes of `anyref`"
+            );
+        }
+        Ok(())
+    }
     fn visit_struct_get_s(&mut self, struct_type_index: u32, field_index: u32) -> Self::Output {
         let field_ty = self.struct_field_at(struct_type_index, field_index)?;
         if !field_ty.element_type.is_packed() {
@@ -3736,6 +3845,21 @@ where
         }
         self.pop_concrete_ref(true, struct_type_index)?;
         self.push_operand(field_ty.element_type.unpack())
+    }
+    fn visit_struct_atomic_get_s(
+        &mut self,
+        _ordering: Ordering,
+        struct_type_index: u32,
+        field_index: u32,
+    ) -> Self::Output {
+        self.visit_struct_get_s(struct_type_index, field_index)?;
+        // This instruction has the same type restrictions as the non-`atomic` version.
+        debug_assert!(matches!(
+            self.struct_field_at(struct_type_index, field_index)?
+                .element_type,
+            StorageType::I8 | StorageType::I16
+        ));
+        Ok(())
     }
     fn visit_struct_get_u(&mut self, struct_type_index: u32, field_index: u32) -> Self::Output {
         let field_ty = self.struct_field_at(struct_type_index, field_index)?;
@@ -3748,6 +3872,21 @@ where
         self.pop_concrete_ref(true, struct_type_index)?;
         self.push_operand(field_ty.element_type.unpack())
     }
+    fn visit_struct_atomic_get_u(
+        &mut self,
+        _ordering: Ordering,
+        struct_type_index: u32,
+        field_index: u32,
+    ) -> Self::Output {
+        self.visit_struct_get_s(struct_type_index, field_index)?;
+        // This instruction has the same type restrictions as the non-`atomic` version.
+        debug_assert!(matches!(
+            self.struct_field_at(struct_type_index, field_index)?
+                .element_type,
+            StorageType::I8 | StorageType::I16
+        ));
+        Ok(())
+    }
     fn visit_struct_set(&mut self, struct_type_index: u32, field_index: u32) -> Self::Output {
         let field_ty = self.struct_field_at(struct_type_index, field_index)?;
         if !field_ty.mutable {
@@ -3755,6 +3894,115 @@ where
         }
         self.pop_operand(Some(field_ty.element_type.unpack()))?;
         self.pop_concrete_ref(true, struct_type_index)?;
+        Ok(())
+    }
+    fn visit_struct_atomic_set(
+        &mut self,
+        _ordering: Ordering,
+        struct_type_index: u32,
+        field_index: u32,
+    ) -> Self::Output {
+        self.visit_struct_set(struct_type_index, field_index)?;
+        // The `atomic` version has some additional type restrictions.
+        let ty = self
+            .struct_field_at(struct_type_index, field_index)?
+            .element_type;
+        let is_valid_type = match ty {
+            StorageType::I8 | StorageType::I16 => true,
+            StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
+            StorageType::Val(v) => self.resources.is_subtype(v, RefType::ANYREF.into()),
+        };
+        if !is_valid_type {
+            bail!(
+                self.offset,
+                "invalid type: `struct.atomic.set` only allows `i8`, `i16`, `i32`, `i64` and subtypes of `anyref`"
+            );
+        }
+        Ok(())
+    }
+    fn visit_struct_atomic_rmw_add(
+        &mut self,
+        _ordering: Ordering,
+        struct_type_index: u32,
+        field_index: u32,
+    ) -> Self::Output {
+        let field_ty = self.check_atomic_struct_rmw_ty(struct_type_index, field_index)?;
+        self.pop_operand(Some(field_ty))?;
+        self.pop_concrete_ref(true, struct_type_index)?;
+        self.push_operand(field_ty)?;
+        Ok(())
+    }
+    fn visit_struct_atomic_rmw_sub(
+        &mut self,
+        _ordering: Ordering,
+        struct_type_index: u32,
+        field_index: u32,
+    ) -> Self::Output {
+        let field_ty = self.check_atomic_struct_rmw_ty(struct_type_index, field_index)?;
+        self.pop_operand(Some(field_ty))?;
+        self.pop_concrete_ref(true, struct_type_index)?;
+        self.push_operand(field_ty)?;
+        Ok(())
+    }
+    fn visit_struct_atomic_rmw_and(
+        &mut self,
+        _ordering: Ordering,
+        struct_type_index: u32,
+        field_index: u32,
+    ) -> Self::Output {
+        let field_ty = self.check_atomic_struct_rmw_ty(struct_type_index, field_index)?;
+        self.pop_operand(Some(field_ty))?;
+        self.pop_concrete_ref(true, struct_type_index)?;
+        self.push_operand(field_ty)?;
+        Ok(())
+    }
+    fn visit_struct_atomic_rmw_or(
+        &mut self,
+        _ordering: Ordering,
+        struct_type_index: u32,
+        field_index: u32,
+    ) -> Self::Output {
+        let field_ty = self.check_atomic_struct_rmw_ty(struct_type_index, field_index)?;
+        self.pop_operand(Some(field_ty))?;
+        self.pop_concrete_ref(true, struct_type_index)?;
+        self.push_operand(field_ty)?;
+        Ok(())
+    }
+    fn visit_struct_atomic_rmw_xor(
+        &mut self,
+        _ordering: Ordering,
+        struct_type_index: u32,
+        field_index: u32,
+    ) -> Self::Output {
+        let field_ty = self.check_atomic_struct_rmw_ty(struct_type_index, field_index)?;
+        self.pop_operand(Some(field_ty))?;
+        self.pop_concrete_ref(true, struct_type_index)?;
+        self.push_operand(field_ty)?;
+        Ok(())
+    }
+    fn visit_struct_atomic_rmw_xchg(
+        &mut self,
+        _ordering: Ordering,
+        struct_type_index: u32,
+        field_index: u32,
+    ) -> Self::Output {
+        let field_ty = self.check_atomic_struct_rmw_ty(struct_type_index, field_index)?;
+        self.pop_operand(Some(field_ty))?;
+        self.pop_concrete_ref(true, struct_type_index)?;
+        self.push_operand(field_ty)?;
+        Ok(())
+    }
+    fn visit_struct_atomic_rmw_cmpxchg(
+        &mut self,
+        _ordering: Ordering,
+        struct_type_index: u32,
+        field_index: u32,
+    ) -> Self::Output {
+        let field_ty = self.check_atomic_struct_rmw_ty(struct_type_index, field_index)?;
+        self.pop_operand(Some(field_ty))?;
+        self.pop_operand(Some(field_ty))?;
+        self.pop_concrete_ref(true, struct_type_index)?;
+        self.push_operand(field_ty)?;
         Ok(())
     }
     fn visit_array_new(&mut self, type_index: u32) -> Self::Output {
@@ -3839,6 +4087,23 @@ where
         self.pop_concrete_ref(true, type_index)?;
         self.push_operand(elem_ty.unpack())
     }
+    fn visit_array_atomic_get(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
+        self.visit_array_get(type_index)?;
+        // The `atomic` version has some additional type restrictions.
+        let elem_ty = self.array_type_at(type_index)?.0.element_type;
+        let is_valid_type = match elem_ty {
+            StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
+            StorageType::Val(v) => self.resources.is_subtype(v, RefType::ANYREF.into()),
+            _ => false,
+        };
+        if !is_valid_type {
+            bail!(
+                self.offset,
+                "invalid type: `array.atomic.get` only allows `i32`, `i64` and subtypes of `anyref`"
+            );
+        }
+        Ok(())
+    }
     fn visit_array_get_s(&mut self, type_index: u32) -> Self::Output {
         let array_ty = self.array_type_at(type_index)?;
         let elem_ty = array_ty.0.element_type;
@@ -3851,6 +4116,15 @@ where
         self.pop_operand(Some(ValType::I32))?;
         self.pop_concrete_ref(true, type_index)?;
         self.push_operand(elem_ty.unpack())
+    }
+    fn visit_array_atomic_get_s(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
+        self.visit_array_get_s(type_index)?;
+        // This instruction has the same type restrictions as the non-`atomic` version.
+        debug_assert!(matches!(
+            self.array_type_at(type_index)?.0.element_type,
+            StorageType::I8 | StorageType::I16
+        ));
+        Ok(())
     }
     fn visit_array_get_u(&mut self, type_index: u32) -> Self::Output {
         let array_ty = self.array_type_at(type_index)?;
@@ -3865,6 +4139,15 @@ where
         self.pop_concrete_ref(true, type_index)?;
         self.push_operand(elem_ty.unpack())
     }
+    fn visit_array_atomic_get_u(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
+        self.visit_array_get_u(type_index)?;
+        // This instruction has the same type restrictions as the non-`atomic` version.
+        debug_assert!(matches!(
+            self.array_type_at(type_index)?.0.element_type,
+            StorageType::I8 | StorageType::I16
+        ));
+        Ok(())
+    }
     fn visit_array_set(&mut self, type_index: u32) -> Self::Output {
         let array_ty = self.array_type_at(type_index)?;
         if !array_ty.0.mutable {
@@ -3873,6 +4156,23 @@ where
         self.pop_operand(Some(array_ty.0.element_type.unpack()))?;
         self.pop_operand(Some(ValType::I32))?;
         self.pop_concrete_ref(true, type_index)?;
+        Ok(())
+    }
+    fn visit_array_atomic_set(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
+        self.visit_array_set(type_index)?;
+        // The `atomic` version has some additional type restrictions.
+        let elem_ty = self.array_type_at(type_index)?.0.element_type;
+        let is_valid_type = match elem_ty {
+            StorageType::I8 | StorageType::I16 => true,
+            StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
+            StorageType::Val(v) => self.resources.is_subtype(v, RefType::ANYREF.into()),
+        };
+        if !is_valid_type {
+            bail!(
+                self.offset,
+                "invalid type: `array.atomic.set` only allows `i8`, `i16`, `i32`, `i64` and subtypes of `anyref`"
+            );
+        }
         Ok(())
     }
     fn visit_array_len(&mut self) -> Self::Output {
@@ -3989,6 +4289,64 @@ where
         self.pop_concrete_ref(true, type_index)?;
         Ok(())
     }
+    fn visit_array_atomic_rmw_add(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
+        let elem_ty = self.check_atomic_array_rmw_ty(type_index)?;
+        self.pop_operand(Some(elem_ty))?;
+        self.pop_concrete_ref(true, type_index)?;
+        self.push_operand(elem_ty)?;
+        Ok(())
+    }
+    fn visit_array_atomic_rmw_sub(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
+        let elem_ty = self.check_atomic_array_rmw_ty(type_index)?;
+        self.pop_operand(Some(elem_ty))?;
+        self.pop_concrete_ref(true, type_index)?;
+        self.push_operand(elem_ty)?;
+        Ok(())
+    }
+    fn visit_array_atomic_rmw_and(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
+        let elem_ty = self.check_atomic_array_rmw_ty(type_index)?;
+        self.pop_operand(Some(elem_ty))?;
+        self.pop_concrete_ref(true, type_index)?;
+        self.push_operand(elem_ty)?;
+        Ok(())
+    }
+    fn visit_array_atomic_rmw_or(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
+        let elem_ty = self.check_atomic_array_rmw_ty(type_index)?;
+        self.pop_operand(Some(elem_ty))?;
+        self.pop_concrete_ref(true, type_index)?;
+        self.push_operand(elem_ty)?;
+        Ok(())
+    }
+    fn visit_array_atomic_rmw_xor(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
+        let elem_ty = self.check_atomic_array_rmw_ty(type_index)?;
+        self.pop_operand(Some(elem_ty))?;
+        self.pop_concrete_ref(true, type_index)?;
+        self.push_operand(elem_ty)?;
+        Ok(())
+    }
+    fn visit_array_atomic_rmw_xchg(
+        &mut self,
+        _ordering: Ordering,
+        type_index: u32,
+    ) -> Self::Output {
+        let elem_ty = self.check_atomic_array_rmw_ty(type_index)?;
+        self.pop_operand(Some(elem_ty))?;
+        self.pop_concrete_ref(true, type_index)?;
+        self.push_operand(elem_ty)?;
+        Ok(())
+    }
+    fn visit_array_atomic_rmw_cmpxchg(
+        &mut self,
+        _ordering: Ordering,
+        type_index: u32,
+    ) -> Self::Output {
+        let elem_ty = self.check_atomic_array_rmw_ty(type_index)?;
+        self.pop_operand(Some(elem_ty))?;
+        self.pop_operand(Some(elem_ty))?;
+        self.pop_concrete_ref(true, type_index)?;
+        self.push_operand(elem_ty)?;
+        Ok(())
+    }
     fn visit_any_convert_extern(&mut self) -> Self::Output {
         let extern_ref = self.pop_operand(Some(RefType::EXTERNREF.into()))?;
         let is_nullable = extern_ref
@@ -4060,7 +4418,7 @@ where
             ),
             None => bail!(
                 self.offset,
-                "type mismtach: br_on_cast to label with empty types, must have a reference type"
+                "type mismatch: br_on_cast to label with empty types, must have a reference type"
             ),
         };
 
@@ -4115,6 +4473,10 @@ where
     fn visit_ref_i31(&mut self) -> Self::Output {
         self.pop_operand(Some(ValType::I32))?;
         self.push_operand(ValType::Ref(RefType::I31))
+    }
+    fn visit_ref_i31_shared(&mut self) -> Self::Output {
+        self.pop_operand(Some(ValType::I32))?;
+        self.push_operand(ValType::Ref(RefType::I31)) // TODO: handle shared--is this correct?
     }
     fn visit_i31_get_s(&mut self) -> Self::Output {
         self.pop_operand(Some(ValType::Ref(RefType::I31REF)))?;

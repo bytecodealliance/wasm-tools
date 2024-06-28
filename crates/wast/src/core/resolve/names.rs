@@ -620,6 +620,10 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.resolver.resolve(i, Ns::Type)?;
             }
 
+            ArrayAtomicGet(i) | ArrayAtomicGetS(i) | ArrayAtomicGetU(i) | ArrayAtomicSet(i) => {
+                self.resolver.resolve(&mut i.inner, Ns::Type)?;
+            }
+
             StructSet(s) | StructGet(s) | StructGetS(s) | StructGetU(s) => {
                 let type_index = self.resolver.resolve(&mut s.r#struct, Ns::Type)?;
                 if let Index::Id(field_id) = s.field {

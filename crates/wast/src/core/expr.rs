@@ -894,6 +894,7 @@ instructions! {
         ArrayAtomicRmwXor(Ordered<Index<'a>>) : [0xFE, 0x6F] : "array.atomic.rmw.xor",
         ArrayAtomicRmwXchg(Ordered<Index<'a>>) : [0xFE, 0x70] : "array.atomic.rmw.xchg",
         ArrayAtomicRmwCmpxchg(Ordered<Index<'a>>) : [0xFE, 0x71] : "array.atomic.rmw.cmpxchg",
+        RefI31Shared : [0xFE, 0x72] : "ref.i31_shared",
 
         // proposal: simd
         //
