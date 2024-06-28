@@ -47,6 +47,10 @@ impl Params {
         Self::default()
     }
 
+    pub fn push(&mut self, name: impl Into<Ident>, ty: Type) {
+        self.items.push((name.into(), ty));
+    }
+
     pub fn items(&self) -> &Vec<(Ident, Type)> {
         &self.items
     }
@@ -115,7 +119,7 @@ impl Results {
         Results::Anon(type_)
     }
 
-    pub fn named(types: impl IntoIterator<Item = (impl Into<String>, Type)>) -> Results {
+    pub fn named(types: impl IntoIterator<Item = (impl Into<Ident>, Type)>) -> Results {
         Results::Named(
             types
                 .into_iter()
@@ -154,12 +158,28 @@ impl StandaloneFunc {
         }
     }
 
+    pub fn name(&self) -> &Ident {
+        &self.name
+    }
+
+    pub fn name_mut(&mut self) -> &mut Ident {
+        &mut self.name
+    }
+
     pub fn params(&mut self, params: impl Into<Params>) {
         self.params = params.into();
     }
 
+    pub fn params_mut(&mut self) -> &mut Params {
+        &mut self.params
+    }
+
     pub fn results(&mut self, results: impl Into<Results>) {
         self.results = results.into();
+    }
+
+    pub fn results_mut(&mut self) -> &mut Results {
+        &mut self.results
     }
 
     pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {

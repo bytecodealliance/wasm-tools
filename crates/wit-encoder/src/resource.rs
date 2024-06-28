@@ -2,7 +2,7 @@ use crate::{ident::Ident, Docs, Params, Results};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Resource {
-    pub funcs: Vec<ResourceFunc>,
+    pub(crate) funcs: Vec<ResourceFunc>,
 }
 
 impl Resource {
@@ -76,6 +76,10 @@ impl ResourceFunc {
 
     pub fn params(&mut self, params: impl Into<Params>) {
         self.params = params.into();
+    }
+
+    pub fn params_mut(&mut self) -> &mut Params {
+        &mut self.params
     }
 
     pub fn results(&mut self, results: impl Into<Results>) {
