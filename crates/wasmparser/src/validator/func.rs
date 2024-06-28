@@ -246,7 +246,10 @@ mod tests {
             EmptyResources(crate::SubType {
                 supertype_idx: None,
                 is_final: true,
-                composite_type: crate::CompositeType::Func(crate::FuncType::new([], [])),
+                composite_type: crate::CompositeType {
+                    inner: crate::CompositeInnerType::Func(crate::FuncType::new([], [])),
+                    shared: false,
+                },
             })
         }
     }

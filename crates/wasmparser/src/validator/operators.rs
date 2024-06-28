@@ -22,13 +22,13 @@
 // confusing it's recommended to read over that section to see how it maps to
 // the various methods here.
 
-use crate::prelude::*;
 use crate::{
     limits::MAX_WASM_FUNCTION_LOCALS, AbstractHeapType, ArrayType, BinaryReaderError, BlockType,
-    BrTable, Catch, CompositeType, FieldType, FuncType, GlobalType, HeapType, Ieee32, Ieee64,
-    MemArg, RefType, Result, StorageType, StructType, SubType, TableType, TryTable, UnpackedIndex,
-    ValType, VisitOperator, WasmFeatures, WasmModuleResources, V128,
+    BrTable, Catch, FieldType, FuncType, GlobalType, HeapType, Ieee32, Ieee64, MemArg, RefType,
+    Result, StorageType, StructType, SubType, TableType, TryTable, UnpackedIndex, ValType,
+    VisitOperator, WasmFeatures, WasmModuleResources, V128,
 };
+use crate::{prelude::*, CompositeInnerType};
 use core::ops::{Deref, DerefMut};
 
 pub(crate) struct OperatorValidator {
@@ -1174,7 +1174,7 @@ where
 
     fn struct_type_at(&self, at: u32) -> Result<&'resources StructType> {
         let sub_ty = self.sub_type_at(at)?;
-        if let CompositeType::Struct(struct_ty) = &sub_ty.composite_type {
+        if let CompositeInnerType::Struct(struct_ty) = &sub_ty.composite_type.inner {
             Ok(struct_ty)
         } else {
             bail!(
@@ -1199,7 +1199,7 @@ where
 
     fn array_type_at(&self, at: u32) -> Result<&'resources ArrayType> {
         let sub_ty = self.sub_type_at(at)?;
-        if let CompositeType::Array(array_ty) = &sub_ty.composite_type {
+        if let CompositeInnerType::Array(array_ty) = &sub_ty.composite_type.inner {
             Ok(array_ty)
         } else {
             bail!(
@@ -1211,7 +1211,7 @@ where
 
     fn func_type_at(&self, at: u32) -> Result<&'resources FuncType> {
         let sub_ty = self.sub_type_at(at)?;
-        if let CompositeType::Func(func_ty) = &sub_ty.composite_type {
+        if let CompositeInnerType::Func(func_ty) = &sub_ty.composite_type.inner {
             Ok(func_ty)
         } else {
             bail!(

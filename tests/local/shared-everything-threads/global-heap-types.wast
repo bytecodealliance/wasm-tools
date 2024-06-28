@@ -1,14 +1,5 @@
 ;; Check shared attributes for global heap types.
 
-;; Concrete heap types cannot be marked shared yet (TODO: this is only possible
-;; once composite types can be marked shared).
-;;
-;; (assert_invalid
-;;   (module
-;;     (type $t (shared anyref))
-;;     (global (shared (ref null (shared $t))))))
-;;   "shared value type")
-
 ;; `func` references.
 (module
   ;; Imported (long/short forms, mut, null).
@@ -309,3 +300,89 @@
   (module (global (ref (shared none))))
   "type mismatch")
 
+;; Concrete `func` references.
+(module
+  (type $t (shared (func)))
+
+  ;; Imported.
+  (global (import "spectest" "global_t") (shared (ref $t)))
+  (global (import "spectest" "global_mut_t") (shared mut (ref $t)))
+  (global (import "spectest" "global_null_t") (shared (ref null $t)))
+  (global (import "spectest" "global_mut_null_t") (shared mut (ref null $t)))
+
+  ;; Initialized.
+  (global (shared (ref null $t)) (ref.null $t))
+  (global (shared mut (ref null $t)) (ref.null $t))
+)
+
+(assert_invalid
+  (module
+    (type $t (func))
+    (global (shared (ref $t))))
+  "shared globals must have a shared value type")
+(assert_invalid
+  (module
+    (type $t (shared (func)))
+    (global (ref $t)))
+  "type mismatch")
+(assert_invalid
+  (module (type $t (shared (func (param funcref)))))
+  "shared composite type must contain shared types")
+
+;; Concrete `array` references.
+(module
+  (type $t (shared (array i32)))
+
+  ;; Imported.
+  (global (import "spectest" "global_t") (shared (ref $t)))
+  (global (import "spectest" "global_mut_t") (shared mut (ref $t)))
+  (global (import "spectest" "global_null_t") (shared (ref null $t)))
+  (global (import "spectest" "global_mut_null_t") (shared mut (ref null $t)))
+
+  ;; Initialized.
+  (global (shared (ref null $t)) (ref.null $t))
+  (global (shared mut (ref null $t)) (ref.null $t))
+)
+
+(assert_invalid
+  (module
+    (type $t (array i32))
+    (global (shared (ref $t))))
+  "shared globals must have a shared value type")
+(assert_invalid
+  (module
+    (type $t (shared (array i32)))
+    (global (ref $t)))
+  "type mismatch")
+(assert_invalid
+  (module (type $t (shared (array funcref))))
+  "shared composite type must contain shared types")
+
+;; Concrete `struct` references.
+(module
+  (type $t (shared (struct (field i32))))
+
+  ;; Imported.
+  (global (import "spectest" "global_t") (shared (ref $t)))
+  (global (import "spectest" "global_mut_t") (shared mut (ref $t)))
+  (global (import "spectest" "global_null_t") (shared (ref null $t)))
+  (global (import "spectest" "global_mut_null_t") (shared mut (ref null $t)))
+
+  ;; Initialized.
+  (global (shared (ref null $t)) (ref.null $t))
+  (global (shared mut (ref null $t)) (ref.null $t))
+)
+
+(assert_invalid
+  (module
+    (type $t (struct (field i32)))
+    (global (shared (ref $t))))
+  "shared globals must have a shared value type")
+(assert_invalid
+  (module
+    (type $t (shared (struct (field i32))))
+    (global (ref $t)))
+  "type mismatch")
+(assert_invalid
+  (module (type $t (shared (struct (field funcref)))))
+  "shared composite type must contain shared types")

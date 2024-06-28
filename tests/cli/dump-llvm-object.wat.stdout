@@ -3,21 +3,21 @@
    0x8 | 01 22       | type section
    0xa | 06          | 6 count
 --- rec group 0 (implicit) ---
-   0xb | 60 01 7f 00 | [type 0] SubType { is_final: true, supertype_idx: None, composite_type: Func(FuncType { params: [I32], results: [] }) }
+   0xb | 60 01 7f 00 | [type 0] SubType { is_final: true, supertype_idx: None, composite_type: CompositeType { inner: Func(FuncType { params: [I32], results: [] }), shared: false } }
 --- rec group 1 (implicit) ---
-   0xf | 60 04 7f 7f | [type 1] SubType { is_final: true, supertype_idx: None, composite_type: Func(FuncType { params: [I32, I32, I32, I32], results: [I32] }) }
+   0xf | 60 04 7f 7f | [type 1] SubType { is_final: true, supertype_idx: None, composite_type: CompositeType { inner: Func(FuncType { params: [I32, I32, I32, I32], results: [I32] }), shared: false } }
        | 7f 7f 01 7f
 --- rec group 2 (implicit) ---
-  0x17 | 60 05 7f 7f | [type 2] SubType { is_final: true, supertype_idx: None, composite_type: Func(FuncType { params: [I32, I32, I32, I32, I32], results: [I32] }) }
+  0x17 | 60 05 7f 7f | [type 2] SubType { is_final: true, supertype_idx: None, composite_type: CompositeType { inner: Func(FuncType { params: [I32, I32, I32, I32, I32], results: [I32] }), shared: false } }
        | 7f 7f 7f 01
        | 7f         
 --- rec group 3 (implicit) ---
-  0x20 | 60 01 7f 01 | [type 3] SubType { is_final: true, supertype_idx: None, composite_type: Func(FuncType { params: [I32], results: [I32] }) }
+  0x20 | 60 01 7f 01 | [type 3] SubType { is_final: true, supertype_idx: None, composite_type: CompositeType { inner: Func(FuncType { params: [I32], results: [I32] }), shared: false } }
        | 7f         
 --- rec group 4 (implicit) ---
-  0x25 | 60 00 01 7f | [type 4] SubType { is_final: true, supertype_idx: None, composite_type: Func(FuncType { params: [], results: [I32] }) }
+  0x25 | 60 00 01 7f | [type 4] SubType { is_final: true, supertype_idx: None, composite_type: CompositeType { inner: Func(FuncType { params: [], results: [I32] }), shared: false } }
 --- rec group 5 (implicit) ---
-  0x29 | 60 00 00    | [type 5] SubType { is_final: true, supertype_idx: None, composite_type: Func(FuncType { params: [], results: [] }) }
+  0x29 | 60 00 00    | [type 5] SubType { is_final: true, supertype_idx: None, composite_type: CompositeType { inner: Func(FuncType { params: [], results: [] }), shared: false } }
   0x2c | 02 8b 01    | import section
   0x2f | 04          | 4 count
   0x30 | 03 65 6e 76 | import [memory 0] Import { module: "env", name: "__linear_memory", ty: Memory(MemoryType { memory64: false, shared: false, initial: 1, maximum: None, page_size_log2: None }) }
