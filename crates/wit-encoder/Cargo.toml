@@ -10,9 +10,14 @@ version.workspace = true
 [lints]
 workspace = true
 
+[features]
+default = ["serde"]
+serde = ["dep:serde", "semver/serde"]
+
 [dependencies]
 semver = { workspace = true }
 pretty_assertions = { workspace = true }
+serde = { workspace = true, optional = true, features = ["derive"] }
 
 [dev-dependencies]
 indoc = { workspace = true }
