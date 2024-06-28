@@ -38,7 +38,7 @@ impl Interface {
         &self.items
     }
 
-    pub fn functions_mut(&mut self) -> &mut Vec<InterfaceItem> {
+    pub fn items_mut(&mut self) -> &mut Vec<InterfaceItem> {
         &mut self.items
     }
 

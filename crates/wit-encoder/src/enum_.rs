@@ -18,6 +18,14 @@ where
 }
 
 impl Enum {
+    pub fn empty() -> Self {
+        Self::default()
+    }
+
+    pub fn case(&mut self, case: impl Into<EnumCase>) {
+        self.cases.push(case.into());
+    }
+
     pub fn cases(&self) -> &[EnumCase] {
         &self.cases
     }

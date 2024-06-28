@@ -36,6 +36,14 @@ impl Package {
     pub fn world(&mut self, world: World) {
         self.items.push(PackageItem::World(world))
     }
+
+    pub fn items(&self) -> &[PackageItem] {
+        &self.items
+    }
+
+    pub fn items_mut(&mut self) -> &mut Vec<PackageItem> {
+        &mut self.items
+    }
 }
 
 impl Render for Package {

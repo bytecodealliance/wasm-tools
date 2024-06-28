@@ -40,6 +40,14 @@ impl Field {
     pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
         self.docs = docs.map(|d| d.into());
     }
+
+    pub fn ty(&self) -> &Type {
+        &self.ty
+    }
+
+    pub fn ty_mut(&mut self) -> &mut Type {
+        &mut self.ty
+    }
 }
 
 impl<N> Into<Field> for (N, Type)
