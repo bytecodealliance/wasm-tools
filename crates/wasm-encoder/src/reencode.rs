@@ -1001,16 +1001,20 @@ pub mod utils {
         reencoder: &mut T,
         composite_ty: wasmparser::CompositeType,
     ) -> Result<crate::CompositeType, Error<T::Error>> {
-        Ok(match composite_ty {
-            wasmparser::CompositeType::Func(f) => {
-                crate::CompositeType::Func(reencoder.func_type(f)?)
+        let inner = match composite_ty.inner {
+            wasmparser::CompositeInnerType::Func(f) => {
+                crate::CompositeInnerType::Func(reencoder.func_type(f)?)
             }
-            wasmparser::CompositeType::Array(a) => {
-                crate::CompositeType::Array(reencoder.array_type(a)?)
+            wasmparser::CompositeInnerType::Array(a) => {
+                crate::CompositeInnerType::Array(reencoder.array_type(a)?)
             }
-            wasmparser::CompositeType::Struct(s) => {
-                crate::CompositeType::Struct(reencoder.struct_type(s)?)
+            wasmparser::CompositeInnerType::Struct(s) => {
+                crate::CompositeInnerType::Struct(reencoder.struct_type(s)?)
             }
+        };
+        Ok(crate::CompositeType {
+            inner,
+            shared: composite_ty.shared,
         })
     }
 
@@ -1150,6 +1154,7 @@ pub mod utils {
             minimum: table_ty.initial,
             maximum: table_ty.maximum,
             table64: table_ty.table64,
+            shared: table_ty.shared,
         })
     }
 

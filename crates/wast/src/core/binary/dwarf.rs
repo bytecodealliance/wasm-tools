@@ -11,7 +11,7 @@
 //! easy/fun to play around with.
 
 use crate::core::binary::{EncodeOptions, Encoder, GenerateDwarf, Names, RecOrType};
-use crate::core::{Local, TypeDef, ValType};
+use crate::core::{InnerTypeKind, Local, ValType};
 use crate::token::Span;
 use gimli::write::{
     self, Address, AttributeValue, DwarfUnit, Expression, FileId, LineProgram, LineString,
@@ -227,8 +227,8 @@ impl<'a> Dwarf<'a> {
                 RecOrType::Rec(r) => &r.types,
             })
             .nth(ty as usize);
-        let ty = match ty.map(|t| &t.def) {
-            Some(TypeDef::Func(ty)) => ty,
+        let ty = match ty.map(|t| &t.def.kind) {
+            Some(InnerTypeKind::Func(ty)) => ty,
             _ => return,
         };
 

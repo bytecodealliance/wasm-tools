@@ -587,18 +587,21 @@ impl<'a> Parse<'a> for Limits {
     }
 }
 
-/// Configuration for a table of a wasm mdoule
+/// Configuration for a table of a wasm module.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TableType<'a> {
     /// Limits on the element sizes of this table
     pub limits: Limits,
     /// The type of element stored in this table
     pub elem: RefType<'a>,
+    /// Whether or not this is a shared table.
+    pub shared: bool,
 }
 
 impl<'a> Parse<'a> for TableType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         Ok(TableType {
+            shared: parser.parse::<Option<kw::shared>>()?.is_some(),
             limits: parser.parse()?,
             elem: parser.parse()?,
         })
@@ -864,9 +867,9 @@ impl<'a> Parse<'a> for ExportType<'a> {
     }
 }
 
-/// A definition of a type.
+/// The inner kind of a type definition.
 #[derive(Debug)]
-pub enum TypeDef<'a> {
+pub enum InnerTypeKind<'a> {
     /// A function type definition.
     Func(FunctionType<'a>),
     /// A struct type definition.
@@ -875,20 +878,48 @@ pub enum TypeDef<'a> {
     Array(ArrayType<'a>),
 }
 
-impl<'a> Parse<'a> for TypeDef<'a> {
+impl<'a> Parse<'a> for InnerTypeKind<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let mut l = parser.lookahead1();
         if l.peek::<kw::func>()? {
             parser.parse::<kw::func>()?;
-            Ok(TypeDef::Func(parser.parse()?))
+            Ok(InnerTypeKind::Func(parser.parse()?))
         } else if l.peek::<kw::r#struct>()? {
             parser.parse::<kw::r#struct>()?;
-            Ok(TypeDef::Struct(parser.parse()?))
+            Ok(InnerTypeKind::Struct(parser.parse()?))
         } else if l.peek::<kw::array>()? {
             parser.parse::<kw::array>()?;
-            Ok(TypeDef::Array(parser.parse()?))
+            Ok(InnerTypeKind::Array(parser.parse()?))
         } else {
             Err(l.error())
+        }
+    }
+}
+
+/// A definition of a type.
+#[derive(Debug)]
+pub struct TypeDef<'a> {
+    /// The inner definition.
+    pub kind: InnerTypeKind<'a>,
+    /// Whether the type is shared or not.
+    pub shared: bool,
+}
+
+impl<'a> Parse<'a> for TypeDef<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let mut l = parser.lookahead1();
+        if l.peek::<kw::shared>()? {
+            parser.parse::<kw::shared>()?;
+            parser.parens(|parser| {
+                let kind = parser.parse()?;
+                Ok(TypeDef { shared: true, kind })
+            })
+        } else {
+            let kind = parser.parse()?;
+            Ok(TypeDef {
+                shared: false,
+                kind,
+            })
         }
     }
 }

@@ -468,6 +468,7 @@ fn make_env_module<'a>(
             minimum: table_offset.into(),
             maximum: None,
             table64: false,
+            shared: false,
         });
         exports.export("__indirect_function_table", ExportKind::Table, 0);
         module.section(&tables);
@@ -560,6 +561,7 @@ fn make_init_module(
             minimum: 0,
             maximum: None,
             table64: false,
+            shared: false,
         },
     );
 
