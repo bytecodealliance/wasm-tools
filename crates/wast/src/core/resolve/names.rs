@@ -453,6 +453,13 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.resolver.resolve(&mut i.dst, Ns::Table)?;
             }
 
+            TableAtomicGet(i)
+            | TableAtomicSet(i)
+            | TableAtomicRmwXchg(i)
+            | TableAtomicRmwCmpxchg(i) => {
+                self.resolver.resolve(&mut i.inner.dst, Ns::Table)?;
+            }
+
             GlobalSet(i) | GlobalGet(i) => {
                 self.resolver.resolve(i, Ns::Global)?;
             }
@@ -466,7 +473,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             | GlobalAtomicRmwXor(i)
             | GlobalAtomicRmwXchg(i)
             | GlobalAtomicRmwCmpxchg(i) => {
-                self.resolver.resolve(&mut i.index, Ns::Global)?;
+                self.resolver.resolve(&mut i.inner, Ns::Global)?;
             }
 
             LocalSet(i) | LocalGet(i) | LocalTee(i) => {

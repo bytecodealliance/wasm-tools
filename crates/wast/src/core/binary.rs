@@ -928,10 +928,13 @@ impl Encode for Ordering {
     }
 }
 
-impl Encode for OrderedAccess<'_> {
+impl<T> Encode for Ordered<T>
+where
+    T: Encode,
+{
     fn encode(&self, buf: &mut Vec<u8>) {
         self.ordering.encode(buf);
-        self.index.encode(buf);
+        self.inner.encode(buf);
     }
 }
 

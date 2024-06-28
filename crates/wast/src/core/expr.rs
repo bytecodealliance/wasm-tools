@@ -859,15 +859,41 @@ instructions! {
         I64AtomicRmw32CmpxchgU(MemArg<4>) : [0xfe, 0x4e] : "i64.atomic.rmw32.cmpxchg_u",
 
         // proposal: shared-everything-threads
-        GlobalAtomicGet(OrderedAccess<'a>) : [0xfe, 0x4f] : "global.atomic.get",
-        GlobalAtomicSet(OrderedAccess<'a>) : [0xfe, 0x50] : "global.atomic.set",
-        GlobalAtomicRmwAdd(OrderedAccess<'a>) : [0xfe, 0x51] : "global.atomic.rmw.add",
-        GlobalAtomicRmwSub(OrderedAccess<'a>) : [0xfe, 0x52] : "global.atomic.rmw.sub",
-        GlobalAtomicRmwAnd(OrderedAccess<'a>) : [0xfe, 0x53] : "global.atomic.rmw.and",
-        GlobalAtomicRmwOr(OrderedAccess<'a>) : [0xfe, 0x54] : "global.atomic.rmw.or",
-        GlobalAtomicRmwXor(OrderedAccess<'a>) : [0xfe, 0x55] : "global.atomic.rmw.xor",
-        GlobalAtomicRmwXchg(OrderedAccess<'a>) : [0xfe, 0x56] : "global.atomic.rmw.xchg",
-        GlobalAtomicRmwCmpxchg(OrderedAccess<'a>) : [0xfe, 0x57] : "global.atomic.rmw.cmpxchg",
+        GlobalAtomicGet(Ordered<Index<'a>>) : [0xfe, 0x4f] : "global.atomic.get",
+        GlobalAtomicSet(Ordered<Index<'a>>) : [0xfe, 0x50] : "global.atomic.set",
+        GlobalAtomicRmwAdd(Ordered<Index<'a>>) : [0xfe, 0x51] : "global.atomic.rmw.add",
+        GlobalAtomicRmwSub(Ordered<Index<'a>>) : [0xfe, 0x52] : "global.atomic.rmw.sub",
+        GlobalAtomicRmwAnd(Ordered<Index<'a>>) : [0xfe, 0x53] : "global.atomic.rmw.and",
+        GlobalAtomicRmwOr(Ordered<Index<'a>>) : [0xfe, 0x54] : "global.atomic.rmw.or",
+        GlobalAtomicRmwXor(Ordered<Index<'a>>) : [0xfe, 0x55] : "global.atomic.rmw.xor",
+        GlobalAtomicRmwXchg(Ordered<Index<'a>>) : [0xfe, 0x56] : "global.atomic.rmw.xchg",
+        GlobalAtomicRmwCmpxchg(Ordered<Index<'a>>) : [0xfe, 0x57] : "global.atomic.rmw.cmpxchg",
+        TableAtomicGet(Ordered<TableArg<'a>>) : [0xfe, 0x58] : "table.atomic.get",
+        TableAtomicSet(Ordered<TableArg<'a>>) : [0xfe, 0x59] : "table.atomic.set",
+        TableAtomicRmwXchg(Ordered<TableArg<'a>>) : [0xfe, 0x5A] : "table.atomic.xchg",
+        TableAtomicRmwCmpxchg(Ordered<TableArg<'a>>) : [0xFE, 0x5B] : "table.atomic.rmw.cmpxchg",
+        StructAtomicGet(Ordered<StructAccess<'a>>) : [0xFE, 0x5C] : "struct.atomic.get",
+        StructAtomicGetS(Ordered<StructAccess<'a>>) : [0xFE, 0x5D] : "struct.atomic.get_s",
+        StructAtomicGetU(Ordered<StructAccess<'a>>) : [0xFE, 0x5E] : "struct.atomic.get_u",
+        StructAtomicSet(Ordered<StructAccess<'a>>) : [0xFE, 0x5F] : "struct.atomic.set",
+        StructAtomicRmwAdd(Ordered<StructAccess<'a>>) : [0xFE, 0x60] : "struct.atomic.rmw.add",
+        StructAtomicRmwSub(Ordered<StructAccess<'a>>) : [0xFE, 0x61] : "struct.atomic.rmw.sub",
+        StructAtomicRmwAnd(Ordered<StructAccess<'a>>) : [0xFE, 0x62] : "struct.atomic.rmw.and",
+        StructAtomicRmwOr(Ordered<StructAccess<'a>>) : [0xFE, 0x63] : "struct.atomic.rmw.or",
+        StructAtomicRmwXor(Ordered<StructAccess<'a>>) : [0xFE, 0x64] : "struct.atomic.rmw.xor",
+        StructAtomicRmwXchg(Ordered<StructAccess<'a>>) : [0xFE, 0x65] : "struct.atomic.rmw.xchg",
+        StructAtomicRmwCmpxchg(Ordered<StructAccess<'a>>) : [0xFE, 0x66] : "struct.atomic.rmw.cmpxchg",
+        ArrayAtomicGet(Ordered<Index<'a>>) : [0xFE, 0x67] : "array.atomic.get",
+        ArrayAtomicGetS(Ordered<Index<'a>>) : [0xFE, 0x68] : "array.atomic.get_s",
+        ArrayAtomicGetU(Ordered<Index<'a>>) : [0xFE, 0x69] : "array.atomic.get_u",
+        ArrayAtomicSet(Ordered<Index<'a>>) : [0xFE, 0x6A] : "array.atomic.set",
+        ArrayAtomicRmwAdd(Ordered<Index<'a>>) : [0xFE, 0x6B] : "array.atomic.rmw.add",
+        ArrayAtomicRmwSub(Ordered<Index<'a>>) : [0xFE, 0x6C] : "array.atomic.rmw.sub",
+        ArrayAtomicRmwAnd(Ordered<Index<'a>>) : [0xFE, 0x6D] : "array.atomic.rmw.and",
+        ArrayAtomicRmwOr(Ordered<Index<'a>>) : [0xFE, 0x6E] : "array.atomic.rmw.or",
+        ArrayAtomicRmwXor(Ordered<Index<'a>>) : [0xFE, 0x6F] : "array.atomic.rmw.xor",
+        ArrayAtomicRmwXchg(Ordered<Index<'a>>) : [0xFE, 0x70] : "array.atomic.rmw.xchg",
+        ArrayAtomicRmwCmpxchg(Ordered<Index<'a>>) : [0xFE, 0x71] : "array.atomic.rmw.cmpxchg",
 
         // proposal: simd
         //
@@ -1531,6 +1557,8 @@ pub struct TableArg<'a> {
     pub dst: Index<'a>,
 }
 
+// `TableArg` could be an unwrapped as an `Index` if not for this custom parse
+// behavior: if we cannot parse a table index, we default to table `0`.
 impl<'a> Parse<'a> for TableArg<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let dst = if let Some(dst) = parser.parse()? {
@@ -1831,20 +1859,27 @@ impl<'a> Parse<'a> for Ordering {
     }
 }
 
-/// Extra data associated with the `global.atomic.*` instructions.
+/// Add a memory [`Ordering`] to the argument `T` of some instruction.
+///
+/// This is helpful for many kinds of `*.atomic.*` instructions introduced by
+/// the shared-everything-threads proposal. Many of these instructions "build
+/// on" existing instructions by simply adding a memory order to them.
 #[derive(Clone, Debug)]
-pub struct OrderedAccess<'a> {
+pub struct Ordered<T> {
     /// The memory ordering for this atomic instruction.
     pub ordering: Ordering,
-    /// The index of the global to access.
-    pub index: Index<'a>,
+    /// The original argument type.
+    pub inner: T,
 }
 
-impl<'a> Parse<'a> for OrderedAccess<'a> {
+impl<'a, T> Parse<'a> for Ordered<T>
+where
+    T: Parse<'a>,
+{
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let ordering = parser.parse()?;
-        let index = parser.parse()?;
-        Ok(OrderedAccess { ordering, index })
+        let inner = parser.parse()?;
+        Ok(Ordered { ordering, inner })
     }
 }
 
