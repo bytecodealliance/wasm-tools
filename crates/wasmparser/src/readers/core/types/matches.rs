@@ -104,6 +104,9 @@ impl<'a> Matches for WithRecGroup<&'a SubType> {
 impl<'a> Matches for WithRecGroup<&'a CompositeType> {
     fn matches(types: &TypeList, a: Self, b: Self) -> bool {
         use CompositeInnerType::*;
+        if (*a).shared != (*b).shared {
+            return false;
+        }
         match (&(*a).inner, &(*b).inner) {
             (Func(fa), Func(fb)) => Matches::matches(
                 types,
