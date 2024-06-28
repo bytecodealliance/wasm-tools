@@ -27,6 +27,7 @@
   "interfaces": [
     {
       "name": "types",
+      "nested": {},
       "types": {
         "request": 0,
         "response": 1
@@ -97,6 +98,7 @@
     },
     {
       "name": "handler",
+      "nested": {},
       "types": {
         "request": 5,
         "response": 6

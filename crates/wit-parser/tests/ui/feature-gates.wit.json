@@ -65,6 +65,7 @@
   "interfaces": [
     {
       "name": "ungated",
+      "nested": {},
       "types": {},
       "functions": {
         "ungated": {
@@ -88,6 +89,7 @@
     },
     {
       "name": "ungated2",
+      "nested": {},
       "types": {
         "ungated": 0,
         "ungated2": 1
@@ -102,6 +104,7 @@
     },
     {
       "name": "ungated-use-target",
+      "nested": {},
       "types": {
         "t": 2
       },
@@ -115,6 +118,7 @@
     },
     {
       "name": "ungated-use",
+      "nested": {},
       "types": {
         "t": 3
       },
@@ -128,6 +132,7 @@
     },
     {
       "name": "ungated-for-world",
+      "nested": {},
       "types": {},
       "functions": {},
       "stability": {
@@ -139,6 +144,7 @@
     },
     {
       "name": "with-resources",
+      "nested": {},
       "types": {
         "ungated": 4
       },

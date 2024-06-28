@@ -117,24 +117,28 @@
   "interfaces": [
     {
       "name": "other-interface",
+      "nested": {},
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": "saas",
+      "nested": {},
       "types": {},
       "functions": {},
       "package": 1
     },
     {
       "name": "i",
+      "nested": {},
       "types": {},
       "functions": {},
       "package": 2
     },
     {
       "name": "the-default",
+      "nested": {},
       "types": {
         "some-type": 0
       },
@@ -143,6 +147,7 @@
     },
     {
       "name": "the-default",
+      "nested": {},
       "types": {
         "from-default": 1
       },
@@ -151,6 +156,7 @@
     },
     {
       "name": "some-interface",
+      "nested": {},
       "types": {
         "another-type": 2
       },
@@ -159,6 +165,7 @@
     },
     {
       "name": "another-interface",
+      "nested": {},
       "types": {
         "yet-another-type": 3
       },
@@ -167,6 +174,7 @@
     },
     {
       "name": "clocks",
+      "nested": {},
       "types": {
         "timestamp": 4
       },
@@ -175,6 +183,7 @@
     },
     {
       "name": "filesystem",
+      "nested": {},
       "types": {
         "stat": 5
       },
@@ -183,6 +192,7 @@
     },
     {
       "name": "foo",
+      "nested": {},
       "types": {
         "timestamp": 6,
         "stat": 7
@@ -192,6 +202,7 @@
     },
     {
       "name": "bar",
+      "nested": {},
       "types": {
         "from-default": 8,
         "another-type": 9,
@@ -202,6 +213,7 @@
     },
     {
       "name": "use1",
+      "nested": {},
       "types": {
         "some-type": 11
       },
@@ -210,6 +222,7 @@
     },
     {
       "name": "use2",
+      "nested": {},
       "types": {
         "some-type": 12
       },
