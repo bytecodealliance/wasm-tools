@@ -1,3 +1,4 @@
+use crate::resolve::PackageKind;
 use crate::*;
 use anyhow::{anyhow, bail};
 use indexmap::IndexSet;
@@ -5,6 +6,12 @@ use std::mem;
 use std::slice;
 use std::{collections::HashMap, io::Read};
 use wasmparser::Chunk;
+#[cfg(feature = "serde")]
+use wasmparser::ComponentNameSectionReader;
+#[cfg(feature = "serde")]
+use wasmparser::KnownCustom;
+#[cfg(feature = "serde")]
+use wasmparser::NameMap;
 use wasmparser::{
     names::{ComponentName, ComponentNameKind},
     types,
@@ -18,6 +25,22 @@ struct ComponentInfo {
     /// Wasmparser-defined type information learned after a component is fully
     /// validated.
     types: types::Types,
+    /// List of all imports and exports from this component.
+    externs: Vec<(String, Extern)>,
+    /// Packages
+    explicit: Vec<ExplicitPackageInfo>,
+    /// Decoded package metadata
+    package_metadata: Option<PackageMetadata>,
+}
+
+/// Represents information about a decoded WebAssembly component.
+#[derive(Default)]
+struct ExplicitPackageInfo {
+    /// Package name
+    name: Option<PackageName>,
+    /// Wasmparser-defined type information learned after a component is fully
+    /// validated.
+    types: Option<types::Types>,
     /// List of all imports and exports from this component.
     externs: Vec<(String, Extern)>,
     /// Decoded package metadata
@@ -41,10 +64,45 @@ enum WitEncodingVersion {
     V2,
 }
 
+#[cfg(feature = "serde")]
+fn register_names(
+    names: ComponentNameSectionReader,
+    explicit: &mut ExplicitPackageInfo,
+) -> Result<Vec<PackageName>> {
+    let mut packages = Vec::new();
+    for section in names {
+        match section? {
+            wasmparser::ComponentName::Components(s) => {
+                let map: NameMap = s.into();
+                for item in map {
+                    let name = item?;
+                    let mut parts = name.name.split(":");
+                    let namespace = parts.next().expect("expected identifier");
+                    let id = parts.next();
+                    if let Some(id) = id {
+                        let pkg_name = PackageName {
+                            namespace: namespace.to_string(),
+                            name: id.to_string(),
+                            version: None,
+                        };
+                        explicit.name = Some(pkg_name.clone());
+                        packages.push(pkg_name);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    Ok(packages)
+}
+
 impl ComponentInfo {
     /// Creates a new component info by parsing the given WebAssembly component bytes.
 
     fn from_reader(mut reader: impl Read) -> Result<Self> {
+        let mut explicit = Vec::new();
+        let mut cur_package = ExplicitPackageInfo::default();
+        let mut is_implicit = true;
         let mut validator = Validator::new_with_features(WasmFeatures::all());
         let mut externs = Vec::new();
         let mut depth = 1;
@@ -81,45 +139,83 @@ impl ComponentInfo {
                 ValidPayload::Parser(_) => depth += 1,
                 ValidPayload::End(t) => {
                     depth -= 1;
-                    if depth == 0 {
+                    if depth == 1 {
+                        is_implicit = true;
+                        cur_package.types = Some(t);
+                        explicit.push(mem::take(&mut cur_package));
+                    } else if depth == 0 {
                         types = Some(t);
+                    } else {
+                        cur_package.types = Some(t);
+                        explicit.push(mem::take(&mut cur_package));
                     }
                 }
                 ValidPayload::Func(..) => {}
             }
 
             match payload {
-                Payload::ComponentImportSection(s) if depth == 1 => {
+                Payload::ComponentImportSection(s) => {
                     for import in s {
                         let import = import?;
-                        externs.push((
-                            import.name.0.to_string(),
-                            Extern::Import(import.name.0.to_string()),
-                        ));
+                        if is_implicit {
+                            externs.push((
+                                import.name.0.to_string(),
+                                Extern::Import(import.name.0.to_string()),
+                            ));
+                        } else {
+                            cur_package.externs.push((
+                                import.name.0.to_string(),
+                                Extern::Import(import.name.0.to_string()),
+                            ));
+                        }
                     }
                 }
-                Payload::ComponentExportSection(s) if depth == 1 => {
+                Payload::ComponentExportSection(s) => {
                     for export in s {
                         let export = export?;
-                        externs.push((
-                            export.name.0.to_string(),
-                            Extern::Export(DecodingExport {
-                                name: export.name.0.to_string(),
-                                kind: export.kind,
-                                index: export.index,
-                            }),
-                        ));
+                        if is_implicit {
+                            externs.push((
+                                export.name.0.to_string(),
+                                Extern::Export(DecodingExport {
+                                    name: export.name.0.to_string(),
+                                    kind: export.kind,
+                                    index: export.index,
+                                }),
+                            ));
+                        } else {
+                            cur_package.externs.push((
+                                export.name.0.to_string(),
+                                Extern::Export(DecodingExport {
+                                    name: export.name.0.to_string(),
+                                    kind: export.kind,
+                                    index: export.index,
+                                }),
+                            ));
+                        }
                     }
                 }
                 #[cfg(feature = "serde")]
-                Payload::CustomSection(s) if s.name() == PackageMetadata::SECTION_NAME => {
-                    if _package_metadata.is_some() {
-                        bail!("multiple {:?} sections", PackageMetadata::SECTION_NAME);
+                Payload::CustomSection(s) => {
+                    if s.name() == PackageMetadata::SECTION_NAME {
+                        _package_metadata = Some(PackageMetadata::decode(s.data())?);
+                        cur_package.package_metadata = _package_metadata.clone();
+                    } else if s.name() == "component-name" {
+                        if let KnownCustom::ComponentName(reader) = s.as_known() {
+                            let _packages = register_names(reader, &mut cur_package)?;
+                            if _packages.len() == explicit.len() {
+                                for (i, exp) in explicit.iter_mut().enumerate() {
+                                    exp.name = Some(_packages[i].clone());
+                                }
+                            }
+                        } else {
+                            bail!("Expected component name section")
+                        }
                     }
-                    _package_metadata = Some(PackageMetadata::decode(s.data())?);
                 }
                 Payload::ModuleSection { parser, .. }
                 | Payload::ComponentSection { parser, .. } => {
+                    is_implicit = false;
+                    cur_package = ExplicitPackageInfo::default();
                     stack.push(cur.clone());
                     cur = parser.clone();
                 }
@@ -140,12 +236,55 @@ impl ComponentInfo {
 
         Ok(Self {
             types: types.unwrap(),
+            explicit,
             externs,
             package_metadata: _package_metadata,
         })
     }
 
     fn is_wit_package(&self) -> Option<WitEncodingVersion> {
+        // Check if each explicitly defined package is wit
+        if !self.explicit.is_empty() {
+            // all wit package exports must be component types, and there must be at
+            // least one
+            for expl in self.explicit.iter() {
+                if expl.externs.is_empty() {
+                    return None;
+                }
+                if !expl.externs.iter().all(|(_, item)| {
+                    let export = match item {
+                        Extern::Export(e) => e,
+                        _ => return false,
+                    };
+                    match export.kind {
+                        ComponentExternalKind::Type => matches!(
+                            expl.types
+                                .as_ref()
+                                .unwrap()
+                                .component_any_type_at(export.index),
+                            types::ComponentAnyTypeId::Component(_)
+                        ),
+                        _ => false,
+                    }
+                }) {
+                    return None;
+                }
+            }
+            // If all packages are explicit, root package will have no extern exports
+            if self.externs.len() == 0 {
+                return Some(WitEncodingVersion::V2);
+            }
+            // // The distinction between v1 and v2 encoding formats is the structure of the export
+            // // strings for each component. The v1 format uses "<namespace>:<package>/wit" as the name
+            // // for the top-level exports, while the v2 format uses the unqualified name of the encoded
+            // // entity.
+            return match ComponentName::new(&self.externs[0].0, 0).ok()?.kind() {
+                ComponentNameKind::Interface(name) if name.interface().as_str() == "wit" => {
+                    Some(WitEncodingVersion::V1)
+                }
+                _ => Some(WitEncodingVersion::V2),
+            };
+        }
         // all wit package exports must be component types, and there must be at
         // least one
         if self.externs.is_empty() {
@@ -176,8 +315,7 @@ impl ComponentInfo {
             ComponentNameKind::Interface(name) if name.interface().as_str() == "wit" => {
                 Some(WitEncodingVersion::V1)
             }
-            ComponentNameKind::Label(_) => Some(WitEncodingVersion::V2),
-            _ => None,
+            _ => Some(WitEncodingVersion::V2),
         }
     }
 
@@ -204,25 +342,23 @@ impl ComponentInfo {
         }
 
         let pkg = pkg.ok_or_else(|| anyhow!("no exported component type found"))?;
-        let (mut resolve, package) = decoder.finish(pkg);
+        let (mut resolve, packages) = decoder.finish(&mut [pkg]);
         if let Some(package_metadata) = &self.package_metadata {
-            package_metadata.inject(&mut resolve, package)?;
+            package_metadata.inject(&mut resolve, packages[0])?;
         }
-        Ok((resolve, package))
+        Ok((resolve, packages[0]))
     }
 
-    fn decode_wit_v2_package(&self) -> Result<(Resolve, PackageId)> {
+    fn decode_wit_v2_packages(&self) -> Result<(Resolve, Vec<PackageId>)> {
         let mut decoder = WitPackageDecoder::new(&self.types);
 
-        let mut pkg_name = None;
+        let mut pkg_names = Vec::new();
 
-        let mut interfaces = IndexMap::new();
-        let mut worlds = IndexMap::new();
         let mut fields = PackageFields {
-            interfaces: &mut interfaces,
-            worlds: &mut worlds,
+            interfaces: &mut IndexMap::new(),
+            worlds: &mut IndexMap::new(),
         };
-
+        let mut pkg_ids: Vec<Package> = Vec::new();
         for (_, item) in self.externs.iter() {
             let export = match item {
                 Extern::Export(e) => e,
@@ -261,34 +397,122 @@ impl ComponentInfo {
                 }
                 _ => unreachable!(),
             };
-
-            if let Some(pkg_name) = pkg_name.as_ref() {
-                // TODO: when we have fully switched to the v2 format, we should switch to parsing
-                // multiple wit documents instead of bailing.
-                if pkg_name != &name {
-                    bail!("item defined with mismatched package name")
+            if !pkg_names.contains(&name) {
+                pkg_names.push(name.clone());
+                let pkg = Package {
+                    name: name.clone(),
+                    kind: PackageKind::Implicit,
+                    docs: Docs::default(),
+                    interfaces: fields.interfaces.clone(),
+                    worlds: fields.worlds.clone(),
+                };
+                if !pkg_ids.contains(&pkg) {
+                    pkg_ids.push(pkg);
                 }
             } else {
-                pkg_name.replace(name);
+                let pkg = Package {
+                    name: name.clone(),
+                    kind: PackageKind::Implicit,
+                    docs: Docs::default(),
+                    interfaces: fields.interfaces.clone(),
+                    worlds: fields.worlds.clone(),
+                };
+                let pkg_id = pkg_ids.iter_mut().find(|p| p.name == pkg.name).unwrap();
+                pkg_id.interfaces = pkg.interfaces;
+                pkg_id.worlds = pkg.worlds;
             }
         }
 
-        let pkg = if let Some(name) = pkg_name {
-            Package {
-                name,
-                docs: Docs::default(),
-                interfaces,
-                worlds,
-            }
-        } else {
-            bail!("no exported component type found");
-        };
+        for explicit in &self.explicit {
+            fields.interfaces.clear();
+            fields.worlds.clear();
+            for (_, item) in explicit.externs.iter() {
+                let export = match item {
+                    Extern::Export(e) => e,
+                    _ => unreachable!(),
+                };
 
-        let (mut resolve, package) = decoder.finish(pkg);
-        if let Some(package_metadata) = &self.package_metadata {
-            package_metadata.inject(&mut resolve, package)?;
+                let index = export.index;
+                let id = explicit.types.as_ref().unwrap().component_type_at(index);
+                let component = &explicit.types.as_ref().unwrap()[id];
+
+                // The single export of this component will determine if it's a world or an interface:
+                // worlds export a component, while interfaces export an instance.
+                if component.exports.len() != 1 {
+                    bail!(
+                        "Expected a single export, but found {} instead",
+                        component.exports.len()
+                    );
+                }
+
+                let name = component.exports.keys().nth(0).unwrap();
+
+                let name = match component.exports[name] {
+                    types::ComponentEntityType::Component(ty) => {
+                        let package_name =
+                            decoder.decode_world(name.as_str(), &self.types[ty], &mut fields)?;
+                        package_name
+                    }
+                    types::ComponentEntityType::Instance(ty) => {
+                        let package_name = decoder.decode_interface(
+                            name.as_str(),
+                            &component.imports,
+                            &self.types[ty],
+                            &mut fields,
+                        )?;
+                        package_name
+                    }
+                    _ => unreachable!(),
+                };
+
+                if !pkg_names.contains(&name) {
+                    pkg_names.push(name.clone());
+                    let pkg = Package {
+                        name: name.clone(),
+                        kind: PackageKind::Implicit,
+                        docs: Docs::default(),
+                        interfaces: fields.interfaces.clone(),
+                        worlds: fields.worlds.clone(),
+                    };
+                    if !pkg_ids.contains(&pkg) {
+                        pkg_ids.push(pkg);
+                    }
+                } else {
+                    let pkg = Package {
+                        name: name.clone(),
+                        kind: PackageKind::Implicit,
+                        docs: Docs::default(),
+                        interfaces: fields.interfaces.clone(),
+                        worlds: fields.worlds.clone(),
+                    };
+                    let pkg_id = pkg_ids.iter_mut().find(|p| p.name == pkg.name).unwrap();
+                    pkg_id.interfaces = pkg.interfaces;
+                    pkg_id.worlds = pkg.worlds;
+                }
+            }
         }
-        Ok((resolve, package))
+
+        let (mut resolve, packages) = decoder.finish(&mut pkg_ids);
+        let copy = resolve.clone();
+        for package in &self.explicit {
+            if let Some(package_metadata) = &package.package_metadata {
+                let name = package.name.as_ref().unwrap();
+                let pkg = copy.package_names.get(&name.clone());
+                if let Some(pkg) = pkg {
+                    package_metadata.inject(&mut resolve, *pkg)?;
+                }
+            }
+        }
+        // For now this is a sufficient condition to know that we're working with
+        // an implicit package declaration.  This will need to be reworked when
+        // mixed package declarations are supported
+        if self.explicit.len() == 0 {
+            let package = packages[0];
+            if let Some(package_metadata) = &self.package_metadata {
+                package_metadata.inject(&mut resolve, package)?;
+            }
+        }
+        Ok((resolve, packages))
     }
 
     fn decode_component(&self) -> Result<(Resolve, WorldId)> {
@@ -317,6 +541,7 @@ impl ComponentInfo {
                 version: None,
                 name: "component".to_string(),
             },
+            kind: PackageKind::Implicit,
             docs: Default::default(),
             worlds: [(world_name.to_string(), world)].into_iter().collect(),
             interfaces: Default::default(),
@@ -338,7 +563,7 @@ impl ComponentInfo {
             }
         }
 
-        let (resolve, _) = decoder.finish(package);
+        let (resolve, _) = decoder.finish(&mut [package]);
         Ok((resolve, world))
     }
 }
@@ -390,8 +615,8 @@ pub fn decode_reader(reader: impl Read) -> Result<DecodedWasm> {
             }
             WitEncodingVersion::V2 => {
                 log::debug!("decoding a v2 WIT package encoded as wasm");
-                let (resolve, pkg) = info.decode_wit_v2_package()?;
-                Ok(DecodedWasm::WitPackages(resolve, vec![pkg]))
+                let (resolve, pkgs) = info.decode_wit_v2_packages()?;
+                Ok(DecodedWasm::WitPackages(resolve, pkgs))
             }
         }
     } else {
@@ -474,23 +699,21 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
         types::ComponentEntityType::Component(ty) => ty,
         _ => unreachable!(),
     };
-    let name = decoder.decode_world(
+    let mut fields = PackageFields {
+        interfaces: &mut interfaces,
+        worlds: &mut worlds,
+    };
+    let name = decoder.decode_world(name, &types[ty], &mut fields)?;
+    let (resolve, pkgs) = decoder.finish(&mut [Package {
         name,
-        &types[ty],
-        &mut PackageFields {
-            interfaces: &mut interfaces,
-            worlds: &mut worlds,
-        },
-    )?;
-    let (resolve, pkg) = decoder.finish(Package {
-        name,
-        interfaces,
-        worlds,
+        kind: PackageKind::Implicit,
+        interfaces: fields.interfaces.clone(),
+        worlds: fields.worlds.clone(),
         docs: Default::default(),
-    });
+    }]);
     // The package decoded here should only have a single world so extract that
     // here to return.
-    let world = *resolve.packages[pkg].worlds.iter().next().unwrap().1;
+    let world = *resolve.packages[pkgs[0]].worlds.iter().next().unwrap().1;
     Ok((resolve, world))
 }
 
@@ -558,6 +781,7 @@ impl WitPackageDecoder<'_> {
                 }
                 _ => bail!("package name is not a valid id: {name}"),
             },
+            kind: PackageKind::Implicit,
             docs: Default::default(),
             interfaces: Default::default(),
             worlds: Default::default(),
@@ -583,7 +807,7 @@ impl WitPackageDecoder<'_> {
                 _ => bail!("component export `{name}` is not an instance or component"),
             }
         }
-        Ok(package)
+        Ok(package.clone())
     }
 
     fn decode_interface<'a>(
@@ -591,7 +815,7 @@ impl WitPackageDecoder<'_> {
         name: &str,
         imports: &wasmparser::collections::IndexMap<String, types::ComponentEntityType>,
         ty: &types::ComponentInstanceType,
-        fields: &mut PackageFields<'a>,
+        fields: &mut PackageFields,
     ) -> Result<PackageName> {
         let component_name = self
             .parse_component_name(name)
@@ -620,7 +844,7 @@ impl WitPackageDecoder<'_> {
         &mut self,
         name: &str,
         ty: &types::ComponentType,
-        fields: &mut PackageFields<'a>,
+        fields: &mut PackageFields,
     ) -> Result<PackageName> {
         let kebab_name = self
             .parse_component_name(name)
@@ -640,7 +864,7 @@ impl WitPackageDecoder<'_> {
         &mut self,
         name: &str,
         world: WorldId,
-        package: &mut PackageFields<'a>,
+        package: &mut PackageFields,
     ) -> Result<()> {
         log::debug!("decoding component import `{name}`");
         let ty = self.types.component_entity_type_of_import(name).unwrap();
@@ -690,7 +914,7 @@ impl WitPackageDecoder<'_> {
         &mut self,
         export: &DecodingExport,
         world: WorldId,
-        package: &mut PackageFields<'a>,
+        package: &mut PackageFields,
     ) -> Result<()> {
         let name = &export.name;
         log::debug!("decoding component export `{name}`");
@@ -886,6 +1110,7 @@ impl WitPackageDecoder<'_> {
             .entry(package_name.to_string())
             .or_insert_with(|| Package {
                 name: package_name.clone(),
+                kind: PackageKind::Implicit,
                 docs: Default::default(),
                 interfaces: Default::default(),
                 worlds: Default::default(),
@@ -934,7 +1159,7 @@ impl WitPackageDecoder<'_> {
         &mut self,
         name: &str,
         ty: &types::ComponentInstanceType,
-        package: &mut PackageFields<'a>,
+        package: &mut PackageFields,
     ) -> Result<(WorldKey, InterfaceId)> {
         // If this interface's name is already known then that means this is an
         // interface that's both imported and exported.  Use `register_import`
@@ -1075,7 +1300,7 @@ impl WitPackageDecoder<'_> {
         &mut self,
         name: &str,
         ty: &types::ComponentType,
-        package: &mut PackageFields<'a>,
+        package: &mut PackageFields,
     ) -> Result<WorldId> {
         let name = self
             .extract_interface_name_from_component_name(name)?
@@ -1433,47 +1658,50 @@ impl WitPackageDecoder<'_> {
     /// their topological ordering within the returned `Resolve`.
     ///
     /// Takes the root package as an argument to insert.
-    fn finish(mut self, package: Package) -> (Resolve, PackageId) {
-        // Build a topological ordering is then calculated by visiting all the
-        // transitive dependencies of packages.
-        let mut order = IndexSet::new();
-        for i in 0..self.foreign_packages.len() {
-            self.visit_package(i, &mut order);
-        }
+    fn finish(mut self, packages: &mut [Package]) -> (Resolve, Vec<PackageId>) {
+        let mut resolved = Vec::new();
+        for package in packages {
+            // Build a topological ordering is then calculated by visiting all the
+            // transitive dependencies of packages.
+            let mut order = IndexSet::new();
+            for i in 0..self.foreign_packages.len() {
+                self.visit_package(i, &mut order);
+            }
+            // Using the topological ordering create a temporary map from
+            // index-in-`foreign_packages` to index-in-`order`
+            let mut idx_to_pos = vec![0; self.foreign_packages.len()];
+            for (pos, idx) in order.iter().enumerate() {
+                idx_to_pos[*idx] = pos;
+            }
+            // .. and then using `idx_to_pos` sort the `foreign_packages` array based
+            // on the position it's at in the topological ordering
+            let mut deps = mem::take(&mut self.foreign_packages)
+                .into_iter()
+                .enumerate()
+                .collect::<Vec<_>>();
+            deps.sort_by_key(|(idx, _)| idx_to_pos[*idx]);
 
-        // Using the topological ordering create a temporary map from
-        // index-in-`foreign_packages` to index-in-`order`
-        let mut idx_to_pos = vec![0; self.foreign_packages.len()];
-        for (pos, idx) in order.iter().enumerate() {
-            idx_to_pos[*idx] = pos;
+            // .. and finally insert the packages, in their final topological
+            // ordering, into the returned array.
+            for (_idx, (_url, pkg)) in deps {
+                self.insert_package(pkg);
+            }
+            let id = self.insert_package(package.clone());
+            resolved.push(id);
         }
-        // .. and then using `idx_to_pos` sort the `foreign_packages` array based
-        // on the position it's at in the topological ordering
-        let mut deps = mem::take(&mut self.foreign_packages)
-            .into_iter()
-            .enumerate()
-            .collect::<Vec<_>>();
-        deps.sort_by_key(|(idx, _)| idx_to_pos[*idx]);
-
-        // .. and finally insert the packages, in their final topological
-        // ordering, into the returned array.
-        for (_idx, (_url, pkg)) in deps {
-            self.insert_package(pkg);
-        }
-
-        let id = self.insert_package(package);
         assert!(self.resolve.worlds.iter().all(|(_, w)| w.package.is_some()));
         assert!(self
             .resolve
             .interfaces
             .iter()
             .all(|(_, i)| i.package.is_some()));
-        (self.resolve, id)
+        (self.resolve, resolved)
     }
 
     fn insert_package(&mut self, package: Package) -> PackageId {
         let Package {
             name,
+            kind,
             interfaces,
             worlds,
             docs,
@@ -1492,6 +1720,7 @@ impl WitPackageDecoder<'_> {
             .unwrap_or_else(|| {
                 let id = self.resolve.packages.alloc(Package {
                     name: name.clone(),
+                    kind: kind.clone(),
                     interfaces: Default::default(),
                     worlds: Default::default(),
                     docs,

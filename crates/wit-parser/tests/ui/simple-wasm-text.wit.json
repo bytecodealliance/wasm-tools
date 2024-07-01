@@ -12,6 +12,7 @@
   "packages": [
     {
       "name": "a:b",
+      "kind": "Implicit",
       "interfaces": {
         "x": 0
       },

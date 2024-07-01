@@ -36,6 +36,7 @@
   "packages": [
     {
       "name": "foo:dep1",
+      "kind": "Implicit",
       "interfaces": {
         "types": 0
       },
@@ -43,6 +44,7 @@
     },
     {
       "name": "foo:dep2",
+      "kind": "Implicit",
       "interfaces": {
         "types": 1
       },
@@ -50,6 +52,7 @@
     },
     {
       "name": "foo:foo",
+      "kind": "Implicit",
       "interfaces": {},
       "worlds": {
         "foo": 0

@@ -110,6 +110,7 @@
   "packages": [
     {
       "name": "bar:name",
+      "kind": "Explicit",
       "interfaces": {
         "i": 0
       },
@@ -119,6 +120,7 @@
     },
     {
       "name": "foo:name",
+      "kind": "Explicit",
       "interfaces": {
         "i": 2
       },

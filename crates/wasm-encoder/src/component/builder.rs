@@ -41,6 +41,10 @@ pub struct ComponentBuilder {
 }
 
 impl ComponentBuilder {
+    /// Adds sub component names
+    pub fn names(&mut self, names: &ComponentNameSection) {
+        self.component.section(names);
+    }
     /// Returns the current number of core modules.
     pub fn core_module_count(&self) -> u32 {
         self.core_modules

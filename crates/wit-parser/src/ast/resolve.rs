@@ -1,4 +1,4 @@
-use super::{ParamList, ResultList, WorldOrInterface};
+use super::{ParamList, ResolverKindTag, ResultList, WorldOrInterface};
 use crate::ast::toposort::toposort;
 use crate::*;
 use anyhow::bail;
@@ -14,7 +14,7 @@ pub struct Resolver<'a> {
     package_docs: Docs,
 
     /// All non-`package` WIT decls are going to be resolved together.
-    decl_lists: Vec<ast::DeclList<'a>>,
+    decl_lists: Vec<(PackageKind, ast::DeclList<'a>)>,
 
     // Arenas that get plumbed to the final `UnresolvedPackage`
     types: Arena<TypeDef>,
@@ -140,11 +140,12 @@ impl<'a> Resolver<'a> {
                 self.package_docs = docs;
             }
         }
-        self.decl_lists.push(partial.decl_list);
+        self.decl_lists
+            .push((PackageKind::Implicit, partial.decl_list));
         Ok(())
     }
 
-    pub(crate) fn resolve(&mut self) -> Result<Option<UnresolvedPackage>> {
+    pub(crate) fn resolve(&mut self, kind: ResolverKindTag) -> Result<Option<UnresolvedPackage>> {
         // At least one of the WIT files must have a `package` annotation.
         let name = match &self.package_name {
             Some(name) => name.clone(),
@@ -171,7 +172,7 @@ impl<'a> Resolver<'a> {
         let mut iface_id_to_ast = IndexMap::new();
         let mut world_id_to_ast = IndexMap::new();
         for (i, decl_list) in decl_lists.iter().enumerate() {
-            for item in decl_list.items.iter() {
+            for item in decl_list.1.items.iter() {
                 match item {
                     ast::AstItem::Interface(iface) => {
                         let id = match self.ast_items[i][iface.name.name] {
@@ -206,6 +207,10 @@ impl<'a> Resolver<'a> {
 
         Ok(Some(UnresolvedPackage {
             name,
+            kind: match kind {
+                ResolverKindTag::Explicit => PackageKind::Explicit,
+                ResolverKindTag::Implicit => PackageKind::Implicit,
+            },
             docs: mem::take(&mut self.package_docs),
             worlds: mem::take(&mut self.worlds),
             types: mem::take(&mut self.types),
@@ -237,20 +242,21 @@ impl<'a> Resolver<'a> {
     ) -> Result<Option<UnresolvedPackage>> {
         self.package_name = Some(package.package_id.package_name());
         self.docs(&package.package_id.docs);
-        self.decl_lists = vec![package.decl_list];
-        self.resolve()
+        self.decl_lists = vec![(PackageKind::Explicit, package.decl_list)];
+        self.resolve(ResolverKindTag::Explicit)
     }
 
     /// Registers all foreign dependencies made within the ASTs provided.
     ///
     /// This will populate the `self.foreign_{deps,interfaces,worlds}` maps with all
     /// `UsePath::Package` entries.
-    fn populate_foreign_deps(&mut self, decl_lists: &[ast::DeclList<'a>]) {
+    fn populate_foreign_deps(&mut self, decl_lists: &[(PackageKind, ast::DeclList<'a>)]) {
         let mut foreign_deps = mem::take(&mut self.foreign_deps);
         let mut foreign_interfaces = mem::take(&mut self.foreign_interfaces);
         let mut foreign_worlds = mem::take(&mut self.foreign_worlds);
         for decl_list in decl_lists {
             decl_list
+                .1
                 .for_each_path(|_, path, _names, world_or_iface| {
                     let (id, name) = match path {
                         ast::UsePath::Package { id, name } => (id, name),
@@ -338,7 +344,7 @@ impl<'a> Resolver<'a> {
     /// generated for resolving use-paths later on.
     fn populate_ast_items(
         &mut self,
-        decl_lists: &[ast::DeclList<'a>],
+        decl_lists: &[(PackageKind, ast::DeclList<'a>)],
     ) -> Result<(Vec<InterfaceId>, Vec<WorldId>)> {
         let mut package_items = IndexMap::new();
 
@@ -349,7 +355,7 @@ impl<'a> Resolver<'a> {
         let mut order = IndexMap::new();
         for decl_list in decl_lists {
             let mut decl_list_ns = IndexMap::new();
-            for item in decl_list.items.iter() {
+            for item in decl_list.1.items.iter() {
                 match item {
                     ast::AstItem::Interface(i) => {
                         if package_items.insert(i.name.name, i.name.span).is_some() {
@@ -401,7 +407,7 @@ impl<'a> Resolver<'a> {
             // package or foreign items. Foreign deps are ignored for
             // topological ordering.
             let mut decl_list_ns = IndexMap::new();
-            for item in decl_list.items.iter() {
+            for item in decl_list.1.items.iter() {
                 let (name, src) = match item {
                     ast::AstItem::Use(u) => {
                         let name = u.as_.as_ref().unwrap_or(u.item.name());
@@ -424,7 +430,7 @@ impl<'a> Resolver<'a> {
 
             // With this file's namespace information look at all `use` paths
             // and record dependencies between interfaces.
-            decl_list.for_each_path(|iface, path, _names, _| {
+            decl_list.1.for_each_path(|iface, path, _names, _| {
                 // If this import isn't contained within an interface then it's
                 // in a world and it doesn't need to participate in our
                 // topo-sort.
@@ -490,7 +496,7 @@ impl<'a> Resolver<'a> {
         }
         for decl_list in decl_lists {
             let mut items = IndexMap::new();
-            for item in decl_list.items.iter() {
+            for item in decl_list.1.items.iter() {
                 let (name, ast_item) = match item {
                     ast::AstItem::Use(u) => {
                         if !u.attributes.is_empty() {
@@ -548,10 +554,13 @@ impl<'a> Resolver<'a> {
     /// This is done after all interfaces are generated so `self.resolve_path`
     /// can be used to determine if what's being imported from is a foreign
     /// interface or not.
-    fn populate_foreign_types(&mut self, decl_lists: &[ast::DeclList<'a>]) -> Result<()> {
+    fn populate_foreign_types(
+        &mut self,
+        decl_lists: &[(PackageKind, ast::DeclList<'a>)],
+    ) -> Result<()> {
         for (i, decl_list) in decl_lists.iter().enumerate() {
             self.cur_ast_index = i;
-            decl_list.for_each_path(|_, path, names, _| {
+            decl_list.1.for_each_path(|_, path, names, _| {
                 let names = match names {
                     Some(names) => names,
                     None => return Ok(()),

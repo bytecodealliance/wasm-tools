@@ -25,6 +25,7 @@
   "packages": [
     {
       "name": "foo:bar",
+      "kind": "Implicit",
       "interfaces": {
         "types": 0
       },
@@ -32,6 +33,7 @@
     },
     {
       "name": "foo:foo",
+      "kind": "Implicit",
       "interfaces": {},
       "worlds": {
         "foo": 0

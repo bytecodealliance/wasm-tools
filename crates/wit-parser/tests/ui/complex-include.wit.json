@@ -165,6 +165,7 @@
   "packages": [
     {
       "name": "foo:bar",
+      "kind": "Implicit",
       "interfaces": {
         "a": 0,
         "b": 1
@@ -175,6 +176,7 @@
     },
     {
       "name": "foo:baz",
+      "kind": "Implicit",
       "interfaces": {
         "a": 2,
         "b": 3
@@ -185,6 +187,7 @@
     },
     {
       "name": "foo:root",
+      "kind": "Implicit",
       "interfaces": {
         "ai": 4,
         "bi": 5

@@ -73,6 +73,7 @@
   "packages": [
     {
       "name": "some:dep",
+      "kind": "Implicit",
       "interfaces": {
         "foo": 0
       },
@@ -80,6 +81,7 @@
     },
     {
       "name": "foo:bar",
+      "kind": "Implicit",
       "interfaces": {
         "foo": 1
       },

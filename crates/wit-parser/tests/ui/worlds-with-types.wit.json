@@ -191,6 +191,7 @@
   "packages": [
     {
       "name": "foo:foo",
+      "kind": "Implicit",
       "interfaces": {
         "disambiguate": 0
       },

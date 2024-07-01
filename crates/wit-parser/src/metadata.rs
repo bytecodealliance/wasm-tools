@@ -48,6 +48,7 @@ const TRY_TO_EMIT_V0_BY_DEFAULT: bool = true;
 /// Represents serializable doc comments parsed from a WIT package.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
+#[derive(Clone)]
 pub struct PackageMetadata {
     #[cfg_attr(
         feature = "serde",
@@ -163,6 +164,7 @@ impl PackageMetadata {
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
+#[derive(Clone)]
 struct WorldMetadata {
     #[cfg_attr(
         feature = "serde",
@@ -500,6 +502,7 @@ impl WorldMetadata {
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
+#[derive(Clone)]
 struct InterfaceMetadata {
     #[cfg_attr(
         feature = "serde",
@@ -586,6 +589,7 @@ impl InterfaceMetadata {
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(untagged, deny_unknown_fields))]
+#[derive(Clone)]
 enum FunctionMetadata {
     /// In the v0 format function metadata was only a string so this variant
     /// is preserved for the v0 format. In the future this can be removed
@@ -656,6 +660,7 @@ impl FunctionMetadata {
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
+#[derive(Clone)]
 struct TypeMetadata {
     #[cfg_attr(
         feature = "serde",

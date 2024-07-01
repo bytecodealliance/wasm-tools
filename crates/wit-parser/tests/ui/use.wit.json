@@ -157,6 +157,7 @@
   "packages": [
     {
       "name": "foo:foo",
+      "kind": "Implicit",
       "interfaces": {
         "bar": 0,
         "foo": 1,

@@ -103,6 +103,7 @@
   "packages": [
     {
       "name": "foo:diamond",
+      "kind": "Implicit",
       "interfaces": {
         "shared1": 0,
         "shared2": 1

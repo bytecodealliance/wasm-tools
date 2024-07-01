@@ -69,8 +69,7 @@ impl WitPrinter {
             }
 
             if has_multiple_packages {
-                self.output.push_str("{");
-                self.output.indent += 1
+                self.output.push_str(" {\n");
             } else {
                 self.print_semicolon();
                 self.output.push_str("\n\n");
@@ -98,7 +97,6 @@ impl WitPrinter {
 
             if has_multiple_packages {
                 self.output.push_str("}");
-                self.output.indent -= 1
             }
         }
 

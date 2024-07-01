@@ -1136,6 +1136,7 @@
   "packages": [
     {
       "name": "foo:bar",
+      "kind": "Implicit",
       "interfaces": {
         "i1": 0,
         "i2": 1,

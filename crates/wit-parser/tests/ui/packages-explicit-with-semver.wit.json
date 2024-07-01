@@ -110,6 +110,7 @@
   "packages": [
     {
       "name": "foo:name@1.0.0",
+      "kind": "Explicit",
       "interfaces": {
         "i1": 0
       },
@@ -119,6 +120,7 @@
     },
     {
       "name": "foo:name@1.0.1",
+      "kind": "Explicit",
       "interfaces": {
         "i1": 2
       },
