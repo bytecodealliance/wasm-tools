@@ -29,8 +29,6 @@ struct ComponentInfo {
     externs: Vec<(String, Extern)>,
     /// Packages
     explicit: Vec<ExplicitPackageInfo>,
-    /// Packages
-    packages: Vec<PackageName>,
     /// Decoded package metadata
     package_metadata: Option<PackageMetadata>,
 }
@@ -102,7 +100,6 @@ impl ComponentInfo {
     /// Creates a new component info by parsing the given WebAssembly component bytes.
 
     fn from_reader(mut reader: impl Read) -> Result<Self> {
-        let mut _packages = Vec::new();
         let mut explicit = Vec::new();
         let mut cur_package = ExplicitPackageInfo::default();
         let mut is_implicit = true;
@@ -204,7 +201,7 @@ impl ComponentInfo {
                         cur_package.package_metadata = _package_metadata.clone();
                     } else if s.name() == "component-name" {
                         if let KnownCustom::ComponentName(reader) = s.as_known() {
-                            _packages = register_names(reader, &mut cur_package)?;
+                            let _packages = register_names(reader, &mut cur_package)?;
                             if _packages.len() == explicit.len() {
                                 for (i, exp) in explicit.iter_mut().enumerate() {
                                     exp.name = Some(_packages[i].clone());
@@ -240,18 +237,56 @@ impl ComponentInfo {
         Ok(Self {
             types: types.unwrap(),
             explicit,
-            packages: _packages,
             externs,
             package_metadata: _package_metadata,
         })
     }
 
     fn is_wit_package(&self) -> Option<WitEncodingVersion> {
+        // Check if each explicitly defined package is wit
+        if !self.explicit.is_empty() {
+            // all wit package exports must be component types, and there must be at
+            // least one
+            for expl in self.explicit.iter() {
+                if expl.externs.is_empty() {
+                    return None;
+                }
+                if !expl.externs.iter().all(|(_, item)| {
+                    let export = match item {
+                        Extern::Export(e) => e,
+                        _ => return false,
+                    };
+                    match export.kind {
+                        ComponentExternalKind::Type => matches!(
+                            expl.types
+                                .as_ref()
+                                .unwrap()
+                                .component_any_type_at(export.index),
+                            types::ComponentAnyTypeId::Component(_)
+                        ),
+                        _ => false,
+                    }
+                }) {
+                    return None;
+                }
+            }
+            // If all packages are explicit, root package will have no extern exports
+            if self.externs.len() == 0 {
+                return Some(WitEncodingVersion::V2);
+            }
+            // // The distinction between v1 and v2 encoding formats is the structure of the export
+            // // strings for each component. The v1 format uses "<namespace>:<package>/wit" as the name
+            // // for the top-level exports, while the v2 format uses the unqualified name of the encoded
+            // // entity.
+            return match ComponentName::new(&self.externs[0].0, 0).ok()?.kind() {
+                ComponentNameKind::Interface(name) if name.interface().as_str() == "wit" => {
+                    Some(WitEncodingVersion::V1)
+                }
+                _ => Some(WitEncodingVersion::V2),
+            };
+        }
         // all wit package exports must be component types, and there must be at
         // least one
-        if !self.packages.is_empty() {
-            return Some(WitEncodingVersion::V2);
-        }
         if self.externs.is_empty() {
             return None;
         }
