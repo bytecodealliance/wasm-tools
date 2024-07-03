@@ -31,7 +31,7 @@ pub enum BlockType {
 }
 
 /// Represents a memory immediate in a WebAssembly memory instruction.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct MemArg {
     /// Alignment, stored as `n` where the actual alignment is `2^n`
     pub align: u8,
@@ -57,7 +57,7 @@ pub struct MemArg {
 }
 
 /// A br_table entries representation.
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct BrTable<'a> {
     pub(crate) reader: crate::BinaryReader<'a>,
     pub(crate) cnt: u32,
@@ -155,7 +155,7 @@ macro_rules! define_operator {
         /// Instructions as defined [here].
         ///
         /// [here]: https://webassembly.github.io/spec/core/binary/instructions.html
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, Eq, PartialEq)]
         #[allow(missing_docs)]
         pub enum Operator<'a> {
             $(
@@ -397,7 +397,7 @@ impl<'a, V: VisitOperator<'a> + ?Sized> VisitOperator<'a> for Box<V> {
 }
 
 /// A `try_table` entries representation.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TryTable {
     /// The block type describing the try block itself.
     pub ty: BlockType,
@@ -406,7 +406,7 @@ pub struct TryTable {
 }
 
 /// Catch clauses that can be specified in [`TryTable`].
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[allow(missing_docs)]
 pub enum Catch {
     /// Equivalent of `catch`
