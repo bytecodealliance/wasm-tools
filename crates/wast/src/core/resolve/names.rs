@@ -49,12 +49,12 @@ impl<'a> Resolver<'a> {
     fn register_type(&mut self, ty: &Type<'a>) -> Result<(), Error> {
         let type_index = self.types.register(ty.id, "type")?;
 
-        match &ty.def {
+        match &ty.def.kind {
             // For GC structure types we need to be sure to populate the
             // field namespace here as well.
             //
             // The field namespace is relative to the struct fields are defined in
-            TypeDef::Struct(r#struct) => {
+            InnerTypeKind::Struct(r#struct) => {
                 for (i, field) in r#struct.fields.iter().enumerate() {
                     if let Some(id) = field.id {
                         self.fields
@@ -65,14 +65,14 @@ impl<'a> Resolver<'a> {
                 }
             }
 
-            TypeDef::Array(_) | TypeDef::Func(_) => {}
+            InnerTypeKind::Array(_) | InnerTypeKind::Func(_) => {}
         }
 
         // Record function signatures as we see them to so we can
         // generate errors for mismatches in references such as
         // `call_indirect`.
-        match &ty.def {
-            TypeDef::Func(f) => {
+        match &ty.def.kind {
+            InnerTypeKind::Func(f) => {
                 let params = f.params.iter().map(|p| p.2).collect();
                 let results = f.results.clone();
                 self.type_info.push(TypeInfo::Func { params, results });
@@ -120,14 +120,14 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_type(&self, ty: &mut Type<'a>) -> Result<(), Error> {
-        match &mut ty.def {
-            TypeDef::Func(func) => func.resolve(self)?,
-            TypeDef::Struct(struct_) => {
+        match &mut ty.def.kind {
+            InnerTypeKind::Func(func) => func.resolve(self)?,
+            InnerTypeKind::Struct(struct_) => {
                 for field in &mut struct_.fields {
                     self.resolve_storagetype(&mut field.ty)?;
                 }
             }
-            TypeDef::Array(array) => self.resolve_storagetype(&mut array.ty)?,
+            InnerTypeKind::Array(array) => self.resolve_storagetype(&mut array.ty)?,
         }
         if let Some(parent) = &mut ty.parent {
             self.resolve(parent, Ns::Type)?;

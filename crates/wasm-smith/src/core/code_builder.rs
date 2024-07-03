@@ -1,6 +1,6 @@
 use super::{
-    CompositeType, Elements, FuncType, Instruction, InstructionKind::*, InstructionKinds, Module,
-    ValType,
+    CompositeInnerType, Elements, FuncType, Instruction, InstructionKind::*, InstructionKinds,
+    Module, ValType,
 };
 use crate::{unique_string, MemoryOffsetChoices};
 use arbitrary::{Result, Unstructured};
@@ -1145,8 +1145,8 @@ impl CodeBuilder<'_> {
         at: usize,
     ) -> Option<(bool, u32, ArrayType)> {
         let (nullable, ty) = self.concrete_ref_type_on_stack_at(at)?;
-        match &module.ty(ty).composite_type {
-            CompositeType::Array(a) => Some((nullable, ty, *a)),
+        match &module.ty(ty).composite_type.inner {
+            CompositeInnerType::Array(a) => Some((nullable, ty, *a)),
             _ => None,
         }
     }
@@ -1159,8 +1159,8 @@ impl CodeBuilder<'_> {
         at: usize,
     ) -> Option<(bool, u32, &'a StructType)> {
         let (nullable, ty) = self.concrete_ref_type_on_stack_at(at)?;
-        match &module.ty(ty).composite_type {
-            CompositeType::Struct(s) => Some((nullable, ty, s)),
+        match &module.ty(ty).composite_type.inner {
+            CompositeInnerType::Struct(s) => Some((nullable, ty, s)),
             _ => None,
         }
     }
@@ -1189,9 +1189,9 @@ impl CodeBuilder<'_> {
     fn concrete_funcref_on_stack(&self, module: &Module) -> Option<RefType> {
         match self.operands().last().copied()?? {
             ValType::Ref(r) => match r.heap_type {
-                HeapType::Concrete(idx) => match &module.ty(idx).composite_type {
-                    CompositeType::Func(_) => Some(r),
-                    CompositeType::Struct(_) | CompositeType::Array(_) => None,
+                HeapType::Concrete(idx) => match &module.ty(idx).composite_type.inner {
+                    CompositeInnerType::Func(_) => Some(r),
+                    CompositeInnerType::Struct(_) | CompositeInnerType::Array(_) => None,
                 },
                 _ => None,
             },
@@ -1206,8 +1206,10 @@ impl CodeBuilder<'_> {
             Some(Some(ValType::Ref(RefType {
                 nullable,
                 heap_type: HeapType::Concrete(idx),
-            }))) => match &module.ty(*idx).composite_type {
-                CompositeType::Struct(s) => !s.fields.is_empty() && (!nullable || allow_null_refs),
+            }))) => match &module.ty(*idx).composite_type.inner {
+                CompositeInnerType::Struct(s) => {
+                    !s.fields.is_empty() && (!nullable || allow_null_refs)
+                }
                 _ => false,
             },
             _ => false,
@@ -2032,8 +2034,8 @@ fn call_ref(
         HeapType::Concrete(idx) => idx,
         _ => unreachable!(),
     };
-    let func_ty = match &module.ty(idx).composite_type {
-        CompositeType::Func(f) => f,
+    let func_ty = match &module.ty(idx).composite_type.inner {
+        CompositeInnerType::Func(f) => f,
         _ => unreachable!(),
     };
     builder.pop_operands(module, &func_ty.params);
@@ -2165,9 +2167,9 @@ fn return_call_ref_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
         HeapType::Concrete(idx) => idx,
         _ => unreachable!(),
     };
-    let func_ty = match &module.ty(idx).composite_type {
-        CompositeType::Func(f) => f,
-        CompositeType::Array(_) | CompositeType::Struct(_) => return false,
+    let func_ty = match &module.ty(idx).composite_type.inner {
+        CompositeInnerType::Func(f) => f,
+        CompositeInnerType::Array(_) | CompositeInnerType::Struct(_) => return false,
     };
 
     let ty = builder.allocs.operands.pop().unwrap();
@@ -2191,8 +2193,8 @@ fn return_call_ref(
         HeapType::Concrete(idx) => idx,
         _ => unreachable!(),
     };
-    let func_ty = match &module.ty(idx).composite_type {
-        CompositeType::Func(f) => f,
+    let func_ty = match &module.ty(idx).composite_type.inner {
+        CompositeInnerType::Func(f) => f,
         _ => unreachable!(),
     };
     builder.pop_operands(module, &func_ty.params);

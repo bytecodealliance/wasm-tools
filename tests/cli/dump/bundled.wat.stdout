@@ -26,7 +26,7 @@
     0x54 | 01 09       | type section
     0x56 | 01          | 1 count
 --- rec group 0 (implicit) ---
-    0x57 | 60 04 7f 7f | [type 0] SubType { is_final: true, supertype_idx: None, composite_type: Func(FuncType { params: [I32, I32, I32, I32], results: [I32] }) }
+    0x57 | 60 04 7f 7f | [type 0] SubType { is_final: true, supertype_idx: None, composite_type: CompositeType { inner: Func(FuncType { params: [I32, I32, I32, I32], results: [I32] }), shared: false } }
          | 7f 7f 01 7f
     0x5f | 03 02       | func section
     0x61 | 01          | 1 count
@@ -63,10 +63,10 @@
     0xa0 | 01 09       | type section
     0xa2 | 02          | 2 count
 --- rec group 0 (implicit) ---
-    0xa3 | 60 02 7f 7f | [type 0] SubType { is_final: true, supertype_idx: None, composite_type: Func(FuncType { params: [I32, I32], results: [] }) }
+    0xa3 | 60 02 7f 7f | [type 0] SubType { is_final: true, supertype_idx: None, composite_type: CompositeType { inner: Func(FuncType { params: [I32, I32], results: [] }), shared: false } }
          | 00         
 --- rec group 1 (implicit) ---
-    0xa8 | 60 00 00    | [type 1] SubType { is_final: true, supertype_idx: None, composite_type: Func(FuncType { params: [], results: [] }) }
+    0xa8 | 60 00 00    | [type 1] SubType { is_final: true, supertype_idx: None, composite_type: CompositeType { inner: Func(FuncType { params: [], results: [] }), shared: false } }
     0xab | 02 12       | import section
     0xad | 01          | 1 count
     0xae | 09 77 61 73 | import [func 0] Import { module: "wasi-file", name: "read", ty: Func(0) }
@@ -107,10 +107,10 @@
    0x101 | 01 0c       | type section
    0x103 | 02          | 2 count
 --- rec group 0 (implicit) ---
-   0x104 | 60 02 7f 7f | [type 0] SubType { is_final: true, supertype_idx: None, composite_type: Func(FuncType { params: [I32, I32], results: [] }) }
+   0x104 | 60 02 7f 7f | [type 0] SubType { is_final: true, supertype_idx: None, composite_type: CompositeType { inner: Func(FuncType { params: [I32, I32], results: [] }), shared: false } }
          | 00         
 --- rec group 1 (implicit) ---
-   0x109 | 60 03 7f 7f | [type 1] SubType { is_final: true, supertype_idx: None, composite_type: Func(FuncType { params: [I32, I32, I32], results: [] }) }
+   0x109 | 60 03 7f 7f | [type 1] SubType { is_final: true, supertype_idx: None, composite_type: CompositeType { inner: Func(FuncType { params: [I32, I32, I32], results: [] }), shared: false } }
          | 7f 00      
    0x10f | 02 12       | import section
    0x111 | 01          | 1 count

@@ -10,9 +10,9 @@ use super::{
         ModuleType, RecordType, Remapping, ResourceId, TypeAlloc, TypeList, VariantCase,
     },
 };
-use crate::collections::index_map::Entry;
 use crate::prelude::*;
 use crate::validator::names::{ComponentName, ComponentNameKind, KebabStr, KebabString};
+use crate::{collections::index_map::Entry, CompositeInnerType};
 use crate::{
     limits::*,
     types::{
@@ -1005,10 +1005,14 @@ impl ComponentState {
 
         self.check_options(None, &info, &options, types, offset)?;
 
+        let composite_type = CompositeType {
+            inner: CompositeInnerType::Func(info.into_func_type()),
+            shared: false,
+        };
         let lowered_ty = SubType {
             is_final: true,
             supertype_idx: None,
-            composite_type: CompositeType::Func(info.into_func_type()),
+            composite_type,
         };
 
         let (_is_new, group_id) =
@@ -1026,10 +1030,14 @@ impl ComponentState {
         offset: usize,
     ) -> Result<()> {
         let rep = self.check_local_resource(resource, types, offset)?;
+        let composite_type = CompositeType {
+            inner: CompositeInnerType::Func(FuncType::new([rep], [ValType::I32])),
+            shared: false,
+        };
         let core_ty = SubType {
             is_final: true,
             supertype_idx: None,
-            composite_type: CompositeType::Func(FuncType::new([rep], [ValType::I32])),
+            composite_type,
         };
         let (_is_new, group_id) =
             types.intern_canonical_rec_group(RecGroup::implicit(offset, core_ty));
@@ -1045,10 +1053,14 @@ impl ComponentState {
         offset: usize,
     ) -> Result<()> {
         self.resource_at(resource, types, offset)?;
+        let composite_type = CompositeType {
+            inner: CompositeInnerType::Func(FuncType::new([ValType::I32], [])),
+            shared: false,
+        };
         let core_ty = SubType {
             is_final: true,
             supertype_idx: None,
-            composite_type: CompositeType::Func(FuncType::new([ValType::I32], [])),
+            composite_type,
         };
         let (_is_new, group_id) =
             types.intern_canonical_rec_group(RecGroup::implicit(offset, core_ty));
@@ -1064,10 +1076,14 @@ impl ComponentState {
         offset: usize,
     ) -> Result<()> {
         let rep = self.check_local_resource(resource, types, offset)?;
+        let composite_type = CompositeType {
+            inner: CompositeInnerType::Func(FuncType::new([ValType::I32], [rep])),
+            shared: false,
+        };
         let core_ty = SubType {
             is_final: true,
             supertype_idx: None,
-            composite_type: CompositeType::Func(FuncType::new([ValType::I32], [rep])),
+            composite_type,
         };
         let (_is_new, group_id) =
             types.intern_canonical_rec_group(RecGroup::implicit(offset, core_ty));

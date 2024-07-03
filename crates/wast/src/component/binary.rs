@@ -57,14 +57,21 @@ fn encode_fields(
 
 fn encode_core_type(encoder: CoreTypeEncoder, ty: &CoreTypeDef) {
     match ty {
-        CoreTypeDef::Def(core::TypeDef::Func(f)) => {
-            encoder.function(
-                f.params.iter().map(|(_, _, ty)| (*ty).into()),
-                f.results.iter().copied().map(Into::into),
-            );
-        }
-        CoreTypeDef::Def(core::TypeDef::Struct(_)) | CoreTypeDef::Def(core::TypeDef::Array(_)) => {
-            todo!("encoding of GC proposal types not yet implemented")
+        CoreTypeDef::Def(def) => {
+            if def.shared {
+                todo!("encoding of shared types not yet implemented")
+            }
+            match &def.kind {
+                core::InnerTypeKind::Func(f) => {
+                    encoder.function(
+                        f.params.iter().map(|(_, _, ty)| (*ty).into()),
+                        f.results.iter().copied().map(Into::into),
+                    );
+                }
+                core::InnerTypeKind::Struct(_) | core::InnerTypeKind::Array(_) => {
+                    todo!("encoding of GC proposal types not yet implemented")
+                }
+            }
         }
         CoreTypeDef::Module(t) => {
             encoder.module(&t.into());
@@ -876,12 +883,12 @@ impl From<&ModuleType<'_>> for wasm_encoder::ModuleType {
 
         for decl in &ty.decls {
             match decl {
-                ModuleTypeDecl::Type(t) => match &t.def {
-                    core::TypeDef::Func(f) => encoded.ty().function(
+                ModuleTypeDecl::Type(t) => match &t.def.kind {
+                    core::InnerTypeKind::Func(f) => encoded.ty().function(
                         f.params.iter().map(|(_, _, ty)| (*ty).into()),
                         f.results.iter().copied().map(Into::into),
                     ),
-                    core::TypeDef::Struct(_) | core::TypeDef::Array(_) => {
+                    core::InnerTypeKind::Struct(_) | core::InnerTypeKind::Array(_) => {
                         todo!("encoding of GC proposal types not yet implemented")
                     }
                 },

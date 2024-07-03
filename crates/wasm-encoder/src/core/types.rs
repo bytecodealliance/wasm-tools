@@ -25,31 +25,44 @@ impl Encode for SubType {
 
 /// Represents a composite type in a WebAssembly module.
 #[derive(Debug, Clone)]
-pub enum CompositeType {
+pub struct CompositeType {
+    /// The type defined inside the composite type.
+    pub inner: CompositeInnerType,
+    /// Whether the type is shared. This is part of the
+    /// shared-everything-threads proposal.
+    pub shared: bool,
+}
+
+impl Encode for CompositeType {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        if self.shared {
+            sink.push(0x65);
+        }
+        match &self.inner {
+            CompositeInnerType::Func(ty) => TypeSection::encode_function(
+                sink,
+                ty.params().iter().copied(),
+                ty.results().iter().copied(),
+            ),
+            CompositeInnerType::Array(ArrayType(ty)) => {
+                TypeSection::encode_array(sink, &ty.element_type, ty.mutable)
+            }
+            CompositeInnerType::Struct(ty) => {
+                TypeSection::encode_struct(sink, ty.fields.iter().cloned())
+            }
+        }
+    }
+}
+
+/// A [`CompositeType`] can contain one of these types.
+#[derive(Debug, Clone)]
+pub enum CompositeInnerType {
     /// The type is for a function.
     Func(FuncType),
     /// The type is for an array.
     Array(ArrayType),
     /// The type is for a struct.
     Struct(StructType),
-}
-
-impl Encode for CompositeType {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        match self {
-            CompositeType::Func(ty) => TypeSection::encode_function(
-                sink,
-                ty.params().iter().copied(),
-                ty.results().iter().copied(),
-            ),
-            CompositeType::Array(ArrayType(ty)) => {
-                TypeSection::encode_array(sink, &ty.element_type, ty.mutable)
-            }
-            CompositeType::Struct(ty) => {
-                TypeSection::encode_struct(sink, ty.fields.iter().cloned())
-            }
-        }
-    }
 }
 
 /// Represents a type of a function in a WebAssembly module.
@@ -635,10 +648,9 @@ impl Section for TypeSection {
 
 #[cfg(test)]
 mod tests {
-    use wasmparser::WasmFeatures;
-
     use super::*;
     use crate::Module;
+    use wasmparser::WasmFeatures;
 
     #[test]
     fn func_types_dont_require_wasm_gc() {
@@ -646,7 +658,10 @@ mod tests {
         types.subtype(&SubType {
             is_final: true,
             supertype_idx: None,
-            composite_type: CompositeType::Func(FuncType::new([], [])),
+            composite_type: CompositeType {
+                inner: CompositeInnerType::Func(FuncType::new([], [])),
+                shared: false,
+            },
         });
 
         let mut module = Module::new();
