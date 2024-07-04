@@ -1021,8 +1021,9 @@ impl Resolve {
                         0 => bail!("no worlds found in package `{}`", pkg.name),
                         1 => return Ok(*pkg.worlds.values().next().unwrap()),
                         _ => bail!(
-                            "multiple worlds found in package `{}`: one must be explicitly chosen",
-                            pkg.name
+                            "multiple worlds found in package `{}`, one must be explicitly chosen:{}",
+                            pkg.name,
+                            pkg.worlds.keys().map(|name| format!("\n  {name}")).collect::<String>()
                         ),
                     }
                 }
