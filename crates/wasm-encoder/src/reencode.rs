@@ -884,12 +884,12 @@ pub mod utils {
     }
 
     pub fn component_val_type<T: ?Sized + Reencode>(
-        _reencoder: &mut T,
+        reencoder: &mut T,
         ty: wasmparser::ComponentValType,
     ) -> crate::component::ComponentValType {
         match ty {
             wasmparser::ComponentValType::Type(u) => {
-                crate::component::ComponentValType::Type(_reencoder.component_type_index(u))
+                crate::component::ComponentValType::Type(reencoder.component_type_index(u))
             }
             wasmparser::ComponentValType::Primitive(pty) => {
                 crate::component::ComponentValType::Primitive(
@@ -900,45 +900,45 @@ pub mod utils {
     }
 
     pub fn type_bounds<T: ?Sized + Reencode>(
-        _reencoder: &mut T,
+        reencoder: &mut T,
         ty: wasmparser::TypeBounds,
     ) -> crate::component::TypeBounds {
         match ty {
-            wasmparser::TypeBounds::Eq(u) => crate::component::TypeBounds::Eq(u),
+            wasmparser::TypeBounds::Eq(u) => {
+                crate::component::TypeBounds::Eq(reencoder.component_type_index(u))
+            }
             wasmparser::TypeBounds::SubResource => crate::component::TypeBounds::SubResource,
         }
     }
 
     pub fn component_type_ref<T: ?Sized + Reencode>(
-        _reencoder: &mut T,
+        reencoder: &mut T,
         ty: wasmparser::ComponentTypeRef,
     ) -> crate::component::ComponentTypeRef {
         match ty {
             wasmparser::ComponentTypeRef::Module(u) => {
-                crate::component::ComponentTypeRef::Module(_reencoder.component_type_index(u))
+                crate::component::ComponentTypeRef::Module(reencoder.component_type_index(u))
             }
             wasmparser::ComponentTypeRef::Func(u) => {
-                crate::component::ComponentTypeRef::Func(_reencoder.component_type_index(u))
+                crate::component::ComponentTypeRef::Func(reencoder.component_type_index(u))
             }
             wasmparser::ComponentTypeRef::Value(valty) => {
-                crate::component::ComponentTypeRef::Value(crate::component::ComponentValType::from(
-                    valty,
-                ))
+                crate::component::ComponentTypeRef::Value(reencoder.component_val_type(valty))
             }
             wasmparser::ComponentTypeRef::Type(bounds) => {
-                crate::component::ComponentTypeRef::Type(crate::component::TypeBounds::from(bounds))
+                crate::component::ComponentTypeRef::Type(reencoder.type_bounds(bounds))
             }
             wasmparser::ComponentTypeRef::Instance(u) => {
-                crate::component::ComponentTypeRef::Instance(_reencoder.component_type_index(u))
+                crate::component::ComponentTypeRef::Instance(reencoder.component_type_index(u))
             }
             wasmparser::ComponentTypeRef::Component(u) => {
-                crate::component::ComponentTypeRef::Component(_reencoder.component_type_index(u))
+                crate::component::ComponentTypeRef::Component(reencoder.component_type_index(u))
             }
         }
     }
 
     pub fn canonical_option<T: ?Sized + Reencode>(
-        _reencoder: &mut T,
+        reencoder: &mut T,
         ty: wasmparser::CanonicalOption,
     ) -> crate::component::CanonicalOption {
         match ty {
@@ -947,12 +947,14 @@ pub mod utils {
             wasmparser::CanonicalOption::CompactUTF16 => {
                 crate::component::CanonicalOption::CompactUTF16
             }
-            wasmparser::CanonicalOption::Memory(u) => crate::component::CanonicalOption::Memory(u),
+            wasmparser::CanonicalOption::Memory(u) => {
+                crate::component::CanonicalOption::Memory(reencoder.memory_index(u))
+            }
             wasmparser::CanonicalOption::Realloc(u) => {
-                crate::component::CanonicalOption::Realloc(u)
+                crate::component::CanonicalOption::Realloc(reencoder.function_index(u))
             }
             wasmparser::CanonicalOption::PostReturn(u) => {
-                crate::component::CanonicalOption::PostReturn(u)
+                crate::component::CanonicalOption::PostReturn(reencoder.function_index(u))
             }
         }
     }
