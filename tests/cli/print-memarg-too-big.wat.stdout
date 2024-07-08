@@ -1,0 +1,2 @@
+(module
+  (data (;0;) (i32.load16_s

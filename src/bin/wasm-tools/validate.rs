@@ -1,8 +1,13 @@
+use addr2line::LookupResult;
 use anyhow::{anyhow, Context, Result};
 use rayon::prelude::*;
+use std::fmt::Write;
 use std::mem;
 use std::time::Instant;
-use wasmparser::{FuncValidatorAllocations, Parser, ValidPayload, Validator, WasmFeatures};
+use wasm_tools::addr2line::Addr2lineModules;
+use wasmparser::{
+    BinaryReaderError, FuncValidatorAllocations, Parser, ValidPayload, Validator, WasmFeatures,
+};
 
 /// Validate a WebAssembly binary
 ///
@@ -49,6 +54,31 @@ impl Opts {
     }
 
     pub fn run(&self) -> Result<()> {
+        let wasm = self.io.parse_input_wasm()?;
+
+        // If validation fails then try to attach extra information to the
+        // error based on DWARF information in the input wasm binary. If
+        // DWARF information isn't present or if the DWARF failed to get parsed
+        // then ignore the error and carry on.
+        let error = match self.validate(&wasm) {
+            Ok(()) => return Ok(()),
+            Err(e) => e,
+        };
+        let offset = match error.downcast_ref::<BinaryReaderError>() {
+            Some(err) => err.offset(),
+            None => return Err(error.into()),
+        };
+        match self.annotate_error_with_file_and_line(&wasm, offset) {
+            Ok(Some(msg)) => Err(error.context(msg)),
+            Ok(None) => Err(error.into()),
+            Err(e) => {
+                log::warn!("failed to parse DWARF information: {e:?}");
+                Err(error.into())
+            }
+        }
+    }
+
+    fn validate(&self, wasm: &[u8]) -> Result<()> {
         // Note that here we're copying the contents of
         // `Validator::validate_all`, but the end is followed up with a parallel
         // iteration over the functions to validate instead of a synchronous
@@ -61,7 +91,6 @@ impl Opts {
         // validated later.
         let mut validator = Validator::new_with_features(self.features.unwrap_or_default());
         let mut functions_to_validate = Vec::new();
-        let wasm = self.io.parse_input_wasm()?;
 
         let start = Instant::now();
         for payload in Parser::new(0).parse_all(&wasm) {
@@ -91,6 +120,51 @@ impl Opts {
         )?;
         log::info!("functions validated in {:?}", start.elapsed());
         Ok(())
+    }
+
+    fn annotate_error_with_file_and_line(
+        &self,
+        wasm: &[u8],
+        offset: usize,
+    ) -> Result<Option<String>> {
+        let mut modules = Addr2lineModules::parse(wasm)?;
+        let code_section_relative = false;
+        let (context, text_rel) = match modules.context(offset as u64, code_section_relative)? {
+            Some(pair) => pair,
+            None => return Ok(None),
+        };
+
+        let mut frames = match context.find_frames(text_rel) {
+            LookupResult::Output(result) => result?,
+            LookupResult::Load { .. } => return Ok(None),
+        };
+        let frame = match frames.next()? {
+            Some(frame) => frame,
+            None => return Ok(None),
+        };
+
+        let mut out = String::new();
+        if let Some(loc) = &frame.location {
+            if let Some(file) = loc.file {
+                write!(out, "{file}")?;
+            }
+            if let Some(line) = loc.line {
+                write!(out, ":{line}")?;
+            }
+            if let Some(column) = loc.column {
+                write!(out, ":{column}")?;
+            }
+            write!(out, " ")?;
+        }
+        if let Some(func) = &frame.function {
+            write!(out, "function `{}` failed to validate", func.demangle()?)?;
+        }
+
+        if out.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(out))
+        }
     }
 }
 

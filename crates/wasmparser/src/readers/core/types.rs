@@ -503,8 +503,8 @@ impl SubType {
         if let Some(idx) = &mut self.supertype_idx {
             f(idx)?;
         }
-        match &mut self.composite_type {
-            CompositeType::Func(ty) => {
+        match &mut self.composite_type.inner {
+            CompositeInnerType::Func(ty) => {
                 for ty in ty.params_mut() {
                     ty.remap_indices(f)?;
                 }
@@ -512,10 +512,10 @@ impl SubType {
                     ty.remap_indices(f)?;
                 }
             }
-            CompositeType::Array(ty) => {
+            CompositeInnerType::Array(ty) => {
                 ty.0.remap_indices(f)?;
             }
-            CompositeType::Struct(ty) => {
+            CompositeInnerType::Struct(ty) => {
                 for field in ty.fields.iter_mut() {
                     field.remap_indices(f)?;
                 }
@@ -527,7 +527,17 @@ impl SubType {
 
 /// Represents a composite type in a WebAssembly module.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum CompositeType {
+pub struct CompositeType {
+    /// The type defined inside the composite type.
+    pub inner: CompositeInnerType,
+    /// Is the composite type shared? This is part of the
+    /// shared-everything-threads proposal.
+    pub shared: bool,
+}
+
+/// A [`CompositeType`] can contain one of these types.
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum CompositeInnerType {
     /// The type is for a function.
     Func(FuncType),
     /// The type is for an array.
@@ -538,35 +548,43 @@ pub enum CompositeType {
 
 impl fmt::Display for CompositeType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
-            Self::Array(_) => write!(f, "(array ...)"),
-            Self::Func(_) => write!(f, "(func ...)"),
-            Self::Struct(_) => write!(f, "(struct ...)"),
+        use CompositeInnerType::*;
+        if self.shared {
+            write!(f, "(shared ")?;
         }
+        match self.inner {
+            Array(_) => write!(f, "(array ...)"),
+            Func(_) => write!(f, "(func ...)"),
+            Struct(_) => write!(f, "(struct ...)"),
+        }?;
+        if self.shared {
+            write!(f, ")")?;
+        }
+        Ok(())
     }
 }
 
 impl CompositeType {
     /// Unwrap a `FuncType` or panic.
     pub fn unwrap_func(&self) -> &FuncType {
-        match self {
-            Self::Func(f) => f,
+        match &self.inner {
+            CompositeInnerType::Func(f) => f,
             _ => panic!("not a func"),
         }
     }
 
     /// Unwrap a `ArrayType` or panic.
     pub fn unwrap_array(&self) -> &ArrayType {
-        match self {
-            Self::Array(a) => a,
+        match &self.inner {
+            CompositeInnerType::Array(a) => a,
             _ => panic!("not a array"),
         }
     }
 
     /// Unwrap a `StructType` or panic.
     pub fn unwrap_struct(&self) -> &StructType {
-        match self {
-            Self::Struct(s) => s,
+        match &self.inner {
+            CompositeInnerType::Struct(s) => s,
             _ => panic!("not a struct"),
         }
     }
@@ -818,15 +836,6 @@ impl ValType {
         }
     }
 
-    /// Whether the type is `shared`.
-    pub fn is_shared(&self) -> bool {
-        match *self {
-            Self::I32 | Self::I64 | Self::F32 | Self::F64 | Self::V128 => true,
-            // TODO: parsing of `shared` refs is not yet implemented.
-            Self::Ref(_) => false,
-        }
-    }
-
     /// Maps any `UnpackedIndex` via the specified closure.
     #[cfg(feature = "validate")]
     pub(crate) fn remap_indices(
@@ -857,26 +866,28 @@ impl ValType {
 /// The GC proposal introduces heap types: any, eq, i31, struct, array,
 /// nofunc, noextern, none.
 //
-// RefType is a bit-packed enum that fits in a `u24` aka `[u8; 3]`.
-// Note that its content is opaque (and subject to change), but its API
-// is stable.
+// RefType is a bit-packed enum that fits in a `u24` aka `[u8; 3]`. Note that
+// its content is opaque (and subject to change), but its API is stable.
 //
 // It has the following internal structure:
 //
 // ```
 // [nullable:u1 concrete==1:u1 index:u22]
-// [nullable:u1 concrete==0:u1 abstype:u4 (unused):u18]
+// [nullable:u1 concrete==0:u1 shared:u1 abstype:u4 (unused):u17]
 // ```
 //
 // Where
 //
 // - `nullable` determines nullability of the ref,
 //
-// - `concrete` determines if the ref is of a dynamically defined type
-//   with an index (encoded in a following bit-packing section) or of a
-//   known fixed type,
+// - `concrete` determines if the ref is of a dynamically defined type with an
+//   index (encoded in a following bit-packing section) or of a known fixed
+//   type,
 //
 // - `index` is the type index,
+//
+// - `shared` determines if the ref is shared, but only if it is not concrete in
+//   which case we would need to examine the type at the concrete index,
 //
 // - `abstype` is an enumeration of abstract types:
 //
@@ -903,33 +914,31 @@ pub struct RefType([u8; 3]);
 
 impl fmt::Debug for RefType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match (self.is_nullable(), self.heap_type()) {
-            (true, HeapType::Any) => write!(f, "anyref"),
-            (false, HeapType::Any) => write!(f, "(ref any)"),
-            (true, HeapType::None) => write!(f, "nullref"),
-            (false, HeapType::None) => write!(f, "(ref none)"),
-            (true, HeapType::NoExtern) => write!(f, "nullexternref"),
-            (false, HeapType::NoExtern) => write!(f, "(ref noextern)"),
-            (true, HeapType::NoFunc) => write!(f, "nullfuncref"),
-            (false, HeapType::NoFunc) => write!(f, "(ref nofunc)"),
-            (true, HeapType::Eq) => write!(f, "eqref"),
-            (false, HeapType::Eq) => write!(f, "(ref eq)"),
-            (true, HeapType::Struct) => write!(f, "structref"),
-            (false, HeapType::Struct) => write!(f, "(ref struct)"),
-            (true, HeapType::Array) => write!(f, "arrayref"),
-            (false, HeapType::Array) => write!(f, "(ref array)"),
-            (true, HeapType::I31) => write!(f, "i31ref"),
-            (false, HeapType::I31) => write!(f, "(ref i31)"),
-            (true, HeapType::Extern) => write!(f, "externref"),
-            (false, HeapType::Extern) => write!(f, "(ref extern)"),
-            (true, HeapType::Func) => write!(f, "funcref"),
-            (false, HeapType::Func) => write!(f, "(ref func)"),
-            (true, HeapType::Exn) => write!(f, "exnref"),
-            (false, HeapType::Exn) => write!(f, "(ref exn)"),
-            (true, HeapType::NoExn) => write!(f, "nullexnref"),
-            (false, HeapType::NoExn) => write!(f, "(ref noexn)"),
-            (true, HeapType::Concrete(idx)) => write!(f, "(ref null {idx})"),
-            (false, HeapType::Concrete(idx)) => write!(f, "(ref {idx})"),
+        let heap_type = self.heap_type();
+        match heap_type {
+            // All abstract types follow the same general pattern.
+            HeapType::Abstract { shared, ty } => {
+                let nullable = self.is_nullable();
+
+                let name = ty.as_str(nullable);
+                match (nullable, shared) {
+                    // Print the shortened form if nullable; i.e., `*ref`.
+                    (true, true) => write!(f, "(shared {}ref)", name),
+                    (true, false) => write!(f, "{}ref", name),
+                    // Print the long form otherwise; i.e., `(ref *)`.
+                    (false, true) => write!(f, "(ref (shared {}))", name),
+                    (false, false) => write!(f, "(ref {})", name),
+                }
+            }
+            // Handle concrete types separately; they always use the long form
+            // and don't show `shared`-ness.
+            HeapType::Concrete(index) => {
+                if self.is_nullable() {
+                    write!(f, "(ref null {})", index)
+                } else {
+                    write!(f, "(ref {})", index)
+                }
+            }
         }
     }
 }
@@ -967,19 +976,20 @@ impl RefType {
     const CONCRETE_BIT: u32 = 1 << 22;
 
     // The `abstype` field is valid only when `concrete == 0`.
-    const ABSTYPE_MASK: u32 = 0b1111 << 18;
-    const ANY_ABSTYPE: u32 = 0b1111 << 18;
-    const EQ_ABSTYPE: u32 = 0b1101 << 18;
-    const I31_ABSTYPE: u32 = 0b1000 << 18;
-    const STRUCT_ABSTYPE: u32 = 0b1001 << 18;
-    const ARRAY_ABSTYPE: u32 = 0b1100 << 18;
-    const FUNC_ABSTYPE: u32 = 0b0101 << 18;
-    const NOFUNC_ABSTYPE: u32 = 0b0100 << 18;
-    const EXTERN_ABSTYPE: u32 = 0b0011 << 18;
-    const NOEXTERN_ABSTYPE: u32 = 0b0010 << 18;
-    const EXN_ABSTYPE: u32 = 0b0001 << 18;
-    const NOEXN_ABSTYPE: u32 = 0b1110 << 18;
-    const NONE_ABSTYPE: u32 = 0b0000 << 18;
+    const SHARED_BIT: u32 = 1 << 21;
+    const ABSTYPE_MASK: u32 = 0b1111 << 17;
+    const ANY_ABSTYPE: u32 = 0b1111 << 17;
+    const EQ_ABSTYPE: u32 = 0b1101 << 17;
+    const I31_ABSTYPE: u32 = 0b1000 << 17;
+    const STRUCT_ABSTYPE: u32 = 0b1001 << 17;
+    const ARRAY_ABSTYPE: u32 = 0b1100 << 17;
+    const FUNC_ABSTYPE: u32 = 0b0101 << 17;
+    const NOFUNC_ABSTYPE: u32 = 0b0100 << 17;
+    const EXTERN_ABSTYPE: u32 = 0b0011 << 17;
+    const NOEXTERN_ABSTYPE: u32 = 0b0010 << 17;
+    const EXN_ABSTYPE: u32 = 0b0001 << 17;
+    const NOEXN_ABSTYPE: u32 = 0b1110 << 17;
+    const NONE_ABSTYPE: u32 = 0b0000 << 17;
 
     // The `index` is valid only when `concrete == 1`.
     const INDEX_MASK: u32 = (1 << 22) - 1;
@@ -1127,21 +1137,27 @@ impl RefType {
     /// Returns `None` when the heap type's type index (if any) is beyond this
     /// crate's implementation limits and therefore is not representable.
     pub fn new(nullable: bool, heap_type: HeapType) -> Option<Self> {
-        let nullable32 = Self::NULLABLE_BIT * (nullable as u32);
+        let base32 = Self::NULLABLE_BIT * (nullable as u32);
         match heap_type {
             HeapType::Concrete(index) => Some(RefType::concrete(nullable, index.pack()?)),
-            HeapType::Func => Some(Self::from_u32(nullable32 | Self::FUNC_ABSTYPE)),
-            HeapType::Extern => Some(Self::from_u32(nullable32 | Self::EXTERN_ABSTYPE)),
-            HeapType::Any => Some(Self::from_u32(nullable32 | Self::ANY_ABSTYPE)),
-            HeapType::None => Some(Self::from_u32(nullable32 | Self::NONE_ABSTYPE)),
-            HeapType::NoExtern => Some(Self::from_u32(nullable32 | Self::NOEXTERN_ABSTYPE)),
-            HeapType::NoFunc => Some(Self::from_u32(nullable32 | Self::NOFUNC_ABSTYPE)),
-            HeapType::Eq => Some(Self::from_u32(nullable32 | Self::EQ_ABSTYPE)),
-            HeapType::Struct => Some(Self::from_u32(nullable32 | Self::STRUCT_ABSTYPE)),
-            HeapType::Array => Some(Self::from_u32(nullable32 | Self::ARRAY_ABSTYPE)),
-            HeapType::I31 => Some(Self::from_u32(nullable32 | Self::I31_ABSTYPE)),
-            HeapType::Exn => Some(Self::from_u32(nullable32 | Self::EXN_ABSTYPE)),
-            HeapType::NoExn => Some(Self::from_u32(nullable32 | Self::NOEXN_ABSTYPE)),
+            HeapType::Abstract { shared, ty } => {
+                use AbstractHeapType::*;
+                let base32 = base32 | (Self::SHARED_BIT * (shared as u32));
+                match ty {
+                    Func => Some(Self::from_u32(base32 | Self::FUNC_ABSTYPE)),
+                    Extern => Some(Self::from_u32(base32 | Self::EXTERN_ABSTYPE)),
+                    Any => Some(Self::from_u32(base32 | Self::ANY_ABSTYPE)),
+                    None => Some(Self::from_u32(base32 | Self::NONE_ABSTYPE)),
+                    NoExtern => Some(Self::from_u32(base32 | Self::NOEXTERN_ABSTYPE)),
+                    NoFunc => Some(Self::from_u32(base32 | Self::NOFUNC_ABSTYPE)),
+                    Eq => Some(Self::from_u32(base32 | Self::EQ_ABSTYPE)),
+                    Struct => Some(Self::from_u32(base32 | Self::STRUCT_ABSTYPE)),
+                    Array => Some(Self::from_u32(base32 | Self::ARRAY_ABSTYPE)),
+                    I31 => Some(Self::from_u32(base32 | Self::I31_ABSTYPE)),
+                    Exn => Some(Self::from_u32(base32 | Self::EXN_ABSTYPE)),
+                    NoExn => Some(Self::from_u32(base32 | Self::NOEXN_ABSTYPE)),
+                }
+            }
         }
     }
 
@@ -1193,7 +1209,7 @@ impl RefType {
         !self.is_concrete_type_ref() && self.abstype() == Self::EXTERN_ABSTYPE
     }
 
-    /// Is this the abstract untyped array refrence type aka `(ref null
+    /// Is this the abstract untyped array reference type aka `(ref null
     /// array)` aka `arrayref`?
     pub const fn is_array_ref(&self) -> bool {
         !self.is_concrete_type_ref() && self.abstype() == Self::ARRAY_ABSTYPE
@@ -1220,27 +1236,39 @@ impl RefType {
         Self::from_u32(self.as_u32() | Self::NULLABLE_BIT)
     }
 
+    /// Get the shared version of this ref type as long as it is abstract.
+    pub const fn shared(&self) -> Option<Self> {
+        if self.is_concrete_type_ref() {
+            None
+        } else {
+            Some(Self::from_u32(self.as_u32() | Self::SHARED_BIT))
+        }
+    }
+
     /// Get the heap type that this is a reference to.
     pub fn heap_type(&self) -> HeapType {
         let s = self.as_u32();
         if self.is_concrete_type_ref() {
             HeapType::Concrete(self.type_index().unwrap().unpack())
         } else {
-            match s & Self::ABSTYPE_MASK {
-                Self::FUNC_ABSTYPE => HeapType::Func,
-                Self::EXTERN_ABSTYPE => HeapType::Extern,
-                Self::ANY_ABSTYPE => HeapType::Any,
-                Self::NONE_ABSTYPE => HeapType::None,
-                Self::NOEXTERN_ABSTYPE => HeapType::NoExtern,
-                Self::NOFUNC_ABSTYPE => HeapType::NoFunc,
-                Self::EQ_ABSTYPE => HeapType::Eq,
-                Self::STRUCT_ABSTYPE => HeapType::Struct,
-                Self::ARRAY_ABSTYPE => HeapType::Array,
-                Self::I31_ABSTYPE => HeapType::I31,
-                Self::EXN_ABSTYPE => HeapType::Exn,
-                Self::NOEXN_ABSTYPE => HeapType::NoExn,
+            use AbstractHeapType::*;
+            let shared = s & Self::SHARED_BIT != 0;
+            let ty = match s & Self::ABSTYPE_MASK {
+                Self::FUNC_ABSTYPE => Func,
+                Self::EXTERN_ABSTYPE => Extern,
+                Self::ANY_ABSTYPE => Any,
+                Self::NONE_ABSTYPE => None,
+                Self::NOEXTERN_ABSTYPE => NoExtern,
+                Self::NOFUNC_ABSTYPE => NoFunc,
+                Self::EQ_ABSTYPE => Eq,
+                Self::STRUCT_ABSTYPE => Struct,
+                Self::ARRAY_ABSTYPE => Array,
+                Self::I31_ABSTYPE => I31,
+                Self::EXN_ABSTYPE => Exn,
+                Self::NOEXN_ABSTYPE => NoExn,
                 _ => unreachable!(),
-            }
+            };
+            HeapType::Abstract { shared, ty }
         }
     }
 
@@ -1248,33 +1276,72 @@ impl RefType {
     // the indexes stubbed out.
     #[cfg(feature = "validate")]
     pub(crate) fn wat(&self) -> &'static str {
-        match (self.is_nullable(), self.heap_type()) {
-            (true, HeapType::Func) => "funcref",
-            (true, HeapType::Extern) => "externref",
-            (true, HeapType::Concrete(_)) => "(ref null $type)",
-            (true, HeapType::Any) => "anyref",
-            (true, HeapType::None) => "nullref",
-            (true, HeapType::NoExtern) => "nullexternref",
-            (true, HeapType::NoFunc) => "nullfuncref",
-            (true, HeapType::Eq) => "eqref",
-            (true, HeapType::Struct) => "structref",
-            (true, HeapType::Array) => "arrayref",
-            (true, HeapType::I31) => "i31ref",
-            (true, HeapType::Exn) => "exnref",
-            (true, HeapType::NoExn) => "nullexnref",
-            (false, HeapType::Func) => "(ref func)",
-            (false, HeapType::Extern) => "(ref extern)",
-            (false, HeapType::Concrete(_)) => "(ref $type)",
-            (false, HeapType::Any) => "(ref any)",
-            (false, HeapType::None) => "(ref none)",
-            (false, HeapType::NoExtern) => "(ref noextern)",
-            (false, HeapType::NoFunc) => "(ref nofunc)",
-            (false, HeapType::Eq) => "(ref eq)",
-            (false, HeapType::Struct) => "(ref struct)",
-            (false, HeapType::Array) => "(ref array)",
-            (false, HeapType::I31) => "(ref i31)",
-            (false, HeapType::Exn) => "(ref exn)",
-            (false, HeapType::NoExn) => "(ref noexn)",
+        let nullable = self.is_nullable();
+        match self.heap_type() {
+            HeapType::Abstract { shared, ty } => {
+                use AbstractHeapType::*;
+                match (shared, nullable, ty) {
+                    // Shared and nullable.
+                    (true, true, Func) => "(shared funcref)",
+                    (true, true, Extern) => "(shared externref)",
+                    (true, true, Any) => "(shared anyref)",
+                    (true, true, None) => "(shared nullref)",
+                    (true, true, NoExtern) => "(shared nullexternref)",
+                    (true, true, NoFunc) => "(shared nullfuncref)",
+                    (true, true, Eq) => "(shared eqref)",
+                    (true, true, Struct) => "(shared structref)",
+                    (true, true, Array) => "(shared arrayref)",
+                    (true, true, I31) => "(shared i31ref)",
+                    (true, true, Exn) => "(shared exnref)",
+                    (true, true, NoExn) => "(shared nullexnref)",
+                    // Unshared but nullable.
+                    (false, true, Func) => "funcref",
+                    (false, true, Extern) => "externref",
+                    (false, true, Any) => "anyref",
+                    (false, true, None) => "nullref",
+                    (false, true, NoExtern) => "nullexternref",
+                    (false, true, NoFunc) => "nullfuncref",
+                    (false, true, Eq) => "eqref",
+                    (false, true, Struct) => "structref",
+                    (false, true, Array) => "arrayref",
+                    (false, true, I31) => "i31ref",
+                    (false, true, Exn) => "exnref",
+                    (false, true, NoExn) => "nullexnref",
+                    // Shared but not nullable.
+                    (true, false, Func) => "(ref (shared func))",
+                    (true, false, Extern) => "(ref (shared extern))",
+                    (true, false, Any) => "(ref (shared any))",
+                    (true, false, None) => "(ref (shared none))",
+                    (true, false, NoExtern) => "(ref (shared noextern))",
+                    (true, false, NoFunc) => "(ref (shared nofunc))",
+                    (true, false, Eq) => "(ref (shared eq))",
+                    (true, false, Struct) => "(ref (shared struct))",
+                    (true, false, Array) => "(ref (shared array))",
+                    (true, false, I31) => "(ref (shared i31))",
+                    (true, false, Exn) => "(ref (shared exn))",
+                    (true, false, NoExn) => "(ref (shared noexn))",
+                    // Neither shared nor nullable.
+                    (false, false, Func) => "(ref func)",
+                    (false, false, Extern) => "(ref extern)",
+                    (false, false, Any) => "(ref any)",
+                    (false, false, None) => "(ref none)",
+                    (false, false, NoExtern) => "(ref noextern)",
+                    (false, false, NoFunc) => "(ref nofunc)",
+                    (false, false, Eq) => "(ref eq)",
+                    (false, false, Struct) => "(ref struct)",
+                    (false, false, Array) => "(ref array)",
+                    (false, false, I31) => "(ref i31)",
+                    (false, false, Exn) => "(ref exn)",
+                    (false, false, NoExn) => "(ref noexn)",
+                }
+            }
+            HeapType::Concrete(_) => {
+                if nullable {
+                    "(ref null $type)"
+                } else {
+                    "(ref $type)"
+                }
+            }
         }
     }
 }
@@ -1282,11 +1349,38 @@ impl RefType {
 /// A heap type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum HeapType {
+    /// An abstract heap type; e.g., `anyref`.
+    Abstract {
+        /// Whether the type is shared.
+        ///
+        /// Introduced in the shared-everything-threads proposal.
+        shared: bool,
+        /// The actual heap type.
+        ty: AbstractHeapType,
+    },
     /// A concrete, user-defined type.
     ///
     /// Introduced in the function-references proposal.
     Concrete(UnpackedIndex),
+}
 
+impl HeapType {
+    /// Alias for an unshared `func` heap type.
+    pub const FUNC: Self = Self::Abstract {
+        shared: false,
+        ty: AbstractHeapType::Func,
+    };
+
+    /// Alias for an unshared `extern` heap type.
+    pub const EXTERN: Self = Self::Abstract {
+        shared: false,
+        ty: AbstractHeapType::Extern,
+    };
+}
+
+/// An abstract heap type.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum AbstractHeapType {
     /// The abstract, untyped (any) function.
     ///
     /// Introduced in the references-types proposal.
@@ -1369,18 +1463,34 @@ pub enum HeapType {
     NoExn,
 }
 
-impl ValType {
-    pub(crate) fn is_valtype_byte(byte: u8) -> bool {
-        match byte {
-            0x7F | 0x7E | 0x7D | 0x7C | 0x7B | 0x70 | 0x6F | 0x64 | 0x63 | 0x6E | 0x71 | 0x72
-            | 0x74 | 0x73 | 0x6D | 0x6B | 0x6A | 0x6C | 0x69 => true,
-            _ => false,
+impl AbstractHeapType {
+    const fn as_str(&self, nullable: bool) -> &str {
+        use AbstractHeapType::*;
+        match (nullable, self) {
+            (_, Any) => "any",
+            (true, None) => "null",
+            (false, None) => "none",
+            (true, NoExtern) => "nullextern",
+            (false, NoExtern) => "noextern",
+            (true, NoFunc) => "nullfunc",
+            (false, NoFunc) => "nofunc",
+            (_, Eq) => "eq",
+            (_, Struct) => "struct",
+            (_, Array) => "array",
+            (_, I31) => "i31",
+            (_, Extern) => "extern",
+            (_, Func) => "func",
+            (_, Exn) => "exn",
+            (true, NoExn) => "nullexn",
+            (false, NoExn) => "noexn",
         }
     }
 }
 
 impl<'a> FromReader<'a> for StorageType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        // NB: See `FromReader<'a> for ValType` for a table of how this
+        // interacts with other value encodings.
         match reader.peek()? {
             0x78 => {
                 reader.read_u8()?;
@@ -1397,6 +1507,54 @@ impl<'a> FromReader<'a> for StorageType {
 
 impl<'a> FromReader<'a> for ValType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        // Decoding value types is sort of subtle because the space of what's
+        // being decoded here is actually spread out across an number of
+        // locations. This comment here is intended to serve as a bit of a
+        // reference to what's being decoded here and how it interacts with
+        // other locations.
+        //
+        // Note that all value types are encoded as canonical-form negative
+        // numbers in the sleb128 encoding scheme. Currently in the wasm spec
+        // sleb128 isn't actually used but it looks to be modelled to allow it
+        // one day. In the meantime the current values used are:
+        //
+        // | sleb128 | decimal | type         | notes                        |
+        // |---------|---------|--------------|------------------------------|
+        // | 0x7F    | -1      | i32          |                              |
+        // | 0x7E    | -2      | i64          |                              |
+        // | 0x7D    | -3      | f32          |                              |
+        // | 0x7C    | -4      | f64          |                              |
+        // | 0x7B    | -5      | v128         | simd proposal                |
+        // | 0x78    | -8      | i8           | gc proposal, in `FieldType`  |
+        // | 0x77    | -9      | i16          | gc proposal, in `FieldType`  |
+        // | 0x74    | -12     | noexn        | gc + exceptions proposal     |
+        // | 0x73    | -13     | nofunc       | gc proposal                  |
+        // | 0x72    | -14     | noextern     | gc proposal                  |
+        // | 0x71    | -15     | nullref      | gc proposal                  |
+        // | 0x70    | -16     | func         | reference types proposal     |
+        // | 0x6F    | -17     | extern       | reference types proposal     |
+        // | 0x6E    | -18     | any          | gc proposal                  |
+        // | 0x6D    | -19     | eq           | gc proposal                  |
+        // | 0x6C    | -20     | i31          | gc proposal                  |
+        // | 0x6B    | -21     | struct       | gc proposal                  |
+        // | 0x6A    | -22     | array        | gc proposal                  |
+        // | 0x69    | -23     | exnref       | gc + exceptions proposal     |
+        // | 0x65    | -27     | shared $t    | shared-everything proposal   |
+        // | 0x64    | -28     | ref $t       | gc proposal, prefix byte     |
+        // | 0x63    | -29     | ref null $t  | gc proposal, prefix byte     |
+        // | 0x60    | -32     | func $t      | prefix byte                  |
+        // | 0x5f    | -33     | struct $t    | gc proposal, prefix byte     |
+        // | 0x5e    | -34     | array $t     | gc proposal, prefix byte     |
+        // | 0x50    | -48     | sub $t       | gc proposal, prefix byte     |
+        // | 0x4F    | -49     | sub final $t | gc proposal, prefix byte     |
+        // | 0x4E    | -50     | rec $t       | gc proposal, prefix byte     |
+        // | 0x40    | -64     | ε            | empty block type             |
+        //
+        // Note that not all of these encodings are parsed here, for example
+        // 0x78 as the encoding for `i8` is parsed only in `FieldType`. The
+        // parsing of `FieldType` will delegate here without actually consuming
+        // anything though so the encoding 0x78 still must be disjoint and not
+        // read here otherwise.
         match reader.peek()? {
             0x7F => {
                 reader.read_u8()?;
@@ -1418,8 +1576,8 @@ impl<'a> FromReader<'a> for ValType {
                 reader.read_u8()?;
                 Ok(ValType::V128)
             }
-            0x70 | 0x6F | 0x64 | 0x63 | 0x6E | 0x71 | 0x72 | 0x73 | 0x74 | 0x6D | 0x6B | 0x6A
-            | 0x6C | 0x69 => Ok(ValType::Ref(reader.read()?)),
+            0x70 | 0x6F | 0x65 | 0x64 | 0x63 | 0x6E | 0x71 | 0x72 | 0x73 | 0x74 | 0x6D | 0x6B
+            | 0x6A | 0x6C | 0x69 => Ok(ValType::Ref(reader.read()?)),
             _ => bail!(reader.original_position(), "invalid value type"),
         }
     }
@@ -1427,7 +1585,7 @@ impl<'a> FromReader<'a> for ValType {
 
 impl<'a> FromReader<'a> for RefType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        match reader.read()? {
+        let absheapty = |byte, pos| match byte {
             0x70 => Ok(RefType::FUNC.nullable()),
             0x6F => Ok(RefType::EXTERN.nullable()),
             0x6E => Ok(RefType::ANY.nullable()),
@@ -1440,6 +1598,22 @@ impl<'a> FromReader<'a> for RefType {
             0x6C => Ok(RefType::I31.nullable()),
             0x69 => Ok(RefType::EXN.nullable()),
             0x74 => Ok(RefType::NOEXN.nullable()),
+            _ => bail!(pos, "invalid abstract heap type"),
+        };
+
+        // NB: See `FromReader<'a> for ValType` for a table of how this
+        // interacts with other value encodings.
+        match reader.read()? {
+            byte @ (0x70 | 0x6F | 0x6E | 0x71 | 0x72 | 0x73 | 0x6D | 0x6B | 0x6A | 0x6C | 0x69
+            | 0x74) => {
+                let pos = reader.original_position();
+                absheapty(byte, pos)
+            }
+            0x65 => {
+                let byte = reader.read()?;
+                let pos = reader.original_position();
+                Ok(absheapty(byte, pos)?.shared().expect("must be abstract"))
+            }
             byte @ (0x63 | 0x64) => {
                 let nullable = byte == 0x63;
                 let pos = reader.original_position();
@@ -1453,54 +1627,17 @@ impl<'a> FromReader<'a> for RefType {
 
 impl<'a> FromReader<'a> for HeapType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        // NB: See `FromReader<'a> for ValType` for a table of how this
+        // interacts with other value encodings.
         match reader.peek()? {
-            0x70 => {
+            0x65 => {
                 reader.read_u8()?;
-                Ok(HeapType::Func)
+                let ty = reader.read()?;
+                Ok(HeapType::Abstract { shared: true, ty })
             }
-            0x6F => {
-                reader.read_u8()?;
-                Ok(HeapType::Extern)
-            }
-            0x6E => {
-                reader.read_u8()?;
-                Ok(HeapType::Any)
-            }
-            0x71 => {
-                reader.read_u8()?;
-                Ok(HeapType::None)
-            }
-            0x72 => {
-                reader.read_u8()?;
-                Ok(HeapType::NoExtern)
-            }
-            0x73 => {
-                reader.read_u8()?;
-                Ok(HeapType::NoFunc)
-            }
-            0x6D => {
-                reader.read_u8()?;
-                Ok(HeapType::Eq)
-            }
-            0x6B => {
-                reader.read_u8()?;
-                Ok(HeapType::Struct)
-            }
-            0x6A => {
-                reader.read_u8()?;
-                Ok(HeapType::Array)
-            }
-            0x6C => {
-                reader.read_u8()?;
-                Ok(HeapType::I31)
-            }
-            0x69 => {
-                reader.read_u8()?;
-                Ok(HeapType::Exn)
-            }
-            0x74 => {
-                reader.read_u8()?;
-                Ok(HeapType::NoExn)
+            0x70 | 0x6F | 0x6E | 0x71 | 0x72 | 0x73 | 0x6D | 0x6B | 0x6A | 0x6C | 0x69 | 0x74 => {
+                let ty = reader.read()?;
+                Ok(HeapType::Abstract { shared: false, ty })
             }
             _ => {
                 let idx = match u32::try_from(reader.read_var_s33()?) {
@@ -1516,6 +1653,29 @@ impl<'a> FromReader<'a> for HeapType {
                     )
                 })?;
                 Ok(HeapType::Concrete(idx.unpack()))
+            }
+        }
+    }
+}
+
+impl<'a> FromReader<'a> for AbstractHeapType {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        use AbstractHeapType::*;
+        match reader.read_u8()? {
+            0x70 => Ok(Func),
+            0x6F => Ok(Extern),
+            0x6E => Ok(Any),
+            0x71 => Ok(None),
+            0x72 => Ok(NoExtern),
+            0x73 => Ok(NoFunc),
+            0x6D => Ok(Eq),
+            0x6B => Ok(Struct),
+            0x6A => Ok(Array),
+            0x6C => Ok(I31),
+            0x69 => Ok(Exn),
+            0x74 => Ok(NoExn),
+            _ => {
+                bail!(reader.original_position(), "invalid abstract heap type");
             }
         }
     }
@@ -1649,9 +1809,9 @@ impl<'a> TypeSectionReader<'a> {
             if !ty.is_final || ty.supertype_idx.is_some() {
                 bail!(offset, "gc proposal not supported");
             }
-            match ty.composite_type {
-                CompositeType::Func(f) => Ok(f),
-                CompositeType::Array(_) | CompositeType::Struct(_) => {
+            match ty.composite_type.inner {
+                CompositeInnerType::Func(f) => Ok(f),
+                CompositeInnerType::Array(_) | CompositeInnerType::Struct(_) => {
                     bail!(offset, "gc proposal not supported");
                 }
             }
@@ -1669,16 +1829,26 @@ fn read_composite_type(
     opcode: u8,
     reader: &mut BinaryReader,
 ) -> Result<CompositeType, BinaryReaderError> {
-    Ok(match opcode {
-        0x60 => CompositeType::Func(reader.read()?),
-        0x5e => CompositeType::Array(reader.read()?),
-        0x5f => CompositeType::Struct(reader.read()?),
+    // NB: See `FromReader<'a> for ValType` for a table of how this
+    // interacts with other value encodings.
+    let (shared, opcode) = if opcode == 0x65 {
+        (true, reader.read_u8()?)
+    } else {
+        (false, opcode)
+    };
+    let inner = match opcode {
+        0x60 => CompositeInnerType::Func(reader.read()?),
+        0x5e => CompositeInnerType::Array(reader.read()?),
+        0x5f => CompositeInnerType::Struct(reader.read()?),
         x => return reader.invalid_leading_byte(x, "type"),
-    })
+    };
+    Ok(CompositeType { shared, inner })
 }
 
 impl<'a> FromReader<'a> for RecGroup {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        // NB: See `FromReader<'a> for ValType` for a table of how this
+        // interacts with other value encodings.
         match reader.peek()? {
             0x4e => {
                 reader.read_u8()?;
@@ -1702,6 +1872,8 @@ impl<'a> FromReader<'a> for RecGroup {
 impl<'a> FromReader<'a> for SubType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let pos = reader.original_position();
+        // NB: See `FromReader<'a> for ValType` for a table of how this
+        // interacts with other value encodings.
         Ok(match reader.read_u8()? {
             opcode @ (0x4f | 0x50) => {
                 let idx_iter = reader.read_iter(MAX_WASM_SUPERTYPES, "supertype idxs")?;

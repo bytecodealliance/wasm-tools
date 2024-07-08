@@ -71,8 +71,8 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
     fn block_end(&mut self) -> Result<()> {
         if self.printer.nesting > self.nesting_start {
             self.printer.nesting -= 1;
-            self.separator()?;
         }
+        self.separator()?;
         Ok(())
     }
 
@@ -86,7 +86,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
         let has_name = match self.state.core.label_names.index_to_name.get(&key) {
             Some(name) => {
                 write!(self.printer.result, " ")?;
-                name.write(self.printer.result)?;
+                name.write(self.printer)?;
                 true
             }
             None if self.printer.config.name_unnamed => {
@@ -176,7 +176,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
                 match name {
                     // Only print the name if one is found and there's also no
                     // name conflict.
-                    Some(name) if !name_conflict => name.write(self.printer.result)?,
+                    Some(name) if !name_conflict => name.write(self.printer)?,
 
                     // If there's no name conflict, and we're synthesizing
                     // names, and this isn't targetting the function itself then
@@ -405,7 +405,6 @@ macro_rules! define_visit {
     //
     // * Print the name of the insruction as defined in this macro
     // * Print any payload, as necessary
-    // * Return the `OpKind`, as defined by this macro
     ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident )*) => ($(
         fn $visit(&mut self $( , $($arg: $argty),* )?) -> Self::Output {
             define_visit!(before_op self $op);

@@ -6,7 +6,7 @@
    0x12 | 01 04       | type section
    0x14 | 01          | 1 count
 --- rec group 0 (implicit) ---
-   0x15 | 60 00 00    | [type 0] SubType { is_final: true, supertype_idx: None, composite_type: Func(FuncType { params: [], results: [] }) }
+   0x15 | 60 00 00    | [type 0] SubType { is_final: true, supertype_idx: None, composite_type: CompositeType { inner: Func(FuncType { params: [], results: [] }), shared: false } }
    0x18 | 03 02       | func section
    0x1a | 01          | 1 count
    0x1b | 00          | [func 0] type 0
@@ -30,7 +30,7 @@
    0x3d | 01 04       | type section
    0x3f | 01          | 1 count
 --- rec group 0 (implicit) ---
-   0x40 | 60 00 00    | [type 0] SubType { is_final: true, supertype_idx: None, composite_type: Func(FuncType { params: [], results: [] }) }
+   0x40 | 60 00 00    | [type 0] SubType { is_final: true, supertype_idx: None, composite_type: CompositeType { inner: Func(FuncType { params: [], results: [] }), shared: false } }
    0x43 | 02 06       | import section
    0x45 | 01          | 1 count
    0x46 | 00 01 61 00 | import [func 0] Import { module: "", name: "a", ty: Func(0) }

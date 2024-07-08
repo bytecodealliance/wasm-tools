@@ -245,7 +245,7 @@ fn read_core_module(path: &Path, resolve: &Resolve, pkg: PackageId) -> Result<Ve
     let mut wasm = wat::parse_file(path)?;
     let name = path.file_stem().and_then(|s| s.to_str()).unwrap();
     let world = resolve
-        .select_world(pkg, Some(name))
+        .select_world(&[pkg], Some(name))
         .context("failed to select a world")?;
 
     // Add this producer data to the wit-component metadata so we can make sure it gets through the

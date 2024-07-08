@@ -1,0 +1,25 @@
+[package]
+name = "wasm-wave"
+version.workspace = true
+edition.workspace = true
+license = "Apache-2.0 WITH LLVM-exception"
+rust-version.workspace = true
+authors = ["lann.martin@fermyon.com"]
+description = "WebAssembly Value Encoding"
+documentation = "https://docs.rs/wasm-wave"
+categories = ["wasm", "encoding", "parser-implementations"]
+repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-wave"
+readme = "README.md"
+
+[features]
+default = ["wit"]
+wit = ["dep:wit-parser"]
+
+[dependencies]
+indexmap.workspace = true
+logos = "0.14.0"
+thiserror = "1.0.48"
+wit-parser = { workspace = true, optional = true }
+
+[dev-dependencies]
+anyhow.workspace = true

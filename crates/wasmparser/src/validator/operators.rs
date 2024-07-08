@@ -23,12 +23,12 @@
 // the various methods here.
 
 use crate::{
-    limits::MAX_WASM_FUNCTION_LOCALS, ArrayType, BinaryReaderError, BlockType, BrTable, Catch,
-    CompositeType, FieldType, FuncType, HeapType, Ieee32, Ieee64, MemArg, RefType, Result,
-    StorageType, StructType, SubType, TableType, TryTable, UnpackedIndex, ValType, VisitOperator,
-    WasmFeatures, WasmModuleResources, V128,
+    limits::MAX_WASM_FUNCTION_LOCALS, AbstractHeapType, ArrayType, BinaryReaderError, BlockType,
+    BrTable, Catch, FieldType, FuncType, GlobalType, HeapType, Ieee32, Ieee64, MemArg, RefType,
+    Result, StorageType, StructType, SubType, TableType, TryTable, UnpackedIndex, ValType,
+    VisitOperator, WasmFeatures, WasmModuleResources, V128,
 };
-use crate::{prelude::*, GlobalType};
+use crate::{prelude::*, CompositeInnerType};
 use core::ops::{Deref, DerefMut};
 
 pub(crate) struct OperatorValidator {
@@ -904,6 +904,9 @@ where
     /// Check that the given type has the same result types as the current
     /// function's results.
     fn check_func_type_same_results(&self, callee_ty: &FuncType) -> Result<()> {
+        if self.control.is_empty() {
+            return Err(self.err_beyond_end(self.offset));
+        }
         let caller_rets = self.results(self.control[0].block_type)?;
         if callee_ty.results().len() != caller_rets.len()
             || !caller_rets
@@ -966,7 +969,7 @@ where
         Ok(())
     }
 
-    /// Checks the validity of a common conversion operator.
+    /// Checks the validity of a common float conversion operator.
     fn check_fconversion_op(&mut self, into: ValType, from: ValType) -> Result<()> {
         debug_assert!(matches!(into, ValType::F32 | ValType::F64));
         self.check_floats_enabled()?;
@@ -1044,14 +1047,14 @@ where
         self.check_v128_binary_op()
     }
 
-    /// Checks a [`V128`] binary operator.
+    /// Checks a [`V128`] unary operator.
     fn check_v128_unary_op(&mut self) -> Result<()> {
         self.pop_operand(Some(ValType::V128))?;
         self.push_operand(ValType::V128)?;
         Ok(())
     }
 
-    /// Checks a [`V128`] binary operator.
+    /// Checks a [`V128`] unary float operator.
     fn check_v128_funary_op(&mut self) -> Result<()> {
         self.check_floats_enabled()?;
         self.check_v128_unary_op()
@@ -1066,14 +1069,14 @@ where
         Ok(())
     }
 
-    /// Checks a [`V128`] relaxed ternary operator.
+    /// Checks a [`V128`] test operator.
     fn check_v128_bitmask_op(&mut self) -> Result<()> {
         self.pop_operand(Some(ValType::V128))?;
         self.push_operand(ValType::I32)?;
         Ok(())
     }
 
-    /// Checks a [`V128`] relaxed ternary operator.
+    /// Checks a [`V128`] shift operator.
     fn check_v128_shift_op(&mut self) -> Result<()> {
         self.pop_operand(Some(ValType::I32))?;
         self.pop_operand(Some(ValType::V128))?;
@@ -1171,7 +1174,7 @@ where
 
     fn struct_type_at(&self, at: u32) -> Result<&'resources StructType> {
         let sub_ty = self.sub_type_at(at)?;
-        if let CompositeType::Struct(struct_ty) = &sub_ty.composite_type {
+        if let CompositeInnerType::Struct(struct_ty) = &sub_ty.composite_type.inner {
             Ok(struct_ty)
         } else {
             bail!(
@@ -1196,7 +1199,7 @@ where
 
     fn array_type_at(&self, at: u32) -> Result<&'resources ArrayType> {
         let sub_ty = self.sub_type_at(at)?;
-        if let CompositeType::Array(array_ty) = &sub_ty.composite_type {
+        if let CompositeInnerType::Array(array_ty) = &sub_ty.composite_type.inner {
             Ok(array_ty)
         } else {
             bail!(
@@ -1208,7 +1211,7 @@ where
 
     fn func_type_at(&self, at: u32) -> Result<&'resources FuncType> {
         let sub_ty = self.sub_type_at(at)?;
-        if let CompositeType::Func(func_ty) = &sub_ty.composite_type {
+        if let CompositeInnerType::Func(func_ty) = &sub_ty.composite_type.inner {
             Ok(func_ty)
         } else {
             bail!(
@@ -3991,7 +3994,11 @@ where
         let is_nullable = extern_ref
             .as_type()
             .map_or(false, |ty| ty.as_reference_type().unwrap().is_nullable());
-        let any_ref = RefType::new(is_nullable, HeapType::Any).unwrap();
+        let heap_type = HeapType::Abstract {
+            shared: false, // TODO: handle shared--see https://github.com/WebAssembly/shared-everything-threads/issues/65.
+            ty: AbstractHeapType::Any,
+        };
+        let any_ref = RefType::new(is_nullable, heap_type).unwrap();
         self.push_operand(any_ref)
     }
     fn visit_extern_convert_any(&mut self) -> Self::Output {
@@ -3999,7 +4006,11 @@ where
         let is_nullable = any_ref
             .as_type()
             .map_or(false, |ty| ty.as_reference_type().unwrap().is_nullable());
-        let extern_ref = RefType::new(is_nullable, HeapType::Extern).unwrap();
+        let heap_type = HeapType::Abstract {
+            shared: false, // TODO: handle shared--see https://github.com/WebAssembly/shared-everything-threads/issues/65.
+            ty: AbstractHeapType::Extern,
+        };
+        let extern_ref = RefType::new(is_nullable, heap_type).unwrap();
         self.push_operand(extern_ref)
     }
     fn visit_ref_test_non_null(&mut self, heap_type: HeapType) -> Self::Output {

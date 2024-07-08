@@ -578,7 +578,8 @@ impl TestState {
         let mut features = WasmFeatures::all()
             & !WasmFeatures::SHARED_EVERYTHING_THREADS
             & !WasmFeatures::COMPONENT_MODEL
-            & !WasmFeatures::COMPONENT_MODEL_NESTED_NAMES;
+            & !WasmFeatures::COMPONENT_MODEL_NESTED_NAMES
+            & !WasmFeatures::COMPONENT_MODEL_MORE_FLAGS;
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
                 "testsuite" => {
@@ -622,6 +623,9 @@ impl TestState {
                 "custom-page-sizes" => features.insert(WasmFeatures::CUSTOM_PAGE_SIZES),
                 "import-extended.wast" => {
                     features.insert(WasmFeatures::COMPONENT_MODEL_NESTED_NAMES);
+                }
+                "more-flags.wast" => {
+                    features.insert(WasmFeatures::COMPONENT_MODEL_MORE_FLAGS);
                 }
                 _ => {}
             }

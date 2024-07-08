@@ -4,13 +4,13 @@ use super::{
     component::{ComponentState, ExternKind},
     core::Module,
 };
-use crate::collections::map::Entry;
-use crate::prelude::*;
+use crate::{collections::map::Entry, AbstractHeapType};
+use crate::{prelude::*, CompositeInnerType};
 use crate::{validator::names::KebabString, HeapType, ValidatorId};
 use crate::{
-    BinaryReaderError, CompositeType, Export, ExternalKind, FuncType, GlobalType, Import, Matches,
-    MemoryType, PackedIndex, PrimitiveValType, RecGroup, RefType, Result, SubType, TableType,
-    TypeRef, UnpackedIndex, ValType, WithRecGroup,
+    BinaryReaderError, Export, ExternalKind, FuncType, GlobalType, Import, Matches, MemoryType,
+    PackedIndex, PrimitiveValType, RecGroup, RefType, Result, SubType, TableType, TypeRef,
+    UnpackedIndex, ValType, WithRecGroup,
 };
 use alloc::sync::Arc;
 use core::ops::{Deref, DerefMut, Index, Range};
@@ -293,11 +293,12 @@ impl TypeData for SubType {
 
     fn type_info(&self, _types: &TypeList) -> TypeInfo {
         // TODO(#1036): calculate actual size for func, array, struct.
-        let size = 1 + match &self.composite_type {
-            CompositeType::Func(ty) => 1 + (ty.params().len() + ty.results().len()) as u32,
-            CompositeType::Array(_) => 2,
-            CompositeType::Struct(ty) => 1 + 2 * ty.fields.len() as u32,
+        let size = 1 + match &self.composite_type.inner {
+            CompositeInnerType::Func(ty) => 1 + (ty.params().len() + ty.results().len()) as u32,
+            CompositeInnerType::Array(_) => 2,
+            CompositeInnerType::Struct(ty) => 1 + 2 * ty.fields.len() as u32,
         };
+        // TODO: handle shared?
         TypeInfo::core(size)
     }
 }
@@ -313,9 +314,9 @@ impl CoreType {
 
     /// Get the underlying `FuncType` within this `SubType` or panic.
     pub fn unwrap_func(&self) -> &FuncType {
-        match &self.unwrap_sub().composite_type {
-            CompositeType::Func(f) => f,
-            CompositeType::Array(_) | CompositeType::Struct(_) => {
+        match &self.unwrap_sub().composite_type.inner {
+            CompositeInnerType::Func(f) => f,
+            CompositeInnerType::Array(_) | CompositeInnerType::Struct(_) => {
                 panic!("`unwrap_func` on non-func composite type")
             }
         }
@@ -2743,63 +2744,76 @@ impl TypeList {
             &self[id]
         };
 
+        use AbstractHeapType::*;
+        use CompositeInnerType as CT;
         use HeapType as HT;
         match (a.heap_type(), b.heap_type()) {
             (a, b) if a == b => true,
 
-            (HT::Eq | HT::I31 | HT::Struct | HT::Array | HT::None, HT::Any) => true,
-            (HT::I31 | HT::Struct | HT::Array | HT::None, HT::Eq) => true,
-            (HT::NoExtern, HT::Extern) => true,
-            (HT::NoFunc, HT::Func) => true,
-            (HT::None, HT::I31 | HT::Array | HT::Struct) => true,
-
-            (HT::Concrete(a), HT::Eq | HT::Any) => matches!(
-                subtype(a_group, a).composite_type,
-                CompositeType::Array(_) | CompositeType::Struct(_)
-            ),
-
-            (HT::Concrete(a), HT::Struct) => {
-                matches!(subtype(a_group, a).composite_type, CompositeType::Struct(_))
+            (
+                HT::Abstract {
+                    shared: a_shared,
+                    ty: a_ty,
+                },
+                HT::Abstract {
+                    shared: b_shared,
+                    ty: b_ty,
+                },
+            ) => {
+                a_shared == b_shared
+                    && match (a_ty, b_ty) {
+                        (Eq | I31 | Struct | Array | None, Any) => true,
+                        (I31 | Struct | Array | None, Eq) => true,
+                        (NoExtern, Extern) => true,
+                        (NoFunc, Func) => true,
+                        (None, I31 | Array | Struct) => true,
+                        (NoExn, Exn) => true,
+                        // Nothing else matches. (Avoid full wildcard matches so
+                        // that adding/modifying variants is easier in the
+                        // future.)
+                        (
+                            Func | Extern | Exn | Any | Eq | Array | I31 | Struct | None | NoFunc
+                            | NoExtern | NoExn,
+                            _,
+                        ) => false,
+                    }
             }
 
-            (HT::Concrete(a), HT::Array) => {
-                matches!(subtype(a_group, a).composite_type, CompositeType::Array(_))
+            (HT::Concrete(a), HT::Abstract { shared, ty }) => {
+                let a_ty = &subtype(a_group, a).composite_type;
+                if a_ty.shared != shared {
+                    return false;
+                }
+                match ty {
+                    Any | Eq => matches!(a_ty.inner, CT::Array(_) | CT::Struct(_)),
+                    Struct => matches!(a_ty.inner, CT::Struct(_)),
+                    Array => matches!(a_ty.inner, CT::Array(_)),
+                    Func => matches!(a_ty.inner, CT::Func(_)),
+                    // Nothing else matches. (Avoid full wildcard matches so
+                    // that adding/modifying variants is easier in the future.)
+                    Extern | Exn | I31 | None | NoFunc | NoExtern | NoExn => false,
+                }
             }
 
-            (HT::Concrete(a), HT::Func) => {
-                matches!(subtype(a_group, a).composite_type, CompositeType::Func(_))
+            (HT::Abstract { shared, ty }, HT::Concrete(b)) => {
+                let b_ty = &subtype(b_group, b).composite_type;
+                if shared != b_ty.shared {
+                    return false;
+                }
+                match ty {
+                    None => matches!(b_ty.inner, CT::Array(_) | CT::Struct(_)),
+                    NoFunc => matches!(b_ty.inner, CT::Func(_)),
+                    // Nothing else matches. (Avoid full wildcard matches so
+                    // that adding/modifying variants is easier in the future.)
+                    Func | Extern | Exn | Any | Eq | Array | I31 | Struct | NoExtern | NoExn => {
+                        false
+                    }
+                }
             }
 
             (HT::Concrete(a), HT::Concrete(b)) => {
                 self.id_is_subtype(core_type_id(a_group, a), core_type_id(b_group, b))
             }
-
-            (HT::None, HT::Concrete(b)) => matches!(
-                subtype(b_group, b).composite_type,
-                CompositeType::Array(_) | CompositeType::Struct(_)
-            ),
-
-            (HT::NoFunc, HT::Concrete(b)) => {
-                matches!(subtype(b_group, b).composite_type, CompositeType::Func(_))
-            }
-
-            (HT::NoExn, HT::Exn) => true,
-
-            // Nothing else matches. (Avoid full wildcard matches so that
-            // adding/modifying variants is easier in the future.)
-            (HT::Concrete(_), _)
-            | (HT::Func, _)
-            | (HT::Extern, _)
-            | (HT::Any, _)
-            | (HT::None, _)
-            | (HT::NoExtern, _)
-            | (HT::NoFunc, _)
-            | (HT::Eq, _)
-            | (HT::Struct, _)
-            | (HT::Array, _)
-            | (HT::I31, _)
-            | (HT::Exn, _)
-            | (HT::NoExn, _) => false,
         }
     }
 
@@ -2819,25 +2833,49 @@ impl TypeList {
         }
     }
 
+    /// Is `ty` shared?
+    ///
+    /// This is complicated by reference types, since they may have concrete
+    /// heap types whose shared-ness must be checked by looking at the type they
+    /// point to.
+    pub fn valtype_is_shared(&self, ty: ValType) -> bool {
+        match ty {
+            ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => true,
+            ValType::Ref(rt) => match rt.heap_type() {
+                HeapType::Abstract { shared, .. } => shared,
+                HeapType::Concrete(index) => {
+                    self[index.as_core_type_id().unwrap()].composite_type.shared
+                }
+            },
+        }
+    }
+
     /// Get the top type of the given heap type.
     ///
     /// Concrete types must have had their indices canonicalized to core type
     /// ids, otherwise this method will panic.
     pub fn top_type(&self, heap_type: &HeapType) -> HeapType {
+        use AbstractHeapType::*;
         match *heap_type {
-            HeapType::Concrete(idx) => match self[idx.as_core_type_id().unwrap()].composite_type {
-                CompositeType::Func(_) => HeapType::Func,
-                CompositeType::Array(_) | CompositeType::Struct(_) => HeapType::Any,
-            },
-            HeapType::Func | HeapType::NoFunc => HeapType::Func,
-            HeapType::Extern | HeapType::NoExtern => HeapType::Extern,
-            HeapType::Any
-            | HeapType::Eq
-            | HeapType::Struct
-            | HeapType::Array
-            | HeapType::I31
-            | HeapType::None => HeapType::Any,
-            HeapType::Exn | HeapType::NoExn => HeapType::Exn,
+            HeapType::Concrete(idx) => {
+                let ty = &self[idx.as_core_type_id().unwrap()].composite_type;
+                let shared = ty.shared;
+                match ty.inner {
+                    CompositeInnerType::Func(_) => HeapType::Abstract { shared, ty: Func },
+                    CompositeInnerType::Array(_) | CompositeInnerType::Struct(_) => {
+                        HeapType::Abstract { shared, ty: Any }
+                    }
+                }
+            }
+            HeapType::Abstract { shared, ty } => {
+                let ty = match ty {
+                    Func | NoFunc => Func,
+                    Extern | NoExtern => Extern,
+                    Any | Eq | Struct | Array | I31 | None => Any,
+                    Exn | NoExn => Exn,
+                };
+                HeapType::Abstract { shared, ty }
+            }
         }
     }
 

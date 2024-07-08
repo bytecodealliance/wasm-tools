@@ -11,10 +11,9 @@ use wasm_tools::Output;
 use wasmparser::WasmFeatures;
 use wat::Detect;
 use wit_component::{
-    embed_component_metadata, resolve_world_from_name, ComponentEncoder, DecodedWasm, Linker,
-    StringEncoding, WitPrinter,
+    embed_component_metadata, ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter,
 };
-use wit_parser::{PackageId, Resolve, UnresolvedPackageGroup};
+use wit_parser::{PackageId, Resolve};
 
 /// WebAssembly wit-based component tooling.
 #[derive(Parser)]
@@ -182,11 +181,19 @@ struct WitResolve {
     /// items are otherwise hidden by default.
     #[clap(long)]
     features: Vec<String>,
+
+    /// Enable all features when parsing the `wit` option.
+    ///
+    /// This flag enables all `@unstable` features in WIT documents where the
+    /// items are otherwise hidden by default.
+    #[clap(long)]
+    all_features: bool,
 }
 
 impl WitResolve {
-    fn resolve_with_features(features: &[String]) -> Resolve {
+    fn resolve_with_features(features: &[String], all_features: bool) -> Resolve {
         let mut resolve = Resolve::default();
+        resolve.all_features = all_features;
         for feature in features {
             for f in feature.split_whitespace() {
                 for f in f.split(',').filter(|s| !s.is_empty()) {
@@ -198,7 +205,7 @@ impl WitResolve {
     }
 
     fn load(&self) -> Result<(Resolve, Vec<PackageId>)> {
-        let mut resolve = Self::resolve_with_features(&self.features);
+        let mut resolve = Self::resolve_with_features(&self.features, self.all_features);
         let (pkg_ids, _) = resolve.push_path(&self.wit)?;
         Ok((resolve, pkg_ids))
     }
@@ -277,7 +284,7 @@ impl EmbedOpts {
             Some(self.io.parse_input_wasm()?)
         };
         let (resolve, pkg_ids) = self.resolve.load()?;
-        let world = resolve_world_from_name(&resolve, pkg_ids, self.world.as_deref())?;
+        let world = resolve.select_world(&pkg_ids, self.world.as_deref())?;
         let mut wasm = wasm.unwrap_or_else(|| wit_component::dummy_module(&resolve, world));
 
         embed_component_metadata(
@@ -494,6 +501,13 @@ pub struct WitOpts {
     /// items are otherwise hidden by default.
     #[clap(long)]
     features: Vec<String>,
+
+    /// Enable all features when parsing the `wit` option.
+    ///
+    /// This flag enables all `@unstable` features in WIT documents where the
+    /// items are otherwise hidden by default.
+    #[clap(long)]
+    all_features: bool,
 }
 
 impl WitOpts {
@@ -524,7 +538,8 @@ impl WitOpts {
         // `parse_wit_from_path`.
         if let Some(input) = &self.input {
             if input.is_dir() {
-                let mut resolve = WitResolve::resolve_with_features(&self.features);
+                let mut resolve =
+                    WitResolve::resolve_with_features(&self.features, self.all_features);
                 let (pkg_ids, _) = resolve.push_dir(&input)?;
                 return Ok(DecodedWasm::WitPackages(resolve, pkg_ids));
             }
@@ -572,9 +587,9 @@ impl WitOpts {
                     Ok(s) => s,
                     Err(_) => bail!("input was not valid utf-8"),
                 };
-                let mut resolve = WitResolve::resolve_with_features(&self.features);
-                let pkgs = UnresolvedPackageGroup::parse(path, input)?;
-                let ids = resolve.append(pkgs)?;
+                let mut resolve =
+                    WitResolve::resolve_with_features(&self.features, self.all_features);
+                let ids = resolve.push_str(path, input)?;
                 Ok(DecodedWasm::WitPackages(resolve, ids))
             }
         }
@@ -703,7 +718,7 @@ impl TargetsOpts {
     /// Executes the application.
     fn run(self) -> Result<()> {
         let (resolve, pkg_ids) = self.resolve.load()?;
-        let world = resolve_world_from_name(&resolve, pkg_ids, self.world.as_deref())?;
+        let world = resolve.select_world(&pkg_ids, self.world.as_deref())?;
         let component_to_test = self.input.parse_wasm()?;
 
         wit_component::targets(&resolve, world, &component_to_test)?;
@@ -743,8 +758,8 @@ impl SemverCheckOpts {
 
     fn run(self) -> Result<()> {
         let (resolve, pkg_ids) = self.resolve.load()?;
-        let prev = resolve_world_from_name(&resolve, pkg_ids.clone(), Some(self.prev).as_deref())?;
-        let new = resolve_world_from_name(&resolve, pkg_ids, Some(self.new).as_deref())?;
+        let prev = resolve.select_world(&pkg_ids, Some(self.prev.as_str()))?;
+        let new = resolve.select_world(&pkg_ids, Some(self.new.as_str()))?;
         wit_component::semver_check(resolve, prev, new)?;
         Ok(())
     }

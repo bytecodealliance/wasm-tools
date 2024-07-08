@@ -264,10 +264,7 @@ impl<'a> ElemPayload<'a> {
             match &mut ret {
                 ElemPayload::Indices(list) => list.push(func),
                 ElemPayload::Exprs { exprs, .. } => {
-                    let expr = Expression {
-                        instrs: [Instruction::RefFunc(func)].into(),
-                        branch_hints: Vec::new(),
-                    };
+                    let expr = Expression::one(Instruction::RefFunc(func));
                     exprs.push(expr);
                 }
             }

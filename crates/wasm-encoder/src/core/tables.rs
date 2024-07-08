@@ -119,16 +119,3 @@ impl Encode for TableType {
         }
     }
 }
-
-#[cfg(feature = "wasmparser")]
-impl TryFrom<wasmparser::TableType> for TableType {
-    type Error = ();
-    fn try_from(table_ty: wasmparser::TableType) -> Result<Self, Self::Error> {
-        Ok(TableType {
-            element_type: table_ty.element_type.try_into()?,
-            minimum: table_ty.initial,
-            maximum: table_ty.maximum,
-            table64: table_ty.table64,
-        })
-    }
-}

@@ -79,4 +79,5 @@ run_fuzzers! {
     print: unstructured,
     roundtrip: string,
     text_parser: string,
+    reencode: unstructured,
 }

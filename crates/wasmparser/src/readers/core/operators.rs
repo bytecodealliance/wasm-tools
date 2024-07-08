@@ -31,7 +31,7 @@ pub enum BlockType {
 }
 
 /// Represents a memory immediate in a WebAssembly memory instruction.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct MemArg {
     /// Alignment, stored as `n` where the actual alignment is `2^n`
     pub align: u8,
@@ -64,6 +64,16 @@ pub struct BrTable<'a> {
     pub(crate) default: u32,
 }
 
+impl PartialEq<Self> for BrTable<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.cnt == other.cnt
+            && self.default == other.default
+            && self.reader.remaining_buffer() == other.reader.remaining_buffer()
+    }
+}
+
+impl Eq for BrTable<'_> {}
+
 /// An IEEE binary32 immediate floating point value, represented as a u32
 /// containing the bit pattern.
 ///
@@ -75,6 +85,12 @@ impl Ieee32 {
     /// Gets the underlying bits of the 32-bit float.
     pub fn bits(self) -> u32 {
         self.0
+    }
+}
+
+impl From<Ieee32> for f32 {
+    fn from(bits: Ieee32) -> f32 {
+        f32::from_bits(bits.bits())
     }
 }
 
@@ -92,6 +108,12 @@ impl Ieee64 {
     }
 }
 
+impl From<Ieee64> for f64 {
+    fn from(bits: Ieee64) -> f64 {
+        f64::from_bits(bits.bits())
+    }
+}
+
 /// Represents a 128-bit vector value.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct V128(pub(crate) [u8; 16]);
@@ -105,6 +127,18 @@ impl V128 {
     /// Gets a signed 128-bit integer value from the vector's bytes.
     pub fn i128(&self) -> i128 {
         i128::from_le_bytes(self.0)
+    }
+}
+
+impl From<V128> for i128 {
+    fn from(bits: V128) -> i128 {
+        bits.i128()
+    }
+}
+
+impl From<V128> for u128 {
+    fn from(bits: V128) -> u128 {
+        u128::from_le_bytes(bits.0)
     }
 }
 
@@ -131,7 +165,7 @@ macro_rules! define_operator {
         /// Instructions as defined [here].
         ///
         /// [here]: https://webassembly.github.io/spec/core/binary/instructions.html
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, Eq, PartialEq)]
         #[allow(missing_docs)]
         pub enum Operator<'a> {
             $(
@@ -373,7 +407,7 @@ impl<'a, V: VisitOperator<'a> + ?Sized> VisitOperator<'a> for Box<V> {
 }
 
 /// A `try_table` entries representation.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TryTable {
     /// The block type describing the try block itself.
     pub ty: BlockType,
@@ -382,7 +416,7 @@ pub struct TryTable {
 }
 
 /// Catch clauses that can be specified in [`TryTable`].
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[allow(missing_docs)]
 pub enum Catch {
     /// Equivalent of `catch`
