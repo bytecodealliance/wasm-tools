@@ -57,12 +57,22 @@ pub struct MemArg {
 }
 
 /// A br_table entries representation.
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone)]
 pub struct BrTable<'a> {
     pub(crate) reader: crate::BinaryReader<'a>,
     pub(crate) cnt: u32,
     pub(crate) default: u32,
 }
+
+impl PartialEq<Self> for BrTable<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.cnt == other.cnt
+            && self.default == other.default
+            && self.reader.remaining_buffer() == other.reader.remaining_buffer()
+    }
+}
+
+impl Eq for BrTable<'_> {}
 
 /// An IEEE binary32 immediate floating point value, represented as a u32
 /// containing the bit pattern.
