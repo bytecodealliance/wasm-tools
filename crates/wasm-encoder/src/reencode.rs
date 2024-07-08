@@ -41,6 +41,10 @@ pub trait Reencode {
         utils::type_index(self, ty)
     }
 
+    fn component_type_index(&mut self, ty: u32) -> u32 {
+        utils::component_type_index(self, ty)
+    }
+
     fn abstract_heap_type(
         &mut self,
         value: wasmparser::AbstractHeapType,
@@ -884,7 +888,9 @@ pub mod utils {
         ty: wasmparser::ComponentValType,
     ) -> crate::component::ComponentValType {
         match ty {
-            wasmparser::ComponentValType::Type(u) => crate::component::ComponentValType::Type(u),
+            wasmparser::ComponentValType::Type(u) => {
+                crate::component::ComponentValType::Type(_reencoder.component_type_index(u))
+            }
             wasmparser::ComponentValType::Primitive(pty) => {
                 crate::component::ComponentValType::Primitive(
                     crate::component::PrimitiveValType::from(pty),
@@ -909,9 +915,11 @@ pub mod utils {
     ) -> crate::component::ComponentTypeRef {
         match ty {
             wasmparser::ComponentTypeRef::Module(u) => {
-                crate::component::ComponentTypeRef::Module(u)
+                crate::component::ComponentTypeRef::Module(_reencoder.component_type_index(u))
             }
-            wasmparser::ComponentTypeRef::Func(u) => crate::component::ComponentTypeRef::Func(u),
+            wasmparser::ComponentTypeRef::Func(u) => {
+                crate::component::ComponentTypeRef::Func(_reencoder.component_type_index(u))
+            }
             wasmparser::ComponentTypeRef::Value(valty) => {
                 crate::component::ComponentTypeRef::Value(crate::component::ComponentValType::from(
                     valty,
@@ -921,10 +929,10 @@ pub mod utils {
                 crate::component::ComponentTypeRef::Type(crate::component::TypeBounds::from(bounds))
             }
             wasmparser::ComponentTypeRef::Instance(u) => {
-                crate::component::ComponentTypeRef::Instance(u)
+                crate::component::ComponentTypeRef::Instance(_reencoder.component_type_index(u))
             }
             wasmparser::ComponentTypeRef::Component(u) => {
-                crate::component::ComponentTypeRef::Component(u)
+                crate::component::ComponentTypeRef::Component(_reencoder.component_type_index(u))
             }
         }
     }
@@ -1056,6 +1064,10 @@ pub mod utils {
     }
 
     pub fn type_index<T: ?Sized + Reencode>(_reencoder: &mut T, ty: u32) -> u32 {
+        ty
+    }
+
+    pub fn component_type_index<T: ?Sized + Reencode>(_reencoder: &mut T, ty: u32) -> u32 {
         ty
     }
 
