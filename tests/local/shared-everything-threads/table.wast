@@ -35,3 +35,9 @@
 (assert_invalid
   (module (table (import "spectest" "table_ref") shared 0 funcref))
   "shared tables must have a shared element type")
+
+(assert_invalid
+  (module
+    (type $t (func))
+    (table shared 0 (ref $t)))
+  "shared tables must have a shared element type")
