@@ -1154,6 +1154,7 @@ pub mod utils {
             minimum: table_ty.initial,
             maximum: table_ty.maximum,
             table64: table_ty.table64,
+            shared: table_ty.shared,
         })
     }
 

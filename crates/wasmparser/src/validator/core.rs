@@ -146,7 +146,7 @@ impl ModuleState {
         offset: usize,
     ) -> Result<()> {
         self.module
-            .check_table_type(&mut table.ty, features, offset)?;
+            .check_table_type(&mut table.ty, features, types, offset)?;
 
         match &table.init {
             TableInit::RefNull => {
@@ -870,7 +870,7 @@ impl Module {
                 EntityType::Func(self.types[*type_index as usize])
             }
             TypeRef::Table(t) => {
-                self.check_table_type(t, features, offset)?;
+                self.check_table_type(t, features, types, offset)?;
                 EntityType::Table(*t)
             }
             TypeRef::Memory(t) => {
@@ -892,10 +892,11 @@ impl Module {
         &self,
         ty: &mut TableType,
         features: &WasmFeatures,
+        types: &TypeList,
         offset: usize,
     ) -> Result<()> {
-        // the `funcref` value type is allowed all the way back to the MVP, so
-        // don't check it here
+        // The `funcref` value type is allowed all the way back to the MVP, so
+        // don't check it here.
         if ty.element_type != RefType::FUNCREF {
             self.check_ref_type(&mut ty.element_type, features, offset)?
         }
@@ -914,6 +915,23 @@ impl Module {
                 offset,
             ));
         }
+
+        if ty.shared {
+            if !features.shared_everything_threads() {
+                return Err(BinaryReaderError::new(
+                    "shared tables require the shared-everything-threads proposal",
+                    offset,
+                ));
+            }
+
+            if !types.reftype_is_shared(ty.element_type) {
+                return Err(BinaryReaderError::new(
+                    "shared tables must have a shared element type",
+                    offset,
+                ));
+            }
+        }
+
         Ok(())
     }
 

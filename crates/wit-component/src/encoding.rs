@@ -1269,6 +1269,7 @@ impl<'a> EncodingState<'a> {
             minimum: signatures.len() as u64,
             maximum: Some(signatures.len() as u64),
             table64: false,
+            shared: false,
         };
 
         tables.table(table_type);

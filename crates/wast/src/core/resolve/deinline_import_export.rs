@@ -103,11 +103,13 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                             },
                         });
                     }
-                    // If data is defined inline insert an explicit `data` module
-                    // field here instead, switching this to a `Normal` memory.
+                    // If data is defined inline insert an explicit `data`
+                    // module field here instead, switching this to a `Normal`
+                    // memory.
                     TableKind::Inline {
                         payload,
                         elem,
+                        shared,
                         is64,
                     } => {
                         let is64 = *is64;
@@ -123,6 +125,7 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                                     is64,
                                 },
                                 elem: *elem,
+                                shared: *shared,
                             },
                             init_expr: None,
                         };

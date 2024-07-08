@@ -560,6 +560,9 @@ impl<'a> Encode for TableType<'a> {
         if self.limits.max.is_some() {
             flags |= 1 << 0;
         }
+        if self.shared {
+            flags |= 1 << 1;
+        }
         if self.limits.is64 {
             flags |= 1 << 2;
         }
