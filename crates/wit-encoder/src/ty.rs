@@ -135,6 +135,14 @@ impl VariantCase {
     pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
         self.docs = docs.map(|d| d.into());
     }
+
+    pub fn ty(&self) -> Option<&Type> {
+        self.ty.as_ref()
+    }
+
+    pub fn ty_mut(&mut self) -> &mut Option<Type> {
+        &mut self.ty
+    }
 }
 
 impl<N> Into<VariantCase> for (N,)
