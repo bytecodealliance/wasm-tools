@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{Docs, Ident, Render, RenderOpts, StandaloneFunc, TypeDef};
+use crate::{Docs, Ident, Render, RenderOpts, StandaloneFunc, TypeDef, Use};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Interface {
@@ -34,6 +34,11 @@ impl Interface {
         self.items.push(InterfaceItem::Function(function));
     }
 
+    /// Add a `Use` to the interface
+    pub fn use_(&mut self, use_: Use) {
+        self.items.push(InterfaceItem::Use(use_));
+    }
+
     pub fn items(&self) -> &[InterfaceItem] {
         &self.items
     }
@@ -51,6 +56,7 @@ impl Interface {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum InterfaceItem {
     TypeDef(TypeDef),
+    Use(Use),
     Function(StandaloneFunc),
 }
 
@@ -72,6 +78,9 @@ impl Render for InterfaceItems {
                         write!(f, " -> {}", func.results)?;
                     }
                     write!(f, ";\n")?;
+                }
+                InterfaceItem::Use(use_) => {
+                    use_.render(f, opts)?;
                 }
             }
         }
