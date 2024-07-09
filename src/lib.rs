@@ -238,7 +238,7 @@ impl OutputArg {
                 ids,
                 mut printer,
             } => {
-                let output = printer.print(resolve, ids)?;
+                let output = printer.print(resolve, ids, false)?;
                 self.output_str(&output)
             }
         }
