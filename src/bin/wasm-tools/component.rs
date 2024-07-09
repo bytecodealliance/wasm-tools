@@ -672,8 +672,7 @@ impl WitOpts {
                 self.output.output(
                     &self.general,
                     Output::Wit {
-                        resolve: &resolve,
-                        ids: &main,
+                        wit: &decoded,
                         printer,
                     },
                 )?;
