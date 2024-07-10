@@ -25,30 +25,20 @@ impl Use {
 
 impl Render for Use {
     fn render(&self, f: &mut fmt::Formatter<'_>, opts: &crate::RenderOpts) -> fmt::Result {
-        if self.use_names_list.len() == 1 && self.use_names_list.first().unwrap().1.is_none() {
-            write!(
-                f,
-                "{}use {}.{};\n",
-                opts.spaces(),
-                self.target,
-                self.use_names_list.first().unwrap().0
-            )?;
-        } else {
-            let len = self.use_names_list.len();
+        let len = self.use_names_list.len();
 
-            write!(f, "{}use {}.{{ ", opts.spaces(), self.target)?;
-            for (i, (id, alias)) in self.use_names_list.iter().enumerate() {
-                if let Some(alias) = alias {
-                    write!(f, "{id} as {alias}")?;
-                } else {
-                    write!(f, "{id}")?;
-                }
-                if i < len - 1 {
-                    write!(f, ", ")?;
-                }
+        write!(f, "{}use {}.{{ ", opts.spaces(), self.target)?;
+        for (i, (id, alias)) in self.use_names_list.iter().enumerate() {
+            if let Some(alias) = alias {
+                write!(f, "{id} as {alias}")?;
+            } else {
+                write!(f, "{id}")?;
             }
-            write!(f, " }};\n")?;
+            if i < len - 1 {
+                write!(f, ", ")?;
+            }
         }
+        write!(f, " }};\n")?;
         Ok(())
     }
 }

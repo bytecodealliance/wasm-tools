@@ -16,7 +16,7 @@ const PACKAGE: &str = indoc::indoc! {"
     }
 
     world baz {
-      use bar.baz;
+      use bar.{ baz };
     }
 "};
 
