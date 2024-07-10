@@ -5,12 +5,7 @@ pub struct Ident(Cow<'static, str>);
 
 impl Ident {
     pub fn new(s: impl Into<Cow<'static, str>>) -> Self {
-        let s: Cow<'static, str> = s.into();
-        if is_keyword(&s) {
-            Self(Cow::Owned(format!("%{}", s)))
-        } else {
-            Self(s)
-        }
+        Self(s.into())
     }
 }
 
@@ -25,6 +20,9 @@ where
 
 impl fmt::Display for Ident {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if is_keyword(&self.0) {
+            write!(f, "%")?;
+        }
         self.0.fmt(f)
     }
 }
