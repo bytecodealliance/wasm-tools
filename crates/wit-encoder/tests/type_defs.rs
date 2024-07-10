@@ -103,6 +103,7 @@ const PACKAGE: &str = indoc::indoc! {"
       type t46 = t44;
       type foo = bar;
       type bar = u32;
+      type %f64 = f64;
       resource t50 {
       }
       resource t51 {
