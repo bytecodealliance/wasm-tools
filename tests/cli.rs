@@ -153,7 +153,12 @@ fn execute(cmd: &mut Command, stdin: Option<&[u8]>, should_fail: bool) -> Result
 
 fn assert_output(bless: bool, output: &[u8], path: &Path, tempdir: &TempDir) -> Result<()> {
     let tempdir = tempdir.path().to_str().unwrap();
-    let output = String::from_utf8_lossy(output).replace(tempdir, "%tmpdir");
+    // sanitize the output to be consistent across platforms and handle per-test
+    // differences such as `%tmpdir`.
+    let output = String::from_utf8_lossy(output)
+        .replace(tempdir, "%tmpdir")
+        .replace("\\", "/");
+
     if bless {
         if output.is_empty() {
             drop(std::fs::remove_file(path));
