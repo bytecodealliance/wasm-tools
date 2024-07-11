@@ -1,7 +1,7 @@
-// Tests for validate legacy-exception-handling
+// Tests for validate legacy-exceptions
 
 #[test]
-#[cfg(feature = "legacy-exception-handling")]
+#[cfg(feature = "legacy-exceptions")]
 fn check_legacy_exception_handling_opcodes() {
     let _binary_data = [0, 97, 115, 109, 1, 0, 0, 0, 1, 4, 1, 96, 0, 0, 3, 2, 1, 0, 13, 3, 1, 0, 0, 10, 21, 1, 19, 0, 6, 64, 6, 64, 6, 64, 8, 0, 25, 9, 0, 11, 24, 0, 7, 0, 11, 11];
     let _text_format_data = "
