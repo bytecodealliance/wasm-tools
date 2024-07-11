@@ -870,7 +870,7 @@ instructions! {
         GlobalAtomicRmwCmpxchg(Ordered<Index<'a>>) : [0xfe, 0x57] : "global.atomic.rmw.cmpxchg",
         TableAtomicGet(Ordered<TableArg<'a>>) : [0xfe, 0x58] : "table.atomic.get",
         TableAtomicSet(Ordered<TableArg<'a>>) : [0xfe, 0x59] : "table.atomic.set",
-        TableAtomicRmwXchg(Ordered<TableArg<'a>>) : [0xfe, 0x5A] : "table.atomic.xchg",
+        TableAtomicRmwXchg(Ordered<TableArg<'a>>) : [0xfe, 0x5A] : "table.atomic.rmw.xchg",
         TableAtomicRmwCmpxchg(Ordered<TableArg<'a>>) : [0xFE, 0x5B] : "table.atomic.rmw.cmpxchg",
         StructAtomicGet(Ordered<StructAccess<'a>>) : [0xFE, 0x5C] : "struct.atomic.get",
         StructAtomicGetS(Ordered<StructAccess<'a>>) : [0xFE, 0x5D] : "struct.atomic.get_s",

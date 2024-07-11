@@ -45,6 +45,23 @@
       "filename": "table.6.wasm",
       "text": "shared tables must have a shared element type",
       "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 46,
+      "filename": "table.7.wasm"
+    },
+    {
+      "type": "module",
+      "line": 115,
+      "filename": "table.8.wasm"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 167,
+      "filename": "table.9.wasm",
+      "text": "invalid type",
+      "module_type": "binary"
     }
   ]
 }

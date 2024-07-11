@@ -3697,7 +3697,8 @@ where
         // be used on both shared and unshared tables. But we do need to limit
         // which types can be used with this instruction.
         let ty = self.table_type_at(table)?.element_type;
-        if !self.resources.is_subtype(ty.into(), RefType::ANYREF.into()) {
+        let supertype = RefType::ANYREF.shared().unwrap();
+        if !self.resources.is_subtype(ty.into(), supertype.into()) {
             bail!(
                 self.offset,
                 "invalid type: `table.atomic.get` only allows subtypes of `anyref`"
@@ -3718,7 +3719,8 @@ where
         // be used on both shared and unshared tables. But we do need to limit
         // which types can be used with this instruction.
         let ty = self.table_type_at(table)?.element_type;
-        if !self.resources.is_subtype(ty.into(), RefType::ANYREF.into()) {
+        let supertype = RefType::ANYREF.shared().unwrap();
+        if !self.resources.is_subtype(ty.into(), supertype.into()) {
             bail!(
                 self.offset,
                 "invalid type: `table.atomic.set` only allows subtypes of `anyref`"
@@ -3751,14 +3753,15 @@ where
         let table = self.table_type_at(table)?;
         let elem_ty = table.element_type.into();
         debug_assert_type_indices_are_ids(elem_ty);
-        if !self.resources.is_subtype(elem_ty, RefType::ANYREF.into()) {
+        let supertype = RefType::ANYREF.shared().unwrap();
+        if !self.resources.is_subtype(elem_ty, supertype.into()) {
             bail!(
                 self.offset,
                 "invalid type: `table.atomic.rmw.xchg` only allows subtypes of `anyref`"
             );
         }
-        self.pop_operand(Some(table.index_type()))?;
         self.pop_operand(Some(elem_ty))?;
+        self.pop_operand(Some(table.index_type()))?;
         self.push_operand(elem_ty)?;
         Ok(())
     }
@@ -3766,15 +3769,16 @@ where
         let table = self.table_type_at(table)?;
         let elem_ty = table.element_type.into();
         debug_assert_type_indices_are_ids(elem_ty);
-        if !self.resources.is_subtype(elem_ty, RefType::EQREF.into()) {
+        let supertype = RefType::EQREF.shared().unwrap();
+        if !self.resources.is_subtype(elem_ty, supertype.into()) {
             bail!(
                 self.offset,
                 "invalid type: `table.atomic.rmw.cmpxchg` only allows subtypes of `eqref`"
             );
         }
+        self.pop_operand(Some(elem_ty))?;
+        self.pop_operand(Some(elem_ty))?;
         self.pop_operand(Some(table.index_type()))?;
-        self.pop_operand(Some(elem_ty))?;
-        self.pop_operand(Some(elem_ty))?;
         self.push_operand(elem_ty)?;
         Ok(())
     }
@@ -3824,7 +3828,9 @@ where
             .element_type;
         let is_valid_type = match ty {
             StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
-            StorageType::Val(v) => self.resources.is_subtype(v, RefType::ANYREF.into()),
+            StorageType::Val(v) => self
+                .resources
+                .is_subtype(v, RefType::ANYREF.shared().unwrap().into()),
             _ => false,
         };
         if !is_valid_type {
@@ -3910,7 +3916,9 @@ where
         let is_valid_type = match ty {
             StorageType::I8 | StorageType::I16 => true,
             StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
-            StorageType::Val(v) => self.resources.is_subtype(v, RefType::ANYREF.into()),
+            StorageType::Val(v) => self
+                .resources
+                .is_subtype(v, RefType::ANYREF.shared().unwrap().into()),
         };
         if !is_valid_type {
             bail!(
@@ -3986,7 +3994,23 @@ where
         struct_type_index: u32,
         field_index: u32,
     ) -> Self::Output {
-        let field_ty = self.check_atomic_struct_rmw_ty(struct_type_index, field_index)?;
+        let field_ty = self
+            .struct_field_at(struct_type_index, field_index)?
+            .element_type;
+        let is_valid_type = match field_ty {
+            StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
+            StorageType::Val(v) => self
+                .resources
+                .is_subtype(v, RefType::ANYREF.shared().unwrap().into()),
+            _ => false,
+        };
+        if !is_valid_type {
+            bail!(
+                self.offset,
+                "invalid type: `struct.atomic.rmw.xchg` only allows `i32`, `i64` and subtypes of `anyref`"
+            );
+        }
+        let field_ty = field_ty.unpack();
         self.pop_operand(Some(field_ty))?;
         self.pop_concrete_ref(true, struct_type_index)?;
         self.push_operand(field_ty)?;
@@ -3998,7 +4022,23 @@ where
         struct_type_index: u32,
         field_index: u32,
     ) -> Self::Output {
-        let field_ty = self.check_atomic_struct_rmw_ty(struct_type_index, field_index)?;
+        let field_ty = self
+            .struct_field_at(struct_type_index, field_index)?
+            .element_type;
+        let is_valid_type = match field_ty {
+            StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
+            StorageType::Val(v) => self
+                .resources
+                .is_subtype(v, RefType::EQREF.shared().unwrap().into()),
+            _ => false,
+        };
+        if !is_valid_type {
+            bail!(
+                self.offset,
+                "invalid type: `struct.atomic.rmw.cmpxchg` only allows `i32`, `i64` and subtypes of `eqref`"
+            );
+        }
+        let field_ty = field_ty.unpack();
         self.pop_operand(Some(field_ty))?;
         self.pop_operand(Some(field_ty))?;
         self.pop_concrete_ref(true, struct_type_index)?;
@@ -4093,7 +4133,9 @@ where
         let elem_ty = self.array_type_at(type_index)?.0.element_type;
         let is_valid_type = match elem_ty {
             StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
-            StorageType::Val(v) => self.resources.is_subtype(v, RefType::ANYREF.into()),
+            StorageType::Val(v) => self
+                .resources
+                .is_subtype(v, RefType::ANYREF.shared().unwrap().into()),
             _ => false,
         };
         if !is_valid_type {
@@ -4165,7 +4207,9 @@ where
         let is_valid_type = match elem_ty {
             StorageType::I8 | StorageType::I16 => true,
             StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
-            StorageType::Val(v) => self.resources.is_subtype(v, RefType::ANYREF.into()),
+            StorageType::Val(v) => self
+                .resources
+                .is_subtype(v, RefType::ANYREF.shared().unwrap().into()),
         };
         if !is_valid_type {
             bail!(
@@ -4292,6 +4336,7 @@ where
     fn visit_array_atomic_rmw_add(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
         let elem_ty = self.check_atomic_array_rmw_ty(type_index)?;
         self.pop_operand(Some(elem_ty))?;
+        self.pop_operand(Some(ValType::I32))?;
         self.pop_concrete_ref(true, type_index)?;
         self.push_operand(elem_ty)?;
         Ok(())
@@ -4299,6 +4344,7 @@ where
     fn visit_array_atomic_rmw_sub(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
         let elem_ty = self.check_atomic_array_rmw_ty(type_index)?;
         self.pop_operand(Some(elem_ty))?;
+        self.pop_operand(Some(ValType::I32))?;
         self.pop_concrete_ref(true, type_index)?;
         self.push_operand(elem_ty)?;
         Ok(())
@@ -4306,6 +4352,7 @@ where
     fn visit_array_atomic_rmw_and(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
         let elem_ty = self.check_atomic_array_rmw_ty(type_index)?;
         self.pop_operand(Some(elem_ty))?;
+        self.pop_operand(Some(ValType::I32))?;
         self.pop_concrete_ref(true, type_index)?;
         self.push_operand(elem_ty)?;
         Ok(())
@@ -4313,6 +4360,7 @@ where
     fn visit_array_atomic_rmw_or(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
         let elem_ty = self.check_atomic_array_rmw_ty(type_index)?;
         self.pop_operand(Some(elem_ty))?;
+        self.pop_operand(Some(ValType::I32))?;
         self.pop_concrete_ref(true, type_index)?;
         self.push_operand(elem_ty)?;
         Ok(())
@@ -4320,6 +4368,7 @@ where
     fn visit_array_atomic_rmw_xor(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
         let elem_ty = self.check_atomic_array_rmw_ty(type_index)?;
         self.pop_operand(Some(elem_ty))?;
+        self.pop_operand(Some(ValType::I32))?;
         self.pop_concrete_ref(true, type_index)?;
         self.push_operand(elem_ty)?;
         Ok(())
@@ -4329,8 +4378,23 @@ where
         _ordering: Ordering,
         type_index: u32,
     ) -> Self::Output {
-        let elem_ty = self.check_atomic_array_rmw_ty(type_index)?;
+        let elem_ty = self.array_type_at(type_index)?.0.element_type;
+        let is_valid_type = match elem_ty {
+            StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
+            StorageType::Val(v) => self
+                .resources
+                .is_subtype(v, RefType::ANYREF.shared().unwrap().into()),
+            _ => false,
+        };
+        if !is_valid_type {
+            bail!(
+                self.offset,
+                "invalid type: `array.atomic.rmw.xchg` only allows `i32`, `i64` and subtypes of `anyref`"
+            );
+        }
+        let elem_ty = elem_ty.unpack();
         self.pop_operand(Some(elem_ty))?;
+        self.pop_operand(Some(ValType::I32))?;
         self.pop_concrete_ref(true, type_index)?;
         self.push_operand(elem_ty)?;
         Ok(())
@@ -4340,9 +4404,24 @@ where
         _ordering: Ordering,
         type_index: u32,
     ) -> Self::Output {
-        let elem_ty = self.check_atomic_array_rmw_ty(type_index)?;
+        let elem_ty = self.array_type_at(type_index)?.0.element_type;
+        let is_valid_type = match elem_ty {
+            StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
+            StorageType::Val(v) => self
+                .resources
+                .is_subtype(v, RefType::EQREF.shared().unwrap().into()),
+            _ => false,
+        };
+        if !is_valid_type {
+            bail!(
+                self.offset,
+                "invalid type: `array.atomic.rmw.cmpxchg` only allows `i32`, `i64` and subtypes of `eqref`"
+            );
+        }
+        let elem_ty = elem_ty.unpack();
         self.pop_operand(Some(elem_ty))?;
         self.pop_operand(Some(elem_ty))?;
+        self.pop_operand(Some(ValType::I32))?;
         self.pop_concrete_ref(true, type_index)?;
         self.push_operand(elem_ty)?;
         Ok(())
