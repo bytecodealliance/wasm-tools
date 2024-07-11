@@ -78,7 +78,6 @@
   "packages": [
     {
       "name": "foo:shared-items",
-      "kind": "Implicit",
       "interfaces": {},
       "worlds": {
         "foo": 0

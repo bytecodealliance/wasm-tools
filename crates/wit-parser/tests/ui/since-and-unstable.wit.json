@@ -566,7 +566,6 @@
   "packages": [
     {
       "name": "a:b@1.0.1",
-      "kind": "Implicit",
       "interfaces": {
         "foo1": 0,
         "foo2": 1,

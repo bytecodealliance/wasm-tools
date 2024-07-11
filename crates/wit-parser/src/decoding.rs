@@ -1,4 +1,3 @@
-use crate::resolve::PackageKind;
 use crate::*;
 use anyhow::{anyhow, bail};
 use indexmap::IndexSet;
@@ -413,7 +412,6 @@ impl ComponentInfo {
         let mut resolve = if let Some(name) = pkg_name {
             let pkg = Package {
                 name,
-                kind: PackageKind::Implicit,
                 docs: Docs::default(),
                 interfaces: fields.interfaces.clone(),
                 worlds: fields.worlds.clone(),
@@ -484,7 +482,6 @@ impl ComponentInfo {
                     pkg_names.push(name.clone());
                     let pkg = Package {
                         name: name.clone(),
-                        kind: PackageKind::Implicit,
                         docs: Docs::default(),
                         interfaces: fields.interfaces.clone(),
                         worlds: fields.worlds.clone(),
@@ -495,7 +492,6 @@ impl ComponentInfo {
                 } else {
                     let pkg = Package {
                         name: name.clone(),
-                        kind: PackageKind::Implicit,
                         docs: Docs::default(),
                         interfaces: fields.interfaces.clone(),
                         worlds: fields.worlds.clone(),
@@ -508,7 +504,6 @@ impl ComponentInfo {
             let pkg = if let Some(name) = pkg_name {
                 Package {
                     name: name.clone(),
-                    kind: PackageKind::Implicit,
                     docs: Docs::default(),
                     interfaces: fields.interfaces.clone(),
                     worlds: fields.worlds.clone(),
@@ -516,7 +511,6 @@ impl ComponentInfo {
             } else {
                 Package {
                     name: explicit.name.as_ref().unwrap().clone(),
-                    kind: PackageKind::Implicit,
                     docs: Docs::default(),
                     interfaces: fields.interfaces.clone(),
                     worlds: fields.worlds.clone(),
@@ -582,7 +576,6 @@ impl ComponentInfo {
                 version: None,
                 name: "component".to_string(),
             },
-            kind: PackageKind::Implicit,
             docs: Default::default(),
             worlds: [(world_name.to_string(), world)].into_iter().collect(),
             interfaces: Default::default(),
@@ -747,7 +740,6 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
     let name = decoder.decode_world(name, &types[ty], &mut fields)?;
     let (resolve, pkg) = decoder.finish(Package {
         name,
-        kind: PackageKind::Implicit,
         interfaces: fields.interfaces.clone(),
         worlds: fields.worlds.clone(),
         docs: Default::default(),
@@ -822,7 +814,6 @@ impl WitPackageDecoder<'_> {
                 }
                 _ => bail!("package name is not a valid id: {name}"),
             },
-            kind: PackageKind::Implicit,
             docs: Default::default(),
             interfaces: Default::default(),
             worlds: Default::default(),
@@ -1151,7 +1142,6 @@ impl WitPackageDecoder<'_> {
             .entry(package_name.to_string())
             .or_insert_with(|| Package {
                 name: package_name.clone(),
-                kind: PackageKind::Implicit,
                 docs: Default::default(),
                 interfaces: Default::default(),
                 worlds: Default::default(),
@@ -1738,7 +1728,6 @@ impl WitPackageDecoder<'_> {
     fn insert_package(&mut self, package: Package) -> PackageId {
         let Package {
             name,
-            kind,
             interfaces,
             worlds,
             docs,
@@ -1757,7 +1746,6 @@ impl WitPackageDecoder<'_> {
             .unwrap_or_else(|| {
                 let id = self.resolve.packages.alloc(Package {
                     name: name.clone(),
-                    kind: kind.clone(),
                     interfaces: Default::default(),
                     worlds: Default::default(),
                     docs,

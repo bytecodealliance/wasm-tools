@@ -54,7 +54,7 @@ impl Encoder<'_> {
         let mut names = NameMap::new();
         for pkg in self.packages {
             let package = &self.resolve.packages[*pkg];
-            if let PackageKind::Explicit = package.kind {
+            if self.packages.len() > 1 {
                 let mut sub_encoder = Encoder {
                     component: ComponentBuilder::default(),
                     resolve: self.resolve,

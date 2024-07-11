@@ -283,7 +283,6 @@
   "packages": [
     {
       "name": "foo:multi-file",
-      "kind": "Implicit",
       "interfaces": {
         "irrelevant-name": 0,
         "depend-on-me": 1,

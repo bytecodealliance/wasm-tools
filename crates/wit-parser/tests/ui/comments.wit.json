@@ -40,7 +40,6 @@
   "packages": [
     {
       "name": "foo:comments",
-      "kind": "Implicit",
       "interfaces": {
         "foo": 0
       },

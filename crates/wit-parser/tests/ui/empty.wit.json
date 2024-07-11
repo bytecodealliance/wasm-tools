@@ -5,7 +5,6 @@
   "packages": [
     {
       "name": "foo:empty",
-      "kind": "Implicit",
       "interfaces": {},
       "worlds": {}
     }

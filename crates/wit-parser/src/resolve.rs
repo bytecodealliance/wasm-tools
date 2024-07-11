@@ -80,13 +80,6 @@ pub struct Resolve {
     pub all_features: bool,
 }
 
-#[derive(PartialEq, Clone, Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
-pub enum PackageKind {
-    Explicit,
-    Implicit,
-}
-
 /// A WIT package within a `Resolve`.
 ///
 /// A package is a collection of interfaces and worlds. Packages additionally
@@ -97,9 +90,6 @@ pub enum PackageKind {
 pub struct Package {
     /// A unique name corresponding to this package.
     pub name: PackageName,
-
-    /// Kind
-    pub kind: PackageKind,
 
     /// Documentation associated with this package.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
@@ -1398,7 +1388,6 @@ impl Remap {
 
         let pkgid = resolve.packages.alloc(Package {
             name: unresolved.name.clone(),
-            kind: unresolved.kind.clone(),
             docs: unresolved.docs.clone(),
             interfaces: Default::default(),
             worlds: Default::default(),

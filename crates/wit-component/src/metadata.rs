@@ -51,7 +51,7 @@ use wasm_encoder::{
 };
 use wasm_metadata::Producers;
 use wasmparser::{BinaryReader, Encoding, Parser, Payload, WasmFeatures};
-use wit_parser::{Package, PackageKind, PackageName, Resolve, World, WorldId, WorldItem};
+use wit_parser::{Package, PackageName, Resolve, World, WorldId, WorldItem};
 
 const CURRENT_VERSION: u8 = 0x04;
 const CUSTOM_SECTION_NAME: &str = "wit-component-encoding";
@@ -80,7 +80,6 @@ impl Default for Bindgen {
                 name: "root".to_string(),
                 version: None,
             },
-            kind: PackageKind::Implicit,
             docs: Default::default(),
             interfaces: Default::default(),
             worlds: Default::default(),

@@ -55,7 +55,6 @@
   "packages": [
     {
       "name": "foo:foo",
-      "kind": "Implicit",
       "interfaces": {
         "a": 0,
         "b": 1

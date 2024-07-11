@@ -530,7 +530,6 @@
   "packages": [
     {
       "name": "wasi:filesystem",
-      "kind": "Implicit",
       "interfaces": {
         "wasi": 0
       },

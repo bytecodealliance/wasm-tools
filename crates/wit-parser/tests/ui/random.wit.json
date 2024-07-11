@@ -55,7 +55,6 @@
   "packages": [
     {
       "name": "wasi:random",
-      "kind": "Implicit",
       "interfaces": {
         "random": 0
       },

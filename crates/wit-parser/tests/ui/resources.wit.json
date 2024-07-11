@@ -328,7 +328,6 @@
   "packages": [
     {
       "name": "foo:bar",
-      "kind": "Implicit",
       "interfaces": {
         "foo": 0,
         "i": 1

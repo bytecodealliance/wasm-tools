@@ -225,7 +225,6 @@
   "packages": [
     {
       "name": "foo:foo",
-      "kind": "Implicit",
       "interfaces": {
         "types": 0,
         "handler": 1

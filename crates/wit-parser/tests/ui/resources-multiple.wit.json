@@ -272,7 +272,6 @@
   "packages": [
     {
       "name": "foo:resources-multiple",
-      "kind": "Implicit",
       "interfaces": {
         "resources-multiple": 0
       },

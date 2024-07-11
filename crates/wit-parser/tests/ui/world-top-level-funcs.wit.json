@@ -77,7 +77,6 @@
   "packages": [
     {
       "name": "foo:foo",
-      "kind": "Implicit",
       "interfaces": {},
       "worlds": {
         "foo": 0

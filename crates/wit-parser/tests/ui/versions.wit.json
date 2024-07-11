@@ -68,7 +68,6 @@
   "packages": [
     {
       "name": "a:a@1.0.0",
-      "kind": "Implicit",
       "interfaces": {
         "foo": 0
       },
@@ -76,7 +75,6 @@
     },
     {
       "name": "a:a@2.0.0",
-      "kind": "Implicit",
       "interfaces": {
         "foo": 1
       },
@@ -84,7 +82,6 @@
     },
     {
       "name": "foo:versions",
-      "kind": "Implicit",
       "interfaces": {
         "foo": 2
       },

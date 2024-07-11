@@ -1592,11 +1592,6 @@ enum ResolverKind<'a> {
     PartialImplicit(Resolver<'a>),
 }
 
-pub(crate) enum ResolverKindTag {
-    Explicit,
-    Implicit,
-}
-
 fn parse_package(
     unparsed_pkgs: Vec<ExplicitPackage>,
     src: &Source,
@@ -1729,7 +1724,7 @@ impl SourceMap {
             match resolver_kind {
                 ResolverKind::Unknown => bail!("No WIT packages found in the supplied source"),
                 ResolverKind::Explicit(pkgs) => Ok(pkgs),
-                ResolverKind::PartialImplicit(mut resolver) => match resolver.resolve(ResolverKindTag::Implicit)? {
+                ResolverKind::PartialImplicit(mut resolver) => match resolver.resolve()? {
                     Some(pkg) => Ok(vec![pkg]),
                     None => bail!("No WIT packages found in the supplied source"),
                 },

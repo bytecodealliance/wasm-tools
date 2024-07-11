@@ -5,7 +5,6 @@
   "packages": [
     {
       "name": "foo:bar@2.0.0",
-      "kind": "Implicit",
       "interfaces": {},
       "worlds": {}
     }
