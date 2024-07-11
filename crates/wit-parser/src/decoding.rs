@@ -342,16 +342,17 @@ impl ComponentInfo {
         }
 
         let pkg = pkg.ok_or_else(|| anyhow!("no exported component type found"))?;
-        let (mut resolve, packages) = decoder.finish(&mut [pkg]);
+        let (mut resolve, package) = decoder.finish(pkg);
         if let Some(package_metadata) = &self.package_metadata {
-            package_metadata.inject(&mut resolve, packages[0])?;
+            package_metadata.inject(&mut resolve, package)?;
         }
-        Ok((resolve, packages[0]))
+        Ok((resolve, package))
     }
 
     fn decode_wit_v2_packages(&self) -> Result<(Resolve, Vec<PackageId>)> {
         let mut decoder = WitPackageDecoder::new(&self.types);
 
+        let mut pkg_name = None;
         let mut pkg_names = Vec::new();
 
         let mut fields = PackageFields {
@@ -359,6 +360,7 @@ impl ComponentInfo {
             worlds: &mut IndexMap::new(),
         };
         let mut pkg_ids: Vec<Package> = Vec::new();
+        let mut implicit = None;
         for (_, item) in self.externs.iter() {
             let export = match item {
                 Extern::Export(e) => e,
@@ -397,35 +399,37 @@ impl ComponentInfo {
                 }
                 _ => unreachable!(),
             };
-            if !pkg_names.contains(&name) {
-                pkg_names.push(name.clone());
-                let pkg = Package {
-                    name: name.clone(),
-                    kind: PackageKind::Implicit,
-                    docs: Docs::default(),
-                    interfaces: fields.interfaces.clone(),
-                    worlds: fields.worlds.clone(),
-                };
-                if !pkg_ids.contains(&pkg) {
-                    pkg_ids.push(pkg);
+            if let Some(pkg_name) = pkg_name.as_ref() {
+                // TODO: when we have fully switched to the v2 format, we should switch to parsing
+                // multiple wit documents instead of bailing.
+                if pkg_name != &name {
+                    bail!("item defined with mismatched package name")
                 }
             } else {
-                let pkg = Package {
-                    name: name.clone(),
-                    kind: PackageKind::Implicit,
-                    docs: Docs::default(),
-                    interfaces: fields.interfaces.clone(),
-                    worlds: fields.worlds.clone(),
-                };
-                let pkg_id = pkg_ids.iter_mut().find(|p| p.name == pkg.name).unwrap();
-                pkg_id.interfaces = pkg.interfaces;
-                pkg_id.worlds = pkg.worlds;
+                pkg_name.replace(name);
             }
         }
 
+        let mut resolve = if let Some(name) = pkg_name {
+            let pkg = Package {
+                name,
+                kind: PackageKind::Implicit,
+                docs: Docs::default(),
+                interfaces: fields.interfaces.clone(),
+                worlds: fields.worlds.clone(),
+            };
+            let (resolve, package) = decoder.finish(pkg);
+            implicit = Some(package);
+            resolve
+        } else {
+            Resolve::new()
+        };
+
         for explicit in &self.explicit {
+            let mut cur_decoder = WitPackageDecoder::new(explicit.types.as_ref().unwrap());
             fields.interfaces.clear();
             fields.worlds.clear();
+            pkg_name = None;
             for (_, item) in explicit.externs.iter() {
                 let export = match item {
                     Extern::Export(e) => e,
@@ -449,22 +453,33 @@ impl ComponentInfo {
 
                 let name = match component.exports[name] {
                     types::ComponentEntityType::Component(ty) => {
-                        let package_name =
-                            decoder.decode_world(name.as_str(), &self.types[ty], &mut fields)?;
+                        let package_name = cur_decoder.decode_world(
+                            name.as_str(),
+                            &explicit.types.as_ref().unwrap()[ty],
+                            &mut fields,
+                        )?;
                         package_name
                     }
                     types::ComponentEntityType::Instance(ty) => {
-                        let package_name = decoder.decode_interface(
+                        let package_name = cur_decoder.decode_interface(
                             name.as_str(),
                             &component.imports,
-                            &self.types[ty],
+                            &explicit.types.as_ref().unwrap()[ty],
                             &mut fields,
                         )?;
                         package_name
                     }
                     _ => unreachable!(),
                 };
-
+                if let Some(pkg_name) = pkg_name.as_ref() {
+                    // TODO: when we have fully switched to the v2 format, we should switch to parsing
+                    // multiple wit documents instead of bailing.
+                    if pkg_name != &name {
+                        bail!("item defined with mismatched package name")
+                    }
+                } else {
+                    pkg_name.replace(name.clone());
+                }
                 if !pkg_names.contains(&name) {
                     pkg_names.push(name.clone());
                     let pkg = Package {
@@ -488,11 +503,29 @@ impl ComponentInfo {
                     let pkg_id = pkg_ids.iter_mut().find(|p| p.name == pkg.name).unwrap();
                     pkg_id.interfaces = pkg.interfaces;
                     pkg_id.worlds = pkg.worlds;
-                }
+                };
             }
+            let pkg = if let Some(name) = pkg_name {
+                Package {
+                    name: name.clone(),
+                    kind: PackageKind::Implicit,
+                    docs: Docs::default(),
+                    interfaces: fields.interfaces.clone(),
+                    worlds: fields.worlds.clone(),
+                }
+            } else {
+                Package {
+                    name: explicit.name.as_ref().unwrap().clone(),
+                    kind: PackageKind::Implicit,
+                    docs: Docs::default(),
+                    interfaces: fields.interfaces.clone(),
+                    worlds: fields.worlds.clone(),
+                }
+            };
+            let (cur_resolve, _) = cur_decoder.finish(pkg);
+            resolve.merge(cur_resolve)?;
         }
 
-        let (mut resolve, packages) = decoder.finish(&mut pkg_ids);
         let copy = resolve.clone();
         for package in &self.explicit {
             if let Some(package_metadata) = &package.package_metadata {
@@ -506,12 +539,20 @@ impl ComponentInfo {
         // For now this is a sufficient condition to know that we're working with
         // an implicit package declaration.  This will need to be reworked when
         // mixed package declarations are supported
-        if self.explicit.len() == 0 {
-            let package = packages[0];
+        if let Some(package) = implicit {
             if let Some(package_metadata) = &self.package_metadata {
                 package_metadata.inject(&mut resolve, package)?;
             }
         }
+        let packages = if let Some(package) = implicit {
+            vec![package]
+        } else {
+            resolve
+                .package_names
+                .iter()
+                .map(|(_, v)| v.to_owned())
+                .collect()
+        };
         Ok((resolve, packages))
     }
 
@@ -563,7 +604,7 @@ impl ComponentInfo {
             }
         }
 
-        let (resolve, _) = decoder.finish(&mut [package]);
+        let (resolve, _) = decoder.finish(package);
         Ok((resolve, world))
     }
 }
@@ -704,16 +745,16 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
         worlds: &mut worlds,
     };
     let name = decoder.decode_world(name, &types[ty], &mut fields)?;
-    let (resolve, pkgs) = decoder.finish(&mut [Package {
+    let (resolve, pkg) = decoder.finish(Package {
         name,
         kind: PackageKind::Implicit,
         interfaces: fields.interfaces.clone(),
         worlds: fields.worlds.clone(),
         docs: Default::default(),
-    }]);
+    });
     // The package decoded here should only have a single world so extract that
     // here to return.
-    let world = *resolve.packages[pkgs[0]].worlds.iter().next().unwrap().1;
+    let world = *resolve.packages[pkg].worlds.iter().next().unwrap().1;
     Ok((resolve, world))
 }
 
@@ -1658,44 +1699,40 @@ impl WitPackageDecoder<'_> {
     /// their topological ordering within the returned `Resolve`.
     ///
     /// Takes the root package as an argument to insert.
-    fn finish(mut self, packages: &mut [Package]) -> (Resolve, Vec<PackageId>) {
-        let mut resolved = Vec::new();
-        for package in packages {
-            // Build a topological ordering is then calculated by visiting all the
-            // transitive dependencies of packages.
-            let mut order = IndexSet::new();
-            for i in 0..self.foreign_packages.len() {
-                self.visit_package(i, &mut order);
-            }
-            // Using the topological ordering create a temporary map from
-            // index-in-`foreign_packages` to index-in-`order`
-            let mut idx_to_pos = vec![0; self.foreign_packages.len()];
-            for (pos, idx) in order.iter().enumerate() {
-                idx_to_pos[*idx] = pos;
-            }
-            // .. and then using `idx_to_pos` sort the `foreign_packages` array based
-            // on the position it's at in the topological ordering
-            let mut deps = mem::take(&mut self.foreign_packages)
-                .into_iter()
-                .enumerate()
-                .collect::<Vec<_>>();
-            deps.sort_by_key(|(idx, _)| idx_to_pos[*idx]);
-
-            // .. and finally insert the packages, in their final topological
-            // ordering, into the returned array.
-            for (_idx, (_url, pkg)) in deps {
-                self.insert_package(pkg);
-            }
-            let id = self.insert_package(package.clone());
-            resolved.push(id);
+    fn finish(mut self, package: Package) -> (Resolve, PackageId) {
+        // Build a topological ordering is then calculated by visiting all the
+        // transitive dependencies of packages.
+        let mut order = IndexSet::new();
+        for i in 0..self.foreign_packages.len() {
+            self.visit_package(i, &mut order);
         }
+        // Using the topological ordering create a temporary map from
+        // index-in-`foreign_packages` to index-in-`order`
+        let mut idx_to_pos = vec![0; self.foreign_packages.len()];
+        for (pos, idx) in order.iter().enumerate() {
+            idx_to_pos[*idx] = pos;
+        }
+        // .. and then using `idx_to_pos` sort the `foreign_packages` array based
+        // on the position it's at in the topological ordering
+        let mut deps = mem::take(&mut self.foreign_packages)
+            .into_iter()
+            .enumerate()
+            .collect::<Vec<_>>();
+        deps.sort_by_key(|(idx, _)| idx_to_pos[*idx]);
+
+        // .. and finally insert the packages, in their final topological
+        // ordering, into the returned array.
+        for (_idx, (_url, pkg)) in deps {
+            self.insert_package(pkg);
+        }
+        let id = self.insert_package(package);
         assert!(self.resolve.worlds.iter().all(|(_, w)| w.package.is_some()));
         assert!(self
             .resolve
             .interfaces
             .iter()
             .all(|(_, i)| i.package.is_some()));
-        (self.resolve, resolved)
+        (self.resolve, id)
     }
 
     fn insert_package(&mut self, package: Package) -> PackageId {

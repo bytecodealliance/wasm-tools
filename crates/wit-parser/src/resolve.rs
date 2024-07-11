@@ -387,7 +387,7 @@ impl Resolve {
     pub fn push_file(&mut self, path: impl AsRef<Path>) -> Result<Vec<PackageId>> {
         match self._push_file(path.as_ref())? {
             #[cfg(feature = "decoding")]
-            ParsedFile::Package(id) => Ok(vec![id]),
+            ParsedFile::Package(ids) => Ok(vec![ids]),
             ParsedFile::Unresolved(pkgs) => self.push_group(pkgs),
         }
     }
@@ -1047,6 +1047,7 @@ impl Resolve {
             },
         };
         let pkg = &self.packages[pkg];
+
         pkg.worlds
             .get(&world_name)
             .copied()

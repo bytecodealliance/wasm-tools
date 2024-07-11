@@ -84,7 +84,6 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
         let wat2 = wasmprinter::print_bytes(&wasm)?;
         assert_eq!(wat, wat2, "document did not roundtrip correctly");
     }
-    // }
 
     Ok(())
 }
