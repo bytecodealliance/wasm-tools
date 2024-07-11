@@ -103,6 +103,7 @@ const PACKAGE: &str = indoc::indoc! {"
       type t46 = t44;
       type foo = bar;
       type bar = u32;
+      type %f64 = f64;
       resource t50 {
       }
       resource t51 {
@@ -210,6 +211,8 @@ fn types() {
         interface.type_def(TypeDef::type_("t46", Type::named("t44")));
         interface.type_def(TypeDef::type_("foo", Type::named("bar")));
         interface.type_def(TypeDef::type_("bar", Type::U32));
+
+        interface.type_def(TypeDef::type_("f64", Type::F64));
 
         interface.type_def(TypeDef::resource("t50", Vec::<ResourceFunc>::new()));
         interface.type_def(TypeDef::resource(
