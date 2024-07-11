@@ -32,6 +32,7 @@ use std::env;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
+use tempfile::TempDir;
 
 fn main() {
     let mut tests = Vec::new();
@@ -76,6 +77,7 @@ fn run_test(test: &Path, bless: bool) -> Result<()> {
 
     let mut cmd = wasm_tools_exe();
     let mut stdin = None;
+    let tempdir = TempDir::new()?;
     for arg in line.split_whitespace() {
         if arg == "|" {
             let output = execute(&mut cmd, stdin.as_deref(), false)?;
@@ -83,6 +85,8 @@ fn run_test(test: &Path, bless: bool) -> Result<()> {
             cmd = wasm_tools_exe();
         } else if arg == "%" {
             cmd.arg(test);
+        } else if arg == "%tmpdir" {
+            cmd.arg(tempdir.path());
         } else {
             cmd.arg(arg);
         }
@@ -94,12 +98,14 @@ fn run_test(test: &Path, bless: bool) -> Result<()> {
         bless,
         &output.stdout,
         &test.with_extension(&format!("{extension}.stdout")),
+        &tempdir,
     )
     .context("failed to check stdout expectation (auto-update with BLESS=1)")?;
     assert_output(
         bless,
         &output.stderr,
         &test.with_extension(&format!("{extension}.stderr")),
+        &tempdir,
     )
     .context("failed to check stderr expectation (auto-update with BLESS=1)")?;
     Ok(())
@@ -145,7 +151,14 @@ fn execute(cmd: &mut Command, stdin: Option<&[u8]>, should_fail: bool) -> Result
     Ok(output)
 }
 
-fn assert_output(bless: bool, output: &[u8], path: &Path) -> Result<()> {
+fn assert_output(bless: bool, output: &[u8], path: &Path, tempdir: &TempDir) -> Result<()> {
+    let tempdir = tempdir.path().to_str().unwrap();
+    // sanitize the output to be consistent across platforms and handle per-test
+    // differences such as `%tmpdir`.
+    let output = String::from_utf8_lossy(output)
+        .replace(tempdir, "%tmpdir")
+        .replace("\\", "/");
+
     if bless {
         if output.is_empty() {
             drop(std::fs::remove_file(path));
@@ -162,7 +175,6 @@ fn assert_output(bless: bool, output: &[u8], path: &Path) -> Result<()> {
             Ok(())
         }
     } else {
-        let output = std::str::from_utf8(output)?;
         let contents = std::fs::read_to_string(path)
             .with_context(|| format!("failed to read {path:?}"))?
             .replace("\r\n", "\n");

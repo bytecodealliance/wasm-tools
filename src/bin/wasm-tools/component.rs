@@ -523,9 +523,7 @@ impl WitOpts {
         // This interprets all of the output options and performs such a task.
         if self.json {
             self.emit_json(&decoded)?;
-            return Ok(());
-        }
-        if self.wasm || self.wat {
+        } else if self.wasm || self.wat {
             self.emit_wasm(&decoded)?;
         } else {
             self.emit_wit(&decoded)?;
@@ -618,7 +616,6 @@ impl WitOpts {
         assert!(!self.wasm && !self.wat);
 
         let resolve = decoded.resolve();
-        let main = decoded.packages();
 
         let mut printer = WitPrinter::default();
         printer.emit_docs(!self.no_docs);
@@ -641,28 +638,31 @@ impl WitOpts {
                     *cnt += 1;
                 }
 
+                let main = decoded.packages();
                 for (id, pkg) in resolve.packages.iter() {
-                    let output = printer.print(resolve, &[id])?;
-                    let out_dir = if main.contains(&id) {
+                    let is_main = main.contains(&id);
+                    let output = printer.print(resolve, &[id], is_main)?;
+                    let out_dir = if is_main {
                         dir.clone()
                     } else {
-                        let dir = dir.join("deps");
-                        let packages_with_same_name = &names[&pkg.name.name];
-                        if packages_with_same_name.len() == 1 {
-                            dir.join(&pkg.name.name)
+                        dir.join("deps")
+                    };
+                    let packages_with_same_name = &names[&pkg.name.name];
+                    let stem = if packages_with_same_name.len() == 1 {
+                        pkg.name.name.clone()
+                    } else {
+                        let packages_with_same_namespace =
+                            packages_with_same_name[&pkg.name.namespace];
+                        if packages_with_same_namespace == 1 {
+                            format!("{}:{}", pkg.name.namespace, pkg.name.name)
                         } else {
-                            let packages_with_same_namespace =
-                                packages_with_same_name[&pkg.name.namespace];
-                            if packages_with_same_namespace == 1 {
-                                dir.join(format!("{}:{}", pkg.name.namespace, pkg.name.name))
-                            } else {
-                                dir.join(pkg.name.to_string())
-                            }
+                            pkg.name.to_string()
                         }
                     };
                     std::fs::create_dir_all(&out_dir)
                         .with_context(|| format!("failed to create directory: {out_dir:?}"))?;
-                    let path = out_dir.join("main.wit");
+                    let filename = format!("{stem}.wit");
+                    let path = out_dir.join(&filename);
                     std::fs::write(&path, &output)
                         .with_context(|| format!("failed to write file: {path:?}"))?;
                     println!("Writing: {}", path.display());
@@ -672,8 +672,7 @@ impl WitOpts {
                 self.output.output(
                     &self.general,
                     Output::Wit {
-                        resolve: &resolve,
-                        ids: &main,
+                        wit: &decoded,
                         printer,
                     },
                 )?;
