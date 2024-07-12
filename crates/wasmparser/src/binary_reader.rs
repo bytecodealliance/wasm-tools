@@ -1727,6 +1727,85 @@ impl<'a> BinaryReader<'a> {
             0x57 => {
                 visitor.visit_global_atomic_rmw_cmpxchg(self.read_ordering()?, self.read_var_u32()?)
             }
+            0x58 => visitor.visit_table_atomic_get(self.read_ordering()?, self.read_var_u32()?),
+            0x59 => visitor.visit_table_atomic_set(self.read_ordering()?, self.read_var_u32()?),
+            0x5a => {
+                visitor.visit_table_atomic_rmw_xchg(self.read_ordering()?, self.read_var_u32()?)
+            }
+            0x5b => {
+                visitor.visit_table_atomic_rmw_cmpxchg(self.read_ordering()?, self.read_var_u32()?)
+            }
+            0x5c => visitor.visit_struct_atomic_get(
+                self.read_ordering()?,
+                self.read_var_u32()?,
+                self.read_var_u32()?,
+            ),
+            0x5d => visitor.visit_struct_atomic_get_s(
+                self.read_ordering()?,
+                self.read_var_u32()?,
+                self.read_var_u32()?,
+            ),
+            0x5e => visitor.visit_struct_atomic_get_u(
+                self.read_ordering()?,
+                self.read_var_u32()?,
+                self.read_var_u32()?,
+            ),
+            0x5f => visitor.visit_struct_atomic_set(
+                self.read_ordering()?,
+                self.read_var_u32()?,
+                self.read_var_u32()?,
+            ),
+            0x60 => visitor.visit_struct_atomic_rmw_add(
+                self.read_ordering()?,
+                self.read_var_u32()?,
+                self.read_var_u32()?,
+            ),
+            0x61 => visitor.visit_struct_atomic_rmw_sub(
+                self.read_ordering()?,
+                self.read_var_u32()?,
+                self.read_var_u32()?,
+            ),
+            0x62 => visitor.visit_struct_atomic_rmw_and(
+                self.read_ordering()?,
+                self.read_var_u32()?,
+                self.read_var_u32()?,
+            ),
+            0x63 => visitor.visit_struct_atomic_rmw_or(
+                self.read_ordering()?,
+                self.read_var_u32()?,
+                self.read_var_u32()?,
+            ),
+            0x64 => visitor.visit_struct_atomic_rmw_xor(
+                self.read_ordering()?,
+                self.read_var_u32()?,
+                self.read_var_u32()?,
+            ),
+            0x65 => visitor.visit_struct_atomic_rmw_xchg(
+                self.read_ordering()?,
+                self.read_var_u32()?,
+                self.read_var_u32()?,
+            ),
+            0x66 => visitor.visit_struct_atomic_rmw_cmpxchg(
+                self.read_ordering()?,
+                self.read_var_u32()?,
+                self.read_var_u32()?,
+            ),
+            0x67 => visitor.visit_array_atomic_get(self.read_ordering()?, self.read_var_u32()?),
+            0x68 => visitor.visit_array_atomic_get_s(self.read_ordering()?, self.read_var_u32()?),
+            0x69 => visitor.visit_array_atomic_get_u(self.read_ordering()?, self.read_var_u32()?),
+            0x6a => visitor.visit_array_atomic_set(self.read_ordering()?, self.read_var_u32()?),
+            0x6b => visitor.visit_array_atomic_rmw_add(self.read_ordering()?, self.read_var_u32()?),
+            0x6c => visitor.visit_array_atomic_rmw_sub(self.read_ordering()?, self.read_var_u32()?),
+            0x6d => visitor.visit_array_atomic_rmw_and(self.read_ordering()?, self.read_var_u32()?),
+            0x6e => visitor.visit_array_atomic_rmw_or(self.read_ordering()?, self.read_var_u32()?),
+            0x6f => visitor.visit_array_atomic_rmw_xor(self.read_ordering()?, self.read_var_u32()?),
+            0x70 => {
+                visitor.visit_array_atomic_rmw_xchg(self.read_ordering()?, self.read_var_u32()?)
+            }
+            0x71 => {
+                visitor.visit_array_atomic_rmw_cmpxchg(self.read_ordering()?, self.read_var_u32()?)
+            }
+            0x72 => visitor.visit_ref_i31_shared(),
 
             _ => bail!(pos, "unknown 0xfe subopcode: 0x{code:x}"),
         })

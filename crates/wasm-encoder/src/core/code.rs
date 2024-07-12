@@ -1087,6 +1087,122 @@ pub enum Instruction<'a> {
         ordering: Ordering,
         global_index: u32,
     },
+    TableAtomicGet {
+        ordering: Ordering,
+        table_index: u32,
+    },
+    TableAtomicSet {
+        ordering: Ordering,
+        table_index: u32,
+    },
+    TableAtomicRmwXchg {
+        ordering: Ordering,
+        table_index: u32,
+    },
+    TableAtomicRmwCmpxchg {
+        ordering: Ordering,
+        table_index: u32,
+    },
+    StructAtomicGet {
+        ordering: Ordering,
+        struct_type_index: u32,
+        field_index: u32,
+    },
+    StructAtomicGetS {
+        ordering: Ordering,
+        struct_type_index: u32,
+        field_index: u32,
+    },
+    StructAtomicGetU {
+        ordering: Ordering,
+        struct_type_index: u32,
+        field_index: u32,
+    },
+    StructAtomicSet {
+        ordering: Ordering,
+        struct_type_index: u32,
+        field_index: u32,
+    },
+    StructAtomicRmwAdd {
+        ordering: Ordering,
+        struct_type_index: u32,
+        field_index: u32,
+    },
+    StructAtomicRmwSub {
+        ordering: Ordering,
+        struct_type_index: u32,
+        field_index: u32,
+    },
+    StructAtomicRmwAnd {
+        ordering: Ordering,
+        struct_type_index: u32,
+        field_index: u32,
+    },
+    StructAtomicRmwOr {
+        ordering: Ordering,
+        struct_type_index: u32,
+        field_index: u32,
+    },
+    StructAtomicRmwXor {
+        ordering: Ordering,
+        struct_type_index: u32,
+        field_index: u32,
+    },
+    StructAtomicRmwXchg {
+        ordering: Ordering,
+        struct_type_index: u32,
+        field_index: u32,
+    },
+    StructAtomicRmwCmpxchg {
+        ordering: Ordering,
+        struct_type_index: u32,
+        field_index: u32,
+    },
+    ArrayAtomicGet {
+        ordering: Ordering,
+        array_type_index: u32,
+    },
+    ArrayAtomicGetS {
+        ordering: Ordering,
+        array_type_index: u32,
+    },
+    ArrayAtomicGetU {
+        ordering: Ordering,
+        array_type_index: u32,
+    },
+    ArrayAtomicSet {
+        ordering: Ordering,
+        array_type_index: u32,
+    },
+    ArrayAtomicRmwAdd {
+        ordering: Ordering,
+        array_type_index: u32,
+    },
+    ArrayAtomicRmwSub {
+        ordering: Ordering,
+        array_type_index: u32,
+    },
+    ArrayAtomicRmwAnd {
+        ordering: Ordering,
+        array_type_index: u32,
+    },
+    ArrayAtomicRmwOr {
+        ordering: Ordering,
+        array_type_index: u32,
+    },
+    ArrayAtomicRmwXor {
+        ordering: Ordering,
+        array_type_index: u32,
+    },
+    ArrayAtomicRmwXchg {
+        ordering: Ordering,
+        array_type_index: u32,
+    },
+    ArrayAtomicRmwCmpxchg {
+        ordering: Ordering,
+        array_type_index: u32,
+    },
+    RefI31Shared,
 }
 
 impl Encode for Instruction<'_> {
@@ -3318,6 +3434,266 @@ impl Encode for Instruction<'_> {
                 sink.push(0x57);
                 ordering.encode(sink);
                 global_index.encode(sink);
+            }
+            Instruction::TableAtomicGet {
+                ordering,
+                table_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x58);
+                ordering.encode(sink);
+                table_index.encode(sink);
+            }
+            Instruction::TableAtomicSet {
+                ordering,
+                table_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x59);
+                ordering.encode(sink);
+                table_index.encode(sink);
+            }
+            Instruction::TableAtomicRmwXchg {
+                ordering,
+                table_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x5A);
+                ordering.encode(sink);
+                table_index.encode(sink);
+            }
+            Instruction::TableAtomicRmwCmpxchg {
+                ordering,
+                table_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x5B);
+                ordering.encode(sink);
+                table_index.encode(sink);
+            }
+            Instruction::StructAtomicGet {
+                ordering,
+                struct_type_index,
+                field_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x5C);
+                ordering.encode(sink);
+                struct_type_index.encode(sink);
+                field_index.encode(sink);
+            }
+            Instruction::StructAtomicGetS {
+                ordering,
+                struct_type_index,
+                field_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x5D);
+                ordering.encode(sink);
+                struct_type_index.encode(sink);
+                field_index.encode(sink);
+            }
+            Instruction::StructAtomicGetU {
+                ordering,
+                struct_type_index,
+                field_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x5E);
+                ordering.encode(sink);
+                struct_type_index.encode(sink);
+                field_index.encode(sink);
+            }
+            Instruction::StructAtomicSet {
+                ordering,
+                struct_type_index,
+                field_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x5F);
+                ordering.encode(sink);
+                struct_type_index.encode(sink);
+                field_index.encode(sink);
+            }
+            Instruction::StructAtomicRmwAdd {
+                ordering,
+                struct_type_index,
+                field_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x60);
+                ordering.encode(sink);
+                struct_type_index.encode(sink);
+                field_index.encode(sink);
+            }
+            Instruction::StructAtomicRmwSub {
+                ordering,
+                struct_type_index,
+                field_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x61);
+                ordering.encode(sink);
+                struct_type_index.encode(sink);
+                field_index.encode(sink);
+            }
+            Instruction::StructAtomicRmwAnd {
+                ordering,
+                struct_type_index,
+                field_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x62);
+                ordering.encode(sink);
+                struct_type_index.encode(sink);
+                field_index.encode(sink);
+            }
+            Instruction::StructAtomicRmwOr {
+                ordering,
+                struct_type_index,
+                field_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x63);
+                ordering.encode(sink);
+                struct_type_index.encode(sink);
+                field_index.encode(sink);
+            }
+            Instruction::StructAtomicRmwXor {
+                ordering,
+                struct_type_index,
+                field_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x64);
+                ordering.encode(sink);
+                struct_type_index.encode(sink);
+                field_index.encode(sink);
+            }
+            Instruction::StructAtomicRmwXchg {
+                ordering,
+                struct_type_index,
+                field_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x65);
+                ordering.encode(sink);
+                struct_type_index.encode(sink);
+                field_index.encode(sink);
+            }
+            Instruction::StructAtomicRmwCmpxchg {
+                ordering,
+                struct_type_index,
+                field_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x66);
+                ordering.encode(sink);
+                struct_type_index.encode(sink);
+                field_index.encode(sink);
+            }
+            Instruction::ArrayAtomicGet {
+                ordering,
+                array_type_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x67);
+                ordering.encode(sink);
+                array_type_index.encode(sink);
+            }
+            Instruction::ArrayAtomicGetS {
+                ordering,
+                array_type_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x68);
+                ordering.encode(sink);
+                array_type_index.encode(sink);
+            }
+            Instruction::ArrayAtomicGetU {
+                ordering,
+                array_type_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x69);
+                ordering.encode(sink);
+                array_type_index.encode(sink);
+            }
+            Instruction::ArrayAtomicSet {
+                ordering,
+                array_type_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x6A);
+                ordering.encode(sink);
+                array_type_index.encode(sink);
+            }
+            Instruction::ArrayAtomicRmwAdd {
+                ordering,
+                array_type_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x6B);
+                ordering.encode(sink);
+                array_type_index.encode(sink);
+            }
+            Instruction::ArrayAtomicRmwSub {
+                ordering,
+                array_type_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x6C);
+                ordering.encode(sink);
+                array_type_index.encode(sink);
+            }
+            Instruction::ArrayAtomicRmwAnd {
+                ordering,
+                array_type_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x6D);
+                ordering.encode(sink);
+                array_type_index.encode(sink);
+            }
+            Instruction::ArrayAtomicRmwOr {
+                ordering,
+                array_type_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x6E);
+                ordering.encode(sink);
+                array_type_index.encode(sink);
+            }
+            Instruction::ArrayAtomicRmwXor {
+                ordering,
+                array_type_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x6F);
+                ordering.encode(sink);
+                array_type_index.encode(sink);
+            }
+            Instruction::ArrayAtomicRmwXchg {
+                ordering,
+                array_type_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x70);
+                ordering.encode(sink);
+                array_type_index.encode(sink);
+            }
+            Instruction::ArrayAtomicRmwCmpxchg {
+                ordering,
+                array_type_index,
+            } => {
+                sink.push(0xFE);
+                sink.push(0x71);
+                ordering.encode(sink);
+                array_type_index.encode(sink);
+            }
+            Instruction::RefI31Shared => {
+                sink.push(0xFE);
+                sink.push(0x1F);
             }
         }
     }
