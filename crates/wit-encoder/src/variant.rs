@@ -1,11 +1,19 @@
 use crate::VariantCase;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Variant {
     pub(crate) cases: Vec<VariantCase>,
 }
 
 impl Variant {
+    pub fn empty() -> Self {
+        Self::default()
+    }
+
+    pub fn case(&mut self, case: impl Into<VariantCase>) {
+        self.cases.push(case.into());
+    }
+
     pub fn cases(&self) -> &[VariantCase] {
         &self.cases
     }

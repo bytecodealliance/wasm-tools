@@ -503,8 +503,8 @@ impl SubType {
         if let Some(idx) = &mut self.supertype_idx {
             f(idx)?;
         }
-        match &mut self.composite_type {
-            CompositeType::Func(ty) => {
+        match &mut self.composite_type.inner {
+            CompositeInnerType::Func(ty) => {
                 for ty in ty.params_mut() {
                     ty.remap_indices(f)?;
                 }
@@ -512,10 +512,10 @@ impl SubType {
                     ty.remap_indices(f)?;
                 }
             }
-            CompositeType::Array(ty) => {
+            CompositeInnerType::Array(ty) => {
                 ty.0.remap_indices(f)?;
             }
-            CompositeType::Struct(ty) => {
+            CompositeInnerType::Struct(ty) => {
                 for field in ty.fields.iter_mut() {
                     field.remap_indices(f)?;
                 }
@@ -527,7 +527,17 @@ impl SubType {
 
 /// Represents a composite type in a WebAssembly module.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum CompositeType {
+pub struct CompositeType {
+    /// The type defined inside the composite type.
+    pub inner: CompositeInnerType,
+    /// Is the composite type shared? This is part of the
+    /// shared-everything-threads proposal.
+    pub shared: bool,
+}
+
+/// A [`CompositeType`] can contain one of these types.
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum CompositeInnerType {
     /// The type is for a function.
     Func(FuncType),
     /// The type is for an array.
@@ -538,42 +548,45 @@ pub enum CompositeType {
 
 impl fmt::Display for CompositeType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
-            Self::Array(_) => write!(f, "(array ...)"),
-            Self::Func(_) => write!(f, "(func ...)"),
-            Self::Struct(_) => write!(f, "(struct ...)"),
+        use CompositeInnerType::*;
+        if self.shared {
+            write!(f, "(shared ")?;
         }
+        match self.inner {
+            Array(_) => write!(f, "(array ...)"),
+            Func(_) => write!(f, "(func ...)"),
+            Struct(_) => write!(f, "(struct ...)"),
+        }?;
+        if self.shared {
+            write!(f, ")")?;
+        }
+        Ok(())
     }
 }
 
 impl CompositeType {
     /// Unwrap a `FuncType` or panic.
     pub fn unwrap_func(&self) -> &FuncType {
-        match self {
-            Self::Func(f) => f,
+        match &self.inner {
+            CompositeInnerType::Func(f) => f,
             _ => panic!("not a func"),
         }
     }
 
     /// Unwrap a `ArrayType` or panic.
     pub fn unwrap_array(&self) -> &ArrayType {
-        match self {
-            Self::Array(a) => a,
+        match &self.inner {
+            CompositeInnerType::Array(a) => a,
             _ => panic!("not a array"),
         }
     }
 
     /// Unwrap a `StructType` or panic.
     pub fn unwrap_struct(&self) -> &StructType {
-        match self {
-            Self::Struct(s) => s,
+        match &self.inner {
+            CompositeInnerType::Struct(s) => s,
             _ => panic!("not a struct"),
         }
-    }
-
-    /// Is the composite type `shared`?
-    pub fn is_shared(&self) -> bool {
-        todo!("shared composite types are not yet implemented")
     }
 }
 
@@ -1687,6 +1700,10 @@ pub struct TableType {
     /// For 32-bit tables (when `table64` is `false`) this is guaranteed to
     /// be at most `u32::MAX` for valid types.
     pub maximum: Option<u64>,
+    /// Whether this table is shared or not.
+    ///
+    /// This is included the shared-everything-threads proposal.
+    pub shared: bool,
 }
 
 impl TableType {
@@ -1796,9 +1813,9 @@ impl<'a> TypeSectionReader<'a> {
             if !ty.is_final || ty.supertype_idx.is_some() {
                 bail!(offset, "gc proposal not supported");
             }
-            match ty.composite_type {
-                CompositeType::Func(f) => Ok(f),
-                CompositeType::Array(_) | CompositeType::Struct(_) => {
+            match ty.composite_type.inner {
+                CompositeInnerType::Func(f) => Ok(f),
+                CompositeInnerType::Array(_) | CompositeInnerType::Struct(_) => {
                     bail!(offset, "gc proposal not supported");
                 }
             }
@@ -1818,12 +1835,18 @@ fn read_composite_type(
 ) -> Result<CompositeType, BinaryReaderError> {
     // NB: See `FromReader<'a> for ValType` for a table of how this
     // interacts with other value encodings.
-    Ok(match opcode {
-        0x60 => CompositeType::Func(reader.read()?),
-        0x5e => CompositeType::Array(reader.read()?),
-        0x5f => CompositeType::Struct(reader.read()?),
+    let (shared, opcode) = if opcode == 0x65 {
+        (true, reader.read_u8()?)
+    } else {
+        (false, opcode)
+    };
+    let inner = match opcode {
+        0x60 => CompositeInnerType::Func(reader.read()?),
+        0x5e => CompositeInnerType::Array(reader.read()?),
+        0x5f => CompositeInnerType::Struct(reader.read()?),
         x => return reader.invalid_leading_byte(x, "type"),
-    })
+    };
+    Ok(CompositeType { shared, inner })
 }
 
 impl<'a> FromReader<'a> for RecGroup {

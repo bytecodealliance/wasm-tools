@@ -1,0 +1,60 @@
+{
+  "source_filename": "tests/local/shared-everything-threads/struct.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 2,
+      "filename": "struct.0.wasm"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 16,
+      "filename": "struct.1.wasm",
+      "text": "type mismatch",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 26,
+      "filename": "struct.2.wasm",
+      "text": "type mismatch",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 37,
+      "filename": "struct.3.wasm",
+      "text": "must match super type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 46,
+      "filename": "struct.4.wasm",
+      "text": "must match super type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 55,
+      "filename": "struct.5.wasm",
+      "text": "must contain shared type",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 62,
+      "filename": "struct.6.wasm"
+    },
+    {
+      "type": "module",
+      "line": 67,
+      "filename": "struct.7.wasm"
+    },
+    {
+      "type": "module",
+      "line": 72,
+      "filename": "struct.8.wasm"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{ident::Ident, Docs, Include, Interface, Render, RenderOpts, StandaloneFunc};
+use crate::{ident::Ident, Docs, Include, Interface, Render, RenderOpts, StandaloneFunc, Use};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct World {
@@ -54,6 +54,9 @@ impl World {
     }
     pub fn include(&mut self, include: Include) {
         self.item(WorldItem::Include(include));
+    }
+    pub fn use_(&mut self, use_: Use) {
+        self.item(WorldItem::Use(use_));
     }
 
     /// Set the documentation
@@ -143,6 +146,7 @@ impl Render for World {
                     render_function(f, opts, function)?;
                 }
                 WorldItem::Include(include) => include.render(f, opts)?,
+                WorldItem::Use(use_) => use_.render(f, opts)?,
             }
         }
         let opts = &opts.outdent();
@@ -173,6 +177,9 @@ pub enum WorldItem {
 
     /// Include type
     Include(Include),
+
+    /// Use
+    Use(Use),
 }
 
 impl WorldItem {

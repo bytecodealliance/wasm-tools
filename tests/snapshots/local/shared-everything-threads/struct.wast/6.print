@@ -1,0 +1,3 @@
+(module
+  (type (;0;) (shared(struct (field (ref null (shared any))))))
+)

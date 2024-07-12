@@ -2,12 +2,16 @@ use std::fmt::Display;
 
 use crate::Type;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Tuple {
     pub(crate) types: Vec<Type>,
 }
 
 impl Tuple {
+    pub fn empty() -> Self {
+        Default::default()
+    }
+
     pub fn types(&self) -> &[Type] {
         &self.types
     }
