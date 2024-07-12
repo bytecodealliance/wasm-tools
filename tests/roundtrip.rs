@@ -657,11 +657,13 @@ fn error_matches(error: &str, message: &str) -> bool {
         || message == "alignment must be a power of two"
         || message == "i32 constant out of range"
         || message == "constant expression required"
+        || message == "legacy exceptions support is not enabled"
     {
         return error.contains("expected ")
             || error.contains("constant out of range")
             || error.contains("extra tokens remaining")
-            || error.contains("unimplemented validation of deprecated opcode");
+            || error.contains("unimplemented validation of deprecated opcode")
+            || error.contains("legacy exceptions support is not enabled");
     }
 
     if message == "illegal character" {
