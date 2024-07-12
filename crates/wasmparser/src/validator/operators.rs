@@ -4129,13 +4129,6 @@ where
         self.push_operand(ValType::I32)
     }
     fn visit_try(&mut self, mut ty: BlockType) -> Self::Output {
-        if !self.features.legacy_exceptions() {
-            bail!(
-                self.offset,
-                "legacy try, catch, rethrow, delegate and catch_all are unexpected token \
-                 when legacy-exceptions is not enabled",
-            );
-        }
         self.check_block_type(&mut ty)?;
         for ty in self.params(ty)?.rev() {
             self.pop_operand(Some(ty))?;
@@ -4144,13 +4137,6 @@ where
         Ok(())
     }
     fn visit_catch(&mut self, index: u32) -> Self::Output {
-        if !self.features.legacy_exceptions() {
-            bail!(
-                self.offset,
-                "legacy try, catch, rethrow, delegate and catch_all are unexpected token \
-                 when legacy-exceptions is not enabled",
-            );
-        }
         let frame = self.pop_ctrl()?;
         if frame.kind != FrameKind::LegacyTry && frame.kind != FrameKind::LegacyCatch {
             bail!(self.offset, "catch found outside of an `try` block");
@@ -4173,13 +4159,6 @@ where
         Ok(())
     }
     fn visit_rethrow(&mut self, relative_depth: u32) -> Self::Output {
-        if !self.features.legacy_exceptions() {
-            bail!(
-                self.offset,
-                "legacy try, catch, rethrow, delegate and catch_all are unexpected token \
-                 when legacy-exceptions is not enabled",
-            );
-        }
         // This is not a jump, but we need to check that the `rethrow`
         // targets an actual `catch` to get the exception.
         let (_, kind) = self.jump(relative_depth)?;
@@ -4193,13 +4172,6 @@ where
         Ok(())
     }
     fn visit_delegate(&mut self, relative_depth: u32) -> Self::Output {
-        if !self.features.legacy_exceptions() {
-            bail!(
-                self.offset,
-                "legacy try, catch, rethrow, delegate and catch_all are unexpected token \
-                 when legacy-exceptions is not enabled",
-            );
-        }
         let frame = self.pop_ctrl()?;
         if frame.kind != FrameKind::LegacyTry {
             bail!(self.offset, "delegate found outside of an `try` block");
@@ -4213,13 +4185,6 @@ where
         Ok(())
     }
     fn visit_catch_all(&mut self) -> Self::Output {
-        if !self.features.legacy_exceptions() {
-            bail!(
-                self.offset,
-                "legacy try, catch, rethrow, delegate and catch_all are unexpected token \
-                 when legacy-exceptions is not enabled",
-            );
-        }
         let frame = self.pop_ctrl()?;
         if frame.kind == FrameKind::LegacyCatchAll {
             bail!(self.offset, "only one catch_all allowed per `try` block");
