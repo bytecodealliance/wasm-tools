@@ -33,7 +33,7 @@ pub struct Naming<'a> {
 impl<'a> FromReader<'a> for Naming<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let index = reader.read_var_u32()?;
-        let name = reader.read_string()?;
+        let name = reader.read_unlimited_string()?;
         Ok(Naming { index, name })
     }
 }
