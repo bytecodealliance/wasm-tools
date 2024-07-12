@@ -1699,6 +1699,7 @@ dependencies = [
  "addr2line",
  "anyhow",
  "arbitrary",
+ "bitflags",
  "clap",
  "clap_complete",
  "cpp_demangle",
