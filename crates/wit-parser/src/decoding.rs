@@ -354,9 +354,11 @@ impl ComponentInfo {
         let mut pkg_name = None;
         let mut pkg_names = Vec::new();
 
+        let mut interfaces = IndexMap::new();
+        let mut worlds = IndexMap::new();
         let mut fields = PackageFields {
-            interfaces: &mut IndexMap::new(),
-            worlds: &mut IndexMap::new(),
+            interfaces: &mut interfaces,
+            worlds: &mut worlds,
         };
         let mut pkg_ids: Vec<Package> = Vec::new();
         let mut implicit = None;
@@ -413,11 +415,18 @@ impl ComponentInfo {
             let pkg = Package {
                 name,
                 docs: Docs::default(),
-                interfaces: fields.interfaces.clone(),
-                worlds: fields.worlds.clone(),
+                interfaces: interfaces.clone(),
+                worlds,
             };
-            let (resolve, package) = decoder.finish(pkg);
+            let (mut resolve, package) = decoder.finish(pkg);
             implicit = Some(package);
+            // For now this is a sufficient condition to know that we're working with
+            // an implicit package declaration.  This will need to be reworked when
+            // mixed package declarations are supported
+            // if let Some(package) = implicit {
+            if let Some(package_metadata) = &self.package_metadata {
+                package_metadata.inject(&mut resolve, package)?;
+            }
             resolve
         } else {
             Resolve::new()
@@ -425,8 +434,12 @@ impl ComponentInfo {
 
         for explicit in &self.explicit {
             let mut cur_decoder = WitPackageDecoder::new(explicit.types.as_ref().unwrap());
-            fields.interfaces.clear();
-            fields.worlds.clear();
+            let mut interfaces = IndexMap::new();
+            let mut worlds = IndexMap::new();
+            let mut fields = PackageFields {
+                interfaces: &mut interfaces,
+                worlds: &mut worlds,
+            };
             pkg_name = None;
             for (_, item) in explicit.externs.iter() {
                 let export = match item {
@@ -469,6 +482,7 @@ impl ComponentInfo {
                     }
                     _ => unreachable!(),
                 };
+
                 if let Some(pkg_name) = pkg_name.as_ref() {
                     // TODO: when we have fully switched to the v2 format, we should switch to parsing
                     // multiple wit documents instead of bailing.
@@ -505,15 +519,15 @@ impl ComponentInfo {
                 Package {
                     name: name.clone(),
                     docs: Docs::default(),
-                    interfaces: fields.interfaces.clone(),
-                    worlds: fields.worlds.clone(),
+                    interfaces,
+                    worlds,
                 }
             } else {
                 Package {
                     name: explicit.name.as_ref().unwrap().clone(),
                     docs: Docs::default(),
-                    interfaces: fields.interfaces.clone(),
-                    worlds: fields.worlds.clone(),
+                    interfaces,
+                    worlds,
                 }
             };
             let (cur_resolve, _) = cur_decoder.finish(pkg);
@@ -530,14 +544,7 @@ impl ComponentInfo {
                 }
             }
         }
-        // For now this is a sufficient condition to know that we're working with
-        // an implicit package declaration.  This will need to be reworked when
-        // mixed package declarations are supported
-        if let Some(package) = implicit {
-            if let Some(package_metadata) = &self.package_metadata {
-                package_metadata.inject(&mut resolve, package)?;
-            }
-        }
+
         let packages = if let Some(package) = implicit {
             vec![package]
         } else {
@@ -733,15 +740,18 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
         types::ComponentEntityType::Component(ty) => ty,
         _ => unreachable!(),
     };
-    let mut fields = PackageFields {
-        interfaces: &mut interfaces,
-        worlds: &mut worlds,
-    };
-    let name = decoder.decode_world(name, &types[ty], &mut fields)?;
+    let name = decoder.decode_world(
+        name,
+        &types[ty],
+        &mut PackageFields {
+            interfaces: &mut interfaces,
+            worlds: &mut worlds,
+        },
+    )?;
     let (resolve, pkg) = decoder.finish(Package {
         name,
-        interfaces: fields.interfaces.clone(),
-        worlds: fields.worlds.clone(),
+        interfaces,
+        worlds,
         docs: Default::default(),
     });
     // The package decoded here should only have a single world so extract that
@@ -839,7 +849,7 @@ impl WitPackageDecoder<'_> {
                 _ => bail!("component export `{name}` is not an instance or component"),
             }
         }
-        Ok(package.clone())
+        Ok(package)
     }
 
     fn decode_interface<'a>(
@@ -847,7 +857,7 @@ impl WitPackageDecoder<'_> {
         name: &str,
         imports: &wasmparser::collections::IndexMap<String, types::ComponentEntityType>,
         ty: &types::ComponentInstanceType,
-        fields: &mut PackageFields,
+        fields: &mut PackageFields<'a>,
     ) -> Result<PackageName> {
         let component_name = self
             .parse_component_name(name)
@@ -876,7 +886,7 @@ impl WitPackageDecoder<'_> {
         &mut self,
         name: &str,
         ty: &types::ComponentType,
-        fields: &mut PackageFields,
+        fields: &mut PackageFields<'a>,
     ) -> Result<PackageName> {
         let kebab_name = self
             .parse_component_name(name)
@@ -896,7 +906,7 @@ impl WitPackageDecoder<'_> {
         &mut self,
         name: &str,
         world: WorldId,
-        package: &mut PackageFields,
+        package: &mut PackageFields<'a>,
     ) -> Result<()> {
         log::debug!("decoding component import `{name}`");
         let ty = self.types.component_entity_type_of_import(name).unwrap();
@@ -946,7 +956,7 @@ impl WitPackageDecoder<'_> {
         &mut self,
         export: &DecodingExport,
         world: WorldId,
-        package: &mut PackageFields,
+        package: &mut PackageFields<'a>,
     ) -> Result<()> {
         let name = &export.name;
         log::debug!("decoding component export `{name}`");
@@ -1190,7 +1200,7 @@ impl WitPackageDecoder<'_> {
         &mut self,
         name: &str,
         ty: &types::ComponentInstanceType,
-        package: &mut PackageFields,
+        package: &mut PackageFields<'a>,
     ) -> Result<(WorldKey, InterfaceId)> {
         // If this interface's name is already known then that means this is an
         // interface that's both imported and exported.  Use `register_import`
@@ -1331,7 +1341,7 @@ impl WitPackageDecoder<'_> {
         &mut self,
         name: &str,
         ty: &types::ComponentType,
-        package: &mut PackageFields,
+        package: &mut PackageFields<'a>,
     ) -> Result<WorldId> {
         let name = self
             .extract_interface_name_from_component_name(name)?
@@ -1696,6 +1706,7 @@ impl WitPackageDecoder<'_> {
         for i in 0..self.foreign_packages.len() {
             self.visit_package(i, &mut order);
         }
+
         // Using the topological ordering create a temporary map from
         // index-in-`foreign_packages` to index-in-`order`
         let mut idx_to_pos = vec![0; self.foreign_packages.len()];
@@ -1715,6 +1726,7 @@ impl WitPackageDecoder<'_> {
         for (_idx, (_url, pkg)) in deps {
             self.insert_package(pkg);
         }
+
         let id = self.insert_package(package);
         assert!(self.resolve.worlds.iter().all(|(_, w)| w.package.is_some()));
         assert!(self

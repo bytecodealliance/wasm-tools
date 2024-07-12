@@ -72,14 +72,14 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
     // this package's documents and assert they all match the expectations.
     let decoded = wit_component::decode(&wasm)?;
 
-    let decoded_package = decoded.packages()[0];
+    let decoded_package = decoded.packages();
     let resolve = decoded.resolve();
 
     assert_print(resolve, decoded.packages(), path, is_dir)?;
 
     // Finally convert the decoded package to wasm again and make sure it
     // matches the prior wasm.
-    let wasm2 = wit_component::encode(Some(true), resolve, &[decoded_package])?;
+    let wasm2 = wit_component::encode(Some(true), resolve, &decoded_package)?;
     if wasm != wasm2 {
         let wat2 = wasmprinter::print_bytes(&wasm)?;
         assert_eq!(wat, wat2, "document did not roundtrip correctly");

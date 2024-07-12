@@ -530,7 +530,7 @@ impl InterfaceMetadata {
     fn extract(resolve: &Resolve, id: InterfaceId) -> Self {
         let interface = &resolve.interfaces[id];
 
-        let funcs = interface
+        let funcs: IndexMap<String, FunctionMetadata> = interface
             .functions
             .iter()
             .map(|(name, func)| (name.to_string(), FunctionMetadata::extract(func)))
