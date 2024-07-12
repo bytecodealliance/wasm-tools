@@ -2,6 +2,8 @@ use crate::{Docs, Ident};
 
 /// A variant without a payload
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub struct Enum {
     pub(crate) cases: Vec<EnumCase>,
 }
@@ -36,6 +38,8 @@ impl Enum {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub struct EnumCase {
     pub(crate) name: Ident,
     pub(crate) docs: Option<Docs>,

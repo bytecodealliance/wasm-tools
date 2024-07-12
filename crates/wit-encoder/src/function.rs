@@ -3,6 +3,8 @@ use std::fmt::{self, Display};
 use crate::{ident::Ident, Docs, Type};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub struct Params {
     items: Vec<(Ident, Type)>,
 }
@@ -61,6 +63,8 @@ impl Params {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum Results {
     Named(Params),
     Anon(Type),
@@ -141,6 +145,8 @@ impl Results {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub struct StandaloneFunc {
     pub(crate) name: Ident,
     pub(crate) params: Params,
