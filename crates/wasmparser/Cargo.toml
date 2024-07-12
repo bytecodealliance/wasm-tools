@@ -56,7 +56,6 @@ std = ['indexmap/std']
 # to properly initialize hashmap based data structures for resilience against
 # malious actors that control their inputs.
 no-hash-maps = []
-
 # A feature that enables validating WebAssembly files. This is enabled by
 # default but not required if you're only parsing a file, for example, as
 # opposed to validating all of its contents.
