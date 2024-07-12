@@ -2,8 +2,13 @@
   (import "a" (func (param "foo" string)))
   (import "b" (func (param "foo" string) (param "bar" s32) (param "baz" u32)))
   (import "c" (func (result "foo" (tuple u8))))
-  (import "d" (func (result "foo" string) (result "bar" s32) (result "baz" u32)))
 )
+
+(assert_invalid
+  (component
+    (import "a" (func (result "foo" string) (result "bar" s32) (result "baz" u32)))
+  )
+  "multiple returns on a function is now a gated feature")
 
 (component
   (import "a" (func))
@@ -12,12 +17,6 @@
   (import "d" (func (param "p1" bool) (result string)))
 )
 
-(assert_invalid
-  (component
-    (import "a" (func (result "foo" string) (result s32) (result "bar" u32)))
-  )
-  "function result name cannot be empty"
-)
 
 (assert_invalid
   (component
@@ -26,12 +25,6 @@
   "function parameter name `FOO` conflicts with previous parameter name `foo`"
 )
 
-(assert_invalid
-  (component
-    (type (func (result "FOO" string) (result "foo" u32)))
-  )
-  "function result name `foo` conflicts with previous result name `FOO`"
-)
 
 (assert_invalid
   (component

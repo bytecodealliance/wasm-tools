@@ -580,6 +580,7 @@ impl TestState {
             & !WasmFeatures::COMPONENT_MODEL
             & !WasmFeatures::COMPONENT_MODEL_NESTED_NAMES
             & !WasmFeatures::COMPONENT_MODEL_MORE_FLAGS
+            & !WasmFeatures::COMPONENT_MODEL_MULTIPLE_RETURNS
             & !WasmFeatures::LEGACY_EXCEPTIONS;
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
@@ -628,6 +629,9 @@ impl TestState {
                 }
                 "more-flags.wast" => {
                     features.insert(WasmFeatures::COMPONENT_MODEL_MORE_FLAGS);
+                }
+                "multiple-returns.wast" => {
+                    features.insert(WasmFeatures::COMPONENT_MODEL_MULTIPLE_RETURNS);
                 }
                 _ => {}
             }

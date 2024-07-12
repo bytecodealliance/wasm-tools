@@ -352,7 +352,7 @@ impl ComponentState {
                 types.push(ty).into()
             }
             crate::ComponentType::Func(ty) => {
-                let ty = current(components).create_function_type(ty, types, offset)?;
+                let ty = current(components).create_function_type(ty, types, features, offset)?;
                 types.push(ty).into()
             }
             crate::ComponentType::Component(decls) => {
@@ -1661,9 +1661,18 @@ impl ComponentState {
         &self,
         ty: crate::ComponentFuncType,
         types: &TypeList,
+        features: &WasmFeatures,
         offset: usize,
     ) -> Result<ComponentFuncType> {
         let mut info = TypeInfo::new();
+
+        if ty.results.type_count() > 1 && !features.component_model_multiple_returns() {
+            bail!(
+                offset,
+                "multiple returns on a function is now a gated feature \
+                 -- https://github.com/WebAssembly/component-model/pull/368"
+            );
+        }
 
         let mut set = Set::default();
         #[cfg(not(feature = "no-hash-maps"))] // TODO: remove when unified map type is available

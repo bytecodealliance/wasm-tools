@@ -2,6 +2,6 @@ package root:component;
 
 world root {
   import new: interface {
-    get-two: func() -> (a: u32, b: u32);
+    get-two: func() -> tuple<u32, u32>;
   }
 }

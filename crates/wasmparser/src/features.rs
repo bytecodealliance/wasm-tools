@@ -148,13 +148,15 @@ define_wasm_features! {
         pub component_model_nested_names: COMPONENT_MODEL_NESTED_NAMES(1 << 22) = false;
         /// Support for more than 32 flags per-type in the component model.
         pub component_model_more_flags: COMPONENT_MODEL_MORE_FLAGS(1 << 23) = false;
+        /// Support for multiple return values in a component model function.
+        pub component_model_multiple_returns: COMPONENT_MODEL_MULTIPLE_RETURNS(1 << 24) = false;
         /// The WebAssembly legacy exception handling proposal (phase 1)
         ///
         /// # Note
         ///
         /// Support this feature as long as all leading browsers also support it
         /// https://github.com/WebAssembly/exception-handling/blob/main/proposals/exception-handling/legacy/Exceptions.md
-        pub legacy_exceptions: LEGACY_EXCEPTIONS(1 << 24) = false;
+        pub legacy_exceptions: LEGACY_EXCEPTIONS(1 << 25) = false;
     }
 }
 
