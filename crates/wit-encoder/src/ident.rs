@@ -5,12 +5,7 @@ pub struct Ident(Cow<'static, str>);
 
 impl Ident {
     pub fn new(s: impl Into<Cow<'static, str>>) -> Self {
-        let s: Cow<'static, str> = s.into();
-        if is_keyword(&s) {
-            Self(Cow::Owned(format!("%{}", s)))
-        } else {
-            Self(s)
-        }
+        Self(s.into())
     }
 }
 
@@ -25,16 +20,25 @@ where
 
 impl fmt::Display for Ident {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if is_keyword(&self.0) {
+            write!(f, "%")?;
+        }
         self.0.fmt(f)
+    }
+}
+
+impl AsRef<str> for Ident {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
     }
 }
 
 fn is_keyword(name: &str) -> bool {
     match name {
-        "u8" | "u16" | "u32" | "u64" | "s8" | "s16" | "s32" | "s64" | "float32" | "float64"
-        | "char" | "bool" | "string" | "tuple" | "list" | "option" | "result" | "use" | "type"
+        "u8" | "u16" | "u32" | "u64" | "s8" | "s16" | "s32" | "s64" | "f32" | "f64" | "char"
+        | "bool" | "string" | "tuple" | "list" | "option" | "result" | "use" | "type"
         | "resource" | "func" | "record" | "enum" | "flags" | "variant" | "static"
-        | "interface" | "world" | "import" | "export" | "package" => true,
+        | "interface" | "world" | "import" | "export" | "package" | "own" | "borrow" => true,
         _ => false,
     }
 }

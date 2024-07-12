@@ -1,4 +1,4 @@
-;; Check shared attribute.
+;; Check the `shared` attribute on globals.
 
 (module
   ;; Imported.

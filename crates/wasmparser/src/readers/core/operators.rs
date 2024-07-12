@@ -31,7 +31,7 @@ pub enum BlockType {
 }
 
 /// Represents a memory immediate in a WebAssembly memory instruction.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct MemArg {
     /// Alignment, stored as `n` where the actual alignment is `2^n`
     pub align: u8,
@@ -64,6 +64,16 @@ pub struct BrTable<'a> {
     pub(crate) default: u32,
 }
 
+impl PartialEq<Self> for BrTable<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.cnt == other.cnt
+            && self.default == other.default
+            && self.reader.remaining_buffer() == other.reader.remaining_buffer()
+    }
+}
+
+impl Eq for BrTable<'_> {}
+
 /// An IEEE binary32 immediate floating point value, represented as a u32
 /// containing the bit pattern.
 ///
@@ -75,6 +85,14 @@ impl Ieee32 {
     /// Gets the underlying bits of the 32-bit float.
     pub fn bits(self) -> u32 {
         self.0
+    }
+}
+
+impl From<f32> for Ieee32 {
+    fn from(value: f32) -> Self {
+        Ieee32 {
+            0: u32::from_le_bytes(value.to_le_bytes()),
+        }
     }
 }
 
@@ -95,6 +113,14 @@ impl Ieee64 {
     /// Gets the underlying bits of the 64-bit float.
     pub fn bits(self) -> u64 {
         self.0
+    }
+}
+
+impl From<f64> for Ieee64 {
+    fn from(value: f64) -> Self {
+        Ieee64 {
+            0: u64::from_le_bytes(value.to_le_bytes()),
+        }
     }
 }
 
@@ -155,7 +181,7 @@ macro_rules! define_operator {
         /// Instructions as defined [here].
         ///
         /// [here]: https://webassembly.github.io/spec/core/binary/instructions.html
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, Eq, PartialEq)]
         #[allow(missing_docs)]
         pub enum Operator<'a> {
             $(
@@ -397,7 +423,7 @@ impl<'a, V: VisitOperator<'a> + ?Sized> VisitOperator<'a> for Box<V> {
 }
 
 /// A `try_table` entries representation.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TryTable {
     /// The block type describing the try block itself.
     pub ty: BlockType,
@@ -406,7 +432,7 @@ pub struct TryTable {
 }
 
 /// Catch clauses that can be specified in [`TryTable`].
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[allow(missing_docs)]
 pub enum Catch {
     /// Equivalent of `catch`

@@ -31,7 +31,7 @@
    0x57 | 01 04       | type section
    0x59 | 01          | 1 count
 --- rec group 0 (implicit) ---
-   0x5a | 60 00 00    | [type 0] SubType { is_final: true, supertype_idx: None, composite_type: Func(FuncType { params: [], results: [] }) }
+   0x5a | 60 00 00    | [type 0] SubType { is_final: true, supertype_idx: None, composite_type: CompositeType { inner: Func(FuncType { params: [], results: [] }), shared: false } }
    0x5d | 03 02       | func section
    0x5f | 01          | 1 count
    0x60 | 00          | [func 0] type 0

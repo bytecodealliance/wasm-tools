@@ -717,6 +717,7 @@ fn error_matches(error: &str, message: &str) -> bool {
         // wasmparser implements more features than the default spec
         // interpreter, so these error looks different.
         return error.contains("threads must be enabled for shared memories")
+            || error.contains("shared tables require the shared-everything-threads proposal")
             || error.contains("invalid table resizable limits flags")
             // honestly this feels like the spec interpreter is just weird
             || error.contains("unexpected end-of-file")

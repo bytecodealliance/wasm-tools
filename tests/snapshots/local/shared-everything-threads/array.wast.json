@@ -1,0 +1,60 @@
+{
+  "source_filename": "tests/local/shared-everything-threads/array.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 2,
+      "filename": "array.0.wasm"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 16,
+      "filename": "array.1.wasm",
+      "text": "type mismatch",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 26,
+      "filename": "array.2.wasm",
+      "text": "type mismatch",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 37,
+      "filename": "array.3.wasm",
+      "text": "sub type must match super type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 46,
+      "filename": "array.4.wasm",
+      "text": "sub type must match super type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 55,
+      "filename": "array.5.wasm",
+      "text": "must contain shared type",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 62,
+      "filename": "array.6.wasm"
+    },
+    {
+      "type": "module",
+      "line": 67,
+      "filename": "array.7.wasm"
+    },
+    {
+      "type": "module",
+      "line": 72,
+      "filename": "array.8.wasm"
+    }
+  ]
+}

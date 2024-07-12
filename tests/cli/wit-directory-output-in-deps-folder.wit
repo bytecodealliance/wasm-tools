@@ -1,0 +1,14 @@
+// RUN: component embed --dummy % --world a:b/c | component wit --out-dir %tmpdir
+
+package a:b {
+  interface foo {}
+
+  world c {
+    import foo;
+    import a:c/foo;
+  }
+}
+
+package a:c {
+  interface foo {}
+}
