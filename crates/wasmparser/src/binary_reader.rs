@@ -707,6 +707,15 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
+    /// Reads a WebAssembly string from the module.
+    pub fn read_unlimited_string(&mut self) -> Result<&'a str> {
+        let len = self.read_var_u32()? as usize;
+        let bytes = self.read_bytes(len)?;
+        str::from_utf8(bytes).map_err(|_| {
+            BinaryReaderError::new("malformed UTF-8 encoding", self.original_position() - 1)
+        })
+    }
+
     #[cold]
     pub(crate) fn invalid_leading_byte<T>(&self, byte: u8, desc: &str) -> Result<T> {
         Err(Self::invalid_leading_byte_error(
