@@ -688,6 +688,14 @@ impl<'a> BinaryReader<'a> {
         Ok(Ieee64(value))
     }
 
+    /// (internal) Reads a fixed-size WebAssembly string from the module.
+    fn internal_read_string(&mut self, len: usize) -> Result<&'a str> {
+        let bytes = self.read_bytes(len)?;
+        str::from_utf8(bytes).map_err(|_| {
+            BinaryReaderError::new("malformed UTF-8 encoding", self.original_position() - 1)
+        })
+    }
+
     /// Reads a WebAssembly string from the module.
     /// # Errors
     /// If `BinaryReader` has less than up to four bytes remaining, the string's
@@ -701,19 +709,13 @@ impl<'a> BinaryReader<'a> {
                 self.original_position() - 1,
             ));
         }
-        let bytes = self.read_bytes(len)?;
-        str::from_utf8(bytes).map_err(|_| {
-            BinaryReaderError::new("malformed UTF-8 encoding", self.original_position() - 1)
-        })
+        return self.internal_read_string(len);
     }
 
-    /// Reads a WebAssembly string from the module.
+    /// Reads a unlimited WebAssembly string from the module.
     pub fn read_unlimited_string(&mut self) -> Result<&'a str> {
         let len = self.read_var_u32()? as usize;
-        let bytes = self.read_bytes(len)?;
-        str::from_utf8(bytes).map_err(|_| {
-            BinaryReaderError::new("malformed UTF-8 encoding", self.original_position() - 1)
-        })
+        return self.internal_read_string(len);
     }
 
     #[cold]
