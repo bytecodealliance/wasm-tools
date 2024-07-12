@@ -697,7 +697,9 @@ impl<'a> BinaryReader<'a> {
     }
 
     /// Reads a WebAssembly string from the module.
+    ///
     /// # Errors
+    ///
     /// If `BinaryReader` has less than up to four bytes remaining, the string's
     /// length exceeds the remaining bytes, the string's length exceeds
     /// `limits::MAX_WASM_STRING_SIZE`, or the string contains invalid utf-8.
@@ -713,6 +715,10 @@ impl<'a> BinaryReader<'a> {
     }
 
     /// Reads a unlimited WebAssembly string from the module.
+    ///
+    /// Note that this is similar to [`BinaryReader::read_string`] except that
+    /// it will not limit the size of the returned string by
+    /// `limits::MAX_WASM_STRING_SIZE`.
     pub fn read_unlimited_string(&mut self) -> Result<&'a str> {
         let len = self.read_var_u32()? as usize;
         return self.internal_read_string(len);
