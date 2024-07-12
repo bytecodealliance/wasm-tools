@@ -33,6 +33,9 @@ pub struct Naming<'a> {
 impl<'a> FromReader<'a> for Naming<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let index = reader.read_var_u32()?;
+        // This seems to match what browsers do where they don't limit the
+        // length of names in the `name` section while they do limit the names
+        // in the import and export section for example.
         let name = reader.read_unlimited_string()?;
         Ok(Naming { index, name })
     }
