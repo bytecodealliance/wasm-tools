@@ -125,25 +125,19 @@ pub enum FrameKind {
     ///
     /// # Note
     ///
-    /// This belongs to the legacy Wasm exception handling proposal from Phase 1, see:
-    /// https://github.com/WebAssembly/exception-handling/blob/main/proposals/exception-handling/legacy/Exceptions.md
-    #[cfg(feature = "legacy-exceptions")]
+    /// See: `WasmFeatures::legacy_exceptions` Note in `crates/wasmparser/src/features.rs`
     LegacyTry,
     /// A Wasm legacy `catch` control block.
     ///
     /// # Note
     ///
-    /// This belongs to the legacy Wasm exception handling proposal from Phase 1, see:
-    /// https://github.com/WebAssembly/exception-handling/blob/main/proposals/exception-handling/legacy/Exceptions.md
-    #[cfg(feature = "legacy-exceptions")]
+    /// See: `WasmFeatures::legacy_exceptions` Note in `crates/wasmparser/src/features.rs`
     LegacyCatch,
     /// A Wasm legacy `catch_all` control block.
     ///
     /// # Note
     ///
-    /// This belongs to the legacy Wasm exception handling proposal from Phase 1, see:
-    /// https://github.com/WebAssembly/exception-handling/blob/main/proposals/exception-handling/legacy/Exceptions.md
-    #[cfg(feature = "legacy-exceptions")]
+    /// See: `WasmFeatures::legacy_exceptions` Note in `crates/wasmparser/src/features.rs`
     LegacyCatchAll,
 }
 
@@ -1510,26 +1504,6 @@ where
         self.pop_operand(Some(ValType::EXNREF))?;
         self.unreachable()?;
         Ok(())
-    }
-    #[cfg(not(feature = "legacy-exceptions"))]
-    fn visit_try(&mut self, _: BlockType) -> Self::Output {
-        bail!(self.offset, "unimplemented validation of deprecated opcode")
-    }
-    #[cfg(not(feature = "legacy-exceptions"))]
-    fn visit_catch(&mut self, _: u32) -> Self::Output {
-        bail!(self.offset, "unimplemented validation of deprecated opcode")
-    }
-    #[cfg(not(feature = "legacy-exceptions"))]
-    fn visit_rethrow(&mut self, _: u32) -> Self::Output {
-        bail!(self.offset, "unimplemented validation of deprecated opcode")
-    }
-    #[cfg(not(feature = "legacy-exceptions"))]
-    fn visit_delegate(&mut self, _: u32) -> Self::Output {
-        bail!(self.offset, "unimplemented validation of deprecated opcode")
-    }
-    #[cfg(not(feature = "legacy-exceptions"))]
-    fn visit_catch_all(&mut self) -> Self::Output {
-        bail!(self.offset, "unimplemented validation of deprecated opcode")
     }
     fn visit_end(&mut self) -> Self::Output {
         let mut frame = self.pop_ctrl()?;
@@ -4154,12 +4128,11 @@ where
         self.pop_operand(Some(ValType::Ref(RefType::I31REF)))?;
         self.push_operand(ValType::I32)
     }
-    #[cfg(feature = "legacy-exceptions")]
     fn visit_try(&mut self, mut ty: BlockType) -> Self::Output {
         if !self.features.legacy_exceptions() {
             bail!(
                 self.offset,
-                "legacy try, catch, rethrow, delegate and catch_all are disallowed \
+                "legacy try, catch, rethrow, delegate and catch_all are unexpected token \
                  when legacy-exceptions is not enabled",
             );
         }
@@ -4170,12 +4143,11 @@ where
         self.push_ctrl(FrameKind::LegacyTry, ty)?;
         Ok(())
     }
-    #[cfg(feature = "legacy-exceptions")]
     fn visit_catch(&mut self, index: u32) -> Self::Output {
         if !self.features.legacy_exceptions() {
             bail!(
                 self.offset,
-                "legacy try, catch, rethrow, delegate and catch_all are disallowed \
+                "legacy try, catch, rethrow, delegate and catch_all are unexpected token \
                  when legacy-exceptions is not enabled",
             );
         }
@@ -4200,12 +4172,11 @@ where
         }
         Ok(())
     }
-    #[cfg(feature = "legacy-exceptions")]
     fn visit_rethrow(&mut self, relative_depth: u32) -> Self::Output {
         if !self.features.legacy_exceptions() {
             bail!(
                 self.offset,
-                "legacy try, catch, rethrow, delegate and catch_all are disallowed \
+                "legacy try, catch, rethrow, delegate and catch_all are unexpected token \
                  when legacy-exceptions is not enabled",
             );
         }
@@ -4221,12 +4192,11 @@ where
         self.unreachable()?;
         Ok(())
     }
-    #[cfg(feature = "legacy-exceptions")]
     fn visit_delegate(&mut self, relative_depth: u32) -> Self::Output {
         if !self.features.legacy_exceptions() {
             bail!(
                 self.offset,
-                "legacy try, catch, rethrow, delegate and catch_all are disallowed \
+                "legacy try, catch, rethrow, delegate and catch_all are unexpected token \
                  when legacy-exceptions is not enabled",
             );
         }
@@ -4242,12 +4212,11 @@ where
         }
         Ok(())
     }
-    #[cfg(feature = "legacy-exceptions")]
     fn visit_catch_all(&mut self) -> Self::Output {
         if !self.features.legacy_exceptions() {
             bail!(
                 self.offset,
-                "legacy try, catch, rethrow, delegate and catch_all are disallowed \
+                "legacy try, catch, rethrow, delegate and catch_all are unexpected token \
                  when legacy-exceptions is not enabled",
             );
         }

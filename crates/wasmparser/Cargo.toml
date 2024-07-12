@@ -43,7 +43,7 @@ name = "benchmark"
 harness = false
 
 [features]
-default = ['std', 'validate', 'serde', 'legacy-exceptions']
+default = ['std', 'validate', 'serde']
 
 # A feature which enables implementations of `std::error::Error` as appropriate
 # along with other convenience APIs. This additionally uses the standard
@@ -70,8 +70,3 @@ validate = [
 # Enable Serialize/Deserialize implementations for types in
 # `wasmparser::collections`
 serde = ['dep:serde', 'indexmap/serde', 'hashbrown/serde']
-
-# A feature that enables legacy exception handling proposal (phase 1)
-# support this feature as long as all leading browsers also support it
-# https://github.com/WebAssembly/exception-handling/blob/main/proposals/exception-handling/legacy/Exceptions.md
-legacy-exceptions = []

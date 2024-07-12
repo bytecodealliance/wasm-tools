@@ -201,6 +201,7 @@ fn parse_features(arg: &str) -> Result<WasmFeatures> {
         ("mutable-global", WasmFeatures::MUTABLE_GLOBAL),
         ("relaxed-simd", WasmFeatures::RELAXED_SIMD),
         ("gc", WasmFeatures::GC),
+        ("legacy-exceptions", WasmFeatures::LEGACY_EXCEPTIONS),
     ];
 
     for part in arg.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
