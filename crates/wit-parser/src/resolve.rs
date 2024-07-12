@@ -575,7 +575,10 @@ impl Resolve {
         let mut moved_types = Vec::new();
         for (id, mut ty) in types {
             let new_id = match type_map.get(&id).copied() {
-                Some(id) => id,
+                Some(id) => {
+                    update_stability(&ty.stability, &mut self.types[id].stability)?;
+                    id
+                }
                 None => {
                     log::debug!("moving type {:?}", ty.name);
                     moved_types.push(id);
@@ -590,7 +593,10 @@ impl Resolve {
         let mut moved_interfaces = Vec::new();
         for (id, mut iface) in interfaces {
             let new_id = match interface_map.get(&id).copied() {
-                Some(id) => id,
+                Some(id) => {
+                    update_stability(&iface.stability, &mut self.interfaces[id].stability)?;
+                    id
+                }
                 None => {
                     log::debug!("moving interface {:?}", iface.name);
                     moved_interfaces.push(id);
@@ -605,7 +611,10 @@ impl Resolve {
         let mut moved_worlds = Vec::new();
         for (id, mut world) in worlds {
             let new_id = match world_map.get(&id).copied() {
-                Some(id) => id,
+                Some(id) => {
+                    update_stability(&world.stability, &mut self.worlds[id].stability)?;
+                    id
+                }
                 None => {
                     log::debug!("moving world {}", world.name);
                     moved_worlds.push(id);
@@ -2345,10 +2354,25 @@ impl Remap {
                     ))
                 }
             }
-            key => {
-                let prev = items.insert(key.clone(), item.1.clone());
-                if let Some(prev) = prev {
-                    assert_eq!(prev, item.1.clone());
+            key @ WorldKey::Interface(_) => {
+                let prev = items.entry(key.clone()).or_insert(item.1.clone());
+                match (&item.1, prev) {
+                    (
+                        WorldItem::Interface {
+                            id: aid,
+                            stability: astability,
+                        },
+                        WorldItem::Interface {
+                            id: bid,
+                            stability: bstability,
+                        },
+                    ) => {
+                        assert_eq!(*aid, *bid);
+                        update_stability(astability, bstability)?;
+                    }
+                    (WorldItem::Interface { .. }, _) => unreachable!(),
+                    (WorldItem::Function(_), _) => unreachable!(),
+                    (WorldItem::Type(_), _) => unreachable!(),
                 }
             }
         };
@@ -2678,6 +2702,29 @@ impl<'a> MergeMap<'a> {
         }
         Ok(())
     }
+}
+
+/// Updates stability annotations when merging `from` into `into`.
+///
+/// This is done to keep up-to-date stability information if possible.
+/// Components for example don't carry stability information but WIT does so
+/// this tries to move from "unknown" to stable/unstable if possible.
+fn update_stability(from: &Stability, into: &mut Stability) -> Result<()> {
+    // If `from` is unknown or the two stability annotations are equal then
+    // there's nothing to do here.
+    if from == into || from.is_unknown() {
+        return Ok(());
+    }
+    // Otherwise if `into` is unknown then inherit the stability listed in
+    // `from`.
+    if into.is_unknown() {
+        *into = from.clone();
+        return Ok(());
+    }
+
+    // Failing all that this means that the two attributes are different so
+    // generate an error.
+    bail!("mismatch in stability attributes")
 }
 
 #[cfg(test)]

@@ -19,6 +19,14 @@ interface shared-items {
   type a = u32;
 }
 
+@since(version = 1.0.0)
+interface shared-version-on-from {
+}
+
+@since(version = 1.0.0)
+interface shared-version-on-into {
+}
+
 interface only-from {
   record r {
   }
@@ -44,4 +52,14 @@ world shared-world {
   type c = u32;
 
   export shared-items;
+}
+world shared-world-with-versions {
+  import shared-version-on-from;
+  @since(version = 1.0.0)
+  import shared-version-on-into;
+}
+world shared-world-with-versions-and-include {
+  import shared-version-on-from;
+  @since(version = 1.0.0)
+  import shared-version-on-into;
 }
