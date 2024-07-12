@@ -648,11 +648,18 @@ impl WitOpts {
                         dir.join("deps")
                     };
                     let packages_with_same_name = &names[&pkg.name.name];
+                    let packages_with_same_namespace = packages_with_same_name[&pkg.name.namespace];
                     let stem = if packages_with_same_name.len() == 1 {
-                        pkg.name.name.clone()
+                        if packages_with_same_namespace == 1 {
+                            pkg.name.name.clone()
+                        } else {
+                            pkg.name
+                                .version
+                                .as_ref()
+                                .map(|ver| format!("{}@{}", pkg.name.name, ver))
+                                .unwrap_or_else(|| pkg.name.name.clone())
+                        }
                     } else {
-                        let packages_with_same_namespace =
-                            packages_with_same_name[&pkg.name.namespace];
                         if packages_with_same_namespace == 1 {
                             format!("{}:{}", pkg.name.namespace, pkg.name.name)
                         } else {
