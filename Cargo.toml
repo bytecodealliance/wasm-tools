@@ -115,6 +115,7 @@ termcolor = { workspace = true }
 # Dependencies of `validate`
 wasmparser = { workspace = true, optional = true, features = ['validate'] }
 rayon = { workspace = true, optional = true }
+bitflags = { workspace = true, optional = true }
 
 # Dependencies of `print`
 wasmprinter = { workspace = true }
@@ -201,7 +202,7 @@ default = [
 ]
 
 # Each subcommand is gated behind a feature and lists the dependencies it needs
-validate = ['dep:wasmparser', 'rayon', 'dep:addr2line', 'dep:gimli']
+validate = ['dep:wasmparser', 'rayon', 'dep:addr2line', 'dep:gimli', 'dep:bitflags']
 print = []
 parse = []
 smith = ['wasm-smith', 'arbitrary', 'dep:serde', 'dep:serde_derive', 'dep:serde_json']
