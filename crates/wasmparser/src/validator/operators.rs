@@ -121,6 +121,24 @@ pub enum FrameKind {
     ///
     /// This belongs to the Wasm exception handling proposal.
     TryTable,
+    /// A Wasm legacy `try` control block.
+    ///
+    /// # Note
+    ///
+    /// See: `WasmFeatures::legacy_exceptions` Note in `crates/wasmparser/src/features.rs`
+    LegacyTry,
+    /// A Wasm legacy `catch` control block.
+    ///
+    /// # Note
+    ///
+    /// See: `WasmFeatures::legacy_exceptions` Note in `crates/wasmparser/src/features.rs`
+    LegacyCatch,
+    /// A Wasm legacy `catch_all` control block.
+    ///
+    /// # Note
+    ///
+    /// See: `WasmFeatures::legacy_exceptions` Note in `crates/wasmparser/src/features.rs`
+    LegacyCatchAll,
 }
 
 struct OperatorValidatorTemp<'validator, 'resources, T> {
@@ -1322,6 +1340,7 @@ macro_rules! validate_proposal {
     (desc function_references) => ("function references");
     (desc memory_control) => ("memory control");
     (desc gc) => ("gc");
+    (desc legacy_exceptions) => ("legacy exceptions");
 }
 
 impl<'a, T> VisitOperator<'a> for WasmProposalValidator<'_, '_, T>
@@ -1485,21 +1504,6 @@ where
         self.pop_operand(Some(ValType::EXNREF))?;
         self.unreachable()?;
         Ok(())
-    }
-    fn visit_try(&mut self, _: BlockType) -> Self::Output {
-        bail!(self.offset, "unimplemented validation of deprecated opcode")
-    }
-    fn visit_catch(&mut self, _: u32) -> Self::Output {
-        bail!(self.offset, "unimplemented validation of deprecated opcode")
-    }
-    fn visit_rethrow(&mut self, _: u32) -> Self::Output {
-        bail!(self.offset, "unimplemented validation of deprecated opcode")
-    }
-    fn visit_delegate(&mut self, _: u32) -> Self::Output {
-        bail!(self.offset, "unimplemented validation of deprecated opcode")
-    }
-    fn visit_catch_all(&mut self) -> Self::Output {
-        bail!(self.offset, "unimplemented validation of deprecated opcode")
     }
     fn visit_end(&mut self) -> Self::Output {
         let mut frame = self.pop_ctrl()?;
@@ -4123,6 +4127,80 @@ where
     fn visit_i31_get_u(&mut self) -> Self::Output {
         self.pop_operand(Some(ValType::Ref(RefType::I31REF)))?;
         self.push_operand(ValType::I32)
+    }
+    fn visit_try(&mut self, mut ty: BlockType) -> Self::Output {
+        self.check_block_type(&mut ty)?;
+        for ty in self.params(ty)?.rev() {
+            self.pop_operand(Some(ty))?;
+        }
+        self.push_ctrl(FrameKind::LegacyTry, ty)?;
+        Ok(())
+    }
+    fn visit_catch(&mut self, index: u32) -> Self::Output {
+        let frame = self.pop_ctrl()?;
+        if frame.kind != FrameKind::LegacyTry && frame.kind != FrameKind::LegacyCatch {
+            bail!(self.offset, "catch found outside of an `try` block");
+        }
+        // Start a new frame and push `exnref` value.
+        let height = self.operands.len();
+        let init_height = self.inits.len();
+        self.control.push(Frame {
+            kind: FrameKind::LegacyCatch,
+            block_type: frame.block_type,
+            height,
+            unreachable: false,
+            init_height,
+        });
+        // Push exception argument types.
+        let ty = self.tag_at(index)?;
+        for ty in ty.params() {
+            self.push_operand(*ty)?;
+        }
+        Ok(())
+    }
+    fn visit_rethrow(&mut self, relative_depth: u32) -> Self::Output {
+        // This is not a jump, but we need to check that the `rethrow`
+        // targets an actual `catch` to get the exception.
+        let (_, kind) = self.jump(relative_depth)?;
+        if kind != FrameKind::LegacyCatch && kind != FrameKind::LegacyCatchAll {
+            bail!(
+                self.offset,
+                "invalid rethrow label: target was not a `catch` block"
+            );
+        }
+        self.unreachable()?;
+        Ok(())
+    }
+    fn visit_delegate(&mut self, relative_depth: u32) -> Self::Output {
+        let frame = self.pop_ctrl()?;
+        if frame.kind != FrameKind::LegacyTry {
+            bail!(self.offset, "delegate found outside of an `try` block");
+        }
+        // This operation is not a jump, but we need to check the
+        // depth for validity
+        let _ = self.jump(relative_depth)?;
+        for ty in self.results(frame.block_type)? {
+            self.push_operand(ty)?;
+        }
+        Ok(())
+    }
+    fn visit_catch_all(&mut self) -> Self::Output {
+        let frame = self.pop_ctrl()?;
+        if frame.kind == FrameKind::LegacyCatchAll {
+            bail!(self.offset, "only one catch_all allowed per `try` block");
+        } else if frame.kind != FrameKind::LegacyTry && frame.kind != FrameKind::LegacyCatch {
+            bail!(self.offset, "catch_all found outside of a `try` block");
+        }
+        let height = self.operands.len();
+        let init_height = self.inits.len();
+        self.control.push(Frame {
+            kind: FrameKind::LegacyCatchAll,
+            block_type: frame.block_type,
+            height,
+            unreachable: false,
+            init_height,
+        });
+        Ok(())
     }
 }
 
