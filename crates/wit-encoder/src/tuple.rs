@@ -3,6 +3,8 @@ use std::fmt::Display;
 use crate::Type;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub struct Tuple {
     pub(crate) types: Vec<Type>,
 }

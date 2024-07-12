@@ -4,6 +4,8 @@ use crate::{Ident, Render};
 
 /// Enable the union of a world with another world
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub struct Include {
     use_path: Ident,
     include_names_list: Vec<(String, String)>,

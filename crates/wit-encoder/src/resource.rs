@@ -1,6 +1,8 @@
 use crate::{ident::Ident, Docs, Params, Results};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub struct Resource {
     pub(crate) funcs: Vec<ResourceFunc>,
 }
@@ -24,6 +26,8 @@ impl Resource {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub struct ResourceFunc {
     pub(crate) kind: ResourceFuncKind,
     pub(crate) params: Params,
@@ -31,6 +35,8 @@ pub struct ResourceFunc {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum ResourceFuncKind {
     Method(Ident, Results),
     Static(Ident, Results),
