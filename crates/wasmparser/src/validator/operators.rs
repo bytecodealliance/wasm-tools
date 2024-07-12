@@ -1145,37 +1145,49 @@ where
     }
 
     /// Common helper for checking the types of structs accessed with atomic RMW
-    /// instructions, which only allow `i32` and `i64`.
-    fn check_atomic_struct_rmw_ty(
-        &self,
+    /// instructions, which only allow `i32` and `i64` types.
+    fn check_struct_atomic_rmw(
+        &mut self,
+        op: &'static str,
         struct_type_index: u32,
         field_index: u32,
-    ) -> Result<ValType> {
+    ) -> Result<()> {
         let ty = self
             .struct_field_at(struct_type_index, field_index)?
             .element_type;
-        match ty {
-            StorageType::Val(ValType::I32) => Ok(ValType::I32),
-            StorageType::Val(ValType::I64) => Ok(ValType::I64),
+        let field_ty = match ty {
+            StorageType::Val(ValType::I32) => ValType::I32,
+            StorageType::Val(ValType::I64) => ValType::I64,
             _ => bail!(
                 self.offset,
-                "invalid type: `struct.atomic.rmw.*` only allows `i32` and `i64`"
+                "invalid type: `struct.atomic.rmw.{}` only allows `i32` and `i64`",
+                op
             ),
-        }
+        };
+        self.pop_operand(Some(field_ty))?;
+        self.pop_concrete_ref(true, struct_type_index)?;
+        self.push_operand(field_ty)?;
+        Ok(())
     }
 
     /// Common helper for checking the types of arrays accessed with atomic RMW
     /// instructions, which only allow `i32` and `i64`.
-    fn check_atomic_array_rmw_ty(&self, type_index: u32) -> Result<ValType> {
-        let elem_ty = self.array_type_at(type_index)?.0.element_type;
-        match elem_ty {
-            StorageType::Val(ValType::I32) => Ok(ValType::I32),
-            StorageType::Val(ValType::I64) => Ok(ValType::I64),
+    fn check_array_atomic_rmw(&mut self, op: &'static str, type_index: u32) -> Result<()> {
+        let ty = self.array_type_at(type_index)?.0.element_type;
+        let elem_ty = match ty {
+            StorageType::Val(ValType::I32) => ValType::I32,
+            StorageType::Val(ValType::I64) => ValType::I64,
             _ => bail!(
                 self.offset,
-                "invalid type: `struct.atomic.rmw.*` only allows `i32` and `i64`"
+                "invalid type: `array.atomic.rmw.{}` only allows `i32` and `i64`",
+                op
             ),
-        }
+        };
+        self.pop_operand(Some(elem_ty))?;
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_concrete_ref(true, type_index)?;
+        self.push_operand(elem_ty)?;
+        Ok(())
     }
 
     fn element_type_at(&self, elem_index: u32) -> Result<RefType> {
@@ -3934,11 +3946,7 @@ where
         struct_type_index: u32,
         field_index: u32,
     ) -> Self::Output {
-        let field_ty = self.check_atomic_struct_rmw_ty(struct_type_index, field_index)?;
-        self.pop_operand(Some(field_ty))?;
-        self.pop_concrete_ref(true, struct_type_index)?;
-        self.push_operand(field_ty)?;
-        Ok(())
+        self.check_struct_atomic_rmw("add", struct_type_index, field_index)
     }
     fn visit_struct_atomic_rmw_sub(
         &mut self,
@@ -3946,11 +3954,7 @@ where
         struct_type_index: u32,
         field_index: u32,
     ) -> Self::Output {
-        let field_ty = self.check_atomic_struct_rmw_ty(struct_type_index, field_index)?;
-        self.pop_operand(Some(field_ty))?;
-        self.pop_concrete_ref(true, struct_type_index)?;
-        self.push_operand(field_ty)?;
-        Ok(())
+        self.check_struct_atomic_rmw("sub", struct_type_index, field_index)
     }
     fn visit_struct_atomic_rmw_and(
         &mut self,
@@ -3958,11 +3962,7 @@ where
         struct_type_index: u32,
         field_index: u32,
     ) -> Self::Output {
-        let field_ty = self.check_atomic_struct_rmw_ty(struct_type_index, field_index)?;
-        self.pop_operand(Some(field_ty))?;
-        self.pop_concrete_ref(true, struct_type_index)?;
-        self.push_operand(field_ty)?;
-        Ok(())
+        self.check_struct_atomic_rmw("and", struct_type_index, field_index)
     }
     fn visit_struct_atomic_rmw_or(
         &mut self,
@@ -3970,11 +3970,7 @@ where
         struct_type_index: u32,
         field_index: u32,
     ) -> Self::Output {
-        let field_ty = self.check_atomic_struct_rmw_ty(struct_type_index, field_index)?;
-        self.pop_operand(Some(field_ty))?;
-        self.pop_concrete_ref(true, struct_type_index)?;
-        self.push_operand(field_ty)?;
-        Ok(())
+        self.check_struct_atomic_rmw("or", struct_type_index, field_index)
     }
     fn visit_struct_atomic_rmw_xor(
         &mut self,
@@ -3982,11 +3978,7 @@ where
         struct_type_index: u32,
         field_index: u32,
     ) -> Self::Output {
-        let field_ty = self.check_atomic_struct_rmw_ty(struct_type_index, field_index)?;
-        self.pop_operand(Some(field_ty))?;
-        self.pop_concrete_ref(true, struct_type_index)?;
-        self.push_operand(field_ty)?;
-        Ok(())
+        self.check_struct_atomic_rmw("xor", struct_type_index, field_index)
     }
     fn visit_struct_atomic_rmw_xchg(
         &mut self,
@@ -4334,44 +4326,19 @@ where
         Ok(())
     }
     fn visit_array_atomic_rmw_add(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
-        let elem_ty = self.check_atomic_array_rmw_ty(type_index)?;
-        self.pop_operand(Some(elem_ty))?;
-        self.pop_operand(Some(ValType::I32))?;
-        self.pop_concrete_ref(true, type_index)?;
-        self.push_operand(elem_ty)?;
-        Ok(())
+        self.check_array_atomic_rmw("add", type_index)
     }
     fn visit_array_atomic_rmw_sub(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
-        let elem_ty = self.check_atomic_array_rmw_ty(type_index)?;
-        self.pop_operand(Some(elem_ty))?;
-        self.pop_operand(Some(ValType::I32))?;
-        self.pop_concrete_ref(true, type_index)?;
-        self.push_operand(elem_ty)?;
-        Ok(())
+        self.check_array_atomic_rmw("sub", type_index)
     }
     fn visit_array_atomic_rmw_and(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
-        let elem_ty = self.check_atomic_array_rmw_ty(type_index)?;
-        self.pop_operand(Some(elem_ty))?;
-        self.pop_operand(Some(ValType::I32))?;
-        self.pop_concrete_ref(true, type_index)?;
-        self.push_operand(elem_ty)?;
-        Ok(())
+        self.check_array_atomic_rmw("and", type_index)
     }
     fn visit_array_atomic_rmw_or(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
-        let elem_ty = self.check_atomic_array_rmw_ty(type_index)?;
-        self.pop_operand(Some(elem_ty))?;
-        self.pop_operand(Some(ValType::I32))?;
-        self.pop_concrete_ref(true, type_index)?;
-        self.push_operand(elem_ty)?;
-        Ok(())
+        self.check_array_atomic_rmw("or", type_index)
     }
     fn visit_array_atomic_rmw_xor(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
-        let elem_ty = self.check_atomic_array_rmw_ty(type_index)?;
-        self.pop_operand(Some(elem_ty))?;
-        self.pop_operand(Some(ValType::I32))?;
-        self.pop_concrete_ref(true, type_index)?;
-        self.push_operand(elem_ty)?;
-        Ok(())
+        self.check_array_atomic_rmw("xor", type_index)
     }
     fn visit_array_atomic_rmw_xchg(
         &mut self,
