@@ -530,12 +530,13 @@ impl InterfaceMetadata {
     fn extract(resolve: &Resolve, id: InterfaceId) -> Self {
         let interface = &resolve.interfaces[id];
 
-        let funcs = interface
+        let mut funcs: IndexMap<String, FunctionMetadata> = interface
             .functions
             .iter()
             .map(|(name, func)| (name.to_string(), FunctionMetadata::extract(func)))
             .filter(|(_, item)| !item.is_empty())
             .collect();
+        funcs.sort_keys();
         let types = interface
             .types
             .iter()

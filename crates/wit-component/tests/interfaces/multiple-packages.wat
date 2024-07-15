@@ -56,6 +56,21 @@
     )
     (export (;1;) "this-world" (type 0))
   )
+  (component $fourth:thing (;3;)
+    (@custom "package-docs" "\00{}")
+    (type (;0;)
+      (component
+        (type (;0;)
+          (instance
+            (type (;0;) (record (field "some" string)))
+            (export (;1;) "foo" (type (eq 0)))
+          )
+        )
+        (export (;0;) "fourth:thing/boo" (instance (type 0)))
+      )
+    )
+    (export (;1;) "boo" (type 0))
+  )
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

@@ -24,3 +24,11 @@ package third:pkg {
     }
   }
 }
+
+package fourth:thing {
+  interface boo {
+    record foo {
+      some: string
+    }
+  }
+}

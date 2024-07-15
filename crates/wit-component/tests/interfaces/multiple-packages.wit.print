@@ -28,3 +28,13 @@ package foo:bar {
     import third:pkg/things;
   }
 }
+
+
+package fourth:thing {
+  interface boo {
+    record foo {
+      some: string,
+    }
+  }
+
+}

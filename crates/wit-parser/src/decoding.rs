@@ -352,7 +352,6 @@ impl ComponentInfo {
         let mut decoder = WitPackageDecoder::new(&self.types);
 
         let mut pkg_name = None;
-        let mut pkg_names = Vec::new();
 
         let mut interfaces = IndexMap::new();
         let mut worlds = IndexMap::new();
@@ -360,7 +359,6 @@ impl ComponentInfo {
             interfaces: &mut interfaces,
             worlds: &mut worlds,
         };
-        let mut pkg_ids: Vec<Package> = Vec::new();
         let mut implicit = None;
         for (_, item) in self.externs.iter() {
             let export = match item {
@@ -400,6 +398,7 @@ impl ComponentInfo {
                 }
                 _ => unreachable!(),
             };
+
             if let Some(pkg_name) = pkg_name.as_ref() {
                 // TODO: when we have fully switched to the v2 format, we should switch to parsing
                 // multiple wit documents instead of bailing.
@@ -492,28 +491,6 @@ impl ComponentInfo {
                 } else {
                     pkg_name.replace(name.clone());
                 }
-                if !pkg_names.contains(&name) {
-                    pkg_names.push(name.clone());
-                    let pkg = Package {
-                        name: name.clone(),
-                        docs: Docs::default(),
-                        interfaces: fields.interfaces.clone(),
-                        worlds: fields.worlds.clone(),
-                    };
-                    if !pkg_ids.contains(&pkg) {
-                        pkg_ids.push(pkg);
-                    }
-                } else {
-                    let pkg = Package {
-                        name: name.clone(),
-                        docs: Docs::default(),
-                        interfaces: fields.interfaces.clone(),
-                        worlds: fields.worlds.clone(),
-                    };
-                    let pkg_id = pkg_ids.iter_mut().find(|p| p.name == pkg.name).unwrap();
-                    pkg_id.interfaces = pkg.interfaces;
-                    pkg_id.worlds = pkg.worlds;
-                };
             }
             let pkg = if let Some(name) = pkg_name {
                 Package {
@@ -534,11 +511,11 @@ impl ComponentInfo {
             resolve.merge(cur_resolve)?;
         }
 
-        let copy = resolve.clone();
+        let package_names = resolve.package_names.clone();
         for package in &self.explicit {
             if let Some(package_metadata) = &package.package_metadata {
                 let name = package.name.as_ref().unwrap();
-                let pkg = copy.package_names.get(&name.clone());
+                let pkg = package_names.get(&name.clone());
                 if let Some(pkg) = pkg {
                     package_metadata.inject(&mut resolve, *pkg)?;
                 }
