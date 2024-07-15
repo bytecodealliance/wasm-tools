@@ -42,6 +42,14 @@ struct Encoder<'a> {
 }
 
 impl Encoder<'_> {
+    fn encode_metadata(&mut self, pkg: &PackageId) -> Result<()> {
+        let package_metadata = PackageMetadata::extract(self.resolve, *pkg);
+        self.component.custom_section(&CustomSection {
+            name: PackageMetadata::SECTION_NAME.into(),
+            data: package_metadata.encode()?.into(),
+        });
+        Ok(())
+    }
     fn run(&mut self) -> Result<()> {
         // Build a set of interfaces reachable from this document, including the
         // interfaces in the document itself. This is used to import instances
@@ -59,20 +67,13 @@ impl Encoder<'_> {
                     resolve: self.resolve,
                     packages: self.packages,
                 };
-                sub_encoder.encode_package(true, pkg)?;
+                sub_encoder.encode_package(pkg)?;
                 let name = &self.resolve.packages[*pkg];
                 let sub = self.component.component(sub_encoder.component);
                 names.append(sub, &name.name.to_string());
             } else {
-                self.encode_package(false, pkg)?;
+                self.encode_package(pkg)?;
             }
-        }
-        if self.packages.len() == 1 {
-            let package_metadata = PackageMetadata::extract(self.resolve, self.packages[0]);
-            self.component.custom_section(&CustomSection {
-                name: PackageMetadata::SECTION_NAME.into(),
-                data: package_metadata.encode()?.into(),
-            });
         }
         let mut final_names = ComponentNameSection::new();
         final_names.components(&names);
@@ -81,15 +82,8 @@ impl Encoder<'_> {
         Ok(())
     }
 
-    fn encode_package(&mut self, is_sub: bool, pkg: &PackageId) -> Result<()> {
+    fn encode_package(&mut self, pkg: &PackageId) -> Result<()> {
         let package = &self.resolve.packages[*pkg];
-        if is_sub {
-            let package_metadata = PackageMetadata::extract(self.resolve, *pkg);
-            self.component.custom_section(&CustomSection {
-                name: PackageMetadata::SECTION_NAME.into(),
-                data: package_metadata.encode()?.into(),
-            });
-        }
 
         for (name, &id) in package.interfaces.iter() {
             let component_ty = self.encode_interface(id, pkg)?;
@@ -113,6 +107,7 @@ impl Encoder<'_> {
             self.component
                 .export(name.as_ref(), ComponentExportKind::Type, ty, None);
         }
+        self.encode_metadata(pkg)?;
         Ok(())
     }
 

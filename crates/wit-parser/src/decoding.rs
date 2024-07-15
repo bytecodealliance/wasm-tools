@@ -89,7 +89,6 @@ impl ComponentInfo {
 
     fn from_reader(mut reader: impl Read) -> Result<Self> {
         let mut explicit = Vec::new();
-        // let mut cur_package = ExplicitPackageInfo::default();
         let mut cur_package = ComponentInfo::default();
         let mut is_implicit = true;
         let mut validator = Validator::new_with_features(WasmFeatures::all());
