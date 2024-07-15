@@ -20,21 +20,8 @@ use wasmparser::{
 };
 
 /// Represents information about a decoded WebAssembly component.
-struct ComponentInfo {
-    /// Wasmparser-defined type information learned after a component is fully
-    /// validated.
-    types: types::Types,
-    /// List of all imports and exports from this component.
-    externs: Vec<(String, Extern)>,
-    /// Packages
-    explicit: Vec<ExplicitPackageInfo>,
-    /// Decoded package metadata
-    package_metadata: Option<PackageMetadata>,
-}
-
-/// Represents information about a decoded WebAssembly component.
 #[derive(Default)]
-struct ExplicitPackageInfo {
+struct ComponentInfo {
     /// Package name
     name: Option<PackageName>,
     /// Wasmparser-defined type information learned after a component is fully
@@ -42,6 +29,8 @@ struct ExplicitPackageInfo {
     types: Option<types::Types>,
     /// List of all imports and exports from this component.
     externs: Vec<(String, Extern)>,
+    /// Packages
+    explicit: Vec<ComponentInfo>,
     /// Decoded package metadata
     package_metadata: Option<PackageMetadata>,
 }
@@ -66,7 +55,7 @@ enum WitEncodingVersion {
 #[cfg(feature = "serde")]
 fn register_names(
     names: ComponentNameSectionReader,
-    explicit: &mut ExplicitPackageInfo,
+    explicit: &mut ComponentInfo,
 ) -> Result<Vec<PackageName>> {
     let mut packages = Vec::new();
     for section in names {
@@ -100,7 +89,8 @@ impl ComponentInfo {
 
     fn from_reader(mut reader: impl Read) -> Result<Self> {
         let mut explicit = Vec::new();
-        let mut cur_package = ExplicitPackageInfo::default();
+        // let mut cur_package = ExplicitPackageInfo::default();
+        let mut cur_package = ComponentInfo::default();
         let mut is_implicit = true;
         let mut validator = Validator::new_with_features(WasmFeatures::all());
         let mut externs = Vec::new();
@@ -145,7 +135,6 @@ impl ComponentInfo {
                     } else if depth == 0 {
                         types = Some(t);
                     } else {
-                        cur_package.types = Some(t);
                         explicit.push(mem::take(&mut cur_package));
                     }
                 }
@@ -214,7 +203,7 @@ impl ComponentInfo {
                 Payload::ModuleSection { parser, .. }
                 | Payload::ComponentSection { parser, .. } => {
                     is_implicit = false;
-                    cur_package = ExplicitPackageInfo::default();
+                    cur_package = ComponentInfo::default();
                     stack.push(cur.clone());
                     cur = parser.clone();
                 }
@@ -234,7 +223,8 @@ impl ComponentInfo {
         }
 
         Ok(Self {
-            types: types.unwrap(),
+            name: None,
+            types,
             explicit,
             externs,
             package_metadata: _package_metadata,
@@ -297,7 +287,10 @@ impl ComponentInfo {
             };
             match export.kind {
                 ComponentExternalKind::Type => matches!(
-                    self.types.component_any_type_at(export.index),
+                    self.types
+                        .as_ref()
+                        .unwrap()
+                        .component_any_type_at(export.index),
                     types::ComponentAnyTypeId::Component(_)
                 ),
                 _ => false,
@@ -319,7 +312,7 @@ impl ComponentInfo {
     }
 
     fn decode_wit_v1_package(&self) -> Result<(Resolve, PackageId)> {
-        let mut decoder = WitPackageDecoder::new(&self.types);
+        let mut decoder = WitPackageDecoder::new(&self.types.as_ref().unwrap());
 
         let mut pkg = None;
         for (name, item) in self.externs.iter() {
@@ -327,8 +320,8 @@ impl ComponentInfo {
                 Extern::Export(e) => e,
                 _ => unreachable!(),
             };
-            let id = self.types.component_type_at(export.index);
-            let ty = &self.types[id];
+            let id = self.types.as_ref().unwrap().component_type_at(export.index);
+            let ty = &self.types.as_ref().unwrap()[id];
             if pkg.is_some() {
                 bail!("more than one top-level exported component type found");
             }
@@ -348,27 +341,21 @@ impl ComponentInfo {
         Ok((resolve, package))
     }
 
-    fn decode_wit_v2_packages(&self) -> Result<(Resolve, Vec<PackageId>)> {
-        let mut decoder = WitPackageDecoder::new(&self.types);
-
-        let mut pkg_name = None;
-
-        let mut interfaces = IndexMap::new();
-        let mut worlds = IndexMap::new();
-        let mut fields = PackageFields {
-            interfaces: &mut interfaces,
-            worlds: &mut worlds,
-        };
-        let mut implicit = None;
-        for (_, item) in self.externs.iter() {
+    fn decode_externs(
+        info: &ComponentInfo,
+        decoder: &mut WitPackageDecoder,
+        pkg_name: &mut Option<PackageName>,
+        mut fields: &mut PackageFields,
+    ) -> Result<()> {
+        for (_, item) in info.externs.iter() {
             let export = match item {
                 Extern::Export(e) => e,
                 _ => unreachable!(),
             };
 
             let index = export.index;
-            let id = self.types.component_type_at(index);
-            let component = &self.types[id];
+            let id = info.types.as_ref().unwrap().component_type_at(index);
+            let component = &info.types.as_ref().unwrap()[id];
 
             // The single export of this component will determine if it's a world or an interface:
             // worlds export a component, while interfaces export an instance.
@@ -379,22 +366,25 @@ impl ComponentInfo {
                 );
             }
 
-            let name = component.exports.keys().nth(0).unwrap();
+            let key_name = component.exports.keys().nth(0).unwrap();
 
-            let name = match component.exports[name] {
+            let name = match component.exports[key_name] {
                 types::ComponentEntityType::Component(ty) => {
-                    let package_name =
-                        decoder.decode_world(name.as_str(), &self.types[ty], &mut fields)?;
-                    package_name
+                    let package_name = decoder.decode_world(
+                        key_name.as_str(),
+                        &info.types.as_ref().unwrap()[ty],
+                        &mut fields,
+                    )?;
+                    Some(package_name)
                 }
                 types::ComponentEntityType::Instance(ty) => {
                     let package_name = decoder.decode_interface(
-                        name.as_str(),
+                        key_name.as_str(),
                         &component.imports,
-                        &self.types[ty],
+                        &info.types.as_ref().unwrap()[ty],
                         &mut fields,
                     )?;
-                    package_name
+                    Some(package_name)
                 }
                 _ => unreachable!(),
             };
@@ -402,17 +392,33 @@ impl ComponentInfo {
             if let Some(pkg_name) = pkg_name.as_ref() {
                 // TODO: when we have fully switched to the v2 format, we should switch to parsing
                 // multiple wit documents instead of bailing.
-                if pkg_name != &name {
+                if *pkg_name != name.unwrap() {
                     bail!("item defined with mismatched package name")
                 }
             } else {
-                pkg_name.replace(name);
+                pkg_name.replace(name.unwrap());
             }
         }
+        Ok(())
+    }
 
-        let mut resolve = if let Some(name) = pkg_name {
+    fn decode_wit_v2_packages(&self) -> Result<(Resolve, Vec<PackageId>)> {
+        let mut decoder = WitPackageDecoder::new(&self.types.as_ref().unwrap());
+
+        let mut pkg_name = None;
+
+        let mut interfaces = IndexMap::new();
+        let mut worlds = IndexMap::new();
+        let mut fields = PackageFields {
+            interfaces: &mut interfaces,
+            worlds: &mut worlds,
+        };
+        let mut implicit = None;
+        ComponentInfo::decode_externs(self, &mut decoder, &mut pkg_name, &mut fields)?;
+
+        let mut resolve = if let Some(name) = &pkg_name {
             let pkg = Package {
-                name,
+                name: name.clone(),
                 docs: Docs::default(),
                 interfaces: interfaces.clone(),
                 worlds,
@@ -440,58 +446,7 @@ impl ComponentInfo {
                 worlds: &mut worlds,
             };
             pkg_name = None;
-            for (_, item) in explicit.externs.iter() {
-                let export = match item {
-                    Extern::Export(e) => e,
-                    _ => unreachable!(),
-                };
-
-                let index = export.index;
-                let id = explicit.types.as_ref().unwrap().component_type_at(index);
-                let component = &explicit.types.as_ref().unwrap()[id];
-
-                // The single export of this component will determine if it's a world or an interface:
-                // worlds export a component, while interfaces export an instance.
-                if component.exports.len() != 1 {
-                    bail!(
-                        "Expected a single export, but found {} instead",
-                        component.exports.len()
-                    );
-                }
-
-                let name = component.exports.keys().nth(0).unwrap();
-
-                let name = match component.exports[name] {
-                    types::ComponentEntityType::Component(ty) => {
-                        let package_name = cur_decoder.decode_world(
-                            name.as_str(),
-                            &explicit.types.as_ref().unwrap()[ty],
-                            &mut fields,
-                        )?;
-                        package_name
-                    }
-                    types::ComponentEntityType::Instance(ty) => {
-                        let package_name = cur_decoder.decode_interface(
-                            name.as_str(),
-                            &component.imports,
-                            &explicit.types.as_ref().unwrap()[ty],
-                            &mut fields,
-                        )?;
-                        package_name
-                    }
-                    _ => unreachable!(),
-                };
-
-                if let Some(pkg_name) = pkg_name.as_ref() {
-                    // TODO: when we have fully switched to the v2 format, we should switch to parsing
-                    // multiple wit documents instead of bailing.
-                    if pkg_name != &name {
-                        bail!("item defined with mismatched package name")
-                    }
-                } else {
-                    pkg_name.replace(name.clone());
-                }
-            }
+            ComponentInfo::decode_externs(explicit, &mut cur_decoder, &mut pkg_name, &mut fields)?;
             let pkg = if let Some(name) = pkg_name {
                 Package {
                     name: name.clone(),
@@ -536,7 +491,7 @@ impl ComponentInfo {
 
     fn decode_component(&self) -> Result<(Resolve, WorldId)> {
         assert!(self.is_wit_package().is_none());
-        let mut decoder = WitPackageDecoder::new(&self.types);
+        let mut decoder = WitPackageDecoder::new(&self.types.as_ref().unwrap());
         // Note that this name is arbitrarily chosen. We may one day perhaps
         // want to encode this in the component binary format itself, but for
         // now it shouldn't be an issue to have a defaulted name here.
