@@ -1015,24 +1015,34 @@ impl Resolve {
             }
             None => match packages {
                 [] => bail!("no packages were specified nor is a world specified"),
-                [one] => {
-                    let pkg = &self.packages[*one];
-                    match pkg.worlds.len() {
-                        0 => bail!("no worlds found in package `{}`", pkg.name),
-                        1 => return Ok(*pkg.worlds.values().next().unwrap()),
-                        _ => bail!(
-                            "multiple worlds found in package `{}`, one must be explicitly chosen:{}",
-                            pkg.name,
-                            pkg.worlds.keys().map(|name| format!("\n  {name}")).collect::<String>()
-                        ),
-                    }
-                }
                 [..] => {
-                    bail!(
-                        "the supplied WIT source files describe multiple packages; \
-                         please provide a fully-qualified world-specifier select \
-                         a world amongst these packages"
-                    )
+                    let mut world = None;
+                    for id in packages {
+                        let pkg = &self.packages[*id];
+                        match pkg.worlds.len() {
+                            0 => bail!("no worlds found in package `{}`", pkg.name),
+                            1 => {if world.is_none() {
+                                world = Some(*pkg.worlds.values().next().unwrap());
+                            } else {
+                                bail!(
+                                    "the supplied WIT source files describe multiple packages \
+                                     containing at least one world; \
+                                     please provide a fully-qualified world-specifier to select \
+                                     a world amongst these packages"
+                                );
+                            }}
+                            _ => bail!(
+                                "multiple worlds found in package `{}`, one must be explicitly chosen:{}",
+                                pkg.name,
+                                pkg.worlds.keys().map(|name| format!("\n  {name}")).collect::<String>()
+                            ),
+                        }
+                    }
+                    if let Some(world) = world {
+                        return Ok(world);
+                    } else {
+                        bail!("none of the specified packages contain a world");
+                    }
                 }
             },
         };
