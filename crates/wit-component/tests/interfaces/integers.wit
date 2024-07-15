@@ -19,7 +19,7 @@ interface integers {
   r7: func() -> u64;
   r8: func() -> s64;
   pair-ret: func() -> tuple<s64, u8>;
-  multi-ret: func() -> (a: s64, b: u8);
+  multi-ret: func() -> tuple<s64, u8>;
 }
 
 world integers-world {
