@@ -605,7 +605,7 @@ impl TestState {
                 }
                 "simd" => features.insert(WasmFeatures::SIMD),
                 "exception-handling" => features.insert(WasmFeatures::EXCEPTIONS),
-                "legacy-exceptions.wat" => features.insert(WasmFeatures::LEGACY_EXCEPTIONS),
+                "legacy-exceptions" => features.insert(WasmFeatures::LEGACY_EXCEPTIONS),
                 "tail-call" => features.insert(WasmFeatures::TAIL_CALL),
                 "memory64" => features.insert(WasmFeatures::MEMORY64),
                 "component-model" => features.insert(WasmFeatures::COMPONENT_MODEL),
