@@ -1024,24 +1024,31 @@ impl Resolve {
             }
             None => match packages {
                 [] => bail!("no packages were specified nor is a world specified"),
-                [one] => {
-                    let pkg = &self.packages[*one];
-                    match pkg.worlds.len() {
-                        0 => bail!("no worlds found in package `{}`", pkg.name),
-                        1 => return Ok(*pkg.worlds.values().next().unwrap()),
+                [..] => {
+                    let worlds = packages
+                        .iter()
+                        .flat_map(|pkg| {
+                            self.packages[*pkg]
+                                .worlds
+                                .values()
+                                .map(|world| (*pkg, *world))
+                        })
+                        .collect::<Vec<_>>();
+
+                    match &worlds[..] {
+                        [] => bail!("none of the specified packages contain a world"),
+                        [(_, world)] => return Ok(*world),
                         _ => bail!(
-                            "multiple worlds found in package `{}`, one must be explicitly chosen:{}",
-                            pkg.name,
-                            pkg.worlds.keys().map(|name| format!("\n  {name}")).collect::<String>()
+                            "multiple worlds found; one must be explicitly chosen:{}",
+                            worlds
+                                .iter()
+                                .map(|(pkg, world)| format!(
+                                    "\n  {}/{}",
+                                    self.packages[*pkg].name, self.worlds[*world].name
+                                ))
+                                .collect::<String>()
                         ),
                     }
-                }
-                [..] => {
-                    bail!(
-                        "the supplied WIT source files describe multiple packages; \
-                         please provide a fully-qualified world-specifier select \
-                         a world amongst these packages"
-                    )
                 }
             },
         };
