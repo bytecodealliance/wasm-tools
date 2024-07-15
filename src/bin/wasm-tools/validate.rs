@@ -1,5 +1,6 @@
 use addr2line::LookupResult;
 use anyhow::{anyhow, Context, Result};
+use bitflags::Flags;
 use rayon::prelude::*;
 use std::fmt::Write;
 use std::mem;
@@ -171,37 +172,9 @@ impl Opts {
 fn parse_features(arg: &str) -> Result<WasmFeatures> {
     let mut ret = WasmFeatures::default();
 
-    const FEATURES: &[(&str, WasmFeatures)] = &[
-        ("reference-types", WasmFeatures::REFERENCE_TYPES),
-        ("function-references", WasmFeatures::FUNCTION_REFERENCES),
-        ("simd", WasmFeatures::SIMD),
-        ("threads", WasmFeatures::THREADS),
-        (
-            "shared-everything-threads",
-            WasmFeatures::SHARED_EVERYTHING_THREADS,
-        ),
-        ("bulk-memory", WasmFeatures::BULK_MEMORY),
-        ("multi-value", WasmFeatures::MULTI_VALUE),
-        ("tail-call", WasmFeatures::TAIL_CALL),
-        ("component-model", WasmFeatures::COMPONENT_MODEL),
-        (
-            "component-model-values",
-            WasmFeatures::COMPONENT_MODEL_VALUES,
-        ),
-        ("multi-memory", WasmFeatures::MULTI_MEMORY),
-        ("exception-handling", WasmFeatures::EXCEPTIONS),
-        ("memory64", WasmFeatures::MEMORY64),
-        ("extended-const", WasmFeatures::EXTENDED_CONST),
-        ("floats", WasmFeatures::FLOATS),
-        (
-            "saturating-float-to-int",
-            WasmFeatures::SATURATING_FLOAT_TO_INT,
-        ),
-        ("sign-extension", WasmFeatures::SIGN_EXTENSION),
-        ("mutable-global", WasmFeatures::MUTABLE_GLOBAL),
-        ("relaxed-simd", WasmFeatures::RELAXED_SIMD),
-        ("gc", WasmFeatures::GC),
-    ];
+    fn flag_name(flag: &bitflags::Flag<WasmFeatures>) -> String {
+        flag.name().to_lowercase().replace('_', "-")
+    }
 
     for part in arg.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
         let (enable, part) = if let Some(part) = part.strip_prefix("-") {
@@ -211,28 +184,27 @@ fn parse_features(arg: &str) -> Result<WasmFeatures> {
         };
         match part {
             "all" => {
-                for (name, feature) in FEATURES {
-                    // don't count this under "all" for now.
-                    if *name == "deterministic" {
-                        continue;
-                    }
-                    ret.set(*feature, enable);
+                for flag in WasmFeatures::FLAGS.iter() {
+                    ret.set(*flag.value(), enable);
                 }
             }
 
             name => {
-                let (_, feature) = FEATURES.iter().find(|(n, _)| *n == name).ok_or_else(|| {
-                    anyhow!(
-                        "unknown feature `{}`\nValid features: {}",
-                        name,
-                        FEATURES
-                            .iter()
-                            .map(|(name, _)| *name)
-                            .collect::<Vec<_>>()
-                            .join(", "),
-                    )
-                })?;
-                ret.set(*feature, enable);
+                let flag = WasmFeatures::FLAGS
+                    .iter()
+                    .find(|f| flag_name(f) == name)
+                    .ok_or_else(|| {
+                        anyhow!(
+                            "unknown feature `{}`\nValid features: {}",
+                            name,
+                            WasmFeatures::FLAGS
+                                .iter()
+                                .map(flag_name)
+                                .collect::<Vec<_>>()
+                                .join(", "),
+                        )
+                    })?;
+                ret.set(*flag.value(), enable);
             }
         }
     }

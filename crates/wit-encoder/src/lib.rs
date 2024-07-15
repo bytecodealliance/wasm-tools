@@ -17,6 +17,7 @@ mod resource;
 mod result;
 mod tuple;
 mod ty;
+mod use_;
 mod variant;
 mod world;
 
@@ -34,5 +35,6 @@ pub use resource::*;
 pub use result::*;
 pub use tuple::*;
 pub use ty::*;
+pub use use_::*;
 pub use variant::*;
 pub use world::*;

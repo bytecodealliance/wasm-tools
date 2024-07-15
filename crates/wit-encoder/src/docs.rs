@@ -4,6 +4,8 @@ use crate::{Render, RenderOpts};
 
 /// Documentation
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub struct Docs {
     contents: String,
 }

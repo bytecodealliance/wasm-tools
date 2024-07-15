@@ -587,18 +587,21 @@ impl<'a> Parse<'a> for Limits {
     }
 }
 
-/// Configuration for a table of a wasm mdoule
+/// Configuration for a table of a wasm module.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TableType<'a> {
     /// Limits on the element sizes of this table
     pub limits: Limits,
     /// The type of element stored in this table
     pub elem: RefType<'a>,
+    /// Whether or not this is a shared table.
+    pub shared: bool,
 }
 
 impl<'a> Parse<'a> for TableType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         Ok(TableType {
+            shared: parser.parse::<Option<kw::shared>>()?.is_some(),
             limits: parser.parse()?,
             elem: parser.parse()?,
         })

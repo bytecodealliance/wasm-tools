@@ -88,6 +88,14 @@ impl Ieee32 {
     }
 }
 
+impl From<f32> for Ieee32 {
+    fn from(value: f32) -> Self {
+        Ieee32 {
+            0: u32::from_le_bytes(value.to_le_bytes()),
+        }
+    }
+}
+
 impl From<Ieee32> for f32 {
     fn from(bits: Ieee32) -> f32 {
         f32::from_bits(bits.bits())
@@ -105,6 +113,14 @@ impl Ieee64 {
     /// Gets the underlying bits of the 64-bit float.
     pub fn bits(self) -> u64 {
         self.0
+    }
+}
+
+impl From<f64> for Ieee64 {
+    fn from(value: f64) -> Self {
+        Ieee64 {
+            0: u64::from_le_bytes(value.to_le_bytes()),
+        }
     }
 }
 

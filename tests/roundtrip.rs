@@ -579,7 +579,8 @@ impl TestState {
             & !WasmFeatures::SHARED_EVERYTHING_THREADS
             & !WasmFeatures::COMPONENT_MODEL
             & !WasmFeatures::COMPONENT_MODEL_NESTED_NAMES
-            & !WasmFeatures::COMPONENT_MODEL_MORE_FLAGS;
+            & !WasmFeatures::COMPONENT_MODEL_MORE_FLAGS
+            & !WasmFeatures::LEGACY_EXCEPTIONS;
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
                 "testsuite" => {
@@ -604,6 +605,7 @@ impl TestState {
                 }
                 "simd" => features.insert(WasmFeatures::SIMD),
                 "exception-handling" => features.insert(WasmFeatures::EXCEPTIONS),
+                "legacy-exceptions" => features.insert(WasmFeatures::LEGACY_EXCEPTIONS),
                 "tail-call" => features.insert(WasmFeatures::TAIL_CALL),
                 "memory64" => features.insert(WasmFeatures::MEMORY64),
                 "component-model" => features.insert(WasmFeatures::COMPONENT_MODEL),
@@ -655,11 +657,13 @@ fn error_matches(error: &str, message: &str) -> bool {
         || message == "alignment must be a power of two"
         || message == "i32 constant out of range"
         || message == "constant expression required"
+        || message == "legacy exceptions support is not enabled"
     {
         return error.contains("expected ")
             || error.contains("constant out of range")
             || error.contains("extra tokens remaining")
-            || error.contains("unimplemented validation of deprecated opcode");
+            || error.contains("unimplemented validation of deprecated opcode")
+            || error.contains("legacy exceptions support is not enabled");
     }
 
     if message == "illegal character" {
@@ -717,6 +721,7 @@ fn error_matches(error: &str, message: &str) -> bool {
         // wasmparser implements more features than the default spec
         // interpreter, so these error looks different.
         return error.contains("threads must be enabled for shared memories")
+            || error.contains("shared tables require the shared-everything-threads proposal")
             || error.contains("invalid table resizable limits flags")
             // honestly this feels like the spec interpreter is just weird
             || error.contains("unexpected end-of-file")

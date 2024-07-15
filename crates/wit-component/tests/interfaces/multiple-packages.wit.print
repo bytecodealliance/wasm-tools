@@ -9,6 +9,7 @@ package another:thing {
 
 }
 
+
 package third:pkg {
   @since(version = 1.2.3)
   interface things {
@@ -19,6 +20,7 @@ package third:pkg {
   }
 
 }
+
 
 package foo:bar {
   world this-world {

@@ -41,6 +41,10 @@ pub trait Reencode {
         utils::type_index(self, ty)
     }
 
+    fn component_type_index(&mut self, ty: u32) -> u32 {
+        utils::component_type_index(self, ty)
+    }
+
     fn abstract_heap_type(
         &mut self,
         value: wasmparser::AbstractHeapType,
@@ -67,6 +71,45 @@ pub trait Reencode {
         ty: wasmparser::PrimitiveValType,
     ) -> crate::component::PrimitiveValType {
         utils::component_primitive_val_type(self, ty)
+    }
+
+    fn component_export_kind(
+        &mut self,
+        ty: wasmparser::ComponentExternalKind,
+    ) -> crate::component::ComponentExportKind {
+        utils::component_export_kind(self, ty)
+    }
+
+    fn component_outer_alias_kind(
+        &mut self,
+        kind: wasmparser::ComponentOuterAliasKind,
+    ) -> crate::component::ComponentOuterAliasKind {
+        utils::component_outer_alias_kind(self, kind)
+    }
+
+    fn component_val_type(
+        &mut self,
+        ty: wasmparser::ComponentValType,
+    ) -> crate::component::ComponentValType {
+        utils::component_val_type(self, ty)
+    }
+
+    fn type_bounds(&mut self, ty: wasmparser::TypeBounds) -> crate::component::TypeBounds {
+        utils::type_bounds(self, ty)
+    }
+
+    fn canonical_option(
+        &mut self,
+        ty: wasmparser::CanonicalOption,
+    ) -> crate::component::CanonicalOption {
+        utils::canonical_option(self, ty)
+    }
+
+    fn component_type_ref(
+        &mut self,
+        ty: wasmparser::ComponentTypeRef,
+    ) -> crate::component::ComponentTypeRef {
+        utils::component_type_ref(self, ty)
     }
 
     fn const_expr(
@@ -806,6 +849,116 @@ pub mod utils {
         }
     }
 
+    pub fn component_export_kind<T: ?Sized + Reencode>(
+        _reencoder: &mut T,
+        ty: wasmparser::ComponentExternalKind,
+    ) -> crate::component::ComponentExportKind {
+        match ty {
+            wasmparser::ComponentExternalKind::Module => crate::ComponentExportKind::Module,
+            wasmparser::ComponentExternalKind::Func => crate::ComponentExportKind::Func,
+            wasmparser::ComponentExternalKind::Value => crate::ComponentExportKind::Value,
+            wasmparser::ComponentExternalKind::Type => crate::ComponentExportKind::Type,
+            wasmparser::ComponentExternalKind::Instance => crate::ComponentExportKind::Instance,
+            wasmparser::ComponentExternalKind::Component => crate::ComponentExportKind::Component,
+        }
+    }
+
+    pub fn component_outer_alias_kind<T: ?Sized + Reencode>(
+        _reencoder: &mut T,
+        ty: wasmparser::ComponentOuterAliasKind,
+    ) -> crate::component::ComponentOuterAliasKind {
+        match ty {
+            wasmparser::ComponentOuterAliasKind::CoreModule => {
+                crate::component::ComponentOuterAliasKind::CoreModule
+            }
+            wasmparser::ComponentOuterAliasKind::CoreType => {
+                crate::component::ComponentOuterAliasKind::CoreType
+            }
+            wasmparser::ComponentOuterAliasKind::Type => {
+                crate::component::ComponentOuterAliasKind::Type
+            }
+            wasmparser::ComponentOuterAliasKind::Component => {
+                crate::ComponentOuterAliasKind::Component
+            }
+        }
+    }
+
+    pub fn component_val_type<T: ?Sized + Reencode>(
+        reencoder: &mut T,
+        ty: wasmparser::ComponentValType,
+    ) -> crate::component::ComponentValType {
+        match ty {
+            wasmparser::ComponentValType::Type(u) => {
+                crate::component::ComponentValType::Type(reencoder.component_type_index(u))
+            }
+            wasmparser::ComponentValType::Primitive(pty) => {
+                crate::component::ComponentValType::Primitive(
+                    crate::component::PrimitiveValType::from(pty),
+                )
+            }
+        }
+    }
+
+    pub fn type_bounds<T: ?Sized + Reencode>(
+        reencoder: &mut T,
+        ty: wasmparser::TypeBounds,
+    ) -> crate::component::TypeBounds {
+        match ty {
+            wasmparser::TypeBounds::Eq(u) => {
+                crate::component::TypeBounds::Eq(reencoder.component_type_index(u))
+            }
+            wasmparser::TypeBounds::SubResource => crate::component::TypeBounds::SubResource,
+        }
+    }
+
+    pub fn component_type_ref<T: ?Sized + Reencode>(
+        reencoder: &mut T,
+        ty: wasmparser::ComponentTypeRef,
+    ) -> crate::component::ComponentTypeRef {
+        match ty {
+            wasmparser::ComponentTypeRef::Module(u) => {
+                crate::component::ComponentTypeRef::Module(reencoder.component_type_index(u))
+            }
+            wasmparser::ComponentTypeRef::Func(u) => {
+                crate::component::ComponentTypeRef::Func(reencoder.component_type_index(u))
+            }
+            wasmparser::ComponentTypeRef::Value(valty) => {
+                crate::component::ComponentTypeRef::Value(reencoder.component_val_type(valty))
+            }
+            wasmparser::ComponentTypeRef::Type(bounds) => {
+                crate::component::ComponentTypeRef::Type(reencoder.type_bounds(bounds))
+            }
+            wasmparser::ComponentTypeRef::Instance(u) => {
+                crate::component::ComponentTypeRef::Instance(reencoder.component_type_index(u))
+            }
+            wasmparser::ComponentTypeRef::Component(u) => {
+                crate::component::ComponentTypeRef::Component(reencoder.component_type_index(u))
+            }
+        }
+    }
+
+    pub fn canonical_option<T: ?Sized + Reencode>(
+        reencoder: &mut T,
+        ty: wasmparser::CanonicalOption,
+    ) -> crate::component::CanonicalOption {
+        match ty {
+            wasmparser::CanonicalOption::UTF8 => crate::component::CanonicalOption::UTF8,
+            wasmparser::CanonicalOption::UTF16 => crate::component::CanonicalOption::UTF16,
+            wasmparser::CanonicalOption::CompactUTF16 => {
+                crate::component::CanonicalOption::CompactUTF16
+            }
+            wasmparser::CanonicalOption::Memory(u) => {
+                crate::component::CanonicalOption::Memory(reencoder.memory_index(u))
+            }
+            wasmparser::CanonicalOption::Realloc(u) => {
+                crate::component::CanonicalOption::Realloc(reencoder.function_index(u))
+            }
+            wasmparser::CanonicalOption::PostReturn(u) => {
+                crate::component::CanonicalOption::PostReturn(reencoder.function_index(u))
+            }
+        }
+    }
+
     pub fn memory_index<T: ?Sized + Reencode>(_reencoder: &mut T, memory: u32) -> u32 {
         memory
     }
@@ -913,6 +1066,10 @@ pub mod utils {
     }
 
     pub fn type_index<T: ?Sized + Reencode>(_reencoder: &mut T, ty: u32) -> u32 {
+        ty
+    }
+
+    pub fn component_type_index<T: ?Sized + Reencode>(_reencoder: &mut T, ty: u32) -> u32 {
         ty
     }
 
@@ -1154,6 +1311,7 @@ pub mod utils {
             minimum: table_ty.initial,
             maximum: table_ty.maximum,
             table64: table_ty.table64,
+            shared: table_ty.shared,
         })
     }
 
@@ -1616,6 +1774,42 @@ pub mod utils {
     ) -> Result<(), Error<T::Error>> {
         module.section(&crate::RawSection { id, data: contents });
         Ok(())
+    }
+}
+
+impl From<wasmparser::ComponentValType> for crate::ComponentValType {
+    fn from(ty: wasmparser::ComponentValType) -> Self {
+        RoundtripReencoder.component_val_type(ty)
+    }
+}
+
+impl From<wasmparser::TypeBounds> for crate::TypeBounds {
+    fn from(ty: wasmparser::TypeBounds) -> Self {
+        RoundtripReencoder.type_bounds(ty)
+    }
+}
+
+impl From<wasmparser::CanonicalOption> for crate::CanonicalOption {
+    fn from(opt: wasmparser::CanonicalOption) -> Self {
+        RoundtripReencoder.canonical_option(opt)
+    }
+}
+
+impl From<wasmparser::ComponentExternalKind> for crate::ComponentExportKind {
+    fn from(kind: wasmparser::ComponentExternalKind) -> Self {
+        RoundtripReencoder.component_export_kind(kind)
+    }
+}
+
+impl From<wasmparser::ComponentOuterAliasKind> for crate::ComponentOuterAliasKind {
+    fn from(kind: wasmparser::ComponentOuterAliasKind) -> Self {
+        RoundtripReencoder.component_outer_alias_kind(kind)
+    }
+}
+
+impl From<wasmparser::ComponentTypeRef> for crate::ComponentTypeRef {
+    fn from(ty: wasmparser::ComponentTypeRef) -> Self {
+        RoundtripReencoder.component_type_ref(ty)
     }
 }
 

@@ -51,8 +51,13 @@ impl WitPrinter {
     }
 
     /// Print a set of one or more WIT packages into a string.
-    pub fn print(&mut self, resolve: &Resolve, pkg_ids: &[PackageId]) -> Result<String> {
-        let has_multiple_packages = pkg_ids.len() > 1;
+    pub fn print(
+        &mut self,
+        resolve: &Resolve,
+        pkg_ids: &[PackageId],
+        force_print_package_in_curlies: bool,
+    ) -> Result<String> {
+        let print_package_in_curlies = force_print_package_in_curlies || pkg_ids.len() > 1;
         for (i, pkg_id) in pkg_ids.into_iter().enumerate() {
             if i > 0 {
                 self.output.push_str("\n\n");
@@ -68,7 +73,7 @@ impl WitPrinter {
                 self.output.push_str(&format!("@{version}"));
             }
 
-            if has_multiple_packages {
+            if print_package_in_curlies {
                 self.output.push_str(" {\n");
             } else {
                 self.print_semicolon();
@@ -95,8 +100,8 @@ impl WitPrinter {
                 writeln!(&mut self.output, "}}")?;
             }
 
-            if has_multiple_packages {
-                self.output.push_str("}");
+            if print_package_in_curlies {
+                self.output.push_str("}\n");
             }
         }
 

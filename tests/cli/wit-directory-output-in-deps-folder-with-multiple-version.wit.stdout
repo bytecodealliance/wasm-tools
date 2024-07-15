@@ -1,0 +1,20 @@
+package a:b {
+  interface foo {
+  }
+
+}
+
+
+package a:b@0.2.0 {
+  interface foo {
+  }
+
+}
+
+
+package a:c {
+  world a {
+    import a:b/foo@0.2.0;
+    import a:b/foo;
+  }
+}

@@ -453,6 +453,13 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.resolver.resolve(&mut i.dst, Ns::Table)?;
             }
 
+            TableAtomicGet(i)
+            | TableAtomicSet(i)
+            | TableAtomicRmwXchg(i)
+            | TableAtomicRmwCmpxchg(i) => {
+                self.resolver.resolve(&mut i.inner.dst, Ns::Table)?;
+            }
+
             GlobalSet(i) | GlobalGet(i) => {
                 self.resolver.resolve(i, Ns::Global)?;
             }
@@ -466,7 +473,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             | GlobalAtomicRmwXor(i)
             | GlobalAtomicRmwXchg(i)
             | GlobalAtomicRmwCmpxchg(i) => {
-                self.resolver.resolve(&mut i.index, Ns::Global)?;
+                self.resolver.resolve(&mut i.inner, Ns::Global)?;
             }
 
             LocalSet(i) | LocalGet(i) | LocalTee(i) => {
@@ -614,14 +621,21 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             }
 
             StructSet(s) | StructGet(s) | StructGetS(s) | StructGetU(s) => {
-                let type_index = self.resolver.resolve(&mut s.r#struct, Ns::Type)?;
-                if let Index::Id(field_id) = s.field {
-                    self.resolver
-                        .fields
-                        .get(&type_index)
-                        .ok_or(Error::new(field_id.span(), format!("accessing a named field `{}` in a struct without named fields, type index {}", field_id.name(), type_index)))?
-                        .resolve(&mut s.field, "field")?;
-                }
+                self.resolve_field(s)?;
+            }
+
+            StructAtomicGet(s)
+            | StructAtomicGetS(s)
+            | StructAtomicGetU(s)
+            | StructAtomicSet(s)
+            | StructAtomicRmwAdd(s)
+            | StructAtomicRmwSub(s)
+            | StructAtomicRmwAnd(s)
+            | StructAtomicRmwOr(s)
+            | StructAtomicRmwXor(s)
+            | StructAtomicRmwXchg(s)
+            | StructAtomicRmwCmpxchg(s) => {
+                self.resolve_field(&mut s.inner)?;
             }
 
             ArrayNewFixed(a) => {
@@ -651,6 +665,20 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.resolver.elems.resolve(&mut a.segment, "elem")?;
             }
 
+            ArrayAtomicGet(i)
+            | ArrayAtomicGetS(i)
+            | ArrayAtomicGetU(i)
+            | ArrayAtomicSet(i)
+            | ArrayAtomicRmwAdd(i)
+            | ArrayAtomicRmwSub(i)
+            | ArrayAtomicRmwAnd(i)
+            | ArrayAtomicRmwOr(i)
+            | ArrayAtomicRmwXor(i)
+            | ArrayAtomicRmwXchg(i)
+            | ArrayAtomicRmwCmpxchg(i) => {
+                self.resolver.resolve(&mut i.inner, Ns::Type)?;
+            }
+
             RefNull(ty) => self.resolver.resolve_heaptype(ty)?,
 
             _ => {}
@@ -677,6 +705,18 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             }
             None => Err(resolve_error(id, "label")),
         }
+    }
+
+    fn resolve_field(&self, s: &mut StructAccess<'a>) -> Result<(), Error> {
+        let type_index = self.resolver.resolve(&mut s.r#struct, Ns::Type)?;
+        if let Index::Id(field_id) = s.field {
+            self.resolver
+                        .fields
+                        .get(&type_index)
+                        .ok_or(Error::new(field_id.span(), format!("accessing a named field `{}` in a struct without named fields, type index {}", field_id.name(), type_index)))?
+                        .resolve(&mut s.field, "field")?;
+        }
+        Ok(())
     }
 }
 

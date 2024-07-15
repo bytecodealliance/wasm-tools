@@ -1,0 +1,14 @@
+// RUN: component wit % --out-dir %tmpdir | component wit %tmpdir
+
+package a:b {
+  interface foo {}
+
+  world c {
+    import foo;
+    import a:c/foo;
+  }
+}
+
+package a:c {
+  interface foo {}
+}

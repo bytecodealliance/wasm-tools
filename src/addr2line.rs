@@ -107,7 +107,7 @@ impl<'a> Addr2lineModules<'a> {
                 Some(start) => addr
                     .checked_sub(start)
                     .context("address is before the beginning of the text section")?,
-                None => bail!("no code section found in module"),
+                None => return Ok(None),
             }
         };
 

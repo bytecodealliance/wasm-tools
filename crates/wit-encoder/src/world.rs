@@ -1,8 +1,10 @@
 use std::fmt;
 
-use crate::{ident::Ident, Docs, Include, Interface, Render, RenderOpts, StandaloneFunc};
+use crate::{ident::Ident, Docs, Include, Interface, Render, RenderOpts, StandaloneFunc, Use};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub struct World {
     /// The WIT identifier name of this world.
     name: Ident,
@@ -54,6 +56,9 @@ impl World {
     }
     pub fn include(&mut self, include: Include) {
         self.item(WorldItem::Include(include));
+    }
+    pub fn use_(&mut self, use_: Use) {
+        self.item(WorldItem::Use(use_));
     }
 
     /// Set the documentation
@@ -143,6 +148,7 @@ impl Render for World {
                     render_function(f, opts, function)?;
                 }
                 WorldItem::Include(include) => include.render(f, opts)?,
+                WorldItem::Use(use_) => use_.render(f, opts)?,
             }
         }
         let opts = &opts.outdent();
@@ -152,6 +158,8 @@ impl Render for World {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum WorldItem {
     /// An imported inline interface
     InlineInterfaceImport(Interface),
@@ -173,6 +181,9 @@ pub enum WorldItem {
 
     /// Include type
     Include(Include),
+
+    /// Use
+    Use(Use),
 }
 
 impl WorldItem {
@@ -200,6 +211,8 @@ impl WorldItem {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub struct WorldNamedInterface {
     /// Name of this interface.
     pub(crate) name: Ident,
