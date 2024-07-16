@@ -1,4 +1,4 @@
-// RUN: component embed --dummy --wat %
+// RUN: component embed --dummy --wat % | component wit
 
 package test:foo1 {
   interface bar {
@@ -15,6 +15,6 @@ package test:foo2 {
 package test:hola {
   world hello {
     import test:foo1/bar;
-    export test:foo2/bar;    
+    export test:foo2/bar;
   }
 }
