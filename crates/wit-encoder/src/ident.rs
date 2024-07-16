@@ -9,6 +9,11 @@ impl Ident {
     pub fn new(s: impl Into<Cow<'static, str>>) -> Self {
         Self(s.into())
     }
+
+    /// Get the name without escaping keywords with '%'
+    pub fn raw_name(&self) -> &str {
+        self.0.as_ref()
+    }
 }
 
 impl<S> From<S> for Ident
