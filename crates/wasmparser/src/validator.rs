@@ -677,7 +677,17 @@ impl Validator {
             Order::Import,
             section,
             "import",
-            |_, _, _, _, _| Ok(()), // add_import will check limits
+            |state, _, _, count, offset| {
+                check_max(
+                    state.module.imports.len(),
+                    count,
+                    MAX_WASM_IMPORTS,
+                    "imports",
+                    offset,
+                )?;
+                state.module.assert_mut().imports.reserve(count as usize);
+                Ok(())
+            },
             |state, features, types, import, offset| {
                 state
                     .module
