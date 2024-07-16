@@ -1,17 +1,32 @@
-(module
-  (type (;0;) (func (param i32 i32 i32)))
-  (type (;1;) (func (param i32 i32) (result i32)))
-  (type (;2;) (func (param i32 i32 i32 i32) (result i32)))
-  (import "test:foo1/bar" "baz" (func (;0;) (type 0)))
-  (func (;1;) (type 1) (param i32 i32) (result i32)
-    unreachable
-  )
-  (func (;2;) (type 2) (param i32 i32 i32 i32) (result i32)
-    unreachable
-  )
-  (memory (;0;) 0)
-  (export "test:foo2/bar#baz" (func 1))
-  (export "memory" (memory 0))
-  (export "cabi_realloc" (func 2))
-  (@custom "component-type" (after code) "/00asm/0d/00/01/00/00/19/16wit-component-encoding/04/00/07d/01A/02/01A/04/01B/02/01@/01/01ss/00s/04/00/03baz/01/00/03/01/0dtest:foo1/bar/05/00/01B/02/01@/01/01ss/00s/04/00/03baz/01/00/04/01/0dtest:foo2/bar/05/01/04/01/0ftest:hola/hello/04/00/0b/0b/01/00/05hello/03/00/00/00//09producers/01/0cprocessed-by/01/0dwit-component/070.213.0")
-)
+package root:root {
+  world root {
+    import test:foo1/bar;
+
+    export test:foo2/bar;
+  }
+}
+
+
+package test:foo1 {
+  interface bar {
+    baz: func(s: string) -> string;
+  }
+
+}
+
+
+package test:foo2 {
+  interface bar {
+    baz: func(s: string) -> string;
+  }
+
+}
+
+
+package test:hola {
+  world hello {
+    import test:foo1/bar;
+
+    export test:foo2/bar;
+  }
+}
