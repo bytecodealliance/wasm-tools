@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use wasm_encoder::{ComponentBuilder, ComponentType};
 use wit_parser::{PackageId, Resolve, WorldId};
 
@@ -48,6 +48,9 @@ pub fn encode_component(
     if use_v2.unwrap_or_else(use_v2_encoding) {
         v2::encode_component(resolve, packages)
     } else {
+        if packages.len() > 1 {
+            bail!("Only encoding a single package, when multiple are present")
+        }
         v1::encode_component(resolve, packages[0])
     }
 }

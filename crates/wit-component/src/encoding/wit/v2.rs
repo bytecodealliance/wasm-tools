@@ -6,6 +6,11 @@ use std::mem;
 use wasm_encoder::*;
 use wit_parser::*;
 
+/// If set to 1, wit packages will be encoded
+/// using V3 style, where all packages are wrapped in
+/// a subcomponent
+const USE_V3: u8 = 0;
+
 /// Encodes the given `package` within `resolve` to a binary WebAssembly
 /// representation.
 ///
@@ -61,7 +66,7 @@ impl Encoder<'_> {
         // roundtripping.
         let mut names = NameMap::new();
         for pkg in self.packages {
-            if self.packages.len() > 1 {
+            if self.packages.len() > 1 || std::env::var_os("USE_V3").is_some() || USE_V3 == 1 {
                 let mut sub_encoder = Encoder {
                     component: ComponentBuilder::default(),
                     resolve: self.resolve,
