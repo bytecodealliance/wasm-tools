@@ -20,7 +20,8 @@
 pub const MAX_WASM_TYPES: usize = 1_000_000;
 pub const MAX_WASM_SUPERTYPES: usize = 1;
 pub const MAX_WASM_FUNCTIONS: usize = 1_000_000;
-pub const MAX_WASM_EXPORTS: usize = 100_000;
+pub const MAX_WASM_IMPORTS: usize = 1_000_000;
+pub const MAX_WASM_EXPORTS: usize = 1_000_000;
 pub const MAX_WASM_GLOBALS: usize = 1_000_000;
 pub const MAX_WASM_ELEMENT_SEGMENTS: usize = 100_000;
 pub const MAX_WASM_DATA_SEGMENTS: usize = 100_000;
