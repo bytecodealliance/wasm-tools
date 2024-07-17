@@ -207,6 +207,9 @@ impl<'a> DeclList<'a> {
                                 Some(&u.names),
                                 WorldOrInterface::Interface,
                             )?,
+                            InterfaceItem::Nest(n) => {
+                                f(Some(&i.name), &n.from, None, WorldOrInterface::Interface)?
+                            }
                             _ => {}
                         }
                     }
@@ -215,19 +218,6 @@ impl<'a> DeclList<'a> {
                     // At the top-level, we don't know if this is a world or an interface
                     // It is up to the resolver to decides how to handle this ambiguity.
                     f(None, &u.item, None, WorldOrInterface::Unknown)?;
-                }
-            }
-        }
-        Ok(())
-    }
-
-    fn for_each_nest<'b>(&'b self, mut f: impl FnMut(&'b Nest<'a>) -> Result<()>) -> Result<()> {
-        for item in self.items.iter() {
-            if let AstItem::Interface(i) = item {
-                for item in i.items.iter() {
-                    if let InterfaceItem::Nest(n) = item {
-                        f(n)?;
-                    }
                 }
             }
         }
@@ -563,43 +553,8 @@ enum InterfaceItem<'a> {
 
 struct Nest<'a> {
     docs: Docs<'a>,
-    id: PackageName<'a>,
-    name: Id<'a>,
     attributes: Vec<Attribute<'a>>,
-}
-
-impl<'a> Nest<'a> {
-    fn parse(
-        tokens: &mut Tokenizer<'a>,
-        docs: Docs<'a>,
-        attributes: Vec<Attribute<'a>>,
-    ) -> Result<Self> {
-        tokens.eat(Token::Nest)?;
-        let id = parse_id(tokens)?;
-        tokens.expect(Token::Colon)?;
-        // `foo:bar/baz@1.0`
-        let namespace = id;
-        let pkg_name = parse_id(tokens)?;
-        tokens.expect(Token::Slash)?;
-        let name = parse_id(tokens)?;
-        let version = parse_opt_version(tokens)?;
-        tokens.expect_semicolon()?;
-        Ok(Self {
-            id: PackageName {
-                docs: Default::default(),
-                span: Span {
-                    start: namespace.span.start,
-                    end: pkg_name.span.end,
-                },
-                namespace,
-                name: pkg_name,
-                version,
-            },
-            docs,
-            name,
-            attributes,
-        })
-    }
+    from: UsePath<'a>,
 }
 
 struct Use<'a> {
@@ -1039,7 +994,14 @@ impl<'a> InterfaceItem<'a> {
             }
             Some((_span, Token::Use)) => Use::parse(tokens, attributes).map(InterfaceItem::Use),
             Some((_span, Token::Nest)) => {
-                Nest::parse(tokens, docs, attributes).map(InterfaceItem::Nest)
+                tokens.eat(Token::Nest)?;
+                let path = UsePath::parse(tokens)?;
+                tokens.expect_semicolon()?;
+                Ok(InterfaceItem::Nest(Nest {
+                    docs,
+                    attributes,
+                    from: path,
+                }))
             }
             other => Err(err_expected(tokens, "`type`, `resource` or `func`", other).into()),
         }
