@@ -3,7 +3,7 @@
 use egg::Id;
 use std::fmt::{self, Display};
 use std::str::FromStr;
-use wasm_encoder::HeapType;
+use wasm_encoder::{AbstractHeapType, HeapType};
 
 /// This is a macro used to define the `Lang` enum.
 ///
@@ -1072,8 +1072,14 @@ pub enum RefType {
 impl From<RefType> for HeapType {
     fn from(rt: RefType) -> Self {
         match rt {
-            RefType::Func => HeapType::Func,
-            RefType::Extern => HeapType::Extern,
+            RefType::Func => HeapType::Abstract {
+                shared: false,
+                ty: AbstractHeapType::Func,
+            },
+            RefType::Extern => HeapType::Abstract {
+                shared: false,
+                ty: AbstractHeapType::Extern,
+            },
         }
     }
 }

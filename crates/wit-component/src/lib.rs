@@ -5,9 +5,9 @@
 use std::str::FromStr;
 use std::{borrow::Cow, fmt::Display};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use wasm_encoder::{CanonicalOption, Encode, Section};
-use wit_parser::{parse_use_path, PackageId, ParsedUsePath, Resolve, WorldId};
+use wit_parser::{Resolve, WorldId};
 
 mod encoding;
 mod gc;
@@ -79,43 +79,6 @@ impl From<StringEncoding> for wasm_encoder::CanonicalOption {
     }
 }
 
-/// Handles world name resolution for cases when multiple packages may have been resolved. If this
-/// is the case, and we're dealing with input that contains a user-supplied world name (like via a
-/// CLI command, for instance), we want to ensure that the world name follows the following rules:
-///
-///   * If there is a single resolved package with a single world, the world name name MAY be
-///     omitted.
-///   * If there is a single resolved package with multiple worlds, the world name MUST be supplied,
-///     but MAY or MAY NOT be fully-qualified.
-///   * If there are multiple resolved packages, the world name MUST be fully-qualified.
-pub fn resolve_world_from_name(
-    resolve: &Resolve,
-    resolved_packages: Vec<PackageId>,
-    world_name: Option<&str>,
-) -> Result<WorldId> {
-    match resolved_packages.len() {
-        0 => bail!("all of the supplied WIT source files were empty"),
-        1 => resolve.select_world(resolved_packages[0], world_name.as_deref()),
-        _ => match world_name.as_deref() {
-            Some(name) => {
-                let world_path = parse_use_path(name).with_context(|| {
-                    format!("failed to parse world specifier `{name}`")
-                })?;
-                match world_path {
-                        ParsedUsePath::Name(name) => bail!("the world specifier must be of the fully-qualified, id-based form (ex: \"wasi:http/proxy\" rather than \"proxy\"); you used {name}"),
-                        ParsedUsePath::Package(pkg_name, _) => {
-                            match resolve.package_names.get(&pkg_name) {
-                                Some(pkg_id) => resolve.select_world(pkg_id.clone(), world_name.as_deref()),
-                                None => bail!("the world specifier you provided named {pkg_name}, but no package with that name was found"),
-                            }
-                        }
-                    }
-            }
-            None => bail!("the supplied WIT source files describe multiple packages; please provide a fully-qualified world-specifier to the `embed` command"),
-        },
-    }
-}
-
 /// A producer section to be added to all modules and components synthesized by
 /// this crate
 pub(crate) fn base_producers() -> wasm_metadata::Producers {
@@ -145,11 +108,9 @@ pub fn embed_component_metadata(
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-
     use anyhow::Result;
     use wasmparser::Payload;
-    use wit_parser::{Resolve, UnresolvedPackageGroup};
+    use wit_parser::Resolve;
 
     use super::{embed_component_metadata, StringEncoding};
 
@@ -184,12 +145,8 @@ world test-world {}
 
         // Parse pre-canned WIT to build resolver
         let mut resolver = Resolve::default();
-        let UnresolvedPackageGroup {
-            mut packages,
-            source_map,
-        } = UnresolvedPackageGroup::parse(&Path::new("in-code.wit"), COMPONENT_WIT)?;
-        let pkg_id = resolver.push(packages.remove(0), &source_map)?;
-        let world = resolver.select_world(pkg_id, Some("test-world").into())?;
+        let pkgs = resolver.push_str("in-code.wit", COMPONENT_WIT)?;
+        let world = resolver.select_world(&pkgs, Some("test-world"))?;
 
         // Embed component metadata
         embed_component_metadata(&mut bytes, &resolver, world, StringEncoding::UTF8)?;

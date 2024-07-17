@@ -19,8 +19,8 @@ fmt=tar
 if [ "$platform" = "x86_64-windows" ]; then
   cp target/release/wasm-tools.exe tmp/$bin_pkgname
   fmt=zip
-elif [ "$target" = "wasm32-wasi" ]; then
-  cp target/wasm32-wasi/release/wasm-tools.wasm tmp/$bin_pkgname
+elif [ "$target" = "wasm32-wasip1" ]; then
+  cp target/wasm32-wasip1/release/wasm-tools.wasm tmp/$bin_pkgname
 elif [ "$target" = "" ]; then
   cp target/release/wasm-tools tmp/$bin_pkgname
 else

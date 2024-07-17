@@ -1,0 +1,13 @@
+list-float32([0, 0.0, 0e0, 0.0e0, 0e-1, 0e+1, 0.000e100]);
+list-float32([-3.1415, -100000, -0.0e-0]);
+list-float32([nan, inf, -inf]);
+// Largest normal f32
+float32(3.4028234664e38);
+// Truncated precision
+float32(3.4028234664123e38);
+// Too large; infinity
+float32(3.4028234664e39);
+// Smallest positive non-zero f32
+float32(1.4012984643e-45);
+// Too small; round to zero
+float32(1.4012984643e-46);

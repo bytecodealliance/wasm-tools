@@ -71,7 +71,7 @@ enum State {
 pub enum Chunk<'a> {
     /// This can be returned at any time and indicates that more data is needed
     /// to proceed with parsing. Zero bytes were consumed from the input to
-    /// [`Parser::parse`]. The `usize` value here is a hint as to how many more
+    /// [`Parser::parse`]. The `u64` value here is a hint as to how many more
     /// bytes are needed to continue parsing.
     NeedMoreData(u64),
 

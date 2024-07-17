@@ -66,13 +66,18 @@
 //! [wat]: http://webassembly.github.io/spec/core/text/index.html
 
 #![deny(missing_docs)]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 use std::borrow::Cow;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::str;
+use wast::core::EncodeOptions;
 use wast::lexer::{Lexer, TokenKind};
 use wast::parser::{self, ParseBuffer};
+
+#[doc(inline)]
+pub use wast::core::GenerateDwarf;
 
 /// Parses a file on disk as a [WebAssembly Text format][wat] file, or a binary
 /// WebAssembly file
@@ -97,23 +102,7 @@ use wast::parser::{self, ParseBuffer};
 ///
 /// [wat]: http://webassembly.github.io/spec/core/text/index.html
 pub fn parse_file(file: impl AsRef<Path>) -> Result<Vec<u8>> {
-    _parse_file(file.as_ref())
-}
-
-fn _parse_file(file: &Path) -> Result<Vec<u8>> {
-    let contents = std::fs::read(file).map_err(|err| Error {
-        kind: Box::new(ErrorKind::Io {
-            err,
-            file: Some(file.to_owned()),
-        }),
-    })?;
-    match parse_bytes(&contents) {
-        Ok(bytes) => Ok(bytes.into_owned()),
-        Err(mut e) => {
-            e.set_path(file);
-            Err(e)
-        }
-    }
+    Parser::new().parse_file(file)
 }
 
 /// Parses in-memory bytes as either the [WebAssembly Text format][wat], or a
@@ -156,18 +145,7 @@ fn _parse_file(file: &Path) -> Result<Vec<u8>> {
 ///
 /// [wat]: http://webassembly.github.io/spec/core/text/index.html
 pub fn parse_bytes(bytes: &[u8]) -> Result<Cow<'_, [u8]>> {
-    if bytes.starts_with(b"\0asm") {
-        return Ok(bytes.into());
-    }
-    match str::from_utf8(bytes) {
-        Ok(s) => _parse_str(s).map(|s| s.into()),
-        Err(_) => Err(Error {
-            kind: Box::new(ErrorKind::Custom {
-                msg: "input bytes aren't valid utf-8".to_string(),
-                file: None,
-            }),
-        }),
-    }
+    Parser::new().parse_bytes(None, bytes)
 }
 
 /// Parses an in-memory string as the [WebAssembly Text format][wat], returning
@@ -213,13 +191,100 @@ pub fn parse_bytes(bytes: &[u8]) -> Result<Cow<'_, [u8]>> {
 ///
 /// [wat]: http://webassembly.github.io/spec/core/text/index.html
 pub fn parse_str(wat: impl AsRef<str>) -> Result<Vec<u8>> {
-    _parse_str(wat.as_ref())
+    Parser::default().parse_str(None, wat)
 }
 
-fn _parse_str(wat: &str) -> Result<Vec<u8>> {
-    let buf = ParseBuffer::new(wat).map_err(|e| Error::cvt(e, wat))?;
-    let mut ast = parser::parse::<wast::Wat>(&buf).map_err(|e| Error::cvt(e, wat))?;
-    ast.encode().map_err(|e| Error::cvt(e, wat))
+/// Parser configuration for transforming bytes into WebAssembly binaries.
+#[derive(Default)]
+pub struct Parser {
+    #[cfg(feature = "dwarf")]
+    generate_dwarf: Option<GenerateDwarf>,
+    _private: (),
+}
+
+impl Parser {
+    /// Creates a new parser with th default settings.
+    pub fn new() -> Parser {
+        Parser::default()
+    }
+
+    /// Indicates that DWARF debugging information should be generated and
+    /// emitted by default.
+    ///
+    /// Note that DWARF debugging information is only emitted for textual-based
+    /// modules. For example if a WebAssembly binary is parsed via
+    /// [`Parser::parse_bytes`] this won't insert new DWARF information in such
+    /// a binary. Additionally if the text format used the `(module binary ...)`
+    /// form then no DWARF information will be emitted.
+    #[cfg(feature = "dwarf")]
+    pub fn generate_dwarf(&mut self, generate: GenerateDwarf) -> &mut Self {
+        self.generate_dwarf = Some(generate);
+        self
+    }
+
+    /// Equivalent of [`parse_file`] but uses this parser's settings.
+    pub fn parse_file(&self, path: impl AsRef<Path>) -> Result<Vec<u8>> {
+        self._parse_file(path.as_ref())
+    }
+
+    fn _parse_file(&self, file: &Path) -> Result<Vec<u8>> {
+        let contents = std::fs::read(file).map_err(|err| Error {
+            kind: Box::new(ErrorKind::Io {
+                err,
+                file: Some(file.to_owned()),
+            }),
+        })?;
+        match self.parse_bytes(Some(file), &contents) {
+            Ok(bytes) => Ok(bytes.into_owned()),
+            Err(mut e) => {
+                e.set_path(file);
+                Err(e)
+            }
+        }
+    }
+
+    /// Equivalent of [`parse_bytes`] but uses this parser's settings.
+    ///
+    /// The `path` argument is an optional path to use when error messages are
+    /// generated.
+    pub fn parse_bytes<'a>(&self, path: Option<&Path>, bytes: &'a [u8]) -> Result<Cow<'a, [u8]>> {
+        if bytes.starts_with(b"\0asm") {
+            return Ok(bytes.into());
+        }
+        match str::from_utf8(bytes) {
+            Ok(s) => self._parse_str(path, s).map(|s| s.into()),
+            Err(_) => Err(Error {
+                kind: Box::new(ErrorKind::Custom {
+                    msg: "input bytes aren't valid utf-8".to_string(),
+                    file: path.map(|p| p.to_owned()),
+                }),
+            }),
+        }
+    }
+
+    /// Equivalent of [`parse_str`] but uses this parser's settings.
+    ///
+    /// The `path` argument is an optional path to use when error messages are
+    /// generated.
+    pub fn parse_str(&self, path: Option<&Path>, wat: impl AsRef<str>) -> Result<Vec<u8>> {
+        self._parse_str(path, wat.as_ref())
+    }
+
+    fn _parse_str(&self, path: Option<&Path>, wat: &str) -> Result<Vec<u8>> {
+        let mut _buf = ParseBuffer::new(wat).map_err(|e| Error::cvt(e, wat, path))?;
+        #[cfg(feature = "dwarf")]
+        _buf.track_instr_spans(self.generate_dwarf.is_some());
+        let mut ast = parser::parse::<wast::Wat>(&_buf).map_err(|e| Error::cvt(e, wat, path))?;
+
+        let mut _opts = EncodeOptions::default();
+        #[cfg(feature = "dwarf")]
+        if let Some(style) = self.generate_dwarf {
+            _opts.dwarf(path.unwrap_or("<input>.wat".as_ref()), wat, style);
+        }
+        _opts
+            .encode_wat(&mut ast)
+            .map_err(|e| Error::cvt(e, wat, path))
+    }
 }
 
 /// Result of [`Detect::from_bytes`] to indicate what some input bytes look
@@ -320,8 +385,11 @@ enum ErrorKind {
 }
 
 impl Error {
-    fn cvt<E: Into<wast::Error>>(e: E, contents: &str) -> Error {
+    fn cvt<E: Into<wast::Error>>(e: E, contents: &str, path: Option<&Path>) -> Error {
         let mut err = e.into();
+        if let Some(path) = path {
+            err.set_path(path);
+        }
         err.set_text(contents);
         Error {
             kind: Box::new(ErrorKind::Wast(err)),

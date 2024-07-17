@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use clap::Parser;
 use std::path::{Path, PathBuf};
-use wast::core::{HeapType, NanPattern, V128Const, V128Pattern, WastRetCore};
+use wast::core::{AbstractHeapType, HeapType, NanPattern, V128Const, V128Pattern, WastRetCore};
 use wast::lexer::Lexer;
 use wast::parser::{self, ParseBuffer};
 use wast::token::{Span, F32, F64};
@@ -506,21 +506,30 @@ fn f64_to_string(f: F64) -> String {
 
 fn null_heap_ty(ty: HeapType<'_>) -> Result<json::Const> {
     Ok(match ty {
-        HeapType::Func => json::Const::FuncRef {
-            value: Some("null".to_string()),
-        },
-        HeapType::Extern => json::Const::ExternRef {
-            value: "null".to_string(),
-        },
-        HeapType::Any => json::Const::AnyRef {
-            value: Some("null".to_string()),
-        },
-        HeapType::None => json::Const::NullRef,
-        HeapType::NoFunc => json::Const::NullFuncRef,
-        HeapType::NoExtern => json::Const::NullExternRef,
-        HeapType::Exn => json::Const::ExnRef {
-            value: Some("null".to_string()),
-        },
+        HeapType::Abstract { shared, ty } => {
+            use AbstractHeapType::*;
+            if shared {
+                bail!("shared abstract types are not supported in `ref.null`")
+            }
+            match ty {
+                Func => json::Const::FuncRef {
+                    value: Some("null".to_string()),
+                },
+                Extern => json::Const::ExternRef {
+                    value: "null".to_string(),
+                },
+                Any => json::Const::AnyRef {
+                    value: Some("null".to_string()),
+                },
+                None => json::Const::NullRef,
+                NoFunc => json::Const::NullFuncRef,
+                NoExtern => json::Const::NullExternRef,
+                Exn => json::Const::ExnRef {
+                    value: Some("null".to_string()),
+                },
+                _ => bail!("unsupported abstract type found in `ref.null`"),
+            }
+        }
         _ => bail!("unsupported heap type found in `ref.null`"),
     })
 }

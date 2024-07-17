@@ -6,7 +6,7 @@
 ;;
 ;; compiled with Rust 1.78.0 with:
 ;;
-;;    rustc foo.rs --emit obj --target wasm32-wasi
+;;    rustc foo.rs --emit obj --target wasm32-wasip1
 ;;
 ;; and then the output of `wasm-tools print` at the time over `foo.o` was
 ;; pasted below. This works around how the linking and reloc custom sections do

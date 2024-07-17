@@ -18,7 +18,7 @@ workspace = true
 
 [dependencies]
 wasmparser = { workspace = true }
-wasm-encoder = { workspace = true }
+wasm-encoder = { workspace = true, features = ["wasmparser"] }
 wasm-metadata = { workspace = true }
 wit-parser = { workspace = true, features = ['decoding', 'serde'] }
 anyhow = { workspace = true }

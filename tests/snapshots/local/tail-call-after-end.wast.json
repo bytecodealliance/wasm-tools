@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/local/tail-call-after-end.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 2,
+      "filename": "tail-call-after-end.0.wasm",
+      "text": "operators remaining after end of function",
+      "module_type": "binary"
+    }
+  ]
+}

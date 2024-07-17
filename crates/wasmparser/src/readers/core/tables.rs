@@ -20,7 +20,7 @@ pub type TableSectionReader<'a> = SectionLimited<'a, Table<'a>>;
 
 /// Type information about a table defined in the table section of a WebAssembly
 /// module.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Table<'a> {
     /// The type of this table, including its element type and its limits.
     pub ty: TableType,
@@ -29,7 +29,7 @@ pub struct Table<'a> {
 }
 
 /// Different modes of initializing a table.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum TableInit<'a> {
     /// The table is initialized to all null elements.
     RefNull,
@@ -68,10 +68,11 @@ impl<'a> FromReader<'a> for TableType {
         let element_type = reader.read()?;
         let pos = reader.original_position();
         let flags = reader.read_u8()?;
-        if (flags & !0b101) != 0 {
+        if (flags & !0b111) != 0 {
             bail!(pos, "invalid table resizable limits flags");
         }
         let has_max = (flags & 0b001) != 0;
+        let shared = (flags & 0b010) != 0;
         let table64 = (flags & 0b100) != 0;
         Ok(TableType {
             element_type,
@@ -88,6 +89,7 @@ impl<'a> FromReader<'a> for TableType {
             } else {
                 Some(reader.read_var_u32()?.into())
             },
+            shared,
         })
     }
 }

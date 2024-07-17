@@ -47,10 +47,16 @@ pub fn dummy_value(val_ty: ValType) -> Val {
 pub fn dummy_ref(ty: &RefType) -> Ref {
     assert!(ty.is_nullable());
     match ty.heap_type() {
-        HeapType::Extern => Ref::Extern(None),
-        HeapType::NoFunc | HeapType::Func => Ref::Func(None),
-        HeapType::Any | HeapType::I31 | HeapType::None => Ref::Any(None),
-        HeapType::Concrete(_) => unimplemented!(),
+        HeapType::Extern | HeapType::NoExtern => Ref::Extern(None),
+        HeapType::NoFunc | HeapType::Func | HeapType::ConcreteFunc(_) => Ref::Func(None),
+        HeapType::Any
+        | HeapType::I31
+        | HeapType::None
+        | HeapType::Eq
+        | HeapType::Array
+        | HeapType::Struct
+        | HeapType::ConcreteArray(_)
+        | HeapType::ConcreteStruct(_) => Ref::Any(None),
     }
 }
 

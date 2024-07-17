@@ -1,0 +1,16 @@
+package a:c {
+  interface foo {
+  }
+
+}
+
+
+package a:b {
+  interface foo {
+  }
+
+  world c {
+    import foo;
+    import a:c/foo;
+  }
+}

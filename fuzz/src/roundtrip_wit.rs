@@ -86,11 +86,11 @@ fn roundtrip_through_printing(file: &str, resolve: &Resolve, wasm: &[u8]) {
     for (id, pkg) in resolve.packages.iter() {
         let mut map = SourceMap::new();
         let pkg_name = &pkg.name;
-        let doc = WitPrinter::default().print(resolve, &[id]).unwrap();
+        let doc = WitPrinter::default().print(resolve, &[id], false).unwrap();
         write_file(&format!("{file}-{pkg_name}.wit"), &doc);
         map.push(format!("{pkg_name}.wit").as_ref(), doc);
         let unresolved = map.parse().unwrap();
-        let id = new_resolve.append(unresolved).unwrap();
+        let id = new_resolve.push_group(unresolved).unwrap();
         last = Some(id.last().unwrap().to_owned());
     }
 

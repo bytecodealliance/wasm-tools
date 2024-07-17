@@ -1,6 +1,6 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use std::{fs, path::Path};
-use wit_parser::{Resolve, UnresolvedPackageGroup, WorldId};
+use wit_parser::{Resolve, WorldId};
 
 /// Tests whether a component targets a world.
 ///
@@ -22,7 +22,7 @@ use wit_parser::{Resolve, UnresolvedPackageGroup, WorldId};
 /// Run the test with the environment variable `BLESS` set to update `error.txt`.
 ///
 /// Each test is effectively executing as:
-/// ```wasm-tools component targets -w foobar test.wit test.wat```
+/// `wasm-tools component targets -w foobar test.wit test.wat`
 #[test]
 fn targets() -> Result<()> {
     drop(env_logger::try_init());
@@ -79,23 +79,10 @@ fn load_test_wit(path: &Path) -> Result<(Resolve, WorldId)> {
     const TEST_TARGET_WORLD_ID: &str = "foobar";
 
     let test_wit_path = path.join("test.wit");
-    let UnresolvedPackageGroup {
-        mut packages,
-        source_map,
-    } = UnresolvedPackageGroup::parse_file(&test_wit_path)
-        .context("failed to parse WIT package")?;
-    if packages.is_empty() {
-        bail!("Files were completely empty - are you sure these are the files you're looking for?")
-    }
-    if packages.len() > 1 {
-        bail!("Multi-package targeting tests are not yet supported.")
-    }
-
     let mut resolve = Resolve::default();
-    let package_id = resolve.push(packages.remove(0), &source_map)?;
-
+    let pkgs = resolve.push_file(&test_wit_path)?;
     let world_id = resolve
-        .select_world(package_id, Some(TEST_TARGET_WORLD_ID))
+        .select_world(&pkgs, Some(TEST_TARGET_WORLD_ID))
         .with_context(|| "failed to select world from package".to_string())?;
 
     Ok((resolve, world_id))

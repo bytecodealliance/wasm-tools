@@ -25,13 +25,13 @@
   )
   (core module (;1;)
     (type (;0;) (func (param i32)))
-    (func $#func0<dtor-_export_foo-a> (@name "dtor-[export]foo-a") (;0;) (type 0) (param i32)
+    (func $"dtor-[export]foo-a" (;0;) (type 0) (param i32)
       local.get 0
       i32.const 0
       call_indirect (type 0)
     )
     (table (;0;) 1 1 funcref)
-    (export "0" (func $#func0<dtor-_export_foo-a>))
+    (export "0" (func $"dtor-[export]foo-a"))
     (export "$imports" (table 0))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")

@@ -71,8 +71,8 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
     fn block_end(&mut self) -> Result<()> {
         if self.printer.nesting > self.nesting_start {
             self.printer.nesting -= 1;
-            self.separator()?;
         }
+        self.separator()?;
         Ok(())
     }
 
@@ -86,7 +86,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
         let has_name = match self.state.core.label_names.index_to_name.get(&key) {
             Some(name) => {
                 write!(self.printer.result, " ")?;
-                name.write(self.printer.result)?;
+                name.write(self.printer)?;
                 true
             }
             None if self.printer.config.name_unnamed => {
@@ -176,7 +176,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
                 match name {
                     // Only print the name if one is found and there's also no
                     // name conflict.
-                    Some(name) if !name_conflict => name.write(self.printer.result)?,
+                    Some(name) if !name_conflict => name.write(self.printer)?,
 
                     // If there's no name conflict, and we're synthesizing
                     // names, and this isn't targetting the function itself then
@@ -405,7 +405,6 @@ macro_rules! define_visit {
     //
     // * Print the name of the insruction as defined in this macro
     // * Print any payload, as necessary
-    // * Return the `OpKind`, as defined by this macro
     ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident )*) => ($(
         fn $visit(&mut self $( , $($arg: $argty),* )?) -> Self::Output {
             define_visit!(before_op self $op);
@@ -592,6 +591,78 @@ macro_rules! define_visit {
         $self.printer.print_field_idx($self.state, $ty, $field)?;
     );
     (payload $self:ident StructSet $ty:ident $field:ident) => (
+        $self.struct_type_index($ty)?;
+        $self.push_str(" ")?;
+        $self.printer.print_field_idx($self.state, $ty, $field)?;
+    );
+    (payload $self:ident StructAtomicGet $order:ident $ty:ident $field:ident) => (
+        $self.ordering($order)?;
+        $self.struct_type_index($ty)?;
+        $self.push_str(" ")?;
+        $self.printer.print_field_idx($self.state, $ty, $field)?;
+    );
+    (payload $self:ident StructAtomicGetS $order:ident $ty:ident $field:ident) => (
+        $self.ordering($order)?;
+        $self.struct_type_index($ty)?;
+        $self.push_str(" ")?;
+        $self.printer.print_field_idx($self.state, $ty, $field)?;
+    );
+    (payload $self:ident StructAtomicGetU $order:ident $ty:ident $field:ident) => (
+        $self.ordering($order)?;
+        $self.struct_type_index($ty)?;
+        $self.push_str(" ")?;
+        $self.printer.print_field_idx($self.state, $ty, $field)?;
+    );
+    (payload $self:ident StructAtomicSet $order:ident $ty:ident $field:ident) => (
+        $self.ordering($order)?;
+        $self.struct_type_index($ty)?;
+        $self.push_str(" ")?;
+        $self.printer.print_field_idx($self.state, $ty, $field)?;
+    );
+    (payload $self:ident StructAtomicSet $order:ident $ty:ident $field:ident) => (
+        $self.ordering($order)?;
+        $self.struct_type_index($ty)?;
+        $self.push_str(" ")?;
+        $self.printer.print_field_idx($self.state, $ty, $field)?;
+    );
+    (payload $self:ident StructAtomicRmwAdd $order:ident $ty:ident $field:ident) => (
+        $self.ordering($order)?;
+        $self.struct_type_index($ty)?;
+        $self.push_str(" ")?;
+        $self.printer.print_field_idx($self.state, $ty, $field)?;
+    );
+    (payload $self:ident StructAtomicRmwSub $order:ident $ty:ident $field:ident) => (
+        $self.ordering($order)?;
+        $self.struct_type_index($ty)?;
+        $self.push_str(" ")?;
+        $self.printer.print_field_idx($self.state, $ty, $field)?;
+    );
+    (payload $self:ident StructAtomicRmwAnd $order:ident $ty:ident $field:ident) => (
+        $self.ordering($order)?;
+        $self.struct_type_index($ty)?;
+        $self.push_str(" ")?;
+        $self.printer.print_field_idx($self.state, $ty, $field)?;
+    );
+    (payload $self:ident StructAtomicRmwOr $order:ident $ty:ident $field:ident) => (
+        $self.ordering($order)?;
+        $self.struct_type_index($ty)?;
+        $self.push_str(" ")?;
+        $self.printer.print_field_idx($self.state, $ty, $field)?;
+    );
+    (payload $self:ident StructAtomicRmwXor $order:ident $ty:ident $field:ident) => (
+        $self.ordering($order)?;
+        $self.struct_type_index($ty)?;
+        $self.push_str(" ")?;
+        $self.printer.print_field_idx($self.state, $ty, $field)?;
+    );
+    (payload $self:ident StructAtomicRmwXchg $order:ident $ty:ident $field:ident) => (
+        $self.ordering($order)?;
+        $self.struct_type_index($ty)?;
+        $self.push_str(" ")?;
+        $self.printer.print_field_idx($self.state, $ty, $field)?;
+    );
+    (payload $self:ident StructAtomicRmwCmpxchg $order:ident $ty:ident $field:ident) => (
+        $self.ordering($order)?;
         $self.struct_type_index($ty)?;
         $self.push_str(" ")?;
         $self.printer.print_field_idx($self.state, $ty, $field)?;
@@ -1181,6 +1252,33 @@ macro_rules! define_visit {
     (name GlobalAtomicRmwXor) => ("global.atomic.rmw.xor");
     (name GlobalAtomicRmwXchg) => ("global.atomic.rmw.xchg");
     (name GlobalAtomicRmwCmpxchg) => ("global.atomic.rmw.cmpxchg");
+    (name TableAtomicGet) => ("table.atomic.get");
+    (name TableAtomicSet) => ("table.atomic.set");
+    (name TableAtomicRmwXchg) => ("table.atomic.rmw.xchg");
+    (name TableAtomicRmwCmpxchg) => ("table.atomic.rmw.cmpxchg");
+    (name StructAtomicGet) => ("struct.atomic.get");
+    (name StructAtomicGetS) => ("struct.atomic.get_s");
+    (name StructAtomicGetU) => ("struct.atomic.get_u");
+    (name StructAtomicSet) => ("struct.atomic.set");
+    (name StructAtomicRmwAdd) => ("struct.atomic.rmw.add");
+    (name StructAtomicRmwSub) => ("struct.atomic.rmw.sub");
+    (name StructAtomicRmwAnd) => ("struct.atomic.rmw.and");
+    (name StructAtomicRmwOr) => ("struct.atomic.rmw.or");
+    (name StructAtomicRmwXor) => ("struct.atomic.rmw.xor");
+    (name StructAtomicRmwXchg) => ("struct.atomic.rmw.xchg");
+    (name StructAtomicRmwCmpxchg) => ("struct.atomic.rmw.cmpxchg");
+    (name ArrayAtomicGet) => ("array.atomic.get");
+    (name ArrayAtomicGetS) => ("array.atomic.get_s");
+    (name ArrayAtomicGetU) => ("array.atomic.get_u");
+    (name ArrayAtomicSet) => ("array.atomic.set");
+    (name ArrayAtomicRmwAdd) => ("array.atomic.rmw.add");
+    (name ArrayAtomicRmwSub) => ("array.atomic.rmw.sub");
+    (name ArrayAtomicRmwAnd) => ("array.atomic.rmw.and");
+    (name ArrayAtomicRmwOr) => ("array.atomic.rmw.or");
+    (name ArrayAtomicRmwXor) => ("array.atomic.rmw.xor");
+    (name ArrayAtomicRmwXchg) => ("array.atomic.rmw.xchg");
+    (name ArrayAtomicRmwCmpxchg) => ("array.atomic.rmw.cmpxchg");
+    (name RefI31Shared) => ("ref.i31_shared")
 }
 
 impl<'a> VisitOperator<'a> for PrintOperator<'_, '_, '_, '_> {

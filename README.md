@@ -130,27 +130,27 @@ The `wasm-tools` binary internally contains a number of subcommands for working
 with wasm modules and component. Many subcommands also come with Rust crates
 that can be use programmatically as well:
 
-| CLI | Rust Crate | Description |
-|------|------|------------|
-| `wasm-tools validate` | [wasmparser] | Validate a WebAssembly file |
-| `wasm-tools parse` | [wat] and [wast] | Translate the WebAssembly text format to binary |
-| `wasm-tools print` | [wasmprinter] | Translate the WebAssembly binary format to text |
-| `wasm-tools smith` | [wasm-smith] | Generate a valid WebAssembly module from an input seed |
-| `wasm-tools mutate` | [wasm-mutate] | Mutate an input wasm file into a new valid wasm file |
-| `wasm-tools shrink` | [wasm-shrink] | Shrink a wasm file while preserving a predicate |
-| `wasm-tools dump` |   | Print debugging information about the binary format |
-| `wasm-tools objdump` |   | Print debugging information about section headers |
-| `wasm-tools strip` |   | Remove custom sections from a WebAssembly file |
-| `wasm-tools demangle` |   | Demangle Rust and C++ symbol names in the `name` section |
-| `wasm-tools compose` | [wasm-compose] | Compose wasm components together (*deprecated*) |
-| `wasm-tools component new` | [wit-component] | Create a component from a core wasm binary |
-| `wasm-tools component wit` |  | Extract a `*.wit` interface from a component |
-| `wasm-tools component embed` |  | Embed a `component-type` custom section in a core wasm binary |
-| `wasm-tools metadata show` |  [wasm-metadata] | Show name and producer metadata in a component or module |
-| `wasm-tools metadata add` |  | Add name or producer metadata to a component or module |
-| `wasm-tools addr2line` |  | Translate wasm offsets to filename/line numbers with DWARF |
-| `wasm-tools completion` |  | Generate shell completion scripts for `wasm-tools` |
-| `wasm-tools json-from-wast` |  | Convert a `*.wast` file into JSON commands |
+| CLI | Rust Crate | Playground | Description |
+|------|------|--------|------------|
+| `wasm-tools validate` | [wasmparser] |  | Validate a WebAssembly file |
+| `wasm-tools parse` | [wat] and [wast] | [parse](https://bytecodealliance.github.io/wasm-tools/parse) | Translate the WebAssembly text format to binary |
+| `wasm-tools print` | [wasmprinter] | [print](https://bytecodealliance.github.io/wasm-tools/print) | Translate the WebAssembly binary format to text |
+| `wasm-tools smith` | [wasm-smith] |  | Generate a valid WebAssembly module from an input seed |
+| `wasm-tools mutate` | [wasm-mutate] |  | Mutate an input wasm file into a new valid wasm file |
+| `wasm-tools shrink` | [wasm-shrink] |  | Shrink a wasm file while preserving a predicate |
+| `wasm-tools dump` |   |  | Print debugging information about the binary format |
+| `wasm-tools objdump` |   |  | Print debugging information about section headers |
+| `wasm-tools strip` |   |  | Remove custom sections from a WebAssembly file |
+| `wasm-tools demangle` |   |  | Demangle Rust and C++ symbol names in the `name` section |
+| `wasm-tools compose` | [wasm-compose] |  | Compose wasm components together (*deprecated*) |
+| `wasm-tools component new` | [wit-component] |  | Create a component from a core wasm binary |
+| `wasm-tools component wit` |  |  | Extract a `*.wit` interface from a component |
+| `wasm-tools component embed` |  |  | Embed a `component-type` custom section in a core wasm binary |
+| `wasm-tools metadata show` |  [wasm-metadata] |  | Show name and producer metadata in a component or module |
+| `wasm-tools metadata add` |  |  | Add name or producer metadata to a component or module |
+| `wasm-tools addr2line` |  |  | Translate wasm offsets to filename/line numbers with DWARF |
+| `wasm-tools completion` |  |  | Generate shell completion scripts for `wasm-tools` |
+| `wasm-tools json-from-wast` |  |  | Convert a `*.wast` file into JSON commands |
 
 [wasmparser]: https://crates.io/crates/wasmparser
 [wat]: https://crates.io/crates/wat

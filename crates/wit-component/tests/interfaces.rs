@@ -51,7 +51,7 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
     let packages = if is_dir {
         resolve.push_dir(path)?.0
     } else {
-        resolve.append(UnresolvedPackageGroup::parse_file(path)?)?
+        resolve.push_file(path)?
     };
 
     for package in packages {
@@ -96,7 +96,7 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
 }
 
 fn assert_print(resolve: &Resolve, pkg_ids: &[PackageId], path: &Path, is_dir: bool) -> Result<()> {
-    let output = WitPrinter::default().print(resolve, &pkg_ids)?;
+    let output = WitPrinter::default().print(resolve, &pkg_ids, false)?;
     for pkg_id in pkg_ids {
         let pkg = &resolve.packages[*pkg_id];
         let expected = if is_dir {
@@ -107,8 +107,7 @@ fn assert_print(resolve: &Resolve, pkg_ids: &[PackageId], path: &Path, is_dir: b
         assert_output(&expected, &output)?;
     }
 
-    UnresolvedPackageGroup::parse("foo.wit".as_ref(), &output)
-        .context("failed to parse printed output")?;
+    UnresolvedPackageGroup::parse("foo.wit", &output).context("failed to parse printed output")?;
     Ok(())
 }
 

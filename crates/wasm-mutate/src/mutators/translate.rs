@@ -156,6 +156,7 @@ pub fn table_type(
         minimum: ty.initial,
         maximum: ty.maximum,
         table64: ty.table64,
+        shared: ty.shared,
     })
 }
 
@@ -210,21 +211,16 @@ pub fn refty(t: &mut dyn Translator, ty: &wasmparser::RefType) -> Result<RefType
 
 pub fn heapty(t: &mut dyn Translator, ty: &wasmparser::HeapType) -> Result<HeapType> {
     match ty {
-        wasmparser::HeapType::Func => Ok(HeapType::Func),
-        wasmparser::HeapType::Extern => Ok(HeapType::Extern),
-        wasmparser::HeapType::Any => Ok(HeapType::Any),
-        wasmparser::HeapType::None => Ok(HeapType::None),
-        wasmparser::HeapType::NoExtern => Ok(HeapType::NoExtern),
-        wasmparser::HeapType::NoFunc => Ok(HeapType::NoFunc),
-        wasmparser::HeapType::Eq => Ok(HeapType::Eq),
-        wasmparser::HeapType::Struct => Ok(HeapType::Struct),
-        wasmparser::HeapType::Array => Ok(HeapType::Array),
-        wasmparser::HeapType::I31 => Ok(HeapType::I31),
-        wasmparser::HeapType::Exn => Ok(HeapType::Exn),
-        wasmparser::HeapType::NoExn => Ok(HeapType::NoExn),
         wasmparser::HeapType::Concrete(i) => Ok(HeapType::Concrete(
             t.remap(Item::Type, i.as_module_index().unwrap())?,
         )),
+        wasmparser::HeapType::Abstract { shared, ty } => {
+            let ty = (*ty).into();
+            Ok(HeapType::Abstract {
+                shared: *shared,
+                ty,
+            })
+        }
     }
 }
 
@@ -251,7 +247,11 @@ pub fn const_expr(
         match op {
             Operator::RefFunc { .. }
             | Operator::RefNull {
-                hty: wasmparser::HeapType::Func,
+                hty:
+                    wasmparser::HeapType::Abstract {
+                        ty: wasmparser::AbstractHeapType::Func,
+                        ..
+                    },
                 ..
             }
             | Operator::GlobalGet { .. } => {}
@@ -400,14 +400,6 @@ pub fn op(t: &mut dyn Translator, op: &Operator<'_>) -> Result<Instruction<'stat
         (build V128Const $arg:ident) => (I::V128Const($arg.i128()));
         (build TryTable $table:ident) => (unimplemented_try_table());
         (build $op:ident $arg:ident) => (I::$op($arg));
-        (build CallIndirect $ty:ident $table:ident) => (I::CallIndirect {
-            ty: $ty,
-            table: $table,
-        });
-        (build ReturnCallIndirect $ty:ident $table:ident) => (I::ReturnCallIndirect {
-            ty: $ty,
-            table: $table,
-        });
         (build $op:ident $($arg:ident)*) => (I::$op { $($arg),* });
     }
 

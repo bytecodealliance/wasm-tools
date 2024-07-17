@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/local/missing-features/tables.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 2,
+      "filename": "tables.0.wasm",
+      "text": "shared tables require the shared-everything-threads proposal",
+      "module_type": "binary"
+    }
+  ]
+}
