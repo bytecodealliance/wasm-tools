@@ -55,36 +55,42 @@
   "interfaces": [
     {
       "name": "a1",
+      "nested": {},
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": "a2",
+      "nested": {},
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": "b1",
+      "nested": {},
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": "b2",
+      "nested": {},
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": "c",
+      "nested": {},
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": "d",
+      "nested": {},
       "types": {},
       "functions": {},
       "package": 0

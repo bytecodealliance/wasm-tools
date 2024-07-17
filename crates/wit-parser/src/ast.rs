@@ -207,6 +207,9 @@ impl<'a> DeclList<'a> {
                                 Some(&u.names),
                                 WorldOrInterface::Interface,
                             )?,
+                            InterfaceItem::Nest(n) => {
+                                f(Some(&i.name), &n.from, None, WorldOrInterface::Interface)?
+                            }
                             _ => {}
                         }
                     }
@@ -545,6 +548,13 @@ enum InterfaceItem<'a> {
     TypeDef(TypeDef<'a>),
     Func(NamedFunc<'a>),
     Use(Use<'a>),
+    Nest(Nest<'a>),
+}
+
+struct Nest<'a> {
+    docs: Docs<'a>,
+    attributes: Vec<Attribute<'a>>,
+    from: UsePath<'a>,
 }
 
 struct Use<'a> {
@@ -983,6 +993,16 @@ impl<'a> InterfaceItem<'a> {
                 NamedFunc::parse(tokens, docs, attributes).map(InterfaceItem::Func)
             }
             Some((_span, Token::Use)) => Use::parse(tokens, attributes).map(InterfaceItem::Use),
+            Some((_span, Token::Nest)) => {
+                tokens.eat(Token::Nest)?;
+                let path = UsePath::parse(tokens)?;
+                tokens.expect_semicolon()?;
+                Ok(InterfaceItem::Nest(Nest {
+                    docs,
+                    attributes,
+                    from: path,
+                }))
+            }
             other => Err(err_expected(tokens, "`type`, `resource` or `func`", other).into()),
         }
     }
