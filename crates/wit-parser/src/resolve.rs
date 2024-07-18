@@ -1,3 +1,13 @@
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::mem;
+use std::path::{Path, PathBuf};
+
+use anyhow::{anyhow, bail, ensure, Context, Result};
+use id_arena::{Arena, Id};
+use indexmap::{IndexMap, IndexSet};
+#[cfg(feature = "serde")]
+use serde_derive::Serialize;
+
 use crate::ast::lex::Span;
 use crate::ast::{parse_use_path, ParsedUsePath};
 #[cfg(feature = "serde")]
@@ -8,14 +18,6 @@ use crate::{
     TypeOwner, UnresolvedPackage, UnresolvedPackageGroup, World, WorldId, WorldItem, WorldKey,
     WorldSpan,
 };
-use anyhow::{anyhow, bail, Context, Result};
-use id_arena::{Arena, Id};
-use indexmap::{IndexMap, IndexSet};
-#[cfg(feature = "serde")]
-use serde_derive::Serialize;
-use std::collections::{BTreeMap, HashMap, HashSet};
-use std::mem;
-use std::path::{Path, PathBuf};
 
 /// Representation of a fully resolved set of WIT packages.
 ///
@@ -1408,13 +1410,37 @@ impl Resolve {
         }
     }
 
-    fn include_stability(&self, stability: &Stability) -> bool {
-        match stability {
-            Stability::Stable { .. } | Stability::Unknown => true,
+    fn include_stability(&self, stability: &Stability, pkg_id: &PackageId) -> Result<bool> {
+        Ok(match stability {
+            Stability::Unknown => true,
+            // NOTE: deprecations are intentionally omitted -- an existing `@since` takes precedence over `@deprecated`
+            Stability::Stable { since, .. } => {
+                let Some(p) = self.packages.get(*pkg_id) else {
+                    // We can't check much without a package (possibly dealing with an item in an `UnresolvedPackage`),
+                    // @since version & deprecations can't be checked because there's no package version to compare to.
+                    //
+                    // Feature requirements on stabilized features are ignored in resolved packages, so we do the same here.
+                    return Ok(true);
+                };
+
+                // Use of feature gating with version specifiers inside a package that is not versioned is not allowed
+                let package_version = p.name.version.as_ref().with_context(|| format!("package [{}] contains a feature gate with a version specifier, so it must have a version", p.name))?;
+
+                // If the version on the feature gate is:
+                // - released, then we can include it
+                // - unreleased, then we must check the feature (if present)
+                ensure!(
+                    since <= package_version,
+                    "feature gate cannot reference unreleased version {since} of package [{}] (current version {package_version})",
+                    p.name
+                );
+
+                true
+            }
             Stability::Unstable { feature, .. } => {
                 self.features.contains(feature) || self.all_features
             }
-        }
+        })
     }
 }
 
@@ -1503,7 +1529,16 @@ impl Remap {
             .zip(&unresolved.type_spans)
             .skip(foreign_types)
         {
-            if !resolve.include_stability(&ty.stability) {
+            if !resolve
+                .include_stability(&ty.stability, &pkgid)
+                .with_context(|| {
+                    format!(
+                        "failed to process feature gate for type [{}] in package [{}]",
+                        ty.name.as_ref().map(String::as_str).unwrap_or("<unknown>"),
+                        resolve.packages[pkgid].name,
+                    )
+                })?
+            {
                 self.types.push(None);
                 continue;
             }
@@ -1544,13 +1579,26 @@ impl Remap {
             .zip(&unresolved.interface_spans)
             .skip(foreign_interfaces)
         {
-            if !resolve.include_stability(&iface.stability) {
+            if !resolve
+                .include_stability(&iface.stability, &pkgid)
+                .with_context(|| {
+                    format!(
+                        "failed to process feature gate for interface [{}] in package [{}]",
+                        iface
+                            .name
+                            .as_ref()
+                            .map(String::as_str)
+                            .unwrap_or("<unknown>"),
+                        resolve.packages[pkgid].name,
+                    )
+                })?
+            {
                 self.interfaces.push(None);
                 continue;
             }
-            self.update_interface(resolve, &mut iface, Some(span))?;
             assert!(iface.package.is_none());
             iface.package = Some(pkgid);
+            self.update_interface(resolve, &mut iface, Some(span))?;
             let new_id = resolve.interfaces.alloc(iface);
             assert_eq!(self.interfaces.len(), id.index());
             self.interfaces.push(Some(new_id));
@@ -1589,11 +1637,19 @@ impl Remap {
             .zip(unresolved.world_spans)
             .skip(foreign_worlds)
         {
-            if !resolve.include_stability(&world.stability) {
+            if !resolve
+                .include_stability(&world.stability, &pkgid)
+                .with_context(|| {
+                    format!(
+                        "failed to process feature gate for world [{}] in package [{}]",
+                        world.name, resolve.packages[pkgid].name,
+                    )
+                })?
+            {
                 self.worlds.push(None);
                 continue;
             }
-            self.update_world(&mut world, resolve, &span)?;
+            self.update_world(&mut world, resolve, &pkgid, &span)?;
 
             let new_id = resolve.worlds.alloc(world);
             assert_eq!(self.worlds.len(), id.index());
@@ -1945,6 +2001,16 @@ impl Remap {
         spans: Option<&InterfaceSpan>,
     ) -> Result<()> {
         iface.types.retain(|_, ty| self.types[ty.index()].is_some());
+        let iface_pkg_id = iface.package.as_ref().unwrap_or_else(|| {
+            panic!(
+                "unexpectedly missing package on interface [{}]",
+                iface
+                    .name
+                    .as_ref()
+                    .map(String::as_str)
+                    .unwrap_or("<unknown>"),
+            )
+        });
 
         // NB: note that `iface.doc` is not updated here since interfaces
         // haven't been mapped yet and that's done in a separate step.
@@ -1954,17 +2020,31 @@ impl Remap {
         if let Some(spans) = spans {
             assert_eq!(iface.functions.len(), spans.funcs.len());
         }
-        for (i, (_, func)) in iface.functions.iter_mut().enumerate() {
-            if !resolve.include_stability(&func.stability) {
+        for (i, (func_name, func)) in iface.functions.iter_mut().enumerate() {
+            if !resolve
+                .include_stability(&func.stability, iface_pkg_id)
+                .with_context(|| {
+                    format!(
+                        "failed to process feature gate for function [{func_name}] in package [{}]",
+                        resolve.packages[*iface_pkg_id].name,
+                    )
+                })?
+            {
                 continue;
             }
             let span = spans.map(|s| s.funcs[i]);
             self.update_function(resolve, func, span)
                 .with_context(|| format!("failed to update function `{}`", func.name))?;
         }
-        iface
-            .functions
-            .retain(|_, f| resolve.include_stability(&f.stability));
+
+        // Filter out all of the existing functions in interface which fail the
+        // `include_stability()` check, as they shouldn't be available.
+        for (name, func) in mem::take(&mut iface.functions) {
+            if resolve.include_stability(&func.stability, iface_pkg_id)? {
+                iface.functions.insert(name, func);
+            }
+        }
+
         Ok(())
     }
 
@@ -2017,6 +2097,7 @@ impl Remap {
         &mut self,
         world: &mut World,
         resolve: &mut Resolve,
+        pkg_id: &PackageId,
         spans: &WorldSpan,
     ) -> Result<()> {
         // NB: this function is more more complicated than the prior versions
@@ -2047,7 +2128,16 @@ impl Remap {
                 *id = self.map_type(*id, Some(*span))?;
             }
             let stability = item.stability(resolve);
-            if !resolve.include_stability(stability) {
+            if !resolve
+                .include_stability(stability, pkg_id)
+                .with_context(|| {
+                    format!(
+                        "failed to process imported world item type [{}] in package [{}]",
+                        resolve.name_world_key(&name),
+                        resolve.packages[*pkg_id].name,
+                    )
+                })?
+            {
                 continue;
             }
             self.update_world_key(&mut name, Some(*span))?;
@@ -2088,7 +2178,16 @@ impl Remap {
             .zip(&spans.exports)
         {
             let stability = item.stability(resolve);
-            if !resolve.include_stability(stability) {
+            if !resolve
+                .include_stability(stability, pkg_id)
+                .with_context(|| {
+                    format!(
+                        "failed to process feature gate for exported item [{}] in package [{}]",
+                        resolve.name_world_key(&name),
+                        resolve.packages[*pkg_id].name,
+                    )
+                })?
+            {
                 continue;
             }
             self.update_world_key(&mut name, Some(*span))?;
@@ -2121,7 +2220,16 @@ impl Remap {
             .zip(&spans.includes)
             .zip(&include_names)
         {
-            if !resolve.include_stability(&stability) {
+            if !resolve
+                .include_stability(&stability, pkg_id)
+                .with_context(|| {
+                    format!(
+                        "failed to process feature gate for included world [{}] in package [{}]",
+                        resolve.worlds[include_world].name.as_str(),
+                        resolve.packages[*pkg_id].name
+                    )
+                })?
+            {
                 continue;
             }
             self.resolve_include(world, include_world, names, *span, resolve)?;
