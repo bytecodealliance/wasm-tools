@@ -21,7 +21,7 @@ pub struct Tag<'a> {
 }
 
 /// Listing of various types of tags that can be defined in a wasm module.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TagType<'a> {
     /// An exception tag, where the payload is the type signature of the tag
     /// (constructor parameters, etc).

@@ -36,7 +36,7 @@ pub enum ExternalKind {
 }
 
 /// Represents an export in a WebAssembly module.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Export<'a> {
     /// The name of the exported item.
     pub name: &'a str,

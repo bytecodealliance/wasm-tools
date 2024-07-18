@@ -17,7 +17,7 @@ use crate::{BinaryReader, FromReader, OperatorsReader, Result};
 use core::fmt;
 
 /// Represents an initialization expression.
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct ConstExpr<'a> {
     reader: BinaryReader<'a>,
 }

@@ -76,7 +76,7 @@ impl<'a> FromReader<'a> for ComponentTypeRef {
 }
 
 /// Represents an import in a WebAssembly component
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct ComponentImport<'a> {
     /// The name of the imported item.
     pub name: ComponentImportName<'a>,
@@ -110,7 +110,7 @@ impl<'a> FromReader<'a> for ComponentImport<'a> {
 pub type ComponentImportSectionReader<'a> = SectionLimited<'a, ComponentImport<'a>>;
 
 /// Represents the name of a component import.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[allow(missing_docs)]
 pub struct ComponentImportName<'a>(pub &'a str);
 

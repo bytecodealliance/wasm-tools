@@ -100,7 +100,7 @@ macro_rules! custom_keyword {
     ($name:ident = $kw:expr) => {
         #[allow(non_camel_case_types)]
         #[allow(missing_docs)]
-        #[derive(Debug, Copy, Clone)]
+        #[derive(Debug, Copy, Clone, Eq, PartialEq)]
         pub struct $name(#[allow(dead_code)] pub $crate::token::Span);
 
         impl<'a> $crate::parser::Parse<'a> for $name {

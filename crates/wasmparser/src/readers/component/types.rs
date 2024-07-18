@@ -14,7 +14,7 @@ pub enum OuterAliasKind {
 }
 
 /// Represents a core type in a WebAssembly component.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum CoreType<'a> {
     /// The type is for a core subtype.
     Sub(SubType),
@@ -44,7 +44,7 @@ impl<'a> FromReader<'a> for CoreType<'a> {
 }
 
 /// Represents a module type declaration in a WebAssembly component.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum ModuleTypeDeclaration<'a> {
     /// The module type definition is for a type.
     Type(SubType),
@@ -235,7 +235,7 @@ impl fmt::Display for PrimitiveValType {
 }
 
 /// Represents a type in a WebAssembly component.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum ComponentType<'a> {
     /// The type is a component defined type.
     Defined(ComponentDefinedType<'a>),
@@ -295,7 +295,7 @@ impl<'a> FromReader<'a> for ComponentType<'a> {
 }
 
 /// Represents part of a component type declaration in a WebAssembly component.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum ComponentTypeDeclaration<'a> {
     /// The component type declaration is for a core type.
     CoreType(CoreType<'a>),
@@ -336,7 +336,7 @@ impl<'a> FromReader<'a> for ComponentTypeDeclaration<'a> {
 }
 
 /// Represents an instance type declaration in a WebAssembly component.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum InstanceTypeDeclaration<'a> {
     /// The component type declaration is for a core type.
     CoreType(CoreType<'a>),
@@ -369,7 +369,7 @@ impl<'a> FromReader<'a> for InstanceTypeDeclaration<'a> {
 }
 
 /// Represents the result type of a component function.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum ComponentFuncResult<'a> {
     /// The function returns a singular, unnamed type.
     Unnamed(ComponentValType),
@@ -430,7 +430,7 @@ impl ComponentFuncResult<'_> {
 }
 
 /// Represents a type of a function in a WebAssembly component.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ComponentFuncType<'a> {
     /// The function parameters.
     pub params: Box<[(&'a str, ComponentValType)]>,

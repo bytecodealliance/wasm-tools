@@ -653,7 +653,7 @@ impl<'a> Parse<'a> for MemoryType {
 }
 
 /// A function type with parameters and results.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct FunctionType<'a> {
     /// The parameters of a function, optionally each having an identifier for
     /// name resolution and a name for the custom `name` section.
@@ -768,7 +768,7 @@ impl<'a> From<FunctionTypeNoNames<'a>> for FunctionType<'a> {
 }
 
 /// A struct type with fields.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StructType<'a> {
     /// The fields of the struct
     pub fields: Vec<StructField<'a>>,
@@ -797,7 +797,7 @@ impl<'a> Parse<'a> for StructType<'a> {
 }
 
 /// A field of a struct type.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StructField<'a> {
     /// An optional identifier for name resolution.
     pub id: Option<Id<'a>>,
@@ -824,7 +824,7 @@ impl<'a> StructField<'a> {
 }
 
 /// An array type with fields.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ArrayType<'a> {
     /// Whether this field may be mutated or not.
     pub mutable: bool,
@@ -868,7 +868,7 @@ impl<'a> Parse<'a> for ExportType<'a> {
 }
 
 /// The inner kind of a type definition.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum InnerTypeKind<'a> {
     /// A function type definition.
     Func(FunctionType<'a>),
@@ -897,7 +897,7 @@ impl<'a> Parse<'a> for InnerTypeKind<'a> {
 }
 
 /// A definition of a type.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct TypeDef<'a> {
     /// The inner definition.
     pub kind: InnerTypeKind<'a>,
@@ -925,7 +925,7 @@ impl<'a> Parse<'a> for TypeDef<'a> {
 }
 
 /// A type declaration in a module
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Type<'a> {
     /// Where this type was defined.
     pub span: Span,
@@ -1012,7 +1012,7 @@ impl<'a> Parse<'a> for Rec<'a> {
 }
 
 /// A reference to a type defined in this module.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TypeUse<'a, T> {
     /// The type that we're referencing, if it was present.
     pub index: Option<Index<'a>>,

@@ -9,7 +9,7 @@ use crate::token::LParen;
 use crate::token::{Id, NameAnnotation, Span};
 
 /// A core type declaration.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct CoreType<'a> {
     /// Where this type was defined.
     pub span: Span,
@@ -43,7 +43,7 @@ impl<'a> Parse<'a> for CoreType<'a> {
 ///
 /// In the future this may be removed when module types are a part of
 /// a core module.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum CoreTypeDef<'a> {
     /// The type definition is one of the core types.
     Def(core::TypeDef<'a>),
@@ -63,7 +63,7 @@ impl<'a> Parse<'a> for CoreTypeDef<'a> {
 }
 
 /// A type definition for a core module.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ModuleType<'a> {
     /// The declarations of the module type.
     pub decls: Vec<ModuleTypeDecl<'a>>,
@@ -79,7 +79,7 @@ impl<'a> Parse<'a> for ModuleType<'a> {
 }
 
 /// The declarations of a [`ModuleType`].
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum ModuleTypeDecl<'a> {
     /// A core type.
     Type(core::Type<'a>),
@@ -122,7 +122,7 @@ impl<'a> Parse<'a> for Vec<ModuleTypeDecl<'a>> {
 }
 
 /// A type declaration in a component.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Type<'a> {
     /// Where this type was defined.
     pub span: Span,
@@ -171,7 +171,7 @@ impl<'a> Type<'a> {
 }
 
 /// A definition of a component type.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum TypeDef<'a> {
     /// A defined value type.
     Defined(ComponentDefinedType<'a>),
@@ -319,7 +319,7 @@ impl Peek for PrimitiveValType {
 
 /// A component value type.
 #[allow(missing_docs)]
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum ComponentValType<'a> {
     /// The value type is an inline defined type.
     Inline(ComponentDefinedType<'a>),
@@ -371,7 +371,7 @@ impl<'a> Parse<'a> for InlineComponentValType<'a> {
 
 // A component defined type.
 #[allow(missing_docs)]
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum ComponentDefinedType<'a> {
     Primitive(PrimitiveValType),
     Record(Record<'a>),
@@ -453,7 +453,7 @@ impl Peek for ComponentDefinedType<'_> {
 }
 
 /// A record defined type.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Record<'a> {
     /// The fields of the record.
     pub fields: Vec<RecordField<'a>>,
@@ -471,7 +471,7 @@ impl<'a> Parse<'a> for Record<'a> {
 }
 
 /// A record type field.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct RecordField<'a> {
     /// The name of the field.
     pub name: &'a str,
@@ -490,7 +490,7 @@ impl<'a> Parse<'a> for RecordField<'a> {
 }
 
 /// A variant defined type.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Variant<'a> {
     /// The cases of the variant type.
     pub cases: Vec<VariantCase<'a>>,
@@ -508,7 +508,7 @@ impl<'a> Parse<'a> for Variant<'a> {
 }
 
 /// A case of a variant type.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct VariantCase<'a> {
     /// Where this `case` was defined
     pub span: Span,
@@ -545,7 +545,7 @@ impl<'a> Parse<'a> for VariantCase<'a> {
 }
 
 /// A refinement for a variant case.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Refinement<'a> {
     /// The refinement is referenced by index.
     Index(Span, Index<'a>),
@@ -565,7 +565,7 @@ impl<'a> Parse<'a> for Refinement<'a> {
 }
 
 /// A list type.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct List<'a> {
     /// The element type of the array.
     pub element: Box<ComponentValType<'a>>,
@@ -581,7 +581,7 @@ impl<'a> Parse<'a> for List<'a> {
 }
 
 /// A tuple type.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Tuple<'a> {
     /// The types of the fields of the tuple.
     pub fields: Vec<ComponentValType<'a>>,
@@ -599,7 +599,7 @@ impl<'a> Parse<'a> for Tuple<'a> {
 }
 
 /// A flags type.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Flags<'a> {
     /// The names of the individual flags.
     pub names: Vec<&'a str>,
@@ -617,7 +617,7 @@ impl<'a> Parse<'a> for Flags<'a> {
 }
 
 /// An enum type.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Enum<'a> {
     /// The tag names of the enum.
     pub names: Vec<&'a str>,
@@ -635,7 +635,7 @@ impl<'a> Parse<'a> for Enum<'a> {
 }
 
 /// An optional type.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct OptionType<'a> {
     /// The type of the value, when a value is present.
     pub element: Box<ComponentValType<'a>>,
@@ -651,7 +651,7 @@ impl<'a> Parse<'a> for OptionType<'a> {
 }
 
 /// A result type.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ResultType<'a> {
     /// The type on success.
     pub ok: Option<Box<ComponentValType<'a>>>,
@@ -681,7 +681,7 @@ impl<'a> Parse<'a> for ResultType<'a> {
 }
 
 /// A component function type with parameters and result.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ComponentFunctionType<'a> {
     /// The parameters of a function, optionally each having an identifier for
     /// name resolution and a name for the custom `name` section.
@@ -711,7 +711,7 @@ impl<'a> Parse<'a> for ComponentFunctionType<'a> {
 }
 
 /// A parameter of a [`ComponentFunctionType`].
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ComponentFunctionParam<'a> {
     /// The name of the parameter
     pub name: &'a str,
@@ -730,7 +730,7 @@ impl<'a> Parse<'a> for ComponentFunctionParam<'a> {
 }
 
 /// A result of a [`ComponentFunctionType`].
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ComponentFunctionResult<'a> {
     /// An optionally-specified name of this result
     pub name: Option<&'a str>,
@@ -749,7 +749,7 @@ impl<'a> Parse<'a> for ComponentFunctionResult<'a> {
 }
 
 /// The type of an exported item from an component or instance type.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ComponentExportType<'a> {
     /// Where this export was defined.
     pub span: Span,
@@ -776,7 +776,7 @@ impl<'a> Parse<'a> for ComponentExportType<'a> {
 }
 
 /// A type definition for a component type.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Eq, PartialEq)]
 pub struct ComponentType<'a> {
     /// The declarations of the component type.
     pub decls: Vec<ComponentTypeDecl<'a>>,
@@ -792,7 +792,7 @@ impl<'a> Parse<'a> for ComponentType<'a> {
 }
 
 /// A declaration of a component type.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum ComponentTypeDecl<'a> {
     /// A core type definition local to the component type.
     CoreType(CoreType<'a>),
@@ -836,7 +836,7 @@ impl<'a> Parse<'a> for Vec<ComponentTypeDecl<'a>> {
 }
 
 /// A type definition for an instance type.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct InstanceType<'a> {
     /// The declarations of the instance type.
     pub decls: Vec<InstanceTypeDecl<'a>>,
@@ -852,7 +852,7 @@ impl<'a> Parse<'a> for InstanceType<'a> {
 }
 
 /// A declaration of an instance type.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum InstanceTypeDecl<'a> {
     /// A core type definition local to the component type.
     CoreType(CoreType<'a>),
@@ -892,7 +892,7 @@ impl<'a> Parse<'a> for Vec<InstanceTypeDecl<'a>> {
 }
 
 /// A type definition for an instance type.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ResourceType<'a> {
     /// Representation, in core WebAssembly, of this resource.
     pub rep: core::ValType<'a>,
@@ -919,7 +919,7 @@ impl<'a> Parse<'a> for ResourceType<'a> {
 }
 
 /// A value type declaration used for values in import signatures.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ComponentValTypeUse<'a>(pub ComponentValType<'a>);
 
 impl<'a> Parse<'a> for ComponentValTypeUse<'a> {
@@ -935,7 +935,7 @@ impl<'a> Parse<'a> for ComponentValTypeUse<'a> {
 ///
 /// This is the same as `TypeUse`, but accepts `$T` as shorthand for
 /// `(type $T)`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum CoreTypeUse<'a, T> {
     /// The type that we're referencing.
     Ref(CoreItemRef<'a, kw::r#type>),
@@ -969,7 +969,7 @@ impl<T> Default for CoreTypeUse<'_, T> {
 ///
 /// This is the same as `TypeUse`, but accepts `$T` as shorthand for
 /// `(type $T)`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum ComponentTypeUse<'a, T> {
     /// The type that we're referencing.
     Ref(ItemRef<'a, kw::r#type>),

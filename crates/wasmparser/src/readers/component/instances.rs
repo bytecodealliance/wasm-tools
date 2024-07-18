@@ -13,7 +13,7 @@ pub enum InstantiationArgKind {
 }
 
 /// Represents an argument to instantiating a WebAssembly module.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct InstantiationArg<'a> {
     /// The name of the module argument.
     pub name: &'a str,
@@ -24,7 +24,7 @@ pub struct InstantiationArg<'a> {
 }
 
 /// Represents an instance of a WebAssembly module.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Instance<'a> {
     /// The instance is from instantiating a WebAssembly module.
     Instantiate {
@@ -91,7 +91,7 @@ impl<'a> FromReader<'a> for InstantiationArgKind {
 }
 
 /// Represents an argument to instantiating a WebAssembly component.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ComponentInstantiationArg<'a> {
     /// The name of the component argument.
     pub name: &'a str,
@@ -102,7 +102,7 @@ pub struct ComponentInstantiationArg<'a> {
 }
 
 /// Represents an instance in a WebAssembly component.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum ComponentInstance<'a> {
     /// The instance is from instantiating a WebAssembly component.
     Instantiate {

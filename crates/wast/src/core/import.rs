@@ -4,7 +4,7 @@ use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Id, NameAnnotation, Span};
 
 /// An `import` statement and entry in a WebAssembly module.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Import<'a> {
     /// Where this `import` was defined
     pub span: Span,
@@ -31,7 +31,7 @@ impl<'a> Parse<'a> for Import<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[allow(missing_docs)]
 pub struct ItemSig<'a> {
     /// Where this item is defined in the source.
@@ -46,7 +46,7 @@ pub struct ItemSig<'a> {
     pub kind: ItemKind<'a>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 #[allow(missing_docs)]
 pub enum ItemKind<'a> {
     Func(TypeUse<'a, FunctionType<'a>>),

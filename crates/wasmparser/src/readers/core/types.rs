@@ -1780,14 +1780,14 @@ pub struct GlobalType {
 }
 
 /// Represents a tag kind.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TagKind {
     /// The tag is an exception type.
     Exception,
 }
 
 /// A tag's type.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TagType {
     /// The kind of tag
     pub kind: TagKind,

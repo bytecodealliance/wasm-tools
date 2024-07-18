@@ -4,7 +4,7 @@ use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Id, Index, LParen, NameAnnotation, Span};
 
 /// An `import` statement and entry in a WebAssembly component.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ComponentImport<'a> {
     /// Where this `import` was defined
     pub span: Span,
@@ -24,7 +24,7 @@ impl<'a> Parse<'a> for ComponentImport<'a> {
 }
 
 /// The different ways an import can be named.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct ComponentExternName<'a>(pub &'a str);
 
 impl<'a> Parse<'a> for ComponentExternName<'a> {
@@ -48,7 +48,7 @@ impl<'a> Parse<'a> for ComponentExternName<'a> {
 }
 
 /// An item signature for imported items.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ItemSig<'a> {
     /// Where this item is defined in the source.
     pub span: Span,
@@ -69,7 +69,7 @@ impl<'a> Parse<'a> for ItemSig<'a> {
 }
 
 /// An item signature for imported items.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ItemSigNoName<'a>(pub ItemSig<'a>);
 
 impl<'a> Parse<'a> for ItemSigNoName<'a> {
@@ -113,7 +113,7 @@ fn parse_item_sig<'a>(parser: Parser<'a>, name: bool) -> Result<ItemSig<'a>> {
 }
 
 /// The kind of signatures for imported items.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum ItemSigKind<'a> {
     /// The item signature is for a core module.
     CoreModule(CoreTypeUse<'a, ModuleType<'a>>),
@@ -130,7 +130,7 @@ pub enum ItemSigKind<'a> {
 }
 
 /// Represents the bounds applied to types being imported.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum TypeBounds<'a> {
     /// The equality type bounds.
     Eq(Index<'a>),

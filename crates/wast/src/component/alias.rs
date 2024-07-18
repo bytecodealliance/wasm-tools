@@ -28,7 +28,7 @@ impl<'a, const CORE: bool> Parse<'a> for InlineExportAlias<'a, CORE> {
 }
 
 /// An alias to a component item.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Alias<'a> {
     /// Where this `alias` was defined.
     pub span: Span,
@@ -226,7 +226,7 @@ impl<'a> Parse<'a> for ComponentOuterAliasKind {
 }
 
 /// The target of a component alias.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum AliasTarget<'a> {
     /// The alias is to an export of a component instance.
     Export {

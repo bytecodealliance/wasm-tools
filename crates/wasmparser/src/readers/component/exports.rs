@@ -64,7 +64,7 @@ impl ComponentExternalKind {
 }
 
 /// Represents an export in a WebAssembly component.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ComponentExport<'a> {
     /// The name of the exported item.
     pub name: ComponentExportName<'a>,
@@ -115,7 +115,7 @@ impl<'a> FromReader<'a> for ComponentExternalKind {
 }
 
 /// Represents the name of a component export.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[allow(missing_docs)]
 pub struct ComponentExportName<'a>(pub &'a str);
 
