@@ -919,7 +919,7 @@ impl Printer<'_, '_> {
         // we need to be careful to terminate previous param blocks and open
         // a new one if that's the case with a named parameter.
         for (i, param) in ty.params().iter().enumerate() {
-            params.start_local(names_for.unwrap_or(u32::MAX), i as u32, self, state)?;
+            params.start_local(names_for, i as u32, self, state)?;
             self.print_valtype(state, *param)?;
             params.end_local(self)?;
         }
@@ -1335,7 +1335,7 @@ impl Printer<'_, '_> {
                     self.newline(offset)?;
                     first = false;
                 }
-                locals.start_local(func_idx, params + local_idx, self, state)?;
+                locals.start_local(Some(func_idx), params + local_idx, self, state)?;
                 self.print_valtype(state, ty)?;
                 locals.end_local(self)?;
                 local_idx += 1;
@@ -2914,12 +2914,16 @@ impl NamedLocalPrinter {
 
     fn start_local(
         &mut self,
-        func: u32,
+        func: Option<u32>,
         local: u32,
         dst: &mut Printer,
         state: &State,
     ) -> Result<()> {
-        let name = state.core.local_names.index_to_name.get(&(func, local));
+        let name = state
+            .core
+            .local_names
+            .index_to_name
+            .get(&(func.unwrap_or(u32::MAX), local));
 
         // Named locals must be in their own group, so if we have a name we need
         // to terminate the previous group.
@@ -2949,7 +2953,7 @@ impl NamedLocalPrinter {
                 dst.result.write_str(" ")?;
                 self.end_group_after_local = true;
             }
-            None if dst.config.name_unnamed => {
+            None if dst.config.name_unnamed && func.is_some() => {
                 write!(dst.result, "$#local{local} ")?;
                 self.end_group_after_local = true;
             }
