@@ -31,4 +31,11 @@
       )
     )
   )
+
+  (func $foo
+    unreachable
+    block (param i32 f32) (result i32 f32)
+      unreachable
+    end
+  )
 )

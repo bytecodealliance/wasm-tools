@@ -1,5 +1,6 @@
 (module
   (type $#type0 (;0;) (func))
+  (type $#type1 (;1;) (func (param i32 f32) (result i32 f32)))
   (func $#func0 (;0;) (type $#type0)
     block $a
       block $#label1
@@ -24,6 +25,12 @@
           br_table $a 1 2 3
         end
       end
+    end
+  )
+  (func $foo (;1;) (type $#type0)
+    unreachable
+    block $#label0 (type $#type1) (param i32 f32) (result i32 f32)
+      unreachable
     end
   )
 )
