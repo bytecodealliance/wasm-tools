@@ -531,7 +531,7 @@ impl Resolve {
             self.packages.len()
         );
 
-        let mut map = MergeMap::new(&resolve, &self)?;
+        let mut map = MergeMap::new(&resolve, &self);
         map.build()?;
         let MergeMap {
             package_map,
@@ -729,84 +729,44 @@ impl Resolve {
         let from_world = &self.worlds[from];
         let into_world = &self.worlds[into];
 
-        // Build a map of the imports/exports in `into` going the reverse
-        // direction from what's listed. This is then consulted below to ensure
-        // that the same item isn't exported or imported under two different
-        // names which isn't allowed in the component model.
-        let mut into_imports_by_id = HashMap::new();
-        let mut into_exports_by_id = HashMap::new();
-        for (name, import) in into_world.imports.iter() {
-            if let WorldItem::Interface { id, .. } = *import {
-                let prev = into_imports_by_id.insert(id, name);
-                assert!(prev.is_none());
-            }
-        }
-        for (name, export) in into_world.exports.iter() {
-            if let WorldItem::Interface { id, .. } = *export {
-                let prev = into_exports_by_id.insert(id, name);
-                assert!(prev.is_none());
-            }
-        }
-        for (name, import) in from_world.imports.iter() {
-            // If the "from" world imports an interface which is already
-            // imported by the "into" world then this is allowed if the names
-            // are the same. Importing the same interface under different names
-            // isn't allowed, but otherwise merging imports of
-            // same-named-interfaces is allowed to merge them together.
-            if let WorldItem::Interface { id, .. } = import {
-                if let Some(prev) = into_imports_by_id.get(id) {
-                    if *prev != name {
-                        let name = self.name_world_key(name);
-                        let prev = self.name_world_key(prev);
-                        bail!("import `{name}` conflicts with previous name of `{prev}`");
-                    }
-                }
-            }
-        }
-        for (name, export) in from_world.exports.iter() {
-            // Note that unlike imports same-named exports are not handled here
-            // since if something is exported twice there's no way to "unify" it
-            // so it's left as an error.
-            if let WorldItem::Interface { id, .. } = export {
-                if let Some(prev) = into_exports_by_id.get(id) {
-                    let name = self.name_world_key(name);
-                    let prev = self.name_world_key(prev);
-                    bail!("export `{name}` conflicts with previous name of `{prev}`");
-                }
-            }
-        }
-
-        // Next walk over the interfaces imported into `from_world` and queue up
-        // imports to get inserted into `into_world`.
+        // First walk over all the imports of `from` world and figure out what
+        // to do with them.
+        //
+        // If the same item exists in `from` and `into` then merge it together
+        // below with `merge_world_item` which basically asserts they're the
+        // same. Otherwise queue up a new import since if `from` has more
+        // imports than `into` then it's fine to add new imports.
         for (name, from_import) in from_world.imports.iter() {
             match into_world.imports.get(name) {
-                Some(into_import) => match (from_import, into_import) {
-                    // If these imports, which have the same name, are of the
-                    // same interface then union them together at this point.
-                    (
-                        WorldItem::Interface { id: from, .. },
-                        WorldItem::Interface { id: into, .. },
-                    ) if from == into => continue,
-                    _ => {
-                        let name = self.name_world_key(name);
-                        bail!("duplicate import found for interface `{name}`");
-                    }
-                },
-                None => new_imports.push((name.clone(), from_import.clone())),
+                Some(into_import) => {
+                    let name = self.name_world_key(name);
+                    self.merge_world_item(from_import, into_import)
+                        .with_context(|| format!("failed to merge world import {name}"))?;
+                }
+                None => {
+                    new_imports.push((name.clone(), from_import.clone()));
+                }
             }
         }
 
-        // All exports at this time must be unique. For example the same
-        // interface exported from two locations can't really be resolved to one
-        // canonical definition, so make sure that merging worlds only succeeds
-        // if the worlds have disjoint sets of exports.
-        for (name, export) in from_world.exports.iter() {
+        // Next walk over exports of `from` and process these similarly to
+        // imports.
+        for (name, from_export) in from_world.exports.iter() {
             match into_world.exports.get(name) {
-                Some(_) => {
+                Some(into_export) => {
                     let name = self.name_world_key(name);
-                    bail!("duplicate export found for interface `{name}`");
+                    self.merge_world_item(from_export, into_export)
+                        .with_context(|| format!("failed to merge world export {name}"))?;
                 }
-                None => new_exports.push((name.clone(), export.clone())),
+                None => {
+                    // See comments in `ensure_can_add_world_export` for why
+                    // this is slightly different than imports.
+                    self.ensure_can_add_world_export(into_world, name, from_export)
+                        .with_context(|| {
+                            format!("failed to add export `{}`", self.name_world_key(name))
+                        })?;
+                    new_exports.push((name.clone(), from_export.clone()));
+                }
             }
         }
 
@@ -819,6 +779,125 @@ impl Resolve {
         for (name, export) in new_exports {
             let prev = into.exports.insert(name, export);
             assert!(prev.is_none());
+        }
+
+        Ok(())
+    }
+
+    fn merge_world_item(&self, from: &WorldItem, into: &WorldItem) -> Result<()> {
+        let mut map = MergeMap::new(self, self);
+        match (from, into) {
+            (WorldItem::Interface { id: from, .. }, WorldItem::Interface { id: into, .. }) => {
+                // If these imports are the same that can happen, for
+                // example, when both worlds to `import foo:bar/baz;`. That
+                // foreign interface will point to the same interface within
+                // `Resolve`.
+                if from == into {
+                    return Ok(());
+                }
+
+                // .. otherwise this MUST be a case of
+                // `import foo: interface { ... }`. If `from != into` but
+                // both `from` and `into` have the same name then the
+                // `WorldKey::Interface` case is ruled out as otherwise
+                // they'd have different names.
+                //
+                // In the case of an anonymous interface all we can do is
+                // ensure that the interfaces both match, so use `MergeMap`
+                // for that.
+                map.build_interface(*from, *into)
+                    .context("failed to merge interfaces")?;
+            }
+
+            // Like `WorldKey::Name` interfaces for functions and types the
+            // structure is asserted to be the same.
+            (WorldItem::Function(from), WorldItem::Function(into)) => {
+                map.build_function(from, into)
+                    .context("failed to merge functions")?;
+            }
+            (WorldItem::Type(from), WorldItem::Type(into)) => {
+                map.build_type_id(*from, *into)
+                    .context("failed to merge types")?;
+            }
+
+            // Kind-level mismatches are caught here.
+            (WorldItem::Interface { .. }, _)
+            | (WorldItem::Function { .. }, _)
+            | (WorldItem::Type { .. }, _) => {
+                bail!("different kinds of items");
+            }
+        }
+        assert!(map.interfaces_to_add.is_empty());
+        assert!(map.worlds_to_add.is_empty());
+        Ok(())
+    }
+
+    /// This method ensures that the world export of `name` and `item` can be
+    /// added to the world `into` without changing the meaning of `into`.
+    ///
+    /// This is somewhat tricky due to how exports/imports are elaborated today
+    /// but the basic idea is that the transitive dependencies of an `export`
+    /// will be implicitly `import`ed if they're not otherwise listed as
+    /// exports. That means that if a transitive dependency of a preexisting
+    /// export is added as a new export it might change the meaning of an
+    /// existing import if it was otherwise already hooked up to an import.
+    ///
+    /// This method rules out this situation.
+    fn ensure_can_add_world_export(
+        &self,
+        into: &World,
+        name: &WorldKey,
+        item: &WorldItem,
+    ) -> Result<()> {
+        assert!(!into.exports.contains_key(name));
+        let interface = match name {
+            // Top-level exports always depend on imports, so these are always
+            // allowed to be added.
+            WorldKey::Name(_) => return Ok(()),
+
+            // This is the case we're worried about. Here if the key is an
+            // interface then the item must also be an interface.
+            WorldKey::Interface(key) => {
+                match item {
+                    WorldItem::Interface { id, .. } => assert_eq!(id, key),
+                    _ => unreachable!(),
+                }
+                *key
+            }
+        };
+
+        // For `interface` to be added as a new export of `into` then it must be
+        // the case that no previous export of `into` depends on `interface`.
+        // Test that by walking all interface exports and seeing if any types
+        // refer to this interface.
+        for (export_name, export) in into.exports.iter() {
+            let export_interface = match export_name {
+                WorldKey::Name(_) => continue,
+                WorldKey::Interface(key) => {
+                    match export {
+                        WorldItem::Interface { id, .. } => assert_eq!(id, key),
+                        _ => unreachable!(),
+                    }
+                    *key
+                }
+            };
+            assert!(export_interface != interface);
+            let iface = &self.interfaces[export_interface];
+            for (name, ty) in iface.types.iter() {
+                let other_ty = match self.types[*ty].kind {
+                    TypeDefKind::Type(Type::Id(ty)) => ty,
+                    _ => continue,
+                };
+                if self.types[other_ty].owner != TypeOwner::Interface(interface) {
+                    continue;
+                }
+
+                let export_name = self.name_world_key(export_name);
+                bail!(
+                    "export `{export_name}` has a type `{name}` which could \
+                     change meaning if this world export were added"
+                )
+            }
         }
 
         Ok(())
@@ -2483,8 +2562,8 @@ struct MergeMap<'a> {
 }
 
 impl<'a> MergeMap<'a> {
-    fn new(from: &'a Resolve, into: &'a Resolve) -> Result<MergeMap<'a>> {
-        Ok(MergeMap {
+    fn new(from: &'a Resolve, into: &'a Resolve) -> MergeMap<'a> {
+        MergeMap {
             package_map: Default::default(),
             interface_map: Default::default(),
             type_map: Default::default(),
@@ -2493,7 +2572,7 @@ impl<'a> MergeMap<'a> {
             worlds_to_add: Default::default(),
             from,
             into,
-        })
+        }
     }
 
     fn build(&mut self) -> Result<()> {
@@ -2592,21 +2671,90 @@ impl<'a> MergeMap<'a> {
             let prev = self.type_map.insert(*from_type_id, into_type_id);
             assert!(prev.is_none());
 
-            // FIXME: ideally the types should be "structurally
-            // equal" but that's not trivial to do in the face of
-            // resources.
+            self.build_type_id(*from_type_id, into_type_id)
+                .with_context(|| format!("mismatch in type `{name}`"))?;
         }
 
-        for (name, _) in from_interface.functions.iter() {
-            if !into_interface.functions.contains_key(name) {
-                bail!("expected function `{name}` to be present");
+        for (name, from_func) in from_interface.functions.iter() {
+            let into_func = match into_interface.functions.get(name) {
+                Some(func) => func,
+                None => bail!("expected function `{name}` to be present"),
+            };
+            self.build_function(from_func, into_func)
+                .with_context(|| format!("mismatch in function `{name}`"))?;
+        }
+
+        Ok(())
+    }
+
+    fn build_type_id(&mut self, from_id: TypeId, into_id: TypeId) -> Result<()> {
+        // FIXME: ideally the types should be "structurally
+        // equal" but that's not trivial to do in the face of
+        // resources.
+        let _ = from_id;
+        let _ = into_id;
+        Ok(())
+    }
+
+    fn build_type(&mut self, from_ty: &Type, into_ty: &Type) -> Result<()> {
+        match (from_ty, into_ty) {
+            (Type::Id(from), Type::Id(into)) => {
+                self.build_type_id(*from, *into)?;
             }
+            (from, into) if from != into => bail!("different kinds of types"),
+            _ => {}
+        }
+        Ok(())
+    }
 
-            // FIXME: ideally the functions should be "structurally
-            // equal" but that's not trivial to do in the face of
-            // resources.
+    fn build_function(&mut self, from_func: &Function, into_func: &Function) -> Result<()> {
+        if from_func.name != into_func.name {
+            bail!(
+                "different function names `{}` and `{}`",
+                from_func.name,
+                into_func.name
+            );
+        }
+        match (&from_func.kind, &into_func.kind) {
+            (FunctionKind::Freestanding, FunctionKind::Freestanding) => {}
+
+            (FunctionKind::Method(from), FunctionKind::Method(into))
+            | (FunctionKind::Constructor(from), FunctionKind::Constructor(into))
+            | (FunctionKind::Static(from), FunctionKind::Static(into)) => self
+                .build_type_id(*from, *into)
+                .context("different function kind types")?,
+
+            (FunctionKind::Method(_), _)
+            | (FunctionKind::Constructor(_), _)
+            | (FunctionKind::Static(_), _)
+            | (FunctionKind::Freestanding, _) => {
+                bail!("different function kind types")
+            }
         }
 
+        if from_func.params.len() != into_func.params.len() {
+            bail!("different number of function parameters");
+        }
+        for ((from_name, from_ty), (into_name, into_ty)) in
+            from_func.params.iter().zip(&into_func.params)
+        {
+            if from_name != into_name {
+                bail!("different function parameter names: {from_name} != {into_name}");
+            }
+            self.build_type(from_ty, into_ty)
+                .with_context(|| format!("different function parameter types for `{from_name}`"))?;
+        }
+        if from_func.results.len() != into_func.results.len() {
+            bail!("different number of function results");
+        }
+        for (from_ty, into_ty) in from_func
+            .results
+            .iter_types()
+            .zip(into_func.results.iter_types())
+        {
+            self.build_type(from_ty, into_ty)
+                .context("different function result types")?;
+        }
         Ok(())
     }
 
