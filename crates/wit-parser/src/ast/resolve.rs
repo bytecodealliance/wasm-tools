@@ -1376,19 +1376,54 @@ impl<'a> Resolver<'a> {
     fn stability(&mut self, attrs: &[ast::Attribute<'_>]) -> Result<Stability> {
         match attrs {
             [] => Ok(Stability::Unknown),
+
             [ast::Attribute::Since {
                 version, feature, ..
             }] => Ok(Stability::Stable {
                 since: version.clone(),
                 feature: feature.as_ref().map(|s| s.name.to_string()),
+                deprecated: None,
             }),
+
+            [ast::Attribute::Since {
+                version, feature, ..
+            }, ast::Attribute::Deprecated {
+                version: deprecated,
+                ..
+            }]
+            | [ast::Attribute::Deprecated {
+                version: deprecated,
+                ..
+            }, ast::Attribute::Since {
+                version, feature, ..
+            }] => Ok(Stability::Stable {
+                since: version.clone(),
+                feature: feature.as_ref().map(|s| s.name.to_string()),
+                deprecated: Some(deprecated.clone()),
+            }),
+
             [ast::Attribute::Unstable { feature, .. }] => Ok(Stability::Unstable {
                 feature: feature.name.to_string(),
+                deprecated: None,
             }),
+
+            [ast::Attribute::Unstable { feature, .. }, ast::Attribute::Deprecated { version, .. }]
+            | [ast::Attribute::Deprecated { version, .. }, ast::Attribute::Unstable { feature, .. }] => {
+                Ok(Stability::Unstable {
+                    feature: feature.name.to_string(),
+                    deprecated: Some(version.clone()),
+                })
+            }
+            [ast::Attribute::Deprecated { span, .. }] => {
+                bail!(Error::new(
+                    *span,
+                    "must pair @deprecated with either @since or @unstable",
+                ))
+            }
             [_, b, ..] => {
                 bail!(Error::new(
                     b.span(),
-                    "only one stability attribute is allowed per-item",
+                    "unsupported combination of attributes",
                 ))
             }
         }

@@ -27,7 +27,7 @@
       "imports": {
         "y": {
           "interface": {
-            "id": 5,
+            "id": 6,
             "stability": {
               "stable": {
                 "since": "1.0.0"
@@ -46,25 +46,25 @@
           }
         },
         "t1": {
-          "type": 9
-        },
-        "t2": {
-          "type": 10
-        },
-        "t3": {
           "type": 11
         },
-        "t4": {
+        "t2": {
           "type": 12
         },
-        "t5": {
+        "t3": {
           "type": 13
         },
-        "t6": {
+        "t4": {
           "type": 14
         },
-        "t7": {
+        "t5": {
           "type": 15
+        },
+        "t6": {
+          "type": 16
+        },
+        "t7": {
+          "type": 17
         },
         "x": {
           "function": {
@@ -83,12 +83,12 @@
           "function": {
             "name": "[constructor]t7",
             "kind": {
-              "constructor": 15
+              "constructor": 17
             },
             "params": [],
             "results": [
               {
-                "type": 17
+                "type": 19
               }
             ],
             "stability": {
@@ -115,7 +115,7 @@
         },
         "y": {
           "interface": {
-            "id": 6,
+            "id": 7,
             "stability": {
               "stable": {
                 "since": "1.0.0"
@@ -205,7 +205,7 @@
           "params": [],
           "results": [
             {
-              "type": 16
+              "type": 18
             }
           ],
           "stability": {
@@ -251,6 +251,15 @@
     {
       "name": "z",
       "types": {},
+      "functions": {},
+      "package": 0
+    },
+    {
+      "name": "deprecated1",
+      "types": {
+        "t1": 9,
+        "t2": 10
+      },
       "functions": {},
       "package": 0
     },
@@ -427,6 +436,36 @@
     {
       "name": "t1",
       "kind": {
+        "type": "u32"
+      },
+      "owner": {
+        "interface": 5
+      },
+      "stability": {
+        "stable": {
+          "since": "1.0.0",
+          "deprecated": "1.0.1"
+        }
+      }
+    },
+    {
+      "name": "t2",
+      "kind": {
+        "type": "u32"
+      },
+      "owner": {
+        "interface": 5
+      },
+      "stability": {
+        "stable": {
+          "since": "1.0.0",
+          "deprecated": "1.0.1"
+        }
+      }
+    },
+    {
+      "name": "t1",
+      "kind": {
         "record": {
           "fields": [
             {
@@ -557,7 +596,7 @@
       "name": null,
       "kind": {
         "handle": {
-          "own": 15
+          "own": 17
         }
       },
       "owner": null
@@ -571,7 +610,8 @@
         "foo2": 1,
         "foo3": 2,
         "in-an-interface": 3,
-        "z": 4
+        "z": 4,
+        "deprecated1": 5
       },
       "worlds": {
         "w1": 0,
