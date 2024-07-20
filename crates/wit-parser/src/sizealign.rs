@@ -70,6 +70,21 @@ impl AddAssign<ArchitectureSize> for ArchitectureSize {
     }
 }
 
+impl From<Alignment> for ArchitectureSize {
+    fn from(align: Alignment) -> Self {
+        match align {
+            Alignment::Bytes(bytes) => ArchitectureSize {
+                bytes: bytes.get(),
+                add_for_64bit: 0,
+            },
+            Alignment::Pointer => ArchitectureSize {
+                bytes: 4,
+                add_for_64bit: 4,
+            },
+        }
+    }
+}
+
 impl ArchitectureSize {
     fn max(&self, other: &Self) -> Self {
         let new_bytes = self.bytes.max(other.bytes);
@@ -105,21 +120,9 @@ pub struct ElementInfo {
 
 impl From<Alignment> for ElementInfo {
     fn from(align: Alignment) -> Self {
-        match align {
-            Alignment::Bytes(bytes) => ElementInfo {
-                size: ArchitectureSize {
-                    bytes: bytes.get(),
-                    add_for_64bit: 0,
-                },
-                align,
-            },
-            Alignment::Pointer => ElementInfo {
-                size: ArchitectureSize {
-                    bytes: 4,
-                    add_for_64bit: 4,
-                },
-                align,
-            },
+        ElementInfo {
+            size: align.into(),
+            align,
         }
     }
 }
