@@ -1,6 +1,6 @@
 use std::{
     num::{NonZero, NonZeroUsize},
-    ops::Add,
+    ops::{Add, AddAssign},
 };
 
 use crate::{FlagsRepr, Int, Resolve, Type, TypeDef, TypeDefKind};
@@ -60,6 +60,13 @@ impl Add<ArchitectureSize> for ArchitectureSize {
             bytes: self.bytes + rhs.bytes,
             add_for_64bit: self.add_for_64bit + rhs.add_for_64bit,
         }
+    }
+}
+
+impl AddAssign<ArchitectureSize> for ArchitectureSize {
+    fn add_assign(&mut self, rhs: ArchitectureSize) {
+        self.bytes += rhs.bytes;
+        self.add_for_64bit += rhs.add_for_64bit;
     }
 }
 
@@ -305,7 +312,7 @@ pub(crate) fn align_to(val: usize, align: usize) -> usize {
     (val + align - 1) & !(align - 1)
 }
 
-fn align_to_arch(val: ArchitectureSize, align: Alignment) -> ArchitectureSize {
+pub fn align_to_arch(val: ArchitectureSize, align: Alignment) -> ArchitectureSize {
     match align {
         Alignment::Pointer => {
             let new_bytes = align_to(val.bytes, 4);
