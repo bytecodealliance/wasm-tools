@@ -33,16 +33,16 @@ impl Ord for Alignment {
             (Alignment::Pointer, Alignment::Pointer) => std::cmp::Ordering::Equal,
             (Alignment::Pointer, Alignment::Bytes(b)) => {
                 if b.get() > 4 {
-                    std::cmp::Ordering::Greater
-                } else {
                     std::cmp::Ordering::Less
+                } else {
+                    std::cmp::Ordering::Greater
                 }
             }
             (Alignment::Bytes(b), Alignment::Pointer) => {
                 if b.get() > 4 {
-                    std::cmp::Ordering::Less
-                } else {
                     std::cmp::Ordering::Greater
+                } else {
+                    std::cmp::Ordering::Less
                 }
             }
             (Alignment::Bytes(a), Alignment::Bytes(b)) => a.cmp(b),
@@ -238,11 +238,11 @@ impl SizeAlign {
             TypeDefKind::Option(t) => self.variant(Int::U8, [Some(t)]),
             TypeDefKind::Result(r) => self.variant(Int::U8, [r.ok.as_ref(), r.err.as_ref()]),
             // A resource is represented as an index.
-            TypeDefKind::Handle(_) => int_size_align(Int::U32),
             // A future is represented as an index.
-            TypeDefKind::Future(_) => int_size_align(Int::U32),
             // A stream is represented as an index.
-            TypeDefKind::Stream(_) => int_size_align(Int::U32),
+            TypeDefKind::Handle(_) | TypeDefKind::Future(_) | TypeDefKind::Stream(_) => {
+                int_size_align(Int::U32)
+            }
             // This shouldn't be used for anything since raw resources aren't part of the ABI -- just handles to
             // them.
             TypeDefKind::Resource => ElementInfo::new(
