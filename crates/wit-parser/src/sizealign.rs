@@ -58,11 +58,18 @@ impl Alignment {
             Alignment::Bytes(bytes) => bytes.get(),
         }
     }
+
+    pub fn format(&self, ptrsize_expr: &str) -> String {
+        match self {
+            Alignment::Pointer => ptrsize_expr.into(),
+            Alignment::Bytes(bytes) => format!("{}", bytes.get()),
+        }
+    }
 }
 
 /// Architecture specific measurement of position,
 /// the combined amount in bytes is
-/// `bytes + if 4 < std::sizeof::<usize> { add_for_64bit } else { 0 }`
+/// `bytes + if 4 < core::mem::size_of::<*const u8>() { add_for_64bit } else { 0 }`
 #[derive(Default, Clone, Copy, Eq, PartialEq, Debug)]
 pub struct ArchitectureSize {
     /// exact value for 32-bit pointers
@@ -129,12 +136,12 @@ impl ArchitectureSize {
     }
 
     /// The effective offset/size is
-    /// `constant_bytes() + std::sizeof::<usize> * usize_to_add()`
+    /// `constant_bytes() + core::mem::size_of::<*const u8>() * pointers_to_add()`
     pub fn constant_bytes(&self) -> usize {
         self.bytes - self.add_for_64bit
     }
 
-    pub fn usize_to_add(&self) -> usize {
+    pub fn pointers_to_add(&self) -> usize {
         self.add_for_64bit / 4
     }
 
@@ -148,6 +155,7 @@ impl ArchitectureSize {
         self.bytes == 0
     }
 
+    // create a suitable expression in bytes from a pointer size argument
     pub fn format(&self, ptrsize_expr: &str) -> String {
         if self.add_for_64bit != 0 {
             if self.bytes > self.add_for_64bit {
@@ -155,11 +163,14 @@ impl ArchitectureSize {
                 format!(
                     "({}+{}*{ptrsize_expr})",
                     self.constant_bytes(),
-                    self.usize_to_add()
+                    self.pointers_to_add()
                 )
+            } else if self.add_for_64bit == 4 {
+                // one pointer
+                ptrsize_expr.into()
             } else {
                 // only pointer
-                format!("({}*{ptrsize_expr})", self.usize_to_add())
+                format!("({}*{ptrsize_expr})", self.pointers_to_add())
             }
         } else {
             // only bytes
@@ -240,7 +251,13 @@ impl SizeAlign {
             TypeDefKind::Stream(_) => int_size_align(Int::U32),
             // This shouldn't be used for anything since raw resources aren't part of the ABI -- just handles to
             // them.
-            TypeDefKind::Resource => unreachable!(),
+            TypeDefKind::Resource => ElementInfo {
+                size: ArchitectureSize {
+                    bytes: usize::MAX,
+                    add_for_64bit: usize::MAX,
+                },
+                align: Alignment::Bytes(NonZero::new(usize::MAX).unwrap()),
+            },
             TypeDefKind::Unknown => unreachable!(),
         }
     }
