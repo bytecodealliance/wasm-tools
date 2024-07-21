@@ -82,10 +82,10 @@ impl Add<ArchitectureSize> for ArchitectureSize {
     type Output = ArchitectureSize;
 
     fn add(self, rhs: ArchitectureSize) -> Self::Output {
-        ArchitectureSize {
-            bytes: self.bytes + rhs.bytes,
-            add_for_64bit: self.add_for_64bit + rhs.add_for_64bit,
-        }
+        ArchitectureSize::new(
+            self.bytes + rhs.bytes,
+            self.add_for_64bit + rhs.add_for_64bit,
+        )
     }
 }
 
@@ -99,14 +99,8 @@ impl AddAssign<ArchitectureSize> for ArchitectureSize {
 impl From<Alignment> for ArchitectureSize {
     fn from(align: Alignment) -> Self {
         match align {
-            Alignment::Bytes(bytes) => ArchitectureSize {
-                bytes: bytes.get(),
-                add_for_64bit: 0,
-            },
-            Alignment::Pointer => ArchitectureSize {
-                bytes: 4,
-                add_for_64bit: 4,
-            },
+            Alignment::Bytes(bytes) => ArchitectureSize::new(bytes.get(), 0),
+            Alignment::Pointer => ArchitectureSize::new(4, 4),
         }
     }
 }
@@ -118,21 +112,25 @@ impl std::fmt::Display for ArchitectureSize {
 }
 
 impl ArchitectureSize {
-    pub fn max<B: std::borrow::Borrow<Self>>(&self, other: B) -> Self {
-        let new_bytes = self.bytes.max(other.borrow().bytes);
+    pub fn new(bytes: usize, add_for_64bit: usize) -> Self {
         Self {
-            bytes: new_bytes,
-            add_for_64bit: (self.bytes + self.add_for_64bit)
-                .max(other.borrow().bytes + other.borrow().add_for_64bit)
-                - new_bytes,
+            bytes,
+            add_for_64bit,
         }
     }
 
+    pub fn max<B: std::borrow::Borrow<Self>>(&self, other: B) -> Self {
+        let new_bytes = self.bytes.max(other.borrow().bytes);
+        Self::new(
+            new_bytes,
+            (self.bytes + self.add_for_64bit)
+                .max(other.borrow().bytes + other.borrow().add_for_64bit)
+                - new_bytes,
+        )
+    }
+
     pub fn add_bytes(&self, b: usize) -> Self {
-        Self {
-            bytes: self.bytes + b,
-            add_for_64bit: self.add_for_64bit,
-        }
+        Self::new(self.bytes + b, self.add_for_64bit)
     }
 
     /// The effective offset/size is
@@ -195,6 +193,12 @@ impl From<Alignment> for ElementInfo {
     }
 }
 
+impl ElementInfo {
+    fn new(size: ArchitectureSize, align: Alignment) -> Self {
+        Self { size, align }
+    }
+}
+
 #[derive(Default)]
 pub struct SizeAlign {
     map: Vec<ElementInfo>,
@@ -215,29 +219,19 @@ impl SizeAlign {
 
     fn calculate(&self, ty: &TypeDef) -> ElementInfo {
         match &ty.kind {
-            TypeDefKind::Type(t) => ElementInfo {
-                size: self.size(t),
-                align: self.align(t),
-            },
-            TypeDefKind::List(_) => ElementInfo {
-                size: ArchitectureSize {
-                    bytes: 8,
-                    add_for_64bit: 8,
-                },
-                align: Alignment::Pointer,
-            },
+            TypeDefKind::Type(t) => ElementInfo::new(self.size(t), self.align(t)),
+            TypeDefKind::List(_) => {
+                ElementInfo::new(ArchitectureSize::new(8, 8), Alignment::Pointer)
+            }
             TypeDefKind::Record(r) => self.record(r.fields.iter().map(|f| &f.ty)),
             TypeDefKind::Tuple(t) => self.record(t.types.iter()),
             TypeDefKind::Flags(f) => match f.repr() {
                 FlagsRepr::U8 => int_size_align(Int::U8),
                 FlagsRepr::U16 => int_size_align(Int::U16),
-                FlagsRepr::U32(n) => ElementInfo {
-                    size: ArchitectureSize {
-                        bytes: n * 4,
-                        add_for_64bit: 0,
-                    },
-                    align: Alignment::Bytes(NonZero::new(4).unwrap()),
-                },
+                FlagsRepr::U32(n) => ElementInfo::new(
+                    ArchitectureSize::new(n * 4, 0),
+                    Alignment::Bytes(NonZero::new(4).unwrap()),
+                ),
             },
             TypeDefKind::Variant(v) => self.variant(v.tag(), v.cases.iter().map(|c| c.ty.as_ref())),
             TypeDefKind::Enum(e) => self.variant(e.tag(), []),
@@ -251,39 +245,21 @@ impl SizeAlign {
             TypeDefKind::Stream(_) => int_size_align(Int::U32),
             // This shouldn't be used for anything since raw resources aren't part of the ABI -- just handles to
             // them.
-            TypeDefKind::Resource => ElementInfo {
-                size: ArchitectureSize {
-                    bytes: usize::MAX,
-                    add_for_64bit: usize::MAX,
-                },
-                align: Alignment::Bytes(NonZero::new(usize::MAX).unwrap()),
-            },
+            TypeDefKind::Resource => ElementInfo::new(
+                ArchitectureSize::new(usize::MAX, usize::MAX),
+                Alignment::Bytes(NonZero::new(usize::MAX).unwrap()),
+            ),
             TypeDefKind::Unknown => unreachable!(),
         }
     }
 
     pub fn size(&self, ty: &Type) -> ArchitectureSize {
         match ty {
-            Type::Bool | Type::U8 | Type::S8 => ArchitectureSize {
-                bytes: 1,
-                add_for_64bit: 0,
-            },
-            Type::U16 | Type::S16 => ArchitectureSize {
-                bytes: 2,
-                add_for_64bit: 0,
-            },
-            Type::U32 | Type::S32 | Type::F32 | Type::Char => ArchitectureSize {
-                bytes: 4,
-                add_for_64bit: 0,
-            },
-            Type::U64 | Type::S64 | Type::F64 => ArchitectureSize {
-                bytes: 8,
-                add_for_64bit: 0,
-            },
-            Type::String => ArchitectureSize {
-                bytes: 8,
-                add_for_64bit: 8,
-            },
+            Type::Bool | Type::U8 | Type::S8 => ArchitectureSize::new(1, 0),
+            Type::U16 | Type::S16 => ArchitectureSize::new(2, 0),
+            Type::U32 | Type::S32 | Type::F32 | Type::Char => ArchitectureSize::new(4, 0),
+            Type::U64 | Type::S64 | Type::F64 => ArchitectureSize::new(8, 0),
+            Type::String => ArchitectureSize::new(8, 8),
             Type::Id(id) => self.map[id.index()].size,
         }
     }
@@ -340,10 +316,7 @@ impl SizeAlign {
             size = align_to_arch(size, field_align) + field_size;
             align = align.max(field_align);
         }
-        ElementInfo {
-            size: align_to_arch(size, align),
-            align,
-        }
+        ElementInfo::new(align_to_arch(size, align), align)
     }
 
     pub fn params<'a>(&self, types: impl IntoIterator<Item = &'a Type>) -> ElementInfo {
@@ -368,10 +341,10 @@ impl SizeAlign {
             }
         }
         let align = discrim_align.max(case_align);
-        ElementInfo {
-            size: align_to_arch(align_to_arch(discrim_size, case_align) + case_size, align),
+        ElementInfo::new(
+            align_to_arch(align_to_arch(discrim_size, case_align) + case_size, align),
             align,
-        }
+        )
     }
 }
 
@@ -394,25 +367,23 @@ pub fn align_to_arch(val: ArchitectureSize, align: Alignment) -> ArchitectureSiz
         Alignment::Pointer => {
             let new_bytes = align_to(val.bytes, 4);
             let unaligned64 = new_bytes + val.add_for_64bit;
-            ArchitectureSize {
-                bytes: new_bytes,
-                add_for_64bit:
-                    // increase if necessary for 64bit alignment
-                    val.add_for_64bit
+            ArchitectureSize::new(
+                new_bytes,
+                // increase if necessary for 64bit alignment
+                val.add_for_64bit
                     + if unaligned64 != align_to(unaligned64, 8) {
                         4
                     } else {
                         0
                     },
-            }
+            )
         }
         Alignment::Bytes(align_bytes) => {
             let new_bytes = align_to(val.bytes, align_bytes.get());
-            ArchitectureSize {
-                bytes: new_bytes,
-                add_for_64bit: align_to(val.bytes + val.add_for_64bit, align_bytes.get())
-                    - new_bytes,
-            }
+            ArchitectureSize::new(
+                new_bytes,
+                align_to(val.bytes + val.add_for_64bit, align_bytes.get()) - new_bytes,
+            )
         }
     }
 }
@@ -425,130 +396,63 @@ mod test {
     fn align() {
         // u8 + ptr
         assert_eq!(
-            align_to_arch(
-                ArchitectureSize {
-                    bytes: 1,
-                    add_for_64bit: 0
-                },
-                Alignment::Pointer
-            ),
-            ArchitectureSize {
-                bytes: 4,
-                add_for_64bit: 4
-            }
+            align_to_arch(ArchitectureSize::new(1, 0), Alignment::Pointer),
+            ArchitectureSize::new(4, 4)
         );
         // u8 + u64
         assert_eq!(
             align_to_arch(
-                ArchitectureSize {
-                    bytes: 1,
-                    add_for_64bit: 0
-                },
+                ArchitectureSize::new(1, 0),
                 Alignment::Bytes(NonZero::new(8).unwrap())
             ),
-            ArchitectureSize {
-                bytes: 8,
-                add_for_64bit: 0
-            }
+            ArchitectureSize::new(8, 0)
         );
         // u8 + u32
         assert_eq!(
             align_to_arch(
-                ArchitectureSize {
-                    bytes: 1,
-                    add_for_64bit: 0
-                },
+                ArchitectureSize::new(1, 0),
                 Alignment::Bytes(NonZero::new(4).unwrap())
             ),
-            ArchitectureSize {
-                bytes: 4,
-                add_for_64bit: 0
-            }
+            ArchitectureSize::new(4, 0)
         );
         // ptr + u64
         assert_eq!(
             align_to_arch(
-                ArchitectureSize {
-                    bytes: 4,
-                    add_for_64bit: 4
-                },
+                ArchitectureSize::new(4, 4),
                 Alignment::Bytes(NonZero::new(8).unwrap())
             ),
-            ArchitectureSize {
-                bytes: 8,
-                add_for_64bit: 0
-            }
+            ArchitectureSize::new(8, 0)
         );
         // u32 + ptr
         assert_eq!(
-            align_to_arch(
-                ArchitectureSize {
-                    bytes: 4,
-                    add_for_64bit: 0
-                },
-                Alignment::Pointer
-            ),
-            ArchitectureSize {
-                bytes: 4,
-                add_for_64bit: 4
-            }
+            align_to_arch(ArchitectureSize::new(4, 0), Alignment::Pointer),
+            ArchitectureSize::new(4, 4)
         );
         // u32, ptr + u64
         assert_eq!(
             align_to_arch(
-                ArchitectureSize {
-                    bytes: 8,
-                    add_for_64bit: 8
-                },
+                ArchitectureSize::new(8, 8),
                 Alignment::Bytes(NonZero::new(8).unwrap())
             ),
-            ArchitectureSize {
-                bytes: 8,
-                add_for_64bit: 8
-            }
+            ArchitectureSize::new(8, 8)
         );
         // ptr, u8 + u64
         assert_eq!(
             align_to_arch(
-                ArchitectureSize {
-                    bytes: 5,
-                    add_for_64bit: 4
-                },
+                ArchitectureSize::new(5, 4),
                 Alignment::Bytes(NonZero::new(8).unwrap())
             ),
-            ArchitectureSize {
-                bytes: 8,
-                add_for_64bit: 8
-            }
+            ArchitectureSize::new(8, 8)
         );
         // ptr, u8 + ptr
         assert_eq!(
-            align_to_arch(
-                ArchitectureSize {
-                    bytes: 5,
-                    add_for_64bit: 4
-                },
-                Alignment::Pointer
-            ),
-            ArchitectureSize {
-                bytes: 8,
-                add_for_64bit: 8
-            }
+            align_to_arch(ArchitectureSize::new(5, 4), Alignment::Pointer),
+            ArchitectureSize::new(8, 8)
         );
 
         assert_eq!(
-            ArchitectureSize {
-                bytes: 12,
-                add_for_64bit: 0
-            }
-            .max(&ArchitectureSize {
-                bytes: 8,
-                add_for_64bit: 8
-            }),
-            ArchitectureSize {
-                bytes: 12,
-                add_for_64bit: 4
-            }
+            ArchitectureSize::new(12, 0).max(&ArchitectureSize::new(8, 8)),
+            ArchitectureSize::new(12, 4)
         );
     }
 }
