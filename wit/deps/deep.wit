@@ -1,0 +1,7 @@
+package foo:deep;
+
+interface deepest {
+  record deep-record {
+    foo: string
+  }
+}

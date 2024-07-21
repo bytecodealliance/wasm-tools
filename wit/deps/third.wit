@@ -1,0 +1,11 @@
+package third:guy@1.0.0;
+
+interface things {
+  record animal {
+    foo: string
+  }
+}
+
+interface second {
+  type foo = string;
+}

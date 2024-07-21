@@ -111,12 +111,20 @@ pub struct UnresolvedPackage {
     world_spans: Vec<WorldSpan>,
     type_spans: Vec<Span>,
     foreign_dep_spans: Vec<Span>,
+    source_map: SourceMap,
     required_resource_types: Vec<(TypeId, Span)>,
+}
+
+impl UnresolvedPackage {
+    pub fn source_files(&self) -> impl Iterator<Item = &Path> {
+        self.source_map.source_files()
+    }
 }
 
 /// Tracks a set of packages, all pulled from the same group of WIT source files.
 #[derive(Default)]
 pub struct UnresolvedPackageGroup {
+    pub root: Option<UnresolvedPackage>,
     /// A set of packages that share source file(s).
     pub packages: Vec<UnresolvedPackage>,
 

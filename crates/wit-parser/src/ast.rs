@@ -15,9 +15,9 @@ pub mod toposort;
 
 pub use lex::validate_id;
 
-enum Ast<'a> {
-    ExplicitPackages(Vec<ExplicitPackage<'a>>),
-    PartialImplicitPackage(PartialImplicitPackage<'a>),
+struct Ast<'a> {
+    explicit: Vec<ExplicitPackage<'a>>,
+    implicit: Option<PartialImplicitPackage<'a>>,
 }
 
 pub struct ExplicitPackage<'a> {
@@ -65,6 +65,7 @@ pub struct PartialImplicitPackage<'a> {
 ///   /* END SECOND DECL LIST */
 /// }
 /// ```
+#[derive(Default)]
 pub struct DeclList<'a> {
     items: Vec<AstItem<'a>>,
 }
@@ -85,57 +86,147 @@ impl<'a> DeclList<'a> {
     fn parse_implicit_package_items(
         tokens: &mut Tokenizer<'a>,
         mut docs: Docs<'a>,
-    ) -> Result<DeclList<'a>> {
+        mut packages: Vec<ExplicitPackage<'a>>,
+        implicit_encountered: Option<&PackageName>,
+    ) -> Result<(DeclList<'a>, Vec<ExplicitPackage<'a>>)> {
         let mut items = Vec::new();
         while tokens.clone().next()?.is_some() {
-            items.push(AstItem::parse(tokens, docs)?);
-            docs = parse_docs(tokens)?;
+            if tokens.eat(Token::Package)? {
+                let package_id = PackageName::parse(tokens, &mut docs)?;
+                if let Some(implicit) = implicit_encountered {
+                    if implicit.package_name() == package_id.package_name() {
+                        bail!("Explicit package name already used by implicit package declaration: {}", implicit.package_name());
+                    }
+                }
+                if tokens.eat(Token::LeftBrace)? {
+                    packages.push(ExplicitPackage {
+                        package_id,
+                        decl_list: DeclList::parse_explicit_package_items(tokens)?,
+                    });
+                } else if tokens.eat(Token::Semicolon)? {
+                    if let (parsed, Some(encountered)) = (&package_id, implicit_encountered) {
+                        let parsed_name = parsed.package_name();
+                        let encountered_name = encountered.package_name();
+                        bail!(
+                            "Multiple implicit package declarations in one file: {} and {}",
+                            parsed_name,
+                            encountered_name
+                        );
+                    }
+                }
+            } else {
+                items.push(AstItem::parse(tokens, docs.clone())?);
+                docs = parse_docs(tokens)?;
+            }
         }
-        Ok(DeclList { items })
+        Ok((DeclList { items }, packages))
     }
 }
 
 impl<'a> Ast<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self> {
+    fn parse(
+        tokens: &mut Tokenizer<'a>,
+        mut packages: Vec<ExplicitPackage<'a>>,
+        implicit_encountered: Option<&PackageName>,
+    ) -> Result<Self> {
+        let mut decl_list = (DeclList::default(), Vec::new());
         let mut maybe_package_id = None;
-        let mut packages = Vec::new();
+        let mut implicit_present = true;
         let mut docs = parse_docs(tokens)?;
-        loop {
-            if tokens.clone().next()?.is_none() {
-                break;
-            }
-            if !tokens.eat(Token::Package)? {
-                if !packages.is_empty() {
-                    bail!("WIT files cannot mix top-level explicit `package` declarations with other declaration kinds");
+        if tokens.eat(Token::Package)? {
+            let mut first = true;
+            loop {
+                if tokens.clone().next()?.is_none() {
+                    break;
                 }
-                break;
+                if !first {
+                    tokens.eat(Token::Package)?;
+                    let package_id = PackageName::parse(tokens, &mut docs)?;
+                    if let Some(implicit) = implicit_encountered {
+                        if implicit.package_name() == package_id.package_name() {
+                            bail!("Explicit package name already used by implicit package declaration: {}", implicit.package_name());
+                        }
+                    }
+                    if tokens.eat(Token::LeftBrace)? {
+                        packages.push(ExplicitPackage {
+                            package_id: package_id,
+                            decl_list: DeclList::parse_explicit_package_items(tokens)?,
+                        });
+                    }
+                } else {
+                    let package_id = PackageName::parse(tokens, &mut docs)?;
+                    maybe_package_id = Some(package_id.clone());
+                    if tokens.eat(Token::Semicolon)? {
+                        if let (Some(parsed), Some(encountered)) =
+                            (&maybe_package_id, implicit_encountered)
+                        {
+                            let parsed_name = parsed.package_name();
+                            let encountered_name = encountered.package_name();
+                            if parsed_name != encountered_name {
+                                bail!(
+                          "Encountered conflicting implicit package identifiers: {} and {}",
+                          parsed_name,
+                          encountered_name
+                      );
+                            }
+                        }
+                        docs = parse_docs(tokens)?;
+                        decl_list = DeclList::parse_implicit_package_items(
+                            tokens,
+                            docs.clone(),
+                            std::mem::take(&mut packages),
+                            maybe_package_id.as_ref(),
+                        )?;
+                    } else {
+                        if let Some(implicit) = implicit_encountered {
+                            if implicit.package_name() == package_id.package_name() {
+                                bail!("Explicit package name already used by implicit package declaration: {}", implicit.package_name());
+                            }
+                        }
+                        if tokens.eat(Token::LeftBrace)? {
+                            packages.push(ExplicitPackage {
+                                package_id: package_id,
+                                decl_list: DeclList::parse_explicit_package_items(tokens)?,
+                            });
+                        }
+                        implicit_present = false;
+                        first = false;
+                    }
+                };
             }
-
-            let package_id = PackageName::parse(tokens, std::mem::take(&mut docs))?;
-            if tokens.eat(Token::LeftBrace)? {
-                packages.push(ExplicitPackage {
-                    package_id: package_id,
-                    decl_list: DeclList::parse_explicit_package_items(tokens)?,
-                });
-                docs = parse_docs(tokens)?;
-            } else {
-                maybe_package_id = Some(package_id);
-                tokens.expect_semicolon()?;
-                if !packages.is_empty() {
-                    bail!("WIT files cannot mix top-level explicit `package` declarations with other declaration kinds");
+        } else {
+            decl_list = DeclList::parse_implicit_package_items(
+                tokens,
+                docs,
+                std::mem::take(&mut packages),
+                implicit_encountered,
+            )?;
+            if let (Some(parsed), Some(encountered)) = (&maybe_package_id, implicit_encountered) {
+                let parsed_name = parsed.package_name();
+                let encountered_name = encountered.package_name();
+                if parsed_name != encountered_name {
+                    bail!(
+                        "Encountered conflicting implicit package identifiers: {} and {}",
+                        parsed_name,
+                        encountered_name
+                    );
                 }
-                docs = parse_docs(tokens)?;
-                break;
             }
         }
-
-        if packages.is_empty() {
-            return Ok(Ast::PartialImplicitPackage(PartialImplicitPackage {
-                package_id: maybe_package_id,
-                decl_list: DeclList::parse_implicit_package_items(tokens, docs)?,
-            }));
+        if implicit_present {
+            Ok(Self {
+                explicit: decl_list.1,
+                implicit: Some(PartialImplicitPackage {
+                    package_id: maybe_package_id,
+                    decl_list: decl_list.0,
+                }),
+            })
+        } else {
+            Ok(Self {
+                explicit: packages,
+                implicit: None,
+            })
         }
-        Ok(Ast::ExplicitPackages(packages))
     }
 }
 
@@ -252,13 +343,13 @@ struct PackageName<'a> {
 }
 
 impl<'a> PackageName<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>, docs: Docs<'a>) -> Result<Self> {
+    fn parse(tokens: &mut Tokenizer<'a>, docs: &mut Docs<'a>) -> Result<Self> {
         let namespace = parse_id(tokens)?;
         tokens.expect(Token::Colon)?;
         let name = parse_id(tokens)?;
         let version = parse_opt_version(tokens)?;
         Ok(PackageName {
-            docs,
+            docs: docs.clone(),
             span: Span {
                 start: namespace.span.start,
                 end: version
@@ -1596,8 +1687,8 @@ fn parse_package(
     unparsed_pkgs: Vec<ExplicitPackage>,
     src: &Source,
     explicit_pkg_names: &mut HashSet<crate::PackageName>,
-    parsed_pkgs: &mut Vec<UnresolvedPackage>,
-) -> Result<()> {
+) -> Result<Option<UnresolvedPackage>> {
+    let mut implicit = None;
     for pkg in unparsed_pkgs {
         let mut resolver = Resolver::default();
         let pkg_name = pkg.package_id.package_name();
@@ -1613,11 +1704,9 @@ fn parse_package(
             None => explicit_pkg_names.insert(pkg_name),
         };
 
-        if let Some(unresolved) = ingested {
-            parsed_pkgs.push(unresolved);
-        }
+        implicit = Some(ingested);
     }
-    Ok(())
+    Ok(implicit)
 }
 
 impl SourceMap {
@@ -1671,11 +1760,14 @@ impl SourceMap {
 
     /// Parses the files added to this source map into one or more [`UnresolvedPackage`]s.
     pub fn parse(self) -> Result<UnresolvedPackageGroup> {
-        let mut resolver_kind = ResolverKind::Unknown;
-        let parsed_pkgs = self.rewrite_error(|| {
+        let mut implicit = None;
+        let mut packages = Vec::new();
+        self.rewrite_error(|| {
+            let resolver = &mut Resolver::default();
             let mut explicit_pkg_names: HashSet<crate::PackageName> = HashSet::new();
             let mut srcs = self.sources.iter().collect::<Vec<_>>();
             srcs.sort_by_key(|src| &src.path);
+            let mut implicit_encountered: Option<PackageName> = None;
             for src in srcs {
                 let mut tokens = Tokenizer::new(
                     // chop off the forcibly appended `\n` character when
@@ -1686,54 +1778,29 @@ impl SourceMap {
                     self.require_f32_f64,
                 )
                 .with_context(|| format!("failed to tokenize path: {}", src.path.display()))?;
-
-                match Ast::parse(&mut tokens)? {
-                    Ast::ExplicitPackages(pkgs) => {
-                        match &mut resolver_kind {
-                            ResolverKind::Unknown => {
-                                let mut parsed_pkgs = Vec::new();
-                                parse_package(pkgs, src, &mut explicit_pkg_names, &mut parsed_pkgs)?;
-                                resolver_kind = ResolverKind::Explicit(parsed_pkgs);
-                            },
-                            ResolverKind::Explicit(parsed_pkgs) => {
-                                parse_package(pkgs, src, &mut explicit_pkg_names, parsed_pkgs)?;
-                            },
-                            ResolverKind::PartialImplicit(_) => bail!("WIT files cannot mix top-level explicit `package` declarations with other declaration kinds"),
-                        }
-                    }
-                    Ast::PartialImplicitPackage(partial) => {
-                        match &mut resolver_kind {
-                            ResolverKind::Unknown => {
-                                let mut resolver = Resolver::default();
-                                resolver.push_partial(partial).with_context(|| {
-                                    format!("failed to start resolving path: {}", src.path.display())
-                                })?;
-                                resolver_kind = ResolverKind::PartialImplicit(resolver);
-                            },
-                            ResolverKind::Explicit(_) => bail!("WIT files cannot mix top-level explicit `package` declarations with other declaration kinds"),
-                            ResolverKind::PartialImplicit(resolver) => {
-                                resolver.push_partial(partial).with_context(|| {
-                                    format!("failed to start resolving path: {}", src.path.display())
-                                })?;
-                            }
-                        }
-                    }
+                let ast = Ast::parse(
+                    &mut tokens,
+                    std::mem::take(&mut packages),
+                    implicit_encountered.as_ref(),
+                )?;
+                if let Some(implicit) = ast.implicit {
+                    resolver.push_partial(implicit).with_context(|| {
+                        format!("failed to start resolving path: {}", src.path.display())
+                    })?;
                 }
+                if let Some(parsed) = parse_package(ast.explicit, src, &mut explicit_pkg_names)? {
+                    implicit = Some(parsed);
+                }
+                implicit_encountered = None;
             }
-
-            match resolver_kind {
-                ResolverKind::Unknown => bail!("No WIT packages found in the supplied source"),
-                ResolverKind::Explicit(pkgs) => Ok(pkgs),
-                ResolverKind::PartialImplicit(mut resolver) => match resolver.resolve()? {
-                    Some(pkg) => Ok(vec![pkg]),
-                    None => bail!("No WIT packages found in the supplied source"),
-                },
-            }
+            let pkg = resolver.resolve()?;
+            implicit = Some(pkg.clone());
+            Ok(pkg)
         })?;
-
         Ok(UnresolvedPackageGroup {
-            packages: parsed_pkgs,
-            source_map: self,
+            root: implicit,
+            packages: vec![],
+            source_map: SourceMap::default(),
         })
     }
 
@@ -1745,11 +1812,7 @@ impl SourceMap {
             Ok(t) => return Ok(t),
             Err(e) => e,
         };
-        if let Some(parse) = err.downcast_mut::<Error>() {
-            if parse.highlighted.is_none() {
-                let msg = self.highlight_err(parse.span.start, Some(parse.span.end), &parse.msg);
-                parse.highlighted = Some(msg);
-            }
+        if let Some(_) = err.downcast_mut::<Error>() {
             return Err(err);
         }
 

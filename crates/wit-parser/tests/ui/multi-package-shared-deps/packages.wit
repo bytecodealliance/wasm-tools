@@ -1,3 +1,4 @@
+package foo:root;
 package foo:bar {
   world w-bar {
     import foo:dep1/types;

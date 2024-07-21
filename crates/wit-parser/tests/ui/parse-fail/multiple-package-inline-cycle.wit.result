@@ -1,5 +1,1 @@
-package depends on itself
-     --> tests/ui/parse-fail/multiple-package-inline-cycle.wit:3:9
-      |
-    3 |     use foo:qux/i.{};
-      |         ^------
+no `package` header was found in any WIT file for this package

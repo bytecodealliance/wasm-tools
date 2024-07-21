@@ -2,7 +2,6 @@ use crate::*;
 use anyhow::{anyhow, bail};
 use indexmap::IndexSet;
 use std::mem;
-use std::slice;
 use std::{collections::HashMap, io::Read};
 use wasmparser::Chunk;
 use wasmparser::{
@@ -350,7 +349,7 @@ pub enum DecodedWasm {
     /// The full resolve graph is here plus the identifier of the packages that
     /// were encoded. Note that other packages may be within the resolve if any
     /// of the main packages refer to other, foreign packages.
-    WitPackages(Resolve, Vec<PackageId>),
+    WitPackages(Resolve, PackageId),
 
     /// The input to [`decode`] was a component and its interface is specified
     /// by the world here.
@@ -367,12 +366,10 @@ impl DecodedWasm {
     }
 
     /// Returns the main packages of what was decoded.
-    pub fn packages(&self) -> &[PackageId] {
+    pub fn package(&self) -> PackageId {
         match self {
-            DecodedWasm::WitPackages(_, ids) => ids,
-            DecodedWasm::Component(resolve, world) => {
-                slice::from_ref(&resolve.worlds[*world].package.as_ref().unwrap())
-            }
+            DecodedWasm::WitPackages(_, id) => *id,
+            DecodedWasm::Component(resolve, world) => resolve.worlds[*world].package.unwrap(),
         }
     }
 }
@@ -386,12 +383,12 @@ pub fn decode_reader(reader: impl Read) -> Result<DecodedWasm> {
             WitEncodingVersion::V1 => {
                 log::debug!("decoding a v1 WIT package encoded as wasm");
                 let (resolve, pkg) = info.decode_wit_v1_package()?;
-                Ok(DecodedWasm::WitPackages(resolve, vec![pkg]))
+                Ok(DecodedWasm::WitPackages(resolve, pkg))
             }
             WitEncodingVersion::V2 => {
                 log::debug!("decoding a v2 WIT package encoded as wasm");
                 let (resolve, pkg) = info.decode_wit_v2_package()?;
-                Ok(DecodedWasm::WitPackages(resolve, vec![pkg]))
+                Ok(DecodedWasm::WitPackages(resolve, pkg))
             }
         }
     } else {

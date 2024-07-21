@@ -239,7 +239,7 @@ impl OutputArg {
                     .iter()
                     .map(|(id, _)| id)
                     .collect::<Vec<_>>();
-                let output = printer.print(resolve, &ids, false)?;
+                let output = printer.print(resolve, &ids)?;
                 self.output_str(&output)
             }
         }

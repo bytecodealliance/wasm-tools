@@ -144,14 +144,11 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
-    pub(crate) fn resolve(&mut self) -> Result<Option<UnresolvedPackage>> {
+    pub(crate) fn resolve(&mut self) -> Result<UnresolvedPackage> {
         // At least one of the WIT files must have a `package` annotation.
         let name = match &self.package_name {
             Some(name) => name.clone(),
             None => {
-                if self.decl_lists.is_empty() {
-                    return Ok(None);
-                }
                 bail!("no `package` header was found in any WIT file for this package")
             }
         };
@@ -204,7 +201,7 @@ impl<'a> Resolver<'a> {
             self.resolve_world(id, world)?;
         }
 
-        Ok(Some(UnresolvedPackage {
+        Ok(UnresolvedPackage {
             name,
             docs: mem::take(&mut self.package_docs),
             worlds: mem::take(&mut self.worlds),
@@ -227,14 +224,15 @@ impl<'a> Resolver<'a> {
             world_spans: mem::take(&mut self.world_spans),
             type_spans: mem::take(&mut self.type_spans),
             foreign_dep_spans: mem::take(&mut self.foreign_dep_spans),
+            source_map: SourceMap::default(),
             required_resource_types: mem::take(&mut self.required_resource_types),
-        }))
+        })
     }
 
     pub(crate) fn push_then_resolve(
         &mut self,
         package: ast::ExplicitPackage<'a>,
-    ) -> Result<Option<UnresolvedPackage>> {
+    ) -> Result<UnresolvedPackage> {
         self.package_name = Some(package.package_id.package_name());
         self.docs(&package.package_id.docs);
         self.decl_lists = vec![package.decl_list];
