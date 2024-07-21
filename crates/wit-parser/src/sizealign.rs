@@ -50,6 +50,16 @@ impl Ord for Alignment {
     }
 }
 
+impl Alignment {
+    /// for easy migration this gives you the value for wasm32
+    pub fn align_wasm32(&self) -> usize {
+        match self {
+            Alignment::Pointer => 4,
+            Alignment::Bytes(bytes) => bytes.get(),
+        }
+    }
+}
+
 /// Architecture specific measurement of position,
 /// the combined amount in bytes is
 /// `bytes + if 4 < std::sizeof::<usize> { add_for_64bit } else { 0 }`
@@ -116,11 +126,12 @@ impl std::fmt::Display for ArchitectureSize {
 }
 
 impl ArchitectureSize {
-    fn max(&self, other: &Self) -> Self {
-        let new_bytes = self.bytes.max(other.bytes);
+    pub fn max<B: std::borrow::Borrow<Self>>(&self, other: B) -> Self {
+        let new_bytes = self.bytes.max(other.borrow().bytes);
         Self {
             bytes: new_bytes,
-            add_for_64bit: (self.bytes + self.add_for_64bit).max(other.bytes + other.add_for_64bit)
+            add_for_64bit: (self.bytes + self.add_for_64bit)
+                .max(other.borrow().bytes + other.borrow().add_for_64bit)
                 - new_bytes,
         }
     }
@@ -145,6 +156,11 @@ impl ArchitectureSize {
     /// Shortcut for compatibility with previous versions
     pub fn size_wasm32(&self) -> usize {
         self.bytes
+    }
+
+    /// prefer this over >0
+    pub fn is_empty(&self) -> bool {
+        self.bytes == 0
     }
 }
 
