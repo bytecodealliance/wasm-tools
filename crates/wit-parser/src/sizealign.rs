@@ -95,6 +95,13 @@ impl ArchitectureSize {
         }
     }
 
+    pub fn add_bytes(&self, b: usize) -> Self {
+        Self {
+            bytes: self.bytes + b,
+            add_for_64bit: self.add_for_64bit,
+        }
+    }
+
     /// The effective offset/size is
     /// `constant_bytes() + std::sizeof::<usize> * usize_to_add()`
     pub fn constant_bytes(&self) -> usize {
