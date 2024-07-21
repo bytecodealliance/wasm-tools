@@ -39,6 +39,10 @@ impl Package {
         self.items.push(PackageItem::World(world))
     }
 
+    pub fn item(&mut self, item: impl Into<PackageItem>) {
+        self.items.push(item.into());
+    }
+
     pub fn items(&self) -> &[PackageItem] {
         &self.items
     }

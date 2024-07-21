@@ -41,8 +41,20 @@ impl Field {
         }
     }
 
-    pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
+    pub fn name(&mut self) -> &Ident {
+        &self.name
+    }
+
+    pub fn set_name(&mut self, name: impl Into<Ident>) {
+        self.name = name.into();
+    }
+
+    pub fn set_docs(&mut self, docs: Option<impl Into<Docs>>) {
         self.docs = docs.map(|d| d.into());
+    }
+
+    pub fn docs(&self) -> &Option<Docs> {
+        &self.docs
     }
 
     pub fn ty(&self) -> &Type {
@@ -70,7 +82,7 @@ where
 {
     fn into(self) -> Field {
         let mut field = Field::new(self.0, self.1);
-        field.docs(Some(self.2.into()));
+        field.set_docs(Some(self.2.into()));
         field
     }
 }
