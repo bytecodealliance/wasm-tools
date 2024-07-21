@@ -106,22 +106,7 @@ impl From<Alignment> for ArchitectureSize {
 
 impl std::fmt::Display for ArchitectureSize {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.add_for_64bit != 0 {
-            if self.bytes > self.add_for_64bit {
-                // both
-                f.write_fmt(format_args!(
-                    "{}+{}*ptrsz",
-                    self.constant_bytes(),
-                    self.usize_to_add()
-                ))
-            } else {
-                // only pointer
-                f.write_fmt(format_args!("{}*ptrsz", self.usize_to_add()))
-            }
-        } else {
-            // only bytes
-            f.write_fmt(format_args!("{}", self.constant_bytes()))
-        }
+        f.write_str(&self.format("ptrsz"))
     }
 }
 
@@ -161,6 +146,25 @@ impl ArchitectureSize {
     /// prefer this over >0
     pub fn is_empty(&self) -> bool {
         self.bytes == 0
+    }
+
+    pub fn format(&self, ptrsize_expr: &str) -> String {
+        if self.add_for_64bit != 0 {
+            if self.bytes > self.add_for_64bit {
+                // both
+                format!(
+                    "({}+{}*{ptrsize_expr})",
+                    self.constant_bytes(),
+                    self.usize_to_add()
+                )
+            } else {
+                // only pointer
+                format!("({}*{ptrsize_expr})", self.usize_to_add())
+            }
+        } else {
+            // only bytes
+            format!("{}", self.constant_bytes())
+        }
     }
 }
 
