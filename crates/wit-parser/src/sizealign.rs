@@ -18,6 +18,15 @@ impl Default for Alignment {
     }
 }
 
+impl std::fmt::Display for Alignment {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Alignment::Pointer => f.write_str("ptr"),
+            Alignment::Bytes(b) => f.write_fmt(format_args!("{}", b.get())),
+        }
+    }
+}
+
 impl Ord for Alignment {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         match (self, other) {
@@ -81,6 +90,27 @@ impl From<Alignment> for ArchitectureSize {
                 bytes: 4,
                 add_for_64bit: 4,
             },
+        }
+    }
+}
+
+impl std::fmt::Display for ArchitectureSize {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.add_for_64bit != 0 {
+            if self.bytes > self.add_for_64bit {
+                // both
+                f.write_fmt(format_args!(
+                    "{}+{}*ptrsz",
+                    self.constant_bytes(),
+                    self.usize_to_add()
+                ))
+            } else {
+                // only pointer
+                f.write_fmt(format_args!("{}*ptrsz", self.usize_to_add()))
+            }
+        } else {
+            // only bytes
+            f.write_fmt(format_args!("{}", self.constant_bytes()))
         }
     }
 }
