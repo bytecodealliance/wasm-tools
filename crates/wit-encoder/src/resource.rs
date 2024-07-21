@@ -96,7 +96,7 @@ impl ResourceFunc {
         &mut self.params
     }
 
-    pub fn results(&mut self, results: impl Into<Results>) {
+    pub fn set_results(&mut self, results: impl Into<Results>) {
         match &self.kind {
             ResourceFuncKind::Method(name, _) => {
                 self.kind = ResourceFuncKind::Method(name.clone(), results.into())

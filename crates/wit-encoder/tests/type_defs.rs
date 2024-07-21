@@ -232,7 +232,7 @@ fn types() {
                 },
                 {
                     let mut func = ResourceFunc::method("get-a");
-                    func.results(Results::anon(Type::U32));
+                    func.set_results(Results::anon(Type::U32));
                     func.set_docs(Some("get a"));
                     func
                 },
