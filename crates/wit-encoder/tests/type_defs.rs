@@ -125,7 +125,7 @@ fn types() {
     let mut package = wit_encoder::Package::new(name);
     package.interface({
         let mut interface = wit_encoder::Interface::new("type-defs");
-        interface.docs(Some("interface documentation"));
+        interface.set_docs(Some("interface documentation"));
         interface.type_def(TypeDef::type_("t1", Type::U8));
         interface.type_def(TypeDef::type_("t2", Type::U16));
         interface.type_def(TypeDef::type_("t3", Type::U32));
@@ -150,7 +150,7 @@ fn types() {
         interface.type_def(TypeDef::type_("t17", Type::result(Result_::ok(Type::U32))));
         interface.type_def({
             let mut type_ = TypeDef::type_("t18", Type::result(Result_::empty()));
-            type_.docs(Some("this is a documentation comment"));
+            type_.set_docs(Some("this is a documentation comment"));
             type_
         });
 
@@ -220,25 +220,25 @@ fn types() {
             [
                 {
                     let mut func = ResourceFunc::constructor();
-                    func.params(Params::from_iter([("a", Type::U32)]));
-                    func.docs(Some("create a new t51"));
+                    func.set_params(Params::from_iter([("a", Type::U32)]));
+                    func.set_docs(Some("create a new t51"));
                     func
                 },
                 {
                     let mut func = ResourceFunc::method("set-a");
-                    func.params(Params::from_iter([("a", Type::U32)]));
-                    func.docs(Some("set a"));
+                    func.set_params(Params::from_iter([("a", Type::U32)]));
+                    func.set_docs(Some("set a"));
                     func
                 },
                 {
                     let mut func = ResourceFunc::method("get-a");
-                    func.results(Results::anon(Type::U32));
-                    func.docs(Some("get a"));
+                    func.set_results(Results::anon(Type::U32));
+                    func.set_docs(Some("get a"));
                     func
                 },
                 {
                     let mut func = ResourceFunc::static_("b");
-                    func.docs(Some("do b"));
+                    func.set_docs(Some("do b"));
                     func
                 },
             ],

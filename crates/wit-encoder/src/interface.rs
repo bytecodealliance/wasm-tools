@@ -41,6 +41,10 @@ impl Interface {
         self.items.push(InterfaceItem::Use(use_));
     }
 
+    pub fn item(&mut self, item: impl Into<InterfaceItem>) {
+        self.items.push(item.into());
+    }
+
     pub fn items(&self) -> &[InterfaceItem] {
         &self.items
     }
@@ -50,8 +54,12 @@ impl Interface {
     }
 
     /// Set the documentation of this interface.
-    pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
+    pub fn set_docs(&mut self, docs: Option<impl Into<Docs>>) {
         self.docs = docs.map(|d| d.into());
+    }
+
+    pub fn docs(&self) -> &Option<Docs> {
+        &self.docs
     }
 }
 

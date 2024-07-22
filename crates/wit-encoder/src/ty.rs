@@ -129,6 +129,7 @@ impl VariantCase {
             docs: None,
         }
     }
+
     pub fn value(name: impl Into<Ident>, ty: Type) -> Self {
         Self {
             name: name.into(),
@@ -136,16 +137,21 @@ impl VariantCase {
             docs: None,
         }
     }
-    pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
-        self.docs = docs.map(|d| d.into());
-    }
 
-    pub fn ty(&self) -> Option<&Type> {
+    pub fn type_(&self) -> Option<&Type> {
         self.ty.as_ref()
     }
 
-    pub fn ty_mut(&mut self) -> &mut Option<Type> {
+    pub fn type_mut(&mut self) -> &mut Option<Type> {
         &mut self.ty
+    }
+
+    pub fn set_docs(&mut self, docs: Option<impl Into<Docs>>) {
+        self.docs = docs.map(|d| d.into());
+    }
+
+    pub fn docs(&self) -> &Option<Docs> {
+        &self.docs
     }
 }
 
@@ -174,7 +180,7 @@ where
 {
     fn into(self) -> VariantCase {
         let mut field = VariantCase::value(self.0, self.1);
-        field.docs(Some(self.2.into()));
+        field.set_docs(Some(self.2.into()));
         field
     }
 }
@@ -273,7 +279,7 @@ impl TypeDef {
         &mut self.kind
     }
 
-    pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
+    pub fn set_docs(&mut self, docs: Option<impl Into<Docs>>) {
         self.docs = docs.map(|d| d.into());
     }
 }

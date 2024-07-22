@@ -53,6 +53,10 @@ impl Params {
         self.items.push((name.into(), ty));
     }
 
+    pub fn item(&mut self, name: impl Into<Ident>, item: impl Into<Type>) {
+        self.items.push((name.into(), item.into()));
+    }
+
     pub fn items(&self) -> &Vec<(Ident, Type)> {
         &self.items
     }
@@ -164,6 +168,10 @@ impl StandaloneFunc {
         }
     }
 
+    pub fn set_name(&self) -> &Ident {
+        &self.name
+    }
+
     pub fn name(&self) -> &Ident {
         &self.name
     }
@@ -172,15 +180,23 @@ impl StandaloneFunc {
         &mut self.name
     }
 
-    pub fn params(&mut self, params: impl Into<Params>) {
+    pub fn set_params(&mut self, params: impl Into<Params>) {
         self.params = params.into();
+    }
+
+    pub fn params(&self) -> &Params {
+        &self.params
     }
 
     pub fn params_mut(&mut self) -> &mut Params {
         &mut self.params
     }
 
-    pub fn results(&mut self, results: impl Into<Results>) {
+    pub fn results(&self) -> &Results {
+        &self.results
+    }
+
+    pub fn set_results(&mut self, results: impl Into<Results>) {
         self.results = results.into();
     }
 
@@ -188,8 +204,12 @@ impl StandaloneFunc {
         &mut self.results
     }
 
-    pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
+    pub fn set_docs(&mut self, docs: Option<impl Into<Docs>>) {
         self.docs = docs.map(|d| d.into());
+    }
+
+    pub fn docs(&self) -> &Option<Docs> {
+        &self.docs
     }
 }
 
