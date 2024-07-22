@@ -1272,8 +1272,9 @@ fn parse_version(tokens: &mut Tokenizer<'_>) -> Result<(Span, Version)> {
                     end.end = span.end;
                     *tokens = clone;
                 }
-                Some((span, Token::Period)) => match clone.next()? {
+                Some((_span, Token::Period)) => match clone.next()? {
                     Some((span, Token::Id | Token::Integer | Token::Minus)) => {
+                        end.end = span.end;
                         *tokens = clone;
                     }
                     _ => break Ok(()),
