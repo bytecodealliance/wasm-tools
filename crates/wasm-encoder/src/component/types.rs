@@ -379,28 +379,43 @@ impl Encode for InstanceType {
 
 /// Used to encode component function types.
 #[derive(Debug)]
-pub struct ComponentFuncTypeEncoder<'a>(&'a mut Vec<u8>);
+pub struct ComponentFuncTypeEncoder<'a> {
+    params_encoded: bool,
+    results_encoded: bool,
+    sink: &'a mut Vec<u8>,
+}
 
 impl<'a> ComponentFuncTypeEncoder<'a> {
     fn new(sink: &'a mut Vec<u8>) -> Self {
         sink.push(0x40);
-        Self(sink)
+        Self {
+            params_encoded: false,
+            results_encoded: false,
+            sink,
+        }
     }
 
     /// Defines named parameters.
     ///
     /// Parameters must be defined before defining results.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if the function is called twice since parameters
+    /// can only be encoded once.
     pub fn params<'b, P, T>(&mut self, params: P) -> &mut Self
     where
         P: IntoIterator<Item = (&'b str, T)>,
         P::IntoIter: ExactSizeIterator,
         T: Into<ComponentValType>,
     {
+        assert!(!self.params_encoded);
+        self.params_encoded = true;
         let params = params.into_iter();
-        params.len().encode(self.0);
+        params.len().encode(self.sink);
         for (name, ty) in params {
-            name.encode(self.0);
-            ty.into().encode(self.0);
+            name.encode(self.sink);
+            ty.into().encode(self.sink);
         }
         self
     }
@@ -408,27 +423,43 @@ impl<'a> ComponentFuncTypeEncoder<'a> {
     /// Defines a single unnamed result.
     ///
     /// This method cannot be used with `results`.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if the function is called twice, called before
+    /// the `params` method, or called in addition to the `results` method.
     pub fn result(&mut self, ty: impl Into<ComponentValType>) -> &mut Self {
-        self.0.push(0x00);
-        ty.into().encode(self.0);
+        assert!(self.params_encoded);
+        assert!(!self.results_encoded);
+        self.results_encoded = true;
+        self.sink.push(0x00);
+        ty.into().encode(self.sink);
         self
     }
 
     /// Defines named results.
     ///
     /// This method cannot be used with `result`.
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if the function is called twice, called before
+    /// the `params` method, or called in addition to the `result` method.
     pub fn results<'b, R, T>(&mut self, results: R) -> &mut Self
     where
         R: IntoIterator<Item = (&'b str, T)>,
         R::IntoIter: ExactSizeIterator,
         T: Into<ComponentValType>,
     {
-        self.0.push(0x01);
+        assert!(self.params_encoded);
+        assert!(!self.results_encoded);
+        self.results_encoded = true;
+        self.sink.push(0x01);
         let results = results.into_iter();
-        results.len().encode(self.0);
+        results.len().encode(self.sink);
         for (name, ty) in results {
-            name.encode(self.0);
-            ty.into().encode(self.0);
+            name.encode(self.sink);
+            ty.into().encode(self.sink);
         }
         self
     }
