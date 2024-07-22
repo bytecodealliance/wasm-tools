@@ -155,7 +155,7 @@ fn run_test(path: &Path) -> Result<()> {
     let wat = wasmprinter::print_bytes(&bytes).context("failed to print bytes")?;
     assert_output(&wat, &component_path)?;
     let (pkg, resolve) = match wit_component::decode(&bytes).context("failed to decode resolve")? {
-        DecodedWasm::WitPackages(..) => unreachable!(),
+        DecodedWasm::WitPackage(..) => unreachable!(),
         DecodedWasm::Component(resolve, world) => (resolve.worlds[world].package.unwrap(), resolve),
     };
     let wit = WitPrinter::default()

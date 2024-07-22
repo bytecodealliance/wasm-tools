@@ -538,8 +538,8 @@ impl WitOpts {
             if input.is_dir() {
                 let mut resolve =
                     WitResolve::resolve_with_features(&self.features, self.all_features);
-                let (pkg_ids, _) = resolve.push_dir(&input)?;
-                return Ok(DecodedWasm::WitPackages(resolve, pkg_ids));
+                let (pkg_id, _) = resolve.push_dir(&input)?;
+                return Ok(DecodedWasm::WitPackage(resolve, pkg_id));
             }
         }
 
@@ -587,8 +587,9 @@ impl WitOpts {
                 };
                 let mut resolve =
                     WitResolve::resolve_with_features(&self.features, self.all_features);
-                let ids = resolve.push_str(path, input)?;
-                Ok(DecodedWasm::WitPackages(resolve, ids))
+                let id = resolve.push_str(path, input)?;
+                let pkg = &resolve.packages[id];
+                Ok(DecodedWasm::WitPackage(resolve, id))
             }
         }
     }
@@ -635,15 +636,9 @@ impl WitOpts {
                     *cnt += 1;
                 }
 
-                let main = decoded.package();
                 for (id, pkg) in resolve.packages.iter() {
-                    // let is_main = main.contains(&id);
                     let output = printer.print(resolve, &[id])?;
-                    // let out_dir = if is_main {
                     let out_dir = dir.clone();
-                    // } else {
-                    //     dir.join("deps")
-                    // };
                     let packages_with_same_name = &names[&pkg.name.name];
                     let packages_with_same_namespace = packages_with_same_name[&pkg.name.namespace];
                     let stem = if packages_with_same_name.len() == 1 {

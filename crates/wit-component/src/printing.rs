@@ -52,7 +52,41 @@ impl WitPrinter {
 
     /// Print a set of one or more WIT packages into a string.
     pub fn print(&mut self, resolve: &Resolve, pkg_ids: &[PackageId]) -> Result<String> {
-        for (i, pkg_id) in pkg_ids.into_iter().enumerate() {
+        let root = pkg_ids[pkg_ids.len() - 1];
+        let pkg = &resolve.packages[root.clone()];
+        self.print_docs(&pkg.docs);
+        self.output.push_str("package ");
+        self.print_name(&pkg.name.namespace);
+        self.output.push_str(":");
+        self.print_name(&pkg.name.name);
+        if let Some(version) = &pkg.name.version {
+            self.output.push_str(&format!("@{version}"));
+        }
+
+        self.print_semicolon();
+        self.output.push_str("\n\n");
+
+        for (name, id) in pkg.interfaces.iter() {
+            self.print_docs(&resolve.interfaces[*id].docs);
+            self.print_stability(&resolve.interfaces[*id].stability);
+            self.output.push_str("interface ");
+            self.print_name(name);
+            self.output.push_str(" {\n");
+            self.print_interface(resolve, *id)?;
+            writeln!(&mut self.output, "}}\n")?;
+        }
+
+        for (name, id) in pkg.worlds.iter() {
+            self.print_docs(&resolve.worlds[*id].docs);
+            self.print_stability(&resolve.worlds[*id].stability);
+            self.output.push_str("world ");
+            self.print_name(name);
+            self.output.push_str(" {\n");
+            self.print_world(resolve, *id)?;
+            writeln!(&mut self.output, "}}")?;
+        }
+
+        for (i, pkg_id) in pkg_ids[0..pkg_ids.len() - 1].into_iter().enumerate() {
             if i > 0 {
                 self.output.push_str("\n\n");
             }
@@ -67,8 +101,7 @@ impl WitPrinter {
                 self.output.push_str(&format!("@{version}"));
             }
 
-            self.print_semicolon();
-            self.output.push_str("\n\n");
+            self.output.push_str(" {\n");
 
             for (name, id) in pkg.interfaces.iter() {
                 self.print_docs(&resolve.interfaces[*id].docs);
@@ -77,7 +110,7 @@ impl WitPrinter {
                 self.print_name(name);
                 self.output.push_str(" {\n");
                 self.print_interface(resolve, *id)?;
-                writeln!(&mut self.output, "}}\n")?;
+                writeln!(&mut self.output, "}}")?;
             }
 
             for (name, id) in pkg.worlds.iter() {
@@ -89,6 +122,7 @@ impl WitPrinter {
                 self.print_world(resolve, *id)?;
                 writeln!(&mut self.output, "}}")?;
             }
+            writeln!(&mut self.output, "}}")?;
         }
 
         Ok(std::mem::take(&mut self.output).into())

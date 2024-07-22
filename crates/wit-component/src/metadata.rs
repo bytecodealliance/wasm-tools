@@ -260,7 +260,7 @@ impl Bindgen {
                 wasm = &data[reader.original_position()..];
 
                 let (r, pkg) = match crate::decode(wasm)? {
-                    DecodedWasm::WitPackages(resolve, pkgs) => (resolve, pkgs),
+                    DecodedWasm::WitPackage(resolve, pkgs) => (resolve, pkgs),
                     DecodedWasm::Component(..) => bail!("expected encoded wit package(s)"),
                 };
                 resolve = r;

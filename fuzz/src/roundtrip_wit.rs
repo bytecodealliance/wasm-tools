@@ -11,14 +11,14 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     })?;
     write_file("doc1.wasm", &wasm);
     let (resolve, _pkg) = match wit_component::decode(&wasm).unwrap() {
-        DecodedWasm::WitPackages(resolve, pkg) => (resolve, pkg),
+        DecodedWasm::WitPackage(resolve, pkg) => (resolve, pkg),
         DecodedWasm::Component(..) => unreachable!(),
     };
 
     roundtrip_through_printing("doc1", &resolve, &wasm);
 
     let (resolve2, pkgs2) = match wit_component::decode(&wasm).unwrap() {
-        DecodedWasm::WitPackages(resolve, pkgs) => (resolve, pkgs),
+        DecodedWasm::WitPackage(resolve, pkgs) => (resolve, pkgs),
         DecodedWasm::Component(..) => unreachable!(),
     };
 

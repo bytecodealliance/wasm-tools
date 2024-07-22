@@ -1,4 +1,4 @@
-use super::{ParamList, ResultList, WorldOrInterface};
+use super::{DeclList, ExplicitPackage, ParamList, ResultList, WorldOrInterface};
 use crate::ast::toposort::toposort;
 use crate::*;
 use anyhow::bail;
@@ -8,7 +8,7 @@ use std::mem;
 #[derive(Default)]
 pub struct Resolver<'a> {
     /// Current package name learned through the ASTs pushed onto this resolver.
-    package_name: Option<PackageName>,
+    pub package_name: Option<PackageName>,
 
     /// Package docs.
     package_docs: Docs,
@@ -109,7 +109,19 @@ enum TypeOrItem {
 }
 
 impl<'a> Resolver<'a> {
-    pub(crate) fn push_partial(&mut self, partial: ast::PartialImplicitPackage<'a>) -> Result<()> {
+    pub(crate) fn push_partial(
+        &mut self,
+        partial: ast::PartialImplicitPackage<'a>,
+        explicit: Vec<ExplicitPackage<'a>>,
+        parsed_pkgs: &mut Vec<UnresolvedPackage>,
+    ) -> Result<()> {
+        for pkg in explicit {
+            let mut resolver = Resolver::default();
+            let ingested = resolver
+                .push_then_resolve(pkg)
+                .with_context(|| format!("YADA"))?;
+            parsed_pkgs.push(ingested);
+        }
         // As each WIT file is pushed into this resolver keep track of the
         // current package name assigned. Only one file needs to mention it, but
         // if multiple mention it then they must all match.
@@ -141,6 +153,7 @@ impl<'a> Resolver<'a> {
             }
         }
         self.decl_lists.push(partial.decl_list);
+
         Ok(())
     }
 
@@ -201,6 +214,7 @@ impl<'a> Resolver<'a> {
             self.resolve_world(id, world)?;
         }
 
+        self.decl_lists = decl_lists;
         Ok(UnresolvedPackage {
             name,
             docs: mem::take(&mut self.package_docs),
@@ -235,7 +249,7 @@ impl<'a> Resolver<'a> {
     ) -> Result<UnresolvedPackage> {
         self.package_name = Some(package.package_id.package_name());
         self.docs(&package.package_id.docs);
-        self.decl_lists = vec![package.decl_list];
+        self.decl_lists.push(package.decl_list);
         self.resolve()
     }
 

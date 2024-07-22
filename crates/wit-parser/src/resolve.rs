@@ -4,9 +4,8 @@ use crate::ast::{parse_use_path, ParsedUsePath};
 use crate::serde_::{serialize_arena, serialize_id_map};
 use crate::{
     AstItem, Docs, Error, Function, FunctionKind, Handle, IncludeName, Interface, InterfaceId,
-    InterfaceSpan, PackageName, Results, SourceMap, Stability, Type, TypeDef, TypeDefKind, TypeId,
-    TypeOwner, UnresolvedPackage, UnresolvedPackageGroup, World, WorldId, WorldItem, WorldKey,
-    WorldSpan,
+    InterfaceSpan, PackageName, Results, Stability, Type, TypeDef, TypeDefKind, TypeId, TypeOwner,
+    UnresolvedPackage, UnresolvedPackageGroup, World, WorldId, WorldItem, WorldKey, WorldSpan,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use id_arena::{Arena, Id};
@@ -113,39 +112,29 @@ enum ParsedFile {
     Unresolved(UnresolvedPackageGroup),
 }
 
-/// Visitor helper for performing topological sort on a group of packages.
 fn visit<'a>(
     pkg: &'a UnresolvedPackage,
-    pkg_details_map: &'a BTreeMap<PackageName, (UnresolvedPackage, usize)>,
+    deps: &'a BTreeMap<PackageName, UnresolvedPackage>,
     order: &mut IndexSet<PackageName>,
     visiting: &mut HashSet<&'a PackageName>,
-    source_maps: &[SourceMap],
 ) -> Result<()> {
     if order.contains(&pkg.name) {
         return Ok(());
     }
-
-    match pkg_details_map.get(&pkg.name) {
-        Some(pkg_details) => {
-            let (_, source_maps_index) = pkg_details;
-            source_maps[*source_maps_index].rewrite_error(|| {
-                for (i, (dep, _)) in pkg.foreign_deps.iter().enumerate() {
-                    let span = pkg.foreign_dep_spans[i];
-                    if !visiting.insert(dep) {
-                        bail!(Error::new(span, "package depends on itself"));
-                    }
-                    if let Some(dep) = pkg_details_map.get(dep) {
-                        let (dep_pkg, _) = dep;
-                        visit(dep_pkg, pkg_details_map, order, visiting, source_maps)?;
-                    }
-                    assert!(visiting.remove(dep));
-                }
-                assert!(order.insert(pkg.name.clone()));
-                Ok(())
-            })
+    pkg.source_map.rewrite_error(|| {
+        for (i, (dep, _)) in pkg.foreign_deps.iter().enumerate() {
+            let span = pkg.foreign_dep_spans[i];
+            if !visiting.insert(dep) {
+                bail!(Error::new(span, "package depends on itself"));
+            }
+            if let Some(dep) = deps.get(dep) {
+                visit(dep, deps, order, visiting)?;
+            }
+            assert!(visiting.remove(dep));
         }
-        None => panic!("No pkg_details found for package when doing topological sort"),
-    }
+        assert!(order.insert(pkg.name.clone()));
+        Ok(())
+    })
 }
 
 impl Resolve {
@@ -203,25 +192,23 @@ impl Resolve {
 
     fn sort_unresolved_packages(
         &mut self,
-        unresolved_groups: Vec<UnresolvedPackageGroup>,
+        unresolved_group: UnresolvedPackageGroup,
     ) -> Result<(PackageId, Vec<PathBuf>)> {
+        let path_bufs = Vec::new();
         let mut pkg_ids = Vec::new();
-        let mut path_bufs = Vec::new();
         let mut pkg_details_map = BTreeMap::new();
         let mut source_maps = Vec::new();
-        for (i, unresolved_group) in unresolved_groups.into_iter().enumerate() {
-            let UnresolvedPackageGroup {
-                root,
-                packages,
-                source_map,
-                ..
-            } = unresolved_group;
+        let UnresolvedPackageGroup {
+            root,
+            packages,
+            source_map,
+            ..
+        } = unresolved_group;
 
-            source_maps.push(source_map);
-            for pkg in packages {
-                pkg_details_map.insert(pkg.name.clone(), (pkg, i));
-            }
-            pkg_details_map.insert(root.clone().unwrap().name, (root.unwrap(), i));
+        source_maps.push(source_map);
+        pkg_details_map.insert(root.clone().unwrap().name, root.unwrap());
+        for (i, pkg) in packages.iter().enumerate() {
+            pkg_details_map.insert(pkg.name.clone(), pkg.clone());
         }
 
         // Perform a simple topological sort which will bail out on cycles
@@ -230,35 +217,22 @@ impl Resolve {
         let mut order = IndexSet::new();
         let mut visiting = HashSet::new();
         for pkg_details in pkg_details_map.values() {
-            let (pkg, _) = pkg_details;
-            visit(
-                pkg,
-                &pkg_details_map,
-                &mut order,
-                &mut visiting,
-                &source_maps,
-            )?;
+            visit(pkg_details, &pkg_details_map, &mut order, &mut visiting)?;
         }
 
         // Ensure that the final output is topologically sorted. Use a set to ensure that we render
         // the buffers for each `SourceMap` only once, even though multiple packages may references
         // the same `SourceMap`.
-        let mut seen_source_maps = HashSet::new();
         for name in order {
             match pkg_details_map.remove(&name) {
-                Some((mut pkg, source_map_index)) => {
-                    let source_map = &source_maps[source_map_index];
-                    if !seen_source_maps.contains(&source_map_index) {
-                        seen_source_maps.insert(source_map_index);
-                        path_bufs.extend(source_map.source_files().map(|p| p.to_path_buf()));
-                    }
+                Some(mut pkg) => {
                     pkg_ids.push(self.push(&mut pkg)?);
                 }
                 None => panic!("package in topologically ordered set, but not in package map"),
             }
         }
 
-        Ok((pkg_ids[0], path_bufs))
+        Ok((pkg_ids[pkg_ids.len() - 1], path_bufs))
     }
 
     /// Parses the filesystem directory at `path` as a WIT package and returns
@@ -451,7 +425,7 @@ impl Resolve {
                     DecodedWasm::Component(..) => {
                         bail!("found an actual component instead of an encoded WIT package in wasm")
                     }
-                    DecodedWasm::WitPackages(resolve, pkg) => {
+                    DecodedWasm::WitPackage(resolve, pkg) => {
                         let remap = self.merge(resolve)?;
                         return Ok(ParsedFile::Package(remap.packages[pkg.index()]));
                     }
@@ -492,7 +466,7 @@ impl Resolve {
     ///
     /// The returned [`PackageId`]s are listed in topologically sorted order.
     pub fn push_group(&mut self, unresolved_group: UnresolvedPackageGroup) -> Result<PackageId> {
-        let (pkg_id, _) = self.sort_unresolved_packages(vec![unresolved_group])?;
+        let (pkg_id, _) = self.sort_unresolved_packages(unresolved_group)?;
         Ok(pkg_id)
     }
 

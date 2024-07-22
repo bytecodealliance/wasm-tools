@@ -1,9 +1,8 @@
-use crate::{Error, UnresolvedPackage, UnresolvedPackageGroup};
+use crate::{Error, UnresolvedPackageGroup};
 use anyhow::{bail, Context, Result};
 use lex::{Span, Token, Tokenizer};
 use semver::Version;
 use std::borrow::Cow;
-use std::collections::HashSet;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
@@ -189,7 +188,6 @@ impl<'a> Ast<'a> {
                                 decl_list: DeclList::parse_explicit_package_items(tokens)?,
                             });
                         }
-                        implicit_present = false;
                         first = false;
                     }
                 };
@@ -1677,38 +1675,6 @@ struct Source {
     contents: String,
 }
 
-enum ResolverKind<'a> {
-    Unknown,
-    Explicit(Vec<UnresolvedPackage>),
-    PartialImplicit(Resolver<'a>),
-}
-
-fn parse_package(
-    unparsed_pkgs: Vec<ExplicitPackage>,
-    src: &Source,
-    explicit_pkg_names: &mut HashSet<crate::PackageName>,
-) -> Result<Option<UnresolvedPackage>> {
-    let mut implicit = None;
-    for pkg in unparsed_pkgs {
-        let mut resolver = Resolver::default();
-        let pkg_name = pkg.package_id.package_name();
-        let ingested = resolver
-            .push_then_resolve(pkg)
-            .with_context(|| format!("failed to start resolving path: {}", src.path.display()))?;
-
-        match explicit_pkg_names.get(&pkg_name) {
-            Some(_) => bail!(
-                "colliding explicit package names, multiple packages named `{}`",
-                pkg_name
-            ),
-            None => explicit_pkg_names.insert(pkg_name),
-        };
-
-        implicit = Some(ingested);
-    }
-    Ok(implicit)
-}
-
 impl SourceMap {
     /// Creates a new empty source map.
     pub fn new() -> SourceMap {
@@ -1760,15 +1726,16 @@ impl SourceMap {
 
     /// Parses the files added to this source map into one or more [`UnresolvedPackage`]s.
     pub fn parse(self) -> Result<UnresolvedPackageGroup> {
-        let mut implicit = None;
+        // let mut implicit = None;
         let mut packages = Vec::new();
-        self.rewrite_error(|| {
+        let mut unresolved = Vec::new();
+        let parsed_pkg = self.rewrite_error(|| {
             let resolver = &mut Resolver::default();
-            let mut explicit_pkg_names: HashSet<crate::PackageName> = HashSet::new();
             let mut srcs = self.sources.iter().collect::<Vec<_>>();
             srcs.sort_by_key(|src| &src.path);
             let mut implicit_encountered: Option<PackageName> = None;
             for src in srcs {
+                let mut parsed_pkgs = Vec::new();
                 let mut tokens = Tokenizer::new(
                     // chop off the forcibly appended `\n` character when
                     // passing through the source to get tokenized.
@@ -1783,23 +1750,28 @@ impl SourceMap {
                     std::mem::take(&mut packages),
                     implicit_encountered.as_ref(),
                 )?;
-                if let Some(implicit) = ast.implicit {
-                    resolver.push_partial(implicit).with_context(|| {
-                        format!("failed to start resolving path: {}", src.path.display())
-                    })?;
+                if let Some(parsed_implicit) = ast.implicit {
+                    implicit_encountered = parsed_implicit.package_id.clone();
+                    resolver
+                        .push_partial(parsed_implicit, ast.explicit, &mut parsed_pkgs)
+                        .with_context(|| {
+                            format!("failed to start resolving path: {}", src.path.display())
+                        })?;
+                    unresolved.extend(parsed_pkgs);
+                } else {
+                    for pkg in ast.explicit {
+                        let unresolved_pkg = resolver.push_then_resolve(pkg)?;
+                        unresolved.push(unresolved_pkg);
+                    }
                 }
-                if let Some(parsed) = parse_package(ast.explicit, src, &mut explicit_pkg_names)? {
-                    implicit = Some(parsed);
-                }
-                implicit_encountered = None;
             }
+            resolver.package_name = implicit_encountered.map(|p| p.package_name());
             let pkg = resolver.resolve()?;
-            implicit = Some(pkg.clone());
             Ok(pkg)
         })?;
         Ok(UnresolvedPackageGroup {
-            root: implicit,
-            packages: vec![],
+            root: Some(parsed_pkg),
+            packages: unresolved,
             source_map: SourceMap::default(),
         })
     }
@@ -1812,6 +1784,12 @@ impl SourceMap {
             Ok(t) => return Ok(t),
             Err(e) => e,
         };
+        if let Some(parse) = err.downcast_mut::<Error>() {
+            if parse.highlighted.is_none() {
+                let msg = self.highlight_err(parse.span.start, Some(parse.span.end), &parse.msg);
+                parse.highlighted = Some(msg);
+            }
+        }
         if let Some(_) = err.downcast_mut::<Error>() {
             return Err(err);
         }

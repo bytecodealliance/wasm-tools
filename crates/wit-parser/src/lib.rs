@@ -122,7 +122,7 @@ impl UnresolvedPackage {
 }
 
 /// Tracks a set of packages, all pulled from the same group of WIT source files.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct UnresolvedPackageGroup {
     pub root: Option<UnresolvedPackage>,
     /// A set of packages that share source file(s).
