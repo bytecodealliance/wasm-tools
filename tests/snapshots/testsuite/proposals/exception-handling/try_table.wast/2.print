@@ -266,6 +266,12 @@
       end
     end
   )
+  (func (;23;) (type 0)
+    i32.const 0
+    try_table (type 1) (param i32) ;; label = @1
+      drop
+    end
+  )
   (table (;0;) 1 1 funcref)
   (tag $e0 (;1;) (type 0))
   (tag $e1 (;2;) (type 0))
@@ -292,5 +298,6 @@
   (export "catchless-try" (func 19))
   (export "return-call-in-try-catch" (func 21))
   (export "return-call-indirect-in-try-catch" (func 22))
+  (export "try-with-param" (func 23))
   (elem (;0;) (i32.const 0) func $throw-void)
 )
