@@ -1,4 +1,4 @@
-use super::{DeclList, ExplicitPackage, ParamList, ResultList, WorldOrInterface};
+use super::{ExplicitPackage, ParamList, ResultList, WorldOrInterface};
 use crate::ast::toposort::toposort;
 use crate::*;
 use anyhow::bail;
@@ -247,10 +247,11 @@ impl<'a> Resolver<'a> {
         &mut self,
         package: ast::ExplicitPackage<'a>,
     ) -> Result<UnresolvedPackage> {
-        self.package_name = Some(package.package_id.package_name());
-        self.docs(&package.package_id.docs);
-        self.decl_lists.push(package.decl_list);
-        self.resolve()
+        let mut resolver = Resolver::default();
+        resolver.package_name = Some(package.package_id.package_name());
+        resolver.docs(&package.package_id.docs);
+        resolver.decl_lists.push(package.decl_list);
+        resolver.resolve()
     }
 
     /// Registers all foreign dependencies made within the ASTs provided.

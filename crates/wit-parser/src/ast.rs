@@ -130,7 +130,6 @@ impl<'a> Ast<'a> {
     ) -> Result<Self> {
         let mut decl_list = (DeclList::default(), Vec::new());
         let mut maybe_package_id = None;
-        let mut implicit_present = true;
         let mut docs = parse_docs(tokens)?;
         if tokens.eat(Token::Package)? {
             let mut first = true;
@@ -147,7 +146,7 @@ impl<'a> Ast<'a> {
                         }
                     }
                     if tokens.eat(Token::LeftBrace)? {
-                        packages.push(ExplicitPackage {
+                        decl_list.1.push(ExplicitPackage {
                             package_id: package_id,
                             decl_list: DeclList::parse_explicit_package_items(tokens)?,
                         });
@@ -183,7 +182,7 @@ impl<'a> Ast<'a> {
                             }
                         }
                         if tokens.eat(Token::LeftBrace)? {
-                            packages.push(ExplicitPackage {
+                            decl_list.1.push(ExplicitPackage {
                                 package_id: package_id,
                                 decl_list: DeclList::parse_explicit_package_items(tokens)?,
                             });
@@ -211,20 +210,13 @@ impl<'a> Ast<'a> {
                 }
             }
         }
-        if implicit_present {
-            Ok(Self {
-                explicit: decl_list.1,
-                implicit: Some(PartialImplicitPackage {
-                    package_id: maybe_package_id,
-                    decl_list: decl_list.0,
-                }),
-            })
-        } else {
-            Ok(Self {
-                explicit: packages,
-                implicit: None,
-            })
-        }
+        Ok(Self {
+            explicit: decl_list.1,
+            implicit: Some(PartialImplicitPackage {
+                package_id: maybe_package_id,
+                decl_list: decl_list.0,
+            }),
+        })
     }
 }
 
@@ -1734,6 +1726,7 @@ impl SourceMap {
             let mut srcs = self.sources.iter().collect::<Vec<_>>();
             srcs.sort_by_key(|src| &src.path);
             let mut implicit_encountered: Option<PackageName> = None;
+            let mut resolved_implicit = false;
             for src in srcs {
                 let mut parsed_pkgs = Vec::new();
                 let mut tokens = Tokenizer::new(
@@ -1751,13 +1744,21 @@ impl SourceMap {
                     implicit_encountered.as_ref(),
                 )?;
                 if let Some(parsed_implicit) = ast.implicit {
-                    implicit_encountered = parsed_implicit.package_id.clone();
-                    resolver
-                        .push_partial(parsed_implicit, ast.explicit, &mut parsed_pkgs)
-                        .with_context(|| {
-                            format!("failed to start resolving path: {}", src.path.display())
-                        })?;
-                    unresolved.extend(parsed_pkgs);
+                    if !resolved_implicit {
+                        implicit_encountered = parsed_implicit.package_id.clone();
+                        resolver
+                            .push_partial(parsed_implicit, ast.explicit, &mut parsed_pkgs)
+                            .with_context(|| {
+                                format!("failed to start resolving path: {}", src.path.display())
+                            })?;
+                        unresolved.extend(parsed_pkgs);
+                        resolved_implicit = true;
+                    } else {
+                        for pkg in ast.explicit {
+                            let unresolved_pkg = resolver.push_then_resolve(pkg)?;
+                            unresolved.push(unresolved_pkg);
+                        }
+                    }
                 } else {
                     for pkg in ast.explicit {
                         let unresolved_pkg = resolver.push_then_resolve(pkg)?;

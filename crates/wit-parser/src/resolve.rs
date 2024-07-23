@@ -4,8 +4,9 @@ use crate::ast::{parse_use_path, ParsedUsePath};
 use crate::serde_::{serialize_arena, serialize_id_map};
 use crate::{
     AstItem, Docs, Error, Function, FunctionKind, Handle, IncludeName, Interface, InterfaceId,
-    InterfaceSpan, PackageName, Results, Stability, Type, TypeDef, TypeDefKind, TypeId, TypeOwner,
-    UnresolvedPackage, UnresolvedPackageGroup, World, WorldId, WorldItem, WorldKey, WorldSpan,
+    InterfaceSpan, PackageName, Results, SourceMap, Stability, Type, TypeDef, TypeDefKind, TypeId,
+    TypeOwner, UnresolvedPackage, UnresolvedPackageGroup, World, WorldId, WorldItem, WorldKey,
+    WorldSpan,
 };
 use anyhow::{anyhow, bail, Context, Result};
 use id_arena::{Arena, Id};
@@ -114,9 +115,10 @@ enum ParsedFile {
 
 fn visit<'a>(
     pkg: &'a UnresolvedPackage,
-    deps: &'a BTreeMap<PackageName, UnresolvedPackage>,
+    deps: &'a BTreeMap<PackageName, (UnresolvedPackage, usize)>,
     order: &mut IndexSet<PackageName>,
     visiting: &mut HashSet<&'a PackageName>,
+    source_maps: &Vec<SourceMap>,
 ) -> Result<()> {
     if order.contains(&pkg.name) {
         return Ok(());
@@ -128,7 +130,7 @@ fn visit<'a>(
                 bail!(Error::new(span, "package depends on itself"));
             }
             if let Some(dep) = deps.get(dep) {
-                visit(dep, deps, order, visiting)?;
+                visit(&dep.0, deps, order, visiting, source_maps)?;
             }
             assert!(visiting.remove(dep));
         }
@@ -206,9 +208,9 @@ impl Resolve {
         } = unresolved_group;
 
         source_maps.push(source_map);
-        pkg_details_map.insert(root.clone().unwrap().name, root.unwrap());
+        pkg_details_map.insert(root.clone().unwrap().name, (root.unwrap(), 0));
         for (i, pkg) in packages.iter().enumerate() {
-            pkg_details_map.insert(pkg.name.clone(), pkg.clone());
+            pkg_details_map.insert(pkg.name.clone(), (pkg.clone(), i));
         }
 
         // Perform a simple topological sort which will bail out on cycles
@@ -217,7 +219,14 @@ impl Resolve {
         let mut order = IndexSet::new();
         let mut visiting = HashSet::new();
         for pkg_details in pkg_details_map.values() {
-            visit(pkg_details, &pkg_details_map, &mut order, &mut visiting)?;
+            let (pkg, _) = pkg_details;
+            visit(
+                pkg,
+                &pkg_details_map,
+                &mut order,
+                &mut visiting,
+                &source_maps,
+            )?;
         }
 
         // Ensure that the final output is topologically sorted. Use a set to ensure that we render
@@ -225,7 +234,7 @@ impl Resolve {
         // the same `SourceMap`.
         for name in order {
             match pkg_details_map.remove(&name) {
-                Some(mut pkg) => {
+                Some((mut pkg, _)) => {
                     pkg_ids.push(self.push(&mut pkg)?);
                 }
                 None => panic!("package in topologically ordered set, but not in package map"),
@@ -271,7 +280,7 @@ impl Resolve {
     /// when generating the return value. This can be useful for build systems
     /// that want to rebuild bindings whenever one of the files change.
     pub fn push_dir(&mut self, path: &Path) -> Result<(PackageId, Vec<PathBuf>)> {
-        let pkg = UnresolvedPackageGroup::parse_dir(path)?;
+        let mut pkg = UnresolvedPackageGroup::parse_dir(path)?;
         let deps = path.join("deps");
         let mut deps = self
             .parse_deps_dir(&deps)
@@ -282,35 +291,80 @@ impl Resolve {
         // this `Resolve`.
         let mut order = IndexSet::new();
         let mut visiting = HashSet::new();
+        for pkg in &pkg.packages {
+            visit(
+                &pkg,
+                &deps,
+                &mut order,
+                &mut visiting,
+                &vec![pkg.source_map.clone()],
+            )?;
+        }
         for pkg in deps.values().chain([&pkg.root.clone().unwrap()]) {
-            visit(&pkg, &deps, &mut order, &mut visiting)?;
+            visit(
+                &pkg,
+                &deps,
+                &mut order,
+                &mut visiting,
+                &vec![pkg.source_map.clone()],
+            )?;
         }
 
         // Using the topological ordering insert each package incrementally.
         // Additionally note that the last item visited here is the root
         // package, which is the one returned here.
-        let mut last = None;
         let mut files = Vec::new();
-        let mut pkg = Some(pkg);
         for name in order {
-            let mut pkg = deps
-                .remove(&name)
-                .unwrap_or_else(|| pkg.take().unwrap().root.unwrap());
-            files.extend(pkg.source_files().map(|p| p.to_path_buf()));
-            let pkgid = self.push(&mut pkg)?;
-            last = Some(pkgid);
+            if deps.contains_key(&name) {
+                let mut pkg = deps
+                    .remove(&name)
+                    .unwrap_or_else(|| pkg.clone().root.unwrap());
+                files.extend(pkg.source_files().map(|p| p.to_path_buf()));
+                self.push(&mut pkg)?;
+            } else {
+                let cur_pkg = pkg.packages.iter_mut().find(|p| p.name == name);
+                if let Some(mut pkg) = cur_pkg {
+                    files.extend(pkg.source_files().map(|p| p.to_path_buf()));
+                    self.push(&mut pkg)?;
+                }
+            }
         }
+        files.extend(
+            pkg.root
+                .clone()
+                .unwrap()
+                .source_files()
+                .map(|p| p.to_path_buf()),
+        );
+        let pkgid = self.push(&mut pkg.root.unwrap())?;
 
-        return Ok((last.unwrap(), files));
+        return Ok((pkgid, files));
 
         fn visit<'a>(
             pkg: &'a UnresolvedPackage,
             deps: &'a BTreeMap<PackageName, UnresolvedPackage>,
             order: &mut IndexSet<PackageName>,
             visiting: &mut HashSet<&'a PackageName>,
+            source_maps: &Vec<SourceMap>,
         ) -> Result<()> {
             if order.contains(&pkg.name) {
                 return Ok(());
+            }
+            for map in source_maps {
+                map.rewrite_error(|| {
+                    for (i, (dep, _)) in pkg.foreign_deps.iter().enumerate() {
+                        let span = pkg.foreign_dep_spans[i];
+                        if !visiting.insert(dep) {
+                            bail!(Error::new(span, "package depends on itself"));
+                        }
+                        if let Some(dep) = deps.get(dep) {
+                            visit(dep, deps, order, visiting, source_maps)?;
+                        }
+                        assert!(visiting.remove(dep));
+                    }
+                    assert!(order.insert(pkg.name.clone()));
+                    Ok(())
+                })?;
             }
             pkg.source_map.rewrite_error(|| {
                 for (i, (dep, _)) in pkg.foreign_deps.iter().enumerate() {
@@ -319,11 +373,11 @@ impl Resolve {
                         bail!(Error::new(span, "package depends on itself"));
                     }
                     if let Some(dep) = deps.get(dep) {
-                        visit(dep, deps, order, visiting)?;
+                        visit(dep, deps, order, visiting, source_maps)?;
                     }
                     assert!(visiting.remove(dep));
                 }
-                assert!(order.insert(pkg.name.clone()));
+                // assert!(order.insert(pkg.name.clone()));
                 Ok(())
             })
         }

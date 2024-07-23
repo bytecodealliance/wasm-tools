@@ -588,7 +588,6 @@ impl WitOpts {
                 let mut resolve =
                     WitResolve::resolve_with_features(&self.features, self.all_features);
                 let id = resolve.push_str(path, input)?;
-                let pkg = &resolve.packages[id];
                 Ok(DecodedWasm::WitPackage(resolve, id))
             }
         }
