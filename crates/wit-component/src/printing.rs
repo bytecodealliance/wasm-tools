@@ -903,7 +903,11 @@ impl WitPrinter {
     fn print_stability(&mut self, stability: &Stability) {
         match stability {
             Stability::Unknown => {}
-            Stability::Stable { since, feature } => {
+            Stability::Stable {
+                since,
+                feature,
+                deprecated,
+            } => {
                 self.output.push_str("@since(version = ");
                 self.output.push_str(&since.to_string());
                 if let Some(feature) = feature {
@@ -911,11 +915,24 @@ impl WitPrinter {
                     self.output.push_str(feature);
                 }
                 self.output.push_str(")\n");
+                if let Some(version) = deprecated {
+                    self.output.push_str("@deprecated(version = ");
+                    self.output.push_str(&version.to_string());
+                    self.output.push_str(")\n");
+                }
             }
-            Stability::Unstable { feature } => {
+            Stability::Unstable {
+                feature,
+                deprecated,
+            } => {
                 self.output.push_str("@unstable(feature = ");
                 self.output.push_str(feature);
                 self.output.push_str(")\n");
+                if let Some(version) = deprecated {
+                    self.output.push_str("@deprecated(version = ");
+                    self.output.push_str(&version.to_string());
+                    self.output.push_str(")\n");
+                }
             }
         }
     }

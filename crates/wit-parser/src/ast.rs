@@ -1550,6 +1550,10 @@ enum Attribute<'a> {
         span: Span,
         feature: Id<'a>,
     },
+    Deprecated {
+        span: Span,
+        version: Version,
+    },
 }
 
 impl<'a> Attribute<'a> {
@@ -1559,18 +1563,18 @@ impl<'a> Attribute<'a> {
             let id = parse_id(tokens)?;
             let attr = match id.name {
                 "since" => {
-                    tokens.eat(Token::LeftParen)?;
+                    tokens.expect(Token::LeftParen)?;
                     eat_id(tokens, "version")?;
-                    tokens.eat(Token::Equals)?;
+                    tokens.expect(Token::Equals)?;
                     let (_span, version) = parse_version(tokens)?;
                     let feature = if tokens.eat(Token::Comma)? {
                         eat_id(tokens, "feature")?;
-                        tokens.eat(Token::Equals)?;
+                        tokens.expect(Token::Equals)?;
                         Some(parse_id(tokens)?)
                     } else {
                         None
                     };
-                    tokens.eat(Token::RightParen)?;
+                    tokens.expect(Token::RightParen)?;
                     Attribute::Since {
                         span: id.span,
                         version,
@@ -1578,14 +1582,25 @@ impl<'a> Attribute<'a> {
                     }
                 }
                 "unstable" => {
-                    tokens.eat(Token::LeftParen)?;
+                    tokens.expect(Token::LeftParen)?;
                     eat_id(tokens, "feature")?;
-                    tokens.eat(Token::Equals)?;
+                    tokens.expect(Token::Equals)?;
                     let feature = parse_id(tokens)?;
-                    tokens.eat(Token::RightParen)?;
+                    tokens.expect(Token::RightParen)?;
                     Attribute::Unstable {
                         span: id.span,
                         feature,
+                    }
+                }
+                "deprecated" => {
+                    tokens.expect(Token::LeftParen)?;
+                    eat_id(tokens, "version")?;
+                    tokens.expect(Token::Equals)?;
+                    let (_span, version) = parse_version(tokens)?;
+                    tokens.expect(Token::RightParen)?;
+                    Attribute::Deprecated {
+                        span: id.span,
+                        version,
                     }
                 }
                 other => {
@@ -1599,7 +1614,9 @@ impl<'a> Attribute<'a> {
 
     fn span(&self) -> Span {
         match self {
-            Attribute::Since { span, .. } | Attribute::Unstable { span, .. } => *span,
+            Attribute::Since { span, .. }
+            | Attribute::Unstable { span, .. }
+            | Attribute::Deprecated { span, .. } => *span,
         }
     }
 }

@@ -122,3 +122,26 @@ where
     let version: String = String::deserialize(deserializer)?;
     version.parse().map_err(|e| D::Error::custom(e))
 }
+
+pub fn serialize_optional_version<S>(
+    version: &Option<Version>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    version
+        .as_ref()
+        .map(|s| s.to_string())
+        .serialize(serializer)
+}
+
+pub fn deserialize_optional_version<'de, D>(deserializer: D) -> Result<Option<Version>, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+{
+    match <Option<String>>::deserialize(deserializer)? {
+        Some(version) => Ok(Some(version.parse().map_err(|e| D::Error::custom(e))?)),
+        None => Ok(None),
+    }
+}

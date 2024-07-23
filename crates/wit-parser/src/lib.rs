@@ -845,13 +845,35 @@ pub enum Stability {
         since: Version,
         #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
         feature: Option<String>,
+        #[cfg_attr(
+            feature = "serde",
+            serde(
+                skip_serializing_if = "Option::is_none",
+                default,
+                serialize_with = "serialize_optional_version",
+                deserialize_with = "deserialize_optional_version"
+            )
+        )]
+        deprecated: Option<Version>,
     },
 
     /// `@unstable(feature = foo)`
     ///
     /// This item is explicitly tagged `@unstable`. A feature name is listed and
     /// this item is excluded by default in `Resolve` unless explicitly enabled.
-    Unstable { feature: String },
+    Unstable {
+        feature: String,
+        #[cfg_attr(
+            feature = "serde",
+            serde(
+                skip_serializing_if = "Option::is_none",
+                default,
+                serialize_with = "serialize_optional_version",
+                deserialize_with = "deserialize_optional_version"
+            )
+        )]
+        deprecated: Option<Version>,
+    },
 
     /// This item does not have either `@since` or `@unstable`.
     Unknown,
