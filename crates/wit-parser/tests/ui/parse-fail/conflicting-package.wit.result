@@ -1,5 +1,4 @@
 failed to resolve directory while parsing WIT for path [tests/ui/parse-fail/conflicting-package]
 
 Caused by:
-    0: failed to start resolving path: tests/ui/parse-fail/conflicting-package/b.wit
-    1: package identifier `foo:b` does not match previous package name of `foo:a`
+    Parsed package identifier `foo:b` doesn't match previously encountered foo:a

@@ -98,6 +98,16 @@ impl<'a> DeclList<'a> {
                     }
                 }
                 if tokens.eat(Token::LeftBrace)? {
+                    let redundant = packages
+                        .iter()
+                        .find(|p| p.package_id.package_name() == package_id.package_name());
+
+                    if redundant.is_some() {
+                        bail!(
+                            "colliding explicit package names, multiple packages named `{}`",
+                            package_id.package_name()
+                        )
+                    }
                     packages.push(ExplicitPackage {
                         package_id,
                         decl_list: DeclList::parse_explicit_package_items(tokens)?,
@@ -126,7 +136,7 @@ impl<'a> Ast<'a> {
     fn parse(
         tokens: &mut Tokenizer<'a>,
         mut packages: Vec<ExplicitPackage<'a>>,
-        implicit_encountered: Option<&PackageName>,
+        implicit_encountered: Option<PackageName<'a>>,
     ) -> Result<Self> {
         let mut decl_list = (DeclList::default(), Vec::new());
         let mut maybe_package_id = None;
@@ -140,7 +150,7 @@ impl<'a> Ast<'a> {
                 if !first {
                     tokens.eat(Token::Package)?;
                     let package_id = PackageName::parse(tokens, &mut docs)?;
-                    if let Some(implicit) = implicit_encountered {
+                    if let Some(implicit) = implicit_encountered.clone() {
                         if implicit.package_name() == package_id.package_name() {
                             bail!("Explicit package name already used by implicit package declaration: {}", implicit.package_name());
                         }
@@ -155,17 +165,9 @@ impl<'a> Ast<'a> {
                     let package_id = PackageName::parse(tokens, &mut docs)?;
                     maybe_package_id = Some(package_id.clone());
                     if tokens.eat(Token::Semicolon)? {
-                        if let (Some(parsed), Some(encountered)) =
-                            (&maybe_package_id, implicit_encountered)
-                        {
-                            let parsed_name = parsed.package_name();
-                            let encountered_name = encountered.package_name();
-                            if parsed_name != encountered_name {
-                                bail!(
-                          "Encountered conflicting implicit package identifiers: {} and {}",
-                          parsed_name,
-                          encountered_name
-                      );
+                        if let Some(ref implicit) = implicit_encountered {
+                            if implicit.package_name() != package_id.package_name() {
+                                bail!("Parsed package identifier `{}` doesn't match previously encountered {}", package_id.package_name(), implicit.package_name());
                             }
                         }
                         docs = parse_docs(tokens)?;
@@ -176,7 +178,7 @@ impl<'a> Ast<'a> {
                             maybe_package_id.as_ref(),
                         )?;
                     } else {
-                        if let Some(implicit) = implicit_encountered {
+                        if let Some(ref implicit) = implicit_encountered {
                             if implicit.package_name() == package_id.package_name() {
                                 bail!("Explicit package name already used by implicit package declaration: {}", implicit.package_name());
                             }
@@ -196,9 +198,11 @@ impl<'a> Ast<'a> {
                 tokens,
                 docs,
                 std::mem::take(&mut packages),
-                implicit_encountered,
+                implicit_encountered.as_ref(),
             )?;
-            if let (Some(parsed), Some(encountered)) = (&maybe_package_id, implicit_encountered) {
+            if let (Some(parsed), Some(encountered)) =
+                (&maybe_package_id, implicit_encountered.clone())
+            {
                 let parsed_name = parsed.package_name();
                 let encountered_name = encountered.package_name();
                 if parsed_name != encountered_name {
@@ -210,10 +214,15 @@ impl<'a> Ast<'a> {
                 }
             }
         }
+        let pkg = if let Some(pkg) = implicit_encountered.clone() {
+            Some(pkg)
+        } else {
+            maybe_package_id
+        };
         Ok(Self {
             explicit: decl_list.1,
             implicit: Some(PartialImplicitPackage {
-                package_id: maybe_package_id,
+                package_id: pkg,
                 decl_list: decl_list.0,
             }),
         })
@@ -1654,16 +1663,16 @@ fn eat_id(tokens: &mut Tokenizer<'_>, expected: &str) -> Result<Span> {
 /// [`UnresolvedPackage`].
 #[derive(Clone, Default)]
 pub struct SourceMap {
-    sources: Vec<Source>,
+    pub sources: Vec<Source>,
     offset: u32,
     require_semicolons: Option<bool>,
     require_f32_f64: Option<bool>,
 }
 
 #[derive(Clone)]
-struct Source {
+pub struct Source {
     offset: u32,
-    path: PathBuf,
+    pub path: PathBuf,
     contents: String,
 }
 
@@ -1718,7 +1727,6 @@ impl SourceMap {
 
     /// Parses the files added to this source map into one or more [`UnresolvedPackage`]s.
     pub fn parse(self) -> Result<UnresolvedPackageGroup> {
-        // let mut implicit = None;
         let mut packages = Vec::new();
         let mut unresolved = Vec::new();
         let parsed_pkg = self.rewrite_error(|| {
@@ -1726,7 +1734,6 @@ impl SourceMap {
             let mut srcs = self.sources.iter().collect::<Vec<_>>();
             srcs.sort_by_key(|src| &src.path);
             let mut implicit_encountered: Option<PackageName> = None;
-            let mut resolved_implicit = false;
             for src in srcs {
                 let mut parsed_pkgs = Vec::new();
                 let mut tokens = Tokenizer::new(
@@ -1741,39 +1748,37 @@ impl SourceMap {
                 let ast = Ast::parse(
                     &mut tokens,
                     std::mem::take(&mut packages),
-                    implicit_encountered.as_ref(),
+                    implicit_encountered.clone(),
                 )?;
                 if let Some(parsed_implicit) = ast.implicit {
-                    if !resolved_implicit {
+                    if parsed_implicit.package_id.is_some() {
                         implicit_encountered = parsed_implicit.package_id.clone();
-                        resolver
-                            .push_partial(parsed_implicit, ast.explicit, &mut parsed_pkgs)
-                            .with_context(|| {
-                                format!("failed to start resolving path: {}", src.path.display())
-                            })?;
-                        unresolved.extend(parsed_pkgs);
-                        resolved_implicit = true;
-                    } else {
-                        for pkg in ast.explicit {
-                            let unresolved_pkg = resolver.push_then_resolve(pkg)?;
-                            unresolved.push(unresolved_pkg);
-                        }
                     }
+                    resolver
+                        .push_partial(parsed_implicit, ast.explicit, &mut parsed_pkgs)
+                        .with_context(|| {
+                            format!("failed to start resolving path: {}", src.path.display())
+                        })?;
+                    unresolved.extend(parsed_pkgs);
                 } else {
                     for pkg in ast.explicit {
                         let unresolved_pkg = resolver.push_then_resolve(pkg)?;
-                        unresolved.push(unresolved_pkg);
+                        unresolved.push(unresolved_pkg.unwrap());
                     }
                 }
             }
             resolver.package_name = implicit_encountered.map(|p| p.package_name());
-            let pkg = resolver.resolve()?;
+            let pkg = resolver.resolve()?.and_then(|mut p| {
+                p.source_map = self.clone();
+                Some(p)
+            });
+
             Ok(pkg)
         })?;
         Ok(UnresolvedPackageGroup {
-            root: Some(parsed_pkg),
+            root: Some(parsed_pkg.unwrap()),
             packages: unresolved,
-            source_map: SourceMap::default(),
+            source_map: self,
         })
     }
 

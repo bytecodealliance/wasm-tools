@@ -1,1 +1,5 @@
 expected an identifier or string, found keyword `interface`
+     --> tests/ui/parse-fail/mix-explicit-then-implicit-package.wit:14:1
+      |
+   14 | interface i2 {
+      | ^--------

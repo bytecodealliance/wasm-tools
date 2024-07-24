@@ -1,14 +1,3 @@
-package root:root;
-
-world root {
-  import a: interface {
-  }
-  import a:b/b;
-  import c: func();
-  use a:b/b.{t};
-}
-
-
 package a:b;
 
 interface b {
@@ -28,4 +17,13 @@ world %from {
   import b;
   import c: func();
   use b.{t};
+}
+package root:root {
+  world root {
+    import a: interface {
+    }
+    import a:b/b;
+    import c: func();
+    use a:b/b.{t};
+  }
 }

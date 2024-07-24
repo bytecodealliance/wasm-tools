@@ -2,3 +2,7 @@ failed to resolve directory while parsing WIT for path [tests/ui/parse-fail/mult
 
 Caused by:
     expected `type`, `resource` or `func`, found eof
+         --> tests/ui/parse-fail/multi-file-missing-delimiter/observe.wit:6:1
+          |
+        6 | 
+          | ^

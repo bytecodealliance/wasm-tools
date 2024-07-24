@@ -113,6 +113,7 @@ enum ParsedFile {
     Unresolved(UnresolvedPackageGroup),
 }
 
+/// Visitor helper for performing topological sort on a group of packages.
 fn visit<'a>(
     pkg: &'a UnresolvedPackage,
     deps: &'a BTreeMap<PackageName, (UnresolvedPackage, usize)>,
@@ -123,7 +124,7 @@ fn visit<'a>(
     if order.contains(&pkg.name) {
         return Ok(());
     }
-    pkg.source_map.rewrite_error(|| {
+    source_maps[0].rewrite_error(|| {
         for (i, (dep, _)) in pkg.foreign_deps.iter().enumerate() {
             let span = pkg.foreign_dep_spans[i];
             if !visiting.insert(dep) {
@@ -280,18 +281,17 @@ impl Resolve {
     /// when generating the return value. This can be useful for build systems
     /// that want to rebuild bindings whenever one of the files change.
     pub fn push_dir(&mut self, path: &Path) -> Result<(PackageId, Vec<PathBuf>)> {
-        let mut pkg = UnresolvedPackageGroup::parse_dir(path)?;
+        let top_pkg = UnresolvedPackageGroup::parse_dir(path)?;
         let deps = path.join("deps");
         let mut deps = self
             .parse_deps_dir(&deps)
             .with_context(|| format!("failed to parse dependency directory: {}", deps.display()))?;
-
         // Perform a simple topological sort which will bail out on cycles
         // and otherwise determine the order that packages must be added to
         // this `Resolve`.
         let mut order = IndexSet::new();
         let mut visiting = HashSet::new();
-        for pkg in &pkg.packages {
+        for pkg in &top_pkg.packages {
             visit(
                 &pkg,
                 &deps,
@@ -300,13 +300,16 @@ impl Resolve {
                 &vec![pkg.source_map.clone()],
             )?;
         }
-        for pkg in deps.values().chain([&pkg.root.clone().unwrap()]) {
+        for pkg in deps.values().chain([&top_pkg]) {
+            for pkg in &pkg.packages {
+                visit(&pkg, &deps, &mut order, &mut visiting, &vec![])?;
+            }
             visit(
-                &pkg,
+                &pkg.root.as_ref().unwrap(),
                 &deps,
                 &mut order,
                 &mut visiting,
-                &vec![pkg.source_map.clone()],
+                &vec![],
             )?;
         }
 
@@ -314,35 +317,34 @@ impl Resolve {
         // Additionally note that the last item visited here is the root
         // package, which is the one returned here.
         let mut files = Vec::new();
+        let mut root = top_pkg.clone();
         for name in order {
             if deps.contains_key(&name) {
-                let mut pkg = deps
-                    .remove(&name)
-                    .unwrap_or_else(|| pkg.clone().root.unwrap());
-                files.extend(pkg.source_files().map(|p| p.to_path_buf()));
-                self.push(&mut pkg)?;
+                let pkg = deps.remove(&name).unwrap_or_else(|| root.clone());
+                files.extend(pkg.source_map.source_files().map(|p| p.to_path_buf()));
+                for mut nested in pkg.packages {
+                    self.push(&mut nested)?;
+                }
+                self.push(&mut pkg.root.clone().unwrap())?;
             } else {
-                let cur_pkg = pkg.packages.iter_mut().find(|p| p.name == name);
+                let cur_pkg = root.packages.iter_mut().find(|p| p.name == name);
                 if let Some(mut pkg) = cur_pkg {
                     files.extend(pkg.source_files().map(|p| p.to_path_buf()));
                     self.push(&mut pkg)?;
                 }
             }
         }
-        files.extend(
-            pkg.root
-                .clone()
-                .unwrap()
-                .source_files()
-                .map(|p| p.to_path_buf()),
-        );
-        let pkgid = self.push(&mut pkg.root.unwrap())?;
+
+        files.extend(root.source_map.source_files().map(|p| p.to_path_buf()));
+        let mut foo = root.root.unwrap();
+        foo.source_map = root.source_map;
+        let pkgid = self.push(&mut foo)?;
 
         return Ok((pkgid, files));
 
         fn visit<'a>(
             pkg: &'a UnresolvedPackage,
-            deps: &'a BTreeMap<PackageName, UnresolvedPackage>,
+            deps: &'a BTreeMap<PackageName, UnresolvedPackageGroup>,
             order: &mut IndexSet<PackageName>,
             visiting: &mut HashSet<&'a PackageName>,
             source_maps: &Vec<SourceMap>,
@@ -358,7 +360,13 @@ impl Resolve {
                             bail!(Error::new(span, "package depends on itself"));
                         }
                         if let Some(dep) = deps.get(dep) {
-                            visit(dep, deps, order, visiting, source_maps)?;
+                            visit(
+                                dep.root.as_ref().unwrap(),
+                                deps,
+                                order,
+                                visiting,
+                                source_maps,
+                            )?;
                         }
                         assert!(visiting.remove(dep));
                     }
@@ -373,17 +381,27 @@ impl Resolve {
                         bail!(Error::new(span, "package depends on itself"));
                     }
                     if let Some(dep) = deps.get(dep) {
-                        visit(dep, deps, order, visiting, source_maps)?;
+                        visit(
+                            &dep.root.as_ref().unwrap(),
+                            deps,
+                            order,
+                            visiting,
+                            source_maps,
+                        )?;
                     }
                     assert!(visiting.remove(dep));
                 }
+                order.insert(pkg.name.clone());
                 // assert!(order.insert(pkg.name.clone()));
                 Ok(())
             })
         }
     }
 
-    fn parse_deps_dir(&mut self, path: &Path) -> Result<BTreeMap<PackageName, UnresolvedPackage>> {
+    fn parse_deps_dir(
+        &mut self,
+        path: &Path,
+    ) -> Result<BTreeMap<PackageName, UnresolvedPackageGroup>> {
         let mut ret = BTreeMap::new();
         if !path.exists() {
             return Ok(ret);
@@ -420,12 +438,12 @@ impl Resolve {
                     _ => continue,
                 }
             };
-            let prev = ret.insert(
-                pkg.root.clone().unwrap().name.clone(),
-                pkg.root.clone().unwrap(),
-            );
+            let prev = ret.insert(pkg.root.clone().unwrap().name.clone(), pkg.clone());
             if let Some(prev) = prev {
-                bail!("duplicate definitions of package `{}` found", prev.name);
+                bail!(
+                    "duplicate definitions of package `{}` found",
+                    prev.root.clone().unwrap().name
+                );
             }
         }
         Ok(ret)

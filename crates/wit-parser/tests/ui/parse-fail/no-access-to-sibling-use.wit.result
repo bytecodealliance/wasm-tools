@@ -2,3 +2,7 @@ failed to resolve directory while parsing WIT for path [tests/ui/parse-fail/no-a
 
 Caused by:
     interface or world `bar-renamed` does not exist
+         --> tests/ui/parse-fail/no-access-to-sibling-use/foo.wit:3:5
+          |
+        3 | use bar-renamed;
+          |     ^----------

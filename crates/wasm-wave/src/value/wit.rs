@@ -189,7 +189,6 @@ mod tests {
         )
         .unwrap();
         let mut resolve = Resolve::new();
-        // resolve.push(&mut packages.remove(0)).unwrap();
         resolve.push(&mut root.unwrap()).unwrap();
 
         for (func_name, expected_display) in [
