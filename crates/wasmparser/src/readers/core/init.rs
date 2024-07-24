@@ -17,10 +17,18 @@ use crate::{BinaryReader, FromReader, OperatorsReader, Result};
 use core::fmt;
 
 /// Represents an initialization expression.
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone)]
 pub struct ConstExpr<'a> {
     reader: BinaryReader<'a>,
 }
+
+impl PartialEq for ConstExpr<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.reader.remaining_buffer() == other.reader.remaining_buffer()
+    }
+}
+
+impl Eq for ConstExpr<'_> {}
 
 impl<'a> ConstExpr<'a> {
     /// Constructs a new `ConstExpr` from the given data and offset.

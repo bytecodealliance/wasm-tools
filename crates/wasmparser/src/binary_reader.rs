@@ -101,7 +101,7 @@ impl BinaryReaderError {
 }
 
 /// A binary reader of the WebAssembly structures and types.
-#[derive(Clone, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Debug, Hash)]
 pub struct BinaryReader<'a> {
     buffer: &'a [u8],
     position: usize,
