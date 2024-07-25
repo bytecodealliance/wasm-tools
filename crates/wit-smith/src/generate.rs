@@ -847,9 +847,6 @@ impl<'a> InterfaceGenerator<'a> {
         self.gen_params(u, dst, method)?;
         if u.arbitrary()? {
             dst.push_str(" -> ");
-            self.gen_params(u, dst, false)?;
-        } else if u.arbitrary()? {
-            dst.push_str(" -> ");
             let mut fuel = self.config.max_type_size;
             self.gen_type(u, &mut fuel, dst)?;
         }
