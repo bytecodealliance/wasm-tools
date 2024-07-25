@@ -1,5 +1,5 @@
 // RUN: component embed --dummy --wat % | component wit
-package foo:rot;
+package foo:root;
 package test:foo1 {
   interface bar {
     baz: func(s: string) -> string;

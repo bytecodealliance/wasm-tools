@@ -1,5 +1,6 @@
 // FAIL: component embed --dummy --wat %
 
+package foo:root;
 package test:foo1 {
   interface bar {
     baz: func(s: string) -> string;

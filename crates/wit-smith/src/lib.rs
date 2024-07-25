@@ -21,8 +21,8 @@ pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
     let mut resolve = Resolve::default();
     let mut last = None;
     for pkg in pkgs {
-        let UnresolvedPackageGroup { mut packages, .. } = pkg.sources.parse().unwrap();
-        let id = match resolve.push(&mut packages.remove(0)) {
+        let UnresolvedPackageGroup { mut nested, .. } = pkg.sources.parse().unwrap();
+        let id = match resolve.push(&mut nested.remove(0)) {
             Ok(id) => id,
             Err(e) => {
                 if e.to_string().contains(

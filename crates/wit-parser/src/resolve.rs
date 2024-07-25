@@ -203,14 +203,14 @@ impl Resolve {
         let mut source_maps = Vec::new();
         let UnresolvedPackageGroup {
             root,
-            packages,
+            nested,
             source_map,
             ..
         } = unresolved_group;
 
         source_maps.push(source_map);
-        pkg_details_map.insert(root.clone().unwrap().name, (root.unwrap(), 0));
-        for (i, pkg) in packages.iter().enumerate() {
+        pkg_details_map.insert(root.name.clone(), (root, 0));
+        for (i, pkg) in nested.iter().enumerate() {
             pkg_details_map.insert(pkg.name.clone(), (pkg.clone(), i));
         }
 
@@ -281,7 +281,8 @@ impl Resolve {
     /// when generating the return value. This can be useful for build systems
     /// that want to rebuild bindings whenever one of the files change.
     pub fn push_dir(&mut self, path: &Path) -> Result<(PackageId, Vec<PathBuf>)> {
-        let top_pkg = UnresolvedPackageGroup::parse_dir(path)?;
+        let top_pkg = UnresolvedPackageGroup::parse_dir(path)
+            .with_context(|| format!("failed to parse package: {}", path.display()))?;
         let deps = path.join("deps");
         let mut deps = self
             .parse_deps_dir(&deps)
@@ -291,7 +292,7 @@ impl Resolve {
         // this `Resolve`.
         let mut order = IndexSet::new();
         let mut visiting = HashSet::new();
-        for pkg in &top_pkg.packages {
+        for pkg in &top_pkg.nested {
             visit(
                 &pkg,
                 &deps,
@@ -301,16 +302,10 @@ impl Resolve {
             )?;
         }
         for pkg in deps.values().chain([&top_pkg]) {
-            for pkg in &pkg.packages {
+            for pkg in &pkg.nested {
                 visit(&pkg, &deps, &mut order, &mut visiting, &vec![])?;
             }
-            visit(
-                &pkg.root.as_ref().unwrap(),
-                &deps,
-                &mut order,
-                &mut visiting,
-                &vec![],
-            )?;
+            visit(&pkg.root, &deps, &mut order, &mut visiting, &vec![])?;
         }
 
         // Using the topological ordering insert each package incrementally.
@@ -322,12 +317,12 @@ impl Resolve {
             if deps.contains_key(&name) {
                 let pkg = deps.remove(&name).unwrap_or_else(|| root.clone());
                 files.extend(pkg.source_map.source_files().map(|p| p.to_path_buf()));
-                for mut nested in pkg.packages {
+                for mut nested in pkg.nested {
                     self.push(&mut nested)?;
                 }
-                self.push(&mut pkg.root.clone().unwrap())?;
+                self.push(&mut pkg.root.clone())?;
             } else {
-                let cur_pkg = root.packages.iter_mut().find(|p| p.name == name);
+                let cur_pkg = root.nested.iter_mut().find(|p| p.name == name);
                 if let Some(mut pkg) = cur_pkg {
                     files.extend(pkg.source_files().map(|p| p.to_path_buf()));
                     self.push(&mut pkg)?;
@@ -336,9 +331,8 @@ impl Resolve {
         }
 
         files.extend(root.source_map.source_files().map(|p| p.to_path_buf()));
-        let mut foo = root.root.unwrap();
-        foo.source_map = root.source_map;
-        let pkgid = self.push(&mut foo)?;
+        root.root.source_map = root.source_map;
+        let pkgid = self.push(&mut root.root)?;
 
         return Ok((pkgid, files));
 
@@ -360,13 +354,7 @@ impl Resolve {
                             bail!(Error::new(span, "package depends on itself"));
                         }
                         if let Some(dep) = deps.get(dep) {
-                            visit(
-                                dep.root.as_ref().unwrap(),
-                                deps,
-                                order,
-                                visiting,
-                                source_maps,
-                            )?;
+                            visit(&dep.root, deps, order, visiting, source_maps)?;
                         }
                         assert!(visiting.remove(dep));
                     }
@@ -381,18 +369,11 @@ impl Resolve {
                         bail!(Error::new(span, "package depends on itself"));
                     }
                     if let Some(dep) = deps.get(dep) {
-                        visit(
-                            &dep.root.as_ref().unwrap(),
-                            deps,
-                            order,
-                            visiting,
-                            source_maps,
-                        )?;
+                        visit(&dep.root, deps, order, visiting, source_maps)?;
                     }
                     assert!(visiting.remove(dep));
                 }
                 order.insert(pkg.name.clone());
-                // assert!(order.insert(pkg.name.clone()));
                 Ok(())
             })
         }
@@ -438,11 +419,11 @@ impl Resolve {
                     _ => continue,
                 }
             };
-            let prev = ret.insert(pkg.root.clone().unwrap().name.clone(), pkg.clone());
+            let prev = ret.insert(pkg.root.name.clone(), pkg.clone());
             if let Some(prev) = prev {
                 bail!(
                     "duplicate definitions of package `{}` found",
-                    prev.root.clone().unwrap().name
+                    prev.root.name
                 );
             }
         }

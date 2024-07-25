@@ -1,4 +1,4 @@
-use super::{ExplicitPackage, ParamList, ResultList, WorldOrInterface};
+use super::{NestedPackage, ParamList, ResultList, WorldOrInterface};
 use crate::ast::toposort::toposort;
 use crate::*;
 use anyhow::bail;
@@ -8,7 +8,7 @@ use std::mem;
 #[derive(Default)]
 pub struct Resolver<'a> {
     /// Current package name learned through the ASTs pushed onto this resolver.
-    pub package_name: Option<PackageName>,
+    package_name: Option<PackageName>,
 
     /// Package docs.
     package_docs: Docs,
@@ -111,15 +111,13 @@ enum TypeOrItem {
 impl<'a> Resolver<'a> {
     pub(crate) fn push_partial(
         &mut self,
-        partial: ast::PartialImplicitPackage<'a>,
-        explicit: Vec<ExplicitPackage<'a>>,
+        partial: ast::PartialRootPackage<'a>,
+        explicit: Vec<NestedPackage<'a>>,
         parsed_pkgs: &mut Vec<UnresolvedPackage>,
     ) -> Result<()> {
         for pkg in explicit {
             let mut resolver = Resolver::default();
-            let ingested = resolver
-                .push_then_resolve(pkg)
-                .with_context(|| format!("YADA"))?;
+            let ingested = resolver.push_then_resolve(pkg)?;
             parsed_pkgs.push(ingested.unwrap());
         }
         // As each WIT file is pushed into this resolver keep track of the
@@ -248,7 +246,7 @@ impl<'a> Resolver<'a> {
 
     pub(crate) fn push_then_resolve(
         &mut self,
-        package: ast::ExplicitPackage<'a>,
+        package: ast::NestedPackage<'a>,
     ) -> Result<Option<UnresolvedPackage>> {
         let mut resolver = Resolver::default();
         resolver.package_name = Some(package.package_id.package_name());

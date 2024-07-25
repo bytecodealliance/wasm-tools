@@ -122,11 +122,11 @@ impl UnresolvedPackage {
 }
 
 /// Tracks a set of packages, all pulled from the same group of WIT source files.
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub struct UnresolvedPackageGroup {
-    pub root: Option<UnresolvedPackage>,
+    pub root: UnresolvedPackage,
     /// A set of packages that share source file(s).
-    pub packages: Vec<UnresolvedPackage>,
+    pub nested: Vec<UnresolvedPackage>,
 
     /// A set of processed source files from which these packages have been parsed.
     pub source_map: SourceMap,
@@ -228,11 +228,6 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {}
 
 impl UnresolvedPackageGroup {
-    /// Creates an empty set of packages.
-    pub fn new() -> UnresolvedPackageGroup {
-        UnresolvedPackageGroup::default()
-    }
-
     /// Parses the given string as a wit document.
     ///
     /// The `path` argument is used for error reporting. The `contents` provided
