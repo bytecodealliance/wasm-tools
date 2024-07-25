@@ -264,7 +264,7 @@ impl Bindgen {
                     DecodedWasm::Component(..) => bail!("expected encoded wit package(s)"),
                 };
                 resolve = r;
-                world = resolve.select_world(&[pkg], Some(world_name.into()))?;
+                world = resolve.select_world(pkg, Some(world_name.into()))?;
             }
 
             // Current format where `data` is a wasm component itself.

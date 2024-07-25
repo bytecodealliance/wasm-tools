@@ -2155,7 +2155,7 @@ world test {
 "#,
             )
             .unwrap();
-        let world = resolve.select_world(&[pkg], None).unwrap();
+        let world = resolve.select_world(pkg, None).unwrap();
 
         let mut module = dummy_module(&resolve, world);
 

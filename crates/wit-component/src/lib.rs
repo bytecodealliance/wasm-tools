@@ -146,7 +146,7 @@ world test-world {}
         // Parse pre-canned WIT to build resolver
         let mut resolver = Resolve::default();
         let pkg = resolver.push_str("in-code.wit", COMPONENT_WIT)?;
-        let world = resolver.select_world(&[pkg], Some("test-world"))?;
+        let world = resolver.select_world(pkg, Some("test-world"))?;
 
         // Embed component metadata
         embed_component_metadata(&mut bytes, &resolver, world, StringEncoding::UTF8)?;

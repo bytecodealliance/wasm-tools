@@ -1044,7 +1044,7 @@ impl Resolve {
     ///             }
     ///         "#,
     ///     )?;
-    ///     assert!(resolve.select_world(&[id], None).is_ok());
+    ///     assert!(resolve.select_world(id, None).is_ok());
     ///
     ///     // For inputs which have a single package and multiple worlds then
     ///     // a world must be specified.
@@ -1058,9 +1058,9 @@ impl Resolve {
     ///             world bar { /* ... */ }
     ///         "#,
     ///     )?;
-    ///     assert!(resolve.select_world(&[id], None).is_err());
-    ///     assert!(resolve.select_world(&[id], Some("foo")).is_ok());
-    ///     assert!(resolve.select_world(&[id], Some("bar")).is_ok());
+    ///     assert!(resolve.select_world(id, None).is_err());
+    ///     assert!(resolve.select_world(id, Some("foo")).is_ok());
+    ///     assert!(resolve.select_world(id, Some("bar")).is_ok());
     ///
     ///     // For inputs which have more than one package then a fully
     ///     // qualified name must be specified.
@@ -1068,8 +1068,8 @@ impl Resolve {
     ///     // Note that the `ids` or `packages` argument is ignored if a fully
     ///     // qualified world specified is provided meaning previous worlds
     ///     // can be selected.
-    ///     assert!(resolve.select_world(&[], Some("example:wit1/foo")).is_ok());
-    ///     assert!(resolve.select_world(&[], Some("example:wit2/foo")).is_ok());
+    ///     assert!(resolve.select_world(id, Some("example:wit1/foo")).is_ok());
+    ///     assert!(resolve.select_world(id, Some("example:wit2/foo")).is_ok());
     ///
     ///     // When selecting with a version it's ok to drop the version when
     ///     // there's only a single copy of that package in `Resolve`.
@@ -1081,7 +1081,7 @@ impl Resolve {
     ///             world foo { /* ... */ }
     ///         "#,
     ///     )?;
-    ///     assert!(resolve.select_world(&[], Some("example:wit5/foo")).is_ok());
+    ///     assert!(resolve.select_world(id, Some("example:wit5/foo")).is_ok());
     ///
     ///     // However when a single package has multiple versions in a resolve
     ///     // it's required to specify the version to select which one.
@@ -1093,14 +1093,14 @@ impl Resolve {
     ///             world foo { /* ... */ }
     ///         "#,
     ///     )?;
-    ///     assert!(resolve.select_world(&[], Some("example:wit5/foo")).is_err());
-    ///     assert!(resolve.select_world(&[], Some("example:wit5/foo@1.0.0")).is_ok());
-    ///     assert!(resolve.select_world(&[], Some("example:wit5/foo@2.0.0")).is_ok());
+    ///     assert!(resolve.select_world(id, Some("example:wit5/foo")).is_err());
+    ///     assert!(resolve.select_world(id, Some("example:wit5/foo@1.0.0")).is_ok());
+    ///     assert!(resolve.select_world(id, Some("example:wit5/foo@2.0.0")).is_ok());
     ///
     ///     Ok(())
     /// }
     /// ```
-    pub fn select_world(&self, packages: &[PackageId], world: Option<&str>) -> Result<WorldId> {
+    pub fn select_world(&self, package: PackageId, world: Option<&str>) -> Result<WorldId> {
         let world_path = match world {
             Some(world) => Some(
                 parse_use_path(world)
@@ -1110,17 +1110,7 @@ impl Resolve {
         };
 
         let (pkg, world_name) = match world_path {
-            Some(ParsedUsePath::Name(name)) => match packages {
-                [] => bail!("no packages were found to locate the world `{name}` within"),
-                [one] => (*one, name),
-                [..] => {
-                    bail!(
-                        "the supplied WIT source files describe multiple packages; \
-                         please provide a fully-qualified world-specifier select \
-                         a world amongst these packages"
-                    )
-                }
-            },
+            Some(ParsedUsePath::Name(name)) => (package, name),
             Some(ParsedUsePath::Package(pkg, interface)) => {
                 let pkg = match self.package_names.get(&pkg) {
                     Some(pkg) => *pkg,
@@ -1149,35 +1139,28 @@ impl Resolve {
                 };
                 (pkg, interface.to_string())
             }
-            None => match packages {
-                [] => bail!("no packages were specified nor is a world specified"),
-                [..] => {
-                    let worlds = packages
-                        .iter()
-                        .flat_map(|pkg| {
-                            self.packages[*pkg]
-                                .worlds
-                                .values()
-                                .map(|world| (*pkg, *world))
-                        })
-                        .collect::<Vec<_>>();
+            None => {
+                let worlds = self.packages[package]
+                    .worlds
+                    .values()
+                    .map(|world| (package, *world))
+                    .collect::<Vec<_>>();
 
-                    match &worlds[..] {
-                        [] => bail!("none of the specified packages contain a world"),
-                        [(_, world)] => return Ok(*world),
-                        _ => bail!(
-                            "multiple worlds found; one must be explicitly chosen:{}",
-                            worlds
-                                .iter()
-                                .map(|(pkg, world)| format!(
-                                    "\n  {}/{}",
-                                    self.packages[*pkg].name, self.worlds[*world].name
-                                ))
-                                .collect::<String>()
-                        ),
-                    }
+                match &worlds[..] {
+                    [] => bail!("none of the specified packages contain a world"),
+                    [(_, world)] => return Ok(*world),
+                    _ => bail!(
+                        "multiple worlds found; one must be explicitly chosen:{}",
+                        worlds
+                            .iter()
+                            .map(|(pkg, world)| format!(
+                                "\n  {}/{}",
+                                self.packages[*pkg].name, self.worlds[*world].name
+                            ))
+                            .collect::<String>()
+                    ),
                 }
-            },
+            }
         };
         let pkg = &self.packages[pkg];
         pkg.worlds
@@ -2975,19 +2958,19 @@ mod tests {
             "#,
         )?;
 
-        assert!(resolve.select_world(&[dummy], None).is_ok());
-        assert!(resolve.select_world(&[dummy], Some("xx")).is_err());
-        assert!(resolve.select_world(&[dummy], Some("")).is_err());
-        assert!(resolve.select_world(&[dummy], Some("foo:bar/foo")).is_ok());
+        assert!(resolve.select_world(dummy, None).is_ok());
+        assert!(resolve.select_world(dummy, Some("xx")).is_err());
+        assert!(resolve.select_world(dummy, Some("")).is_err());
+        assert!(resolve.select_world(dummy, Some("foo:bar/foo")).is_ok());
         assert!(resolve
-            .select_world(&[dummy], Some("foo:bar/foo@0.1.0"))
+            .select_world(dummy, Some("foo:bar/foo@0.1.0"))
             .is_ok());
-        assert!(resolve.select_world(&[dummy], Some("foo:baz/foo")).is_err());
+        assert!(resolve.select_world(dummy, Some("foo:baz/foo")).is_err());
         assert!(resolve
-            .select_world(&[dummy], Some("foo:baz/foo@0.1.0"))
+            .select_world(dummy, Some("foo:baz/foo@0.1.0"))
             .is_ok());
         assert!(resolve
-            .select_world(&[dummy], Some("foo:baz/foo@0.2.0"))
+            .select_world(dummy, Some("foo:baz/foo@0.2.0"))
             .is_ok());
         Ok(())
     }

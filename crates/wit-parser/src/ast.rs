@@ -138,7 +138,8 @@ impl<'a> Ast<'a> {
         mut packages: Vec<NestedPackage<'a>>,
         root_encountered: Option<PackageName<'a>>,
     ) -> Result<Self> {
-        let mut decl_list = (DeclList::default(), Vec::new());
+        let mut decl_list = DeclList::default();
+        let mut nested = Vec::new();
         let mut maybe_package_id = None;
         let mut docs = parse_docs(tokens)?;
         if tokens.eat(Token::Package)? {
@@ -156,7 +157,7 @@ impl<'a> Ast<'a> {
                         }
                     }
                     if tokens.eat(Token::LeftBrace)? {
-                        decl_list.1.push(NestedPackage {
+                        nested.push(NestedPackage {
                             package_id: package_id,
                             decl_list: DeclList::parse_nested_package_items(tokens)?,
                         });
@@ -171,7 +172,7 @@ impl<'a> Ast<'a> {
                             }
                         }
                         docs = parse_docs(tokens)?;
-                        decl_list = DeclList::parse_root_package_items(
+                        (decl_list, nested) = DeclList::parse_root_package_items(
                             tokens,
                             docs.clone(),
                             std::mem::take(&mut packages),
@@ -184,7 +185,7 @@ impl<'a> Ast<'a> {
                             }
                         }
                         if tokens.eat(Token::LeftBrace)? {
-                            decl_list.1.push(NestedPackage {
+                            nested.push(NestedPackage {
                                 package_id: package_id,
                                 decl_list: DeclList::parse_nested_package_items(tokens)?,
                             });
@@ -194,7 +195,7 @@ impl<'a> Ast<'a> {
                 };
             }
         } else {
-            decl_list = DeclList::parse_root_package_items(
+            (decl_list, nested) = DeclList::parse_root_package_items(
                 tokens,
                 docs,
                 std::mem::take(&mut packages),
@@ -221,9 +222,9 @@ impl<'a> Ast<'a> {
         Ok(Self {
             root: Some(PartialRootPackage {
                 package_id: pkg,
-                decl_list: decl_list.0,
+                decl_list,
             }),
-            nested: decl_list.1,
+            nested,
         })
     }
 }

@@ -284,7 +284,7 @@ impl EmbedOpts {
             Some(self.io.parse_input_wasm()?)
         };
         let (resolve, pkg_id) = self.resolve.load()?;
-        let world = resolve.select_world(&[pkg_id], self.world.as_deref())?;
+        let world = resolve.select_world(pkg_id, self.world.as_deref())?;
         let mut wasm = wasm.unwrap_or_else(|| wit_component::dummy_module(&resolve, world));
 
         embed_component_metadata(
@@ -718,7 +718,7 @@ impl TargetsOpts {
     /// Executes the application.
     fn run(self) -> Result<()> {
         let (resolve, pkg_id) = self.resolve.load()?;
-        let world = resolve.select_world(&[pkg_id], self.world.as_deref())?;
+        let world = resolve.select_world(pkg_id, self.world.as_deref())?;
         let component_to_test = self.input.parse_wasm()?;
 
         wit_component::targets(&resolve, world, &component_to_test)?;
@@ -758,8 +758,8 @@ impl SemverCheckOpts {
 
     fn run(self) -> Result<()> {
         let (resolve, pkg_id) = self.resolve.load()?;
-        let prev = resolve.select_world(&[pkg_id], Some(self.prev.as_str()))?;
-        let new = resolve.select_world(&[pkg_id], Some(self.new.as_str()))?;
+        let prev = resolve.select_world(pkg_id, Some(self.prev.as_str()))?;
+        let new = resolve.select_world(pkg_id, Some(self.new.as_str()))?;
         wit_component::semver_check(resolve, prev, new)?;
         Ok(())
     }
