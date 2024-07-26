@@ -635,9 +635,15 @@ impl WitOpts {
                     *cnt += 1;
                 }
 
+                let main = decoded.package();
                 for (id, pkg) in resolve.packages.iter() {
+                    let is_main = id == main;
                     let output = printer.print(resolve, &[id])?;
-                    let out_dir = dir.clone();
+                    let out_dir = if is_main {
+                        dir.clone()
+                    } else {
+                        dir.join("deps")
+                    };
                     let packages_with_same_name = &names[&pkg.name.name];
                     let packages_with_same_namespace = packages_with_same_name[&pkg.name.namespace];
                     let stem = if packages_with_same_name.len() == 1 {
