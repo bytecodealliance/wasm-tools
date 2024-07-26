@@ -1,4 +1,4 @@
-// RUN: component embed --dummy --wat % | component wit
+// RUN: component embed --dummy --wat --world test:hola/hello % | component wit
 package foo:root;
 package test:foo1 {
   interface bar {

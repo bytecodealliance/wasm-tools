@@ -1750,12 +1750,12 @@ impl SourceMap {
                     std::mem::take(&mut packages),
                     root_encountered.clone(),
                 )?;
-                if let Some(parsed_implicit) = ast.root {
-                    if parsed_implicit.package_id.is_some() {
-                        root_encountered = parsed_implicit.package_id.clone();
+                if let Some(parsed_root) = ast.root {
+                    if parsed_root.package_id.is_some() {
+                        root_encountered = parsed_root.package_id.clone();
                     }
                     resolver
-                        .push_partial(parsed_implicit, ast.nested, &mut parsed_pkgs)
+                        .push_partial(parsed_root, ast.nested, &mut parsed_pkgs)
                         .with_context(|| {
                             format!("failed to start resolving path: {}", src.path.display())
                         })?;

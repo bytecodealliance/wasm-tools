@@ -112,10 +112,10 @@ impl<'a> Resolver<'a> {
     pub(crate) fn push_partial(
         &mut self,
         partial: ast::PartialRootPackage<'a>,
-        explicit: Vec<NestedPackage<'a>>,
+        nested: Vec<NestedPackage<'a>>,
         parsed_pkgs: &mut Vec<UnresolvedPackage>,
     ) -> Result<()> {
-        for pkg in explicit {
+        for pkg in nested {
             let mut resolver = Resolver::default();
             let ingested = resolver.push_then_resolve(pkg)?;
             parsed_pkgs.push(ingested.unwrap());

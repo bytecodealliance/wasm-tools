@@ -188,8 +188,8 @@ impl Resolve {
                 )
             })
         } else {
-            let ids = self.push_file(path)?;
-            Ok((ids, vec![path.to_path_buf()]))
+            let id = self.push_file(path)?;
+            Ok((id, vec![path.to_path_buf()]))
         }
     }
 
@@ -209,7 +209,7 @@ impl Resolve {
         } = unresolved_group;
 
         source_maps.push(source_map);
-        pkg_details_map.insert(root.name.clone(), (root, 0));
+        pkg_details_map.insert(root.name.clone(), (root.clone(), 0));
         for (i, pkg) in nested.iter().enumerate() {
             pkg_details_map.insert(pkg.name.clone(), (pkg.clone(), i));
         }
@@ -233,16 +233,21 @@ impl Resolve {
         // Ensure that the final output is topologically sorted. Use a set to ensure that we render
         // the buffers for each `SourceMap` only once, even though multiple packages may references
         // the same `SourceMap`.
+        let mut root_id = None;
         for name in order {
             match pkg_details_map.remove(&name) {
                 Some((mut pkg, _)) => {
-                    pkg_ids.push(self.push(&mut pkg)?);
+                    let pkg_id = self.push(&mut pkg)?;
+                    if root.name == pkg.name {
+                        root_id = Some(pkg_id);
+                    }
+                    pkg_ids.push(pkg_id);
                 }
                 None => panic!("package in topologically ordered set, but not in package map"),
             }
         }
 
-        Ok((pkg_ids[pkg_ids.len() - 1], path_bufs))
+        Ok((root_id.unwrap(), path_bufs))
     }
 
     /// Parses the filesystem directory at `path` as a WIT package and returns
@@ -1140,14 +1145,15 @@ impl Resolve {
                 (pkg, interface.to_string())
             }
             None => {
-                let worlds = self.packages[package]
+                let pkg = &self.packages[package];
+                let worlds = pkg
                     .worlds
                     .values()
                     .map(|world| (package, *world))
                     .collect::<Vec<_>>();
 
                 match &worlds[..] {
-                    [] => bail!("none of the specified packages contain a world"),
+                    [] => bail!("The root package `{}` contains no worlds", pkg.name),
                     [(_, world)] => return Ok(*world),
                     _ => bail!(
                         "multiple worlds found; one must be explicitly chosen:{}",
