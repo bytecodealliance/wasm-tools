@@ -1310,33 +1310,79 @@ fn parse_version(tokens: &mut Tokenizer<'_>) -> Result<(Span, Version)> {
     let version = Version::parse(string).map_err(|e| Error::new(span, e.to_string()))?;
     return Ok((span, version));
 
+    // According to `semver.org` this is what we're parsing:
+    //
+    // ```ebnf
+    // <pre-release> ::= <dot-separated pre-release identifiers>
+    //
+    // <dot-separated pre-release identifiers> ::= <pre-release identifier>
+    //                                           | <pre-release identifier> "." <dot-separated pre-release identifiers>
+    //
+    // <build> ::= <dot-separated build identifiers>
+    //
+    // <dot-separated build identifiers> ::= <build identifier>
+    //                                     | <build identifier> "." <dot-separated build identifiers>
+    //
+    // <pre-release identifier> ::= <alphanumeric identifier>
+    //                            | <numeric identifier>
+    //
+    // <build identifier> ::= <alphanumeric identifier>
+    //                      | <digits>
+    //
+    // <alphanumeric identifier> ::= <non-digit>
+    //                             | <non-digit> <identifier characters>
+    //                             | <identifier characters> <non-digit>
+    //                             | <identifier characters> <non-digit> <identifier characters>
+    //
+    // <numeric identifier> ::= "0"
+    //                        | <positive digit>
+    //                        | <positive digit> <digits>
+    //
+    // <identifier characters> ::= <identifier character>
+    //                           | <identifier character> <identifier characters>
+    //
+    // <identifier character> ::= <digit>
+    //                          | <non-digit>
+    //
+    // <non-digit> ::= <letter>
+    //               | "-"
+    //
+    // <digits> ::= <digit>
+    //            | <digit> <digits>
+    // ```
+    //
+    // This is loosely based on WIT syntax and an approximation is parsed here:
+    //
+    // * This function starts by parsing the optional leading `-` and `+` which
+    //   indicates pre-release and build metadata.
+    // * Afterwards all of $id, $integer, `-`, and `.` are chomped. The only
+    //   exception here is that if `.` isn't followed by $id, $integer, or `-`
+    //   then it's assumed that it's something like `use a:b@1.0.0-a.{...}`
+    //   where the `.` is part of WIT syntax, not semver.
+    //
+    // Note that this additionally doesn't try to return any first-class errors.
+    // Instead this bails out on something unrecognized for something else in
+    // the system to return an error.
     fn eat_ids(tokens: &mut Tokenizer<'_>, prefix: Token, end: &mut Span) -> Result<()> {
         if !tokens.eat(prefix)? {
             return Ok(());
         }
         loop {
-            match tokens.next()? {
-                Some((span, Token::Id)) | Some((span, Token::Integer)) => end.end = span.end,
-                other => break Err(err_expected(tokens, "an id or integer", other).into()),
-            }
-
-            // If there's no trailing period, then this semver identifier is
-            // done.
             let mut clone = tokens.clone();
-            if !clone.eat(Token::Period)? {
-                break Ok(());
+            match clone.next()? {
+                Some((span, Token::Id | Token::Integer | Token::Minus)) => {
+                    end.end = span.end;
+                    *tokens = clone;
+                }
+                Some((_span, Token::Period)) => match clone.next()? {
+                    Some((span, Token::Id | Token::Integer | Token::Minus)) => {
+                        end.end = span.end;
+                        *tokens = clone;
+                    }
+                    _ => break Ok(()),
+                },
+                _ => break Ok(()),
             }
-
-            // If there's more to the identifier, then eat the period for real
-            // and continue
-            if clone.eat(Token::Id)? || clone.eat(Token::Integer)? {
-                tokens.eat(Token::Period)?;
-                continue;
-            }
-
-            // Otherwise for something like `use foo:bar/baz@1.2.3+foo.{` stop
-            // the parsing here.
-            break Ok(());
         }
     }
 }
@@ -1606,6 +1652,10 @@ enum Attribute<'a> {
         span: Span,
         feature: Id<'a>,
     },
+    Deprecated {
+        span: Span,
+        version: Version,
+    },
 }
 
 impl<'a> Attribute<'a> {
@@ -1615,18 +1665,18 @@ impl<'a> Attribute<'a> {
             let id = parse_id(tokens)?;
             let attr = match id.name {
                 "since" => {
-                    tokens.eat(Token::LeftParen)?;
+                    tokens.expect(Token::LeftParen)?;
                     eat_id(tokens, "version")?;
-                    tokens.eat(Token::Equals)?;
+                    tokens.expect(Token::Equals)?;
                     let (_span, version) = parse_version(tokens)?;
                     let feature = if tokens.eat(Token::Comma)? {
                         eat_id(tokens, "feature")?;
-                        tokens.eat(Token::Equals)?;
+                        tokens.expect(Token::Equals)?;
                         Some(parse_id(tokens)?)
                     } else {
                         None
                     };
-                    tokens.eat(Token::RightParen)?;
+                    tokens.expect(Token::RightParen)?;
                     Attribute::Since {
                         span: id.span,
                         version,
@@ -1634,14 +1684,25 @@ impl<'a> Attribute<'a> {
                     }
                 }
                 "unstable" => {
-                    tokens.eat(Token::LeftParen)?;
+                    tokens.expect(Token::LeftParen)?;
                     eat_id(tokens, "feature")?;
-                    tokens.eat(Token::Equals)?;
+                    tokens.expect(Token::Equals)?;
                     let feature = parse_id(tokens)?;
-                    tokens.eat(Token::RightParen)?;
+                    tokens.expect(Token::RightParen)?;
                     Attribute::Unstable {
                         span: id.span,
                         feature,
+                    }
+                }
+                "deprecated" => {
+                    tokens.expect(Token::LeftParen)?;
+                    eat_id(tokens, "version")?;
+                    tokens.expect(Token::Equals)?;
+                    let (_span, version) = parse_version(tokens)?;
+                    tokens.expect(Token::RightParen)?;
+                    Attribute::Deprecated {
+                        span: id.span,
+                        version,
                     }
                 }
                 other => {
@@ -1655,7 +1716,9 @@ impl<'a> Attribute<'a> {
 
     fn span(&self) -> Span {
         match self {
-            Attribute::Since { span, .. } | Attribute::Unstable { span, .. } => *span,
+            Attribute::Since { span, .. }
+            | Attribute::Unstable { span, .. }
+            | Attribute::Deprecated { span, .. } => *span,
         }
     }
 }

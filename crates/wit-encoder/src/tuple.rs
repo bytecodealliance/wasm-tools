@@ -14,6 +14,10 @@ impl Tuple {
         Default::default()
     }
 
+    pub fn type_(&mut self, type_: impl Into<Type>) {
+        self.types.push(type_.into());
+    }
+
     pub fn types(&self) -> &[Type] {
         &self.types
     }

@@ -14,6 +14,10 @@ impl Flags {
         }
     }
 
+    pub fn flag(&mut self, flag: impl Into<Flag>) {
+        self.flags.push(flag.into());
+    }
+
     pub fn flags(&self) -> &[Flag] {
         &self.flags
     }
@@ -39,7 +43,19 @@ impl Flag {
         }
     }
 
-    pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
+    pub fn name(&mut self) -> &Ident {
+        &self.name
+    }
+
+    pub fn set_name(&mut self, name: impl Into<Ident>) {
+        self.name = name.into();
+    }
+
+    pub fn docs(&mut self) -> &Option<Docs> {
+        &self.docs
+    }
+
+    pub fn set_docs(&mut self, docs: Option<impl Into<Docs>>) {
         self.docs = docs.map(|d| d.into());
     }
 }
@@ -60,7 +76,7 @@ where
 {
     fn into(self) -> Flag {
         let mut flag = Flag::new(self.0);
-        flag.docs(Some(self.1));
+        flag.set_docs(Some(self.1));
         flag
     }
 }

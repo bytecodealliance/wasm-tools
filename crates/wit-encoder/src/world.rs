@@ -27,8 +27,12 @@ impl World {
     }
 
     /// Add a `name` to the world
-    pub fn name(&mut self, name: impl Into<Ident>) {
+    pub fn set_name(&mut self, name: impl Into<Ident>) {
         self.name = name.into();
+    }
+
+    pub fn name(&mut self) -> &Ident {
+        &self.name
     }
 
     /// Add an import or export to the world
@@ -62,7 +66,7 @@ impl World {
     }
 
     /// Set the documentation
-    pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
+    pub fn set_docs(&mut self, docs: Option<impl Into<Docs>>) {
         self.docs = docs.map(|d| d.into());
     }
 }

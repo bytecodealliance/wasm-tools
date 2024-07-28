@@ -15,6 +15,10 @@ interface foo {
     @since(version = 1.0.0)
     constructor();
   }
+
+  @since(version = 1.0.0)
+  @deprecated(version = 1.0.1)
+  type t2 = u32;
 }
 
 @since(version = 1.0.0)
