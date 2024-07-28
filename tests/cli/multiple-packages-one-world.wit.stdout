@@ -1,4 +1,4 @@
-package test:hola;
+package foo:root;
 
 world hello {
   import test:foo1/bar;

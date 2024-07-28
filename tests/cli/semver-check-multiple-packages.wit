@@ -1,5 +1,6 @@
 // RUN: component semver-check % --prev a:b/prev --new a:b/next
 
+package foo:root;
 package a:b {
   world prev {}
 

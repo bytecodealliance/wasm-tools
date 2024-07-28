@@ -52,9 +52,9 @@ impl WitPrinter {
 
     /// Print a set of one or more WIT packages into a string.
     pub fn print(&mut self, resolve: &Resolve, pkg_ids: &[PackageId]) -> Result<String> {
-        let root = pkg_ids[pkg_ids.len() - 1];
+        let main = pkg_ids[pkg_ids.len() - 1];
 
-        self.print_package(resolve, root, true)?;
+        self.print_package(resolve, main, true)?;
         for (i, pkg_id) in pkg_ids[0..pkg_ids.len() - 1].into_iter().enumerate() {
             if i > 0 {
                 self.output.push_str("\n\n");
@@ -65,7 +65,7 @@ impl WitPrinter {
         Ok(std::mem::take(&mut self.output).into())
     }
 
-    fn print_package(&mut self, resolve: &Resolve, pkg: PackageId, is_root: bool) -> Result<()> {
+    fn print_package(&mut self, resolve: &Resolve, pkg: PackageId, is_main: bool) -> Result<()> {
         let pkg = &resolve.packages[pkg];
         self.print_docs(&pkg.docs);
         self.output.push_str("package ");
@@ -76,7 +76,7 @@ impl WitPrinter {
             self.output.push_str(&format!("@{version}"));
         }
 
-        if is_root {
+        if is_main {
             self.print_semicolon();
             self.output.push_str("\n\n");
         } else {
@@ -90,7 +90,7 @@ impl WitPrinter {
             self.print_name(name);
             self.output.push_str(" {\n");
             self.print_interface(resolve, *id)?;
-            if is_root {
+            if is_main {
                 writeln!(&mut self.output, "}}\n")?;
             } else {
                 writeln!(&mut self.output, "}}")?;
@@ -106,7 +106,7 @@ impl WitPrinter {
             self.print_world(resolve, *id)?;
             writeln!(&mut self.output, "}}")?;
         }
-        if !is_root {
+        if !is_main {
             writeln!(&mut self.output, "}}")?;
         }
         Ok(())

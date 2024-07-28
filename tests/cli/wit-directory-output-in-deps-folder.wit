@@ -1,5 +1,6 @@
 // RUN: component embed --dummy % --world a:b/c | component wit --out-dir %tmpdir
 
+package foo:root;
 package a:b {
   interface foo {}
 

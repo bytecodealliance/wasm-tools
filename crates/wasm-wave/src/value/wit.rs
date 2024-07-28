@@ -155,7 +155,7 @@ mod tests {
 
     #[test]
     fn resolve_wit_type_smoke_test() {
-        let UnresolvedPackageGroup { main: mut root, .. } = UnresolvedPackageGroup::parse(
+        let UnresolvedPackageGroup { mut main, .. } = UnresolvedPackageGroup::parse(
             "test.wit",
             r#"
             package test:types;
@@ -166,7 +166,7 @@ mod tests {
         )
         .unwrap();
         let mut resolve = Resolve::new();
-        resolve.push(&mut root).unwrap();
+        resolve.push(&mut main).unwrap();
 
         let (type_id, _) = resolve.types.iter().next().unwrap();
         let ty = resolve_wit_type(&resolve, type_id).unwrap();
@@ -175,7 +175,7 @@ mod tests {
 
     #[test]
     fn resolve_wit_func_type_smoke_test() {
-        let UnresolvedPackageGroup { main: mut root, .. } = UnresolvedPackageGroup::parse(
+        let UnresolvedPackageGroup { mut main, .. } = UnresolvedPackageGroup::parse(
             "test.wit",
             r#"
             package test:types;
@@ -189,7 +189,7 @@ mod tests {
         )
         .unwrap();
         let mut resolve = Resolve::new();
-        resolve.push(&mut root).unwrap();
+        resolve.push(&mut main).unwrap();
 
         for (func_name, expected_display) in [
             ("no-results", "func(a: u8, b: string)"),

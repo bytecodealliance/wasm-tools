@@ -322,7 +322,6 @@ impl Resolve {
         let mut order = IndexSet::new();
         let mut visiting = HashSet::new();
         for pkg in &top_pkg.nested {
-            // visit_group(&pkg, &deps, &mut order, &mut visiting, &pkg.source_map)?;
             visit_group(&pkg, &deps, &mut order, &mut visiting, &pkg.source_map)?;
         }
         for pkg in deps.values().chain([&top_pkg]) {

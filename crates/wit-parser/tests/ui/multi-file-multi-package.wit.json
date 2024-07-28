@@ -247,7 +247,7 @@
       }
     },
     {
-      "name": "foo:root",
+      "name": "foo:main",
       "interfaces": {},
       "worlds": {}
     }

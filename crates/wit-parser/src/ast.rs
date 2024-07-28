@@ -169,11 +169,19 @@ impl<'a> SourceAst<'a> {
                     }
                 } else {
                     let package_id = PackageName::parse(tokens, &mut docs)?;
-                    maybe_package_id = Some(package_id.clone());
                     if tokens.eat(Token::Semicolon)? {
-                        if let Some(ref implicit) = main_pkg_decl {
-                            if implicit.package_name() != package_id.package_name() {
-                                bail!("Parsed package identifier `{}` doesn't match previously encountered {}", package_id.package_name(), implicit.package_name());
+                        maybe_package_id = Some(package_id.clone());
+                        if let Some(ref main) = main_pkg_decl {
+                            if main.package_name() != package_id.package_name() {
+                                bail!(Error::new(
+                                    main.span,
+                                    format!(
+                                        "package identifier `{}` does not match \
+                                     previous package name of `{}`",
+                                        package_id.package_name(),
+                                        main.package_name()
+                                    ),
+                                ))
                             }
                         }
                         docs = parse_docs(tokens)?;

@@ -22,3 +22,14 @@ package bar:name {
     }
   }
 }
+
+interface i0 {
+  use foo:name/i1.{a};
+
+  type c = option<a>;
+}
+
+world w0 {
+  export i0;
+  import foo:name/i1;
+}

@@ -33,6 +33,24 @@
       },
       "exports": {},
       "package": 1
+    },
+    {
+      "name": "w0",
+      "imports": {
+        "interface-2": {
+          "interface": {
+            "id": 2
+          }
+        }
+      },
+      "exports": {
+        "interface-4": {
+          "interface": {
+            "id": 4
+          }
+        }
+      },
+      "package": 2
     }
   ],
   "interfaces": [
@@ -67,6 +85,15 @@
       },
       "functions": {},
       "package": 1
+    },
+    {
+      "name": "i0",
+      "types": {
+        "a": 4,
+        "c": 5
+      },
+      "functions": {},
+      "package": 2
     }
   ],
   "types": [
@@ -105,6 +132,24 @@
       "owner": {
         "interface": 3
       }
+    },
+    {
+      "name": "a",
+      "kind": {
+        "type": 2
+      },
+      "owner": {
+        "interface": 4
+      }
+    },
+    {
+      "name": "c",
+      "kind": {
+        "option": 4
+      },
+      "owner": {
+        "interface": 4
+      }
     }
   ],
   "packages": [
@@ -128,8 +173,12 @@
     },
     {
       "name": "foo:root",
-      "interfaces": {},
-      "worlds": {}
+      "interfaces": {
+        "i0": 4
+      },
+      "worlds": {
+        "w0": 2
+      }
     }
   ]
 }
