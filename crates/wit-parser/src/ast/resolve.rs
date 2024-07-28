@@ -111,7 +111,7 @@ enum TypeOrItem {
 impl<'a> Resolver<'a> {
     pub(crate) fn push_partial(
         &mut self,
-        partial: ast::PartialRootPackage<'a>,
+        partial: ast::PartialMainPackage<'a>,
         nested: Vec<NestedPackage<'a>>,
         parsed_pkgs: &mut Vec<UnresolvedPackage>,
     ) -> Result<()> {
@@ -151,7 +151,6 @@ impl<'a> Resolver<'a> {
             }
         }
         self.decl_lists.push(partial.decl_list);
-
         Ok(())
     }
 

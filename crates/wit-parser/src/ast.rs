@@ -14,8 +14,8 @@ pub mod toposort;
 
 pub use lex::validate_id;
 
-struct Ast<'a> {
-    root: Option<PartialRootPackage<'a>>,
+struct SourceAst<'a> {
+    main: Option<PartialMainPackage<'a>>,
     nested: Vec<NestedPackage<'a>>,
 }
 
@@ -24,7 +24,7 @@ pub struct NestedPackage<'a> {
     decl_list: DeclList<'a>,
 }
 
-pub struct PartialRootPackage<'a> {
+pub struct PartialMainPackage<'a> {
     package_id: Option<PackageName<'a>>,
     decl_list: DeclList<'a>,
 }
@@ -44,7 +44,7 @@ pub struct PartialRootPackage<'a> {
 /// /* END DECL LIST */
 /// ```
 ///
-/// In the explicit package style, a [`DeclList`] is everything inside of each
+/// In the nested package style, a [`DeclList`] is everything inside of each
 /// `package` element's brackets:
 ///
 /// ```wit
@@ -82,44 +82,47 @@ impl<'a> DeclList<'a> {
         }
     }
 
-    fn parse_root_package_items(
+    fn parse_main_package_items(
         tokens: &mut Tokenizer<'a>,
         mut docs: Docs<'a>,
-        mut packages: Vec<NestedPackage<'a>>,
-        root_encountered: Option<&PackageName>,
+        mut nested: Vec<NestedPackage<'a>>,
+        main_pkg_decl: Option<&PackageName>,
     ) -> Result<(DeclList<'a>, Vec<NestedPackage<'a>>)> {
         let mut items = Vec::new();
         while tokens.clone().next()?.is_some() {
             if tokens.eat(Token::Package)? {
                 let package_id = PackageName::parse(tokens, &mut docs)?;
-                if let Some(root) = root_encountered {
-                    if root.package_name() == package_id.package_name() {
-                        bail!("Explicit package name already used by implicit package declaration: {}", root.package_name());
+                if let Some(main) = main_pkg_decl {
+                    if main.package_name() == package_id.package_name() {
+                        bail!(
+                            "Nested package name already used by main package declaration: {}",
+                            main.package_name()
+                        );
                     }
                 }
                 if tokens.eat(Token::LeftBrace)? {
-                    let redundant = packages
+                    let redundant = nested
                         .iter()
                         .find(|p| p.package_id.package_name() == package_id.package_name());
 
                     if redundant.is_some() {
                         bail!(
-                            "colliding explicit package names, multiple packages named `{}`",
+                            "colliding nested package names, multiple packages named `{}`",
                             package_id.package_name()
                         )
                     }
-                    packages.push(NestedPackage {
+                    nested.push(NestedPackage {
                         package_id,
                         decl_list: DeclList::parse_nested_package_items(tokens)?,
                     });
                 } else if tokens.eat(Token::Semicolon)? {
-                    if let (parsed, Some(encountered)) = (&package_id, root_encountered) {
+                    if let (parsed, Some(main)) = (&package_id, main_pkg_decl) {
                         let parsed_name = parsed.package_name();
-                        let encountered_name = encountered.package_name();
+                        let main_name = main.package_name();
                         bail!(
-                            "Multiple implicit package declarations in one file: {} and {}",
+                            "Multiple main package declarations in one file: {} and {}",
                             parsed_name,
-                            encountered_name
+                            main_name
                         );
                     }
                 }
@@ -128,32 +131,34 @@ impl<'a> DeclList<'a> {
                 docs = parse_docs(tokens)?;
             }
         }
-        Ok((DeclList { items }, packages))
+        Ok((DeclList { items }, nested))
     }
 }
 
-impl<'a> Ast<'a> {
+impl<'a> SourceAst<'a> {
     fn parse(
         tokens: &mut Tokenizer<'a>,
-        mut packages: Vec<NestedPackage<'a>>,
-        root_encountered: Option<PackageName<'a>>,
+        mut nested: Vec<NestedPackage<'a>>,
+        main_pkg_decl: &Option<PackageName<'a>>,
     ) -> Result<Self> {
         let mut decl_list = DeclList::default();
-        let mut nested = Vec::new();
         let mut maybe_package_id = None;
         let mut docs = parse_docs(tokens)?;
         if tokens.eat(Token::Package)? {
-            let mut first = true;
+            let mut first_pkg_decl = true;
             loop {
                 if tokens.clone().next()?.is_none() {
                     break;
                 }
-                if !first {
+                if !first_pkg_decl {
                     tokens.eat(Token::Package)?;
                     let package_id = PackageName::parse(tokens, &mut docs)?;
-                    if let Some(implicit) = root_encountered.clone() {
-                        if implicit.package_name() == package_id.package_name() {
-                            bail!("Explicit package name already used by implicit package declaration: {}", implicit.package_name());
+                    if let Some(main) = main_pkg_decl.clone() {
+                        if main.package_name() == package_id.package_name() {
+                            bail!(
+                                "Nested package name already used by main package declaration: {}",
+                                main.package_name()
+                            );
                         }
                     }
                     if tokens.eat(Token::LeftBrace)? {
@@ -166,22 +171,22 @@ impl<'a> Ast<'a> {
                     let package_id = PackageName::parse(tokens, &mut docs)?;
                     maybe_package_id = Some(package_id.clone());
                     if tokens.eat(Token::Semicolon)? {
-                        if let Some(ref implicit) = root_encountered {
+                        if let Some(ref implicit) = main_pkg_decl {
                             if implicit.package_name() != package_id.package_name() {
                                 bail!("Parsed package identifier `{}` doesn't match previously encountered {}", package_id.package_name(), implicit.package_name());
                             }
                         }
                         docs = parse_docs(tokens)?;
-                        (decl_list, nested) = DeclList::parse_root_package_items(
+                        (decl_list, nested) = DeclList::parse_main_package_items(
                             tokens,
                             docs.clone(),
-                            std::mem::take(&mut packages),
+                            std::mem::take(&mut nested),
                             maybe_package_id.as_ref(),
                         )?;
                     } else {
-                        if let Some(ref implicit) = root_encountered {
-                            if implicit.package_name() == package_id.package_name() {
-                                bail!("Explicit package name already used by implicit package declaration: {}", implicit.package_name());
+                        if let Some(ref main) = main_pkg_decl {
+                            if main.package_name() == package_id.package_name() {
+                                bail!("Nested package name already used by main package declaration: {}", main.package_name());
                             }
                         }
                         if tokens.eat(Token::LeftBrace)? {
@@ -190,37 +195,36 @@ impl<'a> Ast<'a> {
                                 decl_list: DeclList::parse_nested_package_items(tokens)?,
                             });
                         }
-                        first = false;
+                        first_pkg_decl = false;
                     }
                 };
             }
         } else {
-            (decl_list, nested) = DeclList::parse_root_package_items(
+            (decl_list, nested) = DeclList::parse_main_package_items(
                 tokens,
                 docs,
-                std::mem::take(&mut packages),
-                root_encountered.as_ref(),
+                std::mem::take(&mut nested),
+                main_pkg_decl.as_ref(),
             )?;
-            if let (Some(parsed), Some(encountered)) = (&maybe_package_id, root_encountered.clone())
-            {
+            if let (Some(parsed), Some(main)) = (&maybe_package_id, main_pkg_decl.clone()) {
                 let parsed_name = parsed.package_name();
-                let encountered_name = encountered.package_name();
-                if parsed_name != encountered_name {
+                let main_name = main.package_name();
+                if parsed_name != main_name {
                     bail!(
                         "Encountered conflicting implicit package identifiers: {} and {}",
                         parsed_name,
-                        encountered_name
+                        main_name
                     );
                 }
             }
         }
-        let pkg = if let Some(pkg) = root_encountered.clone() {
+        let pkg = if let Some(pkg) = main_pkg_decl.clone() {
             Some(pkg)
         } else {
             maybe_package_id
         };
         Ok(Self {
-            root: Some(PartialRootPackage {
+            main: Some(PartialMainPackage {
                 package_id: pkg,
                 decl_list,
             }),
@@ -1727,13 +1731,13 @@ impl SourceMap {
 
     /// Parses the files added to this source map into one or more [`UnresolvedPackage`]s.
     pub fn parse(self) -> Result<UnresolvedPackageGroup> {
-        let mut packages = Vec::new();
         let mut nested = Vec::new();
+        let mut unresolved_nested = Vec::new();
         let parsed_pkg = self.rewrite_error(|| {
             let resolver = &mut Resolver::default();
             let mut srcs = self.sources.iter().collect::<Vec<_>>();
             srcs.sort_by_key(|src| &src.path);
-            let mut root_encountered: Option<PackageName> = None;
+            let mut main_pkg_decl: Option<PackageName> = None;
             for src in srcs {
                 let mut parsed_pkgs = Vec::new();
                 let mut tokens = Tokenizer::new(
@@ -1745,25 +1749,22 @@ impl SourceMap {
                     self.require_f32_f64,
                 )
                 .with_context(|| format!("failed to tokenize path: {}", src.path.display()))?;
-                let ast = Ast::parse(
-                    &mut tokens,
-                    std::mem::take(&mut packages),
-                    root_encountered.clone(),
-                )?;
-                if let Some(parsed_root) = ast.root {
-                    if parsed_root.package_id.is_some() {
-                        root_encountered = parsed_root.package_id.clone();
+                let src_ast =
+                    SourceAst::parse(&mut tokens, std::mem::take(&mut nested), &main_pkg_decl)?;
+                if let Some(parsed_main) = src_ast.main {
+                    if parsed_main.package_id.is_some() {
+                        main_pkg_decl = parsed_main.package_id.clone();
                     }
                     resolver
-                        .push_partial(parsed_root, ast.nested, &mut parsed_pkgs)
+                        .push_partial(parsed_main, src_ast.nested, &mut parsed_pkgs)
                         .with_context(|| {
                             format!("failed to start resolving path: {}", src.path.display())
                         })?;
-                    nested.extend(parsed_pkgs);
+                    unresolved_nested.extend(parsed_pkgs);
                 } else {
-                    for pkg in ast.nested {
+                    for pkg in src_ast.nested {
                         let unresolved_pkg = resolver.push_then_resolve(pkg)?;
-                        nested.push(unresolved_pkg.unwrap());
+                        unresolved_nested.push(unresolved_pkg.unwrap());
                     }
                 }
             }
@@ -1775,8 +1776,8 @@ impl SourceMap {
             Ok(pkg)
         })?;
         Ok(UnresolvedPackageGroup {
-            root: parsed_pkg.unwrap(),
-            nested,
+            main: parsed_pkg.unwrap(),
+            nested: unresolved_nested,
             source_map: self,
         })
     }

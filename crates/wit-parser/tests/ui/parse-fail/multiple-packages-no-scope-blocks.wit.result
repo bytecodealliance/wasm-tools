@@ -1,1 +1,1 @@
-Multiple implicit package declarations in one file: bar:name and foo:name
+Multiple main package declarations in one file: bar:name and foo:name

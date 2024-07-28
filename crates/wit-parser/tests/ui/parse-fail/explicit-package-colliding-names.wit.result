@@ -1,1 +1,1 @@
-colliding explicit package names, multiple packages named `foo:name`
+colliding nested package names, multiple packages named `foo:name`

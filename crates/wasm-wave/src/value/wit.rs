@@ -155,7 +155,7 @@ mod tests {
 
     #[test]
     fn resolve_wit_type_smoke_test() {
-        let UnresolvedPackageGroup { mut root, .. } = UnresolvedPackageGroup::parse(
+        let UnresolvedPackageGroup { main: mut root, .. } = UnresolvedPackageGroup::parse(
             "test.wit",
             r#"
             package test:types;
@@ -175,7 +175,7 @@ mod tests {
 
     #[test]
     fn resolve_wit_func_type_smoke_test() {
-        let UnresolvedPackageGroup { mut root, .. } = UnresolvedPackageGroup::parse(
+        let UnresolvedPackageGroup { main: mut root, .. } = UnresolvedPackageGroup::parse(
             "test.wit",
             r#"
             package test:types;
