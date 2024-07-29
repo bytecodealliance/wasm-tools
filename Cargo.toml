@@ -4,7 +4,7 @@ version = "1.214.0"
 authors = ["The Wasmtime Project Developers"]
 edition.workspace = true
 description = "CLI tools for interoperating with WebAssembly files"
-license = "Apache-2.0 WITH LLVM-exception"
+license.workspace = true
 documentation = "https://github.com/bytecodealliance/wasm-tools"
 categories = ["wasm"]
 keywords = ["webassembly", "wasm"]
@@ -52,6 +52,7 @@ all = "allow"
 
 [workspace.package]
 edition = '2021'
+license = "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"
 version = "0.214.0"
 # Current policy for wasm-tools is the same as Wasmtime which is that this
 # number can be no larger than the current stable release of Rust minus 2.

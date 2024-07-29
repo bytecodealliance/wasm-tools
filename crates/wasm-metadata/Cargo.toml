@@ -2,7 +2,7 @@
 name = "wasm-metadata"
 version.workspace = true
 edition.workspace = true
-license = "Apache-2.0 WITH LLVM-exception"
+license.workspace = true
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-metadata"
 description = "Read and manipulate WebAssembly metadata"
 rust-version.workspace = true

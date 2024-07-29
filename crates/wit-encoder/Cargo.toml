@@ -2,7 +2,7 @@
 description = "A WIT encoder for Rust"
 documentation = "https://docs.rs/wit-encoder"
 edition.workspace = true
-license = "Apache-2.0 WITH LLVM-exception"
+license.workspace = true
 name = "wit-encoder"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wit-encoder"
 version.workspace = true
