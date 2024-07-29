@@ -101,8 +101,9 @@ impl Render for World {
                     }
                     import(f, opts)?;
                     write!(f, "{}: interface {{", interface.name)?;
-                    if !interface.items.is_empty() {
+                    if !interface.uses.is_empty() || !interface.items.is_empty() {
                         write!(f, "\n")?;
+                        interface.uses.render(f, &opts.indent())?;
                         interface.items.render(f, &opts.indent())?;
                         write!(f, "{}}}\n", opts.spaces())?;
                     } else {

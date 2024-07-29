@@ -9,6 +9,9 @@ pub struct Interface {
     /// Name of this interface.
     pub(crate) name: Ident,
 
+    // Interface uses
+    pub(crate) uses: Vec<Use>,
+
     // Interface items
     pub(crate) items: Vec<InterfaceItem>,
 
@@ -21,6 +24,7 @@ impl Interface {
     pub fn new(name: impl Into<Ident>) -> Self {
         Self {
             name: name.into(),
+            uses: vec![],
             items: vec![],
             docs: None,
         }
@@ -38,7 +42,28 @@ impl Interface {
 
     /// Add a `Use` to the interface
     pub fn use_(&mut self, use_: Use) {
-        self.items.push(InterfaceItem::Use(use_));
+        self.uses.push(use_);
+    }
+
+    /// Use a type in the interface.
+    pub fn use_type(
+        &mut self,
+        target: impl Into<Ident>,
+        item: impl Into<Ident>,
+        rename: Option<Ident>,
+    ) {
+        let target = target.into();
+        let use_ = self.uses.iter_mut().find(|u| u.target() == &target);
+        match use_ {
+            Some(use_) => use_.item(item, rename),
+            None => {
+                self.use_({
+                    let mut use_ = Use::new(target);
+                    use_.item(item, rename);
+                    use_
+                });
+            }
+        }
     }
 
     pub fn item(&mut self, item: impl Into<InterfaceItem>) {
@@ -68,7 +93,6 @@ impl Interface {
 #[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum InterfaceItem {
     TypeDef(TypeDef),
-    Use(Use),
     Function(StandaloneFunc),
 }
 
@@ -91,10 +115,18 @@ impl Render for InterfaceItems {
                     }
                     write!(f, ";\n")?;
                 }
-                InterfaceItem::Use(use_) => {
-                    use_.render(f, opts)?;
-                }
             }
+        }
+        Ok(())
+    }
+}
+
+pub type InterfaceUses = Vec<Use>;
+
+impl Render for InterfaceUses {
+    fn render(&self, f: &mut fmt::Formatter<'_>, opts: &RenderOpts) -> fmt::Result {
+        for use_ in self {
+            use_.render(f, opts)?;
         }
         Ok(())
     }

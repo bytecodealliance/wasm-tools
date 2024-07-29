@@ -8,7 +8,7 @@ use crate::{Ident, Render};
 #[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub struct Use {
     target: Ident,
-    use_names_list: Vec<(String, Option<String>)>,
+    use_names_list: Vec<(Ident, Option<Ident>)>,
 }
 
 impl Use {
@@ -19,9 +19,18 @@ impl Use {
         }
     }
 
-    pub fn item(&mut self, id: &str, alias: Option<&str>) {
+    pub fn target(&self) -> &Ident {
+        &self.target
+    }
+
+    pub fn set_target(&mut self, target: Ident) {
+        self.target = target;
+    }
+
+    // `alias` is a concrete type because of https://github.com/rust-lang/rust/issues/36887
+    pub fn item(&mut self, id: impl Into<Ident>, alias: Option<Ident>) {
         self.use_names_list
-            .push((id.to_string(), alias.map(|s| s.to_string())));
+            .push((id.into(), alias.map(|s| s.into())));
     }
 }
 

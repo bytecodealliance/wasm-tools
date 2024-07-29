@@ -30,7 +30,7 @@ fn concrete_types() {
 
     let mut interface = Interface::new("bar");
     let mut use_ = Use::new("foo");
-    use_.item("bar", Some("foobar"));
+    use_.item("bar", Some("foobar".into()));
     interface.use_(use_);
     interface.type_def(TypeDef::resource("baz", Vec::<ResourceFunc>::new()));
     package.interface(interface);
