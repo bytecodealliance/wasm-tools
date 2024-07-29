@@ -583,7 +583,7 @@ pub mod utils {
             last_section: &mut Option<crate::SectionId>,
             next_section: Option<crate::SectionId>,
         ) -> Result<(), Error<T::Error>> {
-            let after = std::mem::replace(last_section, next_section.clone());
+            let after = std::mem::replace(last_section, next_section);
             let before = next_section;
             reencoder.intersperse_section_hook(module, after, before)
         }
@@ -1204,7 +1204,7 @@ pub mod utils {
             fields: struct_ty
                 .fields
                 .iter()
-                .map(|field_ty| reencoder.field_type(field_ty.clone()))
+                .map(|field_ty| reencoder.field_type(*field_ty))
                 .collect::<Result<_, _>>()?,
         })
     }

@@ -85,13 +85,13 @@ impl PeepholeMutator {
                 let mut all_locals = Vec::new();
 
                 for primitive in &tpe.params {
-                    all_locals.push(primitive.clone())
+                    all_locals.push(*primitive)
                 }
                 for _ in 0..localsreader.get_count() {
                     let (count, ty) = localsreader.read()?;
                     let tymapped = PrimitiveTypeInfo::from(ty);
                     for _ in 0..count {
-                        all_locals.push(tymapped.clone());
+                        all_locals.push(tymapped);
                     }
                 }
 

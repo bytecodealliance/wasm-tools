@@ -137,7 +137,7 @@ impl MiniDFG {
             builder: &mut String,
         ) {
             let entry = &minidfg.entries[entryidx];
-            builder.push_str(&(&preffix).to_string());
+            builder.push_str(preffix);
             let color = get_ansi_term_color(entry.color);
             builder.push_str(
                 format!(

@@ -66,7 +66,7 @@ impl ComponentInfo {
                     //
                     // Note that the buffer management here is not ideal,
                     // but it's compact enough to fit in an example!
-                    let len = buffer.len().clone();
+                    let len = buffer.len();
                     buffer.extend((0..hint).map(|_| 0u8));
                     let n = reader.read(&mut buffer[len..])?;
                     buffer.truncate(len + n);

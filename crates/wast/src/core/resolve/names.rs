@@ -751,8 +751,8 @@ impl<'a> TypeReference<'a> for FunctionType<'a> {
         // opportunistically here to see if the values are equal.
 
         let types_not_equal = |a: &ValType, b: &ValType| {
-            let mut a = a.clone();
-            let mut b = b.clone();
+            let mut a = *a;
+            let mut b = *b;
             drop(cx.resolve_valtype(&mut a));
             drop(cx.resolve_valtype(&mut b));
             a != b
