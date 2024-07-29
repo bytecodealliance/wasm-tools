@@ -94,6 +94,7 @@ ahash = { version = "0.8.11", default-features = false }
 termcolor = "1.2.0"
 indoc = "2.0.5"
 gimli = "0.30.0"
+id-arena = "2"
 
 wasm-compose = { version = "0.215.0", path = "crates/wasm-compose" }
 wasm-encoder = { version = "0.215.0", path = "crates/wasm-encoder" }
