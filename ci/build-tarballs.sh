@@ -13,7 +13,7 @@ tag=$(./ci/print-current-version.sh)
 bin_pkgname=wasm-tools-$tag-$platform
 
 mkdir tmp/$bin_pkgname
-cp LICENSE README.md tmp/$bin_pkgname
+cp LICENSE-* README.md tmp/$bin_pkgname
 
 fmt=tar
 if [ "$platform" = "x86_64-windows" ]; then
