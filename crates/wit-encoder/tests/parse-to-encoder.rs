@@ -1,4 +1,5 @@
 use pretty_assertions::assert_eq;
+use std::fs;
 use wit_encoder::packages_from_parsed;
 
 #[test]
@@ -9,6 +10,6 @@ fn round_trip() {
 
     assert!(packages.len() == 1, "Should create exactly one package");
     let package = &packages[0];
-    let input = include_str!("./parse-to-encoder.wit");
+    let input = fs::read_to_string("./tests/parse-to-encoder.wit").unwrap();
     assert_eq!(input, package.to_string());
 }
