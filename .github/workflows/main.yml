@@ -248,7 +248,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
-      - run: rustup component add cargo-clippy
+      - run: rustup component add clippy
       - run: cargo clippy --workspace --exclude dl --exclude component
 
   verify-publish:
