@@ -243,6 +243,14 @@ jobs:
       - uses: actions/checkout@v4
       - run: cargo doc --all
 
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
+      - run: rustup component add clippy
+      - run: cargo clippy --workspace --exclude dl --exclude component
+
   verify-publish:
     if: github.repository_owner == 'bytecodealliance'
     runs-on: ubuntu-latest
@@ -274,6 +282,7 @@ jobs:
       - test_capi
       - test_extra_features
       - test-no-hash-maps
+      - clippy
     if: always()
 
     steps:

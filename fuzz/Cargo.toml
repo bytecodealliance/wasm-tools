@@ -7,6 +7,9 @@ rust-version.workspace = true
 [package.metadata]
 cargo-fuzz = true
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = { workspace = true }
 arbitrary = { workspace = true }

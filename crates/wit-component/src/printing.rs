@@ -63,7 +63,7 @@ impl WitPrinter {
                 self.output.push_str("\n\n");
             }
 
-            let pkg = &resolve.packages[pkg_id.clone()];
+            let pkg = &resolve.packages[*pkg_id];
             self.print_docs(&pkg.docs);
             self.output.push_str("package ");
             self.print_name(&pkg.name.namespace);

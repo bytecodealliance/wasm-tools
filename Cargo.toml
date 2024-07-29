@@ -48,7 +48,14 @@ members = [
 unsafe_code = "deny"
 
 [workspace.lints.clippy]
-all = "allow"
+# The default set of lints in Clippy is viewed as "too noisy" right now so
+# they're all turned off by default. Selective lints are then enabled below as
+# necessary.
+all = { level = 'allow', priority = -1 }
+clone_on_copy = 'warn'
+map_clone = 'warn'
+unnecessary_to_owned = 'warn'
+manual_strip = 'warn'
 
 [workspace.package]
 edition = '2021'

@@ -582,7 +582,7 @@ impl<'a> Module<'a> {
 
         for (i, table) in self.live_tables() {
             map.tables.push(i);
-            let ty = map.table_type(table.ty.clone())?;
+            let ty = map.table_type(table.ty)?;
             match &table.def {
                 Definition::Import(m, n) => {
                     imports.import(m, n, ty);
@@ -595,7 +595,7 @@ impl<'a> Module<'a> {
 
         for (i, global) in self.live_globals() {
             map.globals.push(i);
-            let ty = map.global_type(global.ty.clone())?;
+            let ty = map.global_type(global.ty)?;
             match &global.def {
                 Definition::Import(m, n) => {
                     imports.import(m, n, ty);

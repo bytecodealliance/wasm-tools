@@ -120,15 +120,16 @@ fn main() -> anyhow::Result<()> {
         .map(|configs| {
             configs
                 .iter()
+                .copied()
                 .map(|optlevel| {
                     let mut config = Config::default();
-                    config.cranelift_opt_level(optlevel.clone());
+                    config.cranelift_opt_level(optlevel);
                     if let Some(triple) = triple {
                         config.target(triple).context("Invalid target")?;
                     }
                     Ok((
                         Engine::new(&config).context("Engine could not be initialized")?,
-                        optlevel.clone(),
+                        optlevel,
                     ))
                 })
                 .collect::<anyhow::Result<Vec<(Engine, OptLevel)>>>()
