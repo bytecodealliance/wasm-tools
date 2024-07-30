@@ -1463,18 +1463,14 @@ impl Remap {
         let foreign_interfaces = self.interfaces.len();
         let foreign_worlds = self.worlds.len();
 
-        let pkgid = if resolve.package_names.contains_key(&unresolved.name) {
-            resolve.package_names.get(&unresolved.name).unwrap().clone()
-        } else {
-            let pkgid = resolve.packages.alloc(Package {
-                name: unresolved.name.clone(),
-                docs: unresolved.docs.clone(),
-                interfaces: Default::default(),
-                worlds: Default::default(),
-            });
-            resolve.package_names.insert(unresolved.name.clone(), pkgid);
-            pkgid
-        };
+        let pkgid = resolve.packages.alloc(Package {
+            name: unresolved.name.clone(),
+            docs: unresolved.docs.clone(),
+            interfaces: Default::default(),
+            worlds: Default::default(),
+        });
+        let prev = resolve.package_names.insert(unresolved.name.clone(), pkgid);
+        assert!(prev.is_none());
 
         // Copy over all types first, updating any intra-type references. Note
         // that types are sorted topologically which means this iteration
