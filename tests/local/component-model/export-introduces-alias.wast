@@ -27,11 +27,11 @@
 )
 
 (assert_invalid
-  (component
-    (type (instance
-      (type $t u8)
-      (export $t "t" (type (eq $t)))
-    ))
+  (component quote
+    "(type (instance"
+      "(type $t u8)"
+      "(export $t \"t\" (type (eq $t)))"
+    "))"
   )
   "duplicate type identifier")
 

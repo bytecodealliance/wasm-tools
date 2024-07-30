@@ -199,11 +199,10 @@
   "core type index 0 is not a module type")
 
 (assert_invalid
-  (component
-    (type $t (func))
-    (type (instance
-      (export "a" (core module (type $t)))
-    )))
+  (component quote
+    "(type $t (func))"
+    "(type (instance (export \"a\" (core module (type $t)))))"
+  )
   "unknown core type")
 
 (assert_invalid

@@ -1,0 +1,10 @@
+{
+  "source_filename": "tests/local/component-model/imports-exports.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "imports-exports.0.wasm"
+    }
+  ]
+}

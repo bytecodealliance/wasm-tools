@@ -1,0 +1,10 @@
+{
+  "source_filename": "tests/local/component-model/big.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "big.0.wasm"
+    }
+  ]
+}
