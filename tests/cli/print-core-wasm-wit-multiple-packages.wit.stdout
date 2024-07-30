@@ -1,14 +1,13 @@
-package bar:bar;
+package root:root;
 
-interface my-interface {
-  foo: func();
+world root {
+  import bar:bar/my-interface;
 }
-
-world my-world {
-  import my-interface;
-}
-package root:root {
-  world root {
-    import bar:bar/my-interface;
+package bar:bar {
+  interface my-interface {
+    foo: func();
+  }
+  world my-world {
+    import my-interface;
   }
 }

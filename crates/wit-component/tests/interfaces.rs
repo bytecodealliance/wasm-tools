@@ -54,7 +54,7 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
         resolve.push_file(path)?
     };
 
-    assert_print(&resolve, &[package], path, is_dir)?;
+    assert_print(&resolve, package, path, is_dir)?;
 
     let features = WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL;
 
@@ -75,7 +75,7 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
     let decoded_package = decoded.package();
     let resolve = decoded.resolve();
 
-    assert_print(resolve, &[decoded.package()], path, is_dir)?;
+    assert_print(resolve, decoded.package(), path, is_dir)?;
 
     // Finally convert the decoded package to wasm again and make sure it
     // matches the prior wasm.
@@ -88,17 +88,15 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
     Ok(())
 }
 
-fn assert_print(resolve: &Resolve, pkg_ids: &[PackageId], path: &Path, is_dir: bool) -> Result<()> {
-    let output = WitPrinter::default().print(resolve, &pkg_ids)?;
-    for pkg_id in pkg_ids {
-        let pkg = &resolve.packages[*pkg_id];
-        let expected = if is_dir {
-            path.join(format!("{}.wit.print", &pkg.name.name))
-        } else {
-            path.with_extension("wit.print")
-        };
-        assert_output(&expected, &output)?;
-    }
+fn assert_print(resolve: &Resolve, pkg_id: PackageId, path: &Path, is_dir: bool) -> Result<()> {
+    let output = WitPrinter::default().print(resolve, pkg_id, &[])?;
+    let pkg = &resolve.packages[pkg_id];
+    let expected = if is_dir {
+        path.join(format!("{}.wit.print", &pkg.name.name))
+    } else {
+        path.with_extension("wit.print")
+    };
+    assert_output(&expected, &output)?;
 
     UnresolvedPackageGroup::parse("foo.wit", &output).context("failed to parse printed output")?;
     Ok(())

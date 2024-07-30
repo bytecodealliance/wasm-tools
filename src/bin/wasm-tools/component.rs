@@ -638,7 +638,7 @@ impl WitOpts {
                 let main = decoded.package();
                 for (id, pkg) in resolve.packages.iter() {
                     let is_main = id == main;
-                    let output = printer.print(resolve, &[id])?;
+                    let output = printer.print(resolve, id, &[])?;
                     let out_dir = if is_main {
                         dir.clone()
                     } else {

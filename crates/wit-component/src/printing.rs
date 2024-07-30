@@ -50,12 +50,18 @@ impl WitPrinter {
         self
     }
 
-    /// Print a set of one or more WIT packages into a string.
-    pub fn print(&mut self, resolve: &Resolve, pkg_ids: &[PackageId]) -> Result<String> {
-        let main = pkg_ids[pkg_ids.len() - 1];
-
-        self.print_package(resolve, main, true)?;
-        for (i, pkg_id) in pkg_ids[0..pkg_ids.len() - 1].into_iter().enumerate() {
+    /// Prints the specified `pkg` which is located in `resolve` to a string.
+    ///
+    /// The `nested` list of packages are other packages to include at the end
+    /// of the output in `package ... { ... }` syntax.
+    pub fn print(
+        &mut self,
+        resolve: &Resolve,
+        pkg: PackageId,
+        nested: &[PackageId],
+    ) -> Result<String> {
+        self.print_package(resolve, pkg, true)?;
+        for (i, pkg_id) in nested.iter().enumerate() {
             if i > 0 {
                 self.output.push_str("\n\n");
             }

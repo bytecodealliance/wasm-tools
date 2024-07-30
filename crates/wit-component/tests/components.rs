@@ -159,7 +159,7 @@ fn run_test(path: &Path) -> Result<()> {
         DecodedWasm::Component(resolve, world) => (resolve.worlds[world].package.unwrap(), resolve),
     };
     let wit = WitPrinter::default()
-        .print(&resolve, &[pkg])
+        .print(&resolve, pkg, &[])
         .context("failed to print WIT")?;
     assert_output(&wit, &component_wit_path)?;
 

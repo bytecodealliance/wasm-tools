@@ -1,19 +1,10 @@
-package foo:root;
+package root:root;
 
-world hello {
+world root {
   import test:foo1/bar;
 
   export test:foo2/bar;
 }
-package root:root {
-  world root {
-    import test:foo1/bar;
-
-    export test:foo2/bar;
-  }
-}
-
-
 package test:foo1 {
   interface bar {
     baz: func(s: string) -> string;
@@ -24,5 +15,14 @@ package test:foo1 {
 package test:foo2 {
   interface bar {
     baz: func(s: string) -> string;
+  }
+}
+
+
+package foo:root {
+  world hello {
+    import test:foo1/bar;
+
+    export test:foo2/bar;
   }
 }
