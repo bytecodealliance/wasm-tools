@@ -106,26 +106,25 @@ pub struct UnresolvedPackage {
     /// Doc comments for this package.
     pub docs: Docs,
 
+    package_name_span: Span,
     unknown_type_spans: Vec<Span>,
     interface_spans: Vec<InterfaceSpan>,
     world_spans: Vec<WorldSpan>,
     type_spans: Vec<Span>,
     foreign_dep_spans: Vec<Span>,
-    source_map: SourceMap,
     required_resource_types: Vec<(TypeId, Span)>,
-}
-
-impl UnresolvedPackage {
-    pub fn source_files(&self) -> impl Iterator<Item = &Path> {
-        self.source_map.source_files()
-    }
 }
 
 /// Tracks a set of packages, all pulled from the same group of WIT source files.
 #[derive(Clone)]
 pub struct UnresolvedPackageGroup {
+    /// The "main" package in this package group which was found at the root of
+    /// the WIT files.
+    ///
+    /// Note that this is required to be present in all WIT files.
     pub main: UnresolvedPackage,
-    /// A set of packages that share source file(s).
+
+    /// Nested packages found while parsing `main`, if any.
     pub nested: Vec<UnresolvedPackage>,
 
     /// A set of processed source files from which these packages have been parsed.

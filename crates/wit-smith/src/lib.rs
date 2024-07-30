@@ -6,7 +6,7 @@
 //! type structures.
 
 use arbitrary::{Result, Unstructured};
-use wit_parser::{Resolve, UnresolvedPackageGroup};
+use wit_parser::Resolve;
 
 mod config;
 pub use self::config::Config;
@@ -21,8 +21,8 @@ pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
     let mut resolve = Resolve::default();
     let mut last = None;
     for pkg in pkgs {
-        let UnresolvedPackageGroup { mut nested, .. } = pkg.sources.parse().unwrap();
-        let id = match resolve.push(&mut nested.remove(0)) {
+        let group = pkg.sources.parse().unwrap();
+        let id = match resolve.push_group(group) {
             Ok(id) => id,
             Err(e) => {
                 if e.to_string().contains(

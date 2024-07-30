@@ -8,7 +8,7 @@ use std::mem;
 #[derive(Default)]
 pub struct Resolver<'a> {
     /// Current package name learned through the ASTs pushed onto this resolver.
-    package_name: Option<PackageName>,
+    package_name: Option<(PackageName, Span)>,
 
     /// Package docs.
     package_docs: Docs,
@@ -125,7 +125,7 @@ impl<'a> Resolver<'a> {
         // if multiple mention it then they must all match.
         if let Some(cur) = &partial.package_id {
             let cur_name = cur.package_name();
-            if let Some(prev) = &self.package_name {
+            if let Some((prev, _)) = &self.package_name {
                 if cur_name != *prev {
                     bail!(Error::new(
                         cur.span,
@@ -136,7 +136,7 @@ impl<'a> Resolver<'a> {
                     ))
                 }
             }
-            self.package_name = Some(cur_name);
+            self.package_name = Some((cur_name, cur.span));
 
             // At most one 'package' item can have doc comments.
             let docs = self.docs(&cur.docs);
@@ -156,7 +156,7 @@ impl<'a> Resolver<'a> {
 
     pub(crate) fn resolve(&mut self) -> Result<Option<UnresolvedPackage>> {
         // At least one of the WIT files must have a `package` annotation.
-        let name = match &self.package_name {
+        let (name, package_name_span) = match &self.package_name {
             Some(name) => name.clone(),
             None => {
                 if self.decl_lists.is_empty() {
@@ -216,6 +216,7 @@ impl<'a> Resolver<'a> {
 
         self.decl_lists = decl_lists;
         Ok(Some(UnresolvedPackage {
+            package_name_span,
             name,
             docs: mem::take(&mut self.package_docs),
             worlds: mem::take(&mut self.worlds),
@@ -238,7 +239,6 @@ impl<'a> Resolver<'a> {
             world_spans: mem::take(&mut self.world_spans),
             type_spans: mem::take(&mut self.type_spans),
             foreign_dep_spans: mem::take(&mut self.foreign_dep_spans),
-            source_map: SourceMap::default(),
             required_resource_types: mem::take(&mut self.required_resource_types),
         }))
     }
@@ -248,7 +248,7 @@ impl<'a> Resolver<'a> {
         package: ast::NestedPackage<'a>,
     ) -> Result<Option<UnresolvedPackage>> {
         let mut resolver = Resolver::default();
-        resolver.package_name = Some(package.package_id.package_name());
+        resolver.package_name = Some((package.package_id.package_name(), package.package_id.span));
         resolver.docs(&package.package_id.docs);
         resolver.decl_lists.push(package.decl_list);
         resolver.resolve()

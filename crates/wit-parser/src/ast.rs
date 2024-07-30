@@ -1839,12 +1839,7 @@ impl SourceMap {
                     }
                 }
             }
-            let pkg = resolver.resolve()?.and_then(|mut p| {
-                p.source_map = self.clone();
-                Some(p)
-            });
-
-            Ok(pkg)
+            Ok(resolver.resolve()?)
         })?;
         Ok(UnresolvedPackageGroup {
             main: parsed_pkg.unwrap(),

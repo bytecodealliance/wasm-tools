@@ -3,31 +3,31 @@
     {
       "name": "wasi",
       "imports": {
-        "interface-8": {
+        "interface-5": {
           "interface": {
-            "id": 8
+            "id": 5
           }
         },
-        "interface-7": {
+        "interface-4": {
           "interface": {
-            "id": 7
+            "id": 4
           }
         }
       },
       "exports": {},
-      "package": 5
+      "package": 4
     },
     {
       "name": "my-world",
       "imports": {
-        "interface-8": {
+        "interface-5": {
           "interface": {
-            "id": 8
+            "id": 5
           }
         },
-        "interface-7": {
+        "interface-4": {
           "interface": {
-            "id": 7
+            "id": 4
           }
         }
       },
@@ -43,14 +43,14 @@
     {
       "name": "my-world2",
       "imports": {
-        "interface-8": {
+        "interface-5": {
           "interface": {
-            "id": 8
+            "id": 5
           }
         },
-        "interface-7": {
+        "interface-4": {
           "interface": {
-            "id": 7
+            "id": 4
           }
         }
       },
@@ -71,9 +71,9 @@
     {
       "name": "bars-world",
       "imports": {
-        "interface-4": {
+        "interface-6": {
           "interface": {
-            "id": 4
+            "id": 6
           }
         },
         "interface-0": {
@@ -88,14 +88,14 @@
     {
       "name": "unionw-world",
       "imports": {
-        "interface-8": {
+        "interface-5": {
           "interface": {
-            "id": 8
+            "id": 5
           }
         },
-        "interface-7": {
+        "interface-4": {
           "interface": {
-            "id": 7
+            "id": 4
           }
         }
       },
@@ -142,41 +142,41 @@
       "package": 3
     },
     {
-      "name": "the-default",
-      "types": {
-        "from-default": 1
-      },
-      "functions": {},
-      "package": 4
-    },
-    {
-      "name": "some-interface",
-      "types": {
-        "another-type": 2
-      },
-      "functions": {},
-      "package": 4
-    },
-    {
-      "name": "another-interface",
-      "types": {
-        "yet-another-type": 3
-      },
-      "functions": {},
-      "package": 4
-    },
-    {
       "name": "clocks",
       "types": {
-        "timestamp": 4
+        "timestamp": 1
+      },
+      "functions": {},
+      "package": 4
+    },
+    {
+      "name": "filesystem",
+      "types": {
+        "stat": 2
+      },
+      "functions": {},
+      "package": 4
+    },
+    {
+      "name": "the-default",
+      "types": {
+        "from-default": 3
       },
       "functions": {},
       "package": 5
     },
     {
-      "name": "filesystem",
+      "name": "some-interface",
       "types": {
-        "stat": 5
+        "another-type": 4
+      },
+      "functions": {},
+      "package": 5
+    },
+    {
+      "name": "another-interface",
+      "types": {
+        "yet-another-type": 5
       },
       "functions": {},
       "package": 5
@@ -228,39 +228,12 @@
       }
     },
     {
-      "name": "from-default",
-      "kind": {
-        "type": "string"
-      },
-      "owner": {
-        "interface": 4
-      }
-    },
-    {
-      "name": "another-type",
-      "kind": {
-        "type": "u32"
-      },
-      "owner": {
-        "interface": 5
-      }
-    },
-    {
-      "name": "yet-another-type",
-      "kind": {
-        "type": "u8"
-      },
-      "owner": {
-        "interface": 6
-      }
-    },
-    {
       "name": "timestamp",
       "kind": {
         "type": "u64"
       },
       "owner": {
-        "interface": 7
+        "interface": 4
       }
     },
     {
@@ -276,13 +249,40 @@
         }
       },
       "owner": {
+        "interface": 5
+      }
+    },
+    {
+      "name": "from-default",
+      "kind": {
+        "type": "string"
+      },
+      "owner": {
+        "interface": 6
+      }
+    },
+    {
+      "name": "another-type",
+      "kind": {
+        "type": "u32"
+      },
+      "owner": {
+        "interface": 7
+      }
+    },
+    {
+      "name": "yet-another-type",
+      "kind": {
+        "type": "u8"
+      },
+      "owner": {
         "interface": 8
       }
     },
     {
       "name": "timestamp",
       "kind": {
-        "type": 4
+        "type": 1
       },
       "owner": {
         "interface": 9
@@ -291,7 +291,7 @@
     {
       "name": "stat",
       "kind": {
-        "type": 5
+        "type": 2
       },
       "owner": {
         "interface": 9
@@ -300,7 +300,7 @@
     {
       "name": "from-default",
       "kind": {
-        "type": 1
+        "type": 3
       },
       "owner": {
         "interface": 10
@@ -309,7 +309,7 @@
     {
       "name": "another-type",
       "kind": {
-        "type": 2
+        "type": 4
       },
       "owner": {
         "interface": 10
@@ -318,7 +318,7 @@
     {
       "name": "yet-another-type",
       "kind": {
-        "type": 3
+        "type": 5
       },
       "owner": {
         "interface": 10
@@ -373,23 +373,23 @@
       "worlds": {}
     },
     {
-      "name": "foo:some-pkg",
-      "interfaces": {
-        "the-default": 4,
-        "some-interface": 5,
-        "another-interface": 6
-      },
-      "worlds": {}
-    },
-    {
       "name": "foo:wasi",
       "interfaces": {
-        "clocks": 7,
-        "filesystem": 8
+        "clocks": 4,
+        "filesystem": 5
       },
       "worlds": {
         "wasi": 0
       }
+    },
+    {
+      "name": "foo:some-pkg",
+      "interfaces": {
+        "the-default": 6,
+        "some-interface": 7,
+        "another-interface": 8
+      },
+      "worlds": {}
     },
     {
       "name": "foo:root",

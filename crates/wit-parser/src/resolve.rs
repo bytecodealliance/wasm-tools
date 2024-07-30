@@ -116,54 +116,36 @@ enum ParsedFile {
 /// Visitor helper for performing topological sort on a group of packages.
 fn visit<'a>(
     pkg: &'a UnresolvedPackage,
-    deps: &'a BTreeMap<PackageName, UnresolvedPackage>,
+    pkg_details_map: &'a BTreeMap<PackageName, (UnresolvedPackage, usize)>,
     order: &mut IndexSet<PackageName>,
     visiting: &mut HashSet<&'a PackageName>,
-    source_map: &SourceMap,
+    source_maps: &[SourceMap],
 ) -> Result<()> {
     if order.contains(&pkg.name) {
         return Ok(());
     }
-    source_map.rewrite_error(|| {
-        for (i, (dep, _)) in pkg.foreign_deps.iter().enumerate() {
-            let span = pkg.foreign_dep_spans[i];
-            if !visiting.insert(dep) {
-                bail!(Error::new(span, "package depends on itself"));
-            }
-            if let Some(dep) = deps.get(dep) {
-                visit(&dep, deps, order, visiting, &source_map)?;
-            }
-            assert!(visiting.remove(dep));
-        }
-        assert!(order.insert(pkg.name.clone()));
-        Ok(())
-    })
-}
 
-fn visit_group<'a>(
-    pkg: &'a UnresolvedPackage,
-    deps: &'a BTreeMap<PackageName, UnresolvedPackageGroup>,
-    order: &mut IndexSet<PackageName>,
-    visiting: &mut HashSet<&'a PackageName>,
-    source_map: &SourceMap,
-) -> Result<()> {
-    if order.contains(&pkg.name) {
-        return Ok(());
-    }
-    source_map.rewrite_error(|| {
-        for (i, (dep, _)) in pkg.foreign_deps.iter().enumerate() {
-            let span = pkg.foreign_dep_spans[i];
-            if !visiting.insert(dep) {
-                bail!(Error::new(span, "package depends on itself"));
-            }
-            if let Some(dep) = deps.get(dep) {
-                visit_group(&dep.main, deps, order, visiting, &source_map)?;
-            }
-            assert!(visiting.remove(dep));
+    match pkg_details_map.get(&pkg.name) {
+        Some(pkg_details) => {
+            let (_, source_maps_index) = pkg_details;
+            source_maps[*source_maps_index].rewrite_error(|| {
+                for (i, (dep, _)) in pkg.foreign_deps.iter().enumerate() {
+                    let span = pkg.foreign_dep_spans[i];
+                    if !visiting.insert(dep) {
+                        bail!(Error::new(span, "package depends on itself"));
+                    }
+                    if let Some(dep) = pkg_details_map.get(dep) {
+                        let (dep_pkg, _) = dep;
+                        visit(dep_pkg, pkg_details_map, order, visiting, source_maps)?;
+                    }
+                    assert!(visiting.remove(dep));
+                }
+                assert!(order.insert(pkg.name.clone()));
+                Ok(())
+            })
         }
-        assert!(order.insert(pkg.name.clone()));
-        Ok(())
-    })
+        None => panic!("No pkg_details found for package when doing topological sort"),
+    }
 }
 
 impl Resolve {
@@ -221,21 +203,38 @@ impl Resolve {
 
     fn sort_unresolved_packages(
         &mut self,
-        unresolved_group: UnresolvedPackageGroup,
+        main: UnresolvedPackageGroup,
+        deps: Vec<UnresolvedPackageGroup>,
     ) -> Result<(PackageId, Vec<PathBuf>)> {
-        let path_bufs = Vec::new();
-        let mut pkg_ids = Vec::new();
         let mut pkg_details_map = BTreeMap::new();
-        let UnresolvedPackageGroup {
-            main,
-            nested,
-            source_map,
-            ..
-        } = unresolved_group;
+        let mut source_maps = Vec::new();
 
-        pkg_details_map.insert(main.name.clone(), main.clone());
-        for pkg in nested {
-            pkg_details_map.insert(pkg.name.clone(), pkg);
+        let mut insert = |group: UnresolvedPackageGroup| {
+            let UnresolvedPackageGroup {
+                main,
+                nested,
+                source_map,
+            } = group;
+            let i = source_maps.len();
+            source_maps.push(source_map);
+
+            for pkg in nested.into_iter().chain([main]) {
+                let name = pkg.name.clone();
+                let my_span = pkg.package_name_span;
+                let (prev_pkg, prev_i) = match pkg_details_map.insert(name.clone(), (pkg, i)) {
+                    Some(pair) => pair,
+                    None => continue,
+                };
+                let _ = (my_span, prev_pkg, prev_i);
+                bail!("package {name} is defined in two different locations")
+            }
+            Ok(())
+        };
+
+        let main_name = main.main.name.clone();
+        insert(main)?;
+        for dep in deps {
+            insert(dep)?;
         }
 
         // Perform a simple topological sort which will bail out on cycles
@@ -244,34 +243,38 @@ impl Resolve {
         let mut order = IndexSet::new();
         let mut visiting = HashSet::new();
         for pkg_details in pkg_details_map.values() {
-            let pkg = pkg_details;
+            let (pkg, _) = pkg_details;
             visit(
                 pkg,
                 &pkg_details_map,
                 &mut order,
                 &mut visiting,
-                &source_map,
+                &source_maps,
             )?;
         }
 
         // Ensure that the final output is topologically sorted. Use a set to ensure that we render
         // the buffers for each `SourceMap` only once, even though multiple packages may references
         // the same `SourceMap`.
-        let mut main_id = None;
+        let mut main_pkg_id = None;
         for name in order {
-            match pkg_details_map.remove(&name) {
-                Some(mut pkg) => {
-                    let pkg_id = self.push(&mut pkg)?;
-                    if main.name == pkg.name {
-                        main_id = Some(pkg_id);
-                    }
-                    pkg_ids.push(pkg_id);
-                }
-                None => panic!("package in topologically ordered set, but not in package map"),
+            let (pkg, source_map_index) = pkg_details_map.remove(&name).unwrap();
+            let source_map = &source_maps[source_map_index];
+            let is_main = pkg.name == main_name;
+            let id = self.push(pkg, source_map)?;
+            if is_main {
+                assert!(main_pkg_id.is_none());
+                main_pkg_id = Some(id);
             }
         }
 
-        Ok((main_id.unwrap(), path_bufs))
+        let path_bufs = source_maps
+            .iter()
+            .flat_map(|s| s.source_files())
+            .map(|p| p.to_path_buf())
+            .collect();
+
+        Ok((main_pkg_id.unwrap(), path_bufs))
     }
 
     /// Parses the filesystem directory at `path` as a WIT package and returns
@@ -309,62 +312,23 @@ impl Resolve {
     /// The second value returned here is the list of paths that were parsed
     /// when generating the return value. This can be useful for build systems
     /// that want to rebuild bindings whenever one of the files change.
-    pub fn push_dir(&mut self, path: &Path) -> Result<(PackageId, Vec<PathBuf>)> {
+    pub fn push_dir(&mut self, path: impl AsRef<Path>) -> Result<(PackageId, Vec<PathBuf>)> {
+        self._push_dir(path.as_ref())
+    }
+
+    fn _push_dir(&mut self, path: &Path) -> Result<(PackageId, Vec<PathBuf>)> {
         let top_pkg = UnresolvedPackageGroup::parse_dir(path)
             .with_context(|| format!("failed to parse package: {}", path.display()))?;
         let deps = path.join("deps");
-        let mut deps = self
+        let deps = self
             .parse_deps_dir(&deps)
             .with_context(|| format!("failed to parse dependency directory: {}", deps.display()))?;
-        // Perform a simple topological sort which will bail out on cycles
-        // and otherwise determine the order that packages must be added to
-        // this `Resolve`.
-        let mut order = IndexSet::new();
-        let mut visiting = HashSet::new();
-        for pkg in &top_pkg.nested {
-            visit_group(&pkg, &deps, &mut order, &mut visiting, &pkg.source_map)?;
-        }
-        for pkg in deps.values().chain([&top_pkg]) {
-            for pkg in &pkg.nested {
-                visit_group(&pkg, &deps, &mut order, &mut visiting, &pkg.source_map)?;
-            }
-            visit_group(&pkg.main, &deps, &mut order, &mut visiting, &pkg.source_map)?;
-        }
 
-        // Using the topological ordering insert each package incrementally.
-        // Additionally note that the last item visited here is the root
-        // package, which is the one returned here.
-        let mut files = Vec::new();
-        let mut main = top_pkg;
-        for name in order {
-            if deps.contains_key(&name) {
-                let pkg = deps.remove(&name).unwrap_or_else(|| main.clone());
-                files.extend(pkg.source_map.source_files().map(|p| p.to_path_buf()));
-                for mut nested in pkg.nested {
-                    self.push(&mut nested)?;
-                }
-                self.push(&mut pkg.main.clone())?;
-            } else {
-                let cur_pkg = main.nested.iter_mut().find(|p| p.name == name);
-                if let Some(mut pkg) = cur_pkg {
-                    files.extend(pkg.source_files().map(|p| p.to_path_buf()));
-                    self.push(&mut pkg)?;
-                }
-            }
-        }
-
-        files.extend(main.source_map.source_files().map(|p| p.to_path_buf()));
-        main.main.source_map = main.source_map;
-        let pkgid = self.push(&mut main.main)?;
-
-        return Ok((pkgid, files));
+        self.sort_unresolved_packages(top_pkg, deps)
     }
 
-    fn parse_deps_dir(
-        &mut self,
-        path: &Path,
-    ) -> Result<BTreeMap<PackageName, UnresolvedPackageGroup>> {
-        let mut ret = BTreeMap::new();
+    fn parse_deps_dir(&mut self, path: &Path) -> Result<Vec<UnresolvedPackageGroup>> {
+        let mut ret = Vec::new();
         if !path.exists() {
             return Ok(ret);
         }
@@ -400,13 +364,7 @@ impl Resolve {
                     _ => continue,
                 }
             };
-            let prev = ret.insert(pkg.main.name.clone(), pkg);
-            if let Some(prev) = prev {
-                bail!(
-                    "duplicate definitions of package `{}` found",
-                    prev.main.name
-                );
-            }
+            ret.push(pkg);
         }
         Ok(ret)
     }
@@ -486,12 +444,12 @@ impl Resolve {
     /// Any dependency resolution error or otherwise world-elaboration error
     /// will be returned here, if successful a package identifier is returned
     /// which corresponds to the package that was just inserted.
-    pub fn push(&mut self, unresolved: &mut UnresolvedPackage) -> Result<PackageId> {
-        // let source_map = mem::take(&mut unresolved.source_map);
-        unresolved
-            .source_map
-            .clone()
-            .rewrite_error(|| Remap::default().append(self, unresolved))
+    pub fn push(
+        &mut self,
+        unresolved: UnresolvedPackage,
+        source_map: &SourceMap,
+    ) -> Result<PackageId> {
+        source_map.rewrite_error(|| Remap::default().append(self, unresolved))
     }
 
     /// Appends new [`UnresolvedPackageGroup`] to this [`Resolve`], creating a
@@ -503,7 +461,7 @@ impl Resolve {
     ///
     /// The returned [`PackageId`]s are listed in topologically sorted order.
     pub fn push_group(&mut self, unresolved_group: UnresolvedPackageGroup) -> Result<PackageId> {
-        let (pkg_id, _) = self.sort_unresolved_packages(unresolved_group)?;
+        let (pkg_id, _) = self.sort_unresolved_packages(unresolved_group, Vec::new())?;
         Ok(pkg_id)
     }
 
@@ -1490,7 +1448,7 @@ impl Remap {
     fn append(
         &mut self,
         resolve: &mut Resolve,
-        unresolved: &mut UnresolvedPackage,
+        unresolved: UnresolvedPackage,
     ) -> Result<PackageId> {
         self.process_foreign_deps(resolve, &unresolved)?;
 
@@ -1519,7 +1477,7 @@ impl Remap {
         assert_eq!(unresolved.types.len(), unresolved.type_spans.len());
         for ((id, mut ty), span) in unresolved
             .types
-            .iter_mut()
+            .into_iter()
             .zip(&unresolved.type_spans)
             .skip(foreign_types)
         {
@@ -1529,7 +1487,7 @@ impl Remap {
             }
 
             self.update_typedef(resolve, &mut ty, Some(*span))?;
-            let new_id = resolve.types.alloc(ty.clone());
+            let new_id = resolve.types.alloc(ty);
             assert_eq!(self.types.len(), id.index());
 
             let new_id = match resolve.types[new_id] {
@@ -1560,7 +1518,7 @@ impl Remap {
         );
         for ((id, mut iface), span) in unresolved
             .interfaces
-            .iter_mut()
+            .into_iter()
             .zip(&unresolved.interface_spans)
             .skip(foreign_interfaces)
         {
@@ -1571,7 +1529,7 @@ impl Remap {
             self.update_interface(resolve, &mut iface, Some(span))?;
             assert!(iface.package.is_none());
             iface.package = Some(pkgid);
-            let new_id = resolve.interfaces.alloc(iface.clone());
+            let new_id = resolve.interfaces.alloc(iface);
             assert_eq!(self.interfaces.len(), id.index());
             self.interfaces.push(Some(new_id));
         }
@@ -1605,7 +1563,7 @@ impl Remap {
         assert_eq!(unresolved.worlds.len(), unresolved.world_spans.len());
         for ((id, mut world), span) in unresolved
             .worlds
-            .iter_mut()
+            .into_iter()
             .zip(&unresolved.world_spans)
             .skip(foreign_worlds)
         {
@@ -1615,7 +1573,7 @@ impl Remap {
             }
             self.update_world(&mut world, resolve, &span)?;
 
-            let new_id = resolve.worlds.alloc(world.clone());
+            let new_id = resolve.worlds.alloc(world);
             assert_eq!(self.worlds.len(), id.index());
             self.worlds.push(Some(new_id));
         }
