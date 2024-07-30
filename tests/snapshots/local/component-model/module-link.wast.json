@@ -1,0 +1,15 @@
+{
+  "source_filename": "tests/local/component-model/module-link.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "module-link.0.wasm"
+    },
+    {
+      "type": "module",
+      "line": 10,
+      "filename": "module-link.1.wasm"
+    }
+  ]
+}
