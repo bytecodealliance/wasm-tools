@@ -140,6 +140,21 @@ impl<'a> Resolver<'a> {
                 self.package_docs = docs;
             }
         }
+
+        // Ensure that there are no nested packages in `file`. Note that for
+        // top level files nested packages are handled separately in `ast.rs`
+        // with their own resolver.
+        for item in file.decl_list.items.iter() {
+            let span = match item {
+                ast::AstItem::Package(pkg) => pkg.package_id.as_ref().unwrap().span,
+                _ => continue,
+            };
+            bail!(Error::new(
+                span,
+                "nested packages must be placed at the top-level"
+            ))
+        }
+
         self.decl_lists.push(file.decl_list);
         Ok(())
     }

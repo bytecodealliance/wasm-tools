@@ -15,12 +15,19 @@ pub mod toposort;
 
 pub use lex::validate_id;
 
+/// Representation of a single WIT `*.wit` file and nested packages.
 struct PackageFile<'a> {
+    /// Optional `package foo:bar;` header
     package_id: Option<PackageName<'a>>,
+    /// Other AST items.
     decl_list: DeclList<'a>,
 }
 
 impl<'a> PackageFile<'a> {
+    /// Parse a standalone file represented by `tokens`.
+    ///
+    /// This will optionally start with `package foo:bar;` and then will have a
+    /// list of ast items after it.
     fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self> {
         let docs = parse_docs(tokens)?;
         let mut package_name_tokens_peek = tokens.clone();
@@ -46,6 +53,7 @@ impl<'a> PackageFile<'a> {
         })
     }
 
+    /// Parse a nested package of the form `package foo:bar { ... }`
     fn parse_nested(
         tokens: &mut Tokenizer<'a>,
         docs: Docs<'a>,
@@ -1695,13 +1703,18 @@ impl SourceMap {
         self.offset = new_offset;
     }
 
-    /// Parses the files added to this source map into one or more [`UnresolvedPackage`]s.
+    /// Parses the files added to this source map into a
+    /// [`UnresolvedPackageGroup`].
     pub fn parse(self) -> Result<UnresolvedPackageGroup> {
         let mut nested = Vec::new();
         let main = self.rewrite_error(|| {
             let mut resolver = Resolver::default();
             let mut srcs = self.sources.iter().collect::<Vec<_>>();
             srcs.sort_by_key(|src| &src.path);
+
+            // Parse each source file individually. A tokenizer is created here
+            // form settings and then `PackageFile` is used to parse the whole
+            // stream of tokens.
             for src in srcs {
                 let mut tokens = Tokenizer::new(
                     // chop off the forcibly appended `\n` character when
@@ -1713,6 +1726,15 @@ impl SourceMap {
                 )
                 .with_context(|| format!("failed to tokenize path: {}", src.path.display()))?;
                 let mut file = PackageFile::parse(&mut tokens)?;
+
+                // Filter out any nested packages and resolve them separately.
+                // Nested packages have only a single "file" so only one item
+                // is pushed into a `Resolver`. Note that a nested `Resolver`
+                // is used here, not the outer one.
+                //
+                // Note that filtering out `Package` items is required due to
+                // how the implementation of disallowing nested packages in
+                // nested packages currently works.
                 for item in mem::take(&mut file.decl_list.items) {
                     match item {
                         AstItem::Package(nested_pkg) => {
@@ -1729,6 +1751,9 @@ impl SourceMap {
                         other => file.decl_list.items.push(other),
                     }
                 }
+
+                // With nested packages handled push this file into the
+                // resolver.
                 resolver.push(file).with_context(|| {
                     format!("failed to start resolving path: {}", src.path.display())
                 })?;
