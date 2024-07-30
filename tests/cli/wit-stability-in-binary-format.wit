@@ -1,6 +1,6 @@
 // RUN: component wit % --wasm | component wit
 
-package a:b;
+package a:b@1.0.0;
 
 @since(version = 1.0.0)
 interface foo {
