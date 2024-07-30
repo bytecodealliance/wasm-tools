@@ -29,19 +29,18 @@ impl<'a> PackageFile<'a> {
     /// This will optionally start with `package foo:bar;` and then will have a
     /// list of ast items after it.
     fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self> {
-        let docs = parse_docs(tokens)?;
         let mut package_name_tokens_peek = tokens.clone();
+        let docs = parse_docs(&mut package_name_tokens_peek)?;
 
         // Parse `package foo:bar;` but throw it out if it's actually
         // `package foo:bar { ... }` since that's an ast item instead.
         let package_id = if package_name_tokens_peek.eat(Token::Package)? {
             let name = PackageName::parse(&mut package_name_tokens_peek, docs)?;
-            if package_name_tokens_peek.eat(Token::LeftBrace)? {
-                None
-            } else {
+            if package_name_tokens_peek.eat(Token::Semicolon)? {
                 *tokens = package_name_tokens_peek;
-                tokens.expect_semicolon()?;
                 Some(name)
+            } else {
+                None
             }
         } else {
             None
