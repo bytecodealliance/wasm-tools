@@ -1,4 +1,4 @@
-use super::{NestedPackage, ParamList, ResultList, WorldOrInterface};
+use super::{ParamList, ResultList, WorldOrInterface};
 use crate::ast::toposort::toposort;
 use crate::*;
 use anyhow::bail;
@@ -109,21 +109,11 @@ enum TypeOrItem {
 }
 
 impl<'a> Resolver<'a> {
-    pub(crate) fn push_partial(
-        &mut self,
-        partial: ast::PartialMainPackage<'a>,
-        nested: Vec<NestedPackage<'a>>,
-        parsed_pkgs: &mut Vec<UnresolvedPackage>,
-    ) -> Result<()> {
-        for pkg in nested {
-            let mut resolver = Resolver::default();
-            let ingested = resolver.push_then_resolve(pkg)?;
-            parsed_pkgs.push(ingested.unwrap());
-        }
+    pub(super) fn push(&mut self, file: ast::PackageFile<'a>) -> Result<()> {
         // As each WIT file is pushed into this resolver keep track of the
         // current package name assigned. Only one file needs to mention it, but
         // if multiple mention it then they must all match.
-        if let Some(cur) = &partial.package_id {
+        if let Some(cur) = &file.package_id {
             let cur_name = cur.package_name();
             if let Some((prev, _)) = &self.package_name {
                 if cur_name != *prev {
@@ -150,18 +140,15 @@ impl<'a> Resolver<'a> {
                 self.package_docs = docs;
             }
         }
-        self.decl_lists.push(partial.decl_list);
+        self.decl_lists.push(file.decl_list);
         Ok(())
     }
 
-    pub(crate) fn resolve(&mut self) -> Result<Option<UnresolvedPackage>> {
+    pub(crate) fn resolve(&mut self) -> Result<UnresolvedPackage> {
         // At least one of the WIT files must have a `package` annotation.
         let (name, package_name_span) = match &self.package_name {
             Some(name) => name.clone(),
             None => {
-                if self.decl_lists.is_empty() {
-                    return Ok(None);
-                }
                 bail!("no `package` header was found in any WIT file for this package")
             }
         };
@@ -198,6 +185,7 @@ impl<'a> Resolver<'a> {
                         world_id_to_ast.insert(id, (world, i));
                     }
                     ast::AstItem::Use(_) => {}
+                    ast::AstItem::Package(_) => unreachable!(),
                 }
             }
         }
@@ -215,7 +203,7 @@ impl<'a> Resolver<'a> {
         }
 
         self.decl_lists = decl_lists;
-        Ok(Some(UnresolvedPackage {
+        Ok(UnresolvedPackage {
             package_name_span,
             name,
             docs: mem::take(&mut self.package_docs),
@@ -240,18 +228,7 @@ impl<'a> Resolver<'a> {
             type_spans: mem::take(&mut self.type_spans),
             foreign_dep_spans: mem::take(&mut self.foreign_dep_spans),
             required_resource_types: mem::take(&mut self.required_resource_types),
-        }))
-    }
-
-    pub(crate) fn push_then_resolve(
-        &mut self,
-        package: ast::NestedPackage<'a>,
-    ) -> Result<Option<UnresolvedPackage>> {
-        let mut resolver = Resolver::default();
-        resolver.package_name = Some((package.package_id.package_name(), package.package_id.span));
-        resolver.docs(&package.package_id.docs);
-        resolver.decl_lists.push(package.decl_list);
-        resolver.resolve()
+        })
     }
 
     /// Registers all foreign dependencies made within the ASTs provided.
@@ -264,7 +241,7 @@ impl<'a> Resolver<'a> {
         let mut foreign_worlds = mem::take(&mut self.foreign_worlds);
         for decl_list in decl_lists {
             decl_list
-                .for_each_path(|_, path, _names, world_or_iface| {
+                .for_each_path(&mut |_, path, _names, world_or_iface| {
                     let (id, name) = match path {
                         ast::UsePath::Package { id, name } => (id, name),
                         _ => return Ok(()),
@@ -394,6 +371,8 @@ impl<'a> Resolver<'a> {
                     }
                     // These are processed down below.
                     ast::AstItem::Use(_) => {}
+
+                    ast::AstItem::Package(_) => unreachable!(),
                 }
             }
             decl_list_namespaces.push(decl_list_ns);
@@ -426,6 +405,7 @@ impl<'a> Resolver<'a> {
                     }
                     ast::AstItem::Interface(i) => (&i.name, ItemSource::Local(i.name.clone())),
                     ast::AstItem::World(w) => (&w.name, ItemSource::Local(w.name.clone())),
+                    ast::AstItem::Package(_) => unreachable!(),
                 };
                 if decl_list_ns.insert(name.name, (name.span, src)).is_some() {
                     bail!(Error::new(
@@ -437,7 +417,7 @@ impl<'a> Resolver<'a> {
 
             // With this file's namespace information look at all `use` paths
             // and record dependencies between interfaces.
-            decl_list.for_each_path(|iface, path, _names, _| {
+            decl_list.for_each_path(&mut |iface, path, _names, _| {
                 // If this import isn't contained within an interface then it's
                 // in a world and it doesn't need to participate in our
                 // topo-sort.
@@ -498,7 +478,7 @@ impl<'a> Resolver<'a> {
                     assert!(prev.is_none());
                     world_id_order.push(id);
                 }
-                ast::AstItem::Use(_) => unreachable!(),
+                ast::AstItem::Use(_) | ast::AstItem::Package(_) => unreachable!(),
             };
         }
         for decl_list in decl_lists {
@@ -539,6 +519,7 @@ impl<'a> Resolver<'a> {
                         assert!(matches!(world_item, AstItem::World(_)));
                         (w.name.name, world_item)
                     }
+                    ast::AstItem::Package(_) => unreachable!(),
                 };
                 let prev = items.insert(name, ast_item);
                 assert!(prev.is_none());
@@ -564,7 +545,7 @@ impl<'a> Resolver<'a> {
     fn populate_foreign_types(&mut self, decl_lists: &[ast::DeclList<'a>]) -> Result<()> {
         for (i, decl_list) in decl_lists.iter().enumerate() {
             self.cur_ast_index = i;
-            decl_list.for_each_path(|_, path, names, _| {
+            decl_list.for_each_path(&mut |_, path, names, _| {
                 let names = match names {
                     Some(names) => names,
                     None => return Ok(()),

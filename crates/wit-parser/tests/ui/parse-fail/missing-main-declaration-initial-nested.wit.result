@@ -1,5 +1,1 @@
-expected an identifier or string, found keyword `interface`
-     --> tests/ui/parse-fail/missing-main-declaration-initial-nested.wit:14:1
-      |
-   14 | interface i2 {
-      | ^--------
+no `package` header was found in any WIT file for this package

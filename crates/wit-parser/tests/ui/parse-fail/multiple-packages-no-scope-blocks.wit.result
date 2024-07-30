@@ -1,1 +1,5 @@
-Multiple main package declarations in one file: bar:name and foo:name
+expected '{', found ';'
+     --> tests/ui/parse-fail/multiple-packages-no-scope-blocks.wit:7:17
+      |
+    7 | package bar:name;
+      |                 ^

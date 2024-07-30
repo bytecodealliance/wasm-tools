@@ -1,8 +1,5 @@
-failed to start resolving path: tests/ui/parse-fail/nested-packages-with-error.wit
-
-Caused by:
-    interface or world `missing` does not exist
-         --> tests/ui/parse-fail/nested-packages-with-error.wit:11:13
-          |
-       11 |         use missing.{a};
-          |             ^------
+interface or world `missing` does not exist
+     --> tests/ui/parse-fail/nested-packages-with-error.wit:11:13
+      |
+   11 |         use missing.{a};
+      |             ^------
