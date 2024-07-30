@@ -1892,14 +1892,10 @@ impl SourceMap {
     }
 
     fn highlight_err(&self, start: u32, end: Option<u32>, err: impl fmt::Display) -> String {
-        let i = match self.sources.binary_search_by_key(&start, |src| src.offset) {
-            Ok(i) => i,
-            Err(i) => i - 1,
-        };
-        let src = &self.sources[i];
-        let start = usize::try_from(start - src.offset).unwrap();
-        let end = end.map(|end| usize::try_from(end - src.offset).unwrap());
-        let (line, col) = linecol_in(start, &src.contents);
+        let src = self.source_for_offset(start);
+        let start = src.to_relative_offset(start);
+        let end = end.map(|end| src.to_relative_offset(end));
+        let (line, col) = src.linecol(start);
         let snippet = src.contents.lines().nth(line).unwrap_or("");
         let mut msg = format!(
             "\
@@ -1922,25 +1918,51 @@ impl SourceMap {
             }
         }
         return msg;
+    }
 
-        fn linecol_in(pos: usize, text: &str) -> (usize, usize) {
-            let mut cur = 0;
-            // Use split_terminator instead of lines so that if there is a `\r`,
-            // it is included in the offset calculation. The `+1` values below
-            // account for the `\n`.
-            for (i, line) in text.split_terminator('\n').enumerate() {
-                if cur + line.len() + 1 > pos {
-                    return (i, pos - cur);
-                }
-                cur += line.len() + 1;
-            }
-            (text.lines().count(), 0)
-        }
+    pub(crate) fn render_location(&self, span: Span) -> String {
+        let src = self.source_for_offset(span.start);
+        let start = src.to_relative_offset(span.start);
+        let (line, col) = src.linecol(start);
+        format!(
+            "{file}:{line}:{col}",
+            file = src.path.display(),
+            line = line + 1,
+            col = col + 1,
+        )
+    }
+
+    fn source_for_offset(&self, start: u32) -> &Source {
+        let i = match self.sources.binary_search_by_key(&start, |src| src.offset) {
+            Ok(i) => i,
+            Err(i) => i - 1,
+        };
+        &self.sources[i]
     }
 
     /// Returns an iterator over all filenames added to this source map.
     pub fn source_files(&self) -> impl Iterator<Item = &Path> {
         self.sources.iter().map(|src| src.path.as_path())
+    }
+}
+
+impl Source {
+    fn to_relative_offset(&self, offset: u32) -> usize {
+        usize::try_from(offset - self.offset).unwrap()
+    }
+
+    fn linecol(&self, relative_offset: usize) -> (usize, usize) {
+        let mut cur = 0;
+        // Use split_terminator instead of lines so that if there is a `\r`,
+        // it is included in the offset calculation. The `+1` values below
+        // account for the `\n`.
+        for (i, line) in self.contents.split_terminator('\n').enumerate() {
+            if cur + line.len() + 1 > relative_offset {
+                return (i, relative_offset - cur);
+            }
+            cur += line.len() + 1;
+        }
+        (self.contents.lines().count(), 0)
     }
 }
 

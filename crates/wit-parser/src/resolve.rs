@@ -225,8 +225,15 @@ impl Resolve {
                     Some(pair) => pair,
                     None => continue,
                 };
-                let _ = (my_span, prev_pkg, prev_i);
-                bail!("package {name} is defined in two different locations")
+                let loc1 = source_maps[i].render_location(my_span);
+                let loc2 = source_maps[prev_i].render_location(prev_pkg.package_name_span);
+                bail!(
+                    "\
+package {name} is defined in two different locations:\n\
+  * {loc1}\n\
+  * {loc2}\n\
+                     "
+                )
             }
             Ok(())
         };
