@@ -1,0 +1,29 @@
+{
+  "source_filename": "tests/local/component-model/export-ascription.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "export-ascription.0.wasm"
+    },
+    {
+      "type": "module",
+      "line": 7,
+      "filename": "export-ascription.1.wasm"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 14,
+      "filename": "export-ascription.2.wasm",
+      "text": "ascribed type of export is not compatible",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 22,
+      "filename": "export-ascription.3.wasm",
+      "text": "missing expected export `f`",
+      "module_type": "binary"
+    }
+  ]
+}

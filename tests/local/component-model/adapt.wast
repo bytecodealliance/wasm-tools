@@ -245,12 +245,10 @@
 )
 
 (assert_invalid
-  (component
-    (core module $m
-      (func (export ""))
-    )
-    (core instance $i (instantiate $m))
-    (core func (canon lower (func $i "")))
+  (component quote
+    "(core module $m (func (export \"\")))"
+    "(core instance $i (instantiate $m))"
+    "(core func (canon lower (func $i \"\")))"
   )
   "unknown instance: failed to find name `$i`")
 
@@ -280,8 +278,8 @@
   "not a function type")
 
 (assert_invalid
-  (component
-    (import "a" (func $f))
-    (func (export "foo") (canon lift (core func $f)))
+  (component quote
+    "(import \"a\" (func $f))"
+    "(func (export \"foo\") (canon lift (core func $f)))"
   )
   "unknown core func: failed to find name `$f`")

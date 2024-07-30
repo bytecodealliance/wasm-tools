@@ -1,4 +1,4 @@
-package foo:foo;
+package foo:foo@1.0.0;
 
 interface shared-only-into {
   variant v {

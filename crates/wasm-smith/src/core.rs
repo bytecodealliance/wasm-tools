@@ -303,7 +303,7 @@ impl CompositeType {
 impl From<&CompositeType> for wasm_encoder::CompositeType {
     fn from(ty: &CompositeType) -> Self {
         let inner = match &ty.inner {
-            CompositeInnerType::Array(a) => wasm_encoder::CompositeInnerType::Array(a.clone()),
+            CompositeInnerType::Array(a) => wasm_encoder::CompositeInnerType::Array(*a),
             CompositeInnerType::Func(f) => wasm_encoder::CompositeInnerType::Func(
                 wasm_encoder::FuncType::new(f.params.iter().cloned(), f.results.iter().cloned()),
             ),

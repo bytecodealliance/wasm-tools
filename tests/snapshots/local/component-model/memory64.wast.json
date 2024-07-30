@@ -1,0 +1,19 @@
+{
+  "source_filename": "tests/local/component-model/memory64.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 2,
+      "filename": "memory64.0.wasm",
+      "text": "mismatch in index type used for memories",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 13,
+      "filename": "memory64.1.wasm",
+      "text": "mismatch in index type used for memories",
+      "module_type": "binary"
+    }
+  ]
+}

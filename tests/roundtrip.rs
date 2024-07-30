@@ -533,11 +533,6 @@ impl TestState {
     }
 
     fn test_json_from_wast(&self, path: &Path) -> Result<()> {
-        // component model tests aren't tested through json-from-wast at this time.
-        if path.iter().any(|p| p == "component-model") {
-            return Ok(());
-        }
-
         // This has an `assert_invalid` which should be `assert_malformed`, so
         // skip it.
         if path.ends_with("gc-subtypes-invalid.wast") {

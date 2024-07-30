@@ -2,7 +2,7 @@
 name = "wasmparser"
 version.workspace = true
 authors = ["Yury Delendik <ydelendik@mozilla.com>"]
-license = "Apache-2.0 WITH LLVM-exception"
+license.workspace = true
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasmparser"
 homepage = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasmparser"
 keywords = ["parser", "WebAssembly", "wasm"]

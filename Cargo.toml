@@ -4,7 +4,7 @@ version = "1.214.0"
 authors = ["The Wasmtime Project Developers"]
 edition.workspace = true
 description = "CLI tools for interoperating with WebAssembly files"
-license = "Apache-2.0 WITH LLVM-exception"
+license.workspace = true
 documentation = "https://github.com/bytecodealliance/wasm-tools"
 categories = ["wasm"]
 keywords = ["webassembly", "wasm"]
@@ -48,10 +48,18 @@ members = [
 unsafe_code = "deny"
 
 [workspace.lints.clippy]
-all = "allow"
+# The default set of lints in Clippy is viewed as "too noisy" right now so
+# they're all turned off by default. Selective lints are then enabled below as
+# necessary.
+all = { level = 'allow', priority = -1 }
+clone_on_copy = 'warn'
+map_clone = 'warn'
+unnecessary_to_owned = 'warn'
+manual_strip = 'warn'
 
 [workspace.package]
 edition = '2021'
+license = "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"
 version = "0.214.0"
 # Current policy for wasm-tools is the same as Wasmtime which is that this
 # number can be no larger than the current stable release of Rust minus 2.

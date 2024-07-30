@@ -96,7 +96,7 @@ impl PeepholeMutationAnalysis {
             Lang::I64GeS(_) => Ok(PrimitiveTypeInfo::I32),
             Lang::I32GeU(_) => Ok(PrimitiveTypeInfo::I32),
             Lang::I64GeU(_) => Ok(PrimitiveTypeInfo::I32),
-            Lang::LocalTee(idx, _) => Ok(self.locals[*idx as usize].clone()),
+            Lang::LocalTee(idx, _) => Ok(self.locals[*idx as usize]),
             Lang::Wrap(_) => Ok(PrimitiveTypeInfo::I32),
             Lang::Call(idx, _) => {
                 let type_idx = self.function_map[*idx as usize];
@@ -110,7 +110,7 @@ impl PeepholeMutationAnalysis {
                             return Err(Error::no_mutations_applicable());
                         }
 
-                        Ok(ty.returns[0].clone())
+                        Ok(ty.returns[0])
                     }
                 }
             }
@@ -138,8 +138,8 @@ impl PeepholeMutationAnalysis {
             Lang::I64ExtendI32U(_) => Ok(PrimitiveTypeInfo::I64),
             Lang::LocalSet(_, _) => Ok(PrimitiveTypeInfo::Empty),
             Lang::GlobalSet(_, _) => Ok(PrimitiveTypeInfo::Empty),
-            Lang::LocalGet(idx) => Ok(self.locals[*idx as usize].clone()),
-            Lang::GlobalGet(v) => Ok(self.global_types[*v as usize].clone()),
+            Lang::LocalGet(idx) => Ok(self.locals[*idx as usize]),
+            Lang::GlobalGet(v) => Ok(self.global_types[*v as usize]),
             Lang::I32Store { .. } => Ok(PrimitiveTypeInfo::Empty),
             Lang::I64Store { .. } => Ok(PrimitiveTypeInfo::Empty),
             Lang::F32(_) => Ok(PrimitiveTypeInfo::F32),
@@ -289,7 +289,7 @@ impl PeepholeMutationAnalysis {
             Lang::TableFill { .. } => Ok(PrimitiveTypeInfo::Empty),
             Lang::TableSet(..) => Ok(PrimitiveTypeInfo::Empty),
             Lang::TableGet(idx, _) => {
-                let ty = self.table_types[*idx as usize].clone();
+                let ty = self.table_types[*idx as usize];
                 Ok(ty.element_type.into())
             }
             Lang::I32UseGlobal(_) => Ok(PrimitiveTypeInfo::I32),

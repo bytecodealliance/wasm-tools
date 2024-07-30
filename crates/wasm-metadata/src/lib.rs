@@ -864,9 +864,9 @@ impl RegistryMetadata {
 
                         let license_id = req.req.to_string();
 
-                        if license_id.starts_with(LICENSE_REF) {
-                            // Strip "LicenseRef-", convert to lowercase and then append
-                            licenses.push(license_id[LICENSE_REF.len()..].to_lowercase());
+                        // Strip "LicenseRef-", convert to lowercase and then append
+                        if let Some(id) = license_id.strip_prefix(LICENSE_REF) {
+                            licenses.push(id.to_lowercase());
                         }
                     }
                 }

@@ -2,7 +2,7 @@
 name = "wasm-wave"
 version.workspace = true
 edition.workspace = true
-license = "Apache-2.0 WITH LLVM-exception"
+license.workspace = true
 rust-version.workspace = true
 authors = ["lann.martin@fermyon.com"]
 description = "WebAssembly Value Encoding"
