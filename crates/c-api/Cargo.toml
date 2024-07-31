@@ -4,9 +4,7 @@ authors = ["Addison Hart <tgr@tgrcode.com>"]
 categories = ["development-tools", "development-tools::testing", "wasm"]
 description = "C API to expose wasm-tools"
 edition.workspace = true
-# Note that this is intentionally not the workspace's license. For more
-# information see #1637.
-license = "Apache-2.0 WITH LLVM-exception"
+license.workspace = true
 readme = "./README.md"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/c-api"
 publish = false
