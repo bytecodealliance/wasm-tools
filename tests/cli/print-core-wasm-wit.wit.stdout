@@ -1,15 +1,12 @@
-package root:root {
-  world root {
-    import foo:foo/my-interface;
-  }
+package root:root;
+
+world root {
+  import foo:foo/my-interface;
 }
-
-
 package foo:foo {
   interface my-interface {
     foo: func();
   }
-
   world my-world {
     import my-interface;
   }

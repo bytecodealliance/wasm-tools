@@ -1,4 +1,5 @@
 // FAIL: component embed --dummy --wat %
+package test:root;
 
 package test:foo1 {
   interface bar {
@@ -21,4 +22,12 @@ package test:hola {
     import test:foo1/bar;
     export test:foo2/bar;
   }
+}
+
+world w1 {
+  export test:foo1/bar;
+}
+
+world w2 {
+  export test:foo2/bar;
 }

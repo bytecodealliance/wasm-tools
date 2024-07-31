@@ -1,22 +1,19 @@
-package root:root {
-  world root {
-    import a:b/x;
-    import a: func() -> t;
-    use a:b/x.{t};
+package root:root;
 
-    export y: func();
-    export a:b/x;
-    export x: interface {
-    }
+world root {
+  import a:b/x;
+  import a: func() -> t;
+  use a:b/x.{t};
+
+  export y: func();
+  export a:b/x;
+  export x: interface {
   }
 }
-
-
 package a:b {
   interface x {
     type t = u32;
   }
-
   world foo {
     import x;
     import a: func() -> t;

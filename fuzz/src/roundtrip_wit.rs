@@ -2,7 +2,7 @@ use arbitrary::{Result, Unstructured};
 use std::path::Path;
 use wasmparser::WasmFeatures;
 use wit_component::*;
-use wit_parser::{Resolve, SourceMap};
+use wit_parser::{PackageId, Resolve};
 
 pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     let wasm = u.arbitrary().and_then(|config| {
@@ -10,28 +10,22 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         wit_smith::smith(&config, u)
     })?;
     write_file("doc1.wasm", &wasm);
-    let (resolve, _pkg) = match wit_component::decode(&wasm).unwrap() {
-        DecodedWasm::WitPackages(resolve, pkg) => (resolve, pkg),
+    let (resolve, pkg) = match wit_component::decode(&wasm).unwrap() {
+        DecodedWasm::WitPackage(resolve, pkg) => (resolve, pkg),
         DecodedWasm::Component(..) => unreachable!(),
     };
 
-    roundtrip_through_printing("doc1", &resolve, &wasm);
+    roundtrip_through_printing("doc1", &resolve, pkg, &wasm);
 
-    let (resolve2, pkgs2) = match wit_component::decode(&wasm).unwrap() {
-        DecodedWasm::WitPackages(resolve, pkgs) => (resolve, pkgs),
+    let (resolve2, pkg2) = match wit_component::decode(&wasm).unwrap() {
+        DecodedWasm::WitPackage(resolve, pkgs) => (resolve, pkgs),
         DecodedWasm::Component(..) => unreachable!(),
     };
 
-    // wit_smith returns WIT source with only a single package.
-    if pkgs2.len() != 1 {
-        panic!("rountrip WIT test smithed file with multiple packages")
-    }
-
-    let pkg2 = pkgs2[0];
     let wasm2 =
         wit_component::encode(Some(true), &resolve2, pkg2).expect("failed to encode WIT document");
     write_file("doc2.wasm", &wasm2);
-    roundtrip_through_printing("doc2", &resolve2, &wasm2);
+    roundtrip_through_printing("doc2", &resolve2, pkg2, &wasm2);
 
     if wasm != wasm2 {
         panic!("roundtrip wasm didn't match");
@@ -78,25 +72,26 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     Ok(())
 }
 
-fn roundtrip_through_printing(file: &str, resolve: &Resolve, wasm: &[u8]) {
-    // For all packages in `resolve` print them all to a string, then re-parse
-    // them and insert them into a `new_resolve`.
+fn roundtrip_through_printing(file: &str, resolve: &Resolve, pkg: PackageId, wasm: &[u8]) {
+    // Print to a single string, using nested `package ... { .. }` statements,
+    // and then parse that in a new `Resolve`.
     let mut new_resolve = Resolve::default();
-    let mut last = None;
-    for (id, pkg) in resolve.packages.iter() {
-        let mut map = SourceMap::new();
-        let pkg_name = &pkg.name;
-        let doc = WitPrinter::default().print(resolve, &[id], false).unwrap();
-        write_file(&format!("{file}-{pkg_name}.wit"), &doc);
-        map.push(format!("{pkg_name}.wit").as_ref(), doc);
-        let unresolved = map.parse().unwrap();
-        let id = new_resolve.push_group(unresolved).unwrap();
-        last = Some(id.last().unwrap().to_owned());
-    }
+    let package_deps = resolve
+        .packages
+        .iter()
+        .map(|p| p.0)
+        .filter(|k| *k != pkg)
+        .collect::<Vec<_>>();
+    let doc = WitPrinter::default()
+        .print(resolve, pkg, &package_deps)
+        .unwrap();
+    let new_pkg = new_resolve
+        .push_str(&format!("printed-{file}.wit"), &doc)
+        .unwrap();
 
     // Finally encode the `new_resolve` which should be the exact same as
     // before.
-    let wasm2 = wit_component::encode(Some(true), &new_resolve, last.unwrap()).unwrap();
+    let wasm2 = wit_component::encode(Some(true), &new_resolve, new_pkg).unwrap();
     write_file(&format!("{file}-reencoded.wasm"), &wasm2);
     if wasm != wasm2 {
         panic!("failed to roundtrip through text printing");

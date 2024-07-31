@@ -80,9 +80,9 @@ fn load_test_wit(path: &Path) -> Result<(Resolve, WorldId)> {
 
     let test_wit_path = path.join("test.wit");
     let mut resolve = Resolve::default();
-    let pkgs = resolve.push_file(&test_wit_path)?;
+    let pkg = resolve.push_file(&test_wit_path)?;
     let world_id = resolve
-        .select_world(&pkgs, Some(TEST_TARGET_WORLD_ID))
+        .select_world(pkg, Some(TEST_TARGET_WORLD_ID))
         .with_context(|| "failed to select world from package".to_string())?;
 
     Ok((resolve, world_id))

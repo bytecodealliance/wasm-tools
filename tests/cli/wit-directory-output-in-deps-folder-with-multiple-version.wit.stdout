@@ -1,14 +1,15 @@
+/// RUN: component wit % --out-dir %tmpdir | component wit %tmpdir
+package foo:root;
+
 package a:b {
   interface foo {
   }
-
 }
 
 
 package a:b@0.2.0 {
   interface foo {
   }
-
 }
 
 

@@ -131,9 +131,9 @@ fn execute(cmd: &mut Command, stdin: Option<&[u8]>, should_fail: bool) -> Result
         if !should_fail {
             bail!(
                 "{cmd:?} failed:
-            status: {}
-            stdout: {}
-            stderr: {}",
+                status: {}
+                stdout: {}
+                stderr: {}",
                 output.status,
                 String::from_utf8_lossy(&output.stdout),
                 String::from_utf8_lossy(&output.stderr)
@@ -142,8 +142,8 @@ fn execute(cmd: &mut Command, stdin: Option<&[u8]>, should_fail: bool) -> Result
     } else if should_fail {
         bail!(
             "{cmd:?} succeeded instead of failed
-            stdout: {}
-            stderr: {}",
+                stdout: {}
+                stderr: {}",
             String::from_utf8_lossy(&output.stdout),
             String::from_utf8_lossy(&output.stderr)
         );

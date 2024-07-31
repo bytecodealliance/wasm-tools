@@ -1,8 +1,0 @@
-failed to start resolving path: tests/ui/parse-fail/explicit-packages-with-error.wit
-
-Caused by:
-    interface or world `missing` does not exist
-         --> tests/ui/parse-fail/explicit-packages-with-error.wit:10:13
-          |
-       10 |         use missing.{a};
-          |             ^------

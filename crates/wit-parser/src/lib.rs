@@ -106,6 +106,7 @@ pub struct UnresolvedPackage {
     /// Doc comments for this package.
     pub docs: Docs,
 
+    package_name_span: Span,
     unknown_type_spans: Vec<Span>,
     interface_spans: Vec<InterfaceSpan>,
     world_spans: Vec<WorldSpan>,
@@ -115,10 +116,16 @@ pub struct UnresolvedPackage {
 }
 
 /// Tracks a set of packages, all pulled from the same group of WIT source files.
-#[derive(Default)]
+#[derive(Clone)]
 pub struct UnresolvedPackageGroup {
-    /// A set of packages that share source file(s).
-    pub packages: Vec<UnresolvedPackage>,
+    /// The "main" package in this package group which was found at the root of
+    /// the WIT files.
+    ///
+    /// Note that this is required to be present in all WIT files.
+    pub main: UnresolvedPackage,
+
+    /// Nested packages found while parsing `main`, if any.
+    pub nested: Vec<UnresolvedPackage>,
 
     /// A set of processed source files from which these packages have been parsed.
     pub source_map: SourceMap,
@@ -220,11 +227,6 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {}
 
 impl UnresolvedPackageGroup {
-    /// Creates an empty set of packages.
-    pub fn new() -> UnresolvedPackageGroup {
-        UnresolvedPackageGroup::default()
-    }
-
     /// Parses the given string as a wit document.
     ///
     /// The `path` argument is used for error reporting. The `contents` provided

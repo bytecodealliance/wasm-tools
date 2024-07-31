@@ -1,3 +1,3 @@
 error: multiple worlds found; one must be explicitly chosen:
-  test:foo2/some-other-world
-  test:hola/hello
+  test:root/w1
+  test:root/w2

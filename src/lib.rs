@@ -238,8 +238,9 @@ impl OutputArg {
                     .packages
                     .iter()
                     .map(|(id, _)| id)
+                    .filter(|id| *id != wit.package())
                     .collect::<Vec<_>>();
-                let output = printer.print(resolve, &ids, false)?;
+                let output = printer.print(resolve, wit.package(), &ids)?;
                 self.output_str(&output)
             }
         }

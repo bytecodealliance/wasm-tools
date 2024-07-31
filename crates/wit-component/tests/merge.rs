@@ -46,7 +46,7 @@ fn merging() -> Result<()> {
                         .join("merge")
                         .join(&pkg.name.name)
                         .with_extension("wit");
-                    let output = WitPrinter::default().print(&into, &[id], false)?;
+                    let output = WitPrinter::default().print(&into, id, &[])?;
                     assert_output(&expected, &output)?;
                 }
             }

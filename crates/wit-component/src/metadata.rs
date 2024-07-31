@@ -259,12 +259,12 @@ impl Bindgen {
                 let world_name = reader.read_string()?;
                 wasm = &data[reader.original_position()..];
 
-                let (r, pkgs) = match crate::decode(wasm)? {
-                    DecodedWasm::WitPackages(resolve, pkgs) => (resolve, pkgs),
+                let (r, pkg) = match crate::decode(wasm)? {
+                    DecodedWasm::WitPackage(resolve, pkgs) => (resolve, pkgs),
                     DecodedWasm::Component(..) => bail!("expected encoded wit package(s)"),
                 };
                 resolve = r;
-                world = resolve.select_world(&pkgs, Some(world_name.into()))?;
+                world = resolve.select_world(pkg, Some(world_name.into()))?;
             }
 
             // Current format where `data` is a wasm component itself.

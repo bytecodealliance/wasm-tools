@@ -1,3 +1,4 @@
+package foo:root;
 package foo:name {
   interface i {
     type a = u32;

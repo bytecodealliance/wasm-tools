@@ -1,5 +1,5 @@
 // RUN: component embed --dummy --wat % | component wit
-
+package foo:root;
 package test:foo1 {
   interface bar {
     baz: func(s: string) -> string;
@@ -12,9 +12,7 @@ package test:foo2 {
   }
 }
 
-package test:hola {
-  world hello {
-    import test:foo1/bar;
-    export test:foo2/bar;
-  }
+world hello {
+  import test:foo1/bar;
+  export test:foo2/bar;
 }

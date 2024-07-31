@@ -1,5 +1,5 @@
 package depends on itself
-     --> tests/ui/parse-fail/multiple-package-inline-cycle.wit:3:9
+     --> tests/ui/parse-fail/multiple-package-inline-cycle.wit:4:9
       |
-    3 |     use foo:qux/i.{};
+    4 |     use foo:qux/i.{};
       |         ^------

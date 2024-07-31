@@ -65,6 +65,11 @@
       "worlds": {
         "w1": 0
       }
+    },
+    {
+      "name": "foo:root",
+      "interfaces": {},
+      "worlds": {}
     }
   ]
 }

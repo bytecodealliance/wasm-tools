@@ -49,7 +49,7 @@
         }
       },
       "exports": {},
-      "package": 2
+      "package": 3
     },
     {
       "name": "w4",
@@ -66,7 +66,7 @@
         }
       },
       "exports": {},
-      "package": 3
+      "package": 4
     }
   ],
   "interfaces": [
@@ -108,7 +108,7 @@
         "a": 4
       },
       "functions": {},
-      "package": 2
+      "package": 3
     },
     {
       "name": null,
@@ -116,7 +116,7 @@
         "a": 5
       },
       "functions": {},
-      "package": 2
+      "package": 3
     },
     {
       "name": "i4",
@@ -124,7 +124,7 @@
         "b": 6
       },
       "functions": {},
-      "package": 3
+      "package": 4
     },
     {
       "name": null,
@@ -132,7 +132,7 @@
         "b": 7
       },
       "functions": {},
-      "package": 3
+      "package": 4
     }
   ],
   "types": [
@@ -227,6 +227,11 @@
       "worlds": {
         "w3": 1
       }
+    },
+    {
+      "name": "foo:main",
+      "interfaces": {},
+      "worlds": {}
     },
     {
       "name": "foo:name",

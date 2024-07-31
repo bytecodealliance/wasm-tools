@@ -76,140 +76,127 @@ fn main() -> Result<()> {
 fn run_test(path: &Path) -> Result<()> {
     let test_case = path.file_stem().unwrap().to_str().unwrap();
     let mut resolve = Resolve::default();
-    let (pkg_ids, _) = resolve.push_dir(&path)?;
-    let pkg_count = pkg_ids.len();
+    let (pkg_id, _) = resolve.push_dir(&path)?;
 
-    for pkg_id in pkg_ids {
-        // If this test case contained multiple packages, create separate sub-directories for
-        // each.
-        let mut path = path.to_path_buf();
-        if pkg_count > 1 {
-            let pkg_name = &resolve.packages[pkg_id].name;
-            path.push(pkg_name.namespace.clone());
-            path.push(pkg_name.name.clone());
-            fs::create_dir_all(path.clone())?;
+    // If this test case contained multiple packages, create separate sub-directories for
+    // each.
+    let path = path.to_path_buf();
+
+    let module_path = path.join("module.wat");
+    let mut adapters = glob::glob(path.join("adapt-*.wat").to_str().unwrap())?;
+    let result = if module_path.is_file() {
+        let module = read_core_module(&module_path, &resolve, pkg_id)
+            .with_context(|| format!("failed to read core module at {module_path:?}"))?;
+        adapters
+            .try_fold(
+                ComponentEncoder::default().module(&module)?.validate(true),
+                |encoder, path| {
+                    let (name, wasm) = read_name_and_module("adapt-", &path?, &resolve, pkg_id)?;
+                    Ok::<_, Error>(encoder.adapter(&name, &wasm)?)
+                },
+            )?
+            .encode()
+    } else {
+        let mut libs = glob::glob(path.join("lib-*.wat").to_str().unwrap())?
+            .map(|path| Ok(("lib-", path?, false)))
+            .chain(
+                glob::glob(path.join("dlopen-lib-*.wat").to_str().unwrap())?
+                    .map(|path| Ok(("dlopen-lib-", path?, true))),
+            )
+            .collect::<Result<Vec<_>>>()?;
+
+        // Sort list to ensure deterministic order, which determines priority in cases of duplicate symbols:
+        libs.sort_by(|(_, a, _), (_, b, _)| a.cmp(b));
+
+        let mut linker = Linker::default().validate(true);
+
+        if path.join("stub-missing-functions").is_file() {
+            linker = linker.stub_missing_functions(true);
         }
 
-        let module_path = path.join("module.wat");
-        let mut adapters = glob::glob(path.join("adapt-*.wat").to_str().unwrap())?;
-        let result = if module_path.is_file() {
-            let module = read_core_module(&module_path, &resolve, pkg_id)
-                .with_context(|| format!("failed to read core module at {module_path:?}"))?;
-            adapters
-                .try_fold(
-                    ComponentEncoder::default().module(&module)?.validate(true),
-                    |encoder, path| {
-                        let (name, wasm) =
-                            read_name_and_module("adapt-", &path?, &resolve, pkg_id)?;
-                        Ok::<_, Error>(encoder.adapter(&name, &wasm)?)
-                    },
-                )?
-                .encode()
-        } else {
-            let mut libs = glob::glob(path.join("lib-*.wat").to_str().unwrap())?
-                .map(|path| Ok(("lib-", path?, false)))
-                .chain(
-                    glob::glob(path.join("dlopen-lib-*.wat").to_str().unwrap())?
-                        .map(|path| Ok(("dlopen-lib-", path?, true))),
-                )
-                .collect::<Result<Vec<_>>>()?;
+        if path.join("use-built-in-libdl").is_file() {
+            linker = linker.use_built_in_libdl(true);
+        }
 
-            // Sort list to ensure deterministic order, which determines priority in cases of duplicate symbols:
-            libs.sort_by(|(_, a, _), (_, b, _)| a.cmp(b));
+        let linker = libs
+            .into_iter()
+            .try_fold(linker, |linker, (prefix, path, dl_openable)| {
+                let (name, wasm) = read_name_and_module(prefix, &path, &resolve, pkg_id)?;
+                Ok::<_, Error>(linker.library(&name, &wasm, dl_openable)?)
+            })?;
 
-            let mut linker = Linker::default().validate(true);
+        adapters
+            .try_fold(linker, |linker, path| {
+                let (name, wasm) = read_name_and_module("adapt-", &path?, &resolve, pkg_id)?;
+                Ok::<_, Error>(linker.adapter(&name, &wasm)?)
+            })?
+            .encode()
+    };
+    let component_path = path.join("component.wat");
+    let component_wit_path = path.join("component.wit.print");
+    let error_path = path.join("error.txt");
 
-            if path.join("stub-missing-functions").is_file() {
-                linker = linker.stub_missing_functions(true);
+    let bytes = match result {
+        Ok(bytes) => {
+            if test_case.starts_with("error-") {
+                bail!("expected an error but got success");
             }
-
-            if path.join("use-built-in-libdl").is_file() {
-                linker = linker.use_built_in_libdl(true);
+            bytes
+        }
+        Err(err) => {
+            if !test_case.starts_with("error-") {
+                return Err(err);
             }
+            assert_output(&format!("{err:?}"), &error_path)?;
+            return Ok(());
+        }
+    };
 
-            let linker =
-                libs.into_iter()
-                    .try_fold(linker, |linker, (prefix, path, dl_openable)| {
-                        let (name, wasm) = read_name_and_module(prefix, &path, &resolve, pkg_id)?;
-                        Ok::<_, Error>(linker.library(&name, &wasm, dl_openable)?)
-                    })?;
+    let wat = wasmprinter::print_bytes(&bytes).context("failed to print bytes")?;
+    assert_output(&wat, &component_path)?;
+    let (pkg, resolve) = match wit_component::decode(&bytes).context("failed to decode resolve")? {
+        DecodedWasm::WitPackage(..) => unreachable!(),
+        DecodedWasm::Component(resolve, world) => (resolve.worlds[world].package.unwrap(), resolve),
+    };
+    let wit = WitPrinter::default()
+        .print(&resolve, pkg, &[])
+        .context("failed to print WIT")?;
+    assert_output(&wit, &component_wit_path)?;
 
-            adapters
-                .try_fold(linker, |linker, path| {
-                    let (name, wasm) = read_name_and_module("adapt-", &path?, &resolve, pkg_id)?;
-                    Ok::<_, Error>(linker.adapter(&name, &wasm)?)
-                })?
-                .encode()
-        };
-        let component_path = path.join("component.wat");
-        let component_wit_path = path.join("component.wit.print");
-        let error_path = path.join("error.txt");
+    UnresolvedPackageGroup::parse(&component_wit_path, &wit)
+        .context("failed to parse printed WIT")?;
 
-        let bytes = match result {
-            Ok(bytes) => {
-                if test_case.starts_with("error-") {
-                    bail!("expected an error but got success");
-                }
-                bytes
-            }
-            Err(err) => {
-                if !test_case.starts_with("error-") {
-                    return Err(err);
-                }
-                assert_output(&format!("{err:?}"), &error_path)?;
-                return Ok(());
-            }
-        };
-
-        let wat = wasmprinter::print_bytes(&bytes).context("failed to print bytes")?;
-        assert_output(&wat, &component_path)?;
-        let (pkg, resolve) =
-            match wit_component::decode(&bytes).context("failed to decode resolve")? {
-                DecodedWasm::WitPackages(..) => unreachable!(),
-                DecodedWasm::Component(resolve, world) => {
-                    (resolve.worlds[world].package.unwrap(), resolve)
-                }
-            };
-        let wit = WitPrinter::default()
-            .print(&resolve, &[pkg], false)
-            .context("failed to print WIT")?;
-        assert_output(&wit, &component_wit_path)?;
-
-        UnresolvedPackageGroup::parse(&component_wit_path, &wit)
-            .context("failed to parse printed WIT")?;
-
-        // Check that the producer data got piped through properly
-        let metadata = wasm_metadata::Metadata::from_binary(&bytes)?;
-        match metadata {
-            // Depends on the ComponentEncoder always putting the first module as the 0th child:
-            wasm_metadata::Metadata::Component { children, .. } => match children[0].as_ref() {
-                wasm_metadata::Metadata::Module { producers, .. } => {
-                    let producers = producers.as_ref().expect("child module has producers");
-                    let processed_by = producers
-                        .get("processed-by")
-                        .expect("child has processed-by section");
+    // Check that the producer data got piped through properly
+    let metadata = wasm_metadata::Metadata::from_binary(&bytes)?;
+    match metadata {
+        // Depends on the ComponentEncoder always putting the first module as the 0th child:
+        wasm_metadata::Metadata::Component { children, .. } => match children[0].as_ref() {
+            wasm_metadata::Metadata::Module { producers, .. } => {
+                let producers = producers.as_ref().expect("child module has producers");
+                let processed_by = producers
+                    .get("processed-by")
+                    .expect("child has processed-by section");
+                assert_eq!(
+                    processed_by
+                        .get("wit-component")
+                        .expect("wit-component producer present"),
+                    env!("CARGO_PKG_VERSION")
+                );
+                if module_path.is_file() {
                     assert_eq!(
                         processed_by
-                            .get("wit-component")
-                            .expect("wit-component producer present"),
-                        env!("CARGO_PKG_VERSION")
+                            .get("my-fake-bindgen")
+                            .expect("added bindgen field present"),
+                        "123.45"
                     );
-                    if module_path.is_file() {
-                        assert_eq!(
-                            processed_by
-                                .get("my-fake-bindgen")
-                                .expect("added bindgen field present"),
-                            "123.45"
-                        );
-                    } else {
-                        // Otherwise, we used `Linker`, which synthesizes the
-                        // "main" module and thus won't have `my-fake-bindgen`
-                    }
+                } else {
+                    // Otherwise, we used `Linker`, which synthesizes the
+                    // "main" module and thus won't have `my-fake-bindgen`
                 }
-                _ => panic!("expected child to be a module"),
-            },
-            _ => panic!("expected top level metadata of component"),
-        }
+            }
+            _ => panic!("expected child to be a module"),
+        },
+        _ => panic!("expected top level metadata of component"),
     }
 
     Ok(())
@@ -245,7 +232,7 @@ fn read_core_module(path: &Path, resolve: &Resolve, pkg: PackageId) -> Result<Ve
     let mut wasm = wat::parse_file(path)?;
     let name = path.file_stem().and_then(|s| s.to_str()).unwrap();
     let world = resolve
-        .select_world(&[pkg], Some(name))
+        .select_world(pkg, Some(name))
         .context("failed to select a world")?;
 
     // Add this producer data to the wit-component metadata so we can make sure it gets through the

@@ -149,27 +149,23 @@ impl<'a> TypeResolver<'a> {
 
 #[cfg(test)]
 mod tests {
-    use wit_parser::UnresolvedPackageGroup;
 
     use super::*;
 
     #[test]
     fn resolve_wit_type_smoke_test() {
-        let UnresolvedPackageGroup {
-            mut packages,
-            source_map,
-        } = UnresolvedPackageGroup::parse(
-            "test.wit",
-            r#"
-            package test:types;
-            interface types {
-                type uint8 = u8;
-            }
-        "#,
-        )
-        .unwrap();
         let mut resolve = Resolve::new();
-        resolve.push(packages.remove(0), &source_map).unwrap();
+        resolve
+            .push_str(
+                "test.wit",
+                "
+package test:types;
+interface types {
+    type uint8 = u8;
+}
+                ",
+            )
+            .unwrap();
 
         let (type_id, _) = resolve.types.iter().next().unwrap();
         let ty = resolve_wit_type(&resolve, type_id).unwrap();
@@ -178,24 +174,21 @@ mod tests {
 
     #[test]
     fn resolve_wit_func_type_smoke_test() {
-        let UnresolvedPackageGroup {
-            mut packages,
-            source_map,
-        } = UnresolvedPackageGroup::parse(
-            "test.wit",
-            r#"
-            package test:types;
-            interface types {
-                type uint8 = u8;
-                no-results: func(a: uint8, b: string);
-                one-result: func(c: uint8, d: string) -> uint8;
-                named-results: func(e: uint8, f: string) -> (x: u8, y: string);
-            }
-        "#,
-        )
-        .unwrap();
         let mut resolve = Resolve::new();
-        resolve.push(packages.remove(0), &source_map).unwrap();
+        resolve
+            .push_str(
+                "test.wit",
+                r#"
+package test:types;
+interface types {
+    type uint8 = u8;
+    no-results: func(a: uint8, b: string);
+    one-result: func(c: uint8, d: string) -> uint8;
+    named-results: func(e: uint8, f: string) -> (x: u8, y: string);
+}
+                "#,
+            )
+            .unwrap();
 
         for (func_name, expected_display) in [
             ("no-results", "func(a: u8, b: string)"),

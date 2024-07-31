@@ -204,10 +204,10 @@ impl WitResolve {
         return resolve;
     }
 
-    fn load(&self) -> Result<(Resolve, Vec<PackageId>)> {
+    fn load(&self) -> Result<(Resolve, PackageId)> {
         let mut resolve = Self::resolve_with_features(&self.features, self.all_features);
-        let (pkg_ids, _) = resolve.push_path(&self.wit)?;
-        Ok((resolve, pkg_ids))
+        let (pkg_id, _) = resolve.push_path(&self.wit)?;
+        Ok((resolve, pkg_id))
     }
 }
 
@@ -283,8 +283,8 @@ impl EmbedOpts {
         } else {
             Some(self.io.parse_input_wasm()?)
         };
-        let (resolve, pkg_ids) = self.resolve.load()?;
-        let world = resolve.select_world(&pkg_ids, self.world.as_deref())?;
+        let (resolve, pkg_id) = self.resolve.load()?;
+        let world = resolve.select_world(pkg_id, self.world.as_deref())?;
         let mut wasm = wasm.unwrap_or_else(|| wit_component::dummy_module(&resolve, world));
 
         embed_component_metadata(
@@ -538,8 +538,8 @@ impl WitOpts {
             if input.is_dir() {
                 let mut resolve =
                     WitResolve::resolve_with_features(&self.features, self.all_features);
-                let (pkg_ids, _) = resolve.push_dir(&input)?;
-                return Ok(DecodedWasm::WitPackages(resolve, pkg_ids));
+                let (pkg_id, _) = resolve.push_dir(&input)?;
+                return Ok(DecodedWasm::WitPackage(resolve, pkg_id));
             }
         }
 
@@ -587,8 +587,8 @@ impl WitOpts {
                 };
                 let mut resolve =
                     WitResolve::resolve_with_features(&self.features, self.all_features);
-                let ids = resolve.push_str(path, input)?;
-                Ok(DecodedWasm::WitPackages(resolve, ids))
+                let id = resolve.push_str(path, input)?;
+                Ok(DecodedWasm::WitPackage(resolve, id))
             }
         }
     }
@@ -596,11 +596,8 @@ impl WitOpts {
     fn emit_wasm(&self, decoded: &DecodedWasm) -> Result<()> {
         assert!(self.wasm || self.wat);
         assert!(self.out_dir.is_none());
-        if decoded.packages().len() != 1 {
-            bail!("emitting WASM for multi-package WIT files is not yet supported")
-        }
 
-        let decoded_package = decoded.packages()[0];
+        let decoded_package = decoded.package();
         let bytes = wit_component::encode(None, decoded.resolve(), decoded_package)?;
         if !self.skip_validation {
             wasmparser::Validator::new_with_features(
@@ -638,10 +635,10 @@ impl WitOpts {
                     *cnt += 1;
                 }
 
-                let main = decoded.packages();
+                let main = decoded.package();
                 for (id, pkg) in resolve.packages.iter() {
-                    let is_main = main.contains(&id);
-                    let output = printer.print(resolve, &[id], is_main)?;
+                    let is_main = id == main;
+                    let output = printer.print(resolve, id, &[])?;
                     let out_dir = if is_main {
                         dir.clone()
                     } else {
@@ -726,8 +723,8 @@ impl TargetsOpts {
 
     /// Executes the application.
     fn run(self) -> Result<()> {
-        let (resolve, pkg_ids) = self.resolve.load()?;
-        let world = resolve.select_world(&pkg_ids, self.world.as_deref())?;
+        let (resolve, pkg_id) = self.resolve.load()?;
+        let world = resolve.select_world(pkg_id, self.world.as_deref())?;
         let component_to_test = self.input.parse_wasm()?;
 
         wit_component::targets(&resolve, world, &component_to_test)?;
@@ -766,9 +763,9 @@ impl SemverCheckOpts {
     }
 
     fn run(self) -> Result<()> {
-        let (resolve, pkg_ids) = self.resolve.load()?;
-        let prev = resolve.select_world(&pkg_ids, Some(self.prev.as_str()))?;
-        let new = resolve.select_world(&pkg_ids, Some(self.new.as_str()))?;
+        let (resolve, pkg_id) = self.resolve.load()?;
+        let prev = resolve.select_world(pkg_id, Some(self.prev.as_str()))?;
+        let new = resolve.select_world(pkg_id, Some(self.new.as_str()))?;
         wit_component::semver_check(resolve, prev, new)?;
         Ok(())
     }

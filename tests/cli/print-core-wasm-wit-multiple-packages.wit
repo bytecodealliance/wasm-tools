@@ -1,5 +1,6 @@
 // RUN: component embed --dummy --world=bar:bar/my-world % | component wit
 
+package foo:root;
 package foo:foo {
   interface my-interface {
     foo: func();

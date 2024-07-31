@@ -1,4 +1,4 @@
-
+package foo:root;
 package a:b@1.0.0 {}
 package a:b@1.0.1 {}
 package a:b@1.0.1-- {}
