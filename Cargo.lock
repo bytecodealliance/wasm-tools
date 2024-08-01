@@ -2211,7 +2211,7 @@ dependencies = [
  "pretty_assertions",
  "semver",
  "serde",
- "wit-parser 0.214.0",
+ "wit-parser 0.215.0",
 ]
 
 [[package]]
