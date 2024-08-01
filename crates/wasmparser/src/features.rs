@@ -160,6 +160,27 @@ define_wasm_features! {
     }
 }
 
+impl WasmFeatures {
+    /// Returns the feature set associated with the 1.0 version of the
+    /// WebAssembly specification or the "MVP" feature set.
+    pub fn wasm1() -> WasmFeatures {
+        WasmFeatures::FLOATS
+    }
+
+    /// Returns the feature set associated with the 2.0 version of the
+    /// WebAssembly specification.
+    pub fn wasm2() -> WasmFeatures {
+        WasmFeatures::wasm1()
+            | WasmFeatures::BULK_MEMORY
+            | WasmFeatures::REFERENCE_TYPES
+            | WasmFeatures::SIGN_EXTENSION
+            | WasmFeatures::MUTABLE_GLOBAL
+            | WasmFeatures::SATURATING_FLOAT_TO_INT
+            | WasmFeatures::MULTI_VALUE
+            | WasmFeatures::SIMD
+    }
+}
+
 impl From<WasmFeaturesInflated> for WasmFeatures {
     #[inline]
     fn from(inflated: WasmFeaturesInflated) -> Self {

@@ -1,5 +1,5 @@
 use addr2line::LookupResult;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use bitflags::Flags;
 use rayon::prelude::*;
 use std::fmt::Write;
@@ -17,31 +17,42 @@ use wasmparser::{
 /// specification. The process will exit with 0 and no output if the binary is
 /// valid, or nonzero and an error message on stderr if the binary is not valid.
 ///
-/// Examples:
-///
-/// ```sh
-/// # Validate `foo.wasm` with the default Wasm feature proposals.
-/// $ wasm-tools validate foo.wasm
-///
-/// # Validate `foo.wasm` with more verbose output
-/// $ wasm-tools validate -vv foo.wasm
-///
-/// # Validate `fancy.wasm` with all Wasm feature proposals enabled.
-/// $ wasm-tools validate --features all fancy.wasm
-///
-/// # Validate `mvp.wasm` without any Wasm feature proposals enabled.
-/// $ wasm-tools validate --features=-all mvp.wasm
-/// ```
 #[derive(clap::Parser)]
+#[clap(after_help = "\
+Examples:
+
+    # Validate `foo.wasm` with the default Wasm feature proposals.
+    $ wasm-tools validate foo.wasm
+
+    # Validate `foo.wasm` with more verbose output
+    $ wasm-tools validate -vv foo.wasm
+
+    # Validate `fancy.wasm` with all Wasm feature proposals enabled.
+    $ wasm-tools validate --features all fancy.wasm
+
+    # Validate `mvp.wasm` with the original wasm feature set enabled.
+    $ wasm-tools validate --features=wasm1 mvp.wasm
+    $ wasm-tools validate --features=mvp mvp.wasm
+")]
 pub struct Opts {
-    /// Comma-separated list of WebAssembly features to enable during validation.
+    /// Comma-separated list of WebAssembly features to enable during
+    /// validation.
     ///
-    /// The placeholder "all" can be used to enable all wasm features. If a "-"
-    /// character is present in front of a feature it will disable that feature.
-    /// For example "all,-simd" would enable everything but simd.
+    /// If a "-" character is present in front of a feature it will disable that
+    /// feature. For example "-simd" will disable the simd proposal.
+    ///
+    /// The placeholder "all" can be used to enable all wasm features and the
+    /// term "-all" can be used to disable all features.
+    ///
+    /// The default set of features enabled are all WebAssembly proposals that
+    /// are at phase 4 or after. This means that the default set of features
+    /// accepted are relatively bleeding edge. Versions of the WebAssembly
+    /// specification can also be selected. The "wasm1" or "mvp" feature can
+    /// select the original WebAssembly specification and "wasm2" can be used to
+    /// select the 2.0 version.
     ///
     /// Available feature options can be found in the wasmparser crate:
-    /// https://github.com/bytecodealliance/wasm-tools/blob/main/crates/wasmparser/src/validator.rs
+    /// <https://github.com/bytecodealliance/wasm-tools/blob/main/crates/wasmparser/src/features.rs>
     #[clap(long, short = 'f', value_parser = parse_features)]
     features: Option<WasmFeatures>,
 
@@ -187,6 +198,18 @@ fn parse_features(arg: &str) -> Result<WasmFeatures> {
                 for flag in WasmFeatures::FLAGS.iter() {
                     ret.set(*flag.value(), enable);
                 }
+            }
+            "wasm1" | "mvp" => {
+                if !enable {
+                    bail!("cannot disable `{part}`, it can only be enabled");
+                }
+                ret = WasmFeatures::wasm1();
+            }
+            "wasm2" => {
+                if !enable {
+                    bail!("cannot disable `{part}`, it can only be enabled");
+                }
+                ret = WasmFeatures::wasm2();
             }
 
             name => {
