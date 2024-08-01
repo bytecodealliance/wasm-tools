@@ -29,7 +29,7 @@ from-parser = ["wit-parser", "id-arena"]
 semver = { workspace = true }
 pretty_assertions = { workspace = true }
 serde = { workspace = true, optional = true, features = ["derive"] }
-wit-parser = { path = "../wit-parser", optional = true }
+wit-parser = { workspace = true, optional = true }
 id-arena = { workspace = true, optional = true }
 
 [dev-dependencies]
