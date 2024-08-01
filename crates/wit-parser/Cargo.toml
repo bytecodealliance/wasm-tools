@@ -17,7 +17,7 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-id-arena = "2"
+id-arena = { workspace = true }
 anyhow = { workspace = true }
 indexmap = { workspace = true, features = ['std'] }
 unicode-xid = "0.2.2"

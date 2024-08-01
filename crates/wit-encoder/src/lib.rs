@@ -6,6 +6,8 @@
 mod docs;
 mod enum_;
 mod flags;
+#[cfg(feature = "from-parser")]
+mod from_parser;
 mod function;
 mod ident;
 mod include;
@@ -24,6 +26,8 @@ mod world;
 pub use docs::*;
 pub use enum_::*;
 pub use flags::*;
+#[cfg(feature = "from-parser")]
+pub use from_parser::*;
 pub use function::*;
 pub use ident::*;
 pub use include::*;
