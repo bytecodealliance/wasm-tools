@@ -1,6 +1,7 @@
 //! The WebAssembly component tooling.
 
 #![deny(missing_docs)]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 use std::str::FromStr;
 use std::{borrow::Cow, fmt::Display};
