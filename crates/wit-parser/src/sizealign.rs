@@ -199,14 +199,22 @@ impl ElementInfo {
     }
 }
 
+/// Collect size and alignment for sub-elements of a structure
 #[derive(Default)]
-pub struct SizeAlign {
+pub struct SizeAlign64 {
     map: Vec<ElementInfo>,
 }
 
-impl SizeAlign {
-    pub fn new() -> Self {
-        Self { map: Vec::new() }
+impl SizeAlign64 {
+    // pub fn new() -> Self {
+    //     Default::default()
+    // }
+
+    pub fn new_symmetric() -> Self {
+        Self {
+            map: Vec::new(),
+            symmetric: true,
+        }
     }
 
     pub fn fill(&mut self, resolve: &Resolve) {
@@ -358,10 +366,14 @@ fn int_size_align(i: Int) -> ElementInfo {
     .into()
 }
 
+/// Increase `val` to a multiple of `align`;
+/// `align` must be a power of two
 pub(crate) fn align_to(val: usize, align: usize) -> usize {
     (val + align - 1) & !(align - 1)
 }
 
+/// Increase `val` to a multiple of `align`, with special handling for pointers;
+/// `align` must be a power of two or `Alignment::Pointer`
 pub fn align_to_arch(val: ArchitectureSize, align: Alignment) -> ArchitectureSize {
     match align {
         Alignment::Pointer => {
@@ -387,6 +399,53 @@ pub fn align_to_arch(val: ArchitectureSize, align: Alignment) -> ArchitectureSiz
         }
     }
 }
+
+/// Compatibility with older versions:
+/// Collect size and alignment for sub-elements of a structure, simpler interface only supporting wasm32
+#[derive(Default)]
+pub struct SizeAlign32(SizeAlign64);
+
+impl SizeAlign32 {
+    pub fn new() -> Self {
+        Default::default()
+    }
+    pub fn fill(&mut self, resolve: &Resolve) {
+        self.0.fill(resolve);
+    }
+    pub fn size(&self, ty: &Type) -> usize {
+        self.0.size(ty).size_wasm32()
+    }
+    pub fn align(&self, ty: &Type) -> usize {
+        self.0.align(ty).align_wasm32()
+    }
+    pub fn field_offsets<'a>(
+        &self,
+        types: impl IntoIterator<Item = &'a Type>,
+    ) -> Vec<(usize, &'a Type)> {
+        self.0
+            .field_offsets(types)
+            .drain(..)
+            .map(|(offs, ty)| (offs.size_wasm32(), ty))
+            .collect()
+    }
+    pub fn payload_offset<'a>(
+        &self,
+        tag: Int,
+        cases: impl IntoIterator<Item = Option<&'a Type>>,
+    ) -> usize {
+        self.0.payload_offset(tag, cases).size_wasm32()
+    }
+    pub fn record<'a>(&self, types: impl Iterator<Item = &'a Type>) -> (usize, usize) {
+        let info = self.0.record(types);
+        (info.size.size_wasm32(), info.align.align_wasm32())
+    }
+    pub fn params<'a>(&self, types: impl IntoIterator<Item = &'a Type>) -> (usize, usize) {
+        self.record(types.into_iter())
+    }
+}
+
+/// compatibility alias
+pub type SizeAlign = SizeAlign32;
 
 #[cfg(test)]
 mod test {
