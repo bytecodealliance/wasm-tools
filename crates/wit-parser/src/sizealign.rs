@@ -210,13 +210,6 @@ impl SizeAlign64 {
     //     Default::default()
     // }
 
-    pub fn new_symmetric() -> Self {
-        Self {
-            map: Vec::new(),
-            symmetric: true,
-        }
-    }
-
     pub fn fill(&mut self, resolve: &Resolve) {
         self.map = Vec::new();
         for (_, ty) in resolve.types.iter() {
