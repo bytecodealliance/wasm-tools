@@ -1,5 +1,5 @@
 use std::{
-    num::{NonZero, NonZeroUsize},
+    num::NonZeroUsize,
     ops::{Add, AddAssign},
 };
 
@@ -14,7 +14,7 @@ pub enum Alignment {
 
 impl Default for Alignment {
     fn default() -> Self {
-        Alignment::Bytes(NonZero::new(1).unwrap())
+        Alignment::Bytes(NonZeroUsize::new(1).unwrap())
     }
 }
 
@@ -231,7 +231,7 @@ impl SizeAlign64 {
                 FlagsRepr::U16 => int_size_align(Int::U16),
                 FlagsRepr::U32(n) => ElementInfo::new(
                     ArchitectureSize::new(n * 4, 0),
-                    Alignment::Bytes(NonZero::new(4).unwrap()),
+                    Alignment::Bytes(NonZeroUsize::new(4).unwrap()),
                 ),
             },
             TypeDefKind::Variant(v) => self.variant(v.tag(), v.cases.iter().map(|c| c.ty.as_ref())),
@@ -248,7 +248,7 @@ impl SizeAlign64 {
             // them.
             TypeDefKind::Resource => ElementInfo::new(
                 ArchitectureSize::new(usize::MAX, usize::MAX),
-                Alignment::Bytes(NonZero::new(usize::MAX).unwrap()),
+                Alignment::Bytes(NonZeroUsize::new(usize::MAX).unwrap()),
             ),
             TypeDefKind::Unknown => unreachable!(),
         }
@@ -267,12 +267,12 @@ impl SizeAlign64 {
 
     pub fn align(&self, ty: &Type) -> Alignment {
         match ty {
-            Type::Bool | Type::U8 | Type::S8 => Alignment::Bytes(NonZero::new(1).unwrap()),
-            Type::U16 | Type::S16 => Alignment::Bytes(NonZero::new(2).unwrap()),
+            Type::Bool | Type::U8 | Type::S8 => Alignment::Bytes(NonZeroUsize::new(1).unwrap()),
+            Type::U16 | Type::S16 => Alignment::Bytes(NonZeroUsize::new(2).unwrap()),
             Type::U32 | Type::S32 | Type::F32 | Type::Char => {
-                Alignment::Bytes(NonZero::new(4).unwrap())
+                Alignment::Bytes(NonZeroUsize::new(4).unwrap())
             }
-            Type::U64 | Type::S64 | Type::F64 => Alignment::Bytes(NonZero::new(8).unwrap()),
+            Type::U64 | Type::S64 | Type::F64 => Alignment::Bytes(NonZeroUsize::new(8).unwrap()),
             Type::String => Alignment::Pointer,
             Type::Id(id) => self.map[id.index()].align,
         }
@@ -351,10 +351,10 @@ impl SizeAlign64 {
 
 fn int_size_align(i: Int) -> ElementInfo {
     match i {
-        Int::U8 => Alignment::Bytes(NonZero::new(1).unwrap()),
-        Int::U16 => Alignment::Bytes(NonZero::new(2).unwrap()),
-        Int::U32 => Alignment::Bytes(NonZero::new(4).unwrap()),
-        Int::U64 => Alignment::Bytes(NonZero::new(8).unwrap()),
+        Int::U8 => Alignment::Bytes(NonZeroUsize::new(1).unwrap()),
+        Int::U16 => Alignment::Bytes(NonZeroUsize::new(2).unwrap()),
+        Int::U32 => Alignment::Bytes(NonZeroUsize::new(4).unwrap()),
+        Int::U64 => Alignment::Bytes(NonZeroUsize::new(8).unwrap()),
     }
     .into()
 }
@@ -455,7 +455,7 @@ mod test {
         assert_eq!(
             align_to_arch(
                 ArchitectureSize::new(1, 0),
-                Alignment::Bytes(NonZero::new(8).unwrap())
+                Alignment::Bytes(NonZeroUsize::new(8).unwrap())
             ),
             ArchitectureSize::new(8, 0)
         );
@@ -463,7 +463,7 @@ mod test {
         assert_eq!(
             align_to_arch(
                 ArchitectureSize::new(1, 0),
-                Alignment::Bytes(NonZero::new(4).unwrap())
+                Alignment::Bytes(NonZeroUsize::new(4).unwrap())
             ),
             ArchitectureSize::new(4, 0)
         );
@@ -471,7 +471,7 @@ mod test {
         assert_eq!(
             align_to_arch(
                 ArchitectureSize::new(4, 4),
-                Alignment::Bytes(NonZero::new(8).unwrap())
+                Alignment::Bytes(NonZeroUsize::new(8).unwrap())
             ),
             ArchitectureSize::new(8, 0)
         );
@@ -484,7 +484,7 @@ mod test {
         assert_eq!(
             align_to_arch(
                 ArchitectureSize::new(8, 8),
-                Alignment::Bytes(NonZero::new(8).unwrap())
+                Alignment::Bytes(NonZeroUsize::new(8).unwrap())
             ),
             ArchitectureSize::new(8, 8)
         );
@@ -492,7 +492,7 @@ mod test {
         assert_eq!(
             align_to_arch(
                 ArchitectureSize::new(5, 4),
-                Alignment::Bytes(NonZero::new(8).unwrap())
+                Alignment::Bytes(NonZeroUsize::new(8).unwrap())
             ),
             ArchitectureSize::new(8, 8)
         );
