@@ -38,7 +38,7 @@ fn peek<K: Peek>(cursor: Cursor) -> Result<bool> {
 }
 
 /// Parses core item references.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct CoreItemRef<'a, K> {
     /// The item kind being parsed.
     pub kind: K,
@@ -75,7 +75,7 @@ impl<'a, K: Peek> Peek for CoreItemRef<'a, K> {
 }
 
 /// Parses component item references.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct ItemRef<'a, K> {
     /// The item kind being parsed.
     pub kind: K,

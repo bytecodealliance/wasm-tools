@@ -4,7 +4,7 @@ use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Id, Index, NameAnnotation, Span};
 
 /// An entry in a WebAssembly component's export section.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub struct ComponentExport<'a> {
     /// Where this export was defined.
     pub span: Span,
@@ -54,7 +54,7 @@ impl<'a> Parse<'a> for Vec<ComponentExport<'a>> {
 }
 
 /// The kind of exported item.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub enum ComponentExportKind<'a> {
     /// The export is a core module.
     ///
@@ -170,7 +170,7 @@ impl Peek for ComponentExportKind<'_> {
 
 /// A listing of inline `(export "foo" <url>)` statements on a WebAssembly
 /// component item in its textual format.
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Debug, Default)]
 pub struct InlineExport<'a> {
     /// The extra names to export an item as, if any.
     pub names: Vec<ComponentExternName<'a>>,

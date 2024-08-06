@@ -6,3 +6,6 @@ publish
 *.wat
 test.config
 
+.DS_Store
+.idea
+.vscode
