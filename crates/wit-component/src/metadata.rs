@@ -119,7 +119,7 @@ pub struct ModuleMetadata {
     pub export_encodings: IndexMap<String, StringEncoding>,
 }
 
-/// This function will parse the `wasm` binary given as input and return a
+/// This function will parse the core `wasm` binary given as input and return a
 /// [`Bindgen`] which extracts the custom sections describing component-level
 /// types from within the binary itself.
 ///
@@ -130,12 +130,14 @@ pub struct ModuleMetadata {
 ///
 /// This will return an error if `wasm` is not a valid WebAssembly module.
 ///
-/// Note that a "stripped" binary where `component-type` sections are removed
-/// is returned as well to embed within a component.
-pub fn decode(wasm: &[u8]) -> Result<(Vec<u8>, Bindgen)> {
+/// If a `component-type` custom section was found then a new binary is
+/// optionally returned with the custom sections stripped out. If no
+/// `component-type` custom sections are found then `None` is returned.
+pub fn decode(wasm: &[u8]) -> Result<(Option<Vec<u8>>, Bindgen)> {
     let mut ret = Bindgen::default();
     let mut new_module = wasm_encoder::Module::new();
 
+    let mut found_custom = false;
     for payload in wasmparser::Parser::new(0).parse_all(wasm) {
         let payload = payload.context("decoding item in module")?;
         match payload {
@@ -144,6 +146,7 @@ pub fn decode(wasm: &[u8]) -> Result<(Vec<u8>, Bindgen)> {
                     .with_context(|| format!("decoding custom section {}", cs.name()))?;
                 ret.merge(data)
                     .with_context(|| format!("updating metadata for section {}", cs.name()))?;
+                found_custom = true;
             }
             wasmparser::Payload::Version { encoding, .. } if encoding != Encoding::Module => {
                 bail!("decoding a component is not supported")
@@ -159,7 +162,11 @@ pub fn decode(wasm: &[u8]) -> Result<(Vec<u8>, Bindgen)> {
         }
     }
 
-    Ok((new_module.finish(), ret))
+    if found_custom {
+        Ok((Some(new_module.finish()), ret))
+    } else {
+        Ok((None, ret))
+    }
 }
 
 /// Creates a `component-type*` custom section to be decoded by `decode` above.

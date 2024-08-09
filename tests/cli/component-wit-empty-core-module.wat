@@ -1,0 +1,3 @@
+;; FAIL: component wit %
+
+(module)
