@@ -87,7 +87,7 @@ macro_rules! define_wasm_features {
 
 define_wasm_features! {
     /// Flags for features that are enabled for validation.
-    #[derive(Hash, Debug, Copy, Clone)]
+    #[derive(Hash, Debug, Copy, Clone, Eq, PartialEq)]
     pub struct WasmFeatures: u32 {
         /// The WebAssembly `mutable-global` proposal.
         pub mutable_global: MUTABLE_GLOBAL(1) = true;

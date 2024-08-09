@@ -22,6 +22,14 @@ pub struct ConstExpr<'a> {
     reader: BinaryReader<'a>,
 }
 
+impl PartialEq for ConstExpr<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.reader.remaining_buffer() == other.reader.remaining_buffer()
+    }
+}
+
+impl Eq for ConstExpr<'_> {}
+
 impl<'a> ConstExpr<'a> {
     /// Constructs a new `ConstExpr` from the given data and offset.
     pub fn new(reader: BinaryReader<'a>) -> ConstExpr {

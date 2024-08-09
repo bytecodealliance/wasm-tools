@@ -19,7 +19,7 @@ use crate::{
 };
 
 /// Represents a reference to a type definition in a WebAssembly module.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum TypeRef {
     /// The type is a function.
     ///
@@ -40,7 +40,7 @@ pub enum TypeRef {
 }
 
 /// Represents an import in a WebAssembly module.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Import<'a> {
     /// The module being imported from.
     pub module: &'a str,
