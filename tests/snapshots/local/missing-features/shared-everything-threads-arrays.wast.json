@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/local/missing-features/shared-everything-threads-arrays.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 2,
+      "filename": "shared-everything-threads-arrays.0.wasm",
+      "text": "shared composite types require the shared-everything-threads proposal",
+      "module_type": "binary"
+    }
+  ]
+}
