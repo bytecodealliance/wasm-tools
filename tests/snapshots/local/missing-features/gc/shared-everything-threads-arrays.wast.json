@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/local/missing-features/gc/shared-everything-threads-arrays.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "shared-everything-threads-arrays.0.wasm",
+      "text": "shared-everything-threads support is not enabled",
+      "module_type": "binary"
+    }
+  ]
+}
