@@ -616,6 +616,7 @@ impl TestState {
                 "reference-types" => features.insert(WasmFeatures::REFERENCE_TYPES),
                 "gc" => {
                     features.insert(WasmFeatures::FUNCTION_REFERENCES);
+                    features.insert(WasmFeatures::REFERENCE_TYPES);
                     features.insert(WasmFeatures::GC);
                 }
                 "custom-page-sizes" => features.insert(WasmFeatures::CUSTOM_PAGE_SIZES),
