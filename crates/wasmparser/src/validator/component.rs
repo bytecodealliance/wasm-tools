@@ -10,9 +10,9 @@ use super::{
         ModuleType, RecordType, Remapping, ResourceId, TypeAlloc, TypeList, VariantCase,
     },
 };
-use crate::collections::index_map::Entry;
 use crate::prelude::*;
 use crate::validator::names::{ComponentName, ComponentNameKind, KebabStr, KebabString};
+use crate::{collections::index_map::Entry, CompositeInnerType};
 use crate::{
     limits::*,
     types::{
@@ -348,11 +348,11 @@ impl ComponentState {
 
         let id = match ty {
             crate::ComponentType::Defined(ty) => {
-                let ty = current(components).create_defined_type(ty, types, offset)?;
+                let ty = current(components).create_defined_type(ty, types, features, offset)?;
                 types.push(ty).into()
             }
             crate::ComponentType::Func(ty) => {
-                let ty = current(components).create_function_type(ty, types, offset)?;
+                let ty = current(components).create_function_type(ty, types, features, offset)?;
                 types.push(ty).into()
             }
             crate::ComponentType::Component(decls) => {
@@ -1005,10 +1005,14 @@ impl ComponentState {
 
         self.check_options(None, &info, &options, types, offset)?;
 
+        let composite_type = CompositeType {
+            inner: CompositeInnerType::Func(info.into_func_type()),
+            shared: false,
+        };
         let lowered_ty = SubType {
             is_final: true,
             supertype_idx: None,
-            composite_type: CompositeType::Func(info.into_func_type()),
+            composite_type,
         };
 
         let (_is_new, group_id) =
@@ -1026,10 +1030,14 @@ impl ComponentState {
         offset: usize,
     ) -> Result<()> {
         let rep = self.check_local_resource(resource, types, offset)?;
+        let composite_type = CompositeType {
+            inner: CompositeInnerType::Func(FuncType::new([rep], [ValType::I32])),
+            shared: false,
+        };
         let core_ty = SubType {
             is_final: true,
             supertype_idx: None,
-            composite_type: CompositeType::Func(FuncType::new([rep], [ValType::I32])),
+            composite_type,
         };
         let (_is_new, group_id) =
             types.intern_canonical_rec_group(RecGroup::implicit(offset, core_ty));
@@ -1045,10 +1053,14 @@ impl ComponentState {
         offset: usize,
     ) -> Result<()> {
         self.resource_at(resource, types, offset)?;
+        let composite_type = CompositeType {
+            inner: CompositeInnerType::Func(FuncType::new([ValType::I32], [])),
+            shared: false,
+        };
         let core_ty = SubType {
             is_final: true,
             supertype_idx: None,
-            composite_type: CompositeType::Func(FuncType::new([ValType::I32], [])),
+            composite_type,
         };
         let (_is_new, group_id) =
             types.intern_canonical_rec_group(RecGroup::implicit(offset, core_ty));
@@ -1064,10 +1076,14 @@ impl ComponentState {
         offset: usize,
     ) -> Result<()> {
         let rep = self.check_local_resource(resource, types, offset)?;
+        let composite_type = CompositeType {
+            inner: CompositeInnerType::Func(FuncType::new([ValType::I32], [rep])),
+            shared: false,
+        };
         let core_ty = SubType {
             is_final: true,
             supertype_idx: None,
-            composite_type: CompositeType::Func(FuncType::new([ValType::I32], [rep])),
+            composite_type,
         };
         let (_is_new, group_id) =
             types.intern_canonical_rec_group(RecGroup::implicit(offset, core_ty));
@@ -1645,9 +1661,18 @@ impl ComponentState {
         &self,
         ty: crate::ComponentFuncType,
         types: &TypeList,
+        features: &WasmFeatures,
         offset: usize,
     ) -> Result<ComponentFuncType> {
         let mut info = TypeInfo::new();
+
+        if ty.results.type_count() > 1 && !features.component_model_multiple_returns() {
+            bail!(
+                offset,
+                "multiple returns on a function is now a gated feature \
+                 -- https://github.com/WebAssembly/component-model/pull/368"
+            );
+        }
 
         let mut set = Set::default();
         #[cfg(not(feature = "no-hash-maps"))] // TODO: remove when unified map type is available
@@ -2512,6 +2537,7 @@ impl ComponentState {
         &self,
         ty: crate::ComponentDefinedType,
         types: &TypeList,
+        features: &WasmFeatures,
         offset: usize,
     ) -> Result<ComponentDefinedType> {
         match ty {
@@ -2529,7 +2555,7 @@ impl ComponentState {
                 self.create_tuple_type(tys.as_ref(), types, offset)
             }
             crate::ComponentDefinedType::Flags(names) => {
-                self.create_flags_type(names.as_ref(), offset)
+                self.create_flags_type(names.as_ref(), features, offset)
             }
             crate::ComponentDefinedType::Enum(cases) => {
                 self.create_enum_type(cases.as_ref(), offset)
@@ -2681,12 +2707,27 @@ impl ComponentState {
         Ok(ComponentDefinedType::Tuple(TupleType { info, types }))
     }
 
-    fn create_flags_type(&self, names: &[&str], offset: usize) -> Result<ComponentDefinedType> {
+    fn create_flags_type(
+        &self,
+        names: &[&str],
+        features: &WasmFeatures,
+        offset: usize,
+    ) -> Result<ComponentDefinedType> {
         let mut names_set = IndexSet::default();
         names_set.reserve(names.len());
 
         if names.is_empty() {
             bail!(offset, "flags must have at least one entry");
+        }
+
+        if names.len() > 32 && !features.component_model_more_flags() {
+            bail!(
+                offset,
+                "cannot have more than 32 flags; this was previously \
+                 accepted and if this is required for your project please \
+                 leave a comment on \
+                 https://github.com/WebAssembly/component-model/issues/370"
+            );
         }
 
         for name in names {

@@ -4,7 +4,7 @@ use super::Mutator;
 use crate::module::{PrimitiveTypeInfo, TypeInfo};
 use crate::{Result, WasmMutate};
 use rand::Rng;
-use wasm_encoder::{HeapType, Instruction, Module};
+use wasm_encoder::{AbstractHeapType, HeapType, Instruction, Module};
 
 /// Mutator that adds new, empty functions to a Wasm module.
 #[derive(Clone, Copy)]
@@ -62,10 +62,16 @@ impl Mutator for AddFunctionMutator {
                     func.instruction(&Instruction::V128Const(0));
                 }
                 PrimitiveTypeInfo::FuncRef => {
-                    func.instruction(&Instruction::RefNull(HeapType::Func));
+                    func.instruction(&Instruction::RefNull(HeapType::Abstract {
+                        shared: false,
+                        ty: AbstractHeapType::Func,
+                    }));
                 }
                 PrimitiveTypeInfo::ExternRef => {
-                    func.instruction(&Instruction::RefNull(HeapType::Extern));
+                    func.instruction(&Instruction::RefNull(HeapType::Abstract {
+                        shared: false,
+                        ty: AbstractHeapType::Extern,
+                    }));
                 }
                 PrimitiveTypeInfo::Empty => unreachable!(),
             }

@@ -1,8 +1,9 @@
 (component
   (type (;0;)
     (instance
-      (type (;0;) (func (result "a" u32) (result "b" u32)))
-      (export (;0;) "get-two" (func (type 0)))
+      (type (;0;) (tuple u32 u32))
+      (type (;1;) (func (result 0)))
+      (export (;0;) "get-two" (func (type 1)))
     )
   )
   (import "new" (instance (;0;) (type 0)))

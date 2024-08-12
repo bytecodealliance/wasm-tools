@@ -29,7 +29,7 @@
           (export (;1;) "foo:nestee/more@1.0.0" (instance (type 4)))
         )
       )
-      (export (;0;) "foo:thing/something" (instance (type 0)))
+      (export (;0;) "foo:thing/something@1.0.0" (instance (type 0)))
     )
   )
   (export (;1;) "something" (type 0))

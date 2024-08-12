@@ -3,9 +3,9 @@
   0x8 | 01 08       | type section
   0xa | 02          | 2 count
 --- rec group 0 (implicit) ---
-  0xb | 60 01 7f 00 | [type 0] SubType { is_final: true, supertype_idx: None, composite_type: Func(FuncType { params: [I32], results: [] }) }
+  0xb | 60 01 7f 00 | [type 0] SubType { is_final: true, supertype_idx: None, composite_type: CompositeType { inner: Func(FuncType { params: [I32], results: [] }), shared: false } }
 --- rec group 1 (implicit) ---
-  0xf | 60 00 00    | [type 1] SubType { is_final: true, supertype_idx: None, composite_type: Func(FuncType { params: [], results: [] }) }
+  0xf | 60 00 00    | [type 1] SubType { is_final: true, supertype_idx: None, composite_type: CompositeType { inner: Func(FuncType { params: [], results: [] }), shared: false } }
  0x12 | 02 07       | import section
  0x14 | 01          | 1 count
  0x15 | 01 6d 01 6e | import [func 0] Import { module: "m", name: "n", ty: Func(0) }
@@ -17,7 +17,7 @@
  0x20 | 01          | [func 3] type 1
  0x21 | 04 04       | table section
  0x23 | 01          | 1 count
- 0x24 | 70 00 01    | [table 0] Table { ty: TableType { element_type: funcref, table64: false, initial: 1, maximum: None }, init: RefNull }
+ 0x24 | 70 00 01    | [table 0] Table { ty: TableType { element_type: funcref, table64: false, initial: 1, maximum: None, shared: false }, init: RefNull }
  0x27 | 05 03       | memory section
  0x29 | 01          | 1 count
  0x2a | 00 01       | [memory 0] MemoryType { memory64: false, shared: false, initial: 1, maximum: None, page_size_log2: None }

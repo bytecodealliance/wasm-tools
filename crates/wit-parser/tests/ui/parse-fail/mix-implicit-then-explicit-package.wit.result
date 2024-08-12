@@ -1,5 +1,0 @@
-expected `world`, `interface` or `use`, found keyword `package`
-     --> tests/ui/parse-fail/mix-implicit-then-explicit-package.wit:12:1
-      |
-   12 | package foo:name {
-      | ^------

@@ -533,11 +533,6 @@ impl TestState {
     }
 
     fn test_json_from_wast(&self, path: &Path) -> Result<()> {
-        // component model tests aren't tested through json-from-wast at this time.
-        if path.iter().any(|p| p == "component-model") {
-            return Ok(());
-        }
-
         // This has an `assert_invalid` which should be `assert_malformed`, so
         // skip it.
         if path.ends_with("gc-subtypes-invalid.wast") {
@@ -578,7 +573,10 @@ impl TestState {
         let mut features = WasmFeatures::all()
             & !WasmFeatures::SHARED_EVERYTHING_THREADS
             & !WasmFeatures::COMPONENT_MODEL
-            & !WasmFeatures::COMPONENT_MODEL_NESTED_NAMES;
+            & !WasmFeatures::COMPONENT_MODEL_NESTED_NAMES
+            & !WasmFeatures::COMPONENT_MODEL_MORE_FLAGS
+            & !WasmFeatures::COMPONENT_MODEL_MULTIPLE_RETURNS
+            & !WasmFeatures::LEGACY_EXCEPTIONS;
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
                 "testsuite" => {
@@ -603,6 +601,7 @@ impl TestState {
                 }
                 "simd" => features.insert(WasmFeatures::SIMD),
                 "exception-handling" => features.insert(WasmFeatures::EXCEPTIONS),
+                "legacy-exceptions" => features.insert(WasmFeatures::LEGACY_EXCEPTIONS),
                 "tail-call" => features.insert(WasmFeatures::TAIL_CALL),
                 "memory64" => features.insert(WasmFeatures::MEMORY64),
                 "component-model" => features.insert(WasmFeatures::COMPONENT_MODEL),
@@ -622,6 +621,12 @@ impl TestState {
                 "custom-page-sizes" => features.insert(WasmFeatures::CUSTOM_PAGE_SIZES),
                 "import-extended.wast" => {
                     features.insert(WasmFeatures::COMPONENT_MODEL_NESTED_NAMES);
+                }
+                "more-flags.wast" => {
+                    features.insert(WasmFeatures::COMPONENT_MODEL_MORE_FLAGS);
+                }
+                "multiple-returns.wast" => {
+                    features.insert(WasmFeatures::COMPONENT_MODEL_MULTIPLE_RETURNS);
                 }
                 _ => {}
             }
@@ -651,11 +656,13 @@ fn error_matches(error: &str, message: &str) -> bool {
         || message == "alignment must be a power of two"
         || message == "i32 constant out of range"
         || message == "constant expression required"
+        || message == "legacy exceptions support is not enabled"
     {
         return error.contains("expected ")
             || error.contains("constant out of range")
             || error.contains("extra tokens remaining")
-            || error.contains("unimplemented validation of deprecated opcode");
+            || error.contains("unimplemented validation of deprecated opcode")
+            || error.contains("legacy exceptions support is not enabled");
     }
 
     if message == "illegal character" {
@@ -713,6 +720,7 @@ fn error_matches(error: &str, message: &str) -> bool {
         // wasmparser implements more features than the default spec
         // interpreter, so these error looks different.
         return error.contains("threads must be enabled for shared memories")
+            || error.contains("shared tables require the shared-everything-threads proposal")
             || error.contains("invalid table resizable limits flags")
             // honestly this feels like the spec interpreter is just weird
             || error.contains("unexpected end-of-file")

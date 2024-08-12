@@ -1,3 +1,4 @@
+package foo:root;
 package foo:bar {
   interface i {
     use foo:qux/i.{};

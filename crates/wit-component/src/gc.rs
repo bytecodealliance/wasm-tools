@@ -4,9 +4,11 @@ use indexmap::{IndexMap, IndexSet};
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
+    convert::Infallible,
     mem,
     ops::Deref,
 };
+use wasm_encoder::reencode::Reencode;
 use wasm_encoder::{Encode, EntityType, Instruction, RawCustomSection};
 use wasmparser::*;
 
@@ -486,18 +488,7 @@ impl<'a> Module<'a> {
 
     fn heapty(&mut self, ty: HeapType) {
         match ty {
-            HeapType::Func
-            | HeapType::Extern
-            | HeapType::Any
-            | HeapType::None
-            | HeapType::NoExtern
-            | HeapType::NoFunc
-            | HeapType::Eq
-            | HeapType::Struct
-            | HeapType::Array
-            | HeapType::I31
-            | HeapType::Exn
-            | HeapType::NoExn => {}
+            HeapType::Abstract { .. } => {}
             HeapType::Concrete(i) => self.ty(i.as_module_index().unwrap()),
         }
     }
@@ -563,10 +554,8 @@ impl<'a> Module<'a> {
         for (i, ty) in self.live_types() {
             map.types.push(i);
 
-            types.function(
-                ty.params().iter().map(|t| map.valty(*t)),
-                ty.results().iter().map(|t| map.valty(*t)),
-            );
+            let ty = map.func_type(ty.clone())?;
+            types.func_type(&ty);
 
             // Keep track of the "empty type" to see if we can reuse an
             // existing one or one needs to be injected if a `start`
@@ -579,13 +568,7 @@ impl<'a> Module<'a> {
         let mut num_memories = 0;
         for (i, mem) in self.live_memories() {
             map.memories.push(i);
-            let ty = wasm_encoder::MemoryType {
-                minimum: mem.ty.initial,
-                maximum: mem.ty.maximum,
-                shared: mem.ty.shared,
-                memory64: mem.ty.memory64,
-                page_size_log2: mem.ty.page_size_log2,
-            };
+            let ty = map.memory_type(mem.ty);
             match &mem.def {
                 Definition::Import(m, n) => {
                     imports.import(m, n, ty);
@@ -599,12 +582,7 @@ impl<'a> Module<'a> {
 
         for (i, table) in self.live_tables() {
             map.tables.push(i);
-            let ty = wasm_encoder::TableType {
-                minimum: table.ty.initial,
-                maximum: table.ty.maximum,
-                element_type: map.refty(table.ty.element_type),
-                table64: table.ty.table64,
-            };
+            let ty = map.table_type(table.ty)?;
             match &table.def {
                 Definition::Import(m, n) => {
                     imports.import(m, n, ty);
@@ -617,19 +595,14 @@ impl<'a> Module<'a> {
 
         for (i, global) in self.live_globals() {
             map.globals.push(i);
-            let ty = wasm_encoder::GlobalType {
-                val_type: map.valty(global.ty.content_type),
-                mutable: global.ty.mutable,
-                shared: global.ty.shared,
-            };
+            let ty = map.global_type(global.ty)?;
             match &global.def {
                 Definition::Import(m, n) => {
                     imports.import(m, n, ty);
                 }
                 Definition::Local(init) => {
-                    let mut bytes = map.operators(init.get_binary_reader())?;
-                    assert_eq!(bytes.pop(), Some(0xb));
-                    globals.global(ty, &wasm_encoder::ConstExpr::raw(bytes));
+                    let init = &map.const_expr(init.clone())?;
+                    globals.global(ty, &init);
                 }
             }
         }
@@ -760,26 +733,27 @@ impl<'a> Module<'a> {
             .collect::<HashSet<_>>();
 
         for (i, func) in self.live_funcs() {
-            let mut body = match &func.def {
+            let body = match &func.def {
                 Definition::Import(..) => continue,
-                Definition::Local(body) => body.get_binary_reader(),
+                Definition::Local(body) => body,
             };
-            let mut locals = Vec::new();
-            for _ in 0..body.read_var_u32()? {
-                let cnt = body.read_var_u32()?;
-                let ty = body.read()?;
-                locals.push((cnt, map.valty(ty)));
+
+            match (lazy_stack_init_index, exported_funcs.contains(&i)) {
+                // Prepend an `allocate_stack` call to all exports if we're
+                // lazily allocating the stack.
+                (Some(lazy_stack_init_index), true) => {
+                    let mut func = map.new_function_with_parsed_locals(&body)?;
+                    func.instruction(&Instruction::Call(lazy_stack_init_index));
+                    let mut reader = body.get_operators_reader()?;
+                    while !reader.eof() {
+                        map.parse_instruction(&mut func, &mut reader)?;
+                    }
+                    code.function(&func);
+                }
+                _ => {
+                    map.parse_function_body(&mut code, body.clone())?;
+                }
             }
-            // Prepend an `allocate_stack` call to all exports if we're lazily allocating the stack.
-            if let (Some(lazy_stack_init_index), true) =
-                (lazy_stack_init_index, exported_funcs.contains(&i))
-            {
-                Instruction::Call(lazy_stack_init_index).encode(&mut map.buf);
-            }
-            let bytes = map.operators(body)?;
-            let mut func = wasm_encoder::Function::new(locals);
-            func.raw(bytes);
-            code.function(&func);
         }
 
         if lazy_stack_init_index.is_some() {
@@ -1078,190 +1052,26 @@ struct Encoder {
     memories: Remap,
     globals: Remap,
     tables: Remap,
-    buf: Vec<u8>,
 }
 
-impl Encoder {
-    fn operators(&mut self, mut reader: BinaryReader<'_>) -> Result<Vec<u8>> {
-        while !reader.eof() {
-            reader.visit_operator(self)?;
-        }
-        Ok(mem::take(&mut self.buf))
+impl Reencode for Encoder {
+    type Error = Infallible;
+
+    fn type_index(&mut self, i: u32) -> u32 {
+        self.types.remap(i)
     }
-
-    fn memarg(&self, ty: MemArg) -> wasm_encoder::MemArg {
-        wasm_encoder::MemArg {
-            offset: ty.offset,
-            align: ty.align.into(),
-            memory_index: self.memories.remap(ty.memory),
-        }
+    fn function_index(&mut self, i: u32) -> u32 {
+        self.funcs.remap(i)
     }
-
-    fn ordering(&self, ord: Ordering) -> wasm_encoder::Ordering {
-        match ord {
-            Ordering::AcqRel => wasm_encoder::Ordering::AcqRel,
-            Ordering::SeqCst => wasm_encoder::Ordering::SeqCst,
-        }
+    fn memory_index(&mut self, i: u32) -> u32 {
+        self.memories.remap(i)
     }
-
-    fn blockty(&self, ty: BlockType) -> wasm_encoder::BlockType {
-        match ty {
-            BlockType::Empty => wasm_encoder::BlockType::Empty,
-            BlockType::Type(ty) => wasm_encoder::BlockType::Result(self.valty(ty)),
-            BlockType::FuncType(ty) => wasm_encoder::BlockType::FunctionType(self.types.remap(ty)),
-        }
+    fn global_index(&mut self, i: u32) -> u32 {
+        self.globals.remap(i)
     }
-
-    fn valty(&self, ty: wasmparser::ValType) -> wasm_encoder::ValType {
-        match ty {
-            wasmparser::ValType::I32 => wasm_encoder::ValType::I32,
-            wasmparser::ValType::I64 => wasm_encoder::ValType::I64,
-            wasmparser::ValType::F32 => wasm_encoder::ValType::F32,
-            wasmparser::ValType::F64 => wasm_encoder::ValType::F64,
-            wasmparser::ValType::V128 => wasm_encoder::ValType::V128,
-            wasmparser::ValType::Ref(rt) => wasm_encoder::ValType::Ref(self.refty(rt)),
-        }
+    fn table_index(&mut self, i: u32) -> u32 {
+        self.tables.remap(i)
     }
-
-    fn refty(&self, rt: wasmparser::RefType) -> wasm_encoder::RefType {
-        wasm_encoder::RefType {
-            nullable: rt.is_nullable(),
-            heap_type: self.heapty(rt.heap_type()),
-        }
-    }
-
-    fn heapty(&self, ht: wasmparser::HeapType) -> wasm_encoder::HeapType {
-        match ht {
-            HeapType::Func => wasm_encoder::HeapType::Func,
-            HeapType::Extern => wasm_encoder::HeapType::Extern,
-            HeapType::Any => wasm_encoder::HeapType::Any,
-            HeapType::None => wasm_encoder::HeapType::None,
-            HeapType::NoExtern => wasm_encoder::HeapType::NoExtern,
-            HeapType::NoFunc => wasm_encoder::HeapType::NoFunc,
-            HeapType::Eq => wasm_encoder::HeapType::Eq,
-            HeapType::Struct => wasm_encoder::HeapType::Struct,
-            HeapType::Array => wasm_encoder::HeapType::Array,
-            HeapType::I31 => wasm_encoder::HeapType::I31,
-            HeapType::Exn => wasm_encoder::HeapType::Exn,
-            HeapType::NoExn => wasm_encoder::HeapType::NoExn,
-            HeapType::Concrete(idx) => {
-                wasm_encoder::HeapType::Concrete(self.types.remap(idx.as_module_index().unwrap()))
-            }
-        }
-    }
-}
-
-// This is a helper macro to translate all `wasmparser` instructions to
-// `wasm-encoder` instructions without having to list out every single
-// instruction itself.
-//
-// The general goal of this macro is to have O(unique instruction payload)
-// number of cases while also simultaneously adapting between the styles of
-// wasmparser and wasm-encoder.
-macro_rules! define_encode {
-    ($(@$p:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
-        $(
-            fn $visit(&mut self $(, $($arg: $argty),*)?)  {
-                #[allow(unused_imports)]
-                use wasm_encoder::Instruction::*;
-                $(
-                    $(
-                        let $arg = define_encode!(map self $arg $arg);
-                    )*
-                )?
-                let insn = define_encode!(mk $op $($($arg)*)?);
-                insn.encode(&mut self.buf);
-            }
-        )*
-    };
-
-    // No-payload instructions are named the same in wasmparser as they are in
-    // wasm-encoder
-    (mk $op:ident) => ($op);
-
-    // Instructions which need "special care" to map from wasmparser to
-    // wasm-encoder
-    (mk BrTable $arg:ident) => ({
-        BrTable($arg.0, $arg.1)
-    });
-    (mk CallIndirect $ty:ident $table:ident) => ({
-        CallIndirect { ty: $ty, table: $table }
-    });
-    (mk ReturnCallIndirect $ty:ident $table:ident) => (
-        ReturnCallIndirect { ty: $ty, table: $table }
-    );
-    (mk TryTable $try_table:ident) => ({
-        let _ = $try_table;
-        unimplemented_try_table()
-    });
-    (mk I32Const $v:ident) => (I32Const($v));
-    (mk I64Const $v:ident) => (I64Const($v));
-    (mk F32Const $v:ident) => (F32Const(f32::from_bits($v.bits())));
-    (mk F64Const $v:ident) => (F64Const(f64::from_bits($v.bits())));
-    (mk V128Const $v:ident) => (V128Const($v.i128()));
-
-    // Catch-all for the translation of one payload argument which is typically
-    // represented as a tuple-enum in wasm-encoder.
-    (mk $op:ident $arg:ident) => ($op($arg));
-
-    // Catch-all of everything else where the wasmparser fields are simply
-    // translated to wasm-encoder fields.
-    (mk $op:ident $($arg:ident)*) => ($op { $($arg),* });
-
-    // Individual cases of mapping one argument type to another, similar to the
-    // `define_visit` macro above.
-    (map $self:ident $arg:ident memarg) => {$self.memarg($arg)};
-    (map $self:ident $arg:ident ordering) => {$self.ordering($arg)};
-    (map $self:ident $arg:ident blockty) => {$self.blockty($arg)};
-    (map $self:ident $arg:ident hty) => {$self.heapty($arg)};
-    (map $self:ident $arg:ident from_ref_type) => {$self.refty($arg)};
-    (map $self:ident $arg:ident to_ref_type) => {$self.refty($arg)};
-    (map $self:ident $arg:ident tag_index) => {$arg};
-    (map $self:ident $arg:ident relative_depth) => {$arg};
-    (map $self:ident $arg:ident function_index) => {$self.funcs.remap($arg)};
-    (map $self:ident $arg:ident global_index) => {$self.globals.remap($arg)};
-    (map $self:ident $arg:ident mem) => {$self.memories.remap($arg)};
-    (map $self:ident $arg:ident src_mem) => {$self.memories.remap($arg)};
-    (map $self:ident $arg:ident dst_mem) => {$self.memories.remap($arg)};
-    (map $self:ident $arg:ident table) => {$self.tables.remap($arg)};
-    (map $self:ident $arg:ident table_index) => {$self.tables.remap($arg)};
-    (map $self:ident $arg:ident src_table) => {$self.tables.remap($arg)};
-    (map $self:ident $arg:ident dst_table) => {$self.tables.remap($arg)};
-    (map $self:ident $arg:ident type_index) => {$self.types.remap($arg)};
-    (map $self:ident $arg:ident array_type_index) => {$self.types.remap($arg)};
-    (map $self:ident $arg:ident array_type_index_dst) => {$self.types.remap($arg)};
-    (map $self:ident $arg:ident array_type_index_src) => {$self.types.remap($arg)};
-    (map $self:ident $arg:ident struct_type_index) => {$self.types.remap($arg)};
-    (map $self:ident $arg:ident ty) => {$self.valty($arg)};
-    (map $self:ident $arg:ident local_index) => {$arg};
-    (map $self:ident $arg:ident lane) => {$arg};
-    (map $self:ident $arg:ident lanes) => {$arg};
-    (map $self:ident $arg:ident elem_index) => {$arg};
-    (map $self:ident $arg:ident data_index) => {$arg};
-    (map $self:ident $arg:ident array_elem_index) => {$arg};
-    (map $self:ident $arg:ident array_data_index) => {$arg};
-    (map $self:ident $arg:ident table_byte) => {$arg};
-    (map $self:ident $arg:ident mem_byte) => {$arg};
-    (map $self:ident $arg:ident value) => {$arg};
-    (map $self:ident $arg:ident array_size) => {$arg};
-    (map $self:ident $arg:ident field_index) => {$arg};
-    (map $self:ident $arg:ident from_type_nullable) => {$arg};
-    (map $self:ident $arg:ident to_type_nullable) => {$arg};
-    (map $self:ident $arg:ident try_table) => {$arg};
-    (map $self:ident $arg:ident targets) => ((
-        $arg.targets().map(|i| i.unwrap()).collect::<Vec<_>>().into(),
-        $arg.default(),
-    ));
-}
-
-fn unimplemented_try_table() -> wasm_encoder::Instruction<'static> {
-    unimplemented!()
-}
-
-impl<'a> VisitOperator<'a> for Encoder {
-    type Output = ();
-
-    wasmparser::for_each_operator!(define_encode);
 }
 
 // Minimal definition of a bit vector necessary for the liveness calculations

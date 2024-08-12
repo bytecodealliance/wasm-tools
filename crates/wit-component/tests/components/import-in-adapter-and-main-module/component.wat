@@ -100,7 +100,7 @@
       i32.const 1
       call_indirect (type 0)
     )
-    (func $#func2<indirect-foo:shared-dependency/doc-g1> (@name "indirect-foo:shared-dependency/doc-g1") (;2;) (type 0) (param i32)
+    (func $"#func2 indirect-foo:shared-dependency/doc-g1" (@name "indirect-foo:shared-dependency/doc-g1") (;2;) (type 0) (param i32)
       local.get 0
       i32.const 2
       call_indirect (type 0)
@@ -117,7 +117,7 @@
     (table (;0;) 5 5 funcref)
     (export "0" (func $indirect-foo:shared-dependency/doc-g1))
     (export "1" (func $indirect-foo:shared-dependency/doc-g2))
-    (export "2" (func $#func2<indirect-foo:shared-dependency/doc-g1>))
+    (export "2" (func $"#func2 indirect-foo:shared-dependency/doc-g1"))
     (export "3" (func $indirect-foo:shared-dependency/doc-g3))
     (export "4" (func $adapt-old-adapter-f1))
     (export "$imports" (table 0))

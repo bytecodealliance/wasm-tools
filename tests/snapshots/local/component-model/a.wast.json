@@ -1,0 +1,10 @@
+{
+  "source_filename": "tests/local/component-model/a.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 4,
+      "filename": "a.0.wasm"
+    }
+  ]
+}

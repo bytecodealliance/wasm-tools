@@ -6,6 +6,4 @@
   (type (;2;) (tuple u8))
   (type (;3;) (func (result "foo" 2)))
   (import "c" (func (;2;) (type 3)))
-  (type (;4;) (func (result "foo" string) (result "bar" s32) (result "baz" u32)))
-  (import "d" (func (;3;) (type 4)))
 )

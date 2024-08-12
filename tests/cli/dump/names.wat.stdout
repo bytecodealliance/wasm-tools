@@ -3,7 +3,7 @@
   0x8 | 01 05       | type section
   0xa | 01          | 1 count
 --- rec group 0 (implicit) ---
-  0xb | 60 01 7f 00 | [type 0] SubType { is_final: true, supertype_idx: None, composite_type: Func(FuncType { params: [I32], results: [] }) }
+  0xb | 60 01 7f 00 | [type 0] SubType { is_final: true, supertype_idx: None, composite_type: CompositeType { inner: Func(FuncType { params: [I32], results: [] }), shared: false } }
   0xf | 03 02       | func section
  0x11 | 01          | 1 count
  0x12 | 00          | [func 0] type 0

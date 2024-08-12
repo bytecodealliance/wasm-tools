@@ -43,23 +43,23 @@
 )
 
 (assert_invalid
-  (component
-    (type $t (variant (case $x "x" string (refines $x))))
+  (component quote
+    "(type $t (variant (case $x \"x\" string (refines $x))))"
   )
   "variant case cannot refine itself"
 )
 
 (assert_invalid
-  (component
-    (type $t (variant (case "x" (refines $y)) (case $y "y" string)))
+  (component quote
+    "(type $t (variant (case \"x\" (refines $y)) (case $y \"y\" string)))"
   )
   "unknown variant case"
 )
 
 (assert_invalid
-  (component
-    (type $t string)
-    (type $v (variant (case "x" $t (refines $z))))
+  (component quote
+    "(type $t string)"
+    "(type $v (variant (case \"x\" $t (refines $z))))"
   )
   "unknown variant case"
 )
@@ -82,9 +82,9 @@
 )
 
 (assert_invalid
-  (component
-    (type $t string)
-    (type $v (variant (case $x "x" $t) (case $x "y" $t)))
+  (component quote
+    "(type $t string)"
+    "(type $v (variant (case $x \"x\" $t) (case $x \"y\" $t)))"
   )
   "duplicate variant case identifier"
 )

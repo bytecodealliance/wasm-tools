@@ -1,5 +1,14 @@
 package foo:dep2;
 
 interface types {
-  resource a;
+  use foo:nested/types.{t2};
+  record a {
+    foo: t2
+  }
+}
+
+package foo:nested {
+  interface types {
+    type t2 = string;
+  }
 }

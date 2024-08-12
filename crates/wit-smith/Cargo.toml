@@ -2,7 +2,7 @@
 description = "A WIT test case generator"
 documentation = "https://docs.rs/wit-smith"
 edition.workspace = true
-license = "Apache-2.0 WITH LLVM-exception"
+license.workspace = true
 name = "wit-smith"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wit-smith"
 version.workspace = true

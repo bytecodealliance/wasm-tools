@@ -106,6 +106,7 @@ pub struct UnresolvedPackage {
     /// Doc comments for this package.
     pub docs: Docs,
 
+    package_name_span: Span,
     unknown_type_spans: Vec<Span>,
     interface_spans: Vec<InterfaceSpan>,
     world_spans: Vec<WorldSpan>,
@@ -115,10 +116,16 @@ pub struct UnresolvedPackage {
 }
 
 /// Tracks a set of packages, all pulled from the same group of WIT source files.
-#[derive(Default)]
+#[derive(Clone)]
 pub struct UnresolvedPackageGroup {
-    /// A set of packages that share source file(s).
-    pub packages: Vec<UnresolvedPackage>,
+    /// The "main" package in this package group which was found at the root of
+    /// the WIT files.
+    ///
+    /// Note that this is required to be present in all WIT files.
+    pub main: UnresolvedPackage,
+
+    /// Nested packages found while parsing `main`, if any.
+    pub nested: Vec<UnresolvedPackage>,
 
     /// A set of processed source files from which these packages have been parsed.
     pub source_map: SourceMap,
@@ -220,18 +227,14 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {}
 
 impl UnresolvedPackageGroup {
-    /// Creates an empty set of packages.
-    pub fn new() -> UnresolvedPackageGroup {
-        UnresolvedPackageGroup::default()
-    }
-
     /// Parses the given string as a wit document.
     ///
     /// The `path` argument is used for error reporting. The `contents` provided
-    /// will not be able to use `pkg` use paths to other documents.
-    pub fn parse(path: &Path, contents: &str) -> Result<UnresolvedPackageGroup> {
+    /// are considered to be the contents of `path`. This function does not read
+    /// the filesystem.
+    pub fn parse(path: impl AsRef<Path>, contents: &str) -> Result<UnresolvedPackageGroup> {
         let mut map = SourceMap::default();
-        map.push(path, contents);
+        map.push(path.as_ref(), contents);
         map.parse()
     }
 
@@ -240,7 +243,8 @@ impl UnresolvedPackageGroup {
     /// The path provided is inferred whether it's a file or a directory. A file
     /// is parsed with [`UnresolvedPackageGroup::parse_file`] and a directory is
     /// parsed with [`UnresolvedPackageGroup::parse_dir`].
-    pub fn parse_path(path: &Path) -> Result<UnresolvedPackageGroup> {
+    pub fn parse_path(path: impl AsRef<Path>) -> Result<UnresolvedPackageGroup> {
+        let path = path.as_ref();
         if path.is_dir() {
             UnresolvedPackageGroup::parse_dir(path)
         } else {
@@ -250,9 +254,10 @@ impl UnresolvedPackageGroup {
 
     /// Parses a WIT package from the file provided.
     ///
-    /// The WIT package returned will be a single-document package and will not
-    /// be able to use `pkg` paths to other documents.
-    pub fn parse_file(path: &Path) -> Result<UnresolvedPackageGroup> {
+    /// The return value represents all packages found in the WIT file which
+    /// might be either one or multiple depending on the syntax used.
+    pub fn parse_file(path: impl AsRef<Path>) -> Result<UnresolvedPackageGroup> {
+        let path = path.as_ref();
         let contents = std::fs::read_to_string(path)
             .with_context(|| format!("failed to read file {path:?}"))?;
         Self::parse(path, &contents)
@@ -260,9 +265,12 @@ impl UnresolvedPackageGroup {
 
     /// Parses a WIT package from the directory provided.
     ///
-    /// All files with the extension `*.wit` or `*.wit.md` will be loaded from
-    /// `path` into the returned package.
-    pub fn parse_dir(path: &Path) -> Result<UnresolvedPackageGroup> {
+    /// This method will look at all files under the `path` specified. All
+    /// `*.wit` files are parsed and assumed to be part of the same package
+    /// grouping. This is useful when a WIT package is split across multiple
+    /// files.
+    pub fn parse_dir(path: impl AsRef<Path>) -> Result<UnresolvedPackageGroup> {
+        let path = path.as_ref();
         let mut map = SourceMap::default();
         let cx = || format!("failed to read directory {path:?}");
         for entry in path.read_dir().with_context(&cx)? {
@@ -281,7 +289,7 @@ impl UnresolvedPackageGroup {
                 Some(name) => name,
                 None => continue,
             };
-            if !filename.ends_with(".wit") && !filename.ends_with(".wit.md") {
+            if !filename.ends_with(".wit") {
                 continue;
             }
             map.push_file(&path)?;
@@ -856,13 +864,35 @@ pub enum Stability {
         since: Version,
         #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
         feature: Option<String>,
+        #[cfg_attr(
+            feature = "serde",
+            serde(
+                skip_serializing_if = "Option::is_none",
+                default,
+                serialize_with = "serialize_optional_version",
+                deserialize_with = "deserialize_optional_version"
+            )
+        )]
+        deprecated: Option<Version>,
     },
 
     /// `@unstable(feature = foo)`
     ///
     /// This item is explicitly tagged `@unstable`. A feature name is listed and
     /// this item is excluded by default in `Resolve` unless explicitly enabled.
-    Unstable { feature: String },
+    Unstable {
+        feature: String,
+        #[cfg_attr(
+            feature = "serde",
+            serde(
+                skip_serializing_if = "Option::is_none",
+                default,
+                serialize_with = "serialize_optional_version",
+                deserialize_with = "deserialize_optional_version"
+            )
+        )]
+        deprecated: Option<Version>,
+    },
 
     /// This item does not have either `@since` or `@unstable`.
     Unknown,

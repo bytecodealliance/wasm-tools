@@ -650,15 +650,22 @@
     },
     {
       "type": "assert_invalid",
-      "line": 196,
+      "line": 192,
       "filename": "return_call.11.wasm",
+      "text": "type mismatch",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 204,
+      "filename": "return_call.12.wasm",
       "text": "unknown function",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 200,
-      "filename": "return_call.12.wasm",
+      "line": 208,
+      "filename": "return_call.13.wasm",
       "text": "unknown function",
       "module_type": "binary"
     }

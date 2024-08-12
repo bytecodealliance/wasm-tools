@@ -119,10 +119,8 @@
   "import name `a` conflicts with previous name `A`")
 
 (assert_invalid
-  (component $c
-    (core type $t (module
-      (alias outer $c $t (type))
-    ))
+  (component quote
+    "(component $c (core type $t (module (alias outer $c $t (type)))))"
   )
   "unknown core type")
 
@@ -142,10 +140,8 @@
 )
 
 (assert_invalid
-  (component $c
-    (type $t (component
-      (alias outer $c $t (type))
-    ))
+  (component quote
+    "(component $c (type $t (component (alias outer $c $t (type)))))"
   )
   "unknown type")
 
@@ -196,10 +192,8 @@
   "export name `FOO-bar-BAZ` conflicts with previous name `foo-BAR-baz`")
 
 (assert_invalid
-  (component $c
-    (type $t (instance
-      (alias outer $c $t (type))
-    ))
+  (component quote
+    "(component $c (type $t (instance (alias outer $c $t (type)))))"
   )
   "unknown type")
 
@@ -323,3 +317,43 @@
     ))
   )
 )
+
+(assert_invalid
+  (component
+    (type (flags
+      "f1"
+      "f2"
+      "f3"
+      "f4"
+      "f5"
+      "f6"
+      "f7"
+      "f8"
+      "f9"
+      "f10"
+      "f11"
+      "f12"
+      "f13"
+      "f14"
+      "f15"
+      "f16"
+      "f17"
+      "f18"
+      "f19"
+      "f20"
+      "f21"
+      "f22"
+      "f23"
+      "f24"
+      "f25"
+      "f26"
+      "f27"
+      "f28"
+      "f29"
+      "f30"
+      "f31"
+      "f32"
+      "f33"
+    ))
+  )
+  "cannot have more than 32 flags")

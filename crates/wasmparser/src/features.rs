@@ -146,6 +146,38 @@ define_wasm_features! {
         pub component_model_values: COMPONENT_MODEL_VALUES(1 << 21) = false;
         /// Support for the nested namespaces and projects in component model names.
         pub component_model_nested_names: COMPONENT_MODEL_NESTED_NAMES(1 << 22) = false;
+        /// Support for more than 32 flags per-type in the component model.
+        pub component_model_more_flags: COMPONENT_MODEL_MORE_FLAGS(1 << 23) = false;
+        /// Support for multiple return values in a component model function.
+        pub component_model_multiple_returns: COMPONENT_MODEL_MULTIPLE_RETURNS(1 << 24) = false;
+        /// The WebAssembly legacy exception handling proposal (phase 1)
+        ///
+        /// # Note
+        ///
+        /// Support this feature as long as all leading browsers also support it
+        /// https://github.com/WebAssembly/exception-handling/blob/main/proposals/exception-handling/legacy/Exceptions.md
+        pub legacy_exceptions: LEGACY_EXCEPTIONS(1 << 25) = false;
+    }
+}
+
+impl WasmFeatures {
+    /// Returns the feature set associated with the 1.0 version of the
+    /// WebAssembly specification or the "MVP" feature set.
+    pub fn wasm1() -> WasmFeatures {
+        WasmFeatures::FLOATS
+    }
+
+    /// Returns the feature set associated with the 2.0 version of the
+    /// WebAssembly specification.
+    pub fn wasm2() -> WasmFeatures {
+        WasmFeatures::wasm1()
+            | WasmFeatures::BULK_MEMORY
+            | WasmFeatures::REFERENCE_TYPES
+            | WasmFeatures::SIGN_EXTENSION
+            | WasmFeatures::MUTABLE_GLOBAL
+            | WasmFeatures::SATURATING_FLOAT_TO_INT
+            | WasmFeatures::MULTI_VALUE
+            | WasmFeatures::SIMD
     }
 }
 

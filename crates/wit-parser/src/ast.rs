@@ -1,10 +1,10 @@
-use crate::{Error, UnresolvedPackage, UnresolvedPackageGroup};
+use crate::{Error, UnresolvedPackageGroup};
 use anyhow::{bail, Context, Result};
 use lex::{Span, Token, Tokenizer};
 use semver::Version;
 use std::borrow::Cow;
-use std::collections::HashSet;
 use std::fmt;
+use std::mem;
 use std::path::{Path, PathBuf};
 
 pub mod lex;
@@ -15,19 +15,64 @@ pub mod toposort;
 
 pub use lex::validate_id;
 
-enum Ast<'a> {
-    ExplicitPackages(Vec<ExplicitPackage<'a>>),
-    PartialImplicitPackage(PartialImplicitPackage<'a>),
-}
-
-pub struct ExplicitPackage<'a> {
-    package_id: PackageName<'a>,
-    decl_list: DeclList<'a>,
-}
-
-pub struct PartialImplicitPackage<'a> {
+/// Representation of a single WIT `*.wit` file and nested packages.
+struct PackageFile<'a> {
+    /// Optional `package foo:bar;` header
     package_id: Option<PackageName<'a>>,
+    /// Other AST items.
     decl_list: DeclList<'a>,
+}
+
+impl<'a> PackageFile<'a> {
+    /// Parse a standalone file represented by `tokens`.
+    ///
+    /// This will optionally start with `package foo:bar;` and then will have a
+    /// list of ast items after it.
+    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self> {
+        let mut package_name_tokens_peek = tokens.clone();
+        let docs = parse_docs(&mut package_name_tokens_peek)?;
+
+        // Parse `package foo:bar;` but throw it out if it's actually
+        // `package foo:bar { ... }` since that's an ast item instead.
+        let package_id = if package_name_tokens_peek.eat(Token::Package)? {
+            let name = PackageName::parse(&mut package_name_tokens_peek, docs)?;
+            if package_name_tokens_peek.eat(Token::Semicolon)? {
+                *tokens = package_name_tokens_peek;
+                Some(name)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        let decl_list = DeclList::parse_until(tokens, None)?;
+        Ok(PackageFile {
+            package_id,
+            decl_list,
+        })
+    }
+
+    /// Parse a nested package of the form `package foo:bar { ... }`
+    fn parse_nested(
+        tokens: &mut Tokenizer<'a>,
+        docs: Docs<'a>,
+        attributes: Vec<Attribute<'a>>,
+    ) -> Result<Self> {
+        let span = tokens.expect(Token::Package)?;
+        if !attributes.is_empty() {
+            bail!(Error::new(
+                span,
+                format!("cannot place attributes on nested packages"),
+            ));
+        }
+        let package_id = PackageName::parse(tokens, docs)?;
+        tokens.expect(Token::LeftBrace)?;
+        let decl_list = DeclList::parse_until(tokens, Some(Token::RightBrace))?;
+        Ok(PackageFile {
+            package_id: Some(package_id),
+            decl_list,
+        })
+    }
 }
 
 /// Stores all of the declarations in a package's scope. In AST terms, this
@@ -45,7 +90,7 @@ pub struct PartialImplicitPackage<'a> {
 /// /* END DECL LIST */
 /// ```
 ///
-/// In the explicit package style, a [`DeclList`] is everything inside of each
+/// In the nested package style, a [`DeclList`] is everything inside of each
 /// `package` element's brackets:
 ///
 /// ```wit
@@ -65,84 +110,37 @@ pub struct PartialImplicitPackage<'a> {
 ///   /* END SECOND DECL LIST */
 /// }
 /// ```
+#[derive(Default)]
 pub struct DeclList<'a> {
     items: Vec<AstItem<'a>>,
 }
 
 impl<'a> DeclList<'a> {
-    fn parse_explicit_package_items(tokens: &mut Tokenizer<'a>) -> Result<DeclList<'a>> {
+    fn parse_until(tokens: &mut Tokenizer<'a>, end: Option<Token>) -> Result<DeclList<'a>> {
         let mut items = Vec::new();
         let mut docs = parse_docs(tokens)?;
         loop {
-            if tokens.eat(Token::RightBrace)? {
-                return Ok(DeclList { items });
+            match end {
+                Some(end) => {
+                    if tokens.eat(end)? {
+                        break;
+                    }
+                }
+                None => {
+                    if tokens.clone().next()?.is_none() {
+                        break;
+                    }
+                }
             }
-            items.push(AstItem::parse(tokens, docs)?);
-            docs = parse_docs(tokens)?;
-        }
-    }
-
-    fn parse_implicit_package_items(
-        tokens: &mut Tokenizer<'a>,
-        mut docs: Docs<'a>,
-    ) -> Result<DeclList<'a>> {
-        let mut items = Vec::new();
-        while tokens.clone().next()?.is_some() {
             items.push(AstItem::parse(tokens, docs)?);
             docs = parse_docs(tokens)?;
         }
         Ok(DeclList { items })
     }
-}
 
-impl<'a> Ast<'a> {
-    fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self> {
-        let mut maybe_package_id = None;
-        let mut packages = Vec::new();
-        let mut docs = parse_docs(tokens)?;
-        loop {
-            if tokens.clone().next()?.is_none() {
-                break;
-            }
-            if !tokens.eat(Token::Package)? {
-                if !packages.is_empty() {
-                    bail!("WIT files cannot mix top-level explicit `package` declarations with other declaration kinds");
-                }
-                break;
-            }
-
-            let package_id = PackageName::parse(tokens, std::mem::take(&mut docs))?;
-            if tokens.eat(Token::LeftBrace)? {
-                packages.push(ExplicitPackage {
-                    package_id: package_id,
-                    decl_list: DeclList::parse_explicit_package_items(tokens)?,
-                });
-                docs = parse_docs(tokens)?;
-            } else {
-                maybe_package_id = Some(package_id);
-                tokens.expect_semicolon()?;
-                if !packages.is_empty() {
-                    bail!("WIT files cannot mix top-level explicit `package` declarations with other declaration kinds");
-                }
-                docs = parse_docs(tokens)?;
-                break;
-            }
-        }
-
-        if packages.is_empty() {
-            return Ok(Ast::PartialImplicitPackage(PartialImplicitPackage {
-                package_id: maybe_package_id,
-                decl_list: DeclList::parse_implicit_package_items(tokens, docs)?,
-            }));
-        }
-        Ok(Ast::ExplicitPackages(packages))
-    }
-}
-
-impl<'a> DeclList<'a> {
     fn for_each_path<'b>(
         &'b self,
-        mut f: impl FnMut(
+        f: &mut dyn FnMut(
             Option<&'b Id<'a>>,
             &'b UsePath<'a>,
             Option<&'b [UseName<'a>]>,
@@ -219,6 +217,8 @@ impl<'a> DeclList<'a> {
                     // It is up to the resolver to decides how to handle this ambiguity.
                     f(None, &u.item, None, WorldOrInterface::Unknown)?;
                 }
+
+                AstItem::Package(pkg) => pkg.decl_list.for_each_path(f)?,
             }
         }
         Ok(())
@@ -229,6 +229,7 @@ enum AstItem<'a> {
     Interface(Interface<'a>),
     World(World<'a>),
     Use(ToplevelUse<'a>),
+    Package(PackageFile<'a>),
 }
 
 impl<'a> AstItem<'a> {
@@ -240,6 +241,9 @@ impl<'a> AstItem<'a> {
             }
             Some((_span, Token::World)) => World::parse(tokens, docs, attributes).map(Self::World),
             Some((_span, Token::Use)) => ToplevelUse::parse(tokens, attributes).map(Self::Use),
+            Some((_span, Token::Package)) => {
+                PackageFile::parse_nested(tokens, docs, attributes).map(Self::Package)
+            }
             other => Err(err_expected(tokens, "`world`, `interface` or `use`", other).into()),
         }
     }
@@ -1228,33 +1232,79 @@ fn parse_version(tokens: &mut Tokenizer<'_>) -> Result<(Span, Version)> {
     let version = Version::parse(string).map_err(|e| Error::new(span, e.to_string()))?;
     return Ok((span, version));
 
+    // According to `semver.org` this is what we're parsing:
+    //
+    // ```ebnf
+    // <pre-release> ::= <dot-separated pre-release identifiers>
+    //
+    // <dot-separated pre-release identifiers> ::= <pre-release identifier>
+    //                                           | <pre-release identifier> "." <dot-separated pre-release identifiers>
+    //
+    // <build> ::= <dot-separated build identifiers>
+    //
+    // <dot-separated build identifiers> ::= <build identifier>
+    //                                     | <build identifier> "." <dot-separated build identifiers>
+    //
+    // <pre-release identifier> ::= <alphanumeric identifier>
+    //                            | <numeric identifier>
+    //
+    // <build identifier> ::= <alphanumeric identifier>
+    //                      | <digits>
+    //
+    // <alphanumeric identifier> ::= <non-digit>
+    //                             | <non-digit> <identifier characters>
+    //                             | <identifier characters> <non-digit>
+    //                             | <identifier characters> <non-digit> <identifier characters>
+    //
+    // <numeric identifier> ::= "0"
+    //                        | <positive digit>
+    //                        | <positive digit> <digits>
+    //
+    // <identifier characters> ::= <identifier character>
+    //                           | <identifier character> <identifier characters>
+    //
+    // <identifier character> ::= <digit>
+    //                          | <non-digit>
+    //
+    // <non-digit> ::= <letter>
+    //               | "-"
+    //
+    // <digits> ::= <digit>
+    //            | <digit> <digits>
+    // ```
+    //
+    // This is loosely based on WIT syntax and an approximation is parsed here:
+    //
+    // * This function starts by parsing the optional leading `-` and `+` which
+    //   indicates pre-release and build metadata.
+    // * Afterwards all of $id, $integer, `-`, and `.` are chomped. The only
+    //   exception here is that if `.` isn't followed by $id, $integer, or `-`
+    //   then it's assumed that it's something like `use a:b@1.0.0-a.{...}`
+    //   where the `.` is part of WIT syntax, not semver.
+    //
+    // Note that this additionally doesn't try to return any first-class errors.
+    // Instead this bails out on something unrecognized for something else in
+    // the system to return an error.
     fn eat_ids(tokens: &mut Tokenizer<'_>, prefix: Token, end: &mut Span) -> Result<()> {
         if !tokens.eat(prefix)? {
             return Ok(());
         }
         loop {
-            match tokens.next()? {
-                Some((span, Token::Id)) | Some((span, Token::Integer)) => end.end = span.end,
-                other => break Err(err_expected(tokens, "an id or integer", other).into()),
-            }
-
-            // If there's no trailing period, then this semver identifier is
-            // done.
             let mut clone = tokens.clone();
-            if !clone.eat(Token::Period)? {
-                break Ok(());
+            match clone.next()? {
+                Some((span, Token::Id | Token::Integer | Token::Minus)) => {
+                    end.end = span.end;
+                    *tokens = clone;
+                }
+                Some((_span, Token::Period)) => match clone.next()? {
+                    Some((span, Token::Id | Token::Integer | Token::Minus)) => {
+                        end.end = span.end;
+                        *tokens = clone;
+                    }
+                    _ => break Ok(()),
+                },
+                _ => break Ok(()),
             }
-
-            // If there's more to the identifier, then eat the period for real
-            // and continue
-            if clone.eat(Token::Id)? || clone.eat(Token::Integer)? {
-                tokens.eat(Token::Period)?;
-                continue;
-            }
-
-            // Otherwise for something like `use foo:bar/baz@1.2.3+foo.{` stop
-            // the parsing here.
-            break Ok(());
         }
     }
 }
@@ -1524,6 +1574,10 @@ enum Attribute<'a> {
         span: Span,
         feature: Id<'a>,
     },
+    Deprecated {
+        span: Span,
+        version: Version,
+    },
 }
 
 impl<'a> Attribute<'a> {
@@ -1533,18 +1587,18 @@ impl<'a> Attribute<'a> {
             let id = parse_id(tokens)?;
             let attr = match id.name {
                 "since" => {
-                    tokens.eat(Token::LeftParen)?;
+                    tokens.expect(Token::LeftParen)?;
                     eat_id(tokens, "version")?;
-                    tokens.eat(Token::Equals)?;
+                    tokens.expect(Token::Equals)?;
                     let (_span, version) = parse_version(tokens)?;
                     let feature = if tokens.eat(Token::Comma)? {
                         eat_id(tokens, "feature")?;
-                        tokens.eat(Token::Equals)?;
+                        tokens.expect(Token::Equals)?;
                         Some(parse_id(tokens)?)
                     } else {
                         None
                     };
-                    tokens.eat(Token::RightParen)?;
+                    tokens.expect(Token::RightParen)?;
                     Attribute::Since {
                         span: id.span,
                         version,
@@ -1552,14 +1606,25 @@ impl<'a> Attribute<'a> {
                     }
                 }
                 "unstable" => {
-                    tokens.eat(Token::LeftParen)?;
+                    tokens.expect(Token::LeftParen)?;
                     eat_id(tokens, "feature")?;
-                    tokens.eat(Token::Equals)?;
+                    tokens.expect(Token::Equals)?;
                     let feature = parse_id(tokens)?;
-                    tokens.eat(Token::RightParen)?;
+                    tokens.expect(Token::RightParen)?;
                     Attribute::Unstable {
                         span: id.span,
                         feature,
+                    }
+                }
+                "deprecated" => {
+                    tokens.expect(Token::LeftParen)?;
+                    eat_id(tokens, "version")?;
+                    tokens.expect(Token::Equals)?;
+                    let (_span, version) = parse_version(tokens)?;
+                    tokens.expect(Token::RightParen)?;
+                    Attribute::Deprecated {
+                        span: id.span,
+                        version,
                     }
                 }
                 other => {
@@ -1573,7 +1638,9 @@ impl<'a> Attribute<'a> {
 
     fn span(&self) -> Span {
         match self {
-            Attribute::Since { span, .. } | Attribute::Unstable { span, .. } => *span,
+            Attribute::Since { span, .. }
+            | Attribute::Unstable { span, .. }
+            | Attribute::Deprecated { span, .. } => *span,
         }
     }
 }
@@ -1604,40 +1671,6 @@ struct Source {
     offset: u32,
     path: PathBuf,
     contents: String,
-}
-
-enum ResolverKind<'a> {
-    Unknown,
-    Explicit(Vec<UnresolvedPackage>),
-    PartialImplicit(Resolver<'a>),
-}
-
-fn parse_package(
-    unparsed_pkgs: Vec<ExplicitPackage>,
-    src: &Source,
-    explicit_pkg_names: &mut HashSet<crate::PackageName>,
-    parsed_pkgs: &mut Vec<UnresolvedPackage>,
-) -> Result<()> {
-    for pkg in unparsed_pkgs {
-        let mut resolver = Resolver::default();
-        let pkg_name = pkg.package_id.package_name();
-        let ingested = resolver
-            .push_then_resolve(pkg)
-            .with_context(|| format!("failed to start resolving path: {}", src.path.display()))?;
-
-        match explicit_pkg_names.get(&pkg_name) {
-            Some(_) => bail!(
-                "colliding explicit package names, multiple packages named `{}`",
-                pkg_name
-            ),
-            None => explicit_pkg_names.insert(pkg_name),
-        };
-
-        if let Some(unresolved) = ingested {
-            parsed_pkgs.push(unresolved);
-        }
-    }
-    Ok(())
 }
 
 impl SourceMap {
@@ -1689,13 +1722,18 @@ impl SourceMap {
         self.offset = new_offset;
     }
 
-    /// Parses the files added to this source map into one or more [`UnresolvedPackage`]s.
+    /// Parses the files added to this source map into a
+    /// [`UnresolvedPackageGroup`].
     pub fn parse(self) -> Result<UnresolvedPackageGroup> {
-        let mut resolver_kind = ResolverKind::Unknown;
-        let parsed_pkgs = self.rewrite_error(|| {
-            let mut explicit_pkg_names: HashSet<crate::PackageName> = HashSet::new();
+        let mut nested = Vec::new();
+        let main = self.rewrite_error(|| {
+            let mut resolver = Resolver::default();
             let mut srcs = self.sources.iter().collect::<Vec<_>>();
             srcs.sort_by_key(|src| &src.path);
+
+            // Parse each source file individually. A tokenizer is created here
+            // form settings and then `PackageFile` is used to parse the whole
+            // stream of tokens.
             for src in srcs {
                 let mut tokens = Tokenizer::new(
                     // chop off the forcibly appended `\n` character when
@@ -1706,53 +1744,44 @@ impl SourceMap {
                     self.require_f32_f64,
                 )
                 .with_context(|| format!("failed to tokenize path: {}", src.path.display()))?;
+                let mut file = PackageFile::parse(&mut tokens)?;
 
-                match Ast::parse(&mut tokens)? {
-                    Ast::ExplicitPackages(pkgs) => {
-                        match &mut resolver_kind {
-                            ResolverKind::Unknown => {
-                                let mut parsed_pkgs = Vec::new();
-                                parse_package(pkgs, src, &mut explicit_pkg_names, &mut parsed_pkgs)?;
-                                resolver_kind = ResolverKind::Explicit(parsed_pkgs);
-                            },
-                            ResolverKind::Explicit(parsed_pkgs) => {
-                                parse_package(pkgs, src, &mut explicit_pkg_names, parsed_pkgs)?;
-                            },
-                            ResolverKind::PartialImplicit(_) => bail!("WIT files cannot mix top-level explicit `package` declarations with other declaration kinds"),
+                // Filter out any nested packages and resolve them separately.
+                // Nested packages have only a single "file" so only one item
+                // is pushed into a `Resolver`. Note that a nested `Resolver`
+                // is used here, not the outer one.
+                //
+                // Note that filtering out `Package` items is required due to
+                // how the implementation of disallowing nested packages in
+                // nested packages currently works.
+                for item in mem::take(&mut file.decl_list.items) {
+                    match item {
+                        AstItem::Package(nested_pkg) => {
+                            let mut resolve = Resolver::default();
+                            resolve.push(nested_pkg).with_context(|| {
+                                format!(
+                                    "failed to handle nested package in: {}",
+                                    src.path.display()
+                                )
+                            })?;
+
+                            nested.push(resolve.resolve()?);
                         }
-                    }
-                    Ast::PartialImplicitPackage(partial) => {
-                        match &mut resolver_kind {
-                            ResolverKind::Unknown => {
-                                let mut resolver = Resolver::default();
-                                resolver.push_partial(partial).with_context(|| {
-                                    format!("failed to start resolving path: {}", src.path.display())
-                                })?;
-                                resolver_kind = ResolverKind::PartialImplicit(resolver);
-                            },
-                            ResolverKind::Explicit(_) => bail!("WIT files cannot mix top-level explicit `package` declarations with other declaration kinds"),
-                            ResolverKind::PartialImplicit(resolver) => {
-                                resolver.push_partial(partial).with_context(|| {
-                                    format!("failed to start resolving path: {}", src.path.display())
-                                })?;
-                            }
-                        }
+                        other => file.decl_list.items.push(other),
                     }
                 }
-            }
 
-            match resolver_kind {
-                ResolverKind::Unknown => bail!("No WIT packages found in the supplied source"),
-                ResolverKind::Explicit(pkgs) => Ok(pkgs),
-                ResolverKind::PartialImplicit(mut resolver) => match resolver.resolve()? {
-                    Some(pkg) => Ok(vec![pkg]),
-                    None => bail!("No WIT packages found in the supplied source"),
-                },
+                // With nested packages handled push this file into the
+                // resolver.
+                resolver.push(file).with_context(|| {
+                    format!("failed to start resolving path: {}", src.path.display())
+                })?;
             }
+            Ok(resolver.resolve()?)
         })?;
-
         Ok(UnresolvedPackageGroup {
-            packages: parsed_pkgs,
+            main,
+            nested,
             source_map: self,
         })
     }
@@ -1770,6 +1799,8 @@ impl SourceMap {
                 let msg = self.highlight_err(parse.span.start, Some(parse.span.end), &parse.msg);
                 parse.highlighted = Some(msg);
             }
+        }
+        if let Some(_) = err.downcast_mut::<Error>() {
             return Err(err);
         }
 
@@ -1799,14 +1830,10 @@ impl SourceMap {
     }
 
     fn highlight_err(&self, start: u32, end: Option<u32>, err: impl fmt::Display) -> String {
-        let i = match self.sources.binary_search_by_key(&start, |src| src.offset) {
-            Ok(i) => i,
-            Err(i) => i - 1,
-        };
-        let src = &self.sources[i];
-        let start = usize::try_from(start - src.offset).unwrap();
-        let end = end.map(|end| usize::try_from(end - src.offset).unwrap());
-        let (line, col) = linecol_in(start, &src.contents);
+        let src = self.source_for_offset(start);
+        let start = src.to_relative_offset(start);
+        let end = end.map(|end| src.to_relative_offset(end));
+        let (line, col) = src.linecol(start);
         let snippet = src.contents.lines().nth(line).unwrap_or("");
         let mut msg = format!(
             "\
@@ -1829,25 +1856,51 @@ impl SourceMap {
             }
         }
         return msg;
+    }
 
-        fn linecol_in(pos: usize, text: &str) -> (usize, usize) {
-            let mut cur = 0;
-            // Use split_terminator instead of lines so that if there is a `\r`,
-            // it is included in the offset calculation. The `+1` values below
-            // account for the `\n`.
-            for (i, line) in text.split_terminator('\n').enumerate() {
-                if cur + line.len() + 1 > pos {
-                    return (i, pos - cur);
-                }
-                cur += line.len() + 1;
-            }
-            (text.lines().count(), 0)
-        }
+    pub(crate) fn render_location(&self, span: Span) -> String {
+        let src = self.source_for_offset(span.start);
+        let start = src.to_relative_offset(span.start);
+        let (line, col) = src.linecol(start);
+        format!(
+            "{file}:{line}:{col}",
+            file = src.path.display(),
+            line = line + 1,
+            col = col + 1,
+        )
+    }
+
+    fn source_for_offset(&self, start: u32) -> &Source {
+        let i = match self.sources.binary_search_by_key(&start, |src| src.offset) {
+            Ok(i) => i,
+            Err(i) => i - 1,
+        };
+        &self.sources[i]
     }
 
     /// Returns an iterator over all filenames added to this source map.
     pub fn source_files(&self) -> impl Iterator<Item = &Path> {
         self.sources.iter().map(|src| src.path.as_path())
+    }
+}
+
+impl Source {
+    fn to_relative_offset(&self, offset: u32) -> usize {
+        usize::try_from(offset - self.offset).unwrap()
+    }
+
+    fn linecol(&self, relative_offset: usize) -> (usize, usize) {
+        let mut cur = 0;
+        // Use split_terminator instead of lines so that if there is a `\r`,
+        // it is included in the offset calculation. The `+1` values below
+        // account for the `\n`.
+        for (i, line) in self.contents.split_terminator('\n').enumerate() {
+            if cur + line.len() + 1 > relative_offset {
+                return (i, relative_offset - cur);
+            }
+            cur += line.len() + 1;
+        }
+        (self.contents.lines().count(), 0)
     }
 }
 

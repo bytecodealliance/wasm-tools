@@ -137,7 +137,7 @@ impl MiniDFG {
             builder: &mut String,
         ) {
             let entry = &minidfg.entries[entryidx];
-            builder.push_str(&(&preffix).to_string());
+            builder.push_str(preffix);
             let color = get_ansi_term_color(entry.color);
             builder.push_str(
                 format!(
@@ -758,12 +758,12 @@ impl<'a> DFGBuilder {
                 }
 
                 Operator::RefNull {
-                    hty: wasmparser::HeapType::Extern,
+                    hty: wasmparser::HeapType::EXTERN,
                 } => {
                     self.push_node(Lang::RefNull(RefType::Extern), idx);
                 }
                 Operator::RefNull {
-                    hty: wasmparser::HeapType::Func,
+                    hty: wasmparser::HeapType::FUNC,
                 } => {
                     self.push_node(Lang::RefNull(RefType::Func), idx);
                 }

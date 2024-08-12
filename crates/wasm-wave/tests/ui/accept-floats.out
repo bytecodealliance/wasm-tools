@@ -1,0 +1,13 @@
+list-float32(vals: [0, 0, 0, 0, 0, 0, 0])
+list-float32(vals: [-3.1415, -100000, -0])
+list-float32(vals: [nan, inf, -inf])
+// Largest normal f32
+float32(val: 340282350000000000000000000000000000000)
+// Truncated precision
+float32(val: 340282350000000000000000000000000000000)
+// Too large; infinity
+float32(val: inf)
+// Smallest positive non-zero f32
+float32(val: 0.000000000000000000000000000000000000000000001)
+// Too small; round to zero
+float32(val: 0)

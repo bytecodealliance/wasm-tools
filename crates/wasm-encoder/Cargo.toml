@@ -3,7 +3,7 @@ name = "wasm-encoder"
 version.workspace = true
 authors = ["Nick Fitzgerald <fitzgen@gmail.com>"]
 edition.workspace = true
-license = "Apache-2.0 WITH LLVM-exception"
+license.workspace = true
 readme = "README.md"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-encoder"
 homepage = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-encoder"
@@ -12,6 +12,9 @@ description = """
 A low-level WebAssembly encoder.
 """
 rust-version.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
 
 [lints]
 workspace = true

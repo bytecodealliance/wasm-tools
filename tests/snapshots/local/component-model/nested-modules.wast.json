@@ -1,0 +1,27 @@
+{
+  "source_filename": "tests/local/component-model/nested-modules.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "nested-modules.0.wasm"
+    },
+    {
+      "type": "module",
+      "line": 21,
+      "filename": "nested-modules.1.wasm"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 28,
+      "filename": "nested-modules.2.wasm",
+      "text": "type mismatch",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 38,
+      "filename": "nested-modules.3.wasm"
+    }
+  ]
+}

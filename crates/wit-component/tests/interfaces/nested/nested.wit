@@ -1,4 +1,4 @@
-package foo:thing;
+package foo:thing@1.0.0;
 
 interface something {
   //nesting can be documented

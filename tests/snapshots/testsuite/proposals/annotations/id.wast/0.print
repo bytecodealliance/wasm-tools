@@ -12,13 +12,13 @@
   (func (;5;) (type 0)
     call $!?@#a$%^&*b-+_.:9'`|/\<=>~
   )
-  (func $#func6<_random_____stuff_> (@name " random \t \n stuff ") (;6;) (type 0))
+  (func $" random \u{9} \u{a} stuff " (;6;) (type 0))
   (func (;7;) (type 0)
-    call $#func6<_random_____stuff_>
+    call $" random \u{9} \u{a} stuff "
   )
-  (func $#func8<___> (@name " ") (;8;) (type 0))
+  (func $" \u{f61a}\u{f4a9}" (;8;) (type 0))
   (func (;9;) (type 0)
-    call $#func8<___>
+    call $" \u{f61a}\u{f4a9}"
   )
   (func $fh (;10;) (type 0))
   (func (;11;) (type 0)
@@ -39,15 +39,15 @@
     call $AB
     call $AB
   )
-  (func $#func18<_> (@name "\t") (;18;) (type 0))
+  (func $"\u{9}" (;18;) (type 0))
   (func (;19;) (type 0)
-    call $#func18<_>
-    call $#func18<_>
+    call $"\u{9}"
+    call $"\u{9}"
   )
-  (func $#func20<__> (@name "") (;20;) (type 0))
+  (func $"\u{f61a}\u{f4a9}" (;20;) (type 0))
   (func (;21;) (type 0)
-    call $#func20<__>
-    call $#func20<__>
+    call $"\u{f61a}\u{f4a9}"
+    call $"\u{f61a}\u{f4a9}"
   )
   (func (;22;) (type 0)
     block $l1
@@ -64,11 +64,11 @@
     else
     end
     i32.const 0
-    if $#label4<_> (@name "\t")
+    if $"\u{9}"
     else
     end
     i32.const 0
-    if $#label5<___> (@name " ")
+    if $"\u{f61a}\u{f4a9} "
     else
     end
   )

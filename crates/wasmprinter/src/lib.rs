@@ -147,8 +147,14 @@ impl State {
 }
 
 struct Naming {
-    identifier: Option<String>,
     name: String,
+    kind: NamingKind,
+}
+
+enum NamingKind {
+    DollarName,
+    DollarQuotedName,
+    SyntheticPrefix(String),
 }
 
 impl Config {
@@ -410,7 +416,7 @@ impl Printer<'_, '_> {
                     if len == 1 {
                         if let Some(name) = state.name.as_ref() {
                             self.result.write_str(" ")?;
-                            name.write(self.result)?;
+                            name.write(self)?;
                         }
                     }
                 }
@@ -745,9 +751,9 @@ impl Printer<'_, '_> {
         )?;
         let ty = match ty {
             CoreType::Sub(ty) => {
-                let ty = match &ty.composite_type {
-                    CompositeType::Func(f) => f,
-                    CompositeType::Array(_) | CompositeType::Struct(_) => {
+                let ty = match &ty.composite_type.inner {
+                    CompositeInnerType::Func(f) => f,
+                    CompositeInnerType::Array(_) | CompositeInnerType::Struct(_) => {
                         unreachable!("Wasm GC types cannot appear in components yet")
                     }
                 };
@@ -755,10 +761,14 @@ impl Printer<'_, '_> {
                 self.start_group("func")?;
                 self.print_func_type(states.last().unwrap(), &ty, None)?;
                 self.end_group()?;
+                let composite_type = CompositeType {
+                    inner: CompositeInnerType::Func(ty.clone()),
+                    shared: false,
+                };
                 Some(SubType {
                     is_final: true,
                     supertype_idx: None,
-                    composite_type: CompositeType::Func(ty.clone()),
+                    composite_type,
                 })
             }
             CoreType::Module(decls) => {
@@ -812,26 +822,32 @@ impl Printer<'_, '_> {
     }
 
     fn print_composite(&mut self, state: &State, ty: &CompositeType, ty_idx: u32) -> Result<u32> {
-        let r = match &ty {
-            CompositeType::Func(ty) => {
+        if ty.shared {
+            self.start_group("shared")?;
+        }
+        let r = match &ty.inner {
+            CompositeInnerType::Func(ty) => {
                 self.start_group("func")?;
                 let r = self.print_func_type(state, ty, None)?;
                 self.end_group()?; // `func`
                 r
             }
-            CompositeType::Array(ty) => {
+            CompositeInnerType::Array(ty) => {
                 self.start_group("array")?;
                 let r = self.print_array_type(state, ty)?;
                 self.end_group()?; // `array`
                 r
             }
-            CompositeType::Struct(ty) => {
+            CompositeInnerType::Struct(ty) => {
                 self.start_group("struct")?;
                 let r = self.print_struct_type(state, ty, ty_idx)?;
                 self.end_group()?; // `struct`
                 r
             }
         };
+        if ty.shared {
+            self.end_group()?; // `shared`
+        }
         Ok(r)
     }
 
@@ -875,7 +891,11 @@ impl Printer<'_, '_> {
 
         match state.core.types.get(idx as usize) {
             Some(Some(SubType {
-                composite_type: CompositeType::Func(ty),
+                composite_type:
+                    CompositeType {
+                        inner: CompositeInnerType::Func(ty),
+                        shared: false,
+                    },
                 ..
             })) => self.print_func_type(state, ty, names_for).map(Some),
             Some(Some(_)) | Some(None) | None => Ok(None),
@@ -899,7 +919,7 @@ impl Printer<'_, '_> {
         // we need to be careful to terminate previous param blocks and open
         // a new one if that's the case with a named parameter.
         for (i, param) in ty.params().iter().enumerate() {
-            params.start_local(names_for.unwrap_or(u32::MAX), i as u32, self, state)?;
+            params.start_local(names_for, i as u32, self, state)?;
             self.print_valtype(state, *param)?;
             params.end_local(self)?;
         }
@@ -925,7 +945,10 @@ impl Printer<'_, '_> {
         self.result.write_str(" ")?;
         if let Some(idxs @ (_, field_idx)) = ty_field_idx {
             match state.core.field_names.index_to_name.get(&idxs) {
-                Some(name) => write!(self.result, "${} ", name.identifier())?,
+                Some(name) => {
+                    name.write_identifier(self)?;
+                    self.result.write_str(" ")?;
+                }
                 None if self.config.name_unnamed => write!(self.result, "$#field{field_idx} ")?,
                 None => {}
             }
@@ -1018,20 +1041,31 @@ impl Printer<'_, '_> {
 
     fn print_heaptype(&mut self, state: &State, ty: HeapType) -> Result<()> {
         match ty {
-            HeapType::Func => self.print_type_keyword("func")?,
-            HeapType::Extern => self.print_type_keyword("extern")?,
-            HeapType::Any => self.print_type_keyword("any")?,
-            HeapType::None => self.print_type_keyword("none")?,
-            HeapType::NoExtern => self.print_type_keyword("noextern")?,
-            HeapType::NoFunc => self.print_type_keyword("nofunc")?,
-            HeapType::Eq => self.print_type_keyword("eq")?,
-            HeapType::Struct => self.print_type_keyword("struct")?,
-            HeapType::Array => self.print_type_keyword("array")?,
-            HeapType::I31 => self.print_type_keyword("i31")?,
-            HeapType::Exn => self.print_type_keyword("exn")?,
-            HeapType::NoExn => self.print_type_keyword("noexn")?,
             HeapType::Concrete(i) => {
                 self.print_idx(&state.core.type_names, i.as_module_index().unwrap())?;
+            }
+            HeapType::Abstract { shared, ty } => {
+                use AbstractHeapType::*;
+                if shared {
+                    self.start_group("shared ")?;
+                }
+                match ty {
+                    Func => self.print_type_keyword("func")?,
+                    Extern => self.print_type_keyword("extern")?,
+                    Any => self.print_type_keyword("any")?,
+                    None => self.print_type_keyword("none")?,
+                    NoExtern => self.print_type_keyword("noextern")?,
+                    NoFunc => self.print_type_keyword("nofunc")?,
+                    Eq => self.print_type_keyword("eq")?,
+                    Struct => self.print_type_keyword("struct")?,
+                    Array => self.print_type_keyword("array")?,
+                    I31 => self.print_type_keyword("i31")?,
+                    Exn => self.print_type_keyword("exn")?,
+                    NoExn => self.print_type_keyword("noexn")?,
+                }
+                if shared {
+                    self.end_group()?;
+                }
             }
         }
         Ok(())
@@ -1095,6 +1129,9 @@ impl Printer<'_, '_> {
         if index {
             self.print_name(&state.core.table_names, state.core.tables)?;
             self.result.write_str(" ")?;
+        }
+        if ty.shared {
+            self.print_type_keyword("shared ")?;
         }
         if ty.table64 {
             self.print_type_keyword("i64 ")?;
@@ -1298,7 +1335,7 @@ impl Printer<'_, '_> {
                     self.newline(offset)?;
                     first = false;
                 }
-                locals.start_local(func_idx, params + local_idx, self, state)?;
+                locals.start_local(Some(func_idx), params + local_idx, self, state)?;
                 self.print_valtype(state, ty)?;
                 locals.end_local(self)?;
                 local_idx += 1;
@@ -1318,10 +1355,12 @@ impl Printer<'_, '_> {
                     branch_hints = rest;
                     op_printer.printer.newline(*hint_offset)?;
                     let desc = if hint.taken { "\"\\01\"" } else { "\"\\00\"" };
+                    op_printer.printer.result.start_comment()?;
                     write!(
                         op_printer.printer.result,
                         "(@metadata.code.branch_hint {desc})",
                     )?;
+                    op_printer.printer.result.reset_color()?;
                 }
             }
 
@@ -1440,7 +1479,7 @@ impl Printer<'_, '_> {
     fn _print_idx(&mut self, names: &HashMap<u32, Naming>, idx: u32, desc: &str) -> Result<()> {
         self.result.start_name()?;
         match names.get(&idx) {
-            Some(name) => write!(self.result, "${}", name.identifier())?,
+            Some(name) => name.write_identifier(self)?,
             None if self.config.name_unnamed => write!(self.result, "$#{desc}{idx}")?,
             None => write!(self.result, "{idx}")?,
         }
@@ -1451,7 +1490,7 @@ impl Printer<'_, '_> {
     fn print_local_idx(&mut self, state: &State, func: u32, idx: u32) -> Result<()> {
         self.result.start_name()?;
         match state.core.local_names.index_to_name.get(&(func, idx)) {
-            Some(name) => write!(self.result, "${}", name.identifier())?,
+            Some(name) => name.write_identifier(self)?,
             None if self.config.name_unnamed => write!(self.result, "$#local{idx}")?,
             None => write!(self.result, "{}", idx)?,
         }
@@ -1462,7 +1501,7 @@ impl Printer<'_, '_> {
     fn print_field_idx(&mut self, state: &State, ty: u32, idx: u32) -> Result<()> {
         self.result.start_name()?;
         match state.core.field_names.index_to_name.get(&(ty, idx)) {
-            Some(name) => write!(self.result, "${}", name.identifier())?,
+            Some(name) => name.write_identifier(self)?,
             None if self.config.name_unnamed => write!(self.result, "$#field{idx}")?,
             None => write!(self.result, "{}", idx)?,
         }
@@ -1486,7 +1525,7 @@ impl Printer<'_, '_> {
         self.result.start_name()?;
         match names.get(&cur_idx) {
             Some(name) => {
-                name.write(self.result)?;
+                name.write(self)?;
                 self.result.write_str(" ")?;
             }
             None if self.config.name_unnamed => {
@@ -1514,9 +1553,10 @@ impl Printer<'_, '_> {
                 } => {
                     let table_index = table_index.unwrap_or(0);
                     if table_index != 0 {
-                        self.result.write_str(" (table ")?;
+                        self.result.write_str(" ")?;
+                        self.start_group("table ")?;
                         self.print_idx(&state.core.table_names, table_index)?;
-                        self.result.write_str(")")?;
+                        self.end_group()?;
                     }
                     self.result.write_str(" ")?;
                     self.print_const_expr_sugar(state, offset_expr, "offset")?;
@@ -1563,9 +1603,10 @@ impl Printer<'_, '_> {
                     offset_expr,
                 } => {
                     if *memory_index != 0 {
-                        self.result.write_str("(memory ")?;
+                        self.start_group("memory ")?;
                         self.print_idx(&state.core.memory_names, *memory_index)?;
-                        self.result.write_str(") ")?;
+                        self.end_group()?;
+                        self.result.write_str(" ")?;
                     }
                     self.print_const_expr_sugar(state, offset_expr, "offset")?;
                     self.result.write_str(" ")?;
@@ -1623,19 +1664,19 @@ impl Printer<'_, '_> {
 
     fn print_primitive_val_type(&mut self, ty: &PrimitiveValType) -> Result<()> {
         match ty {
-            PrimitiveValType::Bool => self.result.write_str("bool")?,
-            PrimitiveValType::S8 => self.result.write_str("s8")?,
-            PrimitiveValType::U8 => self.result.write_str("u8")?,
-            PrimitiveValType::S16 => self.result.write_str("s16")?,
-            PrimitiveValType::U16 => self.result.write_str("u16")?,
-            PrimitiveValType::S32 => self.result.write_str("s32")?,
-            PrimitiveValType::U32 => self.result.write_str("u32")?,
-            PrimitiveValType::S64 => self.result.write_str("s64")?,
-            PrimitiveValType::U64 => self.result.write_str("u64")?,
-            PrimitiveValType::F32 => self.result.write_str("f32")?,
-            PrimitiveValType::F64 => self.result.write_str("f64")?,
-            PrimitiveValType::Char => self.result.write_str("char")?,
-            PrimitiveValType::String => self.result.write_str("string")?,
+            PrimitiveValType::Bool => self.print_type_keyword("bool")?,
+            PrimitiveValType::S8 => self.print_type_keyword("s8")?,
+            PrimitiveValType::U8 => self.print_type_keyword("u8")?,
+            PrimitiveValType::S16 => self.print_type_keyword("s16")?,
+            PrimitiveValType::U16 => self.print_type_keyword("u16")?,
+            PrimitiveValType::S32 => self.print_type_keyword("s32")?,
+            PrimitiveValType::U32 => self.print_type_keyword("u32")?,
+            PrimitiveValType::S64 => self.print_type_keyword("s64")?,
+            PrimitiveValType::U64 => self.print_type_keyword("u64")?,
+            PrimitiveValType::F32 => self.print_type_keyword("f32")?,
+            PrimitiveValType::F64 => self.print_type_keyword("f64")?,
+            PrimitiveValType::Char => self.print_type_keyword("char")?,
+            PrimitiveValType::String => self.print_type_keyword("string")?,
         }
         Ok(())
     }
@@ -1896,7 +1937,7 @@ impl Printer<'_, '_> {
         let outer = Self::outer_state(states, count)?;
         self.start_group("alias outer ")?;
         if let Some(name) = outer.name.as_ref() {
-            name.write(self.result)?;
+            name.write(self)?;
         } else {
             write!(self.result, "{count}")?;
         }
@@ -1974,14 +2015,17 @@ impl Printer<'_, '_> {
             }
             ComponentType::Resource { rep, dtor } => {
                 self.result.write_str(" ")?;
-                self.start_group("resource")?;
-                self.result.write_str(" (rep ")?;
+                self.start_group("resource ")?;
+                self.start_group("rep ")?;
                 self.print_valtype(states.last().unwrap(), rep)?;
-                self.result.write_str(")")?;
+                self.end_group()?;
                 if let Some(dtor) = dtor {
-                    self.result.write_str(" (dtor (func ")?;
+                    self.result.write_str(" ")?;
+                    self.start_group("dtor ")?;
+                    self.start_group("func ")?;
                     self.print_idx(&states.last().unwrap().core.func_names, dtor)?;
-                    self.result.write_str("))")?;
+                    self.end_group()?;
+                    self.end_group()?;
                 }
                 self.end_group()?;
             }
@@ -2076,7 +2120,7 @@ impl Printer<'_, '_> {
                 self.end_group()?;
             }
             ComponentTypeRef::Type(bounds) => {
-                self.result.write_str("(type ")?;
+                self.start_group("type ")?;
                 if index {
                     self.print_name(&state.component.type_names, state.component.types)?;
                     self.result.write_str(" ")?;
@@ -2084,15 +2128,17 @@ impl Printer<'_, '_> {
                 }
                 match bounds {
                     TypeBounds::Eq(idx) => {
-                        self.result.write_str("(eq ")?;
+                        self.start_group("eq ")?;
                         self.print_idx(&state.component.type_names, *idx)?;
-                        self.result.write_str(")")?;
+                        self.end_group()?;
                     }
                     TypeBounds::SubResource => {
-                        self.result.write_str("(sub resource)")?;
+                        self.start_group("sub ")?;
+                        self.print_type_keyword("resource")?;
+                        self.end_group()?;
                     }
                 };
-                self.result.write_str(")")?;
+                self.end_group()?;
             }
             ComponentTypeRef::Instance(idx) => {
                 self.start_group("instance ")?;
@@ -2572,7 +2618,7 @@ impl Printer<'_, '_> {
                 let outer = Self::outer_state(states, count)?;
                 self.start_group("alias outer ")?;
                 if let Some(name) = outer.name.as_ref() {
-                    name.write(self.result)?;
+                    name.write(self)?;
                 } else {
                     write!(self.result, "{count}")?;
                 }
@@ -2623,20 +2669,22 @@ impl Printer<'_, '_> {
 
     fn print_str(&mut self, name: &str) -> Result<()> {
         self.result.start_literal()?;
-        let mut bytes = [0; 4];
         self.result.write_str("\"")?;
+        self.print_str_contents(name)?;
+        self.result.write_str("\"")?;
+        self.result.reset_color()?;
+        Ok(())
+    }
+
+    fn print_str_contents(&mut self, name: &str) -> Result<()> {
         for c in name.chars() {
             let v = c as u32;
             if (0x20..0x7f).contains(&v) && c != '"' && c != '\\' && v < 0xff {
                 write!(self.result, "{c}")?;
             } else {
-                for byte in c.encode_utf8(&mut bytes).as_bytes() {
-                    self.hex_byte(*byte)?;
-                }
+                write!(self.result, "\\u{{{v:x}}}",)?;
             }
         }
-        self.result.write_str("\"")?;
-        self.result.reset_color()?;
         Ok(())
     }
 
@@ -2866,12 +2914,16 @@ impl NamedLocalPrinter {
 
     fn start_local(
         &mut self,
-        func: u32,
+        func: Option<u32>,
         local: u32,
         dst: &mut Printer,
         state: &State,
     ) -> Result<()> {
-        let name = state.core.local_names.index_to_name.get(&(func, local));
+        let name = state
+            .core
+            .local_names
+            .index_to_name
+            .get(&(func.unwrap_or(u32::MAX), local));
 
         // Named locals must be in their own group, so if we have a name we need
         // to terminate the previous group.
@@ -2897,11 +2949,11 @@ impl NamedLocalPrinter {
         // Print the optional name if given...
         match name {
             Some(name) => {
-                name.write(dst.result)?;
+                name.write(dst)?;
                 dst.result.write_str(" ")?;
                 self.end_group_after_local = true;
             }
-            None if dst.config.name_unnamed => {
+            None if dst.config.name_unnamed && func.is_some() => {
                 write!(dst.result, "$#local{local} ")?;
                 self.end_group_after_local = true;
             }
@@ -3037,7 +3089,10 @@ impl Naming {
         group: &str,
         used: Option<&mut HashSet<&'a str>>,
     ) -> Naming {
-        let mut identifier = None;
+        let mut kind = NamingKind::DollarName;
+        if name.chars().any(|c| !is_idchar(c)) {
+            kind = NamingKind::DollarQuotedName;
+        }
 
         // If the `name` provided can't be used as the raw identifier for the
         // item that it's describing then a synthetic name must be made. The
@@ -3058,17 +3113,13 @@ impl Naming {
         // valid identifier characters of `name` still appear in the returned
         // name).
         if name.is_empty()
-            || name.chars().any(|c| !is_idchar(c))
             || name.starts_with('#')
             || used.map(|set| !set.insert(name)).unwrap_or(false)
         {
-            let mut id = format!("#{group}{index}<");
-            id.extend(name.chars().map(|c| if is_idchar(c) { c } else { '_' }));
-            id.push('>');
-            identifier = Some(id);
+            kind = NamingKind::SyntheticPrefix(format!("#{group}{index}"));
         }
         return Naming {
-            identifier,
+            kind,
             name: name.to_string(),
         };
 
@@ -3106,37 +3157,39 @@ impl Naming {
         }
     }
 
-    fn identifier(&self) -> &str {
-        match &self.identifier {
-            Some(s) => s,
-            None => &self.name,
+    fn write_identifier(&self, printer: &mut Printer<'_, '_>) -> Result<()> {
+        match &self.kind {
+            NamingKind::DollarName => {
+                printer.result.write_str("$")?;
+                printer.result.write_str(&self.name)?;
+            }
+            NamingKind::DollarQuotedName => {
+                printer.result.write_str("$\"")?;
+                printer.print_str_contents(&self.name)?;
+                printer.result.write_str("\"")?;
+            }
+            NamingKind::SyntheticPrefix(prefix) => {
+                printer.result.write_str("$\"")?;
+                printer.result.write_str(&prefix)?;
+                printer.result.write_str(" ")?;
+                printer.print_str_contents(&self.name)?;
+                printer.result.write_str("\"")?;
+            }
         }
+        Ok(())
     }
 
-    fn write(&self, dst: &mut dyn Print) -> Result<()> {
-        match &self.identifier {
-            Some(alternate) => {
-                assert!(*alternate != self.name);
-                write!(dst, "${alternate} (@name \"")?;
-                // https://webassembly.github.io/spec/core/text/values.html#text-string
-                for c in self.name.chars() {
-                    match c {
-                        '\t' => write!(dst, "\\t")?,
-                        '\n' => write!(dst, "\\n")?,
-                        '\r' => write!(dst, "\\r")?,
-                        '"' => write!(dst, "\\\"")?,
-                        '\'' => write!(dst, "\\'")?,
-                        '\\' => write!(dst, "\\\\")?,
-                        c if (c as u32) < 0x20 || c as u32 == 0x7f => {
-                            write!(dst, "\\u{{{:x}}}", c as u32)?;
-                        }
-                        other => write!(dst, "{other}")?,
-                    }
-                }
-                write!(dst, "\")")?;
-            }
-            None => {
-                write!(dst, "${}", self.name)?;
+    fn write(&self, dst: &mut Printer<'_, '_>) -> Result<()> {
+        self.write_identifier(dst)?;
+        match &self.kind {
+            NamingKind::DollarName | NamingKind::DollarQuotedName => {}
+
+            NamingKind::SyntheticPrefix(_) => {
+                dst.result.write_str(" ")?;
+                dst.start_group("@name \"")?;
+                dst.print_str_contents(&self.name)?;
+                dst.result.write_str("\"")?;
+                dst.end_group()?;
             }
         }
         Ok(())
