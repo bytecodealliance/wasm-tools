@@ -1922,6 +1922,7 @@ impl ComponentEncoder {
     /// core module.
     pub fn module(mut self, module: &[u8]) -> Result<Self> {
         let (wasm, metadata) = metadata::decode(module)?;
+        let wasm = wasm.as_deref().unwrap_or(module);
         let world = self
             .metadata
             .merge(metadata)
@@ -1931,7 +1932,7 @@ impl ComponentEncoder {
         self.module = if let Some(producers) = &self.metadata.producers {
             producers.add_to_wasm(&wasm)?
         } else {
-            wasm
+            wasm.to_vec()
         };
         Ok(self)
     }
@@ -1986,6 +1987,7 @@ impl ComponentEncoder {
         library_info: Option<LibraryInfo>,
     ) -> Result<Self> {
         let (wasm, metadata) = metadata::decode(bytes)?;
+        let wasm = wasm.as_deref().unwrap_or(bytes);
         // Merge the adapter's document into our own document to have one large
         // document, and then afterwards merge worlds as well.
         //
@@ -2041,7 +2043,7 @@ impl ComponentEncoder {
         self.adapters.insert(
             name.to_string(),
             Adapter {
-                wasm,
+                wasm: wasm.to_vec(),
                 metadata: metadata.metadata,
                 required_exports: exports,
                 library_info,

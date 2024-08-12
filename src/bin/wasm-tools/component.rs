@@ -574,7 +574,15 @@ impl WitOpts {
                 if wasmparser::Parser::is_component(&input) {
                     wit_component::decode(&input)
                 } else {
-                    let (_wasm, bindgen) = wit_component::metadata::decode(&input)?;
+                    let (wasm, bindgen) = wit_component::metadata::decode(&input)?;
+                    if wasm.is_none() {
+                        bail!(
+                            "input is a core wasm module with no `component-type*` \
+                             custom sections meaning that there is not WIT information; \
+                             is the information not embedded or is this supposed \
+                             to be a component?"
+                        )
+                    }
                     Ok(DecodedWasm::Component(bindgen.resolve, bindgen.world))
                 }
             }

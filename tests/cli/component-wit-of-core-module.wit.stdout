@@ -1,0 +1,14 @@
+package root:root;
+
+world root {
+  import x: func();
+
+  export y: func();
+}
+package a:b {
+  world foo {
+    import x: func();
+
+    export y: func();
+  }
+}

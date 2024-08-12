@@ -1,0 +1,8 @@
+// RUN: component embed --dummy % | component wit
+
+package a:b;
+
+world foo {
+  import x: func();
+  export y: func();
+}
