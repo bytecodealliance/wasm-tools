@@ -663,7 +663,7 @@ impl Module {
         };
         if !features.shared_everything_threads() && ty.shared {
             return Err(BinaryReaderError::new(
-                "shared composite types are not supported without the shared-everything-threads feature",
+                "shared composite types require the shared-everything-threads proposal",
                 offset,
             ));
         }

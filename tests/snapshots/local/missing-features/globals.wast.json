@@ -21,27 +21,6 @@
       "filename": "globals.2.wasm",
       "text": "global.get of locally defined global",
       "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 25,
-      "filename": "globals.3.wasm",
-      "text": "shared globals require the shared-everything-threads proposal",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 31,
-      "filename": "globals.4.wasm",
-      "text": "shared globals require the shared-everything-threads proposal",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 37,
-      "filename": "globals.5.wasm",
-      "text": "shared-everything-threads support is not enabled",
-      "module_type": "binary"
     }
   ]
 }
