@@ -2723,8 +2723,27 @@ where
         Ok(())
     }
     fn visit_ref_eq(&mut self) -> Self::Output {
-        self.pop_operand(Some(RefType::EQ.nullable().into()))?;
-        self.pop_operand(Some(RefType::EQ.nullable().into()))?;
+        match (self.pop_ref()?, self.pop_ref()?) {
+            (Some(a), Some(b)) => {
+                const EQREF: RefType = RefType::EQ.nullable();
+                let shared_eqref = EQREF.shared().expect("eq is abstract");
+                if a != EQREF && a != shared_eqref {
+                    bail!(
+                        self.offset,
+                        "type mismatch: expected `{}` or `{}`",
+                        EQREF,
+                        shared_eqref
+                    );
+                }
+                if a != b {
+                    bail!(
+                        self.offset,
+                        "type mismatch: expected `ref.eq` types to match"
+                    );
+                }
+            }
+            _ => {}
+        }
         self.push_operand(ValType::I32)
     }
     fn visit_v128_load(&mut self, memarg: MemArg) -> Self::Output {

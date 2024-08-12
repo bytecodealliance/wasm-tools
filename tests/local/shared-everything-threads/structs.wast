@@ -91,7 +91,15 @@
     (struct.set $i8 0 (local.get 0) (i32.const 0)))
 )
 
-;; Check struct.atomic.rmw.* instructions
+;; Bottom types can be used as shared structs.
+(module
+  (type $i8 (shared (struct (field (mut i8)))))
+  (func (drop (struct.get_s $i8 0 (ref.null (shared none)))))
+  (func (drop (struct.get_u $i8 0 (ref.null (shared none)))))
+  (func (struct.set $i8 0 (ref.null (shared none)) (i32.const 0)))
+)
+
+;; Exhaustively check `struct.atomic.rmw.*` instructions.
 (module
   (type $s (shared (struct
     (field $i8 (mut i8))
