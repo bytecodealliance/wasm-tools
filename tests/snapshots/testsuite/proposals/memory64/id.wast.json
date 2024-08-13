@@ -1,0 +1,52 @@
+{
+  "source_filename": "tests/testsuite/proposals/memory64/id.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "id.0.wasm"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 26,
+      "filename": "id.1.wat",
+      "text": "empty identifier",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 27,
+      "filename": "id.2.wat",
+      "text": "empty identifier",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 28,
+      "filename": "id.3.wat",
+      "text": "empty identifier",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 29,
+      "filename": "id.4.wat",
+      "text": "empty identifier",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 30,
+      "filename": "id.5.wat",
+      "text": "empty identifier",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 31,
+      "filename": "id.6.wat",
+      "text": "malformed UTF-8",
+      "module_type": "text"
+    }
+  ]
+}

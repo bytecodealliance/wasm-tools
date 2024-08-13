@@ -615,7 +615,14 @@ impl TestState {
                 "exception-handling" => features.insert(WasmFeatures::EXCEPTIONS),
                 "legacy-exceptions" => features.insert(WasmFeatures::LEGACY_EXCEPTIONS),
                 "tail-call" => features.insert(WasmFeatures::TAIL_CALL),
-                "memory64" => features.insert(WasmFeatures::MEMORY64),
+                "memory64" => features.insert(
+                    WasmFeatures::MEMORY64
+                        | WasmFeatures::GC
+                        | WasmFeatures::REFERENCE_TYPES
+                        | WasmFeatures::MULTI_MEMORY
+                        | WasmFeatures::FUNCTION_REFERENCES
+                        | WasmFeatures::EXCEPTIONS,
+                ),
                 "component-model" => features.insert(WasmFeatures::COMPONENT_MODEL),
                 "shared-everything-threads" => {
                     features.insert(WasmFeatures::COMPONENT_MODEL);
@@ -761,7 +768,9 @@ fn error_matches(error: &str, message: &str) -> bool {
     }
 
     if message == "unexpected content after last section" {
-        return error.contains("section out of order");
+        return error.contains("section out of order")
+            || error.contains("function and code section have inconsistent lengths")
+            || error.contains("type index out of bounds");
     }
 
     if message == "malformed limits flags" {
@@ -770,6 +779,10 @@ fn error_matches(error: &str, message: &str) -> bool {
             // These tests need to be updated for the new limits flags in the
             // custom-page-sizes-proposal.
             || error.contains("unexpected end-of-file");
+    }
+
+    if message == "malformed memop flags" {
+        return error.contains("malformed memop alignment");
     }
 
     // Our error for these tests is happening as a parser error of

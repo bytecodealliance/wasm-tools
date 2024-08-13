@@ -885,6 +885,63 @@
           ]
         }
       ]
+    },
+    {
+      "type": "module",
+      "line": 208,
+      "filename": "relaxed_madd_nmadd.1.wasm"
+    },
+    {
+      "type": "assert_return",
+      "line": 220,
+      "action": {
+        "type": "invoke",
+        "field": "test-consistent-nondeterminism",
+        "args": [
+          {
+            "type": "v128",
+            "lane_type": "f32",
+            "value": [
+              "2139095039",
+              "2139095039",
+              "2139095039",
+              "2139095039"
+            ]
+          },
+          {
+            "type": "v128",
+            "lane_type": "f32",
+            "value": [
+              "1073741824",
+              "1073741824",
+              "1073741824",
+              "1073741824"
+            ]
+          },
+          {
+            "type": "v128",
+            "lane_type": "f32",
+            "value": [
+              "4286578687",
+              "4286578687",
+              "4286578687",
+              "4286578687"
+            ]
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "v128",
+          "lane_type": "i32",
+          "value": [
+            "-1",
+            "-1",
+            "-1",
+            "-1"
+          ]
+        }
+      ]
     }
   ]
 }

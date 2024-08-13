@@ -1,0 +1,12 @@
+(module $Mgm
+  (type (;0;) (func (result i32)))
+  (func (;0;) (type 0) (result i32)
+    i32.const 1
+    memory.grow $m
+  )
+  (memory (;0;) 0)
+  (memory (;1;) 0)
+  (memory $m (;2;) 1)
+  (export "memory" (memory $m))
+  (export "grow" (func 0))
+)

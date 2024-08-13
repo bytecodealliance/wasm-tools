@@ -1,0 +1,24 @@
+{
+  "source_filename": "tests/testsuite/proposals/memory64/table-sub.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "table-sub.0.wasm"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 13,
+      "filename": "table-sub.1.wasm",
+      "text": "type mismatch",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 24,
+      "filename": "table-sub.2.wasm",
+      "text": "type mismatch",
+      "module_type": "binary"
+    }
+  ]
+}
