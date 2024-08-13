@@ -749,7 +749,7 @@ where
         if memarg.align > memarg.max_align {
             bail!(
                 self.offset,
-                "malformed memop flags: alignment must not be larger than natural"
+                "malformed memop alignment: alignment must not be larger than natural"
             );
         }
         if index_ty == ValType::I32 && memarg.offset > u64::from(u32::MAX) {
@@ -1464,6 +1464,7 @@ where
         for ty in self.params(ty.ty)?.rev() {
             self.pop_operand(Some(ty))?;
         }
+        let exn_type = ValType::from(RefType::EXN);
         for catch in ty.catches {
             match catch {
                 Catch::One { tag, label } => {
@@ -1495,7 +1496,7 @@ where
                         );
                     }
                     for (expected_label_tyep, actual_tag_param) in
-                        label_types.zip(tag_params.chain([ValType::EXNREF]))
+                        label_types.zip(tag_params.chain([exn_type]))
                     {
                         self.push_operand(actual_tag_param)?;
                         self.pop_operand(Some(expected_label_tyep))?;
@@ -1515,15 +1516,22 @@ where
                 Catch::AllRef { label } => {
                     let (ty, kind) = self.jump(label)?;
                     let mut types = self.label_types(ty, kind)?;
-                    match (types.next(), types.next()) {
-                        (Some(ValType::EXNREF), None) => {}
+                    let ty = match (types.next(), types.next()) {
+                        (Some(ty), None) => ty,
                         _ => {
                             bail!(
                                 self.offset,
                                 "type mismatch: catch_all_ref label must have \
-                                 one exnref result type"
+                                 exactly one result type"
                             );
                         }
+                    };
+                    if !self.resources.is_subtype(exn_type, ty) {
+                        bail!(
+                            self.offset,
+                            "type mismatch: catch_all_ref label must a \
+                             subtype of (ref exn)"
+                        );
                     }
                 }
             }

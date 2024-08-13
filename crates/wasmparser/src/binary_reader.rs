@@ -293,7 +293,7 @@ impl<'a> BinaryReader<'a> {
         };
         let align = if flags >= (1 << 6) {
             return Err(BinaryReaderError::new(
-                "malformed memop flags: alignment too large",
+                "malformed memop alignment: alignment too large",
                 flags_pos,
             ));
         } else {
