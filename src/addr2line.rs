@@ -103,10 +103,8 @@ impl<'a> Addr2lineModules<'a> {
         let text_relative_addr = if code_section_relative {
             addr
         } else {
-            match module.code_start {
-                Some(start) => addr
-                    .checked_sub(start)
-                    .context("address is before the beginning of the text section")?,
+            match module.code_start.and_then(|start| addr.checked_sub(start)) {
+                Some(rel) => rel,
                 None => return Ok(None),
             }
         };
