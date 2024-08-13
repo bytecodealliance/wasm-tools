@@ -746,7 +746,7 @@ impl<'a> Module<'a> {
                     func.instruction(&Instruction::Call(lazy_stack_init_index));
                     let mut reader = body.get_operators_reader()?;
                     while !reader.eof() {
-                        map.parse_instruction(&mut func, &mut reader)?;
+                        func.instruction(&map.parse_instruction(&mut reader)?);
                     }
                     code.function(&func);
                 }

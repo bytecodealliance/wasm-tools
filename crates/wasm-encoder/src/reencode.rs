@@ -286,12 +286,11 @@ pub trait Reencode {
     }
 
     /// Parses a single instruction from `reader` and adds it to `function`.
-    fn parse_instruction(
+    fn parse_instruction<'a>(
         &mut self,
-        function: &mut crate::Function,
-        reader: &mut wasmparser::OperatorsReader<'_>,
-    ) -> Result<(), Error<Self::Error>> {
-        utils::parse_instruction(self, function, reader)
+        reader: &mut wasmparser::OperatorsReader<'a>,
+    ) -> Result<crate::Instruction<'a>, Error<Self::Error>> {
+        utils::parse_instruction(self, reader)
     }
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
@@ -570,6 +569,7 @@ impl Reencode for RoundtripReencoder {
 #[allow(missing_docs)] // FIXME
 pub mod utils {
     use super::{Error, Reencode};
+    use crate::Encode;
 
     pub fn parse_core_module<T: ?Sized + Reencode>(
         reencoder: &mut T,
@@ -1574,45 +1574,15 @@ pub mod utils {
         reencoder: &mut T,
         const_expr: wasmparser::ConstExpr,
     ) -> Result<crate::ConstExpr, Error<T::Error>> {
-        let mut ops = const_expr.get_operators_reader().into_iter();
+        let mut ops = const_expr.get_operators_reader();
+        let mut bytes = Vec::new();
 
-        let result = match ops.next() {
-            Some(Ok(wasmparser::Operator::I32Const { value })) => {
-                crate::ConstExpr::i32_const(value)
-            }
-            Some(Ok(wasmparser::Operator::I64Const { value })) => {
-                crate::ConstExpr::i64_const(value)
-            }
-            Some(Ok(wasmparser::Operator::F32Const { value })) => {
-                crate::ConstExpr::f32_const(f32::from_bits(value.bits()))
-            }
-            Some(Ok(wasmparser::Operator::F64Const { value })) => {
-                crate::ConstExpr::f64_const(f64::from_bits(value.bits()))
-            }
-            Some(Ok(wasmparser::Operator::V128Const { value })) => {
-                crate::ConstExpr::v128_const(i128::from_le_bytes(*value.bytes()))
-            }
-            Some(Ok(wasmparser::Operator::RefNull { hty })) => {
-                crate::ConstExpr::ref_null(reencoder.heap_type(hty)?)
-            }
-            Some(Ok(wasmparser::Operator::RefFunc { function_index })) => {
-                crate::ConstExpr::ref_func(reencoder.function_index(function_index))
-            }
-            Some(Ok(wasmparser::Operator::GlobalGet { global_index })) => {
-                crate::ConstExpr::global_get(reencoder.global_index(global_index))
-            }
-
-            // TODO: support the extended-const proposal.
-            Some(Ok(_op)) => return Err(Error::InvalidConstExpr),
-
-            Some(Err(e)) => return Err(Error::ParseError(e)),
-            None => return Err(Error::InvalidConstExpr),
-        };
-
-        match (ops.next(), ops.next()) {
-            (Some(Ok(wasmparser::Operator::End)), None) => Ok(result),
-            _ => Err(Error::InvalidConstExpr),
+        while !ops.is_end_then_eof() {
+            let insn = reencoder.parse_instruction(&mut ops)?;
+            insn.encode(&mut bytes);
         }
+
+        Ok(crate::ConstExpr::raw(bytes))
     }
 
     pub fn block_type<T: ?Sized + Reencode>(
@@ -1736,7 +1706,7 @@ pub mod utils {
         let mut f = reencoder.new_function_with_parsed_locals(&func)?;
         let mut reader = func.get_operators_reader()?;
         while !reader.eof() {
-            reencoder.parse_instruction(&mut f, &mut reader)?;
+            f.instruction(&reencoder.parse_instruction(&mut reader)?);
         }
         code.function(&f);
         Ok(())
@@ -1757,13 +1727,12 @@ pub mod utils {
     }
 
     /// Parses a single instruction from `reader` and adds it to `function`.
-    pub fn parse_instruction<T: ?Sized + Reencode>(
+    pub fn parse_instruction<'a, T: ?Sized + Reencode>(
         reencoder: &mut T,
-        function: &mut crate::Function,
-        reader: &mut wasmparser::OperatorsReader<'_>,
-    ) -> Result<(), Error<T::Error>> {
-        function.instruction(&reencoder.instruction(reader.read()?)?);
-        Ok(())
+        reader: &mut wasmparser::OperatorsReader<'a>,
+    ) -> Result<crate::Instruction<'a>, Error<T::Error>> {
+        let instruction = reencoder.instruction(reader.read()?)?;
+        Ok(instruction)
     }
 
     pub fn parse_unknown_section<T: ?Sized + Reencode>(
