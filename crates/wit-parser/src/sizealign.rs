@@ -247,7 +247,7 @@ impl SizeAlign64 {
             // This shouldn't be used for anything since raw resources aren't part of the ABI -- just handles to
             // them.
             TypeDefKind::Resource => ElementInfo::new(
-                ArchitectureSize::new(usize::MAX, usize::MAX),
+                ArchitectureSize::new(usize::MAX, 0),
                 Alignment::Bytes(NonZeroUsize::new(usize::MAX).unwrap()),
             ),
             TypeDefKind::Unknown => unreachable!(),
@@ -506,5 +506,22 @@ mod test {
             ArchitectureSize::new(12, 0).max(&ArchitectureSize::new(8, 8)),
             ArchitectureSize::new(12, 4)
         );
+
+        {
+            // keep it identical to the old behavior
+            let obj = SizeAlign64::default();
+            let elem = obj.calculate(&TypeDef {
+                name: None,
+                kind: TypeDefKind::Resource,
+                owner: crate::TypeOwner::None,
+                docs: Default::default(),
+                stability: Default::default(),
+            });
+            assert_eq!(elem.size, ArchitectureSize::new(usize::MAX, 0));
+            assert_eq!(
+                elem.align,
+                Alignment::Bytes(NonZeroUsize::new(usize::MAX).unwrap())
+            );
+        }
     }
 }
