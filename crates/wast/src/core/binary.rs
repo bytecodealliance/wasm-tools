@@ -458,12 +458,9 @@ impl<'a> Encode for RefType<'a> {
             // nullable.
             RefType {
                 nullable: true,
-                heap: HeapType::Abstract { shared, ty },
+                heap: heap @ HeapType::Abstract { .. },
             } => {
-                if *shared {
-                    e.push(0x65);
-                }
-                ty.encode(e);
+                heap.encode(e);
             }
 
             // Generic 'ref null <heaptype>' encoding (i.e., long form).

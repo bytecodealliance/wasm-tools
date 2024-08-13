@@ -328,29 +328,34 @@ impl RefType {
 
 impl Encode for RefType {
     fn encode(&self, sink: &mut Vec<u8>) {
-        if self.nullable {
-            // Favor the original encodings of `funcref` and `externref` where
-            // possible.
-            use AbstractHeapType::*;
-            match self.heap_type {
-                HeapType::Abstract {
-                    shared: false,
-                    ty: Func,
-                } => return sink.push(0x70),
-                HeapType::Abstract {
-                    shared: false,
-                    ty: Extern,
-                } => return sink.push(0x6f),
-                _ => {}
+        match self {
+            // Binary abbreviations (i.e., short form), for when the ref is
+            // nullable.
+            RefType {
+                nullable: true,
+                heap_type: heap @ HeapType::Abstract { .. },
+            } => {
+                heap.encode(sink);
+            }
+
+            // Generic 'ref null <heaptype>' encoding (i.e., long form).
+            RefType {
+                nullable: true,
+                heap_type,
+            } => {
+                sink.push(0x63);
+                heap_type.encode(sink);
+            }
+
+            // Generic 'ref <heaptype>' encoding.
+            RefType {
+                nullable: false,
+                heap_type,
+            } => {
+                sink.push(0x64);
+                heap_type.encode(sink);
             }
         }
-
-        if self.nullable {
-            sink.push(0x63);
-        } else {
-            sink.push(0x64);
-        }
-        self.heap_type.encode(sink);
     }
 }
 

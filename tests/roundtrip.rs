@@ -30,6 +30,7 @@ use std::process::{Command, Stdio};
 use std::str;
 use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 use std::sync::Arc;
+use wasm_encoder::reencode::{Reencode, RoundtripReencoder};
 use wasmparser::*;
 use wast::core::{Module, ModuleKind};
 use wast::lexer::Lexer;
@@ -178,6 +179,16 @@ impl TestState {
             self.bump_ntests();
             self.binary_compare(&binary2, contents)
                 .context("failed to compare original `wat` with roundtrip `wat`")?;
+
+            if !wasmparser::Parser::is_component(contents) {
+                let mut reencode = Default::default();
+                RoundtripReencoder
+                    .parse_core_module(&mut reencode, wasmparser::Parser::new(0), contents)
+                    .context("failed to reencode module")?;
+
+                self.binary_compare(&reencode.finish(), contents)
+                    .context("failed to compare reencoded module with original encoding")?;
+            }
         }
 
         // Test that the `wasmprinter`-printed bytes have "pretty" whitespace
@@ -526,8 +537,9 @@ impl TestState {
         dump.stdin.take().unwrap().write_all(bytes)?;
         let mut stdout = String::new();
         dump.stdout.take().unwrap().read_to_string(&mut stdout)?;
-        if dump.wait()?.success() {
-            bail!("dump subcommand failed");
+        let status = dump.wait()?;
+        if !status.success() {
+            bail!("dump subcommand failed: {status}");
         }
         Ok(stdout)
     }
