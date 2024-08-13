@@ -537,8 +537,9 @@ impl TestState {
         dump.stdin.take().unwrap().write_all(bytes)?;
         let mut stdout = String::new();
         dump.stdout.take().unwrap().read_to_string(&mut stdout)?;
-        if dump.wait()?.success() {
-            bail!("dump subcommand failed");
+        let status = dump.wait()?;
+        if !status.success() {
+            bail!("dump subcommand failed: {status}");
         }
         Ok(stdout)
     }
