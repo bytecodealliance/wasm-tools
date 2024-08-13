@@ -1,0 +1,187 @@
+{
+  "source_filename": "tests/testsuite/proposals/memory64/type-equivalence.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 5,
+      "filename": "type-equivalence.0.wasm"
+    },
+    {
+      "type": "module",
+      "line": 16,
+      "filename": "type-equivalence.1.wasm"
+    },
+    {
+      "type": "module",
+      "line": 30,
+      "filename": "type-equivalence.2.wasm"
+    },
+    {
+      "type": "module",
+      "line": 38,
+      "filename": "type-equivalence.3.wasm"
+    },
+    {
+      "type": "module",
+      "line": 49,
+      "filename": "type-equivalence.4.wasm"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 77,
+      "filename": "type-equivalence.5.wasm",
+      "text": "unknown type",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 89,
+      "filename": "type-equivalence.6.wasm"
+    },
+    {
+      "type": "assert_return",
+      "line": 102,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": []
+    },
+    {
+      "type": "module",
+      "line": 107,
+      "filename": "type-equivalence.7.wasm"
+    },
+    {
+      "type": "assert_return",
+      "line": 131,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": []
+    },
+    {
+      "type": "module",
+      "line": 136,
+      "filename": "type-equivalence.8.wasm"
+    },
+    {
+      "type": "assert_return",
+      "line": 156,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": []
+    },
+    {
+      "type": "module",
+      "line": 161,
+      "filename": "type-equivalence.9.wasm"
+    },
+    {
+      "type": "assert_return",
+      "line": 188,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": []
+    },
+    {
+      "type": "module",
+      "line": 195,
+      "filename": "type-equivalence.10.wasm"
+    },
+    {
+      "type": "register",
+      "line": 199,
+      "as": "M"
+    },
+    {
+      "type": "module",
+      "line": 200,
+      "filename": "type-equivalence.11.wasm"
+    },
+    {
+      "type": "module",
+      "line": 208,
+      "filename": "type-equivalence.12.wasm"
+    },
+    {
+      "type": "register",
+      "line": 217,
+      "as": "N"
+    },
+    {
+      "type": "module",
+      "line": 218,
+      "filename": "type-equivalence.13.wasm"
+    },
+    {
+      "type": "module",
+      "line": 233,
+      "filename": "type-equivalence.14.wasm"
+    },
+    {
+      "type": "register",
+      "line": 237,
+      "as": "Mr1"
+    },
+    {
+      "type": "module",
+      "line": 238,
+      "filename": "type-equivalence.15.wasm"
+    },
+    {
+      "type": "module",
+      "line": 246,
+      "filename": "type-equivalence.16.wasm"
+    },
+    {
+      "type": "register",
+      "line": 256,
+      "as": "Mr2"
+    },
+    {
+      "type": "module",
+      "line": 257,
+      "filename": "type-equivalence.17.wasm"
+    },
+    {
+      "type": "module",
+      "line": 268,
+      "filename": "type-equivalence.18.wasm"
+    },
+    {
+      "type": "register",
+      "line": 278,
+      "as": "Mr3"
+    },
+    {
+      "type": "module",
+      "line": 279,
+      "filename": "type-equivalence.19.wasm"
+    },
+    {
+      "type": "module",
+      "line": 290,
+      "filename": "type-equivalence.20.wasm"
+    },
+    {
+      "type": "register",
+      "line": 307,
+      "as": "Mr4"
+    },
+    {
+      "type": "module",
+      "line": 308,
+      "filename": "type-equivalence.21.wasm"
+    }
+  ]
+}

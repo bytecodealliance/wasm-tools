@@ -47,131 +47,330 @@
       "filename": "table.8.wasm"
     },
     {
-      "type": "assert_invalid",
-      "line": 15,
-      "filename": "table.9.wasm",
-      "text": "size minimum must not be greater than maximum",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 19,
-      "filename": "table.10.wasm",
-      "text": "size minimum must not be greater than maximum",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 24,
-      "filename": "table.11.wat",
-      "text": "table size must be at most 2^32-1",
-      "module_type": "text"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 28,
-      "filename": "table.12.wat",
-      "text": "table size must be at most 2^32-1",
-      "module_type": "text"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 32,
-      "filename": "table.13.wat",
-      "text": "table size must be at most 2^32-1",
-      "module_type": "text"
+      "type": "module",
+      "line": 13,
+      "filename": "table.9.wasm"
     },
     {
       "type": "module",
-      "line": 38,
+      "line": 15,
+      "filename": "table.10.wasm"
+    },
+    {
+      "type": "module",
+      "line": 16,
+      "filename": "table.11.wasm"
+    },
+    {
+      "type": "module",
+      "line": 18,
+      "filename": "table.12.wasm"
+    },
+    {
+      "type": "module",
+      "line": 19,
+      "filename": "table.13.wasm"
+    },
+    {
+      "type": "module",
+      "line": 20,
       "filename": "table.14.wasm"
     },
     {
-      "type": "module",
+      "type": "assert_invalid",
+      "line": 22,
+      "filename": "table.15.wasm",
+      "text": "unknown table",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 23,
+      "filename": "table.16.wasm",
+      "text": "unknown table",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 26,
+      "filename": "table.17.wasm",
+      "text": "size minimum must not be greater than maximum",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 30,
+      "filename": "table.18.wasm",
+      "text": "size minimum must not be greater than maximum",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 35,
+      "filename": "table.19.wat",
+      "text": "table size must be at most 2^32-1",
+      "module_type": "text"
+    },
+    {
+      "type": "assert_invalid",
       "line": 39,
-      "filename": "table.15.wasm"
+      "filename": "table.20.wat",
+      "text": "table size must be at most 2^32-1",
+      "module_type": "text"
     },
     {
-      "type": "module",
-      "line": 40,
-      "filename": "table.16.wasm"
-    },
-    {
-      "type": "module",
-      "line": 41,
-      "filename": "table.17.wasm"
-    },
-    {
-      "type": "module",
-      "line": 42,
-      "filename": "table.18.wasm"
-    },
-    {
-      "type": "module",
+      "type": "assert_invalid",
       "line": 43,
-      "filename": "table.19.wasm"
+      "filename": "table.21.wat",
+      "text": "table size must be at most 2^32-1",
+      "module_type": "text"
     },
     {
       "type": "module",
-      "line": 44,
-      "filename": "table.20.wasm"
-    },
-    {
-      "type": "module",
-      "line": 46,
-      "filename": "table.21.wasm"
-    },
-    {
-      "type": "module",
-      "line": 47,
+      "line": 49,
       "filename": "table.22.wasm"
     },
     {
-      "type": "assert_invalid",
+      "type": "module",
       "line": 50,
-      "filename": "table.23.wasm",
-      "text": "size minimum must not be greater than maximum",
-      "module_type": "binary"
+      "filename": "table.23.wasm"
     },
     {
-      "type": "assert_invalid",
+      "type": "module",
+      "line": 51,
+      "filename": "table.24.wasm"
+    },
+    {
+      "type": "module",
+      "line": 52,
+      "filename": "table.25.wasm"
+    },
+    {
+      "type": "module",
+      "line": 53,
+      "filename": "table.26.wasm"
+    },
+    {
+      "type": "module",
       "line": 54,
-      "filename": "table.24.wasm",
-      "text": "size minimum must not be greater than maximum",
-      "module_type": "binary"
+      "filename": "table.27.wasm"
     },
     {
-      "type": "assert_invalid",
-      "line": 60,
-      "filename": "table.25.wasm",
-      "text": "unknown table",
-      "module_type": "binary"
+      "type": "module",
+      "line": 55,
+      "filename": "table.28.wasm"
+    },
+    {
+      "type": "module",
+      "line": 57,
+      "filename": "table.29.wasm"
+    },
+    {
+      "type": "module",
+      "line": 58,
+      "filename": "table.30.wasm"
     },
     {
       "type": "assert_invalid",
       "line": 61,
-      "filename": "table.26.wasm",
+      "filename": "table.31.wasm",
+      "text": "size minimum must not be greater than maximum",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 65,
+      "filename": "table.32.wasm",
+      "text": "size minimum must not be greater than maximum",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 71,
+      "filename": "table.33.wasm",
       "text": "unknown table",
       "module_type": "binary"
     },
     {
+      "type": "assert_invalid",
+      "line": 72,
+      "filename": "table.34.wasm",
+      "text": "unknown table",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 75,
+      "filename": "table.35.wasm",
+      "text": "type mismatch",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 79,
+      "filename": "table.36.wasm",
+      "text": "type mismatch",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 83,
+      "filename": "table.37.wasm",
+      "text": "type mismatch",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 87,
+      "filename": "table.38.wasm",
+      "text": "type mismatch",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 91,
+      "filename": "table.39.wasm",
+      "text": "type mismatch",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 95,
+      "filename": "table.40.wasm",
+      "text": "type mismatch",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 99,
+      "filename": "table.41.wasm",
+      "text": "type mismatch",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 106,
+      "filename": "table.42.wasm"
+    },
+    {
+      "type": "register",
+      "line": 111,
+      "as": "M"
+    },
+    {
+      "type": "module",
+      "line": 113,
+      "filename": "table.43.wasm"
+    },
+    {
+      "type": "assert_return",
+      "line": 132,
+      "action": {
+        "type": "invoke",
+        "field": "get1",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "refnull"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 133,
+      "action": {
+        "type": "invoke",
+        "field": "get2",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "funcref"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 134,
+      "action": {
+        "type": "invoke",
+        "field": "get3",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "funcref"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 135,
+      "action": {
+        "type": "invoke",
+        "field": "get4",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "funcref"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 136,
+      "action": {
+        "type": "invoke",
+        "field": "get5",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "funcref"
+        }
+      ]
+    },
+    {
+      "type": "assert_invalid",
+      "line": 140,
+      "filename": "table.44.wasm",
+      "text": "type mismatch",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 148,
+      "filename": "table.45.wasm",
+      "text": "type mismatch",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 156,
+      "filename": "table.46.wasm",
+      "text": "type mismatch",
+      "module_type": "binary"
+    },
+    {
       "type": "assert_malformed",
-      "line": 65,
-      "filename": "table.27.wat",
+      "line": 167,
+      "filename": "table.47.wat",
       "text": "duplicate table",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 69,
-      "filename": "table.28.wat",
+      "line": 174,
+      "filename": "table.48.wat",
       "text": "duplicate table",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
-      "line": 73,
-      "filename": "table.29.wat",
+      "line": 181,
+      "filename": "table.49.wat",
       "text": "duplicate table",
       "module_type": "text"
     }

@@ -1,0 +1,56 @@
+{
+  "source_filename": "tests/testsuite/proposals/memory64/tag.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "tag.0.wasm"
+    },
+    {
+      "type": "register",
+      "line": 11,
+      "as": "test"
+    },
+    {
+      "type": "module",
+      "line": 13,
+      "filename": "tag.1.wasm"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 19,
+      "filename": "tag.2.wasm",
+      "text": "non-empty tag result type",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 26,
+      "filename": "tag.3.wasm"
+    },
+    {
+      "type": "register",
+      "line": 34,
+      "as": "M"
+    },
+    {
+      "type": "module",
+      "line": 36,
+      "filename": "tag.4.wasm"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 45,
+      "filename": "tag.5.wasm",
+      "text": "incompatible import",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 56,
+      "filename": "tag.6.wasm",
+      "text": "incompatible import",
+      "module_type": "binary"
+    }
+  ]
+}

@@ -1,3 +1,6 @@
 (module
-  (global (;0;) i64 i64.const 0)
+  (type (;0;) (func))
+  (func (;0;) (type 0)
+    (local f32 f32)
+  )
 )

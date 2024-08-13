@@ -1,0 +1,68 @@
+{
+  "source_filename": "tests/testsuite/proposals/memory64/linking0.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "name": "Mt",
+      "filename": "linking0.0.wasm"
+    },
+    {
+      "type": "register",
+      "line": 14,
+      "name": "Mt",
+      "as": "Mt"
+    },
+    {
+      "type": "assert_unlinkable",
+      "line": 17,
+      "filename": "linking0.1.wasm",
+      "text": "unknown import",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_trap",
+      "line": 27,
+      "action": {
+        "type": "invoke",
+        "module": "Mt",
+        "field": "call",
+        "args": [
+          {
+            "type": "i32",
+            "value": "7"
+          }
+        ]
+      },
+      "text": "uninitialized element"
+    },
+    {
+      "type": "assert_uninstantiable",
+      "line": 31,
+      "filename": "linking0.2.wasm",
+      "text": "out of bounds memory access",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 42,
+      "action": {
+        "type": "invoke",
+        "module": "Mt",
+        "field": "call",
+        "args": [
+          {
+            "type": "i32",
+            "value": "7"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    }
+  ]
+}

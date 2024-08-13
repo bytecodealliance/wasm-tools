@@ -1,0 +1,118 @@
+{
+  "source_filename": "tests/testsuite/proposals/memory64/start0.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "start0.0.wasm"
+    },
+    {
+      "type": "assert_return",
+      "line": 32,
+      "action": {
+        "type": "invoke",
+        "field": "get",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "68"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 33,
+      "action": {
+        "type": "invoke",
+        "field": "getn",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 35,
+      "action": {
+        "type": "invoke",
+        "field": "inc",
+        "args": []
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 36,
+      "action": {
+        "type": "invoke",
+        "field": "get",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "69"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 37,
+      "action": {
+        "type": "invoke",
+        "field": "getn",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "action",
+      "line": 39,
+      "action": {
+        "type": "invoke",
+        "field": "inc",
+        "args": []
+      }
+    },
+    {
+      "type": "assert_return",
+      "line": 40,
+      "action": {
+        "type": "invoke",
+        "field": "get",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "70"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 41,
+      "action": {
+        "type": "invoke",
+        "field": "getn",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    }
+  ]
+}
