@@ -82,10 +82,9 @@ impl Add<ArchitectureSize> for ArchitectureSize {
     type Output = ArchitectureSize;
 
     fn add(self, rhs: ArchitectureSize) -> Self::Output {
-        ArchitectureSize::new(
-            self.bytes + rhs.bytes,
-            self.add_for_64bit + rhs.add_for_64bit,
-        )
+        let new32 = self.bytes + rhs.bytes;
+        let new64 = new32 + self.add_for_64bit + rhs.add_for_64bit;
+        ArchitectureSize::new(new32, new64 - new32)
     }
 }
 
@@ -206,10 +205,6 @@ pub struct SizeAlign64 {
 }
 
 impl SizeAlign64 {
-    // pub fn new() -> Self {
-    //     Default::default()
-    // }
-
     pub fn fill(&mut self, resolve: &Resolve) {
         self.map = Vec::new();
         for (_, ty) in resolve.types.iter() {
@@ -342,10 +337,9 @@ impl SizeAlign64 {
             }
         }
         let align = discrim_align.max(case_align);
-        ElementInfo::new(
-            align_to_arch(align_to_arch(discrim_size, case_align) + case_size, align),
-            align,
-        )
+        let discrim_aligned = align_to_arch(discrim_size, case_align);
+        let size_sum = discrim_aligned + case_size;
+        ElementInfo::new(align_to_arch(size_sum, align), align)
     }
 }
 
@@ -370,25 +364,14 @@ pub(crate) fn align_to(val: usize, align: usize) -> usize {
 pub fn align_to_arch(val: ArchitectureSize, align: Alignment) -> ArchitectureSize {
     match align {
         Alignment::Pointer => {
-            let new_bytes = align_to(val.bytes, 4);
-            let unaligned64 = new_bytes + val.add_for_64bit;
-            ArchitectureSize::new(
-                new_bytes,
-                // increase if necessary for 64bit alignment
-                val.add_for_64bit
-                    + if unaligned64 != align_to(unaligned64, 8) {
-                        4
-                    } else {
-                        0
-                    },
-            )
+            let new32 = align_to(val.bytes, 4);
+            let new64 = align_to(val.bytes + val.add_for_64bit, 8);
+            ArchitectureSize::new(new32, new64 - new32)
         }
         Alignment::Bytes(align_bytes) => {
-            let new_bytes = align_to(val.bytes, align_bytes.get());
-            ArchitectureSize::new(
-                new_bytes,
-                align_to(val.bytes + val.add_for_64bit, align_bytes.get()) - new_bytes,
-            )
+            let new32 = align_to(val.bytes, align_bytes.get());
+            let new64 = align_to(val.bytes + val.add_for_64bit, align_bytes.get());
+            ArchitectureSize::new(new32, new64 - new32)
         }
     }
 }
@@ -506,22 +489,52 @@ mod test {
             ArchitectureSize::new(12, 0).max(&ArchitectureSize::new(8, 8)),
             ArchitectureSize::new(12, 4)
         );
+    }
 
-        {
-            // keep it identical to the old behavior
-            let obj = SizeAlign64::default();
-            let elem = obj.calculate(&TypeDef {
-                name: None,
-                kind: TypeDefKind::Resource,
-                owner: crate::TypeOwner::None,
-                docs: Default::default(),
-                stability: Default::default(),
-            });
-            assert_eq!(elem.size, ArchitectureSize::new(usize::MAX, 0));
-            assert_eq!(
-                elem.align,
-                Alignment::Bytes(NonZeroUsize::new(usize::MAX).unwrap())
-            );
-        }
+    #[test]
+    fn resource_size() {
+        // keep it identical to the old behavior
+        let obj = SizeAlign64::default();
+        let elem = obj.calculate(&TypeDef {
+            name: None,
+            kind: TypeDefKind::Resource,
+            owner: crate::TypeOwner::None,
+            docs: Default::default(),
+            stability: Default::default(),
+        });
+        assert_eq!(elem.size, ArchitectureSize::new(usize::MAX, 0));
+        assert_eq!(
+            elem.align,
+            Alignment::Bytes(NonZeroUsize::new(usize::MAX).unwrap())
+        );
+    }
+    #[test]
+    fn result_ptr_10() {
+        let mut obj = SizeAlign64::default();
+        let mut resolve = Resolve::default();
+        let tuple = crate::Tuple {
+            types: vec![Type::U16, Type::U16, Type::U16, Type::U16, Type::U16],
+        };
+        let id = resolve.types.alloc(TypeDef {
+            name: None,
+            kind: TypeDefKind::Tuple(tuple),
+            owner: crate::TypeOwner::None,
+            docs: Default::default(),
+            stability: Default::default(),
+        });
+        obj.fill(&resolve);
+        let my_result = crate::Result_ {
+            ok: Some(Type::String),
+            err: Some(Type::Id(id)),
+        };
+        let elem = obj.calculate(&TypeDef {
+            name: None,
+            kind: TypeDefKind::Result(my_result),
+            owner: crate::TypeOwner::None,
+            docs: Default::default(),
+            stability: Default::default(),
+        });
+        assert_eq!(elem.size, ArchitectureSize::new(16, 8));
+        assert_eq!(elem.align, Alignment::Pointer);
     }
 }
