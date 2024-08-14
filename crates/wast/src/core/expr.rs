@@ -39,7 +39,7 @@ pub struct Expression<'a> {
 #[derive(Debug)]
 pub struct BranchHint {
     /// Index of instructions in `instrs` field of `Expression` that this hint
-    /// appplies to.
+    /// applies to.
     pub instr_index: usize,
     /// The value of this branch hint
     pub value: u32,
@@ -149,7 +149,7 @@ enum Level<'a> {
 
 /// Possible states of "what is currently being parsed?" in an `if` expression.
 enum If<'a> {
-    /// Only the `if` instructoin has been parsed, next thing to parse is the
+    /// Only the `if` instruction has been parsed, next thing to parse is the
     /// clause, if any, of the `if` instruction.
     ///
     /// This parse ends when `(then ...)` is encountered.
@@ -318,7 +318,7 @@ impl<'a> ExpressionParser<'a> {
 
     /// State transitions with parsing an `if` statement.
     ///
-    /// The syntactical form of an `if` stament looks like:
+    /// The syntactical form of an `if` statement looks like:
     ///
     /// ```wat
     /// (if ($clause)... (then $then) (else $else))
@@ -870,31 +870,31 @@ instructions! {
         GlobalAtomicRmwCmpxchg(Ordered<Index<'a>>) : [0xfe, 0x57] : "global.atomic.rmw.cmpxchg",
         TableAtomicGet(Ordered<TableArg<'a>>) : [0xfe, 0x58] : "table.atomic.get",
         TableAtomicSet(Ordered<TableArg<'a>>) : [0xfe, 0x59] : "table.atomic.set",
-        TableAtomicRmwXchg(Ordered<TableArg<'a>>) : [0xfe, 0x5A] : "table.atomic.rmw.xchg",
-        TableAtomicRmwCmpxchg(Ordered<TableArg<'a>>) : [0xFE, 0x5B] : "table.atomic.rmw.cmpxchg",
-        StructAtomicGet(Ordered<StructAccess<'a>>) : [0xFE, 0x5C] : "struct.atomic.get",
-        StructAtomicGetS(Ordered<StructAccess<'a>>) : [0xFE, 0x5D] : "struct.atomic.get_s",
-        StructAtomicGetU(Ordered<StructAccess<'a>>) : [0xFE, 0x5E] : "struct.atomic.get_u",
-        StructAtomicSet(Ordered<StructAccess<'a>>) : [0xFE, 0x5F] : "struct.atomic.set",
-        StructAtomicRmwAdd(Ordered<StructAccess<'a>>) : [0xFE, 0x60] : "struct.atomic.rmw.add",
-        StructAtomicRmwSub(Ordered<StructAccess<'a>>) : [0xFE, 0x61] : "struct.atomic.rmw.sub",
-        StructAtomicRmwAnd(Ordered<StructAccess<'a>>) : [0xFE, 0x62] : "struct.atomic.rmw.and",
-        StructAtomicRmwOr(Ordered<StructAccess<'a>>) : [0xFE, 0x63] : "struct.atomic.rmw.or",
-        StructAtomicRmwXor(Ordered<StructAccess<'a>>) : [0xFE, 0x64] : "struct.atomic.rmw.xor",
-        StructAtomicRmwXchg(Ordered<StructAccess<'a>>) : [0xFE, 0x65] : "struct.atomic.rmw.xchg",
-        StructAtomicRmwCmpxchg(Ordered<StructAccess<'a>>) : [0xFE, 0x66] : "struct.atomic.rmw.cmpxchg",
-        ArrayAtomicGet(Ordered<Index<'a>>) : [0xFE, 0x67] : "array.atomic.get",
-        ArrayAtomicGetS(Ordered<Index<'a>>) : [0xFE, 0x68] : "array.atomic.get_s",
-        ArrayAtomicGetU(Ordered<Index<'a>>) : [0xFE, 0x69] : "array.atomic.get_u",
-        ArrayAtomicSet(Ordered<Index<'a>>) : [0xFE, 0x6A] : "array.atomic.set",
-        ArrayAtomicRmwAdd(Ordered<Index<'a>>) : [0xFE, 0x6B] : "array.atomic.rmw.add",
-        ArrayAtomicRmwSub(Ordered<Index<'a>>) : [0xFE, 0x6C] : "array.atomic.rmw.sub",
-        ArrayAtomicRmwAnd(Ordered<Index<'a>>) : [0xFE, 0x6D] : "array.atomic.rmw.and",
-        ArrayAtomicRmwOr(Ordered<Index<'a>>) : [0xFE, 0x6E] : "array.atomic.rmw.or",
-        ArrayAtomicRmwXor(Ordered<Index<'a>>) : [0xFE, 0x6F] : "array.atomic.rmw.xor",
-        ArrayAtomicRmwXchg(Ordered<Index<'a>>) : [0xFE, 0x70] : "array.atomic.rmw.xchg",
-        ArrayAtomicRmwCmpxchg(Ordered<Index<'a>>) : [0xFE, 0x71] : "array.atomic.rmw.cmpxchg",
-        RefI31Shared : [0xFE, 0x72] : "ref.i31_shared",
+        TableAtomicRmwXchg(Ordered<TableArg<'a>>) : [0xfe, 0x5a] : "table.atomic.rmw.xchg",
+        TableAtomicRmwCmpxchg(Ordered<TableArg<'a>>) : [0xfe, 0x5b] : "table.atomic.rmw.cmpxchg",
+        StructAtomicGet(Ordered<StructAccess<'a>>) : [0xfe, 0x5c] : "struct.atomic.get",
+        StructAtomicGetS(Ordered<StructAccess<'a>>) : [0xfe, 0x5d] : "struct.atomic.get_s",
+        StructAtomicGetU(Ordered<StructAccess<'a>>) : [0xfe, 0x5e] : "struct.atomic.get_u",
+        StructAtomicSet(Ordered<StructAccess<'a>>) : [0xfe, 0x5f] : "struct.atomic.set",
+        StructAtomicRmwAdd(Ordered<StructAccess<'a>>) : [0xfe, 0x60] : "struct.atomic.rmw.add",
+        StructAtomicRmwSub(Ordered<StructAccess<'a>>) : [0xfe, 0x61] : "struct.atomic.rmw.sub",
+        StructAtomicRmwAnd(Ordered<StructAccess<'a>>) : [0xfe, 0x62] : "struct.atomic.rmw.and",
+        StructAtomicRmwOr(Ordered<StructAccess<'a>>) : [0xfe, 0x63] : "struct.atomic.rmw.or",
+        StructAtomicRmwXor(Ordered<StructAccess<'a>>) : [0xfe, 0x64] : "struct.atomic.rmw.xor",
+        StructAtomicRmwXchg(Ordered<StructAccess<'a>>) : [0xfe, 0x65] : "struct.atomic.rmw.xchg",
+        StructAtomicRmwCmpxchg(Ordered<StructAccess<'a>>) : [0xfe, 0x66] : "struct.atomic.rmw.cmpxchg",
+        ArrayAtomicGet(Ordered<Index<'a>>) : [0xfe, 0x67] : "array.atomic.get",
+        ArrayAtomicGetS(Ordered<Index<'a>>) : [0xfe, 0x68] : "array.atomic.get_s",
+        ArrayAtomicGetU(Ordered<Index<'a>>) : [0xfe, 0x69] : "array.atomic.get_u",
+        ArrayAtomicSet(Ordered<Index<'a>>) : [0xfe, 0x6a] : "array.atomic.set",
+        ArrayAtomicRmwAdd(Ordered<Index<'a>>) : [0xfe, 0x6b] : "array.atomic.rmw.add",
+        ArrayAtomicRmwSub(Ordered<Index<'a>>) : [0xfe, 0x6c] : "array.atomic.rmw.sub",
+        ArrayAtomicRmwAnd(Ordered<Index<'a>>) : [0xfe, 0x6d] : "array.atomic.rmw.and",
+        ArrayAtomicRmwOr(Ordered<Index<'a>>) : [0xfe, 0x6e] : "array.atomic.rmw.or",
+        ArrayAtomicRmwXor(Ordered<Index<'a>>) : [0xfe, 0x6f] : "array.atomic.rmw.xor",
+        ArrayAtomicRmwXchg(Ordered<Index<'a>>) : [0xfe, 0x70] : "array.atomic.rmw.xchg",
+        ArrayAtomicRmwCmpxchg(Ordered<Index<'a>>) : [0xfe, 0x71] : "array.atomic.rmw.cmpxchg",
+        RefI31Shared : [0xfe, 0x72] : "ref.i31_shared",
 
         // proposal: simd
         //
@@ -1159,7 +1159,7 @@ instructions! {
         TryTable(TryTable<'a>) : [0x1f] : "try_table",
         Throw(Index<'a>) : [0x08] : "throw",
 
-        // Deprecated exception handling optocdes
+        // Deprecated exception handling opcodes
         Try(Box<BlockType<'a>>) : [0x06] : "try",
         Catch(Index<'a>) : [0x07] : "catch",
         Rethrow(Index<'a>) : [0x09] : "rethrow",
