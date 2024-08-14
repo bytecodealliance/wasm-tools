@@ -3693,7 +3693,7 @@ impl Encode for Instruction<'_> {
             }
             Instruction::RefI31Shared => {
                 sink.push(0xFE);
-                sink.push(0x1F);
+                sink.push(0x72);
             }
         }
     }
