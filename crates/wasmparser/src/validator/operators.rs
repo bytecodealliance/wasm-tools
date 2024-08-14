@@ -199,15 +199,6 @@ impl From<RefType> for MaybeType {
     }
 }
 
-impl MaybeType {
-    fn as_type(&self) -> Option<ValType> {
-        match *self {
-            Self::Type(ty) => Some(ty),
-            Self::Bot | Self::HeapBot => None,
-        }
-    }
-}
-
 impl OperatorValidator {
     fn new(features: &WasmFeatures, allocs: OperatorValidatorAllocations) -> Self {
         let OperatorValidatorAllocations {
@@ -556,12 +547,20 @@ where
         popped: Option<MaybeType>,
     ) -> Result<MaybeType> {
         self.operands.extend(popped);
+        let actual = self._calculate_operand_type(expected)?;
+        if let Some(expected) = expected {
+            self._check_operand_type(expected, actual)?;
+        }
+        Ok(actual)
+    }
+
+    fn _calculate_operand_type(&mut self, expected: Option<ValType>) -> Result<MaybeType> {
         let control = match self.control.last() {
             Some(c) => c,
             None => return Err(self.err_beyond_end(self.offset)),
         };
-        let actual = if self.operands.len() == control.height && control.unreachable {
-            MaybeType::Bot
+        if self.operands.len() == control.height && control.unreachable {
+            Ok(MaybeType::Bot)
         } else {
             if self.operands.len() == control.height {
                 let desc = match expected {
@@ -573,48 +572,58 @@ where
                     "type mismatch: expected {desc} but nothing on stack"
                 )
             } else {
-                self.operands.pop().unwrap()
-            }
-        };
-        if let Some(expected) = expected {
-            match (actual, expected) {
-                // The bottom type matches all expectations
-                (MaybeType::Bot, _)
-                // The "heap bottom" type only matches other references types,
-                // but not any integer types.
-                | (MaybeType::HeapBot, ValType::Ref(_)) => {}
-
-                // Use the `is_subtype` predicate to test if a found type matches
-                // the expectation.
-                (MaybeType::Type(actual), expected) => {
-                    if !self.resources.is_subtype(actual, expected) {
-                        bail!(
-                            self.offset,
-                            "type mismatch: expected {}, found {}",
-                            ty_to_str(expected),
-                            ty_to_str(actual)
-                        );
-                    }
-                }
-
-                // A "heap bottom" type cannot match any numeric types.
-                (
-                    MaybeType::HeapBot,
-                    ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128,
-                ) => {
-                    bail!(
-                        self.offset,
-                        "type mismatch: expected {}, found heap type",
-                        ty_to_str(expected)
-                    )
-                }
+                Ok(self
+                    .operands
+                    .pop()
+                    .expect("must have an operand on the stack"))
             }
         }
-        Ok(actual)
     }
 
+    fn _check_operand_type(&self, expected: ValType, actual: MaybeType) -> Result<()> {
+        match (actual, expected) {
+            // The bottom type matches all expectations
+            (MaybeType::Bot, _)
+            // The "heap bottom" type only matches other references types,
+            // but not any integer types.
+            | (MaybeType::HeapBot, ValType::Ref(_)) => {}
+
+            // Use the `is_subtype` predicate to test if a found type matches
+            // the expectation.
+            (MaybeType::Type(actual), expected) => {
+                if !self.resources.is_subtype(actual, expected) {
+                    bail!(
+                        self.offset,
+                        "type mismatch: expected {}, found {}",
+                        ty_to_str(expected),
+                        ty_to_str(actual)
+                    );
+                }
+            }
+
+            // A "heap bottom" type cannot match any numeric types.
+            (
+                MaybeType::HeapBot,
+                ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128,
+            ) => {
+                bail!(
+                    self.offset,
+                    "type mismatch: expected {}, found heap type",
+                    ty_to_str(expected)
+                )
+            }
+        }
+        Ok(())
+    }
+
+    /// Pop a reference type from the operand stack.
     fn pop_ref(&mut self) -> Result<Option<RefType>> {
-        match self.pop_operand(None)? {
+        let ty = self.pop_operand(None)?;
+        self._as_ref_type(ty)
+    }
+
+    fn _as_ref_type(&self, ty: MaybeType) -> Result<Option<RefType>> {
+        match ty {
             MaybeType::Bot | MaybeType::HeapBot => Ok(None),
             MaybeType::Type(ValType::Ref(rt)) => Ok(Some(rt)),
             MaybeType::Type(ty) => bail!(
@@ -623,6 +632,29 @@ where
                 ty_to_str(ty)
             ),
         }
+    }
+
+    /// Pop a reference type from the operand stack, checking if it matches
+    /// `expected` or the shared version of `expected`. This function will panic
+    /// if `expected` is shared or a concrete type.
+    fn pop_maybe_shared_ref(&mut self, expected: RefType) -> Result<Option<RefType>> {
+        assert!(!self.resources.is_shared_ref_type(expected));
+        let actual = self._calculate_operand_type(Some(expected.into()))?;
+        let actual_ref = match self._as_ref_type(actual)? {
+            Some(rt) => rt,
+            None => return Ok(None),
+        };
+        // Change our expectation based on whether we're dealing with an actual
+        // shared or unshared type.
+        let expected = if self.resources.is_shared_ref_type(actual_ref) {
+            expected
+                .shared()
+                .expect("this only expects abstract heap types")
+        } else {
+            expected
+        };
+        self._check_operand_type(expected.into(), actual)?;
+        Ok(Some(actual_ref))
     }
 
     /// Fetches the type for the local at `idx`, returning an error if it's out
@@ -2723,26 +2755,17 @@ where
         Ok(())
     }
     fn visit_ref_eq(&mut self) -> Self::Output {
-        match (self.pop_ref()?, self.pop_ref()?) {
-            (Some(a), Some(b)) => {
-                const EQREF: RefType = RefType::EQ.nullable();
-                let shared_eqref = EQREF.shared().expect("eq is abstract");
-                if a != EQREF && a != shared_eqref {
-                    bail!(
-                        self.offset,
-                        "type mismatch: expected `{}` or `{}`",
-                        EQREF,
-                        shared_eqref
-                    );
-                }
-                if a != b {
-                    bail!(
-                        self.offset,
-                        "type mismatch: expected `ref.eq` types to match"
-                    );
-                }
-            }
-            _ => {}
+        let a = self
+            .pop_maybe_shared_ref(RefType::EQ.nullable())?
+            .expect("an actual ref type");
+        let b = self
+            .pop_maybe_shared_ref(RefType::EQ.nullable())?
+            .expect("an actual ref type");
+        if self.resources.is_shared_ref_type(a) != self.resources.is_shared_ref_type(b) {
+            bail!(
+                self.offset,
+                "type mismatch: expected `ref.eq` types to match `shared`-ness"
+            );
         }
         self.push_operand(ValType::I32)
     }
@@ -4243,7 +4266,7 @@ where
         Ok(())
     }
     fn visit_array_len(&mut self) -> Self::Output {
-        self.pop_operand(Some(RefType::ARRAY.nullable().into()))?;
+        self.pop_maybe_shared_ref(RefType::ARRAY.nullable())?;
         self.push_operand(ValType::I32)
     }
     fn visit_array_fill(&mut self, array_type_index: u32) -> Self::Output {
@@ -4425,24 +4448,34 @@ where
         Ok(())
     }
     fn visit_any_convert_extern(&mut self) -> Self::Output {
-        let extern_ref = self.pop_operand(Some(RefType::EXTERNREF.into()))?;
-        let is_nullable = extern_ref
-            .as_type()
-            .map_or(false, |ty| ty.as_reference_type().unwrap().is_nullable());
+        let extern_ref = self.pop_maybe_shared_ref(RefType::EXTERNREF)?;
+        let (is_nullable, shared) = if let Some(extern_ref) = extern_ref {
+            (
+                extern_ref.is_nullable(),
+                self.resources.is_shared_ref_type(extern_ref),
+            )
+        } else {
+            (false, false)
+        };
         let heap_type = HeapType::Abstract {
-            shared: false, // TODO: handle shared--see https://github.com/WebAssembly/shared-everything-threads/issues/65.
+            shared,
             ty: AbstractHeapType::Any,
         };
         let any_ref = RefType::new(is_nullable, heap_type).unwrap();
         self.push_operand(any_ref)
     }
     fn visit_extern_convert_any(&mut self) -> Self::Output {
-        let any_ref = self.pop_operand(Some(RefType::ANY.nullable().into()))?;
-        let is_nullable = any_ref
-            .as_type()
-            .map_or(false, |ty| ty.as_reference_type().unwrap().is_nullable());
+        let any_ref = self.pop_maybe_shared_ref(RefType::ANY.nullable())?;
+        let (is_nullable, shared) = if let Some(any_ref) = any_ref {
+            (
+                any_ref.is_nullable(),
+                self.resources.is_shared_ref_type(any_ref),
+            )
+        } else {
+            (false, false)
+        };
         let heap_type = HeapType::Abstract {
-            shared: false, // TODO: handle shared--see https://github.com/WebAssembly/shared-everything-threads/issues/65.
+            shared,
             ty: AbstractHeapType::Extern,
         };
         let extern_ref = RefType::new(is_nullable, heap_type).unwrap();
@@ -4558,11 +4591,11 @@ where
         ))
     }
     fn visit_i31_get_s(&mut self) -> Self::Output {
-        self.pop_operand(Some(ValType::Ref(RefType::I31REF)))?;
+        self.pop_maybe_shared_ref(RefType::I31REF)?;
         self.push_operand(ValType::I32)
     }
     fn visit_i31_get_u(&mut self) -> Self::Output {
-        self.pop_operand(Some(ValType::Ref(RefType::I31REF)))?;
+        self.pop_maybe_shared_ref(RefType::I31REF)?;
         self.push_operand(ValType::I32)
     }
     fn visit_try(&mut self, mut ty: BlockType) -> Self::Output {

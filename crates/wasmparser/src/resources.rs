@@ -67,6 +67,9 @@ pub trait WasmModuleResources {
     /// Is `a` a subtype of `b`?
     fn is_subtype(&self, a: ValType, b: ValType) -> bool;
 
+    /// Is the given reference type `shared`?
+    fn is_shared_ref_type(&self, ty: RefType) -> bool;
+
     /// Check and canonicalize a value type.
     ///
     /// This will validate that `t` is valid under the `features` provided and
@@ -161,6 +164,9 @@ where
     fn is_subtype(&self, a: ValType, b: ValType) -> bool {
         T::is_subtype(self, a, b)
     }
+    fn is_shared_ref_type(&self, ty: RefType) -> bool {
+        T::is_shared_ref_type(self, ty)
+    }
     fn element_count(&self) -> u32 {
         T::element_count(self)
     }
@@ -218,6 +224,10 @@ where
 
     fn is_subtype(&self, a: ValType, b: ValType) -> bool {
         T::is_subtype(self, a, b)
+    }
+
+    fn is_shared_ref_type(&self, ty: RefType) -> bool {
+        T::is_shared_ref_type(self, ty)
     }
 
     fn element_count(&self) -> u32 {

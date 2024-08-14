@@ -1322,6 +1322,10 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
         self.types.valtype_is_subtype(a, b)
     }
 
+    fn is_shared_ref_type(&self, ty: RefType) -> bool {
+        self.types.reftype_is_shared(ty)
+    }
+
     fn element_count(&self) -> u32 {
         self.module.element_types.len() as u32
     }
@@ -1392,6 +1396,10 @@ impl WasmModuleResources for ValidatorResources {
 
     fn is_subtype(&self, a: ValType, b: ValType) -> bool {
         self.0.snapshot.as_ref().unwrap().valtype_is_subtype(a, b)
+    }
+
+    fn is_shared_ref_type(&self, ty: RefType) -> bool {
+        self.0.snapshot.as_ref().unwrap().reftype_is_shared(ty)
     }
 
     fn element_count(&self) -> u32 {
