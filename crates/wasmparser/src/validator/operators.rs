@@ -2746,17 +2746,21 @@ where
         Ok(())
     }
     fn visit_ref_eq(&mut self) -> Self::Output {
-        let a = self
-            .pop_maybe_shared_ref(RefType::EQ.nullable())?
-            .expect("an actual ref type");
-        let b = self
-            .pop_maybe_shared_ref(RefType::EQ.nullable())?
-            .expect("an actual ref type");
-        if self.resources.is_shared_ref_type(a) != self.resources.is_shared_ref_type(b) {
-            bail!(
-                self.offset,
-                "type mismatch: expected `ref.eq` types to match `shared`-ness"
-            );
+        let a = self.pop_maybe_shared_ref(RefType::EQ.nullable())?;
+        let b = self.pop_maybe_shared_ref(RefType::EQ.nullable())?;
+        match (a, b) {
+            (Some(a), Some(b)) => {
+                if self.resources.is_shared_ref_type(a) != self.resources.is_shared_ref_type(b) {
+                    bail!(
+                        self.offset,
+                        "type mismatch: expected `ref.eq` types to match `shared`-ness"
+                    );
+                }
+            }
+            _ => {
+                // One or both of the types are from unreachable code; assume
+                // the shared-ness matches.
+            }
         }
         self.push_operand(ValType::I32)
     }
