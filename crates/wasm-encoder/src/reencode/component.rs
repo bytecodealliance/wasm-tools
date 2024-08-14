@@ -582,7 +582,7 @@ pub mod component_utils {
         ty: Box<[wasmparser::InstanceTypeDeclaration<'_>]>,
     ) -> Result<crate::InstanceType, Error<T::Error>> {
         let mut ret = crate::InstanceType::new();
-        for decl in ty {
+        for decl in Vec::from(ty) {
             reencoder.parse_component_instance_type_declaration(&mut ret, decl)?;
         }
         Ok(ret)
@@ -632,7 +632,7 @@ pub mod component_utils {
         ty: Box<[wasmparser::ComponentTypeDeclaration<'_>]>,
     ) -> Result<crate::ComponentType, Error<T::Error>> {
         let mut ret = crate::ComponentType::new();
-        for decl in ty {
+        for decl in Vec::from(ty) {
             reencoder.parse_component_type_declaration(&mut ret, decl)?;
         }
         Ok(ret)
@@ -752,7 +752,7 @@ pub mod component_utils {
         ty: Box<[wasmparser::ModuleTypeDeclaration<'_>]>,
     ) -> Result<crate::ModuleType, Error<T::Error>> {
         let mut ret = crate::ModuleType::new();
-        for decl in ty {
+        for decl in Vec::from(ty) {
             reencoder.parse_component_module_type_declaration(&mut ret, decl)?;
         }
         Ok(ret)
