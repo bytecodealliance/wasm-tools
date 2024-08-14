@@ -547,20 +547,12 @@ where
         popped: Option<MaybeType>,
     ) -> Result<MaybeType> {
         self.operands.extend(popped);
-        let actual = self._calculate_operand_type(expected)?;
-        if let Some(expected) = expected {
-            self._check_operand_type(expected, actual)?;
-        }
-        Ok(actual)
-    }
-
-    fn _calculate_operand_type(&mut self, expected: Option<ValType>) -> Result<MaybeType> {
         let control = match self.control.last() {
             Some(c) => c,
             None => return Err(self.err_beyond_end(self.offset)),
         };
-        if self.operands.len() == control.height && control.unreachable {
-            Ok(MaybeType::Bot)
+        let actual = if self.operands.len() == control.height && control.unreachable {
+            MaybeType::Bot
         } else {
             if self.operands.len() == control.height {
                 let desc = match expected {
@@ -572,58 +564,49 @@ where
                     "type mismatch: expected {desc} but nothing on stack"
                 )
             } else {
-                Ok(self
-                    .operands
-                    .pop()
-                    .expect("must have an operand on the stack"))
+                self.operands.pop().unwrap()
             }
-        }
-    }
+        };
+        if let Some(expected) = expected {
+            match (actual, expected) {
+                // The bottom type matches all expectations
+                (MaybeType::Bot, _)
+                // The "heap bottom" type only matches other references types,
+                // but not any integer types.
+                | (MaybeType::HeapBot, ValType::Ref(_)) => {}
 
-    fn _check_operand_type(&self, expected: ValType, actual: MaybeType) -> Result<()> {
-        match (actual, expected) {
-            // The bottom type matches all expectations
-            (MaybeType::Bot, _)
-            // The "heap bottom" type only matches other references types,
-            // but not any integer types.
-            | (MaybeType::HeapBot, ValType::Ref(_)) => {}
+                // Use the `is_subtype` predicate to test if a found type matches
+                // the expectation.
+                (MaybeType::Type(actual), expected) => {
+                    if !self.resources.is_subtype(actual, expected) {
+                        bail!(
+                            self.offset,
+                            "type mismatch: expected {}, found {}",
+                            ty_to_str(expected),
+                            ty_to_str(actual)
+                        );
+                    }
+                }
 
-            // Use the `is_subtype` predicate to test if a found type matches
-            // the expectation.
-            (MaybeType::Type(actual), expected) => {
-                if !self.resources.is_subtype(actual, expected) {
+                // A "heap bottom" type cannot match any numeric types.
+                (
+                    MaybeType::HeapBot,
+                    ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128,
+                ) => {
                     bail!(
                         self.offset,
-                        "type mismatch: expected {}, found {}",
-                        ty_to_str(expected),
-                        ty_to_str(actual)
-                    );
+                        "type mismatch: expected {}, found heap type",
+                        ty_to_str(expected)
+                    )
                 }
             }
-
-            // A "heap bottom" type cannot match any numeric types.
-            (
-                MaybeType::HeapBot,
-                ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128,
-            ) => {
-                bail!(
-                    self.offset,
-                    "type mismatch: expected {}, found heap type",
-                    ty_to_str(expected)
-                )
-            }
         }
-        Ok(())
+        Ok(actual)
     }
 
     /// Pop a reference type from the operand stack.
     fn pop_ref(&mut self) -> Result<Option<RefType>> {
-        let ty = self.pop_operand(None)?;
-        self._as_ref_type(ty)
-    }
-
-    fn _as_ref_type(&self, ty: MaybeType) -> Result<Option<RefType>> {
-        match ty {
+        match self.pop_operand(None)? {
             MaybeType::Bot | MaybeType::HeapBot => Ok(None),
             MaybeType::Type(ValType::Ref(rt)) => Ok(Some(rt)),
             MaybeType::Type(ty) => bail!(
@@ -634,27 +617,35 @@ where
         }
     }
 
-    /// Pop a reference type from the operand stack, checking if it matches
-    /// `expected` or the shared version of `expected`. This function will panic
-    /// if `expected` is shared or a concrete type.
+    /// Pop a reference type from the operand stack, checking if it is a subtype
+    /// of `expected` or the shared version of `expected`. This function will
+    /// panic if `expected` is shared or a concrete type.
     fn pop_maybe_shared_ref(&mut self, expected: RefType) -> Result<Option<RefType>> {
+        debug_assert!(!expected.is_concrete_type_ref());
         assert!(!self.resources.is_shared_ref_type(expected));
-        let actual = self._calculate_operand_type(Some(expected.into()))?;
-        let actual_ref = match self._as_ref_type(actual)? {
+        let actual = match self.pop_ref()? {
             Some(rt) => rt,
             None => return Ok(None),
         };
         // Change our expectation based on whether we're dealing with an actual
         // shared or unshared type.
-        let expected = if self.resources.is_shared_ref_type(actual_ref) {
+        let expected = if self.resources.is_shared_ref_type(actual) {
             expected
                 .shared()
                 .expect("this only expects abstract heap types")
         } else {
             expected
         };
-        self._check_operand_type(expected.into(), actual)?;
-        Ok(Some(actual_ref))
+        // Check (again) that the actual type is a subtype of the expected type.
+        // Note that `_pop_operand` already does this kind of thing but we leave
+        // that for a future refactoring (TODO).
+        if !self.resources.is_subtype(actual.into(), expected.into()) {
+            bail!(
+                self.offset,
+                "type mismatch: expected subtype of {expected}, found {actual}",
+            )
+        }
+        Ok(Some(actual))
     }
 
     /// Fetches the type for the local at `idx`, returning an error if it's out
