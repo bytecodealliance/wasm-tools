@@ -4534,7 +4534,9 @@ where
     }
     fn visit_ref_i31_shared(&mut self) -> Self::Output {
         self.pop_operand(Some(ValType::I32))?;
-        self.push_operand(ValType::Ref(RefType::I31)) // TODO: handle shared--is this correct?
+        self.push_operand(ValType::Ref(
+            RefType::I31.shared().expect("i31 is abstract"),
+        ))
     }
     fn visit_i31_get_s(&mut self) -> Self::Output {
         self.pop_operand(Some(ValType::Ref(RefType::I31REF)))?;

@@ -1,0 +1,7 @@
+(module
+  (type (;0;) (func (result (ref null (shared i31)))))
+  (func (;0;) (type 0) (result (ref null (shared i31)))
+    i32.const 0
+    ref.i31_shared
+  )
+)

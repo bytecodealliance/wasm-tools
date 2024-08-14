@@ -1,0 +1,10 @@
+{
+  "source_filename": "tests/local/shared-everything-threads/i31.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "i31.0.wasm"
+    }
+  ]
+}
