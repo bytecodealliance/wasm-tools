@@ -30,7 +30,7 @@ use std::process::{Command, Stdio};
 use std::str;
 use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 use std::sync::Arc;
-use wasm_encoder::reencode::{Reencode, RoundtripReencoder};
+use wasm_encoder::reencode::{Reencode, ReencodeComponent, RoundtripReencoder};
 use wasmparser::*;
 use wast::core::{Module, ModuleKind};
 use wast::lexer::Lexer;
@@ -180,12 +180,18 @@ impl TestState {
             self.binary_compare(&binary2, contents)
                 .context("failed to compare original `wat` with roundtrip `wat`")?;
 
-            if !wasmparser::Parser::is_component(contents) {
+            if wasmparser::Parser::is_component(contents) {
+                let mut reencode = Default::default();
+                RoundtripReencoder
+                    .parse_component(&mut reencode, wasmparser::Parser::new(0), contents)
+                    .context("failed to reencode module")?;
+                self.binary_compare(&reencode.finish(), contents)
+                    .context("failed to compare reencoded module with original encoding")?;
+            } else {
                 let mut reencode = Default::default();
                 RoundtripReencoder
                     .parse_core_module(&mut reencode, wasmparser::Parser::new(0), contents)
                     .context("failed to reencode module")?;
-
                 self.binary_compare(&reencode.finish(), contents)
                     .context("failed to compare reencoded module with original encoding")?;
             }
