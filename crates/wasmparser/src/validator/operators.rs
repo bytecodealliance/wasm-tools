@@ -618,13 +618,14 @@ where
     }
 
     /// Pop a reference type from the operand stack, checking if it is a subtype
-    /// of `expected` or the shared version of `expected`. This function returns
-    /// the popped reference type and its `shared`-ness, saving extra lookups
-    /// for concrete types. This function will panic if `expected` is shared or
-    /// a concrete type.
-    fn pop_maybe_shared_ref(&mut self, expected: RefType) -> Result<Option<(RefType, bool)>> {
-        debug_assert!(!expected.is_concrete_type_ref());
-        assert!(!self.resources.is_shared(expected));
+    /// of a nullable type of `expected` or the shared version of `expected`.
+    ///
+    /// This function returns the popped reference type and its `shared`-ness,
+    /// saving extra lookups for concrete types.
+    fn pop_maybe_shared_ref(
+        &mut self,
+        expected: AbstractHeapType,
+    ) -> Result<Option<(RefType, bool)>> {
         let actual = match self.pop_ref()? {
             Some(rt) => rt,
             None => return Ok(None),
@@ -632,13 +633,15 @@ where
         // Change our expectation based on whether we're dealing with an actual
         // shared or unshared type.
         let is_actual_shared = self.resources.is_shared(actual);
-        let expected = if is_actual_shared {
-            expected
-                .shared()
-                .expect("this only expects abstract heap types")
-        } else {
-            expected
-        };
+        let expected = RefType::new(
+            true,
+            HeapType::Abstract {
+                shared: is_actual_shared,
+                ty: expected,
+            },
+        )
+        .unwrap();
+
         // Check (again) that the actual type is a subtype of the expected type.
         // Note that `_pop_operand` already does this kind of thing but we leave
         // that for a future refactoring (TODO).
@@ -2749,8 +2752,8 @@ where
         Ok(())
     }
     fn visit_ref_eq(&mut self) -> Self::Output {
-        let a = self.pop_maybe_shared_ref(RefType::EQ.nullable())?;
-        let b = self.pop_maybe_shared_ref(RefType::EQ.nullable())?;
+        let a = self.pop_maybe_shared_ref(AbstractHeapType::Eq)?;
+        let b = self.pop_maybe_shared_ref(AbstractHeapType::Eq)?;
         match (a, b) {
             (Some((_, is_a_shared)), Some((_, is_b_shared))) => {
                 if is_a_shared != is_b_shared {
@@ -4264,7 +4267,7 @@ where
         Ok(())
     }
     fn visit_array_len(&mut self) -> Self::Output {
-        self.pop_maybe_shared_ref(RefType::ARRAY.nullable())?;
+        self.pop_maybe_shared_ref(AbstractHeapType::Array)?;
         self.push_operand(ValType::I32)
     }
     fn visit_array_fill(&mut self, array_type_index: u32) -> Self::Output {
@@ -4446,7 +4449,7 @@ where
         Ok(())
     }
     fn visit_any_convert_extern(&mut self) -> Self::Output {
-        let extern_ref = self.pop_maybe_shared_ref(RefType::EXTERNREF)?;
+        let extern_ref = self.pop_maybe_shared_ref(AbstractHeapType::Extern)?;
         let (is_nullable, shared) = if let Some((extern_ref, shared)) = extern_ref {
             (extern_ref.is_nullable(), shared)
         } else {
@@ -4462,7 +4465,7 @@ where
         self.push_operand(any_ref)
     }
     fn visit_extern_convert_any(&mut self) -> Self::Output {
-        let any_ref = self.pop_maybe_shared_ref(RefType::ANY.nullable())?;
+        let any_ref = self.pop_maybe_shared_ref(AbstractHeapType::Any)?;
         let (is_nullable, shared) = if let Some((any_ref, shared)) = any_ref {
             (any_ref.is_nullable(), shared)
         } else {
@@ -4587,11 +4590,11 @@ where
         ))
     }
     fn visit_i31_get_s(&mut self) -> Self::Output {
-        self.pop_maybe_shared_ref(RefType::I31REF)?;
+        self.pop_maybe_shared_ref(AbstractHeapType::I31)?;
         self.push_operand(ValType::I32)
     }
     fn visit_i31_get_u(&mut self) -> Self::Output {
-        self.pop_maybe_shared_ref(RefType::I31REF)?;
+        self.pop_maybe_shared_ref(AbstractHeapType::I31)?;
         self.push_operand(ValType::I32)
     }
     fn visit_try(&mut self, mut ty: BlockType) -> Self::Output {
