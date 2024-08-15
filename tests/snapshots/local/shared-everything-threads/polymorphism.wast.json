@@ -1,0 +1,10 @@
+{
+  "source_filename": "tests/local/shared-everything-threads/polymorphism.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "polymorphism.0.wasm"
+    }
+  ]
+}

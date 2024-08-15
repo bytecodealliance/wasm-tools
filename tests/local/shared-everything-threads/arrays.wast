@@ -114,7 +114,31 @@
     (array.init_data $i8 0 (local.get 0) (i32.const 0) (i32.const 0) (i32.const 0)))
 )
 
-;; Check `array.atomic.rmw.*` instructions.
+;; Bottom types can be used as shared arrays.
+(module
+  (type $i8 (shared (array (mut i8))))
+  (type $i32 (shared (array (mut i32))))
+  (type $funcs (shared (array (mut (ref null (shared func))))))
+
+  (data)
+  ;; See https://github.com/bytecodealliance/wasm-tools/issues/1717.
+  (elem (ref null (shared func)))
+
+  (func (array.get_s $i8 (ref.null (shared none)) (i32.const 0)) (drop))
+  (func (array.get_u $i8 (ref.null (shared none)) (i32.const 0)) (drop))
+  (func (array.get $i32 (ref.null (shared none)) (i32.const 0)) (drop))
+  (func (array.set $i8 (ref.null (shared none)) (i32.const 0) (i32.const 0)))
+  (func (param (ref null $i8))
+    (array.copy $i8 $i8 (ref.null (shared none)) (i32.const 0) (local.get 0) (i32.const 0) (i32.const 0)))
+  (func (param (ref null $i8))
+    (array.copy $i8 $i8 (local.get 0) (i32.const 0) (ref.null (shared none)) (i32.const 0) (i32.const 0)))
+  (func (array.copy $i8 $i8 (ref.null (shared none)) (i32.const 0) (ref.null (shared none)) (i32.const 0) (i32.const 0)))
+  (func (array.fill $i8 (ref.null (shared none)) (i32.const 0) (i32.const 0) (i32.const 0)))
+  (func (array.init_data $i8 0 (ref.null (shared none)) (i32.const 0) (i32.const 0) (i32.const 0)))
+  (func (array.init_elem $funcs 0 (ref.null (shared none)) (i32.const 0) (i32.const 0) (i32.const 0)))
+)
+
+;; Exhaustively check `array.atomic.rmw.*` instructions.
 (module (; get, i32, seq_cst ;)
   (type $a (shared (array (mut i32))))
   (func (export "array-atomic-get-i32-seq_cst") (param $x (ref null $a)) (param $y i32) (result i32)

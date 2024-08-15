@@ -1,154 +1,159 @@
 {
-  "source_filename": "tests/local/shared-everything-threads/struct.wast",
+  "source_filename": "tests/local/shared-everything-threads/structs.wast",
   "commands": [
     {
       "type": "module",
       "line": 2,
-      "filename": "struct.0.wasm"
+      "filename": "structs.0.wasm"
     },
     {
       "type": "assert_invalid",
       "line": 16,
-      "filename": "struct.1.wasm",
+      "filename": "structs.1.wasm",
       "text": "type mismatch",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
       "line": 26,
-      "filename": "struct.2.wasm",
+      "filename": "structs.2.wasm",
       "text": "type mismatch",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
       "line": 37,
-      "filename": "struct.3.wasm",
+      "filename": "structs.3.wasm",
       "text": "must match super type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
       "line": 46,
-      "filename": "struct.4.wasm",
+      "filename": "structs.4.wasm",
       "text": "must match super type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
       "line": 55,
-      "filename": "struct.5.wasm",
+      "filename": "structs.5.wasm",
       "text": "must contain shared type",
       "module_type": "binary"
     },
     {
       "type": "module",
       "line": 62,
-      "filename": "struct.6.wasm"
+      "filename": "structs.6.wasm"
     },
     {
       "type": "module",
       "line": 67,
-      "filename": "struct.7.wasm"
+      "filename": "structs.7.wasm"
     },
     {
       "type": "module",
       "line": 72,
-      "filename": "struct.8.wasm"
+      "filename": "structs.8.wasm"
     },
     {
       "type": "module",
       "line": 95,
-      "filename": "struct.9.wasm"
+      "filename": "structs.9.wasm"
+    },
+    {
+      "type": "module",
+      "line": 103,
+      "filename": "structs.10.wasm"
     },
     {
       "type": "assert_invalid",
-      "line": 322,
-      "filename": "struct.10.wasm",
+      "line": 330,
+      "filename": "structs.11.wasm",
       "text": "non-packed storage type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 331,
-      "filename": "struct.11.wasm",
+      "line": 339,
+      "filename": "structs.12.wasm",
       "text": "non-packed storage types",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 340,
-      "filename": "struct.12.wasm",
+      "line": 348,
+      "filename": "structs.13.wasm",
       "text": "non-packed storage types",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 349,
-      "filename": "struct.13.wasm",
+      "line": 357,
+      "filename": "structs.14.wasm",
       "text": "non-packed storage types",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 358,
-      "filename": "struct.14.wasm",
+      "line": 366,
+      "filename": "structs.15.wasm",
       "text": "non-packed storage types",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 367,
-      "filename": "struct.15.wasm",
+      "line": 375,
+      "filename": "structs.16.wasm",
       "text": "invalid type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 377,
-      "filename": "struct.16.wasm",
+      "line": 385,
+      "filename": "structs.17.wasm",
       "text": "invalid type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 387,
-      "filename": "struct.17.wasm",
+      "line": 395,
+      "filename": "structs.18.wasm",
       "text": "invalid type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 397,
-      "filename": "struct.18.wasm",
+      "line": 405,
+      "filename": "structs.19.wasm",
       "text": "invalid type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 407,
-      "filename": "struct.19.wasm",
+      "line": 415,
+      "filename": "structs.20.wasm",
       "text": "invalid type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 417,
-      "filename": "struct.20.wasm",
+      "line": 425,
+      "filename": "structs.21.wasm",
       "text": "invalid type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 427,
-      "filename": "struct.21.wasm",
+      "line": 435,
+      "filename": "structs.22.wasm",
       "text": "invalid type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 438,
-      "filename": "struct.22.wasm",
+      "line": 446,
+      "filename": "structs.23.wasm",
       "text": "invalid type",
       "module_type": "binary"
     }
