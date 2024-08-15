@@ -1,14 +1,15 @@
 //! The WebAssembly component tool command line interface.
 
+use anyhow::{bail, Context, Result};
+use clap::Parser;
 use std::collections::HashMap;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-
-use anyhow::{bail, Context, Result};
-use clap::Parser;
-
+use wasm_encoder::reencode::{Error, Reencode, ReencodeComponent, RoundtripReencoder};
+use wasm_encoder::ModuleType;
 use wasm_tools::Output;
-use wasmparser::WasmFeatures;
+use wasmparser::types::{CoreTypeId, EntityType, Types};
+use wasmparser::{Payload, ValidPayload, WasmFeatures};
 use wat::Detect;
 use wit_component::{
     embed_component_metadata, ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter,
@@ -24,6 +25,7 @@ pub enum Opts {
     Targets(TargetsOpts),
     Link(LinkOpts),
     SemverCheck(SemverCheckOpts),
+    Unbundle(UnbundleOpts),
 }
 
 impl Opts {
@@ -35,6 +37,7 @@ impl Opts {
             Opts::Targets(targets) => targets.run(),
             Opts::Link(link) => link.run(),
             Opts::SemverCheck(s) => s.run(),
+            Opts::Unbundle(s) => s.run(),
         }
     }
 
@@ -46,6 +49,7 @@ impl Opts {
             Opts::Targets(targets) => targets.general_opts(),
             Opts::Link(link) => link.general_opts(),
             Opts::SemverCheck(s) => s.general_opts(),
+            Opts::Unbundle(s) => s.general_opts(),
         }
     }
 }
@@ -775,6 +779,332 @@ impl SemverCheckOpts {
         let prev = resolve.select_world(pkg_id, Some(self.prev.as_str()))?;
         let new = resolve.select_world(pkg_id, Some(self.new.as_str()))?;
         wit_component::semver_check(resolve, prev, new)?;
+        Ok(())
+    }
+}
+
+/// Unbundled core wasm modules from a component, switching them from being
+/// embedded to being imported.
+///
+/// This subcommand will remove core wasm modules from a component and place
+/// them in the directory specified by `--module-dir`. Modules are extracted
+/// based on their size according to `--threshold`. The output of this command
+/// is a new component which imports the modules that are extracted.
+#[derive(Parser)]
+pub struct UnbundleOpts {
+    #[clap(flatten)]
+    io: wasm_tools::InputOutput,
+
+    /// Where to place unbundled core wasm modules.
+    ///
+    /// Modules will be placed in this directory with the name
+    /// `unbundled-moduleN.wasm` where `N` is a number starting from 0. The
+    /// output component will import `unbundled-moduleN` and each `*.wasm` is
+    /// expected to be compiled and provided.
+    ///
+    /// Note that this option is required to be passed.
+    #[clap(long, value_name = "PATH")]
+    module_dir: PathBuf,
+
+    /// The size threshold for core wasm modules to unbundled.
+    ///
+    /// Modules that are larger than this value will be removed from the
+    /// component and unbundled. Modules smaller than this value will be left in
+    /// place and bundled within the componente.
+    #[clap(long, value_name = "SIZE", default_value_t = 10 << 10)]
+    threshold: usize,
+
+    /// Output the text format of WebAssembly instead of the binary format.
+    #[clap(short = 't', long)]
+    wat: bool,
+}
+
+impl UnbundleOpts {
+    fn general_opts(&self) -> &wasm_tools::GeneralOpts {
+        self.io.general_opts()
+    }
+
+    fn run(self) -> Result<()> {
+        let input = self.io.parse_input_wasm()?;
+        if !wasmparser::Parser::is_component(&input) {
+            return self.io.output_wasm(&input, self.wat);
+        }
+
+        // Generate a list of all modules in the component in the order they
+        // were found in the component itself. Record for each one the bytes of
+        // the module itself or `None` indicating it's not being extracted.
+        let mut modules_to_extract = Vec::new();
+        for payload in wasmparser::Parser::new(0).parse_all(&input) {
+            let range = match payload? {
+                Payload::ModuleSection {
+                    unchecked_range, ..
+                } => unchecked_range,
+                _ => continue,
+            };
+            modules_to_extract.push(if range.len() > self.threshold {
+                Some(&input[range])
+            } else {
+                None
+            });
+        }
+
+        let mut core_types = CoreTypeInterner::default();
+        let mut imports = wasm_encoder::ComponentImportSection::new();
+        let mut validator = wasmparser::Validator::new_with_features(WasmFeatures::all());
+
+        for module in modules_to_extract.iter().filter_map(|m| *m) {
+            // Validate the `module` to get its type information, but don't
+            // validate function bodies since that's not necessary for this.
+            let mut types = None;
+            for payload in wasmparser::Parser::new(0).parse_all(module) {
+                match validator
+                    .payload(&payload?)
+                    .context("failed to validate core wasm module found in component")?
+                {
+                    ValidPayload::Ok | ValidPayload::Parser(_) | ValidPayload::Func(..) => {}
+                    ValidPayload::End(t) => types = Some(t),
+                }
+            }
+            let types = types.unwrap();
+            validator.reset();
+
+            // Create a `ModuleType` with the imports/exports of `types`. Then
+            // create an import corresponding to that module in the import
+            // section.
+            let mut module_ty = ModuleTypeCreator::new(&mut core_types, &types);
+
+            for (module, name, ty) in types.core_imports().unwrap() {
+                let ty = module_ty.convert_entity_type(ty)?;
+                module_ty.module.import(module, name, ty);
+            }
+            for (name, ty) in types.core_exports().unwrap() {
+                let ty = module_ty.convert_entity_type(ty)?;
+                module_ty.module.export(name, ty);
+            }
+
+            let module_type_idx = module_ty.component.section.len();
+            module_ty.component.section.module(&module_ty.module);
+            let name = format!("unbundled-module{}", imports.len());
+            imports.import(
+                &name,
+                wasm_encoder::ComponentTypeRef::Module(module_type_idx),
+            );
+
+            let dst = self.module_dir.join(&name).with_extension("wasm");
+            let parent = dst.parent().unwrap();
+            std::fs::create_dir_all(parent)
+                .with_context(|| format!("failed to create directory {parent:?}"))?;
+            std::fs::write(&dst, module)
+                .with_context(|| format!("failed to write file {dst:?}"))?;
+        }
+
+        let mut component = wasm_encoder::Component::new();
+        component.section(&core_types.section);
+        component.section(&imports);
+
+        // Next rewrite the original component into the destination component
+        // but fix up references at the top level to core types and core
+        // modules. Additionally replace all modules optionally with an alias to
+        // the appropriate import or leave the module in place.
+        ModuleExtractor {
+            extra_core_types: core_types.section.len(),
+            extra_core_modules: imports.len(),
+            depth: 0,
+            modules: modules_to_extract.iter(),
+            next_module: 0,
+        }
+        .parse_component(&mut component, wasmparser::Parser::new(0), &input)?;
+
+        let bytes = component.finish();
+        self.io.output_wasm(&bytes, self.wat)
+    }
+}
+
+/// Top-level conversion of core wasm function types to a component core types
+/// section.
+///
+/// This is a builder for a core type section in a component from a list of
+/// function types. Functions are dedup'd and translated only once.
+#[derive(Default)]
+struct CoreTypeInterner {
+    section: wasm_encoder::CoreTypeSection,
+    intern: HashMap<CoreTypeId, u32>,
+}
+
+impl CoreTypeInterner {
+    fn convert_func(&mut self, id: CoreTypeId, types: &Types) -> Result<u32> {
+        if let Some(ret) = self.intern.get(&id) {
+            return Ok(*ret);
+        }
+        let ty = &types[id];
+        if !ty.is_final || ty.supertype_idx.is_some() || ty.composite_type.shared {
+            bail!("unsupported core type to translate")
+        }
+        let f = match &ty.composite_type.inner {
+            wasmparser::CompositeInnerType::Func(f) => f,
+            _ => bail!("unsupported core type to translate"),
+        };
+
+        let ret = self.section.len();
+        self.section.function(
+            f.params()
+                .iter()
+                .map(|p| RoundtripReencoder.val_type(*p))
+                .collect::<Result<Vec<_>, _>>()?,
+            f.results()
+                .iter()
+                .map(|p| RoundtripReencoder.val_type(*p))
+                .collect::<Result<Vec<_>, _>>()?,
+        );
+        self.intern.insert(id, ret);
+        Ok(ret)
+    }
+}
+
+/// Second-level conversion of a module into a component module type.
+///
+/// This uses a [`CoreTypeInterner`] to create function types and aliases them
+/// into the module type being created to cut down on space used to encode
+/// function types.
+///
+/// This also itself has an `intern` cache to avoid creating multiple aliases
+/// for the same type.
+struct ModuleTypeCreator<'a> {
+    component: &'a mut CoreTypeInterner,
+    types: &'a Types,
+    intern: HashMap<CoreTypeId, u32>,
+    module: ModuleType,
+}
+
+impl<'a> ModuleTypeCreator<'a> {
+    fn new(component: &'a mut CoreTypeInterner, types: &'a Types) -> Self {
+        ModuleTypeCreator {
+            component,
+            types,
+            intern: HashMap::new(),
+            module: ModuleType::new(),
+        }
+    }
+
+    fn convert_entity_type(
+        &mut self,
+        ty: wasmparser::types::EntityType,
+    ) -> Result<wasm_encoder::EntityType> {
+        Ok(match ty {
+            EntityType::Func(id) => wasm_encoder::EntityType::Function(self.convert_func(id)?),
+            EntityType::Table(t) => wasm_encoder::EntityType::Table(wasm_encoder::TableType {
+                shared: t.shared,
+                maximum: t.maximum,
+                minimum: t.initial,
+                table64: t.table64,
+                element_type: RoundtripReencoder.ref_type(t.element_type)?,
+            }),
+            EntityType::Memory(m) => wasm_encoder::EntityType::Memory(wasm_encoder::MemoryType {
+                shared: m.shared,
+                maximum: m.maximum,
+                minimum: m.initial,
+                memory64: m.memory64,
+                page_size_log2: m.page_size_log2,
+            }),
+            EntityType::Global(g) => wasm_encoder::EntityType::Global(wasm_encoder::GlobalType {
+                mutable: g.mutable,
+                shared: g.shared,
+                val_type: RoundtripReencoder.val_type(g.content_type)?,
+            }),
+            EntityType::Tag(id) => wasm_encoder::EntityType::Tag(wasm_encoder::TagType {
+                kind: wasm_encoder::TagKind::Exception,
+                func_type_idx: self.convert_func(id)?,
+            }),
+        })
+    }
+
+    fn convert_func(&mut self, id: CoreTypeId) -> Result<u32> {
+        if let Some(ret) = self.intern.get(&id) {
+            return Ok(*ret);
+        }
+        let outer_index = self.component.convert_func(id, self.types)?;
+        let ret = self.module.type_count();
+        self.module.alias_outer_core_type(1, outer_index);
+        self.intern.insert(id, ret);
+        Ok(ret)
+    }
+}
+
+struct ModuleExtractor<'a> {
+    extra_core_types: u32,
+    extra_core_modules: u32,
+    depth: u32,
+    modules: std::slice::Iter<'a, Option<&'a [u8]>>,
+    next_module: u32,
+}
+
+impl Reencode for ModuleExtractor<'_> {
+    type Error = std::convert::Infallible;
+
+    fn type_index(&mut self, index: u32) -> u32 {
+        if self.depth == 0 {
+            index + self.extra_core_types
+        } else {
+            index
+        }
+    }
+}
+
+impl ReencodeComponent for ModuleExtractor<'_> {
+    fn module_index(&mut self, index: u32) -> u32 {
+        if self.depth == 0 {
+            index + self.extra_core_modules
+        } else {
+            index
+        }
+    }
+
+    fn outer_type_index(&mut self, count: u32, index: u32) -> u32 {
+        if self.depth == count {
+            index + self.extra_core_types
+        } else {
+            index
+        }
+    }
+
+    fn outer_module_index(&mut self, count: u32, index: u32) -> u32 {
+        if self.depth == count {
+            index + self.extra_core_modules
+        } else {
+            index
+        }
+    }
+
+    fn push_depth(&mut self) {
+        self.depth += 1;
+    }
+
+    fn pop_depth(&mut self) {
+        self.depth -= 1;
+    }
+
+    fn parse_component_submodule(
+        &mut self,
+        component: &mut wasm_encoder::Component,
+        _parser: wasmparser::Parser,
+        module: &[u8],
+    ) -> Result<(), Error<Self::Error>> {
+        let extracted = self.modules.next().unwrap().is_some();
+        if extracted {
+            let mut aliases = wasm_encoder::ComponentAliasSection::new();
+            aliases.alias(wasm_encoder::Alias::Outer {
+                kind: wasm_encoder::ComponentOuterAliasKind::CoreModule,
+                count: self.depth,
+                index: self.next_module,
+            });
+            self.next_module += 1;
+            component.section(&aliases);
+        } else {
+            component.section(&wasm_encoder::RawSection {
+                id: wasm_encoder::ComponentSectionId::CoreModule as u8,
+                data: module,
+            });
+        }
         Ok(())
     }
 }

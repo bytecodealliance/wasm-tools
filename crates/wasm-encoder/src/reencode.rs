@@ -45,6 +45,13 @@ pub trait Reencode {
         utils::type_index(self, ty)
     }
 
+    fn type_index_unpacked(
+        &mut self,
+        ty: wasmparser::UnpackedIndex,
+    ) -> Result<u32, Error<Self::Error>> {
+        utils::type_index_unpacked(self, ty)
+    }
+
     fn external_index(&mut self, kind: wasmparser::ExternalKind, index: u32) -> u32 {
         match kind {
             wasmparser::ExternalKind::Func => self.function_index(index),
@@ -463,6 +470,21 @@ pub trait Reencode {
     ) -> Result<(), Error<Self::Error>> {
         utils::parse_core_module(self, module, parser, data)
     }
+
+    fn custom_name_section(
+        &mut self,
+        section: wasmparser::NameSectionReader<'_>,
+    ) -> Result<crate::NameSection, Error<Self::Error>> {
+        utils::custom_name_section(self, section)
+    }
+
+    fn parse_custom_name_subsection(
+        &mut self,
+        names: &mut crate::NameSection,
+        section: wasmparser::Name<'_>,
+    ) -> Result<(), Error<Self::Error>> {
+        utils::parse_custom_name_subsection(self, names, section)
+    }
 }
 
 /// An error when re-encoding from `wasmparser` to `wasm-encoder`.
@@ -860,7 +882,14 @@ pub mod utils {
         module: &mut crate::Module,
         section: wasmparser::CustomSectionReader<'_>,
     ) -> Result<(), Error<T::Error>> {
-        module.section(&reencoder.custom_section(section));
+        match section.as_known() {
+            wasmparser::KnownCustom::Name(name) => {
+                module.section(&reencoder.custom_name_section(name)?);
+            }
+            _ => {
+                module.section(&reencoder.custom_section(section));
+            }
+        }
         Ok(())
     }
 
@@ -913,6 +942,15 @@ pub mod utils {
 
     pub fn type_index<T: ?Sized + Reencode>(_reencoder: &mut T, ty: u32) -> u32 {
         ty
+    }
+
+    pub fn type_index_unpacked<T: ?Sized + Reencode>(
+        reencoder: &mut T,
+        ty: wasmparser::UnpackedIndex,
+    ) -> Result<u32, Error<T::Error>> {
+        ty.as_module_index()
+            .map(|ty| reencoder.type_index(ty))
+            .ok_or(Error::CanonicalizedHeapTypeReference)
     }
 
     pub fn tag_type<T: ?Sized + Reencode>(
@@ -986,11 +1024,7 @@ pub mod utils {
             is_final: sub_ty.is_final,
             supertype_idx: sub_ty
                 .supertype_idx
-                .map(|i| {
-                    i.as_module_index()
-                        .map(|ty| reencoder.type_index(ty))
-                        .ok_or(Error::CanonicalizedHeapTypeReference)
-                })
+                .map(|i| reencoder.type_index_unpacked(i.unpack()))
                 .transpose()?,
             composite_type: reencoder.composite_type(sub_ty.composite_type)?,
         })
@@ -1101,11 +1135,9 @@ pub mod utils {
         heap_type: wasmparser::HeapType,
     ) -> Result<crate::HeapType, Error<T::Error>> {
         Ok(match heap_type {
-            wasmparser::HeapType::Concrete(i) => crate::HeapType::Concrete(
-                i.as_module_index()
-                    .map(|ty| reencoder.type_index(ty))
-                    .ok_or(Error::CanonicalizedHeapTypeReference)?,
-            ),
+            wasmparser::HeapType::Concrete(i) => {
+                crate::HeapType::Concrete(reencoder.type_index_unpacked(i)?)
+            }
             wasmparser::HeapType::Abstract { shared, ty } => crate::HeapType::Abstract {
                 shared,
                 ty: reencoder.abstract_heap_type(ty),
@@ -1579,6 +1611,90 @@ pub mod utils {
     ) -> Result<(), Error<T::Error>> {
         module.section(&crate::RawSection { id, data: contents });
         Ok(())
+    }
+
+    pub fn custom_name_section<T: ?Sized + Reencode>(
+        reencoder: &mut T,
+        section: wasmparser::NameSectionReader<'_>,
+    ) -> Result<crate::NameSection, Error<T::Error>> {
+        let mut ret = crate::NameSection::new();
+        for subsection in section {
+            reencoder.parse_custom_name_subsection(&mut ret, subsection?)?;
+        }
+        Ok(ret)
+    }
+
+    pub fn parse_custom_name_subsection<T: ?Sized + Reencode>(
+        reencoder: &mut T,
+        names: &mut crate::NameSection,
+        section: wasmparser::Name<'_>,
+    ) -> Result<(), Error<T::Error>> {
+        match section {
+            wasmparser::Name::Module { name, .. } => {
+                names.module(name);
+            }
+            wasmparser::Name::Function(map) => {
+                names.functions(&name_map(map, |i| reencoder.function_index(i))?);
+            }
+            wasmparser::Name::Type(map) => {
+                names.types(&name_map(map, |i| reencoder.type_index(i))?);
+            }
+            wasmparser::Name::Local(map) => {
+                names.locals(&indirect_name_map(map, |i| reencoder.function_index(i))?);
+            }
+            wasmparser::Name::Label(map) => {
+                names.labels(&indirect_name_map(map, |i| reencoder.function_index(i))?);
+            }
+            wasmparser::Name::Table(map) => {
+                names.tables(&name_map(map, |i| reencoder.table_index(i))?);
+            }
+            wasmparser::Name::Memory(map) => {
+                names.memories(&name_map(map, |i| reencoder.memory_index(i))?);
+            }
+            wasmparser::Name::Global(map) => {
+                names.globals(&name_map(map, |i| reencoder.global_index(i))?);
+            }
+            wasmparser::Name::Element(map) => {
+                names.elements(&name_map(map, |i| reencoder.element_index(i))?);
+            }
+            wasmparser::Name::Data(map) => {
+                names.data(&name_map(map, |i| reencoder.data_index(i))?);
+            }
+            wasmparser::Name::Tag(map) => {
+                names.tags(&name_map(map, |i| reencoder.tag_index(i))?);
+            }
+            wasmparser::Name::Field(map) => {
+                names.fields(&indirect_name_map(map, |i| reencoder.type_index(i))?);
+            }
+            wasmparser::Name::Unknown { ty, data, .. } => {
+                names.raw(ty, data);
+            }
+        }
+        Ok(())
+    }
+
+    pub fn name_map(
+        map: wasmparser::NameMap<'_>,
+        mut map_index: impl FnMut(u32) -> u32,
+    ) -> wasmparser::Result<crate::NameMap> {
+        let mut ret = crate::NameMap::new();
+        for naming in map {
+            let naming = naming?;
+            ret.append(map_index(naming.index), naming.name);
+        }
+        Ok(ret)
+    }
+
+    pub fn indirect_name_map(
+        map: wasmparser::IndirectNameMap<'_>,
+        mut map_index: impl FnMut(u32) -> u32,
+    ) -> wasmparser::Result<crate::IndirectNameMap> {
+        let mut ret = crate::IndirectNameMap::new();
+        for naming in map {
+            let naming = naming?;
+            ret.append(map_index(naming.index), &name_map(naming.names, |i| i)?);
+        }
+        Ok(ret)
     }
 }
 

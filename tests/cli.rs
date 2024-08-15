@@ -79,14 +79,13 @@ fn run_test(test: &Path, bless: bool) -> Result<()> {
     let mut stdin = None;
     let tempdir = TempDir::new()?;
     for arg in line.split_whitespace() {
+        let arg = arg.replace("%tmpdir", tempdir.path().to_str().unwrap());
         if arg == "|" {
             let output = execute(&mut cmd, stdin.as_deref(), false)?;
             stdin = Some(output.stdout);
             cmd = wasm_tools_exe();
         } else if arg == "%" {
             cmd.arg(test);
-        } else if arg == "%tmpdir" {
-            cmd.arg(tempdir.path());
         } else {
             cmd.arg(arg);
         }

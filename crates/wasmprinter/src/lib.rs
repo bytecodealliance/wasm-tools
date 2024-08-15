@@ -2093,7 +2093,7 @@ impl Printer<'_, '_> {
                     self.result.write_str(" ")?;
                     state.core.modules += 1;
                 }
-                self.print_component_type_ref(state, *idx)?;
+                self.print_core_type_ref(state, *idx)?;
                 self.end_group()?;
             }
             ComponentTypeRef::Func(idx) => {

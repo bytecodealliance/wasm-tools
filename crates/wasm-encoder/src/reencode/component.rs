@@ -30,6 +30,30 @@ pub trait ReencodeComponent: Reencode {
         ty
     }
 
+    fn outer_type_index(&mut self, count: u32, ty: u32) -> u32 {
+        let _ = count;
+        self.type_index(ty)
+    }
+
+    fn outer_component_type_index(&mut self, count: u32, ty: u32) -> u32 {
+        let _ = count;
+        self.component_type_index(ty)
+    }
+
+    fn outer_component_index(&mut self, count: u32, component: u32) -> u32 {
+        let _ = count;
+        self.component_index(component)
+    }
+
+    fn outer_module_index(&mut self, count: u32, module: u32) -> u32 {
+        let _ = count;
+        self.module_index(module)
+    }
+
+    fn push_depth(&mut self) {}
+
+    fn pop_depth(&mut self) {}
+
     fn component_external_index(
         &mut self,
         kind: wasmparser::ComponentExternalKind,
@@ -346,12 +370,28 @@ pub trait ReencodeComponent: Reencode {
     ) -> crate::component::CanonicalOption {
         component_utils::canonical_option(self, ty)
     }
+
+    fn custom_component_name_section(
+        &mut self,
+        section: wasmparser::ComponentNameSectionReader<'_>,
+    ) -> Result<crate::ComponentNameSection, Error<Self::Error>> {
+        component_utils::custom_component_name_section(self, section)
+    }
+
+    fn parse_custom_component_name_subsection(
+        &mut self,
+        names: &mut crate::ComponentNameSection,
+        section: wasmparser::ComponentName<'_>,
+    ) -> Result<(), Error<Self::Error>> {
+        component_utils::parse_custom_component_name_subsection(self, names, section)
+    }
 }
 
 impl ReencodeComponent for RoundtripReencoder {}
 
 #[allow(missing_docs)] // FIXME
 pub mod component_utils {
+    use super::super::utils::name_map;
     use super::ReencodeComponent;
     use crate::reencode::Error;
 
@@ -499,9 +539,11 @@ pub mod component_utils {
         parser: wasmparser::Parser,
         submodule: &[u8],
     ) -> Result<(), Error<T::Error>> {
+        reencoder.push_depth();
         let mut module = crate::Module::new();
         crate::reencode::utils::parse_core_module(reencoder, &mut module, parser, submodule)?;
         component.section(&crate::ModuleSection(&module));
+        reencoder.pop_depth();
         Ok(())
     }
 
@@ -512,9 +554,11 @@ pub mod component_utils {
         data: &[u8],
         whole_component: &[u8],
     ) -> Result<(), Error<T::Error>> {
+        reencoder.push_depth();
         let mut subcomponent = crate::Component::new();
         parse_component(reencoder, &mut subcomponent, parser, data, whole_component)?;
         component.section(&crate::NestedComponentSection(&subcomponent));
+        reencoder.pop_depth();
         Ok(())
     }
 
@@ -533,7 +577,14 @@ pub mod component_utils {
         component: &mut crate::Component,
         section: wasmparser::CustomSectionReader<'_>,
     ) -> Result<(), Error<T::Error>> {
-        component.section(&reencoder.custom_section(section));
+        match section.as_known() {
+            wasmparser::KnownCustom::ComponentName(name) => {
+                component.section(&reencoder.custom_component_name_section(name)?);
+            }
+            _ => {
+                component.section(&reencoder.custom_section(section));
+            }
+        }
         Ok(())
     }
 
@@ -581,10 +632,12 @@ pub mod component_utils {
         reencoder: &mut T,
         ty: Box<[wasmparser::InstanceTypeDeclaration<'_>]>,
     ) -> Result<crate::InstanceType, Error<T::Error>> {
+        reencoder.push_depth();
         let mut ret = crate::InstanceType::new();
         for decl in Vec::from(ty) {
             reencoder.parse_component_instance_type_declaration(&mut ret, decl)?;
         }
+        reencoder.pop_depth();
         Ok(ret)
     }
 
@@ -631,10 +684,12 @@ pub mod component_utils {
         reencoder: &mut T,
         ty: Box<[wasmparser::ComponentTypeDeclaration<'_>]>,
     ) -> Result<crate::ComponentType, Error<T::Error>> {
+        reencoder.push_depth();
         let mut ret = crate::ComponentType::new();
         for decl in Vec::from(ty) {
             reencoder.parse_component_type_declaration(&mut ret, decl)?;
         }
+        reencoder.pop_depth();
         Ok(ret)
     }
 
@@ -751,10 +806,12 @@ pub mod component_utils {
         reencoder: &mut T,
         ty: Box<[wasmparser::ModuleTypeDeclaration<'_>]>,
     ) -> Result<crate::ModuleType, Error<T::Error>> {
+        reencoder.push_depth();
         let mut ret = crate::ModuleType::new();
         for decl in Vec::from(ty) {
             reencoder.parse_component_module_type_declaration(&mut ret, decl)?;
         }
+        reencoder.pop_depth();
         Ok(ret)
     }
 
@@ -775,8 +832,7 @@ pub mod component_utils {
                 count,
                 index,
             } => {
-                // TODO: how to inform `reencoder` that `index` is being used
-                // at the particular depth?
+                let index = reencoder.outer_type_index(count, index);
                 module.alias_outer_core_type(count, index);
             }
             wasmparser::ModuleTypeDeclaration::Import(import) => {
@@ -815,9 +871,21 @@ pub mod component_utils {
             }),
             wasmparser::ComponentAlias::Outer { kind, count, index } => Ok(crate::Alias::Outer {
                 kind: kind.into(),
-                // TODO: how to inform `reencoder` of aliases
                 count,
-                index,
+                index: match kind {
+                    wasmparser::ComponentOuterAliasKind::CoreModule => {
+                        reencoder.outer_module_index(count, index)
+                    }
+                    wasmparser::ComponentOuterAliasKind::CoreType => {
+                        reencoder.outer_type_index(count, index)
+                    }
+                    wasmparser::ComponentOuterAliasKind::Type => {
+                        reencoder.outer_component_type_index(count, index)
+                    }
+                    wasmparser::ComponentOuterAliasKind::Component => {
+                        reencoder.outer_component_index(count, index)
+                    }
+                },
             }),
         }
     }
@@ -1071,7 +1139,7 @@ pub mod component_utils {
     ) -> crate::component::ComponentTypeRef {
         match ty {
             wasmparser::ComponentTypeRef::Module(u) => {
-                crate::component::ComponentTypeRef::Module(reencoder.component_type_index(u))
+                crate::component::ComponentTypeRef::Module(reencoder.type_index(u))
             }
             wasmparser::ComponentTypeRef::Func(u) => {
                 crate::component::ComponentTypeRef::Func(reencoder.component_type_index(u))
@@ -1194,6 +1262,69 @@ pub mod component_utils {
                 crate::component::CanonicalOption::PostReturn(reencoder.function_index(u))
             }
         }
+    }
+
+    pub fn custom_component_name_section<T: ?Sized + ReencodeComponent>(
+        reencoder: &mut T,
+        section: wasmparser::ComponentNameSectionReader<'_>,
+    ) -> Result<crate::ComponentNameSection, Error<T::Error>> {
+        let mut ret = crate::ComponentNameSection::new();
+        for subsection in section {
+            reencoder.parse_custom_component_name_subsection(&mut ret, subsection?)?;
+        }
+        Ok(ret)
+    }
+
+    pub fn parse_custom_component_name_subsection<T: ?Sized + ReencodeComponent>(
+        reencoder: &mut T,
+        names: &mut crate::ComponentNameSection,
+        section: wasmparser::ComponentName<'_>,
+    ) -> Result<(), Error<T::Error>> {
+        match section {
+            wasmparser::ComponentName::Component { name, .. } => {
+                names.component(name);
+            }
+            wasmparser::ComponentName::CoreFuncs(map) => {
+                names.core_funcs(&name_map(map, |i| reencoder.function_index(i))?);
+            }
+            wasmparser::ComponentName::CoreGlobals(map) => {
+                names.core_globals(&name_map(map, |i| reencoder.global_index(i))?);
+            }
+            wasmparser::ComponentName::CoreMemories(map) => {
+                names.core_memories(&name_map(map, |i| reencoder.memory_index(i))?);
+            }
+            wasmparser::ComponentName::CoreTables(map) => {
+                names.core_tables(&name_map(map, |i| reencoder.table_index(i))?);
+            }
+            wasmparser::ComponentName::CoreModules(map) => {
+                names.core_modules(&name_map(map, |i| reencoder.module_index(i))?);
+            }
+            wasmparser::ComponentName::CoreInstances(map) => {
+                names.core_instances(&name_map(map, |i| reencoder.instance_index(i))?);
+            }
+            wasmparser::ComponentName::CoreTypes(map) => {
+                names.core_types(&name_map(map, |i| reencoder.type_index(i))?);
+            }
+            wasmparser::ComponentName::Types(map) => {
+                names.types(&name_map(map, |i| reencoder.component_type_index(i))?);
+            }
+            wasmparser::ComponentName::Instances(map) => {
+                names.instances(&name_map(map, |i| reencoder.component_instance_index(i))?);
+            }
+            wasmparser::ComponentName::Components(map) => {
+                names.components(&name_map(map, |i| reencoder.component_index(i))?);
+            }
+            wasmparser::ComponentName::Funcs(map) => {
+                names.funcs(&name_map(map, |i| reencoder.component_func_index(i))?);
+            }
+            wasmparser::ComponentName::Values(map) => {
+                names.values(&name_map(map, |i| reencoder.component_value_index(i))?);
+            }
+            wasmparser::ComponentName::Unknown { ty, data, .. } => {
+                names.raw(ty, data);
+            }
+        }
+        Ok(())
     }
 }
 

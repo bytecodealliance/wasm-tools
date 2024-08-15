@@ -148,6 +148,7 @@ that can be use programmatically as well:
 | `wasm-tools component embed` |  |  | Embed a `component-type` custom section in a core wasm binary |
 | `wasm-tools metadata show` |  [wasm-metadata] |  | Show name and producer metadata in a component or module |
 | `wasm-tools metadata add` |  |  | Add name or producer metadata to a component or module |
+| `wasm-tools metadata unbundle` |  |  | Extract core wasm modules from a component |
 | `wasm-tools addr2line` |  |  | Translate wasm offsets to filename/line numbers with DWARF |
 | `wasm-tools completion` |  |  | Generate shell completion scripts for `wasm-tools` |
 | `wasm-tools json-from-wast` |  |  | Convert a `*.wast` file into JSON commands |
