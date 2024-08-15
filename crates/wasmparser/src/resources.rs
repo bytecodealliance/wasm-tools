@@ -68,7 +68,11 @@ pub trait WasmModuleResources {
     fn is_subtype(&self, a: ValType, b: ValType) -> bool;
 
     /// Is the given reference type `shared`?
-    fn is_shared_ref_type(&self, ty: RefType) -> bool;
+    ///
+    /// While abstract heap types do carry along a `shared` flag, concrete heap
+    /// types do not. This function resolves those concrete heap types to
+    /// determine `shared`-ness.
+    fn is_shared(&self, ty: RefType) -> bool;
 
     /// Check and canonicalize a value type.
     ///
@@ -164,8 +168,8 @@ where
     fn is_subtype(&self, a: ValType, b: ValType) -> bool {
         T::is_subtype(self, a, b)
     }
-    fn is_shared_ref_type(&self, ty: RefType) -> bool {
-        T::is_shared_ref_type(self, ty)
+    fn is_shared(&self, ty: RefType) -> bool {
+        T::is_shared(self, ty)
     }
     fn element_count(&self) -> u32 {
         T::element_count(self)
@@ -226,8 +230,8 @@ where
         T::is_subtype(self, a, b)
     }
 
-    fn is_shared_ref_type(&self, ty: RefType) -> bool {
-        T::is_shared_ref_type(self, ty)
+    fn is_shared(&self, ty: RefType) -> bool {
+        T::is_shared(self, ty)
     }
 
     fn element_count(&self) -> u32 {

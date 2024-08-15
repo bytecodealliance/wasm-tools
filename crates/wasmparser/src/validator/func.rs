@@ -288,7 +288,7 @@ mod tests {
         fn is_subtype(&self, _t1: ValType, _t2: ValType) -> bool {
             todo!()
         }
-        fn is_shared_ref_type(&self, _ty: RefType) -> bool {
+        fn is_shared(&self, _ty: RefType) -> bool {
             todo!()
         }
         fn element_count(&self) -> u32 {

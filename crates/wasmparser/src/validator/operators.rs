@@ -624,14 +624,14 @@ where
     /// a concrete type.
     fn pop_maybe_shared_ref(&mut self, expected: RefType) -> Result<Option<(RefType, bool)>> {
         debug_assert!(!expected.is_concrete_type_ref());
-        assert!(!self.resources.is_shared_ref_type(expected));
+        assert!(!self.resources.is_shared(expected));
         let actual = match self.pop_ref()? {
             Some(rt) => rt,
             None => return Ok(None),
         };
         // Change our expectation based on whether we're dealing with an actual
         // shared or unshared type.
-        let is_actual_shared = self.resources.is_shared_ref_type(actual);
+        let is_actual_shared = self.resources.is_shared(actual);
         let expected = if is_actual_shared {
             expected
                 .shared()
