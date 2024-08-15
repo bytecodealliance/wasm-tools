@@ -4450,6 +4450,8 @@ where
                 self.resources.is_shared_ref_type(extern_ref),
             )
         } else {
+            // TODO: propagating unshared may be incorrect here
+            // (https://github.com/WebAssembly/shared-everything-threads/issues/80)
             (false, false)
         };
         let heap_type = HeapType::Abstract {
@@ -4467,6 +4469,8 @@ where
                 self.resources.is_shared_ref_type(any_ref),
             )
         } else {
+            // TODO: propagating unshared may be incorrect here
+            // (https://github.com/WebAssembly/shared-everything-threads/issues/80)
             (false, false)
         };
         let heap_type = HeapType::Abstract {
