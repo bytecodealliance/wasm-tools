@@ -618,9 +618,11 @@ where
     }
 
     /// Pop a reference type from the operand stack, checking if it is a subtype
-    /// of `expected` or the shared version of `expected`. This function will
-    /// panic if `expected` is shared or a concrete type.
-    fn pop_maybe_shared_ref(&mut self, expected: RefType) -> Result<Option<RefType>> {
+    /// of `expected` or the shared version of `expected`. This function returns
+    /// the popped reference type and its `shared`-ness, saving extra lookups
+    /// for concrete types. This function will panic if `expected` is shared or
+    /// a concrete type.
+    fn pop_maybe_shared_ref(&mut self, expected: RefType) -> Result<Option<(RefType, bool)>> {
         debug_assert!(!expected.is_concrete_type_ref());
         assert!(!self.resources.is_shared_ref_type(expected));
         let actual = match self.pop_ref()? {
@@ -629,7 +631,8 @@ where
         };
         // Change our expectation based on whether we're dealing with an actual
         // shared or unshared type.
-        let expected = if self.resources.is_shared_ref_type(actual) {
+        let is_actual_shared = self.resources.is_shared_ref_type(actual);
+        let expected = if is_actual_shared {
             expected
                 .shared()
                 .expect("this only expects abstract heap types")
@@ -645,7 +648,7 @@ where
                 "type mismatch: expected subtype of {expected}, found {actual}",
             )
         }
-        Ok(Some(actual))
+        Ok(Some((actual, is_actual_shared)))
     }
 
     /// Fetches the type for the local at `idx`, returning an error if it's out
@@ -2749,8 +2752,8 @@ where
         let a = self.pop_maybe_shared_ref(RefType::EQ.nullable())?;
         let b = self.pop_maybe_shared_ref(RefType::EQ.nullable())?;
         match (a, b) {
-            (Some(a), Some(b)) => {
-                if self.resources.is_shared_ref_type(a) != self.resources.is_shared_ref_type(b) {
+            (Some((_, is_a_shared)), Some((_, is_b_shared))) => {
+                if is_a_shared != is_b_shared {
                     bail!(
                         self.offset,
                         "type mismatch: expected `ref.eq` types to match `shared`-ness"
@@ -4444,11 +4447,8 @@ where
     }
     fn visit_any_convert_extern(&mut self) -> Self::Output {
         let extern_ref = self.pop_maybe_shared_ref(RefType::EXTERNREF)?;
-        let (is_nullable, shared) = if let Some(extern_ref) = extern_ref {
-            (
-                extern_ref.is_nullable(),
-                self.resources.is_shared_ref_type(extern_ref),
-            )
+        let (is_nullable, shared) = if let Some((extern_ref, shared)) = extern_ref {
+            (extern_ref.is_nullable(), shared)
         } else {
             // TODO: propagating unshared may be incorrect here
             // (https://github.com/WebAssembly/shared-everything-threads/issues/80)
@@ -4463,11 +4463,8 @@ where
     }
     fn visit_extern_convert_any(&mut self) -> Self::Output {
         let any_ref = self.pop_maybe_shared_ref(RefType::ANY.nullable())?;
-        let (is_nullable, shared) = if let Some(any_ref) = any_ref {
-            (
-                any_ref.is_nullable(),
-                self.resources.is_shared_ref_type(any_ref),
-            )
+        let (is_nullable, shared) = if let Some((any_ref, shared)) = any_ref {
+            (any_ref.is_nullable(), shared)
         } else {
             // TODO: propagating unshared may be incorrect here
             // (https://github.com/WebAssembly/shared-everything-threads/issues/80)
