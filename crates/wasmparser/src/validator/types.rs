@@ -1945,6 +1945,35 @@ impl<'a> TypesRef<'a> {
     {
         self.list.peel_alias(ty)
     }
+
+    /// Returns an iterator over the core wasm imports found.
+    ///
+    /// Returns `None` if this type information is for a component.
+    pub fn core_imports(
+        &self,
+    ) -> Option<impl Iterator<Item = (&'a str, &'a str, EntityType)> + 'a> {
+        match &self.kind {
+            TypesRefKind::Module(module) => Some(
+                module
+                    .imports
+                    .iter()
+                    .flat_map(|((m, n), t)| t.iter().map(move |t| (m.as_str(), n.as_str(), *t))),
+            ),
+            TypesRefKind::Component(_) => None,
+        }
+    }
+
+    /// Returns an iterator over the core wasm exports found.
+    ///
+    /// Returns `None` if this type information is for a component.
+    pub fn core_exports(&self) -> Option<impl Iterator<Item = (&'a str, EntityType)> + 'a> {
+        match &self.kind {
+            TypesRefKind::Module(module) => {
+                Some(module.exports.iter().map(|(n, t)| (n.as_str(), *t)))
+            }
+            TypesRefKind::Component(_) => None,
+        }
+    }
 }
 
 impl<T> Index<T> for TypesRef<'_>
@@ -2281,6 +2310,16 @@ impl Types {
         T: Aliasable,
     {
         self.list.peel_alias(ty)
+    }
+
+    /// Same as [`TypesRef::core_imports`]
+    pub fn core_imports<'a>(&self) -> Option<impl Iterator<Item = (&str, &str, EntityType)> + '_> {
+        self.as_ref().core_imports()
+    }
+
+    /// Same as [`TypesRef::core_exports`]
+    pub fn core_exports(&self) -> Option<impl Iterator<Item = (&str, EntityType)> + '_> {
+        self.as_ref().core_exports()
     }
 }
 
