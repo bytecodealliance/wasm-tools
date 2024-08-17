@@ -205,11 +205,11 @@ impl ElementInfo {
 
 /// Collect size and alignment for sub-elements of a structure
 #[derive(Default)]
-pub struct SizeAlign64 {
+pub struct SizeAlign {
     map: Vec<ElementInfo>,
 }
 
-impl SizeAlign64 {
+impl SizeAlign {
     pub fn fill(&mut self, resolve: &Resolve) {
         self.map = Vec::new();
         for (_, ty) in resolve.types.iter() {
@@ -381,53 +381,6 @@ pub fn align_to_arch(val: ArchitectureSize, align: Alignment) -> ArchitectureSiz
     }
 }
 
-/// Compatibility with older versions:
-/// Collect size and alignment for sub-elements of a structure, simpler interface only supporting wasm32
-#[derive(Default)]
-pub struct SizeAlign32(SizeAlign64);
-
-impl SizeAlign32 {
-    pub fn new() -> Self {
-        Default::default()
-    }
-    pub fn fill(&mut self, resolve: &Resolve) {
-        self.0.fill(resolve);
-    }
-    pub fn size(&self, ty: &Type) -> usize {
-        self.0.size(ty).size_wasm32()
-    }
-    pub fn align(&self, ty: &Type) -> usize {
-        self.0.align(ty).align_wasm32()
-    }
-    pub fn field_offsets<'a>(
-        &self,
-        types: impl IntoIterator<Item = &'a Type>,
-    ) -> Vec<(usize, &'a Type)> {
-        self.0
-            .field_offsets(types)
-            .drain(..)
-            .map(|(offs, ty)| (offs.size_wasm32(), ty))
-            .collect()
-    }
-    pub fn payload_offset<'a>(
-        &self,
-        tag: Int,
-        cases: impl IntoIterator<Item = Option<&'a Type>>,
-    ) -> usize {
-        self.0.payload_offset(tag, cases).size_wasm32()
-    }
-    pub fn record<'a>(&self, types: impl Iterator<Item = &'a Type>) -> (usize, usize) {
-        let info = self.0.record(types);
-        (info.size.size_wasm32(), info.align.align_wasm32())
-    }
-    pub fn params<'a>(&self, types: impl IntoIterator<Item = &'a Type>) -> (usize, usize) {
-        self.record(types.into_iter())
-    }
-}
-
-/// compatibility alias
-pub type SizeAlign = SizeAlign32;
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -499,7 +452,7 @@ mod test {
     #[test]
     fn resource_size() {
         // keep it identical to the old behavior
-        let obj = SizeAlign64::default();
+        let obj = SizeAlign::default();
         let elem = obj.calculate(&TypeDef {
             name: None,
             kind: TypeDefKind::Resource,
@@ -515,7 +468,7 @@ mod test {
     }
     #[test]
     fn result_ptr_10() {
-        let mut obj = SizeAlign64::default();
+        let mut obj = SizeAlign::default();
         let mut resolve = Resolve::default();
         let tuple = crate::Tuple {
             types: vec![Type::U16, Type::U16, Type::U16, Type::U16, Type::U16],
