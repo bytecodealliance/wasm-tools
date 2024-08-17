@@ -168,7 +168,7 @@ impl ArchitectureSize {
 
     /// prefer this over >0
     pub fn is_empty(&self) -> bool {
-        self.bytes == 0
+        self.bytes == 0 && self.pointers == 0
     }
 
     // create a suitable expression in bytes from a pointer size argument
