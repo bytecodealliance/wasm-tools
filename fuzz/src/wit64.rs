@@ -1,12 +1,12 @@
 use arbitrary::{Result, Unstructured};
 use std::path::Path;
-use wit_parser as wit_parser_new;
 use wit_component as wit_component_new;
+use wit_parser as wit_parser_new;
 
 pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     let wasm = u.arbitrary().and_then(|config| {
         log::debug!("config: {config:#?}");
-        wit_smith::smith(&config, u)
+        wit_smith_old::smith(&config, u)
     })?;
     write_file("doc.wasm", &wasm);
     let r1 = wit_component_old::decode(&wasm).unwrap();
@@ -50,7 +50,10 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
                 let tp1 = &r1.types[*id1];
                 let tp2 = &r2.types[*id2];
                 match (&tp1.kind, &tp2.kind) {
-                    (wit_parser_old::TypeDefKind::Record(r1), wit_parser_new::TypeDefKind::Record(r2)) => {
+                    (
+                        wit_parser_old::TypeDefKind::Record(r1),
+                        wit_parser_new::TypeDefKind::Record(r2),
+                    ) => {
                         let offsets32 = sa32.field_offsets(r1.fields.iter().map(|f| &f.ty));
                         let offsets64 = sa64.field_offsets(r1.fields.iter().map(|f| &f.ty));
                         let offsetsalt = alt.field_offsets(r2.fields.iter().map(|f| &f.ty));
@@ -63,7 +66,10 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
                             assert_eq!(fd64.0, fdalt.0.bytes + fdalt.0.add_for_64bit);
                         }
                     }
-                    (wit_parser_old::TypeDefKind::Tuple(t1), wit_parser_new::TypeDefKind::Tuple(t2)) => {
+                    (
+                        wit_parser_old::TypeDefKind::Tuple(t1),
+                        wit_parser_new::TypeDefKind::Tuple(t2),
+                    ) => {
                         let offsets32 = sa32.field_offsets(t1.types.iter());
                         let offsets64 = sa64.field_offsets(t1.types.iter());
                         let offsetsalt = alt.field_offsets(t2.types.iter());
@@ -80,9 +86,12 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
                         wit_parser_old::TypeDefKind::Variant(v1),
                         wit_parser_new::TypeDefKind::Variant(v2),
                     ) => {
-                        let offset32 = sa32.payload_offset(v1.tag(), v1.cases.iter().map(|f| f.ty.as_ref()));
-                        let offset64 = sa64.payload_offset(v1.tag(), v1.cases.iter().map(|f| f.ty.as_ref()));
-                        let offsetalt = alt.payload_offset(v2.tag(), v2.cases.iter().map(|f| f.ty.as_ref()));
+                        let offset32 =
+                            sa32.payload_offset(v1.tag(), v1.cases.iter().map(|f| f.ty.as_ref()));
+                        let offset64 =
+                            sa64.payload_offset(v1.tag(), v1.cases.iter().map(|f| f.ty.as_ref()));
+                        let offsetalt =
+                            alt.payload_offset(v2.tag(), v2.cases.iter().map(|f| f.ty.as_ref()));
                         assert_eq!(offset32, offsetalt.size_wasm32());
                         assert_eq!(offset64, offsetalt.bytes + offsetalt.add_for_64bit);
                     }

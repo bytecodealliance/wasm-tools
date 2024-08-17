@@ -1747,7 +1747,7 @@ dependencies = [
  "wit-component 0.215.0",
  "wit-encoder",
  "wit-parser 0.215.0",
- "wit-smith",
+ "wit-smith 0.215.0",
 ]
 
 [[package]]
@@ -1786,7 +1786,8 @@ dependencies = [
  "wit-component 0.215.0",
  "wit-parser 0.214.0",
  "wit-parser 0.215.0",
- "wit-smith",
+ "wit-smith 0.214.0",
+ "wit-smith 0.215.0",
 ]
 
 [[package]]
@@ -2341,6 +2342,20 @@ dependencies = [
  "log",
  "wasmprinter 0.215.0",
  "wit-parser 0.215.0",
+]
+
+[[package]]
+name = "wit-smith"
+version = "0.214.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09cf816019a376a912cafb103677a8d28e3cba86b7671b754281e75f4909e129"
+dependencies = [
+ "arbitrary",
+ "indexmap 2.2.6",
+ "log",
+ "semver",
+ "wit-component 0.214.0",
+ "wit-parser 0.214.0",
 ]
 
 [[package]]
