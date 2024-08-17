@@ -393,11 +393,13 @@ pub fn align_to_arch(val: ArchitectureSize, align: Alignment) -> ArchitectureSiz
         Alignment::Bytes(align_bytes) => {
             let align_bytes = align_bytes.get();
             if align_bytes > 4 && (val.pointers & 1) != 0 {
-                let mut new_bytes = align_to(val.bytes, align_bytes);
-                if new_bytes != val.bytes {
-                    new_bytes -= 8;
-                    ArchitectureSize::new(new_bytes, val.pointers + 1)
+                let new_bytes = align_to(val.bytes, align_bytes);
+                if (new_bytes - val.bytes) >= 4 {
+                    // up to four extra bytes fit together with a the extra 32 bit pointer
+                    // and the 64 bit pointer is always 8 bytes (so no change in value)
+                    ArchitectureSize::new(new_bytes - 8, val.pointers + 1)
                 } else {
+                    // there is no room to combine, so the odd pointer aligns to 8 bytes
                     ArchitectureSize::new(new_bytes + 8, val.pointers - 1)
                 }
             } else {
@@ -476,6 +478,13 @@ mod test {
             ),
             ArchitectureSize::new(8, 2)
         );
+        assert_eq!(
+            align_to_arch(
+                ArchitectureSize::new(30, 3),
+                Alignment::Bytes(NonZeroUsize::new(8).unwrap())
+            ),
+            ArchitectureSize::new(40, 2)
+        );
 
         assert_eq!(
             ArchitectureSize::new(12, 0).max(&ArchitectureSize::new(0, 2)),
@@ -484,6 +493,18 @@ mod test {
         assert_eq!(
             ArchitectureSize::new(10, 0).max(&ArchitectureSize::new(0, 2)),
             ArchitectureSize::new(8, 1)
+        );
+
+        assert_eq!(
+            align_to_arch(
+                ArchitectureSize::new(2, 0),
+                Alignment::Bytes(NonZeroUsize::new(8).unwrap())
+            ),
+            ArchitectureSize::new(8, 0)
+        );
+        assert_eq!(
+            align_to_arch(ArchitectureSize::new(2, 0), Alignment::Pointer),
+            ArchitectureSize::new(0, 1)
         );
     }
 
