@@ -34,16 +34,10 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         assert!(a32 <= a64);
 
         assert_eq!(a32, aalt.align_wasm32());
-        assert_eq!(
-            a64,
-            match aalt {
-                wit_parser_new::Alignment::Bytes(b) => b.get(),
-                wit_parser_new::Alignment::Pointer => 8,
-            }
-        );
+        assert_eq!(a64, aalt.align_wasm64());
 
         assert_eq!(s32, salt.size_wasm32());
-        assert_eq!(s64, salt.bytes + salt.add_for_64bit);
+        assert_eq!(s64, salt.size_wasm64());
 
         match (t1, t2) {
             (wit_parser_old::Type::Id(id1), wit_parser_new::Type::Id(id2)) => {
@@ -63,7 +57,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
                             .zip(offsetsalt.iter())
                         {
                             assert_eq!(fd32.0, fdalt.0.size_wasm32());
-                            assert_eq!(fd64.0, fdalt.0.bytes + fdalt.0.add_for_64bit);
+                            assert_eq!(fd64.0, fdalt.0.size_wasm64());
                         }
                     }
                     (
@@ -79,7 +73,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
                             .zip(offsetsalt.iter())
                         {
                             assert_eq!(fd32.0, fdalt.0.size_wasm32());
-                            assert_eq!(fd64.0, fdalt.0.bytes + fdalt.0.add_for_64bit);
+                            assert_eq!(fd64.0, fdalt.0.size_wasm64());
                         }
                     }
                     (
@@ -93,7 +87,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
                         let offsetalt =
                             alt.payload_offset(v2.tag(), v2.cases.iter().map(|f| f.ty.as_ref()));
                         assert_eq!(offset32, offsetalt.size_wasm32());
-                        assert_eq!(offset64, offsetalt.bytes + offsetalt.add_for_64bit);
+                        assert_eq!(offset64, offsetalt.size_wasm64());
                     }
                     _ => (),
                 }
