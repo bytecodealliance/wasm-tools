@@ -8,7 +8,9 @@ use crate::{FlagsRepr, Int, Resolve, Type, TypeDef, TypeDefKind};
 /// Architecture specific alignment
 #[derive(Eq, PartialEq, PartialOrd, Clone, Copy, Debug)]
 pub enum Alignment {
+    /// This represents 4 byte alignment on 32bit and 8 byte alignment on 64bit architectures
     Pointer,
+    /// This alignment is architecture independent (derived from integer or float types)
     Bytes(NonZeroUsize),
 }
 
@@ -28,6 +30,9 @@ impl std::fmt::Display for Alignment {
 }
 
 impl Ord for Alignment {
+    /// Needed for determining the max alignment of an object from its parts.
+    /// The ordering is: Bytes(1) < Bytes(2) < Bytes(4) < Pointer < Bytes(8)
+    /// as a Pointer is either four or eight byte aligned, depending on the architecture
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         match (self, other) {
             (Alignment::Pointer, Alignment::Pointer) => std::cmp::Ordering::Equal,
