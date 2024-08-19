@@ -29,6 +29,18 @@ wit-smith = { path = "../crates/wit-smith" }
 wit-component = { path = "../crates/wit-component", features = ['dummy-module'] }
 wasm-encoder = { path = "../crates/wasm-encoder" }
 
+[dependencies.wit-parser-old]
+package = 'wit-parser'
+version = '0.214.0'
+
+[dependencies.wit-component-old]
+package = 'wit-component'
+version = '0.214.0'
+
+[dependencies.wit-smith-old]
+package = 'wit-smith'
+version = '0.214.0'
+
 [lib]
 test = false
 doctest = false

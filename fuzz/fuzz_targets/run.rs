@@ -80,4 +80,5 @@ run_fuzzers! {
     roundtrip: string,
     text_parser: string,
     reencode: unstructured,
+    wit64: unstructured,
 }
