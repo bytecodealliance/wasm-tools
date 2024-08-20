@@ -1199,10 +1199,15 @@ where
         struct_type_index: u32,
         field_index: u32,
     ) -> Result<()> {
-        let ty = self
-            .struct_field_at(struct_type_index, field_index)?
-            .element_type;
-        let field_ty = match ty {
+        let field = self.struct_field_at(struct_type_index, field_index)?;
+        if !field.mutable {
+            bail!(
+                self.offset,
+                "invalid `struct.atomic.rmw.{}`: struct field is immutable",
+                op
+            )
+        }
+        let field_ty = match field.element_type {
             StorageType::Val(ValType::I32) => ValType::I32,
             StorageType::Val(ValType::I64) => ValType::I64,
             _ => bail!(
@@ -3876,7 +3881,7 @@ where
         if field_ty.element_type.is_packed() {
             bail!(
                 self.offset,
-                "can only use struct.get with non-packed storage types"
+                "can only use struct `get` with non-packed storage types"
             )
         }
         self.pop_concrete_ref(true, struct_type_index)?;
@@ -3963,7 +3968,10 @@ where
     fn visit_struct_set(&mut self, struct_type_index: u32, field_index: u32) -> Self::Output {
         let field_ty = self.struct_field_at(struct_type_index, field_index)?;
         if !field_ty.mutable {
-            bail!(self.offset, "invalid struct.set: struct field is immutable")
+            bail!(
+                self.offset,
+                "invalid struct `set`: struct field is immutable"
+            )
         }
         self.pop_operand(Some(field_ty.element_type.unpack()))?;
         self.pop_concrete_ref(true, struct_type_index)?;
@@ -4041,10 +4049,14 @@ where
         struct_type_index: u32,
         field_index: u32,
     ) -> Self::Output {
-        let field_ty = self
-            .struct_field_at(struct_type_index, field_index)?
-            .element_type;
-        let is_valid_type = match field_ty {
+        let field = self.struct_field_at(struct_type_index, field_index)?;
+        if !field.mutable {
+            bail!(
+                self.offset,
+                "invalid `struct.atomic.rmw.xchg`: struct field is immutable"
+            )
+        }
+        let is_valid_type = match field.element_type {
             StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
             StorageType::Val(v) => self
                 .resources
@@ -4057,7 +4069,7 @@ where
                 "invalid type: `struct.atomic.rmw.xchg` only allows `i32`, `i64` and subtypes of `anyref`"
             );
         }
-        let field_ty = field_ty.unpack();
+        let field_ty = field.element_type .unpack();
         self.pop_operand(Some(field_ty))?;
         self.pop_concrete_ref(true, struct_type_index)?;
         self.push_operand(field_ty)?;
@@ -4069,10 +4081,14 @@ where
         struct_type_index: u32,
         field_index: u32,
     ) -> Self::Output {
-        let field_ty = self
-            .struct_field_at(struct_type_index, field_index)?
-            .element_type;
-        let is_valid_type = match field_ty {
+        let field = self.struct_field_at(struct_type_index, field_index)?;
+        if !field.mutable {
+            bail!(
+                self.offset,
+                "invalid `struct.atomic.rmw.xchg`: struct field is immutable"
+            )
+        }
+        let is_valid_type = match field.element_type {
             StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
             StorageType::Val(v) => self
                 .resources
@@ -4085,7 +4101,7 @@ where
                 "invalid type: `struct.atomic.rmw.cmpxchg` only allows `i32`, `i64` and subtypes of `eqref`"
             );
         }
-        let field_ty = field_ty.unpack();
+        let field_ty = field.element_type.unpack();
         self.pop_operand(Some(field_ty))?;
         self.pop_operand(Some(field_ty))?;
         self.pop_concrete_ref(true, struct_type_index)?;

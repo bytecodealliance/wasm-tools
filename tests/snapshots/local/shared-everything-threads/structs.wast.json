@@ -62,98 +62,154 @@
       "filename": "structs.9.wasm"
     },
     {
-      "type": "module",
-      "line": 103,
-      "filename": "structs.10.wasm"
+      "type": "assert_invalid",
+      "line": 104,
+      "filename": "structs.10.wasm",
+      "text": "field is immutable",
+      "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 330,
+      "line": 113,
       "filename": "structs.11.wasm",
+      "text": "field is immutable",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 122,
+      "filename": "structs.12.wasm",
+      "text": "field is immutable",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 131,
+      "filename": "structs.13.wasm",
+      "text": "field is immutable",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 140,
+      "filename": "structs.14.wasm",
+      "text": "field is immutable",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 149,
+      "filename": "structs.15.wasm",
+      "text": "field is immutable",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 158,
+      "filename": "structs.16.wasm",
+      "text": "field is immutable",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 167,
+      "filename": "structs.17.wasm",
+      "text": "field is immutable",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 177,
+      "filename": "structs.18.wasm"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 404,
+      "filename": "structs.19.wasm",
       "text": "non-packed storage type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 339,
-      "filename": "structs.12.wasm",
-      "text": "non-packed storage types",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 348,
-      "filename": "structs.13.wasm",
-      "text": "non-packed storage types",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 357,
-      "filename": "structs.14.wasm",
-      "text": "non-packed storage types",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 366,
-      "filename": "structs.15.wasm",
-      "text": "non-packed storage types",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 375,
-      "filename": "structs.16.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 385,
-      "filename": "structs.17.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 395,
-      "filename": "structs.18.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 405,
-      "filename": "structs.19.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 415,
+      "line": 413,
       "filename": "structs.20.wasm",
-      "text": "invalid type",
+      "text": "non-packed storage types",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 425,
+      "line": 422,
       "filename": "structs.21.wasm",
-      "text": "invalid type",
+      "text": "non-packed storage types",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 435,
+      "line": 431,
       "filename": "structs.22.wasm",
+      "text": "non-packed storage types",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 440,
+      "filename": "structs.23.wasm",
+      "text": "non-packed storage types",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 449,
+      "filename": "structs.24.wasm",
       "text": "invalid type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 446,
-      "filename": "structs.23.wasm",
+      "line": 459,
+      "filename": "structs.25.wasm",
+      "text": "invalid type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 469,
+      "filename": "structs.26.wasm",
+      "text": "invalid type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 479,
+      "filename": "structs.27.wasm",
+      "text": "invalid type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 489,
+      "filename": "structs.28.wasm",
+      "text": "invalid type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 499,
+      "filename": "structs.29.wasm",
+      "text": "invalid type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 509,
+      "filename": "structs.30.wasm",
+      "text": "invalid type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 520,
+      "filename": "structs.31.wasm",
       "text": "invalid type",
       "module_type": "binary"
     }

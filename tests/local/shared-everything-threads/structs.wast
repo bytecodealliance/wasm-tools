@@ -99,6 +99,80 @@
   (func (struct.set $i8 0 (ref.null (shared none)) (i32.const 0)))
 )
 
+;; Check that field-modifying instructions only work on mutable fields.
+(assert_invalid
+  (module
+    (type $s (shared (struct (field (ref (shared any))))))
+    (func (param $s (ref $s)) (param $a (ref (shared any))) (result (ref (shared any)))
+      (struct.atomic.set seq_cst $s 0 (local.get $s) (local.get $a))
+    )
+  )
+  "field is immutable"
+)
+(assert_invalid
+  (module
+    (type $s (shared (struct (field i32))))
+    (func (param $s (ref $s)) (result i32)
+      (struct.atomic.rmw.add seq_cst $s 0 (local.get $s) (i32.const 1))
+    )
+  )
+  "field is immutable"
+)
+(assert_invalid
+  (module
+    (type $s (shared (struct (field i64))))
+    (func (param $s (ref $s)) (result i64)
+      (struct.atomic.rmw.sub seq_cst $s 0 (local.get $s) (i64.const 1))
+    )
+  )
+  "field is immutable"
+)
+(assert_invalid
+  (module
+    (type $s (shared (struct (field i32))))
+    (func (param $s (ref $s)) (result i32)
+      (struct.atomic.rmw.and acq_rel $s 0 (local.get $s) (i32.const 1))
+    )
+  )
+  "field is immutable"
+)
+(assert_invalid
+  (module
+    (type $s (shared (struct (field i64))))
+    (func (param $s (ref $s)) (result i64)
+      (struct.atomic.rmw.or acq_rel $s 0 (local.get $s) (i64.const 1))
+    )
+  )
+  "field is immutable"
+)
+(assert_invalid
+  (module
+    (type $s (shared (struct (field i32))))
+    (func (param $s (ref $s)) (result i32)
+      (struct.atomic.rmw.xor seq_cst $s 0 (local.get $s) (i32.const 1))
+    )
+  )
+  "field is immutable"
+)
+(assert_invalid
+  (module
+    (type $s (shared (struct (field (ref (shared any))))))
+    (func (param $s (ref $s)) (param $a (ref (shared any))) (result (ref (shared any)))
+      (struct.atomic.rmw.xchg seq_cst $s 0 (local.get $s) (local.get $a))
+    )
+  )
+  "field is immutable"
+)
+(assert_invalid
+  (module
+    (type $s (shared (struct (field (ref (shared eq))))))
+    (func (param $s (ref $s)) (param $e1 (ref (shared eq))) (param $e2 (ref (shared eq))) (result (ref (shared eq)))
+      (struct.atomic.rmw.cmpxchg acq_rel $s 0 (local.get $s) (local.get $e1) (local.get $e2))
+    )
+  )
+  "field is immutable"
+)
+
 ;; Exhaustively check `struct.atomic.rmw.*` instructions.
 (module
   (type $s (shared (struct
