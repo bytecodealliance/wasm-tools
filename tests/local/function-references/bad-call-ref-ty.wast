@@ -5,7 +5,7 @@
       (call_ref $t (local.get $f))
     )
   )
-  "funcref on stack does not match specified type")
+  "expected (ref null $type), found funcref")
 
 (assert_invalid
   (module

@@ -605,8 +605,8 @@ where
     }
 
     /// Pop a reference type from the operand stack.
-    fn pop_ref(&mut self) -> Result<Option<RefType>> {
-        match self.pop_operand(None)? {
+    fn pop_ref(&mut self, expected: Option<RefType>) -> Result<Option<RefType>> {
+        match self.pop_operand(expected.map(|t| t.into()))? {
             MaybeType::Bot | MaybeType::HeapBot => Ok(None),
             MaybeType::Type(ValType::Ref(rt)) => Ok(Some(rt)),
             MaybeType::Type(ty) => bail!(
@@ -626,7 +626,7 @@ where
         &mut self,
         expected: AbstractHeapType,
     ) -> Result<Option<(RefType, bool)>> {
-        let actual = match self.pop_ref()? {
+        let actual = match self.pop_ref(None)? {
             Some(rt) => rt,
             None => return Ok(None),
         };
@@ -881,18 +881,8 @@ where
         let unpacked_index = UnpackedIndex::Module(type_index);
         let mut hty = HeapType::Concrete(unpacked_index);
         self.resources.check_heap_type(&mut hty, self.offset)?;
-        // If `None` is popped then that means a "bottom" type was popped which
-        // is always considered equivalent to the `hty` tag.
-        if let Some(rt) = self.pop_ref()? {
-            let expected = RefType::new(true, hty).expect("hty should be previously validated");
-            let expected = ValType::Ref(expected);
-            if !self.resources.is_subtype(ValType::Ref(rt), expected) {
-                bail!(
-                    self.offset,
-                    "type mismatch: funcref on stack does not match specified type",
-                );
-            }
-        }
+        let expected = RefType::new(true, hty).expect("hty should be previously validated");
+        self.pop_ref(Some(expected))?;
         self.func_type_at(type_index)
     }
 
@@ -1130,51 +1120,31 @@ where
 
     /// Common helper for `ref.test` and `ref.cast` downcasting/checking
     /// instructions. Returns the given `heap_type` as a `ValType`.
-    fn check_downcast(
-        &mut self,
-        nullable: bool,
-        mut heap_type: HeapType,
-        inst_name: &str,
-    ) -> Result<ValType> {
+    fn check_downcast(&mut self, nullable: bool, mut heap_type: HeapType) -> Result<RefType> {
         self.resources
             .check_heap_type(&mut heap_type, self.offset)?;
 
-        let sub_ty = RefType::new(nullable, heap_type)
-            .map(ValType::from)
-            .ok_or_else(|| {
-                BinaryReaderError::new("implementation limit: type index too large", self.offset)
-            })?;
-
-        let sup_ty = self.pop_ref()?.unwrap_or_else(|| {
-            sub_ty
-                .as_reference_type()
-                .expect("we created this as a reference just above")
-        });
-        let sup_ty = RefType::new(true, self.resources.top_type(&sup_ty.heap_type()))
+        let sub_ty = RefType::new(nullable, heap_type).ok_or_else(|| {
+            BinaryReaderError::new("implementation limit: type index too large", self.offset)
+        })?;
+        let sup_ty = RefType::new(true, self.resources.top_type(&heap_type))
             .expect("can't panic with non-concrete heap types");
 
-        if !self.resources.is_subtype(sub_ty, sup_ty.into()) {
-            bail!(
-                self.offset,
-                "{inst_name}'s heap type must be a sub type of the type on the stack: \
-                 {sub_ty} is not a sub type of {sup_ty}"
-            );
-        }
-
+        self.pop_ref(Some(sup_ty))?;
         Ok(sub_ty)
     }
 
     /// Common helper for both nullable and non-nullable variants of `ref.test`
     /// instructions.
     fn check_ref_test(&mut self, nullable: bool, heap_type: HeapType) -> Result<()> {
-        self.check_downcast(nullable, heap_type, "ref.test")?;
+        self.check_downcast(nullable, heap_type)?;
         self.push_operand(ValType::I32)
     }
 
     /// Common helper for both nullable and non-nullable variants of `ref.cast`
     /// instructions.
     fn check_ref_cast(&mut self, nullable: bool, heap_type: HeapType) -> Result<()> {
-        let sub_ty = self.check_downcast(nullable, heap_type, "ref.cast")?;
+        let sub_ty = self.check_downcast(nullable, heap_type)?;
         self.push_operand(sub_ty)
     }
 
@@ -2672,7 +2642,7 @@ where
     }
 
     fn visit_ref_as_non_null(&mut self) -> Self::Output {
-        let ty = match self.pop_ref()? {
+        let ty = match self.pop_ref(None)? {
             Some(ty) => MaybeType::Type(ValType::Ref(ty.as_non_null())),
             None => MaybeType::HeapBot,
         };
@@ -2680,7 +2650,7 @@ where
         Ok(())
     }
     fn visit_br_on_null(&mut self, relative_depth: u32) -> Self::Output {
-        let ref_ty = match self.pop_ref()? {
+        let ref_ty = match self.pop_ref(None)? {
             None => MaybeType::HeapBot,
             Some(ty) => MaybeType::Type(ValType::Ref(ty.as_non_null())),
         };
@@ -2691,41 +2661,27 @@ where
         Ok(())
     }
     fn visit_br_on_non_null(&mut self, relative_depth: u32) -> Self::Output {
-        let ty = self.pop_ref()?;
         let (ft, kind) = self.jump(relative_depth)?;
 
         let mut label_types = self.label_types(ft, kind)?;
-        match (label_types.next_back(), ty) {
-            (None, _) => bail!(
+        let expected = match label_types.next_back() {
+            None => bail!(
                 self.offset,
                 "type mismatch: br_on_non_null target has no label types",
             ),
-            (Some(ValType::Ref(_)), None) => {}
-            (Some(rt1 @ ValType::Ref(_)), Some(rt0)) => {
-                // Switch rt0, our popped type, to a non-nullable type and
-                // perform the match because if the branch is taken it's a
-                // non-null value.
-                let ty = rt0.as_non_null();
-                if !self.resources.is_subtype(ty.into(), rt1) {
-                    bail!(
-                        self.offset,
-                        "type mismatch: expected {} but found {}",
-                        ty_to_str(rt0.into()),
-                        ty_to_str(rt1)
-                    )
-                }
-            }
-            (Some(_), _) => bail!(
+            Some(ValType::Ref(ty)) => ty,
+            Some(_) => bail!(
                 self.offset,
                 "type mismatch: br_on_non_null target does not end with heap type",
             ),
-        }
+        };
+        self.pop_ref(Some(expected.nullable()))?;
 
         self.pop_push_label_types(label_types)?;
         Ok(())
     }
     fn visit_ref_is_null(&mut self) -> Self::Output {
-        self.pop_ref()?;
+        self.pop_ref(None)?;
         self.push_operand(ValType::I32)?;
         Ok(())
     }
