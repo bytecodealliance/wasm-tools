@@ -479,6 +479,10 @@ impl ModuleState {
                 $self.validate_gc("ref.i31")?;
                 $self.validator().visit_ref_i31()
             }};
+            (@visit $self:ident visit_ref_i31_shared) => {{
+                $self.validate_gc("ref.i31_shared")?;
+                $self.validator().visit_ref_i31_shared()
+            }};
 
             // `global.get` is a valid const expression for imported, immutable
             // globals.

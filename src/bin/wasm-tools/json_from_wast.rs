@@ -462,6 +462,7 @@ impl<'a> JsonBuilder<'a> {
             RefArray => json::Const::ArrayRef,
             RefStruct => json::Const::StructRef,
             RefI31 => json::Const::I31Ref,
+            RefI31Shared => json::Const::I31RefShared,
             Either(either) => json::Const::Either {
                 values: either
                     .into_iter()
@@ -676,6 +677,7 @@ mod json {
         ArrayRef,
         StructRef,
         I31Ref,
+        I31RefShared,
         // (ref.null none)
         NullRef,
         // (ref.null nofunc)
