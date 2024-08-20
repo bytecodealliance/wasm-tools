@@ -263,10 +263,10 @@ jobs:
         submodules: true
     - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
     - run: rustc ci/publish.rs
-    # Make sure the tree is publish-able as-is
-    - run: ./publish verify
     # Make sure we can bump version numbers for the next release
     - run: ./publish bump
+    # Make sure the tree is publish-able as-is
+    - run: ./publish verify
 
   # "Join node" which the merge queue waits on.
   ci-status:
