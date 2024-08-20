@@ -62,263 +62,279 @@
       "filename": "arrays.9.wasm"
     },
     {
-      "type": "module",
-      "line": 142,
-      "filename": "arrays.10.wasm"
+      "type": "assert_invalid",
+      "line": 143,
+      "filename": "arrays.10.wasm",
+      "text": "array is immutable",
+      "module_type": "binary"
     },
     {
-      "type": "module",
-      "line": 150,
-      "filename": "arrays.11.wasm"
+      "type": "assert_invalid",
+      "line": 152,
+      "filename": "arrays.11.wasm",
+      "text": "array is immutable",
+      "module_type": "binary"
     },
     {
-      "type": "module",
-      "line": 158,
-      "filename": "arrays.12.wasm"
+      "type": "assert_invalid",
+      "line": 161,
+      "filename": "arrays.12.wasm",
+      "text": "array is immutable",
+      "module_type": "binary"
     },
     {
-      "type": "module",
-      "line": 166,
-      "filename": "arrays.13.wasm"
+      "type": "assert_invalid",
+      "line": 170,
+      "filename": "arrays.13.wasm",
+      "text": "array is immutable",
+      "module_type": "binary"
     },
     {
-      "type": "module",
-      "line": 174,
-      "filename": "arrays.14.wasm"
+      "type": "assert_invalid",
+      "line": 179,
+      "filename": "arrays.14.wasm",
+      "text": "array is immutable",
+      "module_type": "binary"
     },
     {
-      "type": "module",
-      "line": 182,
-      "filename": "arrays.15.wasm"
+      "type": "assert_invalid",
+      "line": 188,
+      "filename": "arrays.15.wasm",
+      "text": "array is immutable",
+      "module_type": "binary"
     },
     {
-      "type": "module",
-      "line": 190,
-      "filename": "arrays.16.wasm"
+      "type": "assert_invalid",
+      "line": 197,
+      "filename": "arrays.16.wasm",
+      "text": "array is immutable",
+      "module_type": "binary"
     },
     {
-      "type": "module",
-      "line": 198,
-      "filename": "arrays.17.wasm"
-    },
-    {
-      "type": "module",
+      "type": "assert_invalid",
       "line": 206,
+      "filename": "arrays.17.wasm",
+      "text": "array is immutable",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 216,
       "filename": "arrays.18.wasm"
     },
     {
       "type": "module",
-      "line": 214,
+      "line": 224,
       "filename": "arrays.19.wasm"
     },
     {
       "type": "module",
-      "line": 222,
+      "line": 232,
       "filename": "arrays.20.wasm"
     },
     {
       "type": "module",
-      "line": 230,
+      "line": 240,
       "filename": "arrays.21.wasm"
     },
     {
       "type": "module",
-      "line": 238,
+      "line": 248,
       "filename": "arrays.22.wasm"
     },
     {
       "type": "module",
-      "line": 246,
+      "line": 256,
       "filename": "arrays.23.wasm"
     },
     {
       "type": "module",
-      "line": 254,
+      "line": 264,
       "filename": "arrays.24.wasm"
     },
     {
       "type": "module",
-      "line": 263,
+      "line": 272,
       "filename": "arrays.25.wasm"
     },
     {
       "type": "module",
-      "line": 272,
+      "line": 280,
       "filename": "arrays.26.wasm"
     },
     {
       "type": "module",
-      "line": 281,
+      "line": 288,
       "filename": "arrays.27.wasm"
     },
     {
       "type": "module",
-      "line": 290,
+      "line": 296,
       "filename": "arrays.28.wasm"
     },
     {
       "type": "module",
-      "line": 299,
+      "line": 304,
       "filename": "arrays.29.wasm"
     },
     {
       "type": "module",
-      "line": 308,
+      "line": 312,
       "filename": "arrays.30.wasm"
     },
     {
       "type": "module",
-      "line": 317,
+      "line": 320,
       "filename": "arrays.31.wasm"
     },
     {
       "type": "module",
-      "line": 326,
+      "line": 328,
       "filename": "arrays.32.wasm"
     },
     {
       "type": "module",
-      "line": 335,
+      "line": 337,
       "filename": "arrays.33.wasm"
     },
     {
       "type": "module",
-      "line": 344,
+      "line": 346,
       "filename": "arrays.34.wasm"
     },
     {
       "type": "module",
-      "line": 353,
+      "line": 355,
       "filename": "arrays.35.wasm"
     },
     {
       "type": "module",
-      "line": 362,
+      "line": 364,
       "filename": "arrays.36.wasm"
     },
     {
       "type": "module",
-      "line": 371,
+      "line": 373,
       "filename": "arrays.37.wasm"
     },
     {
       "type": "module",
-      "line": 380,
+      "line": 382,
       "filename": "arrays.38.wasm"
     },
     {
       "type": "module",
-      "line": 389,
+      "line": 391,
       "filename": "arrays.39.wasm"
     },
     {
       "type": "module",
-      "line": 398,
+      "line": 400,
       "filename": "arrays.40.wasm"
     },
     {
       "type": "module",
-      "line": 407,
+      "line": 409,
       "filename": "arrays.41.wasm"
     },
     {
       "type": "module",
-      "line": 416,
+      "line": 418,
       "filename": "arrays.42.wasm"
     },
     {
       "type": "module",
-      "line": 425,
+      "line": 427,
       "filename": "arrays.43.wasm"
     },
     {
       "type": "module",
-      "line": 434,
+      "line": 436,
       "filename": "arrays.44.wasm"
     },
     {
       "type": "module",
-      "line": 443,
+      "line": 445,
       "filename": "arrays.45.wasm"
     },
     {
       "type": "module",
-      "line": 452,
+      "line": 454,
       "filename": "arrays.46.wasm"
     },
     {
       "type": "module",
-      "line": 461,
+      "line": 463,
       "filename": "arrays.47.wasm"
     },
     {
       "type": "module",
-      "line": 470,
+      "line": 472,
       "filename": "arrays.48.wasm"
     },
     {
       "type": "module",
-      "line": 479,
+      "line": 481,
       "filename": "arrays.49.wasm"
     },
     {
       "type": "module",
-      "line": 488,
+      "line": 490,
       "filename": "arrays.50.wasm"
     },
     {
       "type": "module",
-      "line": 497,
+      "line": 499,
       "filename": "arrays.51.wasm"
     },
     {
       "type": "module",
-      "line": 506,
+      "line": 508,
       "filename": "arrays.52.wasm"
     },
     {
       "type": "module",
-      "line": 515,
+      "line": 517,
       "filename": "arrays.53.wasm"
     },
     {
       "type": "module",
-      "line": 524,
+      "line": 526,
       "filename": "arrays.54.wasm"
     },
     {
       "type": "module",
-      "line": 533,
+      "line": 535,
       "filename": "arrays.55.wasm"
     },
     {
       "type": "module",
-      "line": 542,
+      "line": 544,
       "filename": "arrays.56.wasm"
     },
     {
       "type": "module",
-      "line": 551,
+      "line": 553,
       "filename": "arrays.57.wasm"
     },
     {
       "type": "module",
-      "line": 560,
+      "line": 562,
       "filename": "arrays.58.wasm"
     },
     {
       "type": "module",
-      "line": 569,
+      "line": 571,
       "filename": "arrays.59.wasm"
     },
     {
       "type": "module",
-      "line": 578,
+      "line": 580,
       "filename": "arrays.60.wasm"
     },
     {
       "type": "module",
-      "line": 588,
+      "line": 589,
       "filename": "arrays.61.wasm"
     },
     {
@@ -328,107 +344,147 @@
     },
     {
       "type": "module",
-      "line": 608,
+      "line": 607,
       "filename": "arrays.63.wasm"
     },
     {
       "type": "module",
-      "line": 618,
+      "line": 616,
       "filename": "arrays.64.wasm"
     },
     {
       "type": "module",
-      "line": 628,
+      "line": 625,
       "filename": "arrays.65.wasm"
     },
     {
+      "type": "module",
+      "line": 634,
+      "filename": "arrays.66.wasm"
+    },
+    {
+      "type": "module",
+      "line": 643,
+      "filename": "arrays.67.wasm"
+    },
+    {
+      "type": "module",
+      "line": 652,
+      "filename": "arrays.68.wasm"
+    },
+    {
+      "type": "module",
+      "line": 662,
+      "filename": "arrays.69.wasm"
+    },
+    {
+      "type": "module",
+      "line": 672,
+      "filename": "arrays.70.wasm"
+    },
+    {
+      "type": "module",
+      "line": 682,
+      "filename": "arrays.71.wasm"
+    },
+    {
+      "type": "module",
+      "line": 692,
+      "filename": "arrays.72.wasm"
+    },
+    {
+      "type": "module",
+      "line": 702,
+      "filename": "arrays.73.wasm"
+    },
+    {
       "type": "assert_invalid",
-      "line": 639,
-      "filename": "arrays.66.wasm",
+      "line": 713,
+      "filename": "arrays.74.wasm",
       "text": "packed storage type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 649,
-      "filename": "arrays.67.wasm",
+      "line": 723,
+      "filename": "arrays.75.wasm",
       "text": "non-packed storage type",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 659,
-      "filename": "arrays.68.wasm",
-      "text": "non-packed storage type",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 669,
-      "filename": "arrays.69.wasm",
-      "text": "non-packed storage type",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 679,
-      "filename": "arrays.70.wasm",
-      "text": "non-packed storage type",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 689,
-      "filename": "arrays.71.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 700,
-      "filename": "arrays.72.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 711,
-      "filename": "arrays.73.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 722,
-      "filename": "arrays.74.wasm",
-      "text": "invalid type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
       "line": 733,
-      "filename": "arrays.75.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 744,
       "filename": "arrays.76.wasm",
-      "text": "invalid type",
+      "text": "non-packed storage type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 755,
+      "line": 743,
       "filename": "arrays.77.wasm",
+      "text": "non-packed storage type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 753,
+      "filename": "arrays.78.wasm",
+      "text": "non-packed storage type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 763,
+      "filename": "arrays.79.wasm",
       "text": "invalid type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 767,
-      "filename": "arrays.78.wasm",
+      "line": 774,
+      "filename": "arrays.80.wasm",
+      "text": "invalid type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 785,
+      "filename": "arrays.81.wasm",
+      "text": "invalid type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 796,
+      "filename": "arrays.82.wasm",
+      "text": "invalid type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 807,
+      "filename": "arrays.83.wasm",
+      "text": "invalid type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 818,
+      "filename": "arrays.84.wasm",
+      "text": "invalid type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 829,
+      "filename": "arrays.85.wasm",
+      "text": "invalid type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 841,
+      "filename": "arrays.86.wasm",
       "text": "invalid type",
       "module_type": "binary"
     }

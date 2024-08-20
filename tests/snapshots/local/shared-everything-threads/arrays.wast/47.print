@@ -5,7 +5,7 @@
     local.get $x
     local.get $y
     local.get $z
-    array.atomic.rmw.or seq_cst $a
+    array.atomic.rmw.sub seq_cst $a
   )
-  (export "array-atomic-rmw.or-i64-seq_cst" (func 0))
+  (export "array-atomic-rmw.sub-i64-seq_cst" (func 0))
 )

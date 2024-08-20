@@ -1225,8 +1225,15 @@ where
     /// Common helper for checking the types of arrays accessed with atomic RMW
     /// instructions, which only allow `i32` and `i64`.
     fn check_array_atomic_rmw(&mut self, op: &'static str, type_index: u32) -> Result<()> {
-        let ty = self.array_type_at(type_index)?.0.element_type;
-        let elem_ty = match ty {
+        let field = self.array_type_at(type_index)?.0;
+        if !field.mutable {
+            bail!(
+                self.offset,
+                "invalid `array.atomic.rmw.{}`: array is immutable",
+                op
+            )
+        }
+        let elem_ty = match field.element_type {
             StorageType::Val(ValType::I32) => ValType::I32,
             StorageType::Val(ValType::I64) => ValType::I64,
             _ => bail!(
@@ -4069,7 +4076,7 @@ where
                 "invalid type: `struct.atomic.rmw.xchg` only allows `i32`, `i64` and subtypes of `anyref`"
             );
         }
-        let field_ty = field.element_type .unpack();
+        let field_ty = field.element_type.unpack();
         self.pop_operand(Some(field_ty))?;
         self.pop_concrete_ref(true, struct_type_index)?;
         self.push_operand(field_ty)?;
@@ -4256,7 +4263,7 @@ where
     fn visit_array_set(&mut self, type_index: u32) -> Self::Output {
         let array_ty = self.array_type_at(type_index)?;
         if !array_ty.0.mutable {
-            bail!(self.offset, "invalid array.set: array is immutable")
+            bail!(self.offset, "invalid array `set`: array is immutable")
         }
         self.pop_operand(Some(array_ty.0.element_type.unpack()))?;
         self.pop_operand(Some(ValType::I32))?;
@@ -4416,8 +4423,14 @@ where
         _ordering: Ordering,
         type_index: u32,
     ) -> Self::Output {
-        let elem_ty = self.array_type_at(type_index)?.0.element_type;
-        let is_valid_type = match elem_ty {
+        let field = self.array_type_at(type_index)?.0;
+        if !field.mutable {
+            bail!(
+                self.offset,
+                "invalid `array.atomic.rmw.xchg`: array is immutable"
+            )
+        }
+        let is_valid_type = match field.element_type {
             StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
             StorageType::Val(v) => self
                 .resources
@@ -4430,7 +4443,7 @@ where
                 "invalid type: `array.atomic.rmw.xchg` only allows `i32`, `i64` and subtypes of `anyref`"
             );
         }
-        let elem_ty = elem_ty.unpack();
+        let elem_ty = field.element_type.unpack();
         self.pop_operand(Some(elem_ty))?;
         self.pop_operand(Some(ValType::I32))?;
         self.pop_concrete_ref(true, type_index)?;
@@ -4442,8 +4455,14 @@ where
         _ordering: Ordering,
         type_index: u32,
     ) -> Self::Output {
-        let elem_ty = self.array_type_at(type_index)?.0.element_type;
-        let is_valid_type = match elem_ty {
+        let field = self.array_type_at(type_index)?.0;
+        if !field.mutable {
+            bail!(
+                self.offset,
+                "invalid `array.atomic.rmw.cmpxchg`: array is immutable"
+            )
+        }
+        let is_valid_type = match field.element_type {
             StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
             StorageType::Val(v) => self
                 .resources
@@ -4456,7 +4475,7 @@ where
                 "invalid type: `array.atomic.rmw.cmpxchg` only allows `i32`, `i64` and subtypes of `eqref`"
             );
         }
-        let elem_ty = elem_ty.unpack();
+        let elem_ty = field.element_type.unpack();
         self.pop_operand(Some(elem_ty))?;
         self.pop_operand(Some(elem_ty))?;
         self.pop_operand(Some(ValType::I32))?;

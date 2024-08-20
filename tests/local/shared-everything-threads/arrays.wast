@@ -138,6 +138,80 @@
   (func (array.init_elem $funcs 0 (ref.null (shared none)) (i32.const 0) (i32.const 0) (i32.const 0)))
 )
 
+;; Check that field-modifying instructions only work on mutable fields.
+(assert_invalid
+  (module
+    (type $a (shared (array (ref (shared any)))))
+    (func (param $a (ref $a)) (param $ar (ref (shared any))) (result (ref (shared any)))
+      (array.atomic.set seq_cst $a (local.get $a) (i32.const 0) (local.get $ar))
+    )
+  )
+  "array is immutable"
+)
+(assert_invalid
+  (module
+    (type $a (shared (array i32)))
+    (func (param $a (ref $a)) (result i32)
+      (array.atomic.rmw.add seq_cst $a (local.get $a) (i32.const 0) (i32.const 1))
+    )
+  )
+  "array is immutable"
+)
+(assert_invalid
+  (module
+    (type $a (shared (array i64)))
+    (func (param $a (ref $a)) (result i64)
+      (array.atomic.rmw.sub seq_cst $a (local.get $a) (i32.const 0) (i64.const 1))
+    )
+  )
+  "array is immutable"
+)
+(assert_invalid
+  (module
+    (type $a (shared (array i32)))
+    (func (param $a (ref $a)) (result i32)
+      (array.atomic.rmw.and acq_rel $a (local.get $a) (i32.const 0) (i32.const 1))
+    )
+  )
+  "array is immutable"
+)
+(assert_invalid
+  (module
+    (type $a (shared (array i64)))
+    (func (param $a (ref $a)) (result i64)
+      (array.atomic.rmw.or acq_rel $a (local.get $a) (i32.const 0) (i64.const 1))
+    )
+  )
+  "array is immutable"
+)
+(assert_invalid
+  (module
+    (type $a (shared (array i32)))
+    (func (param $a (ref $a)) (result i32)
+      (array.atomic.rmw.xor seq_cst $a (local.get $a) (i32.const 0) (i32.const 1))
+    )
+  )
+  "array is immutable"
+)
+(assert_invalid
+  (module
+    (type $a (shared (array (ref (shared any)))))
+    (func (param $a (ref $a)) (param $ar (ref (shared any))) (result (ref (shared any)))
+      (array.atomic.rmw.xchg seq_cst $a (local.get $a) (i32.const 0) (local.get $ar))
+    )
+  )
+  "array is immutable"
+)
+(assert_invalid
+  (module
+    (type $a (shared (array (ref (shared eq)))))
+    (func (param $a (ref $a)) (param $e1 (ref (shared eq))) (param $e2 (ref (shared eq))) (result)
+      (array.atomic.rmw.cmpxchg acq_rel $a (local.get $a) (i32.const 0) (local.get $e1) (local.get $e2))
+    )
+  )
+  "array is immutable"
+)
+
 ;; Exhaustively check `array.atomic.rmw.*` instructions.
 (module (; get, i32, seq_cst ;)
   (type $a (shared (array (mut i32))))
