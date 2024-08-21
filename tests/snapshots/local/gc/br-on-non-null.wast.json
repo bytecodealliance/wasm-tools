@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/local/gc/br-on-non-null.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 2,
+      "filename": "br-on-non-null.0.wasm",
+      "text": "expected anyref, found funcref",
+      "module_type": "binary"
+    }
+  ]
+}

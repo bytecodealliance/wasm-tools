@@ -5,7 +5,7 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "bad-call-ref-ty.0.wasm",
-      "text": "funcref on stack does not match specified type",
+      "text": "expected (ref null $type), found funcref",
       "module_type": "binary"
     },
     {
