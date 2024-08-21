@@ -4,7 +4,7 @@ use crate::{
 };
 use anyhow::{bail, Context, Result};
 use wasm_encoder::{ComponentBuilder, ComponentExportKind, ComponentTypeRef};
-use wasmparser::{Validator, WasmFeatures};
+use wasmparser::Validator;
 use wit_parser::{Resolve, WorldId};
 
 /// Tests whether `new` is a semver-compatible upgrade from the world `prev`.
@@ -102,7 +102,7 @@ pub fn semver_check(mut resolve: Resolve, prev: WorldId, new: WorldId) -> Result
     // error message is produced here an attempt is made to make it more
     // understandable but there's only but so good these errors can be with this
     // strategy.
-    Validator::new_with_features(WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL)
+    Validator::new()
         .validate_all(&bytes)
         .context("new world is not semver-compatible with the previous world")?;
 

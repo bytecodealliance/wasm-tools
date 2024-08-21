@@ -3,10 +3,9 @@
 //!
 //! See the [`WasmShrink`] type for details.
 
-use std::collections::HashSet;
-
 use anyhow::{Context, Result};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
+use std::collections::HashSet;
 use wasm_mutate::WasmMutate;
 use wasmparser::WasmFeatures;
 
@@ -217,25 +216,7 @@ impl ShrinkRun {
     }
 
     fn validate_wasm(&self, wasm: &[u8]) -> Result<()> {
-        let mut validator = wasmparser::Validator::new_with_features(
-            WasmFeatures::REFERENCE_TYPES
-                | WasmFeatures::MULTI_VALUE
-                | WasmFeatures::BULK_MEMORY
-                | WasmFeatures::SIMD
-                | WasmFeatures::THREADS
-                | WasmFeatures::TAIL_CALL
-                | WasmFeatures::MULTI_MEMORY
-                | WasmFeatures::EXCEPTIONS
-                | WasmFeatures::MEMORY64
-                | WasmFeatures::RELAXED_SIMD
-                | WasmFeatures::EXTENDED_CONST
-                | WasmFeatures::MUTABLE_GLOBAL
-                | WasmFeatures::SATURATING_FLOAT_TO_INT
-                | WasmFeatures::SIGN_EXTENSION
-                | WasmFeatures::FLOATS
-                | WasmFeatures::MEMORY_CONTROL,
-        );
-
+        let mut validator = wasmparser::Validator::new_with_features(WasmFeatures::all());
         validator.validate_all(wasm)?;
         Ok(())
     }

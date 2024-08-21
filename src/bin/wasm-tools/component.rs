@@ -9,7 +9,7 @@ use wasm_encoder::reencode::{Error, Reencode, ReencodeComponent, RoundtripReenco
 use wasm_encoder::ModuleType;
 use wasm_tools::Output;
 use wasmparser::types::{CoreTypeId, EntityType, Types};
-use wasmparser::{Payload, ValidPayload, WasmFeatures};
+use wasmparser::{Payload, ValidPayload};
 use wat::Detect;
 use wit_component::{
     embed_component_metadata, ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter,
@@ -612,10 +612,7 @@ impl WitOpts {
         let decoded_package = decoded.package();
         let bytes = wit_component::encode(None, decoded.resolve(), decoded_package)?;
         if !self.skip_validation {
-            wasmparser::Validator::new_with_features(
-                WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL,
-            )
-            .validate_all(&bytes)?;
+            wasmparser::Validator::new().validate_all(&bytes)?;
         }
         self.output.output_wasm(&self.general, &bytes, self.wat)?;
         Ok(())
@@ -850,7 +847,7 @@ impl UnbundleOpts {
 
         let mut core_types = CoreTypeInterner::default();
         let mut imports = wasm_encoder::ComponentImportSection::new();
-        let mut validator = wasmparser::Validator::new_with_features(WasmFeatures::all());
+        let mut validator = wasmparser::Validator::new();
 
         for module in modules_to_extract.iter().filter_map(|m| *m) {
             // Validate the `module` to get its type information, but don't

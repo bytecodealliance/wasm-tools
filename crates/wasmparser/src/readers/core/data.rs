@@ -84,9 +84,7 @@ impl<'a> FromReader<'a> for Data<'a> {
             }
         };
 
-        let data = reader.read_reader(
-            "unexpected end of section or function: data segment extends past end of the section",
-        )?;
+        let data = reader.read_reader()?;
         Ok(Data {
             kind,
             data: data.remaining_buffer(),

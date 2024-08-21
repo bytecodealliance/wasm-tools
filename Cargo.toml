@@ -122,7 +122,7 @@ wat = { workspace = true, features = ['dwarf'] }
 termcolor = { workspace = true }
 
 # Dependencies of `validate`
-wasmparser = { workspace = true, optional = true, features = ['validate'] }
+wasmparser = { workspace = true, optional = true }
 rayon = { workspace = true, optional = true }
 bitflags = { workspace = true, optional = true }
 
@@ -211,7 +211,15 @@ default = [
 ]
 
 # Each subcommand is gated behind a feature and lists the dependencies it needs
-validate = ['dep:wasmparser', 'rayon', 'dep:addr2line', 'dep:gimli', 'dep:bitflags']
+validate = [
+  'dep:wasmparser',
+  'rayon',
+  'dep:addr2line',
+  'dep:gimli',
+  'dep:bitflags',
+  'wasmparser/validate',
+  'wasmparser/features',
+]
 print = []
 parse = []
 smith = ['wasm-smith', 'arbitrary', 'dep:serde', 'dep:serde_derive', 'dep:serde_json']
