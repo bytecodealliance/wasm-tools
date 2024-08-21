@@ -598,8 +598,9 @@ impl TestState {
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
                 "testsuite" => {
-                    features = WasmFeatures::default();
-                    features.remove(WasmFeatures::COMPONENT_MODEL);
+                    features = WasmFeatures::wasm2();
+                    features |= WasmFeatures::TAIL_CALL;
+                    features |= WasmFeatures::EXTENDED_CONST;
 
                     // NB: when these proposals are merged upstream in the spec
                     // repo then this should be removed. Currently this hasn't

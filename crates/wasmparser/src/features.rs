@@ -126,7 +126,7 @@ define_wasm_features! {
         /// The WebAssembly multi memory proposal.
         pub multi_memory: MULTI_MEMORY(1 << 12) = true;
         /// The WebAssembly exception handling proposal.
-        pub exceptions: EXCEPTIONS(1 << 13) = false;
+        pub exceptions: EXCEPTIONS(1 << 13) = true;
         /// The WebAssembly memory64 proposal.
         pub memory64: MEMORY64(1 << 14) = false;
         /// The WebAssembly extended_const proposal.
@@ -134,11 +134,11 @@ define_wasm_features! {
         /// The WebAssembly component model proposal.
         pub component_model: COMPONENT_MODEL(1 << 16) = true;
         /// The WebAssembly typed function references proposal.
-        pub function_references: FUNCTION_REFERENCES(1 << 17) = false;
+        pub function_references: FUNCTION_REFERENCES(1 << 17) = true;
         /// The WebAssembly memory control proposal.
         pub memory_control: MEMORY_CONTROL(1 << 18) = false;
         /// The WebAssembly gc proposal.
-        pub gc: GC(1 << 19) = false;
+        pub gc: GC(1 << 19) = true;
         /// The WebAssembly [custom-page-sizes
         /// proposal](https://github.com/WebAssembly/custom-page-sizes).
         pub custom_page_sizes: CUSTOM_PAGE_SIZES(1 << 20) = false;
