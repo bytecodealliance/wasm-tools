@@ -251,6 +251,12 @@ impl WasmFeatures {
         }
         match r.heap_type() {
             HeapType::Concrete(_) => {
+                // Note that `self.gc_types()` is not checked here because
+                // concrete pointers to function types are allowed. GC types
+                // are disallowed by instead rejecting the definition of
+                // array/struct types and only allowing the definition of
+                // function types.
+
                 // Indexed types require either the function-references or gc
                 // proposal as gc implies function references here.
                 if self.function_references() || self.gc() {
@@ -266,6 +272,13 @@ impl WasmFeatures {
                         "shared reference types require the shared-everything-threads proposal",
                     );
                 }
+
+                // Apply the "gc-types" feature which disallows all heap types
+                // except exnref/funcref.
+                if !self.gc_types() && ty != Func && ty != Exn {
+                    return Err("gc types are disallowed but found type which requires gc");
+                }
+
                 match (ty, r.is_nullable()) {
                     // funcref/externref only require `reference-types`.
                     (Func, true) | (Extern, true) => Ok(()),

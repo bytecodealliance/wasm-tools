@@ -699,10 +699,16 @@ impl Module {
             }
             CompositeInnerType::Array(t) => {
                 if !features.gc() {
-                    return Err(BinaryReaderError::new(
-                        "array indexed types not supported without the gc feature",
+                    bail!(
                         offset,
-                    ));
+                        "array indexed types not supported without the gc feature",
+                    );
+                }
+                if !features.gc_types() {
+                    bail!(
+                        offset,
+                        "cannot define array types when gc types are disabled",
+                    );
                 }
                 match &t.0.element_type {
                     StorageType::I8 | StorageType::I16 => {
@@ -713,10 +719,16 @@ impl Module {
             }
             CompositeInnerType::Struct(t) => {
                 if !features.gc() {
-                    return Err(BinaryReaderError::new(
-                        "struct indexed types not supported without the gc feature",
+                    bail!(
                         offset,
-                    ));
+                        "struct indexed types not supported without the gc feature",
+                    );
+                }
+                if !features.gc_types() {
+                    bail!(
+                        offset,
+                        "cannot define struct types when gc types are disabled",
+                    );
                 }
                 for ft in t.fields.iter() {
                     match &ft.element_type {

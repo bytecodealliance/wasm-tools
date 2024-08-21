@@ -610,9 +610,11 @@ impl TestState {
                     features.remove(WasmFeatures::THREADS);
                 }
                 "missing-features" => {
-                    features = WasmFeatures::empty() | WasmFeatures::FLOATS;
+                    features =
+                        WasmFeatures::empty() | WasmFeatures::FLOATS | WasmFeatures::GC_TYPES;
                 }
                 "floats-disabled.wast" => features.remove(WasmFeatures::FLOATS),
+                "gc-types-disabled.wast" => features.remove(WasmFeatures::GC_TYPES),
                 "threads" => {
                     features.insert(WasmFeatures::THREADS);
                     features.remove(WasmFeatures::BULK_MEMORY);
