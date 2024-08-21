@@ -23,10 +23,10 @@
 // the various methods here.
 
 use crate::{
-    limits::MAX_WASM_FUNCTION_LOCALS, AbstractHeapType, ArrayType, BinaryReaderError, BlockType,
-    BrTable, Catch, FieldType, FuncType, GlobalType, HeapType, Ieee32, Ieee64, MemArg, RefType,
-    Result, StorageType, StructType, SubType, TableType, TryTable, UnpackedIndex, ValType,
-    VisitOperator, WasmFeatures, WasmModuleResources, V128,
+    limits::MAX_WASM_FUNCTION_LOCALS, AbstractHeapType, BinaryReaderError, BlockType, BrTable,
+    Catch, FieldType, FuncType, GlobalType, HeapType, Ieee32, Ieee64, MemArg, RefType, Result,
+    StorageType, StructType, SubType, TableType, TryTable, UnpackedIndex, ValType, VisitOperator,
+    WasmFeatures, WasmModuleResources, V128,
 };
 use crate::{prelude::*, CompositeInnerType, Ordering};
 use core::ops::{Deref, DerefMut};
@@ -1199,10 +1199,8 @@ where
         struct_type_index: u32,
         field_index: u32,
     ) -> Result<()> {
-        let ty = self
-            .struct_field_at(struct_type_index, field_index)?
-            .element_type;
-        let field_ty = match ty {
+        let field = self.mutable_struct_field_at(struct_type_index, field_index)?;
+        let field_ty = match field.element_type {
             StorageType::Val(ValType::I32) => ValType::I32,
             StorageType::Val(ValType::I64) => ValType::I64,
             _ => bail!(
@@ -1220,8 +1218,8 @@ where
     /// Common helper for checking the types of arrays accessed with atomic RMW
     /// instructions, which only allow `i32` and `i64`.
     fn check_array_atomic_rmw(&mut self, op: &'static str, type_index: u32) -> Result<()> {
-        let ty = self.array_type_at(type_index)?.0.element_type;
-        let elem_ty = match ty {
+        let field = self.mutable_array_type_at(type_index)?;
+        let elem_ty = match field.element_type {
             StorageType::Val(ValType::I32) => ValType::I32,
             StorageType::Val(ValType::I64) => ValType::I64,
             _ => bail!(
@@ -1279,16 +1277,42 @@ where
             })
     }
 
-    fn array_type_at(&self, at: u32) -> Result<&'resources ArrayType> {
+    fn mutable_struct_field_at(
+        &self,
+        struct_type_index: u32,
+        field_index: u32,
+    ) -> Result<FieldType> {
+        let field = self.struct_field_at(struct_type_index, field_index)?;
+        if !field.mutable {
+            bail!(
+                self.offset,
+                "invalid struct modification: struct field is immutable"
+            )
+        }
+        Ok(field)
+    }
+
+    fn array_type_at(&self, at: u32) -> Result<FieldType> {
         let sub_ty = self.sub_type_at(at)?;
         if let CompositeInnerType::Array(array_ty) = &sub_ty.composite_type.inner {
-            Ok(array_ty)
+            Ok(array_ty.0)
         } else {
             bail!(
                 self.offset,
                 "expected array type at index {at}, found {sub_ty}"
             )
         }
+    }
+
+    fn mutable_array_type_at(&self, at: u32) -> Result<FieldType> {
+        let field = self.array_type_at(at)?;
+        if !field.mutable {
+            bail!(
+                self.offset,
+                "invalid array modification: array is immutable"
+            )
+        }
+        Ok(field)
     }
 
     fn func_type_at(&self, at: u32) -> Result<&'resources FuncType> {
@@ -3876,7 +3900,7 @@ where
         if field_ty.element_type.is_packed() {
             bail!(
                 self.offset,
-                "can only use struct.get with non-packed storage types"
+                "can only use struct `get` with non-packed storage types"
             )
         }
         self.pop_concrete_ref(true, struct_type_index)?;
@@ -3961,10 +3985,7 @@ where
         Ok(())
     }
     fn visit_struct_set(&mut self, struct_type_index: u32, field_index: u32) -> Self::Output {
-        let field_ty = self.struct_field_at(struct_type_index, field_index)?;
-        if !field_ty.mutable {
-            bail!(self.offset, "invalid struct.set: struct field is immutable")
-        }
+        let field_ty = self.mutable_struct_field_at(struct_type_index, field_index)?;
         self.pop_operand(Some(field_ty.element_type.unpack()))?;
         self.pop_concrete_ref(true, struct_type_index)?;
         Ok(())
@@ -4041,10 +4062,8 @@ where
         struct_type_index: u32,
         field_index: u32,
     ) -> Self::Output {
-        let field_ty = self
-            .struct_field_at(struct_type_index, field_index)?
-            .element_type;
-        let is_valid_type = match field_ty {
+        let field = self.mutable_struct_field_at(struct_type_index, field_index)?;
+        let is_valid_type = match field.element_type {
             StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
             StorageType::Val(v) => self
                 .resources
@@ -4057,7 +4076,7 @@ where
                 "invalid type: `struct.atomic.rmw.xchg` only allows `i32`, `i64` and subtypes of `anyref`"
             );
         }
-        let field_ty = field_ty.unpack();
+        let field_ty = field.element_type.unpack();
         self.pop_operand(Some(field_ty))?;
         self.pop_concrete_ref(true, struct_type_index)?;
         self.push_operand(field_ty)?;
@@ -4069,10 +4088,8 @@ where
         struct_type_index: u32,
         field_index: u32,
     ) -> Self::Output {
-        let field_ty = self
-            .struct_field_at(struct_type_index, field_index)?
-            .element_type;
-        let is_valid_type = match field_ty {
+        let field = self.mutable_struct_field_at(struct_type_index, field_index)?;
+        let is_valid_type = match field.element_type {
             StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
             StorageType::Val(v) => self
                 .resources
@@ -4085,7 +4102,7 @@ where
                 "invalid type: `struct.atomic.rmw.cmpxchg` only allows `i32`, `i64` and subtypes of `eqref`"
             );
         }
-        let field_ty = field_ty.unpack();
+        let field_ty = field.element_type.unpack();
         self.pop_operand(Some(field_ty))?;
         self.pop_operand(Some(field_ty))?;
         self.pop_concrete_ref(true, struct_type_index)?;
@@ -4095,12 +4112,12 @@ where
     fn visit_array_new(&mut self, type_index: u32) -> Self::Output {
         let array_ty = self.array_type_at(type_index)?;
         self.pop_operand(Some(ValType::I32))?;
-        self.pop_operand(Some(array_ty.0.element_type.unpack()))?;
+        self.pop_operand(Some(array_ty.element_type.unpack()))?;
         self.push_concrete_ref(false, type_index)
     }
     fn visit_array_new_default(&mut self, type_index: u32) -> Self::Output {
         let ty = self.array_type_at(type_index)?;
-        let val_ty = ty.0.element_type.unpack();
+        let val_ty = ty.element_type.unpack();
         if !val_ty.is_defaultable() {
             bail!(
                 self.offset,
@@ -4112,7 +4129,7 @@ where
     }
     fn visit_array_new_fixed(&mut self, type_index: u32, n: u32) -> Self::Output {
         let array_ty = self.array_type_at(type_index)?;
-        let elem_ty = array_ty.0.element_type.unpack();
+        let elem_ty = array_ty.element_type.unpack();
         for _ in 0..n {
             self.pop_operand(Some(elem_ty))?;
         }
@@ -4120,7 +4137,7 @@ where
     }
     fn visit_array_new_data(&mut self, type_index: u32, data_index: u32) -> Self::Output {
         let array_ty = self.array_type_at(type_index)?;
-        let elem_ty = array_ty.0.element_type.unpack();
+        let elem_ty = array_ty.element_type.unpack();
         match elem_ty {
             ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => {}
             ValType::Ref(_) => bail!(
@@ -4139,7 +4156,7 @@ where
     }
     fn visit_array_new_elem(&mut self, type_index: u32, elem_index: u32) -> Self::Output {
         let array_ty = self.array_type_at(type_index)?;
-        let array_ref_ty = match array_ty.0.element_type.unpack() {
+        let array_ref_ty = match array_ty.element_type.unpack() {
             ValType::Ref(rt) => rt,
             ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => bail!(
                 self.offset,
@@ -4163,7 +4180,7 @@ where
     }
     fn visit_array_get(&mut self, type_index: u32) -> Self::Output {
         let array_ty = self.array_type_at(type_index)?;
-        let elem_ty = array_ty.0.element_type;
+        let elem_ty = array_ty.element_type;
         if elem_ty.is_packed() {
             bail!(
                 self.offset,
@@ -4177,7 +4194,7 @@ where
     fn visit_array_atomic_get(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
         self.visit_array_get(type_index)?;
         // The `atomic` version has some additional type restrictions.
-        let elem_ty = self.array_type_at(type_index)?.0.element_type;
+        let elem_ty = self.array_type_at(type_index)?.element_type;
         let is_valid_type = match elem_ty {
             StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
             StorageType::Val(v) => self
@@ -4195,7 +4212,7 @@ where
     }
     fn visit_array_get_s(&mut self, type_index: u32) -> Self::Output {
         let array_ty = self.array_type_at(type_index)?;
-        let elem_ty = array_ty.0.element_type;
+        let elem_ty = array_ty.element_type;
         if !elem_ty.is_packed() {
             bail!(
                 self.offset,
@@ -4210,14 +4227,14 @@ where
         self.visit_array_get_s(type_index)?;
         // This instruction has the same type restrictions as the non-`atomic` version.
         debug_assert!(matches!(
-            self.array_type_at(type_index)?.0.element_type,
+            self.array_type_at(type_index)?.element_type,
             StorageType::I8 | StorageType::I16
         ));
         Ok(())
     }
     fn visit_array_get_u(&mut self, type_index: u32) -> Self::Output {
         let array_ty = self.array_type_at(type_index)?;
-        let elem_ty = array_ty.0.element_type;
+        let elem_ty = array_ty.element_type;
         if !elem_ty.is_packed() {
             bail!(
                 self.offset,
@@ -4232,17 +4249,14 @@ where
         self.visit_array_get_u(type_index)?;
         // This instruction has the same type restrictions as the non-`atomic` version.
         debug_assert!(matches!(
-            self.array_type_at(type_index)?.0.element_type,
+            self.array_type_at(type_index)?.element_type,
             StorageType::I8 | StorageType::I16
         ));
         Ok(())
     }
     fn visit_array_set(&mut self, type_index: u32) -> Self::Output {
-        let array_ty = self.array_type_at(type_index)?;
-        if !array_ty.0.mutable {
-            bail!(self.offset, "invalid array.set: array is immutable")
-        }
-        self.pop_operand(Some(array_ty.0.element_type.unpack()))?;
+        let array_ty = self.mutable_array_type_at(type_index)?;
+        self.pop_operand(Some(array_ty.element_type.unpack()))?;
         self.pop_operand(Some(ValType::I32))?;
         self.pop_concrete_ref(true, type_index)?;
         Ok(())
@@ -4250,7 +4264,7 @@ where
     fn visit_array_atomic_set(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
         self.visit_array_set(type_index)?;
         // The `atomic` version has some additional type restrictions.
-        let elem_ty = self.array_type_at(type_index)?.0.element_type;
+        let elem_ty = self.array_type_at(type_index)?.element_type;
         let is_valid_type = match elem_ty {
             StorageType::I8 | StorageType::I16 => true,
             StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
@@ -4271,26 +4285,17 @@ where
         self.push_operand(ValType::I32)
     }
     fn visit_array_fill(&mut self, array_type_index: u32) -> Self::Output {
-        let array_ty = self.array_type_at(array_type_index)?;
-        if !array_ty.0.mutable {
-            bail!(self.offset, "invalid array.fill: array is immutable");
-        }
+        let array_ty = self.mutable_array_type_at(array_type_index)?;
         self.pop_operand(Some(ValType::I32))?;
-        self.pop_operand(Some(array_ty.0.element_type.unpack()))?;
+        self.pop_operand(Some(array_ty.element_type.unpack()))?;
         self.pop_operand(Some(ValType::I32))?;
         self.pop_concrete_ref(true, array_type_index)?;
         Ok(())
     }
     fn visit_array_copy(&mut self, type_index_dst: u32, type_index_src: u32) -> Self::Output {
-        let array_ty_dst = self.array_type_at(type_index_dst)?;
-        if !array_ty_dst.0.mutable {
-            bail!(
-                self.offset,
-                "invalid array.copy: destination array is immutable"
-            );
-        }
+        let array_ty_dst = self.mutable_array_type_at(type_index_dst)?;
         let array_ty_src = self.array_type_at(type_index_src)?;
-        match (array_ty_dst.0.element_type, array_ty_src.0.element_type) {
+        match (array_ty_dst.element_type, array_ty_src.element_type) {
             (StorageType::I8, StorageType::I8) => {}
             (StorageType::I8, ty) => bail!(
                 self.offset,
@@ -4328,11 +4333,8 @@ where
         array_type_index: u32,
         array_data_index: u32,
     ) -> Self::Output {
-        let array_ty = self.array_type_at(array_type_index)?;
-        if !array_ty.0.mutable {
-            bail!(self.offset, "invalid array.init_data: array is immutable");
-        }
-        let val_ty = array_ty.0.element_type.unpack();
+        let array_ty = self.mutable_array_type_at(array_type_index)?;
+        let val_ty = array_ty.element_type.unpack();
         match val_ty {
             ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => {}
             ValType::Ref(_) => bail!(
@@ -4352,11 +4354,8 @@ where
         Ok(())
     }
     fn visit_array_init_elem(&mut self, type_index: u32, elem_index: u32) -> Self::Output {
-        let array_ty = self.array_type_at(type_index)?;
-        if !array_ty.0.mutable {
-            bail!(self.offset, "invalid array.init_data: array is immutable");
-        }
-        let array_ref_ty = match array_ty.0.element_type.unpack() {
+        let array_ty = self.mutable_array_type_at(type_index)?;
+        let array_ref_ty = match array_ty.element_type.unpack() {
             ValType::Ref(rt) => rt,
             ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => bail!(
                 self.offset,
@@ -4400,8 +4399,8 @@ where
         _ordering: Ordering,
         type_index: u32,
     ) -> Self::Output {
-        let elem_ty = self.array_type_at(type_index)?.0.element_type;
-        let is_valid_type = match elem_ty {
+        let field = self.mutable_array_type_at(type_index)?;
+        let is_valid_type = match field.element_type {
             StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
             StorageType::Val(v) => self
                 .resources
@@ -4414,7 +4413,7 @@ where
                 "invalid type: `array.atomic.rmw.xchg` only allows `i32`, `i64` and subtypes of `anyref`"
             );
         }
-        let elem_ty = elem_ty.unpack();
+        let elem_ty = field.element_type.unpack();
         self.pop_operand(Some(elem_ty))?;
         self.pop_operand(Some(ValType::I32))?;
         self.pop_concrete_ref(true, type_index)?;
@@ -4426,8 +4425,8 @@ where
         _ordering: Ordering,
         type_index: u32,
     ) -> Self::Output {
-        let elem_ty = self.array_type_at(type_index)?.0.element_type;
-        let is_valid_type = match elem_ty {
+        let field = self.mutable_array_type_at(type_index)?;
+        let is_valid_type = match field.element_type {
             StorageType::Val(ValType::I32) | StorageType::Val(ValType::I64) => true,
             StorageType::Val(v) => self
                 .resources
@@ -4440,7 +4439,7 @@ where
                 "invalid type: `array.atomic.rmw.cmpxchg` only allows `i32`, `i64` and subtypes of `eqref`"
             );
         }
-        let elem_ty = elem_ty.unpack();
+        let elem_ty = field.element_type.unpack();
         self.pop_operand(Some(elem_ty))?;
         self.pop_operand(Some(elem_ty))?;
         self.pop_operand(Some(ValType::I32))?;
