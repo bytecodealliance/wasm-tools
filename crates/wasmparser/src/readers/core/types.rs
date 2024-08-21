@@ -1486,6 +1486,7 @@ impl AbstractHeapType {
         }
     }
 
+    #[cfg(feature = "validate")]
     pub(crate) fn is_subtype_of(&self, other: AbstractHeapType) -> bool {
         use AbstractHeapType::*;
 
