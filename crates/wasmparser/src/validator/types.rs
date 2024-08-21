@@ -2798,25 +2798,7 @@ impl TypeList {
                     shared: b_shared,
                     ty: b_ty,
                 },
-            ) => {
-                a_shared == b_shared
-                    && match (a_ty, b_ty) {
-                        (Eq | I31 | Struct | Array | None, Any) => true,
-                        (I31 | Struct | Array | None, Eq) => true,
-                        (NoExtern, Extern) => true,
-                        (NoFunc, Func) => true,
-                        (None, I31 | Array | Struct) => true,
-                        (NoExn, Exn) => true,
-                        // Nothing else matches. (Avoid full wildcard matches so
-                        // that adding/modifying variants is easier in the
-                        // future.)
-                        (
-                            Func | Extern | Exn | Any | Eq | Array | I31 | Struct | None | NoFunc
-                            | NoExtern | NoExn,
-                            _,
-                        ) => false,
-                    }
-            }
+            ) => a_shared == b_shared && a_ty.is_subtype_of(b_ty),
 
             (HT::Concrete(a), HT::Abstract { shared, ty }) => {
                 let a_ty = &subtype(a_group, a).composite_type;
