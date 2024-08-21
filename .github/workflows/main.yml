@@ -85,6 +85,9 @@ jobs:
             rust: default
           - os: ubuntu-latest
             rust: msrv
+            # skip testing crates that require wasmtime since wasmtime has a
+            # more aggressive msrv than wasm-tools
+            flags: --exclude fuzz-stats --exclude wit-component --exclude wasm-mutate-stats
     steps:
     - uses: actions/checkout@v4
       with:
@@ -92,7 +95,7 @@ jobs:
     - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
       with:
         toolchain: ${{ matrix.rust }}
-    - run: cargo test --locked --all
+    - run: cargo test --locked --all ${{ matrix.flags }}
 
   test_extra_features:
     name: Test with extra Cargo features
@@ -260,10 +263,10 @@ jobs:
         submodules: true
     - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
     - run: rustc ci/publish.rs
-    # Make sure the tree is publish-able as-is
-    - run: ./publish verify
     # Make sure we can bump version numbers for the next release
     - run: ./publish bump
+    # Make sure the tree is publish-able as-is
+    - run: ./publish verify
 
   # "Join node" which the merge queue waits on.
   ci-status:
