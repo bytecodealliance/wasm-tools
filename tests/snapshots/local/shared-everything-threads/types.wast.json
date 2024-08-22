@@ -3,390 +3,390 @@
   "commands": [
     {
       "type": "module",
-      "line": 4,
+      "line": 2,
       "filename": "types.0.wasm"
     },
     {
       "type": "assert_invalid",
-      "line": 19,
+      "line": 17,
       "filename": "types.1.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 22,
+      "line": 20,
       "filename": "types.2.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 25,
+      "line": 23,
       "filename": "types.3.wasm",
       "text": "type mismatch",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 29,
+      "line": 27,
       "filename": "types.4.wasm"
     },
     {
       "type": "assert_invalid",
-      "line": 44,
+      "line": 42,
       "filename": "types.5.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 47,
+      "line": 45,
       "filename": "types.6.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 50,
+      "line": 48,
       "filename": "types.7.wasm",
       "text": "type mismatch",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 54,
+      "line": 52,
       "filename": "types.8.wasm"
     },
     {
       "type": "assert_invalid",
-      "line": 69,
+      "line": 67,
       "filename": "types.9.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 72,
+      "line": 70,
       "filename": "types.10.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 75,
+      "line": 73,
       "filename": "types.11.wasm",
       "text": "type mismatch",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 79,
+      "line": 77,
       "filename": "types.12.wasm"
     },
     {
       "type": "assert_invalid",
-      "line": 94,
+      "line": 92,
       "filename": "types.13.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 97,
+      "line": 95,
       "filename": "types.14.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 100,
+      "line": 98,
       "filename": "types.15.wasm",
       "text": "type mismatch",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 104,
+      "line": 102,
       "filename": "types.16.wasm"
     },
     {
       "type": "assert_invalid",
-      "line": 119,
+      "line": 117,
       "filename": "types.17.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 122,
+      "line": 120,
       "filename": "types.18.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 125,
+      "line": 123,
       "filename": "types.19.wasm",
       "text": "type mismatch",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 129,
+      "line": 127,
       "filename": "types.20.wasm"
     },
     {
       "type": "assert_invalid",
-      "line": 144,
+      "line": 142,
       "filename": "types.21.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 147,
+      "line": 145,
       "filename": "types.22.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 150,
+      "line": 148,
       "filename": "types.23.wasm",
       "text": "type mismatch",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 154,
+      "line": 152,
       "filename": "types.24.wasm"
     },
     {
       "type": "assert_invalid",
-      "line": 169,
+      "line": 167,
       "filename": "types.25.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 172,
+      "line": 170,
       "filename": "types.26.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 175,
+      "line": 173,
       "filename": "types.27.wasm",
       "text": "type mismatch",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 179,
+      "line": 177,
       "filename": "types.28.wasm"
     },
     {
       "type": "assert_invalid",
-      "line": 194,
+      "line": 192,
       "filename": "types.29.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 197,
+      "line": 195,
       "filename": "types.30.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 200,
+      "line": 198,
       "filename": "types.31.wasm",
       "text": "type mismatch",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 204,
+      "line": 202,
       "filename": "types.32.wasm"
     },
     {
       "type": "assert_invalid",
-      "line": 219,
+      "line": 217,
       "filename": "types.33.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 222,
+      "line": 220,
       "filename": "types.34.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 225,
+      "line": 223,
       "filename": "types.35.wasm",
       "text": "type mismatch",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 229,
+      "line": 227,
       "filename": "types.36.wasm"
     },
     {
       "type": "assert_invalid",
-      "line": 244,
+      "line": 242,
       "filename": "types.37.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 247,
+      "line": 245,
       "filename": "types.38.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 250,
+      "line": 248,
       "filename": "types.39.wasm",
       "text": "type mismatch",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 254,
+      "line": 252,
       "filename": "types.40.wasm"
     },
     {
       "type": "assert_invalid",
-      "line": 269,
+      "line": 267,
       "filename": "types.41.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 272,
+      "line": 270,
       "filename": "types.42.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 275,
+      "line": 273,
       "filename": "types.43.wasm",
       "text": "type mismatch",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 279,
+      "line": 277,
       "filename": "types.44.wasm"
     },
     {
       "type": "assert_invalid",
-      "line": 294,
+      "line": 292,
       "filename": "types.45.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 297,
+      "line": 295,
       "filename": "types.46.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 300,
+      "line": 298,
       "filename": "types.47.wasm",
       "text": "type mismatch",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 304,
+      "line": 302,
       "filename": "types.48.wasm"
     },
     {
       "type": "assert_invalid",
-      "line": 319,
+      "line": 317,
       "filename": "types.49.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 324,
+      "line": 322,
       "filename": "types.50.wasm",
       "text": "type mismatch",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 329,
+      "line": 327,
       "filename": "types.51.wasm",
       "text": "shared composite type must contain shared types",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 333,
+      "line": 331,
       "filename": "types.52.wasm"
     },
     {
       "type": "assert_invalid",
-      "line": 348,
+      "line": 346,
       "filename": "types.53.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 353,
+      "line": 351,
       "filename": "types.54.wasm",
       "text": "type mismatch",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 358,
+      "line": 356,
       "filename": "types.55.wasm",
       "text": "shared composite type must contain shared types",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 362,
+      "line": 360,
       "filename": "types.56.wasm"
     },
     {
       "type": "assert_invalid",
-      "line": 377,
+      "line": 375,
       "filename": "types.57.wasm",
       "text": "shared globals must have a shared value type",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 382,
+      "line": 380,
       "filename": "types.58.wasm",
       "text": "type mismatch",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 387,
+      "line": 385,
       "filename": "types.59.wasm",
       "text": "shared composite type must contain shared types",
       "module_type": "binary"

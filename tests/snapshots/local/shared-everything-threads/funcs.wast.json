@@ -1,0 +1,17 @@
+{
+  "source_filename": "tests/local/shared-everything-threads/funcs.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 2,
+      "filename": "funcs.0.wasm"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 10,
+      "filename": "funcs.1.wasm",
+      "text": "shared functions cannot call unshared functions",
+      "module_type": "binary"
+    }
+  ]
+}

@@ -57,7 +57,7 @@ pub trait WasmModuleResources {
     /// Returns the `FuncType` associated with the given function index.
     ///
     /// The function type must be canonicalized.
-    fn type_of_function(&self, func_idx: u32) -> Option<&FuncType>;
+    fn type_of_function(&self, func_idx: u32) -> Option<(&FuncType, bool)>;
 
     /// Returns the element type at the given index.
     ///
@@ -153,7 +153,7 @@ where
     fn type_id_of_function(&self, func_idx: u32) -> Option<CoreTypeId> {
         T::type_id_of_function(self, func_idx)
     }
-    fn type_of_function(&self, func_idx: u32) -> Option<&FuncType> {
+    fn type_of_function(&self, func_idx: u32) -> Option<(&FuncType, bool)> {
         T::type_of_function(self, func_idx)
     }
     fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<(), BinaryReaderError> {
@@ -210,7 +210,7 @@ where
         T::type_id_of_function(self, func_idx)
     }
 
-    fn type_of_function(&self, func_idx: u32) -> Option<&FuncType> {
+    fn type_of_function(&self, func_idx: u32) -> Option<(&FuncType, bool)> {
         T::type_of_function(self, func_idx)
     }
 
