@@ -6,7 +6,7 @@ use std::{
 use crate::{FlagsRepr, Int, Resolve, Type, TypeDef, TypeDefKind};
 
 /// Architecture specific alignment
-#[derive(Eq, PartialEq, PartialOrd, Clone, Copy, Debug)]
+#[derive(Eq, PartialEq, PartialOrd, Clone, Copy)]
 pub enum Alignment {
     /// This represents 4 byte alignment on 32bit and 8 byte alignment on 64bit architectures
     Pointer,
@@ -20,7 +20,7 @@ impl Default for Alignment {
     }
 }
 
-impl std::fmt::Display for Alignment {
+impl std::fmt::Debug for Alignment {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Alignment::Pointer => f.write_str("ptr"),
@@ -82,7 +82,7 @@ impl Alignment {
 /// Architecture specific measurement of position,
 /// the combined amount in bytes is
 /// `bytes + pointers * core::mem::size_of::<*const u8>()`
-#[derive(Default, Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(Default, Clone, Copy, Eq, PartialEq)]
 pub struct ArchitectureSize {
     /// architecture independent bytes
     pub bytes: usize,
@@ -114,7 +114,7 @@ impl From<Alignment> for ArchitectureSize {
     }
 }
 
-impl std::fmt::Display for ArchitectureSize {
+impl std::fmt::Debug for ArchitectureSize {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.format("ptrsz"))
     }
