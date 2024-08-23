@@ -8916,21 +8916,41 @@
     },
     {
       "type": "assert_return",
-      "line": 592,
+      "line": 591,
       "action": {
         "type": "invoke",
-        "field": "f32.abs",
+        "field": "f32.sqrt",
         "args": [
           {
             "type": "f32",
-            "value": "2139156962"
+            "value": "1048575999"
           }
         ]
       },
       "expected": [
         {
           "type": "f32",
-          "value": "2139156962"
+          "value": "1056964607"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 592,
+      "action": {
+        "type": "invoke",
+        "field": "f32.sqrt",
+        "args": [
+          {
+            "type": "f32",
+            "value": "1048576000"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f32",
+          "value": "1056964608"
         }
       ]
     },
@@ -8939,6 +8959,586 @@
       "line": 593,
       "action": {
         "type": "invoke",
+        "field": "f32.sqrt",
+        "args": [
+          {
+            "type": "f32",
+            "value": "1048576001"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f32",
+          "value": "1056964608"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 594,
+      "action": {
+        "type": "invoke",
+        "field": "f32.sqrt",
+        "args": [
+          {
+            "type": "f32",
+            "value": "1048576002"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f32",
+          "value": "1056964609"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 595,
+      "action": {
+        "type": "invoke",
+        "field": "f64.sqrt",
+        "args": [
+          {
+            "type": "f64",
+            "value": "4598175219545276415"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f64",
+          "value": "4602678819172646911"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 596,
+      "action": {
+        "type": "invoke",
+        "field": "f64.sqrt",
+        "args": [
+          {
+            "type": "f64",
+            "value": "4598175219545276416"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f64",
+          "value": "4602678819172646912"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 597,
+      "action": {
+        "type": "invoke",
+        "field": "f64.sqrt",
+        "args": [
+          {
+            "type": "f64",
+            "value": "4598175219545276417"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f64",
+          "value": "4602678819172646912"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 598,
+      "action": {
+        "type": "invoke",
+        "field": "f64.sqrt",
+        "args": [
+          {
+            "type": "f64",
+            "value": "4598175219545276418"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f64",
+          "value": "4602678819172646913"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 602,
+      "action": {
+        "type": "invoke",
+        "field": "f32.sqrt",
+        "args": [
+          {
+            "type": "f32",
+            "value": "1383964906"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f32",
+          "value": "1224658880"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 603,
+      "action": {
+        "type": "invoke",
+        "field": "f64.sqrt",
+        "args": [
+          {
+            "type": "f64",
+            "value": "4778235767454362395"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f64",
+          "value": "4692708996063213197"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 607,
+      "action": {
+        "type": "invoke",
+        "field": "f32.sqrt",
+        "args": [
+          {
+            "type": "f32",
+            "value": "1344155865"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f32",
+          "value": "1204370688"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 608,
+      "action": {
+        "type": "invoke",
+        "field": "f32.sqrt",
+        "args": [
+          {
+            "type": "f32",
+            "value": "1496014503"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f32",
+          "value": "1280406534"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 609,
+      "action": {
+        "type": "invoke",
+        "field": "f32.sqrt",
+        "args": [
+          {
+            "type": "f32",
+            "value": "1437792278"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f32",
+          "value": "1251433122"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 610,
+      "action": {
+        "type": "invoke",
+        "field": "f32.sqrt",
+        "args": [
+          {
+            "type": "f32",
+            "value": "1318267910"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f32",
+          "value": "1191788651"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 611,
+      "action": {
+        "type": "invoke",
+        "field": "f64.sqrt",
+        "args": [
+          {
+            "type": "f64",
+            "value": "4756863450987102208"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f64",
+          "value": "4681816855776591872"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 612,
+      "action": {
+        "type": "invoke",
+        "field": "f64.sqrt",
+        "args": [
+          {
+            "type": "f64",
+            "value": "4838391936821527880"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f64",
+          "value": "4722638290031738880"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 613,
+      "action": {
+        "type": "invoke",
+        "field": "f64.sqrt",
+        "args": [
+          {
+            "type": "f64",
+            "value": "4807134117891383552"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f64",
+          "value": "4707083307639111680"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 614,
+      "action": {
+        "type": "invoke",
+        "field": "f64.sqrt",
+        "args": [
+          {
+            "type": "f64",
+            "value": "4742964961037254656"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f64",
+          "value": "4675061926143203535"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 618,
+      "action": {
+        "type": "invoke",
+        "field": "f32.sqrt",
+        "args": [
+          {
+            "type": "f32",
+            "value": "1057229822"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f32",
+          "value": "1060625359"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 619,
+      "action": {
+        "type": "invoke",
+        "field": "f32.sqrt",
+        "args": [
+          {
+            "type": "f32",
+            "value": "1057013196"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f32",
+          "value": "1060473591"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 620,
+      "action": {
+        "type": "invoke",
+        "field": "f64.sqrt",
+        "args": [
+          {
+            "type": "f64",
+            "value": "4602821204854702080"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f64",
+          "value": "4604644169646845946"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 621,
+      "action": {
+        "type": "invoke",
+        "field": "f64.sqrt",
+        "args": [
+          {
+            "type": "f64",
+            "value": "4602704904656519168"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f64",
+          "value": "4604562689808079765"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 625,
+      "action": {
+        "type": "invoke",
+        "field": "f32.sqrt",
+        "args": [
+          {
+            "type": "f32",
+            "value": "1091567616"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f32",
+          "value": "1077936128"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 626,
+      "action": {
+        "type": "invoke",
+        "field": "f32.sqrt",
+        "args": [
+          {
+            "type": "f32",
+            "value": "1124663296"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f32",
+          "value": "1094403699"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 627,
+      "action": {
+        "type": "invoke",
+        "field": "f32.sqrt",
+        "args": [
+          {
+            "type": "f32",
+            "value": "1071844079"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f32",
+          "value": "1068136808"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 628,
+      "action": {
+        "type": "invoke",
+        "field": "f32.sqrt",
+        "args": [
+          {
+            "type": "f32",
+            "value": "1148846080"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f32",
+          "value": "1107098482"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 629,
+      "action": {
+        "type": "invoke",
+        "field": "f64.sqrt",
+        "args": [
+          {
+            "type": "f64",
+            "value": "4621256167635550208"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f64",
+          "value": "4613937818241073152"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 630,
+      "action": {
+        "type": "invoke",
+        "field": "f64.sqrt",
+        "args": [
+          {
+            "type": "f64",
+            "value": "4639024275540410368"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f64",
+          "value": "4622778778324308448"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 631,
+      "action": {
+        "type": "invoke",
+        "field": "f64.sqrt",
+        "args": [
+          {
+            "type": "f64",
+            "value": "4610667174614947795"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f64",
+          "value": "4608676848398421769"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 632,
+      "action": {
+        "type": "invoke",
+        "field": "f64.sqrt",
+        "args": [
+          {
+            "type": "f64",
+            "value": "4652007308841189376"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f64",
+          "value": "4629594237989614119"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 636,
+      "action": {
+        "type": "invoke",
+        "field": "f32.abs",
+        "args": [
+          {
+            "type": "f32",
+            "value": "2139156962"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "f32",
+          "value": "2139156962"
+        }
+      ]
+    },
+    {
+      "type": "assert_return",
+      "line": 637,
+      "action": {
+        "type": "invoke",
         "field": "f32.abs",
         "args": [
           {
@@ -8956,7 +9556,7 @@
     },
     {
       "type": "assert_return",
-      "line": 594,
+      "line": 638,
       "action": {
         "type": "invoke",
         "field": "f64.abs",
@@ -8976,7 +9576,7 @@
     },
     {
       "type": "assert_return",
-      "line": 595,
+      "line": 639,
       "action": {
         "type": "invoke",
         "field": "f64.abs",
@@ -8996,7 +9596,7 @@
     },
     {
       "type": "assert_return",
-      "line": 597,
+      "line": 641,
       "action": {
         "type": "invoke",
         "field": "f32.neg",
@@ -9016,7 +9616,7 @@
     },
     {
       "type": "assert_return",
-      "line": 598,
+      "line": 642,
       "action": {
         "type": "invoke",
         "field": "f32.neg",
@@ -9036,7 +9636,7 @@
     },
     {
       "type": "assert_return",
-      "line": 599,
+      "line": 643,
       "action": {
         "type": "invoke",
         "field": "f64.neg",
@@ -9056,7 +9656,7 @@
     },
     {
       "type": "assert_return",
-      "line": 600,
+      "line": 644,
       "action": {
         "type": "invoke",
         "field": "f64.neg",
@@ -9076,7 +9676,7 @@
     },
     {
       "type": "assert_return",
-      "line": 602,
+      "line": 646,
       "action": {
         "type": "invoke",
         "field": "f32.copysign",
@@ -9100,7 +9700,7 @@
     },
     {
       "type": "assert_return",
-      "line": 603,
+      "line": 647,
       "action": {
         "type": "invoke",
         "field": "f32.copysign",
@@ -9124,7 +9724,7 @@
     },
     {
       "type": "assert_return",
-      "line": 604,
+      "line": 648,
       "action": {
         "type": "invoke",
         "field": "f32.copysign",
@@ -9148,7 +9748,7 @@
     },
     {
       "type": "assert_return",
-      "line": 605,
+      "line": 649,
       "action": {
         "type": "invoke",
         "field": "f32.copysign",
@@ -9172,7 +9772,7 @@
     },
     {
       "type": "assert_return",
-      "line": 606,
+      "line": 650,
       "action": {
         "type": "invoke",
         "field": "f64.copysign",
@@ -9196,7 +9796,7 @@
     },
     {
       "type": "assert_return",
-      "line": 607,
+      "line": 651,
       "action": {
         "type": "invoke",
         "field": "f64.copysign",
@@ -9220,7 +9820,7 @@
     },
     {
       "type": "assert_return",
-      "line": 608,
+      "line": 652,
       "action": {
         "type": "invoke",
         "field": "f64.copysign",
@@ -9244,7 +9844,7 @@
     },
     {
       "type": "assert_return",
-      "line": 609,
+      "line": 653,
       "action": {
         "type": "invoke",
         "field": "f64.copysign",
@@ -9268,7 +9868,7 @@
     },
     {
       "type": "assert_return",
-      "line": 612,
+      "line": 656,
       "action": {
         "type": "invoke",
         "field": "f32.ceil",
@@ -9288,7 +9888,7 @@
     },
     {
       "type": "assert_return",
-      "line": 613,
+      "line": 657,
       "action": {
         "type": "invoke",
         "field": "f32.ceil",
@@ -9308,7 +9908,7 @@
     },
     {
       "type": "assert_return",
-      "line": 614,
+      "line": 658,
       "action": {
         "type": "invoke",
         "field": "f64.ceil",
@@ -9328,7 +9928,7 @@
     },
     {
       "type": "assert_return",
-      "line": 615,
+      "line": 659,
       "action": {
         "type": "invoke",
         "field": "f64.ceil",
@@ -9348,7 +9948,7 @@
     },
     {
       "type": "assert_return",
-      "line": 618,
+      "line": 662,
       "action": {
         "type": "invoke",
         "field": "f32.ceil",
@@ -9368,7 +9968,7 @@
     },
     {
       "type": "assert_return",
-      "line": 619,
+      "line": 663,
       "action": {
         "type": "invoke",
         "field": "f32.ceil",
@@ -9388,7 +9988,7 @@
     },
     {
       "type": "assert_return",
-      "line": 620,
+      "line": 664,
       "action": {
         "type": "invoke",
         "field": "f64.ceil",
@@ -9408,7 +10008,7 @@
     },
     {
       "type": "assert_return",
-      "line": 621,
+      "line": 665,
       "action": {
         "type": "invoke",
         "field": "f64.ceil",
@@ -9428,7 +10028,7 @@
     },
     {
       "type": "assert_return",
-      "line": 625,
+      "line": 669,
       "action": {
         "type": "invoke",
         "field": "f32.ceil",
@@ -9448,7 +10048,7 @@
     },
     {
       "type": "assert_return",
-      "line": 626,
+      "line": 670,
       "action": {
         "type": "invoke",
         "field": "f32.ceil",
@@ -9468,7 +10068,7 @@
     },
     {
       "type": "assert_return",
-      "line": 627,
+      "line": 671,
       "action": {
         "type": "invoke",
         "field": "f64.ceil",
@@ -9488,7 +10088,7 @@
     },
     {
       "type": "assert_return",
-      "line": 628,
+      "line": 672,
       "action": {
         "type": "invoke",
         "field": "f64.ceil",
@@ -9508,7 +10108,7 @@
     },
     {
       "type": "assert_return",
-      "line": 631,
+      "line": 675,
       "action": {
         "type": "invoke",
         "field": "f32.floor",
@@ -9528,7 +10128,7 @@
     },
     {
       "type": "assert_return",
-      "line": 632,
+      "line": 676,
       "action": {
         "type": "invoke",
         "field": "f32.floor",
@@ -9548,7 +10148,7 @@
     },
     {
       "type": "assert_return",
-      "line": 633,
+      "line": 677,
       "action": {
         "type": "invoke",
         "field": "f64.floor",
@@ -9568,7 +10168,7 @@
     },
     {
       "type": "assert_return",
-      "line": 634,
+      "line": 678,
       "action": {
         "type": "invoke",
         "field": "f64.floor",
@@ -9588,7 +10188,7 @@
     },
     {
       "type": "assert_return",
-      "line": 637,
+      "line": 681,
       "action": {
         "type": "invoke",
         "field": "f32.floor",
@@ -9608,7 +10208,7 @@
     },
     {
       "type": "assert_return",
-      "line": 638,
+      "line": 682,
       "action": {
         "type": "invoke",
         "field": "f32.floor",
@@ -9628,7 +10228,7 @@
     },
     {
       "type": "assert_return",
-      "line": 639,
+      "line": 683,
       "action": {
         "type": "invoke",
         "field": "f64.floor",
@@ -9648,7 +10248,7 @@
     },
     {
       "type": "assert_return",
-      "line": 640,
+      "line": 684,
       "action": {
         "type": "invoke",
         "field": "f64.floor",
@@ -9668,7 +10268,7 @@
     },
     {
       "type": "assert_return",
-      "line": 644,
+      "line": 688,
       "action": {
         "type": "invoke",
         "field": "f32.floor",
@@ -9688,7 +10288,7 @@
     },
     {
       "type": "assert_return",
-      "line": 645,
+      "line": 689,
       "action": {
         "type": "invoke",
         "field": "f64.floor",
@@ -9708,7 +10308,7 @@
     },
     {
       "type": "assert_return",
-      "line": 648,
+      "line": 692,
       "action": {
         "type": "invoke",
         "field": "f32.trunc",
@@ -9728,7 +10328,7 @@
     },
     {
       "type": "assert_return",
-      "line": 649,
+      "line": 693,
       "action": {
         "type": "invoke",
         "field": "f32.trunc",
@@ -9748,7 +10348,7 @@
     },
     {
       "type": "assert_return",
-      "line": 650,
+      "line": 694,
       "action": {
         "type": "invoke",
         "field": "f64.trunc",
@@ -9768,7 +10368,7 @@
     },
     {
       "type": "assert_return",
-      "line": 651,
+      "line": 695,
       "action": {
         "type": "invoke",
         "field": "f64.trunc",
@@ -9788,7 +10388,7 @@
     },
     {
       "type": "assert_return",
-      "line": 656,
+      "line": 700,
       "action": {
         "type": "invoke",
         "field": "f32.nearest",
@@ -9808,7 +10408,7 @@
     },
     {
       "type": "assert_return",
-      "line": 657,
+      "line": 701,
       "action": {
         "type": "invoke",
         "field": "f32.nearest",
@@ -9828,7 +10428,7 @@
     },
     {
       "type": "assert_return",
-      "line": 658,
+      "line": 702,
       "action": {
         "type": "invoke",
         "field": "f32.nearest",
@@ -9848,7 +10448,7 @@
     },
     {
       "type": "assert_return",
-      "line": 659,
+      "line": 703,
       "action": {
         "type": "invoke",
         "field": "f32.nearest",
@@ -9868,7 +10468,7 @@
     },
     {
       "type": "assert_return",
-      "line": 660,
+      "line": 704,
       "action": {
         "type": "invoke",
         "field": "f64.nearest",
@@ -9888,7 +10488,7 @@
     },
     {
       "type": "assert_return",
-      "line": 661,
+      "line": 705,
       "action": {
         "type": "invoke",
         "field": "f64.nearest",
@@ -9908,7 +10508,7 @@
     },
     {
       "type": "assert_return",
-      "line": 662,
+      "line": 706,
       "action": {
         "type": "invoke",
         "field": "f64.nearest",
@@ -9928,7 +10528,7 @@
     },
     {
       "type": "assert_return",
-      "line": 663,
+      "line": 707,
       "action": {
         "type": "invoke",
         "field": "f64.nearest",
@@ -9948,7 +10548,7 @@
     },
     {
       "type": "assert_return",
-      "line": 667,
+      "line": 711,
       "action": {
         "type": "invoke",
         "field": "f32.nearest",
@@ -9968,7 +10568,7 @@
     },
     {
       "type": "assert_return",
-      "line": 668,
+      "line": 712,
       "action": {
         "type": "invoke",
         "field": "f32.nearest",
@@ -9988,7 +10588,7 @@
     },
     {
       "type": "assert_return",
-      "line": 669,
+      "line": 713,
       "action": {
         "type": "invoke",
         "field": "f32.nearest",
@@ -10008,7 +10608,7 @@
     },
     {
       "type": "assert_return",
-      "line": 670,
+      "line": 714,
       "action": {
         "type": "invoke",
         "field": "f64.nearest",
@@ -10028,7 +10628,7 @@
     },
     {
       "type": "assert_return",
-      "line": 671,
+      "line": 715,
       "action": {
         "type": "invoke",
         "field": "f64.nearest",
@@ -10048,7 +10648,7 @@
     },
     {
       "type": "assert_return",
-      "line": 672,
+      "line": 716,
       "action": {
         "type": "invoke",
         "field": "f64.nearest",
@@ -10068,7 +10668,7 @@
     },
     {
       "type": "assert_return",
-      "line": 675,
+      "line": 719,
       "action": {
         "type": "invoke",
         "field": "f32.nearest",
@@ -10088,7 +10688,7 @@
     },
     {
       "type": "assert_return",
-      "line": 676,
+      "line": 720,
       "action": {
         "type": "invoke",
         "field": "f32.nearest",
@@ -10108,7 +10708,7 @@
     },
     {
       "type": "assert_return",
-      "line": 677,
+      "line": 721,
       "action": {
         "type": "invoke",
         "field": "f64.nearest",
@@ -10128,7 +10728,7 @@
     },
     {
       "type": "assert_return",
-      "line": 678,
+      "line": 722,
       "action": {
         "type": "invoke",
         "field": "f64.nearest",
