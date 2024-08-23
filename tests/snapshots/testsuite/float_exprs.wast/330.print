@@ -5,16 +5,16 @@
     local.get $x
     local.get $y
     f64.promote_f32
-    f64.sub
+    f64.mul
     f32.demote_f64
   )
   (func (;1;) (type 1) (param $y f32) (param $x f64) (result f32)
     local.get $y
     f64.promote_f32
     local.get $x
-    f64.sub
+    f64.mul
     f32.demote_f64
   )
-  (export "no_demote_mixed_sub" (func 0))
-  (export "no_demote_mixed_sub_commuted" (func 1))
+  (export "no_demote_mixed_mul" (func 0))
+  (export "no_demote_mixed_mul_commuted" (func 1))
 )
