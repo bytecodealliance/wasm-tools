@@ -304,13 +304,19 @@ impl OperatorValidator {
             unreachable: false,
             init_height: 0,
         });
-        let (func_ty, shared) = OperatorValidatorTemp {
-            // This offset is used by the `func_type_at` and `inputs`.
+        let inst_validator = OperatorValidatorTemp {
+            // This offset is used by `sub_type_at`.
             offset,
             inner: &mut ret,
             resources,
-        }
-        .func_type_at(ty)?;
+        };
+        let sub_ty = inst_validator.sub_type_at(ty)?;
+        let (func_ty, shared) =
+            if let CompositeInnerType::Func(func_ty) = &sub_ty.composite_type.inner {
+                (func_ty, sub_ty.composite_type.shared)
+            } else {
+                bail!(offset, "expected func type at index {ty}, found {sub_ty}")
+            };
         ret.shared = shared;
         let params = func_ty.params();
         for ty in params {
@@ -916,9 +922,17 @@ where
 
     /// Returns the corresponding function type for the `func` item located at
     /// `function_index`.
-    fn type_of_function(&self, function_index: u32) -> Result<(&'resources FuncType, bool)> {
+    fn type_of_function(&self, function_index: u32) -> Result<&'resources FuncType> {
         match self.resources.type_of_function(function_index) {
-            Some(f) => Ok(f),
+            Some((f, shared)) => {
+                if self.inner.shared && !shared {
+                    bail!(
+                        self.offset,
+                        "shared functions cannot access unshared functions",
+                    );
+                }
+                Ok(f)
+            }
             None => {
                 bail!(
                     self.offset,
@@ -952,21 +966,6 @@ where
         self.check_return()
     }
 
-    /// Check if a call is from a shared context to an unshared one.
-    ///
-    /// The shared-everything-threads proposal adds the restriction that shared
-    /// objects cannot access unshared ones; this applies to function calls
-    /// as well.
-    fn check_call_shareability(&self, shared: bool) -> Result<()> {
-        if self.inner.shared && !shared {
-            bail!(
-                self.offset,
-                "shared functions cannot call unshared functions",
-            );
-        }
-        Ok(())
-    }
-
     /// Checks the immediate `type_index` of a `call_ref`-style instruction
     /// (also `return_call_ref`).
     ///
@@ -974,7 +973,7 @@ where
     /// or a subtype. This will then return the corresponding function type used
     /// for this call (to be used with `check_call_ty` or
     /// `check_return_call_ty`).
-    fn check_call_ref_ty(&mut self, type_index: u32) -> Result<(&'resources FuncType, bool)> {
+    fn check_call_ref_ty(&mut self, type_index: u32) -> Result<&'resources FuncType> {
         let unpacked_index = UnpackedIndex::Module(type_index);
         let mut hty = HeapType::Concrete(unpacked_index);
         self.resources.check_heap_type(&mut hty, self.offset)?;
@@ -996,7 +995,7 @@ where
         &mut self,
         type_index: u32,
         table_index: u32,
-    ) -> Result<(&'resources FuncType, bool)> {
+    ) -> Result<&'resources FuncType> {
         let tab = self.table_type_at(table_index)?;
         if !self
             .resources
@@ -1322,6 +1321,12 @@ where
     fn struct_type_at(&self, at: u32) -> Result<&'resources StructType> {
         let sub_ty = self.sub_type_at(at)?;
         if let CompositeInnerType::Struct(struct_ty) = &sub_ty.composite_type.inner {
+            if self.inner.shared && !sub_ty.composite_type.shared {
+                bail!(
+                    self.offset,
+                    "shared functions cannot access unshared structs",
+                );
+            }
             Ok(struct_ty)
         } else {
             bail!(
@@ -1362,6 +1367,12 @@ where
     fn array_type_at(&self, at: u32) -> Result<FieldType> {
         let sub_ty = self.sub_type_at(at)?;
         if let CompositeInnerType::Array(array_ty) = &sub_ty.composite_type.inner {
+            if self.inner.shared && !sub_ty.composite_type.shared {
+                bail!(
+                    self.offset,
+                    "shared functions cannot access unshared arrays",
+                );
+            }
             Ok(array_ty.0)
         } else {
             bail!(
@@ -1382,10 +1393,16 @@ where
         Ok(field)
     }
 
-    fn func_type_at(&self, at: u32) -> Result<(&'resources FuncType, bool)> {
+    fn func_type_at(&self, at: u32) -> Result<&'resources FuncType> {
         let sub_ty = self.sub_type_at(at)?;
         if let CompositeInnerType::Func(func_ty) = &sub_ty.composite_type.inner {
-            Ok((func_ty, sub_ty.composite_type.shared))
+            if self.inner.shared && !sub_ty.composite_type.shared {
+                bail!(
+                    self.offset,
+                    "shared functions cannot access unshared functions",
+                );
+            }
+            Ok(func_ty)
         } else {
             bail!(
                 self.offset,
@@ -1402,6 +1419,12 @@ where
 
     fn global_type_at(&self, at: u32) -> Result<GlobalType> {
         if let Some(ty) = self.resources.global_at(at) {
+            if self.inner.shared && !ty.shared {
+                bail!(
+                    self.offset,
+                    "shared functions cannot access unshared globals",
+                );
+            }
             Ok(ty)
         } else {
             bail!(self.offset, "unknown global: global index out of bounds");
@@ -1411,7 +1434,15 @@ where
     /// Validates that the `table` is valid and returns the type it points to.
     fn table_type_at(&self, table: u32) -> Result<TableType> {
         match self.resources.table_at(table) {
-            Some(ty) => Ok(ty),
+            Some(ty) => {
+                if self.inner.shared && !ty.shared {
+                    bail!(
+                        self.offset,
+                        "shared functions cannot access unshared tables",
+                    );
+                }
+                Ok(ty)
+            }
             None => bail!(
                 self.offset,
                 "unknown table {table}: table index out of bounds"
@@ -1422,7 +1453,7 @@ where
     fn params(&self, ty: BlockType) -> Result<impl PreciseIterator<Item = ValType> + 'resources> {
         Ok(match ty {
             BlockType::Empty | BlockType::Type(_) => Either::B(None.into_iter()),
-            BlockType::FuncType(t) => Either::A(self.func_type_at(t)?.0.params().iter().copied()),
+            BlockType::FuncType(t) => Either::A(self.func_type_at(t)?.params().iter().copied()),
         })
     }
 
@@ -1430,7 +1461,7 @@ where
         Ok(match ty {
             BlockType::Empty => Either::B(None.into_iter()),
             BlockType::Type(t) => Either::B(Some(t).into_iter()),
-            BlockType::FuncType(t) => Either::A(self.func_type_at(t)?.0.results().iter().copied()),
+            BlockType::FuncType(t) => Either::A(self.func_type_at(t)?.results().iter().copied()),
         })
     }
 
@@ -1751,38 +1782,32 @@ where
         Ok(())
     }
     fn visit_call(&mut self, function_index: u32) -> Self::Output {
-        let (ty, shared) = self.type_of_function(function_index)?;
-        self.check_call_shareability(shared)?;
+        let ty = self.type_of_function(function_index)?;
         self.check_call_ty(ty)?;
         Ok(())
     }
     fn visit_return_call(&mut self, function_index: u32) -> Self::Output {
-        let (ty, shared) = self.type_of_function(function_index)?;
-        self.check_call_shareability(shared)?;
+        let ty = self.type_of_function(function_index)?;
         self.check_return_call_ty(ty)?;
         Ok(())
     }
     fn visit_call_ref(&mut self, type_index: u32) -> Self::Output {
-        let (ty, shared) = self.check_call_ref_ty(type_index)?;
-        self.check_call_shareability(shared)?;
+        let ty = self.check_call_ref_ty(type_index)?;
         self.check_call_ty(ty)?;
         Ok(())
     }
     fn visit_return_call_ref(&mut self, type_index: u32) -> Self::Output {
-        let (ty, shared) = self.check_call_ref_ty(type_index)?;
-        self.check_call_shareability(shared)?;
+        let ty = self.check_call_ref_ty(type_index)?;
         self.check_return_call_ty(ty)?;
         Ok(())
     }
     fn visit_call_indirect(&mut self, type_index: u32, table_index: u32) -> Self::Output {
-        let (ty, shared) = self.check_call_indirect_ty(type_index, table_index)?;
-        self.check_call_shareability(shared)?;
+        let ty = self.check_call_indirect_ty(type_index, table_index)?;
         self.check_call_ty(ty)?;
         Ok(())
     }
     fn visit_return_call_indirect(&mut self, type_index: u32, table_index: u32) -> Self::Output {
-        let (ty, shared) = self.check_call_indirect_ty(type_index, table_index)?;
-        self.check_call_shareability(shared)?;
+        let ty = self.check_call_indirect_ty(type_index, table_index)?;
         self.check_return_call_ty(ty)?;
         Ok(())
     }
