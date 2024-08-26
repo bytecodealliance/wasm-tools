@@ -845,8 +845,6 @@ pub enum Stability {
         #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_version"))]
         #[cfg_attr(feature = "serde", serde(deserialize_with = "deserialize_version"))]
         since: Version,
-        #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-        feature: Option<String>,
         #[cfg_attr(
             feature = "serde",
             serde(

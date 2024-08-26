@@ -1386,28 +1386,20 @@ impl<'a> Resolver<'a> {
         match attrs {
             [] => Ok(Stability::Unknown),
 
-            [ast::Attribute::Since {
-                version, feature, ..
-            }] => Ok(Stability::Stable {
+            [ast::Attribute::Since { version, .. }] => Ok(Stability::Stable {
                 since: version.clone(),
-                feature: feature.as_ref().map(|s| s.name.to_string()),
                 deprecated: None,
             }),
 
-            [ast::Attribute::Since {
-                version, feature, ..
-            }, ast::Attribute::Deprecated {
+            [ast::Attribute::Since { version, .. }, ast::Attribute::Deprecated {
                 version: deprecated,
                 ..
             }]
             | [ast::Attribute::Deprecated {
                 version: deprecated,
                 ..
-            }, ast::Attribute::Since {
-                version, feature, ..
-            }] => Ok(Stability::Stable {
+            }, ast::Attribute::Since { version, .. }] => Ok(Stability::Stable {
                 since: version.clone(),
-                feature: feature.as_ref().map(|s| s.name.to_string()),
                 deprecated: Some(deprecated.clone()),
             }),
 
