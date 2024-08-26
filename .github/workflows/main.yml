@@ -88,6 +88,10 @@ jobs:
             # skip testing crates that require wasmtime since wasmtime has a
             # more aggressive msrv than wasm-tools
             flags: --exclude fuzz-stats --exclude wit-component --exclude wasm-mutate-stats
+          # this is the rust nightly that oss-fuzz currently uses so we don't
+          # want this to break.
+          - os: ubuntu-latest
+            rust: nightly-2024-02-12
     steps:
     - uses: actions/checkout@v4
       with:
