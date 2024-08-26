@@ -1545,19 +1545,9 @@ fn err_expected(
 }
 
 enum Attribute<'a> {
-    Since {
-        span: Span,
-        version: Version,
-        feature: Option<Id<'a>>,
-    },
-    Unstable {
-        span: Span,
-        feature: Id<'a>,
-    },
-    Deprecated {
-        span: Span,
-        version: Version,
-    },
+    Since { span: Span, version: Version },
+    Unstable { span: Span, feature: Id<'a> },
+    Deprecated { span: Span, version: Version },
 }
 
 impl<'a> Attribute<'a> {
@@ -1571,18 +1561,10 @@ impl<'a> Attribute<'a> {
                     eat_id(tokens, "version")?;
                     tokens.expect(Token::Equals)?;
                     let (_span, version) = parse_version(tokens)?;
-                    let feature = if tokens.eat(Token::Comma)? {
-                        eat_id(tokens, "feature")?;
-                        tokens.expect(Token::Equals)?;
-                        Some(parse_id(tokens)?)
-                    } else {
-                        None
-                    };
                     tokens.expect(Token::RightParen)?;
                     Attribute::Since {
                         span: id.span,
                         version,
-                        feature,
                     }
                 }
                 "unstable" => {

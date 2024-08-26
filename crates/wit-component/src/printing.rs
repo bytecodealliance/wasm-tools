@@ -913,17 +913,9 @@ impl WitPrinter {
     fn print_stability(&mut self, stability: &Stability) {
         match stability {
             Stability::Unknown => {}
-            Stability::Stable {
-                since,
-                feature,
-                deprecated,
-            } => {
+            Stability::Stable { since, deprecated } => {
                 self.output.push_str("@since(version = ");
                 self.output.push_str(&since.to_string());
-                if let Some(feature) = feature {
-                    self.output.push_str(", feature = ");
-                    self.output.push_str(feature);
-                }
                 self.output.push_str(")\n");
                 if let Some(version) = deprecated {
                     self.output.push_str("@deprecated(version = ");
