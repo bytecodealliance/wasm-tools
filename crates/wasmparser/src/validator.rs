@@ -468,6 +468,8 @@ impl Validator {
         let mut functions_to_validate = Vec::new();
         let mut last_types = None;
         let mut parser = Parser::new(0);
+        let _ = &mut parser;
+        #[cfg(feature = "features")]
         parser.set_features(self.features);
         for payload in parser.parse_all(bytes) {
             match self.payload(&payload?)? {

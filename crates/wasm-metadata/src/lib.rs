@@ -10,7 +10,7 @@ use std::ops::Range;
 use wasm_encoder::{ComponentSection as _, ComponentSectionId, Encode, Section};
 use wasmparser::{
     BinaryReader, ComponentNameSectionReader, KnownCustom, NameSectionReader, Parser, Payload::*,
-    ProducersSectionReader, WasmFeatures,
+    ProducersSectionReader,
 };
 
 /// A representation of a WebAssembly producers section.
@@ -64,7 +64,7 @@ impl Producers {
     }
     /// Read the producers section from a Wasm binary.
     pub fn from_bytes(bytes: &[u8], offset: usize) -> Result<Self> {
-        let reader = BinaryReader::new(bytes, offset, WasmFeatures::all());
+        let reader = BinaryReader::new(bytes, offset);
         let section = ProducersSectionReader::new(reader)?;
         let mut fields = IndexMap::new();
         for field in section.into_iter() {
@@ -604,7 +604,7 @@ impl<'a> ModuleNames<'a> {
     /// Read a name section from a WebAssembly binary. Records the module name, and all other
     /// contents of name section, for later serialization.
     pub fn from_bytes(bytes: &'a [u8], offset: usize) -> Result<ModuleNames<'a>> {
-        let reader = BinaryReader::new(bytes, offset, WasmFeatures::all());
+        let reader = BinaryReader::new(bytes, offset);
         let section = NameSectionReader::new(reader);
         let mut s = Self::empty();
         for name in section.into_iter() {
@@ -690,7 +690,7 @@ impl<'a> ComponentNames<'a> {
     /// Read a component-name section from a WebAssembly binary. Records the component name, as
     /// well as all other component name fields for later serialization.
     pub fn from_bytes(bytes: &'a [u8], offset: usize) -> Result<ComponentNames<'a>> {
-        let reader = BinaryReader::new(bytes, offset, WasmFeatures::all());
+        let reader = BinaryReader::new(bytes, offset);
         let section = ComponentNameSectionReader::new(reader);
         let mut s = Self::empty();
         for name in section.into_iter() {

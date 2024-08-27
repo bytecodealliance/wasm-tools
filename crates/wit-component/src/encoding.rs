@@ -83,7 +83,7 @@ use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;
 use std::hash::Hash;
 use wasm_encoder::*;
-use wasmparser::{Validator, WasmFeatures};
+use wasmparser::Validator;
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
     Function, FunctionKind, InterfaceId, LiveTypes, Resolve, Type, TypeDefKind, TypeId, TypeOwner,
@@ -2117,11 +2117,7 @@ impl ComponentEncoder {
         let bytes = state.component.finish();
 
         if self.validate {
-            let mut validator = Validator::new_with_features(
-                WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL,
-            );
-
-            validator
+            Validator::new()
                 .validate_all(&bytes)
                 .context("failed to validate component output")?;
         }

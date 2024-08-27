@@ -9,7 +9,6 @@ use wasmparser::{
     types,
     types::ComponentAnyTypeId,
     ComponentExternalKind, Parser, Payload, PrimitiveValType, ValidPayload, Validator,
-    WasmFeatures,
 };
 
 /// Represents information about a decoded WebAssembly component.
@@ -44,7 +43,7 @@ impl ComponentInfo {
     /// Creates a new component info by parsing the given WebAssembly component bytes.
 
     fn from_reader(mut reader: impl Read) -> Result<Self> {
-        let mut validator = Validator::new_with_features(WasmFeatures::all());
+        let mut validator = Validator::new();
         let mut externs = Vec::new();
         let mut depth = 1;
         let mut types = None;
@@ -415,7 +414,7 @@ pub fn decode(bytes: &[u8]) -> Result<DecodedWasm> {
 /// component export represents the world. The name of the export is also the
 /// name of the package/world/etc.
 pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
-    let mut validator = Validator::new_with_features(WasmFeatures::all());
+    let mut validator = Validator::new();
     let mut exports = Vec::new();
     let mut depth = 1;
     let mut types = None;

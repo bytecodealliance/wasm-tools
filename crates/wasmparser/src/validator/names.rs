@@ -304,11 +304,7 @@ impl ComponentName {
     /// Attempts to parse `name` as a valid component name, returning `Err` if
     /// it's not valid.
     pub fn new(name: &str, offset: usize) -> Result<ComponentName> {
-        Self::new_with_features(
-            name,
-            offset,
-            WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL,
-        )
+        Self::new_with_features(name, offset, WasmFeatures::default())
     }
 
     /// Attempts to parse `name` as a valid component name, returning `Err` if

@@ -277,7 +277,7 @@ impl<'a, T> Subsections<'a, T> {
         T: Subsection<'a>,
     {
         let subsection_id = self.reader.read_u7()?;
-        let reader = self.reader.read_reader("unexpected end of section")?;
+        let reader = self.reader.read_reader()?;
         T::from_reader(subsection_id, reader)
     }
 }

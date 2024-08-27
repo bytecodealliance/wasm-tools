@@ -16,7 +16,7 @@ pub enum RemoveSection {
 
 fn is_empty_section(section: &wasm_encoder::RawSection) -> bool {
     use wasmparser::*;
-    let reader = BinaryReader::new(section.data, 0, WasmFeatures::all());
+    let reader = BinaryReader::new(section.data, 0);
     crate::module::match_section_id! {
         match section.id;
         Custom => Ok(section.data.is_empty()),

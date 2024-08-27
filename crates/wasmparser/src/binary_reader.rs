@@ -106,10 +106,43 @@ pub struct BinaryReader<'a> {
     buffer: &'a [u8],
     position: usize,
     original_offset: usize,
+
+    // When the `features` feature is disabled then the `WasmFeatures` type
+    // still exists but this field is still omitted. When `features` is
+    // disabled then the only constructor of this type is `BinaryReader::new`
+    // which documents all known features being active. All known features
+    // being active isn't represented by `WasmFeatures` when the feature is
+    // disabled so the field is omitted here to prevent accidentally using the
+    // wrong listing of features.
+    //
+    // Feature accessors are defined by `foreach_wasm_feature!` below with a
+    // method-per-feature on `BinaryReader` which when the `features` feature
+    // is disabled returns `true` by default.
+    #[cfg(feature = "features")]
     features: WasmFeatures,
 }
 
 impl<'a> BinaryReader<'a> {
+    /// Creates a new binary reader which will parse the `data` provided.
+    ///
+    /// The `original_offset` provided is used for byte offsets in errors that
+    /// are generated. That offset is added to the current position in `data`.
+    /// This can be helpful when `data` is just a window of a view into a larger
+    /// wasm binary perhaps not even entirely stored locally.
+    ///
+    /// The returned binary reader will have all features known to this crate
+    /// enabled. To reject binaries that aren't valid unless a certain feature
+    /// is enabled use the [`BinaryReader::new_features`] constructor instead.
+    pub fn new(data: &[u8], original_offset: usize) -> BinaryReader {
+        BinaryReader {
+            buffer: data,
+            position: 0,
+            original_offset,
+            #[cfg(feature = "features")]
+            features: WasmFeatures::all(),
+        }
+    }
+
     /// Creates a new binary reader which will parse the `data` provided.
     ///
     /// The `original_offset` provided is used for byte offsets in errors that
@@ -140,7 +173,12 @@ impl<'a> BinaryReader<'a> {
     /// only affects locations where preexisting bytes are reinterpreted in
     /// different ways with future proposals, such as the `memarg` moving from a
     /// 32-bit offset to a 64-bit offset with the `memory64` proposal.
-    pub fn new(data: &[u8], original_offset: usize, features: WasmFeatures) -> BinaryReader {
+    #[cfg(feature = "features")]
+    pub fn new_features(
+        data: &[u8],
+        original_offset: usize,
+        features: WasmFeatures,
+    ) -> BinaryReader {
         BinaryReader {
             buffer: data,
             position: 0,
@@ -164,6 +202,7 @@ impl<'a> BinaryReader<'a> {
             buffer: &self.buffer[self.position..],
             position: 0,
             original_offset: self.original_offset + self.position,
+            #[cfg(feature = "features")]
             features: self.features,
         }
     }
@@ -178,6 +217,7 @@ impl<'a> BinaryReader<'a> {
     /// using while parsing.
     ///
     /// For more information see [`BinaryReader::new`].
+    #[cfg(feature = "features")]
     pub fn features(&self) -> WasmFeatures {
         self.features
     }
@@ -185,6 +225,7 @@ impl<'a> BinaryReader<'a> {
     /// Sets the wasm features active while parsing to the `features` specified.
     ///
     /// For more information see [`BinaryReader::new`].
+    #[cfg(feature = "features")]
     pub fn set_features(&mut self, features: WasmFeatures) {
         self.features = features;
     }
@@ -285,7 +326,7 @@ impl<'a> BinaryReader<'a> {
         let flags_pos = self.original_position();
         let mut flags = self.read_var_u32()?;
 
-        let memory = if self.features.multi_memory() && flags & (1 << 6) != 0 {
+        let memory = if self.multi_memory() && flags & (1 << 6) != 0 {
             flags ^= 1 << 6;
             self.read_var_u32()?
         } else {
@@ -299,7 +340,7 @@ impl<'a> BinaryReader<'a> {
         } else {
             flags as u8
         };
-        let offset = if self.features.contains(WasmFeatures::MEMORY64) {
+        let offset = if self.memory64() {
             self.read_var_u64()?
         } else {
             u64::from(self.read_var_u32()?)
@@ -326,14 +367,15 @@ impl<'a> BinaryReader<'a> {
 
     fn read_br_table(&mut self) -> Result<BrTable<'a>> {
         let cnt = self.read_size(MAX_WASM_BR_TABLE_SIZE, "br_table")?;
-        let start = self.position;
-        for _ in 0..cnt {
-            self.read_var_u32()?;
-        }
-        let end = self.position;
+        let reader = self.skip(|reader| {
+            for _ in 0..cnt {
+                reader.read_var_u32()?;
+            }
+            Ok(())
+        })?;
         let default = self.read_var_u32()?;
         Ok(BrTable {
-            reader: BinaryReader::new(&self.buffer[start..end], start, self.features),
+            reader,
             cnt: cnt as u32,
             default,
         })
@@ -371,26 +413,12 @@ impl<'a> BinaryReader<'a> {
 
     /// Reads a length-prefixed list of bytes from this reader and returns a
     /// new `BinaryReader` to read that list of bytes.
-    ///
-    /// Advances the position of this reader by the number of bytes read.
-    pub fn read_reader(&mut self, err: &str) -> Result<BinaryReader<'a>> {
+    pub fn read_reader(&mut self) -> Result<BinaryReader<'a>> {
         let size = self.read_var_u32()? as usize;
-        let body_start = self.position;
-        let buffer = match self.buffer.get(self.position..).and_then(|s| s.get(..size)) {
-            Some(buf) => buf,
-            None => {
-                return Err(BinaryReaderError::new(
-                    err,
-                    self.original_offset + self.buffer.len(),
-                ))
-            }
-        };
-        self.position += size;
-        Ok(BinaryReader::new(
-            buffer,
-            self.original_offset + body_start,
-            self.features,
-        ))
+        self.skip(|reader| {
+            reader.read_bytes(size)?;
+            Ok(())
+        })
     }
 
     /// Advances the `BinaryReader` four bytes and returns a `u32`.
@@ -528,11 +556,11 @@ impl<'a> BinaryReader<'a> {
     pub fn skip(&mut self, f: impl FnOnce(&mut Self) -> Result<()>) -> Result<Self> {
         let start = self.position;
         f(self)?;
-        Ok(BinaryReader::new(
-            &self.buffer[start..self.position],
-            self.original_offset + start,
-            self.features,
-        ))
+        let mut ret = self.clone();
+        ret.buffer = &self.buffer[start..self.position];
+        ret.position = 0;
+        ret.original_offset = self.original_offset + start;
+        Ok(ret)
     }
 
     /// Advances the `BinaryReader` past a WebAssembly string. This method does
@@ -1865,7 +1893,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     fn read_memory_index_or_zero_if_not_multi_memory(&mut self) -> Result<u32> {
-        if self.features.multi_memory() {
+        if self.multi_memory() {
             self.read_var_u32()
         } else {
             // Before bulk memory this byte was required to be a single zero
@@ -1878,7 +1906,7 @@ impl<'a> BinaryReader<'a> {
     }
 
     fn read_table_index_or_zero_if_not_reference_types(&mut self) -> Result<u32> {
-        if self.features.reference_types() {
+        if self.reference_types() {
             self.read_var_u32()
         } else {
             // Before reference types this byte was required to be a single zero
@@ -1890,6 +1918,29 @@ impl<'a> BinaryReader<'a> {
         }
     }
 }
+
+// See documentation on `BinaryReader::features` for more on what's going on
+// here.
+macro_rules! define_feature_accessor {
+    ($feature:ident = $default:expr) => {
+        impl BinaryReader<'_> {
+            #[inline]
+            #[allow(dead_code)]
+            pub(crate) fn $feature(&self) -> bool {
+                #[cfg(feature = "features")]
+                {
+                    self.features.$feature()
+                }
+                #[cfg(not(feature = "features"))]
+                {
+                    true
+                }
+            }
+        }
+    };
+}
+
+super::features::foreach_wasm_feature!(define_feature_accessor);
 
 impl<'a> BrTable<'a> {
     /// Returns the number of `br_table` entries, not including the default
@@ -1918,10 +1969,10 @@ impl<'a> BrTable<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use wasmparser::{BinaryReader, Operator, WasmFeatures};
+    /// use wasmparser::{BinaryReader, Operator};
     ///
     /// let buf = [0x0e, 0x02, 0x01, 0x02, 0x00];
-    /// let mut reader = BinaryReader::new(&buf, 0, WasmFeatures::all());
+    /// let mut reader = BinaryReader::new(&buf, 0);
     /// let op = reader.read_operator().unwrap();
     /// if let Operator::BrTable { targets } = op {
     ///     let targets = targets.targets().collect::<Result<Vec<_>, _>>().unwrap();

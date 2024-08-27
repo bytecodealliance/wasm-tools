@@ -1,13 +1,15 @@
 use crate::binary_reader::WASM_MAGIC_NUMBER;
 use crate::prelude::*;
 use crate::CoreTypeSectionReader;
+#[cfg(feature = "features")]
+use crate::WasmFeatures;
 use crate::{
     limits::MAX_WASM_MODULE_SIZE, BinaryReader, BinaryReaderError, ComponentCanonicalSectionReader,
     ComponentExportSectionReader, ComponentImportSectionReader, ComponentInstanceSectionReader,
     ComponentStartFunction, ComponentTypeSectionReader, CustomSectionReader, DataSectionReader,
     ElementSectionReader, ExportSectionReader, FromReader, FunctionBody, FunctionSectionReader,
     GlobalSectionReader, ImportSectionReader, InstanceSectionReader, MemorySectionReader, Result,
-    SectionLimited, TableSectionReader, TagSectionReader, TypeSectionReader, WasmFeatures,
+    SectionLimited, TableSectionReader, TagSectionReader, TypeSectionReader,
 };
 use core::fmt;
 use core::iter;
@@ -52,6 +54,7 @@ pub struct Parser {
     offset: u64,
     max_size: u64,
     encoding: Encoding,
+    #[cfg(feature = "features")]
     features: WasmFeatures,
 }
 
@@ -342,6 +345,7 @@ impl Parser {
             max_size: u64::MAX,
             // Assume the encoding is a module until we know otherwise
             encoding: Encoding::Module,
+            #[cfg(feature = "features")]
             features: WasmFeatures::all(),
         }
     }
@@ -388,6 +392,7 @@ impl Parser {
     /// The default set of features is [`WasmFeatures::all()`] for new parsers.
     ///
     /// For more information see [`BinaryReader::new`].
+    #[cfg(feature = "features")]
     pub fn features(&self) -> WasmFeatures {
         self.features
     }
@@ -397,6 +402,7 @@ impl Parser {
     /// The default set of features is [`WasmFeatures::all()`] for new parsers.
     ///
     /// For more information see [`BinaryReader::new`].
+    #[cfg(feature = "features")]
     pub fn set_features(&mut self, features: WasmFeatures) {
         self.features = features;
     }
@@ -555,7 +561,11 @@ impl Parser {
         // TODO: thread through `offset: u64` to `BinaryReader`, remove
         // the cast here.
         let starting_offset = self.offset as usize;
-        let mut reader = BinaryReader::new(data, starting_offset, self.features);
+        let mut reader = BinaryReader::new(data, starting_offset);
+        #[cfg(feature = "features")]
+        {
+            reader.set_features(self.features);
+        }
         match self.parse_reader(&mut reader, eof) {
             Ok(payload) => {
                 // Be sure to update our offset with how far we got in the
@@ -715,7 +725,10 @@ impl Parser {
                         self.max_size -= u64::from(len);
                         self.offset += u64::from(len);
                         let mut parser = Parser::new(usize_to_u64(reader.original_position()));
-                        parser.features = self.features;
+                        #[cfg(feature = "features")]
+                        {
+                            parser.features = self.features;
+                        }
                         parser.max_size = u64::from(len);
 
                         Ok(match id {
@@ -823,11 +836,7 @@ impl Parser {
             // the caller to iterate over the `FunctionBody` structure.
             State::FunctionBody { remaining, mut len } => {
                 let body = delimited(reader, &mut len, |r| {
-                    let size = r.read_var_u32()?;
-                    let offset = r.original_position();
-                    let reader =
-                        BinaryReader::new(r.read_bytes(size as usize)?, offset, self.features);
-                    Ok(FunctionBody::new(reader))
+                    Ok(FunctionBody::new(r.read_reader()?))
                 })?;
                 self.state = State::FunctionBody {
                     remaining: remaining - 1,
@@ -1041,9 +1050,10 @@ fn section<'a, T>(
     ctor: fn(BinaryReader<'a>) -> Result<T>,
     variant: fn(T) -> Payload<'a>,
 ) -> Result<Payload<'a>> {
-    let offset = reader.original_position();
-    let payload = reader.read_bytes(len as usize)?;
-    let reader = BinaryReader::new(payload, offset, reader.features());
+    let reader = reader.skip(|r| {
+        r.read_bytes(len as usize)?;
+        Ok(())
+    })?;
     // clear the hint for "need this many more bytes" here because we already
     // read all the bytes, so it's not possible to read more bytes if this
     // fails.
@@ -1061,11 +1071,10 @@ where
     T: FromReader<'a>,
 {
     let range = reader.original_position()..reader.original_position() + len as usize;
-    let mut content = BinaryReader::new(
-        reader.read_bytes(len as usize)?,
-        range.start,
-        reader.features(),
-    );
+    let mut content = reader.skip(|r| {
+        r.read_bytes(len as usize)?;
+        Ok(())
+    })?;
     // We can't recover from "unexpected eof" here because our entire section is
     // already resident in memory, so clear the hint for how many more bytes are
     // expected.

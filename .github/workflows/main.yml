@@ -233,6 +233,8 @@ jobs:
       - run: cargo check --no-default-features -p wasmparser --target x86_64-unknown-none --features validate,serde,no-hash-maps
       - run: cargo check --no-default-features -p wasmparser --features std
       - run: cargo check --no-default-features -p wasmparser --features validate
+      - run: cargo check --no-default-features -p wasmparser --features features
+      - run: cargo check --no-default-features -p wasmparser --features features,validate
       - run: cargo check --no-default-features -p wasmparser --features no-hash-maps
       - run: cargo check --no-default-features -p wasmparser --features serde
       - run: cargo check --no-default-features -p wasmparser --features serde,no-hash-maps

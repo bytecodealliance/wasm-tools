@@ -1,5 +1,3 @@
-use bitflags::bitflags;
-
 macro_rules! define_wasm_features {
     (
         $(#[$outer:meta])*
@@ -10,7 +8,8 @@ macro_rules! define_wasm_features {
             )*
         }
     ) => {
-        bitflags! {
+        #[cfg(feature = "features")]
+        bitflags::bitflags! {
             $(#[$outer])*
             pub struct WasmFeatures: $repr {
                 $(
@@ -23,6 +22,17 @@ macro_rules! define_wasm_features {
             }
         }
 
+        /// Enabled WebAssembly proposals and features.
+        ///
+        /// This is the disabled zero-size version of this structure because the
+        /// `features` feature was disabled at compile time of this crate.
+        #[cfg(not(feature = "features"))]
+        #[derive(Clone, Debug, Default, Hash, Copy)]
+        pub struct WasmFeatures {
+            _priv: (),
+        }
+
+        #[cfg(feature = "features")]
         impl Default for WasmFeatures {
             #[inline]
             fn default() -> Self {
@@ -37,6 +47,7 @@ macro_rules! define_wasm_features {
         impl WasmFeatures {
             /// Construct a bit-packed `WasmFeatures` from the inflated struct version.
             #[inline]
+            #[cfg(feature = "features")]
             pub fn from_inflated(inflated: WasmFeaturesInflated) -> Self {
                 let mut features = WasmFeatures::empty();
                 $(
@@ -54,6 +65,7 @@ macro_rules! define_wasm_features {
             /// while keeping the bit-packed version as the method of storing
             /// the features for longer periods of time.
             #[inline]
+            #[cfg(feature = "features")]
             pub fn inflate(&self) -> WasmFeaturesInflated {
                 WasmFeaturesInflated {
                     $(
@@ -66,13 +78,17 @@ macro_rules! define_wasm_features {
                 /// Returns whether this feature is enabled in this feature set.
                 #[inline]
                 pub fn $field(&self) -> bool {
-                    self.contains(WasmFeatures::$const)
+                    #[cfg(feature = "features")]
+                    { self.contains(WasmFeatures::$const) }
+                    #[cfg(not(feature = "features"))]
+                    { $default }
                 }
             )*
         }
 
         /// Inflated version of [`WasmFeatures`][crate::WasmFeatures] that
         /// allows for exhaustive matching on fields.
+        #[cfg(feature = "features")]
         pub struct WasmFeaturesInflated {
             $(
                 $(#[$inner $($args)*])*
@@ -82,11 +98,46 @@ macro_rules! define_wasm_features {
                 pub $field: bool,
             )*
         }
+
+        macro_rules! foreach_wasm_feature {
+            ($f:ident) => {
+                $($f!($field = $default);)*
+            }
+        }
+        pub(crate) use foreach_wasm_feature;
     };
 }
 
 define_wasm_features! {
     /// Flags for features that are enabled for validation.
+    ///
+    /// This type controls the set of WebAssembly proposals and features that
+    /// are active during validation and parsing of WebAssembly binaries. This
+    /// is used in conjunction with
+    /// [`Validator::new_with_features`](crate::Validator::new_with_features)
+    /// for example.
+    ///
+    /// The [`Default`] implementation for this structure returns the set of
+    /// supported WebAssembly proposals this crate implements. All features are
+    /// required to be in Phase 4 or above in the WebAssembly standardization
+    /// process.
+    ///
+    /// Enabled/disabled features can affect both parsing and validation at this
+    /// time. When decoding a WebAssembly binary it's generally recommended if
+    /// possible to enable all features, as is the default with
+    /// [`BinaryReader::new`](crate::BinaryReader::new). If strict conformance
+    /// with historical versions of the specification are required then
+    /// [`BinaryReader::new_features`](crate::BinaryReader::new_features) or
+    /// [`BinaryReader::set_features`](crate::BinaryReader::set_features) can be
+    /// used.
+    ///
+    /// This crate additionally has a compile-time Cargo feature called
+    /// `features` which can be used to enable/disable most of this type at
+    /// compile time. This crate feature is turned on by default and enables
+    /// this bitflags-representation of this structure. When the `features`
+    /// feature is disabled then this is a zero-sized structure and no longer
+    /// has any associated constants. When `features` are disabled all values
+    /// for proposals are fixed at compile time to their defaults.
     #[derive(Hash, Debug, Copy, Clone, Eq, PartialEq)]
     pub struct WasmFeatures: u32 {
         /// The WebAssembly `mutable-global` proposal.
@@ -155,7 +206,7 @@ define_wasm_features! {
         /// # Note
         ///
         /// Support this feature as long as all leading browsers also support it
-        /// https://github.com/WebAssembly/exception-handling/blob/main/proposals/exception-handling/legacy/Exceptions.md
+        /// <https://github.com/WebAssembly/exception-handling/blob/main/proposals/exception-handling/legacy/Exceptions.md>
         pub legacy_exceptions: LEGACY_EXCEPTIONS(1 << 25) = false;
         /// Whether or not gc types are enabled.
         ///
@@ -180,12 +231,14 @@ define_wasm_features! {
 impl WasmFeatures {
     /// Returns the feature set associated with the 1.0 version of the
     /// WebAssembly specification or the "MVP" feature set.
+    #[cfg(feature = "features")]
     pub fn wasm1() -> WasmFeatures {
         WasmFeatures::FLOATS | WasmFeatures::GC_TYPES
     }
 
     /// Returns the feature set associated with the 2.0 version of the
     /// WebAssembly specification.
+    #[cfg(feature = "features")]
     pub fn wasm2() -> WasmFeatures {
         WasmFeatures::wasm1()
             | WasmFeatures::BULK_MEMORY
@@ -198,6 +251,7 @@ impl WasmFeatures {
     }
 }
 
+#[cfg(feature = "features")]
 impl From<WasmFeaturesInflated> for WasmFeatures {
     #[inline]
     fn from(inflated: WasmFeaturesInflated) -> Self {
@@ -205,6 +259,7 @@ impl From<WasmFeaturesInflated> for WasmFeatures {
     }
 }
 
+#[cfg(feature = "features")]
 impl From<WasmFeatures> for WasmFeaturesInflated {
     #[inline]
     fn from(features: WasmFeatures) -> Self {

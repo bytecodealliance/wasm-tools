@@ -74,7 +74,7 @@ impl<'a> FunctionBody<'a> {
 
 impl<'a> FromReader<'a> for FunctionBody<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        let reader = reader.read_reader("function body extends past end of the code section")?;
+        let reader = reader.read_reader()?;
         Ok(FunctionBody { reader })
     }
 }
