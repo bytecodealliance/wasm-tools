@@ -304,24 +304,30 @@ impl OperatorValidator {
             unreachable: false,
             init_height: 0,
         });
-        let inst_validator = OperatorValidatorTemp {
-            // This offset is used by `sub_type_at`.
+
+        // Retrieve the function's type via index (`ty`); the `offset` is
+        // necessary due to `sub_type_at`'s error messaging.
+        let sub_ty = OperatorValidatorTemp {
             offset,
             inner: &mut ret,
             resources,
-        };
-        let sub_ty = inst_validator.sub_type_at(ty)?;
-        let (func_ty, shared) =
-            if let CompositeInnerType::Func(func_ty) = &sub_ty.composite_type.inner {
-                (func_ty, sub_ty.composite_type.shared)
-            } else {
-                bail!(offset, "expected func type at index {ty}, found {sub_ty}")
-            };
-        ret.shared = shared;
-        let params = func_ty.params();
-        for ty in params {
-            ret.locals.define(1, *ty);
-            ret.local_inits.push(true);
+        }
+        .sub_type_at(ty)?;
+
+        // Set up the function's locals.
+        if let CompositeInnerType::Func(func_ty) = &sub_ty.composite_type.inner {
+            for ty in func_ty.params() {
+                ret.locals.define(1, *ty);
+                ret.local_inits.push(true);
+            }
+        } else {
+            bail!(offset, "expected func type at index {ty}, found {sub_ty}")
+        }
+
+        // If we're in a shared function, ensure we do not access unshared
+        // objects.
+        if sub_ty.composite_type.shared {
+            ret.shared = true;
         }
         Ok(ret)
     }
