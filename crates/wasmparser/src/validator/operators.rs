@@ -923,22 +923,13 @@ where
     /// Returns the corresponding function type for the `func` item located at
     /// `function_index`.
     fn type_of_function(&self, function_index: u32) -> Result<&'resources FuncType> {
-        match self.resources.type_of_function(function_index) {
-            Some((f, shared)) => {
-                if self.inner.shared && !shared {
-                    bail!(
-                        self.offset,
-                        "shared functions cannot access unshared functions",
-                    );
-                }
-                Ok(f)
-            }
-            None => {
-                bail!(
-                    self.offset,
-                    "unknown function {function_index}: function index out of bounds",
-                )
-            }
+        if let Some(type_index) = self.resources.type_index_of_function(function_index) {
+            self.func_type_at(type_index)
+        } else {
+            bail!(
+                self.offset,
+                "unknown function {function_index}: function index out of bounds",
+            )
         }
     }
 

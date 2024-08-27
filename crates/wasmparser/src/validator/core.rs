@@ -1331,10 +1331,8 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
         self.module.types.get(*type_index as usize).copied()
     }
 
-    fn type_of_function(&self, at: u32) -> Option<(&FuncType, bool)> {
-        let type_index = self.module.functions.get(at as usize)?;
-        let ty = &self.sub_type_at(*type_index)?.composite_type;
-        Some((ty.unwrap_func(), ty.shared))
+    fn type_index_of_function(&self, at: u32) -> Option<u32> {
+        self.module.functions.get(at as usize).copied()
     }
 
     fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<()> {
@@ -1408,10 +1406,8 @@ impl WasmModuleResources for ValidatorResources {
         self.0.types.get(type_index as usize).copied()
     }
 
-    fn type_of_function(&self, at: u32) -> Option<(&FuncType, bool)> {
-        let type_index = *self.0.functions.get(at as usize)?;
-        let ty = &self.sub_type_at(type_index)?.composite_type;
-        Some((ty.unwrap_func(), ty.shared))
+    fn type_index_of_function(&self, at: u32) -> Option<u32> {
+        self.0.functions.get(at as usize).copied()
     }
 
     fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<()> {

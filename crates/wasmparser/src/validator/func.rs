@@ -273,7 +273,7 @@ mod tests {
         fn type_id_of_function(&self, _at: u32) -> Option<CoreTypeId> {
             todo!()
         }
-        fn type_of_function(&self, _func_idx: u32) -> Option<(&crate::FuncType, bool)> {
+        fn type_index_of_function(&self, _at: u32) -> Option<u32> {
             todo!()
         }
         fn check_heap_type(&self, _t: &mut HeapType, _offset: usize) -> Result<()> {
