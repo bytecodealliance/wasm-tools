@@ -131,7 +131,7 @@ define_wasm_features! {
     /// [`BinaryReader::set_features`](crate::BinaryReader::set_features) can be
     /// used.
     ///
-    /// This crate additionally has a compile-time Cargo features called
+    /// This crate additionally has a compile-time Cargo feature called
     /// `features` which can be used to enable/disable most of this type at
     /// compile time. This crate feature is turned on by default and enables
     /// this bitflags-representation of this structure. When the `features`
