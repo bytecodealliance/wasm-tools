@@ -1,5 +1,3 @@
-;; Check shared attributes for global heap types.
-
 ;; `func` references.
 (module
   ;; Imported (long/short forms, mut, null).

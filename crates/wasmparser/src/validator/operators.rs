@@ -54,6 +54,9 @@ pub(crate) struct OperatorValidator {
     /// Offset of the `end` instruction which emptied the `control` stack, which
     /// must be the end of the function.
     end_which_emptied_control: Option<usize>,
+
+    /// Whether validation is happening in a shared context.
+    shared: bool,
 }
 
 // No science was performed in the creation of this number, feel free to change
@@ -274,6 +277,7 @@ impl OperatorValidator {
             operands,
             control,
             end_which_emptied_control: None,
+            shared: false,
         }
     }
 
@@ -300,17 +304,30 @@ impl OperatorValidator {
             unreachable: false,
             init_height: 0,
         });
-        let params = OperatorValidatorTemp {
-            // This offset is used by the `func_type_at` and `inputs`.
+
+        // Retrieve the function's type via index (`ty`); the `offset` is
+        // necessary due to `sub_type_at`'s error messaging.
+        let sub_ty = OperatorValidatorTemp {
             offset,
             inner: &mut ret,
             resources,
         }
-        .func_type_at(ty)?
-        .params();
-        for ty in params {
-            ret.locals.define(1, *ty);
-            ret.local_inits.push(true);
+        .sub_type_at(ty)?;
+
+        // Set up the function's locals.
+        if let CompositeInnerType::Func(func_ty) = &sub_ty.composite_type.inner {
+            for ty in func_ty.params() {
+                ret.locals.define(1, *ty);
+                ret.local_inits.push(true);
+            }
+        } else {
+            bail!(offset, "expected func type at index {ty}, found {sub_ty}")
+        }
+
+        // If we're in a shared function, ensure we do not access unshared
+        // objects.
+        if sub_ty.composite_type.shared {
+            ret.shared = true;
         }
         Ok(ret)
     }
@@ -912,14 +929,13 @@ where
     /// Returns the corresponding function type for the `func` item located at
     /// `function_index`.
     fn type_of_function(&self, function_index: u32) -> Result<&'resources FuncType> {
-        match self.resources.type_of_function(function_index) {
-            Some(f) => Ok(f),
-            None => {
-                bail!(
-                    self.offset,
-                    "unknown function {function_index}: function index out of bounds",
-                )
-            }
+        if let Some(type_index) = self.resources.type_index_of_function(function_index) {
+            self.func_type_at(type_index)
+        } else {
+            bail!(
+                self.offset,
+                "unknown function {function_index}: function index out of bounds",
+            )
         }
     }
 
@@ -971,7 +987,7 @@ where
     /// table.
     ///
     /// The return value of this function is the function type behind
-    /// `type_index` which must then be passedt o `check_{call,return_call}_ty`.
+    /// `type_index` which must then be passed to `check_{call,return_call}_ty`.
     fn check_call_indirect_ty(
         &mut self,
         type_index: u32,
@@ -1302,6 +1318,12 @@ where
     fn struct_type_at(&self, at: u32) -> Result<&'resources StructType> {
         let sub_ty = self.sub_type_at(at)?;
         if let CompositeInnerType::Struct(struct_ty) = &sub_ty.composite_type.inner {
+            if self.inner.shared && !sub_ty.composite_type.shared {
+                bail!(
+                    self.offset,
+                    "shared functions cannot access unshared structs",
+                );
+            }
             Ok(struct_ty)
         } else {
             bail!(
@@ -1342,6 +1364,12 @@ where
     fn array_type_at(&self, at: u32) -> Result<FieldType> {
         let sub_ty = self.sub_type_at(at)?;
         if let CompositeInnerType::Array(array_ty) = &sub_ty.composite_type.inner {
+            if self.inner.shared && !sub_ty.composite_type.shared {
+                bail!(
+                    self.offset,
+                    "shared functions cannot access unshared arrays",
+                );
+            }
             Ok(array_ty.0)
         } else {
             bail!(
@@ -1365,6 +1393,12 @@ where
     fn func_type_at(&self, at: u32) -> Result<&'resources FuncType> {
         let sub_ty = self.sub_type_at(at)?;
         if let CompositeInnerType::Func(func_ty) = &sub_ty.composite_type.inner {
+            if self.inner.shared && !sub_ty.composite_type.shared {
+                bail!(
+                    self.offset,
+                    "shared functions cannot access unshared functions",
+                );
+            }
             Ok(func_ty)
         } else {
             bail!(
@@ -1382,6 +1416,12 @@ where
 
     fn global_type_at(&self, at: u32) -> Result<GlobalType> {
         if let Some(ty) = self.resources.global_at(at) {
+            if self.inner.shared && !ty.shared {
+                bail!(
+                    self.offset,
+                    "shared functions cannot access unshared globals",
+                );
+            }
             Ok(ty)
         } else {
             bail!(self.offset, "unknown global: global index out of bounds");
@@ -1391,7 +1431,15 @@ where
     /// Validates that the `table` is valid and returns the type it points to.
     fn table_type_at(&self, table: u32) -> Result<TableType> {
         match self.resources.table_at(table) {
-            Some(ty) => Ok(ty),
+            Some(ty) => {
+                if self.inner.shared && !ty.shared {
+                    bail!(
+                        self.offset,
+                        "shared functions cannot access unshared tables",
+                    );
+                }
+                Ok(ty)
+            }
             None => bail!(
                 self.offset,
                 "unknown table {table}: table index out of bounds"
