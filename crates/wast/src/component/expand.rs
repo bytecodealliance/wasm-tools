@@ -455,7 +455,7 @@ impl<'a> Expander<'a> {
         ) {
             match &mut item.kind {
                 core::ItemKind::Func(t) | core::ItemKind::Tag(core::TagType::Exception(t)) => {
-                    // If the index is already filled in then this is skipped
+                    // If the index is already filled in then this is skipped.
                     if t.index.is_some() {
                         return;
                     }
@@ -476,7 +476,11 @@ impl<'a> Expander<'a> {
                         span: item.span,
                         id: Some(id),
                         name: None,
-                        def: key.to_def(item.span),
+                        // Currently, there is no way in the WebAssembly text
+                        //  format to mark a function `shared` inline; a
+                        // `shared` function must use an explicit type index,
+                        // e.g., `(func (type $ft))`.
+                        def: key.to_def(item.span, /* shared = */ false),
                         parent: None,
                         final_type: None,
                     }));
