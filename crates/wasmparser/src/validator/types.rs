@@ -298,7 +298,6 @@ impl TypeData for SubType {
             CompositeInnerType::Array(_) => 2,
             CompositeInnerType::Struct(ty) => 1 + 2 * ty.fields.len() as u32,
         };
-        // TODO: handle shared?
         TypeInfo::core(size)
     }
 }
