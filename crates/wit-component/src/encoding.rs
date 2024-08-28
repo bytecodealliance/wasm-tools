@@ -631,6 +631,8 @@ impl<'a> EncodingState<'a> {
             self.instantiate_adapter_module(&shims, name, adapter);
         }
 
+        self.encode_initialize_with_start()?;
+
         Ok(())
     }
 
@@ -1688,6 +1690,60 @@ impl<'a> EncodingState<'a> {
                 .core_alias_export(instance, name, ExportKind::Func)
         });
         self.adapter_import_reallocs.insert(name, realloc);
+    }
+
+    /// Generates component bits that are responsible for executing
+    /// `_initialize`, if found, in the original component.
+    ///
+    /// The `_initialize` function was a part of WASIp1 where it generally is
+    /// intended to run after imports and memory and such are all "hooked up"
+    /// and performs other various initialization tasks. This is additionally
+    /// specified in https://github.com/WebAssembly/component-model/pull/378
+    /// to be part of the component model lowerings as well.
+    ///
+    /// This implements this functionality by encoding a core module that
+    /// imports a function and then registers a `start` section with that
+    /// imported function. This is all encoded after the
+    /// imports/lowerings/tables/etc are all filled in above meaning that this
+    /// is the last piece to run. That means that when this is running
+    /// everything should be hooked up for all imported functions to work.
+    ///
+    /// Note that at this time `_initialize` is only detected in the "main
+    /// module", not adapters/libraries.
+    fn encode_initialize_with_start(&mut self) -> Result<()> {
+        let initialize = match self.info.info.initialize {
+            Some(name) => name,
+            // If this core module didn't have `_initialize` or similar, then
+            // there's nothing to do here.
+            None => return Ok(()),
+        };
+        let initialize_index = self.component.alias_core_export(
+            self.instance_index.unwrap(),
+            initialize,
+            ExportKind::Func,
+        );
+        let mut shim = Module::default();
+        let mut section = TypeSection::new();
+        section.function([], []);
+        shim.section(&section);
+        let mut section = ImportSection::new();
+        section.import("", "", EntityType::Function(0));
+        shim.section(&section);
+        shim.section(&StartSection { function_index: 0 });
+
+        // Declare the core module within the component, create a dummy core
+        // instance with one export of our `_initialize` function, and then use
+        // that to instantiate the module we emit to run the `start` function in
+        // core wasm to run `_initialize`.
+        let shim_module_index = self.component.core_module(&shim);
+        let shim_args_instance_index =
+            self.component
+                .core_instantiate_exports([("", ExportKind::Func, initialize_index)]);
+        self.component.core_instantiate(
+            shim_module_index,
+            [("", ModuleArg::Instance(shim_args_instance_index))],
+        );
+        Ok(())
     }
 }
 

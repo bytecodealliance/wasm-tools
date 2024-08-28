@@ -206,6 +206,20 @@ impl ComponentBuilder {
         })
     }
 
+    /// Creates an alias to a previous core instance's exported item.
+    ///
+    /// The `instance` provided is the instance to access and the `name` is the
+    /// item to access.
+    ///
+    /// Returns the index of the new item defined.
+    pub fn alias_core_export(&mut self, instance: u32, name: &str, kind: ExportKind) -> u32 {
+        self.alias(Alias::CoreInstanceExport {
+            instance,
+            kind,
+            name,
+        })
+    }
+
     fn inc_kind(&mut self, kind: ComponentExportKind) -> u32 {
         match kind {
             ComponentExportKind::Func => inc(&mut self.funcs),
