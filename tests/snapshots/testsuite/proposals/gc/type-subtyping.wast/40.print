@@ -12,11 +12,11 @@
     (type (;5;) (struct))
   )
   (type (;6;) (func (result i32)))
+  (export "run" (func 1))
+  (elem (;0;) declare func $g)
   (func $g (;0;) (type $g))
   (func (;1;) (type 6) (result i32)
     ref.func $g
     ref.test (ref $f1)
   )
-  (export "run" (func 1))
-  (elem (;0;) declare func $g)
 )

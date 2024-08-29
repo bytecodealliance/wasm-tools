@@ -1,5 +1,6 @@
 (module
   (type (;0;) (func (param (ref extern)) (result (ref extern))))
+  (export "tee-init" (func 0))
   (func (;0;) (type 0) (param $p (ref extern)) (result (ref extern))
     (local $x (ref extern))
     local.get $p
@@ -7,5 +8,4 @@
     drop
     local.get $x
   )
-  (export "tee-init" (func 0))
 )

@@ -26,13 +26,13 @@
     (import "libc" "memory" (memory (;0;) 1))
     (import "libc" "realloc" (func (;0;) (type 0)))
     (import "wasi-logging" "log" (func $log (;1;) (type 1)))
+    (export "run" (func 2))
     (func (;2;) (type 2) (param i32 i32) (result i32)
       local.get 0
       local.get 1
       call $log
       unreachable
     )
-    (export "run" (func 2))
   )
   (core instance (;1;)
     (export "log" (func $log))

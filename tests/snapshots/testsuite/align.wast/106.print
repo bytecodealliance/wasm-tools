@@ -3,6 +3,11 @@
   (type (;1;) (func (param i32) (result f64)))
   (type (;2;) (func (param i32 i32) (result i32)))
   (type (;3;) (func (param i32 i32) (result i64)))
+  (memory (;0;) 1)
+  (export "f32_align_switch" (func 0))
+  (export "f64_align_switch" (func 1))
+  (export "i32_align_switch" (func 2))
+  (export "i64_align_switch" (func 3))
   (func (;0;) (type 0) (param i32) (result f32)
     (local f32 f32)
     f32.const 0x1.4p+3 (;=10;)
@@ -563,9 +568,4 @@
     end
     local.get 3
   )
-  (memory (;0;) 1)
-  (export "f32_align_switch" (func 0))
-  (export "f64_align_switch" (func 1))
-  (export "i32_align_switch" (func 2))
-  (export "i64_align_switch" (func 3))
 )

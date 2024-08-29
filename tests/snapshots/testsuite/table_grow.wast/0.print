@@ -3,6 +3,12 @@
   (type (;1;) (func (param i32 externref)))
   (type (;2;) (func (param i32 externref) (result i32)))
   (type (;3;) (func (result i32)))
+  (table $t (;0;) 0 externref)
+  (export "get" (func 0))
+  (export "set" (func 1))
+  (export "grow" (func 2))
+  (export "grow-abbrev" (func 3))
+  (export "size" (func 4))
   (func (;0;) (type 0) (param $i i32) (result externref)
     local.get $i
     table.get $t
@@ -25,10 +31,4 @@
   (func (;4;) (type 3) (result i32)
     table.size $t
   )
-  (table $t (;0;) 0 externref)
-  (export "get" (func 0))
-  (export "set" (func 1))
-  (export "grow" (func 2))
-  (export "grow-abbrev" (func 3))
-  (export "size" (func 4))
 )

@@ -1,6 +1,8 @@
 (module
   (type (;0;) (func (param f32) (result f32)))
   (type (;1;) (func (param f64) (result f64)))
+  (export "f32.silver_means" (func 0))
+  (export "f64.silver_means" (func 1))
   (func (;0;) (type 0) (param $n f32) (result f32)
     f32.const 0x1p-1 (;=0.5;)
     local.get $n
@@ -25,6 +27,4 @@
     f64.add
     f64.mul
   )
-  (export "f32.silver_means" (func 0))
-  (export "f64.silver_means" (func 1))
 )

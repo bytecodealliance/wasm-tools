@@ -1,5 +1,19 @@
 (module
   (type (;0;) (func))
+  (memory (;0;) 1)
+  (export "eq-in-block" (func 0))
+  (export "ne-in-block" (func 1))
+  (export "lt_s-in-block" (func 2))
+  (export "le_u-in-block" (func 3))
+  (export "gt_u-in-block" (func 4))
+  (export "ge_s-in-block" (func 5))
+  (export "nested-eq" (func 6))
+  (export "nested-ne" (func 7))
+  (export "nested-lt_s" (func 8))
+  (export "nested-le_u" (func 9))
+  (export "nested-gt_u" (func 10))
+  (export "nested-ge_s" (func 11))
+  (export "as-param" (func 12))
   (func (;0;) (type 0)
     block ;; label = @1
       block (result v128) ;; label = @2
@@ -278,18 +292,4 @@
     i16x8.ge_u
     drop
   )
-  (memory (;0;) 1)
-  (export "eq-in-block" (func 0))
-  (export "ne-in-block" (func 1))
-  (export "lt_s-in-block" (func 2))
-  (export "le_u-in-block" (func 3))
-  (export "gt_u-in-block" (func 4))
-  (export "ge_s-in-block" (func 5))
-  (export "nested-eq" (func 6))
-  (export "nested-ne" (func 7))
-  (export "nested-lt_s" (func 8))
-  (export "nested-le_u" (func 9))
-  (export "nested-gt_u" (func 10))
-  (export "nested-ge_s" (func 11))
-  (export "as-param" (func 12))
 )

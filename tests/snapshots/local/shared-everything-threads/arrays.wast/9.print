@@ -4,6 +4,7 @@
   (type $funcs (;2;) (shared(array (mut (ref null (shared func))))))
   (type (;3;) (func))
   (type (;4;) (func (param (ref null $i8))))
+  (elem (;0;) (ref null (shared func)))
   (func (;0;) (type 3)
     ref.null (shared none)
     i32.const 0
@@ -73,6 +74,5 @@
     i32.const 0
     array.init_elem $funcs 0
   )
-  (elem (;0;) (ref null (shared func)))
   (data (;0;) "")
 )

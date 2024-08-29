@@ -258,12 +258,11 @@ impl Config {
 }
 
 impl Printer<'_, '_> {
-    fn read_names_and_code<'a>(
+    fn read_names<'a>(
         &mut self,
         mut bytes: &'a [u8],
         mut parser: Parser,
         state: &mut State,
-        code: &mut Vec<FunctionBody<'a>>,
     ) -> Result<()> {
         loop {
             let payload = match parser.parse(bytes, true)? {
@@ -275,18 +274,12 @@ impl Printer<'_, '_> {
             };
 
             match payload {
-                Payload::FunctionSection(s) => {
-                    if s.count() > MAX_WASM_FUNCTIONS {
-                        bail!(
-                            "module contains {} functions which exceeds the limit of {}",
-                            s.count(),
-                            MAX_WASM_FUNCTIONS
-                        );
+                Payload::CodeSectionStart { size, .. } => {
+                    if size as usize > bytes.len() {
+                        bail!("invalid code section size");
                     }
-                    code.reserve(s.count() as usize);
-                }
-                Payload::CodeSectionEntry(f) => {
-                    code.push(f);
+                    bytes = &bytes[size as usize..];
+                    parser.skip_section();
                 }
                 Payload::ModuleSection {
                     unchecked_range: range,
@@ -350,8 +343,7 @@ impl Printer<'_, '_> {
         let mut states: Vec<State> = Vec::new();
         let mut parser = Parser::new(0);
         let mut parsers = Vec::new();
-        let mut code = Vec::new();
-        let mut code_printed = false;
+        let mut func_reader = None;
 
         loop {
             let payload = match parser.parse(bytes, true)? {
@@ -407,11 +399,8 @@ impl Printer<'_, '_> {
                     let state = states.last_mut().unwrap();
 
                     // First up try to find the `name` subsection which we'll use to print
-                    // pretty names everywhere. Also look for the `code` section so we can
-                    // print out functions as soon as we hit the function section.
-                    code.clear();
-                    code_printed = false;
-                    self.read_names_and_code(bytes, parser.clone(), state, &mut code)?;
+                    // pretty names everywhere.
+                    self.read_names(bytes, parser.clone(), state)?;
 
                     if len == 1 {
                         if let Some(name) = state.name.as_ref() {
@@ -470,13 +459,14 @@ impl Printer<'_, '_> {
                 Payload::FunctionSection(reader) => {
                     self.update_custom_section_place(&mut states, "after func");
                     Self::ensure_module(&states)?;
-                    if mem::replace(&mut code_printed, true) {
-                        bail!("function section appeared twice in module");
+                    if reader.count() > MAX_WASM_FUNCTIONS {
+                        bail!(
+                            "module contains {} functions which exceeds the limit of {}",
+                            reader.count(),
+                            MAX_WASM_FUNCTIONS
+                        );
                     }
-                    if reader.count() == 0 {
-                        continue;
-                    }
-                    self.print_code(states.last_mut().unwrap(), &code, reader)?;
+                    func_reader = Some(reader.into_iter());
                 }
                 Payload::TableSection(s) => {
                     self.update_custom_section_place(&mut states, "after table");
@@ -516,15 +506,17 @@ impl Printer<'_, '_> {
                     Self::ensure_module(&states)?;
                     self.print_elems(states.last_mut().unwrap(), s)?;
                 }
-                // printed with the `Function` section, so we
-                // skip this section
-                Payload::CodeSectionStart { size, .. } => {
+                Payload::CodeSectionStart { .. } => {
                     self.update_custom_section_place(&mut states, "after code");
                     Self::ensure_module(&states)?;
-                    bytes = &bytes[size as usize..];
-                    parser.skip_section();
                 }
-                Payload::CodeSectionEntry(_) => unreachable!(),
+                Payload::CodeSectionEntry(body) => {
+                    if let Some(ref mut reader) = func_reader {
+                        if let Some(Ok(ty)) = reader.next() {
+                            self.print_code_section_entry(states.last_mut().unwrap(), &body, ty)?
+                        }
+                    }
+                }
                 Payload::DataCountSection { .. } => {
                     Self::ensure_module(&states)?;
                     // not part of the text format
@@ -1257,48 +1249,41 @@ impl Printer<'_, '_> {
         Ok(())
     }
 
-    fn print_code(
+    fn print_code_section_entry(
         &mut self,
         state: &mut State,
-        code: &[FunctionBody<'_>],
-        funcs: FunctionSectionReader<'_>,
+        body: &FunctionBody<'_>,
+        ty: u32,
     ) -> Result<()> {
-        if funcs.count() != code.len() as u32 {
-            bail!("mismatch in function and code section counts");
-        }
-        for (body, ty) in code.iter().zip(funcs) {
-            let mut body = body.get_binary_reader();
-            let offset = body.original_position();
-            let ty = ty?;
-            self.newline(offset)?;
-            self.start_group("func ")?;
-            let func_idx = state.core.funcs;
-            self.print_name(&state.core.func_names, func_idx)?;
-            self.result.write_str(" ")?;
-            let params = self
-                .print_core_functype_idx(state, ty, Some(func_idx))?
-                .unwrap_or(0);
+        let mut body = body.get_binary_reader();
+        let offset = body.original_position();
+        self.newline(offset)?;
+        self.start_group("func ")?;
+        let func_idx = state.core.funcs;
+        self.print_name(&state.core.func_names, func_idx)?;
+        self.result.write_str(" ")?;
+        let params = self
+            .print_core_functype_idx(state, ty, Some(func_idx))?
+            .unwrap_or(0);
 
-            // Hints are stored on `self` in reverse order of function index so
-            // check the last one and see if it matches this function.
-            let hints = match self.code_section_hints.last() {
-                Some((f, _)) if *f == func_idx => {
-                    let (_, hints) = self.code_section_hints.pop().unwrap();
-                    hints
-                }
-                _ => Vec::new(),
-            };
-
-            if self.config.print_skeleton {
-                self.result.write_str(" ...")?;
-            } else {
-                self.print_func_body(state, func_idx, params, &mut body, &hints)?;
+        // Hints are stored on `self` in reverse order of function index so
+        // check the last one and see if it matches this function.
+        let hints = match self.code_section_hints.last() {
+            Some((f, _)) if *f == func_idx => {
+                let (_, hints) = self.code_section_hints.pop().unwrap();
+                hints
             }
+            _ => Vec::new(),
+        };
 
-            self.end_group()?;
-
-            state.core.funcs += 1;
+        if self.config.print_skeleton {
+            self.result.write_str(" ...")?;
+        } else {
+            self.print_func_body(state, func_idx, params, &mut body, &hints)?;
         }
+
+        self.end_group()?;
+        state.core.funcs += 1;
         Ok(())
     }
 
@@ -2721,7 +2706,7 @@ impl Printer<'_, '_> {
                 self.print_dylink0_section(s)
             }
 
-            // These are parsed during `read_names_and_code` and are part of
+            // These are parsed during `read_names` and are part of
             // printing elsewhere, so don't print them.
             KnownCustom::Name(_) | KnownCustom::ComponentName(_) | KnownCustom::BranchHints(_) => {
                 Ok(())

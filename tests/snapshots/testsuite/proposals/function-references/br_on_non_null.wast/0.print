@@ -2,6 +2,11 @@
   (type $t (;0;) (func (result i32)))
   (type (;1;) (func (param (ref $t)) (result i32)))
   (type (;2;) (func (param (ref null $t)) (result i32)))
+  (export "nullable-null" (func 3))
+  (export "nonnullable-f" (func 4))
+  (export "nullable-f" (func 5))
+  (export "unreachable" (func 6))
+  (elem (;0;) func $f)
   (func $nn (;0;) (type 1) (param $r (ref $t)) (result i32)
     block $l (result (ref $t))
       local.get $r
@@ -44,9 +49,4 @@
     end
     call_ref $t
   )
-  (export "nullable-null" (func 3))
-  (export "nonnullable-f" (func 4))
-  (export "nullable-f" (func 5))
-  (export "unreachable" (func 6))
-  (elem (;0;) func $f)
 )

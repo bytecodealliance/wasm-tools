@@ -2,6 +2,10 @@
   (type (;0;) (func (result i32)))
   (type (;1;) (func (param i32 i32)))
   (type (;2;) (func (param i32) (result i32)))
+  (memory (;0;) 1)
+  (export "store" (func 1))
+  (export "load" (func 2))
+  (export "memory.grow" (func 3))
   (func $addr_limit (;0;) (type 0) (result i32)
     memory.size
     i32.const 65536
@@ -24,8 +28,4 @@
     local.get 0
     memory.grow
   )
-  (memory (;0;) 1)
-  (export "store" (func 1))
-  (export "load" (func 2))
-  (export "memory.grow" (func 3))
 )

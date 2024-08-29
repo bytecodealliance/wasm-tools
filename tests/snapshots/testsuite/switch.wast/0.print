@@ -2,6 +2,10 @@
   (type (;0;) (func (param i32) (result i32)))
   (type (;1;) (func (param i64) (result i64)))
   (type (;2;) (func (result i32)))
+  (export "stmt" (func 0))
+  (export "expr" (func 1))
+  (export "arg" (func 2))
+  (export "corner" (func 3))
   (func (;0;) (type 0) (param $i i32) (result i32)
     (local $j i32)
     i32.const 100
@@ -119,8 +123,4 @@
     end
     i32.const 1
   )
-  (export "stmt" (func 0))
-  (export "expr" (func 1))
-  (export "arg" (func 2))
-  (export "corner" (func 3))
 )

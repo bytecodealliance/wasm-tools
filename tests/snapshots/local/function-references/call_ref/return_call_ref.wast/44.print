@@ -1,6 +1,8 @@
 (module
   (type $t (;0;) (func (param i32) (result i32)))
   (type (;1;) (func (result i32)))
+  (export "unreachable" (func 1))
+  (elem (;0;) declare func $f)
   (func $f (;0;) (type $t) (param i32) (result i32)
     local.get 0
   )
@@ -11,6 +13,4 @@
     return_call_ref $t
     i32.const 0
   )
-  (export "unreachable" (func 1))
-  (elem (;0;) declare func $f)
 )

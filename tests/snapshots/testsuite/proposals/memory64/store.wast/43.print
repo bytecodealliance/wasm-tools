@@ -1,5 +1,15 @@
 (module
   (type (;0;) (func))
+  (memory (;0;) 1)
+  (export "as-block-value" (func 0))
+  (export "as-loop-value" (func 1))
+  (export "as-br-value" (func 2))
+  (export "as-br_if-value" (func 3))
+  (export "as-br_if-value-cond" (func 4))
+  (export "as-br_table-value" (func 5))
+  (export "as-return-value" (func 6))
+  (export "as-if-then" (func 7))
+  (export "as-if-else" (func 8))
   (func (;0;) (type 0)
     block ;; label = @1
       i32.const 0
@@ -72,14 +82,4 @@
       i32.store
     end
   )
-  (memory (;0;) 1)
-  (export "as-block-value" (func 0))
-  (export "as-loop-value" (func 1))
-  (export "as-br-value" (func 2))
-  (export "as-br_if-value" (func 3))
-  (export "as-br_if-value-cond" (func 4))
-  (export "as-br_table-value" (func 5))
-  (export "as-return-value" (func 6))
-  (export "as-if-then" (func 7))
-  (export "as-if-else" (func 8))
 )

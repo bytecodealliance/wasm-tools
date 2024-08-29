@@ -6,6 +6,9 @@
     (type $t2 (;1;) (func (result (ref null $t2))))
   )
   (type (;2;) (func))
+  (table (;0;) 2 2 funcref)
+  (export "run" (func 2))
+  (elem (;0;) (i32.const 0) func $f1 $f2)
   (func $f1 (;0;) (type $t1) (result (ref null $t1))
     ref.null $t1
   )
@@ -47,7 +50,4 @@
     end
     br 0
   )
-  (table (;0;) 2 2 funcref)
-  (export "run" (func 2))
-  (elem (;0;) (i32.const 0) func $f1 $f2)
 )

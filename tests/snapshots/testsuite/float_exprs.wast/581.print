@@ -1,5 +1,6 @@
 (module
   (type (;0;) (func (result f32)))
+  (export "calculate" (func 0))
   (func (;0;) (type 0) (result f32)
     (local $x f32) (local $r f32) (local $q f32) (local $z0 f32) (local $z1 f32)
     f32.const 0x1.388p+7 (;=156.25;)
@@ -39,5 +40,4 @@
     end
     local.get $z1
   )
-  (export "calculate" (func 0))
 )

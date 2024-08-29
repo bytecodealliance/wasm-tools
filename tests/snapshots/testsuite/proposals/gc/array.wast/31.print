@@ -13,6 +13,11 @@
   (type (;11;) (func (param i32 i32 i32) (result i32)))
   (type (;12;) (func (param (ref array)) (result i32)))
   (type (;13;) (func (result i32)))
+  (export "new" (func $new))
+  (export "get" (func 4))
+  (export "set_get" (func 6))
+  (export "len" (func 8))
+  (elem $e (;0;) (ref $bvec) (item i32.const 7 i32.const 3 array.new $bvec) (item i32.const 1 i32.const 2 array.new_fixed $bvec 2))
   (func $new (;0;) (type 5) (result (ref $vec))
     i32.const 0
     i32.const 2
@@ -71,9 +76,4 @@
     call $new
     call $len
   )
-  (export "new" (func $new))
-  (export "get" (func 4))
-  (export "set_get" (func 6))
-  (export "len" (func 8))
-  (elem $e (;0;) (ref $bvec) (item i32.const 7 i32.const 3 array.new $bvec) (item i32.const 1 i32.const 2 array.new_fixed $bvec 2))
 )

@@ -3,6 +3,13 @@
   (type (;1;) (func))
   (type (;2;) (func (result i32)))
   (type (;3;) (func (result i64)))
+  (export "select-trap-left" (func 0))
+  (export "select-trap-right" (func 1))
+  (export "select-unreached" (func 2))
+  (export "select_unreached_result_1" (func 3))
+  (export "select_unreached_result_2" (func 4))
+  (export "unreachable-num" (func 5))
+  (export "unreachable-ref" (func 6))
   (func (;0;) (type 0) (param $cond i32) (result i32)
     unreachable
     i32.const 0
@@ -60,11 +67,4 @@
     ref.is_null
     drop
   )
-  (export "select-trap-left" (func 0))
-  (export "select-trap-right" (func 1))
-  (export "select-unreached" (func 2))
-  (export "select_unreached_result_1" (func 3))
-  (export "select_unreached_result_2" (func 4))
-  (export "unreachable-num" (func 5))
-  (export "unreachable-ref" (func 6))
 )

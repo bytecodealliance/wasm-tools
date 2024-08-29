@@ -3,6 +3,12 @@
   (type (;1;) (func (param i64) (result i64 i64)))
   (type (;2;) (func (param i64 i64) (result i64 i64 i64)))
   (type (;3;) (func (param i64 i64) (result i64)))
+  (export "fac-rec" (func 0))
+  (export "fac-rec-named" (func $fac-rec-named))
+  (export "fac-iter" (func 2))
+  (export "fac-iter-named" (func 3))
+  (export "fac-opt" (func 4))
+  (export "fac-ssa" (func 7))
   (func (;0;) (type 0) (param i64) (result i64)
     local.get 0
     i64.const 0
@@ -142,10 +148,4 @@
       return
     end
   )
-  (export "fac-rec" (func 0))
-  (export "fac-rec-named" (func $fac-rec-named))
-  (export "fac-iter" (func 2))
-  (export "fac-iter-named" (func 3))
-  (export "fac-opt" (func 4))
-  (export "fac-ssa" (func 7))
 )

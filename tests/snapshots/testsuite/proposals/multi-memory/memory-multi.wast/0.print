@@ -1,5 +1,9 @@
 (module
   (type (;0;) (func (result i32)))
+  (memory $mem1 (;0;) 1)
+  (memory $mem2 (;1;) 1)
+  (export "init1" (func 0))
+  (export "init2" (func 1))
   (func (;0;) (type 0) (result i32)
     i32.const 1
     i32.const 0
@@ -16,9 +20,5 @@
     i32.const 1
     i32.load $mem2
   )
-  (memory $mem1 (;0;) 1)
-  (memory $mem2 (;1;) 1)
-  (export "init1" (func 0))
-  (export "init2" (func 1))
   (data $d (;0;) "\01\00\00\00\02\00\00\00")
 )

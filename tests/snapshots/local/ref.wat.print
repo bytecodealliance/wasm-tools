@@ -1,6 +1,7 @@
 (module
   (type (;0;) (func))
   (type (;1;) (func (param funcref)))
+  (global (;0;) externref ref.null extern)
   (func (;0;) (type 0)
     (local externref funcref)
     ref.null extern
@@ -54,5 +55,4 @@
       drop
     end
   )
-  (global (;0;) externref ref.null extern)
 )

@@ -1,5 +1,6 @@
 (module
   (type (;0;) (func (result f64)))
+  (export "calculate" (func 0))
   (func (;0;) (type 0) (result f64)
     (local $x f64) (local $r f64) (local $q f64) (local $z0 f64) (local $z1 f64)
     f64.const 0x1.388p+7 (;=156.25;)
@@ -39,5 +40,4 @@
     end
     local.get $z1
   )
-  (export "calculate" (func 0))
 )

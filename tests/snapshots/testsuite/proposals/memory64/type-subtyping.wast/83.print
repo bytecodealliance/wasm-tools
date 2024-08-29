@@ -7,6 +7,6 @@
     (type $f21 (;2;) (sub (func)))
     (type $f22 (;3;) (sub $f11 (func)))
   )
-  (func (;0;) (type $f21))
   (export "f" (func 0))
+  (func (;0;) (type $f21))
 )

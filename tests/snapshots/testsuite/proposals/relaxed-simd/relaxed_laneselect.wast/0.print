@@ -1,5 +1,13 @@
 (module
   (type (;0;) (func (param v128 v128 v128) (result v128)))
+  (export "i8x16.relaxed_laneselect" (func 0))
+  (export "i16x8.relaxed_laneselect" (func 1))
+  (export "i32x4.relaxed_laneselect" (func 2))
+  (export "i64x2.relaxed_laneselect" (func 3))
+  (export "i8x16.relaxed_laneselect_cmp" (func 4))
+  (export "i16x8.relaxed_laneselect_cmp" (func 5))
+  (export "i32x4.relaxed_laneselect_cmp" (func 6))
+  (export "i64x2.relaxed_laneselect_cmp" (func 7))
   (func (;0;) (type 0) (param v128 v128 v128) (result v128)
     local.get 0
     local.get 1
@@ -68,12 +76,4 @@
     i64x2.relaxed_laneselect
     i64x2.eq
   )
-  (export "i8x16.relaxed_laneselect" (func 0))
-  (export "i16x8.relaxed_laneselect" (func 1))
-  (export "i32x4.relaxed_laneselect" (func 2))
-  (export "i64x2.relaxed_laneselect" (func 3))
-  (export "i8x16.relaxed_laneselect_cmp" (func 4))
-  (export "i16x8.relaxed_laneselect_cmp" (func 5))
-  (export "i32x4.relaxed_laneselect_cmp" (func 6))
-  (export "i64x2.relaxed_laneselect_cmp" (func 7))
 )

@@ -4,6 +4,14 @@
   (type $at (;2;) (array i8))
   (type (;3;) (func (param externref)))
   (type (;4;) (func (param i32)))
+  (table (;0;) 10 anyref)
+  (export "init" (func 1))
+  (export "ref_cast_non_null" (func 2))
+  (export "ref_cast_null" (func 3))
+  (export "ref_cast_i31" (func 4))
+  (export "ref_cast_struct" (func 5))
+  (export "ref_cast_array" (func 6))
+  (elem (;0;) declare func $f)
   (func $f (;0;) (type $ft))
   (func (;1;) (type 3) (param $x externref)
     i32.const 0
@@ -96,12 +104,4 @@
     ref.cast arrayref
     drop
   )
-  (table (;0;) 10 anyref)
-  (export "init" (func 1))
-  (export "ref_cast_non_null" (func 2))
-  (export "ref_cast_null" (func 3))
-  (export "ref_cast_i31" (func 4))
-  (export "ref_cast_struct" (func 5))
-  (export "ref_cast_array" (func 6))
-  (elem (;0;) declare func $f)
 )

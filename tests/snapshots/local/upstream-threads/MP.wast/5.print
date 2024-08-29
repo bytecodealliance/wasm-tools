@@ -1,6 +1,7 @@
 (module $Check
   (type (;0;) (func (result i32)))
   (import "mem" "shared" (memory (;0;) 1 1 shared))
+  (export "check" (func 0))
   (func (;0;) (type 0) (result i32)
     (local i32 i32)
     i32.const 24
@@ -26,5 +27,4 @@
     i32.and
     return
   )
-  (export "check" (func 0))
 )

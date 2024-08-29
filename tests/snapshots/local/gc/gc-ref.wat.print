@@ -6,6 +6,8 @@
   (type (;4;) (func (param (ref $a))))
   (type (;5;) (func (result (ref $a))))
   (type (;6;) (func))
+  (global (;0;) (ref null $a) ref.null $a)
+  (global (;1;) (ref null $b) ref.null $b)
   (func (;0;) (type $f1) (param (ref $a)))
   (func (;1;) (type 4) (param (ref $a)))
   (func (;2;) (type $f1) (param (ref $a)))
@@ -69,6 +71,4 @@
     end
     drop
   )
-  (global (;0;) (ref null $a) ref.null $a)
-  (global (;1;) (ref null $b) ref.null $b)
 )

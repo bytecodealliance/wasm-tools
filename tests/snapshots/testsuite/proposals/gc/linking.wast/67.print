@@ -4,6 +4,11 @@
   (type (;2;) (func (param i32) (result i32)))
   (import "Mt" "call" (func $f (;0;) (type 2)))
   (import "Mt" "h" (func $h (;1;) (type 1)))
+  (table (;0;) 5 5 funcref)
+  (export "Mt.call" (func $f))
+  (export "call Mt.call" (func 3))
+  (export "call" (func 4))
+  (elem (;0;) (i32.const 0) func $g $g $g $h $f)
   (func $g (;2;) (type 1) (result i32)
     i32.const 5
   )
@@ -15,9 +20,4 @@
     local.get 0
     call_indirect (type 1)
   )
-  (table (;0;) 5 5 funcref)
-  (export "Mt.call" (func $f))
-  (export "call Mt.call" (func 3))
-  (export "call" (func 4))
-  (elem (;0;) (i32.const 0) func $g $g $g $h $f)
 )

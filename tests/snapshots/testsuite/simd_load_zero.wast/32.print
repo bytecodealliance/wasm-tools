@@ -2,6 +2,13 @@
   (type (;0;) (func (result v128)))
   (type (;1;) (func (result i32)))
   (type (;2;) (func (result i64)))
+  (memory (;0;) 1)
+  (export "v128.load32_zero-in-block" (func 0))
+  (export "v128.load64_zero-in-block" (func 1))
+  (export "v128.load32_zero-as-br-value" (func 2))
+  (export "v128.load64_zero-as-br-value" (func 3))
+  (export "v128.load32_zero-extract_lane_s-operand" (func 4))
+  (export "v128.load64_zero-extract_lane_s-operand" (func 5))
   (func (;0;) (type 0) (result v128)
     block (result v128) ;; label = @1
       block (result v128) ;; label = @2
@@ -42,12 +49,5 @@
     v128.load64_zero
     i64x2.extract_lane 0
   )
-  (memory (;0;) 1)
-  (export "v128.load32_zero-in-block" (func 0))
-  (export "v128.load64_zero-in-block" (func 1))
-  (export "v128.load32_zero-as-br-value" (func 2))
-  (export "v128.load64_zero-as-br-value" (func 3))
-  (export "v128.load32_zero-extract_lane_s-operand" (func 4))
-  (export "v128.load64_zero-extract_lane_s-operand" (func 5))
   (data (;0;) (i32.const 0) "\00\01\02\03\04\05\06\07\08\09\0a\0b\0c\0d\0e\0f\80\81\82\83\84\85\86\87\88\89")
 )

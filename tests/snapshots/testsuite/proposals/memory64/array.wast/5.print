@@ -8,6 +8,12 @@
   (type (;6;) (func (param i32 f32) (result f32)))
   (type (;7;) (func (param (ref array)) (result i32)))
   (type (;8;) (func (result i32)))
+  (global (;0;) (ref $vec) f32.const 0x1p+0 (;=1;) i32.const 3 array.new $vec)
+  (global (;1;) (ref $vec) i32.const 3 array.new_default $vec)
+  (export "new" (func $new))
+  (export "get" (func 2))
+  (export "set_get" (func 4))
+  (export "len" (func 6))
   (func $new (;0;) (type 2) (result (ref $vec))
     i32.const 3
     array.new_default $vec
@@ -46,10 +52,4 @@
     call $new
     call $len
   )
-  (global (;0;) (ref $vec) f32.const 0x1p+0 (;=1;) i32.const 3 array.new $vec)
-  (global (;1;) (ref $vec) i32.const 3 array.new_default $vec)
-  (export "new" (func $new))
-  (export "get" (func 2))
-  (export "set_get" (func 4))
-  (export "len" (func 6))
 )

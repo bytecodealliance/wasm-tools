@@ -2,6 +2,11 @@
   (type (;0;) (func (result i32)))
   (type (;1;) (func))
   (type (;2;) (func (param i32) (result i32)))
+  (table (;0;) 10 funcref)
+  (export "tab" (table 0))
+  (export "h" (func 1))
+  (export "call" (func 2))
+  (elem (;0;) (i32.const 2) func $g $g $g $g)
   (func $g (;0;) (type 0) (result i32)
     i32.const 4
   )
@@ -12,9 +17,4 @@
     local.get 0
     call_indirect (type 0)
   )
-  (table (;0;) 10 funcref)
-  (export "tab" (table 0))
-  (export "h" (func 1))
-  (export "call" (func 2))
-  (elem (;0;) (i32.const 2) func $g $g $g $g)
 )

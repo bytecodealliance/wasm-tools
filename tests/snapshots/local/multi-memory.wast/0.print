@@ -1,5 +1,7 @@
 (module
   (type (;0;) (func))
+  (memory $a (;0;) 0)
+  (memory $b (;1;) 0)
   (func $foo (;0;) (type 0)
     i32.const 0
     i32.load
@@ -458,7 +460,5 @@
     i8x16.splat
     v128.store $b
   )
-  (memory $a (;0;) 0)
-  (memory $b (;1;) 0)
   (data $seg (;0;) "")
 )

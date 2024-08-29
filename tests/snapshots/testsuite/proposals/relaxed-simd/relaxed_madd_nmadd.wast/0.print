@@ -1,5 +1,13 @@
 (module
   (type (;0;) (func (param v128 v128 v128) (result v128)))
+  (export "f32x4.relaxed_madd" (func 0))
+  (export "f32x4.relaxed_nmadd" (func 1))
+  (export "f64x2.relaxed_nmadd" (func 2))
+  (export "f64x2.relaxed_madd" (func 3))
+  (export "f32x4.relaxed_madd_cmp" (func 4))
+  (export "f32x4.relaxed_nmadd_cmp" (func 5))
+  (export "f64x2.relaxed_nmadd_cmp" (func 6))
+  (export "f64x2.relaxed_madd_cmp" (func 7))
   (func (;0;) (type 0) (param v128 v128 v128) (result v128)
     local.get 0
     local.get 1
@@ -68,12 +76,4 @@
     f64x2.relaxed_madd
     f64x2.eq
   )
-  (export "f32x4.relaxed_madd" (func 0))
-  (export "f32x4.relaxed_nmadd" (func 1))
-  (export "f64x2.relaxed_nmadd" (func 2))
-  (export "f64x2.relaxed_madd" (func 3))
-  (export "f32x4.relaxed_madd_cmp" (func 4))
-  (export "f32x4.relaxed_nmadd_cmp" (func 5))
-  (export "f64x2.relaxed_nmadd_cmp" (func 6))
-  (export "f64x2.relaxed_madd_cmp" (func 7))
 )

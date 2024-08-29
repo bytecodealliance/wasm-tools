@@ -4,6 +4,15 @@
   (type (;2;) (func (result i32)))
   (type (;3;) (func (result i32 i32)))
   (type (;4;) (func (param i32)))
+  (global $i (;0;) (ref (shared i31)) i32.const 2 ref.i31_shared)
+  (global $m (;1;) (mut (ref (shared i31))) i32.const 3 ref.i31_shared)
+  (export "new" (func 0))
+  (export "get_u" (func 1))
+  (export "get_s" (func 2))
+  (export "get_u-null" (func 3))
+  (export "get_s-null" (func 4))
+  (export "get_globals" (func 5))
+  (export "set_global" (func 6))
   (func (;0;) (type 0) (param $i i32) (result (ref (shared i31)))
     local.get $i
     ref.i31_shared
@@ -37,13 +46,4 @@
     ref.i31_shared
     global.set $m
   )
-  (global $i (;0;) (ref (shared i31)) i32.const 2 ref.i31_shared)
-  (global $m (;1;) (mut (ref (shared i31))) i32.const 3 ref.i31_shared)
-  (export "new" (func 0))
-  (export "get_u" (func 1))
-  (export "get_s" (func 2))
-  (export "get_u-null" (func 3))
-  (export "get_s-null" (func 4))
-  (export "get_globals" (func 5))
-  (export "set_global" (func 6))
 )

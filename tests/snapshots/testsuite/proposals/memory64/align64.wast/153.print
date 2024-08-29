@@ -1,6 +1,9 @@
 (module
   (type (;0;) (func (param i64 i64)))
   (type (;1;) (func (param i64) (result i32)))
+  (memory (;0;) i64 1)
+  (export "store" (func 0))
+  (export "load" (func 1))
   (func (;0;) (type 0) (param i64 i64)
     local.get 0
     local.get 1
@@ -10,7 +13,4 @@
     local.get 0
     i32.load
   )
-  (memory (;0;) i64 1)
-  (export "store" (func 0))
-  (export "load" (func 1))
 )

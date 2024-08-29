@@ -4,6 +4,7 @@
   (type $c (;2;) (array (mut funcref)))
   (type (;3;) (func))
   (type (;4;) (func (param (ref $a) (ref $b))))
+  (elem $elem (;0;) func $func)
   (func $func (;0;) (type 3))
   (func (;1;) (type 4) (param (ref $a) (ref $b))
     i32.const 1
@@ -40,6 +41,5 @@
     i32.const 1
     array.copy $b $b
   )
-  (elem $elem (;0;) func $func)
   (data $data (;0;) "\5c0\5c1\5c2\5c3")
 )

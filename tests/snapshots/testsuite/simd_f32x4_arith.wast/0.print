@@ -1,6 +1,12 @@
 (module
   (type (;0;) (func (param v128 v128) (result v128)))
   (type (;1;) (func (param v128) (result v128)))
+  (export "f32x4.add" (func 0))
+  (export "f32x4.sub" (func 1))
+  (export "f32x4.mul" (func 2))
+  (export "f32x4.div" (func 3))
+  (export "f32x4.neg" (func 4))
+  (export "f32x4.sqrt" (func 5))
   (func (;0;) (type 0) (param v128 v128) (result v128)
     local.get 0
     local.get 1
@@ -29,10 +35,4 @@
     local.get 0
     f32x4.sqrt
   )
-  (export "f32x4.add" (func 0))
-  (export "f32x4.sub" (func 1))
-  (export "f32x4.mul" (func 2))
-  (export "f32x4.div" (func 3))
-  (export "f32x4.neg" (func 4))
-  (export "f32x4.sqrt" (func 5))
 )

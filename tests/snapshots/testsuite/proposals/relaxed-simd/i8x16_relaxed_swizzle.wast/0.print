@@ -1,5 +1,7 @@
 (module
   (type (;0;) (func (param v128 v128) (result v128)))
+  (export "i8x16.relaxed_swizzle" (func 0))
+  (export "i8x16.relaxed_swizzle_cmp" (func 1))
   (func (;0;) (type 0) (param v128 v128) (result v128)
     local.get 0
     local.get 1
@@ -14,6 +16,4 @@
     i8x16.relaxed_swizzle
     i8x16.eq
   )
-  (export "i8x16.relaxed_swizzle" (func 0))
-  (export "i8x16.relaxed_swizzle_cmp" (func 1))
 )

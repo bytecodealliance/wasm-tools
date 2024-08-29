@@ -1,5 +1,7 @@
 (module $copy_between_memories
   (type (;0;) (func))
+  (memory $m64 (;0;) i64 1)
+  (memory $m32 (;1;) 1)
   (func (;0;) (type 0)
     i32.const 0
     i32.const 0
@@ -18,6 +20,4 @@
     i64.const 0
     memory.copy
   )
-  (memory $m64 (;0;) i64 1)
-  (memory $m32 (;1;) 1)
 )

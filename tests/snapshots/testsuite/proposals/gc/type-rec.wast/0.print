@@ -7,6 +7,6 @@
     (type $f2 (;2;) (func))
     (type (;3;) (struct (field (ref $f2))))
   )
-  (func $f (;0;) (type $f2))
   (global (;0;) (ref $f1) ref.func $f)
+  (func $f (;0;) (type $f2))
 )

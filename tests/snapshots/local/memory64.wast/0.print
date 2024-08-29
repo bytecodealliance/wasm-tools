@@ -2,6 +2,7 @@
   (type (;0;) (func (result i64)))
   (type (;1;) (func (param i64) (result i64)))
   (type (;2;) (func))
+  (memory (;0;) i64 1)
   (func (;0;) (type 0) (result i64)
     memory.size
   )
@@ -398,7 +399,6 @@
     i8x16.splat
     v128.store
   )
-  (memory (;0;) i64 1)
   (data (;0;) (i64.const 0) "..")
   (data $seg (;1;) "..")
 )

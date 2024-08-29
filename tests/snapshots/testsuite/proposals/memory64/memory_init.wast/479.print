@@ -1,12 +1,12 @@
 (module
   (type (;0;) (func))
+  (memory (;0;) i64 1)
   (func (;0;) (type 0)
     i64.const 0
     i32.const 0
     i32.const 0
     memory.init 64
   )
-  (memory (;0;) i64 1)
   (data (;0;) "")
   (data (;1;) "")
   (data (;2;) "")

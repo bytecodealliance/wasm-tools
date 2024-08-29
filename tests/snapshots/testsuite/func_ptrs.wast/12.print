@@ -2,6 +2,10 @@
   (type $T (;0;) (func (result i32)))
   (type $U (;1;) (func (result i32)))
   (type (;2;) (func (param i32) (result i32)))
+  (table (;0;) 7 7 funcref)
+  (export "callt" (func 5))
+  (export "callu" (func 6))
+  (elem (;0;) (i32.const 0) func $t1 $t2 $t3 $u1 $u2 $t1 $t3)
   (func $t1 (;0;) (type $T) (result i32)
     i32.const 1
   )
@@ -25,8 +29,4 @@
     local.get $i
     call_indirect (type $U)
   )
-  (table (;0;) 7 7 funcref)
-  (export "callt" (func 5))
-  (export "callu" (func 6))
-  (elem (;0;) (i32.const 0) func $t1 $t2 $t3 $u1 $u2 $t1 $t3)
 )

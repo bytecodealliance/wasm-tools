@@ -2,6 +2,8 @@
   (type (;0;) (func))
   (type (;1;) (func (result i32)))
   (import "test" "throw" (func $imported-throw (;0;) (type 0)))
+  (tag $e0 (;0;) (type 0))
+  (export "imported-mismatch" (func 1))
   (func (;1;) (type 1) (result i32)
     block $h
       try_table (result i32) (catch_all $h) ;; label = @2
@@ -18,6 +20,4 @@
     end
     i32.const 3
   )
-  (tag $e0 (;0;) (type 0))
-  (export "imported-mismatch" (func 1))
 )

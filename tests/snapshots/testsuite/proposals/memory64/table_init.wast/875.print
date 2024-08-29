@@ -1,11 +1,5 @@
 (module
   (type (;0;) (func))
-  (func (;0;) (type 0)
-    i32.const 0
-    i32.const 0
-    i32.const 0
-    table.init 64
-  )
   (table (;0;) 1 funcref)
   (elem (;0;) funcref)
   (elem (;1;) funcref)
@@ -72,4 +66,10 @@
   (elem (;62;) funcref)
   (elem (;63;) funcref)
   (elem (;64;) funcref)
+  (func (;0;) (type 0)
+    i32.const 0
+    i32.const 0
+    i32.const 0
+    table.init 64
+  )
 )

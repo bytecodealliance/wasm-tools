@@ -8,6 +8,9 @@
   (type $st'-sub2 (;6;) (sub $st' (shared(struct (field i32)))))
   (type (;7;) (func))
   (type (;8;) (func (param i32 i32) (result i32)))
+  (table (;0;) 20 (ref null (shared eq)))
+  (export "init" (func 0))
+  (export "eq" (func 1))
   (func (;0;) (type 7)
     i32.const 0
     ref.null (shared eq)
@@ -49,7 +52,4 @@
     table.get 0
     ref.eq
   )
-  (table (;0;) 20 (ref null (shared eq)))
-  (export "init" (func 0))
-  (export "eq" (func 1))
 )

@@ -15,12 +15,12 @@
     (type $g21 (;6;) (sub $f21 (func (result (ref func)))))
     (type $g22 (;7;) (sub $g21 (func (result (ref $g21)))))
   )
+  (export "g11" (func 0))
+  (export "g12" (func 1))
   (func (;0;) (type $g11) (result (ref func))
     unreachable
   )
   (func (;1;) (type $g12) (result (ref $g11))
     unreachable
   )
-  (export "g11" (func 0))
-  (export "g12" (func 1))
 )

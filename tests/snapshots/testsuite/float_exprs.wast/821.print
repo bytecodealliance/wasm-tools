@@ -1,6 +1,8 @@
 (module
   (type (;0;) (func (param f32 f32) (result f32)))
   (type (;1;) (func (param f64 f64) (result f64)))
+  (export "f32.compute_radix" (func 0))
+  (export "f64.compute_radix" (func 1))
   (func (;0;) (type 0) (param $0 f32) (param $1 f32) (result f32)
     loop $label$0
       local.get $0
@@ -67,6 +69,4 @@
     end
     local.get $1
   )
-  (export "f32.compute_radix" (func 0))
-  (export "f64.compute_radix" (func 1))
 )

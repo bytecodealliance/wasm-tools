@@ -1,6 +1,14 @@
 (module
   (type (;0;) (func (param f32 f32) (result f32)))
   (type (;1;) (func (param f64 f64) (result f64)))
+  (export "f32.no_fold_lt_select" (func 0))
+  (export "f32.no_fold_le_select" (func 1))
+  (export "f32.no_fold_gt_select" (func 2))
+  (export "f32.no_fold_ge_select" (func 3))
+  (export "f64.no_fold_lt_select" (func 4))
+  (export "f64.no_fold_le_select" (func 5))
+  (export "f64.no_fold_gt_select" (func 6))
+  (export "f64.no_fold_ge_select" (func 7))
   (func (;0;) (type 0) (param $x f32) (param $y f32) (result f32)
     local.get $x
     local.get $y
@@ -65,12 +73,4 @@
     f64.ge
     select
   )
-  (export "f32.no_fold_lt_select" (func 0))
-  (export "f32.no_fold_le_select" (func 1))
-  (export "f32.no_fold_gt_select" (func 2))
-  (export "f32.no_fold_ge_select" (func 3))
-  (export "f64.no_fold_lt_select" (func 4))
-  (export "f64.no_fold_le_select" (func 5))
-  (export "f64.no_fold_gt_select" (func 6))
-  (export "f64.no_fold_ge_select" (func 7))
 )

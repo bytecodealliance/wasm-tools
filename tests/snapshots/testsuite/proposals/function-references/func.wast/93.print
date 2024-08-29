@@ -1,6 +1,9 @@
 (module
   (type $proc (;0;) (func (result i32)))
   (type $sig (;1;) (func (param i32) (result i32)))
+  (export "f" (func 0))
+  (export "g" (func 2))
+  (export "p" (func 3))
   (func (;0;) (type $sig) (param $var i32) (result i32)
     (local i32)
     local.get 1
@@ -19,7 +22,4 @@
     local.set $var
     local.get $var
   )
-  (export "f" (func 0))
-  (export "g" (func 2))
-  (export "p" (func 3))
 )

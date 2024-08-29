@@ -20,6 +20,8 @@
     (type (;9;) (struct))
   )
   (type (;10;) (func (result i32 i32)))
+  (export "run" (func 1))
+  (elem (;0;) declare func $h)
   (func $h (;0;) (type $h))
   (func (;1;) (type 10) (result i32 i32)
     ref.func $h
@@ -27,6 +29,4 @@
     ref.func $h
     ref.test (ref $g1)
   )
-  (export "run" (func 1))
-  (elem (;0;) declare func $h)
 )

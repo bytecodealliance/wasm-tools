@@ -1,6 +1,14 @@
 (module
   (type (;0;) (func (param f32)))
   (type (;1;) (func (param f64)))
+  (export "no_dce.i32.trunc_f32_s" (func 0))
+  (export "no_dce.i32.trunc_f32_u" (func 1))
+  (export "no_dce.i32.trunc_f64_s" (func 2))
+  (export "no_dce.i32.trunc_f64_u" (func 3))
+  (export "no_dce.i64.trunc_f32_s" (func 4))
+  (export "no_dce.i64.trunc_f32_u" (func 5))
+  (export "no_dce.i64.trunc_f64_s" (func 6))
+  (export "no_dce.i64.trunc_f64_u" (func 7))
   (func (;0;) (type 0) (param $x f32)
     local.get $x
     i32.trunc_f32_s
@@ -41,12 +49,4 @@
     i64.trunc_f64_u
     drop
   )
-  (export "no_dce.i32.trunc_f32_s" (func 0))
-  (export "no_dce.i32.trunc_f32_u" (func 1))
-  (export "no_dce.i32.trunc_f64_s" (func 2))
-  (export "no_dce.i32.trunc_f64_u" (func 3))
-  (export "no_dce.i64.trunc_f32_s" (func 4))
-  (export "no_dce.i64.trunc_f32_u" (func 5))
-  (export "no_dce.i64.trunc_f64_s" (func 6))
-  (export "no_dce.i64.trunc_f64_u" (func 7))
 )

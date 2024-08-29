@@ -1,6 +1,7 @@
 (module
   (type (;0;) (func))
   (import "mem" "shared" (memory (;0;) 1 1 shared))
+  (export "run" (func 0))
   (func (;0;) (type 0)
     (local i32)
     i32.const 4
@@ -13,5 +14,4 @@
     local.get 0
     i32.store
   )
-  (export "run" (func 0))
 )

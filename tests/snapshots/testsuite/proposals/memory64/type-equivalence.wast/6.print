@@ -2,6 +2,9 @@
   (type $t1 (;0;) (func (param f32 f32)))
   (type $t2 (;1;) (func (param f32 f32)))
   (type (;2;) (func))
+  (table (;0;) 2 2 funcref)
+  (export "run" (func 2))
+  (elem (;0;) (i32.const 0) func $f1 $f2)
   (func $f1 (;0;) (type $t1) (param f32 f32))
   (func $f2 (;1;) (type $t2) (param f32 f32))
   (func (;2;) (type 2)
@@ -14,7 +17,4 @@
     i32.const 0
     call_indirect (type $t2)
   )
-  (table (;0;) 2 2 funcref)
-  (export "run" (func 2))
-  (elem (;0;) (i32.const 0) func $f1 $f2)
 )

@@ -11,6 +11,6 @@
     (type $g2 (;4;) (sub $f2 (func)))
     (type (;5;) (struct))
   )
-  (func (;0;) (type $g2))
   (export "g" (func 0))
+  (func (;0;) (type $g2))
 )

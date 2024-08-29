@@ -7,6 +7,13 @@
   (type (;5;) (func (param anyref) (result externref)))
   (type (;6;) (func (param i32) (result externref)))
   (type (;7;) (func (param i32) (result anyref)))
+  (table (;0;) 10 anyref)
+  (export "init" (func 1))
+  (export "internalize" (func 2))
+  (export "externalize" (func 3))
+  (export "externalize-i" (func 4))
+  (export "externalize-ii" (func 5))
+  (elem (;0;) declare func $f)
   (func $f (;0;) (type $ft))
   (func (;1;) (type 3) (param $x externref)
     i32.const 0
@@ -47,11 +54,4 @@
     extern.convert_any
     any.convert_extern
   )
-  (table (;0;) 10 anyref)
-  (export "init" (func 1))
-  (export "internalize" (func 2))
-  (export "externalize" (func 3))
-  (export "externalize-i" (func 4))
-  (export "externalize-ii" (func 5))
-  (elem (;0;) declare func $f)
 )

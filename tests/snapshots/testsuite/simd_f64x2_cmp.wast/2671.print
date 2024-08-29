@@ -1,5 +1,19 @@
 (module
   (type (;0;) (func))
+  (memory (;0;) 1)
+  (export "f64x2.eq-in-block" (func 0))
+  (export "f64x2.ne-in-block" (func 1))
+  (export "f64x2.lt-in-block" (func 2))
+  (export "f64x2.le-in-block" (func 3))
+  (export "f64x2.gt-in-block" (func 4))
+  (export "f64x2.ge-in-block" (func 5))
+  (export "nested-f64x2.eq" (func 6))
+  (export "nested-f64x2.ne" (func 7))
+  (export "nested-f64x2.lt" (func 8))
+  (export "nested-f64x2.le" (func 9))
+  (export "nested-f64x2.gt" (func 10))
+  (export "nested-f64x2.ge" (func 11))
+  (export "as-param" (func 12))
   (func (;0;) (type 0)
     block ;; label = @1
       block (result v128) ;; label = @2
@@ -278,18 +292,4 @@
     f64x2.eq
     drop
   )
-  (memory (;0;) 1)
-  (export "f64x2.eq-in-block" (func 0))
-  (export "f64x2.ne-in-block" (func 1))
-  (export "f64x2.lt-in-block" (func 2))
-  (export "f64x2.le-in-block" (func 3))
-  (export "f64x2.gt-in-block" (func 4))
-  (export "f64x2.ge-in-block" (func 5))
-  (export "nested-f64x2.eq" (func 6))
-  (export "nested-f64x2.ne" (func 7))
-  (export "nested-f64x2.lt" (func 8))
-  (export "nested-f64x2.le" (func 9))
-  (export "nested-f64x2.gt" (func 10))
-  (export "nested-f64x2.ge" (func 11))
-  (export "as-param" (func 12))
 )

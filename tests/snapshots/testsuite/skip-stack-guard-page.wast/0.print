@@ -1,6 +1,8 @@
 (module
   (type (;0;) (func (param i32)))
   (type (;1;) (func))
+  (memory (;0;) 1)
+  (export "test-guard-page-skip" (func $test-guard-page-skip))
   (func $test-guard-page-skip (;0;) (type 0) (param $depth i32)
     local.get $depth
     i32.const 0
@@ -6354,6 +6356,4 @@
     local.get 1055
     i64.store offset=1055 align=1
   )
-  (memory (;0;) 1)
-  (export "test-guard-page-skip" (func $test-guard-page-skip))
 )
