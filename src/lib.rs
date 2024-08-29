@@ -17,7 +17,11 @@ pub struct GeneralOpts {
     #[clap(long = "verbose", short = 'v', action = clap::ArgAction::Count)]
     verbose: u8,
 
-    /// Use colors in output.
+    /// Configuration over whether terminal colors are used in output.
+    ///
+    /// Supports one of `auto|never|always|always-ansi`. The default is to
+    /// detect what to do based on the terminal environment, for example by
+    /// using `isatty`.
     #[clap(long = "color", default_value = "auto")]
     pub color: ColorChoice,
 }
