@@ -1,10 +1,11 @@
-(module $Mgim1
+(module $Tgt
   (type (;0;) (func (result i32)))
-  (import "grown-memory" "memory" (memory (;0;) 2))
   (func (;0;) (type 0) (result i32)
+    ref.null func
     i32.const 1
-    memory.grow
+    table.grow 0
   )
-  (export "memory" (memory 0))
+  (table (;0;) 1 funcref)
+  (export "table" (table 0))
   (export "grow" (func 0))
 )
