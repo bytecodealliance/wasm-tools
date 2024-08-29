@@ -100,6 +100,10 @@ pub struct ValidatedModule<'a> {
     /// Post-return functions annotated with `cabi_post_*` in their function
     /// name.
     pub post_returns: IndexSet<String>,
+
+    /// Exported function like `_initialize` which needs to be run after
+    /// everything else has been instantiated.
+    pub initialize: Option<&'a str>,
 }
 
 #[derive(Default)]
@@ -146,6 +150,7 @@ pub fn validate_module<'a>(
         metadata: &metadata.metadata,
         required_resource_funcs: Default::default(),
         post_returns: Default::default(),
+        initialize: None,
     };
 
     for payload in Parser::new(0).parse_all(bytes) {
@@ -194,7 +199,11 @@ pub fn validate_module<'a>(
                                 }
                             }
 
-                            assert!(export_funcs.insert(export.name, export.index).is_none())
+                            if export.name == "_initialize" {
+                                ret.initialize = Some(export.name);
+                            } else {
+                                assert!(export_funcs.insert(export.name, export.index).is_none())
+                            }
                         }
                         ExternalKind::Memory => {
                             if export.name == "memory" {
