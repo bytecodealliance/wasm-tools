@@ -115,7 +115,7 @@ wit-smith = { version = "0.216.0", path = "crates/wit-smith" }
 anyhow = { workspace = true }
 env_logger = { workspace = true }
 log = { workspace = true }
-clap = { workspace = true }
+clap = { workspace = true, features = ['wrap_help'] }
 clap_complete = { workspace = true, optional = true }
 tempfile = "3.2.0"
 wat = { workspace = true, features = ['dwarf'] }
