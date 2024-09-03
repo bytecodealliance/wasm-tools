@@ -32,12 +32,12 @@ pub fn generate_valid_module(
     config.tail_call_enabled = u.arbitrary()?;
     config.custom_page_sizes_enabled = u.arbitrary()?;
     config.gc_enabled = u.arbitrary()?;
-    config.reference_types_enabled = config.reference_types_enabled || config.gc_enabled;
     config.shared_everything_threads_enabled = u.arbitrary()?;
     if config.shared_everything_threads_enabled {
         config.threads_enabled = true;
         config.gc_enabled = true;
     }
+    config.reference_types_enabled = config.reference_types_enabled || config.gc_enabled;
 
     configure(&mut config, u)?;
 
@@ -97,6 +97,10 @@ pub fn validator_for_config(config: &Config) -> wasmparser::Validator {
     features.set(WasmFeatures::RELAXED_SIMD, config.relaxed_simd_enabled);
     features.set(WasmFeatures::MEMORY64, config.memory64_enabled);
     features.set(WasmFeatures::THREADS, config.threads_enabled);
+    features.set(
+        WasmFeatures::SHARED_EVERYTHING_THREADS,
+        config.shared_everything_threads_enabled,
+    );
     features.set(WasmFeatures::EXCEPTIONS, config.exceptions_enabled);
     features.set(
         WasmFeatures::CUSTOM_PAGE_SIZES,
