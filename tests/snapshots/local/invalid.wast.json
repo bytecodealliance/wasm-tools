@@ -1,0 +1,19 @@
+{
+  "source_filename": "tests/local/invalid.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 2,
+      "filename": "invalid.0.wasm",
+      "text": "unknown elem segment",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 8,
+      "filename": "invalid.1.wasm",
+      "text": "else found outside of an `if` block",
+      "module_type": "binary"
+    }
+  ]
+}

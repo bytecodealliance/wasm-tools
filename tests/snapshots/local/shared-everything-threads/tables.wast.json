@@ -62,6 +62,27 @@
       "filename": "tables.9.wasm",
       "text": "invalid type",
       "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 177,
+      "filename": "tables.10.wasm",
+      "text": "invalid type: `table.atomic.get` only allows subtypes of `anyref`",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 187,
+      "filename": "tables.11.wasm",
+      "text": "invalid type: `table.atomic.set` only allows subtypes of `anyref`",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 198,
+      "filename": "tables.12.wasm",
+      "text": "invalid type: `table.atomic.rmw.xchg` only allows subtypes of `anyref`",
+      "module_type": "binary"
     }
   ]
 }

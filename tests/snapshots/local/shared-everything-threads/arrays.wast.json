@@ -487,6 +487,34 @@
       "filename": "arrays.86.wasm",
       "text": "invalid type",
       "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 854,
+      "filename": "arrays.87.wasm",
+      "text": "invalid type: `array.atomic.get` only allows `i32`, `i64` and subtypes of `anyref`",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 865,
+      "filename": "arrays.88.wasm",
+      "text": "invalid type: `array.atomic.get` only allows `i32`, `i64` and subtypes of `anyref`",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 876,
+      "filename": "arrays.89.wasm",
+      "text": "cannot use array.get with packed storage types",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 887,
+      "filename": "arrays.90.wasm",
+      "text": "invalid type: `array.atomic.set` only allows `i8`, `i16`, `i32`, `i64` and subtypes of `anyref`",
+      "module_type": "binary"
     }
   ]
 }

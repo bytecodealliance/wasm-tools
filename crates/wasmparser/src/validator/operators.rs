@@ -1472,6 +1472,14 @@ where
             _ => Either::B(self.results(ty)?),
         })
     }
+
+    fn check_data_segment(&self, data_index: u32) -> Result<()> {
+        match self.resources.data_count() {
+            None => bail!(self.offset, "data count section required"),
+            Some(count) if data_index < count => Ok(()),
+            Some(_) => bail!(self.offset, "unknown data segment {data_index}"),
+        }
+    }
 }
 
 pub fn ty_to_str(ty: ValType) -> &'static str {
@@ -1693,12 +1701,8 @@ where
         for ty in ty.clone().params().iter().rev() {
             self.pop_operand(Some(*ty))?;
         }
-        if ty.results().len() > 0 {
-            bail!(
-                self.offset,
-                "result type expected to be empty for exception"
-            );
-        }
+        // this should be validated when the tag was defined in the module
+        debug_assert!(ty.results().is_empty());
         self.unreachable()?;
         Ok(())
     }
@@ -3757,22 +3761,14 @@ where
     }
     fn visit_memory_init(&mut self, segment: u32, mem: u32) -> Self::Output {
         let ty = self.check_memory_index(mem)?;
-        match self.resources.data_count() {
-            None => bail!(self.offset, "data count section required"),
-            Some(count) if segment < count => {}
-            Some(_) => bail!(self.offset, "unknown data segment {}", segment),
-        }
+        self.check_data_segment(segment)?;
         self.pop_operand(Some(ValType::I32))?;
         self.pop_operand(Some(ValType::I32))?;
         self.pop_operand(Some(ty))?;
         Ok(())
     }
     fn visit_data_drop(&mut self, segment: u32) -> Self::Output {
-        match self.resources.data_count() {
-            None => bail!(self.offset, "data count section required"),
-            Some(count) if segment < count => {}
-            Some(_) => bail!(self.offset, "unknown data segment {}", segment),
-        }
+        self.check_data_segment(segment)?;
         Ok(())
     }
     fn visit_memory_copy(&mut self, dst: u32, src: u32) -> Self::Output {
@@ -3820,13 +3816,7 @@ where
         Ok(())
     }
     fn visit_elem_drop(&mut self, segment: u32) -> Self::Output {
-        if segment >= self.resources.element_count() {
-            bail!(
-                self.offset,
-                "unknown elem segment {}: segment index out of bounds",
-                segment
-            );
-        }
+        self.element_type_at(segment)?;
         Ok(())
     }
     fn visit_table_copy(&mut self, dst_table: u32, src_table: u32) -> Self::Output {
@@ -4222,11 +4212,7 @@ where
                 "type mismatch: array.new_data can only create arrays with numeric and vector elements"
             ),
         }
-        match self.resources.data_count() {
-            None => bail!(self.offset, "data count section required"),
-            Some(count) if data_index < count => {}
-            Some(_) => bail!(self.offset, "unknown data segment {}", data_index),
-        }
+        self.check_data_segment(data_index)?;
         self.pop_operand(Some(ValType::I32))?;
         self.pop_operand(Some(ValType::I32))?;
         self.push_concrete_ref(false, type_index)
@@ -4419,11 +4405,7 @@ where
                 "invalid array.init_data: array type is not numeric or vector"
             ),
         }
-        match self.resources.data_count() {
-            None => bail!(self.offset, "data count section required"),
-            Some(count) if array_data_index < count => {}
-            Some(_) => bail!(self.offset, "unknown data segment {}", array_data_index),
-        }
+        self.check_data_segment(array_data_index)?;
         self.pop_operand(Some(ValType::I32))?;
         self.pop_operand(Some(ValType::I32))?;
         self.pop_operand(Some(ValType::I32))?;

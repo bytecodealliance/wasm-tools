@@ -172,3 +172,35 @@
       local.get $z
       table.atomic.rmw.cmpxchg seq_cst $a))
   "invalid type")
+
+(assert_invalid
+  (module
+    (table 1 funcref)
+    (func
+      i32.const 0
+      table.atomic.get seq_cst 0
+    )
+  )
+  "invalid type: `table.atomic.get` only allows subtypes of `anyref`")
+
+(assert_invalid
+  (module
+    (table 1 funcref)
+    (func
+      i32.const 0
+      ref.null func
+      table.atomic.set seq_cst 0
+    )
+  )
+  "invalid type: `table.atomic.set` only allows subtypes of `anyref`")
+
+(assert_invalid
+  (module
+    (table 1 funcref)
+    (func
+      i32.const 0
+      ref.null func
+      table.atomic.rmw.xchg seq_cst 0
+    )
+  )
+  "invalid type: `table.atomic.rmw.xchg` only allows subtypes of `anyref`")
