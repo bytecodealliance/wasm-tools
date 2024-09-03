@@ -509,6 +509,11 @@
       "filename": "import.74.wasm",
       "text": "unrecognized hash algorithm",
       "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 346,
+      "filename": "import.75.wasm"
     }
   ]
 }

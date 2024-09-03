@@ -32,6 +32,7 @@ use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 use std::sync::Arc;
 use wasm_encoder::reencode::{Reencode, ReencodeComponent, RoundtripReencoder};
 use wasmparser::*;
+use wast::component::{Component, ComponentKind};
 use wast::core::{Module, ModuleKind};
 use wast::lexer::Lexer;
 use wast::parser::ParseBuffer;
@@ -301,8 +302,11 @@ impl TestState {
                     QuoteWat::Wat(Wat::Module(Module {
                         kind: ModuleKind::Binary(_),
                         ..
+                    }))
+                    | QuoteWat::Wat(Wat::Component(Component {
+                        kind: ComponentKind::Binary(_),
+                        ..
                     })) => false,
-
                     _ => true,
                 };
 
