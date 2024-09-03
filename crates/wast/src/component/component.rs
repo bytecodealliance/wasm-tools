@@ -157,7 +157,7 @@ pub enum ComponentField<'a> {
 }
 
 impl<'a> ComponentField<'a> {
-    fn parse_remaining(parser: Parser<'a>) -> Result<Vec<ComponentField>> {
+    fn parse_remaining(parser: Parser<'a>) -> Result<Vec<ComponentField<'a>>> {
         let mut fields = Vec::new();
         while !parser.is_empty() {
             fields.push(parser.parens(ComponentField::parse)?);
