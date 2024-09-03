@@ -508,7 +508,7 @@ impl Module {
 
             (HT::Concrete(a), HT::Abstract { shared, ty }) => {
                 let a_ty = &self.ty(a).composite_type;
-                if a_ty.shared == shared {
+                if a_ty.shared != shared {
                     return false;
                 }
                 match ty {
@@ -522,7 +522,7 @@ impl Module {
 
             (HT::Abstract { shared, ty }, HT::Concrete(b)) => {
                 let b_ty = &self.ty(b).composite_type;
-                if shared == b_ty.shared {
+                if shared != b_ty.shared {
                     return false;
                 }
                 match ty {
@@ -1060,9 +1060,10 @@ impl Module {
                     .copied(),
             );
         }
+        let shared = self.config.shared_everything_threads_enabled && u.arbitrary()?;
 
         Ok(HeapType::Abstract {
-            shared: false, // TODO: turn on shared attribute with shared-everything-threads.
+            shared,
             ty: *u.choose(&choices)?,
         })
     }
@@ -2552,7 +2553,15 @@ pub(crate) fn arbitrary_table_type(
         Some(module) => module.arbitrary_ref_type(u)?,
         None => RefType::FUNCREF,
     };
-    let shared = config.shared_everything_threads_enabled && u.arbitrary()?;
+    // Mark the table as shared if the element type is shared.
+    let shared = match element_type.heap_type {
+        HeapType::Abstract { shared, .. } => shared,
+        HeapType::Concrete(index) => {
+            let module = module.unwrap();
+            let ty = module.types.get(index as usize).unwrap();
+            ty.composite_type.shared
+        }
+    };
 
     Ok(TableType {
         element_type,
