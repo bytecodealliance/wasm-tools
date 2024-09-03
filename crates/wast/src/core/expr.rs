@@ -162,7 +162,7 @@ enum If<'a> {
 }
 
 impl<'a> ExpressionParser<'a> {
-    fn new(parser: Parser<'a>) -> ExpressionParser {
+    fn new(parser: Parser<'a>) -> ExpressionParser<'a> {
         ExpressionParser {
             raw_instrs: Vec::new(),
             stack: Vec::new(),
