@@ -5401,7 +5401,7 @@ fn ref_null(
         };
         for &shared in shareability {
             for ty in [Any, Eq, Array, Struct, I31, None, NoFunc, NoExtern].iter() {
-                choices.push(r(a(ty.clone(), shared)));
+                choices.push(r(a(*ty, shared)));
             }
         }
         for i in 0..module.types.len() {
