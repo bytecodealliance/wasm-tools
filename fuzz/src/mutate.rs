@@ -14,6 +14,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     let (wasm, _config) = crate::generate_valid_module(u, |config, u| {
         config.exceptions_enabled = false;
         config.gc_enabled = false;
+        config.shared_everything_threads_enabled = false;
         seed = u.arbitrary()?;
         preserve_semantics = u.arbitrary()?;
         Ok(())
