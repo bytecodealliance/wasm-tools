@@ -2315,8 +2315,8 @@ fn br_on_null(
                 let ty = *u.choose(&[
                     Func, Extern, Any, None, NoExtern, NoFunc, Eq, Struct, Array, I31,
                 ])?;
-                // TODO: handle shared
-                HeapType::Abstract { shared: false, ty }
+                let shared = module.config().shared_everything_threads_enabled && u.arbitrary()?;
+                HeapType::Abstract { shared, ty }
             }
         }
     };
@@ -5393,18 +5393,17 @@ fn ref_null(
             nullable: true,
             heap_type,
         };
-        let a = |abstract_heap_type| HeapType::Abstract {
-            shared: false, // TODO: handle shared
-            ty: abstract_heap_type,
+        let a = |ty, shared| HeapType::Abstract { shared, ty };
+        let shareability: &[bool] = if module.config().shared_everything_threads_enabled {
+            &[true, false]
+        } else {
+            &[false]
         };
-        choices.push(r(a(Any)));
-        choices.push(r(a(Eq)));
-        choices.push(r(a(Array)));
-        choices.push(r(a(Struct)));
-        choices.push(r(a(I31)));
-        choices.push(r(a(None)));
-        choices.push(r(a(NoFunc)));
-        choices.push(r(a(NoExtern)));
+        for &shared in shareability {
+            for ty in [Any, Eq, Array, Struct, I31, None, NoFunc, NoExtern].iter() {
+                choices.push(r(a(ty.clone(), shared)));
+            }
+        }
         for i in 0..module.types.len() {
             let i = u32::try_from(i).unwrap();
             choices.push(r(HeapType::Concrete(i)));

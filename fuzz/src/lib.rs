@@ -31,9 +31,13 @@ pub fn generate_valid_module(
     config.canonicalize_nans = u.arbitrary()?;
     config.tail_call_enabled = u.arbitrary()?;
     config.custom_page_sizes_enabled = u.arbitrary()?;
-
     config.gc_enabled = u.arbitrary()?;
     config.reference_types_enabled = config.reference_types_enabled || config.gc_enabled;
+    config.shared_everything_threads_enabled = u.arbitrary()?;
+    if config.shared_everything_threads_enabled {
+        config.threads_enabled = true;
+        config.gc_enabled = true;
+    }
 
     configure(&mut config, u)?;
 

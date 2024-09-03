@@ -969,7 +969,11 @@ impl Module {
 
     fn arbitrary_composite_type(&mut self, u: &mut Unstructured) -> Result<CompositeType> {
         use CompositeInnerType as CT;
-        let shared = false; // TODO: handle shared
+        let shared = if self.config.shared_everything_threads_enabled {
+            u.arbitrary()?
+        } else {
+            false
+        };
         if !self.config.gc_enabled {
             return Ok(CompositeType {
                 shared,
@@ -1296,10 +1300,15 @@ impl Module {
                             .collect(),
                     });
                     index_store.replace(new_index as u32);
+                    let shared = if self.config.shared_everything_threads_enabled {
+                        u.arbitrary().unwrap()
+                    } else {
+                        false
+                    };
                     new_types.push(SubType {
                         is_final: true,
                         supertype: None,
-                        composite_type: CompositeType::new_func(Rc::clone(&func_type), false), // TODO: handle shared
+                        composite_type: CompositeType::new_func(Rc::clone(&func_type), shared),
                     });
                     new_index
                 }
@@ -1776,8 +1785,8 @@ impl Module {
                                 supertype: None,
                                 composite_type: CompositeType::new_func(
                                     Rc::clone(&new_type),
-                                    false,
-                                ), // TODO: handle shared
+                                    subtype.composite_type.shared,
+                                ),
                             });
                             let func_index = self.funcs.len() as u32;
                             self.funcs.push((type_index, new_type));
@@ -2494,15 +2503,21 @@ pub(crate) fn configured_valtypes(config: &Config) -> Vec<ValType> {
             // contain a non-null self-reference are also impossible to create).
             true,
         ] {
-            use AbstractHeapType::*;
-            for ty in [
-                Any, Eq, I31, Array, Struct, None, Func, NoFunc, Extern, NoExtern,
-            ] {
-                valtypes.push(ValType::Ref(RefType {
-                    nullable,
-                    // TODO: handle shared
-                    heap_type: HeapType::Abstract { shared: false, ty },
-                }));
+            let shareability: &[bool] = if config.shared_everything_threads_enabled {
+                &[true, false]
+            } else {
+                &[false]
+            };
+            for &shared in shareability {
+                use AbstractHeapType::*;
+                for ty in [
+                    Any, Eq, I31, Array, Struct, None, Func, NoFunc, Extern, NoExtern,
+                ] {
+                    valtypes.push(ValType::Ref(RefType {
+                        nullable,
+                        heap_type: HeapType::Abstract { shared, ty },
+                    }));
+                }
             }
         }
     } else if config.reference_types_enabled {
@@ -2537,12 +2552,14 @@ pub(crate) fn arbitrary_table_type(
         Some(module) => module.arbitrary_ref_type(u)?,
         None => RefType::FUNCREF,
     };
+    let shared = config.shared_everything_threads_enabled && u.arbitrary()?;
+
     Ok(TableType {
         element_type,
         minimum,
         maximum,
         table64,
-        shared: false, // TODO: handle shared
+        shared,
     })
 }
 
