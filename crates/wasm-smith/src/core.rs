@@ -969,11 +969,8 @@ impl Module {
 
     fn arbitrary_composite_type(&mut self, u: &mut Unstructured) -> Result<CompositeType> {
         use CompositeInnerType as CT;
-        let shared = if self.config.shared_everything_threads_enabled {
-            u.arbitrary()?
-        } else {
-            false
-        };
+        let shared = self.config.shared_everything_threads_enabled && u.arbitrary()?;
+
         if !self.config.gc_enabled {
             return Ok(CompositeType {
                 shared,
@@ -1301,11 +1298,7 @@ impl Module {
                             .collect(),
                     });
                     index_store.replace(new_index as u32);
-                    let shared = if self.config.shared_everything_threads_enabled {
-                        u.arbitrary().unwrap()
-                    } else {
-                        false
-                    };
+                    let shared = self.config.shared_everything_threads_enabled && u.arbitrary()?;
                     new_types.push(SubType {
                         is_final: true,
                         supertype: None,
