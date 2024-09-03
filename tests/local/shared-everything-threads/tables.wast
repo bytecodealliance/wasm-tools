@@ -30,7 +30,7 @@
 ;; would need to lookahead multiple tokens.
 (assert_malformed
   (module quote "(table shared i64 (ref null (shared func)) (elem (ref.null (shared func))))")
-  "unexpected token")
+  "expected a u64")
 
 (assert_invalid
   (module (table (import "spectest" "table_ref") shared 0 funcref))

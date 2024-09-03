@@ -117,14 +117,14 @@
       "type": "assert_invalid",
       "line": 53,
       "filename": "throw.2.wasm",
-      "text": "type mismatch: instruction requires [i32] but stack has []",
+      "text": "type mismatch",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
       "line": 55,
       "filename": "throw.3.wasm",
-      "text": "type mismatch: instruction requires [i32] but stack has [i64]",
+      "text": "type mismatch",
       "module_type": "binary"
     }
   ]

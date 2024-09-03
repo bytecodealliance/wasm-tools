@@ -5,105 +5,105 @@
       "type": "assert_malformed",
       "line": 1,
       "filename": "duplicate.0.wat",
-      "text": "duplicate identifier",
+      "text": "duplicate func identifier",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 5,
       "filename": "duplicate.1.wat",
-      "text": "duplicate identifier",
+      "text": "duplicate func identifier",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 9,
       "filename": "duplicate.2.wat",
-      "text": "duplicate identifier",
+      "text": "duplicate func identifier",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 14,
       "filename": "duplicate.3.wat",
-      "text": "duplicate identifier",
+      "text": "duplicate global identifier",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 18,
       "filename": "duplicate.4.wat",
-      "text": "duplicate identifier",
+      "text": "duplicate global identifier",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 22,
       "filename": "duplicate.5.wat",
-      "text": "duplicate identifier",
+      "text": "duplicate global identifier",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 27,
       "filename": "duplicate.6.wat",
-      "text": "duplicate identifier",
+      "text": "duplicate memory identifier",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 31,
       "filename": "duplicate.7.wat",
-      "text": "duplicate identifier",
+      "text": "duplicate memory identifier",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 35,
       "filename": "duplicate.8.wat",
-      "text": "duplicate identifier",
+      "text": "duplicate memory identifier",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 40,
       "filename": "duplicate.9.wat",
-      "text": "duplicate identifier",
+      "text": "duplicate table identifier",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 44,
       "filename": "duplicate.10.wat",
-      "text": "duplicate identifier",
+      "text": "duplicate table identifier",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 48,
       "filename": "duplicate.11.wat",
-      "text": "duplicate identifier",
+      "text": "duplicate table identifier",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 53,
       "filename": "duplicate.12.wat",
-      "text": "duplicate identifier",
+      "text": "duplicate local identifier",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 55,
       "filename": "duplicate.13.wat",
-      "text": "duplicate identifier",
+      "text": "duplicate local identifier",
       "module_type": "text"
     },
     {
       "type": "assert_malformed",
       "line": 57,
       "filename": "duplicate.14.wat",
-      "text": "duplicate identifier",
+      "text": "duplicate local identifier",
       "module_type": "text"
     }
   ]
