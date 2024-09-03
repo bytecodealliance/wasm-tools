@@ -1224,7 +1224,7 @@ impl CodeBuilder<'_> {
     fn arbitrary_block_type(&self, u: &mut Unstructured, module: &Module) -> Result<BlockType> {
         let mut options: Vec<Box<dyn Fn(&mut Unstructured) -> Result<BlockType>>> = vec![
             Box::new(|_| Ok(BlockType::Empty)),
-            Box::new(|u| Ok(BlockType::Result(module.arbitrary_valtype(u)?))),
+            Box::new(|u| Ok(BlockType::Result(module.arbitrary_valtype(u, false)?))), // TODO: handle shared
         ];
         if module.config.multi_value_enabled {
             for (i, ty) in module.func_types() {
@@ -2323,8 +2323,8 @@ fn br_on_null(
                 let ty = *u.choose(&[
                     Func, Extern, Any, None, NoExtern, NoFunc, Eq, Struct, Array, I31,
                 ])?;
-                // TODO: handle shared
-                HeapType::Abstract { shared: false, ty }
+                let shared = module.arbitrary_shared(u)?;
+                HeapType::Abstract { shared, ty }
             }
         }
     };
@@ -5397,25 +5397,26 @@ fn ref_null(
     }
     if module.config.gc_enabled {
         use AbstractHeapType::*;
-        let r = |heap_type| RefType {
-            nullable: true,
-            heap_type,
-        };
-        let a = |abstract_heap_type| HeapType::Abstract {
-            shared: false, // TODO: handle shared
-            ty: abstract_heap_type,
-        };
-        choices.push(r(a(Any)));
-        choices.push(r(a(Eq)));
-        choices.push(r(a(Array)));
-        choices.push(r(a(Struct)));
-        choices.push(r(a(I31)));
-        choices.push(r(a(None)));
-        choices.push(r(a(NoFunc)));
-        choices.push(r(a(NoExtern)));
+        let abs_ref_types = [Any, Eq, Array, Struct, I31, None, NoFunc, NoExtern];
+        choices.extend(
+            abs_ref_types
+                .iter()
+                .map(|&ty| RefType::new_abstract(ty, true, false)),
+        );
+        if module.config().shared_everything_threads_enabled {
+            choices.extend(
+                abs_ref_types
+                    .iter()
+                    .map(|&ty| RefType::new_abstract(ty, true, true)),
+            );
+        }
+
         for i in 0..module.types.len() {
             let i = u32::try_from(i).unwrap();
-            choices.push(r(HeapType::Concrete(i)));
+            choices.push(RefType {
+                nullable: true,
+                heap_type: HeapType::Concrete(i),
+            });
         }
     }
     let ty = *u.choose(&choices)?;
@@ -5462,7 +5463,10 @@ fn ref_as_non_null(
 ) -> Result<()> {
     let ref_ty = match builder.pop_ref_type() {
         Some(r) => r,
-        None => module.arbitrary_ref_type(u)?,
+        None => {
+            let shared = module.arbitrary_shared(u)?;
+            module.arbitrary_ref_type(u, shared)?
+        }
     };
     builder.push_operand(Some(ValType::Ref(RefType {
         nullable: false,
@@ -5504,7 +5508,10 @@ fn ref_test(
 ) -> Result<()> {
     let ref_ty = match builder.pop_ref_type() {
         Some(r) => r,
-        None => module.arbitrary_ref_type(u)?,
+        None => {
+            let shared = module.arbitrary_shared(u)?;
+            module.arbitrary_ref_type(u, shared)?
+        }
     };
     builder.push_operand(Some(ValType::I32));
 
@@ -5532,7 +5539,10 @@ fn ref_cast(
 ) -> Result<()> {
     let ref_ty = match builder.pop_ref_type() {
         Some(r) => r,
-        None => module.arbitrary_ref_type(u)?,
+        None => {
+            let shared = module.arbitrary_shared(u)?;
+            module.arbitrary_ref_type(u, shared)?
+        }
     };
     let sub_ty = RefType {
         nullable: if !ref_ty.nullable {
