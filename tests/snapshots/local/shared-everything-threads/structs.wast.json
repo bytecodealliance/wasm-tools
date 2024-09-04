@@ -212,6 +212,34 @@
       "filename": "structs.31.wasm",
       "text": "invalid type",
       "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 532,
+      "filename": "structs.32.wasm",
+      "text": "invalid type: `struct.atomic.get` only allows `i32`, `i64` and subtypes of `anyref`",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 543,
+      "filename": "structs.33.wasm",
+      "text": "invalid type: `struct.atomic.get` only allows `i32`, `i64` and subtypes of `anyref`",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 554,
+      "filename": "structs.34.wasm",
+      "text": "can only use struct `get` with non-packed storage types",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 565,
+      "filename": "structs.35.wasm",
+      "text": "invalid type: `struct.atomic.set` only allows `i8`, `i16`, `i32`, `i64` and subtypes of `anyref`",
+      "module_type": "binary"
     }
   ]
 }

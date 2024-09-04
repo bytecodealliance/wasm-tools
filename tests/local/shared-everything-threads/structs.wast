@@ -527,3 +527,46 @@
   )
   "invalid type"
 )
+
+(assert_invalid
+  (module
+    (type $s (shared (struct (field $f f32))))
+    (func
+      unreachable
+      struct.atomic.get seq_cst $s $f
+      drop
+    ))
+  "invalid type: `struct.atomic.get` only allows `i32`, `i64` and subtypes of `anyref`"
+)
+
+(assert_invalid
+  (module
+    (type $s (shared (struct (field $f (ref (shared func))))))
+    (func
+      unreachable
+      struct.atomic.get seq_cst $s $f
+      drop
+    ))
+  "invalid type: `struct.atomic.get` only allows `i32`, `i64` and subtypes of `anyref`"
+)
+
+(assert_invalid
+  (module
+    (type $s (shared (struct (field $f i8))))
+    (func
+      unreachable
+      struct.atomic.get seq_cst $s $f
+      drop
+    ))
+  "can only use struct `get` with non-packed storage types"
+)
+
+(assert_invalid
+  (module
+    (type $s (shared (struct (field $f (mut (ref (shared extern)))))))
+    (func
+      unreachable
+      struct.atomic.set seq_cst $s $f
+    ))
+  "invalid type: `struct.atomic.set` only allows `i8`, `i16`, `i32`, `i64` and subtypes of `anyref`"
+)

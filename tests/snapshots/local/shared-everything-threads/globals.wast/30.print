@@ -1,0 +1,10 @@
+(module
+  (type (;0;) (func))
+  (func (;0;) (type 0)
+    ref.null eq
+    ref.null eq
+    global.atomic.rmw.cmpxchg acq_rel $g
+    drop
+  )
+  (global $g (;0;) (mut eqref) ref.null eq)
+)

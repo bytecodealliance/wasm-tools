@@ -367,3 +367,63 @@
     global.atomic.rmw.cmpxchg acq_rel $b)
 )
 
+(assert_invalid
+  (module
+    (global $g (mut funcref) (ref.null func))
+    (func
+      ref.null func
+      global.atomic.rmw.xor acq_rel $g
+      drop
+    )
+  )
+  "invalid type: `global.atomic.rmw.*` only allows `i32` and `i64`")
+
+(assert_invalid
+  (module
+    (func
+      global.atomic.rmw.xor acq_rel 200
+    )
+  )
+  "global index out of bounds")
+
+(assert_invalid
+  (module
+    (global $g (mut funcref) (ref.null func))
+    (func
+      ref.null func
+      global.atomic.rmw.xchg acq_rel $g
+      drop
+    )
+  )
+  "invalid type: `global.atomic.rmw.xchg` only allows `i32`, `i64` and subtypes of `anyref`")
+
+(module
+  (global $g (mut eqref) (ref.null eq))
+  (func
+    ref.null eq
+    global.atomic.rmw.xchg acq_rel $g
+    drop
+  )
+)
+
+(assert_invalid
+  (module
+    (global $g (mut anyref) (ref.null any))
+    (func
+      ref.null any
+      ref.null any
+      global.atomic.rmw.cmpxchg acq_rel $g
+      drop
+    )
+  )
+  "invalid type: `global.atomic.rmw.cmpxchg` only allows `i32`, `i64` and subtypes of `eqref`")
+
+(module
+  (global $g (mut eqref) (ref.null eq))
+  (func
+    ref.null eq
+    ref.null eq
+    global.atomic.rmw.cmpxchg acq_rel $g
+    drop
+  )
+)

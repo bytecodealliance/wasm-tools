@@ -849,3 +849,46 @@
   )
   "invalid type"
 )
+
+(assert_invalid
+  (module
+    (type $s (shared (array f32)))
+    (func
+      unreachable
+      array.atomic.get seq_cst $s
+      drop
+    ))
+  "invalid type: `array.atomic.get` only allows `i32`, `i64` and subtypes of `anyref`"
+)
+
+(assert_invalid
+  (module
+    (type $s (shared (array (ref (shared func)))))
+    (func
+      unreachable
+      array.atomic.get seq_cst $s
+      drop
+    ))
+  "invalid type: `array.atomic.get` only allows `i32`, `i64` and subtypes of `anyref`"
+)
+
+(assert_invalid
+  (module
+    (type $s (shared (array i8)))
+    (func
+      unreachable
+      array.atomic.get seq_cst $s
+      drop
+    ))
+  "cannot use array.get with packed storage types"
+)
+
+(assert_invalid
+  (module
+    (type $s (shared (array (mut (ref (shared extern))))))
+    (func
+      unreachable
+      array.atomic.set seq_cst $s
+    ))
+  "invalid type: `array.atomic.set` only allows `i8`, `i16`, `i32`, `i64` and subtypes of `anyref`"
+)
