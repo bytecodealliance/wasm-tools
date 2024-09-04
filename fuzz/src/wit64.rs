@@ -6,7 +6,7 @@ use wit_parser as wit_parser_new;
 pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     let wasm = u.arbitrary().and_then(|config| {
         log::debug!("config: {config:#?}");
-        wit_smith_old::smith(&config, u)
+        wit_smith::smith(&config, u)
     })?;
     write_file("doc.wasm", &wasm);
     let r1 = wit_component_old::decode(&wasm).unwrap();

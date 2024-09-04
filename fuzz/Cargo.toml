@@ -37,10 +37,6 @@ version = '0.214.0'
 package = 'wit-component'
 version = '0.214.0'
 
-[dependencies.wit-smith-old]
-package = 'wit-smith'
-version = '0.214.0'
-
 [lib]
 test = false
 doctest = false
