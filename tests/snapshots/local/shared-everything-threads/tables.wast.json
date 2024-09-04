@@ -29,7 +29,7 @@
       "type": "assert_malformed",
       "line": 32,
       "filename": "tables.4.wat",
-      "text": "unexpected token",
+      "text": "expected a u64",
       "module_type": "text"
     },
     {

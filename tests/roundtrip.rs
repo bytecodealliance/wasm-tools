@@ -354,7 +354,7 @@ impl TestState {
                         message,
                     ),
                     Err(e) => {
-                        if error_matches(&format!("{:?}", e), message) {
+                        if error_matches(test, &format!("{:?}", e), message) {
                             self.bump_ntests();
                             return Ok(());
                         }
@@ -669,10 +669,17 @@ impl TestState {
     }
 }
 
-fn error_matches(error: &str, message: &str) -> bool {
+fn error_matches(test: &Path, error: &str, message: &str) -> bool {
     if error.contains(message) {
         return true;
     }
+    // we are in control over all tsets in `tests/local/*` so all the error
+    // messages there should exactly match the `assert_invalid` or such. No need
+    // for fuzzy matching on error messages.
+    if test.starts_with("tests/local") {
+        return false;
+    }
+
     if message == "unknown operator"
         || message == "unexpected token"
         || message == "wrong number of lane literals"
