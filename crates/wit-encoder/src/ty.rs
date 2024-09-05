@@ -117,7 +117,8 @@ impl Display for Type {
 #[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub struct VariantCase {
     name: Ident,
-    ty: Option<Type>,
+    #[cfg_attr(feature = "serde", serde(rename = "type"))]
+    type_: Option<Type>,
     docs: Option<Docs>,
 }
 
@@ -125,7 +126,7 @@ impl VariantCase {
     pub fn empty(name: impl Into<Ident>) -> Self {
         Self {
             name: name.into(),
-            ty: None,
+            type_: None,
             docs: None,
         }
     }
@@ -133,17 +134,29 @@ impl VariantCase {
     pub fn value(name: impl Into<Ident>, ty: Type) -> Self {
         Self {
             name: name.into(),
-            ty: Some(ty),
+            type_: Some(ty),
             docs: None,
         }
     }
 
+    pub fn set_name(&mut self, name: impl Into<Ident>) {
+        self.name = name.into();
+    }
+
+    pub fn name(&self) -> &Ident {
+        &self.name
+    }
+
+    pub fn name_mut(&mut self) -> &mut Ident {
+        &mut self.name
+    }
+
     pub fn type_(&self) -> Option<&Type> {
-        self.ty.as_ref()
+        self.type_.as_ref()
     }
 
     pub fn type_mut(&mut self) -> &mut Option<Type> {
-        &mut self.ty
+        &mut self.type_
     }
 
     pub fn set_docs(&mut self, docs: Option<impl Into<Docs>>) {
@@ -348,7 +361,7 @@ impl Render for TypeDef {
                     if let Some(docs) = &field.docs {
                         docs.render(f, &opts)?;
                     }
-                    write!(f, "{}{}: {},\n", opts.spaces(), field.name, field.ty)?;
+                    write!(f, "{}{}: {},\n", opts.spaces(), field.name, field.type_)?;
                 }
                 write!(f, "{}}}\n", opts.spaces())?;
             }
@@ -408,7 +421,7 @@ impl Render for TypeDef {
                     if let Some(docs) = &case.docs {
                         docs.render(f, &opts)?;
                     }
-                    match &case.ty {
+                    match &case.type_ {
                         Some(type_) => {
                             write!(f, "{}{}({}),\n", opts.spaces(), case.name, type_)?;
                         }

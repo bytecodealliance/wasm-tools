@@ -17,11 +17,23 @@ impl Result_ {
             err: None,
         }
     }
+    pub fn get_ok(&self) -> &Option<Type> {
+        &self.ok
+    }
+    pub fn get_ok_mut(&mut self) -> &mut Option<Type> {
+        &mut self.ok
+    }
     pub fn err(type_: Type) -> Self {
         Self {
             ok: None,
             err: Some(type_),
         }
+    }
+    pub fn get_err(&self) -> &Option<Type> {
+        &self.err
+    }
+    pub fn get_err_mut(&mut self) -> &mut Option<Type> {
+        &mut self.err
     }
     pub fn both(ok: Type, err: Type) -> Self {
         Self {

@@ -28,7 +28,8 @@ impl Record {
 #[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub struct Field {
     pub(crate) name: Ident,
-    pub(crate) ty: Type,
+    #[cfg_attr(feature = "serde", serde(rename = "type"))]
+    pub(crate) type_: Type,
     pub(crate) docs: Option<Docs>,
 }
 
@@ -36,12 +37,12 @@ impl Field {
     pub fn new(name: impl Into<Ident>, ty: Type) -> Self {
         Self {
             name: name.into(),
-            ty,
+            type_: ty,
             docs: None,
         }
     }
 
-    pub fn name(&mut self) -> &Ident {
+    pub fn name(&self) -> &Ident {
         &self.name
     }
 
@@ -57,12 +58,16 @@ impl Field {
         &self.docs
     }
 
-    pub fn ty(&self) -> &Type {
-        &self.ty
+    pub fn type_(&self) -> &Type {
+        &self.type_
     }
 
-    pub fn ty_mut(&mut self) -> &mut Type {
-        &mut self.ty
+    pub fn type_mut(&mut self) -> &mut Type {
+        &mut self.type_
+    }
+
+    pub fn set_type(&mut self, type_: impl Into<Type>) {
+        self.type_ = type_.into();
     }
 }
 

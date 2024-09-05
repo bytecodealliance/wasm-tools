@@ -108,6 +108,22 @@ impl ResourceFunc {
         }
     }
 
+    pub fn results(&self) -> Option<&Results> {
+        match &self.kind {
+            ResourceFuncKind::Method(_, results) => Some(results),
+            ResourceFuncKind::Static(_, results) => Some(results),
+            ResourceFuncKind::Constructor => None,
+        }
+    }
+
+    pub fn results_mut(&mut self) -> Option<&mut Results> {
+        match &mut self.kind {
+            ResourceFuncKind::Method(_, results) => Some(results),
+            ResourceFuncKind::Static(_, results) => Some(results),
+            ResourceFuncKind::Constructor => None,
+        }
+    }
+
     pub fn set_docs(&mut self, docs: Option<impl Into<Docs>>) {
         self.docs = docs.map(|d| d.into());
     }
