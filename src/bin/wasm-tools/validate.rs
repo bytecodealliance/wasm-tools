@@ -1,5 +1,5 @@
 use addr2line::LookupResult;
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{bail, Context, Result};
 use bitflags::Flags;
 use rayon::prelude::*;
 use std::fmt::Write;
@@ -183,53 +183,76 @@ impl Opts {
 fn parse_features(arg: &str) -> Result<WasmFeatures> {
     let mut ret = WasmFeatures::default();
 
-    fn flag_name(flag: &bitflags::Flag<WasmFeatures>) -> String {
-        flag.name().to_lowercase().replace('_', "-")
+    const GROUPS: &[(&str, WasmFeatures)] = &[
+        ("mvp", WasmFeatures::WASM1),
+        ("wasm1", WasmFeatures::WASM1),
+        ("wasm2", WasmFeatures::WASM2),
+        ("wasm3", WasmFeatures::WASM3),
+    ];
+
+    enum Action {
+        ChangeAll,
+        Group(WasmFeatures),
+        Modify(WasmFeatures),
     }
 
-    for part in arg.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
+    fn actions() -> impl Iterator<Item = (&'static str, Action)> {
+        WasmFeatures::FLAGS
+            .iter()
+            .map(|f| (f.name(), Action::Modify(*f.value())))
+            .chain(
+                GROUPS
+                    .iter()
+                    .map(|(name, features)| (*name, Action::Group(*features))),
+            )
+            .chain([("all", Action::ChangeAll)])
+    }
+
+    fn flag_name(name: &str) -> String {
+        name.to_lowercase().replace('_', "-")
+    }
+
+    'outer: for part in arg.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
         let (enable, part) = if let Some(part) = part.strip_prefix("-") {
             (false, part)
         } else {
             (true, part)
         };
-        match part {
-            "all" => {
-                for flag in WasmFeatures::FLAGS.iter() {
-                    ret.set(*flag.value(), enable);
+        for (name, action) in actions() {
+            if part != flag_name(name) {
+                continue;
+            }
+            match action {
+                Action::ChangeAll => {
+                    for flag in WasmFeatures::FLAGS.iter() {
+                        ret.set(*flag.value(), enable);
+                    }
+                }
+                Action::Modify(feature) => {
+                    ret.set(feature, enable);
+                }
+                Action::Group(features) => {
+                    if !enable {
+                        bail!("cannot disable `{part}`, it can only be enabled");
+                    }
+                    ret = features;
                 }
             }
-            "wasm1" | "mvp" => {
-                if !enable {
-                    bail!("cannot disable `{part}`, it can only be enabled");
-                }
-                ret = WasmFeatures::wasm1();
-            }
-            "wasm2" => {
-                if !enable {
-                    bail!("cannot disable `{part}`, it can only be enabled");
-                }
-                ret = WasmFeatures::wasm2();
-            }
-
-            name => {
-                let flag = WasmFeatures::FLAGS
-                    .iter()
-                    .find(|f| flag_name(f) == name)
-                    .ok_or_else(|| {
-                        anyhow!(
-                            "unknown feature `{}`\nValid features: {}",
-                            name,
-                            WasmFeatures::FLAGS
-                                .iter()
-                                .map(flag_name)
-                                .collect::<Vec<_>>()
-                                .join(", "),
-                        )
-                    })?;
-                ret.set(*flag.value(), enable);
-            }
+            continue 'outer;
         }
+
+        let mut error = format!("unknown feature `{part}`\n");
+        error.push_str("Valid features: ");
+        let mut first = true;
+        for (name, _) in actions() {
+            if first {
+                first = false;
+            } else {
+                error.push_str(", ");
+            }
+            error.push_str(&flag_name(name));
+        }
+        bail!("{error}")
     }
 
     Ok(ret)
