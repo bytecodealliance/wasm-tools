@@ -993,6 +993,18 @@ impl<'a> Parser<'a> {
     pub(crate) fn track_instr_spans(&self) -> bool {
         self.buf.track_instr_spans
     }
+
+    pub(crate) fn with_standard_annotations_registered<R>(
+        self,
+        f: impl FnOnce(Self) -> Result<R>,
+    ) -> Result<R> {
+        let _r = self.register_annotation("custom");
+        let _r = self.register_annotation("producers");
+        let _r = self.register_annotation("name");
+        let _r = self.register_annotation("dylink.0");
+        let _r = self.register_annotation("metadata.code.branch_hint");
+        f(self)
+    }
 }
 
 impl<'a> Cursor<'a> {
