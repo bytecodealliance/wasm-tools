@@ -2,7 +2,7 @@ use wasm_smith::Config;
 use wasmparser::{types::Types, Validator, WasmFeatures};
 
 pub fn parser_features_from_config(config: &Config) -> WasmFeatures {
-    let mut features = WasmFeatures::MUTABLE_GLOBAL | WasmFeatures::wasm1();
+    let mut features = WasmFeatures::MUTABLE_GLOBAL | WasmFeatures::WASM1;
     features.set(
         WasmFeatures::SATURATING_FLOAT_TO_INT,
         config.saturating_float_to_int_enabled,
