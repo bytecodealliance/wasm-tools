@@ -65,7 +65,7 @@ impl EnumCase {
         }
     }
 
-    pub fn name(&mut self) -> &Ident {
+    pub fn name(&self) -> &Ident {
         &self.name
     }
 

@@ -138,6 +138,18 @@ impl VariantCase {
         }
     }
 
+    pub fn set_name(&mut self, name: impl Into<Ident>) {
+        self.name = name.into();
+    }
+
+    pub fn name(&self) -> &Ident {
+        &self.name
+    }
+
+    pub fn name_mut(&mut self) -> &mut Ident {
+        &mut self.name
+    }
+
     pub fn type_(&self) -> Option<&Type> {
         self.ty.as_ref()
     }

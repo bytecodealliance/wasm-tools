@@ -41,7 +41,7 @@ impl Field {
         }
     }
 
-    pub fn name(&mut self) -> &Ident {
+    pub fn name(&self) -> &Ident {
         &self.name
     }
 
