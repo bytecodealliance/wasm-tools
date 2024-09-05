@@ -68,7 +68,7 @@ impl Encodable {
         }
     }
 
-    fn core_type(&mut self) -> CoreTypeEncoder {
+    fn core_type(&mut self) -> ComponentCoreTypeEncoder {
         match self {
             Encodable::Component(t) => t.core_type(),
             Encodable::Instance(t) => t.core_type(),
@@ -349,7 +349,7 @@ impl<'a> TypeEncoder<'a> {
         match ty {
             wasmparser::types::EntityType::Func(id) => {
                 let ty = &self.0.types[id].unwrap_func();
-                let idx = match types.entry(ComponentCoreTypeId::Sub(id).into()) {
+                let idx = match types.entry(ComponentCoreTypeId::Rec(id).into()) {
                     Entry::Occupied(e) => *e.get(),
                     Entry::Vacant(e) => {
                         let index = encodable.type_count();
@@ -367,7 +367,7 @@ impl<'a> TypeEncoder<'a> {
             wasmparser::types::EntityType::Global(ty) => EntityType::Global(ty.try_into().unwrap()),
             wasmparser::types::EntityType::Tag(id) => {
                 let ty = &self.0.types[id];
-                let idx = match types.entry(ComponentCoreTypeId::Sub(id).into()) {
+                let idx = match types.entry(ComponentCoreTypeId::Rec(id).into()) {
                     Entry::Occupied(e) => *e.get(),
                     Entry::Vacant(e) => {
                         let ty = ty.unwrap_func();
@@ -609,7 +609,7 @@ impl<'a> TypeEncoder<'a> {
 
         // This type wasn't previously defined, so define it here.
         return match id {
-            AnyTypeId::Core(ComponentCoreTypeId::Sub(_)) => unreachable!(),
+            AnyTypeId::Core(ComponentCoreTypeId::Rec(_)) => unreachable!(),
             AnyTypeId::Core(ComponentCoreTypeId::Module(id)) => self.module_type(state, id),
             AnyTypeId::Component(id) => match id {
                 ComponentAnyTypeId::Resource(_) => {

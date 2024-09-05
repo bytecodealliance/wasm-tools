@@ -36,21 +36,19 @@ impl Module {
         for group in &self.rec_groups {
             if group.end - group.start == 1 {
                 let ty = &self.types[group.start];
-                section.subtype(&wasm_encoder::SubType {
+                section.ty().subtype(&wasm_encoder::SubType {
                     is_final: ty.is_final,
                     supertype_idx: ty.supertype,
                     composite_type: (&ty.composite_type).into(),
                 });
             } else {
-                section.rec(
-                    self.types[group.clone()]
-                        .iter()
-                        .map(|ty| wasm_encoder::SubType {
-                            is_final: ty.is_final,
-                            supertype_idx: ty.supertype,
-                            composite_type: (&ty.composite_type).into(),
-                        }),
-                );
+                section.ty().rec(self.types[group.clone()].iter().map(|ty| {
+                    wasm_encoder::SubType {
+                        is_final: ty.is_final,
+                        supertype_idx: ty.supertype,
+                        composite_type: (&ty.composite_type).into(),
+                    }
+                }));
             }
         }
 

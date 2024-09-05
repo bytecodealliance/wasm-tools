@@ -299,7 +299,7 @@ impl ComponentBuilder {
     }
 
     /// Creates a new encoder for the next core type in this component.
-    pub fn core_type(&mut self) -> (u32, CoreTypeEncoder<'_>) {
+    pub fn core_type(&mut self) -> (u32, ComponentCoreTypeEncoder<'_>) {
         (inc(&mut self.core_types), self.core_types().ty())
     }
 

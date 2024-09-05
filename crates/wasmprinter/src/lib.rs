@@ -744,61 +744,59 @@ impl Printer<'_, '_> {
     }
 
     fn print_core_type(&mut self, states: &mut Vec<State>, ty: CoreType) -> Result<()> {
-        self.start_group("core type ")?;
-        self.print_name(
-            &states.last().unwrap().core.type_names,
-            states.last().unwrap().core.types.len() as u32,
-        )?;
-        let ty = match ty {
-            CoreType::Sub(ty) => {
-                let ty = match &ty.composite_type.inner {
-                    CompositeInnerType::Func(f) => f,
-                    CompositeInnerType::Array(_) | CompositeInnerType::Struct(_) => {
-                        unreachable!("Wasm GC types cannot appear in components yet")
-                    }
-                };
-                self.result.write_str(" ")?;
-                self.start_group("func")?;
-                self.print_func_type(states.last().unwrap(), &ty, None)?;
-                self.end_group()?;
-                let composite_type = CompositeType {
-                    inner: CompositeInnerType::Func(ty.clone()),
-                    shared: false,
-                };
-                Some(SubType {
-                    is_final: true,
-                    supertype_idx: None,
-                    composite_type,
-                })
+        match ty {
+            CoreType::Rec(rec) => {
+                self.print_rec(states.last_mut().unwrap(), None, rec, true)?;
             }
             CoreType::Module(decls) => {
+                self.start_group("core type ")?;
+                self.print_name(
+                    &states.last().unwrap().core.type_names,
+                    states.last().unwrap().core.types.len() as u32,
+                )?;
                 self.print_module_type(states, decls.into_vec())?;
-                None
+                self.end_group()?; // `core type` itself
+                states.last_mut().unwrap().core.types.push(None);
             }
-        };
-        self.end_group()?; // `core type` itself
-
-        states.last_mut().unwrap().core.types.push(ty);
+        }
         Ok(())
     }
 
     fn print_rec(
         &mut self,
         state: &mut State,
-        offset: usize,
-        types: impl Iterator<Item = SubType>,
+        offset: Option<usize>,
+        rec: RecGroup,
+        is_component: bool,
     ) -> Result<()> {
-        self.start_group("rec")?;
-        for ty in types {
-            self.newline(offset + 2)?;
-            self.print_type(state, ty)?;
+        if rec.is_explicit_rec_group() {
+            if is_component {
+                self.start_group("core rec")?;
+            } else {
+                self.start_group("rec")?;
+            }
+            for ty in rec.into_types() {
+                match offset {
+                    Some(offset) => self.newline(offset + 2)?,
+                    None => self.newline_unknown_pos()?,
+                }
+                self.print_type(state, ty, false)?;
+            }
+            self.end_group()?; // `rec`
+        } else {
+            assert_eq!(rec.types().len(), 1);
+            let ty = rec.into_types().next().unwrap();
+            self.print_type(state, ty, is_component)?;
         }
-        self.end_group()?; // `rec`
         Ok(())
     }
 
-    fn print_type(&mut self, state: &mut State, ty: SubType) -> Result<()> {
-        self.start_group("type ")?;
+    fn print_type(&mut self, state: &mut State, ty: SubType, is_component: bool) -> Result<()> {
+        if is_component {
+            self.start_group("core type ")?;
+        } else {
+            self.start_group("type ")?;
+        }
         let ty_idx = state.core.types.len() as u32;
         self.print_name(&state.core.type_names, ty_idx)?;
         self.result.write_str(" ")?;
@@ -869,15 +867,8 @@ impl Printer<'_, '_> {
         for ty in parser.into_iter_with_offsets() {
             let (offset, rec_group) = ty?;
             self.newline(offset)?;
-            if rec_group.is_explicit_rec_group() {
-                self.print_rec(state, offset, rec_group.into_types())?
-            } else {
-                assert_eq!(rec_group.types().len(), 1);
-                let ty = rec_group.into_types().next().unwrap();
-                self.print_type(state, ty)?;
-            }
+            self.print_rec(state, Some(offset), rec_group, false)?;
         }
-
         Ok(())
     }
 
@@ -1831,8 +1822,8 @@ impl Printer<'_, '_> {
         for decl in decls {
             self.newline_unknown_pos()?;
             match decl {
-                ModuleTypeDeclaration::Type(ty) => {
-                    self.print_type(states.last_mut().unwrap(), ty)?
+                ModuleTypeDeclaration::Type(rec) => {
+                    self.print_rec(states.last_mut().unwrap(), None, rec, false)?
                 }
                 ModuleTypeDeclaration::OuterAlias { kind, count, index } => {
                     self.print_outer_alias(states, kind, count, index)?;

@@ -1,8 +1,9 @@
 use crate::limits::*;
 use crate::prelude::*;
+use crate::RecGroup;
 use crate::{
     BinaryReader, ComponentAlias, ComponentExportName, ComponentImport, ComponentTypeRef,
-    FromReader, Import, Result, SectionLimited, SubType, TypeRef, ValType,
+    FromReader, Import, Result, SectionLimited, TypeRef, ValType,
 };
 use core::fmt;
 
@@ -17,7 +18,7 @@ pub enum OuterAliasKind {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum CoreType<'a> {
     /// The type is for a core subtype.
-    Sub(SubType),
+    Rec(RecGroup),
     /// The type is for a core module.
     Module(Box<[ModuleTypeDeclaration<'a>]>),
 }
@@ -25,11 +26,11 @@ pub enum CoreType<'a> {
 impl<'a> FromReader<'a> for CoreType<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         Ok(match reader.peek()? {
-            0x60 => CoreType::Sub(reader.read()?),
-            0x5e | 0x5f => bail!(
-                reader.current_position(),
-                "no support for GC types in the component model yet"
-            ),
+            0x60 => CoreType::Rec(reader.read()?),
+            0x00 => {
+                reader.read_u8()?;
+                CoreType::Rec(reader.read()?)
+            }
             0x50 => {
                 reader.read_u8()?;
                 CoreType::Module(
@@ -47,7 +48,7 @@ impl<'a> FromReader<'a> for CoreType<'a> {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum ModuleTypeDeclaration<'a> {
     /// The module type definition is for a type.
-    Type(SubType),
+    Type(RecGroup),
     /// The module type definition is for an export.
     Export {
         /// The name of the exported item.

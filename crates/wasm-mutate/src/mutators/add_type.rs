@@ -70,16 +70,16 @@ impl Mutator for AddTypeMutator {
                     .copied()
                     .map(map_type)
                     .collect::<Result<Vec<_>, _>>()?;
-                types.function(params, results);
+                types.ty().function(params, results);
             }
             // And then add our new type.
-            types.function(params, results);
+            types.ty().function(params, results);
             let types_section_index = config.info().types.unwrap();
             Ok(Box::new(iter::once(Ok(config
                 .info()
                 .replace_section(types_section_index, &types)))))
         } else {
-            types.function(params, results);
+            types.ty().function(params, results);
             Ok(Box::new(iter::once(Ok(config
                 .info()
                 .insert_section(0, &types)))))

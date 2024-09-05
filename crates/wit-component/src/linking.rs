@@ -289,7 +289,7 @@ fn make_env_module<'a>(
                         Type::Function(ty) => {
                             let index = get_and_increment(&mut function_count);
                             entry.insert(index);
-                            types.function(
+                            types.ty().function(
                                 ty.parameters.iter().copied().map(ValType::from),
                                 ty.results.iter().copied().map(ValType::from),
                             );
@@ -314,7 +314,7 @@ fn make_env_module<'a>(
             }
             let index = get_and_increment(&mut function_count);
 
-            types.function(vec![], vec![]);
+            types.ty().function(vec![], vec![]);
             imports.import(metadata.name, "_start", EntityType::Function(index));
 
             wasi_start = Some(index);
@@ -332,7 +332,7 @@ fn make_env_module<'a>(
 
     if let Some(exporter) = cabi_realloc_exporter {
         let index = get_and_increment(&mut function_count);
-        types.function([ValType::I32; 4], [ValType::I32]);
+        types.ty().function([ValType::I32; 4], [ValType::I32]);
         imports.import(exporter, "cabi_realloc", EntityType::Function(index));
         exports.export("cabi_realloc", ExportKind::Func, index);
     }
@@ -423,7 +423,7 @@ fn make_env_module<'a>(
     let mut code = CodeSection::new();
     for (name, ty, _) in function_exports {
         let index = get_and_increment(&mut function_count);
-        types.function(
+        types.ty().function(
             ty.parameters.iter().copied().map(ValType::from),
             ty.results.iter().copied().map(ValType::from),
         );
@@ -515,9 +515,9 @@ fn make_init_module(
 
     // TODO: deduplicate types
     let mut types = TypeSection::new();
-    types.function([], []);
+    types.ty().function([], []);
     let thunk_ty = 0;
-    types.function([ValType::I32], []);
+    types.ty().function([ValType::I32], []);
     let one_i32_param_ty = 1;
     let mut type_offset = 2;
 
@@ -525,7 +525,7 @@ fn make_init_module(
         if metadata.dl_openable {
             for export in &metadata.exports {
                 if let Type::Function(ty) = &export.key.ty {
-                    types.function(
+                    types.ty().function(
                         ty.parameters.iter().copied().map(ValType::from),
                         ty.results.iter().copied().map(ValType::from),
                     );
@@ -534,7 +534,7 @@ fn make_init_module(
         }
     }
     for (_, ty, _) in function_exports {
-        types.function(
+        types.ty().function(
             ty.parameters.iter().copied().map(ValType::from),
             ty.results.iter().copied().map(ValType::from),
         );
@@ -1139,7 +1139,7 @@ fn make_stubs_module(missing: &[(&str, Export)]) -> Vec<u8> {
             unreachable!();
         };
 
-        types.function(
+        types.ty().function(
             ty.parameters.iter().copied().map(ValType::from),
             ty.results.iter().copied().map(ValType::from),
         );

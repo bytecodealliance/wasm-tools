@@ -551,7 +551,7 @@ impl<'a> Module<'a> {
             map.types.push(i);
 
             let ty = map.func_type(ty.clone())?;
-            types.func_type(&ty);
+            types.ty().func_type(&ty);
 
             // Keep track of the "empty type" to see if we can reuse an
             // existing one or one needs to be injected if a `start`
@@ -645,7 +645,7 @@ impl<'a> Module<'a> {
 
         let add_realloc_type = |types: &mut wasm_encoder::TypeSection| {
             let type_index = types.len();
-            types.function(
+            types.ty().function(
                 [
                     wasm_encoder::ValType::I32,
                     wasm_encoder::ValType::I32,
@@ -659,7 +659,7 @@ impl<'a> Module<'a> {
 
         let add_empty_type = |types: &mut wasm_encoder::TypeSection| {
             let type_index = types.len();
-            types.function([], []);
+            types.ty().function([], []);
             type_index
         };
 
@@ -788,7 +788,7 @@ impl<'a> Module<'a> {
                 // Generate a function type for this start function, adding a new
                 // function type to the module if necessary.
                 let empty_type = empty_type.unwrap_or_else(|| {
-                    types.function([], []);
+                    types.ty().function([], []);
                     types.len() - 1
                 });
                 funcs.function(empty_type);

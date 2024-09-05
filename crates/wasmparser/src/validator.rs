@@ -1529,7 +1529,7 @@ mod tests {
         assert_eq!(types.value_count(), 0);
 
         let id = match types.core_type_at(0) {
-            crate::types::ComponentCoreTypeId::Sub(s) => s,
+            crate::types::ComponentCoreTypeId::Rec(s) => s,
             crate::types::ComponentCoreTypeId::Module(_) => panic!(),
         };
         let ty = types[id].unwrap_func();
@@ -1537,7 +1537,7 @@ mod tests {
         assert_eq!(ty.results(), [ValType::I32]);
 
         let id = match types.core_type_at(1) {
-            crate::types::ComponentCoreTypeId::Sub(s) => s,
+            crate::types::ComponentCoreTypeId::Rec(s) => s,
             crate::types::ComponentCoreTypeId::Module(_) => panic!(),
         };
         let ty = types[id].unwrap_func();

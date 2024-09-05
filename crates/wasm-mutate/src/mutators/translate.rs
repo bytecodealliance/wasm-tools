@@ -134,7 +134,7 @@ pub fn func_type(
     ty: wasmparser::FuncType,
     s: &mut TypeSection,
 ) -> Result<()> {
-    s.function(
+    s.ty().function(
         ty.params()
             .iter()
             .map(|ty| t.translate_ty(ty))
