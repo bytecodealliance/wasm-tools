@@ -810,7 +810,7 @@ impl WitPackageDecoder<'_> {
                 }
                 types::ComponentEntityType::Instance(i) => {
                     match self.parse_component_name(name)?.kind() {
-                        ComponentNameKind::Interface(iface_name) => {
+                        ComponentNameKind::Interface(_) => {
                             let ty = &self.types[i];
                             let deep = self.register_export(name, ty)?;
                             let iface = &mut self.resolve.interfaces[interface];
@@ -820,12 +820,6 @@ impl WitPackageDecoder<'_> {
                                     id: deep,
                                     docs: Default::default(),
                                     stability: Default::default(),
-                                    package_name: PackageName {
-                                        namespace: iface_name.namespace().to_string(),
-                                        name: iface_name.package().to_string(),
-                                        version: iface_name.version(),
-                                    },
-                                    iface_name: iface_name.projection().to_string(),
                                 },
                             );
                         }
@@ -1092,7 +1086,7 @@ impl WitPackageDecoder<'_> {
                 }
                 types::ComponentEntityType::Instance(inst) => {
                     match self.parse_component_name(exp_name)?.kind() {
-                        ComponentNameKind::Interface(iface_name) => {
+                        ComponentNameKind::Interface(_) => {
                             let ty = &self.types[inst];
                             let deep = self.register_export(&exp_name, &ty)?;
                             interface.nested.insert(
@@ -1101,12 +1095,6 @@ impl WitPackageDecoder<'_> {
                                     id: deep,
                                     docs: Default::default(),
                                     stability: Default::default(),
-                                    package_name: PackageName {
-                                        namespace: iface_name.namespace().to_string(),
-                                        name: iface_name.package().to_string(),
-                                        version: iface_name.version(),
-                                    },
-                                    iface_name: iface_name.projection().to_string(),
                                 },
                             );
                         }

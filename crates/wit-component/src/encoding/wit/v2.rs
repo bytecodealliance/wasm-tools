@@ -236,16 +236,9 @@ impl InterfaceEncoder<'_> {
         &'a mut self,
         iface: &Interface,
         instance: &'a mut InstanceType,
-    ) -> Result<&mut InstanceType> {
+    ) -> Result<&'a mut InstanceType> {
         for (nest_name, nest_item) in &iface.nested {
-            let package_id = self
-                .resolve
-                .package_names
-                .get(&nest_item.package_name)
-                .unwrap();
-            let package = &self.resolve.packages[*package_id];
-            let nested = package.interfaces.get(&nest_item.iface_name).unwrap();
-            let nested_iface = &self.resolve.interfaces[*nested];
+            let nested_iface = &self.resolve.interfaces[nest_item.id];
             let mut inst = InterfaceEncoder::new(&self.resolve);
             inst.push_instance();
             for (_, id) in &nested_iface.types {
@@ -258,14 +251,7 @@ impl InterfaceEncoder<'_> {
             let ty = instance.ty();
             let nested_instance = &mut inst.pop_instance();
             for (nest_name, deep_nest) in &nested_iface.nested {
-                let deep_pkg_id = self
-                    .resolve
-                    .package_names
-                    .get(&deep_nest.package_name)
-                    .unwrap();
-                let deep_package = &self.resolve.packages[*deep_pkg_id];
-                let deep_iface_id = deep_package.interfaces.get(&deep_nest.iface_name).unwrap();
-                let deep_nest = &self.resolve.interfaces[*deep_iface_id];
+                let deep_nest = &self.resolve.interfaces[deep_nest.id];
                 let mut clone = nested_instance.clone();
                 let deep_instance = self.encode_nested(deep_nest, &mut clone)?;
                 let deep_ty = nested_instance.ty();

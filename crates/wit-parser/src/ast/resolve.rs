@@ -888,12 +888,6 @@ impl<'a> Resolver<'a> {
                                 id: *nested_id,
                                 docs,
                                 stability,
-                                package_name: PackageName {
-                                    namespace: package_id.namespace.name.to_string(),
-                                    name: package_id.name.name.to_string(),
-                                    version: package_id.version.as_ref().map(|v| v.1.clone()),
-                                },
-                                iface_name: name.name.to_string(),
                             },
                         );
                     }
