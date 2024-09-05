@@ -110,24 +110,16 @@ impl ResourceFunc {
 
     pub fn results(&self) -> Option<&Results> {
         match &self.kind {
-            ResourceFuncKind::Method(_, results) => {
-                Some(results)
-            }
-            ResourceFuncKind::Static(_, results) => {
-                Some(results)
-            }
+            ResourceFuncKind::Method(_, results) => Some(results),
+            ResourceFuncKind::Static(_, results) => Some(results),
             ResourceFuncKind::Constructor => None,
         }
     }
 
     pub fn results_mut(&mut self) -> Option<&mut Results> {
         match &mut self.kind {
-            ResourceFuncKind::Method(_, results) => {
-                Some(results)
-            }
-            ResourceFuncKind::Static(_, results) => {
-                Some(results)
-            }
+            ResourceFuncKind::Method(_, results) => Some(results),
+            ResourceFuncKind::Static(_, results) => Some(results),
             ResourceFuncKind::Constructor => None,
         }
     }
