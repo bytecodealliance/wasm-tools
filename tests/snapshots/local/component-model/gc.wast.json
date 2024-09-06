@@ -1,0 +1,34 @@
+{
+  "source_filename": "tests/local/component-model/gc.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "gc.0.wasm"
+    },
+    {
+      "type": "module",
+      "line": 11,
+      "filename": "gc.1.wasm"
+    },
+    {
+      "type": "module",
+      "line": 21,
+      "filename": "gc.2.wasm"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 35,
+      "filename": "gc.3.wasm",
+      "text": "unexpected data at the end of the section",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 47,
+      "filename": "gc.4.wasm",
+      "text": "invalid leading byte (0x60) for non-final sub type",
+      "module_type": "binary"
+    }
+  ]
+}

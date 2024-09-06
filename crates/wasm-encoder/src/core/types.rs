@@ -509,7 +509,7 @@ impl TypeSection {
         self.num_added += 1;
         CoreTypeEncoder {
             bytes: &mut self.bytes,
-            pop_if_func: false,
+            push_prefix_if_component_core_type: false,
         }
     }
 }
@@ -530,8 +530,15 @@ impl Section for TypeSection {
 /// type to be done in a single shot.
 #[derive(Debug)]
 pub struct CoreTypeEncoder<'a> {
-    pub(crate) pop_if_func: bool,
     pub(crate) bytes: &'a mut Vec<u8>,
+    // For the time being, this flag handles an ambiguous encoding in the
+    // component model: the `0x50` opcode represents both a core module type as
+    // well as a GC non-final `sub` type. To avoid this, the component model
+    // specification requires us to prefix a non-final `sub` type with `0x00`
+    // when it is used as a top-level core type of a component. Eventually
+    // (prior to the component model's v1.0 release), a module type will get a
+    // new opcode and this special logic can go away.
+    pub(crate) push_prefix_if_component_core_type: bool,
 }
 impl<'a> CoreTypeEncoder<'a> {
     /// Define a function type in this type section.
@@ -557,10 +564,6 @@ impl<'a> CoreTypeEncoder<'a> {
         R: IntoIterator<Item = ValType>,
         R::IntoIter: ExactSizeIterator,
     {
-        if self.pop_if_func {
-            self.bytes.pop();
-        }
-
         let params = params.into_iter();
         let results = results.into_iter();
 
@@ -616,14 +619,20 @@ impl<'a> CoreTypeEncoder<'a> {
     /// Define an explicit subtype in this type section.
     fn encode_subtype(&mut self, ty: &SubType) {
         // We only need to emit a prefix byte before the actual composite type
-        // when either the type is not final or it has a declared super type.
+        // when either the `sub` type is not final or it has a declared super
+        // type (see notes on `push_prefix_if_component_core_type`).
         if ty.supertype_idx.is_some() || !ty.is_final {
-            self.pop_if_func = false;
-            self.bytes.push(if ty.is_final { 0x4f } else { 0x50 });
+            if ty.is_final {
+                self.bytes.push(0x4f);
+            } else {
+                if self.push_prefix_if_component_core_type {
+                    self.bytes.push(0x00);
+                }
+                self.bytes.push(0x50);
+            }
             ty.supertype_idx.encode(self.bytes);
         }
         if ty.composite_type.shared {
-            self.pop_if_func = false;
             self.bytes.push(0x65);
         }
         match &ty.composite_type.inner {
@@ -643,7 +652,10 @@ impl<'a> CoreTypeEncoder<'a> {
         T: IntoIterator<Item = SubType>,
         T::IntoIter: ExactSizeIterator,
     {
-        self.pop_if_func = false;
+        // When emitting a `rec` group, we will never emit `sub`'s special
+        // `0x00` prefix; that is only necessary when `sub` is not wrapped by
+        // `rec` (see notes on `push_prefix_if_component_core_type`).
+        self.push_prefix_if_component_core_type = false;
         let types = types.into_iter();
         self.bytes.push(0x4e);
         types.len().encode(self.bytes);

@@ -25,10 +25,21 @@ pub enum CoreType<'a> {
 
 impl<'a> FromReader<'a> for CoreType<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        // For the time being, this special logic handles an ambiguous encoding
+        // in the component model: the `0x50` opcode represents both a core
+        // module type as well as a GC non-final `sub` type. To avoid this, the
+        // component model specification requires us to prefix a non-final `sub`
+        // type with `0x00` when it is used as a top-level core type of a
+        // component. Eventually (prior to the component model's v1.0 release),
+        // a module type will get a new opcode and this special logic can go
+        // away.
         Ok(match reader.peek()? {
-            0x60 => CoreType::Rec(reader.read()?),
             0x00 => {
                 reader.read_u8()?;
+                let x = reader.peek()?;
+                if x != 0x50 {
+                    return reader.invalid_leading_byte(x, "non-final sub type");
+                }
                 CoreType::Rec(reader.read()?)
             }
             0x50 => {
@@ -39,7 +50,7 @@ impl<'a> FromReader<'a> for CoreType<'a> {
                         .collect::<Result<_>>()?,
                 )
             }
-            x => return reader.invalid_leading_byte(x, "core type"),
+            _ => CoreType::Rec(reader.read()?),
         })
     }
 }

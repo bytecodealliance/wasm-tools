@@ -37,7 +37,7 @@ impl ModuleType {
         self.num_added += 1;
         self.types_added += 1;
         CoreTypeEncoder {
-            pop_if_func: false,
+            push_prefix_if_component_core_type: false,
             bytes: &mut self.bytes,
         }
     }
@@ -90,12 +90,9 @@ impl<'a> ComponentCoreTypeEncoder<'a> {
     /// Define any core type other than a module type.
     #[must_use = "the encoder must be used to encode the type"]
     pub fn core(self) -> CoreTypeEncoder<'a> {
-        // We push an 0x00 prefix for every `rectype` but want to emit
-        // backwards-compatible `functype`s that have an 0x60 prefix.
-        self.0.push(0x00);
         CoreTypeEncoder {
             bytes: self.0,
-            pop_if_func: true,
+            push_prefix_if_component_core_type: true,
         }
     }
 }
