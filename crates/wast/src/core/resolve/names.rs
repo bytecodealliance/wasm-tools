@@ -119,22 +119,6 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
-    fn resolve_type(&self, ty: &mut Type<'a>) -> Result<(), Error> {
-        match &mut ty.def.kind {
-            InnerTypeKind::Func(func) => func.resolve(self)?,
-            InnerTypeKind::Struct(struct_) => {
-                for field in &mut struct_.fields {
-                    self.resolve_storagetype(&mut field.ty)?;
-                }
-            }
-            InnerTypeKind::Array(array) => self.resolve_storagetype(&mut array.ty)?,
-        }
-        if let Some(parent) = &mut ty.parent {
-            self.resolve(parent, Ns::Type)?;
-        }
-        Ok(())
-    }
-
     fn resolve_field(&self, field: &mut ModuleField<'a>) -> Result<(), Error> {
         match field {
             ModuleField::Import(i) => {
@@ -277,36 +261,6 @@ impl<'a> Resolver<'a> {
 
             ModuleField::Memory(_) | ModuleField::Custom(_) => Ok(()),
         }
-    }
-
-    fn resolve_valtype(&self, ty: &mut ValType<'a>) -> Result<(), Error> {
-        match ty {
-            ValType::Ref(ty) => self.resolve_heaptype(&mut ty.heap)?,
-            _ => {}
-        }
-        Ok(())
-    }
-
-    fn resolve_reftype(&self, ty: &mut RefType<'a>) -> Result<(), Error> {
-        self.resolve_heaptype(&mut ty.heap)
-    }
-
-    fn resolve_heaptype(&self, ty: &mut HeapType<'a>) -> Result<(), Error> {
-        match ty {
-            HeapType::Concrete(i) => {
-                self.resolve(i, Ns::Type)?;
-            }
-            _ => {}
-        }
-        Ok(())
-    }
-
-    fn resolve_storagetype(&self, ty: &mut StorageType<'a>) -> Result<(), Error> {
-        match ty {
-            StorageType::Val(ty) => self.resolve_valtype(ty)?,
-            _ => {}
-        }
-        Ok(())
     }
 
     fn resolve_item_sig(&self, item: &mut ItemSig<'a>) -> Result<(), Error> {
@@ -779,13 +733,76 @@ impl<'a> TypeReference<'a> for FunctionType<'a> {
     }
 
     fn resolve(&mut self, cx: &Resolver<'a>) -> Result<(), Error> {
-        // Resolve the (ref T) value types in the final function type
-        for param in self.params.iter_mut() {
-            cx.resolve_valtype(&mut param.2)?;
-        }
-        for result in self.results.iter_mut() {
-            cx.resolve_valtype(result)?;
+        cx.resolve_type_func(self)
+    }
+}
+
+pub(crate) trait ResolveCoreType<'a> {
+    fn resolve_type_name(&self, name: &mut Index<'a>) -> Result<u32, Error>;
+
+    fn resolve_type(&self, ty: &mut Type<'a>) -> Result<(), Error> {
+        self.resolve_type_def(&mut ty.def)?;
+        if let Some(parent) = &mut ty.parent {
+            self.resolve_type_name(parent)?;
         }
         Ok(())
+    }
+
+    fn resolve_type_def(&self, ty: &mut TypeDef<'a>) -> Result<(), Error> {
+        match &mut ty.kind {
+            InnerTypeKind::Func(func) => self.resolve_type_func(func),
+            InnerTypeKind::Struct(struct_) => {
+                for field in &mut struct_.fields {
+                    self.resolve_storagetype(&mut field.ty)?;
+                }
+                Ok(())
+            }
+            InnerTypeKind::Array(array) => self.resolve_storagetype(&mut array.ty),
+        }
+    }
+
+    fn resolve_type_func(&self, ty: &mut FunctionType<'a>) -> Result<(), Error> {
+        // Resolve the (ref T) value types in the final function type
+        for param in ty.params.iter_mut() {
+            self.resolve_valtype(&mut param.2)?;
+        }
+        for result in ty.results.iter_mut() {
+            self.resolve_valtype(result)?;
+        }
+        Ok(())
+    }
+
+    fn resolve_valtype(&self, ty: &mut ValType<'a>) -> Result<(), Error> {
+        match ty {
+            ValType::Ref(ty) => self.resolve_reftype(ty),
+            ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => Ok(()),
+        }
+    }
+
+    fn resolve_reftype(&self, ty: &mut RefType<'a>) -> Result<(), Error> {
+        self.resolve_heaptype(&mut ty.heap)
+    }
+
+    fn resolve_heaptype(&self, ty: &mut HeapType<'a>) -> Result<(), Error> {
+        match ty {
+            HeapType::Concrete(i) => {
+                self.resolve_type_name(i)?;
+            }
+            HeapType::Abstract { .. } => {}
+        }
+        Ok(())
+    }
+
+    fn resolve_storagetype(&self, ty: &mut StorageType<'a>) -> Result<(), Error> {
+        match ty {
+            StorageType::Val(ty) => self.resolve_valtype(ty),
+            StorageType::I8 | StorageType::I16 => Ok(()),
+        }
+    }
+}
+
+impl<'a> ResolveCoreType<'a> for Resolver<'a> {
+    fn resolve_type_name(&self, name: &mut Index<'a>) -> Result<u32, Error> {
+        self.resolve(name, Ns::Type)
     }
 }

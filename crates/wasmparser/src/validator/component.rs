@@ -2,7 +2,7 @@
 
 use super::{
     check_max,
-    core::Module,
+    core::{InternRecGroup, Module},
     types::{
         AliasableResourceId, ComponentCoreInstanceTypeId, ComponentDefinedTypeId,
         ComponentFuncType, ComponentFuncTypeId, ComponentInstanceType, ComponentInstanceTypeId,
@@ -261,12 +261,18 @@ impl ComponentState {
         offset: usize,
         check_limit: bool,
     ) -> Result<()> {
-        let id = match ty {
+        let current = components.last_mut().unwrap();
+        if check_limit {
+            check_max(current.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
+        }
+        match ty {
             crate::CoreType::Sub(sub) => {
-                let (_is_new, group_id) =
-                    types.intern_canonical_rec_group(RecGroup::implicit(offset, sub));
-                let id = types[group_id].start;
-                ComponentCoreTypeId::Sub(id)
+                current.canonicalize_and_intern_rec_group(
+                    features,
+                    types,
+                    RecGroup::implicit(offset, sub),
+                    offset,
+                )?;
             }
             crate::CoreType::Module(decls) => {
                 let mod_ty = Self::create_module_type(
@@ -276,16 +282,11 @@ impl ComponentState {
                     types,
                     offset,
                 )?;
-                let id = types.push_ty(mod_ty);
-                ComponentCoreTypeId::Module(id)
+                let id = ComponentCoreTypeId::Module(types.push_ty(mod_ty));
+                components.last_mut().unwrap().core_types.push(id);
             }
-        };
-
-        let current = components.last_mut().unwrap();
-        if check_limit {
-            check_max(current.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
         }
-        current.core_types.push(id);
+
         Ok(())
     }
 
@@ -3033,6 +3034,25 @@ impl ComponentState {
             );
         }
         Ok(())
+    }
+}
+
+impl InternRecGroup for ComponentState {
+    fn add_type_id(&mut self, id: CoreTypeId) {
+        self.core_types.push(ComponentCoreTypeId::Sub(id));
+    }
+
+    fn type_id_at(&self, idx: u32, offset: usize) -> Result<CoreTypeId> {
+        match self.core_type_at(idx, offset)? {
+            ComponentCoreTypeId::Sub(id) => Ok(id),
+            ComponentCoreTypeId::Module(_) => {
+                bail!(offset, "type index {idx} is a module type, not a sub type");
+            }
+        }
+    }
+
+    fn types_len(&self) -> u32 {
+        u32::try_from(self.core_types.len()).unwrap()
     }
 }
 
