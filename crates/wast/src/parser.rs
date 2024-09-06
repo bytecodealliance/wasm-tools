@@ -994,6 +994,7 @@ impl<'a> Parser<'a> {
         self.buf.track_instr_spans
     }
 
+    #[cfg(feature = "wasm-module")]
     pub(crate) fn with_standard_annotations_registered<R>(
         self,
         f: impl FnOnce(Self) -> Result<R>,
