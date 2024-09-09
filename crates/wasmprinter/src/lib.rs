@@ -1159,7 +1159,11 @@ impl Printer<'_, '_> {
             let p = 1_u64
                 .checked_shl(p)
                 .ok_or_else(|| anyhow!("left shift overflow").context("invalid page size"))?;
-            write!(self.result, "(pagesize {p:#x})")?;
+
+            self.result.write_str(" ")?;
+            self.start_group("pagesize ")?;
+            write!(self.result, "{p:#x}")?;
+            self.end_group()?;
         }
         Ok(())
     }

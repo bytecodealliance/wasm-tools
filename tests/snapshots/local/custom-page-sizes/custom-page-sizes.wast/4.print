@@ -18,7 +18,7 @@
     local.get 1
     i32.store
   )
-  (memory (;0;) 0(pagesize 0x1))
+  (memory (;0;) 0 (pagesize 0x1))
   (export "size" (func 0))
   (export "grow" (func 1))
   (export "load" (func 2))

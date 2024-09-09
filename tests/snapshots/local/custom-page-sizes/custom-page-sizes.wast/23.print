@@ -21,8 +21,8 @@
     local.get 0
     i32.load8_u
   )
-  (memory $small (;0;) 10(pagesize 0x1))
-  (memory $large (;1;) 1(pagesize 0x10000))
+  (memory $small (;0;) 10 (pagesize 0x1))
+  (memory $large (;1;) 1 (pagesize 0x10000))
   (export "copy-small-to-large" (func 0))
   (export "copy-large-to-small" (func 1))
   (export "load8-small" (func 2))
