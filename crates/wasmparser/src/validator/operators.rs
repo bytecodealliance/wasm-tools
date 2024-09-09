@@ -161,28 +161,28 @@ pub struct OperatorValidatorAllocations {
 /// Type storage within the validator.
 ///
 /// When managing the operand stack in unreachable code, the validator may not
-/// fully know an operand's type. this `Unknown` state is known as the `bottom` type
-/// in the WebAssembly specification. Validating further instructions may give
-/// us more information; either partial (`PartialRef`) or fully known.
+/// fully know an operand's type. this unknown state is known as the `bottom`
+/// type in the WebAssembly specification. Validating further instructions may
+/// give us more information; either partial (`PartialRef`) or fully known.
 #[derive(Debug, Copy, Clone)]
 enum MaybeType<T = ValType> {
     /// The operand has no available type information due to unreachable code.
     ///
-    /// This state is known as the `bottom` type in the WebAssembly
-    /// specification. There are no constraints on what this type may be and it
-    /// can match any other type during validation.
-    Unknown,
+    /// This state represents "unknown" and corresponds to the `bottom` type in
+    /// the WebAssembly specification. There are no constraints on what this
+    /// type may be and it can match any other type during validation.
+    Bottom,
     /// The operand is known to be a reference and we may know its abstract
     /// type.
     ///
-    /// This state is not fully `Known` because its type can be interpreted as
-    /// either:
+    /// This state is not fully `Known`, however, because its type can be
+    /// interpreted as either:
     /// - `shared` or not-`shared`
     /// -  nullable or not nullable
     ///
     /// No further refinements are required for WebAssembly instructions today
     /// but this may grow in the future.
-    PartialRef(Option<AbstractHeapType>),
+    UnknownRef(Option<AbstractHeapType>),
     /// The operand is known to have type `T`.
     Known(T),
 }
@@ -197,8 +197,8 @@ const _: () = {
 impl core::fmt::Display for MaybeType {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            MaybeType::Unknown => write!(f, "bot"),
-            MaybeType::PartialRef(ty) => {
+            MaybeType::Bottom => write!(f, "bot"),
+            MaybeType::UnknownRef(ty) => {
                 write!(f, "(ref shared? ")?;
                 match ty {
                     Some(ty) => write!(f, "{}bot", ty.as_str(true))?,
@@ -226,8 +226,8 @@ impl From<RefType> for MaybeType {
 impl From<MaybeType<RefType>> for MaybeType<ValType> {
     fn from(ty: MaybeType<RefType>) -> MaybeType<ValType> {
         match ty {
-            MaybeType::Unknown => MaybeType::Unknown,
-            MaybeType::PartialRef(ty) => MaybeType::PartialRef(ty),
+            MaybeType::Bottom => MaybeType::Bottom,
+            MaybeType::UnknownRef(ty) => MaybeType::UnknownRef(ty),
             MaybeType::Known(t) => MaybeType::Known(t.into()),
         }
     }
@@ -236,16 +236,16 @@ impl From<MaybeType<RefType>> for MaybeType<ValType> {
 impl MaybeType<RefType> {
     fn as_non_null(&self) -> MaybeType<RefType> {
         match self {
-            MaybeType::Unknown => MaybeType::Unknown,
-            MaybeType::PartialRef(ty) => MaybeType::PartialRef(*ty),
+            MaybeType::Bottom => MaybeType::Bottom,
+            MaybeType::UnknownRef(ty) => MaybeType::UnknownRef(*ty),
             MaybeType::Known(ty) => MaybeType::Known(ty.as_non_null()),
         }
     }
 
     fn is_maybe_shared(&self, resources: &impl WasmModuleResources) -> Option<bool> {
         match self {
-            MaybeType::Unknown => None,
-            MaybeType::PartialRef(_) => None,
+            MaybeType::Bottom => None,
+            MaybeType::UnknownRef(_) => None,
             MaybeType::Known(ty) => Some(resources.is_shared(*ty)),
         }
     }
@@ -382,7 +382,7 @@ impl OperatorValidator {
     pub fn peek_operand_at(&self, depth: usize) -> Option<Option<ValType>> {
         Some(match self.operands.iter().rev().nth(depth)? {
             MaybeType::Known(t) => Some(*t),
-            MaybeType::Unknown | MaybeType::PartialRef(..) => None,
+            MaybeType::Bottom | MaybeType::UnknownRef(..) => None,
         })
     }
 
@@ -604,7 +604,7 @@ where
             None => return Err(self.err_beyond_end(self.offset)),
         };
         let actual = if self.operands.len() == control.height && control.unreachable {
-            MaybeType::Unknown
+            MaybeType::Bottom
         } else {
             if self.operands.len() == control.height {
                 let desc = match expected {
@@ -622,13 +622,13 @@ where
         if let Some(expected) = expected {
             match (actual, expected) {
                 // The bottom type matches all expectations
-                (MaybeType::Unknown, _) => {}
+                (MaybeType::Bottom, _) => {}
 
                 // The "heap bottom" type only matches other references types,
                 // but not any integer types. Note that if the heap bottom is
                 // known to have a specific abstract heap type then a subtype
                 // check is performed against hte expected type.
-                (MaybeType::PartialRef(actual_ty), ValType::Ref(expected)) => {
+                (MaybeType::UnknownRef(actual_ty), ValType::Ref(expected)) => {
                     if let Some(actual) = actual_ty {
                         let expected_shared = self.resources.is_shared(expected);
                         let actual = RefType::new(
@@ -665,7 +665,7 @@ where
 
                 // A "heap bottom" type cannot match any numeric types.
                 (
-                    MaybeType::PartialRef(..),
+                    MaybeType::UnknownRef(..),
                     ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128,
                 ) => {
                     bail!(
@@ -682,8 +682,8 @@ where
     /// Pop a reference type from the operand stack.
     fn pop_ref(&mut self, expected: Option<RefType>) -> Result<MaybeType<RefType>> {
         match self.pop_operand(expected.map(|t| t.into()))? {
-            MaybeType::Unknown => Ok(MaybeType::PartialRef(None)),
-            MaybeType::PartialRef(ty) => Ok(MaybeType::PartialRef(ty)),
+            MaybeType::Bottom => Ok(MaybeType::UnknownRef(None)),
+            MaybeType::UnknownRef(ty) => Ok(MaybeType::UnknownRef(ty)),
             MaybeType::Known(ValType::Ref(rt)) => Ok(MaybeType::Known(rt)),
             MaybeType::Known(ty) => bail!(
                 self.offset,
@@ -700,9 +700,9 @@ where
     /// saving extra lookups for concrete types.
     fn pop_maybe_shared_ref(&mut self, expected: AbstractHeapType) -> Result<MaybeType<RefType>> {
         let actual = match self.pop_ref(None)? {
-            MaybeType::Unknown => return Ok(MaybeType::Unknown),
-            MaybeType::PartialRef(None) => return Ok(MaybeType::PartialRef(None)),
-            MaybeType::PartialRef(Some(actual)) => {
+            MaybeType::Bottom => return Ok(MaybeType::Bottom),
+            MaybeType::UnknownRef(None) => return Ok(MaybeType::UnknownRef(None)),
+            MaybeType::UnknownRef(Some(actual)) => {
                 if !actual.is_subtype_of(expected) {
                     bail!(
                         self.offset,
@@ -711,7 +711,7 @@ where
                         actual.as_str(false),
                     )
                 }
-                return Ok(MaybeType::PartialRef(Some(actual)));
+                return Ok(MaybeType::UnknownRef(Some(actual)));
             }
             MaybeType::Known(ty) => ty,
         };
@@ -1780,8 +1780,8 @@ where
         let ty = match (ty1, ty2) {
             // All heap-related types aren't allowed with the `select`
             // instruction
-            (MaybeType::PartialRef(..), _)
-            | (_, MaybeType::PartialRef(..))
+            (MaybeType::UnknownRef(..), _)
+            | (_, MaybeType::UnknownRef(..))
             | (MaybeType::Known(ValType::Ref(_)), _)
             | (_, MaybeType::Known(ValType::Ref(_))) => {
                 bail!(
@@ -1792,7 +1792,7 @@ where
 
             // If one operand is the "bottom" type then whatever the other
             // operand is is the result of the `select`
-            (MaybeType::Unknown, t) | (t, MaybeType::Unknown) => t,
+            (MaybeType::Bottom, t) | (t, MaybeType::Bottom) => t,
 
             // Otherwise these are two integral types and they must match for
             // `select` to typecheck.
@@ -4486,8 +4486,8 @@ where
     }
     fn visit_any_convert_extern(&mut self) -> Self::Output {
         let any_ref = match self.pop_maybe_shared_ref(AbstractHeapType::Extern)? {
-            MaybeType::Unknown | MaybeType::PartialRef(_) => {
-                MaybeType::PartialRef(Some(AbstractHeapType::Any))
+            MaybeType::Bottom | MaybeType::UnknownRef(_) => {
+                MaybeType::UnknownRef(Some(AbstractHeapType::Any))
             }
             MaybeType::Known(ty) => {
                 let shared = self.resources.is_shared(ty);
@@ -4503,8 +4503,8 @@ where
     }
     fn visit_extern_convert_any(&mut self) -> Self::Output {
         let extern_ref = match self.pop_maybe_shared_ref(AbstractHeapType::Any)? {
-            MaybeType::Unknown | MaybeType::PartialRef(_) => {
-                MaybeType::PartialRef(Some(AbstractHeapType::Extern))
+            MaybeType::Bottom | MaybeType::UnknownRef(_) => {
+                MaybeType::UnknownRef(Some(AbstractHeapType::Extern))
             }
             MaybeType::Known(ty) => {
                 let shared = self.resources.is_shared(ty);
