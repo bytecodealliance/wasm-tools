@@ -1389,7 +1389,7 @@ impl ComponentState {
             ComponentTypeRef::Module(index) => {
                 let id = self.core_type_at(*index, offset)?;
                 match id {
-                    ComponentCoreTypeId::Rec(_) => {
+                    ComponentCoreTypeId::Sub(_) => {
                         bail!(offset, "core type index {index} is not a module type")
                     }
                     ComponentCoreTypeId::Module(id) => ComponentEntityType::Module(id),
@@ -1513,7 +1513,7 @@ impl ComponentState {
                         crate::OuterAliasKind::Type => {
                             let ty = if count == 0 {
                                 // Local alias, check the local module state
-                                ComponentCoreTypeId::Rec(state.type_id_at(index, offset)?)
+                                ComponentCoreTypeId::Sub(state.type_id_at(index, offset)?)
                             } else {
                                 // Otherwise, check the enclosing component state
                                 let component =
@@ -1524,7 +1524,7 @@ impl ComponentState {
                             check_max(state.types.len(), 1, MAX_WASM_TYPES, "types", offset)?;
 
                             match ty {
-                                ComponentCoreTypeId::Rec(ty) => state.types.push(ty),
+                                ComponentCoreTypeId::Sub(ty) => state.types.push(ty),
                                 // TODO https://github.com/WebAssembly/component-model/issues/265
                                 ComponentCoreTypeId::Module(_) => bail!(
                                     offset,
@@ -3028,12 +3028,12 @@ impl ComponentState {
 
 impl InternRecGroup for ComponentState {
     fn add_type_id(&mut self, id: CoreTypeId) {
-        self.core_types.push(ComponentCoreTypeId::Rec(id));
+        self.core_types.push(ComponentCoreTypeId::Sub(id));
     }
 
     fn type_id_at(&self, idx: u32, offset: usize) -> Result<CoreTypeId> {
         match self.core_type_at(idx, offset)? {
-            ComponentCoreTypeId::Rec(id) => Ok(id),
+            ComponentCoreTypeId::Sub(id) => Ok(id),
             ComponentCoreTypeId::Module(_) => {
                 bail!(offset, "type index {idx} is a module type, not a sub type");
             }

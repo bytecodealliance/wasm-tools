@@ -465,7 +465,7 @@ define_wrapper_id! {
     pub enum ComponentCoreTypeId {
         #[unwrap = unwrap_sub]
         /// A core type.
-        Rec(CoreTypeId),
+        Sub(CoreTypeId),
 
         #[unwrap = unwrap_module]
         /// A core module's type.
@@ -478,7 +478,7 @@ impl ComponentCoreTypeId {
     /// inner type, or `None` if this type is not aliasing anything.
     pub fn peel_alias(&self, types: &Types) -> Option<Self> {
         match *self {
-            Self::Rec(_) => None,
+            Self::Sub(_) => None,
             Self::Module(id) => types.peel_alias(id).map(Self::Module),
         }
     }
@@ -1572,7 +1572,7 @@ impl<'a> TypesRef<'a> {
     /// This will panic if the `index` provided is out of bounds.
     pub fn core_type_at(&self, index: u32) -> ComponentCoreTypeId {
         match &self.kind {
-            TypesRefKind::Module(module) => ComponentCoreTypeId::Rec(module.types[index as usize]),
+            TypesRefKind::Module(module) => ComponentCoreTypeId::Sub(module.types[index as usize]),
             TypesRefKind::Component(component) => component.core_types[index as usize],
         }
     }
