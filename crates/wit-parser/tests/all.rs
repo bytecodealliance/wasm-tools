@@ -87,7 +87,7 @@ impl Runner {
                             "some generic platform-agnostic error message",
                         );
                     }
-                    format!("{:?}", e)
+                    format!("{:#}", e)
                 }
             }
         } else {

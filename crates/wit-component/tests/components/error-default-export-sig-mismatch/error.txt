@@ -1,5 +1,1 @@
-failed to decode world from module
-
-Caused by:
-    0: module was not valid
-    1: type mismatch for function `a`: expected `[I32, I32] -> [I32]` but found `[] -> []`
+failed to decode world from module: module was not valid: type mismatch for function `a`: expected `[I32, I32] -> [I32]` but found `[] -> []`

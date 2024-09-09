@@ -52,7 +52,7 @@ fn merging() -> Result<()> {
             }
             Err(e) => {
                 assert!(test_case.starts_with("bad-"), "failed to merge with {e:?}");
-                assert_output(&path.join("error.txt"), &format!("{e:?}"))?;
+                assert_output(&path.join("error.txt"), &format!("{e:#}"))?;
             }
         }
     }

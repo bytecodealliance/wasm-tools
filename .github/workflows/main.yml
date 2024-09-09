@@ -92,6 +92,13 @@ jobs:
           # want this to break.
           - os: ubuntu-latest
             rust: nightly-2024-02-12
+          # test that if `RUST_BACKTRACE=1` is set in the environment that all
+          # tests with blessed error messages still pass.
+          - os: ubuntu-latest
+            rust: default
+            env:
+              RUST_BACKTRACE: 1
+    env: ${{ matrix.env || fromJSON('{}') }}
     steps:
     - uses: actions/checkout@v4
       with:

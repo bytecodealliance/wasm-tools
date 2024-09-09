@@ -147,7 +147,7 @@ fn run_test(path: &Path) -> Result<()> {
             if !test_case.starts_with("error-") {
                 return Err(err);
             }
-            assert_output(&format!("{err:?}"), &error_path)?;
+            assert_output(&format!("{err:#}"), &error_path)?;
             return Ok(());
         }
     };
