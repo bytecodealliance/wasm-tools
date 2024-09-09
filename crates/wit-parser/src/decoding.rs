@@ -826,7 +826,7 @@ impl WitPackageDecoder<'_> {
                         _ => bail!("expected interface name"),
                     }
                 }
-                _ => bail!("instance type export `{name}` is not a type or instance"),
+                _ => {}
             }
         }
         Ok(interface)

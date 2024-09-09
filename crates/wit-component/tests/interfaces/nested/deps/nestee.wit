@@ -7,7 +7,7 @@ interface things {
   record nest-record {
     foo: string
   }
-  hello: func() -> string;
+  goodbye: func() -> nest-record;
 }
 
 interface more {
