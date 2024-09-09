@@ -312,6 +312,15 @@ impl Encode for FunctionType<'_> {
     }
 }
 
+impl From<&FunctionType<'_>> for wasm_encoder::FuncType {
+    fn from(ft: &FunctionType) -> Self {
+        wasm_encoder::FuncType::new(
+            ft.params.iter().map(|(_, _, ty)| (*ty).into()),
+            ft.results.iter().map(|ty| (*ty).into()),
+        )
+    }
+}
+
 impl Encode for StructType<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.fields.len().encode(e);
@@ -322,10 +331,37 @@ impl Encode for StructType<'_> {
     }
 }
 
+impl From<&StructType<'_>> for wasm_encoder::StructType {
+    fn from(st: &StructType) -> wasm_encoder::StructType {
+        wasm_encoder::StructType {
+            fields: st.fields.iter().map(|f| f.into()).collect(),
+        }
+    }
+}
+
+impl From<&StructField<'_>> for wasm_encoder::FieldType {
+    fn from(f: &StructField) -> wasm_encoder::FieldType {
+        wasm_encoder::FieldType {
+            element_type: f.ty.into(),
+            mutable: f.mutable,
+        }
+    }
+}
+
 impl Encode for ArrayType<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.ty.encode(e);
         (self.mutable as i32).encode(e);
+    }
+}
+
+impl From<&ArrayType<'_>> for wasm_encoder::ArrayType {
+    fn from(at: &ArrayType) -> Self {
+        let field = wasm_encoder::FieldType {
+            element_type: at.ty.into(),
+            mutable: at.mutable,
+        };
+        wasm_encoder::ArrayType(field)
     }
 }
 
@@ -388,6 +424,17 @@ impl Encode for Type<'_> {
                 e.push(0x5e);
                 array.encode(e)
             }
+        }
+    }
+}
+
+impl From<&InnerTypeKind<'_>> for wasm_encoder::CompositeInnerType {
+    fn from(kind: &InnerTypeKind) -> Self {
+        use wasm_encoder::CompositeInnerType::*;
+        match kind {
+            InnerTypeKind::Func(ft) => Func(ft.into()),
+            InnerTypeKind::Struct(st) => Struct(st.into()),
+            InnerTypeKind::Array(at) => Array(at.into()),
         }
     }
 }
@@ -503,6 +550,17 @@ impl<'a> Encode for StorageType<'a> {
             StorageType::Val(ty) => {
                 ty.encode(e);
             }
+        }
+    }
+}
+
+impl From<StorageType<'_>> for wasm_encoder::StorageType {
+    fn from(st: StorageType) -> Self {
+        use wasm_encoder::StorageType::*;
+        match st {
+            StorageType::I8 => I8,
+            StorageType::I16 => I16,
+            StorageType::Val(vt) => Val(vt.into()),
         }
     }
 }
