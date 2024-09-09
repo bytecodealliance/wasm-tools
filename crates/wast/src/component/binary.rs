@@ -882,8 +882,8 @@ impl From<&ModuleType<'_>> for wasm_encoder::ModuleType {
             match decl {
                 ModuleTypeDecl::Type(t) => {
                     let sub_type = SubType {
-                        is_final: t.final_type.unwrap_or(true), // TODO: is this correct?
-                        supertype_idx: t.parent.map(u32::from), // TODO: resolve?
+                        is_final: t.final_type.unwrap_or(true),
+                        supertype_idx: t.parent.map(u32::from),
                         composite_type: CompositeType {
                             shared: t.def.shared,
                             inner: (&t.def.kind).into(),
