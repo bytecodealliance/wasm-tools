@@ -341,3 +341,24 @@
 (assert_invalid
   (component (import "integrity=<md5-ABC>" (func)))
   "unrecognized hash algorithm")
+
+;; Prior to WebAssembly/component-model#263 this was a valid component.
+;; Specifically the 0x01 prefix byte on the import was valid. Nowadays that's
+;; not valid in the spec but it's accepted for backwards compatibility. This
+;; tests is here to ensure such compatibility. In the future this test should
+;; be changed to `(assert_invalid ...)`
+(component binary
+  "\00asm" "\0d\00\01\00"   ;; component header
+
+  "\07\05"          ;; type section, 5 bytes large
+  "\01"             ;; 1 count
+  "\40"             ;; function
+  "\00"             ;; parameters, 0 count
+  "\01\00"          ;; results, named, 0 count
+
+  "\0a\06"          ;; import section, 6 bytes large
+  "\01"             ;; 1 count
+  "\01"             ;; prefix byte of 0x01 (invalid by the spec nowadays)
+  "\01a"            ;; name = "a"
+  "\01\00"          ;; type = func ($type 0)
+)

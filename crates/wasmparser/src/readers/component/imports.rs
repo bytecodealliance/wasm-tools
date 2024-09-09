@@ -117,12 +117,27 @@ pub struct ComponentImportName<'a>(pub &'a str);
 impl<'a> FromReader<'a> for ComponentImportName<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         match reader.read_u8()? {
+            // This is the spec-required byte as of this time.
             0x00 => {}
-            // Historically export names used a discriminator byte of 0x01 to
-            // indicate an "interface" of the form `a:b/c` but nowadays that's
-            // inferred from string syntax. Ignore 0-vs-1 to continue to parse
-            // older binaries. Eventually this will go away.
+
+            // Prior to WebAssembly/component-model#263 export names used a
+            // discriminator byte of 0x01 to indicate an "interface" of the
+            // form `a:b/c` but nowadays that's inferred from string syntax.
+            // Ignore 0-vs-1 to continue to parse older binaries. Eventually
+            // this will go away.
+            //
+            // This logic to ignore 0x01 was landed on 2023-10-28 in
+            // bytecodealliance/wasm-tools#1262 and the encoder at the time
+            // still emitted 0x01 to have better compatibility with prior
+            // validators.
+            //
+            // On 2024-09-03 in bytecodealliance/wasm-tools#TODO the encoder
+            // was updated to always emit 0x00 as a leading byte. After enough
+            // time has passed this case may be able to be removed. When
+            // removing this it's probably best to do it with a `WasmFeatures`
+            // flag first to ensure there's an opt-in way of fixing things.
             0x01 => {}
+
             x => return reader.invalid_leading_byte(x, "import name"),
         }
         Ok(ComponentImportName(reader.read_string()?))
