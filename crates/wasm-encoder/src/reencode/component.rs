@@ -884,16 +884,6 @@ pub mod component_utils {
         }
     }
 
-    pub fn parse_component_sub_type<T: ?Sized + ReencodeComponent>(
-        reencoder: &mut T,
-        ty: crate::ComponentCoreTypeEncoder<'_>,
-        sub: wasmparser::SubType,
-    ) -> Result<(), Error<T::Error>> {
-        let sub = reencoder.sub_type(sub)?;
-        ty.core().subtype(&sub);
-        Ok(())
-    }
-
     pub fn parse_component_import_section<T: ?Sized + ReencodeComponent>(
         reencoder: &mut T,
         imports: &mut crate::ComponentImportSection,
