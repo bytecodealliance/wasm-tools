@@ -229,26 +229,39 @@ define_wasm_features! {
 }
 
 impl WasmFeatures {
-    /// Returns the feature set associated with the 1.0 version of the
+    /// The feature set associated with the 1.0 version of the
     /// WebAssembly specification or the "MVP" feature set.
     #[cfg(feature = "features")]
-    pub fn wasm1() -> WasmFeatures {
-        WasmFeatures::FLOATS | WasmFeatures::GC_TYPES
-    }
+    pub const WASM1: WasmFeatures = WasmFeatures::FLOATS.union(WasmFeatures::GC_TYPES);
 
-    /// Returns the feature set associated with the 2.0 version of the
+    /// The feature set associated with the 2.0 version of the
     /// WebAssembly specification.
     #[cfg(feature = "features")]
-    pub fn wasm2() -> WasmFeatures {
-        WasmFeatures::wasm1()
-            | WasmFeatures::BULK_MEMORY
-            | WasmFeatures::REFERENCE_TYPES
-            | WasmFeatures::SIGN_EXTENSION
-            | WasmFeatures::MUTABLE_GLOBAL
-            | WasmFeatures::SATURATING_FLOAT_TO_INT
-            | WasmFeatures::MULTI_VALUE
-            | WasmFeatures::SIMD
-    }
+    pub const WASM2: WasmFeatures = WasmFeatures::WASM1
+        .union(WasmFeatures::BULK_MEMORY)
+        .union(WasmFeatures::REFERENCE_TYPES)
+        .union(WasmFeatures::SIGN_EXTENSION)
+        .union(WasmFeatures::MUTABLE_GLOBAL)
+        .union(WasmFeatures::SATURATING_FLOAT_TO_INT)
+        .union(WasmFeatures::MULTI_VALUE)
+        .union(WasmFeatures::SIMD);
+
+    /// The feature set associated with the 3.0 version of the
+    /// WebAssembly specification.
+    ///
+    /// Note that as of the time of this writing the 3.0 version of the
+    /// specification is not yet published. The precise set of features set
+    /// here may change as that continues to evolve.
+    #[cfg(feature = "features")]
+    pub const WASM3: WasmFeatures = WasmFeatures::WASM2
+        .union(WasmFeatures::GC)
+        .union(WasmFeatures::TAIL_CALL)
+        .union(WasmFeatures::EXTENDED_CONST)
+        .union(WasmFeatures::FUNCTION_REFERENCES)
+        .union(WasmFeatures::MULTI_MEMORY)
+        .union(WasmFeatures::RELAXED_SIMD)
+        .union(WasmFeatures::THREADS)
+        .union(WasmFeatures::EXCEPTIONS);
 }
 
 #[cfg(feature = "features")]
