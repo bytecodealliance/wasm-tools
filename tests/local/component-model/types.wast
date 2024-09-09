@@ -357,3 +357,45 @@
     ))
   )
   "cannot have more than 32 flags")
+
+;; test components with non-mvp types
+(component
+  ;; all abstract heap types work
+  (core type (func (param (ref any))))
+  (core type (func (param (ref func))))
+  (core type (func (param (ref extern))))
+  (core type (func (param (ref exn))))
+  (core type (func (param (ref noexn))))
+  (core type (func (param (ref eq))))
+  (core type (func (param (ref struct))))
+  (core type (func (param (ref array))))
+  (core type (func (param (ref nofunc))))
+  (core type (func (param (ref noextern))))
+  (core type (func (param (ref none))))
+  (core type (func (param (ref i31))))
+
+  ;; some shorthands work
+  (core type (func (param anyref)))
+  (core type (func (param eqref)))
+
+  ;; simd types work
+  (core type (func (param v128)))
+
+  ;; types-pointing-to-types works
+  (core type $t (func))
+  (core type (func (param (ref $t))))
+
+)
+
+(assert_invalid
+  (component
+    (core type $t (module))
+    (core type (func (param (ref $t))))
+  )
+  "type index 0 is a module type")
+
+(assert_invalid
+  (component
+    (core type (func (param (ref 100))))
+  )
+  "type index out of bounds")

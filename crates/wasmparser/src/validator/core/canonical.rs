@@ -67,26 +67,202 @@
 //!   perform additional expensive checks to see if the types match or not
 //!   (since the whole point of canonicalization is to avoid that!).
 
-use super::{Module, RecGroupId, TypeAlloc};
+use super::{RecGroupId, TypeAlloc, TypeList};
 use crate::{
     types::{CoreTypeId, TypeIdentifier},
-    PackedIndex, RecGroup, Result, UnpackedIndex, WasmFeatures,
+    BinaryReaderError, CompositeInnerType, CompositeType, PackedIndex, RecGroup, Result,
+    StorageType, UnpackedIndex, ValType, WasmFeatures,
 };
 
-/// Canonicalize the rec group and return its id and whether it is a new group
-/// (we added its types to the `TypeAlloc`) or not (we deduplicated it with an
-/// existing canonical rec group).
-pub(crate) fn canonicalize_and_intern_rec_group(
-    features: &WasmFeatures,
-    types: &mut TypeAlloc,
-    module: &Module,
-    mut rec_group: RecGroup,
-    offset: usize,
-) -> Result<(bool, RecGroupId)> {
-    TypeCanonicalizer::new(module, offset)
-        .with_features(features)
-        .canonicalize_rec_group(&mut rec_group)?;
-    Ok(types.intern_canonical_rec_group(rec_group))
+pub(crate) trait InternRecGroup {
+    fn add_type_id(&mut self, id: CoreTypeId);
+    fn type_id_at(&self, idx: u32, offset: usize) -> Result<CoreTypeId>;
+    fn types_len(&self) -> u32;
+
+    /// Canonicalize the rec group and return its id and whether it is a new group
+    /// (we added its types to the `TypeAlloc`) or not (we deduplicated it with an
+    /// existing canonical rec group).
+    fn canonicalize_and_intern_rec_group(
+        &mut self,
+        features: &WasmFeatures,
+        types: &mut TypeAlloc,
+        mut rec_group: RecGroup,
+        offset: usize,
+    ) -> Result<()>
+    where
+        Self: Sized,
+    {
+        debug_assert!(rec_group.is_explicit_rec_group() || rec_group.types().len() == 1);
+        if rec_group.is_explicit_rec_group() && !features.gc() {
+            bail!(
+                offset,
+                "rec group usage requires `gc` proposal to be enabled"
+            );
+        }
+        TypeCanonicalizer::new(self, offset)
+            .with_features(features)
+            .canonicalize_rec_group(&mut rec_group)?;
+        let (is_new, rec_group_id) = types.intern_canonical_rec_group(rec_group);
+        let range = &types[rec_group_id];
+        let start = range.start.index();
+        let end = range.end.index();
+
+        for i in start..end {
+            let i = u32::try_from(i).unwrap();
+            let id = CoreTypeId::from_index(i);
+            debug_assert!(types.get(id).is_some());
+            self.add_type_id(id);
+            if is_new {
+                self.check_subtype(rec_group_id, id, features, types, offset)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn check_subtype(
+        &mut self,
+        rec_group: RecGroupId,
+        id: CoreTypeId,
+        features: &WasmFeatures,
+        types: &mut TypeAlloc,
+        offset: usize,
+    ) -> Result<()> {
+        let ty = &types[id];
+        if !features.gc() && (!ty.is_final || ty.supertype_idx.is_some()) {
+            bail!(offset, "gc proposal must be enabled to use subtypes");
+        }
+
+        self.check_composite_type(&ty.composite_type, features, &types, offset)?;
+
+        let depth = if let Some(supertype_index) = ty.supertype_idx {
+            debug_assert!(supertype_index.is_canonical());
+            let sup_id = self.at_packed_index(types, rec_group, supertype_index, offset)?;
+            if types[sup_id].is_final {
+                bail!(offset, "sub type cannot have a final super type");
+            }
+            if !types.matches(id, sup_id) {
+                bail!(offset, "sub type must match super type");
+            }
+            let depth = types.get_subtyping_depth(sup_id) + 1;
+            if usize::from(depth) > crate::limits::MAX_WASM_SUBTYPING_DEPTH {
+                bail!(
+                    offset,
+                    "sub type hierarchy too deep: found depth {}, cannot exceed depth {}",
+                    depth,
+                    crate::limits::MAX_WASM_SUBTYPING_DEPTH,
+                );
+            }
+            depth
+        } else {
+            0
+        };
+        types.set_subtyping_depth(id, depth);
+
+        Ok(())
+    }
+
+    fn check_composite_type(
+        &mut self,
+        ty: &CompositeType,
+        features: &WasmFeatures,
+        types: &TypeList,
+        offset: usize,
+    ) -> Result<()> {
+        let check = |ty: &ValType, shared: bool| {
+            features
+                .check_value_type(*ty)
+                .map_err(|e| BinaryReaderError::new(e, offset))?;
+            if shared && !types.valtype_is_shared(*ty) {
+                return Err(BinaryReaderError::new(
+                    "shared composite type must contain shared types",
+                    offset,
+                ));
+                // The other cases are fine:
+                // - both shared or unshared: good to go
+                // - the func type is unshared, `ty` is shared: though
+                //   odd, we _can_ in fact use shared values in
+                //   unshared composite types (e.g., functions).
+            }
+            Ok(())
+        };
+        if !features.shared_everything_threads() && ty.shared {
+            return Err(BinaryReaderError::new(
+                "shared composite types require the shared-everything-threads proposal",
+                offset,
+            ));
+        }
+        match &ty.inner {
+            CompositeInnerType::Func(t) => {
+                for vt in t.params().iter().chain(t.results()) {
+                    check(vt, ty.shared)?;
+                }
+                if t.results().len() > 1 && !features.multi_value() {
+                    return Err(BinaryReaderError::new(
+                        "func type returns multiple values but the multi-value feature is not enabled",
+                        offset,
+                    ));
+                }
+            }
+            CompositeInnerType::Array(t) => {
+                if !features.gc() {
+                    bail!(
+                        offset,
+                        "array indexed types not supported without the gc feature",
+                    );
+                }
+                if !features.gc_types() {
+                    bail!(
+                        offset,
+                        "cannot define array types when gc types are disabled",
+                    );
+                }
+                match &t.0.element_type {
+                    StorageType::I8 | StorageType::I16 => {
+                        // Note: scalar types are always `shared`.
+                    }
+                    StorageType::Val(value_type) => check(value_type, ty.shared)?,
+                };
+            }
+            CompositeInnerType::Struct(t) => {
+                if !features.gc() {
+                    bail!(
+                        offset,
+                        "struct indexed types not supported without the gc feature",
+                    );
+                }
+                if !features.gc_types() {
+                    bail!(
+                        offset,
+                        "cannot define struct types when gc types are disabled",
+                    );
+                }
+                for ft in t.fields.iter() {
+                    match &ft.element_type {
+                        StorageType::I8 | StorageType::I16 => {
+                            // Note: scalar types are always `shared`.
+                        }
+                        StorageType::Val(value_type) => check(value_type, ty.shared)?,
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn at_packed_index(
+        &self,
+        types: &TypeList,
+        rec_group: RecGroupId,
+        index: PackedIndex,
+        offset: usize,
+    ) -> Result<CoreTypeId> {
+        match index.unpack() {
+            UnpackedIndex::Id(id) => Ok(id),
+            UnpackedIndex::Module(idx) => self.type_id_at(idx, offset),
+            UnpackedIndex::RecGroup(idx) => types.rec_group_local_id(rec_group, idx, offset),
+        }
+    }
 }
 
 /// The kind of canonicalization we are doing.
@@ -105,7 +281,7 @@ enum CanonicalizationMode {
 }
 
 pub(crate) struct TypeCanonicalizer<'a> {
-    module: &'a Module,
+    module: &'a dyn InternRecGroup,
     features: Option<&'a WasmFeatures>,
     rec_group_start: u32,
     rec_group_len: u32,
@@ -115,7 +291,7 @@ pub(crate) struct TypeCanonicalizer<'a> {
 }
 
 impl<'a> TypeCanonicalizer<'a> {
-    pub fn new(module: &'a Module, offset: usize) -> Self {
+    pub fn new(module: &'a dyn InternRecGroup, offset: usize) -> Self {
         // These defaults will work for when we are canonicalizing types from
         // outside of a rec group definition, forcing all `PackedIndex`es to be
         // canonicalized to `CoreTypeId`s.
@@ -147,7 +323,7 @@ impl<'a> TypeCanonicalizer<'a> {
         // Re-initialize these fields so that we properly canonicalize
         // intra-rec-group type references into indices into the rec group
         // rather than as `CoreTypeId`s.
-        self.rec_group_start = u32::try_from(self.module.types.len()).unwrap();
+        self.rec_group_start = self.module.types_len();
         self.rec_group_len = u32::try_from(rec_group.types().len()).unwrap();
 
         for (rec_group_local_index, ty) in rec_group.types_mut().enumerate() {
@@ -168,7 +344,7 @@ impl<'a> TypeCanonicalizer<'a> {
 
     fn canonicalize_type_index(&self, ty: &mut PackedIndex) -> Result<()> {
         match ty.unpack() {
-            UnpackedIndex::Id(_) => return Ok(()),
+            UnpackedIndex::Id(_) => Ok(()),
             UnpackedIndex::Module(index) => {
                 if index < self.rec_group_start || self.mode == CanonicalizationMode::OnlyIds {
                     let id = self.module.type_id_at(index, self.offset)?;

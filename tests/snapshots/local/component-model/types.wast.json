@@ -283,6 +283,25 @@
       "filename": "types.41.wasm",
       "text": "cannot have more than 32 flags",
       "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 362,
+      "filename": "types.42.wasm"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 391,
+      "filename": "types.43.wasm",
+      "text": "type index 0 is a module type",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 398,
+      "filename": "types.44.wasm",
+      "text": "type index out of bounds",
+      "module_type": "binary"
     }
   ]
 }
