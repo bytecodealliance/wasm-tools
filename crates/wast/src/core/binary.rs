@@ -6,6 +6,7 @@ use crate::Wat;
 use std::marker;
 #[cfg(feature = "dwarf")]
 use std::path::Path;
+use wasm_encoder::SectionId;
 
 /// Options that can be specified when encoding a component or a module to
 /// customize what the final binary looks like.
@@ -135,33 +136,35 @@ pub(crate) fn encode(
     }
 
     let mut e = Encoder {
-        wasm: Vec::new(),
+        wasm: wasm_encoder::Module::new(),
         tmp: Vec::new(),
         customs: &customs,
     };
-    e.wasm.extend(b"\0asm");
-    e.wasm.extend(b"\x01\0\0\0");
 
     e.custom_sections(BeforeFirst);
 
-    e.section_list(1, Type, &types);
-    e.section_list(2, Import, &imports);
+    e.section_list(SectionId::Type, Type, &types);
+    e.section_list(SectionId::Import, Import, &imports);
 
     let functys = funcs.iter().map(|f| &f.ty).collect::<Vec<_>>();
-    e.section_list(3, Func, &functys);
-    e.section_list(4, Table, &tables);
-    e.section_list(5, Memory, &memories);
-    e.section_list(13, Tag, &tags);
-    e.section_list(6, Global, &globals);
-    e.section_list(7, Export, &exports);
+    e.section_list(SectionId::Function, Func, &functys);
+    e.section_list(SectionId::Table, Table, &tables);
+    e.section_list(SectionId::Memory, Memory, &memories);
+    e.section_list(SectionId::Tag, Tag, &tags);
+    e.section_list(SectionId::Global, Global, &globals);
+    e.section_list(SectionId::Export, Export, &exports);
     e.custom_sections(Before(Start));
     if let Some(start) = start.get(0) {
-        e.section(8, start);
+        e.wasm.section(&wasm_encoder::StartSection {
+            function_index: start.unwrap_u32(),
+        });
     }
     e.custom_sections(After(Start));
-    e.section_list(9, Elem, &elem);
+    e.section_list(SectionId::Element, Elem, &elem);
     if needs_data_count(&funcs) {
-        e.section(12, &data.len());
+        e.wasm.section(&wasm_encoder::DataCountSection {
+            count: data.len().try_into().unwrap(),
+        });
     }
 
     // Prepare to and emit the code section. This is where DWARF may optionally
@@ -175,17 +178,17 @@ pub(crate) fn encode(
     let mut dwarf = dwarf::Dwarf::new(num_import_funcs, opts, &names, &types);
     e.code_section(&funcs, num_import_funcs, dwarf.as_mut());
 
-    e.section_list(11, Data, &data);
+    e.section_list(SectionId::Data, Data, &data);
 
     if !names.is_empty() {
-        e.section(0, &("name", names));
+        e.custom_section("name", &names);
     }
     e.custom_sections(AfterLast);
     if let Some(dwarf) = &mut dwarf {
         dwarf.emit(&mut e);
     }
 
-    return e.wasm;
+    return e.wasm.finish();
 
     fn needs_data_count(funcs: &[&crate::core::Func<'_>]) -> bool {
         funcs
@@ -200,38 +203,44 @@ pub(crate) fn encode(
 }
 
 struct Encoder<'a> {
-    wasm: Vec<u8>,
+    wasm: wasm_encoder::Module,
     tmp: Vec<u8>,
     customs: &'a [&'a Custom<'a>],
 }
 
 impl Encoder<'_> {
-    fn section(&mut self, id: u8, section: &dyn Encode) {
+    fn section(&mut self, id: SectionId, section: &dyn Encode) {
         self.tmp.truncate(0);
         section.encode(&mut self.tmp);
-        self.wasm.push(id);
-        self.tmp.encode(&mut self.wasm);
+        self.wasm.section(&wasm_encoder::RawSection {
+            id: id as u8,
+            data: &self.tmp,
+        });
     }
 
     fn custom_sections(&mut self, place: CustomPlace) {
         for entry in self.customs.iter() {
             if entry.place() == place {
-                let mut data = Vec::new();
-                entry.encode(&mut data);
-                self.custom_section(entry.name(), &data);
+                self.custom_section(entry.name(), entry);
             }
         }
     }
 
-    fn custom_section(&mut self, name: &str, data: &[u8]) {
+    fn custom_section(&mut self, name: &str, data: &dyn Encode) {
         self.tmp.truncate(0);
-        name.encode(&mut self.tmp);
-        self.tmp.extend_from_slice(data);
-        self.wasm.push(0);
-        self.tmp.encode(&mut self.wasm);
+        data.encode(&mut self.tmp);
+        self.wasm.section(&wasm_encoder::CustomSection {
+            name: name.into(),
+            data: (&self.tmp).into(),
+        });
     }
 
-    fn section_list(&mut self, id: u8, anchor: CustomPlaceAnchor, list: &[impl Encode]) {
+    fn section_list(
+        &mut self,
+        id: wasm_encoder::SectionId,
+        anchor: CustomPlaceAnchor,
+        list: &[impl Encode],
+    ) {
         self.custom_sections(CustomPlace::Before(anchor));
         if !list.is_empty() {
             self.section(id, &list)
@@ -276,12 +285,14 @@ impl Encoder<'_> {
             // Branch hints section has to be inserted before the Code section
             // Insert the section only if we have some hints
             if !branch_hints.is_empty() {
-                self.section(0, &("metadata.code.branch_hint", branch_hints));
+                self.custom_section("metadata.code.branch_hint", &branch_hints);
             }
 
             // Finally, insert the Code section from the tmp buffer
-            self.wasm.push(10);
-            code_section.encode(&mut self.wasm);
+            self.wasm.section(&wasm_encoder::RawSection {
+                id: wasm_encoder::SectionId::Code as u8,
+                data: &code_section,
+            });
 
             if let Some(dwarf) = &mut dwarf {
                 dwarf.set_code_section_size(code_section.len());
@@ -542,8 +553,14 @@ impl<T> Encode for TypeUse<'_, T> {
 
 impl Encode for Index<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
+        self.unwrap_u32().encode(e)
+    }
+}
+
+impl Index<'_> {
+    fn unwrap_u32(&self) -> u32 {
         match self {
-            Index::Num(n, _) => n.encode(e),
+            Index::Num(n, _) => *n,
             Index::Id(n) => panic!("unresolved index in emission: {:?}", n),
         }
     }
