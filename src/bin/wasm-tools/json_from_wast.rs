@@ -6,7 +6,7 @@ use wast::lexer::Lexer;
 use wast::parser::{self, ParseBuffer};
 use wast::token::{Span, F32, F64};
 use wast::{
-    QuoteWat, QuoteWatTest, Wast, WastArg, WastDirective, WastExecute, WastInvoke, WastRet, Wat,
+    QuoteWat, QuoteWatTest, Wast, WastArg, WastDirective, WastExecute, WastInvoke, WastRet,
 };
 
 /// Convert a `*.wast` WebAssembly spec test into a `*.json` file and `*.wasm`
@@ -130,7 +130,7 @@ impl<'a> JsonBuilder<'a> {
     fn directive(&mut self, directive: WastDirective<'a>) -> Result<json::Command<'a>> {
         let line = self.lineno(directive.span());
         let command = match directive {
-            WastDirective::Wat(module) => {
+            WastDirective::Module(module) => {
                 let (name, _module_type, filename) = self.emit_file(module)?;
                 json::Command::Module {
                     line,
@@ -138,6 +138,21 @@ impl<'a> JsonBuilder<'a> {
                     filename,
                 }
             }
+            WastDirective::ModuleDefinition(module) => {
+                let (name, _module_type, filename) = self.emit_file(module)?;
+                json::Command::ModuleDefinition {
+                    line,
+                    name: name.map(|s| self.module_name(s)),
+                    filename,
+                }
+            }
+            WastDirective::ModuleInstance {
+                instance, module, ..
+            } => json::Command::ModuleInstance {
+                line,
+                instance: instance.map(|s| self.module_name(s.name())),
+                module: module.map(|s| self.module_name(s.name())),
+            },
             WastDirective::AssertMalformed {
                 span: _,
                 module,
@@ -274,12 +289,7 @@ impl<'a> JsonBuilder<'a> {
         &mut self,
         mut module: QuoteWat<'a>,
     ) -> Result<(Option<&'a str>, &'a str, String)> {
-        let name = match &module {
-            QuoteWat::Wat(Wat::Module(m)) => m.id,
-            QuoteWat::Wat(Wat::Component(m)) => m.id,
-            QuoteWat::QuoteModule(..) | QuoteWat::QuoteComponent(..) => None,
-        };
-        let name = name.map(|i| i.name());
+        let name = module.name().map(|i| i.name());
         let (contents, module_type, ext) = match module.to_test()? {
             QuoteWatTest::Text(s) => (s, "text", "wat"),
             QuoteWatTest::Binary(s) => (s, "binary", "wasm"),
@@ -556,6 +566,19 @@ mod json {
             #[serde(skip_serializing_if = "Option::is_none")]
             name: Option<String>,
             filename: String,
+        },
+        ModuleDefinition {
+            line: u32,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            name: Option<String>,
+            filename: String,
+        },
+        ModuleInstance {
+            line: u32,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            instance: Option<String>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            module: Option<String>,
         },
         AssertMalformed {
             line: u32,

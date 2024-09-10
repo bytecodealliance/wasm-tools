@@ -58,7 +58,8 @@ fn collect_test_files(path: &Path, list: &mut Vec<BenchmarkInput>) -> Result<()>
                 };
                 for directive in wast.directives {
                     match directive {
-                        wast::WastDirective::Wat(mut module) => {
+                        wast::WastDirective::Module(mut module)
+                        | wast::WastDirective::ModuleDefinition(mut module) => {
                             let wasm = module.encode()?;
                             list.push(BenchmarkInput::new(path.clone(), wasm));
                         }

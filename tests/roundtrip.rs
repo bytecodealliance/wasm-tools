@@ -286,7 +286,7 @@ impl TestState {
 
     fn test_wast_directive(&self, test: &Path, directive: WastDirective, idx: usize) -> Result<()> {
         match directive {
-            WastDirective::Wat(mut module) => {
+            WastDirective::Module(mut module) | WastDirective::ModuleDefinition(mut module) => {
                 let actual = module.encode()?;
                 self.bump_ntests(); // testing encode
 
@@ -375,7 +375,8 @@ impl TestState {
 
             // This test suite doesn't actually execute any wasm code, so ignore
             // all of these assertions.
-            WastDirective::Register { .. }
+            WastDirective::ModuleInstance { .. }
+            | WastDirective::Register { .. }
             | WastDirective::Invoke(_)
             | WastDirective::AssertTrap { .. }
             | WastDirective::AssertReturn { .. }
