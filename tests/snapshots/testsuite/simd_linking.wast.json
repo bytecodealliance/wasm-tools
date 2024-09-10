@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "simd_linking.0.wasm"
+      "filename": "simd_linking.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -14,7 +15,8 @@
     {
       "type": "module",
       "line": 7,
-      "filename": "simd_linking.1.wasm"
+      "filename": "simd_linking.1.wasm",
+      "module_type": "binary"
     }
   ]
 }

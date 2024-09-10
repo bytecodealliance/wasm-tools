@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "stack.0.wasm"
+      "filename": "stack.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -99,7 +100,8 @@
     {
       "type": "module",
       "line": 156,
-      "filename": "stack.1.wasm"
+      "filename": "stack.1.wasm",
+      "module_type": "binary"
     }
   ]
 }

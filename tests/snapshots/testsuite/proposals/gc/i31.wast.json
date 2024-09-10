@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "i31.0.wasm"
+      "filename": "i31.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -421,7 +422,8 @@
       "type": "module",
       "line": 61,
       "name": "tables_of_i31ref",
-      "filename": "i31.1.wasm"
+      "filename": "i31.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -787,7 +789,8 @@
       "type": "module",
       "line": 123,
       "name": "env",
-      "filename": "i31.2.wasm"
+      "filename": "i31.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -798,7 +801,8 @@
       "type": "module",
       "line": 128,
       "name": "i31ref_of_global_table_initializer",
-      "filename": "i31.3.wasm"
+      "filename": "i31.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -864,7 +868,8 @@
       "type": "module",
       "line": 140,
       "name": "i31ref_of_global_global_initializer",
-      "filename": "i31.4.wasm"
+      "filename": "i31.4.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -885,7 +890,8 @@
       "type": "module",
       "line": 150,
       "name": "anyref_global_of_i31ref",
-      "filename": "i31.5.wasm"
+      "filename": "i31.5.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -943,7 +949,8 @@
       "type": "module",
       "line": 168,
       "name": "anyref_table_of_i31ref",
-      "filename": "i31.6.wasm"
+      "filename": "i31.6.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

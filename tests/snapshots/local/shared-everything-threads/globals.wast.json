@@ -4,207 +4,213 @@
     {
       "type": "module",
       "line": 3,
-      "filename": "globals.0.wasm"
+      "filename": "globals.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_malformed",
       "line": 30,
       "filename": "globals.1.wat",
-      "text": "unexpected token",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unexpected token"
     },
     {
       "type": "assert_invalid",
       "line": 34,
       "filename": "globals.2.wasm",
-      "text": "shared value type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "shared value type"
     },
     {
       "type": "module",
       "line": 38,
-      "filename": "globals.3.wasm"
+      "filename": "globals.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_invalid",
       "line": 51,
       "filename": "globals.4.wasm",
-      "text": "global is immutable",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "global is immutable"
     },
     {
       "type": "assert_invalid",
       "line": 58,
       "filename": "globals.5.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid type"
     },
     {
       "type": "assert_invalid",
       "line": 65,
       "filename": "globals.6.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid type"
     },
     {
       "type": "assert_invalid",
       "line": 72,
       "filename": "globals.7.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid type"
     },
     {
       "type": "assert_invalid",
       "line": 79,
       "filename": "globals.8.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid type"
     },
     {
       "type": "assert_invalid",
       "line": 86,
       "filename": "globals.9.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid type"
     },
     {
       "type": "assert_invalid",
       "line": 93,
       "filename": "globals.10.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid type"
     },
     {
       "type": "assert_invalid",
       "line": 100,
       "filename": "globals.11.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid type"
     },
     {
       "type": "assert_invalid",
       "line": 107,
       "filename": "globals.12.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid type"
     },
     {
       "type": "assert_invalid",
       "line": 114,
       "filename": "globals.13.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid type"
     },
     {
       "type": "assert_invalid",
       "line": 121,
       "filename": "globals.14.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid type"
     },
     {
       "type": "assert_invalid",
       "line": 128,
       "filename": "globals.15.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid type"
     },
     {
       "type": "assert_invalid",
       "line": 135,
       "filename": "globals.16.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid type"
     },
     {
       "type": "assert_invalid",
       "line": 142,
       "filename": "globals.17.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid type"
     },
     {
       "type": "assert_invalid",
       "line": 149,
       "filename": "globals.18.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid type"
     },
     {
       "type": "assert_invalid",
       "line": 156,
       "filename": "globals.19.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid type"
     },
     {
       "type": "assert_invalid",
       "line": 163,
       "filename": "globals.20.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid type"
     },
     {
       "type": "assert_invalid",
       "line": 170,
       "filename": "globals.21.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid type"
     },
     {
       "type": "assert_invalid",
       "line": 177,
       "filename": "globals.22.wasm",
-      "text": "invalid type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid type"
     },
     {
       "type": "module",
       "line": 184,
-      "filename": "globals.23.wasm"
+      "filename": "globals.23.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 277,
-      "filename": "globals.24.wasm"
+      "filename": "globals.24.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_invalid",
       "line": 371,
       "filename": "globals.25.wasm",
-      "text": "invalid type: `global.atomic.rmw.*` only allows `i32` and `i64`",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid type: `global.atomic.rmw.*` only allows `i32` and `i64`"
     },
     {
       "type": "assert_invalid",
       "line": 382,
       "filename": "globals.26.wasm",
-      "text": "global index out of bounds",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "global index out of bounds"
     },
     {
       "type": "assert_invalid",
       "line": 390,
       "filename": "globals.27.wasm",
-      "text": "invalid type: `global.atomic.rmw.xchg` only allows `i32`, `i64` and subtypes of `anyref`",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid type: `global.atomic.rmw.xchg` only allows `i32`, `i64` and subtypes of `anyref`"
     },
     {
       "type": "module",
       "line": 400,
-      "filename": "globals.28.wasm"
+      "filename": "globals.28.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_invalid",
       "line": 410,
       "filename": "globals.29.wasm",
-      "text": "invalid type: `global.atomic.rmw.cmpxchg` only allows `i32`, `i64` and subtypes of `eqref`",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid type: `global.atomic.rmw.cmpxchg` only allows `i32`, `i64` and subtypes of `eqref`"
     },
     {
       "type": "module",
       "line": 421,
-      "filename": "globals.30.wasm"
+      "filename": "globals.30.wasm",
+      "module_type": "binary"
     }
   ]
 }

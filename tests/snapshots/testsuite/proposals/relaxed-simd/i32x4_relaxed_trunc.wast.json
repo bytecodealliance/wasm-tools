@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 4,
-      "filename": "i32x4_relaxed_trunc.0.wasm"
+      "filename": "i32x4_relaxed_trunc.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

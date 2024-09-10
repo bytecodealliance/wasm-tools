@@ -5,8 +5,8 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "crash-9001106adb60c9b427167d0606700fd16d5b3a82.0.wasm",
-      "text": "unexpected data at the end of the section",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unexpected data at the end of the section"
     }
   ]
 }

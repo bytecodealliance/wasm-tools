@@ -5,20 +5,21 @@
       "type": "assert_invalid",
       "line": 6,
       "filename": "array_init_data.0.wasm",
-      "text": "array is immutable",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "array is immutable"
     },
     {
       "type": "assert_invalid",
       "line": 19,
       "filename": "array_init_data.1.wasm",
-      "text": "array type is not numeric or vector",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "array type is not numeric or vector"
     },
     {
       "type": "module",
       "line": 31,
-      "filename": "array_init_data.2.wasm"
+      "filename": "array_init_data.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",

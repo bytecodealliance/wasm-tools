@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 3,
-      "filename": "try_delegate.0.wasm"
+      "filename": "try_delegate.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -318,8 +319,8 @@
       "type": "assert_invalid",
       "line": 273,
       "filename": "try_delegate.1.wasm",
-      "text": "unknown label",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown label"
     }
   ]
 }

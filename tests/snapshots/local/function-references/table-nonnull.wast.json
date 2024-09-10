@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 3,
-      "filename": "table-nonnull.0.wasm"
+      "filename": "table-nonnull.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

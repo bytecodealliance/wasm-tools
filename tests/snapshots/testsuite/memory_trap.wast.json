@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "memory_trap.0.wasm"
+      "filename": "memory_trap.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -238,7 +239,8 @@
     {
       "type": "module",
       "line": 35,
-      "filename": "memory_trap.1.wasm"
+      "filename": "memory_trap.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",

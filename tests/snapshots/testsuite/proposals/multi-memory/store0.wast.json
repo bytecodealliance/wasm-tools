@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 3,
-      "filename": "store0.0.wasm"
+      "filename": "store0.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",

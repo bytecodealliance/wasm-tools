@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "memory_size1.0.wasm"
+      "filename": "memory_size1.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

@@ -5,8 +5,8 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "threads.0.wasm",
-      "text": "must always specify maximum alignment",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "must always specify maximum alignment"
     }
   ]
 }

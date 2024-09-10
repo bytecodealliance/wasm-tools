@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 4,
-      "filename": "names.0.wasm"
+      "filename": "names.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -24,7 +25,8 @@
     {
       "type": "module",
       "line": 12,
-      "filename": "names.1.wasm"
+      "filename": "names.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -44,7 +46,8 @@
     {
       "type": "module",
       "line": 19,
-      "filename": "names.2.wasm"
+      "filename": "names.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -7234,7 +7237,8 @@
     {
       "type": "module",
       "line": 1095,
-      "filename": "names.3.wasm"
+      "filename": "names.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

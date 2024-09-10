@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "ref_is_null.0.wasm"
+      "filename": "ref_is_null.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -253,15 +254,15 @@
       "type": "assert_invalid",
       "line": 52,
       "filename": "ref_is_null.1.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 56,
       "filename": "ref_is_null.2.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     }
   ]
 }

@@ -4,17 +4,20 @@
     {
       "type": "module",
       "line": 2,
-      "filename": "bulk.0.wasm"
+      "filename": "bulk.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 6,
-      "filename": "bulk.1.wasm"
+      "filename": "bulk.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 13,
-      "filename": "bulk.2.wasm"
+      "filename": "bulk.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -333,7 +336,8 @@
     {
       "type": "module",
       "line": 57,
-      "filename": "bulk.3.wasm"
+      "filename": "bulk.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -918,7 +922,8 @@
     {
       "type": "module",
       "line": 115,
-      "filename": "bulk.4.wasm"
+      "filename": "bulk.4.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -1180,7 +1185,8 @@
     {
       "type": "module",
       "line": 154,
-      "filename": "bulk.5.wasm"
+      "filename": "bulk.5.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -1314,17 +1320,20 @@
     {
       "type": "module",
       "line": 181,
-      "filename": "bulk.6.wasm"
+      "filename": "bulk.6.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 196,
-      "filename": "bulk.7.wasm"
+      "filename": "bulk.7.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 199,
-      "filename": "bulk.8.wasm"
+      "filename": "bulk.8.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -1556,7 +1565,8 @@
     {
       "type": "module",
       "line": 244,
-      "filename": "bulk.9.wasm"
+      "filename": "bulk.9.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -1690,17 +1700,20 @@
     {
       "type": "module",
       "line": 274,
-      "filename": "bulk.10.wasm"
+      "filename": "bulk.10.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 297,
-      "filename": "bulk.11.wasm"
+      "filename": "bulk.11.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 300,
-      "filename": "bulk.12.wasm"
+      "filename": "bulk.12.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",

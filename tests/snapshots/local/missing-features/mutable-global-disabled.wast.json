@@ -5,15 +5,15 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "mutable-global-disabled.0.wasm",
-      "text": "mutable global support is not enabled",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "mutable global support is not enabled"
     },
     {
       "type": "assert_invalid",
       "line": 9,
       "filename": "mutable-global-disabled.1.wasm",
-      "text": "mutable global support is not enabled",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "mutable global support is not enabled"
     }
   ]
 }

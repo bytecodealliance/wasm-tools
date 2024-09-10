@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "empty-elem.0.wasm"
+      "filename": "empty-elem.0.wasm",
+      "module_type": "binary"
     }
   ]
 }

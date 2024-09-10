@@ -5,8 +5,8 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "invalid-ty2.0.wasm",
-      "text": "type index out of bounds",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type index out of bounds"
     }
   ]
 }

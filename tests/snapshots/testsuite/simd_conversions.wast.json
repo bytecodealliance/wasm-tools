@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 3,
-      "filename": "simd_conversions.0.wasm"
+      "filename": "simd_conversions.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -9004,272 +9005,273 @@
       "type": "assert_malformed",
       "line": 605,
       "filename": "simd_conversions.1.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 608,
       "filename": "simd_conversions.2.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 611,
       "filename": "simd_conversions.3.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 614,
       "filename": "simd_conversions.4.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 617,
       "filename": "simd_conversions.5.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 620,
       "filename": "simd_conversions.6.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 624,
       "filename": "simd_conversions.7.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 627,
       "filename": "simd_conversions.8.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 630,
       "filename": "simd_conversions.9.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 633,
       "filename": "simd_conversions.10.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 637,
       "filename": "simd_conversions.11.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 640,
       "filename": "simd_conversions.12.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 643,
       "filename": "simd_conversions.13.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 646,
       "filename": "simd_conversions.14.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 649,
       "filename": "simd_conversions.15.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 652,
       "filename": "simd_conversions.16.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 655,
       "filename": "simd_conversions.17.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 658,
       "filename": "simd_conversions.18.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 662,
       "filename": "simd_conversions.19.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 665,
       "filename": "simd_conversions.20.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 668,
       "filename": "simd_conversions.21.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 671,
       "filename": "simd_conversions.22.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 674,
       "filename": "simd_conversions.23.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 677,
       "filename": "simd_conversions.24.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 680,
       "filename": "simd_conversions.25.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 683,
       "filename": "simd_conversions.26.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 686,
       "filename": "simd_conversions.27.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 689,
       "filename": "simd_conversions.28.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 692,
       "filename": "simd_conversions.29.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 695,
       "filename": "simd_conversions.30.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_invalid",
       "line": 702,
       "filename": "simd_conversions.31.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 703,
       "filename": "simd_conversions.32.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 704,
       "filename": "simd_conversions.33.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 705,
       "filename": "simd_conversions.34.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 707,
       "filename": "simd_conversions.35.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 708,
       "filename": "simd_conversions.36.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 709,
       "filename": "simd_conversions.37.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 710,
       "filename": "simd_conversions.38.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "module",
       "line": 715,
-      "filename": "simd_conversions.39.wasm"
+      "filename": "simd_conversions.39.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -10169,71 +10171,71 @@
       "type": "assert_invalid",
       "line": 821,
       "filename": "simd_conversions.40.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 829,
       "filename": "simd_conversions.41.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 837,
       "filename": "simd_conversions.42.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 845,
       "filename": "simd_conversions.43.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 853,
       "filename": "simd_conversions.44.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 861,
       "filename": "simd_conversions.45.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 869,
       "filename": "simd_conversions.46.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 877,
       "filename": "simd_conversions.47.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 885,
       "filename": "simd_conversions.48.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 893,
       "filename": "simd_conversions.49.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     }
   ]
 }

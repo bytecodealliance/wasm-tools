@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 17,
-      "filename": "float_misc.0.wasm"
+      "filename": "float_misc.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

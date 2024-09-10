@@ -5,7 +5,8 @@
       "type": "module",
       "line": 1,
       "name": "M1",
-      "filename": "store1.0.wasm"
+      "filename": "store1.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -16,7 +17,8 @@
       "type": "module",
       "line": 13,
       "name": "M2",
-      "filename": "store1.1.wasm"
+      "filename": "store1.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -106,7 +108,8 @@
     {
       "type": "module",
       "line": 30,
-      "filename": "store1.2.wasm"
+      "filename": "store1.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",

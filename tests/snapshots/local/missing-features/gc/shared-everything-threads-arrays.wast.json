@@ -5,8 +5,8 @@
       "type": "assert_invalid",
       "line": 4,
       "filename": "shared-everything-threads-arrays.0.wasm",
-      "text": "shared-everything-threads support is not enabled",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "shared-everything-threads support is not enabled"
     }
   ]
 }

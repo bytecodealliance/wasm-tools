@@ -5,8 +5,8 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "wrong-order.0.wasm",
-      "text": "section out of order",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "section out of order"
     }
   ]
 }

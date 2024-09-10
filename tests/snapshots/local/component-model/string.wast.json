@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 3,
-      "filename": "string.0.wasm"
+      "filename": "string.0.wasm",
+      "module_type": "binary"
     }
   ]
 }

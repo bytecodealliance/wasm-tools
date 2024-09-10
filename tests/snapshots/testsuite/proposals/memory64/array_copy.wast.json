@@ -5,34 +5,35 @@
       "type": "assert_invalid",
       "line": 6,
       "filename": "array_copy.0.wasm",
-      "text": "array is immutable",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "array is immutable"
     },
     {
       "type": "assert_invalid",
       "line": 18,
       "filename": "array_copy.1.wasm",
-      "text": "array types do not match",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "array types do not match"
     },
     {
       "type": "assert_invalid",
       "line": 30,
       "filename": "array_copy.2.wasm",
-      "text": "array types do not match",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "array types do not match"
     },
     {
       "type": "assert_invalid",
       "line": 42,
       "filename": "array_copy.3.wasm",
-      "text": "array types do not match",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "array types do not match"
     },
     {
       "type": "module",
       "line": 54,
-      "filename": "array_copy.4.wasm"
+      "filename": "array_copy.4.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",

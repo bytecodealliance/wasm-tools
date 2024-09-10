@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 4,
-      "filename": "f64_bitwise.0.wasm"
+      "filename": "f64_bitwise.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -8506,22 +8507,22 @@
       "type": "assert_invalid",
       "line": 374,
       "filename": "f64_bitwise.1.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 375,
       "filename": "f64_bitwise.2.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 376,
       "filename": "f64_bitwise.3.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     }
   ]
 }

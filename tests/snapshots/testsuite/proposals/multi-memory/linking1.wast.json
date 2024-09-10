@@ -5,7 +5,8 @@
       "type": "module",
       "line": 1,
       "name": "Mm",
-      "filename": "linking1.0.wasm"
+      "filename": "linking1.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -17,7 +18,8 @@
       "type": "module",
       "line": 14,
       "name": "Nm",
-      "filename": "linking1.1.wasm"
+      "filename": "linking1.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -86,7 +88,8 @@
       "type": "module",
       "line": 31,
       "name": "Om",
-      "filename": "linking1.2.wasm"
+      "filename": "linking1.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -175,21 +178,22 @@
     {
       "type": "module",
       "line": 45,
-      "filename": "linking1.3.wasm"
+      "filename": "linking1.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_uninstantiable",
       "line": 51,
       "filename": "linking1.4.wasm",
-      "text": "out of bounds memory access",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "out of bounds memory access"
     },
     {
       "type": "assert_uninstantiable",
       "line": 59,
       "filename": "linking1.5.wasm",
-      "text": "out of bounds memory access",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "out of bounds memory access"
     }
   ]
 }

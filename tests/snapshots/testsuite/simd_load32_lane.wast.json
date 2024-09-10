@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 4,
-      "filename": "simd_load32_lane.0.wasm"
+      "filename": "simd_load32_lane.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -714,22 +715,22 @@
       "type": "assert_invalid",
       "line": 127,
       "filename": "simd_load32_lane.1.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 133,
       "filename": "simd_load32_lane.2.wasm",
-      "text": "invalid lane index",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid lane index"
     },
     {
       "type": "assert_invalid",
       "line": 140,
       "filename": "simd_load32_lane.3.wasm",
-      "text": "alignment must not be larger than natural",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "alignment must not be larger than natural"
     }
   ]
 }

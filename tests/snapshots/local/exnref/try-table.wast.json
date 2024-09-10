@@ -5,8 +5,8 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "try-table.0.wasm",
-      "text": "type mismatch: catch_all_ref label must a subtype of (ref exn)",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch: catch_all_ref label must a subtype of (ref exn)"
     }
   ]
 }

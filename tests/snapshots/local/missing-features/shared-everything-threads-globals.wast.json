@@ -5,22 +5,22 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "shared-everything-threads-globals.0.wasm",
-      "text": "shared globals require the shared-everything-threads proposal",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "shared globals require the shared-everything-threads proposal"
     },
     {
       "type": "assert_invalid",
       "line": 8,
       "filename": "shared-everything-threads-globals.1.wasm",
-      "text": "shared globals require the shared-everything-threads proposal",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "shared globals require the shared-everything-threads proposal"
     },
     {
       "type": "assert_invalid",
       "line": 14,
       "filename": "shared-everything-threads-globals.2.wasm",
-      "text": "shared-everything-threads support is not enabled",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "shared-everything-threads support is not enabled"
     }
   ]
 }

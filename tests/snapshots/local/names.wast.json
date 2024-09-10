@@ -4,32 +4,38 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "names.0.wasm"
+      "filename": "names.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 2,
-      "filename": "names.1.wasm"
+      "filename": "names.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 4,
-      "filename": "names.2.wasm"
+      "filename": "names.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 10,
-      "filename": "names.3.wasm"
+      "filename": "names.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 18,
-      "filename": "names.4.wasm"
+      "filename": "names.4.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 21,
-      "filename": "names.5.wasm"
+      "filename": "names.5.wasm",
+      "module_type": "binary"
     }
   ]
 }

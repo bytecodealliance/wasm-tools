@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 6,
-      "filename": "memory_copy.0.wasm"
+      "filename": "memory_copy.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -618,7 +619,8 @@
     {
       "type": "module",
       "line": 48,
-      "filename": "memory_copy.1.wasm"
+      "filename": "memory_copy.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -1232,7 +1234,8 @@
     {
       "type": "module",
       "line": 90,
-      "filename": "memory_copy.2.wasm"
+      "filename": "memory_copy.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -1846,7 +1849,8 @@
     {
       "type": "module",
       "line": 132,
-      "filename": "memory_copy.3.wasm"
+      "filename": "memory_copy.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -2460,7 +2464,8 @@
     {
       "type": "module",
       "line": 174,
-      "filename": "memory_copy.4.wasm"
+      "filename": "memory_copy.4.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -3074,7 +3079,8 @@
     {
       "type": "module",
       "line": 216,
-      "filename": "memory_copy.5.wasm"
+      "filename": "memory_copy.5.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -3688,7 +3694,8 @@
     {
       "type": "module",
       "line": 258,
-      "filename": "memory_copy.6.wasm"
+      "filename": "memory_copy.6.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -4302,7 +4309,8 @@
     {
       "type": "module",
       "line": 300,
-      "filename": "memory_copy.7.wasm"
+      "filename": "memory_copy.7.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -4916,7 +4924,8 @@
     {
       "type": "module",
       "line": 342,
-      "filename": "memory_copy.8.wasm"
+      "filename": "memory_copy.8.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -11924,7 +11933,8 @@
     {
       "type": "module",
       "line": 703,
-      "filename": "memory_copy.9.wasm"
+      "filename": "memory_copy.9.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18952,7 +18962,8 @@
     {
       "type": "module",
       "line": 1065,
-      "filename": "memory_copy.10.wasm"
+      "filename": "memory_copy.10.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -25960,7 +25971,8 @@
     {
       "type": "module",
       "line": 1426,
-      "filename": "memory_copy.11.wasm"
+      "filename": "memory_copy.11.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -32988,7 +33000,8 @@
     {
       "type": "module",
       "line": 1788,
-      "filename": "memory_copy.12.wasm"
+      "filename": "memory_copy.12.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -39996,7 +40009,8 @@
     {
       "type": "module",
       "line": 2149,
-      "filename": "memory_copy.13.wasm"
+      "filename": "memory_copy.13.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -47004,7 +47018,8 @@
     {
       "type": "module",
       "line": 2510,
-      "filename": "memory_copy.14.wasm"
+      "filename": "memory_copy.14.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -54012,7 +54027,8 @@
     {
       "type": "module",
       "line": 2871,
-      "filename": "memory_copy.15.wasm"
+      "filename": "memory_copy.15.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -61020,7 +61036,8 @@
     {
       "type": "module",
       "line": 3232,
-      "filename": "memory_copy.16.wasm"
+      "filename": "memory_copy.16.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -68028,7 +68045,8 @@
     {
       "type": "module",
       "line": 3593,
-      "filename": "memory_copy.17.wasm"
+      "filename": "memory_copy.17.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -75036,7 +75054,8 @@
     {
       "type": "module",
       "line": 3954,
-      "filename": "memory_copy.18.wasm"
+      "filename": "memory_copy.18.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -82045,454 +82064,455 @@
       "type": "assert_invalid",
       "line": 4316,
       "filename": "memory_copy.19.wasm",
-      "text": "unknown memory 0",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown memory 0"
     },
     {
       "type": "assert_invalid",
       "line": 4322,
       "filename": "memory_copy.20.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4329,
       "filename": "memory_copy.21.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4336,
       "filename": "memory_copy.22.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4343,
       "filename": "memory_copy.23.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4350,
       "filename": "memory_copy.24.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4357,
       "filename": "memory_copy.25.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4364,
       "filename": "memory_copy.26.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4371,
       "filename": "memory_copy.27.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4378,
       "filename": "memory_copy.28.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4385,
       "filename": "memory_copy.29.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4392,
       "filename": "memory_copy.30.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4399,
       "filename": "memory_copy.31.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4406,
       "filename": "memory_copy.32.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4413,
       "filename": "memory_copy.33.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4420,
       "filename": "memory_copy.34.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4427,
       "filename": "memory_copy.35.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4434,
       "filename": "memory_copy.36.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4441,
       "filename": "memory_copy.37.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4448,
       "filename": "memory_copy.38.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4455,
       "filename": "memory_copy.39.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4462,
       "filename": "memory_copy.40.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4469,
       "filename": "memory_copy.41.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4476,
       "filename": "memory_copy.42.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4483,
       "filename": "memory_copy.43.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4490,
       "filename": "memory_copy.44.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4497,
       "filename": "memory_copy.45.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4504,
       "filename": "memory_copy.46.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4511,
       "filename": "memory_copy.47.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4518,
       "filename": "memory_copy.48.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4525,
       "filename": "memory_copy.49.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4532,
       "filename": "memory_copy.50.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4539,
       "filename": "memory_copy.51.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4546,
       "filename": "memory_copy.52.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4553,
       "filename": "memory_copy.53.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4560,
       "filename": "memory_copy.54.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4567,
       "filename": "memory_copy.55.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4574,
       "filename": "memory_copy.56.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4581,
       "filename": "memory_copy.57.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4588,
       "filename": "memory_copy.58.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4595,
       "filename": "memory_copy.59.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4602,
       "filename": "memory_copy.60.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4609,
       "filename": "memory_copy.61.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4616,
       "filename": "memory_copy.62.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4623,
       "filename": "memory_copy.63.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4630,
       "filename": "memory_copy.64.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4637,
       "filename": "memory_copy.65.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4644,
       "filename": "memory_copy.66.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4651,
       "filename": "memory_copy.67.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4658,
       "filename": "memory_copy.68.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4665,
       "filename": "memory_copy.69.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4672,
       "filename": "memory_copy.70.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4679,
       "filename": "memory_copy.71.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4686,
       "filename": "memory_copy.72.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4693,
       "filename": "memory_copy.73.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4700,
       "filename": "memory_copy.74.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4707,
       "filename": "memory_copy.75.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4714,
       "filename": "memory_copy.76.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4721,
       "filename": "memory_copy.77.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4728,
       "filename": "memory_copy.78.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4735,
       "filename": "memory_copy.79.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4742,
       "filename": "memory_copy.80.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4749,
       "filename": "memory_copy.81.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 4756,
       "filename": "memory_copy.82.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "module",
       "line": 4763,
-      "filename": "memory_copy.83.wasm"
+      "filename": "memory_copy.83.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -82590,7 +82610,8 @@
     {
       "type": "module",
       "line": 4789,
-      "filename": "memory_copy.84.wasm"
+      "filename": "memory_copy.84.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -82688,7 +82709,8 @@
     {
       "type": "module",
       "line": 4815,
-      "filename": "memory_copy.85.wasm"
+      "filename": "memory_copy.85.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -82703,7 +82725,8 @@
     {
       "type": "module",
       "line": 4821,
-      "filename": "memory_copy.86.wasm"
+      "filename": "memory_copy.86.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -82718,7 +82741,8 @@
     {
       "type": "module",
       "line": 4827,
-      "filename": "memory_copy.87.wasm"
+      "filename": "memory_copy.87.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -82733,7 +82757,8 @@
     {
       "type": "module",
       "line": 4833,
-      "filename": "memory_copy.88.wasm"
+      "filename": "memory_copy.88.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -82748,7 +82773,8 @@
     {
       "type": "module",
       "line": 4839,
-      "filename": "memory_copy.89.wasm"
+      "filename": "memory_copy.89.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -82818,7 +82844,8 @@
     {
       "type": "module",
       "line": 4863,
-      "filename": "memory_copy.90.wasm"
+      "filename": "memory_copy.90.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -82832,7 +82859,8 @@
     {
       "type": "module",
       "line": 4869,
-      "filename": "memory_copy.91.wasm"
+      "filename": "memory_copy.91.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -82847,7 +82875,8 @@
     {
       "type": "module",
       "line": 4875,
-      "filename": "memory_copy.92.wasm"
+      "filename": "memory_copy.92.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -82861,7 +82890,8 @@
     {
       "type": "module",
       "line": 4881,
-      "filename": "memory_copy.93.wasm"
+      "filename": "memory_copy.93.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -82876,7 +82906,8 @@
     {
       "type": "module",
       "line": 4887,
-      "filename": "memory_copy.94.wasm"
+      "filename": "memory_copy.94.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -82890,7 +82921,8 @@
     {
       "type": "module",
       "line": 4893,
-      "filename": "memory_copy.95.wasm"
+      "filename": "memory_copy.95.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -82905,7 +82937,8 @@
     {
       "type": "module",
       "line": 4899,
-      "filename": "memory_copy.96.wasm"
+      "filename": "memory_copy.96.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -89387,7 +89420,8 @@
     {
       "type": "module",
       "line": 5580,
-      "filename": "memory_copy.97.wasm"
+      "filename": "memory_copy.97.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -90001,7 +90035,8 @@
     {
       "type": "module",
       "line": 5622,
-      "filename": "memory_copy.98.wasm"
+      "filename": "memory_copy.98.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -90615,7 +90650,8 @@
     {
       "type": "module",
       "line": 5664,
-      "filename": "memory_copy.99.wasm"
+      "filename": "memory_copy.99.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -91229,7 +91265,8 @@
     {
       "type": "module",
       "line": 5706,
-      "filename": "memory_copy.100.wasm"
+      "filename": "memory_copy.100.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -91843,7 +91880,8 @@
     {
       "type": "module",
       "line": 5748,
-      "filename": "memory_copy.101.wasm"
+      "filename": "memory_copy.101.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -92457,7 +92495,8 @@
     {
       "type": "module",
       "line": 5790,
-      "filename": "memory_copy.102.wasm"
+      "filename": "memory_copy.102.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -93071,7 +93110,8 @@
     {
       "type": "module",
       "line": 5832,
-      "filename": "memory_copy.103.wasm"
+      "filename": "memory_copy.103.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -93685,7 +93725,8 @@
     {
       "type": "module",
       "line": 5874,
-      "filename": "memory_copy.104.wasm"
+      "filename": "memory_copy.104.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -94299,7 +94340,8 @@
     {
       "type": "module",
       "line": 5916,
-      "filename": "memory_copy.105.wasm"
+      "filename": "memory_copy.105.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -101307,7 +101349,8 @@
     {
       "type": "module",
       "line": 6277,
-      "filename": "memory_copy.106.wasm"
+      "filename": "memory_copy.106.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -108335,7 +108378,8 @@
     {
       "type": "module",
       "line": 6639,
-      "filename": "memory_copy.107.wasm"
+      "filename": "memory_copy.107.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -115343,7 +115387,8 @@
     {
       "type": "module",
       "line": 7000,
-      "filename": "memory_copy.108.wasm"
+      "filename": "memory_copy.108.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -122371,7 +122416,8 @@
     {
       "type": "module",
       "line": 7362,
-      "filename": "memory_copy.109.wasm"
+      "filename": "memory_copy.109.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -129379,7 +129425,8 @@
     {
       "type": "module",
       "line": 7723,
-      "filename": "memory_copy.110.wasm"
+      "filename": "memory_copy.110.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -136387,7 +136434,8 @@
     {
       "type": "module",
       "line": 8084,
-      "filename": "memory_copy.111.wasm"
+      "filename": "memory_copy.111.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -143395,7 +143443,8 @@
     {
       "type": "module",
       "line": 8445,
-      "filename": "memory_copy.112.wasm"
+      "filename": "memory_copy.112.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -150403,7 +150452,8 @@
     {
       "type": "module",
       "line": 8806,
-      "filename": "memory_copy.113.wasm"
+      "filename": "memory_copy.113.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -157411,7 +157461,8 @@
     {
       "type": "module",
       "line": 9167,
-      "filename": "memory_copy.114.wasm"
+      "filename": "memory_copy.114.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -164419,7 +164470,8 @@
     {
       "type": "module",
       "line": 9528,
-      "filename": "memory_copy.115.wasm"
+      "filename": "memory_copy.115.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -171428,454 +171480,455 @@
       "type": "assert_invalid",
       "line": 9890,
       "filename": "memory_copy.116.wasm",
-      "text": "unknown memory 0",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown memory 0"
     },
     {
       "type": "assert_invalid",
       "line": 9896,
       "filename": "memory_copy.117.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 9903,
       "filename": "memory_copy.118.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 9910,
       "filename": "memory_copy.119.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 9917,
       "filename": "memory_copy.120.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 9924,
       "filename": "memory_copy.121.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 9931,
       "filename": "memory_copy.122.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 9938,
       "filename": "memory_copy.123.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 9945,
       "filename": "memory_copy.124.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 9952,
       "filename": "memory_copy.125.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 9959,
       "filename": "memory_copy.126.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 9966,
       "filename": "memory_copy.127.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 9973,
       "filename": "memory_copy.128.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 9980,
       "filename": "memory_copy.129.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 9987,
       "filename": "memory_copy.130.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 9994,
       "filename": "memory_copy.131.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10001,
       "filename": "memory_copy.132.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10008,
       "filename": "memory_copy.133.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10015,
       "filename": "memory_copy.134.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10022,
       "filename": "memory_copy.135.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10029,
       "filename": "memory_copy.136.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10036,
       "filename": "memory_copy.137.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10043,
       "filename": "memory_copy.138.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10050,
       "filename": "memory_copy.139.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10057,
       "filename": "memory_copy.140.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10064,
       "filename": "memory_copy.141.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10071,
       "filename": "memory_copy.142.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10078,
       "filename": "memory_copy.143.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10085,
       "filename": "memory_copy.144.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10092,
       "filename": "memory_copy.145.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10099,
       "filename": "memory_copy.146.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10106,
       "filename": "memory_copy.147.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10113,
       "filename": "memory_copy.148.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10120,
       "filename": "memory_copy.149.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10127,
       "filename": "memory_copy.150.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10134,
       "filename": "memory_copy.151.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10141,
       "filename": "memory_copy.152.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10148,
       "filename": "memory_copy.153.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10155,
       "filename": "memory_copy.154.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10162,
       "filename": "memory_copy.155.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10169,
       "filename": "memory_copy.156.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10176,
       "filename": "memory_copy.157.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10183,
       "filename": "memory_copy.158.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10190,
       "filename": "memory_copy.159.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10197,
       "filename": "memory_copy.160.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10204,
       "filename": "memory_copy.161.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10211,
       "filename": "memory_copy.162.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10218,
       "filename": "memory_copy.163.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10225,
       "filename": "memory_copy.164.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10232,
       "filename": "memory_copy.165.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10239,
       "filename": "memory_copy.166.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10246,
       "filename": "memory_copy.167.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10253,
       "filename": "memory_copy.168.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10260,
       "filename": "memory_copy.169.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10267,
       "filename": "memory_copy.170.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10274,
       "filename": "memory_copy.171.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10281,
       "filename": "memory_copy.172.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10288,
       "filename": "memory_copy.173.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10295,
       "filename": "memory_copy.174.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10302,
       "filename": "memory_copy.175.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10309,
       "filename": "memory_copy.176.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10316,
       "filename": "memory_copy.177.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10323,
       "filename": "memory_copy.178.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10330,
       "filename": "memory_copy.179.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "module",
       "line": 10337,
-      "filename": "memory_copy.180.wasm"
+      "filename": "memory_copy.180.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -171973,7 +172026,8 @@
     {
       "type": "module",
       "line": 10363,
-      "filename": "memory_copy.181.wasm"
+      "filename": "memory_copy.181.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -172071,7 +172125,8 @@
     {
       "type": "module",
       "line": 10389,
-      "filename": "memory_copy.182.wasm"
+      "filename": "memory_copy.182.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -172086,7 +172141,8 @@
     {
       "type": "module",
       "line": 10395,
-      "filename": "memory_copy.183.wasm"
+      "filename": "memory_copy.183.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -172101,7 +172157,8 @@
     {
       "type": "module",
       "line": 10401,
-      "filename": "memory_copy.184.wasm"
+      "filename": "memory_copy.184.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -172116,7 +172173,8 @@
     {
       "type": "module",
       "line": 10407,
-      "filename": "memory_copy.185.wasm"
+      "filename": "memory_copy.185.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -172131,7 +172189,8 @@
     {
       "type": "module",
       "line": 10413,
-      "filename": "memory_copy.186.wasm"
+      "filename": "memory_copy.186.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -172201,7 +172260,8 @@
     {
       "type": "module",
       "line": 10437,
-      "filename": "memory_copy.187.wasm"
+      "filename": "memory_copy.187.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -172215,7 +172275,8 @@
     {
       "type": "module",
       "line": 10443,
-      "filename": "memory_copy.188.wasm"
+      "filename": "memory_copy.188.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -172230,7 +172291,8 @@
     {
       "type": "module",
       "line": 10449,
-      "filename": "memory_copy.189.wasm"
+      "filename": "memory_copy.189.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -172244,7 +172306,8 @@
     {
       "type": "module",
       "line": 10455,
-      "filename": "memory_copy.190.wasm"
+      "filename": "memory_copy.190.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -172259,7 +172322,8 @@
     {
       "type": "module",
       "line": 10461,
-      "filename": "memory_copy.191.wasm"
+      "filename": "memory_copy.191.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -172273,7 +172337,8 @@
     {
       "type": "module",
       "line": 10467,
-      "filename": "memory_copy.192.wasm"
+      "filename": "memory_copy.192.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -172288,7 +172353,8 @@
     {
       "type": "module",
       "line": 10473,
-      "filename": "memory_copy.193.wasm"
+      "filename": "memory_copy.193.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",

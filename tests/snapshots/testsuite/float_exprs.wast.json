@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 6,
-      "filename": "float_exprs.0.wasm"
+      "filename": "float_exprs.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -149,7 +150,8 @@
     {
       "type": "module",
       "line": 19,
-      "filename": "float_exprs.1.wasm"
+      "filename": "float_exprs.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -434,7 +436,8 @@
     {
       "type": "module",
       "line": 40,
-      "filename": "float_exprs.2.wasm"
+      "filename": "float_exprs.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -519,7 +522,8 @@
     {
       "type": "module",
       "line": 54,
-      "filename": "float_exprs.3.wasm"
+      "filename": "float_exprs.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -604,7 +608,8 @@
     {
       "type": "module",
       "line": 68,
-      "filename": "float_exprs.4.wasm"
+      "filename": "float_exprs.4.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -649,7 +654,8 @@
     {
       "type": "module",
       "line": 80,
-      "filename": "float_exprs.5.wasm"
+      "filename": "float_exprs.5.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -814,7 +820,8 @@
     {
       "type": "module",
       "line": 99,
-      "filename": "float_exprs.6.wasm"
+      "filename": "float_exprs.6.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -859,7 +866,8 @@
     {
       "type": "module",
       "line": 111,
-      "filename": "float_exprs.7.wasm"
+      "filename": "float_exprs.7.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1024,7 +1032,8 @@
     {
       "type": "module",
       "line": 129,
-      "filename": "float_exprs.8.wasm"
+      "filename": "float_exprs.8.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1069,7 +1078,8 @@
     {
       "type": "module",
       "line": 141,
-      "filename": "float_exprs.9.wasm"
+      "filename": "float_exprs.9.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1114,7 +1124,8 @@
     {
       "type": "module",
       "line": 153,
-      "filename": "float_exprs.10.wasm"
+      "filename": "float_exprs.10.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1159,7 +1170,8 @@
     {
       "type": "module",
       "line": 165,
-      "filename": "float_exprs.11.wasm"
+      "filename": "float_exprs.11.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1204,7 +1216,8 @@
     {
       "type": "module",
       "line": 177,
-      "filename": "float_exprs.12.wasm"
+      "filename": "float_exprs.12.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1249,7 +1262,8 @@
     {
       "type": "module",
       "line": 189,
-      "filename": "float_exprs.13.wasm"
+      "filename": "float_exprs.13.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1294,7 +1308,8 @@
     {
       "type": "module",
       "line": 201,
-      "filename": "float_exprs.14.wasm"
+      "filename": "float_exprs.14.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1379,7 +1394,8 @@
     {
       "type": "module",
       "line": 215,
-      "filename": "float_exprs.15.wasm"
+      "filename": "float_exprs.15.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1544,7 +1560,8 @@
     {
       "type": "module",
       "line": 233,
-      "filename": "float_exprs.16.wasm"
+      "filename": "float_exprs.16.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1749,7 +1766,8 @@
     {
       "type": "module",
       "line": 253,
-      "filename": "float_exprs.17.wasm"
+      "filename": "float_exprs.17.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2034,7 +2052,8 @@
     {
       "type": "module",
       "line": 273,
-      "filename": "float_exprs.18.wasm"
+      "filename": "float_exprs.18.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2319,7 +2338,8 @@
     {
       "type": "module",
       "line": 293,
-      "filename": "float_exprs.19.wasm"
+      "filename": "float_exprs.19.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2604,7 +2624,8 @@
     {
       "type": "module",
       "line": 313,
-      "filename": "float_exprs.20.wasm"
+      "filename": "float_exprs.20.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2889,7 +2910,8 @@
     {
       "type": "module",
       "line": 333,
-      "filename": "float_exprs.21.wasm"
+      "filename": "float_exprs.21.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3214,7 +3236,8 @@
     {
       "type": "module",
       "line": 353,
-      "filename": "float_exprs.22.wasm"
+      "filename": "float_exprs.22.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3539,7 +3562,8 @@
     {
       "type": "module",
       "line": 373,
-      "filename": "float_exprs.23.wasm"
+      "filename": "float_exprs.23.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3864,7 +3888,8 @@
     {
       "type": "module",
       "line": 399,
-      "filename": "float_exprs.24.wasm"
+      "filename": "float_exprs.24.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4189,7 +4214,8 @@
     {
       "type": "module",
       "line": 425,
-      "filename": "float_exprs.25.wasm"
+      "filename": "float_exprs.25.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4434,7 +4460,8 @@
     {
       "type": "module",
       "line": 447,
-      "filename": "float_exprs.26.wasm"
+      "filename": "float_exprs.26.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4539,7 +4566,8 @@
     {
       "type": "module",
       "line": 460,
-      "filename": "float_exprs.27.wasm"
+      "filename": "float_exprs.27.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4744,7 +4772,8 @@
     {
       "type": "module",
       "line": 481,
-      "filename": "float_exprs.28.wasm"
+      "filename": "float_exprs.28.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4849,7 +4878,8 @@
     {
       "type": "module",
       "line": 494,
-      "filename": "float_exprs.29.wasm"
+      "filename": "float_exprs.29.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5094,7 +5124,8 @@
     {
       "type": "module",
       "line": 523,
-      "filename": "float_exprs.30.wasm"
+      "filename": "float_exprs.30.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5339,7 +5370,8 @@
     {
       "type": "module",
       "line": 544,
-      "filename": "float_exprs.31.wasm"
+      "filename": "float_exprs.31.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5584,7 +5616,8 @@
     {
       "type": "module",
       "line": 565,
-      "filename": "float_exprs.32.wasm"
+      "filename": "float_exprs.32.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5829,7 +5862,8 @@
     {
       "type": "module",
       "line": 586,
-      "filename": "float_exprs.33.wasm"
+      "filename": "float_exprs.33.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6074,7 +6108,8 @@
     {
       "type": "module",
       "line": 607,
-      "filename": "float_exprs.34.wasm"
+      "filename": "float_exprs.34.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6119,7 +6154,8 @@
     {
       "type": "module",
       "line": 619,
-      "filename": "float_exprs.35.wasm"
+      "filename": "float_exprs.35.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6224,7 +6260,8 @@
     {
       "type": "module",
       "line": 633,
-      "filename": "float_exprs.36.wasm"
+      "filename": "float_exprs.36.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6489,7 +6526,8 @@
     {
       "type": "module",
       "line": 655,
-      "filename": "float_exprs.37.wasm"
+      "filename": "float_exprs.37.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6734,7 +6772,8 @@
     {
       "type": "module",
       "line": 677,
-      "filename": "float_exprs.38.wasm"
+      "filename": "float_exprs.38.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6979,7 +7018,8 @@
     {
       "type": "module",
       "line": 699,
-      "filename": "float_exprs.39.wasm"
+      "filename": "float_exprs.39.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -7224,7 +7264,8 @@
     {
       "type": "module",
       "line": 721,
-      "filename": "float_exprs.40.wasm"
+      "filename": "float_exprs.40.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -7469,7 +7510,8 @@
     {
       "type": "module",
       "line": 742,
-      "filename": "float_exprs.41.wasm"
+      "filename": "float_exprs.41.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -8114,7 +8156,8 @@
     {
       "type": "module",
       "line": 817,
-      "filename": "float_exprs.42.wasm"
+      "filename": "float_exprs.42.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -8369,7 +8412,8 @@
     {
       "type": "module",
       "line": 852,
-      "filename": "float_exprs.43.wasm"
+      "filename": "float_exprs.43.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -8624,7 +8668,8 @@
     {
       "type": "module",
       "line": 889,
-      "filename": "float_exprs.44.wasm"
+      "filename": "float_exprs.44.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -9397,7 +9442,8 @@
     {
       "type": "module",
       "line": 936,
-      "filename": "float_exprs.45.wasm"
+      "filename": "float_exprs.45.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -10170,7 +10216,8 @@
     {
       "type": "module",
       "line": 983,
-      "filename": "float_exprs.46.wasm"
+      "filename": "float_exprs.46.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -10943,7 +10990,8 @@
     {
       "type": "module",
       "line": 1062,
-      "filename": "float_exprs.47.wasm"
+      "filename": "float_exprs.47.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -11588,7 +11636,8 @@
     {
       "type": "module",
       "line": 1109,
-      "filename": "float_exprs.48.wasm"
+      "filename": "float_exprs.48.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -12233,7 +12282,8 @@
     {
       "type": "module",
       "line": 1189,
-      "filename": "float_exprs.49.wasm"
+      "filename": "float_exprs.49.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -12268,7 +12318,8 @@
     {
       "type": "module",
       "line": 1204,
-      "filename": "float_exprs.50.wasm"
+      "filename": "float_exprs.50.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -12288,7 +12339,8 @@
     {
       "type": "module",
       "line": 1223,
-      "filename": "float_exprs.51.wasm"
+      "filename": "float_exprs.51.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -12308,7 +12360,8 @@
     {
       "type": "module",
       "line": 1245,
-      "filename": "float_exprs.52.wasm"
+      "filename": "float_exprs.52.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -12333,7 +12386,8 @@
     {
       "type": "module",
       "line": 1256,
-      "filename": "float_exprs.53.wasm"
+      "filename": "float_exprs.53.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -12358,7 +12412,8 @@
     {
       "type": "module",
       "line": 1267,
-      "filename": "float_exprs.54.wasm"
+      "filename": "float_exprs.54.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -12387,7 +12442,8 @@
     {
       "type": "module",
       "line": 1284,
-      "filename": "float_exprs.55.wasm"
+      "filename": "float_exprs.55.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -12480,7 +12536,8 @@
     {
       "type": "module",
       "line": 1305,
-      "filename": "float_exprs.56.wasm"
+      "filename": "float_exprs.56.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -12505,7 +12562,8 @@
     {
       "type": "module",
       "line": 1316,
-      "filename": "float_exprs.57.wasm"
+      "filename": "float_exprs.57.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -12550,7 +12608,8 @@
     {
       "type": "module",
       "line": 1331,
-      "filename": "float_exprs.58.wasm"
+      "filename": "float_exprs.58.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -12915,7 +12974,8 @@
     {
       "type": "module",
       "line": 1363,
-      "filename": "float_exprs.59.wasm"
+      "filename": "float_exprs.59.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -13160,7 +13220,8 @@
     {
       "type": "module",
       "line": 1387,
-      "filename": "float_exprs.60.wasm"
+      "filename": "float_exprs.60.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -13405,7 +13466,8 @@
     {
       "type": "module",
       "line": 1412,
-      "filename": "float_exprs.61.wasm"
+      "filename": "float_exprs.61.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -13513,7 +13575,8 @@
     {
       "type": "module",
       "line": 1451,
-      "filename": "float_exprs.62.wasm"
+      "filename": "float_exprs.62.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -13621,7 +13684,8 @@
     {
       "type": "module",
       "line": 1493,
-      "filename": "float_exprs.63.wasm"
+      "filename": "float_exprs.63.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -13674,7 +13738,8 @@
     {
       "type": "module",
       "line": 1587,
-      "filename": "float_exprs.64.wasm"
+      "filename": "float_exprs.64.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -13727,7 +13792,8 @@
     {
       "type": "module",
       "line": 1640,
-      "filename": "float_exprs.65.wasm"
+      "filename": "float_exprs.65.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -13924,7 +13990,8 @@
     {
       "type": "module",
       "line": 1660,
-      "filename": "float_exprs.66.wasm"
+      "filename": "float_exprs.66.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -14121,7 +14188,8 @@
     {
       "type": "module",
       "line": 1680,
-      "filename": "float_exprs.67.wasm"
+      "filename": "float_exprs.67.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -14318,7 +14386,8 @@
     {
       "type": "module",
       "line": 1700,
-      "filename": "float_exprs.68.wasm"
+      "filename": "float_exprs.68.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -14483,7 +14552,8 @@
     {
       "type": "module",
       "line": 1720,
-      "filename": "float_exprs.69.wasm"
+      "filename": "float_exprs.69.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -14688,7 +14758,8 @@
     {
       "type": "module",
       "line": 1749,
-      "filename": "float_exprs.70.wasm"
+      "filename": "float_exprs.70.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -14973,7 +15044,8 @@
     {
       "type": "module",
       "line": 1773,
-      "filename": "float_exprs.71.wasm"
+      "filename": "float_exprs.71.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -15298,7 +15370,8 @@
     {
       "type": "module",
       "line": 1795,
-      "filename": "float_exprs.72.wasm"
+      "filename": "float_exprs.72.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -15583,7 +15656,8 @@
     {
       "type": "module",
       "line": 1817,
-      "filename": "float_exprs.73.wasm"
+      "filename": "float_exprs.73.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -15788,7 +15862,8 @@
     {
       "type": "module",
       "line": 1839,
-      "filename": "float_exprs.74.wasm"
+      "filename": "float_exprs.74.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -16033,7 +16108,8 @@
     {
       "type": "module",
       "line": 1861,
-      "filename": "float_exprs.75.wasm"
+      "filename": "float_exprs.75.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -16278,7 +16354,8 @@
     {
       "type": "module",
       "line": 1883,
-      "filename": "float_exprs.76.wasm"
+      "filename": "float_exprs.76.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -16523,7 +16600,8 @@
     {
       "type": "module",
       "line": 1906,
-      "filename": "float_exprs.77.wasm"
+      "filename": "float_exprs.77.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -16584,7 +16662,8 @@
     {
       "type": "module",
       "line": 1920,
-      "filename": "float_exprs.78.wasm"
+      "filename": "float_exprs.78.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -16901,7 +16980,8 @@
     {
       "type": "module",
       "line": 1964,
-      "filename": "float_exprs.79.wasm"
+      "filename": "float_exprs.79.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -16962,7 +17042,8 @@
     {
       "type": "module",
       "line": 1980,
-      "filename": "float_exprs.80.wasm"
+      "filename": "float_exprs.80.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -17007,7 +17088,8 @@
     {
       "type": "module",
       "line": 1994,
-      "filename": "float_exprs.81.wasm"
+      "filename": "float_exprs.81.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -17372,7 +17454,8 @@
     {
       "type": "module",
       "line": 2045,
-      "filename": "float_exprs.82.wasm"
+      "filename": "float_exprs.82.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -17425,7 +17508,8 @@
     {
       "type": "module",
       "line": 2129,
-      "filename": "float_exprs.83.wasm"
+      "filename": "float_exprs.83.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -17478,7 +17562,8 @@
     {
       "type": "module",
       "line": 2143,
-      "filename": "float_exprs.84.wasm"
+      "filename": "float_exprs.84.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -17595,7 +17680,8 @@
     {
       "type": "module",
       "line": 2164,
-      "filename": "float_exprs.85.wasm"
+      "filename": "float_exprs.85.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -17792,7 +17878,8 @@
     {
       "type": "module",
       "line": 2203,
-      "filename": "float_exprs.86.wasm"
+      "filename": "float_exprs.86.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -17827,7 +17914,8 @@
     {
       "type": "module",
       "line": 2218,
-      "filename": "float_exprs.87.wasm"
+      "filename": "float_exprs.87.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -17862,7 +17950,8 @@
     {
       "type": "module",
       "line": 2272,
-      "filename": "float_exprs.88.wasm"
+      "filename": "float_exprs.88.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -18059,7 +18148,8 @@
     {
       "type": "module",
       "line": 2304,
-      "filename": "float_exprs.89.wasm"
+      "filename": "float_exprs.89.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -18772,7 +18862,8 @@
     {
       "type": "module",
       "line": 2420,
-      "filename": "float_exprs.90.wasm"
+      "filename": "float_exprs.90.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -18873,7 +18964,8 @@
     {
       "type": "module",
       "line": 2454,
-      "filename": "float_exprs.91.wasm"
+      "filename": "float_exprs.91.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -19022,7 +19114,8 @@
     {
       "type": "module",
       "line": 2475,
-      "filename": "float_exprs.92.wasm"
+      "filename": "float_exprs.92.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -19083,7 +19176,8 @@
     {
       "type": "module",
       "line": 2490,
-      "filename": "float_exprs.93.wasm"
+      "filename": "float_exprs.93.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -19144,7 +19238,8 @@
     {
       "type": "module",
       "line": 2503,
-      "filename": "float_exprs.94.wasm"
+      "filename": "float_exprs.94.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -19389,7 +19484,8 @@
     {
       "type": "module",
       "line": 2532,
-      "filename": "float_exprs.95.wasm"
+      "filename": "float_exprs.95.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -19418,7 +19514,8 @@
     {
       "type": "module",
       "line": 2542,
-      "filename": "float_exprs.96.wasm"
+      "filename": "float_exprs.96.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -19463,7 +19560,8 @@
     {
       "type": "module",
       "line": 2612,
-      "filename": "float_exprs.97.wasm"
+      "filename": "float_exprs.97.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

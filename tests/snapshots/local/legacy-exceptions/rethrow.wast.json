@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 3,
-      "filename": "rethrow.0.wasm"
+      "filename": "rethrow.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_exception",
@@ -193,22 +194,22 @@
       "type": "assert_invalid",
       "line": 118,
       "filename": "rethrow.1.wasm",
-      "text": "invalid rethrow label",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid rethrow label"
     },
     {
       "type": "assert_invalid",
       "line": 119,
       "filename": "rethrow.2.wasm",
-      "text": "invalid rethrow label",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid rethrow label"
     },
     {
       "type": "assert_invalid",
       "line": 120,
       "filename": "rethrow.3.wasm",
-      "text": "invalid rethrow label",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "invalid rethrow label"
     }
   ]
 }

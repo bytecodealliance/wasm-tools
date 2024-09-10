@@ -5,36 +5,36 @@
       "type": "assert_malformed",
       "line": 1,
       "filename": "empty.0.wat",
-      "text": "x",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "x"
     },
     {
       "type": "assert_malformed",
       "line": 2,
       "filename": "empty.1.wat",
-      "text": "x",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "x"
     },
     {
       "type": "assert_malformed",
       "line": 3,
       "filename": "empty.2.wat",
-      "text": "x",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "x"
     },
     {
       "type": "assert_malformed",
       "line": 4,
       "filename": "empty.3.wat",
-      "text": "x",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "x"
     },
     {
       "type": "assert_malformed",
       "line": 5,
       "filename": "empty.4.wat",
-      "text": "x",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "x"
     }
   ]
 }

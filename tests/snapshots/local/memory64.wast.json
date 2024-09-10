@@ -4,27 +4,29 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "memory64.0.wasm"
+      "filename": "memory64.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_invalid",
       "line": 128,
       "filename": "memory64.1.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 131,
       "filename": "memory64.2.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "module",
       "line": 134,
       "name": "table64",
-      "filename": "memory64.3.wasm"
+      "filename": "memory64.3.wasm",
+      "module_type": "binary"
     }
   ]
 }

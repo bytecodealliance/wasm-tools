@@ -5,15 +5,15 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "floats-disabled.0.wasm",
-      "text": "floating-point support is disabled",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "floating-point support is disabled"
     },
     {
       "type": "assert_invalid",
       "line": 7,
       "filename": "floats-disabled.1.wasm",
-      "text": "floating-point support is disabled",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "floating-point support is disabled"
     }
   ]
 }

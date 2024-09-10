@@ -4,21 +4,22 @@
     {
       "type": "module",
       "line": 3,
-      "filename": "type.0.wasm"
+      "filename": "type.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_malformed",
       "line": 44,
       "filename": "type.1.wat",
-      "text": "unexpected token",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
       "line": 48,
       "filename": "type.2.wat",
-      "text": "unexpected token",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unexpected token"
     }
   ]
 }

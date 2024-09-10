@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 5,
-      "filename": "memory_redundancy64.0.wasm"
+      "filename": "memory_redundancy64.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

@@ -5,8 +5,8 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "shared-everything-threads-types.0.wasm",
-      "text": "shared composite types require the shared-everything-threads proposal",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "shared composite types require the shared-everything-threads proposal"
     }
   ]
 }
