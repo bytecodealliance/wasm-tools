@@ -41,6 +41,52 @@ pub fn encode_component(resolve: &Resolve, package: PackageId) -> Result<Compone
     Ok(encoder.component)
 }
 
+fn encode_instance_contents(enc: &mut InterfaceEncoder, interface: InterfaceId) -> Result<()> {
+    enc.push_instance();
+    let iface = &enc.resolve.interfaces[interface];
+    let mut type_order = IndexSet::new();
+    for (_, id) in iface.types.iter() {
+        let ty = &enc.resolve.types[*id];
+        if let TypeOwner::Interface(iface_id) = ty.owner {
+            enc.interface = Some(iface_id);
+        }
+        enc.encode_valtype(enc.resolve, &Type::Id(*id))?;
+        type_order.insert(*id);
+    }
+
+    // Sort functions based on whether or not they're associated with
+    // resources.
+    //
+    // This is done here to ensure that when a WIT package is printed as WIT
+    // then decoded, or if it's printed as Wasm then decoded, the final
+    // result is the same. When printing via WIT resource methods are
+    // attached to the resource types themselves meaning that they'll appear
+    // intermingled with the rest of the types, namely first before all
+    // other functions. The purpose of this sort is to perform a stable sort
+    // over all functions by shuffling the resource-related functions first,
+    // in order of when their associated resource was encoded, and putting
+    // freestanding functions last.
+    //
+    // Note that this is not actually required for correctness, it's
+    // basically here to make fuzzing happy.
+    let mut funcs = iface.functions.iter().collect::<Vec<_>>();
+    funcs.sort_by_key(|(_name, func)| match func.kind {
+        FunctionKind::Freestanding => type_order.len(),
+        FunctionKind::Method(id) | FunctionKind::Constructor(id) | FunctionKind::Static(id) => {
+            type_order.get_index_of(&id).unwrap()
+        }
+    });
+
+    for (name, func) in funcs {
+        let ty = enc.encode_func_type(enc.resolve, func)?;
+        enc.ty
+            .as_mut()
+            .unwrap()
+            .export(name, ComponentTypeRef::Func(ty));
+    }
+    Ok(())
+}
+
 struct Encoder<'a> {
     component: ComponentBuilder,
     resolve: &'a Resolve,
@@ -180,52 +226,11 @@ impl InterfaceEncoder<'_> {
     }
 
     fn encode_instance(&mut self, interface: InterfaceId) -> Result<u32> {
-        self.push_instance();
+        encode_instance_contents(self, interface)?;
         let iface = &self.resolve.interfaces[interface];
-        let mut type_order = IndexSet::new();
-        for (_, id) in iface.types.iter() {
-            let ty = &self.resolve.types[*id];
-            if let TypeOwner::Interface(iface_id) = ty.owner {
-                self.interface = Some(iface_id);
-            }
-            self.encode_valtype(self.resolve, &Type::Id(*id))?;
-            type_order.insert(*id);
-        }
-
-        // Sort functions based on whether or not they're associated with
-        // resources.
-        //
-        // This is done here to ensure that when a WIT package is printed as WIT
-        // then decoded, or if it's printed as Wasm then decoded, the final
-        // result is the same. When printing via WIT resource methods are
-        // attached to the resource types themselves meaning that they'll appear
-        // intermingled with the rest of the types, namely first before all
-        // other functions. The purpose of this sort is to perform a stable sort
-        // over all functions by shuffling the resource-related functions first,
-        // in order of when their associated resource was encoded, and putting
-        // freestanding functions last.
-        //
-        // Note that this is not actually required for correctness, it's
-        // basically here to make fuzzing happy.
-        let mut funcs = iface.functions.iter().collect::<Vec<_>>();
-        funcs.sort_by_key(|(_name, func)| match func.kind {
-            FunctionKind::Freestanding => type_order.len(),
-            FunctionKind::Method(id) | FunctionKind::Constructor(id) | FunctionKind::Static(id) => {
-                type_order.get_index_of(&id).unwrap()
-            }
-        });
-
-        for (name, func) in funcs {
-            let ty = self.encode_func_type(self.resolve, func)?;
-            self.ty
-                .as_mut()
-                .unwrap()
-                .export(name, ComponentTypeRef::Func(ty));
-        }
         let mut instance = self.pop_instance();
         for (name, nest) in &iface.nested {
-            let nested = &self.resolve.interfaces[nest.id];
-            self.encode_nested(name, nested, &mut instance)?;
+            self.encode_nested(name, nest.id, &mut instance)?;
         }
 
         let idx = self.outer.type_count();
@@ -238,40 +243,17 @@ impl InterfaceEncoder<'_> {
     fn encode_nested<'a>(
         &mut self,
         name: &str,
-        iface: &Interface,
+        iface_id: InterfaceId,
         instance: &'a mut InstanceType,
     ) -> Result<()> {
         let mut inst = InterfaceEncoder::new(&self.resolve);
-        inst.push_instance();
-        let mut type_order = IndexSet::new();
-        for (_, id) in &iface.types {
-            let ty = &self.resolve.types[*id];
-            if let TypeOwner::Interface(iface_id) = ty.owner {
-                inst.interface = Some(iface_id);
-            }
-            inst.encode_valtype(self.resolve, &Type::Id(*id))?;
-            type_order.insert(*id);
-        }
-        let mut funcs = iface.functions.iter().collect::<Vec<_>>();
-        funcs.sort_by_key(|(_name, func)| match func.kind {
-            FunctionKind::Freestanding => type_order.len(),
-            FunctionKind::Method(id) | FunctionKind::Constructor(id) | FunctionKind::Static(id) => {
-                type_order.get_index_of(&id).unwrap()
-            }
-        });
-        for (name, func) in &iface.functions {
-            let ty = inst.encode_func_type(self.resolve, func)?;
-            inst.ty
-                .as_mut()
-                .unwrap()
-                .export(name, ComponentTypeRef::Func(ty));
-        }
+        encode_instance_contents(&mut inst, iface_id)?;
         let ty = instance.ty();
         let nested_instance = &mut inst.pop_instance();
+        let iface = &self.resolve.interfaces[iface_id];
         for (deep_name, deep_nest) in &iface.nested {
             let mut inst = InterfaceEncoder::new(&self.resolve);
-            let deep_iface = &self.resolve.interfaces[deep_nest.id];
-            inst.encode_nested(deep_name, deep_iface, nested_instance)?;
+            inst.encode_nested(deep_name, deep_nest.id, nested_instance)?;
         }
         ty.instance(&nested_instance);
         instance.export(name, ComponentTypeRef::Instance(instance.type_count() - 1));
