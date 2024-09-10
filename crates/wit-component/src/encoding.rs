@@ -1247,7 +1247,7 @@ impl<'a> EncodingState<'a> {
             let i = i as u32;
             let type_index = *sigs.entry(sig).or_insert_with(|| {
                 let index = types.len();
-                types.function(
+                types.ty().function(
                     sig.params.iter().map(to_val_type),
                     sig.results.iter().map(to_val_type),
                 );
@@ -1724,7 +1724,7 @@ impl<'a> EncodingState<'a> {
         );
         let mut shim = Module::default();
         let mut section = TypeSection::new();
-        section.function([], []);
+        section.ty().function([], []);
         shim.section(&section);
         let mut section = ImportSection::new();
         section.import("", "", EntityType::Function(0));

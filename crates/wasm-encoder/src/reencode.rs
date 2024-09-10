@@ -3,6 +3,7 @@
 //! The [`RoundtripReencoder`] allows encoding identical wasm to the parsed
 //! input.
 
+use crate::CoreTypeEncoder;
 use std::convert::Infallible;
 
 mod component;
@@ -421,10 +422,10 @@ pub trait Reencode {
     /// Parses a single [`wasmparser::RecGroup`] and adds it to the `types` section.
     fn parse_recursive_type_group(
         &mut self,
-        types: &mut crate::TypeSection,
+        encoder: CoreTypeEncoder,
         rec_group: wasmparser::RecGroup,
     ) -> Result<(), Error<Self::Error>> {
-        utils::parse_recursive_type_group(self, types, rec_group)
+        utils::parse_recursive_type_group(self, encoder, rec_group)
     }
 
     fn parse_unknown_section(
@@ -568,7 +569,7 @@ impl Reencode for RoundtripReencoder {
 #[allow(missing_docs)] // FIXME
 pub mod utils {
     use super::{Error, Reencode};
-    use crate::Encode;
+    use crate::{CoreTypeEncoder, Encode};
 
     pub fn parse_core_module<T: ?Sized + Reencode>(
         reencoder: &mut T,
@@ -992,7 +993,7 @@ pub mod utils {
         section: wasmparser::TypeSectionReader<'_>,
     ) -> Result<(), Error<T::Error>> {
         for rec_group in section {
-            reencoder.parse_recursive_type_group(types, rec_group?)?;
+            reencoder.parse_recursive_type_group(types.ty(), rec_group?)?;
         }
         Ok(())
     }
@@ -1000,7 +1001,7 @@ pub mod utils {
     /// Parses a single [`wasmparser::RecGroup`] and adds it to the `types` section.
     pub fn parse_recursive_type_group<T: ?Sized + Reencode>(
         reencoder: &mut T,
-        types: &mut crate::TypeSection,
+        encoder: CoreTypeEncoder,
         rec_group: wasmparser::RecGroup,
     ) -> Result<(), Error<T::Error>> {
         if rec_group.is_explicit_rec_group() {
@@ -1008,10 +1009,10 @@ pub mod utils {
                 .into_types()
                 .map(|t| reencoder.sub_type(t))
                 .collect::<Result<Vec<_>, _>>()?;
-            types.rec(subtypes);
+            encoder.rec(subtypes);
         } else {
             let ty = rec_group.into_types().next().unwrap();
-            types.subtype(&reencoder.sub_type(ty)?);
+            encoder.subtype(&reencoder.sub_type(ty)?);
         }
         Ok(())
     }

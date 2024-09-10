@@ -68,7 +68,7 @@ impl Encodable {
         }
     }
 
-    fn core_type(&mut self) -> CoreTypeEncoder {
+    fn core_type(&mut self) -> ComponentCoreTypeEncoder {
         match self {
             Encodable::Component(t) => t.core_type(),
             Encodable::Instance(t) => t.core_type(),

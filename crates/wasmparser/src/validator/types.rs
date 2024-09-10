@@ -257,7 +257,7 @@ pub enum CoreType {
 }
 
 /// Represents a unique identifier for a core type type known to a
-/// [`crate::Validator`]
+/// [`crate::Validator`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(C)]
 pub struct CoreTypeId {

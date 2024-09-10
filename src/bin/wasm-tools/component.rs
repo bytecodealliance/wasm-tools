@@ -880,7 +880,7 @@ impl UnbundleOpts {
             }
 
             let module_type_idx = module_ty.component.section.len();
-            module_ty.component.section.module(&module_ty.module);
+            module_ty.component.section.ty().module(&module_ty.module);
             let name = format!("unbundled-module{}", imports.len());
             imports.import(
                 &name,
@@ -943,7 +943,7 @@ impl CoreTypeInterner {
         };
 
         let ret = self.section.len();
-        self.section.function(
+        self.section.ty().core().function(
             f.params()
                 .iter()
                 .map(|p| RoundtripReencoder.val_type(*p))

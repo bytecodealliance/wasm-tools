@@ -1,7 +1,7 @@
 use super::CORE_TYPE_SORT;
 use crate::{
     encode_section, Alias, ComponentExportKind, ComponentOuterAliasKind, ComponentSection,
-    ComponentSectionId, ComponentTypeRef, Encode, EntityType, ValType,
+    ComponentSectionId, ComponentTypeRef, CoreTypeEncoder, Encode, EntityType, ValType,
 };
 
 /// Represents the type of a core module.
@@ -36,7 +36,10 @@ impl ModuleType {
         self.bytes.push(0x01);
         self.num_added += 1;
         self.types_added += 1;
-        CoreTypeEncoder(&mut self.bytes)
+        CoreTypeEncoder {
+            push_prefix_if_component_core_type: false,
+            bytes: &mut self.bytes,
+        }
     }
 
     /// Defines an outer core type alias in this module type.
@@ -76,30 +79,21 @@ impl Encode for ModuleType {
 
 /// Used to encode core types.
 #[derive(Debug)]
-pub struct CoreTypeEncoder<'a>(pub(crate) &'a mut Vec<u8>);
+pub struct ComponentCoreTypeEncoder<'a>(pub(crate) &'a mut Vec<u8>);
 
-impl<'a> CoreTypeEncoder<'a> {
-    /// Define a function type.
-    pub fn function<P, R>(self, params: P, results: R)
-    where
-        P: IntoIterator<Item = ValType>,
-        P::IntoIter: ExactSizeIterator,
-        R: IntoIterator<Item = ValType>,
-        R::IntoIter: ExactSizeIterator,
-    {
-        let params = params.into_iter();
-        let results = results.into_iter();
-
-        self.0.push(0x60);
-        params.len().encode(self.0);
-        params.for_each(|p| p.encode(self.0));
-        results.len().encode(self.0);
-        results.for_each(|p| p.encode(self.0));
-    }
-
+impl<'a> ComponentCoreTypeEncoder<'a> {
     /// Define a module type.
     pub fn module(self, ty: &ModuleType) {
         ty.encode(self.0);
+    }
+
+    /// Define any core type other than a module type.
+    #[must_use = "the encoder must be used to encode the type"]
+    pub fn core(self) -> CoreTypeEncoder<'a> {
+        CoreTypeEncoder {
+            bytes: self.0,
+            push_prefix_if_component_core_type: true,
+        }
     }
 }
 
@@ -112,7 +106,7 @@ impl<'a> CoreTypeEncoder<'a> {
 ///
 /// let mut types = CoreTypeSection::new();
 ///
-/// types.module(&ModuleType::new());
+/// types.ty().module(&ModuleType::new());
 ///
 /// let mut component = Component::new();
 /// component.section(&types);
@@ -145,29 +139,9 @@ impl CoreTypeSection {
     ///
     /// The returned encoder must be finished before adding another type.
     #[must_use = "the encoder must be used to encode the type"]
-    pub fn ty(&mut self) -> CoreTypeEncoder<'_> {
+    pub fn ty(&mut self) -> ComponentCoreTypeEncoder<'_> {
         self.num_added += 1;
-        CoreTypeEncoder(&mut self.bytes)
-    }
-
-    /// Define a function type in this type section.
-    pub fn function<P, R>(&mut self, params: P, results: R) -> &mut Self
-    where
-        P: IntoIterator<Item = ValType>,
-        P::IntoIter: ExactSizeIterator,
-        R: IntoIterator<Item = ValType>,
-        R::IntoIter: ExactSizeIterator,
-    {
-        self.ty().function(params, results);
-        self
-    }
-
-    /// Define a module type in this type section.
-    ///
-    /// Currently this is only used for core type sections in components.
-    pub fn module(&mut self, ty: &ModuleType) -> &mut Self {
-        self.ty().module(ty);
-        self
+        ComponentCoreTypeEncoder(&mut self.bytes)
     }
 }
 
@@ -203,11 +177,11 @@ impl ComponentType {
     ///
     /// The returned encoder must be used before adding another definition.
     #[must_use = "the encoder must be used to encode the type"]
-    pub fn core_type(&mut self) -> CoreTypeEncoder {
+    pub fn core_type(&mut self) -> ComponentCoreTypeEncoder {
         self.bytes.push(0x00);
         self.num_added += 1;
         self.core_types_added += 1;
-        CoreTypeEncoder(&mut self.bytes)
+        ComponentCoreTypeEncoder(&mut self.bytes)
     }
 
     /// Define a type in this component type.
@@ -316,7 +290,7 @@ impl InstanceType {
     ///
     /// The returned encoder must be used before adding another definition.
     #[must_use = "the encoder must be used to encode the type"]
-    pub fn core_type(&mut self) -> CoreTypeEncoder {
+    pub fn core_type(&mut self) -> ComponentCoreTypeEncoder {
         self.0.core_type()
     }
 

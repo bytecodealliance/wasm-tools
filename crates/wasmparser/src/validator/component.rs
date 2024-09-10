@@ -266,13 +266,8 @@ impl ComponentState {
             check_max(current.type_count(), 1, MAX_WASM_TYPES, "types", offset)?;
         }
         match ty {
-            crate::CoreType::Sub(sub) => {
-                current.canonicalize_and_intern_rec_group(
-                    features,
-                    types,
-                    RecGroup::implicit(offset, sub),
-                    offset,
-                )?;
+            crate::CoreType::Rec(rec) => {
+                current.canonicalize_and_intern_rec_group(features, types, rec, offset)?;
             }
             crate::CoreType::Module(decls) => {
                 let mod_ty = Self::create_module_type(
@@ -1506,14 +1501,8 @@ impl ComponentState {
 
         for decl in decls {
             match decl {
-                crate::ModuleTypeDeclaration::Type(ty) => {
-                    state.add_types(
-                        RecGroup::implicit(offset, ty),
-                        features,
-                        types,
-                        offset,
-                        true,
-                    )?;
+                crate::ModuleTypeDeclaration::Type(rec) => {
+                    state.add_types(rec, features, types, offset, true)?;
                 }
                 crate::ModuleTypeDeclaration::Export { name, mut ty } => {
                     let ty = state.check_type_ref(&mut ty, features, types, offset)?;

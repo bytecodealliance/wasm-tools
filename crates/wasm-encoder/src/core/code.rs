@@ -14,7 +14,7 @@ use std::borrow::Cow;
 /// };
 ///
 /// let mut types = TypeSection::new();
-/// types.function(vec![], vec![ValType::I32]);
+/// types.ty().function(vec![], vec![ValType::I32]);
 ///
 /// let mut functions = FunctionSection::new();
 /// let type_index = 0;

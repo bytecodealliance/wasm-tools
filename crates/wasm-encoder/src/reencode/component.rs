@@ -162,7 +162,7 @@ pub trait ReencodeComponent: Reencode {
 
     fn parse_component_core_type(
         &mut self,
-        ty: crate::CoreTypeEncoder<'_>,
+        ty: crate::ComponentCoreTypeEncoder<'_>,
         core: wasmparser::CoreType<'_>,
     ) -> Result<(), Error<Self::Error>> {
         component_utils::parse_component_core_type(self, ty, core)
@@ -219,14 +219,6 @@ pub trait ReencodeComponent: Reencode {
         alias: wasmparser::ComponentAlias<'a>,
     ) -> Result<crate::Alias<'a>, Error<Self::Error>> {
         component_utils::component_alias(self, alias)
-    }
-
-    fn parse_component_sub_type(
-        &mut self,
-        ty: crate::CoreTypeEncoder<'_>,
-        sub: wasmparser::SubType,
-    ) -> Result<(), Error<Self::Error>> {
-        component_utils::parse_component_sub_type(self, ty, sub)
     }
 
     fn parse_component_import_section(
@@ -668,11 +660,13 @@ pub mod component_utils {
 
     pub fn parse_component_core_type<T: ?Sized + ReencodeComponent>(
         reencoder: &mut T,
-        ty: crate::CoreTypeEncoder<'_>,
+        ty: crate::ComponentCoreTypeEncoder<'_>,
         decl: wasmparser::CoreType<'_>,
     ) -> Result<(), Error<T::Error>> {
         match decl {
-            wasmparser::CoreType::Sub(core) => reencoder.parse_component_sub_type(ty, core)?,
+            wasmparser::CoreType::Rec(rec) => {
+                reencoder.parse_recursive_type_group(ty.core(), rec)?;
+            }
             wasmparser::CoreType::Module(decls) => {
                 ty.module(&reencoder.component_module_type(decls)?);
             }
@@ -821,8 +815,8 @@ pub mod component_utils {
         decl: wasmparser::ModuleTypeDeclaration<'_>,
     ) -> Result<(), Error<T::Error>> {
         match decl {
-            wasmparser::ModuleTypeDeclaration::Type(ty) => {
-                reencoder.parse_component_sub_type(module.ty(), ty)?
+            wasmparser::ModuleTypeDeclaration::Type(rec) => {
+                reencoder.parse_recursive_type_group(module.ty(), rec)?;
             }
             wasmparser::ModuleTypeDeclaration::Export { name, ty } => {
                 module.export(name, reencoder.entity_type(ty)?);
@@ -888,34 +882,6 @@ pub mod component_utils {
                 },
             }),
         }
-    }
-
-    pub fn parse_component_sub_type<T: ?Sized + ReencodeComponent>(
-        reencoder: &mut T,
-        ty: crate::CoreTypeEncoder<'_>,
-        sub: wasmparser::SubType,
-    ) -> Result<(), Error<T::Error>> {
-        if !sub.is_final || sub.supertype_idx.is_some() || sub.composite_type.shared {
-            return Err(Error::UnsupportedCoreTypeInComponent);
-        }
-
-        let func = match sub.composite_type.inner {
-            wasmparser::CompositeInnerType::Func(f) => f,
-            _ => return Err(Error::UnsupportedCoreTypeInComponent),
-        };
-
-        ty.function(
-            func.params()
-                .iter()
-                .map(|t| reencoder.val_type(*t))
-                .collect::<Result<Vec<_>, _>>()?,
-            func.results()
-                .iter()
-                .map(|t| reencoder.val_type(*t))
-                .collect::<Result<Vec<_>, _>>()?,
-        );
-
-        Ok(())
     }
 
     pub fn parse_component_import_section<T: ?Sized + ReencodeComponent>(

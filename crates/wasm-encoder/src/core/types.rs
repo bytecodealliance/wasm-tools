@@ -5,22 +5,11 @@ use crate::{encode_section, Encode, Section, SectionId};
 pub struct SubType {
     /// Is the subtype final.
     pub is_final: bool,
-    /// The list of supertype indexes. As of GC MVP, there can be at most one supertype.
+    /// The list of supertype indexes. As of GC MVP, there can be at most one
+    /// supertype.
     pub supertype_idx: Option<u32>,
     /// The composite type of the subtype.
     pub composite_type: CompositeType,
-}
-
-impl Encode for SubType {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        // We only need to emit a prefix byte before the actual composite type
-        // when either the type is not final or it has a declared super type.
-        if self.supertype_idx.is_some() || !self.is_final {
-            sink.push(if self.is_final { 0x4f } else { 0x50 });
-            self.supertype_idx.encode(sink);
-        }
-        self.composite_type.encode(sink);
-    }
 }
 
 /// Represents a composite type in a WebAssembly module.
@@ -31,27 +20,6 @@ pub struct CompositeType {
     /// Whether the type is shared. This is part of the
     /// shared-everything-threads proposal.
     pub shared: bool,
-}
-
-impl Encode for CompositeType {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        if self.shared {
-            sink.push(0x65);
-        }
-        match &self.inner {
-            CompositeInnerType::Func(ty) => TypeSection::encode_function(
-                sink,
-                ty.params().iter().copied(),
-                ty.results().iter().copied(),
-            ),
-            CompositeInnerType::Array(ArrayType(ty)) => {
-                TypeSection::encode_array(sink, &ty.element_type, ty.mutable)
-            }
-            CompositeInnerType::Struct(ty) => {
-                TypeSection::encode_struct(sink, ty.fields.iter().cloned())
-            }
-        }
-    }
 }
 
 /// A [`CompositeType`] can contain one of these types.
@@ -506,7 +474,7 @@ impl Encode for AbstractHeapType {
 ///
 /// let mut types = TypeSection::new();
 ///
-/// types.function([ValType::I32, ValType::I32], [ValType::I64]);
+/// types.ty().function([ValType::I32, ValType::I32], [ValType::I64]);
 ///
 /// let mut module = Module::new();
 /// module.section(&types);
@@ -535,107 +503,14 @@ impl TypeSection {
         self.num_added == 0
     }
 
-    /// Define a function type in this type section.
-    pub fn function<P, R>(&mut self, params: P, results: R) -> &mut Self
-    where
-        P: IntoIterator<Item = ValType>,
-        P::IntoIter: ExactSizeIterator,
-        R: IntoIterator<Item = ValType>,
-        R::IntoIter: ExactSizeIterator,
-    {
-        Self::encode_function(&mut self.bytes, params, results);
+    /// Encode a function type in this type section.
+    #[must_use = "the encoder must be used to encode the type"]
+    pub fn ty(&mut self) -> CoreTypeEncoder {
         self.num_added += 1;
-        self
-    }
-
-    /// Define a function type in this type section.
-    pub fn func_type(&mut self, ty: &FuncType) -> &mut Self {
-        Self::encode_function(
-            &mut self.bytes,
-            ty.params().iter().cloned(),
-            ty.results().iter().cloned(),
-        );
-        self.num_added += 1;
-        self
-    }
-
-    fn encode_function<P, R>(sink: &mut Vec<u8>, params: P, results: R)
-    where
-        P: IntoIterator<Item = ValType>,
-        P::IntoIter: ExactSizeIterator,
-        R: IntoIterator<Item = ValType>,
-        R::IntoIter: ExactSizeIterator,
-    {
-        let params = params.into_iter();
-        let results = results.into_iter();
-
-        sink.push(0x60);
-        params.len().encode(sink);
-        params.for_each(|p| p.encode(sink));
-        results.len().encode(sink);
-        results.for_each(|p| p.encode(sink));
-    }
-
-    /// Define an array type in this type section.
-    pub fn array(&mut self, ty: &StorageType, mutable: bool) -> &mut Self {
-        Self::encode_array(&mut self.bytes, ty, mutable);
-        self.num_added += 1;
-        self
-    }
-
-    fn encode_array(sink: &mut Vec<u8>, ty: &StorageType, mutable: bool) {
-        sink.push(0x5e);
-        Self::encode_field(sink, ty, mutable);
-    }
-
-    fn encode_field(sink: &mut Vec<u8>, ty: &StorageType, mutable: bool) {
-        ty.encode(sink);
-        sink.push(mutable as u8);
-    }
-
-    /// Define a struct type in this type section.
-    pub fn struct_<F>(&mut self, fields: F) -> &mut Self
-    where
-        F: IntoIterator<Item = FieldType>,
-        F::IntoIter: ExactSizeIterator,
-    {
-        Self::encode_struct(&mut self.bytes, fields);
-        self.num_added += 1;
-        self
-    }
-
-    fn encode_struct<F>(sink: &mut Vec<u8>, fields: F)
-    where
-        F: IntoIterator<Item = FieldType>,
-        F::IntoIter: ExactSizeIterator,
-    {
-        let fields = fields.into_iter();
-        sink.push(0x5f);
-        fields.len().encode(sink);
-        for f in fields {
-            Self::encode_field(sink, &f.element_type, f.mutable);
+        CoreTypeEncoder {
+            bytes: &mut self.bytes,
+            push_prefix_if_component_core_type: false,
         }
-    }
-
-    /// Define an explicit subtype in this type section.
-    pub fn subtype(&mut self, ty: &SubType) -> &mut Self {
-        ty.encode(&mut self.bytes);
-        self.num_added += 1;
-        self
-    }
-
-    /// Define an explicit recursion group in this type section.
-    pub fn rec<T>(&mut self, types: T) -> &mut Self
-    where
-        T: IntoIterator<Item = SubType>,
-        T::IntoIter: ExactSizeIterator,
-    {
-        let types = types.into_iter();
-        self.bytes.push(0x4e);
-        types.len().encode(&mut self.bytes);
-        types.for_each(|t| t.encode(&mut self.bytes));
-        self.num_added += 1;
-        self
     }
 }
 
@@ -651,6 +526,145 @@ impl Section for TypeSection {
     }
 }
 
+/// A single-use encoder for encoding a type; this forces all encoding for a
+/// type to be done in a single shot.
+#[derive(Debug)]
+pub struct CoreTypeEncoder<'a> {
+    pub(crate) bytes: &'a mut Vec<u8>,
+    // For the time being, this flag handles an ambiguous encoding in the
+    // component model: the `0x50` opcode represents both a core module type as
+    // well as a GC non-final `sub` type. To avoid this, the component model
+    // specification requires us to prefix a non-final `sub` type with `0x00`
+    // when it is used as a top-level core type of a component. Eventually
+    // (prior to the component model's v1.0 release), a module type will get a
+    // new opcode and this special logic can go away.
+    pub(crate) push_prefix_if_component_core_type: bool,
+}
+impl<'a> CoreTypeEncoder<'a> {
+    /// Define a function type in this type section.
+    pub fn function<P, R>(mut self, params: P, results: R)
+    where
+        P: IntoIterator<Item = ValType>,
+        P::IntoIter: ExactSizeIterator,
+        R: IntoIterator<Item = ValType>,
+        R::IntoIter: ExactSizeIterator,
+    {
+        self.encode_function(params, results);
+    }
+
+    /// Define a function type in this type section.
+    pub fn func_type(mut self, ty: &FuncType) {
+        self.encode_function(ty.params().iter().cloned(), ty.results().iter().cloned());
+    }
+
+    fn encode_function<P, R>(&mut self, params: P, results: R)
+    where
+        P: IntoIterator<Item = ValType>,
+        P::IntoIter: ExactSizeIterator,
+        R: IntoIterator<Item = ValType>,
+        R::IntoIter: ExactSizeIterator,
+    {
+        let params = params.into_iter();
+        let results = results.into_iter();
+
+        self.bytes.push(0x60);
+        params.len().encode(self.bytes);
+        params.for_each(|p| p.encode(self.bytes));
+        results.len().encode(self.bytes);
+        results.for_each(|p| p.encode(self.bytes));
+    }
+
+    /// Define an array type in this type section.
+    pub fn array(mut self, ty: &StorageType, mutable: bool) {
+        self.encode_array(ty, mutable);
+    }
+
+    fn encode_array(&mut self, ty: &StorageType, mutable: bool) {
+        self.bytes.push(0x5e);
+        self.encode_field(ty, mutable);
+    }
+
+    fn encode_field(&mut self, ty: &StorageType, mutable: bool) {
+        ty.encode(self.bytes);
+        self.bytes.push(mutable as u8);
+    }
+
+    /// Define a struct type in this type section.
+    pub fn struct_<F>(mut self, fields: F)
+    where
+        F: IntoIterator<Item = FieldType>,
+        F::IntoIter: ExactSizeIterator,
+    {
+        self.encode_struct(fields);
+    }
+
+    fn encode_struct<F>(&mut self, fields: F)
+    where
+        F: IntoIterator<Item = FieldType>,
+        F::IntoIter: ExactSizeIterator,
+    {
+        let fields = fields.into_iter();
+        self.bytes.push(0x5f);
+        fields.len().encode(self.bytes);
+        for f in fields {
+            self.encode_field(&f.element_type, f.mutable);
+        }
+    }
+
+    /// Define an explicit subtype in this type section.
+    pub fn subtype(mut self, ty: &SubType) {
+        self.encode_subtype(ty)
+    }
+
+    /// Define an explicit subtype in this type section.
+    fn encode_subtype(&mut self, ty: &SubType) {
+        // We only need to emit a prefix byte before the actual composite type
+        // when either the `sub` type is not final or it has a declared super
+        // type (see notes on `push_prefix_if_component_core_type`).
+        if ty.supertype_idx.is_some() || !ty.is_final {
+            if ty.is_final {
+                self.bytes.push(0x4f);
+            } else {
+                if self.push_prefix_if_component_core_type {
+                    self.bytes.push(0x00);
+                }
+                self.bytes.push(0x50);
+            }
+            ty.supertype_idx.encode(self.bytes);
+        }
+        if ty.composite_type.shared {
+            self.bytes.push(0x65);
+        }
+        match &ty.composite_type.inner {
+            CompositeInnerType::Func(ty) => {
+                self.encode_function(ty.params().iter().copied(), ty.results().iter().copied())
+            }
+            CompositeInnerType::Array(ArrayType(ty)) => {
+                self.encode_array(&ty.element_type, ty.mutable)
+            }
+            CompositeInnerType::Struct(ty) => self.encode_struct(ty.fields.iter().cloned()),
+        }
+    }
+
+    /// Define an explicit recursion group in this type section.
+    pub fn rec<T>(mut self, types: T)
+    where
+        T: IntoIterator<Item = SubType>,
+        T::IntoIter: ExactSizeIterator,
+    {
+        // When emitting a `rec` group, we will never emit `sub`'s special
+        // `0x00` prefix; that is only necessary when `sub` is not wrapped by
+        // `rec` (see notes on `push_prefix_if_component_core_type`).
+        self.push_prefix_if_component_core_type = false;
+        let types = types.into_iter();
+        self.bytes.push(0x4e);
+        types.len().encode(self.bytes);
+        types.for_each(|t| {
+            self.encode_subtype(&t);
+        });
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -660,7 +674,7 @@ mod tests {
     #[test]
     fn func_types_dont_require_wasm_gc() {
         let mut types = TypeSection::new();
-        types.subtype(&SubType {
+        types.ty().subtype(&SubType {
             is_final: true,
             supertype_idx: None,
             composite_type: CompositeType {
