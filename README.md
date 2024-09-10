@@ -20,7 +20,7 @@ platform](https://www.rust-lang.org/tools/install) and then use the included
 Cargo package manager to install:
 
 ```
-$ cargo install wasm-tools
+$ cargo install --locked wasm-tools
 ```
 
 Alternatively if you use [`cargo
