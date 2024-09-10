@@ -428,27 +428,9 @@ impl TestState {
             // Handle git possibly doing some newline shenanigans on windows.
             let snapshot = snapshot.replace("\r\n", "\n");
             if snapshot != contents {
-                let mut result = String::with_capacity(snapshot.len());
-                for diff in diff::lines(&snapshot, &contents) {
-                    match diff {
-                        diff::Result::Left(s) => {
-                            result.push_str("-");
-                            result.push_str(s);
-                        }
-                        diff::Result::Right(s) => {
-                            result.push_str("+");
-                            result.push_str(s);
-                        }
-                        diff::Result::Both(s, _) => {
-                            result.push_str(" ");
-                            result.push_str(s);
-                        }
-                    }
-                    result.push_str("\n");
-                }
                 anyhow::bail!(
                     "snapshot does not match the expected result, try `env BLESS=1`\n{}",
-                    result
+                    pretty_assertions::StrComparison::new(&snapshot, &contents)
                 );
             }
         }
