@@ -1772,13 +1772,15 @@ impl SourceMap {
             bail!("{msg}")
         }
 
-        if let Some(sort) = err.downcast_ref::<toposort::Error>() {
-            let span = match sort {
-                toposort::Error::NonexistentDep { span, .. }
-                | toposort::Error::Cycle { span, .. } => *span,
-            };
-            let msg = self.highlight_err(span.start, Some(span.end), sort);
-            bail!("{msg}")
+        if let Some(sort) = err.downcast_mut::<toposort::Error>() {
+            if sort.highlighted().is_none() {
+                let span = match sort {
+                    toposort::Error::NonexistentDep { span, .. }
+                    | toposort::Error::Cycle { span, .. } => *span,
+                };
+                let highlighted = self.highlight_err(span.start, Some(span.end), &sort);
+                sort.set_highlighted(highlighted);
+            }
         }
 
         Err(err)

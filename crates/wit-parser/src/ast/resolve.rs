@@ -903,7 +903,7 @@ impl<'a> Resolver<'a> {
                 }
             }
         }
-        let order = toposort("type", &type_deps)?;
+        let order = toposort("type", &type_deps).map_err(attach_old_float_type_context)?;
         for ty in order {
             let def = match type_defs.swap_remove(&ty).unwrap() {
                 Some(def) => def,
@@ -922,7 +922,27 @@ impl<'a> Resolver<'a> {
             self.type_spans.push(def.name.span);
             self.define_interface_name(&def.name, TypeOrItem::Type(id))?;
         }
-        Ok(())
+        return Ok(());
+
+        fn attach_old_float_type_context(err: ast::toposort::Error) -> anyhow::Error {
+            let name = match &err {
+                ast::toposort::Error::NonexistentDep { name, .. } => name,
+                _ => return err.into(),
+            };
+            let new = match name.as_str() {
+                "float32" => "f32",
+                "float64" => "f64",
+                _ => return err.into(),
+            };
+
+            let context = format!(
+                "the `{name}` type has been renamed to `{new}` and is \
+                 no longer accepted, but the `WIT_REQUIRE_F32_F64=0` \
+                 environment variable can be used to temporarily \
+                 disable this error"
+            );
+            anyhow::Error::from(err).context(context)
+        }
     }
 
     fn resolve_use(&mut self, owner: TypeOwner, u: &ast::Use<'a>) -> Result<()> {
