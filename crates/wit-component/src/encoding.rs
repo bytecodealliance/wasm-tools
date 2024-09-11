@@ -76,8 +76,10 @@ use crate::validation::{Export, ExportMap, Import, ImportInstance, ImportMap, RE
 use crate::StringEncoding;
 use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::mem;
 use wasm_encoder::*;
 use wasmparser::Validator;
 use wit_parser::{
@@ -1866,6 +1868,7 @@ pub struct ComponentEncoder {
     adapters: IndexMap<String, Adapter>,
     import_name_map: HashMap<String, String>,
     realloc_via_memory_grow: bool,
+    merge_imports_based_on_semver: Option<bool>,
 }
 
 impl ComponentEncoder {
@@ -1875,14 +1878,11 @@ impl ComponentEncoder {
     /// It will also add any producers information inside the component type information to the
     /// core module.
     pub fn module(mut self, module: &[u8]) -> Result<Self> {
-        let (wasm, metadata) = metadata::decode(module)?;
-        let wasm = wasm.as_deref().unwrap_or(module);
-        let world = self
-            .metadata
-            .merge(metadata)
+        let (wasm, metadata) = self.decode(module)?;
+        let exports = self
+            .merge_metadata(metadata)
             .context("failed merge WIT metadata for module with previous metadata")?;
-        self.main_module_exports
-            .extend(self.metadata.resolve.worlds[world].exports.keys().cloned());
+        self.main_module_exports.extend(exports);
         self.module = if let Some(producers) = &self.metadata.producers {
             producers.add_to_wasm(&wasm)?
         } else {
@@ -1891,9 +1891,35 @@ impl ComponentEncoder {
         Ok(self)
     }
 
+    fn decode<'a>(&self, wasm: &'a [u8]) -> Result<(Cow<'a, [u8]>, Bindgen)> {
+        let (bytes, metadata) =
+            metadata::decode(wasm, self.merge_imports_based_on_semver.unwrap_or(true))?;
+        match bytes {
+            Some(wasm) => Ok((Cow::Owned(wasm), metadata)),
+            None => Ok((Cow::Borrowed(wasm), metadata)),
+        }
+    }
+
+    fn merge_metadata(&mut self, metadata: Bindgen) -> Result<IndexSet<WorldKey>> {
+        self.metadata
+            .merge(metadata, self.merge_imports_based_on_semver.unwrap_or(true))
+    }
+
     /// Sets whether or not the encoder will validate its output.
     pub fn validate(mut self, validate: bool) -> Self {
         self.validate = validate;
+        self
+    }
+
+    /// Sets whether to merge imports based on semver to the specified value.
+    ///
+    /// This affects how when to WIT worlds are merged together, for example
+    /// from two different libraries, whether their imports are unified when the
+    /// semver version ranges for interface allow it.
+    ///
+    /// This is enabled by default.
+    pub fn merge_imports_based_on_semver(mut self, merge: bool) -> Self {
+        self.merge_imports_based_on_semver = Some(merge);
         self
     }
 
@@ -1940,36 +1966,18 @@ impl ComponentEncoder {
         bytes: &[u8],
         library_info: Option<LibraryInfo>,
     ) -> Result<Self> {
-        let (wasm, metadata) = metadata::decode(bytes)?;
-        let wasm = wasm.as_deref().unwrap_or(bytes);
+        let (wasm, mut metadata) = self.decode(bytes)?;
         // Merge the adapter's document into our own document to have one large
         // document, and then afterwards merge worlds as well.
         //
-        // The first `merge` operation will interleave equivalent packages from
-        // each adapter into packages that are stored within our own resolve.
-        // The second `merge_worlds` operation will then ensure that both the
-        // adapter and the main module have compatible worlds, meaning that they
-        // either import the same items or they import disjoint items, for
-        // example.
-        let world = self
-            .metadata
-            .resolve
-            .merge(metadata.resolve)
-            .with_context(|| {
-                format!("failed to merge WIT packages of adapter `{name}` into main packages")
-            })?
-            .map_world(metadata.world, None)?;
-        self.metadata
-            .resolve
-            .merge_worlds(world, self.metadata.world)
-            .with_context(|| {
-                format!("failed to merge WIT world of adapter `{name}` into main package")
-            })?;
-        let exports = self.metadata.resolve.worlds[world]
-            .exports
-            .keys()
-            .cloned()
-            .collect();
+        // Note that the `metadata` tracking import/export encodings is removed
+        // since this adapter can get different lowerings and is allowed to
+        // differ from the main module. This is then tracked within the
+        // `Adapter` structure produced below.
+        let adapter_metadata = mem::take(&mut metadata.metadata);
+        let exports = self.merge_metadata(metadata).with_context(|| {
+            format!("failed to merge WIT packages of adapter `{name}` into main packages")
+        })?;
         if let Some(library_info) = &library_info {
             // Validate that all referenced modules can be resolved.
             for (_, instance) in &library_info.arguments {
@@ -1998,7 +2006,7 @@ impl ComponentEncoder {
             name.to_string(),
             Adapter {
                 wasm: wasm.to_vec(),
-                metadata: metadata.metadata,
+                metadata: adapter_metadata,
                 required_exports: exports,
                 library_info,
             },

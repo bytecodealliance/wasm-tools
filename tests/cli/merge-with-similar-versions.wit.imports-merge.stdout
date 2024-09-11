@@ -1,0 +1,31 @@
+package root:root;
+
+world root {
+  import a:b/foo@0.1.1;
+}
+package a:b@0.1.0 {
+  interface foo {
+    type t = u32;
+
+    x: func();
+  }
+}
+
+
+package foo:bar {
+  world imports-a {
+    import a:b/foo@0.1.0;
+  }
+  world imports-b {
+    import a:b/foo@0.1.1;
+  }
+}
+
+
+package a:b@0.1.1 {
+  interface foo {
+    type t = u32;
+
+    x: func();
+  }
+}

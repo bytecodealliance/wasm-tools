@@ -52,7 +52,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
 
         // Decode what was just created and record it later for testing merging
         // worlds together.
-        let (_, decoded) = wit_component::metadata::decode(&dummy).unwrap();
+        let (_, decoded) = wit_component::metadata::decode(&dummy, false).unwrap();
         decoded_bindgens.push((decoded, dummy, world.name.clone()));
 
         log::debug!("... decoding the component itself");
@@ -84,7 +84,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     // here can be due to the structure of worlds which aren't reasonable to
     // control in this generator, so it's just done to see what happens and try
     // to trigger panics in `Resolve::assert_valid`.
-    let _ = b1.merge(b2);
+    let _ = b1.merge(b2, u.arbitrary()?);
     Ok(())
 }
 

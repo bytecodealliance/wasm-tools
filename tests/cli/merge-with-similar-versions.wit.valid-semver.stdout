@@ -1,0 +1,29 @@
+package root:root;
+
+world root {
+  import a:b/valid-semver@0.1.1;
+}
+package a:b@0.1.0 {
+  interface valid-semver {
+    x: func();
+  }
+}
+
+
+package foo:bar {
+  world valid-semver-a {
+    import a:b/valid-semver@0.1.0;
+  }
+  world valid-semver-b {
+    import a:b/valid-semver@0.1.1;
+  }
+}
+
+
+package a:b@0.1.1 {
+  interface valid-semver {
+    x: func();
+
+    y: func();
+  }
+}

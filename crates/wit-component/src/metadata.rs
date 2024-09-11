@@ -44,14 +44,14 @@
 use crate::validation::BARE_FUNC_MODULE_NAME;
 use crate::{DecodedWasm, StringEncoding};
 use anyhow::{bail, Context, Result};
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use std::borrow::Cow;
 use wasm_encoder::{
     ComponentBuilder, ComponentExportKind, ComponentType, ComponentTypeRef, CustomSection,
 };
 use wasm_metadata::Producers;
 use wasmparser::{BinaryReader, Encoding, Parser, Payload};
-use wit_parser::{Package, PackageName, Resolve, World, WorldId, WorldItem};
+use wit_parser::{Package, PackageName, Resolve, World, WorldId, WorldItem, WorldKey};
 
 const CURRENT_VERSION: u8 = 0x04;
 const CUSTOM_SECTION_NAME: &str = "wit-component-encoding";
@@ -133,7 +133,10 @@ pub struct ModuleMetadata {
 /// If a `component-type` custom section was found then a new binary is
 /// optionally returned with the custom sections stripped out. If no
 /// `component-type` custom sections are found then `None` is returned.
-pub fn decode(wasm: &[u8]) -> Result<(Option<Vec<u8>>, Bindgen)> {
+pub fn decode(
+    wasm: &[u8],
+    merge_imports_based_on_semver: bool,
+) -> Result<(Option<Vec<u8>>, Bindgen)> {
     let mut ret = Bindgen::default();
     let mut new_module = wasm_encoder::Module::new();
 
@@ -144,7 +147,7 @@ pub fn decode(wasm: &[u8]) -> Result<(Option<Vec<u8>>, Bindgen)> {
             wasmparser::Payload::CustomSection(cs) if cs.name().starts_with("component-type") => {
                 let data = Bindgen::decode_custom_section(cs.data())
                     .with_context(|| format!("decoding custom section {}", cs.name()))?;
-                ret.merge(data)
+                ret.merge(data, merge_imports_based_on_semver)
                     .with_context(|| format!("updating metadata for section {}", cs.name()))?;
                 found_custom = true;
             }
@@ -298,7 +301,14 @@ impl Bindgen {
     ///
     /// Note that at this time there's no support for changing string encodings
     /// between metadata.
-    pub fn merge(&mut self, other: Bindgen) -> Result<WorldId> {
+    ///
+    /// This function returns the set of exports that the main world of
+    /// `other` added to the world in `self`.
+    pub fn merge(
+        &mut self,
+        other: Bindgen,
+        merge_imports_based_on_semver: bool,
+    ) -> Result<IndexSet<WorldKey>> {
         let Bindgen {
             resolve,
             world,
@@ -315,9 +325,17 @@ impl Bindgen {
             .merge(resolve)
             .context("failed to merge WIT package sets together")?
             .map_world(world, None)?;
+        let exports = self.resolve.worlds[world].exports.keys().cloned().collect();
         self.resolve
             .merge_worlds(world, self.world)
             .context("failed to merge worlds from two documents")?;
+
+        // If requested additionally deduplicate any imports based on semver.
+        if merge_imports_based_on_semver {
+            self.resolve
+                .merge_world_imports_based_on_semver(self.world)
+                .context("failed to deduplicate imports based on semver")?;
+        }
 
         for (name, encoding) in export_encodings {
             let prev = self
@@ -349,7 +367,7 @@ impl Bindgen {
             }
         }
 
-        Ok(world)
+        Ok(exports)
     }
 }
 

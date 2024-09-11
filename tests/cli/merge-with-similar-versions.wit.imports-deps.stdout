@@ -1,0 +1,44 @@
+package root:root;
+
+world root {
+  import a:b/foo@0.1.1;
+  import a:b/depend-on-foo@0.1.1;
+}
+package a:b@0.1.0 {
+  interface foo {
+    type t = u32;
+
+    x: func();
+  }
+  interface depend-on-foo {
+    use foo.{t};
+
+    x: func() -> t;
+  }
+}
+
+
+package foo:bar {
+  world imports-a-deps {
+    import a:b/foo@0.1.0;
+    import a:b/depend-on-foo@0.1.0;
+  }
+  world imports-b-deps {
+    import a:b/foo@0.1.1;
+    import a:b/depend-on-foo@0.1.1;
+  }
+}
+
+
+package a:b@0.1.1 {
+  interface foo {
+    type t = u32;
+
+    x: func();
+  }
+  interface depend-on-foo {
+    use foo.{t};
+
+    x: func() -> t;
+  }
+}

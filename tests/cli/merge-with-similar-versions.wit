@@ -1,0 +1,140 @@
+// RUN[imports]: component embed --dummy --world imports-a % | \
+//               component embed         --world imports-b % | \
+//               component wit --merge-imports-based-on-semver=false
+//
+// RUN[exports]: component embed --dummy --world exports-a % | \
+//               component embed         --world exports-b % | \
+//               component wit --merge-imports-based-on-semver=false
+//
+// RUN[imports-merge]: component embed --dummy --world imports-a % | \
+//                     component embed         --world imports-b % | \
+//                     component wit
+//
+// RUN[exports-merge]: component embed --dummy --world exports-a % | \
+//                     component embed         --world exports-b % | \
+//                     component wit
+//
+// RUN[imports-deps]: component embed --dummy --world imports-a-deps % | \
+//                    component embed         --world imports-b-deps % | \
+//                    component wit
+//
+// RUN[swap-deps]: component embed --dummy --world imports-b-deps % | \
+//                 component embed         --world imports-a-deps % | \
+//                 component wit
+//
+// FAIL[invalid-semver]: component embed --dummy --world invalid-semver-a % | \
+//                       component embed         --world invalid-semver-b % | \
+//                       component wit
+//
+// RUN[valid-semver]: component embed --dummy --world valid-semver-a % | \
+//                    component embed         --world valid-semver-b % | \
+//                    component wit
+//
+// RUN[fix-transitive]: component embed --dummy --world fix-transitive-a % | \
+//                      component embed         --world fix-transitive-b % | \
+//                      component wit
+
+package foo:bar;
+
+world imports-a {
+  import a:b/foo@0.1.0;
+}
+
+world imports-b {
+  import a:b/foo@0.1.1;
+}
+
+world exports-a {
+  export a:b/foo@0.1.0;
+}
+
+world exports-b {
+  export a:b/foo@0.1.1;
+}
+
+world imports-a-deps {
+  import a:b/depend-on-foo@0.1.0;
+}
+
+world imports-b-deps {
+  import a:b/depend-on-foo@0.1.1;
+}
+
+world invalid-semver-a {
+  import a:b/invalid-semver@0.1.0;
+}
+
+world invalid-semver-b {
+  import a:b/invalid-semver@0.1.1;
+}
+
+world valid-semver-a {
+  import a:b/valid-semver@0.1.0;
+}
+
+world valid-semver-b {
+  import a:b/valid-semver@0.1.1;
+}
+
+world fix-transitive-a {
+  import a:b/use-foo1@0.1.0;
+  use a:b/foo@0.1.0.{t as t1};
+  use a:b/use-foo1@0.1.0.{t as t2};
+}
+
+world fix-transitive-b {
+  import a:b/use-foo2@0.1.1;
+  use a:b/foo@0.1.1.{t as t1};
+  use a:b/use-foo2@0.1.1.{t as t2};
+}
+
+package a:b@0.1.0 {
+  interface foo {
+    type t = u32;
+    x: func();
+  }
+
+  interface depend-on-foo {
+    use foo.{t};
+    x: func() -> t;
+  }
+
+  interface invalid-semver {
+    x: func();
+  }
+
+  interface valid-semver {
+    x: func();
+  }
+
+  interface use-foo1 {
+    use foo.{t};
+    x: func() -> t;
+  }
+}
+
+package a:b@0.1.1 {
+  interface foo {
+    type t = u32;
+    x: func();
+  }
+
+  interface depend-on-foo {
+    use foo.{t};
+    x: func() -> t;
+  }
+
+  interface invalid-semver {
+    y: func();
+  }
+
+  interface valid-semver {
+    x: func();
+    y: func();
+  }
+
+  interface use-foo2 {
+    use foo.{t};
+    x: func() -> t;
+  }
+}

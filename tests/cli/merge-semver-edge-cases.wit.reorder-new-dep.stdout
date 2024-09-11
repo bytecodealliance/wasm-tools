@@ -1,0 +1,32 @@
+package root:root;
+
+world root {
+  import a:b/foo@0.1.0;
+  import a:b/add-dep-on-prev-foo@0.1.1;
+}
+package a:b@0.1.0 {
+  interface add-dep-on-prev-foo {
+  }
+  interface foo {
+    type t = u32;
+  }
+}
+
+
+package foo:bar {
+  world reorder-dep-a {
+    import a:b/add-dep-on-prev-foo@0.1.0;
+    import a:b/foo@0.1.0;
+  }
+  world reorder-dep-b {
+    import a:b/foo@0.1.0;
+    import a:b/add-dep-on-prev-foo@0.1.1;
+  }
+}
+
+
+package a:b@0.1.1 {
+  interface add-dep-on-prev-foo {
+    use a:b/foo@0.1.0.{t};
+  }
+}

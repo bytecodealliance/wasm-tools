@@ -1,0 +1,32 @@
+package root:root;
+
+world root {
+  import a:b/bar@0.1.1;
+  import a:b/foo@0.1.1;
+}
+package a:b@0.1.0 {
+  interface foo {
+    type t = u32;
+  }
+}
+
+
+package foo:bar {
+  world new-dep-a {
+    import a:b/foo@0.1.0;
+  }
+  world new-dep-b {
+    import a:b/bar@0.1.1;
+    import a:b/foo@0.1.1;
+  }
+}
+
+
+package a:b@0.1.1 {
+  interface bar {
+    type t = u32;
+  }
+  interface foo {
+    use bar.{t};
+  }
+}

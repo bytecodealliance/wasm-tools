@@ -1,0 +1,51 @@
+package root:root;
+
+world root {
+  import a:b/foo@0.1.1;
+  import a:b/use-foo1@0.1.0;
+  import a:b/use-foo2@0.1.1;
+  use a:b/foo@0.1.1.{t as t1};
+  use a:b/use-foo1@0.1.0.{t as t2};
+}
+package a:b@0.1.0 {
+  interface foo {
+    type t = u32;
+
+    x: func();
+  }
+  interface use-foo1 {
+    use a:b/foo@0.1.1.{t};
+
+    x: func() -> t;
+  }
+}
+
+
+package foo:bar {
+  world fix-transitive-a {
+    import a:b/foo@0.1.0;
+    import a:b/use-foo1@0.1.0;
+    use a:b/foo@0.1.0.{t as t1};
+    use a:b/use-foo1@0.1.0.{t as t2};
+  }
+  world fix-transitive-b {
+    import a:b/foo@0.1.1;
+    import a:b/use-foo2@0.1.1;
+    use a:b/foo@0.1.1.{t as t1};
+    use a:b/use-foo2@0.1.1.{t as t2};
+  }
+}
+
+
+package a:b@0.1.1 {
+  interface foo {
+    type t = u32;
+
+    x: func();
+  }
+  interface use-foo2 {
+    use foo.{t};
+
+    x: func() -> t;
+  }
+}

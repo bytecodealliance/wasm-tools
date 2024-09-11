@@ -1222,6 +1222,11 @@ pub struct Linker {
     ///
     /// If `None`, use `DEFAULT_STACK_SIZE_BYTES`.
     stack_size: Option<u32>,
+
+    /// This affects how when to WIT worlds are merged together, for example
+    /// from two different libraries, whether their imports are unified when the
+    /// semver version ranges for interface allow it.
+    merge_imports_based_on_semver: Option<bool>,
 }
 
 impl Linker {
@@ -1269,6 +1274,16 @@ impl Linker {
         self
     }
 
+    /// This affects how when to WIT worlds are merged together, for example
+    /// from two different libraries, whether their imports are unified when the
+    /// semver version ranges for interface allow it.
+    ///
+    /// This is enabled by default.
+    pub fn merge_imports_based_on_semver(mut self, merge: bool) -> Self {
+        self.merge_imports_based_on_semver = Some(merge);
+        self
+    }
+
     /// Encode the component and return the bytes
     pub fn encode(mut self) -> Result<Vec<u8>> {
         if self.use_built_in_libdl {
@@ -1290,8 +1305,14 @@ impl Linker {
             .libraries
             .iter()
             .map(|(name, module, dl_openable)| {
-                Metadata::try_new(name, *dl_openable, module, &adapter_names)
-                    .with_context(|| format!("failed to extract linking metadata from {name}"))
+                Metadata::try_new(
+                    name,
+                    *dl_openable,
+                    module,
+                    &adapter_names,
+                    self.merge_imports_based_on_semver.unwrap_or(true),
+                )
+                .with_context(|| format!("failed to extract linking metadata from {name}"))
             })
             .collect::<Result<Vec<_>>>()?;
 
