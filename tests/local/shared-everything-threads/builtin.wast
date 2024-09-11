@@ -1,19 +1,19 @@
 ;; Styled after ../component-model/resources.wast
 
 (component
-  (type $start (func (param "context" u32)))
+  (core type $start (shared (func (param $context i32))))
   (core func $spawn (canon thread.spawn $start))
   (core func $concurrency (canon thread.hw_concurrency))
 )
 
 (component
-  (type $start (func (param "context" u32)))
+  (core type $start (shared (func (param $context i32))))
   (core func $spawn (canon thread.spawn $start))
   (core func $concurrency (canon thread.hw_concurrency))
 
   (core module $m
-    ;; (type $st (func (param $context i32)))
-    (import "" "spawn" (func (param (ref null func)) (param i32) (result i32)))
+    (type $st (shared (func (param $context i32))))
+    (import "" "spawn" (func (param (ref null $st)) (param i32) (result i32)))
     (import "" "concurrency" (func (result i32)))
   )
 
@@ -27,8 +27,16 @@
 
 (assert_invalid
   (component
-    (type $start (func))
+    (core type $start (func))
     (core func $spawn (canon thread.spawn $start))
   )
-  "spawn function must take a single `u32` argument (currently)"
+  "spawn type must be shared"
+)
+
+(assert_invalid
+  (component
+    (core type $start (shared (func)))
+    (core func $spawn (canon thread.spawn $start))
+  )
+  "spawn function must take a single `i32` argument (currently)"
 )

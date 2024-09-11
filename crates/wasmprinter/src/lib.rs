@@ -2399,7 +2399,7 @@ impl Printer<'_, '_> {
                     self.print_name(&state.core.func_names, state.core.funcs)?;
                     self.result.write_str(" ")?;
                     self.start_group("canon thread.spawn ")?;
-                    self.print_idx(&state.component.type_names, func_index)?;
+                    self.print_idx(&state.core.type_names, func_index)?;
                     self.end_group()?;
                     self.end_group()?;
                     state.core.funcs += 1;

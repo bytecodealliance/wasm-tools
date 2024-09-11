@@ -370,7 +370,9 @@ impl<'a> Resolver<'a> {
             CanonicalFuncKind::ResourceDrop(info) => {
                 return self.resolve_ns(&mut info.ty, Ns::Type)
             }
-            CanonicalFuncKind::ThreadSpawn(info) => return self.resolve_ns(&mut info.ty, Ns::Type),
+            CanonicalFuncKind::ThreadSpawn(info) => {
+                return self.resolve_ns(&mut info.ty, Ns::CoreType)
+            }
             CanonicalFuncKind::ThreadHwConcurrency(_) => return Ok(()),
         };
 
