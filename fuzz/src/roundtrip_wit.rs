@@ -22,8 +22,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         DecodedWasm::Component(..) => unreachable!(),
     };
 
-    let wasm2 =
-        wit_component::encode(Some(true), &resolve2, pkg2).expect("failed to encode WIT document");
+    let wasm2 = wit_component::encode(&resolve2, pkg2).expect("failed to encode WIT document");
     write_file("doc2.wasm", &wasm2);
     roundtrip_through_printing("doc2", &resolve2, pkg2, &wasm2);
 
@@ -91,7 +90,7 @@ fn roundtrip_through_printing(file: &str, resolve: &Resolve, pkg: PackageId, was
 
     // Finally encode the `new_resolve` which should be the exact same as
     // before.
-    let wasm2 = wit_component::encode(Some(true), &new_resolve, new_pkg).unwrap();
+    let wasm2 = wit_component::encode(&new_resolve, new_pkg).unwrap();
     write_file(&format!("{file}-reencoded.wasm"), &wasm2);
     if wasm != wasm2 {
         panic!("failed to roundtrip through text printing");
