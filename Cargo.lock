@@ -1758,7 +1758,6 @@ dependencies = [
  "clap",
  "clap_complete",
  "cpp_demangle",
- "diff",
  "env_logger",
  "gimli 0.30.0",
  "is_executable",
@@ -1903,12 +1902,8 @@ name = "wasmprinter"
 version = "0.217.0"
 dependencies = [
  "anyhow",
- "diff",
- "rayon",
- "tempfile",
  "termcolor",
  "wasmparser 0.217.0",
- "wast",
  "wat",
 ]
 
