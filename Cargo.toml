@@ -178,6 +178,7 @@ tempfile = "3.1"
 wast = { path = 'crates/wast' }
 pretty_assertions = { workspace = true }
 libtest-mimic = { workspace = true }
+indexmap = { workspace = true }
 
 [[test]]
 name = "cli"
