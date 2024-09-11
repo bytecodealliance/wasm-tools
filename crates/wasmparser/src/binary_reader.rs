@@ -696,21 +696,19 @@ impl<'a> BinaryReader<'a> {
         Ok((result << ashift) >> ashift)
     }
 
-    /// Advances the `BinaryReader` up to four bytes to parse a variable
-    /// length integer as a 32 bit floating point integer, returned as `Ieee32`.
+    /// Advances the `BinaryReader` four bytes to parse a 32 bit floating point
+    /// number, returned as `Ieee32`.
     /// # Errors
-    /// If `BinaryReader` has less than one or up to four bytes remaining, or
-    /// the integer is larger than 32 bits.
+    /// If `BinaryReader` has less than four bytes remaining.
     pub fn read_f32(&mut self) -> Result<Ieee32> {
         let value = self.read_u32()?;
         Ok(Ieee32(value))
     }
 
-    /// Advances the `BinaryReader` up to four bytes to parse a variable
-    /// length integer as a 32 bit floating point integer, returned as `Ieee32`.
+    /// Advances the `BinaryReader` eight bytes to parse a 64 bit floating point
+    /// number, returned as `Ieee64`.
     /// # Errors
-    /// If `BinaryReader` has less than one or up to four bytes remaining, or
-    /// the integer is larger than 32 bits.
+    /// If `BinaryReader` has less than eight bytes remaining.
     pub fn read_f64(&mut self) -> Result<Ieee64> {
         let value = self.read_u64()?;
         Ok(Ieee64(value))
