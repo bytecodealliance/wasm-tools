@@ -78,7 +78,7 @@ jobs:
           - os: ubuntu-latest
             rust: beta
           - os: ubuntu-latest
-            rust: nightly
+            rust: nightly-2024-09-10
           - os: macos-latest
             rust: default
           - os: windows-latest
