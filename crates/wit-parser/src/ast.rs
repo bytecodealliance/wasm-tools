@@ -1624,7 +1624,6 @@ fn eat_id(tokens: &mut Tokenizer<'_>, expected: &str) -> Result<Span> {
 pub struct SourceMap {
     sources: Vec<Source>,
     offset: u32,
-    require_semicolons: Option<bool>,
     require_f32_f64: Option<bool>,
 }
 
@@ -1639,11 +1638,6 @@ impl SourceMap {
     /// Creates a new empty source map.
     pub fn new() -> SourceMap {
         SourceMap::default()
-    }
-
-    #[doc(hidden)] // NB: only here for a transitionary period
-    pub fn set_require_semicolons(&mut self, enable: bool) {
-        self.require_semicolons = Some(enable);
     }
 
     #[doc(hidden)] // NB: only here for a transitionary period
@@ -1702,7 +1696,6 @@ impl SourceMap {
                     // passing through the source to get tokenized.
                     &src.contents[..src.contents.len() - 1],
                     src.offset,
-                    self.require_semicolons,
                     self.require_f32_f64,
                 )
                 .with_context(|| format!("failed to tokenize path: {}", src.path.display()))?;
@@ -1872,7 +1865,7 @@ pub enum ParsedUsePath {
 }
 
 pub fn parse_use_path(s: &str) -> Result<ParsedUsePath> {
-    let mut tokens = Tokenizer::new(s, 0, Some(true), None)?;
+    let mut tokens = Tokenizer::new(s, 0, None)?;
     let path = UsePath::parse(&mut tokens)?;
     if tokens.next()?.is_some() {
         bail!("trailing tokens in path specifier");
