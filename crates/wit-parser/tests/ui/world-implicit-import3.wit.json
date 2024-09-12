@@ -32,7 +32,6 @@
   "interfaces": [
     {
       "name": "foo",
-      "nested": {},
       "types": {
         "g": 0
       },

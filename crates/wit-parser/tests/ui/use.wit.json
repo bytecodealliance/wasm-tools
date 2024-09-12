@@ -3,7 +3,6 @@
   "interfaces": [
     {
       "name": "bar",
-      "nested": {},
       "types": {
         "the-type": 0
       },
@@ -12,7 +11,6 @@
     },
     {
       "name": "foo",
-      "nested": {},
       "types": {
         "the-type": 1
       },
@@ -21,7 +19,6 @@
     },
     {
       "name": "baz",
-      "nested": {},
       "types": {
         "the-type": 2,
         "test": 3
@@ -31,21 +28,18 @@
     },
     {
       "name": "empty",
-      "nested": {},
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": "use-from-empty",
-      "nested": {},
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": "use-multiple",
-      "nested": {},
       "types": {
         "the-type": 4,
         "test": 5
@@ -71,7 +65,6 @@
     },
     {
       "name": "trailing-comma",
-      "nested": {},
       "types": {
         "the-type": 6,
         "the-foo": 7

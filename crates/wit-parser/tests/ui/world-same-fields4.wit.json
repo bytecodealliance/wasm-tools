@@ -27,7 +27,6 @@
   "interfaces": [
     {
       "name": "shared-items",
-      "nested": {},
       "types": {
         "a": 0
       },
@@ -36,14 +35,12 @@
     },
     {
       "name": null,
-      "nested": {},
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": null,
-      "nested": {},
       "types": {
         "a": 1
       },

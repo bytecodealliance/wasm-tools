@@ -433,6 +433,7 @@ pub struct Interface {
     pub name: Option<String>,
 
     /// The nested interfaces in this interface.
+    #[serde(skip_serializing_if = "IndexMap::is_empty")]
     pub nested: IndexMap<String, Nest>,
     /// Exported types from this interface.
     ///

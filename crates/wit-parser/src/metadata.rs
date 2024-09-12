@@ -521,6 +521,10 @@ struct InterfaceMetadata {
         serde(default, skip_serializing_if = "StringMap::is_empty")
     )]
     types: StringMap<TypeMetadata>,
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "StringMap::is_empty")
+    )]
     nested: StringMap<NestMetadata>,
 }
 

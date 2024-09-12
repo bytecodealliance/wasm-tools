@@ -480,23 +480,22 @@ impl<'a> Resolver<'a> {
         let mut iface_id_order = Vec::new();
         let mut world_id_order = Vec::new();
         for name in order {
-            match names.get(name) {
-                Some(ast::AstItem::Interface(_)) => {
+            match names.get(name).unwrap() {
+                ast::AstItem::Interface(_) => {
                     let id = self.alloc_interface(package_items[name]);
                     self.interfaces[id].name = Some(name.to_string());
                     let prev = ids.insert(name, AstItem::Interface(id));
                     assert!(prev.is_none());
                     iface_id_order.push(id);
                 }
-                Some(ast::AstItem::World(_)) => {
+                ast::AstItem::World(_) => {
                     let id = self.alloc_world(package_items[name]);
                     self.worlds[id].name = name.to_string();
                     let prev = ids.insert(name, AstItem::World(id));
                     assert!(prev.is_none());
                     world_id_order.push(id);
                 }
-                Some(ast::AstItem::Use(_) | ast::AstItem::Package(_)) => unreachable!(),
-                None => {}
+                ast::AstItem::Use(_) | ast::AstItem::Package(_) => unreachable!(),
             };
         }
         for decl_list in decl_lists {
@@ -923,7 +922,7 @@ impl<'a> Resolver<'a> {
                 TypeItem::Use(u) => {
                     self.resolve_use(owner, u)?;
                 }
-                _ => {}
+                TypeItem::Def(_) => {}
             }
         }
 

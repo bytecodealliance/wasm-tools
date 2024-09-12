@@ -21,7 +21,6 @@
   "interfaces": [
     {
       "name": "i1",
-      "nested": {},
       "types": {
         "a": 0
       },
@@ -30,7 +29,6 @@
     },
     {
       "name": null,
-      "nested": {},
       "types": {
         "a": 1
       },

@@ -170,10 +170,6 @@ impl InterfaceEncoder<'_> {
         let iface = &self.resolve.interfaces[interface];
         let mut type_order = IndexSet::new();
         for (_, id) in iface.types.iter() {
-            let ty = &self.resolve.types[*id];
-            if let TypeOwner::Interface(iface_id) = ty.owner {
-                self.interface = Some(iface_id);
-            }
             self.encode_valtype(self.resolve, &Type::Id(*id))?;
             type_order.insert(*id);
         }

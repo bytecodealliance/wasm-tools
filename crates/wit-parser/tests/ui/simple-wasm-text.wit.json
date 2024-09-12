@@ -3,7 +3,6 @@
   "interfaces": [
     {
       "name": "x",
-      "nested": {},
       "types": {},
       "functions": {},
       "package": 0

@@ -3,7 +3,6 @@
   "interfaces": [
     {
       "name": "random",
-      "nested": {},
       "types": {},
       "functions": {
         "get-random-bytes": {

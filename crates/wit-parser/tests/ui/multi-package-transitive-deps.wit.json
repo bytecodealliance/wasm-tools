@@ -43,7 +43,6 @@
   "interfaces": [
     {
       "name": "types",
-      "nested": {},
       "types": {
         "t2": 0
       },
@@ -52,7 +51,6 @@
     },
     {
       "name": "types",
-      "nested": {},
       "types": {
         "t2": 1,
         "a": 2
@@ -62,7 +60,6 @@
     },
     {
       "name": "types",
-      "nested": {},
       "types": {
         "a": 3,
         "b": 4

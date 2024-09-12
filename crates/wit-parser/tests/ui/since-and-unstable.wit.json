@@ -140,7 +140,6 @@
   "interfaces": [
     {
       "name": "foo1",
-      "nested": {},
       "types": {},
       "functions": {},
       "stability": {
@@ -152,7 +151,6 @@
     },
     {
       "name": "foo2",
-      "nested": {},
       "types": {},
       "functions": {},
       "stability": {
@@ -165,7 +163,6 @@
     },
     {
       "name": "foo3",
-      "nested": {},
       "types": {},
       "functions": {},
       "stability": {
@@ -178,7 +175,6 @@
     },
     {
       "name": "in-an-interface",
-      "nested": {},
       "types": {
         "r1": 0,
         "r2": 1,
@@ -254,14 +250,12 @@
     },
     {
       "name": "z",
-      "nested": {},
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": "deprecated1",
-      "nested": {},
       "types": {
         "t1": 9,
         "t2": 10
@@ -271,7 +265,6 @@
     },
     {
       "name": null,
-      "nested": {},
       "types": {},
       "functions": {},
       "stability": {
@@ -283,7 +276,6 @@
     },
     {
       "name": null,
-      "nested": {},
       "types": {},
       "functions": {},
       "stability": {

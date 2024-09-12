@@ -38,7 +38,6 @@
   "interfaces": [
     {
       "name": "i1",
-      "nested": {},
       "types": {
         "a": 0
       },
@@ -47,7 +46,6 @@
     },
     {
       "name": null,
-      "nested": {},
       "types": {
         "a": 1
       },
@@ -56,7 +54,6 @@
     },
     {
       "name": "i1",
-      "nested": {},
       "types": {
         "a": 2
       },
@@ -65,7 +62,6 @@
     },
     {
       "name": null,
-      "nested": {},
       "types": {
         "a": 3
       },

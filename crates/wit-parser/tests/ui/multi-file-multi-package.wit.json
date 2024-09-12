@@ -72,7 +72,6 @@
   "interfaces": [
     {
       "name": "i2",
-      "nested": {},
       "types": {
         "b": 0
       },
@@ -81,7 +80,6 @@
     },
     {
       "name": null,
-      "nested": {},
       "types": {
         "b": 1
       },
@@ -90,7 +88,6 @@
     },
     {
       "name": "i3",
-      "nested": {},
       "types": {
         "a": 2
       },
@@ -99,7 +96,6 @@
     },
     {
       "name": null,
-      "nested": {},
       "types": {
         "a": 3
       },
@@ -108,7 +104,6 @@
     },
     {
       "name": "i1",
-      "nested": {},
       "types": {
         "a": 4
       },
@@ -117,7 +112,6 @@
     },
     {
       "name": null,
-      "nested": {},
       "types": {
         "a": 5
       },
@@ -126,7 +120,6 @@
     },
     {
       "name": "i4",
-      "nested": {},
       "types": {
         "b": 6
       },
@@ -135,7 +128,6 @@
     },
     {
       "name": null,
-      "nested": {},
       "types": {
         "b": 7
       },

@@ -3,7 +3,6 @@
   "interfaces": [
     {
       "name": "functions",
-      "nested": {},
       "types": {},
       "functions": {
         "f1": {

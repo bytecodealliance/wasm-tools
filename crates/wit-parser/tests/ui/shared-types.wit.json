@@ -22,7 +22,6 @@
   "interfaces": [
     {
       "name": null,
-      "nested": {},
       "types": {},
       "functions": {
         "a": {
@@ -40,7 +39,6 @@
     },
     {
       "name": null,
-      "nested": {},
       "types": {},
       "functions": {
         "a": {

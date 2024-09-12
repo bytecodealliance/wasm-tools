@@ -21,14 +21,12 @@
   "interfaces": [
     {
       "name": "types",
-      "nested": {},
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": "types",
-      "nested": {},
       "types": {},
       "functions": {},
       "package": 1

@@ -126,42 +126,36 @@
   "interfaces": [
     {
       "name": "a",
-      "nested": {},
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": "b",
-      "nested": {},
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": "a",
-      "nested": {},
       "types": {},
       "functions": {},
       "package": 1
     },
     {
       "name": "b",
-      "nested": {},
       "types": {},
       "functions": {},
       "package": 1
     },
     {
       "name": "ai",
-      "nested": {},
       "types": {},
       "functions": {},
       "package": 2
     },
     {
       "name": "bi",
-      "nested": {},
       "types": {},
       "functions": {},
       "package": 2

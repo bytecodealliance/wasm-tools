@@ -31,28 +31,24 @@
   "interfaces": [
     {
       "name": "d",
-      "nested": {},
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": "e",
-      "nested": {},
       "types": {},
       "functions": {},
       "package": 1
     },
     {
       "name": "b",
-      "nested": {},
       "types": {},
       "functions": {},
       "package": 2
     },
     {
       "name": "c",
-      "nested": {},
       "types": {},
       "functions": {},
       "package": 3

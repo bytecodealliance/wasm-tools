@@ -26,7 +26,6 @@
   "interfaces": [
     {
       "name": "foo",
-      "nested": {},
       "types": {
         "a": 0
       },
@@ -35,7 +34,6 @@
     },
     {
       "name": null,
-      "nested": {},
       "types": {
         "a": 1
       },
@@ -44,7 +42,6 @@
     },
     {
       "name": null,
-      "nested": {},
       "types": {},
       "functions": {},
       "package": 0

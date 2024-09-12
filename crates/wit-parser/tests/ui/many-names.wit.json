@@ -16,14 +16,12 @@
   "interfaces": [
     {
       "name": "x",
-      "nested": {},
       "types": {},
       "functions": {},
       "package": 0
     },
     {
       "name": null,
-      "nested": {},
       "types": {},
       "functions": {},
       "package": 0
