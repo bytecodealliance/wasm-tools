@@ -946,8 +946,7 @@ pub mod component_utils {
                 section.resource_rep(resource);
             }
             wasmparser::CanonicalFunction::ThreadSpawn { func_ty_index } => {
-                // TODO: maybe reencoder.parse_component_core_type(ty, core) instead?
-                let func_ty = reencoder.component_type_index(func_ty_index);
+                let func_ty = reencoder.type_index(func_ty_index);
                 section.thread_spawn(func_ty);
             }
             wasmparser::CanonicalFunction::ThreadHwConcurrency => {
