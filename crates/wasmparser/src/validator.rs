@@ -1202,7 +1202,6 @@ impl Validator {
         &mut self,
         section: &crate::ComponentCanonicalSectionReader,
     ) -> Result<()> {
-        let shared_everything_threads = self.features.shared_everything_threads();
         self.process_component_section(
             section,
             "function",
@@ -1218,7 +1217,7 @@ impl Validator {
                 current.funcs.reserve(count as usize);
                 Ok(())
             },
-            |components, types, _, func, offset| {
+            |components, types, features, func, offset| {
                 let current = components.last_mut().unwrap();
                 match func {
                     crate::CanonicalFunction::Lift {
@@ -1245,10 +1244,11 @@ impl Validator {
                     crate::CanonicalFunction::ResourceRep { resource } => {
                         current.resource_rep(resource, types, offset)
                     }
-                    crate::CanonicalFunction::ThreadSpawn { func_ty_index } => current
-                        .thread_spawn(func_ty_index, types, offset, shared_everything_threads),
+                    crate::CanonicalFunction::ThreadSpawn { func_ty_index } => {
+                        current.thread_spawn(func_ty_index, types, offset, features)
+                    }
                     crate::CanonicalFunction::ThreadHwConcurrency => {
-                        current.thread_hw_concurrency(types, offset, shared_everything_threads)
+                        current.thread_hw_concurrency(types, offset, features)
                     }
                 }
             },

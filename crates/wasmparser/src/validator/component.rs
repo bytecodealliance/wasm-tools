@@ -1079,9 +1079,9 @@ impl ComponentState {
         func_ty_index: u32,
         types: &mut TypeAlloc,
         offset: usize,
-        is_proposal_enabled: bool,
+        features: &WasmFeatures,
     ) -> Result<()> {
-        if !is_proposal_enabled {
+        if !features.shared_everything_threads() {
             bail!(
                 offset,
                 "`thread.spawn` requires the shared-everything-threads proposal"
@@ -1133,9 +1133,9 @@ impl ComponentState {
         &mut self,
         types: &mut TypeAlloc,
         offset: usize,
-        is_proposal_enabled: bool,
+        features: &WasmFeatures,
     ) -> Result<()> {
-        if !is_proposal_enabled {
+        if !features.shared_everything_threads() {
             bail!(
                 offset,
                 "`thread.hw_concurrency` requires the shared-everything-threads proposal"
