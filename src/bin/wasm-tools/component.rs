@@ -610,7 +610,7 @@ impl WitOpts {
         assert!(self.out_dir.is_none());
 
         let decoded_package = decoded.package();
-        let bytes = wit_component::encode(None, decoded.resolve(), decoded_package)?;
+        let bytes = wit_component::encode(decoded.resolve(), decoded_package)?;
         if !self.skip_validation {
             wasmparser::Validator::new().validate_all(&bytes)?;
         }
