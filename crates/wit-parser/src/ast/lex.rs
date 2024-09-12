@@ -116,7 +116,7 @@ pub enum Error {
 }
 
 // NB: keep in sync with `crates/wit-component/src/printing.rs`.
-const REQUIRE_F32_F64_BY_DEFAULT: bool = false;
+const REQUIRE_F32_F64_BY_DEFAULT: bool = true;
 
 impl<'a> Tokenizer<'a> {
     pub fn new(

@@ -55,6 +55,7 @@ pub fn toposort<'a>(
                     span: edge.span,
                     name: edge.name.to_string(),
                     kind: kind.to_string(),
+                    highlighted: None,
                 })?;
             states[j].reverse_deps.push(i);
         }
@@ -115,6 +116,7 @@ pub fn toposort<'a>(
                 span: dep.span,
                 name: dep.name.to_string(),
                 kind: kind.to_string(),
+                highlighted: None,
             });
         }
     }
@@ -128,16 +130,38 @@ pub enum Error {
         span: Span,
         name: String,
         kind: String,
+        highlighted: Option<String>,
     },
     Cycle {
         span: Span,
         name: String,
         kind: String,
+        highlighted: Option<String>,
     },
+}
+
+impl Error {
+    pub(crate) fn highlighted(&self) -> Option<&str> {
+        match self {
+            Error::NonexistentDep { highlighted, .. } | Error::Cycle { highlighted, .. } => {
+                highlighted.as_deref()
+            }
+        }
+    }
+    pub(crate) fn set_highlighted(&mut self, string: String) {
+        match self {
+            Error::NonexistentDep { highlighted, .. } | Error::Cycle { highlighted, .. } => {
+                *highlighted = Some(string);
+            }
+        }
+    }
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if let Some(s) = self.highlighted() {
+            return f.write_str(s);
+        }
         match self {
             Error::NonexistentDep { kind, name, .. } => {
                 write!(f, "{kind} `{name}` does not exist")
