@@ -499,6 +499,16 @@ pub struct WitOpts {
     )]
     json: bool,
 
+    /// Importize the WIT document by removing the imports and
+    ///  moving the exports of a component to be its imports.
+    #[clap(
+        long,
+        conflicts_with = "wasm",
+        conflicts_with = "wat",
+        conflicts_with = "json"
+    )]
+    importize: bool,
+
     /// Features to enable when parsing the `wit` option.
     ///
     /// This flag enables the `@unstable` feature in WIT documents where the
@@ -621,7 +631,13 @@ impl WitOpts {
     fn emit_wit(&self, decoded: &DecodedWasm) -> Result<()> {
         assert!(!self.wasm && !self.wat);
 
-        let resolve = decoded.resolve();
+        let mut resolve = decoded.resolve().clone();
+
+        let main = decoded.package();
+        if self.importize {
+            let world_id = resolve.select_world(main, None)?;
+            resolve.importize(world_id)
+        }
 
         let mut printer = WitPrinter::default();
         printer.emit_docs(!self.no_docs);
@@ -647,7 +663,7 @@ impl WitOpts {
                 let main = decoded.package();
                 for (id, pkg) in resolve.packages.iter() {
                     let is_main = id == main;
-                    let output = printer.print(resolve, id, &[])?;
+                    let output = printer.print(&resolve, id, &[])?;
                     let out_dir = if is_main {
                         dir.clone()
                     } else {
@@ -685,8 +701,9 @@ impl WitOpts {
                 self.output.output(
                     &self.general,
                     Output::Wit {
-                        wit: &decoded,
                         printer,
+                        resolve: &resolve,
+                        package: main,
                     },
                 )?;
             }

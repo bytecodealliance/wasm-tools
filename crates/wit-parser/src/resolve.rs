@@ -931,6 +931,56 @@ package {name} is defined in two different locations:\n\
         Some(self.id_of_name(interface.package.unwrap(), interface.name.as_ref()?))
     }
 
+    pub fn importize(&mut self, world_id: WorldId) {
+        let exports = &self.worlds[world_id].exports.clone();
+        // Make a copy of the imports as we will wholesale clear the imports in the world being importized
+        let ref_imports = mem::take(&mut self.worlds[world_id].imports);
+
+        let mut temp = Vec::new();
+
+        for (key, item) in exports.clone() {
+            match key {
+                WorldKey::Name(_) => {
+                    temp.push((key, item));
+                }
+                WorldKey::Interface(id) => self.resolve_interface_deps(id, world_id, &ref_imports),
+            }
+        }
+        let world = &mut self.worlds[world_id];
+        world.imports.append(&mut world.exports);
+
+        for (key, item) in ref_imports {
+            if let WorldItem::Type(_) = item {
+                world.imports.insert(key, item);
+            }
+        }
+
+        for (key, item) in temp {
+            world.imports.insert(key, item);
+        }
+
+        world.exports.clear();
+    }
+
+    fn resolve_interface_deps(
+        &mut self,
+        interface_id: InterfaceId,
+        world_id: WorldId,
+        ref_imports: &IndexMap<WorldKey, WorldItem>,
+    ) {
+        let direct_deps = self.interface_direct_deps(interface_id).collect::<Vec<_>>();
+        for dep_id in direct_deps {
+            let world_key = WorldKey::Interface(dep_id);
+            let world_item = ref_imports.get(&world_key).unwrap();
+
+            let world = &mut self.worlds[world_id];
+            if !world.imports.contains_key(&world_key) {
+                world.imports.insert(world_key, world_item.clone());
+                self.resolve_interface_deps(dep_id, world_id, ref_imports);
+            }
+        }
+    }
+
     /// Returns the ID of the specified `name` within the `pkg`.
     pub fn id_of_name(&self, pkg: PackageId, name: &str) -> String {
         let package = &self.packages[pkg];

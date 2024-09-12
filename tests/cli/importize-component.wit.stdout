@@ -1,0 +1,60 @@
+package root:root;
+
+world root {
+  import importize:importize/bar;
+  import importize:importize/t;
+  import foo: func();
+  import bar: func() -> s;
+  import importize:importize/qux;
+  import something: interface {
+    foo: func();
+  }
+  import something-else: interface {
+    use something-else-dep.{t};
+
+    bar: func() -> t;
+  }
+
+  type s = u32;
+}
+package importize:importize {
+  interface t {
+    resource r;
+  }
+  interface bar {
+    use t.{r};
+
+    record foo {
+      x: string,
+    }
+
+    importize: func(name: r);
+  }
+  interface something-else-dep {
+    type t = u32;
+  }
+  interface qux {
+    use bar.{foo};
+
+    blah: func(boo: foo);
+  }
+  world foo {
+    import t;
+    import bar;
+    import something-else-dep;
+
+    type s = u32;
+
+    export foo: func();
+    export bar: func() -> s;
+    export qux;
+    export something: interface {
+      foo: func();
+    }
+    export something-else: interface {
+      use something-else-dep.{t};
+
+      bar: func() -> t;
+    }
+  }
+}
