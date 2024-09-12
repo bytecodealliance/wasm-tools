@@ -480,6 +480,18 @@ impl SubType {
         self.composite_type.unwrap_array()
     }
 
+    /// Construct a function `SubType`.
+    pub fn func(signature: FuncType, shared: bool) -> Self {
+        Self {
+            is_final: true,
+            supertype_idx: None,
+            composite_type: CompositeType {
+                inner: CompositeInnerType::Func(signature),
+                shared,
+            },
+        }
+    }
+
     /// Unwrap an `FuncType` or panic.
     ///
     /// Does not check finality or whether there is a supertype.

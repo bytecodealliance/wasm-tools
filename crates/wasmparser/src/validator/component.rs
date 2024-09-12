@@ -21,9 +21,9 @@ use crate::types::{
 use crate::validator::names::{ComponentName, ComponentNameKind, KebabStr, KebabString};
 use crate::{
     BinaryReaderError, CanonicalOption, ComponentExportName, ComponentExternalKind,
-    ComponentOuterAliasKind, ComponentTypeRef, CompositeInnerType, CompositeType, ExternalKind,
-    FuncType, GlobalType, InstantiationArgKind, MemoryType, PackedIndex, RecGroup, RefType, Result,
-    SubType, TableType, TypeBounds, ValType, WasmFeatures,
+    ComponentOuterAliasKind, ComponentTypeRef, CompositeInnerType, ExternalKind, FuncType,
+    GlobalType, InstantiationArgKind, MemoryType, PackedIndex, RecGroup, RefType, Result, SubType,
+    TableType, TypeBounds, ValType, WasmFeatures,
 };
 use core::mem;
 
@@ -1001,16 +1001,7 @@ impl ComponentState {
 
         self.check_options(None, &info, &options, types, offset)?;
 
-        let composite_type = CompositeType {
-            inner: CompositeInnerType::Func(info.into_func_type()),
-            shared: false,
-        };
-        let lowered_ty = SubType {
-            is_final: true,
-            supertype_idx: None,
-            composite_type,
-        };
-
+        let lowered_ty = SubType::func(info.into_func_type(), false);
         let (_is_new, group_id) =
             types.intern_canonical_rec_group(RecGroup::implicit(offset, lowered_ty));
         let id = types[group_id].start;
@@ -1026,15 +1017,8 @@ impl ComponentState {
         offset: usize,
     ) -> Result<()> {
         let rep = self.check_local_resource(resource, types, offset)?;
-        let composite_type = CompositeType {
-            inner: CompositeInnerType::Func(FuncType::new([rep], [ValType::I32])),
-            shared: false,
-        };
-        let core_ty = SubType {
-            is_final: true,
-            supertype_idx: None,
-            composite_type,
-        };
+        let func_ty = FuncType::new([rep], [ValType::I32]);
+        let core_ty = SubType::func(func_ty, false);
         let (_is_new, group_id) =
             types.intern_canonical_rec_group(RecGroup::implicit(offset, core_ty));
         let id = types[group_id].start;
@@ -1049,15 +1033,8 @@ impl ComponentState {
         offset: usize,
     ) -> Result<()> {
         self.resource_at(resource, types, offset)?;
-        let composite_type = CompositeType {
-            inner: CompositeInnerType::Func(FuncType::new([ValType::I32], [])),
-            shared: false,
-        };
-        let core_ty = SubType {
-            is_final: true,
-            supertype_idx: None,
-            composite_type,
-        };
+        let func_ty = FuncType::new([ValType::I32], []);
+        let core_ty = SubType::func(func_ty, false);
         let (_is_new, group_id) =
             types.intern_canonical_rec_group(RecGroup::implicit(offset, core_ty));
         let id = types[group_id].start;
@@ -1072,15 +1049,8 @@ impl ComponentState {
         offset: usize,
     ) -> Result<()> {
         let rep = self.check_local_resource(resource, types, offset)?;
-        let composite_type = CompositeType {
-            inner: CompositeInnerType::Func(FuncType::new([ValType::I32], [rep])),
-            shared: false,
-        };
-        let core_ty = SubType {
-            is_final: true,
-            supertype_idx: None,
-            composite_type,
-        };
+        let func_ty = FuncType::new([ValType::I32], [rep]);
+        let core_ty = SubType::func(func_ty, false);
         let (_is_new, group_id) =
             types.intern_canonical_rec_group(RecGroup::implicit(offset, core_ty));
         let id = types[group_id].start;
@@ -1146,24 +1116,13 @@ impl ComponentState {
 
         // Insert the core function.
         let packed_index = PackedIndex::from_rec_group_index(func_ty_index).expect("TODO"); // TODO: it's not clear that we're creating this correctly.
-        let start_func_ty = RefType::concrete(true, packed_index);
-        let composite_type = CompositeType {
-            inner: CompositeInnerType::Func(FuncType::new(
-                [ValType::Ref(start_func_ty), ValType::I32],
-                [ValType::I32],
-            )),
-            // Like other component model functions, this is initially added as
-            // unshared, meaning spawned threads cannot spawn more threads. In
-            // the future this and other component model intrinsics (e.g.,
-            // `rep.*`) should be marked `shared` to allow access from a
-            // shared context.
-            shared: false,
-        };
-        let core_ty = SubType {
-            is_final: true,
-            supertype_idx: None,
-            composite_type,
-        };
+        let start_func_ref = RefType::concrete(true, packed_index);
+        let func_ty = FuncType::new([ValType::Ref(start_func_ref), ValType::I32], [ValType::I32]);
+        // Like other component model functions, this is initially added as
+        // unshared, meaning spawned threads cannot spawn more threads. In the
+        // future this and other component model intrinsics (e.g., `rep.*`)
+        // should be marked `shared` to allow access from a shared context.
+        let core_ty = SubType::func(func_ty, false);
         let (_is_new, group_id) =
             types.intern_canonical_rec_group(RecGroup::implicit(offset, core_ty));
         let id = types[group_id].start;
@@ -1174,16 +1133,11 @@ impl ComponentState {
 
     pub fn thread_hw_concurrency(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
         // TODO: should we record that this component uses threads?
-
-        let composite_type = CompositeType {
-            inner: CompositeInnerType::Func(FuncType::new([], [ValType::I32])),
-            shared: true,
-        };
-        let core_ty = SubType {
-            is_final: true,
-            supertype_idx: None,
-            composite_type,
-        };
+        let func_ty = FuncType::new([], [ValType::I32]);
+        // Unlike other component model functions, this is initially added as
+        // shared since checking for the concurrency value seems necessary for
+        // parallel algorithms.
+        let core_ty = SubType::func(func_ty, true);
         let (_is_new, group_id) =
             types.intern_canonical_rec_group(RecGroup::implicit(offset, core_ty));
         let id = types[group_id].start;
