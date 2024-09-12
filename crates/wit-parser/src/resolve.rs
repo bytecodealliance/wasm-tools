@@ -931,53 +931,98 @@ package {name} is defined in two different locations:\n\
         Some(self.id_of_name(interface.package.unwrap(), interface.name.as_ref()?))
     }
 
-    pub fn importize(&mut self, world_id: WorldId) {
-        let exports = &self.worlds[world_id].exports.clone();
-        // Make a copy of the imports as we will wholesale clear the imports in the world being importized
-        let ref_imports = mem::take(&mut self.worlds[world_id].imports);
-
-        let mut temp = Vec::new();
-
-        for (key, item) in exports.clone() {
-            match key {
-                WorldKey::Name(_) => {
-                    temp.push((key, item));
+    /// Convert a world to an "importized" version where the world is updated
+    /// in-place to reflect what it would look like to be imported.
+    ///
+    /// This is a transformation which is used as part of the process of
+    /// importing a component today. For example when a component depends on
+    /// another component this is useful for generating WIT which can be use to
+    /// represent the component being imported. The general idea is that this
+    /// function will update the `world_id` specified such it imports the
+    /// functionality that it previously exported. The world will be left with
+    /// no exports.
+    ///
+    /// This world is then suitable for merging into other worlds or generating
+    /// bindings in a context that is importing the original world. This
+    /// is intended to be used as part of language tooling when depending on
+    /// other components.
+    pub fn importize(&mut self, world_id: WorldId) -> Result<()> {
+        // Collect the set of interfaces which are depended on by exports. Also
+        // all imported types are assumed to stay so collect any interfaces
+        // they depend on.
+        let mut live_through_exports = IndexSet::default();
+        for (_, export) in self.worlds[world_id].exports.iter() {
+            if let WorldItem::Interface { id, .. } = export {
+                self.collect_interface_deps(*id, &mut live_through_exports);
+            }
+        }
+        for (_, import) in self.worlds[world_id].imports.iter() {
+            if let WorldItem::Type(ty) = import {
+                if let Some(dep) = self.type_interface_dep(*ty) {
+                    self.collect_interface_deps(dep, &mut live_through_exports);
                 }
-                WorldKey::Interface(id) => self.resolve_interface_deps(id, world_id, &ref_imports),
             }
         }
+
+        // Rename the world to avoid having it get confused with the original
+        // name of the world. Add `-importized` to it for now. Precisely how
+        // this new world is created may want to be updated over time if this
+        // becomes problematic.
         let world = &mut self.worlds[world_id];
-        world.imports.append(&mut world.exports);
+        let pkg = &mut self.packages[world.package.unwrap()];
+        pkg.worlds.shift_remove(&world.name);
+        world.name.push_str("-importized");
+        pkg.worlds.insert(world.name.clone(), world_id);
 
-        for (key, item) in ref_imports {
-            if let WorldItem::Type(_) = item {
-                world.imports.insert(key, item);
+        // Trim all unnecessary imports first.
+        world.imports.retain(|name, item| match (name, item) {
+            // Remove imports which can't be used by import such as:
+            //
+            // * `import foo: interface { .. }`
+            // * `import foo: func();`
+            (WorldKey::Name(_), WorldItem::Interface { .. } | WorldItem::Function(_)) => false,
+
+            // Coarsely say that all top-level types are required to avoid
+            // calculating precise liveness of them right now.
+            (WorldKey::Name(_), WorldItem::Type(_)) => true,
+
+            // Only retain interfaces if they're needed somehow transitively
+            // for the exports.
+            (WorldKey::Interface(id), _) => live_through_exports.contains(id),
+        });
+
+        // After all unnecessary imports are gone remove all exports and move
+        // them all to imports, failing if there's an overlap.
+        for (name, export) in mem::take(&mut world.exports) {
+            match (name.clone(), world.imports.insert(name, export)) {
+                // no previous item? this insertion was ok
+                (_, None) => {}
+
+                // cannot overwrite an import with an export
+                (WorldKey::Name(name), _) => {
+                    bail!("world export `{name}` conflicts with import of same name");
+                }
+
+                // interface overlap is ok and is always allowed.
+                (WorldKey::Interface(id), Some(WorldItem::Interface { id: other, .. })) => {
+                    assert_eq!(id, other);
+                }
+
+                (WorldKey::Interface(_), _) => unreachable!(),
             }
         }
 
-        for (key, item) in temp {
-            world.imports.insert(key, item);
-        }
-
-        world.exports.clear();
+        #[cfg(debug_assertions)]
+        self.assert_valid();
+        Ok(())
     }
 
-    fn resolve_interface_deps(
-        &mut self,
-        interface_id: InterfaceId,
-        world_id: WorldId,
-        ref_imports: &IndexMap<WorldKey, WorldItem>,
-    ) {
-        let direct_deps = self.interface_direct_deps(interface_id).collect::<Vec<_>>();
-        for dep_id in direct_deps {
-            let world_key = WorldKey::Interface(dep_id);
-            let world_item = ref_imports.get(&world_key).unwrap();
-
-            let world = &mut self.worlds[world_id];
-            if !world.imports.contains_key(&world_key) {
-                world.imports.insert(world_key, world_item.clone());
-                self.resolve_interface_deps(dep_id, world_id, ref_imports);
-            }
+    fn collect_interface_deps(&self, interface: InterfaceId, deps: &mut IndexSet<InterfaceId>) {
+        if !deps.insert(interface) {
+            return;
+        }
+        for dep in self.interface_direct_deps(interface) {
+            self.collect_interface_deps(dep, deps);
         }
     }
 

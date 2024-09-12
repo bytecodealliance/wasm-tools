@@ -147,8 +147,7 @@ pub struct OutputArg {
 pub enum Output<'a> {
     #[cfg(feature = "component")]
     Wit {
-        resolve: &'a wit_parser::Resolve,
-        package: wit_parser::PackageId,
+        wit: &'a wit_component::DecodedWasm,
         printer: wit_component::WitPrinter,
     },
     Wasm(&'a [u8]),
@@ -237,18 +236,15 @@ impl OutputArg {
             }
             Output::Json(s) => self.output_str(s),
             #[cfg(feature = "component")]
-            Output::Wit {
-                mut printer,
-                resolve,
-                package,
-            } => {
+            Output::Wit { wit, mut printer } => {
+                let resolve = wit.resolve();
                 let ids = resolve
                     .packages
                     .iter()
                     .map(|(id, _)| id)
-                    .filter(|id| *id != package)
+                    .filter(|id| *id != wit.package())
                     .collect::<Vec<_>>();
-                let output = printer.print(resolve, package, &ids)?;
+                let output = printer.print(resolve, wit.package(), &ids)?;
                 self.output_str(&output)
             }
         }
