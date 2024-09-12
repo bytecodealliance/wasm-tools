@@ -22,8 +22,8 @@ use crate::validator::names::{ComponentName, ComponentNameKind, KebabStr, KebabS
 use crate::{
     BinaryReaderError, CanonicalOption, ComponentExportName, ComponentExternalKind,
     ComponentOuterAliasKind, ComponentTypeRef, CompositeInnerType, ExternalKind, FuncType,
-    GlobalType, InstantiationArgKind, MemoryType, PackedIndex, RecGroup, RefType, Result, SubType,
-    TableType, TypeBounds, ValType, WasmFeatures,
+    GlobalType, InstantiationArgKind, MemoryType, PackedIndex, RefType, Result, SubType, TableType,
+    TypeBounds, ValType, WasmFeatures,
 };
 use core::mem;
 
@@ -1002,9 +1002,7 @@ impl ComponentState {
         self.check_options(None, &info, &options, types, offset)?;
 
         let lowered_ty = SubType::func(info.into_func_type(), false);
-        let (_is_new, group_id) =
-            types.intern_canonical_rec_group(RecGroup::implicit(offset, lowered_ty));
-        let id = types[group_id].start;
+        let id = types.intern_sub_type(lowered_ty, offset);
         self.core_funcs.push(id);
 
         Ok(())
@@ -1019,9 +1017,7 @@ impl ComponentState {
         let rep = self.check_local_resource(resource, types, offset)?;
         let func_ty = FuncType::new([rep], [ValType::I32]);
         let core_ty = SubType::func(func_ty, false);
-        let (_is_new, group_id) =
-            types.intern_canonical_rec_group(RecGroup::implicit(offset, core_ty));
-        let id = types[group_id].start;
+        let id = types.intern_sub_type(core_ty, offset);
         self.core_funcs.push(id);
         Ok(())
     }
@@ -1035,9 +1031,7 @@ impl ComponentState {
         self.resource_at(resource, types, offset)?;
         let func_ty = FuncType::new([ValType::I32], []);
         let core_ty = SubType::func(func_ty, false);
-        let (_is_new, group_id) =
-            types.intern_canonical_rec_group(RecGroup::implicit(offset, core_ty));
-        let id = types[group_id].start;
+        let id = types.intern_sub_type(core_ty, offset);
         self.core_funcs.push(id);
         Ok(())
     }
@@ -1051,9 +1045,7 @@ impl ComponentState {
         let rep = self.check_local_resource(resource, types, offset)?;
         let func_ty = FuncType::new([ValType::I32], [rep]);
         let core_ty = SubType::func(func_ty, false);
-        let (_is_new, group_id) =
-            types.intern_canonical_rec_group(RecGroup::implicit(offset, core_ty));
-        let id = types[group_id].start;
+        let id = types.intern_sub_type(core_ty, offset);
         self.core_funcs.push(id);
         Ok(())
     }
@@ -1123,9 +1115,7 @@ impl ComponentState {
         // future this and other component model intrinsics (e.g., `rep.*`)
         // should be marked `shared` to allow access from a shared context.
         let core_ty = SubType::func(func_ty, false);
-        let (_is_new, group_id) =
-            types.intern_canonical_rec_group(RecGroup::implicit(offset, core_ty));
-        let id = types[group_id].start;
+        let id = types.intern_sub_type(core_ty, offset);
         self.core_funcs.push(id);
 
         Ok(())
@@ -1138,9 +1128,7 @@ impl ComponentState {
         // shared since checking for the concurrency value seems necessary for
         // parallel algorithms.
         let core_ty = SubType::func(func_ty, true);
-        let (_is_new, group_id) =
-            types.intern_canonical_rec_group(RecGroup::implicit(offset, core_ty));
-        let id = types[group_id].start;
+        let id = types.intern_sub_type(core_ty, offset);
         self.core_funcs.push(id);
 
         Ok(())
