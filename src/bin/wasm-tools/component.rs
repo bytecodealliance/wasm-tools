@@ -4,6 +4,7 @@ use anyhow::{bail, Context, Result};
 use clap::Parser;
 use std::collections::HashMap;
 use std::io::Read;
+use std::mem;
 use std::path::{Path, PathBuf};
 use wasm_encoder::reencode::{Error, Reencode, ReencodeComponent, RoundtripReencoder};
 use wasm_encoder::ModuleType;
@@ -499,6 +500,30 @@ pub struct WitOpts {
     )]
     json: bool,
 
+    /// Generates WIT to import the component specified to this command.
+    ///
+    /// This flags requires that the input is a binary component, not a
+    /// wasm-encoded WIT package. This will then generate a WIT world and output
+    /// that. The returned world will have imports corresponding to the exports
+    /// of the component which is input.
+    ///
+    /// This is similar to `--importize-world`, but is used with components.
+    #[clap(long, conflicts_with = "importize_world")]
+    importize: bool,
+
+    /// Generates a WIT world to import a component which corresponds to the
+    /// selected world.
+    ///
+    /// This flag is used to indicate that the input is a WIT package and the
+    /// world passed here is the name of a WIT `world` within the package. The
+    /// output of the command will be the same WIT world but one that's
+    /// importing the selected world. This effectively moves the world's exports
+    /// to imports.
+    ///
+    /// This is similar to `--importize`, but is used with WIT packages.
+    #[clap(long, conflicts_with = "importize", value_name = "WORLD")]
+    importize_world: Option<String>,
+
     /// Features to enable when parsing the `wit` option.
     ///
     /// This flag enables the `@unstable` feature in WIT documents where the
@@ -521,7 +546,13 @@ impl WitOpts {
 
     /// Executes the application.
     fn run(self) -> Result<()> {
-        let decoded = self.decode_input()?;
+        let mut decoded = self.decode_input()?;
+
+        if self.importize {
+            self.importize(&mut decoded, None)?;
+        } else if self.importize_world.is_some() {
+            self.importize(&mut decoded, self.importize_world.as_deref())?;
+        }
 
         // Now that the WIT document has been decoded, it's time to emit it.
         // This interprets all of the output options and performs such a task.
@@ -603,6 +634,30 @@ impl WitOpts {
                 Ok(DecodedWasm::WitPackage(resolve, id))
             }
         }
+    }
+
+    fn importize(&self, decoded: &mut DecodedWasm, world: Option<&str>) -> Result<()> {
+        let (resolve, world_id) = match (&mut *decoded, world) {
+            (DecodedWasm::Component(resolve, world), None) => (resolve, *world),
+            (DecodedWasm::Component(..), Some(_)) => {
+                bail!(
+                    "the `--importize-world` flag is not compatible with a \
+                     component input, use `--importize` instead"
+                );
+            }
+            (DecodedWasm::WitPackage(resolve, id), world) => {
+                let world = resolve.select_world(*id, world)?;
+                (resolve, world)
+            }
+        };
+        // let pkg = decoded.package();
+        // let world_id = decoded.resolve().select_world(main, None)?;
+        resolve
+            .importize(world_id)
+            .context("failed to move world exports to imports")?;
+        let resolve = mem::take(resolve);
+        *decoded = DecodedWasm::Component(resolve, world_id);
+        Ok(())
     }
 
     fn emit_wasm(&self, decoded: &DecodedWasm) -> Result<()> {

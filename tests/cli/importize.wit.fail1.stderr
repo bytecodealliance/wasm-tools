@@ -1,0 +1,4 @@
+error: failed to move world exports to imports
+
+Caused by:
+    0: world export `foo` conflicts with import of same name

@@ -149,27 +149,32 @@ fn execute(cmd: &mut Command, stdin: Option<&[u8]>, should_fail: bool) -> Result
 
     let output = p.wait_with_output()?;
 
-    if !output.status.success() {
-        if !should_fail {
-            bail!(
-                "{cmd:?} failed:
-                status: {}
-                stdout: {}
-                stderr: {}",
-                output.status,
-                String::from_utf8_lossy(&output.stdout),
-                String::from_utf8_lossy(&output.stderr)
-            );
+    let mut failure = None;
+    match output.status.code() {
+        Some(0) => {
+            if should_fail {
+                failure = Some("succeeded instead of failed");
+            }
         }
-    } else if should_fail {
+        Some(1) | Some(2) => {
+            if !should_fail {
+                failure = Some("failed");
+            }
+        }
+        _ => failure = Some("unknown exit code"),
+    }
+    if let Some(msg) = failure {
         bail!(
-            "{cmd:?} succeeded instead of failed
-                stdout: {}
-                stderr: {}",
+            "{cmd:?} {msg}:
+             status: {}
+             stdout: {}
+             stderr: {}",
+            output.status,
             String::from_utf8_lossy(&output.stdout),
             String::from_utf8_lossy(&output.stderr)
         );
     }
+
     Ok(output)
 }
 
