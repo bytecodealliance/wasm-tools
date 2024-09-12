@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 6,
-      "filename": "table_copy.0.wasm"
+      "filename": "table_copy.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -14,7 +15,8 @@
     {
       "type": "module",
       "line": 15,
-      "filename": "table_copy.1.wasm"
+      "filename": "table_copy.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -1018,7 +1020,8 @@
     {
       "type": "module",
       "line": 107,
-      "filename": "table_copy.2.wasm"
+      "filename": "table_copy.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -2022,7 +2025,8 @@
     {
       "type": "module",
       "line": 199,
-      "filename": "table_copy.3.wasm"
+      "filename": "table_copy.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -3036,7 +3040,8 @@
     {
       "type": "module",
       "line": 291,
-      "filename": "table_copy.4.wasm"
+      "filename": "table_copy.4.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -4025,7 +4030,8 @@
     {
       "type": "module",
       "line": 383,
-      "filename": "table_copy.5.wasm"
+      "filename": "table_copy.5.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -5029,7 +5035,8 @@
     {
       "type": "module",
       "line": 475,
-      "filename": "table_copy.6.wasm"
+      "filename": "table_copy.6.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -6043,7 +6050,8 @@
     {
       "type": "module",
       "line": 567,
-      "filename": "table_copy.7.wasm"
+      "filename": "table_copy.7.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -7047,7 +7055,8 @@
     {
       "type": "module",
       "line": 659,
-      "filename": "table_copy.8.wasm"
+      "filename": "table_copy.8.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -8051,7 +8060,8 @@
     {
       "type": "module",
       "line": 751,
-      "filename": "table_copy.9.wasm"
+      "filename": "table_copy.9.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -9075,7 +9085,8 @@
     {
       "type": "module",
       "line": 843,
-      "filename": "table_copy.10.wasm"
+      "filename": "table_copy.10.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -10079,7 +10090,8 @@
     {
       "type": "module",
       "line": 935,
-      "filename": "table_copy.11.wasm"
+      "filename": "table_copy.11.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -11083,7 +11095,8 @@
     {
       "type": "module",
       "line": 1027,
-      "filename": "table_copy.12.wasm"
+      "filename": "table_copy.12.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -12097,7 +12110,8 @@
     {
       "type": "module",
       "line": 1119,
-      "filename": "table_copy.13.wasm"
+      "filename": "table_copy.13.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -13086,7 +13100,8 @@
     {
       "type": "module",
       "line": 1211,
-      "filename": "table_copy.14.wasm"
+      "filename": "table_copy.14.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -14090,7 +14105,8 @@
     {
       "type": "module",
       "line": 1303,
-      "filename": "table_copy.15.wasm"
+      "filename": "table_copy.15.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -15104,7 +15120,8 @@
     {
       "type": "module",
       "line": 1395,
-      "filename": "table_copy.16.wasm"
+      "filename": "table_copy.16.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -16108,7 +16125,8 @@
     {
       "type": "module",
       "line": 1487,
-      "filename": "table_copy.17.wasm"
+      "filename": "table_copy.17.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -17112,7 +17130,8 @@
     {
       "type": "module",
       "line": 1579,
-      "filename": "table_copy.18.wasm"
+      "filename": "table_copy.18.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -18136,7 +18155,8 @@
     {
       "type": "module",
       "line": 1671,
-      "filename": "table_copy.19.wasm"
+      "filename": "table_copy.19.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18151,7 +18171,8 @@
     {
       "type": "module",
       "line": 1696,
-      "filename": "table_copy.20.wasm"
+      "filename": "table_copy.20.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18166,7 +18187,8 @@
     {
       "type": "module",
       "line": 1721,
-      "filename": "table_copy.21.wasm"
+      "filename": "table_copy.21.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18181,7 +18203,8 @@
     {
       "type": "module",
       "line": 1746,
-      "filename": "table_copy.22.wasm"
+      "filename": "table_copy.22.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18196,7 +18219,8 @@
     {
       "type": "module",
       "line": 1771,
-      "filename": "table_copy.23.wasm"
+      "filename": "table_copy.23.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -18210,7 +18234,8 @@
     {
       "type": "module",
       "line": 1796,
-      "filename": "table_copy.24.wasm"
+      "filename": "table_copy.24.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -18224,7 +18249,8 @@
     {
       "type": "module",
       "line": 1821,
-      "filename": "table_copy.25.wasm"
+      "filename": "table_copy.25.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18239,7 +18265,8 @@
     {
       "type": "module",
       "line": 1846,
-      "filename": "table_copy.26.wasm"
+      "filename": "table_copy.26.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -18253,7 +18280,8 @@
     {
       "type": "module",
       "line": 1871,
-      "filename": "table_copy.27.wasm"
+      "filename": "table_copy.27.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18268,7 +18296,8 @@
     {
       "type": "module",
       "line": 1896,
-      "filename": "table_copy.28.wasm"
+      "filename": "table_copy.28.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -18282,7 +18311,8 @@
     {
       "type": "module",
       "line": 1921,
-      "filename": "table_copy.29.wasm"
+      "filename": "table_copy.29.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18297,7 +18327,8 @@
     {
       "type": "module",
       "line": 1946,
-      "filename": "table_copy.30.wasm"
+      "filename": "table_copy.30.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18312,7 +18343,8 @@
     {
       "type": "module",
       "line": 1971,
-      "filename": "table_copy.31.wasm"
+      "filename": "table_copy.31.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18327,7 +18359,8 @@
     {
       "type": "module",
       "line": 1996,
-      "filename": "table_copy.32.wasm"
+      "filename": "table_copy.32.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18342,7 +18375,8 @@
     {
       "type": "module",
       "line": 2021,
-      "filename": "table_copy.33.wasm"
+      "filename": "table_copy.33.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18357,7 +18391,8 @@
     {
       "type": "module",
       "line": 2046,
-      "filename": "table_copy.34.wasm"
+      "filename": "table_copy.34.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -18371,7 +18406,8 @@
     {
       "type": "module",
       "line": 2071,
-      "filename": "table_copy.35.wasm"
+      "filename": "table_copy.35.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -18385,7 +18421,8 @@
     {
       "type": "module",
       "line": 2096,
-      "filename": "table_copy.36.wasm"
+      "filename": "table_copy.36.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18400,7 +18437,8 @@
     {
       "type": "module",
       "line": 2121,
-      "filename": "table_copy.37.wasm"
+      "filename": "table_copy.37.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -18414,7 +18452,8 @@
     {
       "type": "module",
       "line": 2146,
-      "filename": "table_copy.38.wasm"
+      "filename": "table_copy.38.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18429,7 +18468,8 @@
     {
       "type": "module",
       "line": 2171,
-      "filename": "table_copy.39.wasm"
+      "filename": "table_copy.39.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -18443,7 +18483,8 @@
     {
       "type": "module",
       "line": 2196,
-      "filename": "table_copy.40.wasm"
+      "filename": "table_copy.40.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18458,7 +18499,8 @@
     {
       "type": "module",
       "line": 2221,
-      "filename": "table_copy.41.wasm"
+      "filename": "table_copy.41.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18473,7 +18515,8 @@
     {
       "type": "module",
       "line": 2246,
-      "filename": "table_copy.42.wasm"
+      "filename": "table_copy.42.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18488,7 +18531,8 @@
     {
       "type": "module",
       "line": 2271,
-      "filename": "table_copy.43.wasm"
+      "filename": "table_copy.43.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18503,7 +18547,8 @@
     {
       "type": "module",
       "line": 2296,
-      "filename": "table_copy.44.wasm"
+      "filename": "table_copy.44.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18518,7 +18563,8 @@
     {
       "type": "module",
       "line": 2321,
-      "filename": "table_copy.45.wasm"
+      "filename": "table_copy.45.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -18532,7 +18578,8 @@
     {
       "type": "module",
       "line": 2346,
-      "filename": "table_copy.46.wasm"
+      "filename": "table_copy.46.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -18546,7 +18593,8 @@
     {
       "type": "module",
       "line": 2371,
-      "filename": "table_copy.47.wasm"
+      "filename": "table_copy.47.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18561,7 +18609,8 @@
     {
       "type": "module",
       "line": 2396,
-      "filename": "table_copy.48.wasm"
+      "filename": "table_copy.48.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -18575,7 +18624,8 @@
     {
       "type": "module",
       "line": 2421,
-      "filename": "table_copy.49.wasm"
+      "filename": "table_copy.49.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18590,7 +18640,8 @@
     {
       "type": "module",
       "line": 2446,
-      "filename": "table_copy.50.wasm"
+      "filename": "table_copy.50.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -18604,7 +18655,8 @@
     {
       "type": "module",
       "line": 2471,
-      "filename": "table_copy.51.wasm"
+      "filename": "table_copy.51.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18619,7 +18671,8 @@
     {
       "type": "module",
       "line": 2496,
-      "filename": "table_copy.52.wasm"
+      "filename": "table_copy.52.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18634,7 +18687,8 @@
     {
       "type": "module",
       "line": 2521,
-      "filename": "table_copy.53.wasm"
+      "filename": "table_copy.53.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18649,7 +18703,8 @@
     {
       "type": "module",
       "line": 2546,
-      "filename": "table_copy.54.wasm"
+      "filename": "table_copy.54.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18664,7 +18719,8 @@
     {
       "type": "module",
       "line": 2571,
-      "filename": "table_copy.55.wasm"
+      "filename": "table_copy.55.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18679,7 +18735,8 @@
     {
       "type": "module",
       "line": 2596,
-      "filename": "table_copy.56.wasm"
+      "filename": "table_copy.56.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -18693,7 +18750,8 @@
     {
       "type": "module",
       "line": 2621,
-      "filename": "table_copy.57.wasm"
+      "filename": "table_copy.57.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -18707,7 +18765,8 @@
     {
       "type": "module",
       "line": 2646,
-      "filename": "table_copy.58.wasm"
+      "filename": "table_copy.58.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18722,7 +18781,8 @@
     {
       "type": "module",
       "line": 2671,
-      "filename": "table_copy.59.wasm"
+      "filename": "table_copy.59.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -18736,7 +18796,8 @@
     {
       "type": "module",
       "line": 2696,
-      "filename": "table_copy.60.wasm"
+      "filename": "table_copy.60.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18751,7 +18812,8 @@
     {
       "type": "module",
       "line": 2721,
-      "filename": "table_copy.61.wasm"
+      "filename": "table_copy.61.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -18765,7 +18827,8 @@
     {
       "type": "module",
       "line": 2746,
-      "filename": "table_copy.62.wasm"
+      "filename": "table_copy.62.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -18780,7 +18843,8 @@
     {
       "type": "module",
       "line": 2771,
-      "filename": "table_copy.63.wasm"
+      "filename": "table_copy.63.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -19328,7 +19392,8 @@
     {
       "type": "module",
       "line": 2832,
-      "filename": "table_copy.64.wasm"
+      "filename": "table_copy.64.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -19881,7 +19946,8 @@
     {
       "type": "module",
       "line": 2893,
-      "filename": "table_copy.65.wasm"
+      "filename": "table_copy.65.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -20429,7 +20495,8 @@
     {
       "type": "module",
       "line": 2954,
-      "filename": "table_copy.66.wasm"
+      "filename": "table_copy.66.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -20982,7 +21049,8 @@
     {
       "type": "module",
       "line": 3015,
-      "filename": "table_copy.67.wasm"
+      "filename": "table_copy.67.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -21530,7 +21598,8 @@
     {
       "type": "module",
       "line": 3076,
-      "filename": "table_copy.68.wasm"
+      "filename": "table_copy.68.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -22078,7 +22147,8 @@
     {
       "type": "module",
       "line": 3137,
-      "filename": "table_copy.69.wasm"
+      "filename": "table_copy.69.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -22626,7 +22696,8 @@
     {
       "type": "module",
       "line": 3198,
-      "filename": "table_copy.70.wasm"
+      "filename": "table_copy.70.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -23174,7 +23245,8 @@
     {
       "type": "module",
       "line": 3259,
-      "filename": "table_copy.71.wasm"
+      "filename": "table_copy.71.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -23737,7 +23809,8 @@
     {
       "type": "module",
       "line": 3320,
-      "filename": "table_copy.72.wasm"
+      "filename": "table_copy.72.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -25765,7 +25838,8 @@
     {
       "type": "module",
       "line": 3477,
-      "filename": "table_copy.73.wasm"
+      "filename": "table_copy.73.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",

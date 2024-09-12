@@ -5,7 +5,8 @@
       "type": "module",
       "line": 1,
       "name": "M",
-      "filename": "load1.0.wasm"
+      "filename": "load1.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -15,7 +16,8 @@
     {
       "type": "module",
       "line": 10,
-      "filename": "load1.1.wasm"
+      "filename": "load1.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

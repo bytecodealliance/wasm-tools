@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 3,
-      "filename": "ref_cast.0.wasm"
+      "filename": "ref_cast.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -623,7 +624,8 @@
     {
       "type": "module",
       "line": 99,
-      "filename": "ref_cast.1.wasm"
+      "filename": "ref_cast.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",

@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "traps0.0.wasm"
+      "filename": "traps0.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",

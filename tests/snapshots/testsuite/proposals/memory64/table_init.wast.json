@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 6,
-      "filename": "table_init.0.wasm"
+      "filename": "table_init.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -14,7 +15,8 @@
     {
       "type": "module",
       "line": 15,
-      "filename": "table_init.1.wasm"
+      "filename": "table_init.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -543,7 +545,8 @@
     {
       "type": "module",
       "line": 74,
-      "filename": "table_init.2.wasm"
+      "filename": "table_init.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -1057,7 +1060,8 @@
     {
       "type": "module",
       "line": 133,
-      "filename": "table_init.3.wasm"
+      "filename": "table_init.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -1606,7 +1610,8 @@
     {
       "type": "module",
       "line": 200,
-      "filename": "table_init.4.wasm"
+      "filename": "table_init.4.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -2135,7 +2140,8 @@
     {
       "type": "module",
       "line": 259,
-      "filename": "table_init.5.wasm"
+      "filename": "table_init.5.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -2649,7 +2655,8 @@
     {
       "type": "module",
       "line": 318,
-      "filename": "table_init.6.wasm"
+      "filename": "table_init.6.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -3198,7 +3205,8 @@
     {
       "type": "module",
       "line": 385,
-      "filename": "table_init.7.wasm"
+      "filename": "table_init.7.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -3727,7 +3735,8 @@
     {
       "type": "module",
       "line": 444,
-      "filename": "table_init.8.wasm"
+      "filename": "table_init.8.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -4241,7 +4250,8 @@
     {
       "type": "module",
       "line": 503,
-      "filename": "table_init.9.wasm"
+      "filename": "table_init.9.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -4791,34 +4801,35 @@
       "type": "assert_invalid",
       "line": 570,
       "filename": "table_init.10.wasm",
-      "text": "unknown elem segment 0",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown elem segment 0"
     },
     {
       "type": "assert_invalid",
       "line": 576,
       "filename": "table_init.11.wasm",
-      "text": "unknown table 0",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown table 0"
     },
     {
       "type": "assert_invalid",
       "line": 582,
       "filename": "table_init.12.wasm",
-      "text": "unknown elem segment 4",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown elem segment 4"
     },
     {
       "type": "assert_invalid",
       "line": 590,
       "filename": "table_init.13.wasm",
-      "text": "unknown table 0",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown table 0"
     },
     {
       "type": "module",
       "line": 598,
-      "filename": "table_init.14.wasm"
+      "filename": "table_init.14.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -4832,7 +4843,8 @@
     {
       "type": "module",
       "line": 622,
-      "filename": "table_init.15.wasm"
+      "filename": "table_init.15.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -4847,7 +4859,8 @@
     {
       "type": "module",
       "line": 646,
-      "filename": "table_init.16.wasm"
+      "filename": "table_init.16.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -4861,7 +4874,8 @@
     {
       "type": "module",
       "line": 670,
-      "filename": "table_init.17.wasm"
+      "filename": "table_init.17.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -4875,7 +4889,8 @@
     {
       "type": "module",
       "line": 694,
-      "filename": "table_init.18.wasm"
+      "filename": "table_init.18.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -4890,7 +4905,8 @@
     {
       "type": "module",
       "line": 718,
-      "filename": "table_init.19.wasm"
+      "filename": "table_init.19.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -4905,7 +4921,8 @@
     {
       "type": "module",
       "line": 742,
-      "filename": "table_init.20.wasm"
+      "filename": "table_init.20.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -4920,7 +4937,8 @@
     {
       "type": "module",
       "line": 766,
-      "filename": "table_init.21.wasm"
+      "filename": "table_init.21.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -4935,7 +4953,8 @@
     {
       "type": "module",
       "line": 790,
-      "filename": "table_init.22.wasm"
+      "filename": "table_init.22.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -4949,7 +4968,8 @@
     {
       "type": "module",
       "line": 814,
-      "filename": "table_init.23.wasm"
+      "filename": "table_init.23.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -4964,7 +4984,8 @@
     {
       "type": "module",
       "line": 838,
-      "filename": "table_init.24.wasm"
+      "filename": "table_init.24.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -4978,7 +4999,8 @@
     {
       "type": "module",
       "line": 862,
-      "filename": "table_init.25.wasm"
+      "filename": "table_init.25.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -4993,7 +5015,8 @@
     {
       "type": "module",
       "line": 886,
-      "filename": "table_init.26.wasm"
+      "filename": "table_init.26.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -5007,7 +5030,8 @@
     {
       "type": "module",
       "line": 910,
-      "filename": "table_init.27.wasm"
+      "filename": "table_init.27.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -5022,7 +5046,8 @@
     {
       "type": "module",
       "line": 934,
-      "filename": "table_init.28.wasm"
+      "filename": "table_init.28.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -5037,7 +5062,8 @@
     {
       "type": "module",
       "line": 958,
-      "filename": "table_init.29.wasm"
+      "filename": "table_init.29.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -5051,7 +5077,8 @@
     {
       "type": "module",
       "line": 982,
-      "filename": "table_init.30.wasm"
+      "filename": "table_init.30.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -5066,7 +5093,8 @@
     {
       "type": "module",
       "line": 1006,
-      "filename": "table_init.31.wasm"
+      "filename": "table_init.31.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -5080,7 +5108,8 @@
     {
       "type": "module",
       "line": 1030,
-      "filename": "table_init.32.wasm"
+      "filename": "table_init.32.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -5095,7 +5124,8 @@
     {
       "type": "module",
       "line": 1054,
-      "filename": "table_init.33.wasm"
+      "filename": "table_init.33.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -5109,7 +5139,8 @@
     {
       "type": "module",
       "line": 1078,
-      "filename": "table_init.34.wasm"
+      "filename": "table_init.34.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -5125,447 +5156,448 @@
       "type": "assert_invalid",
       "line": 1103,
       "filename": "table_init.35.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1112,
       "filename": "table_init.36.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1121,
       "filename": "table_init.37.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1130,
       "filename": "table_init.38.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1139,
       "filename": "table_init.39.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1148,
       "filename": "table_init.40.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1157,
       "filename": "table_init.41.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1166,
       "filename": "table_init.42.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1175,
       "filename": "table_init.43.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1184,
       "filename": "table_init.44.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1193,
       "filename": "table_init.45.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1202,
       "filename": "table_init.46.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1211,
       "filename": "table_init.47.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1220,
       "filename": "table_init.48.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1229,
       "filename": "table_init.49.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1238,
       "filename": "table_init.50.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1247,
       "filename": "table_init.51.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1256,
       "filename": "table_init.52.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1265,
       "filename": "table_init.53.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1274,
       "filename": "table_init.54.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1283,
       "filename": "table_init.55.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1292,
       "filename": "table_init.56.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1301,
       "filename": "table_init.57.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1310,
       "filename": "table_init.58.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1319,
       "filename": "table_init.59.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1328,
       "filename": "table_init.60.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1337,
       "filename": "table_init.61.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1346,
       "filename": "table_init.62.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1355,
       "filename": "table_init.63.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1364,
       "filename": "table_init.64.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1373,
       "filename": "table_init.65.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1382,
       "filename": "table_init.66.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1391,
       "filename": "table_init.67.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1400,
       "filename": "table_init.68.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1409,
       "filename": "table_init.69.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1418,
       "filename": "table_init.70.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1427,
       "filename": "table_init.71.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1436,
       "filename": "table_init.72.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1445,
       "filename": "table_init.73.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1454,
       "filename": "table_init.74.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1463,
       "filename": "table_init.75.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1472,
       "filename": "table_init.76.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1481,
       "filename": "table_init.77.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1490,
       "filename": "table_init.78.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1499,
       "filename": "table_init.79.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1508,
       "filename": "table_init.80.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1517,
       "filename": "table_init.81.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1526,
       "filename": "table_init.82.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1535,
       "filename": "table_init.83.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1544,
       "filename": "table_init.84.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1553,
       "filename": "table_init.85.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1562,
       "filename": "table_init.86.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1571,
       "filename": "table_init.87.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1580,
       "filename": "table_init.88.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1589,
       "filename": "table_init.89.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1598,
       "filename": "table_init.90.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1607,
       "filename": "table_init.91.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1616,
       "filename": "table_init.92.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1625,
       "filename": "table_init.93.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1634,
       "filename": "table_init.94.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1643,
       "filename": "table_init.95.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1652,
       "filename": "table_init.96.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1661,
       "filename": "table_init.97.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "module",
       "line": 1669,
-      "filename": "table_init.98.wasm"
+      "filename": "table_init.98.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -6069,7 +6101,8 @@
     {
       "type": "module",
       "line": 1731,
-      "filename": "table_init.99.wasm"
+      "filename": "table_init.99.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -6573,7 +6606,8 @@
     {
       "type": "module",
       "line": 1793,
-      "filename": "table_init.100.wasm"
+      "filename": "table_init.100.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -8997,7 +9031,8 @@
     {
       "type": "module",
       "line": 1983,
-      "filename": "table_init.101.wasm"
+      "filename": "table_init.101.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -11421,7 +11456,8 @@
     {
       "type": "module",
       "line": 2173,
-      "filename": "table_init.102.wasm"
+      "filename": "table_init.102.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -12405,7 +12441,8 @@
     {
       "type": "module",
       "line": 2267,
-      "filename": "table_init.103.wasm"
+      "filename": "table_init.103.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -12669,7 +12706,8 @@
     {
       "type": "module",
       "line": 2313,
-      "filename": "table_init.104.wasm"
+      "filename": "table_init.104.wasm",
+      "module_type": "binary"
     }
   ]
 }

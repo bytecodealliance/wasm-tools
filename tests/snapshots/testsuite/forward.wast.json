@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "forward.0.wasm"
+      "filename": "forward.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

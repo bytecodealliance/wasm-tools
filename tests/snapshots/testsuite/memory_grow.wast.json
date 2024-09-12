@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "memory_grow.0.wasm"
+      "filename": "memory_grow.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -274,7 +275,8 @@
     {
       "type": "module",
       "line": 36,
-      "filename": "memory_grow.1.wasm"
+      "filename": "memory_grow.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -439,7 +441,8 @@
     {
       "type": "module",
       "line": 50,
-      "filename": "memory_grow.2.wasm"
+      "filename": "memory_grow.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -604,7 +607,8 @@
     {
       "type": "module",
       "line": 66,
-      "filename": "memory_grow.3.wasm"
+      "filename": "memory_grow.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -853,7 +857,8 @@
     {
       "type": "module",
       "line": 101,
-      "filename": "memory_grow.4.wasm"
+      "filename": "memory_grow.4.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1387,7 +1392,8 @@
       "type": "module",
       "line": 312,
       "name": "Mgm",
-      "filename": "memory_grow.5.wasm"
+      "filename": "memory_grow.5.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -1415,7 +1421,8 @@
       "type": "module",
       "line": 318,
       "name": "Mgim1",
-      "filename": "memory_grow.6.wasm"
+      "filename": "memory_grow.6.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -1443,7 +1450,8 @@
       "type": "module",
       "line": 325,
       "name": "Mgim2",
-      "filename": "memory_grow.7.wasm"
+      "filename": "memory_grow.7.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1465,50 +1473,50 @@
       "type": "assert_invalid",
       "line": 334,
       "filename": "memory_grow.8.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 343,
       "filename": "memory_grow.9.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 353,
       "filename": "memory_grow.10.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 363,
       "filename": "memory_grow.11.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 374,
       "filename": "memory_grow.12.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 384,
       "filename": "memory_grow.13.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 393,
       "filename": "memory_grow.14.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     }
   ]
 }

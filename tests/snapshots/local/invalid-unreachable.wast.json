@@ -5,8 +5,8 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "invalid-unreachable.0.wasm",
-      "text": "expected v128 but nothing on stack",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "expected v128 but nothing on stack"
     }
   ]
 }

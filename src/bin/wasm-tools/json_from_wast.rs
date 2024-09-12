@@ -131,19 +131,19 @@ impl<'a> JsonBuilder<'a> {
         let line = self.lineno(directive.span());
         let command = match directive {
             WastDirective::Module(module) => {
-                let (name, _module_type, filename) = self.emit_file(module)?;
+                let (name, file) = self.emit_file(module, false)?;
                 json::Command::Module {
                     line,
                     name: name.map(|s| self.module_name(s)),
-                    filename,
+                    file,
                 }
             }
             WastDirective::ModuleDefinition(module) => {
-                let (name, _module_type, filename) = self.emit_file(module)?;
+                let (name, file) = self.emit_file(module, false)?;
                 json::Command::ModuleDefinition {
                     line,
                     name: name.map(|s| self.module_name(s)),
-                    filename,
+                    file,
                 }
             }
             WastDirective::ModuleInstance {
@@ -159,12 +159,11 @@ impl<'a> JsonBuilder<'a> {
                 message,
             } => {
                 let line = self.lineno(module.span());
-                let (_name, module_type, filename) = self.emit_file(module)?;
+                let (_name, file) = self.emit_file(module, true)?;
                 json::Command::AssertMalformed {
                     line,
-                    filename,
                     text: message,
-                    module_type,
+                    file,
                 }
             }
             WastDirective::AssertInvalid {
@@ -173,12 +172,11 @@ impl<'a> JsonBuilder<'a> {
                 message,
             } => {
                 let line = self.lineno(module.span());
-                let (_name, module_type, filename) = self.emit_file(module)?;
+                let (_name, file) = self.emit_file(module, false)?;
                 json::Command::AssertInvalid {
                     line,
-                    filename,
                     text: message,
-                    module_type,
+                    file,
                 }
             }
             WastDirective::Register {
@@ -200,12 +198,11 @@ impl<'a> JsonBuilder<'a> {
                 message,
             } => {
                 let line = self.lineno(module.span());
-                let (_name, module_type, filename) = self.emit_file(QuoteWat::Wat(module))?;
+                let (_name, file) = self.emit_file(QuoteWat::Wat(module), false)?;
                 json::Command::AssertUninstantiable {
                     line,
-                    filename,
                     text: message,
-                    module_type,
+                    file,
                 }
             }
             WastDirective::AssertTrap {
@@ -244,12 +241,11 @@ impl<'a> JsonBuilder<'a> {
                 message,
             } => {
                 let line = self.lineno(module.span());
-                let (_name, module_type, filename) = self.emit_file(QuoteWat::Wat(module))?;
+                let (_name, file) = self.emit_file(QuoteWat::Wat(module), false)?;
                 json::Command::AssertUnlinkable {
                     line,
                     text: message,
-                    module_type,
-                    filename,
+                    file,
                 }
             }
             WastDirective::AssertException { span: _, exec } => json::Command::AssertException {
@@ -288,7 +284,8 @@ impl<'a> JsonBuilder<'a> {
     fn emit_file(
         &mut self,
         mut module: QuoteWat<'a>,
-    ) -> Result<(Option<&'a str>, &'a str, String)> {
+        malformed: bool,
+    ) -> Result<(Option<&'a str>, json::WasmFile)> {
         let name = module.name().map(|i| i.name());
         let (contents, module_type, ext) = match module.to_test()? {
             QuoteWatTest::Text(s) => (s, "text", "wat"),
@@ -302,12 +299,25 @@ impl<'a> JsonBuilder<'a> {
         let fileno = self.files;
         self.files += 1;
         let filename = format!("{stem}.{fileno}.{ext}");
-        let dst = match &self.opts.wasm_dir {
-            Some(dir) => dir.join(&filename),
-            None => filename.clone().into(),
+        let binary_filename = format!("{stem}.{fileno}.wasm");
+        let (dst, binary_dst) = match &self.opts.wasm_dir {
+            Some(dir) => (dir.join(&filename), dir.join(&binary_filename)),
+            None => (filename.clone().into(), binary_filename.clone().into()),
         };
         std::fs::write(&dst, &contents).with_context(|| format!("failed to write file {dst:?}"))?;
-        Ok((name, module_type, filename))
+        let mut ret = json::WasmFile {
+            module_type,
+            filename,
+            binary_filename: None,
+        };
+        if module_type == "text" && !malformed {
+            if let Ok(bytes) = module.encode() {
+                std::fs::write(&binary_dst, &bytes)
+                    .with_context(|| format!("failed to write file {binary_dst:?}"))?;
+                ret.binary_filename = Some(binary_filename);
+            }
+        }
+        Ok((name, ret))
     }
 
     fn action(&self, exec: WastExecute<'a>) -> Result<json::Action<'a>> {
@@ -565,13 +575,15 @@ mod json {
             line: u32,
             #[serde(skip_serializing_if = "Option::is_none")]
             name: Option<String>,
-            filename: String,
+            #[serde(flatten)]
+            file: WasmFile,
         },
         ModuleDefinition {
             line: u32,
             #[serde(skip_serializing_if = "Option::is_none")]
             name: Option<String>,
-            filename: String,
+            #[serde(flatten)]
+            file: WasmFile,
         },
         ModuleInstance {
             line: u32,
@@ -582,15 +594,15 @@ mod json {
         },
         AssertMalformed {
             line: u32,
-            filename: String,
+            #[serde(flatten)]
+            file: WasmFile,
             text: &'a str,
-            module_type: &'a str,
         },
         AssertInvalid {
             line: u32,
-            filename: String,
+            #[serde(flatten)]
+            file: WasmFile,
             text: &'a str,
-            module_type: &'a str,
         },
         Register {
             line: u32,
@@ -601,9 +613,9 @@ mod json {
         },
         AssertUnlinkable {
             line: u32,
-            filename: String,
+            #[serde(flatten)]
+            file: WasmFile,
             text: &'a str,
-            module_type: &'a str,
         },
         AssertReturn {
             line: u32,
@@ -630,9 +642,9 @@ mod json {
         },
         AssertUninstantiable {
             line: u32,
-            filename: String,
+            #[serde(flatten)]
+            file: WasmFile,
             text: &'a str,
-            module_type: &'a str,
         },
         Thread {
             line: u32,
@@ -645,6 +657,14 @@ mod json {
             line: u32,
             thread: &'a str,
         },
+    }
+
+    #[derive(Serialize)]
+    pub struct WasmFile {
+        pub filename: String,
+        pub module_type: &'static str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub binary_filename: Option<String>,
     }
 
     #[derive(Serialize)]

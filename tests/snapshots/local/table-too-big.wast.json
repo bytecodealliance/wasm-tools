@@ -5,8 +5,8 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "table-too-big.0.wasm",
-      "text": "minimum table size is out of bounds",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "minimum table size is out of bounds"
     }
   ]
 }

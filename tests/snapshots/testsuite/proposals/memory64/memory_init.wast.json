@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 6,
-      "filename": "memory_init.0.wasm"
+      "filename": "memory_init.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -618,7 +619,8 @@
     {
       "type": "module",
       "line": 50,
-      "filename": "memory_init.1.wasm"
+      "filename": "memory_init.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -1232,7 +1234,8 @@
     {
       "type": "module",
       "line": 94,
-      "filename": "memory_init.2.wasm"
+      "filename": "memory_init.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -1846,7 +1849,8 @@
     {
       "type": "module",
       "line": 138,
-      "filename": "memory_init.3.wasm"
+      "filename": "memory_init.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -2461,20 +2465,21 @@
       "type": "assert_invalid",
       "line": 190,
       "filename": "memory_init.4.wasm",
-      "text": "unknown data segment",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown data segment"
     },
     {
       "type": "assert_invalid",
       "line": 196,
       "filename": "memory_init.5.wasm",
-      "text": "unknown data segment",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown data segment"
     },
     {
       "type": "module",
       "line": 203,
-      "filename": "memory_init.6.wasm"
+      "filename": "memory_init.6.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -2488,7 +2493,8 @@
     {
       "type": "module",
       "line": 211,
-      "filename": "memory_init.7.wasm"
+      "filename": "memory_init.7.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -2503,7 +2509,8 @@
     {
       "type": "module",
       "line": 219,
-      "filename": "memory_init.8.wasm"
+      "filename": "memory_init.8.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -2519,20 +2526,21 @@
       "type": "assert_invalid",
       "line": 227,
       "filename": "memory_init.9.wasm",
-      "text": "unknown memory 0",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown memory 0"
     },
     {
       "type": "assert_invalid",
       "line": 233,
       "filename": "memory_init.10.wasm",
-      "text": "unknown data segment 1",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown data segment 1"
     },
     {
       "type": "module",
       "line": 240,
-      "filename": "memory_init.11.wasm"
+      "filename": "memory_init.11.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -2546,7 +2554,8 @@
     {
       "type": "module",
       "line": 248,
-      "filename": "memory_init.12.wasm"
+      "filename": "memory_init.12.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -2561,7 +2570,8 @@
     {
       "type": "module",
       "line": 255,
-      "filename": "memory_init.13.wasm"
+      "filename": "memory_init.13.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -2576,7 +2586,8 @@
     {
       "type": "module",
       "line": 262,
-      "filename": "memory_init.14.wasm"
+      "filename": "memory_init.14.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -2591,7 +2602,8 @@
     {
       "type": "module",
       "line": 269,
-      "filename": "memory_init.15.wasm"
+      "filename": "memory_init.15.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -2606,7 +2618,8 @@
     {
       "type": "module",
       "line": 276,
-      "filename": "memory_init.16.wasm"
+      "filename": "memory_init.16.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -2620,7 +2633,8 @@
     {
       "type": "module",
       "line": 283,
-      "filename": "memory_init.17.wasm"
+      "filename": "memory_init.17.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -2635,7 +2649,8 @@
     {
       "type": "module",
       "line": 290,
-      "filename": "memory_init.18.wasm"
+      "filename": "memory_init.18.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -2649,7 +2664,8 @@
     {
       "type": "module",
       "line": 297,
-      "filename": "memory_init.19.wasm"
+      "filename": "memory_init.19.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -2663,7 +2679,8 @@
     {
       "type": "module",
       "line": 304,
-      "filename": "memory_init.20.wasm"
+      "filename": "memory_init.20.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -2679,447 +2696,448 @@
       "type": "assert_invalid",
       "line": 312,
       "filename": "memory_init.21.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 320,
       "filename": "memory_init.22.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 328,
       "filename": "memory_init.23.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 336,
       "filename": "memory_init.24.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 344,
       "filename": "memory_init.25.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 352,
       "filename": "memory_init.26.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 360,
       "filename": "memory_init.27.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 368,
       "filename": "memory_init.28.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 376,
       "filename": "memory_init.29.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 384,
       "filename": "memory_init.30.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 392,
       "filename": "memory_init.31.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 400,
       "filename": "memory_init.32.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 408,
       "filename": "memory_init.33.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 416,
       "filename": "memory_init.34.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 424,
       "filename": "memory_init.35.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 432,
       "filename": "memory_init.36.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 440,
       "filename": "memory_init.37.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 448,
       "filename": "memory_init.38.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 456,
       "filename": "memory_init.39.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 464,
       "filename": "memory_init.40.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 472,
       "filename": "memory_init.41.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 480,
       "filename": "memory_init.42.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 488,
       "filename": "memory_init.43.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 496,
       "filename": "memory_init.44.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 504,
       "filename": "memory_init.45.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 512,
       "filename": "memory_init.46.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 520,
       "filename": "memory_init.47.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 528,
       "filename": "memory_init.48.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 536,
       "filename": "memory_init.49.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 544,
       "filename": "memory_init.50.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 552,
       "filename": "memory_init.51.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 560,
       "filename": "memory_init.52.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 568,
       "filename": "memory_init.53.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 576,
       "filename": "memory_init.54.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 584,
       "filename": "memory_init.55.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 592,
       "filename": "memory_init.56.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 600,
       "filename": "memory_init.57.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 608,
       "filename": "memory_init.58.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 616,
       "filename": "memory_init.59.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 624,
       "filename": "memory_init.60.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 632,
       "filename": "memory_init.61.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 640,
       "filename": "memory_init.62.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 648,
       "filename": "memory_init.63.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 656,
       "filename": "memory_init.64.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 664,
       "filename": "memory_init.65.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 672,
       "filename": "memory_init.66.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 680,
       "filename": "memory_init.67.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 688,
       "filename": "memory_init.68.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 696,
       "filename": "memory_init.69.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 704,
       "filename": "memory_init.70.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 712,
       "filename": "memory_init.71.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 720,
       "filename": "memory_init.72.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 728,
       "filename": "memory_init.73.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 736,
       "filename": "memory_init.74.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 744,
       "filename": "memory_init.75.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 752,
       "filename": "memory_init.76.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 760,
       "filename": "memory_init.77.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 768,
       "filename": "memory_init.78.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 776,
       "filename": "memory_init.79.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 784,
       "filename": "memory_init.80.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 792,
       "filename": "memory_init.81.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 800,
       "filename": "memory_init.82.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 808,
       "filename": "memory_init.83.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "module",
       "line": 815,
-      "filename": "memory_init.84.wasm"
+      "filename": "memory_init.84.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -3171,7 +3189,8 @@
     {
       "type": "module",
       "line": 838,
-      "filename": "memory_init.85.wasm"
+      "filename": "memory_init.85.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -3223,7 +3242,8 @@
     {
       "type": "module",
       "line": 861,
-      "filename": "memory_init.86.wasm"
+      "filename": "memory_init.86.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -3275,7 +3295,8 @@
     {
       "type": "module",
       "line": 884,
-      "filename": "memory_init.87.wasm"
+      "filename": "memory_init.87.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -3327,7 +3348,8 @@
     {
       "type": "module",
       "line": 907,
-      "filename": "memory_init.88.wasm"
+      "filename": "memory_init.88.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -3379,7 +3401,8 @@
     {
       "type": "module",
       "line": 930,
-      "filename": "memory_init.89.wasm"
+      "filename": "memory_init.89.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -3431,12 +3454,14 @@
     {
       "type": "module",
       "line": 954,
-      "filename": "memory_init.90.wasm"
+      "filename": "memory_init.90.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 969,
-      "filename": "memory_init.91.wasm"
+      "filename": "memory_init.91.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -4050,7 +4075,8 @@
     {
       "type": "module",
       "line": 1013,
-      "filename": "memory_init.92.wasm"
+      "filename": "memory_init.92.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -4664,7 +4690,8 @@
     {
       "type": "module",
       "line": 1057,
-      "filename": "memory_init.93.wasm"
+      "filename": "memory_init.93.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -5278,7 +5305,8 @@
     {
       "type": "module",
       "line": 1101,
-      "filename": "memory_init.94.wasm"
+      "filename": "memory_init.94.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -5893,20 +5921,21 @@
       "type": "assert_invalid",
       "line": 1153,
       "filename": "memory_init.95.wasm",
-      "text": "unknown data segment",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown data segment"
     },
     {
       "type": "assert_invalid",
       "line": 1159,
       "filename": "memory_init.96.wasm",
-      "text": "unknown data segment",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown data segment"
     },
     {
       "type": "module",
       "line": 1166,
-      "filename": "memory_init.97.wasm"
+      "filename": "memory_init.97.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -5920,7 +5949,8 @@
     {
       "type": "module",
       "line": 1174,
-      "filename": "memory_init.98.wasm"
+      "filename": "memory_init.98.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -5935,7 +5965,8 @@
     {
       "type": "module",
       "line": 1182,
-      "filename": "memory_init.99.wasm"
+      "filename": "memory_init.99.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -5951,20 +5982,21 @@
       "type": "assert_invalid",
       "line": 1190,
       "filename": "memory_init.100.wasm",
-      "text": "unknown memory 0",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown memory 0"
     },
     {
       "type": "assert_invalid",
       "line": 1196,
       "filename": "memory_init.101.wasm",
-      "text": "unknown data segment 1",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown data segment 1"
     },
     {
       "type": "module",
       "line": 1203,
-      "filename": "memory_init.102.wasm"
+      "filename": "memory_init.102.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -5978,7 +6010,8 @@
     {
       "type": "module",
       "line": 1211,
-      "filename": "memory_init.103.wasm"
+      "filename": "memory_init.103.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -5993,7 +6026,8 @@
     {
       "type": "module",
       "line": 1218,
-      "filename": "memory_init.104.wasm"
+      "filename": "memory_init.104.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -6008,7 +6042,8 @@
     {
       "type": "module",
       "line": 1225,
-      "filename": "memory_init.105.wasm"
+      "filename": "memory_init.105.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -6023,7 +6058,8 @@
     {
       "type": "module",
       "line": 1232,
-      "filename": "memory_init.106.wasm"
+      "filename": "memory_init.106.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -6038,7 +6074,8 @@
     {
       "type": "module",
       "line": 1239,
-      "filename": "memory_init.107.wasm"
+      "filename": "memory_init.107.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -6052,7 +6089,8 @@
     {
       "type": "module",
       "line": 1246,
-      "filename": "memory_init.108.wasm"
+      "filename": "memory_init.108.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -6067,7 +6105,8 @@
     {
       "type": "module",
       "line": 1253,
-      "filename": "memory_init.109.wasm"
+      "filename": "memory_init.109.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -6081,7 +6120,8 @@
     {
       "type": "module",
       "line": 1260,
-      "filename": "memory_init.110.wasm"
+      "filename": "memory_init.110.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -6095,7 +6135,8 @@
     {
       "type": "module",
       "line": 1267,
-      "filename": "memory_init.111.wasm"
+      "filename": "memory_init.111.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -6111,447 +6152,448 @@
       "type": "assert_invalid",
       "line": 1275,
       "filename": "memory_init.112.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1283,
       "filename": "memory_init.113.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1291,
       "filename": "memory_init.114.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1299,
       "filename": "memory_init.115.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1307,
       "filename": "memory_init.116.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1315,
       "filename": "memory_init.117.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1323,
       "filename": "memory_init.118.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1331,
       "filename": "memory_init.119.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1339,
       "filename": "memory_init.120.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1347,
       "filename": "memory_init.121.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1355,
       "filename": "memory_init.122.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1363,
       "filename": "memory_init.123.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1371,
       "filename": "memory_init.124.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1379,
       "filename": "memory_init.125.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1387,
       "filename": "memory_init.126.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1395,
       "filename": "memory_init.127.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1403,
       "filename": "memory_init.128.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1411,
       "filename": "memory_init.129.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1419,
       "filename": "memory_init.130.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1427,
       "filename": "memory_init.131.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1435,
       "filename": "memory_init.132.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1443,
       "filename": "memory_init.133.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1451,
       "filename": "memory_init.134.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1459,
       "filename": "memory_init.135.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1467,
       "filename": "memory_init.136.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1475,
       "filename": "memory_init.137.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1483,
       "filename": "memory_init.138.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1491,
       "filename": "memory_init.139.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1499,
       "filename": "memory_init.140.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1507,
       "filename": "memory_init.141.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1515,
       "filename": "memory_init.142.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1523,
       "filename": "memory_init.143.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1531,
       "filename": "memory_init.144.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1539,
       "filename": "memory_init.145.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1547,
       "filename": "memory_init.146.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1555,
       "filename": "memory_init.147.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1563,
       "filename": "memory_init.148.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1571,
       "filename": "memory_init.149.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1579,
       "filename": "memory_init.150.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1587,
       "filename": "memory_init.151.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1595,
       "filename": "memory_init.152.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1603,
       "filename": "memory_init.153.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1611,
       "filename": "memory_init.154.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1619,
       "filename": "memory_init.155.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1627,
       "filename": "memory_init.156.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1635,
       "filename": "memory_init.157.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1643,
       "filename": "memory_init.158.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1651,
       "filename": "memory_init.159.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1659,
       "filename": "memory_init.160.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1667,
       "filename": "memory_init.161.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1675,
       "filename": "memory_init.162.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1683,
       "filename": "memory_init.163.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1691,
       "filename": "memory_init.164.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1699,
       "filename": "memory_init.165.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1707,
       "filename": "memory_init.166.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1715,
       "filename": "memory_init.167.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1723,
       "filename": "memory_init.168.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1731,
       "filename": "memory_init.169.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1739,
       "filename": "memory_init.170.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1747,
       "filename": "memory_init.171.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1755,
       "filename": "memory_init.172.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1763,
       "filename": "memory_init.173.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1771,
       "filename": "memory_init.174.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "module",
       "line": 1778,
-      "filename": "memory_init.175.wasm"
+      "filename": "memory_init.175.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -6603,7 +6645,8 @@
     {
       "type": "module",
       "line": 1801,
-      "filename": "memory_init.176.wasm"
+      "filename": "memory_init.176.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -6655,7 +6698,8 @@
     {
       "type": "module",
       "line": 1824,
-      "filename": "memory_init.177.wasm"
+      "filename": "memory_init.177.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -6707,7 +6751,8 @@
     {
       "type": "module",
       "line": 1847,
-      "filename": "memory_init.178.wasm"
+      "filename": "memory_init.178.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -6759,7 +6804,8 @@
     {
       "type": "module",
       "line": 1870,
-      "filename": "memory_init.179.wasm"
+      "filename": "memory_init.179.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -6811,7 +6857,8 @@
     {
       "type": "module",
       "line": 1893,
-      "filename": "memory_init.180.wasm"
+      "filename": "memory_init.180.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -6863,7 +6910,8 @@
     {
       "type": "module",
       "line": 1917,
-      "filename": "memory_init.181.wasm"
+      "filename": "memory_init.181.wasm",
+      "module_type": "binary"
     }
   ]
 }

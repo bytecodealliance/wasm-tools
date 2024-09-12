@@ -5,15 +5,15 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "lower.0.wasm",
-      "text": "canonical option `memory` is required",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "canonical option `memory` is required"
     },
     {
       "type": "assert_invalid",
       "line": 10,
       "filename": "lower.1.wasm",
-      "text": "canonical option `memory` is required",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "canonical option `memory` is required"
     }
   ]
 }

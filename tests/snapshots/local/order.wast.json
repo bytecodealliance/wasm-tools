@@ -5,15 +5,15 @@
       "type": "assert_malformed",
       "line": 2,
       "filename": "order.0.wat",
-      "text": "import after function",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "import after function"
     },
     {
       "type": "assert_malformed",
       "line": 8,
       "filename": "order.1.wat",
-      "text": "import after function",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "import after function"
     }
   ]
 }

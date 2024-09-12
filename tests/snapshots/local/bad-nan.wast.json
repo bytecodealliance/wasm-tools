@@ -5,22 +5,22 @@
       "type": "assert_malformed",
       "line": 2,
       "filename": "bad-nan.0.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 6,
       "filename": "bad-nan.1.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 10,
       "filename": "bad-nan.2.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     }
   ]
 }

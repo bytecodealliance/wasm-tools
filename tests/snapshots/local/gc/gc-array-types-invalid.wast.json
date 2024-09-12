@@ -5,8 +5,8 @@
       "type": "assert_invalid",
       "line": 4,
       "filename": "gc-array-types-invalid.0.wasm",
-      "text": "unknown type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown type"
     }
   ]
 }

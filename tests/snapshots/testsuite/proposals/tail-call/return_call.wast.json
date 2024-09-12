@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 3,
-      "filename": "return_call.0.wasm"
+      "filename": "return_call.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -586,81 +587,83 @@
       "type": "assert_invalid",
       "line": 124,
       "filename": "return_call.1.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 131,
       "filename": "return_call.2.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 139,
       "filename": "return_call.3.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 146,
       "filename": "return_call.4.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "module",
       "line": 153,
-      "filename": "return_call.5.wasm"
+      "filename": "return_call.5.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 158,
-      "filename": "return_call.6.wasm"
+      "filename": "return_call.6.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_invalid",
       "line": 164,
       "filename": "return_call.7.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 171,
       "filename": "return_call.8.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 178,
       "filename": "return_call.9.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 185,
       "filename": "return_call.10.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 196,
       "filename": "return_call.11.wasm",
-      "text": "unknown function",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown function"
     },
     {
       "type": "assert_invalid",
       "line": 200,
       "filename": "return_call.12.wasm",
-      "text": "unknown function",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown function"
     }
   ]
 }

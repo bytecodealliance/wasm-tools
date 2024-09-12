@@ -5,7 +5,8 @@
       "type": "module",
       "line": 3,
       "name": "Mf",
-      "filename": "linking.0.wasm"
+      "filename": "linking.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -17,7 +18,8 @@
       "type": "module",
       "line": 9,
       "name": "Nf",
-      "filename": "linking.1.wasm"
+      "filename": "linking.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -86,7 +88,8 @@
     {
       "type": "module",
       "line": 22,
-      "filename": "linking.2.wasm"
+      "filename": "linking.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -97,21 +100,22 @@
       "type": "assert_unlinkable",
       "line": 28,
       "filename": "linking.3.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 32,
       "filename": "linking.4.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "module",
       "line": 39,
       "name": "Mg",
-      "filename": "linking.5.wasm"
+      "filename": "linking.5.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -123,7 +127,8 @@
       "type": "module",
       "line": 50,
       "name": "Ng",
-      "filename": "linking.6.wasm"
+      "filename": "linking.6.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -362,21 +367,22 @@
       "type": "assert_unlinkable",
       "line": 87,
       "filename": "linking.7.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 91,
       "filename": "linking.8.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "module",
       "line": 96,
       "name": "Mref_ex",
-      "filename": "linking.9.wasm"
+      "filename": "linking.9.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -388,258 +394,260 @@
       "type": "module",
       "line": 112,
       "name": "Mref_im",
-      "filename": "linking.10.wasm"
+      "filename": "linking.10.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_unlinkable",
       "line": 133,
       "filename": "linking.11.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 138,
       "filename": "linking.12.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 142,
       "filename": "linking.13.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 146,
       "filename": "linking.14.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 151,
       "filename": "linking.15.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 155,
       "filename": "linking.16.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 159,
       "filename": "linking.17.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 164,
       "filename": "linking.18.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 168,
       "filename": "linking.19.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 172,
       "filename": "linking.20.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 176,
       "filename": "linking.21.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 181,
       "filename": "linking.22.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 185,
       "filename": "linking.23.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 189,
       "filename": "linking.24.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 193,
       "filename": "linking.25.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 199,
       "filename": "linking.26.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 203,
       "filename": "linking.27.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 207,
       "filename": "linking.28.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 211,
       "filename": "linking.29.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 216,
       "filename": "linking.30.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 220,
       "filename": "linking.31.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 224,
       "filename": "linking.32.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 228,
       "filename": "linking.33.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 233,
       "filename": "linking.34.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 237,
       "filename": "linking.35.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 241,
       "filename": "linking.36.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 245,
       "filename": "linking.37.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 250,
       "filename": "linking.38.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 254,
       "filename": "linking.39.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 258,
       "filename": "linking.40.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 262,
       "filename": "linking.41.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 267,
       "filename": "linking.42.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 271,
       "filename": "linking.43.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 275,
       "filename": "linking.44.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 279,
       "filename": "linking.45.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "module",
       "line": 286,
       "name": "Mt",
-      "filename": "linking.46.wasm"
+      "filename": "linking.46.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -651,7 +659,8 @@
       "type": "module",
       "line": 301,
       "name": "Nt",
-      "filename": "linking.47.wasm"
+      "filename": "linking.47.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -980,7 +989,8 @@
       "type": "module",
       "line": 343,
       "name": "Ot",
-      "filename": "linking.48.wasm"
+      "filename": "linking.48.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1380,13 +1390,15 @@
     {
       "type": "module",
       "line": 381,
-      "filename": "linking.49.wasm"
+      "filename": "linking.49.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 387,
       "name": "G1",
-      "filename": "linking.50.wasm"
+      "filename": "linking.50.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -1398,7 +1410,8 @@
       "type": "module",
       "line": 389,
       "name": "G2",
-      "filename": "linking.51.wasm"
+      "filename": "linking.51.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1419,15 +1432,15 @@
       "type": "assert_uninstantiable",
       "line": 396,
       "filename": "linking.52.wasm",
-      "text": "out of bounds table access",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "out of bounds table access"
     },
     {
       "type": "assert_unlinkable",
       "line": 405,
       "filename": "linking.53.wasm",
-      "text": "unknown import",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown import"
     },
     {
       "type": "assert_trap",
@@ -1449,8 +1462,8 @@
       "type": "assert_uninstantiable",
       "line": 419,
       "filename": "linking.54.wasm",
-      "text": "out of bounds table access",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "out of bounds table access"
     },
     {
       "type": "assert_return",
@@ -1493,8 +1506,8 @@
       "type": "assert_uninstantiable",
       "line": 431,
       "filename": "linking.55.wasm",
-      "text": "out of bounds memory access",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "out of bounds memory access"
     },
     {
       "type": "assert_return",
@@ -1521,7 +1534,8 @@
       "type": "module",
       "line": 443,
       "name": "Mtable_ex",
-      "filename": "linking.56.wasm"
+      "filename": "linking.56.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -1532,55 +1546,57 @@
     {
       "type": "module",
       "line": 451,
-      "filename": "linking.57.wasm"
+      "filename": "linking.57.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_unlinkable",
       "line": 459,
       "filename": "linking.58.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 463,
       "filename": "linking.59.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 468,
       "filename": "linking.60.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 472,
       "filename": "linking.61.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 477,
       "filename": "linking.62.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 481,
       "filename": "linking.63.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "module",
       "line": 488,
       "name": "Mm",
-      "filename": "linking.64.wasm"
+      "filename": "linking.64.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -1592,7 +1608,8 @@
       "type": "module",
       "line": 498,
       "name": "Nm",
-      "filename": "linking.65.wasm"
+      "filename": "linking.65.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1661,7 +1678,8 @@
       "type": "module",
       "line": 514,
       "name": "Om",
-      "filename": "linking.66.wasm"
+      "filename": "linking.66.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1750,20 +1768,22 @@
     {
       "type": "module",
       "line": 528,
-      "filename": "linking.67.wasm"
+      "filename": "linking.67.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_uninstantiable",
       "line": 534,
       "filename": "linking.68.wasm",
-      "text": "out of bounds memory access",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "out of bounds memory access"
     },
     {
       "type": "module",
       "line": 541,
       "name": "Pm",
-      "filename": "linking.69.wasm"
+      "filename": "linking.69.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1937,8 +1957,8 @@
       "type": "assert_unlinkable",
       "line": 559,
       "filename": "linking.70.wasm",
-      "text": "unknown import",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown import"
     },
     {
       "type": "assert_return",
@@ -1965,8 +1985,8 @@
       "type": "assert_uninstantiable",
       "line": 572,
       "filename": "linking.71.wasm",
-      "text": "out of bounds memory access",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "out of bounds memory access"
     },
     {
       "type": "assert_return",
@@ -2014,8 +2034,8 @@
       "type": "assert_uninstantiable",
       "line": 584,
       "filename": "linking.72.wasm",
-      "text": "out of bounds table access",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "out of bounds table access"
     },
     {
       "type": "assert_return",
@@ -2042,7 +2062,8 @@
       "type": "module",
       "line": 596,
       "name": "Ms",
-      "filename": "linking.73.wasm"
+      "filename": "linking.73.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -2054,8 +2075,8 @@
       "type": "assert_uninstantiable",
       "line": 610,
       "filename": "linking.74.wasm",
-      "text": "unreachable",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unreachable"
     },
     {
       "type": "assert_return",

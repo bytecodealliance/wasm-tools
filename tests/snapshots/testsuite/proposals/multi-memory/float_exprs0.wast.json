@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "float_exprs0.0.wasm"
+      "filename": "float_exprs0.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",

@@ -5,8 +5,8 @@
       "type": "assert_malformed",
       "line": 2,
       "filename": "binary-gc.0.wasm",
-      "text": "malformed mutability",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "malformed mutability"
     }
   ]
 }

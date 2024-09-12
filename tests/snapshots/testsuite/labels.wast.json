@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "labels.0.wasm"
+      "filename": "labels.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -435,22 +436,22 @@
       "type": "assert_invalid",
       "line": 318,
       "filename": "labels.1.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 322,
       "filename": "labels.2.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 326,
       "filename": "labels.3.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     }
   ]
 }

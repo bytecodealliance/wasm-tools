@@ -4,39 +4,45 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "producers.0.wasm"
+      "filename": "producers.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 5,
-      "filename": "producers.1.wasm"
+      "filename": "producers.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 11,
-      "filename": "producers.2.wasm"
+      "filename": "producers.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 20,
-      "filename": "producers.3.wasm"
+      "filename": "producers.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_invalid",
       "line": 26,
       "filename": "producers.4.wat",
-      "text": "unexpected token",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unexpected token"
     },
     {
       "type": "module",
       "line": 31,
-      "filename": "producers.5.wasm"
+      "filename": "producers.5.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 41,
-      "filename": "producers.6.wasm"
+      "filename": "producers.6.wasm",
+      "module_type": "binary"
     }
   ]
 }

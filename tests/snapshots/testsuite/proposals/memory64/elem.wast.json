@@ -4,52 +4,62 @@
     {
       "type": "module",
       "line": 4,
-      "filename": "elem.0.wasm"
+      "filename": "elem.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 80,
-      "filename": "elem.1.wasm"
+      "filename": "elem.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 87,
-      "filename": "elem.2.wasm"
+      "filename": "elem.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 98,
-      "filename": "elem.3.wasm"
+      "filename": "elem.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 103,
-      "filename": "elem.4.wasm"
+      "filename": "elem.4.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 109,
-      "filename": "elem.5.wasm"
+      "filename": "elem.5.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 118,
-      "filename": "elem.6.wasm"
+      "filename": "elem.6.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 128,
-      "filename": "elem.7.wasm"
+      "filename": "elem.7.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 135,
-      "filename": "elem.8.wasm"
+      "filename": "elem.8.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 142,
-      "filename": "elem.9.wasm"
+      "filename": "elem.9.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -84,7 +94,8 @@
     {
       "type": "module",
       "line": 161,
-      "filename": "elem.10.wasm"
+      "filename": "elem.10.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -119,355 +130,406 @@
     {
       "type": "module",
       "line": 178,
-      "filename": "elem.11.wasm"
+      "filename": "elem.11.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 182,
-      "filename": "elem.12.wasm"
+      "filename": "elem.12.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 190,
-      "filename": "elem.13.wasm"
+      "filename": "elem.13.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 195,
-      "filename": "elem.14.wasm"
+      "filename": "elem.14.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 201,
-      "filename": "elem.15.wasm"
+      "filename": "elem.15.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 205,
-      "filename": "elem.16.wasm"
+      "filename": "elem.16.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 210,
-      "filename": "elem.17.wasm"
+      "filename": "elem.17.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 215,
-      "filename": "elem.18.wasm"
+      "filename": "elem.18.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 220,
-      "filename": "elem.19.wasm"
+      "filename": "elem.19.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 226,
-      "filename": "elem.20.wasm"
+      "filename": "elem.20.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 232,
-      "filename": "elem.21.wasm"
+      "filename": "elem.21.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 238,
-      "filename": "elem.22.wasm"
+      "filename": "elem.22.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 247,
-      "filename": "elem.23.wasm"
+      "filename": "elem.23.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 252,
-      "filename": "elem.24.wasm"
+      "filename": "elem.24.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 264,
-      "filename": "elem.25.wasm"
+      "filename": "elem.25.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 269,
-      "filename": "elem.26.wasm"
+      "filename": "elem.26.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 281,
-      "filename": "elem.27.wasm"
+      "filename": "elem.27.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 286,
-      "filename": "elem.28.wasm"
+      "filename": "elem.28.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 298,
-      "filename": "elem.29.wasm"
+      "filename": "elem.29.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 303,
-      "filename": "elem.30.wasm"
+      "filename": "elem.30.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 315,
-      "filename": "elem.31.wasm"
+      "filename": "elem.31.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 320,
-      "filename": "elem.32.wasm"
+      "filename": "elem.32.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 331,
-      "filename": "elem.33.wasm"
+      "filename": "elem.33.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 336,
-      "filename": "elem.34.wasm"
+      "filename": "elem.34.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 348,
-      "filename": "elem.35.wasm"
+      "filename": "elem.35.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 353,
-      "filename": "elem.36.wasm"
+      "filename": "elem.36.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 364,
-      "filename": "elem.37.wasm"
+      "filename": "elem.37.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 369,
-      "filename": "elem.38.wasm"
+      "filename": "elem.38.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 381,
-      "filename": "elem.39.wasm"
+      "filename": "elem.39.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 386,
-      "filename": "elem.40.wasm"
+      "filename": "elem.40.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 397,
-      "filename": "elem.41.wasm"
+      "filename": "elem.41.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 402,
-      "filename": "elem.42.wasm"
+      "filename": "elem.42.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 414,
-      "filename": "elem.43.wasm"
+      "filename": "elem.43.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 419,
-      "filename": "elem.44.wasm"
+      "filename": "elem.44.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 430,
-      "filename": "elem.45.wasm"
+      "filename": "elem.45.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 435,
-      "filename": "elem.46.wasm"
+      "filename": "elem.46.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 448,
-      "filename": "elem.47.wasm"
+      "filename": "elem.47.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 453,
-      "filename": "elem.48.wasm"
+      "filename": "elem.48.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 465,
-      "filename": "elem.49.wasm"
+      "filename": "elem.49.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 470,
-      "filename": "elem.50.wasm"
+      "filename": "elem.50.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 482,
-      "filename": "elem.51.wasm"
+      "filename": "elem.51.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 487,
-      "filename": "elem.52.wasm"
+      "filename": "elem.52.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 499,
-      "filename": "elem.53.wasm"
+      "filename": "elem.53.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 504,
-      "filename": "elem.54.wasm"
+      "filename": "elem.54.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_invalid",
       "line": 517,
       "filename": "elem.55.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 525,
       "filename": "elem.56.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "module",
       "line": 539,
-      "filename": "elem.57.wasm"
+      "filename": "elem.57.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 544,
-      "filename": "elem.58.wasm"
+      "filename": "elem.58.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 556,
-      "filename": "elem.59.wasm"
+      "filename": "elem.59.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 561,
-      "filename": "elem.60.wasm"
+      "filename": "elem.60.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 573,
-      "filename": "elem.61.wasm"
+      "filename": "elem.61.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 578,
-      "filename": "elem.62.wasm"
+      "filename": "elem.62.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_uninstantiable",
       "line": 594,
       "filename": "elem.63.wasm",
-      "text": "out of bounds table access",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "out of bounds table access"
     },
     {
       "type": "assert_uninstantiable",
       "line": 603,
       "filename": "elem.64.wasm",
-      "text": "out of bounds table access",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "out of bounds table access"
     },
     {
       "type": "assert_uninstantiable",
       "line": 612,
       "filename": "elem.65.wasm",
-      "text": "out of bounds table access",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "out of bounds table access"
     },
     {
       "type": "assert_uninstantiable",
       "line": 621,
       "filename": "elem.66.wasm",
-      "text": "out of bounds table access",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "out of bounds table access"
     },
     {
       "type": "assert_uninstantiable",
       "line": 628,
       "filename": "elem.67.wasm",
-      "text": "out of bounds table access",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "out of bounds table access"
     },
     {
       "type": "assert_uninstantiable",
       "line": 636,
       "filename": "elem.68.wasm",
-      "text": "out of bounds table access",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "out of bounds table access"
     },
     {
       "type": "assert_uninstantiable",
       "line": 645,
       "filename": "elem.69.wasm",
-      "text": "out of bounds table access",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "out of bounds table access"
     },
     {
       "type": "assert_uninstantiable",
       "line": 653,
       "filename": "elem.70.wasm",
-      "text": "out of bounds table access",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "out of bounds table access"
     },
     {
       "type": "assert_uninstantiable",
       "line": 662,
       "filename": "elem.71.wasm",
-      "text": "out of bounds table access",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "out of bounds table access"
     },
     {
       "type": "assert_uninstantiable",
       "line": 670,
       "filename": "elem.72.wasm",
-      "text": "out of bounds table access",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "out of bounds table access"
     },
     {
       "type": "assert_uninstantiable",
       "line": 679,
       "filename": "elem.73.wasm",
-      "text": "out of bounds table access",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "out of bounds table access"
     },
     {
       "type": "assert_uninstantiable",
       "line": 687,
       "filename": "elem.74.wasm",
-      "text": "out of bounds table access",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "out of bounds table access"
     },
     {
       "type": "module",
       "line": 698,
-      "filename": "elem.75.wasm"
+      "filename": "elem.75.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -482,7 +544,8 @@
     {
       "type": "module",
       "line": 708,
-      "filename": "elem.76.wasm"
+      "filename": "elem.76.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -498,146 +561,147 @@
       "type": "assert_invalid",
       "line": 722,
       "filename": "elem.77.wasm",
-      "text": "unknown table",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown table"
     },
     {
       "type": "assert_invalid",
       "line": 733,
       "filename": "elem.78.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 741,
       "filename": "elem.79.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 749,
       "filename": "elem.80.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 757,
       "filename": "elem.81.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 765,
       "filename": "elem.82.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 774,
       "filename": "elem.83.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 784,
       "filename": "elem.84.wasm",
-      "text": "constant expression required",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "constant expression required"
     },
     {
       "type": "assert_invalid",
       "line": 792,
       "filename": "elem.85.wasm",
-      "text": "constant expression required",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "constant expression required"
     },
     {
       "type": "assert_invalid",
       "line": 800,
       "filename": "elem.86.wasm",
-      "text": "constant expression required",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "constant expression required"
     },
     {
       "type": "assert_invalid",
       "line": 808,
       "filename": "elem.87.wasm",
-      "text": "constant expression required",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "constant expression required"
     },
     {
       "type": "assert_invalid",
       "line": 816,
       "filename": "elem.88.wasm",
-      "text": "constant expression required",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "constant expression required"
     },
     {
       "type": "assert_invalid",
       "line": 825,
       "filename": "elem.89.wasm",
-      "text": "unknown global 0",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown global 0"
     },
     {
       "type": "assert_invalid",
       "line": 833,
       "filename": "elem.90.wasm",
-      "text": "unknown global 1",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown global 1"
     },
     {
       "type": "assert_invalid",
       "line": 842,
       "filename": "elem.91.wasm",
-      "text": "constant expression required",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "constant expression required"
     },
     {
       "type": "assert_invalid",
       "line": 854,
       "filename": "elem.92.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 862,
       "filename": "elem.93.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 870,
       "filename": "elem.94.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 878,
       "filename": "elem.95.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 886,
       "filename": "elem.96.wasm",
-      "text": "constant expression required",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "constant expression required"
     },
     {
       "type": "module",
       "line": 897,
-      "filename": "elem.97.wasm"
+      "filename": "elem.97.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -657,7 +721,8 @@
     {
       "type": "module",
       "line": 910,
-      "filename": "elem.98.wasm"
+      "filename": "elem.98.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -678,7 +743,8 @@
       "type": "module",
       "line": 926,
       "name": "module1",
-      "filename": "elem.99.wasm"
+      "filename": "elem.99.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -733,7 +799,8 @@
       "type": "module",
       "line": 950,
       "name": "module2",
-      "filename": "elem.100.wasm"
+      "filename": "elem.100.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -787,7 +854,8 @@
       "type": "module",
       "line": 963,
       "name": "module3",
-      "filename": "elem.101.wasm"
+      "filename": "elem.101.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -841,35 +909,36 @@
       "type": "assert_invalid",
       "line": 979,
       "filename": "elem.102.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 984,
       "filename": "elem.103.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 989,
       "filename": "elem.104.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 998,
       "filename": "elem.105.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "module",
       "line": 1007,
       "name": "m",
-      "filename": "elem.106.wasm"
+      "filename": "elem.106.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -1004,7 +1073,8 @@
     {
       "type": "module",
       "line": 1025,
-      "filename": "elem.107.wasm"
+      "filename": "elem.107.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1052,7 +1122,8 @@
       "type": "module",
       "line": 1034,
       "name": "module4",
-      "filename": "elem.108.wasm"
+      "filename": "elem.108.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -1063,7 +1134,8 @@
     {
       "type": "module",
       "line": 1043,
-      "filename": "elem.109.wasm"
+      "filename": "elem.109.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1083,7 +1155,8 @@
     {
       "type": "module",
       "line": 1057,
-      "filename": "elem.110.wasm"
+      "filename": "elem.110.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1123,7 +1196,8 @@
     {
       "type": "module",
       "line": 1068,
-      "filename": "elem.111.wasm"
+      "filename": "elem.111.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1163,7 +1237,8 @@
     {
       "type": "module",
       "line": 1079,
-      "filename": "elem.112.wasm"
+      "filename": "elem.112.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1203,7 +1278,8 @@
     {
       "type": "module",
       "line": 1092,
-      "filename": "elem.113.wasm"
+      "filename": "elem.113.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

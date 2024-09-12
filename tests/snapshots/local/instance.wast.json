@@ -5,7 +5,8 @@
       "type": "module_definition",
       "line": 3,
       "name": "M",
-      "filename": "instance.0.wasm"
+      "filename": "instance.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module_instance",
@@ -34,7 +35,8 @@
     {
       "type": "module",
       "line": 15,
-      "filename": "instance.1.wasm"
+      "filename": "instance.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -98,7 +100,8 @@
     {
       "type": "module",
       "line": 62,
-      "filename": "instance.2.wasm"
+      "filename": "instance.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -163,7 +166,8 @@
       "type": "module_definition",
       "line": 109,
       "name": "N",
-      "filename": "instance.3.wasm"
+      "filename": "instance.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module_instance",
@@ -180,7 +184,8 @@
     {
       "type": "module",
       "line": 128,
-      "filename": "instance.4.wasm"
+      "filename": "instance.4.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

@@ -5,8 +5,8 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "custom-page-sizes.0.wasm",
-      "text": "the custom page sizes proposal must be enabled to customize a memory's page size",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "the custom page sizes proposal must be enabled to customize a memory's page size"
     }
   ]
 }

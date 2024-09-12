@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 3,
-      "filename": "call_indirect.0.wasm"
+      "filename": "call_indirect.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2195,7 +2196,8 @@
     {
       "type": "module",
       "line": 623,
-      "filename": "call_indirect.1.wasm"
+      "filename": "call_indirect.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2512,237 +2514,238 @@
       "type": "assert_malformed",
       "line": 669,
       "filename": "call_indirect.2.wat",
-      "text": "unexpected token",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
       "line": 681,
       "filename": "call_indirect.3.wat",
-      "text": "unexpected token",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
       "line": 693,
       "filename": "call_indirect.4.wat",
-      "text": "unexpected token",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
       "line": 705,
       "filename": "call_indirect.5.wat",
-      "text": "unexpected token",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
       "line": 717,
       "filename": "call_indirect.6.wat",
-      "text": "unexpected token",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
       "line": 729,
       "filename": "call_indirect.7.wat",
-      "text": "unexpected token",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
       "line": 739,
       "filename": "call_indirect.8.wat",
-      "text": "unexpected token",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
       "line": 746,
       "filename": "call_indirect.9.wat",
-      "text": "inline function type",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "inline function type"
     },
     {
       "type": "assert_malformed",
       "line": 756,
       "filename": "call_indirect.10.wat",
-      "text": "inline function type",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "inline function type"
     },
     {
       "type": "assert_malformed",
       "line": 766,
       "filename": "call_indirect.11.wat",
-      "text": "inline function type",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "inline function type"
     },
     {
       "type": "assert_malformed",
       "line": 776,
       "filename": "call_indirect.12.wat",
-      "text": "inline function type",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "inline function type"
     },
     {
       "type": "assert_invalid",
       "line": 791,
       "filename": "call_indirect.13.wasm",
-      "text": "unknown table",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown table"
     },
     {
       "type": "assert_invalid",
       "line": 799,
       "filename": "call_indirect.14.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 807,
       "filename": "call_indirect.15.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 816,
       "filename": "call_indirect.16.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 824,
       "filename": "call_indirect.17.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 832,
       "filename": "call_indirect.18.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 840,
       "filename": "call_indirect.19.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 851,
       "filename": "call_indirect.20.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 859,
       "filename": "call_indirect.21.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 868,
       "filename": "call_indirect.22.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 878,
       "filename": "call_indirect.23.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 888,
       "filename": "call_indirect.24.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 898,
       "filename": "call_indirect.25.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 909,
       "filename": "call_indirect.26.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 922,
       "filename": "call_indirect.27.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 935,
       "filename": "call_indirect.28.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 948,
       "filename": "call_indirect.29.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 961,
       "filename": "call_indirect.30.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 977,
       "filename": "call_indirect.31.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 997,
       "filename": "call_indirect.32.wasm",
-      "text": "unknown type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown type"
     },
     {
       "type": "assert_invalid",
       "line": 1004,
       "filename": "call_indirect.33.wasm",
-      "text": "unknown type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown type"
     },
     {
       "type": "assert_invalid",
       "line": 1015,
       "filename": "call_indirect.34.wasm",
-      "text": "unknown function",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown function"
     },
     {
       "type": "module",
       "line": 1024,
-      "filename": "call_indirect.35.wasm"
+      "filename": "call_indirect.35.wasm",
+      "module_type": "binary"
     }
   ]
 }

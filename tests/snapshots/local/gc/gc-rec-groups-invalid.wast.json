@@ -5,15 +5,15 @@
       "type": "assert_invalid",
       "line": 4,
       "filename": "gc-rec-groups-invalid.0.wasm",
-      "text": "unknown type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown type"
     },
     {
       "type": "assert_invalid",
       "line": 19,
       "filename": "gc-rec-groups-invalid.1.wasm",
-      "text": "sub type must match super type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "sub type must match super type"
     }
   ]
 }

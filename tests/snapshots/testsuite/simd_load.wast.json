@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 3,
-      "filename": "simd_load.0.wasm"
+      "filename": "simd_load.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -88,7 +89,8 @@
     {
       "type": "module",
       "line": 18,
-      "filename": "simd_load.1.wasm"
+      "filename": "simd_load.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -108,7 +110,8 @@
     {
       "type": "module",
       "line": 26,
-      "filename": "simd_load.2.wasm"
+      "filename": "simd_load.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -134,7 +137,8 @@
     {
       "type": "module",
       "line": 34,
-      "filename": "simd_load.3.wasm"
+      "filename": "simd_load.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -175,7 +179,8 @@
     {
       "type": "module",
       "line": 46,
-      "filename": "simd_load.4.wasm"
+      "filename": "simd_load.4.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -201,7 +206,8 @@
     {
       "type": "module",
       "line": 56,
-      "filename": "simd_load.5.wasm"
+      "filename": "simd_load.5.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -227,7 +233,8 @@
     {
       "type": "module",
       "line": 64,
-      "filename": "simd_load.6.wasm"
+      "filename": "simd_load.6.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -253,7 +260,8 @@
     {
       "type": "module",
       "line": 78,
-      "filename": "simd_load.7.wasm"
+      "filename": "simd_load.7.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -279,7 +287,8 @@
     {
       "type": "module",
       "line": 87,
-      "filename": "simd_load.8.wasm"
+      "filename": "simd_load.8.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -305,7 +314,8 @@
     {
       "type": "module",
       "line": 95,
-      "filename": "simd_load.9.wasm"
+      "filename": "simd_load.9.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -331,7 +341,8 @@
     {
       "type": "module",
       "line": 104,
-      "filename": "simd_load.10.wasm"
+      "filename": "simd_load.10.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -357,7 +368,8 @@
     {
       "type": "module",
       "line": 112,
-      "filename": "simd_load.11.wasm"
+      "filename": "simd_load.11.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -383,7 +395,8 @@
     {
       "type": "module",
       "line": 120,
-      "filename": "simd_load.12.wasm"
+      "filename": "simd_load.12.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -421,7 +434,8 @@
     {
       "type": "module",
       "line": 129,
-      "filename": "simd_load.13.wasm"
+      "filename": "simd_load.13.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -448,57 +462,57 @@
       "type": "assert_malformed",
       "line": 141,
       "filename": "simd_load.14.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 148,
       "filename": "simd_load.15.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 155,
       "filename": "simd_load.16.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_invalid",
       "line": 166,
       "filename": "simd_load.17.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 170,
       "filename": "simd_load.18.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 174,
       "filename": "simd_load.19.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 182,
       "filename": "simd_load.20.wasm",
-      "text": "unknown local 2",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown local 2"
     },
     {
       "type": "assert_invalid",
       "line": 186,
       "filename": "simd_load.21.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     }
   ]
 }

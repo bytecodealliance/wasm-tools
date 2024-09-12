@@ -5,7 +5,8 @@
       "type": "module",
       "line": 1,
       "name": "Mm",
-      "filename": "linking3.0.wasm"
+      "filename": "linking3.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -17,8 +18,8 @@
       "type": "assert_unlinkable",
       "line": 15,
       "filename": "linking3.1.wasm",
-      "text": "unknown import",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown import"
     },
     {
       "type": "assert_return",
@@ -45,8 +46,8 @@
       "type": "assert_uninstantiable",
       "line": 28,
       "filename": "linking3.2.wasm",
-      "text": "out of bounds memory access",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "out of bounds memory access"
     },
     {
       "type": "assert_return",
@@ -94,8 +95,8 @@
       "type": "assert_uninstantiable",
       "line": 40,
       "filename": "linking3.3.wasm",
-      "text": "out of bounds table access",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "out of bounds table access"
     },
     {
       "type": "assert_return",
@@ -122,7 +123,8 @@
       "type": "module",
       "line": 52,
       "name": "Ms",
-      "filename": "linking3.4.wasm"
+      "filename": "linking3.4.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -134,8 +136,8 @@
       "type": "assert_uninstantiable",
       "line": 66,
       "filename": "linking3.5.wasm",
-      "text": "unreachable",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unreachable"
     },
     {
       "type": "assert_return",

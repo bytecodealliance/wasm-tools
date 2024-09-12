@@ -5,8 +5,8 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "data-count-big.0.wasm",
-      "text": "data count section specifies too many data segments",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "data count section specifies too many data segments"
     }
   ]
 }

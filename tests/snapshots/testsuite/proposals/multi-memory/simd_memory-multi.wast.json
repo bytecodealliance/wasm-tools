@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 5,
-      "filename": "simd_memory-multi.0.wasm"
+      "filename": "simd_memory-multi.0.wasm",
+      "module_type": "binary"
     }
   ]
 }

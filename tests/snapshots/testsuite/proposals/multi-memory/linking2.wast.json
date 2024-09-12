@@ -5,7 +5,8 @@
       "type": "module",
       "line": 1,
       "name": "Mm",
-      "filename": "linking2.0.wasm"
+      "filename": "linking2.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -17,7 +18,8 @@
       "type": "module",
       "line": 14,
       "name": "Pm",
-      "filename": "linking2.1.wasm"
+      "filename": "linking2.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

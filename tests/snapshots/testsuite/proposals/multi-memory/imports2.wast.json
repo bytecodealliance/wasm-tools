@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "imports2.0.wasm"
+      "filename": "imports2.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -14,7 +15,8 @@
     {
       "type": "module",
       "line": 9,
-      "filename": "imports2.1.wasm"
+      "filename": "imports2.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -94,7 +96,8 @@
     {
       "type": "module",
       "line": 22,
-      "filename": "imports2.2.wasm"
+      "filename": "imports2.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -174,54 +177,56 @@
     {
       "type": "module",
       "line": 33,
-      "filename": "imports2.3.wasm"
+      "filename": "imports2.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 39,
-      "filename": "imports2.4.wasm"
+      "filename": "imports2.4.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_unlinkable",
       "line": 49,
       "filename": "imports2.5.wasm",
-      "text": "unknown import",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown import"
     },
     {
       "type": "assert_unlinkable",
       "line": 53,
       "filename": "imports2.6.wasm",
-      "text": "unknown import",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown import"
     },
     {
       "type": "assert_unlinkable",
       "line": 58,
       "filename": "imports2.7.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 62,
       "filename": "imports2.8.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 66,
       "filename": "imports2.9.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     },
     {
       "type": "assert_unlinkable",
       "line": 70,
       "filename": "imports2.10.wasm",
-      "text": "incompatible import type",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "incompatible import type"
     }
   ]
 }

@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 2,
-      "filename": "memory_copy1.0.wasm"
+      "filename": "memory_copy1.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",

@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 4,
-      "filename": "relaxed_madd_nmadd.0.wasm"
+      "filename": "relaxed_madd_nmadd.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -889,7 +890,8 @@
     {
       "type": "module",
       "line": 208,
-      "filename": "relaxed_madd_nmadd.1.wasm"
+      "filename": "relaxed_madd_nmadd.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

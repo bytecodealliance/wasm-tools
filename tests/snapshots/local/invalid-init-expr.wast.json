@@ -5,15 +5,15 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "invalid-init-expr.0.wasm",
-      "text": "non-constant operator",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "non-constant operator"
     },
     {
       "type": "assert_invalid",
       "line": 8,
       "filename": "invalid-init-expr.1.wasm",
-      "text": "non-constant operator",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "non-constant operator"
     }
   ]
 }

@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "table_grow.0.wasm"
+      "filename": "table_grow.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -401,7 +402,8 @@
     {
       "type": "module",
       "line": 42,
-      "filename": "table_grow.1.wasm"
+      "filename": "table_grow.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -421,7 +423,8 @@
     {
       "type": "module",
       "line": 53,
-      "filename": "table_grow.2.wasm"
+      "filename": "table_grow.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -526,7 +529,8 @@
     {
       "type": "module",
       "line": 67,
-      "filename": "table_grow.3.wasm"
+      "filename": "table_grow.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -691,7 +695,8 @@
     {
       "type": "module",
       "line": 84,
-      "filename": "table_grow.4.wasm"
+      "filename": "table_grow.4.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -765,7 +770,8 @@
       "type": "module",
       "line": 111,
       "name": "Tgt",
-      "filename": "table_grow.5.wasm"
+      "filename": "table_grow.5.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -793,7 +799,8 @@
       "type": "module",
       "line": 117,
       "name": "Tgit1",
-      "filename": "table_grow.6.wasm"
+      "filename": "table_grow.6.wasm",
+      "module_type": "binary"
     },
     {
       "type": "register",
@@ -821,7 +828,8 @@
       "type": "module",
       "line": 124,
       "name": "Tgit2",
-      "filename": "table_grow.7.wasm"
+      "filename": "table_grow.7.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -843,50 +851,50 @@
       "type": "assert_invalid",
       "line": 135,
       "filename": "table_grow.8.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 144,
       "filename": "table_grow.9.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 153,
       "filename": "table_grow.10.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 162,
       "filename": "table_grow.11.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 171,
       "filename": "table_grow.12.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 181,
       "filename": "table_grow.13.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 190,
       "filename": "table_grow.14.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     }
   ]
 }
