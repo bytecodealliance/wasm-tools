@@ -1079,7 +1079,15 @@ impl ComponentState {
         func_ty_index: u32,
         types: &mut TypeAlloc,
         offset: usize,
+        is_proposal_enabled: bool,
     ) -> Result<()> {
+        if !is_proposal_enabled {
+            bail!(
+                offset,
+                "`thread.spawn` requires the shared-everything-threads proposal"
+            )
+        }
+
         // Validate the type accepted by `thread.spawn`.
         let core_type_id = match self.core_type_at(func_ty_index, offset)? {
             ComponentCoreTypeId::Sub(c) => c,
@@ -1121,8 +1129,19 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn thread_hw_concurrency(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
-        // TODO: should we record that this component uses threads?
+    pub fn thread_hw_concurrency(
+        &mut self,
+        types: &mut TypeAlloc,
+        offset: usize,
+        is_proposal_enabled: bool,
+    ) -> Result<()> {
+        if !is_proposal_enabled {
+            bail!(
+                offset,
+                "`thread.hw_concurrency` requires the shared-everything-threads proposal"
+            )
+        }
+
         let func_ty = FuncType::new([], [ValType::I32]);
         // Unlike other component model functions, this is initially added as
         // shared since checking for the concurrency value seems necessary for

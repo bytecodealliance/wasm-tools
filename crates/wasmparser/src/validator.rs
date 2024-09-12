@@ -1245,23 +1245,10 @@ impl Validator {
                     crate::CanonicalFunction::ResourceRep { resource } => {
                         current.resource_rep(resource, types, offset)
                     }
-                    crate::CanonicalFunction::ThreadSpawn { func_ty_index } => {
-                        if !shared_everything_threads {
-                            bail!(
-                                offset,
-                                "invalid `thread.spawn`; shared-everything threads is not enabled"
-                            )
-                        }
-                        current.thread_spawn(func_ty_index, types, offset)
-                    }
+                    crate::CanonicalFunction::ThreadSpawn { func_ty_index } => current
+                        .thread_spawn(func_ty_index, types, offset, shared_everything_threads),
                     crate::CanonicalFunction::ThreadHwConcurrency => {
-                        if !shared_everything_threads {
-                            bail!(
-                                offset,
-                                "invalid `thread.hw_concurrency`; shared-everything threads is not enabled"
-                            )
-                        }
-                        current.thread_hw_concurrency(types, offset)
+                        current.thread_hw_concurrency(types, offset, shared_everything_threads)
                     }
                 }
             },
