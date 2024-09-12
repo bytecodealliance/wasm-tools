@@ -1088,14 +1088,12 @@ impl ComponentState {
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
-        // TODO: should we record what types can be spawned?
-        // TODO: should we record that this component uses threads?
-
         // Validate the type accepted by `thread.spawn`.
-        let sub_ty = match self.core_type_at(func_ty_index, offset)? {
-            ComponentCoreTypeId::Sub(sub) => &types[sub],
+        let core_type_id = match self.core_type_at(func_ty_index, offset)? {
+            ComponentCoreTypeId::Sub(c) => c,
             ComponentCoreTypeId::Module(_) => bail!(offset, "expected a core function type"),
         };
+        let sub_ty = &types[core_type_id];
         if !sub_ty.composite_type.shared {
             bail!(offset, "spawn type must be shared");
         }
@@ -1115,7 +1113,9 @@ impl ComponentState {
         }
 
         // Insert the core function.
-        let packed_index = PackedIndex::from_rec_group_index(func_ty_index).expect("TODO"); // TODO: it's not clear that we're creating this correctly.
+        let packed_index = PackedIndex::from_id(core_type_id).ok_or_else(|| {
+            format_err!(offset, "implementation limit: too many types in `TypeList`")
+        })?;
         let start_func_ref = RefType::concrete(true, packed_index);
         let func_ty = FuncType::new([ValType::Ref(start_func_ref), ValType::I32], [ValType::I32]);
         // Like other component model functions, this is initially added as
