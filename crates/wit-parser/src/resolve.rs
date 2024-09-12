@@ -15,8 +15,8 @@ use crate::serde_::{serialize_arena, serialize_id_map};
 use crate::{
     AstItem, Docs, Error, Function, FunctionKind, Handle, IncludeName, Interface, InterfaceId,
     InterfaceSpan, PackageName, Results, SourceMap, Stability, Type, TypeDef, TypeDefKind, TypeId,
-    TypeOwner, UnresolvedPackage, UnresolvedPackageGroup, World, WorldId, WorldItem, WorldKey,
-    WorldSpan,
+    TypeIdVisitor, TypeOwner, UnresolvedPackage, UnresolvedPackageGroup, World, WorldId, WorldItem,
+    WorldKey, WorldSpan,
 };
 
 /// Representation of a fully resolved set of WIT packages.
@@ -724,6 +724,9 @@ package {name} is defined in two different locations:\n\
         }
 
         log::trace!("now have {} packages", self.packages.len());
+
+        #[cfg(debug_assertions)]
+        self.assert_valid();
         Ok(remap)
     }
 
@@ -796,6 +799,8 @@ package {name} is defined in two different locations:\n\
             assert!(prev.is_none());
         }
 
+        #[cfg(debug_assertions)]
+        self.assert_valid();
         Ok(())
     }
 
@@ -1287,9 +1292,11 @@ package {name} is defined in two different locations:\n\
                 match item {
                     WorldItem::Interface { .. } => {}
                     WorldItem::Function(f) => {
+                        assert!(!matches!(name, WorldKey::Interface(_)));
                         assert_eq!(f.name, name.clone().unwrap_name());
                     }
                     WorldItem::Type(ty) => {
+                        assert!(!matches!(name, WorldKey::Interface(_)));
                         assert!(types.insert(*ty));
                         let ty = &self.types[*ty];
                         assert_eq!(ty.name, Some(name.clone().unwrap_name()));
@@ -1302,6 +1309,7 @@ package {name} is defined in two different locations:\n\
                     }
                 }
             }
+            self.assert_world_elaborated(world);
             world_types.push(types);
         }
 
@@ -1388,6 +1396,141 @@ package {name} is defined in two different locations:\n\
             } else {
                 assert!(other_package_pos < my_package_pos);
             }
+        }
+    }
+
+    fn assert_world_elaborated(&self, world: &World) {
+        for (key, item) in world.imports.iter() {
+            log::debug!(
+                "asserting elaborated world import {}",
+                self.name_world_key(key)
+            );
+            match item {
+                WorldItem::Type(t) => self.assert_world_imports_type_deps(world, key, *t),
+
+                // All types referred to must be imported.
+                WorldItem::Function(f) => self.assert_world_function_imports_types(world, key, f),
+
+                // All direct dependencies of this interface must be imported.
+                WorldItem::Interface { id, .. } => {
+                    for dep in self.interface_direct_deps(*id) {
+                        assert!(
+                            world.imports.contains_key(&WorldKey::Interface(dep)),
+                            "world import of {} is missing transitive dep of {}",
+                            self.name_world_key(key),
+                            self.id_of(dep).unwrap(),
+                        );
+                    }
+                }
+            }
+        }
+        for (key, item) in world.exports.iter() {
+            log::debug!(
+                "asserting elaborated world export {}",
+                self.name_world_key(key)
+            );
+            match item {
+                // Types referred to by this function must be imported.
+                WorldItem::Function(f) => self.assert_world_function_imports_types(world, key, f),
+
+                // Dependencies of exported interfaces must also be exported, or
+                // if imported then that entire chain of imports must be
+                // imported and not exported.
+                WorldItem::Interface { id, .. } => {
+                    for dep in self.interface_direct_deps(*id) {
+                        let dep_key = WorldKey::Interface(dep);
+                        if !world.exports.contains_key(&dep_key) {
+                            self.assert_interface_and_all_deps_imported_and_not_exported(
+                                world, key, dep,
+                            );
+                        }
+                    }
+                }
+
+                // exported types not allowed at this time
+                WorldItem::Type(_) => unreachable!(),
+            }
+        }
+    }
+
+    fn assert_world_imports_type_deps(&self, world: &World, key: &WorldKey, ty: TypeId) {
+        // If this is a `use` statement then the referred-to interface must be
+        // imported into this world.
+        let ty = &self.types[ty];
+        if let TypeDefKind::Type(Type::Id(other)) = ty.kind {
+            if let TypeOwner::Interface(id) = self.types[other].owner {
+                let key = WorldKey::Interface(id);
+                assert!(world.imports.contains_key(&key));
+                return;
+            }
+        }
+
+        // ... otherwise any named type that this type refers to, one level
+        // deep, must be imported into this world under that name.
+
+        let mut visitor = MyVisit(self, Vec::new());
+        visitor.visit_type_def(self, ty);
+        for ty in visitor.1 {
+            let ty = &self.types[ty];
+            let Some(name) = ty.name.clone() else {
+                continue;
+            };
+            let dep_key = WorldKey::Name(name);
+            assert!(
+                world.imports.contains_key(&dep_key),
+                "world import `{}` should also force an import of `{}`",
+                self.name_world_key(key),
+                self.name_world_key(&dep_key),
+            );
+        }
+
+        struct MyVisit<'a>(&'a Resolve, Vec<TypeId>);
+
+        impl TypeIdVisitor for MyVisit<'_> {
+            fn before_visit_type_id(&mut self, id: TypeId) -> bool {
+                self.1.push(id);
+                // recurse into unnamed types to look at all named types
+                self.0.types[id].name.is_none()
+            }
+        }
+    }
+
+    /// This asserts that all types referred to by `func` are imported into
+    /// `world` under `WorldKey::Name`. Note that this is only applicable to
+    /// named type
+    fn assert_world_function_imports_types(&self, world: &World, key: &WorldKey, func: &Function) {
+        for ty in func
+            .parameter_and_result_types()
+            .chain(func.kind.resource().map(Type::Id))
+        {
+            let Type::Id(id) = ty else {
+                continue;
+            };
+            self.assert_world_imports_type_deps(world, key, id);
+        }
+    }
+
+    fn assert_interface_and_all_deps_imported_and_not_exported(
+        &self,
+        world: &World,
+        key: &WorldKey,
+        id: InterfaceId,
+    ) {
+        let dep_key = WorldKey::Interface(id);
+        assert!(
+            world.imports.contains_key(&dep_key),
+            "world should import {} (required by {})",
+            self.name_world_key(&dep_key),
+            self.name_world_key(key),
+        );
+        assert!(
+            !world.exports.contains_key(&dep_key),
+            "world should not export {} (required by {})",
+            self.name_world_key(&dep_key),
+            self.name_world_key(key),
+        );
+        for dep in self.interface_direct_deps(id) {
+            self.assert_interface_and_all_deps_imported_and_not_exported(world, key, dep);
         }
     }
 
