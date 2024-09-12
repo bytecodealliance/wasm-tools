@@ -149,14 +149,7 @@ struct Encoder<'a> {
 
 impl Encoder<'_> {
     fn run(&mut self) -> Result<()> {
-        // Build a set of interfaces reachable from this document, including the
-        // interfaces in the document itself. This is used to import instances
-        // into the component type we're encoding. Note that entire interfaces
-        // are imported with all their types as opposed to just the needed types
-        // in an interface for this document. That's done to assist with the
-        // decoding process where everyone's view of a foreign document agrees
-        // notably on the order that types are defined in to assist with
-        // roundtripping.
+        // Encode all interfaces as component types and then export them.
         for (name, &id) in self.resolve.packages[self.package].interfaces.iter() {
             let component_ty = self.encode_interface(id)?;
             let ty = self.component.type_component(&component_ty);
@@ -164,10 +157,10 @@ impl Encoder<'_> {
                 .export(name.as_ref(), ComponentExportKind::Type, ty, None);
         }
 
+        // For each `world` encode it directly as a component and then create a
+        // wrapper component that exports that component.
         for (name, &world) in self.resolve.packages[self.package].worlds.iter() {
-            // Encode the `world` directly as a component, then create a wrapper
-            // component that exports that component.
-            let component_ty = super::encode_world(self.resolve, world)?;
+            let component_ty = encode_world(self.resolve, world)?;
 
             let world = &self.resolve.worlds[world];
             let mut wrapper = ComponentType::new();
