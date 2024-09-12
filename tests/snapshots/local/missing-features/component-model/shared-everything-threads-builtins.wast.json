@@ -5,15 +5,15 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "shared-everything-threads-builtins.0.wasm",
-      "text": "`thread.spawn` requires the shared-everything-threads proposal",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "`thread.spawn` requires the shared-everything-threads proposal"
     },
     {
       "type": "assert_invalid",
       "line": 10,
       "filename": "shared-everything-threads-builtins.1.wasm",
-      "text": "`thread.hw_concurrency` requires the shared-everything-threads proposal",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "`thread.hw_concurrency` requires the shared-everything-threads proposal"
     }
   ]
 }
