@@ -174,7 +174,13 @@ pub fn validate_module<'a>(
                                 Entry::Vacant(e) => e.insert(IndexMap::new()),
                             };
 
-                            assert!(map.insert(import.name, ty).is_none());
+                            if map.insert(import.name, ty).is_some() {
+                                bail!(
+                                    "module has duplicate import for `{}::{}`",
+                                    import.module,
+                                    import.name
+                                );
+                            }
                         }
                         _ => bail!("module is only allowed to import functions"),
                     }
