@@ -272,16 +272,16 @@ impl InterfaceEncoder<'_> {
         }
     }
 
-    fn encode_instance_contents(enc: &mut InterfaceEncoder, interface: InterfaceId) -> Result<()> {
-        enc.push_instance();
-        let iface = &enc.resolve.interfaces[interface];
+    fn encode_instance_contents(&mut self, interface: InterfaceId) -> Result<InstanceType> {
+        self.push_instance();
+        let iface = &self.resolve.interfaces[interface];
         let mut type_order = IndexSet::new();
         for (_, id) in iface.types.iter() {
-            let ty = &enc.resolve.types[*id];
+            let ty = &self.resolve.types[*id];
             if let TypeOwner::Interface(iface_id) = ty.owner {
-                enc.interface = Some(iface_id);
+                self.interface = Some(iface_id);
             }
-            enc.encode_valtype(enc.resolve, &Type::Id(*id))?;
+            self.encode_valtype(self.resolve, &Type::Id(*id))?;
             type_order.insert(*id);
         }
 
@@ -309,23 +309,27 @@ impl InterfaceEncoder<'_> {
         });
 
         for (name, func) in funcs {
-            let ty = enc.encode_func_type(enc.resolve, func)?;
-            enc.ty
+            let ty = self.encode_func_type(self.resolve, func)?;
+            self.ty
                 .as_mut()
                 .unwrap()
                 .export(name, ComponentTypeRef::Func(ty));
         }
-        Ok(())
+        let mut instance = self.pop_instance();
+        for nest in &iface.nested {
+            let ty = instance.ty();
+            ty.instance(&self.encode_instance_contents(nest.id)?);
+            instance.export(
+                &self.interface_path(nest.id),
+                ComponentTypeRef::Instance(instance.type_count() - 1),
+            );
+        }
+
+        Ok(instance)
     }
 
     fn encode_instance(&mut self, interface: InterfaceId) -> Result<u32> {
-        Self::encode_instance_contents(self, interface)?;
-        let iface = &self.resolve.interfaces[interface];
-        let mut instance = self.pop_instance();
-        for nest in &iface.nested {
-            self.encode_nested(&self.interface_path(nest.id), nest.id, &mut instance)?;
-        }
-
+        let instance = self.encode_instance_contents(interface)?;
         let idx = self.outer.type_count();
         self.outer.ty().instance(&instance);
         self.import_map.insert(interface, self.instances);
@@ -348,30 +352,6 @@ impl InterfaceEncoder<'_> {
         } else {
             format!("{}/{}", pkg.name.to_string(), iface.name.as_ref().unwrap())
         }
-    }
-
-    fn encode_nested<'a>(
-        &mut self,
-        name: &str,
-        iface_id: InterfaceId,
-        instance: &'a mut InstanceType,
-    ) -> Result<()> {
-        let mut inst = InterfaceEncoder::new(&self.resolve);
-        Self::encode_instance_contents(&mut inst, iface_id)?;
-        let ty = instance.ty();
-        let nested_instance = &mut inst.pop_instance();
-        let iface = &self.resolve.interfaces[iface_id];
-        for deep_nest in &iface.nested {
-            let mut inst = InterfaceEncoder::new(&self.resolve);
-            inst.encode_nested(
-                &self.interface_path(deep_nest.id),
-                deep_nest.id,
-                nested_instance,
-            )?;
-        }
-        ty.instance(&nested_instance);
-        instance.export(name, ComponentTypeRef::Instance(instance.type_count() - 1));
-        Ok(())
     }
 
     fn push_instance(&mut self) {
