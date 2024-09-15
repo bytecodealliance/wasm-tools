@@ -22,8 +22,4 @@ wasmparser = { workspace = true, features = ['std'] }
 termcolor = { workspace = true }
 
 [dev-dependencies]
-diff = "0.1"
-rayon = { workspace = true }
-tempfile = "3.0"
 wat = { path = "../wat" }
-wast = { path = "../wast" }

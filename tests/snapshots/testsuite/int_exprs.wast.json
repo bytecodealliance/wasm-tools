@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 6,
-      "filename": "int_exprs.0.wasm"
+      "filename": "int_exprs.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -105,7 +106,8 @@
     {
       "type": "module",
       "line": 25,
-      "filename": "int_exprs.1.wasm"
+      "filename": "int_exprs.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -150,7 +152,8 @@
     {
       "type": "module",
       "line": 35,
-      "filename": "int_exprs.2.wasm"
+      "filename": "int_exprs.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -175,7 +178,8 @@
     {
       "type": "module",
       "line": 44,
-      "filename": "int_exprs.3.wasm"
+      "filename": "int_exprs.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -260,7 +264,8 @@
     {
       "type": "module",
       "line": 63,
-      "filename": "int_exprs.4.wasm"
+      "filename": "int_exprs.4.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -345,7 +350,8 @@
     {
       "type": "module",
       "line": 82,
-      "filename": "int_exprs.5.wasm"
+      "filename": "int_exprs.5.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -430,7 +436,8 @@
     {
       "type": "module",
       "line": 101,
-      "filename": "int_exprs.6.wasm"
+      "filename": "int_exprs.6.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -495,7 +502,8 @@
     {
       "type": "module",
       "line": 120,
-      "filename": "int_exprs.7.wasm"
+      "filename": "int_exprs.7.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -560,7 +568,8 @@
     {
       "type": "module",
       "line": 139,
-      "filename": "int_exprs.8.wasm"
+      "filename": "int_exprs.8.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -645,7 +654,8 @@
     {
       "type": "module",
       "line": 158,
-      "filename": "int_exprs.9.wasm"
+      "filename": "int_exprs.9.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -690,7 +700,8 @@
     {
       "type": "module",
       "line": 171,
-      "filename": "int_exprs.10.wasm"
+      "filename": "int_exprs.10.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -735,7 +746,8 @@
     {
       "type": "module",
       "line": 184,
-      "filename": "int_exprs.11.wasm"
+      "filename": "int_exprs.11.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -800,7 +812,8 @@
     {
       "type": "module",
       "line": 203,
-      "filename": "int_exprs.12.wasm"
+      "filename": "int_exprs.12.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -965,7 +978,8 @@
     {
       "type": "module",
       "line": 226,
-      "filename": "int_exprs.13.wasm"
+      "filename": "int_exprs.13.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1130,7 +1144,8 @@
     {
       "type": "module",
       "line": 249,
-      "filename": "int_exprs.14.wasm"
+      "filename": "int_exprs.14.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1295,7 +1310,8 @@
     {
       "type": "module",
       "line": 272,
-      "filename": "int_exprs.15.wasm"
+      "filename": "int_exprs.15.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1460,7 +1476,8 @@
     {
       "type": "module",
       "line": 295,
-      "filename": "int_exprs.16.wasm"
+      "filename": "int_exprs.16.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1625,7 +1642,8 @@
     {
       "type": "module",
       "line": 318,
-      "filename": "int_exprs.17.wasm"
+      "filename": "int_exprs.17.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1790,7 +1808,8 @@
     {
       "type": "module",
       "line": 341,
-      "filename": "int_exprs.18.wasm"
+      "filename": "int_exprs.18.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",

@@ -103,16 +103,11 @@ impl<'a> Component<'a> {
         }
         Ok(())
     }
-}
 
-impl<'a> Parse<'a> for Component<'a> {
-    fn parse(parser: Parser<'a>) -> Result<Self> {
-        let _r = parser.register_annotation("custom");
-        let _r = parser.register_annotation("producers");
-        let _r = parser.register_annotation("name");
-        let _r = parser.register_annotation("metadata.code.branch_hint");
-
-        let span = parser.parse::<kw::component>()?.0;
+    pub(crate) fn parse_without_component_keyword(
+        component_keyword_span: Span,
+        parser: Parser<'a>,
+    ) -> Result<Self> {
         let id = parser.parse()?;
         let name = parser.parse()?;
 
@@ -127,10 +122,19 @@ impl<'a> Parse<'a> for Component<'a> {
             ComponentKind::Text(ComponentField::parse_remaining(parser)?)
         };
         Ok(Component {
-            span,
+            span: component_keyword_span,
             id,
             name,
             kind,
+        })
+    }
+}
+
+impl<'a> Parse<'a> for Component<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.with_standard_annotations_registered(|parser| {
+            let span = parser.parse::<kw::component>()?.0;
+            Component::parse_without_component_keyword(span, parser)
         })
     }
 }
@@ -157,7 +161,7 @@ pub enum ComponentField<'a> {
 }
 
 impl<'a> ComponentField<'a> {
-    fn parse_remaining(parser: Parser<'a>) -> Result<Vec<ComponentField>> {
+    fn parse_remaining(parser: Parser<'a>) -> Result<Vec<ComponentField<'a>>> {
         let mut fields = Vec::new();
         while !parser.is_empty() {
             fields.push(parser.parens(ComponentField::parse)?);

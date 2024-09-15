@@ -11,7 +11,6 @@ pub struct Tokenizer<'a> {
     input: &'a str,
     span_offset: u32,
     chars: CrlfFold<'a>,
-    require_semicolons: bool,
     require_f32_f64: bool,
 }
 
@@ -118,14 +117,12 @@ pub enum Error {
 }
 
 // NB: keep in sync with `crates/wit-component/src/printing.rs`.
-const REQUIRE_SEMICOLONS_BY_DEFAULT: bool = true;
-const REQUIRE_F32_F64_BY_DEFAULT: bool = false;
+const REQUIRE_F32_F64_BY_DEFAULT: bool = true;
 
 impl<'a> Tokenizer<'a> {
     pub fn new(
         input: &'a str,
         span_offset: u32,
-        require_semicolons: Option<bool>,
         require_f32_f64: Option<bool>,
     ) -> Result<Tokenizer<'a>> {
         detect_invalid_input(input)?;
@@ -136,12 +133,6 @@ impl<'a> Tokenizer<'a> {
             chars: CrlfFold {
                 chars: input.char_indices(),
             },
-            require_semicolons: require_semicolons.unwrap_or_else(|| {
-                match std::env::var("WIT_REQUIRE_SEMICOLONS") {
-                    Ok(s) => s == "1",
-                    Err(_) => REQUIRE_SEMICOLONS_BY_DEFAULT,
-                }
-            }),
             require_f32_f64: require_f32_f64.unwrap_or_else(|| {
                 match std::env::var("WIT_REQUIRE_F32_F64") {
                     Ok(s) => s == "1",
@@ -155,11 +146,7 @@ impl<'a> Tokenizer<'a> {
     }
 
     pub fn expect_semicolon(&mut self) -> Result<()> {
-        if self.require_semicolons {
-            self.expect(Token::Semicolon)?;
-        } else {
-            self.eat(Token::Semicolon)?;
-        }
+        self.expect(Token::Semicolon)?;
         Ok(())
     }
 
@@ -671,7 +658,7 @@ fn test_validate_id() {
 #[test]
 fn test_tokenizer() {
     fn collect(s: &str) -> Result<Vec<Token>> {
-        let mut t = Tokenizer::new(s, 0, Some(true), None)?;
+        let mut t = Tokenizer::new(s, 0, None)?;
         let mut tokens = Vec::new();
         while let Some(token) = t.next()? {
             tokens.push(token.1);

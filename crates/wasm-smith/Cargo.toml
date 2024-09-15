@@ -35,7 +35,7 @@ wat = { workspace = true, optional = true }
 [dev-dependencies]
 criterion = { workspace = true }
 rand = { workspace = true }
-wasmparser = { workspace = true, features = ["validate"] }
+wasmparser = { workspace = true, features = ["validate", "features"] }
 wasmprinter = { path = "../wasmprinter" }
 wat = { path = "../wat" }
 

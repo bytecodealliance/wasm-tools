@@ -2,18 +2,18 @@
 //!
 
 mod canonical;
+pub(crate) use canonical::InternRecGroup;
 
-use self::{arc::MaybeOwned, canonical::canonicalize_and_intern_rec_group};
+use self::arc::MaybeOwned;
 use super::{
     check_max, combine_type_sizes,
     operators::{ty_to_str, OperatorValidator, OperatorValidatorAllocations},
     types::{CoreTypeId, EntityType, RecGroupId, TypeAlloc, TypeList},
 };
 use crate::{
-    limits::*, validator::types::TypeIdentifier, BinaryReaderError, CompositeType, ConstExpr, Data,
-    DataKind, Element, ElementKind, ExternalKind, FuncType, Global, GlobalType, HeapType,
-    MemoryType, PackedIndex, RecGroup, RefType, Result, StorageType, SubType, Table, TableInit,
-    TableType, TagType, TypeRef, UnpackedIndex, ValType, VisitOperator, WasmFeatures,
+    limits::*, BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind,
+    FuncType, Global, GlobalType, HeapType, MemoryType, RecGroup, RefType, Result, SubType, Table,
+    TableInit, TableType, TagType, TypeRef, UnpackedIndex, ValType, VisitOperator, WasmFeatures,
     WasmModuleResources,
 };
 use crate::{prelude::*, CompositeInnerType};
@@ -344,6 +344,20 @@ impl ModuleState {
                 }
             }
 
+            fn validate_shared_everything_threads(&mut self, op: &str) -> Result<()> {
+                if self.features.shared_everything_threads() {
+                    Ok(())
+                } else {
+                    Err(BinaryReaderError::new(
+                        format!(
+                            "constant expression required: non-constant operator: {}",
+                            op
+                        ),
+                        self.offset,
+                    ))
+                }
+            }
+
             fn validate_global(&mut self, index: u32) -> Result<()> {
                 let module = &self.resources.module;
                 let global = module.global_at(index, self.offset)?;
@@ -479,6 +493,10 @@ impl ModuleState {
                 $self.validate_gc("ref.i31")?;
                 $self.validator().visit_ref_i31()
             }};
+            (@visit $self:ident visit_ref_i31_shared) => {{
+                $self.validate_shared_everything_threads("ref.i31_shared")?;
+                $self.validator().visit_ref_i31_shared()
+            }};
 
             // `global.get` is a valid const expression for imported, immutable
             // globals.
@@ -534,21 +552,6 @@ pub(crate) struct Module {
 }
 
 impl Module {
-    /// Get the `CoreTypeId` of the type at the given packed index.
-    pub(crate) fn at_packed_index(
-        &self,
-        types: &TypeList,
-        rec_group: RecGroupId,
-        index: PackedIndex,
-        offset: usize,
-    ) -> Result<CoreTypeId> {
-        match index.unpack() {
-            UnpackedIndex::Id(id) => Ok(id),
-            UnpackedIndex::Module(idx) => self.type_id_at(idx, offset),
-            UnpackedIndex::RecGroup(idx) => types.rec_group_local_id(rec_group, idx, offset),
-        }
-    }
-
     pub fn add_types(
         &mut self,
         rec_group: RecGroup,
@@ -557,14 +560,6 @@ impl Module {
         offset: usize,
         check_limit: bool,
     ) -> Result<()> {
-        debug_assert!(rec_group.is_explicit_rec_group() || rec_group.types().len() == 1);
-        if rec_group.is_explicit_rec_group() && !features.gc() {
-            bail!(
-                offset,
-                "rec group usage requires `gc` proposal to be enabled"
-            );
-        }
-
         if check_limit {
             check_max(
                 self.types.len(),
@@ -574,143 +569,7 @@ impl Module {
                 offset,
             )?;
         }
-
-        let (is_new, rec_group_id) =
-            canonicalize_and_intern_rec_group(features, types, self, rec_group, offset)?;
-
-        let range = &types[rec_group_id];
-        let start = range.start.index();
-        let end = range.end.index();
-
-        for i in start..end {
-            let i = u32::try_from(i).unwrap();
-            let id = CoreTypeId::from_index(i);
-            debug_assert!(types.get(id).is_some());
-            self.types.push(id);
-            if is_new {
-                self.check_subtype(rec_group_id, id, features, types, offset)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    fn check_subtype(
-        &mut self,
-        rec_group: RecGroupId,
-        id: CoreTypeId,
-        features: &WasmFeatures,
-        types: &mut TypeAlloc,
-        offset: usize,
-    ) -> Result<()> {
-        let ty = &types[id];
-        if !features.gc() && (!ty.is_final || ty.supertype_idx.is_some()) {
-            bail!(offset, "gc proposal must be enabled to use subtypes");
-        }
-
-        self.check_composite_type(&ty.composite_type, features, &types, offset)?;
-
-        let depth = if let Some(supertype_index) = ty.supertype_idx {
-            debug_assert!(supertype_index.is_canonical());
-            let sup_id = self.at_packed_index(types, rec_group, supertype_index, offset)?;
-            if types[sup_id].is_final {
-                bail!(offset, "sub type cannot have a final super type");
-            }
-            if !types.matches(id, sup_id) {
-                bail!(offset, "sub type must match super type");
-            }
-            let depth = types.get_subtyping_depth(sup_id) + 1;
-            if usize::from(depth) > crate::limits::MAX_WASM_SUBTYPING_DEPTH {
-                bail!(
-                    offset,
-                    "sub type hierarchy too deep: found depth {}, cannot exceed depth {}",
-                    depth,
-                    crate::limits::MAX_WASM_SUBTYPING_DEPTH,
-                );
-            }
-            depth
-        } else {
-            0
-        };
-        types.set_subtyping_depth(id, depth);
-
-        Ok(())
-    }
-
-    fn check_composite_type(
-        &mut self,
-        ty: &CompositeType,
-        features: &WasmFeatures,
-        types: &TypeList,
-        offset: usize,
-    ) -> Result<()> {
-        let check = |ty: &ValType, shared: bool| {
-            features
-                .check_value_type(*ty)
-                .map_err(|e| BinaryReaderError::new(e, offset))?;
-            if shared && !types.valtype_is_shared(*ty) {
-                return Err(BinaryReaderError::new(
-                    "shared composite type must contain shared types",
-                    offset,
-                ));
-                // The other cases are fine:
-                // - both shared or unshared: good to go
-                // - the func type is unshared, `ty` is shared: though
-                //   odd, we _can_ in fact use shared values in
-                //   unshared composite types (e.g., functions).
-            }
-            Ok(())
-        };
-        if !features.shared_everything_threads() && ty.shared {
-            return Err(BinaryReaderError::new(
-                "shared composite types are not supported without the shared-everything-threads feature",
-                offset,
-            ));
-        }
-        match &ty.inner {
-            CompositeInnerType::Func(t) => {
-                for vt in t.params().iter().chain(t.results()) {
-                    check(vt, ty.shared)?;
-                }
-                if t.results().len() > 1 && !features.multi_value() {
-                    return Err(BinaryReaderError::new(
-                        "func type returns multiple values but the multi-value feature is not enabled",
-                        offset,
-                    ));
-                }
-            }
-            CompositeInnerType::Array(t) => {
-                if !features.gc() {
-                    return Err(BinaryReaderError::new(
-                        "array indexed types not supported without the gc feature",
-                        offset,
-                    ));
-                }
-                match &t.0.element_type {
-                    StorageType::I8 | StorageType::I16 => {
-                        // Note: scalar types are always `shared`.
-                    }
-                    StorageType::Val(value_type) => check(value_type, ty.shared)?,
-                };
-            }
-            CompositeInnerType::Struct(t) => {
-                if !features.gc() {
-                    return Err(BinaryReaderError::new(
-                        "struct indexed types not supported without the gc feature",
-                        offset,
-                    ));
-                }
-                for ft in t.fields.iter() {
-                    match &ft.element_type {
-                        StorageType::I8 | StorageType::I16 => {
-                            // Note: scalar types are always `shared`.
-                        }
-                        StorageType::Val(value_type) => check(value_type, ty.shared)?,
-                    }
-                }
-            }
-        }
-        Ok(())
+        self.canonicalize_and_intern_rec_group(features, types, rec_group, offset)
     }
 
     pub fn add_import(
@@ -827,13 +686,6 @@ impl Module {
         self.check_tag_type(&ty, features, types, offset)?;
         self.tags.push(self.types[ty.func_type_idx as usize]);
         Ok(())
-    }
-
-    pub fn type_id_at(&self, idx: u32, offset: usize) -> Result<CoreTypeId> {
-        self.types
-            .get(idx as usize)
-            .copied()
-            .ok_or_else(|| format_err!(offset, "unknown type {idx}: type index out of bounds"))
     }
 
     fn sub_type_at<'a>(&self, types: &'a TypeList, idx: u32, offset: usize) -> Result<&'a SubType> {
@@ -1246,6 +1098,23 @@ impl Module {
     }
 }
 
+impl InternRecGroup for Module {
+    fn add_type_id(&mut self, id: CoreTypeId) {
+        self.types.push(id);
+    }
+
+    fn type_id_at(&self, idx: u32, offset: usize) -> Result<CoreTypeId> {
+        self.types
+            .get(idx as usize)
+            .copied()
+            .ok_or_else(|| format_err!(offset, "unknown type {idx}: type index out of bounds"))
+    }
+
+    fn types_len(&self) -> u32 {
+        u32::try_from(self.types.len()).unwrap()
+    }
+}
+
 impl Default for Module {
     fn default() -> Self {
         Self {
@@ -1301,9 +1170,8 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
         self.module.types.get(*type_index as usize).copied()
     }
 
-    fn type_of_function(&self, at: u32) -> Option<&FuncType> {
-        let type_index = self.module.functions.get(at as usize)?;
-        Some(self.sub_type_at(*type_index)?.composite_type.unwrap_func())
+    fn type_index_of_function(&self, at: u32) -> Option<u32> {
+        self.module.functions.get(at as usize).copied()
     }
 
     fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<()> {
@@ -1320,6 +1188,10 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
 
     fn is_subtype(&self, a: ValType, b: ValType) -> bool {
         self.types.valtype_is_subtype(a, b)
+    }
+
+    fn is_shared(&self, ty: RefType) -> bool {
+        self.types.reftype_is_shared(ty)
     }
 
     fn element_count(&self) -> u32 {
@@ -1373,9 +1245,8 @@ impl WasmModuleResources for ValidatorResources {
         self.0.types.get(type_index as usize).copied()
     }
 
-    fn type_of_function(&self, at: u32) -> Option<&FuncType> {
-        let type_index = *self.0.functions.get(at as usize)?;
-        Some(self.sub_type_at(type_index)?.composite_type.unwrap_func())
+    fn type_index_of_function(&self, at: u32) -> Option<u32> {
+        self.0.functions.get(at as usize).copied()
     }
 
     fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<()> {
@@ -1392,6 +1263,10 @@ impl WasmModuleResources for ValidatorResources {
 
     fn is_subtype(&self, a: ValType, b: ValType) -> bool {
         self.0.snapshot.as_ref().unwrap().valtype_is_subtype(a, b)
+    }
+
+    fn is_shared(&self, ty: RefType) -> bool {
+        self.0.snapshot.as_ref().unwrap().reftype_is_shared(ty)
     }
 
     fn element_count(&self) -> u32 {

@@ -5,8 +5,8 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "v128-without-simd-feature.0.wasm",
-      "text": "SIMD support is not enabled",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "SIMD support is not enabled"
     }
   ]
 }

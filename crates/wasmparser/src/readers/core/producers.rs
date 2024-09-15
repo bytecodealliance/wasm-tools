@@ -22,8 +22,8 @@ use crate::{BinaryReader, FromReader, Result, SectionLimited};
 /// ```
 /// # let data: &[u8] = &[0x01, 0x08, 0x6c, 0x61, 0x6e, 0x67, 0x75, 0x61, 0x67, 0x65,
 /// #     0x02, 0x03, 0x77, 0x61, 0x74, 0x01, 0x31, 0x01, 0x43, 0x03, 0x39, 0x2e, 0x30];
-/// # use wasmparser::{ProducersSectionReader, ProducersFieldValue, Result, BinaryReader, WasmFeatures};
-/// let reader = BinaryReader::new(data, 0, WasmFeatures::all());
+/// # use wasmparser::{ProducersSectionReader, ProducersFieldValue, Result, BinaryReader};
+/// let reader = BinaryReader::new(data, 0);
 /// let reader = ProducersSectionReader::new(reader).expect("producers reader");
 /// let field = reader.into_iter().next().unwrap().expect("producers field");
 /// assert!(field.name == "language");

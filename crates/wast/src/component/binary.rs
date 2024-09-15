@@ -3,11 +3,12 @@ use crate::core;
 use crate::core::EncodeOptions;
 use crate::token::{Id, Index, NameAnnotation, Span};
 use wasm_encoder::{
-    CanonicalFunctionSection, ComponentAliasSection, ComponentDefinedTypeEncoder,
-    ComponentExportSection, ComponentImportSection, ComponentInstanceSection, ComponentNameSection,
-    ComponentSection, ComponentSectionId, ComponentStartSection, ComponentTypeEncoder,
-    ComponentTypeSection, CoreTypeEncoder, CoreTypeSection, InstanceSection, NameMap,
-    NestedComponentSection, RawSection, SectionId,
+    CanonicalFunctionSection, ComponentAliasSection, ComponentCoreTypeEncoder,
+    ComponentDefinedTypeEncoder, ComponentExportSection, ComponentImportSection,
+    ComponentInstanceSection, ComponentNameSection, ComponentSection, ComponentSectionId,
+    ComponentStartSection, ComponentTypeEncoder, ComponentTypeSection, CompositeType,
+    CoreTypeSection, InstanceSection, NameMap, NestedComponentSection, RawSection, SectionId,
+    SubType,
 };
 
 pub fn encode(component: &Component<'_>, options: &EncodeOptions) -> Vec<u8> {
@@ -55,23 +56,18 @@ fn encode_fields(
     e.component
 }
 
-fn encode_core_type(encoder: CoreTypeEncoder, ty: &CoreTypeDef) {
+fn encode_core_type(encoder: ComponentCoreTypeEncoder, ty: &CoreTypeDef) {
     match ty {
         CoreTypeDef::Def(def) => {
-            if def.shared {
-                todo!("encoding of shared types not yet implemented")
-            }
-            match &def.kind {
-                core::InnerTypeKind::Func(f) => {
-                    encoder.function(
-                        f.params.iter().map(|(_, _, ty)| (*ty).into()),
-                        f.results.iter().copied().map(Into::into),
-                    );
-                }
-                core::InnerTypeKind::Struct(_) | core::InnerTypeKind::Array(_) => {
-                    todo!("encoding of GC proposal types not yet implemented")
-                }
-            }
+            let sub_type = SubType {
+                is_final: true,
+                supertype_idx: None,
+                composite_type: CompositeType {
+                    shared: def.shared,
+                    inner: (&def.kind).into(),
+                },
+            };
+            encoder.core().subtype(&sub_type);
         }
         CoreTypeDef::Module(t) => {
             encoder.module(&t.into());
@@ -606,23 +602,23 @@ impl From<core::HeapType<'_>> for wasm_encoder::HeapType {
     fn from(r: core::HeapType<'_>) -> Self {
         use wasm_encoder::AbstractHeapType::*;
         match r {
-            core::HeapType::Abstract { shared, ty } => match ty {
-                core::AbstractHeapType::Func => Self::Abstract { shared, ty: Func },
-                core::AbstractHeapType::Extern => Self::Abstract { shared, ty: Extern },
-                core::AbstractHeapType::Exn | core::AbstractHeapType::NoExn => {
-                    todo!("encoding of exceptions proposal types not yet implemented")
-                }
-                core::AbstractHeapType::Any
-                | core::AbstractHeapType::Eq
-                | core::AbstractHeapType::Struct
-                | core::AbstractHeapType::Array
-                | core::AbstractHeapType::NoFunc
-                | core::AbstractHeapType::NoExtern
-                | core::AbstractHeapType::None
-                | core::AbstractHeapType::I31 => {
-                    todo!("encoding of GC proposal types not yet implemented")
-                }
-            },
+            core::HeapType::Abstract { shared, ty } => {
+                let ty = match ty {
+                    core::AbstractHeapType::Func => Func,
+                    core::AbstractHeapType::Extern => Extern,
+                    core::AbstractHeapType::Exn => Exn,
+                    core::AbstractHeapType::NoExn => NoExn,
+                    core::AbstractHeapType::Any => Any,
+                    core::AbstractHeapType::Eq => Eq,
+                    core::AbstractHeapType::Struct => Struct,
+                    core::AbstractHeapType::Array => Array,
+                    core::AbstractHeapType::NoFunc => NoFunc,
+                    core::AbstractHeapType::NoExtern => NoExtern,
+                    core::AbstractHeapType::None => None,
+                    core::AbstractHeapType::I31 => I31,
+                };
+                Self::Abstract { shared, ty }
+            }
             core::HeapType::Concrete(Index::Num(i, _)) => Self::Concrete(i),
             core::HeapType::Concrete(_) => panic!("unresolved index"),
         }
@@ -884,15 +880,17 @@ impl From<&ModuleType<'_>> for wasm_encoder::ModuleType {
 
         for decl in &ty.decls {
             match decl {
-                ModuleTypeDecl::Type(t) => match &t.def.kind {
-                    core::InnerTypeKind::Func(f) => encoded.ty().function(
-                        f.params.iter().map(|(_, _, ty)| (*ty).into()),
-                        f.results.iter().copied().map(Into::into),
-                    ),
-                    core::InnerTypeKind::Struct(_) | core::InnerTypeKind::Array(_) => {
-                        todo!("encoding of GC proposal types not yet implemented")
-                    }
-                },
+                ModuleTypeDecl::Type(t) => {
+                    let sub_type = SubType {
+                        is_final: t.final_type.unwrap_or(true),
+                        supertype_idx: t.parent.map(u32::from),
+                        composite_type: CompositeType {
+                            shared: t.def.shared,
+                            inner: (&t.def.kind).into(),
+                        },
+                    };
+                    encoded.ty().subtype(&sub_type);
+                }
                 ModuleTypeDecl::Alias(a) => match &a.target {
                     AliasTarget::Outer {
                         outer,

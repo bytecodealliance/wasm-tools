@@ -1,5 +1,1 @@
-failed to decode world from module
-
-Caused by:
-    0: module was not valid
-    1: module does not export required function `a`
+failed to decode world from module: module was not valid: module does not export required function `a`

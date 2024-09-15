@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 3,
-      "filename": "ref_test.0.wasm"
+      "filename": "ref_test.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -1343,7 +1344,8 @@
     {
       "type": "module",
       "line": 182,
-      "filename": "ref_test.1.wasm"
+      "filename": "ref_test.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

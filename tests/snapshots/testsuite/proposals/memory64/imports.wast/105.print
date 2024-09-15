@@ -1,0 +1,3 @@
+(module
+  (import "spectest" "table" (table (;0;) 0 funcref))
+)

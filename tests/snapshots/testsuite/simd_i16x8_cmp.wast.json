@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 4,
-      "filename": "simd_i16x8_cmp.0.wasm"
+      "filename": "simd_i16x8_cmp.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -22890,76 +22891,77 @@
       "type": "assert_invalid",
       "line": 1455,
       "filename": "simd_i16x8_cmp.1.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1456,
       "filename": "simd_i16x8_cmp.2.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1457,
       "filename": "simd_i16x8_cmp.3.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1458,
       "filename": "simd_i16x8_cmp.4.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1459,
       "filename": "simd_i16x8_cmp.5.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1460,
       "filename": "simd_i16x8_cmp.6.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1461,
       "filename": "simd_i16x8_cmp.7.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1462,
       "filename": "simd_i16x8_cmp.8.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1463,
       "filename": "simd_i16x8_cmp.9.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1464,
       "filename": "simd_i16x8_cmp.10.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "module",
       "line": 1469,
-      "filename": "simd_i16x8_cmp.11.wasm"
+      "filename": "simd_i16x8_cmp.11.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -23095,141 +23097,141 @@
       "type": "assert_invalid",
       "line": 1743,
       "filename": "simd_i16x8_cmp.12.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1751,
       "filename": "simd_i16x8_cmp.13.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1759,
       "filename": "simd_i16x8_cmp.14.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1767,
       "filename": "simd_i16x8_cmp.15.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1775,
       "filename": "simd_i16x8_cmp.16.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1783,
       "filename": "simd_i16x8_cmp.17.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1791,
       "filename": "simd_i16x8_cmp.18.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1799,
       "filename": "simd_i16x8_cmp.19.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1807,
       "filename": "simd_i16x8_cmp.20.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1815,
       "filename": "simd_i16x8_cmp.21.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1823,
       "filename": "simd_i16x8_cmp.22.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1831,
       "filename": "simd_i16x8_cmp.23.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1839,
       "filename": "simd_i16x8_cmp.24.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1847,
       "filename": "simd_i16x8_cmp.25.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1855,
       "filename": "simd_i16x8_cmp.26.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1863,
       "filename": "simd_i16x8_cmp.27.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1871,
       "filename": "simd_i16x8_cmp.28.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1879,
       "filename": "simd_i16x8_cmp.29.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1887,
       "filename": "simd_i16x8_cmp.30.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 1895,
       "filename": "simd_i16x8_cmp.31.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     }
   ]
 }

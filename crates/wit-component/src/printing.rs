@@ -5,8 +5,7 @@ use std::mem;
 use wit_parser::*;
 
 // NB: keep in sync with `crates/wit-parser/src/ast/lex.rs`
-const PRINT_SEMICOLONS_DEFAULT: bool = true;
-const PRINT_F32_F64_DEFAULT: bool = false;
+const PRINT_F32_F64_DEFAULT: bool = true;
 
 /// A utility for printing WebAssembly interface definitions to a string.
 pub struct WitPrinter {
@@ -19,7 +18,6 @@ pub struct WitPrinter {
     // Whether to print doc comments.
     emit_docs: bool,
 
-    print_semicolons: bool,
     print_f32_f64: bool,
 }
 
@@ -29,10 +27,6 @@ impl Default for WitPrinter {
             output: Default::default(),
             any_items: false,
             emit_docs: true,
-            print_semicolons: match std::env::var("WIT_REQUIRE_SEMICOLONS") {
-                Ok(s) => s == "1",
-                Err(_) => PRINT_SEMICOLONS_DEFAULT,
-            },
             print_f32_f64: match std::env::var("WIT_REQUIRE_F32_F64") {
                 Ok(s) => s == "1",
                 Err(_) => PRINT_F32_F64_DEFAULT,
@@ -119,9 +113,7 @@ impl WitPrinter {
     }
 
     fn print_semicolon(&mut self) {
-        if self.print_semicolons {
-            self.output.push_str(";");
-        }
+        self.output.push_str(";");
     }
 
     fn new_item(&mut self) {
@@ -920,17 +912,9 @@ impl WitPrinter {
     fn print_stability(&mut self, stability: &Stability) {
         match stability {
             Stability::Unknown => {}
-            Stability::Stable {
-                since,
-                feature,
-                deprecated,
-            } => {
+            Stability::Stable { since, deprecated } => {
                 self.output.push_str("@since(version = ");
                 self.output.push_str(&since.to_string());
-                if let Some(feature) = feature {
-                    self.output.push_str(", feature = ");
-                    self.output.push_str(feature);
-                }
                 self.output.push_str(")\n");
                 if let Some(version) = deprecated {
                     self.output.push_str("@deprecated(version = ");

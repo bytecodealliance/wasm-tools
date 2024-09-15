@@ -1,31 +1,12 @@
 //! A test suite to test the `wasm-tools` CLI itself.
 //!
-//! This test suite will look for `*.wat` files in the `tests/cli/**` directory,
-//! recursively. Each wat file must have a directive of the form:
-//!
-//!     ;; RUN: ...
-//!
-//! where `...` is a space-separate set of command to pass to the `wasm-tools`
-//! CLI. The `%` argument is replaced with the path to the current file. For
-//! example:
-//!
-//!     ;; RUN: dump %
-//!
-//! would execute `wasm-tools dump the-current-file.wat`. The `cli` directory
-//! additionally contains `*.stdout` and `*.stderr` files to assert the output
-//! of the subcommand. Files are not present if the stdout/stderr are empty.
-//!
-//! This also supports a limited form of piping along the lines of:
-//!
-//!     ;; RUN: strip % | objdump
-//!
-//! where a `|` will execute the first subcommand and pipe its stdout into the
-//! stdin of the next command.
-//!
-//! Use `BLESS=1` in the environment to auto-update expectation files. Be sure
-//! to look at the diff!
+//! This test suite will look for `*.wat` and `*.wit` files in the
+//! `tests/cli/**` directory, recursively. For more information about supported
+//! directives and features of this test suite see the `tests/cli/readme.wat`
+//! file which has an explanatory comment at the top for what's going on.
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{bail, Context, Result};
+use indexmap::IndexMap;
 use libtest_mimic::{Arguments, Trial};
 use pretty_assertions::StrComparison;
 use std::env;
@@ -59,55 +40,96 @@ fn main() {
     libtest_mimic::run(&args, trials).exit();
 }
 
-fn wasm_tools_exe() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_wasm-tools"))
-}
-
 fn run_test(test: &Path, bless: bool) -> Result<()> {
     let contents = std::fs::read_to_string(test)?;
-    let (line, should_fail) = contents
-        .lines()
-        .filter_map(|l| {
-            let run = l.strip_prefix(";; RUN: ").or(l.strip_prefix("// RUN: "));
-            let fail = l.strip_prefix(";; FAIL: ").or(l.strip_prefix("// FAIL: "));
-            run.map(|l| (l, false)).or(fail.map(|l| (l, true)))
-        })
-        .next()
-        .ok_or_else(|| anyhow!("no line found with `;; RUN: ` directive"))?;
 
-    let mut cmd = wasm_tools_exe();
-    let mut stdin = None;
-    let tempdir = TempDir::new()?;
-    for arg in line.split_whitespace() {
-        if arg == "|" {
-            let output = execute(&mut cmd, stdin.as_deref(), false)?;
-            stdin = Some(output.stdout);
-            cmd = wasm_tools_exe();
-        } else if arg == "%" {
-            cmd.arg(test);
-        } else if arg == "%tmpdir" {
-            cmd.arg(tempdir.path());
-        } else {
-            cmd.arg(arg);
+    let mut directives = contents
+        .lines()
+        .enumerate()
+        .filter(|(_, l)| !l.is_empty())
+        .filter_map(|(i, l)| {
+            l.strip_prefix("// ")
+                .or(l.strip_prefix(";; "))
+                .map(|l| (i + 1, l))
+        });
+
+    let mut commands = IndexMap::new();
+
+    while let Some((i, line)) = directives.next() {
+        let run = line.strip_prefix("RUN");
+        let fail = line.strip_prefix("FAIL");
+        let (directive, should_fail) = match run.map(|l| (l, false)).or(fail.map(|l| (l, true))) {
+            Some(pair) => pair,
+            None => continue,
+        };
+        let (cmd, name) = match directive.strip_prefix("[") {
+            Some(prefix) => match prefix.find("]:") {
+                Some(i) => (&prefix[i + 2..], &prefix[..i]),
+                None => bail!("line {i}: failed to find `]:` after `[`"),
+            },
+            None => match directive.strip_prefix(":") {
+                Some(cmd) => (cmd, ""),
+                None => bail!("line {i}: failed to find `:` after `RUN` or `FAIL`"),
+            },
+        };
+        let mut cmd = cmd.to_string();
+        while cmd.ends_with("\\") {
+            cmd.pop();
+            match directives.next() {
+                Some((_, line)) => cmd.push_str(line),
+                None => bail!("line {i}: directive ends in `\\` but nothing on next line"),
+            }
+        }
+
+        match commands.insert(name, (cmd, should_fail)) {
+            Some(_) => bail!("line {i}: duplicate directive named {name:?}"),
+            None => {}
         }
     }
 
-    let output = execute(&mut cmd, stdin.as_deref(), should_fail)?;
-    let extension = test.extension().unwrap().to_str().unwrap();
-    assert_output(
-        bless,
-        &output.stdout,
-        &test.with_extension(&format!("{extension}.stdout")),
-        &tempdir,
-    )
-    .context("failed to check stdout expectation (auto-update with BLESS=1)")?;
-    assert_output(
-        bless,
-        &output.stderr,
-        &test.with_extension(&format!("{extension}.stderr")),
-        &tempdir,
-    )
-    .context("failed to check stderr expectation (auto-update with BLESS=1)")?;
+    if commands.is_empty() {
+        bail!("failed to find `// RUN: ...` or `// FAIL: ...` at the top of this file");
+    }
+    let exe = Path::new(env!("CARGO_BIN_EXE_wasm-tools"));
+    let tempdir = TempDir::new_in(exe.parent().unwrap())?;
+    for (name, (line, should_fail)) in commands {
+        let mut cmd = Command::new(exe);
+        let mut stdin = None;
+        for arg in line.split_whitespace() {
+            let arg = arg.replace("%tmpdir", tempdir.path().to_str().unwrap());
+            if arg == "|" {
+                let output = execute(&mut cmd, stdin.as_deref(), false)?;
+                stdin = Some(output.stdout);
+                cmd = Command::new(exe);
+            } else if arg == "%" {
+                cmd.arg(test);
+            } else {
+                cmd.arg(arg);
+            }
+        }
+
+        let output = execute(&mut cmd, stdin.as_deref(), should_fail)?;
+        let extension = test.extension().unwrap().to_str().unwrap();
+        let extension = if name.is_empty() {
+            extension.to_string()
+        } else {
+            format!("{extension}.{name}")
+        };
+        assert_output(
+            bless,
+            &output.stdout,
+            &test.with_extension(&format!("{extension}.stdout")),
+            &tempdir,
+        )
+        .context("failed to check stdout expectation (auto-update with BLESS=1)")?;
+        assert_output(
+            bless,
+            &output.stderr,
+            &test.with_extension(&format!("{extension}.stderr")),
+            &tempdir,
+        )
+        .context("failed to check stderr expectation (auto-update with BLESS=1)")?;
+    }
     Ok(())
 }
 
@@ -127,27 +149,32 @@ fn execute(cmd: &mut Command, stdin: Option<&[u8]>, should_fail: bool) -> Result
 
     let output = p.wait_with_output()?;
 
-    if !output.status.success() {
-        if !should_fail {
-            bail!(
-                "{cmd:?} failed:
-                status: {}
-                stdout: {}
-                stderr: {}",
-                output.status,
-                String::from_utf8_lossy(&output.stdout),
-                String::from_utf8_lossy(&output.stderr)
-            );
+    let mut failure = None;
+    match output.status.code() {
+        Some(0) => {
+            if should_fail {
+                failure = Some("succeeded instead of failed");
+            }
         }
-    } else if should_fail {
+        Some(1) | Some(2) => {
+            if !should_fail {
+                failure = Some("failed");
+            }
+        }
+        _ => failure = Some("unknown exit code"),
+    }
+    if let Some(msg) = failure {
         bail!(
-            "{cmd:?} succeeded instead of failed
-                stdout: {}
-                stderr: {}",
+            "{cmd:?} {msg}:
+             status: {}
+             stdout: {}
+             stderr: {}",
+            output.status,
             String::from_utf8_lossy(&output.stdout),
             String::from_utf8_lossy(&output.stderr)
         );
     }
+
     Ok(output)
 }
 

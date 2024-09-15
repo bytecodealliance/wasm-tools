@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 3,
-      "filename": "address.0.wasm"
+      "filename": "address.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1745,13 +1746,14 @@
       "type": "assert_malformed",
       "line": 214,
       "filename": "address.1.wat",
-      "text": "i32 constant",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "i32 constant"
     },
     {
       "type": "module",
       "line": 223,
-      "filename": "address.2.wasm"
+      "filename": "address.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4166,7 +4168,8 @@
     {
       "type": "module",
       "line": 514,
-      "filename": "address.3.wasm"
+      "filename": "address.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4526,7 +4529,8 @@
     {
       "type": "module",
       "line": 564,
-      "filename": "address.4.wasm"
+      "filename": "address.4.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

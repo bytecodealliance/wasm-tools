@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 3,
-      "filename": "address0.0.wasm"
+      "filename": "address0.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

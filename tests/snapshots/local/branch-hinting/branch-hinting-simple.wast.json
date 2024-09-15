@@ -4,43 +4,47 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "branch-hinting-simple.0.wasm"
+      "filename": "branch-hinting-simple.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 26,
-      "filename": "branch-hinting-simple.1.wasm"
+      "filename": "branch-hinting-simple.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 37,
-      "filename": "branch-hinting-simple.2.wasm"
+      "filename": "branch-hinting-simple.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_invalid",
       "line": 62,
       "filename": "branch-hinting-simple.3.wat",
-      "text": "expected valid module field",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "expected valid module field"
     },
     {
       "type": "assert_invalid",
       "line": 65,
       "filename": "branch-hinting-simple.4.wat",
-      "text": "expected a string",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "expected a string"
     },
     {
       "type": "assert_invalid",
       "line": 68,
       "filename": "branch-hinting-simple.5.wat",
-      "text": "invalid value for branch hint",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "invalid value for branch hint"
     },
     {
       "type": "module",
       "line": 72,
-      "filename": "branch-hinting-simple.6.wasm"
+      "filename": "branch-hinting-simple.6.wasm",
+      "module_type": "binary"
     }
   ]
 }

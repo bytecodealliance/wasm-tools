@@ -4,1049 +4,1152 @@
     {
       "type": "module",
       "line": 5,
-      "filename": "const.0.wasm"
+      "filename": "const.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 6,
-      "filename": "const.1.wasm"
+      "filename": "const.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_malformed",
       "line": 8,
       "filename": "const.2.wat",
-      "text": "unexpected token",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
       "line": 12,
       "filename": "const.3.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 16,
       "filename": "const.4.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 20,
       "filename": "const.5.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "module",
       "line": 24,
-      "filename": "const.6.wasm"
+      "filename": "const.6.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 25,
-      "filename": "const.7.wasm"
+      "filename": "const.7.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_malformed",
       "line": 27,
       "filename": "const.8.wat",
-      "text": "unexpected token",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
       "line": 31,
       "filename": "const.9.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 35,
       "filename": "const.10.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 39,
       "filename": "const.11.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "module",
       "line": 43,
-      "filename": "const.12.wasm"
+      "filename": "const.12.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 44,
-      "filename": "const.13.wasm"
+      "filename": "const.13.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 45,
-      "filename": "const.14.wasm"
+      "filename": "const.14.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 46,
-      "filename": "const.15.wasm"
+      "filename": "const.15.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 47,
-      "filename": "const.16.wasm"
+      "filename": "const.16.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 48,
-      "filename": "const.17.wasm"
+      "filename": "const.17.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 49,
-      "filename": "const.18.wasm"
+      "filename": "const.18.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 50,
-      "filename": "const.19.wasm"
+      "filename": "const.19.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 51,
-      "filename": "const.20.wasm"
+      "filename": "const.20.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 52,
-      "filename": "const.21.wasm"
+      "filename": "const.21.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 53,
-      "filename": "const.22.wasm"
+      "filename": "const.22.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 54,
-      "filename": "const.23.wasm"
+      "filename": "const.23.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 55,
-      "filename": "const.24.wasm"
+      "filename": "const.24.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 56,
-      "filename": "const.25.wasm"
+      "filename": "const.25.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 57,
-      "filename": "const.26.wasm"
+      "filename": "const.26.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 58,
-      "filename": "const.27.wasm"
+      "filename": "const.27.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 59,
-      "filename": "const.28.wasm"
+      "filename": "const.28.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 60,
-      "filename": "const.29.wasm"
+      "filename": "const.29.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 61,
-      "filename": "const.30.wasm"
+      "filename": "const.30.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 62,
-      "filename": "const.31.wasm"
+      "filename": "const.31.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 63,
-      "filename": "const.32.wasm"
+      "filename": "const.32.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 64,
-      "filename": "const.33.wasm"
+      "filename": "const.33.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 65,
-      "filename": "const.34.wasm"
+      "filename": "const.34.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 66,
-      "filename": "const.35.wasm"
+      "filename": "const.35.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_malformed",
       "line": 68,
       "filename": "const.36.wat",
-      "text": "unexpected token",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
       "line": 72,
       "filename": "const.37.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 76,
       "filename": "const.38.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 80,
       "filename": "const.39.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 84,
       "filename": "const.40.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 88,
       "filename": "const.41.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 92,
       "filename": "const.42.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 96,
       "filename": "const.43.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 100,
       "filename": "const.44.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 104,
       "filename": "const.45.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 108,
       "filename": "const.46.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 112,
       "filename": "const.47.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 116,
       "filename": "const.48.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 120,
       "filename": "const.49.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 124,
       "filename": "const.50.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 128,
       "filename": "const.51.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 132,
       "filename": "const.52.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 136,
       "filename": "const.53.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 140,
       "filename": "const.54.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "module",
       "line": 145,
-      "filename": "const.55.wasm"
+      "filename": "const.55.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 146,
-      "filename": "const.56.wasm"
+      "filename": "const.56.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 147,
-      "filename": "const.57.wasm"
+      "filename": "const.57.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 148,
-      "filename": "const.58.wasm"
+      "filename": "const.58.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 149,
-      "filename": "const.59.wasm"
+      "filename": "const.59.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 150,
-      "filename": "const.60.wasm"
+      "filename": "const.60.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 151,
-      "filename": "const.61.wasm"
+      "filename": "const.61.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 152,
-      "filename": "const.62.wasm"
+      "filename": "const.62.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 153,
-      "filename": "const.63.wasm"
+      "filename": "const.63.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 154,
-      "filename": "const.64.wasm"
+      "filename": "const.64.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 155,
-      "filename": "const.65.wasm"
+      "filename": "const.65.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 156,
-      "filename": "const.66.wasm"
+      "filename": "const.66.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 157,
-      "filename": "const.67.wasm"
+      "filename": "const.67.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 158,
-      "filename": "const.68.wasm"
+      "filename": "const.68.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 159,
-      "filename": "const.69.wasm"
+      "filename": "const.69.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 160,
-      "filename": "const.70.wasm"
+      "filename": "const.70.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 161,
-      "filename": "const.71.wasm"
+      "filename": "const.71.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 162,
-      "filename": "const.72.wasm"
+      "filename": "const.72.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 164,
-      "filename": "const.73.wasm"
+      "filename": "const.73.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 165,
-      "filename": "const.74.wasm"
+      "filename": "const.74.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 166,
-      "filename": "const.75.wasm"
+      "filename": "const.75.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 167,
-      "filename": "const.76.wasm"
+      "filename": "const.76.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 168,
-      "filename": "const.77.wasm"
+      "filename": "const.77.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 169,
-      "filename": "const.78.wasm"
+      "filename": "const.78.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 170,
-      "filename": "const.79.wasm"
+      "filename": "const.79.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 171,
-      "filename": "const.80.wasm"
+      "filename": "const.80.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 172,
-      "filename": "const.81.wasm"
+      "filename": "const.81.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 173,
-      "filename": "const.82.wasm"
+      "filename": "const.82.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 174,
-      "filename": "const.83.wasm"
+      "filename": "const.83.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 175,
-      "filename": "const.84.wasm"
+      "filename": "const.84.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 176,
-      "filename": "const.85.wasm"
+      "filename": "const.85.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 177,
-      "filename": "const.86.wasm"
+      "filename": "const.86.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 178,
-      "filename": "const.87.wasm"
+      "filename": "const.87.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 179,
-      "filename": "const.88.wasm"
+      "filename": "const.88.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 180,
-      "filename": "const.89.wasm"
+      "filename": "const.89.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 181,
-      "filename": "const.90.wasm"
+      "filename": "const.90.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_malformed",
       "line": 185,
       "filename": "const.91.wat",
-      "text": "unexpected token",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
       "line": 189,
       "filename": "const.92.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 193,
       "filename": "const.93.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 197,
       "filename": "const.94.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 201,
       "filename": "const.95.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 205,
       "filename": "const.96.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 209,
       "filename": "const.97.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 213,
       "filename": "const.98.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 217,
       "filename": "const.99.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 221,
       "filename": "const.100.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 225,
       "filename": "const.101.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 229,
       "filename": "const.102.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 233,
       "filename": "const.103.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 237,
       "filename": "const.104.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 241,
       "filename": "const.105.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 245,
       "filename": "const.106.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 249,
       "filename": "const.107.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 253,
       "filename": "const.108.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 257,
       "filename": "const.109.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "module",
       "line": 264,
-      "filename": "const.110.wasm"
+      "filename": "const.110.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 265,
-      "filename": "const.111.wasm"
+      "filename": "const.111.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_malformed",
       "line": 267,
       "filename": "const.112.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 271,
       "filename": "const.113.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "module",
       "line": 275,
-      "filename": "const.114.wasm"
+      "filename": "const.114.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 276,
-      "filename": "const.115.wasm"
+      "filename": "const.115.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_malformed",
       "line": 278,
       "filename": "const.116.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 282,
       "filename": "const.117.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "module",
       "line": 286,
-      "filename": "const.118.wasm"
+      "filename": "const.118.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 287,
-      "filename": "const.119.wasm"
+      "filename": "const.119.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_malformed",
       "line": 289,
       "filename": "const.120.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 293,
       "filename": "const.121.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "module",
       "line": 297,
-      "filename": "const.122.wasm"
+      "filename": "const.122.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 298,
-      "filename": "const.123.wasm"
+      "filename": "const.123.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_malformed",
       "line": 300,
       "filename": "const.124.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 304,
       "filename": "const.125.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "module",
       "line": 308,
-      "filename": "const.126.wasm"
+      "filename": "const.126.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 309,
-      "filename": "const.127.wasm"
+      "filename": "const.127.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 310,
-      "filename": "const.128.wasm"
+      "filename": "const.128.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 311,
-      "filename": "const.129.wasm"
+      "filename": "const.129.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 312,
-      "filename": "const.130.wasm"
+      "filename": "const.130.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 313,
-      "filename": "const.131.wasm"
+      "filename": "const.131.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 314,
-      "filename": "const.132.wasm"
+      "filename": "const.132.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 315,
-      "filename": "const.133.wasm"
+      "filename": "const.133.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 316,
-      "filename": "const.134.wasm"
+      "filename": "const.134.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 317,
-      "filename": "const.135.wasm"
+      "filename": "const.135.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_malformed",
       "line": 319,
       "filename": "const.136.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 323,
       "filename": "const.137.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 327,
       "filename": "const.138.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 331,
       "filename": "const.139.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "module",
       "line": 335,
-      "filename": "const.140.wasm"
+      "filename": "const.140.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 336,
-      "filename": "const.141.wasm"
+      "filename": "const.141.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_malformed",
       "line": 338,
       "filename": "const.142.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 342,
       "filename": "const.143.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "module",
       "line": 346,
-      "filename": "const.144.wasm"
+      "filename": "const.144.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 347,
-      "filename": "const.145.wasm"
+      "filename": "const.145.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_malformed",
       "line": 349,
       "filename": "const.146.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 353,
       "filename": "const.147.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "module",
       "line": 357,
-      "filename": "const.148.wasm"
+      "filename": "const.148.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 358,
-      "filename": "const.149.wasm"
+      "filename": "const.149.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 359,
-      "filename": "const.150.wasm"
+      "filename": "const.150.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 360,
-      "filename": "const.151.wasm"
+      "filename": "const.151.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 361,
-      "filename": "const.152.wasm"
+      "filename": "const.152.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 362,
-      "filename": "const.153.wasm"
+      "filename": "const.153.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 363,
-      "filename": "const.154.wasm"
+      "filename": "const.154.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 364,
-      "filename": "const.155.wasm"
+      "filename": "const.155.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_malformed",
       "line": 366,
       "filename": "const.156.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 370,
       "filename": "const.157.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 374,
       "filename": "const.158.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 378,
       "filename": "const.159.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "module",
       "line": 382,
-      "filename": "const.160.wasm"
+      "filename": "const.160.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 383,
-      "filename": "const.161.wasm"
+      "filename": "const.161.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_malformed",
       "line": 385,
       "filename": "const.162.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 389,
       "filename": "const.163.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "module",
       "line": 393,
-      "filename": "const.164.wasm"
+      "filename": "const.164.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 394,
-      "filename": "const.165.wasm"
+      "filename": "const.165.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_malformed",
       "line": 396,
       "filename": "const.166.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 400,
       "filename": "const.167.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "module",
       "line": 404,
-      "filename": "const.168.wasm"
+      "filename": "const.168.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 405,
-      "filename": "const.169.wasm"
+      "filename": "const.169.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 406,
-      "filename": "const.170.wasm"
+      "filename": "const.170.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 407,
-      "filename": "const.171.wasm"
+      "filename": "const.171.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_malformed",
       "line": 410,
       "filename": "const.172.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 414,
       "filename": "const.173.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 419,
       "filename": "const.174.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 423,
       "filename": "const.175.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 428,
       "filename": "const.176.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 432,
       "filename": "const.177.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "module",
       "line": 440,
-      "filename": "const.178.wasm"
+      "filename": "const.178.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1066,7 +1169,8 @@
     {
       "type": "module",
       "line": 442,
-      "filename": "const.179.wasm"
+      "filename": "const.179.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1086,7 +1190,8 @@
     {
       "type": "module",
       "line": 444,
-      "filename": "const.180.wasm"
+      "filename": "const.180.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1106,7 +1211,8 @@
     {
       "type": "module",
       "line": 446,
-      "filename": "const.181.wasm"
+      "filename": "const.181.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1126,7 +1232,8 @@
     {
       "type": "module",
       "line": 448,
-      "filename": "const.182.wasm"
+      "filename": "const.182.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1146,7 +1253,8 @@
     {
       "type": "module",
       "line": 450,
-      "filename": "const.183.wasm"
+      "filename": "const.183.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1166,7 +1274,8 @@
     {
       "type": "module",
       "line": 452,
-      "filename": "const.184.wasm"
+      "filename": "const.184.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1186,7 +1295,8 @@
     {
       "type": "module",
       "line": 454,
-      "filename": "const.185.wasm"
+      "filename": "const.185.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1206,7 +1316,8 @@
     {
       "type": "module",
       "line": 456,
-      "filename": "const.186.wasm"
+      "filename": "const.186.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1226,7 +1337,8 @@
     {
       "type": "module",
       "line": 458,
-      "filename": "const.187.wasm"
+      "filename": "const.187.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1246,7 +1358,8 @@
     {
       "type": "module",
       "line": 460,
-      "filename": "const.188.wasm"
+      "filename": "const.188.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1266,7 +1379,8 @@
     {
       "type": "module",
       "line": 462,
-      "filename": "const.189.wasm"
+      "filename": "const.189.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1286,7 +1400,8 @@
     {
       "type": "module",
       "line": 464,
-      "filename": "const.190.wasm"
+      "filename": "const.190.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1306,7 +1421,8 @@
     {
       "type": "module",
       "line": 466,
-      "filename": "const.191.wasm"
+      "filename": "const.191.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1326,7 +1442,8 @@
     {
       "type": "module",
       "line": 468,
-      "filename": "const.192.wasm"
+      "filename": "const.192.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1346,7 +1463,8 @@
     {
       "type": "module",
       "line": 470,
-      "filename": "const.193.wasm"
+      "filename": "const.193.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1366,7 +1484,8 @@
     {
       "type": "module",
       "line": 472,
-      "filename": "const.194.wasm"
+      "filename": "const.194.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1386,7 +1505,8 @@
     {
       "type": "module",
       "line": 474,
-      "filename": "const.195.wasm"
+      "filename": "const.195.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1406,7 +1526,8 @@
     {
       "type": "module",
       "line": 476,
-      "filename": "const.196.wasm"
+      "filename": "const.196.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1426,7 +1547,8 @@
     {
       "type": "module",
       "line": 478,
-      "filename": "const.197.wasm"
+      "filename": "const.197.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1446,7 +1568,8 @@
     {
       "type": "module",
       "line": 480,
-      "filename": "const.198.wasm"
+      "filename": "const.198.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1466,7 +1589,8 @@
     {
       "type": "module",
       "line": 482,
-      "filename": "const.199.wasm"
+      "filename": "const.199.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1486,7 +1610,8 @@
     {
       "type": "module",
       "line": 484,
-      "filename": "const.200.wasm"
+      "filename": "const.200.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1506,7 +1631,8 @@
     {
       "type": "module",
       "line": 486,
-      "filename": "const.201.wasm"
+      "filename": "const.201.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1526,7 +1652,8 @@
     {
       "type": "module",
       "line": 488,
-      "filename": "const.202.wasm"
+      "filename": "const.202.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1546,7 +1673,8 @@
     {
       "type": "module",
       "line": 490,
-      "filename": "const.203.wasm"
+      "filename": "const.203.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1566,7 +1694,8 @@
     {
       "type": "module",
       "line": 492,
-      "filename": "const.204.wasm"
+      "filename": "const.204.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1586,7 +1715,8 @@
     {
       "type": "module",
       "line": 494,
-      "filename": "const.205.wasm"
+      "filename": "const.205.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1606,7 +1736,8 @@
     {
       "type": "module",
       "line": 497,
-      "filename": "const.206.wasm"
+      "filename": "const.206.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1626,7 +1757,8 @@
     {
       "type": "module",
       "line": 499,
-      "filename": "const.207.wasm"
+      "filename": "const.207.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1646,7 +1778,8 @@
     {
       "type": "module",
       "line": 501,
-      "filename": "const.208.wasm"
+      "filename": "const.208.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1666,7 +1799,8 @@
     {
       "type": "module",
       "line": 503,
-      "filename": "const.209.wasm"
+      "filename": "const.209.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1686,7 +1820,8 @@
     {
       "type": "module",
       "line": 505,
-      "filename": "const.210.wasm"
+      "filename": "const.210.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1706,7 +1841,8 @@
     {
       "type": "module",
       "line": 507,
-      "filename": "const.211.wasm"
+      "filename": "const.211.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1726,7 +1862,8 @@
     {
       "type": "module",
       "line": 509,
-      "filename": "const.212.wasm"
+      "filename": "const.212.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1746,7 +1883,8 @@
     {
       "type": "module",
       "line": 511,
-      "filename": "const.213.wasm"
+      "filename": "const.213.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1766,7 +1904,8 @@
     {
       "type": "module",
       "line": 513,
-      "filename": "const.214.wasm"
+      "filename": "const.214.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1786,7 +1925,8 @@
     {
       "type": "module",
       "line": 515,
-      "filename": "const.215.wasm"
+      "filename": "const.215.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1806,7 +1946,8 @@
     {
       "type": "module",
       "line": 517,
-      "filename": "const.216.wasm"
+      "filename": "const.216.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1826,7 +1967,8 @@
     {
       "type": "module",
       "line": 519,
-      "filename": "const.217.wasm"
+      "filename": "const.217.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1846,7 +1988,8 @@
     {
       "type": "module",
       "line": 521,
-      "filename": "const.218.wasm"
+      "filename": "const.218.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1866,7 +2009,8 @@
     {
       "type": "module",
       "line": 523,
-      "filename": "const.219.wasm"
+      "filename": "const.219.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1886,7 +2030,8 @@
     {
       "type": "module",
       "line": 525,
-      "filename": "const.220.wasm"
+      "filename": "const.220.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1906,7 +2051,8 @@
     {
       "type": "module",
       "line": 527,
-      "filename": "const.221.wasm"
+      "filename": "const.221.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1926,7 +2072,8 @@
     {
       "type": "module",
       "line": 529,
-      "filename": "const.222.wasm"
+      "filename": "const.222.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1946,7 +2093,8 @@
     {
       "type": "module",
       "line": 531,
-      "filename": "const.223.wasm"
+      "filename": "const.223.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1966,7 +2114,8 @@
     {
       "type": "module",
       "line": 533,
-      "filename": "const.224.wasm"
+      "filename": "const.224.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1986,7 +2135,8 @@
     {
       "type": "module",
       "line": 535,
-      "filename": "const.225.wasm"
+      "filename": "const.225.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2006,7 +2156,8 @@
     {
       "type": "module",
       "line": 537,
-      "filename": "const.226.wasm"
+      "filename": "const.226.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2026,7 +2177,8 @@
     {
       "type": "module",
       "line": 539,
-      "filename": "const.227.wasm"
+      "filename": "const.227.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2046,7 +2198,8 @@
     {
       "type": "module",
       "line": 541,
-      "filename": "const.228.wasm"
+      "filename": "const.228.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2066,7 +2219,8 @@
     {
       "type": "module",
       "line": 543,
-      "filename": "const.229.wasm"
+      "filename": "const.229.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2086,7 +2240,8 @@
     {
       "type": "module",
       "line": 546,
-      "filename": "const.230.wasm"
+      "filename": "const.230.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2106,7 +2261,8 @@
     {
       "type": "module",
       "line": 548,
-      "filename": "const.231.wasm"
+      "filename": "const.231.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2126,7 +2282,8 @@
     {
       "type": "module",
       "line": 550,
-      "filename": "const.232.wasm"
+      "filename": "const.232.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2146,7 +2303,8 @@
     {
       "type": "module",
       "line": 552,
-      "filename": "const.233.wasm"
+      "filename": "const.233.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2166,7 +2324,8 @@
     {
       "type": "module",
       "line": 554,
-      "filename": "const.234.wasm"
+      "filename": "const.234.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2186,7 +2345,8 @@
     {
       "type": "module",
       "line": 556,
-      "filename": "const.235.wasm"
+      "filename": "const.235.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2206,7 +2366,8 @@
     {
       "type": "module",
       "line": 558,
-      "filename": "const.236.wasm"
+      "filename": "const.236.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2226,7 +2387,8 @@
     {
       "type": "module",
       "line": 560,
-      "filename": "const.237.wasm"
+      "filename": "const.237.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2246,7 +2408,8 @@
     {
       "type": "module",
       "line": 564,
-      "filename": "const.238.wasm"
+      "filename": "const.238.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2266,7 +2429,8 @@
     {
       "type": "module",
       "line": 566,
-      "filename": "const.239.wasm"
+      "filename": "const.239.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2286,7 +2450,8 @@
     {
       "type": "module",
       "line": 568,
-      "filename": "const.240.wasm"
+      "filename": "const.240.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2306,7 +2471,8 @@
     {
       "type": "module",
       "line": 570,
-      "filename": "const.241.wasm"
+      "filename": "const.241.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2326,7 +2492,8 @@
     {
       "type": "module",
       "line": 572,
-      "filename": "const.242.wasm"
+      "filename": "const.242.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2346,7 +2513,8 @@
     {
       "type": "module",
       "line": 574,
-      "filename": "const.243.wasm"
+      "filename": "const.243.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2366,7 +2534,8 @@
     {
       "type": "module",
       "line": 576,
-      "filename": "const.244.wasm"
+      "filename": "const.244.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2386,7 +2555,8 @@
     {
       "type": "module",
       "line": 578,
-      "filename": "const.245.wasm"
+      "filename": "const.245.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2406,7 +2576,8 @@
     {
       "type": "module",
       "line": 580,
-      "filename": "const.246.wasm"
+      "filename": "const.246.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2426,7 +2597,8 @@
     {
       "type": "module",
       "line": 582,
-      "filename": "const.247.wasm"
+      "filename": "const.247.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2446,7 +2618,8 @@
     {
       "type": "module",
       "line": 584,
-      "filename": "const.248.wasm"
+      "filename": "const.248.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2466,7 +2639,8 @@
     {
       "type": "module",
       "line": 586,
-      "filename": "const.249.wasm"
+      "filename": "const.249.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2486,7 +2660,8 @@
     {
       "type": "module",
       "line": 588,
-      "filename": "const.250.wasm"
+      "filename": "const.250.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2506,7 +2681,8 @@
     {
       "type": "module",
       "line": 590,
-      "filename": "const.251.wasm"
+      "filename": "const.251.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2526,7 +2702,8 @@
     {
       "type": "module",
       "line": 592,
-      "filename": "const.252.wasm"
+      "filename": "const.252.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2546,7 +2723,8 @@
     {
       "type": "module",
       "line": 594,
-      "filename": "const.253.wasm"
+      "filename": "const.253.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2566,7 +2744,8 @@
     {
       "type": "module",
       "line": 596,
-      "filename": "const.254.wasm"
+      "filename": "const.254.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2586,7 +2765,8 @@
     {
       "type": "module",
       "line": 598,
-      "filename": "const.255.wasm"
+      "filename": "const.255.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2606,7 +2786,8 @@
     {
       "type": "module",
       "line": 600,
-      "filename": "const.256.wasm"
+      "filename": "const.256.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2626,7 +2807,8 @@
     {
       "type": "module",
       "line": 602,
-      "filename": "const.257.wasm"
+      "filename": "const.257.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2646,7 +2828,8 @@
     {
       "type": "module",
       "line": 604,
-      "filename": "const.258.wasm"
+      "filename": "const.258.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2666,7 +2849,8 @@
     {
       "type": "module",
       "line": 606,
-      "filename": "const.259.wasm"
+      "filename": "const.259.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2686,7 +2870,8 @@
     {
       "type": "module",
       "line": 608,
-      "filename": "const.260.wasm"
+      "filename": "const.260.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2706,7 +2891,8 @@
     {
       "type": "module",
       "line": 610,
-      "filename": "const.261.wasm"
+      "filename": "const.261.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2726,7 +2912,8 @@
     {
       "type": "module",
       "line": 612,
-      "filename": "const.262.wasm"
+      "filename": "const.262.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2746,7 +2933,8 @@
     {
       "type": "module",
       "line": 614,
-      "filename": "const.263.wasm"
+      "filename": "const.263.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2766,7 +2954,8 @@
     {
       "type": "module",
       "line": 616,
-      "filename": "const.264.wasm"
+      "filename": "const.264.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2786,7 +2975,8 @@
     {
       "type": "module",
       "line": 618,
-      "filename": "const.265.wasm"
+      "filename": "const.265.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2806,7 +2996,8 @@
     {
       "type": "module",
       "line": 621,
-      "filename": "const.266.wasm"
+      "filename": "const.266.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2826,7 +3017,8 @@
     {
       "type": "module",
       "line": 623,
-      "filename": "const.267.wasm"
+      "filename": "const.267.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2846,7 +3038,8 @@
     {
       "type": "module",
       "line": 625,
-      "filename": "const.268.wasm"
+      "filename": "const.268.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2866,7 +3059,8 @@
     {
       "type": "module",
       "line": 627,
-      "filename": "const.269.wasm"
+      "filename": "const.269.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2886,7 +3080,8 @@
     {
       "type": "module",
       "line": 629,
-      "filename": "const.270.wasm"
+      "filename": "const.270.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2906,7 +3101,8 @@
     {
       "type": "module",
       "line": 631,
-      "filename": "const.271.wasm"
+      "filename": "const.271.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2926,7 +3122,8 @@
     {
       "type": "module",
       "line": 633,
-      "filename": "const.272.wasm"
+      "filename": "const.272.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2946,7 +3143,8 @@
     {
       "type": "module",
       "line": 635,
-      "filename": "const.273.wasm"
+      "filename": "const.273.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2966,7 +3164,8 @@
     {
       "type": "module",
       "line": 637,
-      "filename": "const.274.wasm"
+      "filename": "const.274.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2986,7 +3185,8 @@
     {
       "type": "module",
       "line": 639,
-      "filename": "const.275.wasm"
+      "filename": "const.275.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3006,7 +3206,8 @@
     {
       "type": "module",
       "line": 641,
-      "filename": "const.276.wasm"
+      "filename": "const.276.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3026,7 +3227,8 @@
     {
       "type": "module",
       "line": 643,
-      "filename": "const.277.wasm"
+      "filename": "const.277.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3046,7 +3248,8 @@
     {
       "type": "module",
       "line": 645,
-      "filename": "const.278.wasm"
+      "filename": "const.278.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3066,7 +3269,8 @@
     {
       "type": "module",
       "line": 647,
-      "filename": "const.279.wasm"
+      "filename": "const.279.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3086,7 +3290,8 @@
     {
       "type": "module",
       "line": 650,
-      "filename": "const.280.wasm"
+      "filename": "const.280.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3106,7 +3311,8 @@
     {
       "type": "module",
       "line": 652,
-      "filename": "const.281.wasm"
+      "filename": "const.281.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3126,7 +3332,8 @@
     {
       "type": "module",
       "line": 654,
-      "filename": "const.282.wasm"
+      "filename": "const.282.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3146,7 +3353,8 @@
     {
       "type": "module",
       "line": 656,
-      "filename": "const.283.wasm"
+      "filename": "const.283.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3166,7 +3374,8 @@
     {
       "type": "module",
       "line": 658,
-      "filename": "const.284.wasm"
+      "filename": "const.284.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3186,7 +3395,8 @@
     {
       "type": "module",
       "line": 660,
-      "filename": "const.285.wasm"
+      "filename": "const.285.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3206,7 +3416,8 @@
     {
       "type": "module",
       "line": 662,
-      "filename": "const.286.wasm"
+      "filename": "const.286.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3226,7 +3437,8 @@
     {
       "type": "module",
       "line": 664,
-      "filename": "const.287.wasm"
+      "filename": "const.287.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3246,7 +3458,8 @@
     {
       "type": "module",
       "line": 668,
-      "filename": "const.288.wasm"
+      "filename": "const.288.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3266,7 +3479,8 @@
     {
       "type": "module",
       "line": 670,
-      "filename": "const.289.wasm"
+      "filename": "const.289.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3286,7 +3500,8 @@
     {
       "type": "module",
       "line": 672,
-      "filename": "const.290.wasm"
+      "filename": "const.290.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3306,7 +3521,8 @@
     {
       "type": "module",
       "line": 674,
-      "filename": "const.291.wasm"
+      "filename": "const.291.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3326,7 +3542,8 @@
     {
       "type": "module",
       "line": 676,
-      "filename": "const.292.wasm"
+      "filename": "const.292.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3346,7 +3563,8 @@
     {
       "type": "module",
       "line": 678,
-      "filename": "const.293.wasm"
+      "filename": "const.293.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3366,7 +3584,8 @@
     {
       "type": "module",
       "line": 680,
-      "filename": "const.294.wasm"
+      "filename": "const.294.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3386,7 +3605,8 @@
     {
       "type": "module",
       "line": 682,
-      "filename": "const.295.wasm"
+      "filename": "const.295.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3406,7 +3626,8 @@
     {
       "type": "module",
       "line": 684,
-      "filename": "const.296.wasm"
+      "filename": "const.296.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3426,7 +3647,8 @@
     {
       "type": "module",
       "line": 686,
-      "filename": "const.297.wasm"
+      "filename": "const.297.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3446,7 +3668,8 @@
     {
       "type": "module",
       "line": 688,
-      "filename": "const.298.wasm"
+      "filename": "const.298.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3466,7 +3689,8 @@
     {
       "type": "module",
       "line": 690,
-      "filename": "const.299.wasm"
+      "filename": "const.299.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3486,7 +3710,8 @@
     {
       "type": "module",
       "line": 692,
-      "filename": "const.300.wasm"
+      "filename": "const.300.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3506,7 +3731,8 @@
     {
       "type": "module",
       "line": 694,
-      "filename": "const.301.wasm"
+      "filename": "const.301.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3526,7 +3752,8 @@
     {
       "type": "module",
       "line": 696,
-      "filename": "const.302.wasm"
+      "filename": "const.302.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3546,7 +3773,8 @@
     {
       "type": "module",
       "line": 698,
-      "filename": "const.303.wasm"
+      "filename": "const.303.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3566,7 +3794,8 @@
     {
       "type": "module",
       "line": 700,
-      "filename": "const.304.wasm"
+      "filename": "const.304.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3586,7 +3815,8 @@
     {
       "type": "module",
       "line": 702,
-      "filename": "const.305.wasm"
+      "filename": "const.305.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3606,7 +3836,8 @@
     {
       "type": "module",
       "line": 704,
-      "filename": "const.306.wasm"
+      "filename": "const.306.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3626,7 +3857,8 @@
     {
       "type": "module",
       "line": 706,
-      "filename": "const.307.wasm"
+      "filename": "const.307.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3646,7 +3878,8 @@
     {
       "type": "module",
       "line": 708,
-      "filename": "const.308.wasm"
+      "filename": "const.308.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3666,7 +3899,8 @@
     {
       "type": "module",
       "line": 710,
-      "filename": "const.309.wasm"
+      "filename": "const.309.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3686,7 +3920,8 @@
     {
       "type": "module",
       "line": 712,
-      "filename": "const.310.wasm"
+      "filename": "const.310.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3706,7 +3941,8 @@
     {
       "type": "module",
       "line": 714,
-      "filename": "const.311.wasm"
+      "filename": "const.311.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3726,7 +3962,8 @@
     {
       "type": "module",
       "line": 716,
-      "filename": "const.312.wasm"
+      "filename": "const.312.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3746,7 +3983,8 @@
     {
       "type": "module",
       "line": 718,
-      "filename": "const.313.wasm"
+      "filename": "const.313.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3766,7 +4004,8 @@
     {
       "type": "module",
       "line": 720,
-      "filename": "const.314.wasm"
+      "filename": "const.314.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3786,7 +4025,8 @@
     {
       "type": "module",
       "line": 722,
-      "filename": "const.315.wasm"
+      "filename": "const.315.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3806,7 +4046,8 @@
     {
       "type": "module",
       "line": 726,
-      "filename": "const.316.wasm"
+      "filename": "const.316.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3826,7 +4067,8 @@
     {
       "type": "module",
       "line": 728,
-      "filename": "const.317.wasm"
+      "filename": "const.317.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3846,7 +4088,8 @@
     {
       "type": "module",
       "line": 730,
-      "filename": "const.318.wasm"
+      "filename": "const.318.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3866,7 +4109,8 @@
     {
       "type": "module",
       "line": 732,
-      "filename": "const.319.wasm"
+      "filename": "const.319.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3886,7 +4130,8 @@
     {
       "type": "module",
       "line": 734,
-      "filename": "const.320.wasm"
+      "filename": "const.320.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3906,7 +4151,8 @@
     {
       "type": "module",
       "line": 736,
-      "filename": "const.321.wasm"
+      "filename": "const.321.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3926,7 +4172,8 @@
     {
       "type": "module",
       "line": 740,
-      "filename": "const.322.wasm"
+      "filename": "const.322.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3946,7 +4193,8 @@
     {
       "type": "module",
       "line": 742,
-      "filename": "const.323.wasm"
+      "filename": "const.323.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3966,7 +4214,8 @@
     {
       "type": "module",
       "line": 744,
-      "filename": "const.324.wasm"
+      "filename": "const.324.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3986,7 +4235,8 @@
     {
       "type": "module",
       "line": 746,
-      "filename": "const.325.wasm"
+      "filename": "const.325.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4006,7 +4256,8 @@
     {
       "type": "module",
       "line": 748,
-      "filename": "const.326.wasm"
+      "filename": "const.326.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4026,7 +4277,8 @@
     {
       "type": "module",
       "line": 750,
-      "filename": "const.327.wasm"
+      "filename": "const.327.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4046,7 +4298,8 @@
     {
       "type": "module",
       "line": 752,
-      "filename": "const.328.wasm"
+      "filename": "const.328.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4066,7 +4319,8 @@
     {
       "type": "module",
       "line": 754,
-      "filename": "const.329.wasm"
+      "filename": "const.329.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4086,7 +4340,8 @@
     {
       "type": "module",
       "line": 756,
-      "filename": "const.330.wasm"
+      "filename": "const.330.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4106,7 +4361,8 @@
     {
       "type": "module",
       "line": 758,
-      "filename": "const.331.wasm"
+      "filename": "const.331.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4126,7 +4382,8 @@
     {
       "type": "module",
       "line": 760,
-      "filename": "const.332.wasm"
+      "filename": "const.332.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4146,7 +4403,8 @@
     {
       "type": "module",
       "line": 762,
-      "filename": "const.333.wasm"
+      "filename": "const.333.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4166,7 +4424,8 @@
     {
       "type": "module",
       "line": 764,
-      "filename": "const.334.wasm"
+      "filename": "const.334.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4186,7 +4445,8 @@
     {
       "type": "module",
       "line": 766,
-      "filename": "const.335.wasm"
+      "filename": "const.335.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4206,7 +4466,8 @@
     {
       "type": "module",
       "line": 768,
-      "filename": "const.336.wasm"
+      "filename": "const.336.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4226,7 +4487,8 @@
     {
       "type": "module",
       "line": 770,
-      "filename": "const.337.wasm"
+      "filename": "const.337.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4246,7 +4508,8 @@
     {
       "type": "module",
       "line": 772,
-      "filename": "const.338.wasm"
+      "filename": "const.338.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4266,7 +4529,8 @@
     {
       "type": "module",
       "line": 774,
-      "filename": "const.339.wasm"
+      "filename": "const.339.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4286,7 +4550,8 @@
     {
       "type": "module",
       "line": 776,
-      "filename": "const.340.wasm"
+      "filename": "const.340.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4306,7 +4571,8 @@
     {
       "type": "module",
       "line": 778,
-      "filename": "const.341.wasm"
+      "filename": "const.341.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4326,7 +4592,8 @@
     {
       "type": "module",
       "line": 780,
-      "filename": "const.342.wasm"
+      "filename": "const.342.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4346,7 +4613,8 @@
     {
       "type": "module",
       "line": 782,
-      "filename": "const.343.wasm"
+      "filename": "const.343.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4366,7 +4634,8 @@
     {
       "type": "module",
       "line": 784,
-      "filename": "const.344.wasm"
+      "filename": "const.344.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4386,7 +4655,8 @@
     {
       "type": "module",
       "line": 786,
-      "filename": "const.345.wasm"
+      "filename": "const.345.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4406,7 +4676,8 @@
     {
       "type": "module",
       "line": 788,
-      "filename": "const.346.wasm"
+      "filename": "const.346.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4426,7 +4697,8 @@
     {
       "type": "module",
       "line": 790,
-      "filename": "const.347.wasm"
+      "filename": "const.347.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4446,7 +4718,8 @@
     {
       "type": "module",
       "line": 793,
-      "filename": "const.348.wasm"
+      "filename": "const.348.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4466,7 +4739,8 @@
     {
       "type": "module",
       "line": 795,
-      "filename": "const.349.wasm"
+      "filename": "const.349.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4486,7 +4760,8 @@
     {
       "type": "module",
       "line": 797,
-      "filename": "const.350.wasm"
+      "filename": "const.350.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4506,7 +4781,8 @@
     {
       "type": "module",
       "line": 799,
-      "filename": "const.351.wasm"
+      "filename": "const.351.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4526,7 +4802,8 @@
     {
       "type": "module",
       "line": 801,
-      "filename": "const.352.wasm"
+      "filename": "const.352.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4546,7 +4823,8 @@
     {
       "type": "module",
       "line": 803,
-      "filename": "const.353.wasm"
+      "filename": "const.353.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4566,7 +4844,8 @@
     {
       "type": "module",
       "line": 805,
-      "filename": "const.354.wasm"
+      "filename": "const.354.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4586,7 +4865,8 @@
     {
       "type": "module",
       "line": 807,
-      "filename": "const.355.wasm"
+      "filename": "const.355.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4606,7 +4886,8 @@
     {
       "type": "module",
       "line": 809,
-      "filename": "const.356.wasm"
+      "filename": "const.356.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4626,7 +4907,8 @@
     {
       "type": "module",
       "line": 811,
-      "filename": "const.357.wasm"
+      "filename": "const.357.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4646,7 +4928,8 @@
     {
       "type": "module",
       "line": 813,
-      "filename": "const.358.wasm"
+      "filename": "const.358.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4666,7 +4949,8 @@
     {
       "type": "module",
       "line": 815,
-      "filename": "const.359.wasm"
+      "filename": "const.359.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4686,7 +4970,8 @@
     {
       "type": "module",
       "line": 817,
-      "filename": "const.360.wasm"
+      "filename": "const.360.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4706,7 +4991,8 @@
     {
       "type": "module",
       "line": 819,
-      "filename": "const.361.wasm"
+      "filename": "const.361.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4726,7 +5012,8 @@
     {
       "type": "module",
       "line": 821,
-      "filename": "const.362.wasm"
+      "filename": "const.362.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4746,7 +5033,8 @@
     {
       "type": "module",
       "line": 823,
-      "filename": "const.363.wasm"
+      "filename": "const.363.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4766,7 +5054,8 @@
     {
       "type": "module",
       "line": 825,
-      "filename": "const.364.wasm"
+      "filename": "const.364.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4786,7 +5075,8 @@
     {
       "type": "module",
       "line": 827,
-      "filename": "const.365.wasm"
+      "filename": "const.365.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4806,7 +5096,8 @@
     {
       "type": "module",
       "line": 829,
-      "filename": "const.366.wasm"
+      "filename": "const.366.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4826,7 +5117,8 @@
     {
       "type": "module",
       "line": 831,
-      "filename": "const.367.wasm"
+      "filename": "const.367.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4846,7 +5138,8 @@
     {
       "type": "module",
       "line": 833,
-      "filename": "const.368.wasm"
+      "filename": "const.368.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4866,7 +5159,8 @@
     {
       "type": "module",
       "line": 835,
-      "filename": "const.369.wasm"
+      "filename": "const.369.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4886,7 +5180,8 @@
     {
       "type": "module",
       "line": 837,
-      "filename": "const.370.wasm"
+      "filename": "const.370.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4906,7 +5201,8 @@
     {
       "type": "module",
       "line": 839,
-      "filename": "const.371.wasm"
+      "filename": "const.371.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4926,7 +5222,8 @@
     {
       "type": "module",
       "line": 841,
-      "filename": "const.372.wasm"
+      "filename": "const.372.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4946,7 +5243,8 @@
     {
       "type": "module",
       "line": 843,
-      "filename": "const.373.wasm"
+      "filename": "const.373.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4966,7 +5264,8 @@
     {
       "type": "module",
       "line": 846,
-      "filename": "const.374.wasm"
+      "filename": "const.374.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4986,7 +5285,8 @@
     {
       "type": "module",
       "line": 848,
-      "filename": "const.375.wasm"
+      "filename": "const.375.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5006,7 +5306,8 @@
     {
       "type": "module",
       "line": 850,
-      "filename": "const.376.wasm"
+      "filename": "const.376.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5026,7 +5327,8 @@
     {
       "type": "module",
       "line": 852,
-      "filename": "const.377.wasm"
+      "filename": "const.377.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5046,7 +5348,8 @@
     {
       "type": "module",
       "line": 854,
-      "filename": "const.378.wasm"
+      "filename": "const.378.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5066,7 +5369,8 @@
     {
       "type": "module",
       "line": 856,
-      "filename": "const.379.wasm"
+      "filename": "const.379.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5086,7 +5390,8 @@
     {
       "type": "module",
       "line": 858,
-      "filename": "const.380.wasm"
+      "filename": "const.380.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5106,7 +5411,8 @@
     {
       "type": "module",
       "line": 860,
-      "filename": "const.381.wasm"
+      "filename": "const.381.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5126,7 +5432,8 @@
     {
       "type": "module",
       "line": 864,
-      "filename": "const.382.wasm"
+      "filename": "const.382.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5146,7 +5453,8 @@
     {
       "type": "module",
       "line": 866,
-      "filename": "const.383.wasm"
+      "filename": "const.383.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5166,7 +5474,8 @@
     {
       "type": "module",
       "line": 868,
-      "filename": "const.384.wasm"
+      "filename": "const.384.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5186,7 +5495,8 @@
     {
       "type": "module",
       "line": 870,
-      "filename": "const.385.wasm"
+      "filename": "const.385.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5206,7 +5516,8 @@
     {
       "type": "module",
       "line": 872,
-      "filename": "const.386.wasm"
+      "filename": "const.386.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5226,7 +5537,8 @@
     {
       "type": "module",
       "line": 874,
-      "filename": "const.387.wasm"
+      "filename": "const.387.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5246,7 +5558,8 @@
     {
       "type": "module",
       "line": 876,
-      "filename": "const.388.wasm"
+      "filename": "const.388.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5266,7 +5579,8 @@
     {
       "type": "module",
       "line": 878,
-      "filename": "const.389.wasm"
+      "filename": "const.389.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5286,7 +5600,8 @@
     {
       "type": "module",
       "line": 880,
-      "filename": "const.390.wasm"
+      "filename": "const.390.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5306,7 +5621,8 @@
     {
       "type": "module",
       "line": 882,
-      "filename": "const.391.wasm"
+      "filename": "const.391.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5326,7 +5642,8 @@
     {
       "type": "module",
       "line": 884,
-      "filename": "const.392.wasm"
+      "filename": "const.392.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5346,7 +5663,8 @@
     {
       "type": "module",
       "line": 886,
-      "filename": "const.393.wasm"
+      "filename": "const.393.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5366,7 +5684,8 @@
     {
       "type": "module",
       "line": 888,
-      "filename": "const.394.wasm"
+      "filename": "const.394.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5386,7 +5705,8 @@
     {
       "type": "module",
       "line": 890,
-      "filename": "const.395.wasm"
+      "filename": "const.395.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5406,7 +5726,8 @@
     {
       "type": "module",
       "line": 892,
-      "filename": "const.396.wasm"
+      "filename": "const.396.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5426,7 +5747,8 @@
     {
       "type": "module",
       "line": 894,
-      "filename": "const.397.wasm"
+      "filename": "const.397.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5446,7 +5768,8 @@
     {
       "type": "module",
       "line": 896,
-      "filename": "const.398.wasm"
+      "filename": "const.398.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5466,7 +5789,8 @@
     {
       "type": "module",
       "line": 898,
-      "filename": "const.399.wasm"
+      "filename": "const.399.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5486,7 +5810,8 @@
     {
       "type": "module",
       "line": 900,
-      "filename": "const.400.wasm"
+      "filename": "const.400.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5506,7 +5831,8 @@
     {
       "type": "module",
       "line": 902,
-      "filename": "const.401.wasm"
+      "filename": "const.401.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5526,7 +5852,8 @@
     {
       "type": "module",
       "line": 904,
-      "filename": "const.402.wasm"
+      "filename": "const.402.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5546,7 +5873,8 @@
     {
       "type": "module",
       "line": 906,
-      "filename": "const.403.wasm"
+      "filename": "const.403.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5566,7 +5894,8 @@
     {
       "type": "module",
       "line": 908,
-      "filename": "const.404.wasm"
+      "filename": "const.404.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5586,7 +5915,8 @@
     {
       "type": "module",
       "line": 910,
-      "filename": "const.405.wasm"
+      "filename": "const.405.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5606,7 +5936,8 @@
     {
       "type": "module",
       "line": 912,
-      "filename": "const.406.wasm"
+      "filename": "const.406.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5626,7 +5957,8 @@
     {
       "type": "module",
       "line": 914,
-      "filename": "const.407.wasm"
+      "filename": "const.407.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5646,7 +5978,8 @@
     {
       "type": "module",
       "line": 916,
-      "filename": "const.408.wasm"
+      "filename": "const.408.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5666,7 +5999,8 @@
     {
       "type": "module",
       "line": 918,
-      "filename": "const.409.wasm"
+      "filename": "const.409.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5686,7 +6020,8 @@
     {
       "type": "module",
       "line": 921,
-      "filename": "const.410.wasm"
+      "filename": "const.410.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5706,7 +6041,8 @@
     {
       "type": "module",
       "line": 923,
-      "filename": "const.411.wasm"
+      "filename": "const.411.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5726,7 +6062,8 @@
     {
       "type": "module",
       "line": 925,
-      "filename": "const.412.wasm"
+      "filename": "const.412.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5746,7 +6083,8 @@
     {
       "type": "module",
       "line": 927,
-      "filename": "const.413.wasm"
+      "filename": "const.413.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5766,7 +6104,8 @@
     {
       "type": "module",
       "line": 929,
-      "filename": "const.414.wasm"
+      "filename": "const.414.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5786,7 +6125,8 @@
     {
       "type": "module",
       "line": 931,
-      "filename": "const.415.wasm"
+      "filename": "const.415.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5806,7 +6146,8 @@
     {
       "type": "module",
       "line": 933,
-      "filename": "const.416.wasm"
+      "filename": "const.416.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5826,7 +6167,8 @@
     {
       "type": "module",
       "line": 935,
-      "filename": "const.417.wasm"
+      "filename": "const.417.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5846,7 +6188,8 @@
     {
       "type": "module",
       "line": 937,
-      "filename": "const.418.wasm"
+      "filename": "const.418.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5866,7 +6209,8 @@
     {
       "type": "module",
       "line": 939,
-      "filename": "const.419.wasm"
+      "filename": "const.419.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5886,7 +6230,8 @@
     {
       "type": "module",
       "line": 941,
-      "filename": "const.420.wasm"
+      "filename": "const.420.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5906,7 +6251,8 @@
     {
       "type": "module",
       "line": 943,
-      "filename": "const.421.wasm"
+      "filename": "const.421.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5926,7 +6272,8 @@
     {
       "type": "module",
       "line": 945,
-      "filename": "const.422.wasm"
+      "filename": "const.422.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5946,7 +6293,8 @@
     {
       "type": "module",
       "line": 947,
-      "filename": "const.423.wasm"
+      "filename": "const.423.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5966,7 +6314,8 @@
     {
       "type": "module",
       "line": 949,
-      "filename": "const.424.wasm"
+      "filename": "const.424.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5986,7 +6335,8 @@
     {
       "type": "module",
       "line": 951,
-      "filename": "const.425.wasm"
+      "filename": "const.425.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6006,7 +6356,8 @@
     {
       "type": "module",
       "line": 953,
-      "filename": "const.426.wasm"
+      "filename": "const.426.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6026,7 +6377,8 @@
     {
       "type": "module",
       "line": 955,
-      "filename": "const.427.wasm"
+      "filename": "const.427.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6046,7 +6398,8 @@
     {
       "type": "module",
       "line": 957,
-      "filename": "const.428.wasm"
+      "filename": "const.428.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6066,7 +6419,8 @@
     {
       "type": "module",
       "line": 959,
-      "filename": "const.429.wasm"
+      "filename": "const.429.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6086,7 +6440,8 @@
     {
       "type": "module",
       "line": 961,
-      "filename": "const.430.wasm"
+      "filename": "const.430.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6106,7 +6461,8 @@
     {
       "type": "module",
       "line": 963,
-      "filename": "const.431.wasm"
+      "filename": "const.431.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6126,7 +6482,8 @@
     {
       "type": "module",
       "line": 965,
-      "filename": "const.432.wasm"
+      "filename": "const.432.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6146,7 +6503,8 @@
     {
       "type": "module",
       "line": 967,
-      "filename": "const.433.wasm"
+      "filename": "const.433.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6166,7 +6524,8 @@
     {
       "type": "module",
       "line": 969,
-      "filename": "const.434.wasm"
+      "filename": "const.434.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6186,7 +6545,8 @@
     {
       "type": "module",
       "line": 971,
-      "filename": "const.435.wasm"
+      "filename": "const.435.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6206,7 +6566,8 @@
     {
       "type": "module",
       "line": 973,
-      "filename": "const.436.wasm"
+      "filename": "const.436.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6226,7 +6587,8 @@
     {
       "type": "module",
       "line": 975,
-      "filename": "const.437.wasm"
+      "filename": "const.437.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6246,7 +6608,8 @@
     {
       "type": "module",
       "line": 978,
-      "filename": "const.438.wasm"
+      "filename": "const.438.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6266,7 +6629,8 @@
     {
       "type": "module",
       "line": 980,
-      "filename": "const.439.wasm"
+      "filename": "const.439.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6286,7 +6650,8 @@
     {
       "type": "module",
       "line": 982,
-      "filename": "const.440.wasm"
+      "filename": "const.440.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6306,7 +6671,8 @@
     {
       "type": "module",
       "line": 984,
-      "filename": "const.441.wasm"
+      "filename": "const.441.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6326,7 +6692,8 @@
     {
       "type": "module",
       "line": 986,
-      "filename": "const.442.wasm"
+      "filename": "const.442.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6346,7 +6713,8 @@
     {
       "type": "module",
       "line": 988,
-      "filename": "const.443.wasm"
+      "filename": "const.443.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6366,7 +6734,8 @@
     {
       "type": "module",
       "line": 990,
-      "filename": "const.444.wasm"
+      "filename": "const.444.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6386,7 +6755,8 @@
     {
       "type": "module",
       "line": 992,
-      "filename": "const.445.wasm"
+      "filename": "const.445.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6406,7 +6776,8 @@
     {
       "type": "module",
       "line": 996,
-      "filename": "const.446.wasm"
+      "filename": "const.446.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6426,7 +6797,8 @@
     {
       "type": "module",
       "line": 998,
-      "filename": "const.447.wasm"
+      "filename": "const.447.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6446,7 +6818,8 @@
     {
       "type": "module",
       "line": 1000,
-      "filename": "const.448.wasm"
+      "filename": "const.448.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6466,7 +6839,8 @@
     {
       "type": "module",
       "line": 1002,
-      "filename": "const.449.wasm"
+      "filename": "const.449.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6486,7 +6860,8 @@
     {
       "type": "module",
       "line": 1004,
-      "filename": "const.450.wasm"
+      "filename": "const.450.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6506,7 +6881,8 @@
     {
       "type": "module",
       "line": 1006,
-      "filename": "const.451.wasm"
+      "filename": "const.451.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6526,7 +6902,8 @@
     {
       "type": "module",
       "line": 1008,
-      "filename": "const.452.wasm"
+      "filename": "const.452.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6546,7 +6923,8 @@
     {
       "type": "module",
       "line": 1010,
-      "filename": "const.453.wasm"
+      "filename": "const.453.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6566,7 +6944,8 @@
     {
       "type": "module",
       "line": 1012,
-      "filename": "const.454.wasm"
+      "filename": "const.454.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6586,7 +6965,8 @@
     {
       "type": "module",
       "line": 1014,
-      "filename": "const.455.wasm"
+      "filename": "const.455.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6606,7 +6986,8 @@
     {
       "type": "module",
       "line": 1016,
-      "filename": "const.456.wasm"
+      "filename": "const.456.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6626,7 +7007,8 @@
     {
       "type": "module",
       "line": 1018,
-      "filename": "const.457.wasm"
+      "filename": "const.457.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6646,7 +7028,8 @@
     {
       "type": "module",
       "line": 1020,
-      "filename": "const.458.wasm"
+      "filename": "const.458.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6666,7 +7049,8 @@
     {
       "type": "module",
       "line": 1022,
-      "filename": "const.459.wasm"
+      "filename": "const.459.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6686,7 +7070,8 @@
     {
       "type": "module",
       "line": 1024,
-      "filename": "const.460.wasm"
+      "filename": "const.460.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6706,7 +7091,8 @@
     {
       "type": "module",
       "line": 1026,
-      "filename": "const.461.wasm"
+      "filename": "const.461.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6726,7 +7112,8 @@
     {
       "type": "module",
       "line": 1028,
-      "filename": "const.462.wasm"
+      "filename": "const.462.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6746,7 +7133,8 @@
     {
       "type": "module",
       "line": 1030,
-      "filename": "const.463.wasm"
+      "filename": "const.463.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6766,7 +7154,8 @@
     {
       "type": "module",
       "line": 1032,
-      "filename": "const.464.wasm"
+      "filename": "const.464.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6786,7 +7175,8 @@
     {
       "type": "module",
       "line": 1034,
-      "filename": "const.465.wasm"
+      "filename": "const.465.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6806,7 +7196,8 @@
     {
       "type": "module",
       "line": 1036,
-      "filename": "const.466.wasm"
+      "filename": "const.466.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6826,7 +7217,8 @@
     {
       "type": "module",
       "line": 1038,
-      "filename": "const.467.wasm"
+      "filename": "const.467.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6846,7 +7238,8 @@
     {
       "type": "module",
       "line": 1040,
-      "filename": "const.468.wasm"
+      "filename": "const.468.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6866,7 +7259,8 @@
     {
       "type": "module",
       "line": 1042,
-      "filename": "const.469.wasm"
+      "filename": "const.469.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6886,7 +7280,8 @@
     {
       "type": "module",
       "line": 1044,
-      "filename": "const.470.wasm"
+      "filename": "const.470.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6906,7 +7301,8 @@
     {
       "type": "module",
       "line": 1046,
-      "filename": "const.471.wasm"
+      "filename": "const.471.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6926,7 +7322,8 @@
     {
       "type": "module",
       "line": 1048,
-      "filename": "const.472.wasm"
+      "filename": "const.472.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6946,7 +7343,8 @@
     {
       "type": "module",
       "line": 1050,
-      "filename": "const.473.wasm"
+      "filename": "const.473.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6966,7 +7364,8 @@
     {
       "type": "module",
       "line": 1054,
-      "filename": "const.474.wasm"
+      "filename": "const.474.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6986,7 +7385,8 @@
     {
       "type": "module",
       "line": 1056,
-      "filename": "const.475.wasm"
+      "filename": "const.475.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -7006,7 +7406,8 @@
     {
       "type": "module",
       "line": 1058,
-      "filename": "const.476.wasm"
+      "filename": "const.476.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -7026,7 +7427,8 @@
     {
       "type": "module",
       "line": 1060,
-      "filename": "const.477.wasm"
+      "filename": "const.477.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

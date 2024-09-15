@@ -5,7 +5,8 @@
       "type": "module",
       "line": 1,
       "name": "Mem",
-      "filename": "MP.0.wasm"
+      "filename": "MP.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "thread",
@@ -22,7 +23,8 @@
         {
           "type": "module",
           "line": 7,
-          "filename": "MP.1.wasm"
+          "filename": "MP.1.wasm",
+          "module_type": "binary"
         },
         {
           "type": "action",
@@ -50,7 +52,8 @@
         {
           "type": "module",
           "line": 19,
-          "filename": "MP.2.wasm"
+          "filename": "MP.2.wasm",
+          "module_type": "binary"
         },
         {
           "type": "action",
@@ -77,7 +80,8 @@
       "type": "module",
       "line": 40,
       "name": "Check",
-      "filename": "MP.3.wasm"
+      "filename": "MP.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

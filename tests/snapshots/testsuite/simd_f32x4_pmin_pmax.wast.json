@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 4,
-      "filename": "simd_f32x4_pmin_pmax.0.wasm"
+      "filename": "simd_f32x4_pmin_pmax.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -162634,99 +162635,99 @@
       "type": "assert_malformed",
       "line": 11629,
       "filename": "simd_f32x4_pmin_pmax.1.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 11630,
       "filename": "simd_f32x4_pmin_pmax.2.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 11631,
       "filename": "simd_f32x4_pmin_pmax.3.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 11632,
       "filename": "simd_f32x4_pmin_pmax.4.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 11633,
       "filename": "simd_f32x4_pmin_pmax.5.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 11634,
       "filename": "simd_f32x4_pmin_pmax.6.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 11635,
       "filename": "simd_f32x4_pmin_pmax.7.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 11636,
       "filename": "simd_f32x4_pmin_pmax.8.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_invalid",
       "line": 11639,
       "filename": "simd_f32x4_pmin_pmax.9.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 11640,
       "filename": "simd_f32x4_pmin_pmax.10.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 11645,
       "filename": "simd_f32x4_pmin_pmax.11.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 11653,
       "filename": "simd_f32x4_pmin_pmax.12.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 11661,
       "filename": "simd_f32x4_pmin_pmax.13.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 11669,
       "filename": "simd_f32x4_pmin_pmax.14.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     }
   ]
 }

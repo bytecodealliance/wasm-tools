@@ -4,14 +4,15 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "inline-exports.0.wasm"
+      "filename": "inline-exports.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_malformed",
       "line": 6,
       "filename": "inline-exports.1.wat",
-      "text": "unexpected token",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unexpected token"
     }
   ]
 }

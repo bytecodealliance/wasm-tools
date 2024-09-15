@@ -1575,19 +1575,9 @@ fn err_expected(
 }
 
 enum Attribute<'a> {
-    Since {
-        span: Span,
-        version: Version,
-        feature: Option<Id<'a>>,
-    },
-    Unstable {
-        span: Span,
-        feature: Id<'a>,
-    },
-    Deprecated {
-        span: Span,
-        version: Version,
-    },
+    Since { span: Span, version: Version },
+    Unstable { span: Span, feature: Id<'a> },
+    Deprecated { span: Span, version: Version },
 }
 
 impl<'a> Attribute<'a> {
@@ -1601,18 +1591,10 @@ impl<'a> Attribute<'a> {
                     eat_id(tokens, "version")?;
                     tokens.expect(Token::Equals)?;
                     let (_span, version) = parse_version(tokens)?;
-                    let feature = if tokens.eat(Token::Comma)? {
-                        eat_id(tokens, "feature")?;
-                        tokens.expect(Token::Equals)?;
-                        Some(parse_id(tokens)?)
-                    } else {
-                        None
-                    };
                     tokens.expect(Token::RightParen)?;
                     Attribute::Since {
                         span: id.span,
                         version,
-                        feature,
                     }
                 }
                 "unstable" => {
@@ -1672,7 +1654,6 @@ fn eat_id(tokens: &mut Tokenizer<'_>, expected: &str) -> Result<Span> {
 pub struct SourceMap {
     sources: Vec<Source>,
     offset: u32,
-    require_semicolons: Option<bool>,
     require_f32_f64: Option<bool>,
 }
 
@@ -1687,11 +1668,6 @@ impl SourceMap {
     /// Creates a new empty source map.
     pub fn new() -> SourceMap {
         SourceMap::default()
-    }
-
-    #[doc(hidden)] // NB: only here for a transitionary period
-    pub fn set_require_semicolons(&mut self, enable: bool) {
-        self.require_semicolons = Some(enable);
     }
 
     #[doc(hidden)] // NB: only here for a transitionary period
@@ -1750,7 +1726,6 @@ impl SourceMap {
                     // passing through the source to get tokenized.
                     &src.contents[..src.contents.len() - 1],
                     src.offset,
-                    self.require_semicolons,
                     self.require_f32_f64,
                 )
                 .with_context(|| format!("failed to tokenize path: {}", src.path.display()))?;
@@ -1827,13 +1802,15 @@ impl SourceMap {
             bail!("{msg}")
         }
 
-        if let Some(sort) = err.downcast_ref::<toposort::Error>() {
-            let span = match sort {
-                toposort::Error::NonexistentDep { span, .. }
-                | toposort::Error::Cycle { span, .. } => *span,
-            };
-            let msg = self.highlight_err(span.start, Some(span.end), sort);
-            bail!("{msg}")
+        if let Some(sort) = err.downcast_mut::<toposort::Error>() {
+            if sort.highlighted().is_none() {
+                let span = match sort {
+                    toposort::Error::NonexistentDep { span, .. }
+                    | toposort::Error::Cycle { span, .. } => *span,
+                };
+                let highlighted = self.highlight_err(span.start, Some(span.end), &sort);
+                sort.set_highlighted(highlighted);
+            }
         }
 
         Err(err)
@@ -1920,7 +1897,7 @@ pub enum ParsedUsePath {
 }
 
 pub fn parse_use_path(s: &str) -> Result<ParsedUsePath> {
-    let mut tokens = Tokenizer::new(s, 0, Some(true), None)?;
+    let mut tokens = Tokenizer::new(s, 0, None)?;
     let path = UsePath::parse(&mut tokens)?;
     if tokens.next()?.is_some() {
         bail!("trailing tokens in path specifier");

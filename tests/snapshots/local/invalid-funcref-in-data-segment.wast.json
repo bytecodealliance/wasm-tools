@@ -5,15 +5,15 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "invalid-funcref-in-data-segment.0.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 10,
       "filename": "invalid-funcref-in-data-segment.1.wasm",
-      "text": "undeclared function reference",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "undeclared function reference"
     }
   ]
 }

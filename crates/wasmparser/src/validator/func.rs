@@ -80,7 +80,10 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     pub fn validate(&mut self, body: &FunctionBody<'_>) -> Result<()> {
         let mut reader = body.get_binary_reader();
         self.read_locals(&mut reader)?;
-        reader.set_features(self.validator.features);
+        #[cfg(feature = "features")]
+        {
+            reader.set_features(self.validator.features);
+        }
         while !reader.eof() {
             reader.visit_operator(&mut self.visitor(reader.original_position()))??;
         }
@@ -237,7 +240,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
 mod tests {
     use super::*;
     use crate::types::CoreTypeId;
-    use crate::HeapType;
+    use crate::{HeapType, RefType};
 
     struct EmptyResources(crate::SubType);
 
@@ -273,7 +276,7 @@ mod tests {
         fn type_id_of_function(&self, _at: u32) -> Option<CoreTypeId> {
             todo!()
         }
-        fn type_of_function(&self, _func_idx: u32) -> Option<&crate::FuncType> {
+        fn type_index_of_function(&self, _at: u32) -> Option<u32> {
             todo!()
         }
         fn check_heap_type(&self, _t: &mut HeapType, _offset: usize) -> Result<()> {
@@ -286,6 +289,9 @@ mod tests {
             todo!()
         }
         fn is_subtype(&self, _t1: ValType, _t2: ValType) -> bool {
+            todo!()
+        }
+        fn is_shared(&self, _ty: RefType) -> bool {
             todo!()
         }
         fn element_count(&self) -> u32 {

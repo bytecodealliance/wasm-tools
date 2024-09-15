@@ -6,7 +6,7 @@ fn big_type_indices() {
     let mut module = Module::new();
     let mut types = TypeSection::new();
     for _ in 0..N {
-        types.function([], []);
+        types.ty().function([], []);
     }
     module.section(&types);
     let mut funcs = FunctionSection::new();

@@ -202,10 +202,14 @@ fn linking() -> Result<()> {
         let mut store = Store::new(&engine, ());
         let instance = linker.instantiate(&mut store, &Component::new(&engine, &component)?)?;
         let func = instance
-            .exports(&mut store)
-            .instance("test:test/test")
-            .ok_or_else(|| anyhow!("instance `test:test/test` not found"))?
-            .typed_func::<(i32,), (i32,)>("bar")?;
+            .get_export(&mut store, None, "test:test/test")
+            .and_then(|i| instance.get_export(&mut store, Some(&i), "bar"))
+            .and_then(|f| {
+                instance
+                    .get_typed_func::<(i32,), (i32,)>(&mut store, &f)
+                    .ok()
+            })
+            .ok_or_else(|| anyhow!("func `test:test/test/bar` not found"))?;
 
         assert_eq!(65, func.call(&mut store, (7,))?.0);
     }

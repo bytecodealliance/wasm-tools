@@ -155,8 +155,7 @@
       "functions": {},
       "stability": {
         "stable": {
-          "since": "1.0.0",
-          "feature": "foo"
+          "since": "1.0.0"
         }
       },
       "package": 0
@@ -167,8 +166,7 @@
       "functions": {},
       "stability": {
         "stable": {
-          "since": "1.0.0",
-          "feature": "foo-bar"
+          "since": "1.0.0"
         }
       },
       "package": 0

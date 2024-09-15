@@ -38,5 +38,5 @@ pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
     }
     let pkg = last.unwrap();
 
-    Ok(wit_component::encode(Some(true), &resolve, pkg).expect("failed to encode WIT document"))
+    Ok(wit_component::encode(&resolve, pkg).expect("failed to encode WIT document"))
 }

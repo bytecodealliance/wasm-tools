@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "ref_eq.0.wasm"
+      "filename": "ref_eq.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -1963,43 +1964,43 @@
       "type": "assert_invalid",
       "line": 122,
       "filename": "ref_eq.1.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 130,
       "filename": "ref_eq.2.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 138,
       "filename": "ref_eq.3.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 146,
       "filename": "ref_eq.4.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 154,
       "filename": "ref_eq.5.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 162,
       "filename": "ref_eq.6.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     }
   ]
 }

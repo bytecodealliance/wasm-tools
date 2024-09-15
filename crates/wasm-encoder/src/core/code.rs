@@ -14,7 +14,7 @@ use std::borrow::Cow;
 /// };
 ///
 /// let mut types = TypeSection::new();
-/// types.function(vec![], vec![ValType::I32]);
+/// types.ty().function(vec![], vec![ValType::I32]);
 ///
 /// let mut functions = FunctionSection::new();
 /// let type_index = 0;
@@ -83,12 +83,12 @@ impl CodeSection {
     /// into a new code section encoder:
     ///
     /// ```
-    /// # use wasmparser::{BinaryReader, WasmFeatures, CodeSectionReader};
+    /// # use wasmparser::{BinaryReader, CodeSectionReader};
     /// //                  id, size, # entries, entry
     /// let code_section = [10, 6,    1,         4, 0, 65, 0, 11];
     ///
     /// // Parse the code section.
-    /// let reader = BinaryReader::new(&code_section, 0, WasmFeatures::all());
+    /// let reader = BinaryReader::new(&code_section, 0);
     /// let reader = CodeSectionReader::new(reader).unwrap();
     /// let body = reader.into_iter().next().unwrap().unwrap();
     /// let body_range = body.range();
@@ -3693,7 +3693,7 @@ impl Encode for Instruction<'_> {
             }
             Instruction::RefI31Shared => {
                 sink.push(0xFE);
-                sink.push(0x1F);
+                sink.push(0x72);
             }
         }
     }

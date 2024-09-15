@@ -5,22 +5,22 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "gc-indexed-types.0.wasm",
-      "text": "array indexed types not supported without the gc feature",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "array indexed types not supported without the gc feature"
     },
     {
       "type": "assert_invalid",
       "line": 5,
       "filename": "gc-indexed-types.1.wasm",
-      "text": "array indexed types not supported without the gc feature",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "array indexed types not supported without the gc feature"
     },
     {
       "type": "assert_invalid",
       "line": 8,
       "filename": "gc-indexed-types.2.wasm",
-      "text": "struct indexed types not supported without the gc feature",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "struct indexed types not supported without the gc feature"
     }
   ]
 }

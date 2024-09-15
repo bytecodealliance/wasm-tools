@@ -4,1160 +4,1274 @@
     {
       "type": "module",
       "line": 3,
-      "filename": "simd_const.0.wasm"
+      "filename": "simd_const.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 4,
-      "filename": "simd_const.1.wasm"
+      "filename": "simd_const.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 5,
-      "filename": "simd_const.2.wasm"
+      "filename": "simd_const.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 6,
-      "filename": "simd_const.3.wasm"
+      "filename": "simd_const.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 7,
-      "filename": "simd_const.4.wasm"
+      "filename": "simd_const.4.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 8,
-      "filename": "simd_const.5.wasm"
+      "filename": "simd_const.5.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 9,
-      "filename": "simd_const.6.wasm"
+      "filename": "simd_const.6.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 10,
-      "filename": "simd_const.7.wasm"
+      "filename": "simd_const.7.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 11,
-      "filename": "simd_const.8.wasm"
+      "filename": "simd_const.8.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 12,
-      "filename": "simd_const.9.wasm"
+      "filename": "simd_const.9.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 13,
-      "filename": "simd_const.10.wasm"
+      "filename": "simd_const.10.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 14,
-      "filename": "simd_const.11.wasm"
+      "filename": "simd_const.11.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 15,
-      "filename": "simd_const.12.wasm"
+      "filename": "simd_const.12.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 16,
-      "filename": "simd_const.13.wasm"
+      "filename": "simd_const.13.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 17,
-      "filename": "simd_const.14.wasm"
+      "filename": "simd_const.14.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 18,
-      "filename": "simd_const.15.wasm"
+      "filename": "simd_const.15.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 19,
-      "filename": "simd_const.16.wasm"
+      "filename": "simd_const.16.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 20,
-      "filename": "simd_const.17.wasm"
+      "filename": "simd_const.17.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 21,
-      "filename": "simd_const.18.wasm"
+      "filename": "simd_const.18.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 22,
-      "filename": "simd_const.19.wasm"
+      "filename": "simd_const.19.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 23,
-      "filename": "simd_const.20.wasm"
+      "filename": "simd_const.20.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 24,
-      "filename": "simd_const.21.wasm"
+      "filename": "simd_const.21.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 25,
-      "filename": "simd_const.22.wasm"
+      "filename": "simd_const.22.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 26,
-      "filename": "simd_const.23.wasm"
+      "filename": "simd_const.23.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 27,
-      "filename": "simd_const.24.wasm"
+      "filename": "simd_const.24.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 28,
-      "filename": "simd_const.25.wasm"
+      "filename": "simd_const.25.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 29,
-      "filename": "simd_const.26.wasm"
+      "filename": "simd_const.26.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 30,
-      "filename": "simd_const.27.wasm"
+      "filename": "simd_const.27.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 31,
-      "filename": "simd_const.28.wasm"
+      "filename": "simd_const.28.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 32,
-      "filename": "simd_const.29.wasm"
+      "filename": "simd_const.29.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 33,
-      "filename": "simd_const.30.wasm"
+      "filename": "simd_const.30.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 34,
-      "filename": "simd_const.31.wasm"
+      "filename": "simd_const.31.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 35,
-      "filename": "simd_const.32.wasm"
+      "filename": "simd_const.32.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 36,
-      "filename": "simd_const.33.wasm"
+      "filename": "simd_const.33.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 37,
-      "filename": "simd_const.34.wasm"
+      "filename": "simd_const.34.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 38,
-      "filename": "simd_const.35.wasm"
+      "filename": "simd_const.35.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 39,
-      "filename": "simd_const.36.wasm"
+      "filename": "simd_const.36.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 41,
-      "filename": "simd_const.37.wasm"
+      "filename": "simd_const.37.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 43,
-      "filename": "simd_const.38.wasm"
+      "filename": "simd_const.38.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 44,
-      "filename": "simd_const.39.wasm"
+      "filename": "simd_const.39.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 45,
-      "filename": "simd_const.40.wasm"
+      "filename": "simd_const.40.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 46,
-      "filename": "simd_const.41.wasm"
+      "filename": "simd_const.41.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 47,
-      "filename": "simd_const.42.wasm"
+      "filename": "simd_const.42.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 48,
-      "filename": "simd_const.43.wasm"
+      "filename": "simd_const.43.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 49,
-      "filename": "simd_const.44.wasm"
+      "filename": "simd_const.44.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 50,
-      "filename": "simd_const.45.wasm"
+      "filename": "simd_const.45.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 51,
-      "filename": "simd_const.46.wasm"
+      "filename": "simd_const.46.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 52,
-      "filename": "simd_const.47.wasm"
+      "filename": "simd_const.47.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 53,
-      "filename": "simd_const.48.wasm"
+      "filename": "simd_const.48.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 54,
-      "filename": "simd_const.49.wasm"
+      "filename": "simd_const.49.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 55,
-      "filename": "simd_const.50.wasm"
+      "filename": "simd_const.50.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 56,
-      "filename": "simd_const.51.wasm"
+      "filename": "simd_const.51.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 57,
-      "filename": "simd_const.52.wasm"
+      "filename": "simd_const.52.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 58,
-      "filename": "simd_const.53.wasm"
+      "filename": "simd_const.53.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 59,
-      "filename": "simd_const.54.wasm"
+      "filename": "simd_const.54.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 60,
-      "filename": "simd_const.55.wasm"
+      "filename": "simd_const.55.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 61,
-      "filename": "simd_const.56.wasm"
+      "filename": "simd_const.56.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 62,
-      "filename": "simd_const.57.wasm"
+      "filename": "simd_const.57.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 63,
-      "filename": "simd_const.58.wasm"
+      "filename": "simd_const.58.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 64,
-      "filename": "simd_const.59.wasm"
+      "filename": "simd_const.59.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 65,
-      "filename": "simd_const.60.wasm"
+      "filename": "simd_const.60.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 66,
-      "filename": "simd_const.61.wasm"
+      "filename": "simd_const.61.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 67,
-      "filename": "simd_const.62.wasm"
+      "filename": "simd_const.62.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 68,
-      "filename": "simd_const.63.wasm"
+      "filename": "simd_const.63.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 69,
-      "filename": "simd_const.64.wasm"
+      "filename": "simd_const.64.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 70,
-      "filename": "simd_const.65.wasm"
+      "filename": "simd_const.65.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 71,
-      "filename": "simd_const.66.wasm"
+      "filename": "simd_const.66.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 72,
-      "filename": "simd_const.67.wasm"
+      "filename": "simd_const.67.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 73,
-      "filename": "simd_const.68.wasm"
+      "filename": "simd_const.68.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 75,
-      "filename": "simd_const.69.wasm"
+      "filename": "simd_const.69.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 77,
-      "filename": "simd_const.70.wasm"
+      "filename": "simd_const.70.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 78,
-      "filename": "simd_const.71.wasm"
+      "filename": "simd_const.71.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 79,
-      "filename": "simd_const.72.wasm"
+      "filename": "simd_const.72.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 80,
-      "filename": "simd_const.73.wasm"
+      "filename": "simd_const.73.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 81,
-      "filename": "simd_const.74.wasm"
+      "filename": "simd_const.74.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 82,
-      "filename": "simd_const.75.wasm"
+      "filename": "simd_const.75.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 83,
-      "filename": "simd_const.76.wasm"
+      "filename": "simd_const.76.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 84,
-      "filename": "simd_const.77.wasm"
+      "filename": "simd_const.77.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 85,
-      "filename": "simd_const.78.wasm"
+      "filename": "simd_const.78.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 86,
-      "filename": "simd_const.79.wasm"
+      "filename": "simd_const.79.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 87,
-      "filename": "simd_const.80.wasm"
+      "filename": "simd_const.80.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 88,
-      "filename": "simd_const.81.wasm"
+      "filename": "simd_const.81.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 89,
-      "filename": "simd_const.82.wasm"
+      "filename": "simd_const.82.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 90,
-      "filename": "simd_const.83.wasm"
+      "filename": "simd_const.83.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 91,
-      "filename": "simd_const.84.wasm"
+      "filename": "simd_const.84.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 92,
-      "filename": "simd_const.85.wasm"
+      "filename": "simd_const.85.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 93,
-      "filename": "simd_const.86.wasm"
+      "filename": "simd_const.86.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 94,
-      "filename": "simd_const.87.wasm"
+      "filename": "simd_const.87.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 95,
-      "filename": "simd_const.88.wasm"
+      "filename": "simd_const.88.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 96,
-      "filename": "simd_const.89.wasm"
+      "filename": "simd_const.89.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 97,
-      "filename": "simd_const.90.wasm"
+      "filename": "simd_const.90.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 98,
-      "filename": "simd_const.91.wasm"
+      "filename": "simd_const.91.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 99,
-      "filename": "simd_const.92.wasm"
+      "filename": "simd_const.92.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 100,
-      "filename": "simd_const.93.wasm"
+      "filename": "simd_const.93.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 101,
-      "filename": "simd_const.94.wasm"
+      "filename": "simd_const.94.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 102,
-      "filename": "simd_const.95.wasm"
+      "filename": "simd_const.95.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 106,
-      "filename": "simd_const.96.wasm"
+      "filename": "simd_const.96.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 108,
-      "filename": "simd_const.97.wasm"
+      "filename": "simd_const.97.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 110,
-      "filename": "simd_const.98.wasm"
+      "filename": "simd_const.98.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 112,
-      "filename": "simd_const.99.wasm"
+      "filename": "simd_const.99.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 113,
-      "filename": "simd_const.100.wasm"
+      "filename": "simd_const.100.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 114,
-      "filename": "simd_const.101.wasm"
+      "filename": "simd_const.101.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 115,
-      "filename": "simd_const.102.wasm"
+      "filename": "simd_const.102.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 116,
-      "filename": "simd_const.103.wasm"
+      "filename": "simd_const.103.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 117,
-      "filename": "simd_const.104.wasm"
+      "filename": "simd_const.104.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 118,
-      "filename": "simd_const.105.wasm"
+      "filename": "simd_const.105.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 119,
-      "filename": "simd_const.106.wasm"
+      "filename": "simd_const.106.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 120,
-      "filename": "simd_const.107.wasm"
+      "filename": "simd_const.107.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 121,
-      "filename": "simd_const.108.wasm"
+      "filename": "simd_const.108.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 122,
-      "filename": "simd_const.109.wasm"
+      "filename": "simd_const.109.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 123,
-      "filename": "simd_const.110.wasm"
+      "filename": "simd_const.110.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 124,
-      "filename": "simd_const.111.wasm"
+      "filename": "simd_const.111.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 128,
-      "filename": "simd_const.112.wasm"
+      "filename": "simd_const.112.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_malformed",
       "line": 130,
       "filename": "simd_const.113.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 134,
       "filename": "simd_const.114.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 138,
       "filename": "simd_const.115.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 142,
       "filename": "simd_const.116.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 146,
       "filename": "simd_const.117.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 150,
       "filename": "simd_const.118.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 154,
       "filename": "simd_const.119.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 158,
       "filename": "simd_const.120.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 162,
       "filename": "simd_const.121.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 166,
       "filename": "simd_const.122.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 170,
       "filename": "simd_const.123.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 174,
       "filename": "simd_const.124.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 178,
       "filename": "simd_const.125.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 182,
       "filename": "simd_const.126.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 186,
       "filename": "simd_const.127.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 190,
       "filename": "simd_const.128.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 194,
       "filename": "simd_const.129.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 199,
       "filename": "simd_const.130.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 205,
       "filename": "simd_const.131.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 210,
       "filename": "simd_const.132.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 215,
       "filename": "simd_const.133.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 221,
       "filename": "simd_const.134.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 227,
       "filename": "simd_const.135.wat",
-      "text": "unexpected token",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
       "line": 232,
       "filename": "simd_const.136.wat",
-      "text": "unexpected token",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
       "line": 236,
       "filename": "simd_const.137.wat",
-      "text": "wrong number of lane literals",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "wrong number of lane literals"
     },
     {
       "type": "assert_malformed",
       "line": 240,
       "filename": "simd_const.138.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 244,
       "filename": "simd_const.139.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 248,
       "filename": "simd_const.140.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 253,
       "filename": "simd_const.141.wat",
-      "text": "wrong number of lane literals",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "wrong number of lane literals"
     },
     {
       "type": "assert_malformed",
       "line": 257,
       "filename": "simd_const.142.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 261,
       "filename": "simd_const.143.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 265,
       "filename": "simd_const.144.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 270,
       "filename": "simd_const.145.wat",
-      "text": "wrong number of lane literals",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "wrong number of lane literals"
     },
     {
       "type": "assert_malformed",
       "line": 274,
       "filename": "simd_const.146.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 278,
       "filename": "simd_const.147.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 282,
       "filename": "simd_const.148.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 287,
       "filename": "simd_const.149.wat",
-      "text": "wrong number of lane literals",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "wrong number of lane literals"
     },
     {
       "type": "assert_malformed",
       "line": 291,
       "filename": "simd_const.150.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 295,
       "filename": "simd_const.151.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 299,
       "filename": "simd_const.152.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 304,
       "filename": "simd_const.153.wat",
-      "text": "wrong number of lane literals",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "wrong number of lane literals"
     },
     {
       "type": "assert_malformed",
       "line": 308,
       "filename": "simd_const.154.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 312,
       "filename": "simd_const.155.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 316,
       "filename": "simd_const.156.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 320,
       "filename": "simd_const.157.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 324,
       "filename": "simd_const.158.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 328,
       "filename": "simd_const.159.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 332,
       "filename": "simd_const.160.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 336,
       "filename": "simd_const.161.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 340,
       "filename": "simd_const.162.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 344,
       "filename": "simd_const.163.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 348,
       "filename": "simd_const.164.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 352,
       "filename": "simd_const.165.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 356,
       "filename": "simd_const.166.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 360,
       "filename": "simd_const.167.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 364,
       "filename": "simd_const.168.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 368,
       "filename": "simd_const.169.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 372,
       "filename": "simd_const.170.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 376,
       "filename": "simd_const.171.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 380,
       "filename": "simd_const.172.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 384,
       "filename": "simd_const.173.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 389,
       "filename": "simd_const.174.wat",
-      "text": "wrong number of lane literals",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "wrong number of lane literals"
     },
     {
       "type": "assert_malformed",
       "line": 393,
       "filename": "simd_const.175.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 397,
       "filename": "simd_const.176.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 401,
       "filename": "simd_const.177.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 405,
       "filename": "simd_const.178.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 409,
       "filename": "simd_const.179.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 413,
       "filename": "simd_const.180.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 417,
       "filename": "simd_const.181.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 421,
       "filename": "simd_const.182.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 425,
       "filename": "simd_const.183.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 429,
       "filename": "simd_const.184.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 433,
       "filename": "simd_const.185.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 437,
       "filename": "simd_const.186.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 441,
       "filename": "simd_const.187.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 445,
       "filename": "simd_const.188.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 449,
       "filename": "simd_const.189.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 453,
       "filename": "simd_const.190.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 457,
       "filename": "simd_const.191.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 461,
       "filename": "simd_const.192.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 465,
       "filename": "simd_const.193.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 469,
       "filename": "simd_const.194.wat",
-      "text": "constant out of range",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "constant out of range"
     },
     {
       "type": "assert_malformed",
       "line": 476,
       "filename": "simd_const.195.wat",
-      "text": "wrong number of lane literals",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "wrong number of lane literals"
     },
     {
       "type": "assert_malformed",
       "line": 482,
       "filename": "simd_const.196.wat",
-      "text": "wrong number of lane literals",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "wrong number of lane literals"
     },
     {
       "type": "module",
       "line": 489,
-      "filename": "simd_const.197.wasm"
+      "filename": "simd_const.197.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1183,7 +1297,8 @@
     {
       "type": "module",
       "line": 491,
-      "filename": "simd_const.198.wasm"
+      "filename": "simd_const.198.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1209,7 +1324,8 @@
     {
       "type": "module",
       "line": 493,
-      "filename": "simd_const.199.wasm"
+      "filename": "simd_const.199.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1235,7 +1351,8 @@
     {
       "type": "module",
       "line": 495,
-      "filename": "simd_const.200.wasm"
+      "filename": "simd_const.200.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1261,7 +1378,8 @@
     {
       "type": "module",
       "line": 498,
-      "filename": "simd_const.201.wasm"
+      "filename": "simd_const.201.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1287,7 +1405,8 @@
     {
       "type": "module",
       "line": 500,
-      "filename": "simd_const.202.wasm"
+      "filename": "simd_const.202.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1313,7 +1432,8 @@
     {
       "type": "module",
       "line": 502,
-      "filename": "simd_const.203.wasm"
+      "filename": "simd_const.203.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1339,7 +1459,8 @@
     {
       "type": "module",
       "line": 504,
-      "filename": "simd_const.204.wasm"
+      "filename": "simd_const.204.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1365,7 +1486,8 @@
     {
       "type": "module",
       "line": 507,
-      "filename": "simd_const.205.wasm"
+      "filename": "simd_const.205.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1391,7 +1513,8 @@
     {
       "type": "module",
       "line": 509,
-      "filename": "simd_const.206.wasm"
+      "filename": "simd_const.206.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1417,7 +1540,8 @@
     {
       "type": "module",
       "line": 511,
-      "filename": "simd_const.207.wasm"
+      "filename": "simd_const.207.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1443,7 +1567,8 @@
     {
       "type": "module",
       "line": 513,
-      "filename": "simd_const.208.wasm"
+      "filename": "simd_const.208.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1469,7 +1594,8 @@
     {
       "type": "module",
       "line": 517,
-      "filename": "simd_const.209.wasm"
+      "filename": "simd_const.209.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1495,7 +1621,8 @@
     {
       "type": "module",
       "line": 519,
-      "filename": "simd_const.210.wasm"
+      "filename": "simd_const.210.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1521,7 +1648,8 @@
     {
       "type": "module",
       "line": 521,
-      "filename": "simd_const.211.wasm"
+      "filename": "simd_const.211.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1547,7 +1675,8 @@
     {
       "type": "module",
       "line": 523,
-      "filename": "simd_const.212.wasm"
+      "filename": "simd_const.212.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1573,7 +1702,8 @@
     {
       "type": "module",
       "line": 526,
-      "filename": "simd_const.213.wasm"
+      "filename": "simd_const.213.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1599,7 +1729,8 @@
     {
       "type": "module",
       "line": 528,
-      "filename": "simd_const.214.wasm"
+      "filename": "simd_const.214.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1625,7 +1756,8 @@
     {
       "type": "module",
       "line": 530,
-      "filename": "simd_const.215.wasm"
+      "filename": "simd_const.215.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1651,7 +1783,8 @@
     {
       "type": "module",
       "line": 532,
-      "filename": "simd_const.216.wasm"
+      "filename": "simd_const.216.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1677,7 +1810,8 @@
     {
       "type": "module",
       "line": 535,
-      "filename": "simd_const.217.wasm"
+      "filename": "simd_const.217.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1703,7 +1837,8 @@
     {
       "type": "module",
       "line": 537,
-      "filename": "simd_const.218.wasm"
+      "filename": "simd_const.218.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1729,7 +1864,8 @@
     {
       "type": "module",
       "line": 539,
-      "filename": "simd_const.219.wasm"
+      "filename": "simd_const.219.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1755,7 +1891,8 @@
     {
       "type": "module",
       "line": 541,
-      "filename": "simd_const.220.wasm"
+      "filename": "simd_const.220.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1781,7 +1918,8 @@
     {
       "type": "module",
       "line": 545,
-      "filename": "simd_const.221.wasm"
+      "filename": "simd_const.221.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1807,7 +1945,8 @@
     {
       "type": "module",
       "line": 547,
-      "filename": "simd_const.222.wasm"
+      "filename": "simd_const.222.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1833,7 +1972,8 @@
     {
       "type": "module",
       "line": 549,
-      "filename": "simd_const.223.wasm"
+      "filename": "simd_const.223.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1859,7 +1999,8 @@
     {
       "type": "module",
       "line": 551,
-      "filename": "simd_const.224.wasm"
+      "filename": "simd_const.224.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1885,7 +2026,8 @@
     {
       "type": "module",
       "line": 555,
-      "filename": "simd_const.225.wasm"
+      "filename": "simd_const.225.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1911,7 +2053,8 @@
     {
       "type": "module",
       "line": 557,
-      "filename": "simd_const.226.wasm"
+      "filename": "simd_const.226.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1937,7 +2080,8 @@
     {
       "type": "module",
       "line": 559,
-      "filename": "simd_const.227.wasm"
+      "filename": "simd_const.227.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1963,7 +2107,8 @@
     {
       "type": "module",
       "line": 561,
-      "filename": "simd_const.228.wasm"
+      "filename": "simd_const.228.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -1989,7 +2134,8 @@
     {
       "type": "module",
       "line": 565,
-      "filename": "simd_const.229.wasm"
+      "filename": "simd_const.229.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2009,7 +2155,8 @@
     {
       "type": "module",
       "line": 567,
-      "filename": "simd_const.230.wasm"
+      "filename": "simd_const.230.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2029,7 +2176,8 @@
     {
       "type": "module",
       "line": 569,
-      "filename": "simd_const.231.wasm"
+      "filename": "simd_const.231.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2049,7 +2197,8 @@
     {
       "type": "module",
       "line": 571,
-      "filename": "simd_const.232.wasm"
+      "filename": "simd_const.232.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2069,7 +2218,8 @@
     {
       "type": "module",
       "line": 573,
-      "filename": "simd_const.233.wasm"
+      "filename": "simd_const.233.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2089,7 +2239,8 @@
     {
       "type": "module",
       "line": 575,
-      "filename": "simd_const.234.wasm"
+      "filename": "simd_const.234.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2109,7 +2260,8 @@
     {
       "type": "module",
       "line": 577,
-      "filename": "simd_const.235.wasm"
+      "filename": "simd_const.235.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2129,7 +2281,8 @@
     {
       "type": "module",
       "line": 579,
-      "filename": "simd_const.236.wasm"
+      "filename": "simd_const.236.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2149,7 +2302,8 @@
     {
       "type": "module",
       "line": 581,
-      "filename": "simd_const.237.wasm"
+      "filename": "simd_const.237.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2169,7 +2323,8 @@
     {
       "type": "module",
       "line": 583,
-      "filename": "simd_const.238.wasm"
+      "filename": "simd_const.238.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2189,7 +2344,8 @@
     {
       "type": "module",
       "line": 585,
-      "filename": "simd_const.239.wasm"
+      "filename": "simd_const.239.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2209,7 +2365,8 @@
     {
       "type": "module",
       "line": 587,
-      "filename": "simd_const.240.wasm"
+      "filename": "simd_const.240.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2229,7 +2386,8 @@
     {
       "type": "module",
       "line": 589,
-      "filename": "simd_const.241.wasm"
+      "filename": "simd_const.241.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2249,7 +2407,8 @@
     {
       "type": "module",
       "line": 591,
-      "filename": "simd_const.242.wasm"
+      "filename": "simd_const.242.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2269,7 +2428,8 @@
     {
       "type": "module",
       "line": 593,
-      "filename": "simd_const.243.wasm"
+      "filename": "simd_const.243.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2289,7 +2449,8 @@
     {
       "type": "module",
       "line": 595,
-      "filename": "simd_const.244.wasm"
+      "filename": "simd_const.244.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2309,7 +2470,8 @@
     {
       "type": "module",
       "line": 597,
-      "filename": "simd_const.245.wasm"
+      "filename": "simd_const.245.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2329,7 +2491,8 @@
     {
       "type": "module",
       "line": 599,
-      "filename": "simd_const.246.wasm"
+      "filename": "simd_const.246.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2349,7 +2512,8 @@
     {
       "type": "module",
       "line": 601,
-      "filename": "simd_const.247.wasm"
+      "filename": "simd_const.247.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2369,7 +2533,8 @@
     {
       "type": "module",
       "line": 603,
-      "filename": "simd_const.248.wasm"
+      "filename": "simd_const.248.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2389,7 +2554,8 @@
     {
       "type": "module",
       "line": 605,
-      "filename": "simd_const.249.wasm"
+      "filename": "simd_const.249.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2409,7 +2575,8 @@
     {
       "type": "module",
       "line": 607,
-      "filename": "simd_const.250.wasm"
+      "filename": "simd_const.250.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2429,7 +2596,8 @@
     {
       "type": "module",
       "line": 609,
-      "filename": "simd_const.251.wasm"
+      "filename": "simd_const.251.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2449,7 +2617,8 @@
     {
       "type": "module",
       "line": 611,
-      "filename": "simd_const.252.wasm"
+      "filename": "simd_const.252.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2469,7 +2638,8 @@
     {
       "type": "module",
       "line": 613,
-      "filename": "simd_const.253.wasm"
+      "filename": "simd_const.253.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2489,7 +2659,8 @@
     {
       "type": "module",
       "line": 615,
-      "filename": "simd_const.254.wasm"
+      "filename": "simd_const.254.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2509,7 +2680,8 @@
     {
       "type": "module",
       "line": 617,
-      "filename": "simd_const.255.wasm"
+      "filename": "simd_const.255.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2529,7 +2701,8 @@
     {
       "type": "module",
       "line": 619,
-      "filename": "simd_const.256.wasm"
+      "filename": "simd_const.256.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2549,7 +2722,8 @@
     {
       "type": "module",
       "line": 621,
-      "filename": "simd_const.257.wasm"
+      "filename": "simd_const.257.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2569,7 +2743,8 @@
     {
       "type": "module",
       "line": 623,
-      "filename": "simd_const.258.wasm"
+      "filename": "simd_const.258.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2589,7 +2764,8 @@
     {
       "type": "module",
       "line": 625,
-      "filename": "simd_const.259.wasm"
+      "filename": "simd_const.259.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2609,7 +2785,8 @@
     {
       "type": "module",
       "line": 627,
-      "filename": "simd_const.260.wasm"
+      "filename": "simd_const.260.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2629,7 +2806,8 @@
     {
       "type": "module",
       "line": 629,
-      "filename": "simd_const.261.wasm"
+      "filename": "simd_const.261.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2649,7 +2827,8 @@
     {
       "type": "module",
       "line": 631,
-      "filename": "simd_const.262.wasm"
+      "filename": "simd_const.262.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2669,7 +2848,8 @@
     {
       "type": "module",
       "line": 633,
-      "filename": "simd_const.263.wasm"
+      "filename": "simd_const.263.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2689,7 +2869,8 @@
     {
       "type": "module",
       "line": 635,
-      "filename": "simd_const.264.wasm"
+      "filename": "simd_const.264.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2709,7 +2890,8 @@
     {
       "type": "module",
       "line": 637,
-      "filename": "simd_const.265.wasm"
+      "filename": "simd_const.265.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2729,7 +2911,8 @@
     {
       "type": "module",
       "line": 639,
-      "filename": "simd_const.266.wasm"
+      "filename": "simd_const.266.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2749,7 +2932,8 @@
     {
       "type": "module",
       "line": 641,
-      "filename": "simd_const.267.wasm"
+      "filename": "simd_const.267.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2769,7 +2953,8 @@
     {
       "type": "module",
       "line": 643,
-      "filename": "simd_const.268.wasm"
+      "filename": "simd_const.268.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2789,7 +2974,8 @@
     {
       "type": "module",
       "line": 645,
-      "filename": "simd_const.269.wasm"
+      "filename": "simd_const.269.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2809,7 +2995,8 @@
     {
       "type": "module",
       "line": 647,
-      "filename": "simd_const.270.wasm"
+      "filename": "simd_const.270.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2829,7 +3016,8 @@
     {
       "type": "module",
       "line": 649,
-      "filename": "simd_const.271.wasm"
+      "filename": "simd_const.271.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2849,7 +3037,8 @@
     {
       "type": "module",
       "line": 651,
-      "filename": "simd_const.272.wasm"
+      "filename": "simd_const.272.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2869,7 +3058,8 @@
     {
       "type": "module",
       "line": 653,
-      "filename": "simd_const.273.wasm"
+      "filename": "simd_const.273.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2889,7 +3079,8 @@
     {
       "type": "module",
       "line": 655,
-      "filename": "simd_const.274.wasm"
+      "filename": "simd_const.274.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2909,7 +3100,8 @@
     {
       "type": "module",
       "line": 657,
-      "filename": "simd_const.275.wasm"
+      "filename": "simd_const.275.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2929,7 +3121,8 @@
     {
       "type": "module",
       "line": 659,
-      "filename": "simd_const.276.wasm"
+      "filename": "simd_const.276.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2949,7 +3142,8 @@
     {
       "type": "module",
       "line": 661,
-      "filename": "simd_const.277.wasm"
+      "filename": "simd_const.277.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2969,7 +3163,8 @@
     {
       "type": "module",
       "line": 663,
-      "filename": "simd_const.278.wasm"
+      "filename": "simd_const.278.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -2989,7 +3184,8 @@
     {
       "type": "module",
       "line": 665,
-      "filename": "simd_const.279.wasm"
+      "filename": "simd_const.279.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3009,7 +3205,8 @@
     {
       "type": "module",
       "line": 667,
-      "filename": "simd_const.280.wasm"
+      "filename": "simd_const.280.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3029,7 +3226,8 @@
     {
       "type": "module",
       "line": 669,
-      "filename": "simd_const.281.wasm"
+      "filename": "simd_const.281.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3049,7 +3247,8 @@
     {
       "type": "module",
       "line": 671,
-      "filename": "simd_const.282.wasm"
+      "filename": "simd_const.282.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3069,7 +3268,8 @@
     {
       "type": "module",
       "line": 673,
-      "filename": "simd_const.283.wasm"
+      "filename": "simd_const.283.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3089,7 +3289,8 @@
     {
       "type": "module",
       "line": 675,
-      "filename": "simd_const.284.wasm"
+      "filename": "simd_const.284.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3109,7 +3310,8 @@
     {
       "type": "module",
       "line": 677,
-      "filename": "simd_const.285.wasm"
+      "filename": "simd_const.285.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3129,7 +3331,8 @@
     {
       "type": "module",
       "line": 679,
-      "filename": "simd_const.286.wasm"
+      "filename": "simd_const.286.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3149,7 +3352,8 @@
     {
       "type": "module",
       "line": 681,
-      "filename": "simd_const.287.wasm"
+      "filename": "simd_const.287.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3169,7 +3373,8 @@
     {
       "type": "module",
       "line": 683,
-      "filename": "simd_const.288.wasm"
+      "filename": "simd_const.288.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3189,7 +3394,8 @@
     {
       "type": "module",
       "line": 687,
-      "filename": "simd_const.289.wasm"
+      "filename": "simd_const.289.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3213,7 +3419,8 @@
     {
       "type": "module",
       "line": 689,
-      "filename": "simd_const.290.wasm"
+      "filename": "simd_const.290.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3237,7 +3444,8 @@
     {
       "type": "module",
       "line": 691,
-      "filename": "simd_const.291.wasm"
+      "filename": "simd_const.291.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3261,7 +3469,8 @@
     {
       "type": "module",
       "line": 693,
-      "filename": "simd_const.292.wasm"
+      "filename": "simd_const.292.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3285,7 +3494,8 @@
     {
       "type": "module",
       "line": 695,
-      "filename": "simd_const.293.wasm"
+      "filename": "simd_const.293.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3309,7 +3519,8 @@
     {
       "type": "module",
       "line": 697,
-      "filename": "simd_const.294.wasm"
+      "filename": "simd_const.294.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3333,7 +3544,8 @@
     {
       "type": "module",
       "line": 699,
-      "filename": "simd_const.295.wasm"
+      "filename": "simd_const.295.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3357,7 +3569,8 @@
     {
       "type": "module",
       "line": 701,
-      "filename": "simd_const.296.wasm"
+      "filename": "simd_const.296.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3381,7 +3594,8 @@
     {
       "type": "module",
       "line": 703,
-      "filename": "simd_const.297.wasm"
+      "filename": "simd_const.297.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3405,7 +3619,8 @@
     {
       "type": "module",
       "line": 705,
-      "filename": "simd_const.298.wasm"
+      "filename": "simd_const.298.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3429,7 +3644,8 @@
     {
       "type": "module",
       "line": 707,
-      "filename": "simd_const.299.wasm"
+      "filename": "simd_const.299.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3453,7 +3669,8 @@
     {
       "type": "module",
       "line": 709,
-      "filename": "simd_const.300.wasm"
+      "filename": "simd_const.300.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3477,7 +3694,8 @@
     {
       "type": "module",
       "line": 711,
-      "filename": "simd_const.301.wasm"
+      "filename": "simd_const.301.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3501,7 +3719,8 @@
     {
       "type": "module",
       "line": 713,
-      "filename": "simd_const.302.wasm"
+      "filename": "simd_const.302.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3525,7 +3744,8 @@
     {
       "type": "module",
       "line": 715,
-      "filename": "simd_const.303.wasm"
+      "filename": "simd_const.303.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3549,7 +3769,8 @@
     {
       "type": "module",
       "line": 717,
-      "filename": "simd_const.304.wasm"
+      "filename": "simd_const.304.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3573,7 +3794,8 @@
     {
       "type": "module",
       "line": 719,
-      "filename": "simd_const.305.wasm"
+      "filename": "simd_const.305.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3597,7 +3819,8 @@
     {
       "type": "module",
       "line": 721,
-      "filename": "simd_const.306.wasm"
+      "filename": "simd_const.306.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3621,7 +3844,8 @@
     {
       "type": "module",
       "line": 723,
-      "filename": "simd_const.307.wasm"
+      "filename": "simd_const.307.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3645,7 +3869,8 @@
     {
       "type": "module",
       "line": 725,
-      "filename": "simd_const.308.wasm"
+      "filename": "simd_const.308.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3669,7 +3894,8 @@
     {
       "type": "module",
       "line": 727,
-      "filename": "simd_const.309.wasm"
+      "filename": "simd_const.309.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3693,7 +3919,8 @@
     {
       "type": "module",
       "line": 729,
-      "filename": "simd_const.310.wasm"
+      "filename": "simd_const.310.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3717,7 +3944,8 @@
     {
       "type": "module",
       "line": 731,
-      "filename": "simd_const.311.wasm"
+      "filename": "simd_const.311.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3741,7 +3969,8 @@
     {
       "type": "module",
       "line": 733,
-      "filename": "simd_const.312.wasm"
+      "filename": "simd_const.312.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3765,7 +3994,8 @@
     {
       "type": "module",
       "line": 735,
-      "filename": "simd_const.313.wasm"
+      "filename": "simd_const.313.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3789,7 +4019,8 @@
     {
       "type": "module",
       "line": 737,
-      "filename": "simd_const.314.wasm"
+      "filename": "simd_const.314.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3813,7 +4044,8 @@
     {
       "type": "module",
       "line": 739,
-      "filename": "simd_const.315.wasm"
+      "filename": "simd_const.315.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3837,7 +4069,8 @@
     {
       "type": "module",
       "line": 741,
-      "filename": "simd_const.316.wasm"
+      "filename": "simd_const.316.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3861,7 +4094,8 @@
     {
       "type": "module",
       "line": 743,
-      "filename": "simd_const.317.wasm"
+      "filename": "simd_const.317.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3885,7 +4119,8 @@
     {
       "type": "module",
       "line": 745,
-      "filename": "simd_const.318.wasm"
+      "filename": "simd_const.318.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3909,7 +4144,8 @@
     {
       "type": "module",
       "line": 747,
-      "filename": "simd_const.319.wasm"
+      "filename": "simd_const.319.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3933,7 +4169,8 @@
     {
       "type": "module",
       "line": 749,
-      "filename": "simd_const.320.wasm"
+      "filename": "simd_const.320.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3957,7 +4194,8 @@
     {
       "type": "module",
       "line": 751,
-      "filename": "simd_const.321.wasm"
+      "filename": "simd_const.321.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -3981,7 +4219,8 @@
     {
       "type": "module",
       "line": 753,
-      "filename": "simd_const.322.wasm"
+      "filename": "simd_const.322.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4005,7 +4244,8 @@
     {
       "type": "module",
       "line": 755,
-      "filename": "simd_const.323.wasm"
+      "filename": "simd_const.323.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4029,7 +4269,8 @@
     {
       "type": "module",
       "line": 757,
-      "filename": "simd_const.324.wasm"
+      "filename": "simd_const.324.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4053,7 +4294,8 @@
     {
       "type": "module",
       "line": 759,
-      "filename": "simd_const.325.wasm"
+      "filename": "simd_const.325.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4077,7 +4319,8 @@
     {
       "type": "module",
       "line": 761,
-      "filename": "simd_const.326.wasm"
+      "filename": "simd_const.326.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4101,7 +4344,8 @@
     {
       "type": "module",
       "line": 763,
-      "filename": "simd_const.327.wasm"
+      "filename": "simd_const.327.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4125,7 +4369,8 @@
     {
       "type": "module",
       "line": 765,
-      "filename": "simd_const.328.wasm"
+      "filename": "simd_const.328.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4149,7 +4394,8 @@
     {
       "type": "module",
       "line": 767,
-      "filename": "simd_const.329.wasm"
+      "filename": "simd_const.329.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4173,7 +4419,8 @@
     {
       "type": "module",
       "line": 769,
-      "filename": "simd_const.330.wasm"
+      "filename": "simd_const.330.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4197,7 +4444,8 @@
     {
       "type": "module",
       "line": 771,
-      "filename": "simd_const.331.wasm"
+      "filename": "simd_const.331.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4221,7 +4469,8 @@
     {
       "type": "module",
       "line": 773,
-      "filename": "simd_const.332.wasm"
+      "filename": "simd_const.332.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4245,7 +4494,8 @@
     {
       "type": "module",
       "line": 775,
-      "filename": "simd_const.333.wasm"
+      "filename": "simd_const.333.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4269,7 +4519,8 @@
     {
       "type": "module",
       "line": 777,
-      "filename": "simd_const.334.wasm"
+      "filename": "simd_const.334.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4293,7 +4544,8 @@
     {
       "type": "module",
       "line": 779,
-      "filename": "simd_const.335.wasm"
+      "filename": "simd_const.335.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4317,7 +4569,8 @@
     {
       "type": "module",
       "line": 781,
-      "filename": "simd_const.336.wasm"
+      "filename": "simd_const.336.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4341,7 +4594,8 @@
     {
       "type": "module",
       "line": 783,
-      "filename": "simd_const.337.wasm"
+      "filename": "simd_const.337.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4365,7 +4619,8 @@
     {
       "type": "module",
       "line": 785,
-      "filename": "simd_const.338.wasm"
+      "filename": "simd_const.338.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4389,7 +4644,8 @@
     {
       "type": "module",
       "line": 787,
-      "filename": "simd_const.339.wasm"
+      "filename": "simd_const.339.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4413,7 +4669,8 @@
     {
       "type": "module",
       "line": 789,
-      "filename": "simd_const.340.wasm"
+      "filename": "simd_const.340.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4437,7 +4694,8 @@
     {
       "type": "module",
       "line": 791,
-      "filename": "simd_const.341.wasm"
+      "filename": "simd_const.341.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4461,7 +4719,8 @@
     {
       "type": "module",
       "line": 793,
-      "filename": "simd_const.342.wasm"
+      "filename": "simd_const.342.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4485,7 +4744,8 @@
     {
       "type": "module",
       "line": 795,
-      "filename": "simd_const.343.wasm"
+      "filename": "simd_const.343.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4509,7 +4769,8 @@
     {
       "type": "module",
       "line": 797,
-      "filename": "simd_const.344.wasm"
+      "filename": "simd_const.344.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4533,7 +4794,8 @@
     {
       "type": "module",
       "line": 799,
-      "filename": "simd_const.345.wasm"
+      "filename": "simd_const.345.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4557,7 +4819,8 @@
     {
       "type": "module",
       "line": 801,
-      "filename": "simd_const.346.wasm"
+      "filename": "simd_const.346.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4581,7 +4844,8 @@
     {
       "type": "module",
       "line": 803,
-      "filename": "simd_const.347.wasm"
+      "filename": "simd_const.347.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4605,7 +4869,8 @@
     {
       "type": "module",
       "line": 805,
-      "filename": "simd_const.348.wasm"
+      "filename": "simd_const.348.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4629,7 +4894,8 @@
     {
       "type": "module",
       "line": 807,
-      "filename": "simd_const.349.wasm"
+      "filename": "simd_const.349.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4653,7 +4919,8 @@
     {
       "type": "module",
       "line": 809,
-      "filename": "simd_const.350.wasm"
+      "filename": "simd_const.350.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4677,7 +4944,8 @@
     {
       "type": "module",
       "line": 811,
-      "filename": "simd_const.351.wasm"
+      "filename": "simd_const.351.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4701,7 +4969,8 @@
     {
       "type": "module",
       "line": 813,
-      "filename": "simd_const.352.wasm"
+      "filename": "simd_const.352.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4725,7 +4994,8 @@
     {
       "type": "module",
       "line": 817,
-      "filename": "simd_const.353.wasm"
+      "filename": "simd_const.353.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4749,7 +5019,8 @@
     {
       "type": "module",
       "line": 819,
-      "filename": "simd_const.354.wasm"
+      "filename": "simd_const.354.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4773,7 +5044,8 @@
     {
       "type": "module",
       "line": 821,
-      "filename": "simd_const.355.wasm"
+      "filename": "simd_const.355.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4797,7 +5069,8 @@
     {
       "type": "module",
       "line": 823,
-      "filename": "simd_const.356.wasm"
+      "filename": "simd_const.356.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4821,7 +5094,8 @@
     {
       "type": "module",
       "line": 825,
-      "filename": "simd_const.357.wasm"
+      "filename": "simd_const.357.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4845,7 +5119,8 @@
     {
       "type": "module",
       "line": 827,
-      "filename": "simd_const.358.wasm"
+      "filename": "simd_const.358.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4869,7 +5144,8 @@
     {
       "type": "module",
       "line": 829,
-      "filename": "simd_const.359.wasm"
+      "filename": "simd_const.359.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4893,7 +5169,8 @@
     {
       "type": "module",
       "line": 831,
-      "filename": "simd_const.360.wasm"
+      "filename": "simd_const.360.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4917,7 +5194,8 @@
     {
       "type": "module",
       "line": 833,
-      "filename": "simd_const.361.wasm"
+      "filename": "simd_const.361.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4941,7 +5219,8 @@
     {
       "type": "module",
       "line": 835,
-      "filename": "simd_const.362.wasm"
+      "filename": "simd_const.362.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4965,7 +5244,8 @@
     {
       "type": "module",
       "line": 837,
-      "filename": "simd_const.363.wasm"
+      "filename": "simd_const.363.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -4989,7 +5269,8 @@
     {
       "type": "module",
       "line": 839,
-      "filename": "simd_const.364.wasm"
+      "filename": "simd_const.364.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5013,7 +5294,8 @@
     {
       "type": "module",
       "line": 841,
-      "filename": "simd_const.365.wasm"
+      "filename": "simd_const.365.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5037,7 +5319,8 @@
     {
       "type": "module",
       "line": 843,
-      "filename": "simd_const.366.wasm"
+      "filename": "simd_const.366.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5061,7 +5344,8 @@
     {
       "type": "module",
       "line": 845,
-      "filename": "simd_const.367.wasm"
+      "filename": "simd_const.367.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5085,7 +5369,8 @@
     {
       "type": "module",
       "line": 847,
-      "filename": "simd_const.368.wasm"
+      "filename": "simd_const.368.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5109,7 +5394,8 @@
     {
       "type": "module",
       "line": 849,
-      "filename": "simd_const.369.wasm"
+      "filename": "simd_const.369.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5133,7 +5419,8 @@
     {
       "type": "module",
       "line": 851,
-      "filename": "simd_const.370.wasm"
+      "filename": "simd_const.370.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5157,7 +5444,8 @@
     {
       "type": "module",
       "line": 853,
-      "filename": "simd_const.371.wasm"
+      "filename": "simd_const.371.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5181,7 +5469,8 @@
     {
       "type": "module",
       "line": 855,
-      "filename": "simd_const.372.wasm"
+      "filename": "simd_const.372.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5205,7 +5494,8 @@
     {
       "type": "module",
       "line": 857,
-      "filename": "simd_const.373.wasm"
+      "filename": "simd_const.373.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5229,7 +5519,8 @@
     {
       "type": "module",
       "line": 859,
-      "filename": "simd_const.374.wasm"
+      "filename": "simd_const.374.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5253,7 +5544,8 @@
     {
       "type": "module",
       "line": 861,
-      "filename": "simd_const.375.wasm"
+      "filename": "simd_const.375.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5277,7 +5569,8 @@
     {
       "type": "module",
       "line": 863,
-      "filename": "simd_const.376.wasm"
+      "filename": "simd_const.376.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5301,7 +5594,8 @@
     {
       "type": "module",
       "line": 865,
-      "filename": "simd_const.377.wasm"
+      "filename": "simd_const.377.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5325,7 +5619,8 @@
     {
       "type": "module",
       "line": 867,
-      "filename": "simd_const.378.wasm"
+      "filename": "simd_const.378.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5349,7 +5644,8 @@
     {
       "type": "module",
       "line": 869,
-      "filename": "simd_const.379.wasm"
+      "filename": "simd_const.379.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5373,7 +5669,8 @@
     {
       "type": "module",
       "line": 871,
-      "filename": "simd_const.380.wasm"
+      "filename": "simd_const.380.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5397,7 +5694,8 @@
     {
       "type": "module",
       "line": 875,
-      "filename": "simd_const.381.wasm"
+      "filename": "simd_const.381.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5421,7 +5719,8 @@
     {
       "type": "module",
       "line": 877,
-      "filename": "simd_const.382.wasm"
+      "filename": "simd_const.382.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5445,7 +5744,8 @@
     {
       "type": "module",
       "line": 879,
-      "filename": "simd_const.383.wasm"
+      "filename": "simd_const.383.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5469,7 +5769,8 @@
     {
       "type": "module",
       "line": 881,
-      "filename": "simd_const.384.wasm"
+      "filename": "simd_const.384.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5493,7 +5794,8 @@
     {
       "type": "module",
       "line": 886,
-      "filename": "simd_const.385.wasm"
+      "filename": "simd_const.385.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -5878,7 +6180,8 @@
     {
       "type": "module",
       "line": 995,
-      "filename": "simd_const.386.wasm"
+      "filename": "simd_const.386.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6000,7 +6303,8 @@
     {
       "type": "module",
       "line": 1031,
-      "filename": "simd_const.387.wasm"
+      "filename": "simd_const.387.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6140,7 +6444,8 @@
     {
       "type": "module",
       "line": 1076,
-      "filename": "simd_const.388.wasm"
+      "filename": "simd_const.388.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -6586,146 +6891,147 @@
       "type": "assert_malformed",
       "line": 1131,
       "filename": "simd_const.389.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1135,
       "filename": "simd_const.390.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1139,
       "filename": "simd_const.391.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1143,
       "filename": "simd_const.392.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1147,
       "filename": "simd_const.393.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1151,
       "filename": "simd_const.394.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1155,
       "filename": "simd_const.395.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1159,
       "filename": "simd_const.396.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1163,
       "filename": "simd_const.397.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1167,
       "filename": "simd_const.398.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1172,
       "filename": "simd_const.399.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1176,
       "filename": "simd_const.400.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1180,
       "filename": "simd_const.401.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1184,
       "filename": "simd_const.402.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1188,
       "filename": "simd_const.403.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1192,
       "filename": "simd_const.404.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1196,
       "filename": "simd_const.405.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1200,
       "filename": "simd_const.406.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1204,
       "filename": "simd_const.407.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1208,
       "filename": "simd_const.408.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "module",
       "line": 1214,
-      "filename": "simd_const.409.wasm"
+      "filename": "simd_const.409.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -7131,538 +7437,539 @@
       "type": "assert_malformed",
       "line": 1259,
       "filename": "simd_const.410.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1263,
       "filename": "simd_const.411.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1267,
       "filename": "simd_const.412.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1271,
       "filename": "simd_const.413.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1275,
       "filename": "simd_const.414.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1279,
       "filename": "simd_const.415.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1283,
       "filename": "simd_const.416.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1287,
       "filename": "simd_const.417.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1291,
       "filename": "simd_const.418.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1295,
       "filename": "simd_const.419.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1299,
       "filename": "simd_const.420.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1303,
       "filename": "simd_const.421.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1307,
       "filename": "simd_const.422.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1311,
       "filename": "simd_const.423.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1315,
       "filename": "simd_const.424.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1319,
       "filename": "simd_const.425.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1323,
       "filename": "simd_const.426.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1327,
       "filename": "simd_const.427.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1331,
       "filename": "simd_const.428.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1335,
       "filename": "simd_const.429.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1339,
       "filename": "simd_const.430.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1343,
       "filename": "simd_const.431.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1347,
       "filename": "simd_const.432.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1351,
       "filename": "simd_const.433.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1355,
       "filename": "simd_const.434.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1359,
       "filename": "simd_const.435.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1363,
       "filename": "simd_const.436.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1367,
       "filename": "simd_const.437.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1371,
       "filename": "simd_const.438.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1375,
       "filename": "simd_const.439.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1379,
       "filename": "simd_const.440.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1383,
       "filename": "simd_const.441.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1387,
       "filename": "simd_const.442.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1391,
       "filename": "simd_const.443.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1395,
       "filename": "simd_const.444.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1399,
       "filename": "simd_const.445.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1403,
       "filename": "simd_const.446.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1407,
       "filename": "simd_const.447.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1412,
       "filename": "simd_const.448.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1416,
       "filename": "simd_const.449.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1420,
       "filename": "simd_const.450.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1424,
       "filename": "simd_const.451.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1428,
       "filename": "simd_const.452.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1432,
       "filename": "simd_const.453.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1436,
       "filename": "simd_const.454.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1440,
       "filename": "simd_const.455.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1444,
       "filename": "simd_const.456.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1448,
       "filename": "simd_const.457.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1452,
       "filename": "simd_const.458.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1456,
       "filename": "simd_const.459.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1460,
       "filename": "simd_const.460.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1464,
       "filename": "simd_const.461.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1468,
       "filename": "simd_const.462.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1472,
       "filename": "simd_const.463.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1476,
       "filename": "simd_const.464.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1480,
       "filename": "simd_const.465.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1484,
       "filename": "simd_const.466.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1488,
       "filename": "simd_const.467.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1492,
       "filename": "simd_const.468.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1496,
       "filename": "simd_const.469.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1500,
       "filename": "simd_const.470.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1504,
       "filename": "simd_const.471.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1508,
       "filename": "simd_const.472.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1512,
       "filename": "simd_const.473.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1516,
       "filename": "simd_const.474.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1520,
       "filename": "simd_const.475.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1524,
       "filename": "simd_const.476.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1528,
       "filename": "simd_const.477.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1532,
       "filename": "simd_const.478.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1536,
       "filename": "simd_const.479.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1540,
       "filename": "simd_const.480.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1544,
       "filename": "simd_const.481.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1548,
       "filename": "simd_const.482.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1552,
       "filename": "simd_const.483.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1556,
       "filename": "simd_const.484.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "assert_malformed",
       "line": 1560,
       "filename": "simd_const.485.wat",
-      "text": "unknown operator",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "unknown operator"
     },
     {
       "type": "module",
       "line": 1566,
-      "filename": "simd_const.486.wasm"
+      "filename": "simd_const.486.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -7700,7 +8007,8 @@
     {
       "type": "module",
       "line": 1583,
-      "filename": "simd_const.487.wasm"
+      "filename": "simd_const.487.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -7730,7 +8038,8 @@
     {
       "type": "module",
       "line": 1600,
-      "filename": "simd_const.488.wasm"
+      "filename": "simd_const.488.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -7756,7 +8065,8 @@
     {
       "type": "module",
       "line": 1617,
-      "filename": "simd_const.489.wasm"
+      "filename": "simd_const.489.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -7780,7 +8090,8 @@
     {
       "type": "module",
       "line": 1634,
-      "filename": "simd_const.490.wasm"
+      "filename": "simd_const.490.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -7806,7 +8117,8 @@
     {
       "type": "module",
       "line": 1651,
-      "filename": "simd_const.491.wasm"
+      "filename": "simd_const.491.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

@@ -21,7 +21,7 @@ log = { workspace = true }
 rand = { workspace = true }
 clap = { workspace = true, optional = true }
 wasm-mutate = { workspace = true }
-wasmparser = { workspace = true, features = ['validate'] }
+wasmparser = { workspace = true, features = ['validate', 'features'] }
 
 [dev-dependencies]
 env_logger = { workspace = true }

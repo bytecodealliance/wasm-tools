@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 3,
-      "filename": "global.0.wasm"
+      "filename": "global.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -930,350 +931,354 @@
       "type": "assert_invalid",
       "line": 285,
       "filename": "global.1.wasm",
-      "text": "global is immutable",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "global is immutable"
     },
     {
       "type": "assert_invalid",
       "line": 290,
       "filename": "global.2.wasm",
-      "text": "global is immutable",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "global is immutable"
     },
     {
       "type": "module",
       "line": 295,
-      "filename": "global.3.wasm"
+      "filename": "global.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 296,
-      "filename": "global.4.wasm"
+      "filename": "global.4.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_invalid",
       "line": 299,
       "filename": "global.5.wasm",
-      "text": "constant expression required",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "constant expression required"
     },
     {
       "type": "assert_invalid",
       "line": 304,
       "filename": "global.6.wasm",
-      "text": "constant expression required",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "constant expression required"
     },
     {
       "type": "assert_invalid",
       "line": 309,
       "filename": "global.7.wasm",
-      "text": "constant expression required",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "constant expression required"
     },
     {
       "type": "assert_invalid",
       "line": 314,
       "filename": "global.8.wasm",
-      "text": "constant expression required",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "constant expression required"
     },
     {
       "type": "assert_invalid",
       "line": 319,
       "filename": "global.9.wasm",
-      "text": "constant expression required",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "constant expression required"
     },
     {
       "type": "assert_invalid",
       "line": 324,
       "filename": "global.10.wasm",
-      "text": "constant expression required",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "constant expression required"
     },
     {
       "type": "assert_invalid",
       "line": 329,
       "filename": "global.11.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 334,
       "filename": "global.12.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 339,
       "filename": "global.13.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 344,
       "filename": "global.14.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 349,
       "filename": "global.15.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 354,
       "filename": "global.16.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 359,
       "filename": "global.17.wasm",
-      "text": "unknown global",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown global"
     },
     {
       "type": "assert_invalid",
       "line": 364,
       "filename": "global.18.wasm",
-      "text": "unknown global",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown global"
     },
     {
       "type": "assert_invalid",
       "line": 368,
       "filename": "global.19.wasm",
-      "text": "unknown global",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown global"
     },
     {
       "type": "assert_invalid",
       "line": 373,
       "filename": "global.20.wasm",
-      "text": "unknown global",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown global"
     },
     {
       "type": "assert_invalid",
       "line": 378,
       "filename": "global.21.wasm",
-      "text": "unknown global",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown global"
     },
     {
       "type": "assert_invalid",
       "line": 383,
       "filename": "global.22.wasm",
-      "text": "constant expression required",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "constant expression required"
     },
     {
       "type": "module",
       "line": 387,
-      "filename": "global.23.wasm"
+      "filename": "global.23.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_malformed",
       "line": 391,
       "filename": "global.24.wasm",
-      "text": "malformed mutability",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "malformed mutability"
     },
     {
       "type": "assert_malformed",
       "line": 404,
       "filename": "global.25.wasm",
-      "text": "malformed mutability",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "malformed mutability"
     },
     {
       "type": "module",
       "line": 417,
-      "filename": "global.26.wasm"
+      "filename": "global.26.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_malformed",
       "line": 421,
       "filename": "global.27.wasm",
-      "text": "malformed mutability",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "malformed mutability"
     },
     {
       "type": "assert_malformed",
       "line": 433,
       "filename": "global.28.wasm",
-      "text": "malformed mutability",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "malformed mutability"
     },
     {
       "type": "assert_invalid",
       "line": 447,
       "filename": "global.29.wasm",
-      "text": "unknown global",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown global"
     },
     {
       "type": "assert_invalid",
       "line": 452,
       "filename": "global.30.wasm",
-      "text": "unknown global",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown global"
     },
     {
       "type": "assert_invalid",
       "line": 460,
       "filename": "global.31.wasm",
-      "text": "unknown global",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown global"
     },
     {
       "type": "assert_invalid",
       "line": 468,
       "filename": "global.32.wasm",
-      "text": "unknown global",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown global"
     },
     {
       "type": "assert_invalid",
       "line": 478,
       "filename": "global.33.wasm",
-      "text": "unknown global",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown global"
     },
     {
       "type": "assert_invalid",
       "line": 483,
       "filename": "global.34.wasm",
-      "text": "unknown global",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown global"
     },
     {
       "type": "assert_invalid",
       "line": 491,
       "filename": "global.35.wasm",
-      "text": "unknown global",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown global"
     },
     {
       "type": "assert_invalid",
       "line": 499,
       "filename": "global.36.wasm",
-      "text": "unknown global",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown global"
     },
     {
       "type": "assert_invalid",
       "line": 509,
       "filename": "global.37.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 518,
       "filename": "global.38.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 528,
       "filename": "global.39.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 538,
       "filename": "global.40.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 548,
       "filename": "global.41.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 558,
       "filename": "global.42.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 568,
       "filename": "global.43.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 578,
       "filename": "global.44.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 588,
       "filename": "global.45.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 597,
       "filename": "global.46.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 606,
       "filename": "global.47.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 616,
       "filename": "global.48.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_malformed",
       "line": 634,
       "filename": "global.49.wat",
-      "text": "duplicate global",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "duplicate global"
     },
     {
       "type": "assert_malformed",
       "line": 638,
       "filename": "global.50.wat",
-      "text": "duplicate global",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "duplicate global"
     },
     {
       "type": "assert_malformed",
       "line": 642,
       "filename": "global.51.wat",
-      "text": "duplicate global",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "duplicate global"
     }
   ]
 }

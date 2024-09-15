@@ -50,7 +50,7 @@ fn targets() -> Result<()> {
             }
             Err(e) => {
                 assert!(test_case.starts_with("error-"), "{e:?}");
-                assert_output(&path.join("error.txt"), &format!("{e:?}"))?;
+                assert_output(&path.join("error.txt"), &format!("{e:#}"))?;
             }
         }
     }

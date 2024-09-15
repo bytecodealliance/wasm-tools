@@ -83,7 +83,7 @@ use indexmap::{IndexMap, IndexSet};
 use std::collections::HashMap;
 use std::hash::Hash;
 use wasm_encoder::*;
-use wasmparser::{Validator, WasmFeatures};
+use wasmparser::Validator;
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
     Function, FunctionKind, InterfaceId, LiveTypes, Resolve, Type, TypeDefKind, TypeId, TypeOwner,
@@ -630,6 +630,8 @@ impl<'a> EncodingState<'a> {
         for (name, adapter) in after {
             self.instantiate_adapter_module(&shims, name, adapter);
         }
+
+        self.encode_initialize_with_start()?;
 
         Ok(())
     }
@@ -1245,7 +1247,7 @@ impl<'a> EncodingState<'a> {
             let i = i as u32;
             let type_index = *sigs.entry(sig).or_insert_with(|| {
                 let index = types.len();
-                types.function(
+                types.ty().function(
                     sig.params.iter().map(to_val_type),
                     sig.results.iter().map(to_val_type),
                 );
@@ -1689,6 +1691,60 @@ impl<'a> EncodingState<'a> {
         });
         self.adapter_import_reallocs.insert(name, realloc);
     }
+
+    /// Generates component bits that are responsible for executing
+    /// `_initialize`, if found, in the original component.
+    ///
+    /// The `_initialize` function was a part of WASIp1 where it generally is
+    /// intended to run after imports and memory and such are all "hooked up"
+    /// and performs other various initialization tasks. This is additionally
+    /// specified in https://github.com/WebAssembly/component-model/pull/378
+    /// to be part of the component model lowerings as well.
+    ///
+    /// This implements this functionality by encoding a core module that
+    /// imports a function and then registers a `start` section with that
+    /// imported function. This is all encoded after the
+    /// imports/lowerings/tables/etc are all filled in above meaning that this
+    /// is the last piece to run. That means that when this is running
+    /// everything should be hooked up for all imported functions to work.
+    ///
+    /// Note that at this time `_initialize` is only detected in the "main
+    /// module", not adapters/libraries.
+    fn encode_initialize_with_start(&mut self) -> Result<()> {
+        let initialize = match self.info.info.initialize {
+            Some(name) => name,
+            // If this core module didn't have `_initialize` or similar, then
+            // there's nothing to do here.
+            None => return Ok(()),
+        };
+        let initialize_index = self.component.alias_core_export(
+            self.instance_index.unwrap(),
+            initialize,
+            ExportKind::Func,
+        );
+        let mut shim = Module::default();
+        let mut section = TypeSection::new();
+        section.ty().function([], []);
+        shim.section(&section);
+        let mut section = ImportSection::new();
+        section.import("", "", EntityType::Function(0));
+        shim.section(&section);
+        shim.section(&StartSection { function_index: 0 });
+
+        // Declare the core module within the component, create a dummy core
+        // instance with one export of our `_initialize` function, and then use
+        // that to instantiate the module we emit to run the `start` function in
+        // core wasm to run `_initialize`.
+        let shim_module_index = self.component.core_module(&shim);
+        let shim_args_instance_index =
+            self.component
+                .core_instantiate_exports([("", ExportKind::Func, initialize_index)]);
+        self.component.core_instantiate(
+            shim_module_index,
+            [("", ModuleArg::Instance(shim_args_instance_index))],
+        );
+        Ok(())
+    }
 }
 
 /// A list of "shims" which start out during the component instantiation process
@@ -1922,6 +1978,7 @@ impl ComponentEncoder {
     /// core module.
     pub fn module(mut self, module: &[u8]) -> Result<Self> {
         let (wasm, metadata) = metadata::decode(module)?;
+        let wasm = wasm.as_deref().unwrap_or(module);
         let world = self
             .metadata
             .merge(metadata)
@@ -1931,7 +1988,7 @@ impl ComponentEncoder {
         self.module = if let Some(producers) = &self.metadata.producers {
             producers.add_to_wasm(&wasm)?
         } else {
-            wasm
+            wasm.to_vec()
         };
         Ok(self)
     }
@@ -1986,6 +2043,7 @@ impl ComponentEncoder {
         library_info: Option<LibraryInfo>,
     ) -> Result<Self> {
         let (wasm, metadata) = metadata::decode(bytes)?;
+        let wasm = wasm.as_deref().unwrap_or(bytes);
         // Merge the adapter's document into our own document to have one large
         // document, and then afterwards merge worlds as well.
         //
@@ -2041,7 +2099,7 @@ impl ComponentEncoder {
         self.adapters.insert(
             name.to_string(),
             Adapter {
-                wasm,
+                wasm: wasm.to_vec(),
                 metadata: metadata.metadata,
                 required_exports: exports,
                 library_info,
@@ -2115,11 +2173,7 @@ impl ComponentEncoder {
         let bytes = state.component.finish();
 
         if self.validate {
-            let mut validator = Validator::new_with_features(
-                WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL,
-            );
-
-            validator
+            Validator::new()
                 .validate_all(&bytes)
                 .context("failed to validate component output")?;
         }

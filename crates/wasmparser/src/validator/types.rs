@@ -257,7 +257,7 @@ pub enum CoreType {
 }
 
 /// Represents a unique identifier for a core type type known to a
-/// [`crate::Validator`]
+/// [`crate::Validator`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(C)]
 pub struct CoreTypeId {
@@ -298,7 +298,6 @@ impl TypeData for SubType {
             CompositeInnerType::Array(_) => 2,
             CompositeInnerType::Struct(ty) => 1 + 2 * ty.fields.len() as u32,
         };
-        // TODO: handle shared?
         TypeInfo::core(size)
     }
 }
@@ -1945,6 +1944,35 @@ impl<'a> TypesRef<'a> {
     {
         self.list.peel_alias(ty)
     }
+
+    /// Returns an iterator over the core wasm imports found.
+    ///
+    /// Returns `None` if this type information is for a component.
+    pub fn core_imports(
+        &self,
+    ) -> Option<impl Iterator<Item = (&'a str, &'a str, EntityType)> + 'a> {
+        match &self.kind {
+            TypesRefKind::Module(module) => Some(
+                module
+                    .imports
+                    .iter()
+                    .flat_map(|((m, n), t)| t.iter().map(move |t| (m.as_str(), n.as_str(), *t))),
+            ),
+            TypesRefKind::Component(_) => None,
+        }
+    }
+
+    /// Returns an iterator over the core wasm exports found.
+    ///
+    /// Returns `None` if this type information is for a component.
+    pub fn core_exports(&self) -> Option<impl Iterator<Item = (&'a str, EntityType)> + 'a> {
+        match &self.kind {
+            TypesRefKind::Module(module) => {
+                Some(module.exports.iter().map(|(n, t)| (n.as_str(), *t)))
+            }
+            TypesRefKind::Component(_) => None,
+        }
+    }
 }
 
 impl<T> Index<T> for TypesRef<'_>
@@ -2281,6 +2309,16 @@ impl Types {
         T: Aliasable,
     {
         self.list.peel_alias(ty)
+    }
+
+    /// Same as [`TypesRef::core_imports`]
+    pub fn core_imports<'a>(&self) -> Option<impl Iterator<Item = (&str, &str, EntityType)> + '_> {
+        self.as_ref().core_imports()
+    }
+
+    /// Same as [`TypesRef::core_exports`]
+    pub fn core_exports(&self) -> Option<impl Iterator<Item = (&str, EntityType)> + '_> {
+        self.as_ref().core_exports()
     }
 }
 
@@ -2759,25 +2797,7 @@ impl TypeList {
                     shared: b_shared,
                     ty: b_ty,
                 },
-            ) => {
-                a_shared == b_shared
-                    && match (a_ty, b_ty) {
-                        (Eq | I31 | Struct | Array | None, Any) => true,
-                        (I31 | Struct | Array | None, Eq) => true,
-                        (NoExtern, Extern) => true,
-                        (NoFunc, Func) => true,
-                        (None, I31 | Array | Struct) => true,
-                        (NoExn, Exn) => true,
-                        // Nothing else matches. (Avoid full wildcard matches so
-                        // that adding/modifying variants is easier in the
-                        // future.)
-                        (
-                            Func | Extern | Exn | Any | Eq | Array | I31 | Struct | None | NoFunc
-                            | NoExtern | NoExn,
-                            _,
-                        ) => false,
-                    }
-            }
+            ) => a_shared == b_shared && a_ty.is_subtype_of(b_ty),
 
             (HT::Concrete(a), HT::Abstract { shared, ty }) => {
                 let a_ty = &subtype(a_group, a).composite_type;

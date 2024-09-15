@@ -1,8 +1,9 @@
 use crate::limits::*;
 use crate::prelude::*;
+use crate::RecGroup;
 use crate::{
     BinaryReader, ComponentAlias, ComponentExportName, ComponentImport, ComponentTypeRef,
-    FromReader, Import, Result, SectionLimited, SubType, TypeRef, ValType,
+    FromReader, Import, Result, SectionLimited, TypeRef, ValType,
 };
 use core::fmt;
 
@@ -14,22 +15,33 @@ pub enum OuterAliasKind {
 }
 
 /// Represents a core type in a WebAssembly component.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum CoreType<'a> {
     /// The type is for a core subtype.
-    Sub(SubType),
+    Rec(RecGroup),
     /// The type is for a core module.
     Module(Box<[ModuleTypeDeclaration<'a>]>),
 }
 
 impl<'a> FromReader<'a> for CoreType<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        // For the time being, this special logic handles an ambiguous encoding
+        // in the component model: the `0x50` opcode represents both a core
+        // module type as well as a GC non-final `sub` type. To avoid this, the
+        // component model specification requires us to prefix a non-final `sub`
+        // type with `0x00` when it is used as a top-level core type of a
+        // component. Eventually (prior to the component model's v1.0 release),
+        // a module type will get a new opcode and this special logic can go
+        // away.
         Ok(match reader.peek()? {
-            0x60 => CoreType::Sub(reader.read()?),
-            0x5e | 0x5f => bail!(
-                reader.current_position(),
-                "no support for GC types in the component model yet"
-            ),
+            0x00 => {
+                reader.read_u8()?;
+                let x = reader.peek()?;
+                if x != 0x50 {
+                    return reader.invalid_leading_byte(x, "non-final sub type");
+                }
+                CoreType::Rec(reader.read()?)
+            }
             0x50 => {
                 reader.read_u8()?;
                 CoreType::Module(
@@ -38,16 +50,16 @@ impl<'a> FromReader<'a> for CoreType<'a> {
                         .collect::<Result<_>>()?,
                 )
             }
-            x => return reader.invalid_leading_byte(x, "core type"),
+            _ => CoreType::Rec(reader.read()?),
         })
     }
 }
 
 /// Represents a module type declaration in a WebAssembly component.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum ModuleTypeDeclaration<'a> {
     /// The module type definition is for a type.
-    Type(SubType),
+    Type(RecGroup),
     /// The module type definition is for an export.
     Export {
         /// The name of the exported item.
@@ -104,9 +116,9 @@ impl<'a> FromReader<'a> for ModuleTypeDeclaration<'a> {
 ///
 /// # Examples
 /// ```
-/// use wasmparser::{CoreTypeSectionReader, BinaryReader, WasmFeatures};
+/// use wasmparser::{CoreTypeSectionReader, BinaryReader};
 /// # let data: &[u8] = &[0x01, 0x60, 0x00, 0x00];
-/// let reader = BinaryReader::new(data, 0, WasmFeatures::all());
+/// let reader = BinaryReader::new(data, 0);
 /// let mut reader = CoreTypeSectionReader::new(reader).unwrap();
 /// for ty in reader {
 ///     println!("Type {:?}", ty.expect("type"));
@@ -235,7 +247,7 @@ impl fmt::Display for PrimitiveValType {
 }
 
 /// Represents a type in a WebAssembly component.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum ComponentType<'a> {
     /// The type is a component defined type.
     Defined(ComponentDefinedType<'a>),
@@ -295,7 +307,7 @@ impl<'a> FromReader<'a> for ComponentType<'a> {
 }
 
 /// Represents part of a component type declaration in a WebAssembly component.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum ComponentTypeDeclaration<'a> {
     /// The component type declaration is for a core type.
     CoreType(CoreType<'a>),
@@ -336,7 +348,7 @@ impl<'a> FromReader<'a> for ComponentTypeDeclaration<'a> {
 }
 
 /// Represents an instance type declaration in a WebAssembly component.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum InstanceTypeDeclaration<'a> {
     /// The component type declaration is for a core type.
     CoreType(CoreType<'a>),
@@ -369,7 +381,7 @@ impl<'a> FromReader<'a> for InstanceTypeDeclaration<'a> {
 }
 
 /// Represents the result type of a component function.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum ComponentFuncResult<'a> {
     /// The function returns a singular, unnamed type.
     Unnamed(ComponentValType),
@@ -430,7 +442,7 @@ impl ComponentFuncResult<'_> {
 }
 
 /// Represents a type of a function in a WebAssembly component.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ComponentFuncType<'a> {
     /// The function parameters.
     pub params: Box<[(&'a str, ComponentValType)]>,
@@ -542,9 +554,9 @@ impl<'a> ComponentDefinedType<'a> {
 /// # Examples
 ///
 /// ```
-/// use wasmparser::{ComponentTypeSectionReader, BinaryReader, WasmFeatures};
+/// use wasmparser::{ComponentTypeSectionReader, BinaryReader};
 /// let data: &[u8] = &[0x01, 0x40, 0x01, 0x03, b'f', b'o', b'o', 0x73, 0x00, 0x73];
-/// let reader = BinaryReader::new(data, 0, WasmFeatures::all());
+/// let reader = BinaryReader::new(data, 0);
 /// let mut reader = ComponentTypeSectionReader::new(reader).unwrap();
 /// for ty in reader {
 ///     println!("Type {:?}", ty.expect("type"));

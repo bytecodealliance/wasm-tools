@@ -2,7 +2,7 @@
       | 0d 00 01 00
   0x8 | 03 0d       | core type section
   0xa | 01          | 1 count
-  0xb | 50 02 01 60 | [core type 0] Module([Type(SubType { is_final: true, supertype_idx: None, composite_type: CompositeType { inner: Func(FuncType { params: [], results: [] }), shared: false } }), Import(Import { module: "", name: "f", ty: Func(0) })])
+  0xb | 50 02 01 60 | [core type 0] Module([Type(RecGroup { inner: Implicit((14, SubType { is_final: true, supertype_idx: None, composite_type: CompositeType { inner: Func(FuncType { params: [], results: [] }), shared: false } })) }), Import(Import { module: "", name: "f", ty: Func(0) })])
       | 00 00 00 00
       | 01 66 00 00
  0x17 | 0a 07       | component import section

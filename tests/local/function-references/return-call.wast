@@ -33,5 +33,5 @@
       return_call_ref $ty
     )
   )
-  "type mismatch: current function requires result type [i32] but callee returns [i32 i32]"
+  "type mismatch: expected (ref null $type), found funcref"
 )

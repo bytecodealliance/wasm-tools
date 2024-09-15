@@ -1,0 +1,10 @@
+(module $Func
+  (type (;0;) (func (param i32) (result i32)))
+  (func $f (;0;) (type 0) (param $n i32) (result i32)
+    local.get $n
+    i32.const 1
+    i32.add
+    return
+  )
+  (export "e" (func $f))
+)

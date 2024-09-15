@@ -1,0 +1,13 @@
+package root:root;
+
+world root-importized {
+  import importize:importize/t;
+}
+package importize:importize {
+  interface t {
+    resource r;
+  }
+  world simple {
+    export t;
+  }
+}

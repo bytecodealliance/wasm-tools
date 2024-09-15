@@ -1,6 +1,1 @@
-failed to decode world from module
-
-Caused by:
-    0: module was not valid
-    1: failed to validate exported interface `foo`
-    2: module does not export required function `foo#a`
+failed to decode world from module: module was not valid: failed to validate exported interface `foo`: module does not export required function `foo#a`

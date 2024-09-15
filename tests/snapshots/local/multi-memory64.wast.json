@@ -5,13 +5,15 @@
       "type": "module",
       "line": 1,
       "name": "copy_between_memories",
-      "filename": "multi-memory64.0.wasm"
+      "filename": "multi-memory64.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 13,
       "name": "copy_between_memories",
-      "filename": "multi-memory64.1.wasm"
+      "filename": "multi-memory64.1.wasm",
+      "module_type": "binary"
     }
   ]
 }

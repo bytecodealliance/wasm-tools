@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "imports1.0.wasm"
+      "filename": "imports1.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

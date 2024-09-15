@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "memory_grow64.0.wasm"
+      "filename": "memory_grow64.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -274,7 +275,8 @@
     {
       "type": "module",
       "line": 36,
-      "filename": "memory_grow64.1.wasm"
+      "filename": "memory_grow64.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -399,7 +401,8 @@
     {
       "type": "module",
       "line": 48,
-      "filename": "memory_grow64.2.wasm"
+      "filename": "memory_grow64.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -564,7 +567,8 @@
     {
       "type": "module",
       "line": 64,
-      "filename": "memory_grow64.3.wasm"
+      "filename": "memory_grow64.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

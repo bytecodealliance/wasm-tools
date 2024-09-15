@@ -26,7 +26,7 @@ pub enum CanonicalOption {
 }
 
 /// Represents a canonical function in a WebAssembly component.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum CanonicalFunction {
     /// The function lifts a core WebAssembly function to the canonical ABI.
     Lift {

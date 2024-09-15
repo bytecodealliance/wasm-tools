@@ -5,7 +5,8 @@
       "type": "module",
       "line": 1,
       "name": "Mem",
-      "filename": "LB_atomic.0.wasm"
+      "filename": "LB_atomic.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "thread",
@@ -22,7 +23,8 @@
         {
           "type": "module",
           "line": 7,
-          "filename": "LB_atomic.1.wasm"
+          "filename": "LB_atomic.1.wasm",
+          "module_type": "binary"
         },
         {
           "type": "action",
@@ -50,7 +52,8 @@
         {
           "type": "module",
           "line": 24,
-          "filename": "LB_atomic.2.wasm"
+          "filename": "LB_atomic.2.wasm",
+          "module_type": "binary"
         },
         {
           "type": "action",
@@ -77,7 +80,8 @@
       "type": "module",
       "line": 43,
       "name": "Check",
-      "filename": "LB_atomic.3.wasm"
+      "filename": "LB_atomic.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

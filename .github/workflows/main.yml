@@ -78,13 +78,27 @@ jobs:
           - os: ubuntu-latest
             rust: beta
           - os: ubuntu-latest
-            rust: nightly
+            rust: nightly-2024-09-10
           - os: macos-latest
             rust: default
           - os: windows-latest
             rust: default
           - os: ubuntu-latest
             rust: msrv
+            # skip testing crates that require wasmtime since wasmtime has a
+            # more aggressive msrv than wasm-tools
+            flags: --exclude fuzz-stats --exclude wit-component --exclude wasm-mutate-stats
+          # this is the rust nightly that oss-fuzz currently uses so we don't
+          # want this to break.
+          - os: ubuntu-latest
+            rust: nightly-2024-02-12
+          # test that if `RUST_BACKTRACE=1` is set in the environment that all
+          # tests with blessed error messages still pass.
+          - os: ubuntu-latest
+            rust: default
+            env:
+              RUST_BACKTRACE: 1
+    env: ${{ matrix.env || fromJSON('{}') }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -92,7 +106,7 @@ jobs:
     - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
       with:
         toolchain: ${{ matrix.rust }}
-    - run: cargo test --locked --all
+    - run: cargo test --locked --all ${{ matrix.flags }}
 
   test_extra_features:
     name: Test with extra Cargo features
@@ -226,6 +240,8 @@ jobs:
       - run: cargo check --no-default-features -p wasmparser --target x86_64-unknown-none --features validate,serde,no-hash-maps
       - run: cargo check --no-default-features -p wasmparser --features std
       - run: cargo check --no-default-features -p wasmparser --features validate
+      - run: cargo check --no-default-features -p wasmparser --features features
+      - run: cargo check --no-default-features -p wasmparser --features features,validate
       - run: cargo check --no-default-features -p wasmparser --features no-hash-maps
       - run: cargo check --no-default-features -p wasmparser --features serde
       - run: cargo check --no-default-features -p wasmparser --features serde,no-hash-maps
@@ -260,10 +276,10 @@ jobs:
         submodules: true
     - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
     - run: rustc ci/publish.rs
-    # Make sure the tree is publish-able as-is
-    - run: ./publish verify
     # Make sure we can bump version numbers for the next release
     - run: ./publish bump
+    # Make sure the tree is publish-able as-is
+    - run: ./publish verify
 
   # "Join node" which the merge queue waits on.
   ci-status:

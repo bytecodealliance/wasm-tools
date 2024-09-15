@@ -5,36 +5,36 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "very-nested.0.wasm",
-      "text": "conflicts with previous name",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "conflicts with previous name"
     },
     {
       "type": "assert_invalid",
       "line": 1568,
       "filename": "very-nested.1.wasm",
-      "text": "effective type size exceeds the limit",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "effective type size exceeds the limit"
     },
     {
       "type": "assert_invalid",
       "line": 1689,
       "filename": "very-nested.2.wasm",
-      "text": "effective type size exceeds the limit",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "effective type size exceeds the limit"
     },
     {
       "type": "assert_invalid",
       "line": 1779,
       "filename": "very-nested.3.wasm",
-      "text": "effective type size exceeds the limit",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "effective type size exceeds the limit"
     },
     {
       "type": "assert_malformed",
       "line": 1869,
       "filename": "very-nested.4.wat",
-      "text": "nesting too deep",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "nesting too deep"
     }
   ]
 }

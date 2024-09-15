@@ -43,7 +43,7 @@ name = "benchmark"
 harness = false
 
 [features]
-default = ['std', 'validate', 'serde']
+default = ['std', 'validate', 'serde', 'features']
 
 # A feature which enables implementations of `std::error::Error` as appropriate
 # along with other convenience APIs. This additionally uses the standard
@@ -56,6 +56,7 @@ std = ['indexmap/std']
 # to properly initialize hashmap based data structures for resilience against
 # malious actors that control their inputs.
 no-hash-maps = []
+
 # A feature that enables validating WebAssembly files. This is enabled by
 # default but not required if you're only parsing a file, for example, as
 # opposed to validating all of its contents.
@@ -69,3 +70,11 @@ validate = [
 # Enable Serialize/Deserialize implementations for types in
 # `wasmparser::collections`
 serde = ['dep:serde', 'indexmap/serde', 'hashbrown/serde']
+
+# A feature that enables the guts of the `WasmFeatures` type in this crate.
+#
+# This feature is enabled by default. When disabled this crate does not support
+# runtime configuration of WebAssembly features. Instead the set of WebAssembly
+# features/proposals support are fixed at compile time to `wasmparser`'s default
+# set of supported features.
+features = []

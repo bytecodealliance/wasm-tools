@@ -4,27 +4,32 @@
     {
       "type": "module",
       "line": 2,
-      "filename": "custom-page-sizes.0.wasm"
+      "filename": "custom-page-sizes.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 3,
-      "filename": "custom-page-sizes.1.wasm"
+      "filename": "custom-page-sizes.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 6,
-      "filename": "custom-page-sizes.2.wasm"
+      "filename": "custom-page-sizes.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 7,
-      "filename": "custom-page-sizes.3.wasm"
+      "filename": "custom-page-sizes.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 10,
-      "filename": "custom-page-sizes.4.wasm"
+      "filename": "custom-page-sizes.4.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -277,7 +282,8 @@
     {
       "type": "module",
       "line": 46,
-      "filename": "custom-page-sizes.5.wasm"
+      "filename": "custom-page-sizes.5.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -332,7 +338,8 @@
     {
       "type": "module",
       "line": 57,
-      "filename": "custom-page-sizes.6.wasm"
+      "filename": "custom-page-sizes.6.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

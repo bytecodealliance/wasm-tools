@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "table_get.0.wasm"
+      "filename": "table_get.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "action",
@@ -204,36 +205,36 @@
       "type": "assert_invalid",
       "line": 47,
       "filename": "table_get.1.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 56,
       "filename": "table_get.2.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 66,
       "filename": "table_get.3.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 75,
       "filename": "table_get.4.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 85,
       "filename": "table_get.5.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     }
   ]
 }

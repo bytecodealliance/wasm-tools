@@ -69,8 +69,8 @@ use wasm_encoder::MemoryType;
 pub use config::InternalOptionalConfig;
 
 pub(crate) fn page_size(mem: &MemoryType) -> u32 {
-    const DEFAULT_WASM_PAGE_SIZE: u32 = 65_536;
-    mem.page_size_log2.unwrap_or(DEFAULT_WASM_PAGE_SIZE)
+    const DEFAULT_WASM_PAGE_SIZE_LOG2: u32 = 16;
+    1 << mem.page_size_log2.unwrap_or(DEFAULT_WASM_PAGE_SIZE_LOG2)
 }
 
 /// Do something an arbitrary number of times.

@@ -5,27 +5,28 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "start.0.wasm",
-      "text": "unknown function",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unknown function"
     },
     {
       "type": "assert_invalid",
       "line": 7,
       "filename": "start.1.wasm",
-      "text": "start function",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "start function"
     },
     {
       "type": "assert_invalid",
       "line": 14,
       "filename": "start.2.wasm",
-      "text": "start function",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "start function"
     },
     {
       "type": "module",
       "line": 21,
-      "filename": "start.3.wasm"
+      "filename": "start.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -93,7 +94,8 @@
     {
       "type": "module",
       "line": 51,
-      "filename": "start.4.wasm"
+      "filename": "start.4.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -161,31 +163,34 @@
     {
       "type": "module",
       "line": 80,
-      "filename": "start.5.wasm"
+      "filename": "start.5.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 86,
-      "filename": "start.6.wasm"
+      "filename": "start.6.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 92,
-      "filename": "start.7.wasm"
+      "filename": "start.7.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_uninstantiable",
       "line": 98,
       "filename": "start.8.wasm",
-      "text": "unreachable",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "unreachable"
     },
     {
       "type": "assert_malformed",
       "line": 103,
       "filename": "start.9.wat",
-      "text": "multiple start sections",
-      "module_type": "text"
+      "module_type": "text",
+      "text": "multiple start sections"
     }
   ]
 }

@@ -50,14 +50,11 @@ pub trait WasmModuleResources {
     /// The sub type must be canonicalized.
     fn sub_type_at(&self, type_index: u32) -> Option<&SubType>;
 
-    /// Returns the type id associated with the given function
-    /// index.
+    /// Returns the type ID associated with the given function index.
     fn type_id_of_function(&self, func_idx: u32) -> Option<CoreTypeId>;
 
-    /// Returns the `FuncType` associated with the given function index.
-    ///
-    /// The function type must be canonicalized.
-    fn type_of_function(&self, func_idx: u32) -> Option<&FuncType>;
+    /// Returns the type index associated with the given function index.
+    fn type_index_of_function(&self, func_index: u32) -> Option<u32>;
 
     /// Returns the element type at the given index.
     ///
@@ -66,6 +63,13 @@ pub trait WasmModuleResources {
 
     /// Is `a` a subtype of `b`?
     fn is_subtype(&self, a: ValType, b: ValType) -> bool;
+
+    /// Is the given reference type `shared`?
+    ///
+    /// While abstract heap types do carry along a `shared` flag, concrete heap
+    /// types do not. This function resolves those concrete heap types to
+    /// determine `shared`-ness.
+    fn is_shared(&self, ty: RefType) -> bool;
 
     /// Check and canonicalize a value type.
     ///
@@ -146,8 +150,8 @@ where
     fn type_id_of_function(&self, func_idx: u32) -> Option<CoreTypeId> {
         T::type_id_of_function(self, func_idx)
     }
-    fn type_of_function(&self, func_idx: u32) -> Option<&FuncType> {
-        T::type_of_function(self, func_idx)
+    fn type_index_of_function(&self, func_idx: u32) -> Option<u32> {
+        T::type_index_of_function(self, func_idx)
     }
     fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<(), BinaryReaderError> {
         T::check_heap_type(self, t, offset)
@@ -160,6 +164,9 @@ where
     }
     fn is_subtype(&self, a: ValType, b: ValType) -> bool {
         T::is_subtype(self, a, b)
+    }
+    fn is_shared(&self, ty: RefType) -> bool {
+        T::is_shared(self, ty)
     }
     fn element_count(&self) -> u32 {
         T::element_count(self)
@@ -200,8 +207,8 @@ where
         T::type_id_of_function(self, func_idx)
     }
 
-    fn type_of_function(&self, func_idx: u32) -> Option<&FuncType> {
-        T::type_of_function(self, func_idx)
+    fn type_index_of_function(&self, func_idx: u32) -> Option<u32> {
+        T::type_index_of_function(self, func_idx)
     }
 
     fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<(), BinaryReaderError> {
@@ -218,6 +225,10 @@ where
 
     fn is_subtype(&self, a: ValType, b: ValType) -> bool {
         T::is_subtype(self, a, b)
+    }
+
+    fn is_shared(&self, ty: RefType) -> bool {
+        T::is_shared(self, ty)
     }
 
     fn element_count(&self) -> u32 {

@@ -4,12 +4,14 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "module-link.0.wasm"
+      "filename": "module-link.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "module",
       "line": 10,
-      "filename": "module-link.1.wasm"
+      "filename": "module-link.1.wasm",
+      "module_type": "binary"
     }
   ]
 }

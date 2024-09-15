@@ -1,7 +1,7 @@
 // Wrong length
 invalid token at 5..6
 invalid token at 5..9
-invalid token at 5..9
+invalid token at 5..13
 invalid token at 5..6
 // Invalid escapes
 invalid token at 5..6

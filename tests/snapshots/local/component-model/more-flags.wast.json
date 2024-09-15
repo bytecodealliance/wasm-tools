@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "more-flags.0.wasm"
+      "filename": "more-flags.0.wasm",
+      "module_type": "binary"
     }
   ]
 }

@@ -39,7 +39,7 @@ impl<'a> FromReader<'a> for GlobalType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let content_type = reader.read()?;
         let flags = reader.read_u8()?;
-        if reader.features().shared_everything_threads() {
+        if reader.shared_everything_threads() {
             if flags > 0b11 {
                 bail!(reader.original_position() - 1, "malformed global flags")
             }

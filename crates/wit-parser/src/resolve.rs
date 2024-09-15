@@ -15,8 +15,8 @@ use crate::serde_::{serialize_arena, serialize_id_map};
 use crate::{
     AstItem, Docs, Error, Function, FunctionKind, Handle, IncludeName, Interface, InterfaceId,
     InterfaceSpan, PackageName, Results, SourceMap, Stability, Type, TypeDef, TypeDefKind, TypeId,
-    TypeOwner, UnresolvedPackage, UnresolvedPackageGroup, World, WorldId, WorldItem, WorldKey,
-    WorldSpan,
+    TypeIdVisitor, TypeOwner, UnresolvedPackage, UnresolvedPackageGroup, World, WorldId, WorldItem,
+    WorldKey, WorldSpan,
 };
 
 /// Representation of a fully resolved set of WIT packages.
@@ -724,6 +724,9 @@ package {name} is defined in two different locations:\n\
         }
 
         log::trace!("now have {} packages", self.packages.len());
+
+        #[cfg(debug_assertions)]
+        self.assert_valid();
         Ok(remap)
     }
 
@@ -796,6 +799,8 @@ package {name} is defined in two different locations:\n\
             assert!(prev.is_none());
         }
 
+        #[cfg(debug_assertions)]
+        self.assert_valid();
         Ok(())
     }
 
@@ -924,6 +929,101 @@ package {name} is defined in two different locations:\n\
     pub fn id_of(&self, interface: InterfaceId) -> Option<String> {
         let interface = &self.interfaces[interface];
         Some(self.id_of_name(interface.package.unwrap(), interface.name.as_ref()?))
+    }
+
+    /// Convert a world to an "importized" version where the world is updated
+    /// in-place to reflect what it would look like to be imported.
+    ///
+    /// This is a transformation which is used as part of the process of
+    /// importing a component today. For example when a component depends on
+    /// another component this is useful for generating WIT which can be use to
+    /// represent the component being imported. The general idea is that this
+    /// function will update the `world_id` specified such it imports the
+    /// functionality that it previously exported. The world will be left with
+    /// no exports.
+    ///
+    /// This world is then suitable for merging into other worlds or generating
+    /// bindings in a context that is importing the original world. This
+    /// is intended to be used as part of language tooling when depending on
+    /// other components.
+    pub fn importize(&mut self, world_id: WorldId) -> Result<()> {
+        // Collect the set of interfaces which are depended on by exports. Also
+        // all imported types are assumed to stay so collect any interfaces
+        // they depend on.
+        let mut live_through_exports = IndexSet::default();
+        for (_, export) in self.worlds[world_id].exports.iter() {
+            if let WorldItem::Interface { id, .. } = export {
+                self.collect_interface_deps(*id, &mut live_through_exports);
+            }
+        }
+        for (_, import) in self.worlds[world_id].imports.iter() {
+            if let WorldItem::Type(ty) = import {
+                if let Some(dep) = self.type_interface_dep(*ty) {
+                    self.collect_interface_deps(dep, &mut live_through_exports);
+                }
+            }
+        }
+
+        // Rename the world to avoid having it get confused with the original
+        // name of the world. Add `-importized` to it for now. Precisely how
+        // this new world is created may want to be updated over time if this
+        // becomes problematic.
+        let world = &mut self.worlds[world_id];
+        let pkg = &mut self.packages[world.package.unwrap()];
+        pkg.worlds.shift_remove(&world.name);
+        world.name.push_str("-importized");
+        pkg.worlds.insert(world.name.clone(), world_id);
+
+        // Trim all unnecessary imports first.
+        world.imports.retain(|name, item| match (name, item) {
+            // Remove imports which can't be used by import such as:
+            //
+            // * `import foo: interface { .. }`
+            // * `import foo: func();`
+            (WorldKey::Name(_), WorldItem::Interface { .. } | WorldItem::Function(_)) => false,
+
+            // Coarsely say that all top-level types are required to avoid
+            // calculating precise liveness of them right now.
+            (WorldKey::Name(_), WorldItem::Type(_)) => true,
+
+            // Only retain interfaces if they're needed somehow transitively
+            // for the exports.
+            (WorldKey::Interface(id), _) => live_through_exports.contains(id),
+        });
+
+        // After all unnecessary imports are gone remove all exports and move
+        // them all to imports, failing if there's an overlap.
+        for (name, export) in mem::take(&mut world.exports) {
+            match (name.clone(), world.imports.insert(name, export)) {
+                // no previous item? this insertion was ok
+                (_, None) => {}
+
+                // cannot overwrite an import with an export
+                (WorldKey::Name(name), _) => {
+                    bail!("world export `{name}` conflicts with import of same name");
+                }
+
+                // interface overlap is ok and is always allowed.
+                (WorldKey::Interface(id), Some(WorldItem::Interface { id: other, .. })) => {
+                    assert_eq!(id, other);
+                }
+
+                (WorldKey::Interface(_), _) => unreachable!(),
+            }
+        }
+
+        #[cfg(debug_assertions)]
+        self.assert_valid();
+        Ok(())
+    }
+
+    fn collect_interface_deps(&self, interface: InterfaceId, deps: &mut IndexSet<InterfaceId>) {
+        if !deps.insert(interface) {
+            return;
+        }
+        for dep in self.interface_direct_deps(interface) {
+            self.collect_interface_deps(dep, deps);
+        }
     }
 
     /// Returns the ID of the specified `name` within the `pkg`.
@@ -1287,9 +1387,11 @@ package {name} is defined in two different locations:\n\
                 match item {
                     WorldItem::Interface { .. } => {}
                     WorldItem::Function(f) => {
+                        assert!(!matches!(name, WorldKey::Interface(_)));
                         assert_eq!(f.name, name.clone().unwrap_name());
                     }
                     WorldItem::Type(ty) => {
+                        assert!(!matches!(name, WorldKey::Interface(_)));
                         assert!(types.insert(*ty));
                         let ty = &self.types[*ty];
                         assert_eq!(ty.name, Some(name.clone().unwrap_name()));
@@ -1302,6 +1404,7 @@ package {name} is defined in two different locations:\n\
                     }
                 }
             }
+            self.assert_world_elaborated(world);
             world_types.push(types);
         }
 
@@ -1388,6 +1491,141 @@ package {name} is defined in two different locations:\n\
             } else {
                 assert!(other_package_pos < my_package_pos);
             }
+        }
+    }
+
+    fn assert_world_elaborated(&self, world: &World) {
+        for (key, item) in world.imports.iter() {
+            log::debug!(
+                "asserting elaborated world import {}",
+                self.name_world_key(key)
+            );
+            match item {
+                WorldItem::Type(t) => self.assert_world_imports_type_deps(world, key, *t),
+
+                // All types referred to must be imported.
+                WorldItem::Function(f) => self.assert_world_function_imports_types(world, key, f),
+
+                // All direct dependencies of this interface must be imported.
+                WorldItem::Interface { id, .. } => {
+                    for dep in self.interface_direct_deps(*id) {
+                        assert!(
+                            world.imports.contains_key(&WorldKey::Interface(dep)),
+                            "world import of {} is missing transitive dep of {}",
+                            self.name_world_key(key),
+                            self.id_of(dep).unwrap(),
+                        );
+                    }
+                }
+            }
+        }
+        for (key, item) in world.exports.iter() {
+            log::debug!(
+                "asserting elaborated world export {}",
+                self.name_world_key(key)
+            );
+            match item {
+                // Types referred to by this function must be imported.
+                WorldItem::Function(f) => self.assert_world_function_imports_types(world, key, f),
+
+                // Dependencies of exported interfaces must also be exported, or
+                // if imported then that entire chain of imports must be
+                // imported and not exported.
+                WorldItem::Interface { id, .. } => {
+                    for dep in self.interface_direct_deps(*id) {
+                        let dep_key = WorldKey::Interface(dep);
+                        if !world.exports.contains_key(&dep_key) {
+                            self.assert_interface_and_all_deps_imported_and_not_exported(
+                                world, key, dep,
+                            );
+                        }
+                    }
+                }
+
+                // exported types not allowed at this time
+                WorldItem::Type(_) => unreachable!(),
+            }
+        }
+    }
+
+    fn assert_world_imports_type_deps(&self, world: &World, key: &WorldKey, ty: TypeId) {
+        // If this is a `use` statement then the referred-to interface must be
+        // imported into this world.
+        let ty = &self.types[ty];
+        if let TypeDefKind::Type(Type::Id(other)) = ty.kind {
+            if let TypeOwner::Interface(id) = self.types[other].owner {
+                let key = WorldKey::Interface(id);
+                assert!(world.imports.contains_key(&key));
+                return;
+            }
+        }
+
+        // ... otherwise any named type that this type refers to, one level
+        // deep, must be imported into this world under that name.
+
+        let mut visitor = MyVisit(self, Vec::new());
+        visitor.visit_type_def(self, ty);
+        for ty in visitor.1 {
+            let ty = &self.types[ty];
+            let Some(name) = ty.name.clone() else {
+                continue;
+            };
+            let dep_key = WorldKey::Name(name);
+            assert!(
+                world.imports.contains_key(&dep_key),
+                "world import `{}` should also force an import of `{}`",
+                self.name_world_key(key),
+                self.name_world_key(&dep_key),
+            );
+        }
+
+        struct MyVisit<'a>(&'a Resolve, Vec<TypeId>);
+
+        impl TypeIdVisitor for MyVisit<'_> {
+            fn before_visit_type_id(&mut self, id: TypeId) -> bool {
+                self.1.push(id);
+                // recurse into unnamed types to look at all named types
+                self.0.types[id].name.is_none()
+            }
+        }
+    }
+
+    /// This asserts that all types referred to by `func` are imported into
+    /// `world` under `WorldKey::Name`. Note that this is only applicable to
+    /// named type
+    fn assert_world_function_imports_types(&self, world: &World, key: &WorldKey, func: &Function) {
+        for ty in func
+            .parameter_and_result_types()
+            .chain(func.kind.resource().map(Type::Id))
+        {
+            let Type::Id(id) = ty else {
+                continue;
+            };
+            self.assert_world_imports_type_deps(world, key, id);
+        }
+    }
+
+    fn assert_interface_and_all_deps_imported_and_not_exported(
+        &self,
+        world: &World,
+        key: &WorldKey,
+        id: InterfaceId,
+    ) {
+        let dep_key = WorldKey::Interface(id);
+        assert!(
+            world.imports.contains_key(&dep_key),
+            "world should import {} (required by {})",
+            self.name_world_key(&dep_key),
+            self.name_world_key(key),
+        );
+        assert!(
+            !world.exports.contains_key(&dep_key),
+            "world should not export {} (required by {})",
+            self.name_world_key(&dep_key),
+            self.name_world_key(key),
+        );
+        for dep in self.interface_direct_deps(id) {
+            self.assert_interface_and_all_deps_imported_and_not_exported(world, key, dep);
         }
     }
 

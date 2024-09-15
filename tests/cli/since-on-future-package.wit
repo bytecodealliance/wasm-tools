@@ -8,7 +8,7 @@ interface foo {
   @since(version = 0.1.1)
   b: func(s: string) -> string;
 
-  @since(version = 0.1.1, feature = c-please)
+  @since(version = 0.1.1)
   c: func(s: string) -> string;
 }
 

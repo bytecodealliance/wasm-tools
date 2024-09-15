@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 1,
-      "filename": "unreached-valid.0.wasm"
+      "filename": "unreached-valid.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -69,7 +70,8 @@
     {
       "type": "module",
       "line": 49,
-      "filename": "unreached-valid.1.wasm"
+      "filename": "unreached-valid.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",

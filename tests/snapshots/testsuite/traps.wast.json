@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 5,
-      "filename": "traps.0.wasm"
+      "filename": "traps.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -123,7 +124,8 @@
     {
       "type": "module",
       "line": 23,
-      "filename": "traps.1.wasm"
+      "filename": "traps.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -204,7 +206,8 @@
     {
       "type": "module",
       "line": 39,
-      "filename": "traps.2.wasm"
+      "filename": "traps.2.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",
@@ -329,7 +332,8 @@
     {
       "type": "module",
       "line": 59,
-      "filename": "traps.3.wasm"
+      "filename": "traps.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_trap",

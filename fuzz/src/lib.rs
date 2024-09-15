@@ -13,6 +13,7 @@ pub mod roundtrip_wit;
 pub mod text_parser;
 pub mod validate;
 pub mod validate_valid_module;
+pub mod wit64;
 
 pub fn generate_valid_module(
     u: &mut Unstructured,

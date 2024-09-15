@@ -23,7 +23,7 @@ pub use sizealign::*;
 mod resolve;
 pub use resolve::{Package, PackageId, Remap, Resolve};
 mod live;
-pub use live::LiveTypes;
+pub use live::{LiveTypes, TypeIdVisitor};
 
 #[cfg(feature = "serde")]
 use serde_derive::{Deserialize, Serialize};
@@ -824,6 +824,18 @@ pub enum FunctionKind {
     Constructor(TypeId),
 }
 
+impl FunctionKind {
+    /// Returns the resource, if present, that this function kind refers to.
+    pub fn resource(&self) -> Option<TypeId> {
+        match self {
+            FunctionKind::Freestanding => None,
+            FunctionKind::Method(id) | FunctionKind::Static(id) | FunctionKind::Constructor(id) => {
+                Some(*id)
+            }
+        }
+    }
+}
+
 impl Function {
     pub fn item_name(&self) -> &str {
         match &self.kind {
@@ -833,6 +845,17 @@ impl Function {
             }
             FunctionKind::Constructor(_) => "constructor",
         }
+    }
+
+    /// Returns an iterator over the types used in parameters and results.
+    ///
+    /// Note that this iterator is not transitive, it only iterates over the
+    /// direct references to types that this function has.
+    pub fn parameter_and_result_types(&self) -> impl Iterator<Item = Type> + '_ {
+        self.params
+            .iter()
+            .map(|(_, t)| *t)
+            .chain(self.results.iter_types().copied())
     }
 
     /// Gets the core export name for this function.
@@ -861,8 +884,6 @@ pub enum Stability {
         #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_version"))]
         #[cfg_attr(feature = "serde", serde(deserialize_with = "deserialize_version"))]
         since: Version,
-        #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
-        feature: Option<String>,
         #[cfg_attr(
             feature = "serde",
             serde(

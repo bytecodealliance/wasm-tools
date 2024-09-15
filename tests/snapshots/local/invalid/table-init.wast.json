@@ -5,8 +5,8 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "table-init.0.wasm",
-      "text": "nothing on stack",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "nothing on stack"
     }
   ]
 }

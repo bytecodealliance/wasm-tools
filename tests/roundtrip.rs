@@ -30,7 +30,9 @@ use std::process::{Command, Stdio};
 use std::str;
 use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
 use std::sync::Arc;
+use wasm_encoder::reencode::{Reencode, ReencodeComponent, RoundtripReencoder};
 use wasmparser::*;
+use wast::component::{Component, ComponentKind};
 use wast::core::{Module, ModuleKind};
 use wast::lexer::Lexer;
 use wast::parser::ParseBuffer;
@@ -178,6 +180,22 @@ impl TestState {
             self.bump_ntests();
             self.binary_compare(&binary2, contents)
                 .context("failed to compare original `wat` with roundtrip `wat`")?;
+
+            if wasmparser::Parser::is_component(contents) {
+                let mut reencode = Default::default();
+                RoundtripReencoder
+                    .parse_component(&mut reencode, wasmparser::Parser::new(0), contents)
+                    .context("failed to reencode module")?;
+                self.binary_compare(&reencode.finish(), contents)
+                    .context("failed to compare reencoded module with original encoding")?;
+            } else {
+                let mut reencode = Default::default();
+                RoundtripReencoder
+                    .parse_core_module(&mut reencode, wasmparser::Parser::new(0), contents)
+                    .context("failed to reencode module")?;
+                self.binary_compare(&reencode.finish(), contents)
+                    .context("failed to compare reencoded module with original encoding")?;
+            }
         }
 
         // Test that the `wasmprinter`-printed bytes have "pretty" whitespace
@@ -268,7 +286,7 @@ impl TestState {
 
     fn test_wast_directive(&self, test: &Path, directive: WastDirective, idx: usize) -> Result<()> {
         match directive {
-            WastDirective::Wat(mut module) => {
+            WastDirective::Module(mut module) | WastDirective::ModuleDefinition(mut module) => {
                 let actual = module.encode()?;
                 self.bump_ntests(); // testing encode
 
@@ -284,8 +302,11 @@ impl TestState {
                     QuoteWat::Wat(Wat::Module(Module {
                         kind: ModuleKind::Binary(_),
                         ..
+                    }))
+                    | QuoteWat::Wat(Wat::Component(Component {
+                        kind: ComponentKind::Binary(_),
+                        ..
                     })) => false,
-
                     _ => true,
                 };
 
@@ -337,7 +358,7 @@ impl TestState {
                         message,
                     ),
                     Err(e) => {
-                        if error_matches(&format!("{:?}", e), message) {
+                        if error_matches(test, &format!("{:?}", e), message) {
                             self.bump_ntests();
                             return Ok(());
                         }
@@ -354,7 +375,8 @@ impl TestState {
 
             // This test suite doesn't actually execute any wasm code, so ignore
             // all of these assertions.
-            WastDirective::Register { .. }
+            WastDirective::ModuleInstance { .. }
+            | WastDirective::Register { .. }
             | WastDirective::Invoke(_)
             | WastDirective::AssertTrap { .. }
             | WastDirective::AssertReturn { .. }
@@ -406,27 +428,9 @@ impl TestState {
             // Handle git possibly doing some newline shenanigans on windows.
             let snapshot = snapshot.replace("\r\n", "\n");
             if snapshot != contents {
-                let mut result = String::with_capacity(snapshot.len());
-                for diff in diff::lines(&snapshot, &contents) {
-                    match diff {
-                        diff::Result::Left(s) => {
-                            result.push_str("-");
-                            result.push_str(s);
-                        }
-                        diff::Result::Right(s) => {
-                            result.push_str("+");
-                            result.push_str(s);
-                        }
-                        diff::Result::Both(s, _) => {
-                            result.push_str(" ");
-                            result.push_str(s);
-                        }
-                    }
-                    result.push_str("\n");
-                }
                 anyhow::bail!(
                     "snapshot does not match the expected result, try `env BLESS=1`\n{}",
-                    result
+                    pretty_assertions::StrComparison::new(&snapshot, &contents)
                 );
             }
         }
@@ -526,8 +530,9 @@ impl TestState {
         dump.stdin.take().unwrap().write_all(bytes)?;
         let mut stdout = String::new();
         dump.stdout.take().unwrap().read_to_string(&mut stdout)?;
-        if dump.wait()?.success() {
-            bail!("dump subcommand failed");
+        let status = dump.wait()?;
+        if !status.success() {
+            bail!("dump subcommand failed: {status}");
         }
         Ok(stdout)
     }
@@ -580,20 +585,16 @@ impl TestState {
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
                 "testsuite" => {
-                    features = WasmFeatures::default();
-                    features.remove(WasmFeatures::COMPONENT_MODEL);
-
-                    // NB: when these proposals are merged upstream in the spec
-                    // repo then this should be removed. Currently this hasn't
-                    // happened so this is required to get tests passing for
-                    // when these proposals are enabled by default.
-                    features.remove(WasmFeatures::MULTI_MEMORY);
-                    features.remove(WasmFeatures::THREADS);
+                    features = WasmFeatures::WASM2
+                        | WasmFeatures::TAIL_CALL
+                        | WasmFeatures::EXTENDED_CONST;
                 }
                 "missing-features" => {
-                    features = WasmFeatures::empty() | WasmFeatures::FLOATS;
+                    features =
+                        WasmFeatures::empty() | WasmFeatures::FLOATS | WasmFeatures::GC_TYPES;
                 }
                 "floats-disabled.wast" => features.remove(WasmFeatures::FLOATS),
+                "gc-types-disabled.wast" => features.remove(WasmFeatures::GC_TYPES),
                 "threads" => {
                     features.insert(WasmFeatures::THREADS);
                     features.remove(WasmFeatures::BULK_MEMORY);
@@ -603,7 +604,7 @@ impl TestState {
                 "exception-handling" => features.insert(WasmFeatures::EXCEPTIONS),
                 "legacy-exceptions" => features.insert(WasmFeatures::LEGACY_EXCEPTIONS),
                 "tail-call" => features.insert(WasmFeatures::TAIL_CALL),
-                "memory64" => features.insert(WasmFeatures::MEMORY64),
+                "memory64" => features.insert(WasmFeatures::MEMORY64 | WasmFeatures::WASM3),
                 "component-model" => features.insert(WasmFeatures::COMPONENT_MODEL),
                 "shared-everything-threads" => {
                     features.insert(WasmFeatures::COMPONENT_MODEL);
@@ -616,6 +617,7 @@ impl TestState {
                 "reference-types" => features.insert(WasmFeatures::REFERENCE_TYPES),
                 "gc" => {
                     features.insert(WasmFeatures::FUNCTION_REFERENCES);
+                    features.insert(WasmFeatures::REFERENCE_TYPES);
                     features.insert(WasmFeatures::GC);
                 }
                 "custom-page-sizes" => features.insert(WasmFeatures::CUSTOM_PAGE_SIZES),
@@ -640,10 +642,17 @@ impl TestState {
     }
 }
 
-fn error_matches(error: &str, message: &str) -> bool {
+fn error_matches(test: &Path, error: &str, message: &str) -> bool {
     if error.contains(message) {
         return true;
     }
+    // we are in control over all tsets in `tests/local/*` so all the error
+    // messages there should exactly match the `assert_invalid` or such. No need
+    // for fuzzy matching on error messages.
+    if test.starts_with("tests/local") {
+        return false;
+    }
+
     if message == "unknown operator"
         || message == "unexpected token"
         || message == "wrong number of lane literals"
@@ -748,7 +757,9 @@ fn error_matches(error: &str, message: &str) -> bool {
     }
 
     if message == "unexpected content after last section" {
-        return error.contains("section out of order");
+        return error.contains("section out of order")
+            || error.contains("function and code section have inconsistent lengths")
+            || error.contains("type index out of bounds");
     }
 
     if message == "malformed limits flags" {
@@ -757,6 +768,10 @@ fn error_matches(error: &str, message: &str) -> bool {
             // These tests need to be updated for the new limits flags in the
             // custom-page-sizes-proposal.
             || error.contains("unexpected end-of-file");
+    }
+
+    if message == "malformed memop flags" {
+        return error.contains("malformed memop alignment");
     }
 
     // Our error for these tests is happening as a parser error of

@@ -5,15 +5,15 @@
       "type": "assert_invalid",
       "line": 2,
       "filename": "memory64.0.wasm",
-      "text": "mismatch in index type used for memories",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "mismatch in index type used for memories"
     },
     {
       "type": "assert_invalid",
       "line": 13,
       "filename": "memory64.1.wasm",
-      "text": "mismatch in index type used for memories",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "mismatch in index type used for memories"
     }
   ]
 }

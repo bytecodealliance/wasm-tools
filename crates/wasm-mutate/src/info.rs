@@ -5,7 +5,7 @@ use crate::{
 use std::collections::HashSet;
 use std::ops::Range;
 use wasm_encoder::{RawSection, SectionId};
-use wasmparser::{BinaryReader, Chunk, Parser, Payload, WasmFeatures};
+use wasmparser::{BinaryReader, Chunk, Parser, Payload};
 
 /// Provides module information for future usage during mutation
 /// an instance of ModuleInfo could be user to determine which mutation could be applied
@@ -220,7 +220,7 @@ impl<'a> ModuleInfo<'a> {
     pub fn has_nonempty_code(&self) -> bool {
         if let Some(section) = self.code {
             let section_data = self.raw_sections[section].data;
-            let reader = BinaryReader::new(section_data, 0, WasmFeatures::all());
+            let reader = BinaryReader::new(section_data, 0);
             wasmparser::CodeSectionReader::new(reader)
                 .map(|r| r.count() != 0)
                 .unwrap_or(false)
@@ -253,7 +253,7 @@ impl<'a> ModuleInfo<'a> {
     }
 
     pub fn get_binary_reader(&self, i: usize) -> wasmparser::BinaryReader<'a> {
-        BinaryReader::new(self.raw_sections[i].data, 0, WasmFeatures::all())
+        BinaryReader::new(self.raw_sections[i].data, 0)
     }
 
     pub fn has_exports(&self) -> bool {

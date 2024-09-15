@@ -4,7 +4,8 @@
     {
       "type": "module",
       "line": 4,
-      "filename": "simd_i8x16_arith.0.wasm"
+      "filename": "simd_i8x16_arith.0.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",
@@ -8558,62 +8559,63 @@
       "type": "assert_invalid",
       "line": 354,
       "filename": "simd_i8x16_arith.1.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 355,
       "filename": "simd_i8x16_arith.2.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 356,
       "filename": "simd_i8x16_arith.3.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 361,
       "filename": "simd_i8x16_arith.4.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 369,
       "filename": "simd_i8x16_arith.5.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 377,
       "filename": "simd_i8x16_arith.6.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 385,
       "filename": "simd_i8x16_arith.7.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
       "line": 393,
       "filename": "simd_i8x16_arith.8.wasm",
-      "text": "type mismatch",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "module",
       "line": 402,
-      "filename": "simd_i8x16_arith.9.wasm"
+      "filename": "simd_i8x16_arith.9.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_return",

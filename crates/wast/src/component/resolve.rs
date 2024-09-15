@@ -1,5 +1,5 @@
 use crate::component::*;
-use crate::core::{self, ValType};
+use crate::core::{self, resolve::ResolveCoreType, ValType};
 use crate::kw;
 use crate::names::Namespace;
 use crate::token::Span;
@@ -475,7 +475,7 @@ impl<'a> Resolver<'a> {
 
     fn core_ty(&mut self, field: &mut CoreType<'a>) -> Result<(), Error> {
         match &mut field.def {
-            CoreTypeDef::Def(_) => {}
+            CoreTypeDef::Def(ty) => self.stack.last_mut().unwrap().resolve_type_def(ty)?,
             CoreTypeDef::Module(t) => {
                 self.stack.push(ComponentState::new(field.id));
                 self.module_type(t)?;
@@ -766,7 +766,7 @@ impl<'a> Resolver<'a> {
 }
 
 impl<'a> ComponentState<'a> {
-    fn resolve(&mut self, ns: Ns, idx: &mut Index<'a>) -> Result<u32, Error> {
+    fn resolve(&self, ns: Ns, idx: &mut Index<'a>) -> Result<u32, Error> {
         match ns {
             Ns::CoreFunc => self.core_funcs.resolve(idx, "core func"),
             Ns::CoreGlobal => self.core_globals.resolve(idx, "core global"),
@@ -865,6 +865,12 @@ impl<'a> ComponentState<'a> {
                 }
             },
         }
+    }
+}
+
+impl<'a> ResolveCoreType<'a> for ComponentState<'a> {
+    fn resolve_type_name(&self, name: &mut Index<'a>) -> Result<u32, Error> {
+        self.resolve(Ns::CoreType, name)
     }
 }
 

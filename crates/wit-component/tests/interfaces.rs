@@ -3,7 +3,6 @@ use libtest_mimic::{Arguments, Trial};
 use pretty_assertions::assert_eq;
 use std::fs;
 use std::path::Path;
-use wasmparser::WasmFeatures;
 use wit_component::WitPrinter;
 use wit_parser::{PackageId, Resolve, UnresolvedPackageGroup};
 
@@ -56,15 +55,13 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
 
     assert_print(&resolve, package, path, is_dir)?;
 
-    let features = WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL;
-
     // First convert the WIT package to a binary WebAssembly output, then
     // convert that binary wasm to textual wasm, then assert it matches the
     // expectation.
-    let wasm = wit_component::encode(Some(true), &resolve, package)?;
+    let wasm = wit_component::encode(&resolve, package)?;
     let wat = wasmprinter::print_bytes(&wasm)?;
     assert_output(&path.with_extension("wat"), &wat)?;
-    wasmparser::Validator::new_with_features(features)
+    wasmparser::Validator::new()
         .validate_all(&wasm)
         .context("failed to validate wasm output")?;
 
@@ -79,7 +76,7 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
 
     // Finally convert the decoded package to wasm again and make sure it
     // matches the prior wasm.
-    let wasm2 = wit_component::encode(Some(true), resolve, decoded_package)?;
+    let wasm2 = wit_component::encode(resolve, decoded_package)?;
     if wasm != wasm2 {
         let wat2 = wasmprinter::print_bytes(&wasm)?;
         assert_eq!(wat, wat2, "document did not roundtrip correctly");
