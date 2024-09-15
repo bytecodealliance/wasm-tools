@@ -41,7 +41,7 @@
     )
   )
   (export (;1;) "something" (type 0))
-  (@custom "package-docs" "\01{\22interfaces\22:{\22something\22:{\22types\22:{\22my-record\22:{\22stability\22:{\22stable\22:{\22since\22:\221.0.0\22}}}},\22nested\22:{\22foo:nestee/things@1.0.0\22:{\22docs\22:{\22contents\22:\22nesting can be documented\22},\22stability\22:\22unknown\22},\22foo:nestee/more@1.0.0\22:{\22docs\22:{\22contents\22:null},\22stability\22:{\22stable\22:{\22since\22:\221.0.0\22}}}}}}}")
+  (@custom "package-docs" "\01{\22interfaces\22:{\22something\22:{\22types\22:{\22my-record\22:{\22stability\22:{\22stable\22:{\22since\22:\221.0.0\22}}}},\22nested\22:{\22things\22:{\22docs\22:{\22contents\22:\22nesting can be documented\22},\22stability\22:\22unknown\22},\22more\22:{\22docs\22:{\22contents\22:null},\22stability\22:{\22stable\22:{\22since\22:\221.0.0\22}}}}}}}")
   (@producers
     (processed-by "wit-component" "$CARGO_PKG_VERSION")
   )

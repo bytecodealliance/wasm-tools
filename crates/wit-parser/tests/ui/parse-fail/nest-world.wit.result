@@ -1,0 +1,5 @@
+expected `import`, `export`, `include`, `use`, or type definition, found keyword `nest`
+     --> tests/ui/parse-fail/nest-world.wit:10:3
+      |
+   10 |   nest foo:other/i;
+      |   ^---

@@ -1,6 +1,5 @@
 use super::{ParamList, ResultList, WorldOrInterface};
 use crate::ast::toposort::toposort;
-use crate::ast::UsePath;
 use crate::*;
 use anyhow::bail;
 use std::collections::{HashMap, HashSet};
@@ -312,7 +311,7 @@ impl<'a> Resolver<'a> {
         });
         self.interfaces.alloc(Interface {
             name: None,
-            nested: IndexMap::new(),
+            nested: Vec::new(),
             types: IndexMap::new(),
             docs: Docs::default(),
             stability: Default::default(),
@@ -842,54 +841,16 @@ impl<'a> Resolver<'a> {
                 }
                 ast::InterfaceItem::TypeDef(_) => {}
                 ast::InterfaceItem::Nest(n) => {
-                    if let ast::Nest {
-                        from:
-                            UsePath::Package {
-                                id: package_id,
-                                name,
-                            },
-                        attributes,
-                        docs,
-                    } = n
-                    {
-                        let nest = self
-                            .foreign_deps
-                            .get(&PackageName {
-                                namespace: package_id.namespace.name.to_string(),
-                                name: package_id.name.name.to_string(),
-                                version: package_id.clone().version.map(|v| v.1),
-                            })
-                            .unwrap()
-                            .get(&name.name)
-                            .unwrap();
-                        let nested_id = if let AstItem::Interface(id) = nest {
-                            id
-                        } else {
-                            bail!("Expected interface item")
-                        };
-                        let stability = self.stability(attributes)?;
-                        let docs = self.docs(&docs);
-                        let full_name = if let Some(v) = &package_id.version {
-                            format!(
-                                "{}:{}/{}@{}",
-                                package_id.namespace.name,
-                                package_id.name.name,
-                                name.name,
-                                v.1.to_string()
-                            )
-                        } else {
-                            format!("{}/{}", package_id.package_name(), name.name)
-                        };
+                    let (item, name, span) = self.resolve_ast_item_path(&n.from)?;
+                    let nested_id = self.extract_iface_from_item(&item, &name, span)?;
 
-                        self.interfaces[interface_id].nested.insert(
-                            full_name.clone(),
-                            crate::Nest {
-                                id: *nested_id,
-                                docs,
-                                stability,
-                            },
-                        );
-                    }
+                    let stability = self.stability(&n.attributes)?;
+                    let docs = self.docs(&n.docs);
+                    self.interfaces[interface_id].nested.push(crate::Nest {
+                        id: nested_id,
+                        docs,
+                        stability,
+                    });
                 }
             }
         }

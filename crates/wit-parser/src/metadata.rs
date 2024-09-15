@@ -547,7 +547,13 @@ impl InterfaceMetadata {
         let nested: IndexMap<String, NestMetadata> = interface
             .nested
             .iter()
-            .map(|n| (n.0.clone(), NestMetadata::extract(n.1.clone())))
+            .map(|n| {
+                let iface = &resolve.interfaces[n.id];
+                (
+                    iface.name.clone().unwrap(),
+                    NestMetadata::extract(n.clone()),
+                )
+            })
             .collect();
 
         Self {
@@ -566,6 +572,7 @@ impl InterfaceMetadata {
             };
             data.inject(resolve, id)?;
         }
+        let clone = resolve.interfaces.clone();
         let interface = &mut resolve.interfaces[id];
         for (name, data) in &self.funcs {
             let Some(f) = interface.functions.get_mut(name) else {
@@ -578,10 +585,14 @@ impl InterfaceMetadata {
         }
         interface.stability = self.stability.clone();
         for (name, data) in &self.nested {
-            let Some(n) = interface.nested.get_mut(name) else {
+            if let Some(n) = interface.nested.iter_mut().find(|n| {
+                let iface = &clone[n.id];
+                iface.name.as_ref().unwrap() == name
+            }) {
+                data.inject(n)?;
+            } else {
                 bail!("missing nested item {name:?}");
-            };
-            data.inject(n)?;
+            }
         }
         Ok(())
     }

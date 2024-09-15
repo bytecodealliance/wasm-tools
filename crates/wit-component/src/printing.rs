@@ -135,7 +135,7 @@ impl WitPrinter {
     fn print_interface(&mut self, resolve: &Resolve, id: InterfaceId) -> Result<()> {
         let prev_items = mem::replace(&mut self.any_items, false);
         let interface = &resolve.interfaces[id];
-        for (_, nest) in &interface.nested {
+        for nest in &interface.nested {
             self.print_stability(&nest.stability);
             self.print_docs(&nest.docs);
             self.output.push_str("nest ");

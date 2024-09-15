@@ -2025,7 +2025,7 @@ impl Remap {
                 iface.functions.insert(name, func);
             }
         }
-        for (_, nest) in &mut iface.nested {
+        for nest in &mut iface.nested {
             nest.id = self.interfaces[nest.id.index()].unwrap();
         }
 

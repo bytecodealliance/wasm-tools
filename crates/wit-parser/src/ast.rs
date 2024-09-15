@@ -561,6 +561,23 @@ struct Nest<'a> {
     from: UsePath<'a>,
 }
 
+impl<'a> Nest<'a> {
+    fn parse(
+        tokens: &mut Tokenizer<'a>,
+        docs: Docs<'a>,
+        attributes: Vec<Attribute<'a>>,
+    ) -> Result<Self> {
+        tokens.eat(Token::Nest)?;
+        let path = UsePath::parse(tokens)?;
+        tokens.expect_semicolon()?;
+        Ok(Self {
+            docs,
+            attributes,
+            from: path,
+        })
+    }
+}
+
 struct Use<'a> {
     attributes: Vec<Attribute<'a>>,
     from: UsePath<'a>,
@@ -998,14 +1015,7 @@ impl<'a> InterfaceItem<'a> {
             }
             Some((_span, Token::Use)) => Use::parse(tokens, attributes).map(InterfaceItem::Use),
             Some((_span, Token::Nest)) => {
-                tokens.eat(Token::Nest)?;
-                let path = UsePath::parse(tokens)?;
-                tokens.expect_semicolon()?;
-                Ok(InterfaceItem::Nest(Nest {
-                    docs,
-                    attributes,
-                    from: path,
-                }))
+                Nest::parse(tokens, docs, attributes).map(InterfaceItem::Nest)
             }
             other => Err(err_expected(tokens, "`type`, `resource` or `func`", other).into()),
         }
