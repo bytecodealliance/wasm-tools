@@ -5,10 +5,10 @@
     (type (;2;) (func (result i32)))
     (import "[export]foo:bar/a" "[resource-drop]r" (func (;0;) (type 0)))
     (import "[export]foo:bar/a" "[resource-rep]r" (func (;1;) (type 1)))
+    (export "some-name#f" (func 2))
     (func (;2;) (type 2) (result i32)
       unreachable
     )
-    (export "some-name#f" (func 2))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
       (processed-by "my-fake-bindgen" "123.45")

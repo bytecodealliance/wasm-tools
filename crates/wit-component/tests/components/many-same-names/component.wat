@@ -1,8 +1,8 @@
 (component
   (core module (;0;)
     (type (;0;) (func))
-    (func (;0;) (type 0))
     (export "name#a" (func 0))
+    (func (;0;) (type 0))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
       (processed-by "my-fake-bindgen" "123.45")

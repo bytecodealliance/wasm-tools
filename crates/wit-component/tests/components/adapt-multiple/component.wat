@@ -26,17 +26,21 @@
     (type (;0;) (func))
     (import "other1" "foo" (func $foo (;0;) (type 0)))
     (import "other2" "bar" (func $bar (;1;) (type 0)))
+    (export "foo" (func 2))
+    (export "bar" (func 3))
     (func (;2;) (type 0)
       call $foo
     )
     (func (;3;) (type 0)
       call $bar
     )
-    (export "foo" (func 2))
-    (export "bar" (func 3))
   )
   (core module (;2;)
     (type (;0;) (func))
+    (table (;0;) 2 2 funcref)
+    (export "0" (func $adapt-foo-foo))
+    (export "1" (func $adapt-foo-bar))
+    (export "$imports" (table 0))
     (func $adapt-foo-foo (;0;) (type 0)
       i32.const 0
       call_indirect (type 0)
@@ -45,10 +49,6 @@
       i32.const 1
       call_indirect (type 0)
     )
-    (table (;0;) 2 2 funcref)
-    (export "0" (func $adapt-foo-foo))
-    (export "1" (func $adapt-foo-bar))
-    (export "$imports" (table 0))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )

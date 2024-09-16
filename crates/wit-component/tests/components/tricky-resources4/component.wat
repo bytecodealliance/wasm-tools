@@ -3,11 +3,11 @@
     (type (;0;) (func (param i32) (result i32)))
     (type (;1;) (func (result i32)))
     (import "[export]foo:bar/name" "[resource-new]name" (func $new (;0;) (type 0)))
+    (export "foo:bar/name#foo" (func 1))
     (func (;1;) (type 1) (result i32)
       i32.const 100
       call $new
     )
-    (export "foo:bar/name#foo" (func 1))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
       (processed-by "my-fake-bindgen" "123.45")

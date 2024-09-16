@@ -50,12 +50,12 @@
     (import "foo:shared-dependency/doc" "g2" (func (;3;) (type 1)))
     (import "old" "adapter-f1" (func (;4;) (type 0)))
     (import "main-dep" "foo" (func (;5;) (type 2)))
-    (func (;6;) (type 3) (param i32 i32 i32 i32) (result i32)
-      unreachable
-    )
     (memory (;0;) 1)
     (export "memory" (memory 0))
     (export "cabi_realloc" (func 6))
+    (func (;6;) (type 3) (param i32 i32 i32 i32) (result i32)
+      unreachable
+    )
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
       (processed-by "my-fake-bindgen" "123.45")
@@ -71,6 +71,8 @@
     (import "foo:shared-dependency/doc" "g1" (func $g1 (;2;) (type 1)))
     (import "foo:shared-dependency/doc" "g3" (func $g3 (;3;) (type 1)))
     (import "adapter-dep" "foo" (func $foo (;4;) (type 2)))
+    (export "adapter-f1" (func 5))
+    (export "cabi_import_realloc" (func 6))
     (func (;5;) (type 0)
       call $f1
       call $f3
@@ -84,12 +86,17 @@
     (func (;6;) (type 3) (param i32 i32 i32 i32) (result i32)
       unreachable
     )
-    (export "adapter-f1" (func 5))
-    (export "cabi_import_realloc" (func 6))
   )
   (core module (;2;)
     (type (;0;) (func (param i32)))
     (type (;1;) (func))
+    (table (;0;) 5 5 funcref)
+    (export "0" (func $indirect-foo:shared-dependency/doc-g1))
+    (export "1" (func $indirect-foo:shared-dependency/doc-g2))
+    (export "2" (func $"#func2 indirect-foo:shared-dependency/doc-g1"))
+    (export "3" (func $indirect-foo:shared-dependency/doc-g3))
+    (export "4" (func $adapt-old-adapter-f1))
+    (export "$imports" (table 0))
     (func $indirect-foo:shared-dependency/doc-g1 (;0;) (type 0) (param i32)
       local.get 0
       i32.const 0
@@ -114,13 +121,6 @@
       i32.const 4
       call_indirect (type 1)
     )
-    (table (;0;) 5 5 funcref)
-    (export "0" (func $indirect-foo:shared-dependency/doc-g1))
-    (export "1" (func $indirect-foo:shared-dependency/doc-g2))
-    (export "2" (func $"#func2 indirect-foo:shared-dependency/doc-g1"))
-    (export "3" (func $indirect-foo:shared-dependency/doc-g3))
-    (export "4" (func $adapt-old-adapter-f1))
-    (export "$imports" (table 0))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )

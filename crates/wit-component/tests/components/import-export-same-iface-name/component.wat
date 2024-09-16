@@ -17,8 +17,8 @@
     (type (;0;) (func))
     (import "foo:dep/the-name" "a" (func (;0;) (type 0)))
     (import "foo:foo/the-name" "a" (func (;1;) (type 0)))
-    (func (;2;) (type 0))
     (export "foo:foo/the-name#a" (func 2))
+    (func (;2;) (type 0))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
       (processed-by "my-fake-bindgen" "123.45")

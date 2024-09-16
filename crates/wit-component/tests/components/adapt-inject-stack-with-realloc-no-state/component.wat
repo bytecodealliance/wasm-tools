@@ -11,6 +11,9 @@
     (type (;0;) (func (result i32)))
     (type (;1;) (func (param i32 i32 i32 i32) (result i32)))
     (import "old" "get_sum" (func (;0;) (type 0)))
+    (memory (;0;) 1)
+    (export "memory" (memory 0))
+    (export "cabi_realloc" (func $cabi_realloc))
     (func $cabi_realloc (;1;) (type 1) (param i32 i32 i32 i32) (result i32)
       (local i32)
       i32.const 0
@@ -43,9 +46,6 @@
       i32.const 16
       i32.shl
     )
-    (memory (;0;) 1)
-    (export "memory" (memory 0))
-    (export "cabi_realloc" (func $cabi_realloc))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
       (processed-by "my-fake-bindgen" "123.45")
@@ -60,6 +60,10 @@
     (import "env" "memory" (memory (;0;) 0))
     (import "new" "get-two" (func $get_two (;0;) (type 0)))
     (import "__main_module__" "cabi_realloc" (func $cabi_realloc (;1;) (type 1)))
+    (global $__stack_pointer (;0;) (mut i32) i32.const 0)
+    (global $some_other_mutable_global (;1;) (mut i32) i32.const 0)
+    (export "get_sum" (func 2))
+    (start $allocate_stack)
     (func (;2;) (type 2) (result i32)
       (local i32 i32)
       i32.const 0
@@ -134,14 +138,14 @@
       i32.add
       global.set $__stack_pointer
     )
-    (global $__stack_pointer (;0;) (mut i32) i32.const 0)
-    (global $some_other_mutable_global (;1;) (mut i32) i32.const 0)
-    (export "get_sum" (func 2))
-    (start $allocate_stack)
   )
   (core module (;2;)
     (type (;0;) (func (param i32)))
     (type (;1;) (func (result i32)))
+    (table (;0;) 2 2 funcref)
+    (export "0" (func $indirect-new-get-two))
+    (export "1" (func $adapt-old-get_sum))
+    (export "$imports" (table 0))
     (func $indirect-new-get-two (;0;) (type 0) (param i32)
       local.get 0
       i32.const 0
@@ -151,10 +155,6 @@
       i32.const 1
       call_indirect (type 1)
     )
-    (table (;0;) 2 2 funcref)
-    (export "0" (func $indirect-new-get-two))
-    (export "1" (func $adapt-old-get_sum))
-    (export "$imports" (table 0))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )

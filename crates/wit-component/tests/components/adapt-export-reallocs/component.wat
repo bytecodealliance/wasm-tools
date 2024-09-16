@@ -10,10 +10,10 @@
   (core module (;0;)
     (type (;0;) (func (param i32 i32)))
     (import "old" "read" (func (;0;) (type 0)))
-    (func (;1;) (type 0) (param $args i32) (param $argv i32))
     (memory (;0;) 1)
     (export "main" (func 1))
     (export "memory" (memory 0))
+    (func (;1;) (type 0) (param $args i32) (param $argv i32))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
       (processed-by "my-fake-bindgen" "123.45")
@@ -23,6 +23,11 @@
     (type (;0;) (func (param i32 i32)))
     (type (;1;) (func (param i32 i32 i32 i32) (result i32)))
     (import "new" "read" (func $read (;0;) (type 0)))
+    (global $sp (;0;) (mut i32) i32.const 0)
+    (export "entrypoint" (func 1))
+    (export "cabi_export_realloc" (func 2))
+    (export "read" (func 3))
+    (export "cabi_import_realloc" (func 4))
     (func (;1;) (type 0) (param i32 i32)
       unreachable
     )
@@ -47,15 +52,14 @@
     (func (;4;) (type 1) (param i32 i32 i32 i32) (result i32)
       unreachable
     )
-    (global $sp (;0;) (mut i32) i32.const 0)
-    (export "entrypoint" (func 1))
-    (export "cabi_export_realloc" (func 2))
-    (export "read" (func 3))
-    (export "cabi_import_realloc" (func 4))
   )
   (core module (;2;)
     (type (;0;) (func (param i32 i32)))
     (type (;1;) (func (param i32 i32)))
+    (table (;0;) 2 2 funcref)
+    (export "0" (func $indirect-new-read))
+    (export "1" (func $adapt-old-read))
+    (export "$imports" (table 0))
     (func $indirect-new-read (;0;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
@@ -68,10 +72,6 @@
       i32.const 1
       call_indirect (type 1)
     )
-    (table (;0;) 2 2 funcref)
-    (export "0" (func $indirect-new-read))
-    (export "1" (func $adapt-old-read))
-    (export "$imports" (table 0))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )

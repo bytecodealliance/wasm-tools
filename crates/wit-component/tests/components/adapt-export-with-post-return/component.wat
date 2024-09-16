@@ -2,16 +2,16 @@
   (core module (;0;)
     (type (;0;) (func (param i32 i32 i32 i32) (result i32)))
     (type (;1;) (func (param i32 i32 i32)))
+    (memory (;0;) 1)
+    (export "canonical_abi_realloc" (func 0))
+    (export "canonical_abi_free" (func 1))
+    (export "memory" (memory 0))
     (func (;0;) (type 0) (param i32 i32 i32 i32) (result i32)
       unreachable
     )
     (func (;1;) (type 1) (param i32 i32 i32)
       unreachable
     )
-    (memory (;0;) 1)
-    (export "canonical_abi_realloc" (func 0))
-    (export "canonical_abi_free" (func 1))
-    (export "memory" (memory 0))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
       (processed-by "my-fake-bindgen" "123.45")
@@ -25,6 +25,10 @@
     (type (;4;) (func))
     (import "__main_module__" "canonical_abi_realloc" (func $realloc (;0;) (type 0)))
     (import "__main_module__" "canonical_abi_free" (func $free (;1;) (type 1)))
+    (global $__stack_pointer (;0;) (mut i32) i32.const 0)
+    (global $allocation_state (;1;) (mut i32) i32.const 0)
+    (export "foo:foo/new#foo" (func 2))
+    (export "cabi_post_foo:foo/new#foo" (func 3))
     (func (;2;) (type 2) (result i32)
       call $allocate_stack
       global.get $__stack_pointer
@@ -63,10 +67,6 @@
         global.set $allocation_state
       end
     )
-    (global $__stack_pointer (;0;) (mut i32) i32.const 0)
-    (global $allocation_state (;1;) (mut i32) i32.const 0)
-    (export "foo:foo/new#foo" (func 2))
-    (export "cabi_post_foo:foo/new#foo" (func 3))
   )
   (core instance (;0;) (instantiate 0))
   (alias core export 0 "memory" (core memory (;0;)))

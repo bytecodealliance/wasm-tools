@@ -6,6 +6,9 @@
     (import "[export]foo" "[resource-new]a" (func $new (;0;) (type 0)))
     (import "[export]foo" "[resource-rep]a" (func (;1;) (type 0)))
     (import "[export]foo" "[resource-drop]a" (func (;2;) (type 1)))
+    (export "foo#[constructor]a" (func 3))
+    (export "foo#[static]a.other-new" (func 4))
+    (export "foo#[dtor]a" (func 5))
     (func (;3;) (type 2) (result i32)
       i32.const 100
       call $new
@@ -15,9 +18,6 @@
       call $new
     )
     (func (;5;) (type 1) (param i32))
-    (export "foo#[constructor]a" (func 3))
-    (export "foo#[static]a.other-new" (func 4))
-    (export "foo#[dtor]a" (func 5))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
       (processed-by "my-fake-bindgen" "123.45")
@@ -25,14 +25,14 @@
   )
   (core module (;1;)
     (type (;0;) (func (param i32)))
+    (table (;0;) 1 1 funcref)
+    (export "0" (func $"dtor-[export]foo-a"))
+    (export "$imports" (table 0))
     (func $"dtor-[export]foo-a" (;0;) (type 0) (param i32)
       local.get 0
       i32.const 0
       call_indirect (type 0)
     )
-    (table (;0;) 1 1 funcref)
-    (export "0" (func $"dtor-[export]foo-a"))
-    (export "$imports" (table 0))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )

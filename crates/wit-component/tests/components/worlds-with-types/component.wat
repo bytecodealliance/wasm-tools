@@ -5,10 +5,10 @@
   (import "r" (type (;3;) (eq 2)))
   (core module (;0;)
     (type (;0;) (func (param i32) (result i32)))
+    (export "a" (func 0))
     (func (;0;) (type 0) (param i32) (result i32)
       i32.const 1
     )
-    (export "a" (func 0))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
       (processed-by "my-fake-bindgen" "123.45")
