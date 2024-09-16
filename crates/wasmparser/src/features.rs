@@ -225,6 +225,8 @@ define_wasm_features! {
         /// feature. Those are expected to not require a full garbage collector
         /// so are not gated by this.
         pub gc_types: GC_TYPES(1 << 26) = true;
+        /// The WebAssembly [stack-switching proposal](https://github.com/WebAssembly/stack-switching).
+        pub stack_switching: STACK_SWITCHING(1 << 27) = false;
     }
 }
 
