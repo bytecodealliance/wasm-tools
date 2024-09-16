@@ -1,5 +1,9 @@
 (module
   (type (;0;) (func (param i32) (result f32)))
+  (memory $mem0 (;0;) 0)
+  (memory $mem1 (;1;) 1)
+  (memory $mem2 (;2;) 0)
+  (export "f32_align_switch" (func 0))
   (func (;0;) (type 0) (param i32) (result f32)
     (local f32 f32)
     f32.const 0x1.4p+3 (;=10;)
@@ -45,8 +49,4 @@
     end
     local.get 2
   )
-  (memory $mem0 (;0;) 0)
-  (memory $mem1 (;1;) 1)
-  (memory $mem2 (;2;) 0)
-  (export "f32_align_switch" (func 0))
 )

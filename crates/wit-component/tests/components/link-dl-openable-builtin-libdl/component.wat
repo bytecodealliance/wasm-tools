@@ -45,6 +45,12 @@
     (type (;1;) (func (param i32) (result i32)))
     (import "GOT.mem" "__heap_base" (global $__heap_base (;0;) (mut i32)))
     (import "GOT.mem" "__heap_end" (global $__heap_end (;1;) (mut i32)))
+    (global $errno (;2;) i32 i32.const 0)
+    (global $heap (;3;) (mut i32) i32.const 0)
+    (export "malloc" (func $malloc))
+    (export "abort" (func $abort))
+    (export "errno" (global $errno))
+    (start $start)
     (func $start (;0;) (type 0)
       global.get $__heap_base
       global.set $heap
@@ -59,24 +65,18 @@
     (func $abort (;2;) (type 0)
       unreachable
     )
-    (global $errno (;2;) i32 i32.const 0)
-    (global $heap (;3;) (mut i32) i32.const 0)
-    (export "malloc" (func $malloc))
-    (export "abort" (func $abort))
-    (export "errno" (global $errno))
-    (start $start)
   )
   (core module (;2;)
     (type (;0;) (func (param i32 i32 i32) (result i32)))
     (type (;1;) (func (param i32) (result i32)))
+    (export "memcmp" (func 0))
+    (export "strlen" (func 1))
     (func (;0;) (type 0) (param i32 i32 i32) (result i32)
       unreachable
     )
     (func (;1;) (type 1) (param i32) (result i32)
       unreachable
     )
-    (export "memcmp" (func 0))
-    (export "strlen" (func 1))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )
@@ -98,6 +98,13 @@
     (import "env" "__table_base" (global (;1;) i32))
     (import "env" "strlen" (func (;0;) (type 0)))
     (import "env" "memcmp" (func (;1;) (type 1)))
+    (export "__wasm_apply_data_relocs" (func 3))
+    (export "_initialize" (func 4))
+    (export "dlclose" (func 5))
+    (export "dlerror" (func 7))
+    (export "dlopen" (func 8))
+    (export "dlsym" (func 9))
+    (export "__wasm_set_libraries" (func 10))
     (func (;2;) (type 2))
     (func (;3;) (type 2))
     (func (;4;) (type 2)
@@ -483,13 +490,6 @@
       local.get 0
       i32.store
     )
-    (export "__wasm_apply_data_relocs" (func 3))
-    (export "_initialize" (func 4))
-    (export "dlclose" (func 5))
-    (export "dlerror" (func 7))
-    (export "dlopen" (func 8))
-    (export "dlsym" (func 9))
-    (export "__wasm_set_libraries" (func 10))
     (data (;0;) (global.get 0) "invalid library handle\00library not found\00dlopen flags not yet supported\00symbol not found\00dlsym RTLD_NEXT and RTLD_DEFAULT not yet supported\00\00\00\00\00\00\00\00\00\00\00\00\00")
   )
   (core module (;4;)
@@ -500,14 +500,14 @@
     (type (;1;) (func (param i32 i32) (result i32)))
     (import "test:test/test" "foo" (func $import_foo (;0;) (type 0)))
     (import "env" "dlopen" (func $dlopen (;1;) (type 1)))
-    (func $foo (;2;) (type 0) (param i32) (result i32)
-      unreachable
-    )
     (global $what (;0;) i32 i32.const 42)
     (export "test:test/test#foo" (func $foo))
     (export "bar" (func $foo))
     (export "baz" (func $foo))
     (export "what" (global $what))
+    (func $foo (;2;) (type 0) (param i32) (result i32)
+      unreachable
+    )
   )
   (core module (;5;)
     (type (;0;) (func))
@@ -525,6 +525,9 @@
     (import "foo" "bar" (func (;3;) (type 2)))
     (import "foo" "baz" (func (;4;) (type 3)))
     (import "foo" "test:test/test#foo" (func (;5;) (type 4)))
+    (start 6)
+    (elem (;0;) (i32.const 1) func 3 4 5)
+    (elem (;1;) (i32.const 4) func)
     (func (;6;) (type 0)
       i32.const 1048656
       global.get 0
@@ -536,9 +539,6 @@
       i32.const 1048676
       call 2
     )
-    (start 6)
-    (elem (;0;) (i32.const 1) func 3 4 5)
-    (elem (;1;) (i32.const 4) func)
     (data (;0;) (i32.const 1048576) "foo\00bar\00baz\00test:test/test#foo\00\00what\03\00\00\00\04\00\10\00\01\00\00\00\03\00\00\00\08\00\10\00\02\00\00\00\12\00\00\00\0c\00\10\00\03\00\00\00\04\00\00\00 \00\10\00\00\00\00\00\03\00\00\00\00\00\10\00\04\00\00\00$\00\10\00\01\00\00\00T\00\10\00")
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")

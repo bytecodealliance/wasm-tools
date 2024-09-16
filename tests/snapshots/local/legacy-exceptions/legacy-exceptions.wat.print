@@ -1,5 +1,6 @@
 (module
   (type (;0;) (func))
+  (tag (;0;) (type 0))
   (func (;0;) (type 0)
     try ;; label = @1
       try ;; label = @2
@@ -12,5 +13,4 @@
     catch 0
     end
   )
-  (tag (;0;) (type 0))
 )

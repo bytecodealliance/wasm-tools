@@ -3,8 +3,8 @@
     (type (;0;) (func (result i32)))
     (type (;1;) (func))
     (import "old" "nargs" (func (;0;) (type 0)))
-    (func (;1;) (type 1))
     (export "the_entrypoint" (func 1))
+    (func (;1;) (type 1))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
       (processed-by "my-fake-bindgen" "123.45")
@@ -15,6 +15,9 @@
     (type (;1;) (func (param i32)))
     (type (;2;) (func (result i32)))
     (import "__main_module__" "the_entrypoint" (func $entry (;0;) (type 0)))
+    (global $nargs (;0;) (mut i32) i32.const 0)
+    (export "entrypoint" (func 1))
+    (export "nargs" (func 2))
     (func (;1;) (type 1) (param i32)
       local.get 0
       global.set $nargs
@@ -23,19 +26,16 @@
     (func (;2;) (type 2) (result i32)
       global.get $nargs
     )
-    (global $nargs (;0;) (mut i32) i32.const 0)
-    (export "entrypoint" (func 1))
-    (export "nargs" (func 2))
   )
   (core module (;2;)
     (type (;0;) (func (result i32)))
+    (table (;0;) 1 1 funcref)
+    (export "0" (func $adapt-old-nargs))
+    (export "$imports" (table 0))
     (func $adapt-old-nargs (;0;) (type 0) (result i32)
       i32.const 0
       call_indirect (type 0)
     )
-    (table (;0;) 1 1 funcref)
-    (export "0" (func $adapt-old-nargs))
-    (export "$imports" (table 0))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )

@@ -19,7 +19,7 @@
     (type $h (;8;) (sub $g2 (func)))
     (type (;9;) (struct))
   )
-  (func $h (;0;) (type $h))
   (global (;0;) (ref $f1) ref.func $h)
   (global (;1;) (ref $g1) ref.func $h)
+  (func $h (;0;) (type $h))
 )

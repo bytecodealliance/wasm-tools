@@ -6,21 +6,6 @@
   (type (;4;) (func (result f32)))
   (type (;5;) (func (param i32) (result i32)))
   (type (;6;) (func (param i64) (result i64)))
-  (func (;0;) (type 0))
-  (func (;1;) (type 1) (param i32))
-  (func (;2;) (type 2) (param f32))
-  (func (;3;) (type 3) (result i32)
-    i32.const 22
-  )
-  (func (;4;) (type 4) (result f32)
-    f32.const 0x1.6p+3 (;=11;)
-  )
-  (func (;5;) (type 5) (param i32) (result i32)
-    local.get 0
-  )
-  (func (;6;) (type 6) (param i64) (result i64)
-    local.get 0
-  )
   (table (;0;) 10 funcref)
   (table (;1;) 10 20 funcref)
   (memory (;0;) 2)
@@ -46,4 +31,19 @@
   (export "tag" (tag 0))
   (export "tag-i32" (tag 1))
   (export "tag-f32" (tag 2))
+  (func (;0;) (type 0))
+  (func (;1;) (type 1) (param i32))
+  (func (;2;) (type 2) (param f32))
+  (func (;3;) (type 3) (result i32)
+    i32.const 22
+  )
+  (func (;4;) (type 4) (result f32)
+    f32.const 0x1.6p+3 (;=11;)
+  )
+  (func (;5;) (type 5) (param i32) (result i32)
+    local.get 0
+  )
+  (func (;6;) (type 6) (param i64) (result i64)
+    local.get 0
+  )
 )

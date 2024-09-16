@@ -12,12 +12,12 @@
     (type (;0;) (func (param i32 i32)))
     (type (;1;) (func))
     (import "$root" "foo" (func (;0;) (type 0)))
-    (func (;1;) (type 1)
-      unreachable
-    )
     (memory (;0;) 1)
     (export "bar" (func 1))
     (export "memory" (memory 0))
+    (func (;1;) (type 1)
+      unreachable
+    )
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
       (processed-by "my-fake-bindgen" "123.45")
@@ -27,6 +27,8 @@
     (type (;0;) (func (param i32 i32)))
     (type (;1;) (func (param i32 i32 i32 i32) (result i32)))
     (import "foo:foo/adapter-imports" "foo" (func $foo (;0;) (type 0)))
+    (export "adapter-bar" (func 1))
+    (export "cabi_export_realloc" (func 2))
     (func (;1;) (type 0) (param i32 i32)
       i32.const 0
       i32.const 0
@@ -35,11 +37,13 @@
     (func (;2;) (type 1) (param i32 i32 i32 i32) (result i32)
       unreachable
     )
-    (export "adapter-bar" (func 1))
-    (export "cabi_export_realloc" (func 2))
   )
   (core module (;2;)
     (type (;0;) (func (param i32 i32)))
+    (table (;0;) 2 2 funcref)
+    (export "0" (func $indirect-$root-foo))
+    (export "1" (func $indirect-foo:foo/adapter-imports-foo))
+    (export "$imports" (table 0))
     (func $indirect-$root-foo (;0;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
@@ -52,10 +56,6 @@
       i32.const 1
       call_indirect (type 0)
     )
-    (table (;0;) 2 2 funcref)
-    (export "0" (func $indirect-$root-foo))
-    (export "1" (func $indirect-foo:foo/adapter-imports-foo))
-    (export "$imports" (table 0))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )

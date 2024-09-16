@@ -8,6 +8,11 @@
   (type (;6;) (func (param i32 i32) (result i32)))
   (type (;7;) (func (param (ref array)) (result i32)))
   (type (;8;) (func (result i32)))
+  (export "new" (func $new))
+  (export "get_u" (func 2))
+  (export "get_s" (func 4))
+  (export "set_get" (func 6))
+  (export "len" (func 8))
   (func $new (;0;) (type 2) (result (ref $vec))
     i32.const 1
     i32.const 3
@@ -58,10 +63,5 @@
     call $new
     call $len
   )
-  (export "new" (func $new))
-  (export "get_u" (func 2))
-  (export "get_s" (func 4))
-  (export "set_get" (func 6))
-  (export "len" (func 8))
   (data $d (;0;) "\00\01\02\ff\04")
 )

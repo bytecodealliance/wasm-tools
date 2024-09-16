@@ -8,11 +8,6 @@
   (import "test:test/test" (instance (;0;) (type 0)))
   (core module (;0;)
     (type (;0;) (func (param i32) (result i32)))
-    (func (;0;) (type 0) (param i32) (result i32)
-      local.get 0
-      i32.const 1
-      call_indirect (type 0)
-    )
     (table (;0;) 2 funcref)
     (memory (;0;) 17)
     (global (;0;) (mut i32) i32.const 1048576)
@@ -34,6 +29,11 @@
     (export "foo" (func 0))
     (export "__indirect_function_table" (table 0))
     (export "memory" (memory 0))
+    (func (;0;) (type 0) (param i32) (result i32)
+      local.get 0
+      i32.const 1
+      call_indirect (type 0)
+    )
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )
@@ -43,10 +43,10 @@
       (mem-info (memory 0 4))
     )
     (type (;0;) (func (param i32) (result i32)))
+    (export "foo" (func $foo))
     (func $foo (;0;) (type 0) (param i32) (result i32)
       unreachable
     )
-    (export "foo" (func $foo))
   )
   (core module (;2;)
     (@dylink.0
@@ -65,10 +65,10 @@
     (import "env" "memory" (memory (;0;) 0))
     (import "env" "__indirect_function_table" (table (;0;) 0 funcref))
     (import "bar" "foo" (func (;0;) (type 2)))
-    (func (;1;) (type 0))
     (start 1)
     (elem (;0;) (i32.const 1) func)
     (elem (;1;) (i32.const 1) func 0)
+    (func (;1;) (type 0))
     (data (;0;) (i32.const 1048576) "\00\00\00\00\00\00\10\00")
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")

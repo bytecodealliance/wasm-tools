@@ -1,6 +1,9 @@
 (module
   (type (;0;) (func (param i32) (result v128)))
   (type (;1;) (func (param i32 v128)))
+  (memory (;0;) 1 1)
+  (export "v128.load align=16" (func 0))
+  (export "v128.store align=16" (func 1))
   (func (;0;) (type 0) (param $address i32) (result v128)
     local.get $address
     v128.load
@@ -10,7 +13,4 @@
     local.get $value
     v128.store
   )
-  (memory (;0;) 1 1)
-  (export "v128.load align=16" (func 0))
-  (export "v128.store align=16" (func 1))
 )

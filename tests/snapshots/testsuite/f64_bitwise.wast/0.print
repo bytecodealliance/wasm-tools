@@ -1,6 +1,9 @@
 (module
   (type (;0;) (func (param f64) (result f64)))
   (type (;1;) (func (param f64 f64) (result f64)))
+  (export "abs" (func 0))
+  (export "neg" (func 1))
+  (export "copysign" (func 2))
   (func (;0;) (type 0) (param $x f64) (result f64)
     local.get $x
     f64.abs
@@ -14,7 +17,4 @@
     local.get $y
     f64.copysign
   )
-  (export "abs" (func 0))
-  (export "neg" (func 1))
-  (export "copysign" (func 2))
 )

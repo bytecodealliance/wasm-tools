@@ -4,6 +4,15 @@
   (type (;2;) (func))
   (type (;3;) (func (param externref)))
   (type (;4;) (func (param i32) (result i32)))
+  (table $t1 (;0;) 2 funcref)
+  (table $t2 (;1;) 2 externref)
+  (export "funcref" (func $f1))
+  (export "externref" (func $f2))
+  (export "init" (func 3))
+  (export "deinit" (func 4))
+  (export "funcref-elem" (func 5))
+  (export "externref-elem" (func 6))
+  (elem (;0;) (i32.const 1) func $dummy)
   (func $f1 (;0;) (type 0) (param $x funcref) (result i32)
     local.get $x
     ref.is_null
@@ -36,13 +45,4 @@
     table.get $t2
     call $f2
   )
-  (table $t1 (;0;) 2 funcref)
-  (table $t2 (;1;) 2 externref)
-  (export "funcref" (func $f1))
-  (export "externref" (func $f2))
-  (export "init" (func 3))
-  (export "deinit" (func 4))
-  (export "funcref-elem" (func 5))
-  (export "externref-elem" (func 6))
-  (elem (;0;) (i32.const 1) func $dummy)
 )

@@ -2,6 +2,13 @@
   (type (;0;) (func (param i64) (result i64)))
   (type (;1;) (func (result i32)))
   (type (;2;) (func))
+  (global $temp (;0;) (mut i32) i32.const 0)
+  (export "fac-expr" (func 0))
+  (export "fac-stack" (func 1))
+  (export "fac-stack-raw" (func 2))
+  (export "fac-mixed" (func 3))
+  (export "fac-mixed-raw" (func 4))
+  (export "not-quite-a-tree" (func 7))
   (func (;0;) (type 0) (param $n i64) (result i64)
     (local $i i64) (local $res i64)
     local.get $n
@@ -160,11 +167,4 @@
     call $add_one_to_global_and_drop
     i32.add
   )
-  (global $temp (;0;) (mut i32) i32.const 0)
-  (export "fac-expr" (func 0))
-  (export "fac-stack" (func 1))
-  (export "fac-stack-raw" (func 2))
-  (export "fac-mixed" (func 3))
-  (export "fac-mixed-raw" (func 4))
-  (export "not-quite-a-tree" (func 7))
 )

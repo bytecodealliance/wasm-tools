@@ -1,5 +1,13 @@
 (module
   (type (;0;) (func (param v128) (result v128)))
+  (export "i32x4.relaxed_trunc_f32x4_s" (func 0))
+  (export "i32x4.relaxed_trunc_f32x4_u" (func 1))
+  (export "i32x4.relaxed_trunc_f64x2_s_zero" (func 2))
+  (export "i32x4.relaxed_trunc_f64x2_u_zero" (func 3))
+  (export "i32x4.relaxed_trunc_f32x4_s_cmp" (func 4))
+  (export "i32x4.relaxed_trunc_f32x4_u_cmp" (func 5))
+  (export "i32x4.relaxed_trunc_f64x2_s_zero_cmp" (func 6))
+  (export "i32x4.relaxed_trunc_f64x2_u_zero_cmp" (func 7))
   (func (;0;) (type 0) (param v128) (result v128)
     local.get 0
     i32x4.relaxed_trunc_f32x4_s
@@ -44,12 +52,4 @@
     i32x4.relaxed_trunc_f64x2_u_zero
     i32x4.eq
   )
-  (export "i32x4.relaxed_trunc_f32x4_s" (func 0))
-  (export "i32x4.relaxed_trunc_f32x4_u" (func 1))
-  (export "i32x4.relaxed_trunc_f64x2_s_zero" (func 2))
-  (export "i32x4.relaxed_trunc_f64x2_u_zero" (func 3))
-  (export "i32x4.relaxed_trunc_f32x4_s_cmp" (func 4))
-  (export "i32x4.relaxed_trunc_f32x4_u_cmp" (func 5))
-  (export "i32x4.relaxed_trunc_f64x2_s_zero_cmp" (func 6))
-  (export "i32x4.relaxed_trunc_f64x2_u_zero_cmp" (func 7))
 )

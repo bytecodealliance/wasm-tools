@@ -8,6 +8,9 @@
   (type $t0' (;6;) (sub $t0 (struct)))
   (type $t4 (;7;) (sub $t0' (struct (field i32) (field i32))))
   (type (;8;) (func))
+  (table (;0;) 20 structref)
+  (export "test-sub" (func 1))
+  (export "test-canon" (func 2))
   (func $init (;0;) (type 8)
     i32.const 0
     struct.new_default $t0
@@ -262,7 +265,4 @@
     end
     unreachable
   )
-  (table (;0;) 20 structref)
-  (export "test-sub" (func 1))
-  (export "test-canon" (func 2))
 )

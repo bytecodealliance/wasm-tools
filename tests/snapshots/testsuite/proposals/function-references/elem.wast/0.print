@@ -1,7 +1,5 @@
 (module
   (type (;0;) (func))
-  (func $f (;0;) (type 0))
-  (func $g (;1;) (type 0))
   (table $t (;0;) 10 funcref)
   (elem (;0;) funcref)
   (elem (;1;) funcref (ref.func $f) (ref.func $f) (ref.null func) (ref.func $g))
@@ -64,4 +62,6 @@
   (elem $d2 (;58;) declare funcref (ref.func $f) (ref.func $f) (ref.null func) (ref.func $g))
   (elem $d3 (;59;) declare func)
   (elem $d4 (;60;) declare func $f $f $g $g)
+  (func $f (;0;) (type 0))
+  (func $g (;1;) (type 0))
 )

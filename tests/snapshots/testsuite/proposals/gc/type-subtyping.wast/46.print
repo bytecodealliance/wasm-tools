@@ -16,6 +16,9 @@
     (type $g22 (;7;) (sub $g21 (func (result (ref $g21)))))
   )
   (type (;8;) (func (result i32 i32 i32 i32 i32 i32 i32 i32)))
+  (export "run" (func 2))
+  (elem (;0;) declare func $g11)
+  (elem (;1;) declare func $g12)
   (func $g11 (;0;) (type $g11) (result (ref func))
     unreachable
   )
@@ -40,7 +43,4 @@
     ref.func $g12
     ref.test (ref $g22)
   )
-  (export "run" (func 2))
-  (elem (;0;) declare func $g11)
-  (elem (;1;) declare func $g12)
 )

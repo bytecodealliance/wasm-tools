@@ -1,10 +1,10 @@
 (component
   (core module (;0;)
     (type (;0;) (func (result i32)))
+    (export "anon#foo" (func 0))
     (func (;0;) (type 0) (result i32)
       unreachable
     )
-    (export "anon#foo" (func 0))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
       (processed-by "my-fake-bindgen" "123.45")

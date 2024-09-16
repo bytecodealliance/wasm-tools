@@ -1,5 +1,6 @@
 (module
   (type (;0;) (func))
+  (export "meet-bottom" (func 0))
   (func (;0;) (type 0)
     block (result f64) ;; label = @1
       block (result f32) ;; label = @2
@@ -12,5 +13,4 @@
     end
     drop
   )
-  (export "meet-bottom" (func 0))
 )

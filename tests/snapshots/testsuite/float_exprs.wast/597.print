@@ -1,6 +1,8 @@
 (module
   (type (;0;) (func (param f32) (result f32)))
   (type (;1;) (func (param f64) (result f64)))
+  (export "f32_sqrt_minus_2" (func 0))
+  (export "f64_sqrt_minus_2" (func 1))
   (func (;0;) (type 0) (param $x f32) (result f32)
     local.get $x
     f32.sqrt
@@ -13,6 +15,4 @@
     f64.const 0x1p+1 (;=2;)
     f64.sub
   )
-  (export "f32_sqrt_minus_2" (func 0))
-  (export "f64_sqrt_minus_2" (func 1))
 )

@@ -1,5 +1,19 @@
 (module
   (type (;0;) (func))
+  (memory (;0;) 1)
+  (export "v128.not-in-block" (func 0))
+  (export "v128.and-in-block" (func 1))
+  (export "v128.or-in-block" (func 2))
+  (export "v128.xor-in-block" (func 3))
+  (export "v128.bitselect-in-block" (func 4))
+  (export "v128.andnot-in-block" (func 5))
+  (export "nested-v128.not" (func 6))
+  (export "nested-v128.and" (func 7))
+  (export "nested-v128.or" (func 8))
+  (export "nested-v128.xor" (func 9))
+  (export "nested-v128.bitselect" (func 10))
+  (export "nested-v128.andnot" (func 11))
+  (export "as-param" (func 12))
   (func (;0;) (type 0)
     block ;; label = @1
       block (result v128) ;; label = @2
@@ -302,18 +316,4 @@
     v128.or
     drop
   )
-  (memory (;0;) 1)
-  (export "v128.not-in-block" (func 0))
-  (export "v128.and-in-block" (func 1))
-  (export "v128.or-in-block" (func 2))
-  (export "v128.xor-in-block" (func 3))
-  (export "v128.bitselect-in-block" (func 4))
-  (export "v128.andnot-in-block" (func 5))
-  (export "nested-v128.not" (func 6))
-  (export "nested-v128.and" (func 7))
-  (export "nested-v128.or" (func 8))
-  (export "nested-v128.xor" (func 9))
-  (export "nested-v128.bitselect" (func 10))
-  (export "nested-v128.andnot" (func 11))
-  (export "as-param" (func 12))
 )

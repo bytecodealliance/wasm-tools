@@ -1,5 +1,7 @@
 (module
   (type (;0;) (func (param v128 v128) (result v128)))
+  (export "i16x8.relaxed_q15mulr_s" (func 0))
+  (export "i16x8.relaxed_q15mulr_s_cmp" (func 1))
   (func (;0;) (type 0) (param v128 v128) (result v128)
     local.get 0
     local.get 1
@@ -14,6 +16,4 @@
     i16x8.relaxed_q15mulr_s
     i16x8.eq
   )
-  (export "i16x8.relaxed_q15mulr_s" (func 0))
-  (export "i16x8.relaxed_q15mulr_s_cmp" (func 1))
 )

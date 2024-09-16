@@ -3,6 +3,15 @@
   (type (;1;) (func (param f32) (result v128)))
   (type (;2;) (func (param i64) (result v128)))
   (type (;3;) (func (param f64) (result v128)))
+  (global $g (;0;) (mut v128) v128.const i32x4 0x00000000 0x00000000 0x00000000 0x00000000)
+  (export "as-br-value1" (func 0))
+  (export "as-return-value1" (func 1))
+  (export "as-local_set-value1" (func 2))
+  (export "as-global_set-value1" (func 3))
+  (export "as-br-value2" (func 4))
+  (export "as-return-value2" (func 5))
+  (export "as-local_set-value2" (func 6))
+  (export "as-global_set-value2" (func 7))
   (func (;0;) (type 0) (param i32) (result v128)
     block (result v128) ;; label = @1
       local.get 0
@@ -57,13 +66,4 @@
     global.get $g
     return
   )
-  (global $g (;0;) (mut v128) v128.const i32x4 0x00000000 0x00000000 0x00000000 0x00000000)
-  (export "as-br-value1" (func 0))
-  (export "as-return-value1" (func 1))
-  (export "as-local_set-value1" (func 2))
-  (export "as-global_set-value1" (func 3))
-  (export "as-br-value2" (func 4))
-  (export "as-return-value2" (func 5))
-  (export "as-local_set-value2" (func 6))
-  (export "as-global_set-value2" (func 7))
 )

@@ -1,6 +1,16 @@
 (module
   (type (;0;) (func (param v128) (result v128)))
   (type (;1;) (func (param v128 v128) (result v128)))
+  (export "f32x4.convert_i32x4_s" (func 0))
+  (export "f32x4.convert_i32x4_u" (func 1))
+  (export "f64x2.convert_low_i32x4_s" (func 2))
+  (export "f64x2.convert_low_i32x4_u" (func 3))
+  (export "i8x16.narrow_i16x8_s" (func 4))
+  (export "i8x16.narrow_i16x8_u" (func 5))
+  (export "i16x8.narrow_i32x4_s" (func 6))
+  (export "i16x8.narrow_i32x4_u" (func 7))
+  (export "f64x2.promote_low_f32x4" (func 8))
+  (export "f32x4.demote_f64x2_zero" (func 9))
   (func (;0;) (type 0) (param v128) (result v128)
     local.get 0
     f32x4.convert_i32x4_s
@@ -45,14 +55,4 @@
     local.get 0
     f32x4.demote_f64x2_zero
   )
-  (export "f32x4.convert_i32x4_s" (func 0))
-  (export "f32x4.convert_i32x4_u" (func 1))
-  (export "f64x2.convert_low_i32x4_s" (func 2))
-  (export "f64x2.convert_low_i32x4_u" (func 3))
-  (export "i8x16.narrow_i16x8_s" (func 4))
-  (export "i8x16.narrow_i16x8_u" (func 5))
-  (export "i16x8.narrow_i32x4_s" (func 6))
-  (export "i16x8.narrow_i32x4_u" (func 7))
-  (export "f64x2.promote_low_f32x4" (func 8))
-  (export "f32x4.demote_f64x2_zero" (func 9))
 )

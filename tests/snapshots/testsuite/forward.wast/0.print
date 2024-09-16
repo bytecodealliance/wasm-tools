@@ -1,5 +1,7 @@
 (module
   (type (;0;) (func (param i32) (result i32)))
+  (export "even" (func $even))
+  (export "odd" (func $odd))
   (func $even (;0;) (type 0) (param $n i32) (result i32)
     local.get $n
     i32.const 0
@@ -26,6 +28,4 @@
       call $even
     end
   )
-  (export "even" (func $even))
-  (export "odd" (func $odd))
 )

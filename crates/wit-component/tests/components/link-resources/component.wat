@@ -27,6 +27,8 @@
       (mem-info (memory 0 4))
     )
     (type (;0;) (func (param i32) (result i32)))
+    (export "test:test/foo#[constructor]x" (func $x_ctor))
+    (export "test:test/foo#[method]x.get" (func $x_get))
     (func $foo (;0;) (type 0) (param i32) (result i32)
       unreachable
     )
@@ -36,8 +38,6 @@
     (func $x_get (;2;) (type 0) (param i32) (result i32)
       unreachable
     )
-    (export "test:test/foo#[constructor]x" (func $x_ctor))
-    (export "test:test/foo#[method]x.get" (func $x_get))
   )
   (core module (;2;)
     (@dylink.0
@@ -45,24 +45,24 @@
       (needed "foo")
     )
     (type (;0;) (func (param i32) (result i32)))
+    (export "test:test/bar#[constructor]x" (func $x_ctor))
+    (export "test:test/bar#[method]x.get" (func $x_get))
     (func $x_ctor (;0;) (type 0) (param i32) (result i32)
       unreachable
     )
     (func $x_get (;1;) (type 0) (param i32) (result i32)
       unreachable
     )
-    (export "test:test/bar#[constructor]x" (func $x_ctor))
-    (export "test:test/bar#[method]x.get" (func $x_get))
   )
   (core module (;3;)
     (type (;0;) (func))
     (type (;1;) (func (param i32)))
     (import "env" "memory" (memory (;0;) 0))
     (import "env" "__indirect_function_table" (table (;0;) 0 funcref))
-    (func (;0;) (type 0))
     (start 0)
     (elem (;0;) (i32.const 1) func)
     (elem (;1;) (i32.const 1) func)
+    (func (;0;) (type 0))
     (data (;0;) (i32.const 1048576) "\00\00\00\00\00\00\10\00")
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")

@@ -1,8 +1,8 @@
 (component
   (core module $m (;0;)
     (type (;0;) (func (param i32)))
-    (func (;0;) (type 0) (param i32))
     (export "dtor" (func 0))
+    (func (;0;) (type 0) (param i32))
   )
   (core instance $m (;0;) (instantiate $m))
   (alias core export $m "dtor" (core func (;0;)))

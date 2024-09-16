@@ -1,6 +1,8 @@
 (module
   (type (;0;) (func (result f32)))
   (type (;1;) (func (result f64)))
+  (export "f32.incorrect_correction" (func 0))
+  (export "f64.incorrect_correction" (func 1))
   (func (;0;) (type 0) (result f32)
     f32.const 0x1.553f7cp+0 (;=1.333;)
     f32.const 0x1.39999ap+0 (;=1.225;)
@@ -19,6 +21,4 @@
     f64.const 0x1.399999999999ap+0 (;=1.225;)
     f64.sub
   )
-  (export "f32.incorrect_correction" (func 0))
-  (export "f64.incorrect_correction" (func 1))
 )

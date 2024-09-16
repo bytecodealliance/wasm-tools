@@ -1,6 +1,10 @@
 (module
   (type (;0;) (func))
   (type (;1;) (func (result i32)))
+  (memory (;0;) 1 1)
+  (export "inc" (func $inc))
+  (export "get" (func $get))
+  (start $main)
   (func $inc (;0;) (type 0)
     i32.const 0
     i32.const 0
@@ -19,9 +23,5 @@
     call $inc
     call $inc
   )
-  (memory (;0;) 1 1)
-  (export "inc" (func $inc))
-  (export "get" (func $get))
-  (start $main)
   (data (;0;) (i32.const 0) "A")
 )

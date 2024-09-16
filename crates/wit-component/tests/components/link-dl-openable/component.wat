@@ -31,14 +31,14 @@
     )
     (type (;0;) (func (param i32) (result i32)))
     (import "test:test/test" "foo" (func $import_foo (;0;) (type 0)))
-    (func $foo (;1;) (type 0) (param i32) (result i32)
-      unreachable
-    )
     (global $what (;0;) i32 i32.const 42)
     (export "test:test/test#foo" (func $foo))
     (export "bar" (func $foo))
     (export "baz" (func $foo))
     (export "what" (global $what))
+    (func $foo (;1;) (type 0) (param i32) (result i32)
+      unreachable
+    )
   )
   (core module (;2;)
     (type (;0;) (func))
@@ -53,6 +53,9 @@
     (import "foo" "bar" (func (;0;) (type 2)))
     (import "foo" "baz" (func (;1;) (type 3)))
     (import "foo" "test:test/test#foo" (func (;2;) (type 4)))
+    (start 3)
+    (elem (;0;) (i32.const 1) func 0 1 2)
+    (elem (;1;) (i32.const 4) func)
     (func (;3;) (type 0)
       i32.const 1048656
       global.get 0
@@ -60,9 +63,6 @@
       i32.add
       i32.store
     )
-    (start 3)
-    (elem (;0;) (i32.const 1) func 0 1 2)
-    (elem (;1;) (i32.const 4) func)
     (data (;0;) (i32.const 1048576) "foo\00bar\00baz\00test:test/test#foo\00\00what\03\00\00\00\04\00\10\00\01\00\00\00\03\00\00\00\08\00\10\00\02\00\00\00\12\00\00\00\0c\00\10\00\03\00\00\00\04\00\00\00 \00\10\00\00\00\00\00\03\00\00\00\00\00\10\00\04\00\00\00$\00\10\00\01\00\00\00T\00\10\00")
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")

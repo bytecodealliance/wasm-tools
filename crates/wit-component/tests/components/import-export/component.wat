@@ -13,6 +13,14 @@
     (type (;3;) (func))
     (type (;4;) (func (result i32)))
     (import "foo" "a" (func (;0;) (type 0)))
+    (memory (;0;) 1)
+    (export "memory" (memory 0))
+    (export "cabi_realloc" (func 1))
+    (export "a" (func 2))
+    (export "cabi_post_a" (func 3))
+    (export "bar#a" (func 4))
+    (export "bar#b" (func 5))
+    (export "cabi_post_bar#b" (func 6))
     (func (;1;) (type 1) (param i32 i32 i32 i32) (result i32)
       unreachable
     )
@@ -31,14 +39,6 @@
     (func (;6;) (type 0) (param i32)
       unreachable
     )
-    (memory (;0;) 1)
-    (export "memory" (memory 0))
-    (export "cabi_realloc" (func 1))
-    (export "a" (func 2))
-    (export "cabi_post_a" (func 3))
-    (export "bar#a" (func 4))
-    (export "bar#b" (func 5))
-    (export "cabi_post_bar#b" (func 6))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
       (processed-by "my-fake-bindgen" "123.45")
@@ -46,14 +46,14 @@
   )
   (core module (;1;)
     (type (;0;) (func (param i32)))
+    (table (;0;) 1 1 funcref)
+    (export "0" (func $indirect-foo-a))
+    (export "$imports" (table 0))
     (func $indirect-foo-a (;0;) (type 0) (param i32)
       local.get 0
       i32.const 0
       call_indirect (type 0)
     )
-    (table (;0;) 1 1 funcref)
-    (export "0" (func $indirect-foo-a))
-    (export "$imports" (table 0))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )

@@ -1,12 +1,12 @@
 (component
   (core module $m (;0;)
     (type (;0;) (func (result i32)))
-    (func (;0;) (type 0) (result i32)
-      unreachable
-    )
     (memory (;0;) 1)
     (export "memory" (memory 0))
     (export "ret-list" (func 0))
+    (func (;0;) (type 0) (result i32)
+      unreachable
+    )
   )
   (core instance $i (;0;) (instantiate $m))
   (type (;0;) (list u8))

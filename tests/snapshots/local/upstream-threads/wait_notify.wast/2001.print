@@ -2,6 +2,8 @@
   (type (;0;) (func (result i32)))
   (type (;1;) (func))
   (import "mem" "shared" (memory (;0;) 1 1 shared))
+  (export "notify-0" (func 0))
+  (export "notify-1-while" (func 1))
   (func (;0;) (type 0) (result i32)
     i32.const 0
     i32.const 0
@@ -17,6 +19,4 @@
       br_if 0 (;@1;)
     end
   )
-  (export "notify-0" (func 0))
-  (export "notify-1-while" (func 1))
 )

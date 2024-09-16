@@ -1,14 +1,14 @@
 (component
   (core module (;0;)
     (type (;0;) (func))
+    (export "a" (func 0))
+    (export "_initialize" (func 1))
     (func (;0;) (type 0)
       unreachable
     )
     (func (;1;) (type 0)
       unreachable
     )
-    (export "a" (func 0))
-    (export "_initialize" (func 1))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
       (processed-by "my-fake-bindgen" "123.45")

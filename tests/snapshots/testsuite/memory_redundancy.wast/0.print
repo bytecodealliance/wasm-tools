@@ -3,6 +3,13 @@
   (type (;1;) (func (result i32)))
   (type (;2;) (func (result f32)))
   (type (;3;) (func (param i32) (result i32)))
+  (memory (;0;) 1 1)
+  (export "zero_everything" (func 0))
+  (export "test_store_to_load" (func 1))
+  (export "test_redundant_load" (func 2))
+  (export "test_dead_store" (func 3))
+  (export "malloc" (func $malloc))
+  (export "malloc_aliasing" (func 5))
   (func (;0;) (type 0)
     i32.const 0
     i32.const 0
@@ -75,11 +82,4 @@
     local.get $x
     i32.load
   )
-  (memory (;0;) 1 1)
-  (export "zero_everything" (func 0))
-  (export "test_store_to_load" (func 1))
-  (export "test_redundant_load" (func 2))
-  (export "test_dead_store" (func 3))
-  (export "malloc" (func $malloc))
-  (export "malloc_aliasing" (func 5))
 )

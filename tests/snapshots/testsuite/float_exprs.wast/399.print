@@ -1,6 +1,10 @@
 (module
   (type (;0;) (func (param i32 f64)))
   (type (;1;) (func (param i32) (result f64)))
+  (memory (;0;) 1 1)
+  (export "init" (func 0))
+  (export "run" (func 1))
+  (export "check" (func 2))
   (func (;0;) (type 0) (param $i i32) (param $x f64)
     local.get $i
     local.get $x
@@ -31,8 +35,4 @@
     local.get $i
     f64.load
   )
-  (memory (;0;) 1 1)
-  (export "init" (func 0))
-  (export "run" (func 1))
-  (export "check" (func 2))
 )

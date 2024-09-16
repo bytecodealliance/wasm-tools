@@ -15,12 +15,6 @@
     (type $g21 (;6;) (sub $f21 (func (result (ref func)))))
     (type $g22 (;7;) (sub $g21 (func (result (ref $g21)))))
   )
-  (func $g11 (;0;) (type $g11) (result (ref func))
-    unreachable
-  )
-  (func $g12 (;1;) (type $g12) (result (ref $g11))
-    unreachable
-  )
   (global (;0;) (ref $f11) ref.func $g11)
   (global (;1;) (ref $f21) ref.func $g11)
   (global (;2;) (ref $f11) ref.func $g12)
@@ -29,4 +23,10 @@
   (global (;5;) (ref $g21) ref.func $g11)
   (global (;6;) (ref $g12) ref.func $g12)
   (global (;7;) (ref $g22) ref.func $g12)
+  (func $g11 (;0;) (type $g11) (result (ref func))
+    unreachable
+  )
+  (func $g12 (;1;) (type $g12) (result (ref $g11))
+    unreachable
+  )
 )

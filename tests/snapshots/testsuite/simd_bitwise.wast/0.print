@@ -2,6 +2,12 @@
   (type (;0;) (func (param v128) (result v128)))
   (type (;1;) (func (param v128 v128) (result v128)))
   (type (;2;) (func (param v128 v128 v128) (result v128)))
+  (export "not" (func 0))
+  (export "and" (func 1))
+  (export "or" (func 2))
+  (export "xor" (func 3))
+  (export "bitselect" (func 4))
+  (export "andnot" (func 5))
   (func (;0;) (type 0) (param $0 v128) (result v128)
     local.get $0
     v128.not
@@ -32,10 +38,4 @@
     local.get $1
     v128.andnot
   )
-  (export "not" (func 0))
-  (export "and" (func 1))
-  (export "or" (func 2))
-  (export "xor" (func 3))
-  (export "bitselect" (func 4))
-  (export "andnot" (func 5))
 )

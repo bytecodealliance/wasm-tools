@@ -15,16 +15,16 @@
     (type (;1;) (func (param i32 i32 i32 i32) (result i32)))
     (type (;2;) (func (result i32)))
     (import "foo:foo/i" "the-func" (func (;0;) (type 2)))
+    (memory (;0;) 0)
+    (export "foo:foo/i#the-func" (func 1))
+    (export "cabi_realloc" (func 2))
+    (export "memory" (memory 0))
     (func (;1;) (type 2) (result i32)
       unreachable
     )
     (func (;2;) (type 1) (param i32 i32 i32 i32) (result i32)
       unreachable
     )
-    (memory (;0;) 0)
-    (export "foo:foo/i#the-func" (func 1))
-    (export "cabi_realloc" (func 2))
-    (export "memory" (memory 0))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
       (processed-by "my-fake-bindgen" "123.45")

@@ -1,6 +1,10 @@
 (module $m
   (type (;0;) (func (param i32) (result externref)))
   (type (;1;) (func (param i32 externref)))
+  (table $t (;0;) 2 externref)
+  (export "table" (table $t))
+  (export "get" (func 0))
+  (export "set" (func 1))
   (func (;0;) (type 0) (param $i i32) (result externref)
     local.get $i
     table.get $t
@@ -10,8 +14,4 @@
     local.get $x
     table.set $t
   )
-  (table $t (;0;) 2 externref)
-  (export "table" (table $t))
-  (export "get" (func 0))
-  (export "set" (func 1))
 )

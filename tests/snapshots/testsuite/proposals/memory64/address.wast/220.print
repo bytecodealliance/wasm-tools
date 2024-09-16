@@ -1,6 +1,13 @@
 (module
   (type (;0;) (func (param i32) (result f32)))
   (type (;1;) (func (param i32)))
+  (memory (;0;) 1)
+  (export "32_good1" (func 0))
+  (export "32_good2" (func 1))
+  (export "32_good3" (func 2))
+  (export "32_good4" (func 3))
+  (export "32_good5" (func 4))
+  (export "32_bad" (func 5))
   (func (;0;) (type 0) (param $i i32) (result f32)
     local.get $i
     f32.load
@@ -26,12 +33,5 @@
     f32.load offset=4294967295
     drop
   )
-  (memory (;0;) 1)
-  (export "32_good1" (func 0))
-  (export "32_good2" (func 1))
-  (export "32_good3" (func 2))
-  (export "32_good4" (func 3))
-  (export "32_good5" (func 4))
-  (export "32_bad" (func 5))
   (data (;0;) (i32.const 0) "\00\00\00\00\00\00\a0\7f\01\00\d0\7f")
 )

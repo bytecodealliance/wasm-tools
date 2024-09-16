@@ -8,11 +8,11 @@
     (type $f22 (;3;) (sub $f11 (func)))
   )
   (type (;4;) (func (result i32)))
+  (export "run" (func 1))
+  (elem (;0;) declare func $f)
   (func $f (;0;) (type $f21))
   (func (;1;) (type 4) (result i32)
     ref.func $f
     ref.test (ref $f11)
   )
-  (export "run" (func 1))
-  (elem (;0;) declare func $f)
 )

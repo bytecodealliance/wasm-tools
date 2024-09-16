@@ -25,18 +25,22 @@
       (type (;1;) (func (param i32 i32 i32 i32) (result i32)))
       (import "wasi:cli-base/environment" "get-environment" (func (;0;) (type 0)))
       (import "wasi:cli-base/environment" "get-arguments" (func (;1;) (type 0)))
-      (func (;2;) (type 1) (param i32 i32 i32 i32) (result i32)
-        unreachable
-      )
       (memory (;0;) 0)
       (export "memory" (memory 0))
       (export "cabi_realloc" (func 2))
+      (func (;2;) (type 1) (param i32 i32 i32 i32) (result i32)
+        unreachable
+      )
       (@producers
         (processed-by "wit-component" "0.11.0")
       )
     )
     (core module (;1;)
       (type (;0;) (func (param i32)))
+      (table (;0;) 2 2 funcref)
+      (export "0" (func $indirect-wasi:cli-base/environment-get-environment))
+      (export "1" (func $indirect-wasi:cli-base/environment-get-arguments))
+      (export "$imports" (table 0))
       (func $indirect-wasi:cli-base/environment-get-environment (;0;) (type 0) (param i32)
         local.get 0
         i32.const 0
@@ -47,10 +51,6 @@
         i32.const 1
         call_indirect (type 0)
       )
-      (table (;0;) 2 2 funcref)
-      (export "0" (func $indirect-wasi:cli-base/environment-get-environment))
-      (export "1" (func $indirect-wasi:cli-base/environment-get-arguments))
-      (export "$imports" (table 0))
       (@producers
         (processed-by "wit-component" "0.11.0")
       )
@@ -107,6 +107,15 @@
       (type (;6;) (func (param i32) (result i32)))
       (type (;7;) (func (param i32 i32)))
       (type (;8;) (func (param i32 i32 i32) (result i32)))
+      (table (;0;) 1 1 funcref)
+      (memory (;0;) 17)
+      (global $__stack_pointer (;0;) (mut i32) i32.const 1048576)
+      (export "memory" (memory 0))
+      (export "wasi:cli-base/environment#get-environment" (func $wasi:cli-base/environment#get-environment))
+      (export "cabi_post_wasi:cli-base/environment#get-environment" (func $cabi_post_wasi:cli-base/environment#get-environment))
+      (export "wasi:cli-base/environment#get-arguments" (func $wasi:cli-base/environment#get-arguments))
+      (export "cabi_post_wasi:cli-base/environment#get-arguments" (func $cabi_post_wasi:cli-base/environment#get-arguments))
+      (export "cabi_realloc" (func $cabi_realloc))
       (func $__wasm_call_ctors (;0;) (type 0))
       (func $wasi:cli-base/environment#get-environment (;1;) (type 1) (result i32)
         i32.const 0
@@ -119,15 +128,6 @@
       (func $cabi_realloc (;5;) (type 5) (param i32 i32 i32 i32) (result i32)
         i32.const 0
       )
-      (table (;0;) 1 1 funcref)
-      (memory (;0;) 17)
-      (global $__stack_pointer (;0;) (mut i32) i32.const 1048576)
-      (export "memory" (memory 0))
-      (export "wasi:cli-base/environment#get-environment" (func $wasi:cli-base/environment#get-environment))
-      (export "cabi_post_wasi:cli-base/environment#get-environment" (func $cabi_post_wasi:cli-base/environment#get-environment))
-      (export "wasi:cli-base/environment#get-arguments" (func $wasi:cli-base/environment#get-arguments))
-      (export "cabi_post_wasi:cli-base/environment#get-arguments" (func $cabi_post_wasi:cli-base/environment#get-arguments))
-      (export "cabi_realloc" (func $cabi_realloc))
     )
     (core instance (;0;) (instantiate 0))
     (alias core export 0 "memory" (core memory (;0;)))

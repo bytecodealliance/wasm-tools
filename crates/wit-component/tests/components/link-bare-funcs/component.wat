@@ -37,6 +37,10 @@
     (type (;1;) (func (param i32) (result i32)))
     (import "GOT.mem" "__heap_base" (global $__heap_base (;0;) (mut i32)))
     (import "GOT.mem" "__heap_end" (global $__heap_end (;1;) (mut i32)))
+    (global $heap (;2;) (mut i32) i32.const 0)
+    (export "malloc" (func $malloc))
+    (export "abort" (func $abort))
+    (start $start)
     (func $start (;0;) (type 0)
       global.get $__heap_base
       global.set $heap
@@ -51,10 +55,6 @@
     (func $abort (;2;) (type 0)
       unreachable
     )
-    (global $heap (;2;) (mut i32) i32.const 0)
-    (export "malloc" (func $malloc))
-    (export "abort" (func $abort))
-    (start $start)
   )
   (core module (;2;)
     (@dylink.0
@@ -68,6 +68,12 @@
     (import "env" "memory" (memory (;0;) 1))
     (import "$root" "foo1" (func (;0;) (type 0)))
     (import "$root" "bar" (func (;1;) (type 1)))
+    (export "baz" (func 2))
+    (export "foo2" (func 3))
+    (export "cabi_post_foo2" (func 4))
+    (export "cabi_realloc" (func 5))
+    (export "cabi_import_realloc" (func 6))
+    (export "cabi_export_realloc" (func 7))
     (func (;2;) (type 0))
     (func (;3;) (type 2) (param i32 i32) (result i32)
       unreachable
@@ -84,22 +90,16 @@
     (func (;7;) (type 3) (param i32 i32 i32 i32) (result i32)
       unreachable
     )
-    (export "baz" (func 2))
-    (export "foo2" (func 3))
-    (export "cabi_post_foo2" (func 4))
-    (export "cabi_realloc" (func 5))
-    (export "cabi_import_realloc" (func 6))
-    (export "cabi_export_realloc" (func 7))
   )
   (core module (;3;)
     (type (;0;) (func))
     (type (;1;) (func (param i32)))
     (import "env" "memory" (memory (;0;) 0))
     (import "env" "__indirect_function_table" (table (;0;) 0 funcref))
-    (func (;0;) (type 0))
     (start 0)
     (elem (;0;) (i32.const 1) func)
     (elem (;1;) (i32.const 1) func)
+    (func (;0;) (type 0))
     (data (;0;) (i32.const 1048576) "\00\00\00\00\00\00\10\00")
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
@@ -108,6 +108,10 @@
   (core module (;4;)
     (type (;0;) (func (param i32)))
     (type (;1;) (func (param i32 i32 i32 i32) (result i32)))
+    (table (;0;) 2 2 funcref)
+    (export "0" (func $indirect-$root-bar))
+    (export "1" (func $adapt-foo-cabi_realloc))
+    (export "$imports" (table 0))
     (func $indirect-$root-bar (;0;) (type 0) (param i32)
       local.get 0
       i32.const 0
@@ -121,10 +125,6 @@
       i32.const 1
       call_indirect (type 1)
     )
-    (table (;0;) 2 2 funcref)
-    (export "0" (func $indirect-$root-bar))
-    (export "1" (func $adapt-foo-cabi_realloc))
-    (export "$imports" (table 0))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )

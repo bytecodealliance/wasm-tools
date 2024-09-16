@@ -19,10 +19,10 @@
     (type (;1;) (func (param i32)))
     (import "env" "memory" (memory (;0;) 0))
     (import "env" "__indirect_function_table" (table (;0;) 0 funcref))
-    (func (;0;) (type 0))
     (start 0)
     (elem (;0;) (i32.const 1) func)
     (elem (;1;) (i32.const 1) func)
+    (func (;0;) (type 0))
     (data (;0;) (i32.const 1048576) "\00\00\00\00\00\00\10\00")
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")

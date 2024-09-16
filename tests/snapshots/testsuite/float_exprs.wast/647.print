@@ -1,6 +1,9 @@
 (module
   (type (;0;) (func (param i32 i32 i32)))
   (type (;1;) (func (param i32) (result f64)))
+  (memory (;0;) 1 1)
+  (export "f64.simple_x4_sum" (func 0))
+  (export "f64.load" (func 1))
   (func (;0;) (type 0) (param $i i32) (param $j i32) (param $k i32)
     (local $x0 f64) (local $x1 f64) (local $x2 f64) (local $x3 f64) (local $y0 f64) (local $y1 f64) (local $y2 f64) (local $y3 f64)
     local.get $i
@@ -52,8 +55,5 @@
     local.get $k
     f64.load
   )
-  (memory (;0;) 1 1)
-  (export "f64.simple_x4_sum" (func 0))
-  (export "f64.load" (func 1))
   (data (;0;) (i32.const 0) "\01\00\00\00\00\00\00\00\01\00\00\00\00\00\00\80\01\00\00\00\00\00\00\00\01\00\00\00\00\00\00\80\01\00\00\00\00\00\00\00\01\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00")
 )

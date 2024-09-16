@@ -1,9 +1,5 @@
 (module
   (type (;0;) (func (param i32) (result i32)))
-  (func (;0;) (type 0) (param i32) (result i32)
-    local.get 0
-    i32.load8_u
-  )
   (memory (;0;) 1 1)
   (global (;0;) i32 i32.const 10000)
   (global (;1;) i32 i32.const 10000)
@@ -13,4 +9,8 @@
   (export "__stack_top" (global 1))
   (export "__heap_base" (global 2))
   (export "load" (func 0))
+  (func (;0;) (type 0) (param i32) (result i32)
+    local.get 0
+    i32.load8_u
+  )
 )

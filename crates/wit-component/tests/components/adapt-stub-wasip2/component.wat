@@ -4,14 +4,14 @@
     (type (;1;) (func (param i32)))
     (type (;2;) (func (param i32 i32 i32 i32) (result i32)))
     (import "wasi:cli/environment@0.2.0" "get-environment" (func $get-environment (;0;) (type 1)))
-    (func $start (;1;) (type 0))
-    (func $realloc (;2;) (type 2) (param i32 i32 i32 i32) (result i32)
-      unreachable
-    )
     (memory (;0;) 1)
     (export "cabi_realloc" (func $realloc))
     (export "memory" (memory 0))
     (start $start)
+    (func $start (;1;) (type 0))
+    (func $realloc (;2;) (type 2) (param i32 i32 i32 i32) (result i32)
+      unreachable
+    )
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
       (processed-by "my-fake-bindgen" "123.45")
@@ -19,21 +19,21 @@
   )
   (core module (;1;)
     (type (;0;) (func (param i32)))
+    (export "get-environment" (func $get-environment))
     (func $get-environment (;0;) (type 0) (param i32)
       unreachable
     )
-    (export "get-environment" (func $get-environment))
   )
   (core module (;2;)
     (type (;0;) (func (param i32)))
+    (table (;0;) 1 1 funcref)
+    (export "0" (func $adapt-wasi:cli/environment@0.2.0-get-environment))
+    (export "$imports" (table 0))
     (func $adapt-wasi:cli/environment@0.2.0-get-environment (;0;) (type 0) (param i32)
       local.get 0
       i32.const 0
       call_indirect (type 0)
     )
-    (table (;0;) 1 1 funcref)
-    (export "0" (func $adapt-wasi:cli/environment@0.2.0-get-environment))
-    (export "$imports" (table 0))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )

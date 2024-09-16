@@ -9,10 +9,10 @@
     (type (;0;) (func (param i32)))
     (type (;1;) (func (result i32)))
     (import "foo:bar/a" "[resource-drop]r" (func (;0;) (type 0)))
+    (export "b#foo" (func 1))
     (func (;1;) (type 1) (result i32)
       i32.const 0
     )
-    (export "b#foo" (func 1))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
       (processed-by "my-fake-bindgen" "123.45")

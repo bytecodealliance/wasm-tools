@@ -5,6 +5,7 @@
   (type (;3;) (func (result i32 i64)))
   (type (;4;) (func (param i32) (result i32 i64)))
   (import "m" "t" (tag (;0;) (type 0) (param i32 i64)))
+  (tag (;1;) (type 1) (param i32))
   (func $check-throw (;0;) (type 2)
     i32.const 1
     i64.const 2
@@ -46,5 +47,4 @@
       end
     end
   )
-  (tag (;1;) (type 1) (param i32))
 )

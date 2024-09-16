@@ -4,6 +4,13 @@
   (type (;2;) (func (result (ref null $t))))
   (type (;3;) (func (result (ref null $t) (ref exn))))
   (type (;4;) (func (result (ref null $t) exnref)))
+  (tag $e (;0;) (type 1) (param (ref $t)))
+  (export "catch" (func 2))
+  (export "catch_ref1" (func 3))
+  (export "catch_ref2" (func 4))
+  (export "catch_all_ref1" (func 5))
+  (export "catch_all_ref2" (func 6))
+  (elem (;0;) declare func $dummy)
   (func $dummy (;0;) (type $t))
   (func $throw (;1;) (type $t)
     ref.func $dummy
@@ -53,11 +60,4 @@
     end
     drop
   )
-  (tag $e (;0;) (type 1) (param (ref $t)))
-  (export "catch" (func 2))
-  (export "catch_ref1" (func 3))
-  (export "catch_ref2" (func 4))
-  (export "catch_all_ref1" (func 5))
-  (export "catch_all_ref2" (func 6))
-  (elem (;0;) declare func $dummy)
 )

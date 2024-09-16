@@ -2,6 +2,11 @@
   (type (;0;) (func (param i32) (result i32)))
   (type (;1;) (func))
   (import "M" "mem" (memory $mem1 (;0;) 2))
+  (memory $mem2 (;1;) 3)
+  (export "read1" (func 0))
+  (export "read2" (func 1))
+  (export "copy-1-to-2" (func 2))
+  (export "copy-2-to-1" (func 3))
   (func (;0;) (type 0) (param i32) (result i32)
     local.get 0
     i32.load8_u
@@ -50,11 +55,6 @@
       br $cont
     end
   )
-  (memory $mem2 (;1;) 3)
-  (export "read1" (func 0))
-  (export "read2" (func 1))
-  (export "copy-1-to-2" (func 2))
-  (export "copy-2-to-1" (func 3))
   (data (;0;) (i32.const 20) "\01\02\03\04\05")
   (data (;1;) (memory $mem2) (i32.const 50) "\0a\0b\0c\0d\0e")
 )

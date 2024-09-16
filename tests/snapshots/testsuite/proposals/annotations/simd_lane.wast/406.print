@@ -5,6 +5,16 @@
   (type (;3;) (func (param v128 v128) (result v128)))
   (type (;4;) (func (param v128) (result i64)))
   (type (;5;) (func (param v128 f64) (result v128)))
+  (global $g (;0;) (mut v128) v128.const i32x4 0x00000000 0x00000000 0x00000000 0x00000000)
+  (global $h (;1;) (mut v128) v128.const i32x4 0x00000000 0x00000000 0x00000000 0x00000000)
+  (export "as-if-condition-value" (func 0))
+  (export "as-return-value-1" (func 1))
+  (export "as-local_set-value" (func 2))
+  (export "as-global_set-value-1" (func 3))
+  (export "as-return-value-2" (func 4))
+  (export "as-global_set-value-2" (func 5))
+  (export "as-local_set-value-1" (func 6))
+  (export "as-global_set-value-3" (func 7))
   (func (;0;) (type 0) (param v128) (result i32)
     local.get 0
     i8x16.extract_lane_s 0
@@ -66,14 +76,4 @@
     global.get $g
     return
   )
-  (global $g (;0;) (mut v128) v128.const i32x4 0x00000000 0x00000000 0x00000000 0x00000000)
-  (global $h (;1;) (mut v128) v128.const i32x4 0x00000000 0x00000000 0x00000000 0x00000000)
-  (export "as-if-condition-value" (func 0))
-  (export "as-return-value-1" (func 1))
-  (export "as-local_set-value" (func 2))
-  (export "as-global_set-value-1" (func 3))
-  (export "as-return-value-2" (func 4))
-  (export "as-global_set-value-2" (func 5))
-  (export "as-local_set-value-1" (func 6))
-  (export "as-global_set-value-3" (func 7))
 )

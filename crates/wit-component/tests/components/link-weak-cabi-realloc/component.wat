@@ -1,14 +1,6 @@
 (component
   (core module (;0;)
     (type (;0;) (func (param i32 i32 i32 i32) (result i32)))
-    (func (;0;) (type 0) (param i32 i32 i32 i32) (result i32)
-      local.get 0
-      local.get 1
-      local.get 2
-      local.get 3
-      i32.const 1
-      call_indirect (type 0)
-    )
     (table (;0;) 2 funcref)
     (memory (;0;) 17)
     (global (;0;) (mut i32) i32.const 1048576)
@@ -24,6 +16,14 @@
     (export "cabi_realloc" (func 0))
     (export "__indirect_function_table" (table 0))
     (export "memory" (memory 0))
+    (func (;0;) (type 0) (param i32 i32 i32 i32) (result i32)
+      local.get 0
+      local.get 1
+      local.get 2
+      local.get 3
+      i32.const 1
+      call_indirect (type 0)
+    )
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )
@@ -36,12 +36,12 @@
     (type (;1;) (func (param i32)))
     (type (;2;) (func (param i32 i32)))
     (import "env" "cabi_realloc" (func $cabi_realloc.0 (;0;) (type 0)))
+    (export "cabi_realloc" (func $cabi_realloc.1))
+    (export "test:test/test#foo" (func $foo))
     (func $cabi_realloc.1 (;1;) (type 0) (param i32 i32 i32 i32) (result i32)
       i32.const -257976192
     )
     (func $foo (;2;) (type 2) (param i32 i32))
-    (export "cabi_realloc" (func $cabi_realloc.1))
-    (export "test:test/test#foo" (func $foo))
   )
   (core module (;2;)
     (type (;0;) (func))
@@ -50,10 +50,10 @@
     (import "env" "memory" (memory (;0;) 0))
     (import "env" "__indirect_function_table" (table (;0;) 0 funcref))
     (import "foo" "cabi_realloc" (func (;0;) (type 2)))
-    (func (;1;) (type 0))
     (start 1)
     (elem (;0;) (i32.const 1) func)
     (elem (;1;) (i32.const 1) func 0)
+    (func (;1;) (type 0))
     (data (;0;) (i32.const 1048576) "\00\00\00\00\00\00\10\00")
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")

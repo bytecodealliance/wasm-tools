@@ -4,10 +4,10 @@
     (type $g (;1;) (func))
   )
   (type (;2;) (func (param (ref $f) (ref $g))))
+  (export "run" (func 0))
   (func (;0;) (type 2) (param (ref $f) (ref $g))
     local.get 1
     local.get 0
     call_ref $f
   )
-  (export "run" (func 0))
 )

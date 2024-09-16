@@ -42,10 +42,10 @@
   )
   (core module (;1;)
     (type (;0;) (func (param i32)))
+    (export "get-environment" (func $get-environment))
     (func $get-environment (;0;) (type 0) (param i32)
       unreachable
     )
-    (export "get-environment" (func $get-environment))
   )
   (core module (;2;)
     (@dylink.0
@@ -57,6 +57,10 @@
     (import "wasi:cli/environment@0.2.0" "get-environment" (func $get-environment (;0;) (type 2)))
     (import "GOT.mem" "__heap_base" (global $__heap_base (;0;) (mut i32)))
     (import "GOT.mem" "__heap_end" (global $__heap_end (;1;) (mut i32)))
+    (global $heap (;2;) (mut i32) i32.const 0)
+    (export "malloc" (func $malloc))
+    (export "abort" (func $abort))
+    (start $start)
     (func $start (;1;) (type 0)
       global.get $__heap_base
       global.set $heap
@@ -71,10 +75,6 @@
     (func $abort (;3;) (type 0)
       unreachable
     )
-    (global $heap (;2;) (mut i32) i32.const 0)
-    (export "malloc" (func $malloc))
-    (export "abort" (func $abort))
-    (start $start)
   )
   (core module (;3;)
     (@dylink.0
@@ -92,6 +92,11 @@
     (import "env" "abort" (func $abort (;1;) (type 0)))
     (import "GOT.mem" "um" (global $um (;3;) (mut i32)))
     (import "test:test/test" "bar" (func $bar (;2;) (type 1)))
+    (global (;4;) i32 i32.const 0)
+    (export "__wasm_call_ctors" (func $__wasm_call_ctors))
+    (export "__wasm_apply_data_relocs" (func $__wasm_apply_data_relocs))
+    (export "foo" (func $foo))
+    (export "well" (global 4))
     (func $__wasm_call_ctors (;3;) (type 0))
     (func $__wasm_apply_data_relocs (;4;) (type 0))
     (func $foo (;5;) (type 1) (param i32) (result i32)
@@ -119,11 +124,6 @@
       i32.add
       global.set $__stack_pointer
     )
-    (global (;4;) i32 i32.const 0)
-    (export "__wasm_call_ctors" (func $__wasm_call_ctors))
-    (export "__wasm_apply_data_relocs" (func $__wasm_apply_data_relocs))
-    (export "foo" (func $foo))
-    (export "well" (global 4))
     (data $.data (;0;) (global.get $__memory_base) "\04\00\00\00")
   )
   (core module (;4;)
@@ -139,6 +139,11 @@
     (import "env" "__table_base" (global $__table_base (;1;) i32))
     (import "env" "foo" (func $foo (;0;) (type 0)))
     (import "GOT.mem" "well" (global $well (;2;) (mut i32)))
+    (global (;3;) i32 i32.const 0)
+    (export "__wasm_call_ctors" (func $__wasm_call_ctors))
+    (export "__wasm_apply_data_relocs" (func $__wasm_apply_data_relocs))
+    (export "test:test/test#bar" (func $bar))
+    (export "um" (global 3))
     (func $__wasm_call_ctors (;1;) (type 1))
     (func $__wasm_apply_data_relocs (;2;) (type 1))
     (func $bar (;3;) (type 0) (param i32) (result i32)
@@ -148,11 +153,6 @@
       i32.load
       i32.add
     )
-    (global (;3;) i32 i32.const 0)
-    (export "__wasm_call_ctors" (func $__wasm_call_ctors))
-    (export "__wasm_apply_data_relocs" (func $__wasm_apply_data_relocs))
-    (export "test:test/test#bar" (func $bar))
-    (export "um" (global 3))
     (data $.data (;0;) (global.get $__memory_base) "\01\00\00\00\02\00\00\00\03\00\00\00\04\00\00\00\05\00\00\00")
   )
   (core module (;5;)
@@ -170,6 +170,9 @@
     (import "env" "bar:memory_base" (global (;3;) i32))
     (import "bar" "um" (global (;4;) i32))
     (import "env" "foo:um" (global (;5;) (mut i32)))
+    (start 4)
+    (elem (;0;) (i32.const 1) func)
+    (elem (;1;) (i32.const 1) func)
     (func (;4;) (type 0)
       global.get 0
       global.get 1
@@ -184,9 +187,6 @@
       call 1
       call 3
     )
-    (start 4)
-    (elem (;0;) (i32.const 1) func)
-    (elem (;1;) (i32.const 1) func)
     (data (;0;) (i32.const 1048576) "\00\00\00\00\00\00\10\00")
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
@@ -194,14 +194,14 @@
   )
   (core module (;6;)
     (type (;0;) (func (param i32)))
+    (table (;0;) 1 1 funcref)
+    (export "0" (func $adapt-wasi:cli/environment@0.2.0-get-environment))
+    (export "$imports" (table 0))
     (func $adapt-wasi:cli/environment@0.2.0-get-environment (;0;) (type 0) (param i32)
       local.get 0
       i32.const 0
       call_indirect (type 0)
     )
-    (table (;0;) 1 1 funcref)
-    (export "0" (func $adapt-wasi:cli/environment@0.2.0-get-environment))
-    (export "$imports" (table 0))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )

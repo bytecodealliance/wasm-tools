@@ -4,6 +4,7 @@
   (type $t2 (;2;) (func (result (ref null $t))))
   (type $t3 (;3;) (func (result (ref func))))
   (type $t4 (;4;) (func (result funcref)))
+  (elem (;0;) declare func $f11 $f22 $f33 $f44)
   (func $f11 (;0;) (type $t1) (result (ref $t))
     ref.func $f11
     return_call_ref $t1
@@ -40,5 +41,4 @@
     ref.func $f44
     return_call_ref $t4
   )
-  (elem (;0;) declare func $f11 $f22 $f33 $f44)
 )

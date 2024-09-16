@@ -2,6 +2,7 @@
   (type $proc (;0;) (func))
   (type (;1;) (func (param i32)))
   (type (;2;) (func (result i32)))
+  (table (;0;) 1 funcref)
   (func (;0;) (type $proc)
     block ;; label = @1
       i32.const 0
@@ -222,5 +223,4 @@
     i32.const 0
     call_indirect (type $proc)
   )
-  (table (;0;) 1 funcref)
 )

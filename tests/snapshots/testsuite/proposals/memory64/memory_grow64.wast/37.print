@@ -1,6 +1,9 @@
 (module
   (type (;0;) (func (param i64) (result i64)))
   (type (;1;) (func (param i64 i64) (result i32)))
+  (memory (;0;) i64 1)
+  (export "grow" (func 0))
+  (export "check-memory-zero" (func 1))
   (func (;0;) (type 0) (param i64) (result i64)
     local.get 0
     memory.grow
@@ -34,7 +37,4 @@
     end
     local.get 2
   )
-  (memory (;0;) i64 1)
-  (export "grow" (func 0))
-  (export "check-memory-zero" (func 1))
 )

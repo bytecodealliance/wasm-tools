@@ -1,8 +1,5 @@
 (module
   (type (;0;) (func))
-  (func (;0;) (type 0)
-    elem.drop 64
-  )
   (elem (;0;) funcref)
   (elem (;1;) funcref)
   (elem (;2;) funcref)
@@ -68,4 +65,7 @@
   (elem (;62;) funcref)
   (elem (;63;) funcref)
   (elem (;64;) funcref)
+  (func (;0;) (type 0)
+    elem.drop 64
+  )
 )

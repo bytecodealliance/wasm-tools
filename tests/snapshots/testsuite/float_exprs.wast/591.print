@@ -2,6 +2,9 @@
   (type (;0;) (func (param f64 f64 f64 f64) (result f64)))
   (type (;1;) (func (param f64 f64 f64) (result f64)))
   (type (;2;) (func (param f32 f32 f32) (result f32)))
+  (export "thepast0" (func 0))
+  (export "thepast1" (func 1))
+  (export "thepast2" (func 2))
   (func (;0;) (type 0) (param $a f64) (param $b f64) (param $c f64) (param $d f64) (result f64)
     local.get $a
     local.get $b
@@ -25,7 +28,4 @@
     local.get $c
     f32.mul
   )
-  (export "thepast0" (func 0))
-  (export "thepast1" (func 1))
-  (export "thepast2" (func 2))
 )

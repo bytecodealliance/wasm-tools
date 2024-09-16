@@ -2,6 +2,9 @@
   (type $t (;0;) (func (param i32) (result i32)))
   (type (;1;) (func (param i32 (ref null $t)) (result i32)))
   (type (;2;) (func (result i32 (ref $t))))
+  (export "args-null" (func 2))
+  (export "args-f" (func 3))
+  (elem (;0;) func $f)
   (func $f (;0;) (type $t) (param i32) (result i32)
     local.get 0
     local.get 0
@@ -26,7 +29,4 @@
     ref.func $f
     call $a
   )
-  (export "args-null" (func 2))
-  (export "args-f" (func 3))
-  (elem (;0;) func $f)
 )

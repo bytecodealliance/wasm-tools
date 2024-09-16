@@ -31,6 +31,8 @@
     (type (;0;) (func (param i32)))
     (type (;1;) (func (param i32 i32) (result i32)))
     (import "foo:foo/my-wasi" "proc-exit" (func $proc_exit (;0;) (type 0)))
+    (export "proc_exit" (func 1))
+    (export "random_get" (func 2))
     (func (;1;) (type 0) (param i32)
       local.get 0
       call $proc_exit
@@ -38,12 +40,14 @@
     (func (;2;) (type 1) (param i32 i32) (result i32)
       i32.const 0
     )
-    (export "proc_exit" (func 1))
-    (export "random_get" (func 2))
   )
   (core module (;2;)
     (type (;0;) (func (param i32)))
     (type (;1;) (func (param i32 i32) (result i32)))
+    (table (;0;) 2 2 funcref)
+    (export "0" (func $adapt-wasi-snapshot-preview1-proc_exit))
+    (export "1" (func $adapt-wasi-snapshot-preview1-random_get))
+    (export "$imports" (table 0))
     (func $adapt-wasi-snapshot-preview1-proc_exit (;0;) (type 0) (param i32)
       local.get 0
       i32.const 0
@@ -55,10 +59,6 @@
       i32.const 1
       call_indirect (type 1)
     )
-    (table (;0;) 2 2 funcref)
-    (export "0" (func $adapt-wasi-snapshot-preview1-proc_exit))
-    (export "1" (func $adapt-wasi-snapshot-preview1-random_get))
-    (export "$imports" (table 0))
     (@producers
       (processed-by "wit-component" "$CARGO_PKG_VERSION")
     )

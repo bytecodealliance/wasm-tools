@@ -1,5 +1,7 @@
 (module
   (type (;0;) (func (param f64 f64 f64 f64 f64 f64 f64 f64) (result f64)))
+  (export "dot_product_example" (func 0))
+  (export "with_binary_sum_collapse" (func 1))
   (func (;0;) (type 0) (param $x0 f64) (param $x1 f64) (param $x2 f64) (param $x3 f64) (param $y0 f64) (param $y1 f64) (param $y2 f64) (param $y3 f64) (result f64)
     local.get $x0
     local.get $y0
@@ -34,6 +36,4 @@
     f64.add
     f64.add
   )
-  (export "dot_product_example" (func 0))
-  (export "with_binary_sum_collapse" (func 1))
 )

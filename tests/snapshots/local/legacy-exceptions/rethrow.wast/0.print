@@ -1,6 +1,15 @@
 (module
   (type (;0;) (func))
   (type (;1;) (func (param i32) (result i32)))
+  (tag $e0 (;0;) (type 0))
+  (tag $e1 (;1;) (type 0))
+  (export "catch-rethrow-0" (func 0))
+  (export "catch-rethrow-1" (func 1))
+  (export "catchall-rethrow-0" (func 2))
+  (export "catchall-rethrow-1" (func 3))
+  (export "rethrow-nested" (func 4))
+  (export "rethrow-recatch" (func 5))
+  (export "rethrow-stack-polymorphism" (func 6))
   (func (;0;) (type 0)
     try ;; label = @1
       throw $e0
@@ -86,13 +95,4 @@
       rethrow 0 (;@1;)
     end
   )
-  (tag $e0 (;0;) (type 0))
-  (tag $e1 (;1;) (type 0))
-  (export "catch-rethrow-0" (func 0))
-  (export "catch-rethrow-1" (func 1))
-  (export "catchall-rethrow-0" (func 2))
-  (export "catchall-rethrow-1" (func 3))
-  (export "rethrow-nested" (func 4))
-  (export "rethrow-recatch" (func 5))
-  (export "rethrow-stack-polymorphism" (func 6))
 )

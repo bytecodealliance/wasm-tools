@@ -11,6 +11,6 @@
     (type $g (;4;) (sub $f1 (func)))
     (type (;5;) (struct))
   )
-  (func $g (;0;) (type $g))
   (global (;0;) (ref $f1) ref.func $g)
+  (func $g (;0;) (type $g))
 )

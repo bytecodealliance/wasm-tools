@@ -4,6 +4,14 @@
   (type (;2;) (func (param i32) (result i32)))
   (type (;3;) (func))
   (type (;4;) (func (param i32 i32 i32)))
+  (global $g_arr8 (;0;) (ref $arr8) i32.const 10 i32.const 12 array.new $arr8)
+  (global $g_arr8_mut (;1;) (mut (ref $arr8_mut)) i32.const 12 array.new_default $arr8_mut)
+  (export "array_get_nth" (func 0))
+  (export "array_copy-null-left" (func 1))
+  (export "array_copy-null-right" (func 2))
+  (export "array_copy" (func 3))
+  (export "array_copy_overlap_test-1" (func 4))
+  (export "array_copy_overlap_test-2" (func 5))
   (func (;0;) (type 2) (param $1 i32) (result i32)
     global.get $g_arr8_mut
     local.get $1
@@ -63,13 +71,5 @@
     local.get $1
     global.set $g_arr8_mut
   )
-  (global $g_arr8 (;0;) (ref $arr8) i32.const 10 i32.const 12 array.new $arr8)
-  (global $g_arr8_mut (;1;) (mut (ref $arr8_mut)) i32.const 12 array.new_default $arr8_mut)
-  (export "array_get_nth" (func 0))
-  (export "array_copy-null-left" (func 1))
-  (export "array_copy-null-right" (func 2))
-  (export "array_copy" (func 3))
-  (export "array_copy_overlap_test-1" (func 4))
-  (export "array_copy_overlap_test-2" (func 5))
   (data $d1 (;0;) "abcdefghijkl")
 )

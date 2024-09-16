@@ -1,6 +1,11 @@
 (module
   (type (;0;) (func (result v128)))
   (type (;1;) (func))
+  (memory (;0;) 1)
+  (export "v128_load_0" (func 0))
+  (export "v128_store_0" (func 1))
+  (export "func_f64x2_replace_lane_0" (func 2))
+  (export "func_i8x16_shuffle_0" (func 3))
   (func (;0;) (type 0) (result v128)
     i32.const 4
     v128.load
@@ -247,11 +252,6 @@
     i8x16.neg
     drop
   )
-  (memory (;0;) 1)
-  (export "v128_load_0" (func 0))
-  (export "v128_store_0" (func 1))
-  (export "func_f64x2_replace_lane_0" (func 2))
-  (export "func_i8x16_shuffle_0" (func 3))
   (data (;0;) (i32.const 0) "\ff\ff\ff\ff")
   (data (;1;) (i32.const 4) "\00\00\ceA")
   (data (;2;) (i32.const 8) "\00\00\00\00\00\ff\8f@")

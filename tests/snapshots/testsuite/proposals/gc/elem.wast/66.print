@@ -1,6 +1,6 @@
 (module
   (type (;0;) (func))
-  (func (;0;) (type 0))
   (table (;0;) 1 (ref func) ref.func 0)
   (elem (;0;) declare (ref func) (ref.func 0))
+  (func (;0;) (type 0))
 )

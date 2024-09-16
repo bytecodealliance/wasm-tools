@@ -3,6 +3,6 @@
     (type $t1 (;0;) (func (param i32 (ref $t1))))
   )
   (type (;1;) (func (param (ref $t1))))
-  (func (;0;) (type 1) (param (ref $t1)))
   (export "f" (func 0))
+  (func (;0;) (type 1) (param (ref $t1)))
 )

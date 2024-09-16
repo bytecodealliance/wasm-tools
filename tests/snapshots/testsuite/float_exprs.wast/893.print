@@ -1,6 +1,8 @@
 (module
   (type (;0;) (func (param f32 f32) (result f32)))
   (type (;1;) (func (param f64 f64) (result f64)))
+  (export "f32.contract2fma" (func 0))
+  (export "f64.contract2fma" (func 1))
   (func (;0;) (type 0) (param $x f32) (param $y f32) (result f32)
     local.get $x
     local.get $x
@@ -21,6 +23,4 @@
     f64.sub
     f64.sqrt
   )
-  (export "f32.contract2fma" (func 0))
-  (export "f64.contract2fma" (func 1))
 )

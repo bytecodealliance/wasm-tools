@@ -1,5 +1,6 @@
 (module
   (type (;0;) (func (param v128 v128 v128) (result v128)))
+  (export "test-consistent-nondeterminism" (func 0))
   (func (;0;) (type 0) (param v128 v128 v128) (result v128)
     v128.const i32x4 0x7f7fffff 0x7f7fffff 0x7f7fffff 0x7f7fffff
     v128.const i32x4 0x40000000 0x40000000 0x40000000 0x40000000
@@ -11,5 +12,4 @@
     f32x4.relaxed_madd
     f32x4.eq
   )
-  (export "test-consistent-nondeterminism" (func 0))
 )
