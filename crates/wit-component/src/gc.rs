@@ -1017,6 +1017,9 @@ macro_rules! define_visit {
     (mark_live $self:ident $arg:ident to_type_nullable) => {};
     (mark_live $self:ident $arg:ident ordering) => {};
     (mark_live $self:ident $arg:ident try_table) => {unimplemented!();};
+    (mark_live $self:ident $arg:ident argument_index) => {};
+    (mark_live $self:ident $arg:ident result_index) => {};
+    (mark_live $self:ident $arg:ident handlers) => {unimplemented!();};
 }
 
 impl<'a> VisitOperator<'a> for Module<'a> {

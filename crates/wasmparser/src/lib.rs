@@ -803,6 +803,14 @@ macro_rules! for_each_operator {
             @function_references RefAsNonNull => visit_ref_as_non_null
             @function_references BrOnNull { relative_depth: u32 } => visit_br_on_null
             @function_references BrOnNonNull { relative_depth: u32 } => visit_br_on_non_null
+
+            // Stack switching
+            @stack_switching ContNew { type_index: u32 } => visit_cont_new
+            @stack_switching ContBind { argument_index: u32, result_index: u32 } => visit_cont_bind
+            @stack_switching Suspend { tag_index: u32 } => visit_suspend
+            @stack_switching Resume { type_index: u32, handlers: $crate::ResumeTable } => visit_resume
+            @stack_switching ResumeThrow { type_index: u32, tag_index: u32, handlers: $crate::ResumeTable } => visit_resume_throw
+            @stack_switching Switch { type_index: u32, tag_index: u32 } => visit_switch
         }
     };
 }

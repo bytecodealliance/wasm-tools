@@ -25,8 +25,8 @@
 use crate::{
     limits::MAX_WASM_FUNCTION_LOCALS, AbstractHeapType, BinaryReaderError, BlockType, BrTable,
     Catch, FieldType, FuncType, GlobalType, HeapType, Ieee32, Ieee64, MemArg, RefType, Result,
-    StorageType, StructType, SubType, TableType, TryTable, UnpackedIndex, ValType, VisitOperator,
-    WasmFeatures, WasmModuleResources, V128,
+    ResumeTable, StorageType, StructType, SubType, TableType, TryTable, UnpackedIndex, ValType,
+    VisitOperator, WasmFeatures, WasmModuleResources, V128,
 };
 use crate::{prelude::*, CompositeInnerType, Ordering};
 use core::ops::{Deref, DerefMut};
@@ -1551,6 +1551,7 @@ macro_rules! validate_proposal {
     (desc memory_control) => ("memory control");
     (desc gc) => ("gc");
     (desc legacy_exceptions) => ("legacy exceptions");
+    (desc stack_switching) => ("stack switching");
 }
 
 impl<'a, T> VisitOperator<'a> for WasmProposalValidator<'_, '_, T>
@@ -4737,6 +4738,29 @@ where
             unreachable: false,
             init_height,
         });
+        Ok(())
+    }
+    fn visit_cont_new(&mut self, type_index: u32) -> Self::Output {
+        Ok(())
+    }
+    fn visit_cont_bind(&mut self, argument_index: u32, result_index: u32) -> Self::Output {
+        Ok(())
+    }
+    fn visit_suspend(&mut self, tag_index: u32) -> Self::Output {
+        Ok(())
+    }
+    fn visit_resume(&mut self, type_index: u32, mut handlers: ResumeTable) -> Self::Output {
+        Ok(())
+    }
+    fn visit_resume_throw(
+        &mut self,
+        type_index: u32,
+        tag_index: u32,
+        mut handlers: ResumeTable,
+    ) -> Self::Output {
+        Ok(())
+    }
+    fn visit_switch(&mut self, type_index: u32, tag_index: u32) -> Self::Output {
         Ok(())
     }
 }

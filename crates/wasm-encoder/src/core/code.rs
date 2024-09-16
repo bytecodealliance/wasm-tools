@@ -1203,6 +1203,26 @@ pub enum Instruction<'a> {
         array_type_index: u32,
     },
     RefI31Shared,
+    // Stack switching
+    ContNew(u32),
+    ContBind {
+        argument_index: u32,
+        result_index: u32,
+    },
+    Suspend(u32),
+    Resume {
+        type_index: u32,
+        handlers: Cow<'a, [Handle]>,
+    },
+    ResumeThrow {
+        type_index: u32,
+        tag_index: u32,
+        handlers: Cow<'a, [Handle]>,
+    },
+    Switch {
+        type_index: u32,
+        tag_index: u32,
+    },
 }
 
 impl Encode for Instruction<'_> {
@@ -3695,6 +3715,48 @@ impl Encode for Instruction<'_> {
                 sink.push(0xFE);
                 sink.push(0x72);
             }
+            Instruction::ContNew(type_index) => {
+                sink.push(0xE0);
+                type_index.encode(sink);
+            }
+            Instruction::ContBind {
+                argument_index,
+                result_index,
+            } => {
+                sink.push(0xE1);
+                argument_index.encode(sink);
+                result_index.encode(sink);
+            }
+            Instruction::Suspend(tag_index) => {
+                sink.push(0xE2);
+                tag_index.encode(sink);
+            }
+            Instruction::Resume {
+                type_index,
+                ref handlers,
+            } => {
+                sink.push(0xE3);
+                type_index.encode(sink);
+                handlers.encode(sink);
+            }
+            Instruction::ResumeThrow {
+                type_index,
+                tag_index,
+                ref handlers,
+            } => {
+                sink.push(0xE4);
+                type_index.encode(sink);
+                tag_index.encode(sink);
+                handlers.encode(sink);
+            }
+            Instruction::Switch {
+                type_index,
+                tag_index,
+            } => {
+                sink.push(0xE5);
+                type_index.encode(sink);
+                tag_index.encode(sink);
+            }
         }
     }
 }
@@ -3728,6 +3790,29 @@ impl Encode for Catch {
             Catch::AllRef { label } => {
                 sink.push(0x03);
                 label.encode(sink);
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+#[allow(missing_docs)]
+pub enum Handle {
+    OnLabel { tag: u32, label: u32 },
+    OnSwitch { tag: u32 },
+}
+
+impl Encode for Handle {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        match self {
+            Handle::OnLabel { tag, label } => {
+                sink.push(0x00);
+                tag.encode(sink);
+                label.encode(sink);
+            }
+            Handle::OnSwitch { tag } => {
+                sink.push(0x01);
+                tag.encode(sink);
             }
         }
     }

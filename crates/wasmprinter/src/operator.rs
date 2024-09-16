@@ -1,6 +1,8 @@
 use super::{Print, Printer, State};
 use anyhow::{anyhow, bail, Result};
-use wasmparser::{BlockType, BrTable, Catch, MemArg, Ordering, RefType, TryTable, VisitOperator};
+use wasmparser::{
+    BlockType, BrTable, Catch, MemArg, Ordering, RefType, ResumeTable, TryTable, VisitOperator,
+};
 
 pub struct PrintOperator<'printer, 'state, 'a, 'b> {
     pub(super) printer: &'printer mut Printer<'a, 'b>,
@@ -398,6 +400,10 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
         self.maybe_blockty_label_comment(has_name)?;
         Ok(())
     }
+
+    fn handlers(&mut self, handlers: ResumeTable) -> Result<()> {
+        Ok(())
+    }
 }
 
 macro_rules! define_visit {
@@ -666,6 +672,12 @@ macro_rules! define_visit {
         $self.struct_type_index($ty)?;
         $self.push_str(" ")?;
         $self.printer.print_field_idx($self.state, $ty, $field)?;
+    );
+    (payload $self:ident ContBind $argument_index:ident $result_index:ident) => (
+        $self.push_str(" ")?;
+        $self.printer.print_idx(&$self.state.core.type_names, $argument_index)?;
+        $self.push_str(" ")?;
+        $self.printer.print_idx(&$self.state.core.type_names, $result_index)?;
     );
     (payload $self:ident $op:ident $($arg:ident)*) => (
         $($self.$arg($arg)?;)*
@@ -1278,7 +1290,13 @@ macro_rules! define_visit {
     (name ArrayAtomicRmwXor) => ("array.atomic.rmw.xor");
     (name ArrayAtomicRmwXchg) => ("array.atomic.rmw.xchg");
     (name ArrayAtomicRmwCmpxchg) => ("array.atomic.rmw.cmpxchg");
-    (name RefI31Shared) => ("ref.i31_shared")
+    (name RefI31Shared) => ("ref.i31_shared");
+    (name ContNew) => ("cont.new");
+    (name ContBind) => ("cont.bind");
+    (name Suspend) => ("suspend");
+    (name Resume) => ("resume");
+    (name ResumeThrow) => ("resume_throw");
+    (name Switch) => ("switch")
 }
 
 impl<'a> VisitOperator<'a> for PrintOperator<'_, '_, '_, '_> {
