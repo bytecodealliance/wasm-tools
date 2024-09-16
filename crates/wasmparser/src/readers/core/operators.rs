@@ -30,6 +30,43 @@ pub enum BlockType {
     FuncType(u32),
 }
 
+/// The kind of a control flow [`Frame`].
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum FrameKind {
+    /// A Wasm `block` control block.
+    Block,
+    /// A Wasm `if` control block.
+    If,
+    /// A Wasm `else` control block.
+    Else,
+    /// A Wasm `loop` control block.
+    Loop,
+    /// A Wasm `try` control block.
+    ///
+    /// # Note
+    ///
+    /// This belongs to the Wasm exception handling proposal.
+    TryTable,
+    /// A Wasm legacy `try` control block.
+    ///
+    /// # Note
+    ///
+    /// See: `WasmFeatures::legacy_exceptions` Note in `crates/wasmparser/src/features.rs`
+    LegacyTry,
+    /// A Wasm legacy `catch` control block.
+    ///
+    /// # Note
+    ///
+    /// See: `WasmFeatures::legacy_exceptions` Note in `crates/wasmparser/src/features.rs`
+    LegacyCatch,
+    /// A Wasm legacy `catch_all` control block.
+    ///
+    /// # Note
+    ///
+    /// See: `WasmFeatures::legacy_exceptions` Note in `crates/wasmparser/src/features.rs`
+    LegacyCatchAll,
+}
+
 /// Represents a memory immediate in a WebAssembly memory instruction.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct MemArg {

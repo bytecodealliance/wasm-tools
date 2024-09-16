@@ -24,9 +24,9 @@
 
 use crate::{
     limits::MAX_WASM_FUNCTION_LOCALS, AbstractHeapType, BinaryReaderError, BlockType, BrTable,
-    Catch, FieldType, FuncType, GlobalType, HeapType, MemArg, RefType, Result, StorageType,
-    StructType, SubType, TableType, TryTable, UnpackedIndex, ValType, VisitOperator, WasmFeatures,
-    WasmModuleResources,
+    Catch, FieldType, FrameKind, FuncType, GlobalType, HeapType, MemArg, RefType, Result,
+    StorageType, StructType, SubType, TableType, TryTable, UnpackedIndex, ValType, VisitOperator,
+    WasmFeatures, WasmModuleResources,
 };
 use crate::{prelude::*, CompositeInnerType, Ordering};
 use core::ops::{Deref, DerefMut};
@@ -110,43 +110,6 @@ pub struct Frame {
     pub unreachable: bool,
     /// The number of initializations in the stack at the time of its creation
     pub init_height: usize,
-}
-
-/// The kind of a control flow [`Frame`].
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum FrameKind {
-    /// A Wasm `block` control block.
-    Block,
-    /// A Wasm `if` control block.
-    If,
-    /// A Wasm `else` control block.
-    Else,
-    /// A Wasm `loop` control block.
-    Loop,
-    /// A Wasm `try` control block.
-    ///
-    /// # Note
-    ///
-    /// This belongs to the Wasm exception handling proposal.
-    TryTable,
-    /// A Wasm legacy `try` control block.
-    ///
-    /// # Note
-    ///
-    /// See: `WasmFeatures::legacy_exceptions` Note in `crates/wasmparser/src/features.rs`
-    LegacyTry,
-    /// A Wasm legacy `catch` control block.
-    ///
-    /// # Note
-    ///
-    /// See: `WasmFeatures::legacy_exceptions` Note in `crates/wasmparser/src/features.rs`
-    LegacyCatch,
-    /// A Wasm legacy `catch_all` control block.
-    ///
-    /// # Note
-    ///
-    /// See: `WasmFeatures::legacy_exceptions` Note in `crates/wasmparser/src/features.rs`
-    LegacyCatchAll,
 }
 
 struct OperatorValidatorTemp<'validator, 'resources, T> {
@@ -3170,6 +3133,7 @@ where
     }
 }
 
+#[cfg(debug_assertions)]
 impl<R> ModuleArity for OperatorValidatorTemp<'_, '_, R>
 where
     R: WasmModuleResources,
