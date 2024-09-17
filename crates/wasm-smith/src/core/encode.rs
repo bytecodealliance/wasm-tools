@@ -164,10 +164,10 @@ impl Module {
         let mut elems = wasm_encoder::ElementSection::new();
         for el in &self.elems {
             let elements = match &el.items {
-                Elements::Expressions(es) => wasm_encoder::Elements::Expressions(el.ty, es),
+                Elements::Expressions(es) => wasm_encoder::Elements::Expressions(el.ty, es.into()),
                 Elements::Functions(fs) => {
                     assert_eq!(el.ty, RefType::FUNCREF);
-                    wasm_encoder::Elements::Functions(fs)
+                    wasm_encoder::Elements::Functions(fs.into())
                 }
             };
             match &el.kind {

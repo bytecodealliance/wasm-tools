@@ -14,7 +14,7 @@ fn big_type_indices() {
     module.section(&funcs);
 
     let mut elems = ElementSection::new();
-    elems.declared(Elements::Functions(&[0]));
+    elems.declared(Elements::Functions((&[0]).into()));
     module.section(&elems);
 
     let mut code = CodeSection::new();

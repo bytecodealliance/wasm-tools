@@ -1,4 +1,5 @@
 use crate::{encode_section, ConstExpr, Encode, RefType, Section, SectionId};
+use std::borrow::Cow;
 
 /// An encoder for the element section.
 ///
@@ -24,9 +25,9 @@ use crate::{encode_section, ConstExpr, Encode, RefType, Section, SectionId};
 /// let mut elements = ElementSection::new();
 /// let table_index = 0;
 /// let offset = ConstExpr::i32_const(42);
-/// let functions = Elements::Functions(&[
+/// let functions = Elements::Functions((&[
 ///     // Function indices...
-/// ]);
+/// ]).into());
 /// elements.active(Some(table_index), &offset, functions);
 ///
 /// let mut module = Module::new();
@@ -43,12 +44,12 @@ pub struct ElementSection {
 }
 
 /// A sequence of elements in a segment in the element section.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum Elements<'a> {
     /// A sequences of references to functions by their indices.
-    Functions(&'a [u32]),
+    Functions(Cow<'a, [u32]>),
     /// A sequence of reference expressions.
-    Expressions(RefType, &'a [ConstExpr]),
+    Expressions(RefType, Cow<'a, [ConstExpr]>),
 }
 
 /// An element segment's mode.
@@ -151,7 +152,7 @@ impl ElementSection {
                     ty.encode(&mut self.bytes);
                 }
                 e.len().encode(&mut self.bytes);
-                for expr in e {
+                for expr in e.iter() {
                     expr.encode(&mut self.bytes);
                 }
             }

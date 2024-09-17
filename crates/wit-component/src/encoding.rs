@@ -1282,7 +1282,7 @@ impl<'a> EncodingState<'a> {
         elements.active(
             None,
             &ConstExpr::i32_const(0),
-            Elements::Functions(&func_indexes),
+            Elements::Functions(func_indexes.into()),
         );
 
         let mut shim = Module::new();
