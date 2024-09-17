@@ -19,6 +19,8 @@ use crate::{
     WorldKey, WorldSpan,
 };
 
+mod clone;
+
 /// Representation of a fully resolved set of WIT packages.
 ///
 /// This structure contains a graph of WIT packages and all of their contents
@@ -747,6 +749,8 @@ package {name} is defined in two different locations:\n\
         let from_world = &self.worlds[from];
         let into_world = &self.worlds[into];
 
+        log::trace!("merging {} into {}", from_world.name, into_world.name);
+
         // First walk over all the imports of `from` world and figure out what
         // to do with them.
         //
@@ -755,13 +759,15 @@ package {name} is defined in two different locations:\n\
         // same. Otherwise queue up a new import since if `from` has more
         // imports than `into` then it's fine to add new imports.
         for (name, from_import) in from_world.imports.iter() {
+            let name_str = self.name_world_key(name);
             match into_world.imports.get(name) {
                 Some(into_import) => {
-                    let name = self.name_world_key(name);
+                    log::trace!("info/from shared import on `{name_str}`");
                     self.merge_world_item(from_import, into_import)
-                        .with_context(|| format!("failed to merge world import {name}"))?;
+                        .with_context(|| format!("failed to merge world import {name_str}"))?;
                 }
                 None => {
+                    log::trace!("new import: `{name_str}`");
                     new_imports.push((name.clone(), from_import.clone()));
                 }
             }
@@ -788,13 +794,15 @@ package {name} is defined in two different locations:\n\
         // Next walk over exports of `from` and process these similarly to
         // imports.
         for (name, from_export) in from_world.exports.iter() {
+            let name_str = self.name_world_key(name);
             match into_world.exports.get(name) {
                 Some(into_export) => {
-                    let name = self.name_world_key(name);
+                    log::trace!("info/from shared export on `{name_str}`");
                     self.merge_world_item(from_export, into_export)
-                        .with_context(|| format!("failed to merge world export {name}"))?;
+                        .with_context(|| format!("failed to merge world export {name_str}"))?;
                 }
                 None => {
+                    log::trace!("new export `{name_str}`");
                     // See comments in `ensure_can_add_world_export` for why
                     // this is slightly different than imports.
                     self.ensure_can_add_world_export(
@@ -811,14 +819,33 @@ package {name} is defined in two different locations:\n\
             }
         }
 
+        // For all the new imports and exports they may need to be "cloned" to
+        // be able to belong to the new world. For example:
+        //
+        // * Anonymous interfaces have a `package` field which points to the
+        //   package of the containing world, but `from` and `into` may not be
+        //   in the same package.
+        //
+        // * Type imports have an `owner` field that point to `from`, but they
+        //   now need to point to `into` instead.
+        //
+        // Cloning is no trivial task, however, so cloning is delegated to a
+        // submodule to perform a "deep" clone and copy items into new arena
+        // entries as necessary.
+        let mut cloner = clone::Cloner::new(self, TypeOwner::World(from), TypeOwner::World(into));
+        cloner.register_world_type_overlap(from, into);
+        for (name, item) in new_imports.iter_mut().chain(&mut new_exports) {
+            cloner.world_item(name, item);
+        }
+
         // Insert any new imports and new exports found first.
-        let into = &mut self.worlds[into];
+        let into_world = &mut self.worlds[into];
         for (name, import) in new_imports {
-            let prev = into.imports.insert(name, import);
+            let prev = into_world.imports.insert(name, import);
             assert!(prev.is_none());
         }
         for (name, export) in new_exports {
-            let prev = into.exports.insert(name, export);
+            let prev = into_world.exports.insert(name, export);
             assert!(prev.is_none());
         }
 
@@ -1428,7 +1455,13 @@ package {name} is defined in two different locations:\n\
             for (name, item) in world.imports.iter().chain(world.exports.iter()) {
                 log::debug!("validating world item: {}", self.name_world_key(name));
                 match item {
-                    WorldItem::Interface { .. } => {}
+                    WorldItem::Interface { id, .. } => {
+                        // anonymous interfaces must belong to the same package
+                        // as the world's package.
+                        if matches!(name, WorldKey::Name(_)) {
+                            assert_eq!(self.interfaces[*id].package, world.package);
+                        }
+                    }
                     WorldItem::Function(f) => {
                         assert!(!matches!(name, WorldKey::Interface(_)));
                         assert_eq!(f.name, name.clone().unwrap_name());
@@ -1438,12 +1471,7 @@ package {name} is defined in two different locations:\n\
                         assert!(types.insert(*ty));
                         let ty = &self.types[*ty];
                         assert_eq!(ty.name, Some(name.clone().unwrap_name()));
-
-                        // TODO: `Resolve::merge_worlds` doesn't uphold this
-                        // invariant, and that should be fixed.
-                        if false {
-                            assert_eq!(ty.owner, TypeOwner::World(id));
-                        }
+                        assert_eq!(ty.owner, TypeOwner::World(id));
                     }
                 }
             }
