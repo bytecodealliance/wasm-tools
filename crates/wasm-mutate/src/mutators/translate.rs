@@ -19,7 +19,6 @@ pub enum ConstExprKind {
     Global,
     ElementOffset,
     ElementFunction,
-    DataOffset,
 }
 
 pub trait Translator {

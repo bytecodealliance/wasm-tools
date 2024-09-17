@@ -1,9 +1,8 @@
-use super::translate::ConstExprKind;
 use super::Mutator;
-use crate::mutators::{DefaultTranslator, Translator};
 use crate::{Result, WasmMutate};
 use rand::Rng;
-use wasm_encoder::{DataSection, DataSegment, DataSegmentMode, Module};
+use wasm_encoder::reencode::{Reencode, RoundtripReencoder};
+use wasm_encoder::{DataSection, Module};
 use wasmparser::{DataKind, DataSectionReader};
 
 /// Mutator that modifies a data segment, either adding or removing bytes.
@@ -29,32 +28,29 @@ impl Mutator for ModifyDataMutator {
         // them to the `new_section` one-by-one.
         for (i, data) in reader.into_iter().enumerate() {
             let data = data?;
-            let offset;
-            // Preserve the mode of the data segment
-            let mode = match &data.kind {
+            // If this is the correct data segment apply the mutation,
+            // otherwise preserve the data.
+            let mut contents = data.data.to_vec();
+            if i as u32 == data_to_modify {
+                config.raw_mutate(&mut contents, self.max_data_size)?;
+            }
+
+            // Add the data segment to the section that we're building
+            match data.kind {
                 DataKind::Active {
                     memory_index,
                     offset_expr,
                 } => {
-                    offset = DefaultTranslator.translate_const_expr(
-                        offset_expr,
-                        &wasmparser::ValType::I32,
-                        ConstExprKind::DataOffset,
-                    )?;
-                    DataSegmentMode::Active {
-                        memory_index: *memory_index,
-                        offset: &offset,
-                    }
+                    new_section.active(
+                        memory_index,
+                        &RoundtripReencoder.const_expr(offset_expr)?,
+                        contents,
+                    );
                 }
-                DataKind::Passive => DataSegmentMode::Passive,
+                DataKind::Passive => {
+                    new_section.passive(contents);
+                }
             };
-            // If this is the correct data segment apply the mutation,
-            // otherwise preserve the data.
-            let mut data = data.data.to_vec();
-            if i as u32 == data_to_modify {
-                config.raw_mutate(&mut data, self.max_data_size)?;
-            }
-            new_section.segment(DataSegment { mode, data });
         }
 
         Ok(Box::new(std::iter::once(Ok(config
