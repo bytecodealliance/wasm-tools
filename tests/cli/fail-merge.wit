@@ -8,17 +8,15 @@ interface i1 {
 interface i2 {
   use i1.{t};
 }
-interface i3 {
-  use i2.{t};
-}
 
 world into {
-  export i1;
-  export i2;
+  export x: interface {
+    use i2.{t};
+  }
 }
 
+// `into` has a transitive dep on importing i2 and must then import i1. Means
+// we can't import `i1` when merging this in.
 world %from {
-  export x: interface {
-    use i3.{t};
-  }
+  export i1;
 }

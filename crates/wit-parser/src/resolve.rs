@@ -767,6 +767,24 @@ package {name} is defined in two different locations:\n\
             }
         }
 
+        // Build a set of interfaces which are required to be imported because
+        // of `into`'s exports. This set is then used below during
+        // `ensure_can_add_world_export`.
+        //
+        // This is the set of interfaces which exports depend on that are
+        // themselves not exports.
+        let mut must_be_imported = HashMap::new();
+        for (key, export) in into_world.exports.iter() {
+            for dep in self.world_item_direct_deps(export) {
+                if into_world.exports.contains_key(&WorldKey::Interface(dep)) {
+                    continue;
+                }
+                self.foreach_interface_dep(dep, &mut |id| {
+                    must_be_imported.insert(id, key.clone());
+                });
+            }
+        }
+
         // Next walk over exports of `from` and process these similarly to
         // imports.
         for (name, from_export) in from_world.exports.iter() {
@@ -779,10 +797,15 @@ package {name} is defined in two different locations:\n\
                 None => {
                     // See comments in `ensure_can_add_world_export` for why
                     // this is slightly different than imports.
-                    self.ensure_can_add_world_export(into_world, name, from_export)
-                        .with_context(|| {
-                            format!("failed to add export `{}`", self.name_world_key(name))
-                        })?;
+                    self.ensure_can_add_world_export(
+                        into_world,
+                        name,
+                        from_export,
+                        &must_be_imported,
+                    )
+                    .with_context(|| {
+                        format!("failed to add export `{}`", self.name_world_key(name))
+                    })?;
                     new_exports.push((name.clone(), from_export.clone()));
                 }
             }
@@ -855,72 +878,97 @@ package {name} is defined in two different locations:\n\
     /// This method ensures that the world export of `name` and `item` can be
     /// added to the world `into` without changing the meaning of `into`.
     ///
-    /// This is somewhat tricky due to how exports/imports are elaborated today
-    /// but the basic idea is that the transitive dependencies of an `export`
-    /// will be implicitly `import`ed if they're not otherwise listed as
-    /// exports. That means that if a transitive dependency of a preexisting
-    /// export is added as a new export it might change the meaning of an
-    /// existing import if it was otherwise already hooked up to an import.
+    /// All dependencies of world exports must either be:
     ///
-    /// This method rules out this situation.
+    /// * An export themselves
+    /// * An import with all transitive dependencies of the import also imported
+    ///
+    /// It's not possible to depend on an import which then also depends on an
+    /// export at some point, for example. This method ensures that if `name`
+    /// and `item` are added that this property is upheld.
     fn ensure_can_add_world_export(
         &self,
         into: &World,
         name: &WorldKey,
         item: &WorldItem,
+        must_be_imported: &HashMap<InterfaceId, WorldKey>,
     ) -> Result<()> {
         assert!(!into.exports.contains_key(name));
-        let interface = match name {
-            // Top-level exports always depend on imports, so these are always
-            // allowed to be added.
-            WorldKey::Name(_) => return Ok(()),
+        let name = self.name_world_key(name);
 
-            // This is the case we're worried about. Here if the key is an
-            // interface then the item must also be an interface.
-            WorldKey::Interface(key) => {
-                match item {
-                    WorldItem::Interface { id, .. } => assert_eq!(id, key),
-                    _ => unreachable!(),
-                }
-                *key
+        // First make sure that all of this item's dependencies are either
+        // exported or the entire chain of imports rooted at that dependency are
+        // all imported.
+        for dep in self.world_item_direct_deps(item) {
+            if into.exports.contains_key(&WorldKey::Interface(dep)) {
+                continue;
             }
-        };
+            self.ensure_not_exported(into, dep)
+                .with_context(|| format!("failed validating export of `{name}`"))?;
+        }
 
-        // For `interface` to be added as a new export of `into` then it must be
-        // the case that no previous export of `into` depends on `interface`.
-        // Test that by walking all interface exports and seeing if any types
-        // refer to this interface.
-        for (export_name, export) in into.exports.iter() {
-            let export_interface = match export_name {
-                WorldKey::Name(_) => continue,
-                WorldKey::Interface(key) => {
-                    match export {
-                        WorldItem::Interface { id, .. } => assert_eq!(id, key),
-                        _ => unreachable!(),
-                    }
-                    *key
-                }
-            };
-            assert!(export_interface != interface);
-            let iface = &self.interfaces[export_interface];
-            for (name, ty) in iface.types.iter() {
-                let other_ty = match self.types[*ty].kind {
-                    TypeDefKind::Type(Type::Id(ty)) => ty,
-                    _ => continue,
-                };
-                if self.types[other_ty].owner != TypeOwner::Interface(interface) {
-                    continue;
-                }
-
-                let export_name = self.name_world_key(export_name);
+        // Second make sure that this item, if it's an interface, will not alter
+        // the meaning of the preexisting world by ensuring that it's not in the
+        // set of "must be imported" items.
+        if let WorldItem::Interface { id, .. } = item {
+            if let Some(export) = must_be_imported.get(&id) {
+                let export_name = self.name_world_key(export);
                 bail!(
-                    "export `{export_name}` has a type `{name}` which could \
-                     change meaning if this world export were added"
-                )
+                    "export `{export_name}` depends on `{name}` \
+                     previously as an import which will change meaning \
+                     if `{name}` is added as an export"
+                );
             }
         }
 
         Ok(())
+    }
+
+    fn ensure_not_exported(&self, world: &World, id: InterfaceId) -> Result<()> {
+        let key = WorldKey::Interface(id);
+        let name = self.name_world_key(&key);
+        if world.exports.contains_key(&key) {
+            bail!(
+                "world exports `{name}` but it's also transitively used by an \
+                     import \
+                   which means that this is not valid"
+            )
+        }
+        for dep in self.interface_direct_deps(id) {
+            self.ensure_not_exported(world, dep)
+                .with_context(|| format!("failed validating transitive import dep `{name}`"))?;
+        }
+        Ok(())
+    }
+
+    /// Returns an iterator of all the direct interface dependencies of this
+    /// `item`.
+    ///
+    /// Note that this doesn't include transitive dependencies, that must be
+    /// followed manually.
+    fn world_item_direct_deps(&self, item: &WorldItem) -> impl Iterator<Item = InterfaceId> + '_ {
+        let mut interface = None;
+        let mut ty = None;
+        match item {
+            WorldItem::Function(_) => {}
+            WorldItem::Type(id) => ty = Some(*id),
+            WorldItem::Interface { id, .. } => interface = Some(*id),
+        }
+
+        interface
+            .into_iter()
+            .flat_map(move |id| self.interface_direct_deps(id))
+            .chain(ty.and_then(|t| self.type_interface_dep(t)))
+    }
+
+    /// Invokes `f` with `id` and all transitive interface dependencies of `id`.
+    ///
+    /// Note that `f` may be called with the same id multiple times.
+    fn foreach_interface_dep(&self, id: InterfaceId, f: &mut dyn FnMut(InterfaceId)) {
+        f(id);
+        for dep in self.interface_direct_deps(id) {
+            self.foreach_interface_dep(dep, f);
+        }
     }
 
     /// Returns the ID of the specified `interface`.
@@ -950,16 +998,20 @@ package {name} is defined in two different locations:\n\
         // Collect the set of interfaces which are depended on by exports. Also
         // all imported types are assumed to stay so collect any interfaces
         // they depend on.
-        let mut live_through_exports = IndexSet::default();
+        let mut live_through_exports = IndexSet::new();
         for (_, export) in self.worlds[world_id].exports.iter() {
             if let WorldItem::Interface { id, .. } = export {
-                self.collect_interface_deps(*id, &mut live_through_exports);
+                self.foreach_interface_dep(*id, &mut |id| {
+                    live_through_exports.insert(id);
+                })
             }
         }
         for (_, import) in self.worlds[world_id].imports.iter() {
             if let WorldItem::Type(ty) = import {
                 if let Some(dep) = self.type_interface_dep(*ty) {
-                    self.collect_interface_deps(dep, &mut live_through_exports);
+                    self.foreach_interface_dep(dep, &mut |id| {
+                        live_through_exports.insert(id);
+                    })
                 }
             }
         }
@@ -1015,15 +1067,6 @@ package {name} is defined in two different locations:\n\
         #[cfg(debug_assertions)]
         self.assert_valid();
         Ok(())
-    }
-
-    fn collect_interface_deps(&self, interface: InterfaceId, deps: &mut IndexSet<InterfaceId>) {
-        if !deps.insert(interface) {
-            return;
-        }
-        for dep in self.interface_direct_deps(interface) {
-            self.collect_interface_deps(dep, deps);
-        }
     }
 
     /// Returns the ID of the specified `name` within the `pkg`.
@@ -1534,11 +1577,24 @@ package {name} is defined in two different locations:\n\
                 WorldItem::Interface { id, .. } => {
                     for dep in self.interface_direct_deps(*id) {
                         let dep_key = WorldKey::Interface(dep);
-                        if !world.exports.contains_key(&dep_key) {
-                            self.assert_interface_and_all_deps_imported_and_not_exported(
-                                world, key, dep,
-                            );
+                        if world.exports.contains_key(&dep_key) {
+                            continue;
                         }
+                        self.foreach_interface_dep(dep, &mut |dep| {
+                            let dep_key = WorldKey::Interface(dep);
+                            assert!(
+                                world.imports.contains_key(&dep_key),
+                                "world should import {} (required by {})",
+                                self.name_world_key(&dep_key),
+                                self.name_world_key(key),
+                            );
+                            assert!(
+                                !world.exports.contains_key(&dep_key),
+                                "world should not export {} (required by {})",
+                                self.name_world_key(&dep_key),
+                                self.name_world_key(key),
+                            );
+                        });
                     }
                 }
 
@@ -1602,30 +1658,6 @@ package {name} is defined in two different locations:\n\
                 continue;
             };
             self.assert_world_imports_type_deps(world, key, id);
-        }
-    }
-
-    fn assert_interface_and_all_deps_imported_and_not_exported(
-        &self,
-        world: &World,
-        key: &WorldKey,
-        id: InterfaceId,
-    ) {
-        let dep_key = WorldKey::Interface(id);
-        assert!(
-            world.imports.contains_key(&dep_key),
-            "world should import {} (required by {})",
-            self.name_world_key(&dep_key),
-            self.name_world_key(key),
-        );
-        assert!(
-            !world.exports.contains_key(&dep_key),
-            "world should not export {} (required by {})",
-            self.name_world_key(&dep_key),
-            self.name_world_key(key),
-        );
-        for dep in self.interface_direct_deps(id) {
-            self.assert_interface_and_all_deps_imported_and_not_exported(world, key, dep);
         }
     }
 

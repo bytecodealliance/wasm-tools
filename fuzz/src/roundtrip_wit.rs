@@ -1,6 +1,5 @@
 use arbitrary::{Result, Unstructured};
 use std::path::Path;
-use wasmparser::WasmFeatures;
 use wit_component::*;
 use wit_parser::{PackageId, Resolve};
 
@@ -14,6 +13,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         DecodedWasm::WitPackage(resolve, pkg) => (resolve, pkg),
         DecodedWasm::Component(..) => unreachable!(),
     };
+    resolve.assert_valid();
 
     roundtrip_through_printing("doc1", &resolve, pkg, &wasm);
 
@@ -21,6 +21,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         DecodedWasm::WitPackage(resolve, pkgs) => (resolve, pkgs),
         DecodedWasm::Component(..) => unreachable!(),
     };
+    resolve2.assert_valid();
 
     let wasm2 = wit_component::encode(&resolve2, pkg2).expect("failed to encode WIT document");
     write_file("doc2.wasm", &wasm2);
@@ -32,18 +33,13 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
 
     // If there's hundreds or thousands of worlds only work with the first few
     // to avoid timing out this fuzzer with asan enabled.
-    let mut decoded_worlds = Vec::new();
+    let mut decoded_bindgens = Vec::new();
     for (id, world) in resolve.worlds.iter().take(20) {
         log::debug!("embedding world {} as in a dummy module", world.name);
         let mut dummy = wit_component::dummy_module(&resolve, id);
         wit_component::embed_component_metadata(&mut dummy, &resolve, id, StringEncoding::UTF8)
             .unwrap();
         write_file("dummy.wasm", &dummy);
-
-        // Decode what was just created and record it later for testing merging
-        // worlds together.
-        let (_, decoded) = wit_component::metadata::decode(&dummy).unwrap();
-        decoded_worlds.push(decoded.resolve);
 
         log::debug!("... componentizing the world into a binary component");
         let wasm = wit_component::ComponentEncoder::default()
@@ -52,11 +48,12 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
             .encode()
             .unwrap();
         write_file("dummy.component.wasm", &wasm);
-        wasmparser::Validator::new_with_features(
-            WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL,
-        )
-        .validate_all(&wasm)
-        .unwrap();
+        wasmparser::Validator::new().validate_all(&wasm).unwrap();
+
+        // Decode what was just created and record it later for testing merging
+        // worlds together.
+        let (_, decoded) = wit_component::metadata::decode(&dummy).unwrap();
+        decoded_bindgens.push((decoded, dummy, world.name.clone()));
 
         log::debug!("... decoding the component itself");
         wit_component::decode(&wasm).unwrap();
@@ -66,19 +63,28 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         log::debug!("... importizing this world");
         let mut resolve2 = resolve.clone();
         let _ = resolve2.importize(id);
-        resolve.assert_valid();
     }
 
-    if decoded_worlds.len() < 2 {
+    if decoded_bindgens.len() < 2 {
         return Ok(());
     }
 
-    log::debug!("merging worlds");
-    let w1 = u.choose(&decoded_worlds)?;
-    let w2 = u.choose(&decoded_worlds)?;
-    let mut dst = w1.clone();
-    dst.merge(w2.clone()).unwrap();
-    dst.assert_valid();
+    let i = u.choose_index(decoded_bindgens.len())?;
+    let (mut b1, wasm1, world1) = decoded_bindgens.swap_remove(i);
+    let i = u.choose_index(decoded_bindgens.len())?;
+    let (b2, wasm2, world2) = decoded_bindgens.swap_remove(i);
+
+    log::debug!("merging bindgens world {world1} <- world {world2}");
+
+    write_file("bindgen1.wasm", &wasm1);
+    write_file("bindgen2.wasm", &wasm2);
+
+    // Merging worlds may fail but if successful then a `Resolve` is asserted
+    // to be valid which is what we're interested in here. Note that failure
+    // here can be due to the structure of worlds which aren't reasonable to
+    // control in this generator, so it's just done to see what happens and try
+    // to trigger panics in `Resolve::assert_valid`.
+    let _ = b1.merge(b2);
     Ok(())
 }
 
