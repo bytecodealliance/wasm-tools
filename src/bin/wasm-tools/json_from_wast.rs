@@ -252,6 +252,17 @@ impl<'a> JsonBuilder<'a> {
                 line,
                 action: self.action(exec)?,
             },
+            WastDirective::AssertSuspension {
+                span: _,
+                exec,
+                message,
+            } => {
+                json::Command::AssertSuspension {
+                    line,
+                    text: message,
+                    action: self.action(exec)?,
+                }
+            }
             WastDirective::Thread(thread) => json::Command::Thread {
                 line,
                 name: thread.name.name(),
@@ -553,6 +564,10 @@ fn null_heap_ty(ty: HeapType<'_>) -> Result<json::Const> {
                 Array => json::Const::ArrayRef,
                 I31 => json::Const::I31Ref,
                 NoExn => json::Const::NullExnRef,
+                Cont => json::Const::ContRef {
+                    value: Some("null".to_string()),
+                },
+                NoCont => json::Const::NullContRef,
             }
         }
         _ => bail!("unsupported heap type found in `ref.null`"),
@@ -639,6 +654,11 @@ mod json {
         AssertException {
             line: u32,
             action: Action<'a>,
+        },
+        AssertSuspension {
+            line: u32,
+            action: Action<'a>,
+            text: &'a str,
         },
         AssertUninstantiable {
             line: u32,
@@ -734,6 +754,13 @@ mod json {
             #[serde(skip_serializing_if = "Option::is_none")]
             value: Option<String>,
         },
+
+        ContRef {
+            #[serde(skip_serializing_if = "Option::is_none")]
+            value: Option<String>,
+        },
+
+        NullContRef,
 
         // any null reference, type doesn't matter
         RefNull,

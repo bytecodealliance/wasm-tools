@@ -452,6 +452,7 @@ impl<'a> Expander<'a> {
                     }
                     core::InnerTypeKind::Struct(_) => {}
                     core::InnerTypeKind::Array(_) => {}
+                    core::InnerTypeKind::Cont(_) => todo!(),
                 },
                 ModuleTypeDecl::Rec(_) => {}
                 ModuleTypeDecl::Alias(_) => {}

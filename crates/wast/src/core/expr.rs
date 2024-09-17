@@ -1187,6 +1187,14 @@ instructions! {
         I16x8RelaxedQ15mulrS: [0xfd, 0x111]: "i16x8.relaxed_q15mulr_s",
         I16x8RelaxedDotI8x16I7x16S: [0xfd, 0x112]: "i16x8.relaxed_dot_i8x16_i7x16_s",
         I32x4RelaxedDotI8x16I7x16AddS: [0xfd, 0x113]: "i32x4.relaxed_dot_i8x16_i7x16_add_s",
+
+        // Stack switching proposal
+        ContNew(Index<'a>)             : [0xe0] : "cont.new",
+        ContBind(ContBind<'a>)         : [0xe1] : "cont.bind",
+        Suspend(Index<'a>)             : [0xe2] : "suspend",
+        Resume(Resume<'a>)             : [0xe3] : "resume",
+        ResumeThrow(ResumeThrow<'a>)   : [0xe4] : "resume_throw",
+        Switch(Switch<'a>)             : [0xe5] : "switch",
     }
 }
 
@@ -1197,7 +1205,7 @@ instructions! {
 const _: () = {
     let size = std::mem::size_of::<Instruction<'_>>();
     let pointer = std::mem::size_of::<u64>();
-    assert!(size <= pointer * 10);
+    assert!(size <= pointer * 11);
 };
 
 impl<'a> Instruction<'a> {
@@ -1233,6 +1241,109 @@ impl<'a> Parse<'a> for BlockType<'a> {
                 .parse::<TypeUse<'a, FunctionTypeNoNames<'a>>>()?
                 .into(),
         })
+    }
+}
+
+/// Extra information associated with the cont.bind instruction
+#[derive(Debug, Clone)]
+#[allow(missing_docs)]
+pub struct ContBind<'a> {
+    pub argument_index: Index<'a>,
+    pub result_index: Index<'a>,
+}
+
+impl<'a> Parse<'a> for ContBind<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        Ok(ContBind {
+            argument_index: parser.parse()?,
+            result_index: parser.parse()?,
+        })
+    }
+}
+
+/// Extra information associated with the resume instruction
+#[derive(Debug, Clone)]
+#[allow(missing_docs)]
+pub struct Resume<'a> {
+    pub type_index: Index<'a>,
+    pub table: ResumeTable<'a>,
+}
+
+impl<'a> Parse<'a> for Resume<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        Ok(Resume {
+            type_index: parser.parse()?,
+            table: parser.parse()?,
+        })
+    }
+}
+
+/// Extra information associated with the resume_throw instruction
+#[derive(Debug, Clone)]
+#[allow(missing_docs)]
+pub struct ResumeThrow<'a> {
+    pub type_index: Index<'a>,
+    pub tag_index: Index<'a>,
+    pub table: ResumeTable<'a>,
+}
+
+impl<'a> Parse<'a> for ResumeThrow<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        Ok(ResumeThrow {
+            type_index: parser.parse()?,
+            tag_index: parser.parse()?,
+            table: parser.parse()?,
+        })
+    }
+}
+
+/// Extra information associated with the switch instruction
+#[derive(Debug, Clone)]
+#[allow(missing_docs)]
+pub struct Switch<'a> {
+    pub type_index: Index<'a>,
+    pub tag_index: Index<'a>,
+}
+
+impl<'a> Parse<'a> for Switch<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        Ok(Switch {
+            type_index: parser.parse()?,
+            tag_index: parser.parse()?,
+        })
+    }
+}
+
+/// A representation of resume tables
+#[derive(Debug, Clone)]
+#[allow(missing_docs)]
+pub struct ResumeTable<'a> {
+    pub handlers: Vec<Handle<'a>>,
+}
+
+/// A representation of resume table entries
+#[derive(Debug, Clone)]
+#[allow(missing_docs)]
+pub enum Handle<'a> {
+    OnLabel { tag: Index<'a>, label: Index<'a> },
+    OnSwitch { tag: Index<'a> },
+}
+
+impl<'a> Parse<'a> for ResumeTable<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        let mut handlers = Vec::new();
+        while parser.peek::<LParen>()? && parser.peek2::<kw::on>()? {
+            handlers.push(parser.parens(|p| {
+                p.parse::<kw::on>()?;
+                let tag: Index<'a> = p.parse()?;
+                if p.peek::<kw::switch>()? {
+                    Ok(Handle::OnSwitch { tag })
+                } else {
+                    Ok(Handle::OnLabel { tag, label: p.parse()? })
+                }
+            })?);
+        }
+        Ok(ResumeTable { handlers })
     }
 }
 

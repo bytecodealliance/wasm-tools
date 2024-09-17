@@ -65,7 +65,7 @@ impl<'a> Resolver<'a> {
                 }
             }
 
-            InnerTypeKind::Array(_) | InnerTypeKind::Func(_) => {}
+            InnerTypeKind::Array(_) | InnerTypeKind::Func(_) | InnerTypeKind::Cont(_) => {}
         }
 
         // Record function signatures as we see them to so we can
@@ -649,7 +649,43 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
 
             RefNull(ty) => self.resolver.resolve_heaptype(ty)?,
 
+            ContNew(ty) => {
+                self.resolver.resolve(ty, Ns::Type)?;
+            }
+            ContBind(cb) => {
+                self.resolver.resolve(&mut cb.argument_index, Ns::Type)?;
+                self.resolver.resolve(&mut cb.result_index, Ns::Type)?;
+            }
+            Resume(r) => {
+                self.resolver.resolve(&mut r.type_index, Ns::Type)?;
+                self.resolve_resume_table(&mut r.table)?;
+            }
+            ResumeThrow(rt) => {
+                self.resolver.resolve(&mut rt.type_index, Ns::Type)?;
+                self.resolver.resolve(&mut rt.tag_index, Ns::Tag)?;
+                self.resolve_resume_table(&mut rt.table)?;
+            }
+            Switch(s) => {
+                self.resolver.resolve(&mut s.type_index, Ns::Type)?;
+                self.resolver.resolve(&mut s.tag_index, Ns::Tag)?;
+            }
+
             _ => {}
+        }
+        Ok(())
+    }
+
+    fn resolve_resume_table(&self, table: &mut ResumeTable<'a>) -> Result<(), Error> {
+        for handle in &table.handlers {
+            match handle {
+                Handle::OnLabel { mut tag, mut label } => {
+                    self.resolver.resolve(&mut tag, Ns::Tag)?;
+                    self.resolve_label(&mut label)?;
+                }
+                Handle::OnSwitch { mut tag } => {
+                    self.resolver.resolve(&mut tag, Ns::Tag)?;
+                }
+            }
         }
         Ok(())
     }
@@ -772,6 +808,10 @@ pub(crate) trait ResolveCoreType<'a> {
                 Ok(())
             }
             InnerTypeKind::Array(array) => self.resolve_storagetype(&mut array.ty),
+            InnerTypeKind::Cont(cont) => {
+                self.resolve_type_name(&mut cont.0)?;
+                Ok(())
+            }
         }
     }
 
