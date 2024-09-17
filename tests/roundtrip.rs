@@ -383,6 +383,7 @@ impl TestState {
             | WastDirective::AssertExhaustion { .. }
             | WastDirective::AssertUnlinkable { .. }
             | WastDirective::AssertException { .. }
+            | WastDirective::AssertSuspension { .. }
             | WastDirective::Wait { .. } => {}
         }
         Ok(())
