@@ -1,6 +1,6 @@
 use crate::{
     module::{PrimitiveTypeInfo, TypeInfo},
-    Result,
+    Error, Result,
 };
 use std::collections::HashSet;
 use std::ops::Range;
@@ -92,7 +92,7 @@ impl<'a> ModuleInfo<'a> {
 
                     // Save function types
                     for ty in reader.into_iter_err_on_gc_types() {
-                        info.types_map.push(ty?.into());
+                        info.types_map.push(ty?.try_into()?);
                     }
                 }
                 Payload::ImportSection(reader) => {
@@ -107,7 +107,7 @@ impl<'a> ModuleInfo<'a> {
                                 info.imported_functions_count += 1;
                             }
                             wasmparser::TypeRef::Global(ty) => {
-                                let ty = PrimitiveTypeInfo::try_from(ty.content_type).unwrap();
+                                let ty = PrimitiveTypeInfo::try_from(ty.content_type)?;
                                 info.global_types.push(ty);
                                 info.imported_globals_count += 1;
                             }
@@ -162,7 +162,7 @@ impl<'a> ModuleInfo<'a> {
                     for ty in reader {
                         let ty = ty?;
                         // We only need the type of the global, not necessarily if is mutable or not
-                        let ty = PrimitiveTypeInfo::try_from(ty.ty.content_type).unwrap();
+                        let ty = PrimitiveTypeInfo::try_from(ty.ty.content_type)?;
                         info.global_types.push(ty);
                     }
                 }
@@ -209,7 +209,7 @@ impl<'a> ModuleInfo<'a> {
                 Payload::End(_) => {
                     break;
                 }
-                _ => todo!("{:?} not implemented", payload),
+                _ => return Err(Error::unsupported(format!("section: {payload:?}"))),
             }
             wasm = &wasm[consumed..];
         }

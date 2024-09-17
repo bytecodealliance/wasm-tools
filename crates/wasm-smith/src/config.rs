@@ -299,8 +299,8 @@ define_config! {
         /// Determines whether the exception-handling proposal is enabled for
         /// generating instructions.
         ///
-        /// Defaults to `false`.
-        pub exceptions_enabled: bool = false,
+        /// Defaults to `true`.
+        pub exceptions_enabled: bool = true,
 
         /// Export all WebAssembly objects in the module. Defaults to false.
         ///
@@ -310,8 +310,8 @@ define_config! {
         /// Determines whether the GC proposal is enabled when generating a Wasm
         /// module.
         ///
-        /// Defaults to `false`.
-        pub gc_enabled: bool = false,
+        /// Defaults to `true`.
+        pub gc_enabled: bool = true,
 
         /// Determines whether the custom-page-sizes proposal is enabled when
         /// generating a Wasm module.
@@ -532,14 +532,14 @@ define_config! {
         /// Determines whether the reference types proposal is enabled for
         /// generating instructions.
         ///
-        /// Defaults to `false`.
-        pub reference_types_enabled: bool = false,
+        /// Defaults to `true`.
+        pub reference_types_enabled: bool = true,
 
         /// Determines whether the Relaxed SIMD proposal is enabled for
         /// generating instructions.
         ///
-        /// Defaults to `false`.
-        pub relaxed_simd_enabled: bool = false,
+        /// Defaults to `true`.
+        pub relaxed_simd_enabled: bool = true,
 
         /// Determines whether the nontrapping-float-to-int-conversions propsal
         /// is enabled.
@@ -555,14 +555,14 @@ define_config! {
         /// Determines whether the SIMD proposal is enabled for generating
         /// instructions.
         ///
-        /// Defaults to `false`.
-        pub simd_enabled: bool = false,
+        /// Defaults to `true`.
+        pub simd_enabled: bool = true,
 
         /// Determines whether the tail calls proposal is enabled for generating
         /// instructions.
         ///
-        /// Defaults to `false`.
-        pub tail_call_enabled: bool = false,
+        /// Defaults to `true`.
+        pub tail_call_enabled: bool = true,
 
         /// Whether every Wasm table must have a maximum size
         /// specified. Defaults to `false`.
@@ -575,8 +575,8 @@ define_config! {
         ///
         /// [threads proposal]: https://github.com/WebAssembly/threads/blob/master/proposals/threads/Overview.md
         ///
-        /// Defaults to `false`.
-        pub threads_enabled: bool = false,
+        /// Defaults to `true`.
+        pub threads_enabled: bool = true,
 
         /// Indicates whether wasm-smith is allowed to generate invalid function
         /// bodies.
@@ -654,6 +654,7 @@ impl<'a> Arbitrary<'a> for Config {
 
         let reference_types_enabled: bool = u.arbitrary()?;
         let max_tables = if reference_types_enabled { 100 } else { 1 };
+        let simd_enabled: bool = u.arbitrary()?;
 
         Ok(Config {
             max_types: u.int_in_range(0..=MAX_MAXIMUM)?,
@@ -679,6 +680,11 @@ impl<'a> Arbitrary<'a> for Config {
             max_nesting_depth: u.int_in_range(0..=10)?,
             saturating_float_to_int_enabled: u.arbitrary()?,
             sign_extension_ops_enabled: u.arbitrary()?,
+            relaxed_simd_enabled: simd_enabled && u.arbitrary()?,
+            exceptions_enabled: u.arbitrary()?,
+            threads_enabled: u.arbitrary()?,
+            tail_call_enabled: u.arbitrary()?,
+            gc_enabled: reference_types_enabled && u.arbitrary()?,
             allowed_instructions: {
                 use flagset::Flags;
                 let mut allowed = Vec::new();
@@ -714,20 +720,17 @@ impl<'a> Arbitrary<'a> for Config {
             max_values: 0,
             memory_offset_choices: MemoryOffsetChoices::default(),
             allow_start_export: true,
-            relaxed_simd_enabled: false,
-            exceptions_enabled: false,
-            memory64_enabled: false,
             max_type_size: 1000,
             canonicalize_nans: false,
             available_imports: None,
             exports: None,
-            threads_enabled: false,
             export_everything: false,
-            tail_call_enabled: false,
-            gc_enabled: false,
-            custom_page_sizes_enabled: false,
             generate_custom_sections: false,
             allow_invalid_funcs: false,
+
+            // Proposals that are not stage4+ are disabled by default.
+            memory64_enabled: false,
+            custom_page_sizes_enabled: false,
         })
     }
 }

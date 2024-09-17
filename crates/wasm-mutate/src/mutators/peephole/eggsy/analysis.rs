@@ -290,7 +290,7 @@ impl PeepholeMutationAnalysis {
             Lang::TableSet(..) => Ok(PrimitiveTypeInfo::Empty),
             Lang::TableGet(idx, _) => {
                 let ty = self.table_types[*idx as usize];
-                Ok(ty.element_type.into())
+                ty.element_type.try_into()
             }
             Lang::I32UseGlobal(_) => Ok(PrimitiveTypeInfo::I32),
             Lang::I64UseGlobal(_) => Ok(PrimitiveTypeInfo::I64),

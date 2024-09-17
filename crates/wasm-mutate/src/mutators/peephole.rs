@@ -89,7 +89,7 @@ impl PeepholeMutator {
                 }
                 for _ in 0..localsreader.get_count() {
                     let (count, ty) = localsreader.read()?;
-                    let tymapped = PrimitiveTypeInfo::from(ty);
+                    let tymapped = PrimitiveTypeInfo::try_from(ty)?;
                     for _ in 0..count {
                         all_locals.push(tymapped);
                     }

@@ -1,4 +1,4 @@
-use crate::Result;
+use crate::{Error, Result};
 use wasm_encoder::{BlockType, HeapType, RefType, ValType};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -25,43 +25,49 @@ pub enum TypeInfo {
     // TODO: module linking support will require instance and module types.
 }
 
-impl From<wasmparser::ValType> for PrimitiveTypeInfo {
-    fn from(value: wasmparser::ValType) -> Self {
-        match value {
+impl TryFrom<wasmparser::ValType> for PrimitiveTypeInfo {
+    type Error = Error;
+
+    fn try_from(value: wasmparser::ValType) -> Result<Self> {
+        Ok(match value {
             wasmparser::ValType::I32 => PrimitiveTypeInfo::I32,
             wasmparser::ValType::I64 => PrimitiveTypeInfo::I64,
             wasmparser::ValType::F32 => PrimitiveTypeInfo::F32,
             wasmparser::ValType::F64 => PrimitiveTypeInfo::F64,
             wasmparser::ValType::V128 => PrimitiveTypeInfo::V128,
-            wasmparser::ValType::Ref(t) => t.into(),
-        }
+            wasmparser::ValType::Ref(t) => t.try_into()?,
+        })
     }
 }
 
-impl From<wasmparser::RefType> for PrimitiveTypeInfo {
-    fn from(value: wasmparser::RefType) -> Self {
-        match value {
+impl TryFrom<wasmparser::RefType> for PrimitiveTypeInfo {
+    type Error = Error;
+
+    fn try_from(value: wasmparser::RefType) -> Result<Self> {
+        Ok(match value {
             wasmparser::RefType::FUNCREF => PrimitiveTypeInfo::FuncRef,
             wasmparser::RefType::EXTERNREF => PrimitiveTypeInfo::ExternRef,
-            _ => unimplemented!(),
-        }
+            other => return Err(Error::unsupported(format!("type {other:?}"))),
+        })
     }
 }
 
-impl From<wasmparser::FuncType> for TypeInfo {
-    fn from(ft: wasmparser::FuncType) -> Self {
-        TypeInfo::Func(FuncInfo {
+impl TryFrom<wasmparser::FuncType> for TypeInfo {
+    type Error = Error;
+
+    fn try_from(ft: wasmparser::FuncType) -> Result<Self> {
+        Ok(TypeInfo::Func(FuncInfo {
             params: ft
                 .params()
                 .iter()
-                .map(|&t| PrimitiveTypeInfo::from(t))
-                .collect(),
+                .map(|&t| PrimitiveTypeInfo::try_from(t))
+                .collect::<Result<_>>()?,
             returns: ft
                 .results()
                 .iter()
-                .map(|&t| PrimitiveTypeInfo::from(t))
-                .collect(),
-        })
+                .map(|&t| PrimitiveTypeInfo::try_from(t))
+                .collect::<Result<_>>()?,
+        }))
     }
 }
 

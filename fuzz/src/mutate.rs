@@ -11,9 +11,10 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
 
     let mut seed = 0;
     let mut preserve_semantics = false;
-    let (wasm, _config) = crate::generate_valid_module(u, |config, u| {
-        config.exceptions_enabled = false;
-        config.gc_enabled = false;
+    let (wasm, _config) = crate::generate_valid_module(u, |_config, u| {
+        // NB: wasm-mutate is a general-purpose tool so unsupported proposals by
+        // wasm-mutate are not disabled here. Those must be rejected with a
+        // first-class error in wasm-mutate instead of panicking.
         seed = u.arbitrary()?;
         preserve_semantics = u.arbitrary()?;
         Ok(())
