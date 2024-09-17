@@ -42,11 +42,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     let mut wasm_mutate = wasm_mutate::WasmMutate::default();
     wasm_mutate.seed(seed);
     wasm_mutate.fuel(300);
-    wasm_mutate.preserve_semantics(
-        // If we are going to check that we get the same evaluated results
-        // before and after mutation, then we need to preserve semantics.
-        cfg!(feature = "wasmtime") && preserve_semantics,
-    );
+    wasm_mutate.preserve_semantics(preserve_semantics);
 
     let iterator = match wasm_mutate.run(&wasm) {
         Ok(iterator) => iterator,
@@ -88,6 +84,8 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
 
         validation_result.expect("`wasm-mutate` should always produce a valid Wasm file");
 
+        // If semantics are preserved then assert so between executions of
+        // Wasmtime if that's also enabled.
         #[cfg(feature = "wasmtime")]
         if preserve_semantics {
             eval::assert_same_evaluation(&wasm, &mutated_wasm);
