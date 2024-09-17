@@ -407,6 +407,11 @@ impl Parser {
         self.features = features;
     }
 
+    /// Returns the original offset that this parser is currently at.
+    pub fn offset(&self) -> u64 {
+        self.offset
+    }
+
     /// Attempts to parse a chunk of data.
     ///
     /// This method will attempt to parse the next incremental portion of a
