@@ -1,6 +1,6 @@
 use crate::{Error, Result};
 use wasm_encoder::*;
-use wasmparser::{DataKind, ElementKind, FunctionBody, Global, Operator};
+use wasmparser::{ElementKind, Global, Operator};
 
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
 pub enum Item {
@@ -20,39 +20,16 @@ pub enum ConstExprKind {
     ElementOffset,
     ElementFunction,
     DataOffset,
-    TableInit,
 }
 
 pub trait Translator {
     fn as_obj(&mut self) -> &mut dyn Translator;
-
-    fn translate_func_type(&mut self, ty: wasmparser::FuncType, s: &mut TypeSection) -> Result<()> {
-        func_type(self.as_obj(), ty, s)
-    }
-
-    fn translate_table_type(
-        &mut self,
-        ty: &wasmparser::TableType,
-    ) -> Result<wasm_encoder::TableType> {
-        table_type(self.as_obj(), ty)
-    }
-
-    fn translate_memory_type(
-        &mut self,
-        ty: &wasmparser::MemoryType,
-    ) -> Result<wasm_encoder::MemoryType> {
-        memory_type(self.as_obj(), ty)
-    }
 
     fn translate_global_type(
         &mut self,
         ty: &wasmparser::GlobalType,
     ) -> Result<wasm_encoder::GlobalType> {
         global_type(self.as_obj(), ty)
-    }
-
-    fn translate_tag_type(&mut self, ty: &wasmparser::TagType) -> Result<wasm_encoder::TagType> {
-        tag_type(self.as_obj(), ty)
     }
 
     fn translate_ty(&mut self, t: &wasmparser::ValType) -> Result<ValType> {
@@ -88,14 +65,6 @@ pub trait Translator {
         element(self.as_obj(), e, s)
     }
 
-    fn translate_data(&mut self, d: wasmparser::Data<'_>, s: &mut DataSection) -> Result<()> {
-        data(self.as_obj(), d, s)
-    }
-
-    fn translate_code(&mut self, body: FunctionBody<'_>, s: &mut CodeSection) -> Result<()> {
-        code(self.as_obj(), body, s)
-    }
-
     fn translate_op(&mut self, e: &Operator<'_>) -> Result<Instruction<'static>> {
         op(self.as_obj(), e)
     }
@@ -129,50 +98,6 @@ impl Translator for DefaultTranslator {
     }
 }
 
-pub fn func_type(
-    t: &mut dyn Translator,
-    ty: wasmparser::FuncType,
-    s: &mut TypeSection,
-) -> Result<()> {
-    s.ty().function(
-        ty.params()
-            .iter()
-            .map(|ty| t.translate_ty(ty))
-            .collect::<Result<Vec<_>>>()?,
-        ty.results()
-            .iter()
-            .map(|ty| t.translate_ty(ty))
-            .collect::<Result<Vec<_>>>()?,
-    );
-    Ok(())
-}
-
-pub fn table_type(
-    t: &mut dyn Translator,
-    ty: &wasmparser::TableType,
-) -> Result<wasm_encoder::TableType> {
-    Ok(wasm_encoder::TableType {
-        element_type: t.translate_refty(&ty.element_type)?,
-        minimum: ty.initial,
-        maximum: ty.maximum,
-        table64: ty.table64,
-        shared: ty.shared,
-    })
-}
-
-pub fn memory_type(
-    _t: &mut dyn Translator,
-    ty: &wasmparser::MemoryType,
-) -> Result<wasm_encoder::MemoryType> {
-    Ok(wasm_encoder::MemoryType {
-        memory64: ty.memory64,
-        minimum: ty.initial,
-        maximum: ty.maximum,
-        shared: ty.shared,
-        page_size_log2: ty.page_size_log2,
-    })
-}
-
 pub fn global_type(
     t: &mut dyn Translator,
     ty: &wasmparser::GlobalType,
@@ -181,13 +106,6 @@ pub fn global_type(
         val_type: t.translate_ty(&ty.content_type)?,
         mutable: ty.mutable,
         shared: ty.shared,
-    })
-}
-
-pub fn tag_type(t: &mut dyn Translator, ty: &wasmparser::TagType) -> Result<wasm_encoder::TagType> {
-    Ok(wasm_encoder::TagType {
-        kind: TagKind::Exception,
-        func_type_idx: t.remap(Item::Type, ty.func_type_idx)?,
     })
 }
 
@@ -424,50 +342,4 @@ pub fn memarg(t: &mut dyn Translator, memarg: &wasmparser::MemArg) -> Result<Mem
         align: memarg.align.into(),
         memory_index: t.remap(Item::Memory, memarg.memory)?,
     })
-}
-
-pub fn data(t: &mut dyn Translator, data: wasmparser::Data<'_>, s: &mut DataSection) -> Result<()> {
-    let offset;
-    let mode = match &data.kind {
-        DataKind::Active {
-            memory_index,
-            offset_expr,
-        } => {
-            offset = t.translate_const_expr(
-                offset_expr,
-                &wasmparser::ValType::I32,
-                ConstExprKind::DataOffset,
-            )?;
-            DataSegmentMode::Active {
-                memory_index: t.remap(Item::Memory, *memory_index)?,
-                offset: &offset,
-            }
-        }
-        DataKind::Passive => DataSegmentMode::Passive,
-    };
-    s.segment(DataSegment {
-        mode,
-        data: data.data.iter().copied(),
-    });
-    Ok(())
-}
-
-pub fn code(t: &mut dyn Translator, body: FunctionBody<'_>, s: &mut CodeSection) -> Result<()> {
-    let locals = body
-        .get_locals_reader()?
-        .into_iter()
-        .map(|local| {
-            let (cnt, ty) = local?;
-            Ok((cnt, t.translate_ty(&ty)?))
-        })
-        .collect::<Result<Vec<_>>>()?;
-    let mut func = Function::new(locals);
-
-    let reader = body.get_operators_reader()?;
-    for op in reader {
-        let op = op?;
-        func.instruction(&t.translate_op(&op)?);
-    }
-    s.function(&func);
-    Ok(())
 }

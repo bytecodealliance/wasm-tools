@@ -24,3 +24,4 @@ anyhow = { workspace = true }
 wat = { path = "../wat" }
 wasmprinter = { path = "../wasmprinter" }
 env_logger = { workspace = true }
+wasmparser = { workspace = true, features = ['validate', 'features'] }

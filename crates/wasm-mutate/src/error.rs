@@ -56,6 +56,16 @@ impl From<wasmparser::BinaryReaderError> for Error {
     }
 }
 
+impl From<wasm_encoder::reencode::Error<Error>> for Error {
+    fn from(e: wasm_encoder::reencode::Error<Error>) -> Self {
+        match e {
+            wasm_encoder::reencode::Error::ParseError(e) => Error::parse(e),
+            wasm_encoder::reencode::Error::UserError(e) => e,
+            other => Error::other(other.to_string()),
+        }
+    }
+}
+
 /// The kind of error.
 #[derive(thiserror::Error, Debug)]
 pub enum ErrorKind {

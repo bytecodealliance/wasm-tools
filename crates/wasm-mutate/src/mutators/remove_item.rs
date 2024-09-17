@@ -7,19 +7,13 @@
 //! mutator largely translates between `wasmparser` structures and
 //! `wasm_encoder` structures.
 
-use crate::mutators::translate::ConstExprKind;
-use crate::mutators::{translate, Item, Mutator, Translator};
+use crate::mutators::{Item, Mutator};
 use crate::Error;
 use crate::{ModuleInfo, Result, WasmMutate};
 use rand::Rng;
 use std::collections::HashSet;
+use wasm_encoder::reencode::Reencode;
 use wasm_encoder::*;
-use wasmparser::{
-    CodeSectionReader, DataSectionReader, ElementSectionReader, ExportSectionReader, ExternalKind,
-    FromReader, FunctionSectionReader, GlobalSectionReader, ImportSectionReader,
-    MemorySectionReader, Operator, TableInit, TableSectionReader, TagSectionReader,
-    TypeSectionReader,
-};
 
 /// Mutator that removes a random item in a wasm module (function, global,
 /// table, etc).
@@ -39,12 +33,14 @@ impl Mutator for RemoveItemMutator {
         log::trace!("attempting to remove {:?} index {}", self.0, idx);
 
         let result = RemoveItem {
+            info: config.info(),
             item: self.0,
             idx,
             referenced_functions: HashSet::new(),
             function_reference_action: Funcref::Save,
+            used_index_that_was_removed: false,
         }
-        .remove(config.info());
+        .remove();
         match result {
             Ok(result) => {
                 log::debug!("removed {:?} index {}", self.0, idx);
@@ -99,11 +95,13 @@ impl Item {
     }
 }
 
-struct RemoveItem {
+struct RemoveItem<'a> {
+    info: &'a ModuleInfo<'a>,
     item: Item,
     idx: u32,
     function_reference_action: Funcref,
     referenced_functions: HashSet<u32>,
+    used_index_that_was_removed: bool,
 }
 
 enum Funcref {
@@ -116,248 +114,27 @@ enum Funcref {
     RequireReferenced,
 }
 
-impl RemoveItem {
-    fn remove(&mut self, info: &ModuleInfo) -> Result<Module> {
+type ReencodeResult<T, E = Error> = Result<T, wasm_encoder::reencode::Error<E>>;
+
+impl RemoveItem<'_> {
+    fn remove(&mut self) -> Result<Module> {
         // This is the main workhorse loop of the module translation. This will
         // iterate over the original wasm sections, raw, and create the new
         // module section-by-section. Sections are rewritten on-the-fly.
         let mut module = Module::new();
-        for (i, section) in info.raw_sections.iter().enumerate() {
-            let mut reader = info.get_binary_reader(i);
-            crate::module::match_section_id! {
-                match section.id;
+        self.parse_core_module(
+            &mut module,
+            wasmparser::Parser::new(0),
+            self.info.input_wasm,
+        )?;
 
-                Custom => {
-                    module.section(section);
-                },
-
-                Type => {
-                    self.filter_out(
-                        &mut module,
-                        0,
-                        TypeSectionReader::new(reader)?.into_iter_err_on_gc_types(),
-                        Item::Type,
-                        |me, ty, section| {
-                            me.translate_func_type(ty,section)?;
-                            Ok(())
-                        },
-                    )?;
-                },
-
-                Import => {
-                    // The import section is a little special because it defines
-                    // items in multiple index spaces. This means that the
-                    // `filter_out` helper can't be used and we have to process
-                    // everything manually here.
-                    let mut result = ImportSection::new();
-                    let mut function = 0;
-                    let mut global = 0;
-                    let mut table = 0;
-                    let mut memory = 0;
-                    let mut tag = 0;
-                    for item in ImportSectionReader::new(reader)? {
-                        let item = item?;
-                        match &item.ty {
-                            wasmparser::TypeRef::Func(ty) => {
-                                if self.item != Item::Function || self.idx != function {
-                                    let ty = self.remap(Item::Type, *ty)?;
-                                    result.import(item.module, item.name, EntityType::Function(ty));
-                                }
-                                function += 1;
-                            }
-                            wasmparser::TypeRef::Table(ty) => {
-                                if self.item != Item::Table || self.idx != table {
-                                    let ty = self.translate_table_type(ty)?;
-                                    result.import(item.module, item.name, ty);
-                                }
-                                table += 1;
-                            }
-                            wasmparser::TypeRef::Memory(ty) => {
-                                if self.item != Item::Memory || self.idx != memory {
-                                    let ty = self.translate_memory_type(ty)?;
-                                    result.import(item.module, item.name, ty);
-                                }
-                                memory += 1;
-                            }
-                            wasmparser::TypeRef::Global(ty) => {
-                                if self.item != Item::Global || self.idx != global {
-                                    let ty = self.translate_global_type(ty)?;
-                                    result.import(item.module, item.name, ty);
-                                }
-                                global += 1;
-                            }
-                            wasmparser::TypeRef::Tag(ty) => {
-                                if self.item != Item::Tag || self.idx != tag {
-                                    let ty = self.translate_tag_type(ty)?;
-                                    result.import(item.module, item.name, ty);
-                                }
-                                tag += 1;
-                            }
-                        }
-                    }
-                    module.section(&result);
-                },
-
-                Function => {
-                    self.filter_out(
-                        &mut module,
-                        info.num_imported_functions(),
-                        FunctionSectionReader::new(reader)?,
-                        Item::Function,
-                        |me, idx, section: &mut FunctionSection| {
-                            let idx = me.remap(Item::Type, idx)?;
-                            section.function(idx);
-                            Ok(())
-                        },
-                    )?;
-                },
-
-                Table => {
-                    self.filter_out(
-                        &mut module,
-                        info.num_imported_tables(),
-                        TableSectionReader::new(reader)?,
-                        Item::Table,
-                        |me, table, section: &mut TableSection| {
-                            let ty = me.translate_table_type(&table.ty)?;
-                            match &table.init {
-                                TableInit::RefNull => {
-                                    section.table(ty);
-                                }
-                                TableInit::Expr(expr) => {
-                                    let init = me.translate_const_expr(
-                                        expr,
-                                        &table.ty.element_type.into(),
-                                        ConstExprKind::TableInit,
-                                    )?;
-                                    section.table_with_init(ty, &init);
-                                }
-                            }
-                            Ok(())
-                        },
-                    )?;
-                },
-
-                Memory => {
-                    self.filter_out(
-                        &mut module,
-                        info.num_imported_memories(),
-                        MemorySectionReader::new(reader)?,
-                        Item::Memory,
-                        |me, ty, section: &mut MemorySection| {
-                            let ty = me.translate_memory_type(&ty)?;
-                            section.memory(ty);
-                            Ok(())
-                        },
-                    )?;
-                },
-
-                Global => {
-                    self.filter_out(
-                        &mut module,
-                        info.num_imported_globals(),
-                        GlobalSectionReader::new(reader)?,
-                        Item::Global,
-                        |me, ty, section| me.translate_global(ty, section),
-                    )?;
-                },
-
-                Export => {
-                    let mut result = ExportSection::new();
-                    for item in ExportSectionReader::new(reader)? {
-                        let item = item?;
-                        let (kind, index) = match &item.kind {
-                            ExternalKind::Func => {
-                                (ExportKind::Func, self.remap(Item::Function, item.index)?)
-                            }
-                            ExternalKind::Table => {
-                                (ExportKind::Table, self.remap(Item::Table, item.index)?)
-                            }
-                            ExternalKind::Memory => {
-                                (ExportKind::Memory, self.remap(Item::Memory, item.index)?)
-                            }
-                            ExternalKind::Tag => (ExportKind::Tag, self.remap(Item::Tag, item.index)?),
-                            ExternalKind::Global => {
-                                (ExportKind::Global, self.remap(Item::Global, item.index)?)
-                            }
-                        };
-                        result.export(item.name, kind, index);
-                    }
-                    module.section(&result);
-                },
-
-                Start => {
-                    let function_index = reader.read_var_u32()?;
-                    self.function_reference_action = Funcref::Skip;
-                    let function_index = self.remap(Item::Function, function_index)?;
-                    self.function_reference_action = Funcref::Save;
-                    module.section(&StartSection { function_index });
-                },
-
-                Element => {
-                    self.filter_out(
-                        &mut module,
-                        0,
-                        ElementSectionReader::new(reader)?,
-                        Item::Element,
-                        |me, ty, section| me.translate_element(ty, section),
-                    )?;
-                },
-
-                Code => {
-                    // In the code section we require that all functions
-                    // referenced in `ref.func` are referenced elsewhere in the
-                    // module, so indicate so in our internal state here.
-                    self.function_reference_action = Funcref::RequireReferenced;
-                    self.filter_out(
-                        &mut module,
-                        info.num_imported_functions(),
-                        CodeSectionReader::new(reader)?,
-                        Item::Function,
-                        |me, body, section| me.translate_code(body, section),
-                    )?;
-                },
-
-                Data => {
-                    self.filter_out(
-                        &mut module,
-                        0,
-                        DataSectionReader::new(reader)?,
-                        Item::Data,
-                        |me, ty, section| me.translate_data(ty, section),
-                    )?;
-                },
-
-                DataCount => {
-                    let count = reader.read_var_u32()?;
-                    // Note that the data count section is decremented here if
-                    // we're removing a data item, otherwise it's preserved
-                    // as-is.
-                    let count = if self.item == Item::Data {
-                        count - 1
-                    } else {
-                        count
-                    };
-                    module.section(&DataCountSection { count });
-                },
-
-                Tag => {
-                    self.filter_out(
-                        &mut module,
-                        info.num_imported_tags(),
-                        TagSectionReader::new(reader)?,
-                        Item::Tag,
-                        |me, ty, section: &mut TagSection| {
-                            let ty = me.translate_tag_type(&ty)?;
-                            section.tag(ty);
-                            Ok(())
-                        },
-                    )?;
-                },
-
-                _ => panic!("unknown id: {}", section.id),
-            };
+        // If an index was used that was actually being removed then flag this
+        // module as no longer applicable to mutate because the item wasn't
+        // actually a candidate for removal.
+        if self.used_index_that_was_removed {
+            return Err(Error::no_mutations_applicable());
         }
+
         Ok(module)
     }
 
@@ -367,41 +144,32 @@ impl RemoveItem {
     /// The `section` given, which has items of type `section_item`, will be
     /// iterated over and translated with the `encode` callback. The `encode`
     /// callback is only called for items we're actually preserving in this
-    /// module. The section is finally added to `module` at the end of
-    /// translation.
-    ///
-    /// The `offset` provided is the initial offset in the index space, for
-    /// example the global section starts at the offset equal to the number of
-    /// imported globals because local globals are numbered afterwards.
-    fn filter_out<'a, S, T>(
+    /// module.
+    fn filter_out<'a, T>(
         &mut self,
-        module: &mut Module,
-        offset: u32,
-        section: impl IntoIterator<Item = wasmparser::Result<S>>,
+        section: impl IntoIterator<Item = wasmparser::Result<T>>,
         section_item: Item,
-        encode: impl Fn(&mut Self, S, &mut T) -> Result<()>,
-    ) -> Result<()>
-    where
-        S: FromReader<'a>,
-        T: Default + Section,
-    {
-        let mut result = T::default();
-        let mut index = offset;
+        mut encode: impl FnMut(&mut Self, T) -> ReencodeResult<()>,
+    ) -> ReencodeResult<()> {
+        // Calculate the initial index by taking into account any imported items
+        // in this namespace (note that the filtering of imports doesn't use
+        // this function).
+        let mut index = match section_item {
+            Item::Function => self.info.num_imported_functions(),
+            Item::Table => self.info.num_imported_tables(),
+            Item::Tag => self.info.num_imported_tags(),
+            Item::Memory => self.info.num_imported_memories(),
+            Item::Global => self.info.num_imported_globals(),
+            Item::Data | Item::Element | Item::Type => 0,
+        };
         for item in section {
             let item = item?;
             if index != self.idx || section_item != self.item {
-                encode(self, item, &mut result)?;
+                encode(self, item)?;
             }
             index += 1;
         }
-        module.section(&result);
         Ok(())
-    }
-}
-
-impl Translator for RemoveItem {
-    fn as_obj(&mut self) -> &mut dyn Translator {
-        self
     }
 
     /// This is "the point" of this type. This function remaps an `idx`
@@ -421,7 +189,7 @@ impl Translator for RemoveItem {
     ///   try something else.
     /// * Finally our index is larger than the one being removed which means we
     ///   now decrement it by one to account for the removed item.
-    fn remap(&mut self, item: Item, idx: u32) -> Result<u32> {
+    fn remap(&mut self, item: Item, idx: u32) -> u32 {
         // If we're before the code section then all function references, no
         // matter where they are, are considered "referencing functions" so we
         // save the indices of that which is referenced.
@@ -433,19 +201,220 @@ impl Translator for RemoveItem {
 
         if item != self.item || idx < self.idx {
             // Different kind of item or a later item was removed, index doesn't change
-            Ok(idx)
+            idx
         } else if idx == self.idx {
             // If we're removing a referenced item then that means that this
-            // mutation fails.
-            Err(Error::no_mutations_applicable())
+            // mutation fails. Flag this for later failure and otherwise pass
+            // through the index as-is.
+            self.used_index_that_was_removed = true;
+            idx
         } else {
             // Otherwise this item comes after the item being removed, so
             // this item's index has decreased by one.
-            Ok(idx - 1)
+            idx - 1
+        }
+    }
+}
+
+impl Reencode for RemoveItem<'_> {
+    type Error = Error;
+
+    fn function_index(&mut self, idx: u32) -> u32 {
+        self.remap(Item::Function, idx)
+    }
+
+    fn table_index(&mut self, idx: u32) -> u32 {
+        self.remap(Item::Table, idx)
+    }
+
+    fn memory_index(&mut self, idx: u32) -> u32 {
+        self.remap(Item::Memory, idx)
+    }
+
+    fn tag_index(&mut self, idx: u32) -> u32 {
+        self.remap(Item::Tag, idx)
+    }
+
+    fn global_index(&mut self, idx: u32) -> u32 {
+        self.remap(Item::Global, idx)
+    }
+
+    fn type_index(&mut self, idx: u32) -> u32 {
+        self.remap(Item::Type, idx)
+    }
+
+    fn data_index(&mut self, idx: u32) -> u32 {
+        self.remap(Item::Data, idx)
+    }
+
+    fn element_index(&mut self, idx: u32) -> u32 {
+        self.remap(Item::Element, idx)
+    }
+
+    fn parse_type_section(
+        &mut self,
+        types: &mut wasm_encoder::TypeSection,
+        section: wasmparser::TypeSectionReader<'_>,
+    ) -> ReencodeResult<()> {
+        self.filter_out(section, Item::Type, |me, rec_group| {
+            me.parse_recursive_type_group(types.ty(), rec_group)?;
+            Ok(())
+        })
+    }
+
+    fn parse_import_section(
+        &mut self,
+        imports: &mut wasm_encoder::ImportSection,
+        section: wasmparser::ImportSectionReader<'_>,
+    ) -> ReencodeResult<()> {
+        // The import section is a little special because it defines
+        // items in multiple index spaces. This means that the
+        // `filter_out` helper can't be used and we have to process
+        // everything manually here.
+        let mut function = 0;
+        let mut global = 0;
+        let mut table = 0;
+        let mut memory = 0;
+        let mut tag = 0;
+        for item in section {
+            let item = item?;
+            let retain;
+            match &item.ty {
+                wasmparser::TypeRef::Func(_) => {
+                    retain = self.item != Item::Function || self.idx != function;
+                    function += 1;
+                }
+                wasmparser::TypeRef::Table(_) => {
+                    retain = self.item != Item::Table || self.idx != table;
+                    table += 1;
+                }
+                wasmparser::TypeRef::Memory(_) => {
+                    retain = self.item != Item::Memory || self.idx != memory;
+                    memory += 1;
+                }
+                wasmparser::TypeRef::Global(_) => {
+                    retain = self.item != Item::Global || self.idx != global;
+                    global += 1;
+                }
+                wasmparser::TypeRef::Tag(_) => {
+                    retain = self.item != Item::Tag || self.idx != tag;
+                    tag += 1;
+                }
+            }
+            if retain {
+                self.parse_import(imports, item)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn parse_function_section(
+        &mut self,
+        funcs: &mut wasm_encoder::FunctionSection,
+        section: wasmparser::FunctionSectionReader<'_>,
+    ) -> ReencodeResult<()> {
+        self.filter_out(section, Item::Function, |me, func| {
+            funcs.function(me.type_index(func));
+            Ok(())
+        })
+    }
+
+    fn parse_table_section(
+        &mut self,
+        tables: &mut wasm_encoder::TableSection,
+        section: wasmparser::TableSectionReader<'_>,
+    ) -> ReencodeResult<()> {
+        self.filter_out(section, Item::Table, |me, table| {
+            me.parse_table(tables, table)?;
+            Ok(())
+        })
+    }
+
+    fn parse_memory_section(
+        &mut self,
+        memories: &mut wasm_encoder::MemorySection,
+        section: wasmparser::MemorySectionReader<'_>,
+    ) -> ReencodeResult<()> {
+        self.filter_out(section, Item::Memory, |me, memory| {
+            memories.memory(me.memory_type(memory));
+            Ok(())
+        })
+    }
+
+    fn parse_global_section(
+        &mut self,
+        globals: &mut wasm_encoder::GlobalSection,
+        section: wasmparser::GlobalSectionReader<'_>,
+    ) -> ReencodeResult<()> {
+        self.filter_out(section, Item::Global, |me, global| {
+            me.parse_global(globals, global)?;
+            Ok(())
+        })
+    }
+
+    fn parse_element_section(
+        &mut self,
+        elements: &mut wasm_encoder::ElementSection,
+        section: wasmparser::ElementSectionReader<'_>,
+    ) -> ReencodeResult<()> {
+        self.filter_out(section, Item::Element, |me, elem| {
+            me.parse_element(elements, elem)?;
+            Ok(())
+        })
+    }
+
+    fn parse_data_section(
+        &mut self,
+        ret: &mut wasm_encoder::DataSection,
+        section: wasmparser::DataSectionReader<'_>,
+    ) -> ReencodeResult<()> {
+        self.filter_out(section, Item::Data, |me, data| {
+            me.parse_data(ret, data)?;
+            Ok(())
+        })
+    }
+
+    fn parse_tag_section(
+        &mut self,
+        tags: &mut wasm_encoder::TagSection,
+        section: wasmparser::TagSectionReader<'_>,
+    ) -> ReencodeResult<()> {
+        self.filter_out(section, Item::Tag, |me, tag| {
+            tags.tag(me.tag_type(tag));
+            Ok(())
+        })
+    }
+
+    fn data_count(&mut self, count: u32) -> u32 {
+        // Note that the data count section is decremented here if
+        // we're removing a data item, otherwise it's preserved
+        // as-is.
+        if self.item == Item::Data {
+            count - 1
+        } else {
+            count
         }
     }
 
-    fn translate_op(&mut self, op: &Operator<'_>) -> Result<Instruction<'static>> {
+    fn start_section(&mut self, func: u32) -> u32 {
+        self.function_reference_action = Funcref::Skip;
+        let func = self.remap(Item::Function, func);
+        self.function_reference_action = Funcref::Save;
+        func
+    }
+
+    fn parse_code_section(
+        &mut self,
+        code: &mut wasm_encoder::CodeSection,
+        section: wasmparser::CodeSectionReader<'_>,
+    ) -> ReencodeResult<()> {
+        self.function_reference_action = Funcref::RequireReferenced;
+        self.filter_out(section, Item::Function, |me, body| {
+            me.parse_function_body(code, body)
+        })
+    }
+
+    fn instruction<'a>(&mut self, op: wasmparser::Operator<'a>) -> ReencodeResult<Instruction<'a>> {
         // The reason for this is that in the code section instructions
         // such as `ref.func 0` are only valid if function 0 is
         // otherwise referenced somewhere in the module via things like
@@ -457,15 +426,15 @@ impl Translator for RemoveItem {
         // instruction it'll return an error if the index isn't
         // otherwise referenced (probably because we removed the one
         // item that referenced it).
-        if let Operator::RefFunc { function_index } = op {
+        if let wasmparser::Operator::RefFunc { function_index } = op {
             if let Funcref::RequireReferenced = self.function_reference_action {
-                if !self.referenced_functions.contains(function_index) {
-                    return Err(Error::no_mutations_applicable());
+                if !self.referenced_functions.contains(&function_index) {
+                    self.used_index_that_was_removed = true;
                 }
             }
         }
 
-        translate::op(self, op)
+        wasm_encoder::reencode::utils::instruction(self, op)
     }
 }
 
