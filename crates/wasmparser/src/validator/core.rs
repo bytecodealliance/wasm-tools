@@ -1165,6 +1165,10 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
         Some(&self.types[id])
     }
 
+    fn sub_type_at_id(&self, at: CoreTypeId) -> Option<&SubType> {
+        Some(&self.types[at])
+    }
+
     fn type_id_of_function(&self, at: u32) -> Option<CoreTypeId> {
         let type_index = self.module.functions.get(at as usize)?;
         self.module.types.get(*type_index as usize).copied()
@@ -1238,6 +1242,11 @@ impl WasmModuleResources for ValidatorResources {
         let id = *self.0.types.get(at as usize)?;
         let types = self.0.snapshot.as_ref().unwrap();
         Some(&types[id])
+    }
+
+    fn sub_type_at_id(&self, at: CoreTypeId) -> Option<&SubType> {
+        let types = self.0.snapshot.as_ref().unwrap();
+        Some(&types[at])
     }
 
     fn type_id_of_function(&self, at: u32) -> Option<CoreTypeId> {

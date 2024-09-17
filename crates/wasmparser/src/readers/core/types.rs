@@ -506,6 +506,13 @@ impl SubType {
         self.composite_type.unwrap_struct()
     }
 
+    /// Unwrap an `ContType` or panic.
+    ///
+    /// Does not check finality or whether there is a supertype.
+    pub fn unwrap_cont(&self) -> &ContType {
+        self.composite_type.unwrap_cont()
+    }
+
     /// Maps any `UnpackedIndex` via the specified closure.
     #[cfg(feature = "validate")]
     pub(crate) fn remap_indices(
