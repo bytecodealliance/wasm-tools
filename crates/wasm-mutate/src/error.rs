@@ -56,13 +56,22 @@ impl From<wasmparser::BinaryReaderError> for Error {
     }
 }
 
-impl From<wasm_encoder::reencode::Error<Error>> for Error {
-    fn from(e: wasm_encoder::reencode::Error<Error>) -> Self {
+impl<E> From<wasm_encoder::reencode::Error<E>> for Error
+where
+    E: Into<Error> + std::fmt::Display,
+{
+    fn from(e: wasm_encoder::reencode::Error<E>) -> Self {
         match e {
             wasm_encoder::reencode::Error::ParseError(e) => Error::parse(e),
-            wasm_encoder::reencode::Error::UserError(e) => e,
+            wasm_encoder::reencode::Error::UserError(e) => e.into(),
             other => Error::other(other.to_string()),
         }
+    }
+}
+
+impl From<std::convert::Infallible> for Error {
+    fn from(i: std::convert::Infallible) -> Error {
+        match i {}
     }
 }
 
