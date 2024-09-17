@@ -33,13 +33,14 @@ use self::{
         lang::*,
     },
 };
-use super::{DefaultTranslator, Mutator, OperatorAndByteOffset, Translator};
+use super::{Mutator, OperatorAndByteOffset};
 use crate::{
     module::{map_type, PrimitiveTypeInfo},
     Error, ErrorKind, ModuleInfo, Result, WasmMutate,
 };
 use egg::{Rewrite, Runner};
 use rand::Rng;
+use wasm_encoder::reencode::{Reencode, RoundtripReencoder};
 use wasm_encoder::{CodeSection, ConstExpr, Function, GlobalSection, Module, ValType};
 use wasmparser::{CodeSectionReader, FunctionBody, GlobalSectionReader, LocalsReader};
 
@@ -292,10 +293,8 @@ impl PeepholeMutator {
                             // new raw section
                             let reader = config.info().get_binary_reader(global_section);
                             let globalreader = GlobalSectionReader::new(reader)?;
-
-                            for g in globalreader {
-                                DefaultTranslator.translate_global(g?, &mut new_global_section)?;
-                            }
+                            RoundtripReencoder
+                                .parse_global_section(&mut new_global_section, globalreader)?;
                         }
 
                         if needed_resources.len() > 0 {
