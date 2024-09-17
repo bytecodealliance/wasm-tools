@@ -8,7 +8,7 @@
 //! `wasm_encoder` structures.
 
 use crate::mutators::{Item, Mutator};
-use crate::Error;
+use crate::{Error, ReencodeResult};
 use crate::{ModuleInfo, Result, WasmMutate};
 use rand::Rng;
 use std::collections::HashSet;
@@ -113,8 +113,6 @@ enum Funcref {
     /// and if they're not then an error happens.
     RequireReferenced,
 }
-
-type ReencodeResult<T, E = Error> = Result<T, wasm_encoder::reencode::Error<E>>;
 
 impl RemoveItem<'_> {
     fn remove(&mut self) -> Result<Module> {
