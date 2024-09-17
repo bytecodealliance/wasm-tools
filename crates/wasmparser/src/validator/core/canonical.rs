@@ -246,6 +246,35 @@ pub(crate) trait InternRecGroup {
                     }
                 }
             }
+            CompositeInnerType::Cont(t) => {
+                if !features.stack_switching() {
+                    bail!(
+                        offset,
+                        "cannot define continuation types when stack switching is disabled",
+                    );
+                }
+                if !features.gc_types() {
+                    bail!(
+                        offset,
+                        "cannot define continuation types when gc types are disabled",
+                    );
+                }
+                // Check that the type index points to a valid function type.
+                let id = match t.0 {
+                    UnpackedIndex::Id(id) => id,
+                    UnpackedIndex::Module(idx) => self.type_id_at(idx, offset)?,
+                    UnpackedIndex::RecGroup(_) => unreachable!(),
+                };
+                match types[id].composite_type.inner {
+                    CompositeInnerType::Func(_) => (),
+                    _ => {
+                        return Err(BinaryReaderError::new(
+                            crate::validator::format!("non-function type {}", id.index()),
+                            offset,
+                        ))
+                    }
+                }
+            }
         }
         Ok(())
     }

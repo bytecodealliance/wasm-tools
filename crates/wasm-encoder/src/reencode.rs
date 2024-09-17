@@ -127,6 +127,13 @@ pub trait Reencode {
         utils::func_type(self, func_ty)
     }
 
+    fn cont_type(
+        &mut self,
+        cont_ty: wasmparser::ContType,
+    ) -> Result<crate::ContType, Error<Self::Error>> {
+        utils::cont_type(self, cont_ty)
+    }
+
     fn global_type(
         &mut self,
         global_ty: wasmparser::GlobalType,
@@ -1008,6 +1015,8 @@ pub mod utils {
             I31 => crate::AbstractHeapType::I31,
             Exn => crate::AbstractHeapType::Exn,
             NoExn => crate::AbstractHeapType::NoExn,
+            Cont => crate::AbstractHeapType::Cont,
+            NoCont => crate::AbstractHeapType::NoCont,
         }
     }
 
@@ -1071,6 +1080,9 @@ pub mod utils {
             wasmparser::CompositeInnerType::Struct(s) => {
                 crate::CompositeInnerType::Struct(reencoder.struct_type(s)?)
             }
+            wasmparser::CompositeInnerType::Cont(c) => {
+                crate::CompositeInnerType::Cont(reencoder.cont_type(c)?)
+            }
         };
         Ok(crate::CompositeType {
             inner,
@@ -1131,6 +1143,13 @@ pub mod utils {
             wasmparser::StorageType::I16 => crate::StorageType::I16,
             wasmparser::StorageType::Val(v) => crate::StorageType::Val(reencoder.val_type(v)?),
         })
+    }
+
+    pub fn cont_type<T: ?Sized + Reencode>(
+        reencoder: &mut T,
+        cont_ty: wasmparser::ContType,
+    ) -> Result<crate::ContType, Error<T::Error>> {
+        Ok(crate::ContType(reencoder.type_index_unpacked(cont_ty.0)?))
     }
 
     pub fn val_type<T: ?Sized + Reencode>(

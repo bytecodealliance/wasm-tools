@@ -4740,27 +4740,27 @@ where
         });
         Ok(())
     }
-    fn visit_cont_new(&mut self, type_index: u32) -> Self::Output {
+    fn visit_cont_new(&mut self, _type_index: u32) -> Self::Output {
         Ok(())
     }
-    fn visit_cont_bind(&mut self, argument_index: u32, result_index: u32) -> Self::Output {
+    fn visit_cont_bind(&mut self, _argument_index: u32, _result_index: u32) -> Self::Output {
         Ok(())
     }
-    fn visit_suspend(&mut self, tag_index: u32) -> Self::Output {
+    fn visit_suspend(&mut self, _tag_index: u32) -> Self::Output {
         Ok(())
     }
-    fn visit_resume(&mut self, type_index: u32, mut handlers: ResumeTable) -> Self::Output {
+    fn visit_resume(&mut self, _type_index: u32, mut _handlers: ResumeTable) -> Self::Output {
         Ok(())
     }
     fn visit_resume_throw(
         &mut self,
-        type_index: u32,
-        tag_index: u32,
-        mut handlers: ResumeTable,
+        _type_index: u32,
+        _tag_index: u32,
+        mut _handlers: ResumeTable,
     ) -> Self::Output {
         Ok(())
     }
-    fn visit_switch(&mut self, type_index: u32, tag_index: u32) -> Self::Output {
+    fn visit_switch(&mut self, _type_index: u32, _tag_index: u32) -> Self::Output {
         Ok(())
     }
 }

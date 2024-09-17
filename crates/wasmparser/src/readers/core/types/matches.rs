@@ -14,8 +14,8 @@
 
 use crate::{
     types::{CoreTypeId, RecGroupId, TypeList},
-    ArrayType, CompositeInnerType, CompositeType, FieldType, FuncType, RefType, StorageType,
-    StructType, SubType, ValType,
+    ArrayType, CompositeInnerType, CompositeType, ContType, FieldType, FuncType, RefType,
+    StorageType, StructType, SubType, ValType,
 };
 
 /// Wasm type matching.
@@ -128,6 +128,13 @@ impl<'a> Matches for WithRecGroup<&'a CompositeType> {
                 WithRecGroup::map(b, |_| sb),
             ),
             (Struct(_), _) => false,
+
+            (Cont(ca), Cont(cb)) => Matches::matches(
+                types,
+                WithRecGroup::map(a, |_| ca),
+                WithRecGroup::map(b, |_| cb),
+            ),
+            (Cont(_), _) => false,
         }
     }
 }
@@ -248,6 +255,40 @@ impl Matches for WithRecGroup<StorageType> {
                 WithRecGroup::map(b, |_| vb),
             ),
             (ST::Val(_), _) => false,
+        }
+    }
+}
+
+impl<'a> Matches for WithRecGroup<&'a ContType> {
+    fn matches(types: &TypeList, a: Self, b: Self) -> bool {
+        match (*a, *b) {
+            (ContType(ca), ContType(cb)) => {
+                ca == cb || {
+                    let core_id_a = if let Some(ida) = ca.as_core_type_id() {
+                        ida
+                    } else {
+                        types
+                            .at_canonicalized_unpacked_index(
+                                WithRecGroup::rec_group(a),
+                                *ca,
+                                usize::MAX,
+                            )
+                            .expect("type references are checked during canonicalization")
+                    };
+                    let core_id_b = if let Some(idb) = cb.as_core_type_id() {
+                        idb
+                    } else {
+                        types
+                            .at_canonicalized_unpacked_index(
+                                WithRecGroup::rec_group(b),
+                                *cb,
+                                usize::MAX,
+                            )
+                            .expect("type references are checked during canonicalization")
+                    };
+                    types.id_is_subtype(core_id_a, core_id_b)
+                }
+            }
         }
     }
 }

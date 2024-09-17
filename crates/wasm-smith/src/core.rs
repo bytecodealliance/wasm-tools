@@ -797,7 +797,7 @@ impl Module {
                     Extern => {
                         choices.push(ht(NoExtern));
                     }
-                    Exn | NoExn | None | NoExtern | NoFunc => {}
+                    Exn | NoExn | None | NoExtern | NoFunc | Cont | NoCont => {}
                 }
             }
             HT::Concrete(idx) => {
@@ -918,7 +918,10 @@ impl Module {
                     Eq => {
                         choices.push(ht(Any));
                     }
-                    Exn | Any | Func | Extern => {}
+                    NoCont => {
+                        choices.push(ht(Cont));
+                    }
+                    Exn | Any | Func | Extern | Cont => {}
                 }
             }
             HT::Concrete(mut idx) => {

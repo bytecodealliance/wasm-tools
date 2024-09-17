@@ -1,7 +1,8 @@
 use super::{Print, Printer, State};
 use anyhow::{anyhow, bail, Result};
 use wasmparser::{
-    BlockType, BrTable, Catch, MemArg, Ordering, RefType, ResumeTable, TryTable, VisitOperator,
+    BlockType, BrTable, Catch, Handle, MemArg, Ordering, RefType, ResumeTable, TryTable,
+    VisitOperator,
 };
 
 pub struct PrintOperator<'printer, 'state, 'a, 'b> {
@@ -401,7 +402,24 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
         Ok(())
     }
 
-    fn handlers(&mut self, handlers: ResumeTable) -> Result<()> {
+    fn handlers(&mut self, table: ResumeTable) -> Result<()> {
+        for handle in table.handlers {
+            self.result().write_str(" ")?;
+            match handle {
+                Handle::OnLabel { tag, label } => {
+                    self.printer.start_group("on")?;
+                    self.tag_index(tag)?;
+                    self.relative_depth(label)?;
+                    self.printer.end_group()?;
+                }
+                Handle::OnSwitch { tag } => {
+                    self.printer.start_group("on")?;
+                    self.tag_index(tag)?;
+                    self.result().write_str(" switch")?;
+                    self.printer.end_group()?;
+                }
+            }
+        }
         Ok(())
     }
 }
