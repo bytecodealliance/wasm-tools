@@ -23,17 +23,9 @@ pub fn generate_valid_module(
 
     // These are disabled in the swarm config by default, but we want to test
     // them. Use the input data to determine whether these features are enabled.
-    config.simd_enabled = u.arbitrary()?;
-    config.relaxed_simd_enabled = config.simd_enabled && u.arbitrary()?;
     config.memory64_enabled = u.arbitrary()?;
-    config.threads_enabled = u.arbitrary()?;
-    config.exceptions_enabled = u.arbitrary()?;
     config.canonicalize_nans = u.arbitrary()?;
-    config.tail_call_enabled = u.arbitrary()?;
     config.custom_page_sizes_enabled = u.arbitrary()?;
-
-    config.gc_enabled = u.arbitrary()?;
-    config.reference_types_enabled = config.reference_types_enabled || config.gc_enabled;
 
     configure(&mut config, u)?;
 
@@ -81,7 +73,21 @@ pub fn generate_valid_component(
 }
 
 pub fn validator_for_config(config: &Config) -> wasmparser::Validator {
-    let mut features = WasmFeatures::default();
+    // Start with the bare-bones set of features that wasm started with. Then
+    // wasm-smith doesn't have knobs to enable/disable mutable globals so
+    // unconditionally enable that as well.
+    let mut features = WasmFeatures::WASM1 | WasmFeatures::MUTABLE_GLOBAL;
+
+    // Next conditionally enable/disable features based on `config`.
+    features.set(
+        WasmFeatures::SIGN_EXTENSION,
+        config.sign_extension_ops_enabled,
+    );
+    features.set(WasmFeatures::TAIL_CALL, config.tail_call_enabled);
+    features.set(
+        WasmFeatures::SATURATING_FLOAT_TO_INT,
+        config.saturating_float_to_int_enabled,
+    );
     features.set(WasmFeatures::MULTI_VALUE, config.multi_value_enabled);
     features.set(WasmFeatures::MULTI_MEMORY, config.max_memories > 1);
     features.set(WasmFeatures::BULK_MEMORY, config.bulk_memory_enabled);

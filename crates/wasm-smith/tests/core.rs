@@ -93,6 +93,8 @@ fn smoke_can_smith_valid_webassembly_one_point_oh() {
         cfg.relaxed_simd_enabled = false;
         cfg.exceptions_enabled = false;
         cfg.memory64_enabled = false;
+        cfg.reference_types_enabled = false;
+        cfg.gc_enabled = false;
         cfg.max_memories = 1;
         cfg.max_tables = 1;
         let features = parser_features_from_config(&cfg);
