@@ -99,6 +99,9 @@ impl State {
         let mut config = wasm_smith::Config::arbitrary(&mut u)?;
         config.allow_start_export = false;
 
+        config.exceptions_enabled = false; // Not implemented by Wasmtime
+        config.threads_enabled = false; // not enabled by default in Wasmtime
+
         // NB: just added "table64" support to this and wasmtime doesn't
         // implement that yet
         config.memory64_enabled = false;
