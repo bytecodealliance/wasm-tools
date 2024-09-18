@@ -106,22 +106,22 @@
     )
   )
   (core module (;4;)
-    (type (;0;) (func (param i32)))
-    (type (;1;) (func (param i32 i32 i32 i32) (result i32)))
+    (type (;0;) (func (param i32 i32 i32 i32) (result i32)))
+    (type (;1;) (func (param i32)))
     (table (;0;) 2 2 funcref)
-    (export "0" (func $indirect-$root-bar))
-    (export "1" (func $adapt-foo-cabi_realloc))
+    (export "0" (func $adapt-foo-cabi_realloc))
+    (export "1" (func $indirect-$root-bar))
     (export "$imports" (table 0))
-    (func $indirect-$root-bar (;0;) (type 0) (param i32)
-      local.get 0
-      i32.const 0
-      call_indirect (type 0)
-    )
-    (func $adapt-foo-cabi_realloc (;1;) (type 1) (param i32 i32 i32 i32) (result i32)
+    (func $adapt-foo-cabi_realloc (;0;) (type 0) (param i32 i32 i32 i32) (result i32)
       local.get 0
       local.get 1
       local.get 2
       local.get 3
+      i32.const 0
+      call_indirect (type 0)
+    )
+    (func $indirect-$root-bar (;1;) (type 1) (param i32)
+      local.get 0
       i32.const 1
       call_indirect (type 1)
     )
@@ -130,8 +130,8 @@
     )
   )
   (core module (;5;)
-    (type (;0;) (func (param i32)))
-    (type (;1;) (func (param i32 i32 i32 i32) (result i32)))
+    (type (;0;) (func (param i32 i32 i32 i32) (result i32)))
+    (type (;1;) (func (param i32)))
     (import "" "0" (func (;0;) (type 0)))
     (import "" "1" (func (;1;) (type 1)))
     (import "" "$imports" (table (;0;) 2 2 funcref))
@@ -141,7 +141,7 @@
     )
   )
   (core instance (;0;) (instantiate 4))
-  (alias core export 0 "1" (core func (;0;)))
+  (alias core export 0 "0" (core func (;0;)))
   (core instance (;1;)
     (export "cabi_realloc" (func 0))
   )
