@@ -151,7 +151,7 @@ pub(crate) fn encode(
     e.typed_section(&tables);
     e.typed_section(&memories);
     e.typed_section(&tags);
-    e.section_list(SectionId::Global, Global, &globals);
+    e.typed_section(&globals);
     e.typed_section(&exports);
     e.custom_sections(Before(Start));
     if let Some(start) = start.get(0) {
@@ -620,20 +620,6 @@ impl Index<'_> {
     }
 }
 
-impl<'a> Encode for GlobalType<'a> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.ty.encode(e);
-        let mut flags = 0;
-        if self.mutable {
-            flags |= 0b01;
-        }
-        if self.shared {
-            flags |= 0b10;
-        }
-        e.push(flags);
-    }
-}
-
 impl SectionItem for Table<'_> {
     type Section = wasm_encoder::TableSection;
     const ANCHOR: CustomPlaceAnchor = CustomPlaceAnchor::Table;
@@ -673,16 +659,17 @@ impl SectionItem for Memory<'_> {
     }
 }
 
-impl Encode for Global<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
+impl SectionItem for Global<'_> {
+    type Section = wasm_encoder::GlobalSection;
+    const ANCHOR: CustomPlaceAnchor = CustomPlaceAnchor::Global;
+
+    fn encode(&self, section: &mut wasm_encoder::GlobalSection) {
         assert!(self.exports.names.is_empty());
-        self.ty.encode(e);
-        match &self.kind {
-            GlobalKind::Inline(expr) => {
-                let _hints = expr.encode(e, None);
-            }
+        let init = match &self.kind {
+            GlobalKind::Inline(expr) => expr.to_const_expr(None),
             _ => panic!("GlobalKind should be inline during encoding"),
-        }
+        };
+        section.global(self.ty.to_global_type(), &init);
     }
 }
 
