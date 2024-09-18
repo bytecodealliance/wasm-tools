@@ -2377,6 +2377,27 @@ impl Printer<'_, '_> {
                     self.end_group()?;
                     state.core.funcs += 1;
                 }
+                CanonicalFunction::ThreadSpawn {
+                    func_ty_index: func_index,
+                } => {
+                    self.start_group("core func ")?;
+                    self.print_name(&state.core.func_names, state.core.funcs)?;
+                    self.result.write_str(" ")?;
+                    self.start_group("canon thread.spawn ")?;
+                    self.print_idx(&state.core.type_names, func_index)?;
+                    self.end_group()?;
+                    self.end_group()?;
+                    state.core.funcs += 1;
+                }
+                CanonicalFunction::ThreadHwConcurrency => {
+                    self.start_group("core func ")?;
+                    self.print_name(&state.core.func_names, state.core.funcs)?;
+                    self.result.write_str(" ")?;
+                    self.start_group("canon thread.hw_concurrency")?;
+                    self.end_group()?;
+                    self.end_group()?;
+                    state.core.funcs += 1;
+                }
             }
         }
 

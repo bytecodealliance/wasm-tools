@@ -2627,6 +2627,14 @@ impl TypeList {
         return (true, rec_group_id);
     }
 
+    /// Helper for interning a sub type as a rec group; see
+    /// [`Self::intern_canonical_rec_group`].
+    pub fn intern_sub_type(&mut self, sub_ty: SubType, offset: usize) -> CoreTypeId {
+        let (_is_new, group_id) =
+            self.intern_canonical_rec_group(RecGroup::implicit(offset, sub_ty));
+        self[group_id].start
+    }
+
     /// Get the `CoreTypeId` for a local index into a rec group.
     pub fn rec_group_local_id(
         &self,

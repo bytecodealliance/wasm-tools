@@ -945,6 +945,13 @@ pub mod component_utils {
                 let resource = reencoder.component_type_index(resource);
                 section.resource_rep(resource);
             }
+            wasmparser::CanonicalFunction::ThreadSpawn { func_ty_index } => {
+                let func_ty = reencoder.type_index(func_ty_index);
+                section.thread_spawn(func_ty);
+            }
+            wasmparser::CanonicalFunction::ThreadHwConcurrency => {
+                section.thread_hw_concurrency();
+            }
         }
         Ok(())
     }

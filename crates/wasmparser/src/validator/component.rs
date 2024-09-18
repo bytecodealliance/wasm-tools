@@ -10,20 +10,20 @@ use super::{
         ModuleType, RecordType, Remapping, ResourceId, TypeAlloc, TypeList, VariantCase,
     },
 };
+use crate::collections::index_map::Entry;
+use crate::limits::*;
 use crate::prelude::*;
+use crate::types::{
+    ComponentAnyTypeId, ComponentCoreModuleTypeId, ComponentCoreTypeId, ComponentDefinedType,
+    ComponentEntityType, Context, CoreInstanceTypeKind, LoweringInfo, Remap, SubtypeCx, TupleType,
+    TypeInfo, VariantType,
+};
 use crate::validator::names::{ComponentName, ComponentNameKind, KebabStr, KebabString};
-use crate::{collections::index_map::Entry, CompositeInnerType};
 use crate::{
-    limits::*,
-    types::{
-        ComponentAnyTypeId, ComponentCoreModuleTypeId, ComponentCoreTypeId, ComponentDefinedType,
-        ComponentEntityType, Context, CoreInstanceTypeKind, LoweringInfo, Remap, SubtypeCx,
-        TupleType, TypeInfo, VariantType,
-    },
     BinaryReaderError, CanonicalOption, ComponentExportName, ComponentExternalKind,
-    ComponentOuterAliasKind, ComponentTypeRef, CompositeType, ExternalKind, FuncType, GlobalType,
-    InstantiationArgKind, MemoryType, RecGroup, Result, SubType, TableType, TypeBounds, ValType,
-    WasmFeatures,
+    ComponentOuterAliasKind, ComponentTypeRef, CompositeInnerType, ExternalKind, FuncType,
+    GlobalType, InstantiationArgKind, MemoryType, PackedIndex, RefType, Result, SubType, TableType,
+    TypeBounds, ValType, WasmFeatures,
 };
 use core::mem;
 
@@ -127,7 +127,7 @@ pub(crate) struct ComponentState {
     /// itself.
     ///
     /// The `Option<ValType>` in this mapping is whether or not the underlying
-    /// reprsentation of the resource is known to this component. Immediately
+    /// representation of the resource is known to this component. Immediately
     /// defined resources, for example, will have `Some(I32)` here. Resources
     /// that come from transitively defined components, for example, will have
     /// `None`. In the type context all entries here are `None`.
@@ -1001,19 +1001,8 @@ impl ComponentState {
 
         self.check_options(None, &info, &options, types, offset)?;
 
-        let composite_type = CompositeType {
-            inner: CompositeInnerType::Func(info.into_func_type()),
-            shared: false,
-        };
-        let lowered_ty = SubType {
-            is_final: true,
-            supertype_idx: None,
-            composite_type,
-        };
-
-        let (_is_new, group_id) =
-            types.intern_canonical_rec_group(RecGroup::implicit(offset, lowered_ty));
-        let id = types[group_id].start;
+        let lowered_ty = SubType::func(info.into_func_type(), false);
+        let id = types.intern_sub_type(lowered_ty, offset);
         self.core_funcs.push(id);
 
         Ok(())
@@ -1026,18 +1015,9 @@ impl ComponentState {
         offset: usize,
     ) -> Result<()> {
         let rep = self.check_local_resource(resource, types, offset)?;
-        let composite_type = CompositeType {
-            inner: CompositeInnerType::Func(FuncType::new([rep], [ValType::I32])),
-            shared: false,
-        };
-        let core_ty = SubType {
-            is_final: true,
-            supertype_idx: None,
-            composite_type,
-        };
-        let (_is_new, group_id) =
-            types.intern_canonical_rec_group(RecGroup::implicit(offset, core_ty));
-        let id = types[group_id].start;
+        let func_ty = FuncType::new([rep], [ValType::I32]);
+        let core_ty = SubType::func(func_ty, false);
+        let id = types.intern_sub_type(core_ty, offset);
         self.core_funcs.push(id);
         Ok(())
     }
@@ -1049,18 +1029,9 @@ impl ComponentState {
         offset: usize,
     ) -> Result<()> {
         self.resource_at(resource, types, offset)?;
-        let composite_type = CompositeType {
-            inner: CompositeInnerType::Func(FuncType::new([ValType::I32], [])),
-            shared: false,
-        };
-        let core_ty = SubType {
-            is_final: true,
-            supertype_idx: None,
-            composite_type,
-        };
-        let (_is_new, group_id) =
-            types.intern_canonical_rec_group(RecGroup::implicit(offset, core_ty));
-        let id = types[group_id].start;
+        let func_ty = FuncType::new([ValType::I32], []);
+        let core_ty = SubType::func(func_ty, false);
+        let id = types.intern_sub_type(core_ty, offset);
         self.core_funcs.push(id);
         Ok(())
     }
@@ -1072,18 +1043,9 @@ impl ComponentState {
         offset: usize,
     ) -> Result<()> {
         let rep = self.check_local_resource(resource, types, offset)?;
-        let composite_type = CompositeType {
-            inner: CompositeInnerType::Func(FuncType::new([ValType::I32], [rep])),
-            shared: false,
-        };
-        let core_ty = SubType {
-            is_final: true,
-            supertype_idx: None,
-            composite_type,
-        };
-        let (_is_new, group_id) =
-            types.intern_canonical_rec_group(RecGroup::implicit(offset, core_ty));
-        let id = types[group_id].start;
+        let func_ty = FuncType::new([ValType::I32], [rep]);
+        let core_ty = SubType::func(func_ty, false);
+        let id = types.intern_sub_type(core_ty, offset);
         self.core_funcs.push(id);
         Ok(())
     }
@@ -1110,6 +1072,78 @@ impl ComponentState {
             return Ok(id);
         }
         bail!(offset, "type index {} is not a resource type", idx)
+    }
+
+    pub fn thread_spawn(
+        &mut self,
+        func_ty_index: u32,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.shared_everything_threads() {
+            bail!(
+                offset,
+                "`thread.spawn` requires the shared-everything-threads proposal"
+            )
+        }
+
+        // Validate the type accepted by `thread.spawn`.
+        let core_type_id = match self.core_type_at(func_ty_index, offset)? {
+            ComponentCoreTypeId::Sub(c) => c,
+            ComponentCoreTypeId::Module(_) => bail!(offset, "expected a core function type"),
+        };
+        let sub_ty = &types[core_type_id];
+        if !sub_ty.composite_type.shared {
+            bail!(offset, "spawn type must be shared");
+        }
+        match &sub_ty.composite_type.inner {
+            CompositeInnerType::Func(func_ty) => {
+                if func_ty.params() != [ValType::I32] {
+                    bail!(
+                        offset,
+                        "spawn function must take a single `i32` argument (currently)"
+                    );
+                }
+                if func_ty.results() != [] {
+                    bail!(offset, "spawn function must not return any values");
+                }
+            }
+            _ => bail!(offset, "spawn type must be a function"),
+        }
+
+        // Insert the core function.
+        let packed_index = PackedIndex::from_id(core_type_id).ok_or_else(|| {
+            format_err!(offset, "implementation limit: too many types in `TypeList`")
+        })?;
+        let start_func_ref = RefType::concrete(true, packed_index);
+        let func_ty = FuncType::new([ValType::Ref(start_func_ref), ValType::I32], [ValType::I32]);
+        let core_ty = SubType::func(func_ty, true);
+        let id = types.intern_sub_type(core_ty, offset);
+        self.core_funcs.push(id);
+
+        Ok(())
+    }
+
+    pub fn thread_hw_concurrency(
+        &mut self,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.shared_everything_threads() {
+            bail!(
+                offset,
+                "`thread.hw_concurrency` requires the shared-everything-threads proposal"
+            )
+        }
+
+        let func_ty = FuncType::new([], [ValType::I32]);
+        let core_ty = SubType::func(func_ty, true);
+        let id = types.intern_sub_type(core_ty, offset);
+        self.core_funcs.push(id);
+
+        Ok(())
     }
 
     pub fn add_component(&mut self, component: ComponentType, types: &mut TypeAlloc) -> Result<()> {
