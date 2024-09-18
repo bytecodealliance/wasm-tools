@@ -140,7 +140,6 @@ pub enum AbstractHeapType {
     NoExn,
     /// The bottom type of the contref hierarchy. Part of the stack switching proposal.
     NoCont,
-
 }
 
 impl<'a> Parse<'a> for AbstractHeapType {

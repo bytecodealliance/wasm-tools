@@ -1340,7 +1340,10 @@ impl<'a> Parse<'a> for ResumeTable<'a> {
                     p.parse::<kw::switch>()?;
                     Ok(Handle::OnSwitch { tag })
                 } else {
-                    Ok(Handle::OnLabel { tag, label: p.parse()? })
+                    Ok(Handle::OnLabel {
+                        tag,
+                        label: p.parse()?,
+                    })
                 }
             })?);
         }
