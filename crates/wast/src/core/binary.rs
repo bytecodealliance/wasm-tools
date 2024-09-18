@@ -148,7 +148,7 @@ pub(crate) fn encode(
 
     let functys = funcs.iter().map(|f| &f.ty).collect::<Vec<_>>();
     e.section_list(SectionId::Function, Func, &functys);
-    e.section_list(SectionId::Table, Table, &tables);
+    e.typed_section(&tables);
     e.section_list(SectionId::Memory, Memory, &memories);
     e.section_list(SectionId::Tag, Tag, &tags);
     e.section_list(SectionId::Global, Global, &globals);
@@ -620,28 +620,6 @@ impl Index<'_> {
     }
 }
 
-impl<'a> Encode for TableType<'a> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.elem.encode(e);
-
-        let mut flags = 0;
-        if self.limits.max.is_some() {
-            flags |= 1 << 0;
-        }
-        if self.shared {
-            flags |= 1 << 1;
-        }
-        if self.limits.is64 {
-            flags |= 1 << 2;
-        }
-        e.push(flags);
-        self.limits.min.encode(e);
-        if let Some(max) = self.limits.max {
-            max.encode(e);
-        }
-    }
-}
-
 impl Encode for MemoryType {
     fn encode(&self, e: &mut Vec<u8>) {
         let mut flags = 0;
@@ -682,22 +660,24 @@ impl<'a> Encode for GlobalType<'a> {
     }
 }
 
-impl Encode for Table<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
+impl SectionItem for Table<'_> {
+    type Section = wasm_encoder::TableSection;
+    const ANCHOR: CustomPlaceAnchor = CustomPlaceAnchor::Table;
+
+    fn encode(&self, section: &mut wasm_encoder::TableSection) {
         assert!(self.exports.names.is_empty());
         match &self.kind {
             TableKind::Normal {
                 ty,
                 init_expr: None,
-            } => ty.encode(e),
+            } => {
+                section.table(ty.to_table_type());
+            }
             TableKind::Normal {
                 ty,
                 init_expr: Some(init_expr),
             } => {
-                e.push(0x40);
-                e.push(0x00);
-                ty.encode(e);
-                init_expr.encode(e, None);
+                section.table_with_init(ty.to_table_type(), &init_expr.to_const_expr(None));
             }
             _ => panic!("TableKind should be normal during encoding"),
         }
@@ -935,6 +915,13 @@ impl Expression<'_> {
         e.push(0x0b);
 
         hints
+    }
+
+    fn to_const_expr(&self, dwarf: Option<&mut dwarf::Dwarf>) -> wasm_encoder::ConstExpr {
+        let mut tmp = Vec::new();
+        self.encode(&mut tmp, dwarf);
+        tmp.pop(); // remove trailing 0x0b byte which wasm-encoder doesn't want
+        wasm_encoder::ConstExpr::raw(tmp)
     }
 }
 
