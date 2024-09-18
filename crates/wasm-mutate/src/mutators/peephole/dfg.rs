@@ -767,9 +767,6 @@ impl<'a> DFGBuilder {
                 } => {
                     self.push_node(Lang::RefNull(RefType::Func), idx);
                 }
-                Operator::RefNull { .. } => {
-                    unimplemented!()
-                }
                 Operator::RefFunc { function_index } => {
                     self.push_node(Lang::RefFunc(*function_index), idx);
                 }

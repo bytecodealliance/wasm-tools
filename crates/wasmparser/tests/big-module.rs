@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use wasm_encoder::*;
 
 #[test]
@@ -14,7 +15,7 @@ fn big_type_indices() {
     module.section(&funcs);
 
     let mut elems = ElementSection::new();
-    elems.declared(Elements::Functions(&[0]));
+    elems.declared(Elements::Functions(Cow::Borrowed(&[0])));
     module.section(&elems);
 
     let mut code = CodeSection::new();

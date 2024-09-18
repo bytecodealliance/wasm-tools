@@ -304,6 +304,13 @@ pub trait Reencode {
         utils::parse_element(self, elements, element)
     }
 
+    fn element_items<'a>(
+        &mut self,
+        items: wasmparser::ElementItems<'a>,
+    ) -> Result<crate::Elements<'a>, Error<Self::Error>> {
+        utils::element_items(self, items)
+    }
+
     /// Parses the input `section` given from the `wasmparser` crate and adds
     /// all the exports to the `exports` section.
     fn parse_export_section(
@@ -1390,24 +1397,7 @@ pub mod utils {
         elements: &mut crate::ElementSection,
         element: wasmparser::Element<'_>,
     ) -> Result<(), Error<T::Error>> {
-        let mut funcs;
-        let mut exprs;
-        let elems = match element.items {
-            wasmparser::ElementItems::Functions(f) => {
-                funcs = Vec::new();
-                for func in f {
-                    funcs.push(reencoder.function_index(func?));
-                }
-                crate::Elements::Functions(&funcs)
-            }
-            wasmparser::ElementItems::Expressions(ty, e) => {
-                exprs = Vec::new();
-                for expr in e {
-                    exprs.push(reencoder.const_expr(expr?)?);
-                }
-                crate::Elements::Expressions(reencoder.ref_type(ty)?, &exprs)
-            }
-        };
+        let elems = reencoder.element_items(element.items)?;
         match element.kind {
             wasmparser::ElementKind::Active {
                 table_index,
@@ -1434,6 +1424,28 @@ pub mod utils {
             wasmparser::ElementKind::Declared => elements.declared(elems),
         };
         Ok(())
+    }
+
+    pub fn element_items<'a, T: ?Sized + Reencode>(
+        reencoder: &mut T,
+        items: wasmparser::ElementItems<'a>,
+    ) -> Result<crate::Elements<'a>, Error<T::Error>> {
+        Ok(match items {
+            wasmparser::ElementItems::Functions(f) => {
+                let mut funcs = Vec::new();
+                for func in f {
+                    funcs.push(reencoder.function_index(func?));
+                }
+                crate::Elements::Functions(funcs.into())
+            }
+            wasmparser::ElementItems::Expressions(ty, e) => {
+                let mut exprs = Vec::new();
+                for expr in e {
+                    exprs.push(reencoder.const_expr(expr?)?);
+                }
+                crate::Elements::Expressions(reencoder.ref_type(ty)?, exprs.into())
+            }
+        })
     }
 
     pub fn table_index<T: ?Sized + Reencode>(_reencoder: &mut T, table: u32) -> u32 {

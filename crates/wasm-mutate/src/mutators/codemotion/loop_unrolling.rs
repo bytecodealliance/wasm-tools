@@ -70,13 +70,10 @@ impl LoopUnrollWriter {
                 newfunc.instruction(&Instruction::Block(map_block_type(*ty)?));
                 for (idx, (op, _)) in chunk.iter().enumerate() {
                     match op {
-                        Operator::Block { .. } => {
-                            current_depth += 1;
-                        }
-                        Operator::Loop { .. } => {
-                            current_depth += 1;
-                        }
-                        Operator::If { .. } => {
+                        Operator::Block { .. }
+                        | Operator::Loop { .. }
+                        | Operator::If { .. }
+                        | Operator::TryTable { .. } => {
                             current_depth += 1;
                         }
                         Operator::End { .. } => {

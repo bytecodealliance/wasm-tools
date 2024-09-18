@@ -742,12 +742,12 @@ fn make_init_module(
         elements.active(
             None,
             &const_u32(dl_openables.table_base),
-            Elements::Functions(&dl_openable_functions),
+            Elements::Functions(dl_openable_functions.into()),
         );
         elements.active(
             None,
             &const_u32(indirection_table_base),
-            Elements::Functions(&indirections),
+            Elements::Functions(indirections.into()),
         );
         module.section(&elements);
     }

@@ -3736,7 +3736,7 @@ impl Encode for Catch {
 /// A constant expression.
 ///
 /// Usable in contexts such as offsets or initializers.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ConstExpr {
     bytes: Vec<u8>,
 }

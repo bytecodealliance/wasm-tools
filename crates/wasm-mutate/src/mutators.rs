@@ -39,7 +39,6 @@ pub mod start;
 
 mod translate;
 pub use self::translate::Item;
-use self::translate::{DefaultTranslator, Translator};
 
 use std::borrow::Cow;
 

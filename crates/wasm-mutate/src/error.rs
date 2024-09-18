@@ -101,3 +101,6 @@ pub enum ErrorKind {
 
 /// A `Result` type that is either `Ok(T)` or `Err(wasm_mutate::Error)`.
 pub type Result<T, E = Error> = std::result::Result<T, E>;
+
+/// A `Result` type for use with `wasm_encoder::reencode`
+pub type ReencodeResult<T, E = Error> = Result<T, wasm_encoder::reencode::Error<E>>;
