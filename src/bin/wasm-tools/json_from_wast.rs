@@ -260,7 +260,7 @@ impl<'a> JsonBuilder<'a> {
                 line,
                 text: message,
                 action: self.action(exec)?,
-            }
+            },
             WastDirective::Thread(thread) => json::Command::Thread {
                 line,
                 name: thread.name.name(),
