@@ -402,24 +402,24 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
         Ok(())
     }
 
-    fn handlers(&mut self, table: ResumeTable) -> Result<()> {
+    fn resume_table(&mut self, table: ResumeTable) -> Result<()> {
+        self.printer.nesting -= 1;
         for handle in table.handlers {
             self.result().write_str(" ")?;
+            self.printer.start_group("on")?;
             match handle {
                 Handle::OnLabel { tag, label } => {
-                    self.printer.start_group("on")?;
                     self.tag_index(tag)?;
                     self.relative_depth(label)?;
-                    self.printer.end_group()?;
                 }
                 Handle::OnSwitch { tag } => {
-                    self.printer.start_group("on")?;
                     self.tag_index(tag)?;
                     self.result().write_str(" switch")?;
-                    self.printer.end_group()?;
                 }
             }
+            self.printer.end_group()?;
         }
+        self.printer.nesting += 1;
         Ok(())
     }
 }
@@ -691,11 +691,34 @@ macro_rules! define_visit {
         $self.push_str(" ")?;
         $self.printer.print_field_idx($self.state, $ty, $field)?;
     );
+    (payload $self:ident ContNew $type_index:ident) => (
+        $self.push_str(" ")?;
+        $self.printer.print_idx(&$self.state.core.type_names, $type_index)?;
+    );
     (payload $self:ident ContBind $argument_index:ident $result_index:ident) => (
         $self.push_str(" ")?;
         $self.printer.print_idx(&$self.state.core.type_names, $argument_index)?;
         $self.push_str(" ")?;
         $self.printer.print_idx(&$self.state.core.type_names, $result_index)?;
+    );
+    (payload $self:ident Suspend $tag_index:ident) => (
+        $self.tag_index($tag_index)?;
+    );
+    (payload $self:ident Resume $type_index:ident $table:ident) => (
+        $self.push_str(" ")?;
+        $self.printer.print_idx(&$self.state.core.type_names, $type_index)?;
+        $self.resume_table($table)?;
+    );
+    (payload $self:ident ResumeThrow $type_index:ident $tag_index:ident $table:ident) => (
+        $self.push_str(" ")?;
+        $self.printer.print_idx(&$self.state.core.type_names, $type_index)?;
+        $self.tag_index($tag_index)?;
+        $self.resume_table($table)?;
+    );
+    (payload $self:ident Switch $type_index:ident $tag_index:ident) => (
+        $self.push_str(" ")?;
+        $self.printer.print_idx(&$self.state.core.type_names, $type_index)?;
+        $self.tag_index($tag_index)?;
     );
     (payload $self:ident $op:ident $($arg:ident)*) => (
         $($self.$arg($arg)?;)*

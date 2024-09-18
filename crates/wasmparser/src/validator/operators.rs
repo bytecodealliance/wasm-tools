@@ -1604,7 +1604,7 @@ where
                 Handle::OnSwitch { tag } => {
                     let tag_ty = self.tag_at(tag)?;
                     if tag_ty.params().len() != 0 {
-                        bail!(self.offset, "type mismatch: non-empty tag parameter list")
+                        bail!(self.offset, "type mismatch: non-empty tag parameter type")
                     }
                 }
             }
@@ -4953,7 +4953,7 @@ where
         // [ts1'] -> []
         let tag_ty = self.tag_at(tag_index)?;
         if tag_ty.results().len() != 0 {
-            bail!(self.offset, "type mismatch: non-empty tag result list")
+            bail!(self.offset, "type mismatch: non-empty tag result type")
         }
         self.pop_concrete_contref(true, type_index)?;
         // Check that ts1' are available on the stack.
@@ -4973,7 +4973,7 @@ where
         // [] -> [t*]
         let tag_ty = self.tag_at(tag_index)?;
         if tag_ty.params().len() != 0 {
-            bail!(self.offset, "type mismatch: non-empty tag parameter list")
+            bail!(self.offset, "type mismatch: non-empty tag parameter type")
         }
         // Extract the other continuation reference
         match func_ty.params().last() {
@@ -5000,13 +5000,13 @@ where
                     .params()
                     .iter()
                     .rev()
-                    .take(func_ty.params().len() - 1)
+                    .skip(1)
                 {
                     self.pop_operand(Some(ty))?;
                 }
 
                 // Make the results t2* available on the stack.
-                for &ty in other_func_ty.params().iter().rev() {
+                for &ty in other_func_ty.params() {
                     self.push_operand(ty)?;
                 }
             }

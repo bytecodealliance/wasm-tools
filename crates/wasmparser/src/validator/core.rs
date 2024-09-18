@@ -946,7 +946,7 @@ impl Module {
             ));
         }
         let ty = self.func_type_at(ty.func_type_idx, types, offset)?;
-        if !ty.results().is_empty() {
+        if !ty.results().is_empty() && !features.stack_switching() {
             return Err(BinaryReaderError::new(
                 "invalid exception type: non-empty tag result type",
                 offset,

@@ -656,6 +656,9 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.resolver.resolve(&mut cb.argument_index, Ns::Type)?;
                 self.resolver.resolve(&mut cb.result_index, Ns::Type)?;
             }
+            Suspend(ty) => {
+                self.resolver.resolve(ty, Ns::Tag)?;
+            }
             Resume(r) => {
                 self.resolver.resolve(&mut r.type_index, Ns::Type)?;
                 self.resolve_resume_table(&mut r.table)?;
@@ -676,14 +679,14 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
     }
 
     fn resolve_resume_table(&self, table: &mut ResumeTable<'a>) -> Result<(), Error> {
-        for handle in &table.handlers {
+        for handle in &mut table.handlers {
             match handle {
-                Handle::OnLabel { mut tag, mut label } => {
-                    self.resolver.resolve(&mut tag, Ns::Tag)?;
-                    self.resolve_label(&mut label)?;
+                Handle::OnLabel { ref mut tag, ref mut label } => {
+                    self.resolver.resolve(tag, Ns::Tag)?;
+                    self.resolve_label(label)?;
                 }
-                Handle::OnSwitch { mut tag } => {
-                    self.resolver.resolve(&mut tag, Ns::Tag)?;
+                Handle::OnSwitch { ref mut tag } => {
+                    self.resolver.resolve(tag, Ns::Tag)?;
                 }
             }
         }

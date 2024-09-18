@@ -497,12 +497,20 @@ pub enum Handle {
     OnSwitch { tag: u32 },
 }
 
+impl ResumeTable {
+    /// Returns the number of entries in the table.
+    pub fn len(&self) -> usize {
+        self.handlers.len()
+    }
+}
+
 impl<'a> FromReader<'a> for ResumeTable {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let handlers = reader
-            .read_iter(MAX_WASM_HANDLERS, "handlers")?
+            .read_iter(MAX_WASM_HANDLERS, "resume table")?
             .collect::<Result<_>>()?;
-        Ok(ResumeTable { handlers })
+        let table = ResumeTable { handlers };
+        Ok(table)
     }
 }
 

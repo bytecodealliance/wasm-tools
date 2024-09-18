@@ -631,6 +631,9 @@ impl TestState {
                 "multiple-returns.wast" => {
                     features.insert(WasmFeatures::COMPONENT_MODEL_MULTIPLE_RETURNS);
                 }
+                "stack-switching" => {
+                    features.insert(WasmFeatures::STACK_SWITCHING);
+                }
                 _ => {}
             }
         }

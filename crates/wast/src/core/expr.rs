@@ -1337,6 +1337,7 @@ impl<'a> Parse<'a> for ResumeTable<'a> {
                 p.parse::<kw::on>()?;
                 let tag: Index<'a> = p.parse()?;
                 if p.peek::<kw::switch>()? {
+                    p.parse::<kw::switch>()?;
                     Ok(Handle::OnSwitch { tag })
                 } else {
                     Ok(Handle::OnLabel { tag, label: p.parse()? })
