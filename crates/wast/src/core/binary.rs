@@ -3,6 +3,7 @@ use crate::core::*;
 use crate::encode::Encode;
 use crate::token::*;
 use crate::Wat;
+use std::borrow::Cow;
 use std::marker;
 #[cfg(feature = "dwarf")]
 use std::path::Path;
@@ -160,7 +161,7 @@ pub(crate) fn encode(
         });
     }
     e.custom_sections(After(Start));
-    e.section_list(SectionId::Element, Elem, &elem);
+    e.typed_section(&elem);
     if needs_data_count(&funcs) {
         e.wasm.section(&wasm_encoder::DataCountSection {
             count: data.len().try_into().unwrap(),
@@ -682,89 +683,41 @@ impl SectionItem for Export<'_> {
     }
 }
 
-impl Encode for Elem<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        match (&self.kind, &self.payload) {
-            (
-                ElemKind::Active {
-                    table: None,
-                    offset,
-                },
-                ElemPayload::Indices(_),
-            ) => {
-                e.push(0x00);
-                offset.encode(e, None);
-            }
-            (ElemKind::Passive, ElemPayload::Indices(_)) => {
-                e.push(0x01); // flags
-                e.push(0x00); // extern_kind
-            }
-            (
-                ElemKind::Active {
-                    table: Some(table),
-                    offset,
-                },
-                ElemPayload::Indices(_),
-            ) => {
-                e.push(0x02); // flags
-                table.encode(e);
-                offset.encode(e, None);
-                e.push(0x00); // extern_kind
-            }
-            (ElemKind::Declared, ElemPayload::Indices(_)) => {
-                e.push(0x03); // flags
-                e.push(0x00); // extern_kind
-            }
-            (
-                ElemKind::Active {
-                    table: None,
-                    offset,
-                },
-                ElemPayload::Exprs {
-                    ty:
-                        RefType {
-                            nullable: true,
-                            heap:
-                                HeapType::Abstract {
-                                    shared: false,
-                                    ty: AbstractHeapType::Func,
-                                },
-                        },
-                    ..
-                },
-            ) => {
-                e.push(0x04);
-                offset.encode(e, None);
-            }
-            (ElemKind::Passive, ElemPayload::Exprs { ty, .. }) => {
-                e.push(0x05);
-                ty.encode(e);
-            }
-            (ElemKind::Active { table, offset }, ElemPayload::Exprs { ty, .. }) => {
-                e.push(0x06);
-                table.map(|t| t.unwrap_u32()).unwrap_or(0).encode(e);
-                offset.encode(e, None);
-                ty.encode(e);
-            }
-            (ElemKind::Declared, ElemPayload::Exprs { ty, .. }) => {
-                e.push(0x07); // flags
-                ty.encode(e);
-            }
-        }
+impl SectionItem for Elem<'_> {
+    type Section = wasm_encoder::ElementSection;
+    const ANCHOR: CustomPlaceAnchor = CustomPlaceAnchor::Elem;
 
-        self.payload.encode(e);
-    }
-}
+    fn encode(&self, section: &mut wasm_encoder::ElementSection) {
+        use wasm_encoder::Elements;
 
-impl Encode for ElemPayload<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        match self {
-            ElemPayload::Indices(v) => v.encode(e),
-            ElemPayload::Exprs { exprs, ty: _ } => {
-                exprs.len().encode(e);
-                for expr in exprs {
-                    expr.encode(e, None);
-                }
+        let elements = match &self.payload {
+            ElemPayload::Indices(v) => {
+                Elements::Functions(Cow::Owned(v.iter().map(|i| i.unwrap_u32()).collect()))
+            }
+            ElemPayload::Exprs { exprs, ty } => Elements::Expressions(
+                (*ty).into(),
+                Cow::Owned(exprs.iter().map(|e| e.to_const_expr(None)).collect()),
+            ),
+        };
+        match &self.kind {
+            ElemKind::Active {
+                table: Index::Num(0, _),
+                offset,
+            } => {
+                section.active(None, &offset.to_const_expr(None), elements);
+            }
+            ElemKind::Active { table, offset } => {
+                section.active(
+                    Some(table.unwrap_u32()),
+                    &offset.to_const_expr(None),
+                    elements,
+                );
+            }
+            ElemKind::Passive => {
+                section.passive(elements);
+            }
+            ElemKind::Declared => {
+                section.declared(elements);
             }
         }
     }
