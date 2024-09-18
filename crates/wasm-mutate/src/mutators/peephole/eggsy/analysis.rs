@@ -577,7 +577,7 @@ impl Analysis<Lang> for PeepholeMutationAnalysis {
             tpe: egraph
                 .analysis
                 .get_returning_tpe(l, egraph)
-                .expect("Missing type"),
+                .unwrap_or(PrimitiveTypeInfo::Empty),
         })
     }
 
