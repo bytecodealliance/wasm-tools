@@ -150,7 +150,7 @@ pub(crate) fn encode(
     e.section_list(SectionId::Function, Func, &functys);
     e.typed_section(&tables);
     e.typed_section(&memories);
-    e.section_list(SectionId::Tag, Tag, &tags);
+    e.typed_section(&tags);
     e.section_list(SectionId::Global, Global, &globals);
     e.typed_section(&exports);
     e.custom_sections(Before(Start));
@@ -1438,9 +1438,12 @@ impl Encode for BranchHint {
     }
 }
 
-impl Encode for Tag<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.ty.encode(e);
+impl SectionItem for Tag<'_> {
+    type Section = wasm_encoder::TagSection;
+    const ANCHOR: CustomPlaceAnchor = CustomPlaceAnchor::Tag;
+
+    fn encode(&self, section: &mut wasm_encoder::TagSection) {
+        section.tag(self.ty.to_tag_type());
         match &self.kind {
             TagKind::Inline() => {}
             _ => panic!("TagKind should be inline during encoding"),
