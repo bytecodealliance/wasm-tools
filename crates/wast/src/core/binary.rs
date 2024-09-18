@@ -149,7 +149,7 @@ pub(crate) fn encode(
     let functys = funcs.iter().map(|f| &f.ty).collect::<Vec<_>>();
     e.section_list(SectionId::Function, Func, &functys);
     e.typed_section(&tables);
-    e.section_list(SectionId::Memory, Memory, &memories);
+    e.typed_section(&memories);
     e.section_list(SectionId::Tag, Tag, &tags);
     e.section_list(SectionId::Global, Global, &globals);
     e.typed_section(&exports);
@@ -620,32 +620,6 @@ impl Index<'_> {
     }
 }
 
-impl Encode for MemoryType {
-    fn encode(&self, e: &mut Vec<u8>) {
-        let mut flags = 0;
-        if self.limits.max.is_some() {
-            flags |= 1 << 0;
-        }
-        if self.shared {
-            flags |= 1 << 1;
-        }
-        if self.limits.is64 {
-            flags |= 1 << 2;
-        }
-        if self.page_size_log2.is_some() {
-            flags |= 1 << 3;
-        }
-        e.push(flags);
-        self.limits.min.encode(e);
-        if let Some(max) = self.limits.max {
-            max.encode(e);
-        }
-        if let Some(p) = self.page_size_log2 {
-            p.encode(e);
-        }
-    }
-}
-
 impl<'a> Encode for GlobalType<'a> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.ty.encode(e);
@@ -684,11 +658,16 @@ impl SectionItem for Table<'_> {
     }
 }
 
-impl Encode for Memory<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
+impl SectionItem for Memory<'_> {
+    type Section = wasm_encoder::MemorySection;
+    const ANCHOR: CustomPlaceAnchor = CustomPlaceAnchor::Memory;
+
+    fn encode(&self, section: &mut wasm_encoder::MemorySection) {
         assert!(self.exports.names.is_empty());
         match &self.kind {
-            MemoryKind::Normal(t) => t.encode(e),
+            MemoryKind::Normal(t) => {
+                section.memory(t.to_memory_type());
+            }
             _ => panic!("MemoryKind should be normal during encoding"),
         }
     }
