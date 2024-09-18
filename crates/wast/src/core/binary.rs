@@ -179,7 +179,7 @@ pub(crate) fn encode(
     let mut dwarf = dwarf::Dwarf::new(num_import_funcs, opts, &names, &types);
     e.code_section(&funcs, num_import_funcs, dwarf.as_mut());
 
-    e.section_list(SectionId::Data, Data, &data);
+    e.typed_section(&data);
 
     if !names.is_empty() {
         e.custom_section("name", &names);
@@ -723,26 +723,22 @@ impl SectionItem for Elem<'_> {
     }
 }
 
-impl Encode for Data<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
+impl SectionItem for Data<'_> {
+    type Section = wasm_encoder::DataSection;
+    const ANCHOR: CustomPlaceAnchor = CustomPlaceAnchor::Data;
+
+    fn encode(&self, section: &mut wasm_encoder::DataSection) {
+        let mut data = Vec::new();
+        for val in self.data.iter() {
+            val.push_onto(&mut data);
+        }
         match &self.kind {
-            DataKind::Passive => e.push(0x01),
-            DataKind::Active {
-                memory: Index::Num(0, _),
-                offset,
-            } => {
-                e.push(0x00);
-                offset.encode(e, None);
+            DataKind::Passive => {
+                section.passive(data);
             }
             DataKind::Active { memory, offset } => {
-                e.push(0x02);
-                memory.encode(e);
-                offset.encode(e, None);
+                section.active(memory.unwrap_u32(), &offset.to_const_expr(None), data);
             }
-        }
-        self.data.iter().map(|l| l.len()).sum::<usize>().encode(e);
-        for val in self.data.iter() {
-            val.push_onto(e);
         }
     }
 }
