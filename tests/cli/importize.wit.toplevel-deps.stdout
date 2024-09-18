@@ -65,9 +65,9 @@ world fail1 {
 }
 world trim-imports {
   import a;
+  import foo: func();
   import bar: interface {
   }
-  import foo: func();
 
   type t = u32;
 
@@ -80,8 +80,8 @@ world tricky-import {
   export f: func() -> t;
 }
 world toplevel-deps-importized {
-  import something-else-dep;
   import bar: func() -> s;
+  import something-else-dep;
   import something-else: interface {
     use something-else-dep.{t};
 

@@ -71,9 +71,9 @@ world fail1 {
 }
 world trim-imports {
   import a;
+  import foo: func();
   import bar: interface {
   }
-  import foo: func();
 
   type t = u32;
 

@@ -1,5 +1,5 @@
-interface transitively depends on an interface in incompatible ways
-     --> tests/ui/parse-fail/import-and-export3.wit:36:10
+failed to elaborate world imports/exports of `test`
+     --> tests/ui/parse-fail/import-and-export3.wit:33:7
       |
-   36 |   export i3;
-      |          ^-
+   33 | world test {
+      |       ^---: interface `foo:foo/i3` transitively depends on an interface in incompatible ways
