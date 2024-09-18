@@ -50,6 +50,8 @@ interface implicit-own-handles2 {
 }
 
 world some-world {
+  import foo;
+  import baz;
   import anon: interface {
     resource a {
       constructor();
@@ -57,8 +59,6 @@ world some-world {
       c: func();
     }
   }
-  import foo;
-  import baz;
   use baz.{bar};
 
   resource a {

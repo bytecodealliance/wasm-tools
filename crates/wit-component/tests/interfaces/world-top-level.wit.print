@@ -1,10 +1,10 @@
 package foo:foo;
 
 world foo {
-  import some-interface: interface {
-  }
   import foo: func();
   import bar: func(arg: u32);
+  import some-interface: interface {
+  }
 
   export foo2: func();
   export bar2: func() -> u32;
