@@ -143,7 +143,7 @@ pub(crate) fn encode(
 
     e.custom_sections(BeforeFirst);
 
-    e.section_list(SectionId::Type, Type, &types);
+    e.typed_section(&types);
     e.section_list(SectionId::Import, Import, &imports);
 
     let functys = funcs.iter().map(|f| &f.ty).collect::<Vec<_>>();
@@ -248,6 +248,21 @@ impl Encoder<'_> {
         self.custom_sections(CustomPlace::After(anchor));
     }
 
+    fn typed_section<T>(&mut self, list: &[T])
+    where
+        T: SectionItem,
+    {
+        self.custom_sections(CustomPlace::Before(T::ANCHOR));
+        if !list.is_empty() {
+            let mut section = T::Section::default();
+            for item in list {
+                item.encode(&mut section);
+            }
+            self.wasm.section(&section);
+        }
+        self.custom_sections(CustomPlace::After(T::ANCHOR));
+    }
+
     /// Encodes the code section of a wasm module module while additionally
     /// handling the branch hinting proposal.
     ///
@@ -302,14 +317,11 @@ impl Encoder<'_> {
     }
 }
 
-impl Encode for FunctionType<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.params.len().encode(e);
-        for (_, _, ty) in self.params.iter() {
-            ty.encode(e);
-        }
-        self.results.encode(e);
-    }
+trait SectionItem {
+    type Section: wasm_encoder::Section + Default;
+    const ANCHOR: CustomPlaceAnchor;
+
+    fn encode(&self, section: &mut Self::Section);
 }
 
 impl From<&FunctionType<'_>> for wasm_encoder::FuncType {
@@ -318,16 +330,6 @@ impl From<&FunctionType<'_>> for wasm_encoder::FuncType {
             ft.params.iter().map(|(_, _, ty)| (*ty).into()),
             ft.results.iter().map(|ty| (*ty).into()),
         )
-    }
-}
-
-impl Encode for StructType<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.fields.len().encode(e);
-        for field in self.fields.iter() {
-            field.ty.encode(e);
-            (field.mutable as i32).encode(e);
-        }
     }
 }
 
@@ -345,13 +347,6 @@ impl From<&StructField<'_>> for wasm_encoder::FieldType {
             element_type: f.ty.into(),
             mutable: f.mutable,
         }
-    }
-}
-
-impl Encode for ArrayType<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.ty.encode(e);
-        (self.mutable as i32).encode(e);
     }
 }
 
@@ -377,74 +372,38 @@ enum RecOrType<'a> {
     Rec(&'a Rec<'a>),
 }
 
-impl Encode for RecOrType<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
+impl SectionItem for RecOrType<'_> {
+    type Section = wasm_encoder::TypeSection;
+    const ANCHOR: CustomPlaceAnchor = CustomPlaceAnchor::Type;
+
+    fn encode(&self, types: &mut wasm_encoder::TypeSection) {
         match self {
-            RecOrType::Type(ty) => ty.encode(e),
-            RecOrType::Rec(rec) => rec.encode(e),
+            RecOrType::Type(ty) => types.ty().subtype(&ty.to_subtype()),
+            RecOrType::Rec(rec) => types.ty().rec(rec.types.iter().map(|t| t.to_subtype())),
         }
     }
 }
 
-impl Encode for Type<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        match (&self.parent, self.final_type) {
-            (Some(parent), Some(true)) => {
-                // Type is final with a supertype
-                e.push(0x4f);
-                e.push(0x01);
-                parent.encode(e);
-            }
-            (Some(parent), Some(false) | None) => {
-                // Type is not final and has a declared supertype
-                e.push(0x50);
-                e.push(0x01);
-                parent.encode(e);
-            }
-            (None, Some(false)) => {
-                // Sub was used without any declared supertype
-                e.push(0x50);
-                e.push(0x00);
-            }
-            (None, _) => {} // No supertype, sub wasn't used
-        }
-        if self.def.shared {
-            e.push(0x65);
-        }
-        match &self.def.kind {
-            InnerTypeKind::Func(func) => {
-                e.push(0x60);
-                func.encode(e)
-            }
-            InnerTypeKind::Struct(r#struct) => {
-                e.push(0x5f);
-                r#struct.encode(e)
-            }
-            InnerTypeKind::Array(array) => {
-                e.push(0x5e);
-                array.encode(e)
-            }
+impl Type<'_> {
+    pub(crate) fn to_subtype(&self) -> wasm_encoder::SubType {
+        wasm_encoder::SubType {
+            composite_type: self.def.to_composite_type(),
+            is_final: self.final_type.unwrap_or(true),
+            supertype_idx: self.parent.map(|i| i.unwrap_u32()),
         }
     }
 }
 
-impl From<&InnerTypeKind<'_>> for wasm_encoder::CompositeInnerType {
-    fn from(kind: &InnerTypeKind) -> Self {
+impl TypeDef<'_> {
+    pub(crate) fn to_composite_type(&self) -> wasm_encoder::CompositeType {
         use wasm_encoder::CompositeInnerType::*;
-        match kind {
-            InnerTypeKind::Func(ft) => Func(ft.into()),
-            InnerTypeKind::Struct(st) => Struct(st.into()),
-            InnerTypeKind::Array(at) => Array(at.into()),
-        }
-    }
-}
-
-impl Encode for Rec<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        e.push(0x4e);
-        self.types.len().encode(e);
-        for ty in &self.types {
-            ty.encode(e);
+        wasm_encoder::CompositeType {
+            inner: match &self.kind {
+                InnerTypeKind::Func(ft) => Func(ft.into()),
+                InnerTypeKind::Struct(st) => Struct(st.into()),
+                InnerTypeKind::Array(at) => Array(at.into()),
+            },
+            shared: self.shared,
         }
     }
 }
@@ -537,18 +496,6 @@ impl<'a> Encode for RefType<'a> {
             } => {
                 e.push(0x64);
                 heap.encode(e);
-            }
-        }
-    }
-}
-
-impl<'a> Encode for StorageType<'a> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        match self {
-            StorageType::I8 => e.push(0x78),
-            StorageType::I16 => e.push(0x77),
-            StorageType::Val(ty) => {
-                ty.encode(e);
             }
         }
     }

@@ -6,9 +6,8 @@ use wasm_encoder::{
     CanonicalFunctionSection, ComponentAliasSection, ComponentCoreTypeEncoder,
     ComponentDefinedTypeEncoder, ComponentExportSection, ComponentImportSection,
     ComponentInstanceSection, ComponentNameSection, ComponentSection, ComponentSectionId,
-    ComponentStartSection, ComponentTypeEncoder, ComponentTypeSection, CompositeType,
-    CoreTypeSection, InstanceSection, NameMap, NestedComponentSection, RawSection, SectionId,
-    SubType,
+    ComponentStartSection, ComponentTypeEncoder, ComponentTypeSection, CoreTypeSection,
+    InstanceSection, NameMap, NestedComponentSection, RawSection, SectionId, SubType,
 };
 
 pub fn encode(component: &Component<'_>, options: &EncodeOptions) -> Vec<u8> {
@@ -62,10 +61,7 @@ fn encode_core_type(encoder: ComponentCoreTypeEncoder, ty: &CoreTypeDef) {
             let sub_type = SubType {
                 is_final: true,
                 supertype_idx: None,
-                composite_type: CompositeType {
-                    shared: def.shared,
-                    inner: (&def.kind).into(),
-                },
+                composite_type: def.to_composite_type(),
             };
             encoder.core().subtype(&sub_type);
         }
@@ -881,15 +877,7 @@ impl From<&ModuleType<'_>> for wasm_encoder::ModuleType {
         for decl in &ty.decls {
             match decl {
                 ModuleTypeDecl::Type(t) => {
-                    let sub_type = SubType {
-                        is_final: t.final_type.unwrap_or(true),
-                        supertype_idx: t.parent.map(u32::from),
-                        composite_type: CompositeType {
-                            shared: t.def.shared,
-                            inner: (&t.def.kind).into(),
-                        },
-                    };
-                    encoded.ty().subtype(&sub_type);
+                    encoded.ty().subtype(&t.to_subtype());
                 }
                 ModuleTypeDecl::Alias(a) => match &a.target {
                     AliasTarget::Outer {
