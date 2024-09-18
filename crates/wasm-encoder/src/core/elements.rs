@@ -8,6 +8,7 @@ use std::borrow::Cow;
 /// # Example
 ///
 /// ```
+/// use std::borrow::Cow;
 /// use wasm_encoder::{
 ///     Elements, ElementSection, Module, TableSection, TableType,
 ///     RefType, ConstExpr
@@ -25,9 +26,9 @@ use std::borrow::Cow;
 /// let mut elements = ElementSection::new();
 /// let table_index = 0;
 /// let offset = ConstExpr::i32_const(42);
-/// let functions = Elements::Functions((&[
+/// let functions = Elements::Functions(Cow::Borrowed(&[
 ///     // Function indices...
-/// ]).into());
+/// ]));
 /// elements.active(Some(table_index), &offset, functions);
 ///
 /// let mut module = Module::new();
