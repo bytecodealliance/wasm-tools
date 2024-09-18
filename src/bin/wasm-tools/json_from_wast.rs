@@ -256,12 +256,10 @@ impl<'a> JsonBuilder<'a> {
                 span: _,
                 exec,
                 message,
-            } => {
-                json::Command::AssertSuspension {
-                    line,
-                    text: message,
-                    action: self.action(exec)?,
-                }
+            } => json::Command::AssertSuspension {
+                line,
+                text: message,
+                action: self.action(exec)?,
             }
             WastDirective::Thread(thread) => json::Command::Thread {
                 line,
