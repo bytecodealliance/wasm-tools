@@ -80,8 +80,8 @@ world tricky-import {
   export f: func() -> t;
 }
 world toplevel-deps-importized {
-  import something-else-dep;
   import bar: func() -> s;
+  import something-else-dep;
   import something-else: interface {
     use something-else-dep.{t};
 

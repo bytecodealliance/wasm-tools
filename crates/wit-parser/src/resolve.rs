@@ -1022,27 +1022,6 @@ package {name} is defined in two different locations:\n\
     /// is intended to be used as part of language tooling when depending on
     /// other components.
     pub fn importize(&mut self, world_id: WorldId) -> Result<()> {
-        // Collect the set of interfaces which are depended on by exports. Also
-        // all imported types are assumed to stay so collect any interfaces
-        // they depend on.
-        let mut live_through_exports = IndexSet::new();
-        for (_, export) in self.worlds[world_id].exports.iter() {
-            if let WorldItem::Interface { id, .. } = export {
-                self.foreach_interface_dep(*id, &mut |id| {
-                    live_through_exports.insert(id);
-                })
-            }
-        }
-        for (_, import) in self.worlds[world_id].imports.iter() {
-            if let WorldItem::Type(ty) = import {
-                if let Some(dep) = self.type_interface_dep(*ty) {
-                    self.foreach_interface_dep(dep, &mut |id| {
-                        live_through_exports.insert(id);
-                    })
-                }
-            }
-        }
-
         // Rename the world to avoid having it get confused with the original
         // name of the world. Add `-importized` to it for now. Precisely how
         // this new world is created may want to be updated over time if this
@@ -1053,43 +1032,32 @@ package {name} is defined in two different locations:\n\
         world.name.push_str("-importized");
         pkg.worlds.insert(world.name.clone(), world_id);
 
-        // Trim all unnecessary imports first.
-        world.imports.retain(|name, item| match (name, item) {
-            // Remove imports which can't be used by import such as:
-            //
-            // * `import foo: interface { .. }`
-            // * `import foo: func();`
-            (WorldKey::Name(_), WorldItem::Interface { .. } | WorldItem::Function(_)) => false,
-
-            // Coarsely say that all top-level types are required to avoid
-            // calculating precise liveness of them right now.
-            (WorldKey::Name(_), WorldItem::Type(_)) => true,
-
-            // Only retain interfaces if they're needed somehow transitively
-            // for the exports.
-            (WorldKey::Interface(id), _) => live_through_exports.contains(id),
+        // Trim all non-type definitions from imports. Types can be used by
+        // exported functions, for example, so they're preserved.
+        world.imports.retain(|_, item| match item {
+            WorldItem::Type(_) => true,
+            _ => false,
         });
 
-        // After all unnecessary imports are gone remove all exports and move
-        // them all to imports, failing if there's an overlap.
         for (name, export) in mem::take(&mut world.exports) {
             match (name.clone(), world.imports.insert(name, export)) {
                 // no previous item? this insertion was ok
                 (_, None) => {}
 
                 // cannot overwrite an import with an export
-                (WorldKey::Name(name), _) => {
+                (WorldKey::Name(name), Some(_)) => {
                     bail!("world export `{name}` conflicts with import of same name");
                 }
 
-                // interface overlap is ok and is always allowed.
-                (WorldKey::Interface(id), Some(WorldItem::Interface { id: other, .. })) => {
-                    assert_eq!(id, other);
-                }
-
+                // Exports already don't overlap each other and the only imports
+                // preserved above were types so this shouldn't be reachable.
                 (WorldKey::Interface(_), _) => unreachable!(),
             }
         }
+
+        // Fill out any missing transitive interface imports by elaborating this
+        // world which does that for us.
+        self.elaborate_world(world_id)?;
 
         #[cfg(debug_assertions)]
         self.assert_valid();
