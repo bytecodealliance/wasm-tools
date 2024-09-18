@@ -667,6 +667,40 @@
       "line": 797,
       "filename": "cont.25.wasm",
       "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 821,
+      "name": "co2",
+      "filename": "cont.26.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 857,
+      "as": "co2"
+    },
+    {
+      "type": "module",
+      "line": 859,
+      "name": "client",
+      "filename": "cont.27.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 904,
+      "action": {
+        "type": "invoke",
+        "field": "main",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "10"
+        }
+      ]
     }
   ]
 }
