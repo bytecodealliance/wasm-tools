@@ -144,7 +144,7 @@ pub(crate) fn encode(
     e.custom_sections(BeforeFirst);
 
     e.typed_section(&types);
-    e.section_list(SectionId::Import, Import, &imports);
+    e.typed_section(&imports);
 
     let functys = funcs.iter().map(|f| &f.ty).collect::<Vec<_>>();
     e.section_list(SectionId::Function, Func, &functys);
@@ -152,7 +152,7 @@ pub(crate) fn encode(
     e.section_list(SectionId::Memory, Memory, &memories);
     e.section_list(SectionId::Tag, Tag, &tags);
     e.section_list(SectionId::Global, Global, &globals);
-    e.section_list(SectionId::Export, Export, &exports);
+    e.typed_section(&exports);
     e.custom_sections(Before(Start));
     if let Some(start) = start.get(0) {
         e.wasm.section(&wasm_encoder::StartSection {
@@ -324,6 +324,18 @@ trait SectionItem {
     fn encode(&self, section: &mut Self::Section);
 }
 
+impl<T> SectionItem for &T
+where
+    T: SectionItem,
+{
+    type Section = T::Section;
+    const ANCHOR: CustomPlaceAnchor = T::ANCHOR;
+
+    fn encode(&self, section: &mut Self::Section) {
+        T::encode(self, section)
+    }
+}
+
 impl From<&FunctionType<'_>> for wasm_encoder::FuncType {
     fn from(ft: &FunctionType) -> Self {
         wasm_encoder::FuncType::new(
@@ -357,13 +369,6 @@ impl From<&ArrayType<'_>> for wasm_encoder::ArrayType {
             mutable: at.mutable,
         };
         wasm_encoder::ArrayType(field)
-    }
-}
-
-impl Encode for ExportType<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.name.encode(e);
-        self.item.encode(e);
     }
 }
 
@@ -512,47 +517,91 @@ impl From<StorageType<'_>> for wasm_encoder::StorageType {
     }
 }
 
-impl Encode for Import<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.module.encode(e);
-        self.field.encode(e);
-        self.item.encode(e);
+impl SectionItem for Import<'_> {
+    type Section = wasm_encoder::ImportSection;
+    const ANCHOR: CustomPlaceAnchor = CustomPlaceAnchor::Import;
+
+    fn encode(&self, section: &mut wasm_encoder::ImportSection) {
+        section.import(self.module, self.field, self.item.to_entity_type());
     }
 }
 
-impl Encode for ItemSig<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        match &self.kind {
-            ItemKind::Func(f) => {
-                e.push(0x00);
-                f.encode(e);
-            }
-            ItemKind::Table(f) => {
-                e.push(0x01);
-                f.encode(e);
-            }
-            ItemKind::Memory(f) => {
-                e.push(0x02);
-                f.encode(e);
-            }
-            ItemKind::Global(f) => {
-                e.push(0x03);
-                f.encode(e);
-            }
-            ItemKind::Tag(f) => {
-                e.push(0x04);
-                f.encode(e);
-            }
+impl ItemSig<'_> {
+    pub(crate) fn to_entity_type(&self) -> wasm_encoder::EntityType {
+        self.kind.to_entity_type()
+    }
+}
+
+impl ItemKind<'_> {
+    fn to_entity_type(&self) -> wasm_encoder::EntityType {
+        use wasm_encoder::EntityType as ET;
+        match self {
+            ItemKind::Func(t) => ET::Function(t.unwrap_u32()),
+            ItemKind::Table(t) => ET::Table(t.to_table_type()),
+            ItemKind::Memory(t) => ET::Memory(t.to_memory_type()),
+            ItemKind::Global(t) => ET::Global(t.to_global_type()),
+            ItemKind::Tag(t) => ET::Tag(t.to_tag_type()),
         }
+    }
+}
+
+impl TableType<'_> {
+    fn to_table_type(&self) -> wasm_encoder::TableType {
+        wasm_encoder::TableType {
+            element_type: self.elem.into(),
+            minimum: self.limits.min,
+            maximum: self.limits.max,
+            table64: self.limits.is64,
+            shared: self.shared,
+        }
+    }
+}
+
+impl MemoryType {
+    fn to_memory_type(&self) -> wasm_encoder::MemoryType {
+        wasm_encoder::MemoryType {
+            minimum: self.limits.min,
+            maximum: self.limits.max,
+            memory64: self.limits.is64,
+            shared: self.shared,
+            page_size_log2: self.page_size_log2,
+        }
+    }
+}
+
+impl GlobalType<'_> {
+    fn to_global_type(&self) -> wasm_encoder::GlobalType {
+        wasm_encoder::GlobalType {
+            val_type: self.ty.into(),
+            mutable: self.mutable,
+            shared: self.shared,
+        }
+    }
+}
+
+impl TagType<'_> {
+    fn to_tag_type(&self) -> wasm_encoder::TagType {
+        match self {
+            TagType::Exception(r) => wasm_encoder::TagType {
+                kind: wasm_encoder::TagKind::Exception,
+                func_type_idx: r.into(),
+            },
+        }
+    }
+}
+
+impl<T> TypeUse<'_, T> {
+    fn unwrap_u32(&self) -> u32 {
+        self.index
+            .as_ref()
+            .expect("TypeUse should be filled in by this point")
+            .unwrap_u32()
     }
 }
 
 impl<T> Encode for TypeUse<'_, T> {
     fn encode(&self, e: &mut Vec<u8>) {
-        self.index
-            .as_ref()
-            .expect("TypeUse should be filled in by this point")
-            .encode(e)
+        self.unwrap_u32().encode(e)
     }
 }
 
@@ -678,23 +727,12 @@ impl Encode for Global<'_> {
     }
 }
 
-impl Encode for Export<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.name.encode(e);
-        self.kind.encode(e);
-        self.item.encode(e);
-    }
-}
+impl SectionItem for Export<'_> {
+    type Section = wasm_encoder::ExportSection;
+    const ANCHOR: CustomPlaceAnchor = CustomPlaceAnchor::Export;
 
-impl Encode for ExportKind {
-    fn encode(&self, e: &mut Vec<u8>) {
-        match self {
-            ExportKind::Func => e.push(0x00),
-            ExportKind::Table => e.push(0x01),
-            ExportKind::Memory => e.push(0x02),
-            ExportKind::Global => e.push(0x03),
-            ExportKind::Tag => e.push(0x04),
-        }
+    fn encode(&self, section: &mut wasm_encoder::ExportSection) {
+        section.export(self.name, self.kind.into(), self.item.unwrap_u32());
     }
 }
 

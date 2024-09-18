@@ -629,63 +629,6 @@ impl From<core::HeapType<'_>> for wasm_encoder::HeapType {
     }
 }
 
-impl From<&core::ItemKind<'_>> for wasm_encoder::EntityType {
-    fn from(kind: &core::ItemKind) -> Self {
-        match kind {
-            core::ItemKind::Func(t) => Self::Function(t.into()),
-            core::ItemKind::Table(t) => Self::Table((*t).into()),
-            core::ItemKind::Memory(t) => Self::Memory((*t).into()),
-            core::ItemKind::Global(t) => Self::Global((*t).into()),
-            core::ItemKind::Tag(t) => Self::Tag(t.into()),
-        }
-    }
-}
-
-impl From<core::TableType<'_>> for wasm_encoder::TableType {
-    fn from(ty: core::TableType) -> Self {
-        Self {
-            element_type: ty.elem.into(),
-            minimum: ty.limits.min,
-            maximum: ty.limits.max,
-            table64: ty.limits.is64,
-            shared: ty.shared,
-        }
-    }
-}
-
-impl From<core::MemoryType> for wasm_encoder::MemoryType {
-    fn from(ty: core::MemoryType) -> Self {
-        Self {
-            minimum: ty.limits.min,
-            maximum: ty.limits.max,
-            memory64: ty.limits.is64,
-            shared: ty.shared,
-            page_size_log2: ty.page_size_log2,
-        }
-    }
-}
-
-impl From<core::GlobalType<'_>> for wasm_encoder::GlobalType {
-    fn from(ty: core::GlobalType) -> Self {
-        Self {
-            val_type: ty.ty.into(),
-            mutable: ty.mutable,
-            shared: ty.shared,
-        }
-    }
-}
-
-impl From<&core::TagType<'_>> for wasm_encoder::TagType {
-    fn from(ty: &core::TagType) -> Self {
-        match ty {
-            core::TagType::Exception(r) => Self {
-                kind: wasm_encoder::TagKind::Exception,
-                func_type_idx: r.into(),
-            },
-        }
-    }
-}
-
 impl<T: std::fmt::Debug> From<&core::TypeUse<'_, T>> for u32 {
     fn from(u: &core::TypeUse<'_, T>) -> Self {
         match &u.index {
@@ -898,10 +841,10 @@ impl From<&ModuleType<'_>> for wasm_encoder::ModuleType {
                     _ => unreachable!("only outer type aliases are supported"),
                 },
                 ModuleTypeDecl::Import(i) => {
-                    encoded.import(i.module, i.field, (&i.item.kind).into());
+                    encoded.import(i.module, i.field, i.item.to_entity_type());
                 }
                 ModuleTypeDecl::Export(name, item) => {
-                    encoded.export(name, (&item.kind).into());
+                    encoded.export(name, item.to_entity_type());
                 }
             }
         }
