@@ -1118,11 +1118,7 @@ impl ComponentState {
         })?;
         let start_func_ref = RefType::concrete(true, packed_index);
         let func_ty = FuncType::new([ValType::Ref(start_func_ref), ValType::I32], [ValType::I32]);
-        // Like other component model functions, this is initially added as
-        // unshared, meaning spawned threads cannot spawn more threads. In the
-        // future this and other component model intrinsics (e.g., `rep.*`)
-        // should be marked `shared` to allow access from a shared context.
-        let core_ty = SubType::func(func_ty, false);
+        let core_ty = SubType::func(func_ty, true);
         let id = types.intern_sub_type(core_ty, offset);
         self.core_funcs.push(id);
 
@@ -1143,9 +1139,6 @@ impl ComponentState {
         }
 
         let func_ty = FuncType::new([], [ValType::I32]);
-        // Unlike other component model functions, this is initially added as
-        // shared since checking for the concurrency value seems necessary for
-        // parallel algorithms.
         let core_ty = SubType::func(func_ty, true);
         let id = types.intern_sub_type(core_ty, offset);
         self.core_funcs.push(id);
