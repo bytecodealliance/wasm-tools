@@ -1775,7 +1775,8 @@ impl<'a> FromReader<'a> for HeapType {
                 let ty = reader.read()?;
                 Ok(HeapType::Abstract { shared: true, ty })
             }
-            0x70 | 0x6F | 0x6E | 0x71 | 0x72 | 0x73 | 0x6D | 0x6B | 0x6A | 0x6C | 0x69 | 0x74 => {
+            0x70 | 0x6F | 0x6E | 0x71 | 0x72 | 0x73 | 0x6D | 0x6B | 0x6A | 0x6C | 0x68 | 0x69
+            | 0x74 | 0x75 => {
                 let ty = reader.read()?;
                 Ok(HeapType::Abstract { shared: false, ty })
             }

@@ -1580,12 +1580,21 @@ where
                             let new_cont_id = rt.type_index().unwrap().unpack().as_core_type_id().expect("expected canonicalized index");
                             let new_func_ty = self.func_type_of_cont_type_at(Either::B(new_cont_id))?;
                             // Check that (ts2' -> ts2) <: $ft
-                            if !self.is_subtype_many(0, new_func_ty.params(), 0, tag_ty.results()) || !self.is_subtype_many(0, old_func_ty.results(), 0, new_func_ty.results()) {
+                            if new_func_ty.params().len() != tag_ty.results().len() || !self.is_subtype_many(0, new_func_ty.params(), 0, tag_ty.results())
+                                || old_func_ty.results().len() != new_func_ty.results().len() || !self.is_subtype_many(0, old_func_ty.results(), 0, new_func_ty.results()) {
                                 bail!(self.offset, "type mismatch in continuation type")
                             }
+                            let expected_nargs = tag_ty.params().len() + 1;
+                            let actual_nargs = self
+                                .label_types(block.0, block.1)?
+                                .len();
+                            if actual_nargs != expected_nargs {
+                                bail!(self.offset, "type mismatch: expected {expected_nargs} label result(s), but label is annotated with {actual_nargs} results")
+                            }
+
                             let labeltys = self
                                 .label_types(block.0, block.1)?
-                                .take(tag_ty.params().len());
+                                .take(expected_nargs - 1);
 
                             // Check that ts1' <: ts1''.
                             for (tagty, &lblty) in labeltys.zip(tag_ty.params()) {
@@ -1619,6 +1628,7 @@ where
         skipcnt2: usize,
         ts2: &[ValType],
     ) -> bool {
+        assert!(ts1.iter().skip(skipcnt1).len() == ts2.iter().skip(skipcnt2).len());
         ts1.iter()
             .skip(skipcnt1)
             .zip(ts2.iter().skip(skipcnt2))
@@ -4908,7 +4918,7 @@ where
         self.pop_concrete_contref(true, argument_index)?;
 
         // Check that the argument prefix is available on the stack.
-        for &ty in arg_func.params().iter().rev().take(argcnt) {
+        for &ty in arg_func.params().iter().take(argcnt).rev() {
             self.pop_operand(Some(ty))?;
         }
 
@@ -4996,12 +5006,7 @@ where
 
                 // Check that the arguments t1* are available on the
                 // stack.
-                for &ty in func_ty
-                    .params()
-                    .iter()
-                    .rev()
-                    .skip(1)
-                {
+                for &ty in func_ty.params().iter().rev().skip(1) {
                     self.pop_operand(Some(ty))?;
                 }
 
