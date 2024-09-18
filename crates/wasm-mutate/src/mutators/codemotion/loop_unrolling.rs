@@ -18,7 +18,7 @@ use crate::{
         },
         OperatorAndByteOffset,
     },
-    WasmMutate,
+    Error, WasmMutate,
 };
 
 /// This mutator selects a random `loop` construction in a function and tries to unroll it.
@@ -109,6 +109,14 @@ impl LoopUnrollWriter {
                             }
 
                             to_fix.insert(idx, Instruction::BrTable(jmpfix.into(), def));
+                        }
+
+                        Operator::BrOnCast { .. }
+                        | Operator::BrOnCastFail { .. }
+                        | Operator::BrOnNull { .. }
+                        | Operator::BrOnNonNull { .. } => {
+                            log::info!("unsupported operator {op:?}");
+                            return Err(Error::no_mutations_applicable());
                         }
                         _ => {}
                     }
