@@ -2,6 +2,7 @@
 use crate::{
     module::map_block_type,
     mutators::{codemotion::ir::parse_context::ParseContext, OperatorAndByteOffset},
+    Error,
 };
 use std::ops::Range;
 use wasm_encoder::{Function, Instruction};
@@ -287,6 +288,7 @@ impl AstBuilder {
                     parse_context.push_state();
                     parse_context.push_frame(State::Loop, Some(*blockty), idx);
                 }
+                Operator::TryTable { .. } => return Err(Error::no_mutations_applicable()),
                 Operator::End => {
                     if !parse_context.current_code_is_empty() {
                         parse_context.push_current_code_as_node();
