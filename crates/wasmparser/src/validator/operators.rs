@@ -1598,7 +1598,7 @@ where
 
                             // Check that ts1' <: ts1''.
                             for (tagty, &lblty) in labeltys.zip(tag_ty.params()) {
-                                if !self.resources.is_subtype(tagty, lblty) {
+                                if !self.resources.is_subtype(lblty, tagty) {
                                     bail!(self.offset, "type mismatch between tag type and label type")
                                 }
                             }
