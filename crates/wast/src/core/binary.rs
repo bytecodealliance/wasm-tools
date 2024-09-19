@@ -674,15 +674,9 @@ impl SectionItem for Elem<'_> {
             ),
         };
         match &self.kind {
-            ElemKind::Active {
-                table: Index::Num(0, _),
-                offset,
-            } => {
-                section.active(None, &offset.to_const_expr(None), elements);
-            }
             ElemKind::Active { table, offset } => {
                 section.active(
-                    Some(table.unwrap_u32()),
+                    table.map(|t| t.unwrap_u32()),
                     &offset.to_const_expr(None),
                     elements,
                 );
