@@ -88,7 +88,7 @@
   (export "meet-funcref-4" (func 75))
   (export "meet-nullref" (func 76))
   (export "meet-multi-ref" (func 77))
-  (elem (;0;) (i32.const 0) func $f)
+  (elem (;0;) (table 0) (i32.const 0) func $f)
   (elem (;1;) (table $t) (i32.const 0) (ref null $t) (ref.func $tf))
   (func $dummy (;0;) (type $t))
   (func (;1;) (type $t)

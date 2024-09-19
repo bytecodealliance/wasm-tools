@@ -1531,8 +1531,7 @@ impl Printer<'_, '_> {
                     table_index,
                     offset_expr,
                 } => {
-                    let table_index = table_index.unwrap_or(0);
-                    if table_index != 0 {
+                    if let Some(table_index) = *table_index {
                         self.result.write_str(" ")?;
                         self.start_group("table ")?;
                         self.print_idx(&state.core.table_names, table_index)?;

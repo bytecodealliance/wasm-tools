@@ -7,7 +7,7 @@
   (export "run" (func 2))
   (export "fail1" (func 3))
   (export "fail2" (func 4))
-  (elem (;0;) (i32.const 0) (ref null $t2) (ref.func $f2) (ref.func $f3))
+  (elem (;0;) (table 0) (i32.const 0) (ref null $t2) (ref.func $f2) (ref.func $f3))
   (func $f2 (;0;) (type $t2))
   (func $f3 (;1;) (type $t3))
   (func (;2;) (type $t1)

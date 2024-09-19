@@ -8,7 +8,7 @@
   (export "call-1" (func 6))
   (export "call-2" (func 7))
   (export "call-3" (func 8))
-  (elem (;0;) (i32.const 0) func $f $g)
+  (elem (;0;) (table $t1) (i32.const 0) func $f $g)
   (elem (;1;) (table $t2) (i32.const 0) func $h $i $j)
   (elem (;2;) (table $t3) (i32.const 0) func $g $h)
   (elem (;3;) (table $t3) (i32.const 3) func $z)

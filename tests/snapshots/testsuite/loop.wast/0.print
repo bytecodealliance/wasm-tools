@@ -69,7 +69,7 @@
   (export "for" (func 53))
   (export "nesting" (func 54))
   (export "type-use" (func 55))
-  (elem (;0;) (i32.const 0) func $func)
+  (elem (;0;) (table 0) (i32.const 0) func $func)
   (func $dummy (;0;) (type $block-sig-1))
   (func (;1;) (type $block-sig-1)
     loop ;; label = @1

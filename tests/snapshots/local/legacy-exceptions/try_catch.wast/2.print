@@ -37,7 +37,7 @@
   (export "return-call-indirect-in-try-catch" (func 19))
   (export "break-try-catch" (func 20))
   (export "break-try-catch_all" (func 21))
-  (elem (;0;) (i32.const 0) func $throw-void)
+  (elem (;0;) (table 0) (i32.const 0) func $throw-void)
   (func $throw-if (;1;) (type 5) (param i32) (result i32)
     local.get 0
     i32.const 0

@@ -17,7 +17,7 @@
   (export "funcref-elem" (func 7))
   (export "externref-elem" (func 8))
   (export "ref-elem" (func 9))
-  (elem (;0;) (i32.const 1) func $dummy)
+  (elem (;0;) (table $t1) (i32.const 1) func $dummy)
   (elem (;1;) (table $t3) (i32.const 1) (ref $t) (ref.func $dummy))
   (func $dummy (;0;) (type $t))
   (func $f1 (;1;) (type 1) (param $x funcref) (result i32)

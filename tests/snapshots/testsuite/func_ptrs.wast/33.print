@@ -3,7 +3,7 @@
   (type (;1;) (func (param i32) (result i32)))
   (table (;0;) 2 2 funcref)
   (export "callt" (func 2))
-  (elem (;0;) (i32.const 0) func $t1 $t2)
+  (elem (;0;) (table 0) (i32.const 0) func $t1 $t2)
   (func $t1 (;0;) (type $T) (result i32)
     i32.const 1
   )

@@ -11,8 +11,8 @@
   (global $gf (;4;) funcref ref.func $f)
   (export "get-elem" (func 1))
   (export "get-data" (func 2))
-  (elem (;0;) (global.get $g2) funcref (ref.func $f))
-  (elem (;1;) (global.get $g3) funcref (global.get $gf))
+  (elem (;0;) (table $t) (global.get $g2) funcref (ref.func $f))
+  (elem (;1;) (table $t) (global.get $g3) funcref (global.get $gf))
   (func $f (;0;) (type 0))
   (func (;1;) (type 1) (param $i i32) (result funcref)
     local.get $i

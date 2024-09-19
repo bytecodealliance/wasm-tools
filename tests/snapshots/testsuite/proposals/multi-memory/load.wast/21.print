@@ -43,7 +43,7 @@
   (export "as-compare-left" (func 35))
   (export "as-compare-right" (func 36))
   (export "as-memory.grow-size" (func 37))
-  (elem (;0;) (i32.const 0) func $f)
+  (elem (;0;) (table 0) (i32.const 0) func $f)
   (func (;0;) (type 1) (result i32)
     block (result i32) ;; label = @1
       i32.const 0

@@ -12,7 +12,7 @@
   (export "deinit" (func 4))
   (export "funcref-elem" (func 5))
   (export "externref-elem" (func 6))
-  (elem (;0;) (i32.const 1) func $dummy)
+  (elem (;0;) (table $t1) (i32.const 1) func $dummy)
   (func $f1 (;0;) (type 0) (param $x funcref) (result i32)
     local.get $x
     ref.is_null

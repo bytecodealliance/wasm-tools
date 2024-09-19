@@ -184,7 +184,9 @@ impl<'a> Resolver<'a> {
             ModuleField::Elem(e) => {
                 match &mut e.kind {
                     ElemKind::Active { table, offset } => {
-                        self.resolve(table, Ns::Table)?;
+                        if let Some(table) = table {
+                            self.resolve(table, Ns::Table)?;
+                        }
                         self.resolve_expr(offset)?;
                     }
                     ElemKind::Passive { .. } | ElemKind::Declared { .. } => {}

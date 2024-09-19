@@ -83,7 +83,7 @@
   (export "nested-br_if-value-cond" (func 71))
   (export "nested-br_table-value" (func 72))
   (export "nested-br_table-value-index" (func 73))
-  (elem (;0;) (i32.const 0) func $f)
+  (elem (;0;) (table 0) (i32.const 0) func $f)
   (func $dummy (;0;) (type 1))
   (func (;1;) (type 1)
     block ;; label = @1
