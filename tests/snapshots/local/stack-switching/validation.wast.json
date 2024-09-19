@@ -92,140 +92,196 @@
     },
     {
       "type": "assert_invalid",
-      "line": 365,
+      "line": 363,
       "filename": "validation.13.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
-      "type": "module",
-      "line": 388,
-      "filename": "validation.14.wasm",
-      "module_type": "binary"
-    },
-    {
       "type": "assert_invalid",
-      "line": 417,
-      "filename": "validation.15.wasm",
+      "line": 385,
+      "filename": "validation.14.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
+      "type": "module",
+      "line": 408,
+      "filename": "validation.15.wasm",
+      "module_type": "binary"
+    },
+    {
       "type": "assert_invalid",
-      "line": 433,
+      "line": 437,
       "filename": "validation.16.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 454,
+      "line": 453,
       "filename": "validation.17.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 474,
+      "filename": "validation.18.wasm",
       "module_type": "binary",
       "text": "non-continuation type 0"
     },
     {
       "type": "module",
-      "line": 473,
-      "filename": "validation.18.wasm",
+      "line": 493,
+      "filename": "validation.19.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 558,
-      "filename": "validation.19.wasm",
+      "line": 578,
+      "filename": "validation.20.wasm",
       "module_type": "binary",
       "text": "unknown tag"
     },
     {
       "type": "assert_invalid",
-      "line": 577,
-      "filename": "validation.20.wasm",
-      "module_type": "binary",
-      "text": "non-continuation type"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 591,
+      "line": 597,
       "filename": "validation.21.wasm",
       "module_type": "binary",
       "text": "non-continuation type"
     },
     {
       "type": "assert_invalid",
-      "line": 609,
+      "line": 611,
       "filename": "validation.22.wasm",
       "module_type": "binary",
-      "text": "type mismatch"
+      "text": "non-continuation type"
     },
     {
       "type": "assert_invalid",
-      "line": 625,
+      "line": 629,
       "filename": "validation.23.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 641,
+      "line": 645,
       "filename": "validation.24.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 659,
+      "line": 661,
       "filename": "validation.25.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 680,
+      "line": 679,
       "filename": "validation.26.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 701,
+      "line": 700,
       "filename": "validation.27.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 722,
+      "line": 721,
       "filename": "validation.28.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
-      "type": "module",
-      "line": 749,
+      "type": "assert_invalid",
+      "line": 742,
       "filename": "validation.29.wasm",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 761,
+      "line": 766,
       "filename": "validation.30.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 776,
+      "line": 790,
       "filename": "validation.31.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
-      "type": "assert_invalid",
-      "line": 791,
+      "type": "module",
+      "line": 818,
       "filename": "validation.32.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 830,
+      "filename": "validation.33.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 845,
+      "filename": "validation.34.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 860,
+      "filename": "validation.35.wasm",
       "module_type": "binary",
       "text": "unknown tag"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 873,
+      "filename": "validation.36.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 895,
+      "filename": "validation.37.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 917,
+      "filename": "validation.38.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 940,
+      "filename": "validation.39.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 962,
+      "filename": "validation.40.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
     }
   ]
 }

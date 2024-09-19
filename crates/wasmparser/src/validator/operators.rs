@@ -1596,7 +1596,7 @@ where
                                 .label_types(block.0, block.1)?
                                 .take(expected_nargs - 1);
 
-                            // Check that ts1' <: ts1''.
+                            // Check that ts1'' <: ts1'.
                             for (tagty, &lblty) in labeltys.zip(tag_ty.params()) {
                                 if !self.resources.is_subtype(lblty, tagty) {
                                     bail!(self.offset, "type mismatch between tag type and label type")
@@ -1621,6 +1621,8 @@ where
         Ok(old_func_ty)
     }
 
+    /// Applies `is_subtype` pointwise two equally sized collections
+    /// (i.e. equally sized after skipped elements).
     fn is_subtype_many(
         &mut self,
         skipcnt1: usize,
@@ -1628,7 +1630,7 @@ where
         skipcnt2: usize,
         ts2: &[ValType],
     ) -> bool {
-        assert!(ts1.iter().skip(skipcnt1).len() == ts2.iter().skip(skipcnt2).len());
+        debug_assert!(ts1.iter().skip(skipcnt1).len() == ts2.iter().skip(skipcnt2).len());
         ts1.iter()
             .skip(skipcnt1)
             .zip(ts2.iter().skip(skipcnt2))
@@ -4909,6 +4911,7 @@ where
 
         // Check that [ts1'] -> [ts2] <: [ts1''] -> [ts2']
         if !self.is_subtype_many(0, res_func.params(), argcnt, arg_func.params())
+            || arg_func.results().len() != res_func.results().len()
             || !self.is_subtype_many(0, arg_func.results(), 0, res_func.results())
         {
             bail!(self.offset, "type mismatch in continuation types");
@@ -4995,7 +4998,9 @@ where
                     .as_core_type_id()
                     .expect("expected canonicalized index");
                 let other_func_ty = self.func_type_of_cont_type_at(Either::B(other_cont_id))?;
-                if !self.is_subtype_many(0, func_ty.results(), 0, tag_ty.results())
+                if func_ty.results().len() != tag_ty.results().len()
+                    || !self.is_subtype_many(0, func_ty.results(), 0, tag_ty.results())
+                    || other_func_ty.results().len() != tag_ty.results().len()
                     || !self.is_subtype_many(0, tag_ty.results(), 0, other_func_ty.results())
                 {
                     bail!(self.offset, "type mismatch in continuation types")
@@ -5015,7 +5020,15 @@ where
                     self.push_operand(ty)?;
                 }
             }
-            _ => bail!(self.offset, "type mismatch in continuation types"),
+            Some(ty) => bail!(
+                self.offset,
+                "type mismatch: expected a continuation reference, found {}",
+                ty_to_str(*ty)
+            ),
+            None => bail!(
+                self.offset,
+                "type mismatch: instruction requires a continuation reference"
+            ),
         }
         Ok(())
     }

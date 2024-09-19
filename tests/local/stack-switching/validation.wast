@@ -324,6 +324,26 @@
     (type $ft0 (func (result i32)))
     (type $ct0 (cont $ft0))
 
+    (type $ft1 (func (result i32 i32)))
+    (type $ct1 (cont $ft1))
+
+    (func $error
+      (param $p (ref $ct0))
+      ;; error: two continuation types not agreeing on return types
+      (local.get $p)
+      (cont.bind $ct0 $ct1)
+      (drop)
+    )
+  )
+  "type mismatch"
+)
+
+(assert_invalid
+
+  (module
+    (type $ft0 (func (result i32)))
+    (type $ct0 (cont $ft0))
+
     (type $ft1 (func (param i32) (result i32)))
     (type $ct1 (cont $ft1))
 
@@ -742,6 +762,55 @@
   "type mismatch"
 )
 
+(assert_invalid
+  (module
+    (type $ft0 (func))
+    (type $ct0 (cont $ft0))
+
+    (type $ft1 (func (result i32)))
+    (type $ct1 (cont $ft1))
+
+    (tag $t (param i32))
+
+    (func $error
+      (param $p (ref $ct0))
+      (block $handler (result i32 (ref $ct1))
+        ;; error: type mismatch in continuation types; result types don't agree.
+        (local.get $p)
+        (resume $ct0 (on $t $handler))
+        (return)
+      )
+      (unreachable)
+    )
+  )
+  "type mismatch"
+)
+
+(assert_invalid
+  (module
+    (type $ft0 (func (result i32)))
+    (type $ct0 (cont $ft0))
+
+    (type $ft1 (func (result i64)))
+    (type $ct1 (cont $ft1))
+
+    (tag $t (param i32))
+
+    (func $error
+      (param $p (ref $ct0))
+      (result i32)
+      (block $handler (result i32 (ref $ct1))
+        ;; error: type mismatch in continuation types; result types don't agree.
+        (local.get $p)
+        (resume $ct0 (on $t $handler))
+        (return)
+      )
+      (unreachable)
+    )
+  )
+  "type mismatch"
+)
+
 ;;;;
 ;;;; suspend instructions
 ;;;;
@@ -795,4 +864,117 @@
     )
   )
   "unknown tag"
+)
+
+;; Switch
+
+(assert_invalid
+
+  (module
+    (type $ft0 (func (result i32)))
+    (type $ct0 (cont $ft0))
+
+    (type $ft1 (func (param (ref null $ct0)) (result i32)))
+    (type $ct1 (cont $ft1))
+
+    (tag $swap (result i32 i32))
+
+    (func $error
+      (param $p (ref null $ct1))
+      ;; error: $ft1 results don't agree with $swap results.
+      (local.get $p)
+      (switch $ct1 $swap)
+      (drop)
+    )
+  )
+   "type mismatch"
+)
+
+(assert_invalid
+
+  (module
+    (type $ft0 (func (result i32)))
+    (type $ct0 (cont $ft0))
+
+    (type $ft1 (func (param (ref null $ct0)) (result i32 i32)))
+    (type $ct1 (cont $ft1))
+
+    (tag $swap (result i32 i32))
+
+    (func $error
+      (param $p (ref null $ct1))
+      ;; error: $ft0 results don't agree with $swap results.
+      (local.get $p)
+      (switch $ct1 $swap)
+      (drop)
+    )
+  )
+   "type mismatch"
+)
+
+(assert_invalid
+
+  (module
+    (type $ft0 (func (result i32)))
+    (type $ct0 (cont $ft0))
+
+    (type $ft1 (func (param (ref null $ct0)) (result i64)))
+    (type $ct1 (cont $ft1))
+
+    (tag $swap (result i32))
+
+    (func $error
+      (param $p (ref null $ct1))
+      ;; error: $ft1 results don't agree with $swap results.
+      (local.get $p)
+      (switch $ct1 $swap)
+      (drop)
+    )
+  )
+   "type mismatch"
+)
+
+
+(assert_invalid
+
+  (module
+    (type $ft0 (func (result f32)))
+    (type $ct0 (cont $ft0))
+
+    (type $ft1 (func (param (ref null $ct0)) (result i32)))
+    (type $ct1 (cont $ft1))
+
+    (tag $swap (result i32))
+
+    (func $error
+      (param $p (ref null $ct1))
+      ;; error: $ft0 results don't agree with $swap results.
+      (local.get $p)
+      (switch $ct1 $swap)
+      (drop)
+    )
+  )
+   "type mismatch"
+)
+
+(assert_invalid
+
+  (module
+    (type $ft0 (func (result i32)))
+    (type $ct0 (cont $ft0))
+
+    (type $ft1 (func (param (ref null $ct0)) (result i64)))
+    (type $ct1 (cont $ft1))
+
+    (tag $swap (result i64))
+
+    (func $error
+      (param $p (ref null $ct1))
+      ;; error: $ft0 results don't agree with $swap results.
+      (local.get $p)
+      (switch $ct1 $swap)
+      (drop)
+    )
+  )
+   "type mismatch"
 )
