@@ -1,13 +1,13 @@
 use crate::component::*;
 use crate::core;
 use crate::core::EncodeOptions;
-use crate::token::{Id, Index, NameAnnotation, Span};
+use crate::token::{Id, Index, NameAnnotation};
 use wasm_encoder::{
     CanonicalFunctionSection, ComponentAliasSection, ComponentCoreTypeEncoder,
     ComponentDefinedTypeEncoder, ComponentExportSection, ComponentImportSection,
     ComponentInstanceSection, ComponentNameSection, ComponentSection, ComponentSectionId,
     ComponentStartSection, ComponentTypeEncoder, ComponentTypeSection, CoreTypeSection,
-    InstanceSection, NameMap, NestedComponentSection, RawSection, SectionId, SubType,
+    InstanceSection, NameMap, NestedComponentSection, RawSection, SubType,
 };
 
 pub fn encode(component: &Component<'_>, options: &EncodeOptions) -> Vec<u8> {
@@ -177,19 +177,12 @@ impl<'a> Encoder<'a> {
     fn encode_custom(&mut self, custom: &Custom) {
         // Flush any in-progress section before encoding the customs section
         self.flush(None);
-        self.component.section(custom);
+        self.component.section(&custom.to_section());
     }
 
     fn encode_producers(&mut self, custom: &core::Producers) {
-        use crate::encode::Encode;
-
-        let mut data = Vec::new();
-        custom.encode(&mut data);
-        self.encode_custom(&Custom {
-            name: "producers",
-            span: Span::from_offset(0),
-            data: vec![&data],
-        })
+        self.flush(None);
+        self.component.section(&custom.to_section());
     }
 
     fn encode_core_module(&mut self, module: &CoreModule<'a>, options: &EncodeOptions) {
@@ -549,32 +542,16 @@ fn get_name<'a>(id: &Option<Id<'a>>, name: &Option<NameAnnotation<'a>>) -> Optio
     })
 }
 
-// This implementation is much like `wasm_encoder::CustomSection`, except
-// that it extends via a list of slices instead of a single slice.
-impl wasm_encoder::Encode for Custom<'_> {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        let mut buf = [0u8; 5];
-        let encoded_name_len =
-            leb128::write::unsigned(&mut &mut buf[..], u64::try_from(self.name.len()).unwrap())
-                .unwrap();
-        let data_len = self.data.iter().fold(0, |acc, s| acc + s.len());
-
-        // name length
-        (encoded_name_len + self.name.len() + data_len).encode(sink);
-
-        // name
-        self.name.encode(sink);
-
-        // data
-        for s in &self.data {
-            sink.extend(*s);
+impl Custom<'_> {
+    fn to_section(&self) -> wasm_encoder::CustomSection<'_> {
+        let mut ret = Vec::new();
+        for list in self.data.iter() {
+            ret.extend_from_slice(list);
         }
-    }
-}
-
-impl wasm_encoder::ComponentSection for Custom<'_> {
-    fn id(&self) -> u8 {
-        SectionId::Custom.into()
+        wasm_encoder::CustomSection {
+            name: self.name.into(),
+            data: ret.into(),
+        }
     }
 }
 
@@ -625,63 +602,6 @@ impl From<core::HeapType<'_>> for wasm_encoder::HeapType {
             }
             core::HeapType::Concrete(Index::Num(i, _)) => Self::Concrete(i),
             core::HeapType::Concrete(_) => panic!("unresolved index"),
-        }
-    }
-}
-
-impl From<&core::ItemKind<'_>> for wasm_encoder::EntityType {
-    fn from(kind: &core::ItemKind) -> Self {
-        match kind {
-            core::ItemKind::Func(t) => Self::Function(t.into()),
-            core::ItemKind::Table(t) => Self::Table((*t).into()),
-            core::ItemKind::Memory(t) => Self::Memory((*t).into()),
-            core::ItemKind::Global(t) => Self::Global((*t).into()),
-            core::ItemKind::Tag(t) => Self::Tag(t.into()),
-        }
-    }
-}
-
-impl From<core::TableType<'_>> for wasm_encoder::TableType {
-    fn from(ty: core::TableType) -> Self {
-        Self {
-            element_type: ty.elem.into(),
-            minimum: ty.limits.min,
-            maximum: ty.limits.max,
-            table64: ty.limits.is64,
-            shared: ty.shared,
-        }
-    }
-}
-
-impl From<core::MemoryType> for wasm_encoder::MemoryType {
-    fn from(ty: core::MemoryType) -> Self {
-        Self {
-            minimum: ty.limits.min,
-            maximum: ty.limits.max,
-            memory64: ty.limits.is64,
-            shared: ty.shared,
-            page_size_log2: ty.page_size_log2,
-        }
-    }
-}
-
-impl From<core::GlobalType<'_>> for wasm_encoder::GlobalType {
-    fn from(ty: core::GlobalType) -> Self {
-        Self {
-            val_type: ty.ty.into(),
-            mutable: ty.mutable,
-            shared: ty.shared,
-        }
-    }
-}
-
-impl From<&core::TagType<'_>> for wasm_encoder::TagType {
-    fn from(ty: &core::TagType) -> Self {
-        match ty {
-            core::TagType::Exception(r) => Self {
-                kind: wasm_encoder::TagKind::Exception,
-                func_type_idx: r.into(),
-            },
         }
     }
 }
@@ -898,10 +818,10 @@ impl From<&ModuleType<'_>> for wasm_encoder::ModuleType {
                     _ => unreachable!("only outer type aliases are supported"),
                 },
                 ModuleTypeDecl::Import(i) => {
-                    encoded.import(i.module, i.field, (&i.item.kind).into());
+                    encoded.import(i.module, i.field, i.item.to_entity_type());
                 }
                 ModuleTypeDecl::Export(name, item) => {
-                    encoded.export(name, (&item.kind).into());
+                    encoded.export(name, item.to_entity_type());
                 }
             }
         }

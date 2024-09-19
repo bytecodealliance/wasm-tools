@@ -1,3 +1,4 @@
+mod branch_hints;
 mod code;
 mod custom;
 mod data;
@@ -16,6 +17,7 @@ mod tables;
 mod tags;
 mod types;
 
+pub use branch_hints::*;
 pub use code::*;
 pub use custom::*;
 pub use data::*;
