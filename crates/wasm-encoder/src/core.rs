@@ -154,6 +154,11 @@ impl Module {
         &self.bytes
     }
 
+    /// Give the current size of the module in bytes.
+    pub fn len(&self) -> usize {
+        self.bytes.len()
+    }
+
     /// Finish writing this Wasm module and extract ownership of the encoded
     /// bytes.
     pub fn finish(self) -> Vec<u8> {
