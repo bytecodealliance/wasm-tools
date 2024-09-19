@@ -7,7 +7,6 @@ use std::borrow::Cow;
 use std::marker;
 #[cfg(feature = "dwarf")]
 use std::path::Path;
-use wasm_encoder::SectionId;
 
 /// Options that can be specified when encoding a component or a module to
 /// customize what the final binary looks like.
@@ -147,8 +146,11 @@ pub(crate) fn encode(
     e.typed_section(&types);
     e.typed_section(&imports);
 
-    let functys = funcs.iter().map(|f| &f.ty).collect::<Vec<_>>();
-    e.section_list(SectionId::Function, Func, &functys);
+    let functys = funcs
+        .iter()
+        .map(|f| FuncSectionTy(&f.ty))
+        .collect::<Vec<_>>();
+    e.typed_section(&functys);
     e.typed_section(&tables);
     e.typed_section(&memories);
     e.typed_section(&tags);
@@ -210,15 +212,6 @@ struct Encoder<'a> {
 }
 
 impl Encoder<'_> {
-    fn section(&mut self, id: SectionId, section: &dyn Encode) {
-        self.tmp.truncate(0);
-        section.encode(&mut self.tmp);
-        self.wasm.section(&wasm_encoder::RawSection {
-            id: id as u8,
-            data: &self.tmp,
-        });
-    }
-
     fn custom_sections(&mut self, place: CustomPlace) {
         for entry in self.customs.iter() {
             if entry.place() == place {
@@ -234,19 +227,6 @@ impl Encoder<'_> {
             name: name.into(),
             data: (&self.tmp).into(),
         });
-    }
-
-    fn section_list(
-        &mut self,
-        id: wasm_encoder::SectionId,
-        anchor: CustomPlaceAnchor,
-        list: &[impl Encode],
-    ) {
-        self.custom_sections(CustomPlace::Before(anchor));
-        if !list.is_empty() {
-            self.section(id, &list)
-        }
-        self.custom_sections(CustomPlace::After(anchor));
     }
 
     fn typed_section<T>(&mut self, list: &[T])
@@ -597,6 +577,17 @@ impl<T> TypeUse<'_, T> {
             .as_ref()
             .expect("TypeUse should be filled in by this point")
             .unwrap_u32()
+    }
+}
+
+struct FuncSectionTy<'a>(&'a TypeUse<'a, FunctionType<'a>>);
+
+impl SectionItem for FuncSectionTy<'_> {
+    type Section = wasm_encoder::FunctionSection;
+    const ANCHOR: CustomPlaceAnchor = CustomPlaceAnchor::Func;
+
+    fn encode(&self, section: &mut wasm_encoder::FunctionSection) {
+        section.function(self.0.unwrap_u32());
     }
 }
 
