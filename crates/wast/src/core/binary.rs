@@ -184,7 +184,7 @@ pub(crate) fn encode(
     e.typed_section(&data);
 
     if !names.is_empty() {
-        e.custom_section("name", &names);
+        e.wasm.section(&names.to_name_section());
     }
     e.custom_sections(AfterLast);
     if let Some(dwarf) = &mut dwarf {
@@ -591,12 +591,6 @@ impl SectionItem for FuncSectionTy<'_> {
     }
 }
 
-impl<T> Encode for TypeUse<'_, T> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.unwrap_u32().encode(e)
-    }
-}
-
 impl Encode for Index<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
         self.unwrap_u32().encode(e)
@@ -903,7 +897,7 @@ impl Encode for LoadOrStoreLane<'_> {
 
 impl Encode for CallIndirect<'_> {
     fn encode(&self, e: &mut Vec<u8>) {
-        self.ty.encode(e);
+        self.ty.unwrap_u32().encode(e);
         self.table.encode(e);
     }
 }
@@ -1161,69 +1155,72 @@ impl Names<'_> {
             && self.data.is_empty()
             && self.fields.is_empty()
             && self.tags.is_empty()
-        // NB: specifically don't check modules/instances since they're
-        // not encoded for now.
     }
 }
 
-impl Encode for Names<'_> {
-    fn encode(&self, dst: &mut Vec<u8>) {
-        let mut tmp = Vec::new();
-
-        let mut subsec = |id: u8, data: &mut Vec<u8>| {
-            dst.push(id);
-            data.encode(dst);
-            data.truncate(0);
-        };
+impl Names<'_> {
+    fn to_name_section(&self) -> wasm_encoder::NameSection {
+        let mut names = wasm_encoder::NameSection::default();
 
         if let Some(id) = self.module {
-            id.encode(&mut tmp);
-            subsec(0, &mut tmp);
+            names.module(id);
         }
-        if self.funcs.len() > 0 {
-            self.funcs.encode(&mut tmp);
-            subsec(1, &mut tmp);
+        let name_map = |indices: &[(u32, &str)]| {
+            if indices.is_empty() {
+                return None;
+            }
+            let mut map = wasm_encoder::NameMap::default();
+            for (idx, name) in indices {
+                map.append(*idx, *name);
+            }
+            Some(map)
+        };
+        let indirect_name_map = |indices: &[(u32, Vec<(u32, &str)>)]| {
+            if indices.is_empty() {
+                return None;
+            }
+            let mut map = wasm_encoder::IndirectNameMap::default();
+            for (idx, names) in indices {
+                if let Some(names) = name_map(names) {
+                    map.append(*idx, &names);
+                }
+            }
+            Some(map)
+        };
+        if let Some(map) = name_map(&self.funcs) {
+            names.functions(&map);
         }
-        if self.locals.len() > 0 {
-            self.locals.encode(&mut tmp);
-            subsec(2, &mut tmp);
+        if let Some(map) = indirect_name_map(&self.locals) {
+            names.locals(&map);
         }
-        if self.labels.len() > 0 {
-            self.labels.encode(&mut tmp);
-            subsec(3, &mut tmp);
+        if let Some(map) = indirect_name_map(&self.labels) {
+            names.labels(&map);
         }
-        if self.types.len() > 0 {
-            self.types.encode(&mut tmp);
-            subsec(4, &mut tmp);
+        if let Some(map) = name_map(&self.types) {
+            names.types(&map);
         }
-        if self.tables.len() > 0 {
-            self.tables.encode(&mut tmp);
-            subsec(5, &mut tmp);
+        if let Some(map) = name_map(&self.tables) {
+            names.tables(&map);
         }
-        if self.memories.len() > 0 {
-            self.memories.encode(&mut tmp);
-            subsec(6, &mut tmp);
+        if let Some(map) = name_map(&self.memories) {
+            names.memories(&map);
         }
-        if self.globals.len() > 0 {
-            self.globals.encode(&mut tmp);
-            subsec(7, &mut tmp);
+        if let Some(map) = name_map(&self.globals) {
+            names.globals(&map);
         }
-        if self.elems.len() > 0 {
-            self.elems.encode(&mut tmp);
-            subsec(8, &mut tmp);
+        if let Some(map) = name_map(&self.elems) {
+            names.elements(&map);
         }
-        if self.data.len() > 0 {
-            self.data.encode(&mut tmp);
-            subsec(9, &mut tmp);
+        if let Some(map) = name_map(&self.data) {
+            names.data(&map);
         }
-        if self.fields.len() > 0 {
-            self.fields.encode(&mut tmp);
-            subsec(10, &mut tmp);
+        if let Some(map) = indirect_name_map(&self.fields) {
+            names.fields(&map);
         }
-        if self.tags.len() > 0 {
-            self.tags.encode(&mut tmp);
-            subsec(11, &mut tmp);
+        if let Some(map) = name_map(&self.tags) {
+            names.tags(&map);
         }
+        names
     }
 }
 
@@ -1374,17 +1371,6 @@ impl SectionItem for Tag<'_> {
         match &self.kind {
             TagKind::Inline() => {}
             _ => panic!("TagKind should be inline during encoding"),
-        }
-    }
-}
-
-impl Encode for TagType<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        match self {
-            TagType::Exception(ty) => {
-                e.push(0x00);
-                ty.encode(e);
-            }
         }
     }
 }
