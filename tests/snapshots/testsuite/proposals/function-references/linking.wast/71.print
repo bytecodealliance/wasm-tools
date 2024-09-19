@@ -8,7 +8,7 @@
   (export "Mt.call" (func $f))
   (export "call Mt.call" (func 3))
   (export "call" (func 4))
-  (elem (;0;) (i32.const 0) func $g $g $g $h $f)
+  (elem (;0;) (table 0) (i32.const 0) func $g $g $g $h $f)
   (func $g (;2;) (type 1) (result i32)
     i32.const 5
   )

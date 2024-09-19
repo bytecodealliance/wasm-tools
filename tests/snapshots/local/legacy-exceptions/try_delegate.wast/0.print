@@ -22,7 +22,7 @@
   (export "break-try-delegate" (func 15))
   (export "break-and-call-throw" (func 16))
   (export "break-and-throw" (func 17))
-  (elem (;0;) (i32.const 0) func $throw-void)
+  (elem (;0;) (table 0) (i32.const 0) func $throw-void)
   (func (;0;) (type 1) (result i32)
     try (result i32) ;; label = @1
       try (result i32) ;; label = @2

@@ -65,7 +65,7 @@
   (export "params-id-break" (func 52))
   (export "effects" (func 53))
   (export "type-use" (func 54))
-  (elem (;0;) (i32.const 0) func $func)
+  (elem (;0;) (table 0) (i32.const 0) func $func)
   (func $dummy (;0;) (type $block-sig-1))
   (func (;1;) (type $block-sig-1)
     block ;; label = @1

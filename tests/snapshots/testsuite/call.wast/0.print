@@ -83,7 +83,7 @@
   (export "as-compare-right" (func 74))
   (export "as-convert-operand" (func 75))
   (export "return-from-long-argument-list" (func 77))
-  (elem (;0;) (i32.const 0) func $func)
+  (elem (;0;) (table 0) (i32.const 0) func $func)
   (func $const-i32 (;0;) (type 1) (result i32)
     i32.const 306
   )

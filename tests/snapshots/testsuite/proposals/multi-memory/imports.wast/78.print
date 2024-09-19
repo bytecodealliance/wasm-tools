@@ -3,7 +3,7 @@
   (type (;1;) (func (param i32) (result i32)))
   (import "spectest" "table" (table $tab (;0;) 10 20 funcref))
   (export "call" (func 0))
-  (elem (;0;) (i32.const 1) func $f $g)
+  (elem (;0;) (table $tab) (i32.const 1) func $f $g)
   (func (;0;) (type 1) (param i32) (result i32)
     local.get 0
     call_indirect (type 0)

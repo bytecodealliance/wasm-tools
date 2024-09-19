@@ -73,7 +73,7 @@
   (export "as-compare-right" (func 54))
   (export "as-convert-operand" (func 55))
   (export "as-memory.grow-size" (func 56))
-  (elem (;0;) (i32.const 0) func $f)
+  (elem (;0;) (table 0) (i32.const 0) func $f)
   (func (;0;) (type 1) (result i32)
     (local i32)
     i32.const 0

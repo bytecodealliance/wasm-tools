@@ -32,7 +32,7 @@
   (export "p6" (func 13))
   (export "print32" (func 16))
   (export "print64" (func 17))
-  (elem (;0;) (i32.const 0) func $print_i32 $print_f64)
+  (elem (;0;) (table 0) (i32.const 0) func $print_i32 $print_f64)
   (func (;16;) (type $func_i32) (param $i i32)
     (local $x f32)
     local.get $i

@@ -10,7 +10,7 @@
   (export "fill" (func 3))
   (export "copy" (func 4))
   (export "init" (func 5))
-  (elem (;0;) (i32.const 0) (ref null (shared i31)) (item i32.const 999 ref.i31_shared) (item i32.const 888 ref.i31_shared) (item i32.const 777 ref.i31_shared))
+  (elem (;0;) (table $table) (i32.const 0) (ref null (shared i31)) (item i32.const 999 ref.i31_shared) (item i32.const 888 ref.i31_shared) (item i32.const 777 ref.i31_shared))
   (elem $elem (;1;) (ref null (shared i31)) (item i32.const 123 ref.i31_shared) (item i32.const 456 ref.i31_shared) (item i32.const 789 ref.i31_shared))
   (func (;0;) (type 0) (result i32)
     table.size $table

@@ -12,7 +12,7 @@
   (type (;6;) (func))
   (table (;0;) 3 3 funcref)
   (export "run" (func 3))
-  (elem (;0;) (i32.const 0) func $f1 $f2 $f3)
+  (elem (;0;) (table 0) (i32.const 0) func $f1 $f2 $f3)
   (func $f1 (;0;) (type $t1) (param i32 (ref $t1)))
   (func $f2 (;1;) (type $t2) (param i32 (ref $t3)))
   (func $f3 (;2;) (type $t3) (param i32 (ref $t2)))

@@ -5,7 +5,7 @@
   (table (;0;) 7 7 funcref)
   (export "callt" (func 5))
   (export "callu" (func 6))
-  (elem (;0;) (i32.const 0) func $t1 $t2 $t3 $u1 $u2 $t1 $t3)
+  (elem (;0;) (table 0) (i32.const 0) func $t1 $t2 $t3 $u1 $u2 $t1 $t3)
   (func $t1 (;0;) (type $T) (result i32)
     i32.const 1
   )

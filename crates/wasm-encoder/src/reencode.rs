@@ -1408,14 +1408,13 @@ pub mod utils {
                 // example which wants to track uses to know when it's ok to
                 // remove a table.
                 //
-                // If the table index is still zero though go ahead and pass
-                // `None` here since that implicitly references table 0. Note
-                // that this means that this does not round-trip the encoding of
-                // `Some(0)` since that reencodes to `None`, but that's seen as
-                // hopefully ok.
-                match reencoder.table_index(table_index.unwrap_or(0)) {
-                    0 => None,
-                    i => Some(i),
+                // If the table index started at `None` and is still zero then
+                // preserve this encoding and keep it at `None`. Otherwise if
+                // the result is nonzero or it was previously nonzero then keep
+                // that encoding too.
+                match (table_index, reencoder.table_index(table_index.unwrap_or(0))) {
+                    (None, 0) => None,
+                    (_, n) => Some(n),
                 },
                 &reencoder.const_expr(offset_expr)?,
                 elems,

@@ -79,7 +79,7 @@
   (export "nested-br_table-value-index" (func 67))
   (export "nested-br_table-loop-block" (func 68))
   (export "meet-externref" (func 69))
-  (elem (;0;) (i32.const 0) func $f)
+  (elem (;0;) (table 0) (i32.const 0) func $f)
   (func $dummy (;0;) (type 1))
   (func (;1;) (type 1)
     block ;; label = @1

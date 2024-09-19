@@ -703,7 +703,7 @@ impl Encode for Elem<'_> {
         match (&self.kind, &self.payload) {
             (
                 ElemKind::Active {
-                    table: Index::Num(0, _),
+                    table: None,
                     offset,
                 },
                 ElemPayload::Indices(_),
@@ -715,7 +715,13 @@ impl Encode for Elem<'_> {
                 e.push(0x01); // flags
                 e.push(0x00); // extern_kind
             }
-            (ElemKind::Active { table, offset }, ElemPayload::Indices(_)) => {
+            (
+                ElemKind::Active {
+                    table: Some(table),
+                    offset,
+                },
+                ElemPayload::Indices(_),
+            ) => {
                 e.push(0x02); // flags
                 table.encode(e);
                 offset.encode(e, None);
@@ -727,7 +733,7 @@ impl Encode for Elem<'_> {
             }
             (
                 ElemKind::Active {
-                    table: Index::Num(0, _),
+                    table: None,
                     offset,
                 },
                 ElemPayload::Exprs {
@@ -752,7 +758,7 @@ impl Encode for Elem<'_> {
             }
             (ElemKind::Active { table, offset }, ElemPayload::Exprs { ty, .. }) => {
                 e.push(0x06);
-                table.encode(e);
+                table.map(|t| t.unwrap_u32()).unwrap_or(0).encode(e);
                 offset.encode(e, None);
                 ty.encode(e);
             }

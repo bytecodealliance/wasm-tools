@@ -65,7 +65,7 @@
   (export "as-compare-left" (func 50))
   (export "as-compare-right" (func 51))
   (export "as-convert-operand" (func 52))
-  (elem (;0;) (i32.const 0) func $dummy)
+  (elem (;0;) (table $tab) (i32.const 0) func $dummy)
   (elem (;1;) declare func $tf)
   (elem (;2;) (table $t) (i32.const 0) func $func)
   (func $dummy (;0;) (type $t))

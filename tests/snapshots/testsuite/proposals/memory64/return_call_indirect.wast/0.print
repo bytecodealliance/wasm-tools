@@ -44,7 +44,7 @@
   (export "fac" (func $fac))
   (export "even" (func $even))
   (export "odd" (func $odd))
-  (elem (;0;) (i32.const 0) func $const-i32 $const-i64 $const-f32 $const-f64 $id-i32 $id-i64 $id-f32 $id-f64 $f32-i32 $i32-i64 $f64-f32 $i64-f64 $fac $fac-acc $even $odd $over-i32-duplicate $over-i64-duplicate $over-f32-duplicate $over-f64-duplicate)
+  (elem (;0;) (table 0) (i32.const 0) func $const-i32 $const-i64 $const-f32 $const-f64 $id-i32 $id-i64 $id-f32 $id-f64 $f32-i32 $i32-i64 $f64-f32 $i64-f64 $fac $fac-acc $even $odd $over-i32-duplicate $over-i64-duplicate $over-f32-duplicate $over-f64-duplicate)
   (elem (;1;) (table $tab2) (i32.const 0) func $tab-f1)
   (elem (;2;) (table $tab3) (i32.const 0) func $tab-f2)
   (func $const-i32 (;0;) (type $out-i32) (result i32)

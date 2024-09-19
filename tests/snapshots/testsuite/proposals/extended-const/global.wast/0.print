@@ -84,7 +84,7 @@
   (export "as-unary-operand" (func 51))
   (export "as-binary-operand" (func 52))
   (export "as-compare-operand" (func 53))
-  (elem (;0;) (i32.const 0) func $func)
+  (elem (;0;) (table 0) (i32.const 0) func $func)
   (func (;0;) (type 1) (result i32)
     global.get $a
   )

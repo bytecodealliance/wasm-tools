@@ -68,7 +68,7 @@
   (export "add64_u_saturated" (func $add64_u_saturated))
   (export "type-use" (func 51))
   (export "atypical-condition" (func 52))
-  (elem (;0;) (i32.const 0) func $func)
+  (elem (;0;) (table 0) (i32.const 0) func $func)
   (func $dummy (;0;) (type $block-sig-1))
   (func (;1;) (type $block-sig-3) (param i32)
     local.get 0
