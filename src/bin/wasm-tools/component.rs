@@ -511,6 +511,10 @@ pub struct WitOpts {
     #[clap(long, conflicts_with = "importize_world")]
     importize: bool,
 
+    /// The name of the world to generate when using `--importize` or `importize-world`.
+    #[clap(long = "importize-out-world-name")]
+    importize_out_world_name: Option<String>,
+
     /// Generates a WIT world to import a component which corresponds to the
     /// selected world.
     ///
@@ -549,9 +553,13 @@ impl WitOpts {
         let mut decoded = self.decode_input()?;
 
         if self.importize {
-            self.importize(&mut decoded, None)?;
+            self.importize(&mut decoded, None, self.importize_out_world_name.as_ref())?;
         } else if self.importize_world.is_some() {
-            self.importize(&mut decoded, self.importize_world.as_deref())?;
+            self.importize(
+                &mut decoded,
+                self.importize_world.as_deref(),
+                self.importize_out_world_name.as_ref(),
+            )?;
         }
 
         // Now that the WIT document has been decoded, it's time to emit it.
@@ -636,7 +644,12 @@ impl WitOpts {
         }
     }
 
-    fn importize(&self, decoded: &mut DecodedWasm, world: Option<&str>) -> Result<()> {
+    fn importize(
+        &self,
+        decoded: &mut DecodedWasm,
+        world: Option<&str>,
+        out_world_name: Option<&String>,
+    ) -> Result<()> {
         let (resolve, world_id) = match (&mut *decoded, world) {
             (DecodedWasm::Component(resolve, world), None) => (resolve, *world),
             (DecodedWasm::Component(..), Some(_)) => {
@@ -653,7 +666,7 @@ impl WitOpts {
         // let pkg = decoded.package();
         // let world_id = decoded.resolve().select_world(main, None)?;
         resolve
-            .importize(world_id)
+            .importize(world_id, out_world_name.cloned())
             .context("failed to move world exports to imports")?;
         let resolve = mem::take(resolve);
         *decoded = DecodedWasm::Component(resolve, world_id);

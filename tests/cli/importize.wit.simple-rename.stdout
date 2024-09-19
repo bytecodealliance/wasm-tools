@@ -47,9 +47,6 @@ interface with-dep {
 world simple {
   export t;
 }
-world simple-rename {
-  export t;
-}
 world with-deps {
   import t;
   import bar;
@@ -60,6 +57,18 @@ world simple-toplevel {
   export foo: func();
   export something: interface {
     foo: func();
+  }
+}
+world toplevel-deps {
+  import something-else-dep;
+
+  type s = u32;
+
+  export bar: func() -> s;
+  export something-else: interface {
+    use something-else-dep.{t};
+
+    bar: func() -> t;
   }
 }
 world fail1 {
@@ -83,14 +92,6 @@ world tricky-import {
 
   export f: func() -> t;
 }
-world toplevel-deps-importized {
-  import bar: func() -> s;
-  import something-else-dep;
-  import something-else: interface {
-    use something-else-dep.{t};
-
-    bar: func() -> t;
-  }
-
-  type s = u32;
+world test-rename {
+  import t;
 }
