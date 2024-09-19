@@ -215,7 +215,7 @@ impl Encoder<'_> {
     fn custom_sections(&mut self, place: CustomPlace) {
         for entry in self.customs.iter() {
             if entry.place() == place {
-                self.custom_section(entry.name(), entry);
+                entry.encode(&mut self.wasm);
             }
         }
     }
@@ -1281,37 +1281,61 @@ impl<'a> Encode for SelectTypes<'a> {
     }
 }
 
-impl Encode for Custom<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
+impl Custom<'_> {
+    fn encode(&self, module: &mut wasm_encoder::Module) {
         match self {
-            Custom::Raw(r) => r.encode(e),
-            Custom::Producers(p) => p.encode(e),
-            Custom::Dylink0(p) => p.encode(e),
+            Custom::Raw(r) => {
+                module.section(&r.to_section());
+            }
+            Custom::Producers(p) => {
+                module.section(&p.to_section());
+            }
+            Custom::Dylink0(p) => {
+                module.section(&p.to_section());
+            }
         }
     }
 }
 
-impl Encode for RawCustomSection<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
+impl RawCustomSection<'_> {
+    fn to_section(&self) -> wasm_encoder::CustomSection<'_> {
+        let mut ret = Vec::new();
         for list in self.data.iter() {
-            e.extend_from_slice(list);
+            ret.extend_from_slice(list);
+        }
+        wasm_encoder::CustomSection {
+            name: self.name.into(),
+            data: ret.into(),
         }
     }
 }
 
-impl Encode for Producers<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.fields.encode(e);
+impl Producers<'_> {
+    pub(crate) fn to_section(&self) -> wasm_encoder::ProducersSection {
+        let mut ret = wasm_encoder::ProducersSection::default();
+        for (name, fields) in self.fields.iter() {
+            let mut field = wasm_encoder::ProducersField::new();
+            for (key, value) in fields {
+                field.value(key, value);
+            }
+            ret.field(name, &field);
+        }
+        ret
     }
 }
 
-impl Encode for Dylink0<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
+impl Dylink0<'_> {
+    fn to_section(&self) -> wasm_encoder::CustomSection<'_> {
+        let mut e = Vec::new();
         for section in self.subsections.iter() {
             e.push(section.id());
             let mut tmp = Vec::new();
             section.encode(&mut tmp);
-            tmp.encode(e);
+            tmp.encode(&mut e);
+        }
+        wasm_encoder::CustomSection {
+            name: "dylink.0".into(),
+            data: e.into(),
         }
     }
 }
