@@ -30,3 +30,4 @@ wasmparser = { optional = true, workspace = true }
 anyhow = { workspace = true }
 tempfile = "3.2.0"
 wasmparser = { path = "../wasmparser" }
+wasmprinter = { path = "../wasmprinter" }

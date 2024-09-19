@@ -5,6 +5,54 @@ use std::borrow::Cow;
 ///
 /// This section was defined in the branch-hinting proposal for WebAssembly:
 /// <https://github.com/WebAssembly/branch-hinting>.
+///
+/// # Example
+///
+/// ```
+/// use wasm_encoder::*;
+///
+/// let mut module = Module::new();
+///
+/// let mut types = TypeSection::new();
+/// types.ty().function([], []);
+/// module.section(&types);
+///
+/// let mut funcs = FunctionSection::new();
+/// funcs.function(0);
+/// module.section(&funcs);
+///
+/// let mut code = CodeSection::new();
+/// let mut body = Function::new([]);
+///
+/// body.instruction(&Instruction::I32Const(1));
+/// let if_offset = body.byte_len();
+/// body.instruction(&Instruction::If(BlockType::Empty));
+/// body.instruction(&Instruction::End);
+/// body.instruction(&Instruction::End);
+/// code.function(&body);
+///
+/// let mut hints = BranchHints::new();
+/// hints.function_hints(0, [BranchHint {
+///     branch_func_offset: if_offset as u32,
+///     branch_hint_value: 1, // taken
+/// }]);
+/// module.section(&hints);
+/// module.section(&code);
+///
+/// let wasm = module.finish();
+/// let wat = wasmprinter::print_bytes(&wasm).unwrap();
+/// assert_eq!(wat, r#"(module
+///   (type (;0;) (func))
+///   (func (;0;) (type 0)
+///     i32.const 1
+///     (@metadata.code.branch_hint "\01")
+///     if ;; label = @1
+///     end
+///   )
+/// )
+/// "#);
+///
+/// ```
 #[derive(Default, Debug)]
 pub struct BranchHints {
     bytes: Vec<u8>,
@@ -28,9 +76,14 @@ impl BranchHints {
     }
 
     /// Adds a new set of function hints for the `func` specified.
-    pub fn function_hints(&mut self, func: u32, hints: impl ExactSizeIterator<Item = BranchHint>) {
+    pub fn function_hints<I>(&mut self, func: u32, hints: I)
+    where
+        I: IntoIterator<Item = BranchHint>,
+        I::IntoIter: ExactSizeIterator,
+    {
         self.num_hints += 1;
         func.encode(&mut self.bytes);
+        let hints = hints.into_iter();
         hints.len().encode(&mut self.bytes);
         for hint in hints {
             hint.branch_func_offset.encode(&mut self.bytes);

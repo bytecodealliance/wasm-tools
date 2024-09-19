@@ -1641,6 +1641,7 @@ dependencies = [
  "leb128",
  "tempfile",
  "wasmparser 0.217.0",
+ "wasmprinter 0.217.0",
 ]
 
 [[package]]
