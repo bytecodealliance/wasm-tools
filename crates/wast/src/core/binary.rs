@@ -137,7 +137,6 @@ pub(crate) fn encode(
 
     let mut e = Encoder {
         wasm: wasm_encoder::Module::new(),
-        tmp: Vec::new(),
         customs: &customs,
     };
 
@@ -207,7 +206,6 @@ pub(crate) fn encode(
 
 struct Encoder<'a> {
     wasm: wasm_encoder::Module,
-    tmp: Vec<u8>,
     customs: &'a [&'a Custom<'a>],
 }
 
@@ -218,15 +216,6 @@ impl Encoder<'_> {
                 entry.encode(&mut self.wasm);
             }
         }
-    }
-
-    fn custom_section(&mut self, name: &str, data: &dyn Encode) {
-        self.tmp.truncate(0);
-        data.encode(&mut self.tmp);
-        self.wasm.section(&wasm_encoder::CustomSection {
-            name: name.into(),
-            data: (&self.tmp).into(),
-        });
     }
 
     fn typed_section<T>(&mut self, list: &[T])
@@ -266,14 +255,14 @@ impl Encoder<'_> {
         self.custom_sections(CustomPlace::Before(CustomPlaceAnchor::Code));
 
         if !list.is_empty() {
-            let mut branch_hints = Vec::new();
+            let mut branch_hints = wasm_encoder::BranchHints::new();
             let mut code_section = Vec::new();
 
             list.len().encode(&mut code_section);
             for func in list.iter() {
                 let hints = func.encode(&mut code_section, dwarf.as_deref_mut());
                 if !hints.is_empty() {
-                    branch_hints.push(FunctionBranchHints { func_index, hints });
+                    branch_hints.function_hints(func_index, hints.into_iter());
                 }
                 func_index += 1;
             }
@@ -281,7 +270,7 @@ impl Encoder<'_> {
             // Branch hints section has to be inserted before the Code section
             // Insert the section only if we have some hints
             if !branch_hints.is_empty() {
-                self.custom_section("metadata.code.branch_hint", &branch_hints);
+                self.wasm.section(&branch_hints);
             }
 
             // Finally, insert the Code section from the tmp buffer
@@ -734,7 +723,11 @@ impl Func<'_> {
     ///
     /// The `dwarf` field is optional and used to track debugging information
     /// for each instruction.
-    fn encode(&self, e: &mut Vec<u8>, mut dwarf: Option<&mut dwarf::Dwarf>) -> Vec<BranchHint> {
+    fn encode(
+        &self,
+        e: &mut Vec<u8>,
+        mut dwarf: Option<&mut dwarf::Dwarf>,
+    ) -> Vec<wasm_encoder::BranchHint> {
         assert!(self.exports.names.is_empty());
         let (expr, locals) = match &self.kind {
             FuncKind::Inline { expression, locals } => (expression, locals),
@@ -786,7 +779,11 @@ impl Expression<'_> {
     /// information for each instruction in `dwarf`.
     ///
     /// Returns all branch hints, if any, found while parsing this function.
-    fn encode(&self, e: &mut Vec<u8>, mut dwarf: Option<&mut dwarf::Dwarf>) -> Vec<BranchHint> {
+    fn encode(
+        &self,
+        e: &mut Vec<u8>,
+        mut dwarf: Option<&mut dwarf::Dwarf>,
+    ) -> Vec<wasm_encoder::BranchHint> {
         let mut hints = Vec::with_capacity(self.branch_hints.len());
         let mut next_hint = self.branch_hints.iter().peekable();
 
@@ -795,7 +792,7 @@ impl Expression<'_> {
             // check to see if the next branch hint matches this instruction's
             // index.
             if let Some(hint) = next_hint.next_if(|h| h.instr_index == i) {
-                hints.push(BranchHint {
+                hints.push(wasm_encoder::BranchHint {
                     branch_func_offset: u32::try_from(e.len()).unwrap(),
                     branch_hint_value: hint.value,
                 });
@@ -1358,31 +1355,6 @@ impl Encode for Dylink0Subsection<'_> {
             Dylink0Subsection::ExportInfo(list) => list.encode(e),
             Dylink0Subsection::ImportInfo(list) => list.encode(e),
         }
-    }
-}
-
-struct FunctionBranchHints {
-    func_index: u32,
-    hints: Vec<BranchHint>,
-}
-
-struct BranchHint {
-    branch_func_offset: u32,
-    branch_hint_value: u32,
-}
-
-impl Encode for FunctionBranchHints {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.func_index.encode(e);
-        self.hints.encode(e);
-    }
-}
-
-impl Encode for BranchHint {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.branch_func_offset.encode(e);
-        1u32.encode(e);
-        self.branch_hint_value.encode(e);
     }
 }
 
