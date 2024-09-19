@@ -1021,7 +1021,7 @@ package {name} is defined in two different locations:\n\
     /// bindings in a context that is importing the original world. This
     /// is intended to be used as part of language tooling when depending on
     /// other components.
-    pub fn importize(&mut self, world_id: WorldId) -> Result<()> {
+    pub fn importize(&mut self, world_id: WorldId, out_world_name: Option<String>) -> Result<()> {
         // Rename the world to avoid having it get confused with the original
         // name of the world. Add `-importized` to it for now. Precisely how
         // this new world is created may want to be updated over time if this
@@ -1029,8 +1029,13 @@ package {name} is defined in two different locations:\n\
         let world = &mut self.worlds[world_id];
         let pkg = &mut self.packages[world.package.unwrap()];
         pkg.worlds.shift_remove(&world.name);
-        world.name.push_str("-importized");
-        pkg.worlds.insert(world.name.clone(), world_id);
+        if let Some(name) = out_world_name {
+            world.name = name.clone();
+            pkg.worlds.insert(name, world_id);
+        } else {
+            world.name.push_str("-importized");
+            pkg.worlds.insert(world.name.clone(), world_id);
+        }
 
         // Trim all non-type definitions from imports. Types can be used by
         // exported functions, for example, so they're preserved.

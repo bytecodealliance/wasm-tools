@@ -62,7 +62,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         // valid.
         log::debug!("... importizing this world");
         let mut resolve2 = resolve.clone();
-        let _ = resolve2.importize(id);
+        let _ = resolve2.importize(id, None);
     }
 
     if decoded_bindgens.len() < 2 {

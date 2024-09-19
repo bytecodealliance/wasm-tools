@@ -1,4 +1,5 @@
 // RUN[simple]: component wit --importize-world simple %
+// RUN[simple-rename]: component wit --importize-world simple-rename --importize-out-world-name test-rename  %
 // RUN[simple-component]: component embed --dummy --world simple % | \
 //                        component wit --importize
 // RUN[with-deps]: component wit --importize-world with-deps %
@@ -31,6 +32,10 @@ interface something-else-dep {
 }
 
 world simple {
+    export t;
+}
+
+world simple-rename {
     export t;
 }
 
