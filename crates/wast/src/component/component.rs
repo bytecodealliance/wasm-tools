@@ -1,6 +1,6 @@
 use crate::annotation;
 use crate::component::*;
-use crate::core::Producers;
+use crate::core::{self, Producers};
 use crate::kw;
 use crate::parser::{Parse, Parser, Result};
 use crate::token::Index;
@@ -146,6 +146,7 @@ pub enum ComponentField<'a> {
     CoreModule(CoreModule<'a>),
     CoreInstance(CoreInstance<'a>),
     CoreType(CoreType<'a>),
+    CoreRec(core::Rec<'a>),
     Component(NestedComponent<'a>),
     Instance(Instance<'a>),
     Alias(Alias<'a>),
@@ -184,6 +185,10 @@ impl<'a> Parse<'a> for ComponentField<'a> {
             }
             if parser.peek2::<kw::func>()? {
                 return Ok(Self::CoreFunc(parser.parse()?));
+            }
+            if parser.peek2::<kw::rec>()? {
+                parser.parse::<kw::core>()?;
+                return Ok(Self::CoreRec(parser.parse()?));
             }
         } else {
             if parser.peek::<kw::component>()? {

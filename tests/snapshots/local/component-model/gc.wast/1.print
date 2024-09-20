@@ -1,6 +1,3 @@
 (component
-  (core type (;0;)
-    (module)
-  )
-  (core type (;1;) (func))
+  (core type (;0;) (sub (func)))
 )

@@ -903,24 +903,53 @@ pub struct TypeDef<'a> {
     pub kind: InnerTypeKind<'a>,
     /// Whether the type is shared or not.
     pub shared: bool,
+    /// The declared parent type of this definition.
+    pub parent: Option<Index<'a>>,
+    /// Whether this type is final or not. By default types are final.
+    pub final_type: Option<bool>,
 }
 
 impl<'a> Parse<'a> for TypeDef<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        let mut l = parser.lookahead1();
-        if l.peek::<kw::shared>()? {
-            parser.parse::<kw::shared>()?;
-            parser.parens(|parser| {
+        let parse_shared_and_kind = |parser: Parser<'a>| {
+            if parser.peek::<kw::shared>()? {
+                parser.parse::<kw::shared>()?;
+                parser.parens(|parser| {
+                    let kind = parser.parse()?;
+                    Ok((true, kind))
+                })
+            } else {
                 let kind = parser.parse()?;
-                Ok(TypeDef { shared: true, kind })
-            })
+                Ok((false, kind))
+            }
+        };
+        let (parent, (shared, kind), final_type) = if parser.peek::<kw::sub>()? {
+            parser.parse::<kw::sub>()?;
+
+            let final_type: Option<bool> = if parser.peek::<kw::r#final>()? {
+                parser.parse::<kw::r#final>()?;
+                Some(true)
+            } else {
+                Some(false)
+            };
+
+            let parent = if parser.peek::<Index<'a>>()? {
+                parser.parse()?
+            } else {
+                None
+            };
+            let pair = parser.parens(parse_shared_and_kind)?;
+            (parent, pair, final_type)
         } else {
-            let kind = parser.parse()?;
-            Ok(TypeDef {
-                shared: false,
-                kind,
-            })
-        }
+            (None, parse_shared_and_kind(parser)?, None)
+        };
+
+        Ok(TypeDef {
+            kind,
+            shared,
+            parent,
+            final_type,
+        })
     }
 }
 
@@ -934,12 +963,8 @@ pub struct Type<'a> {
     pub id: Option<Id<'a>>,
     /// An optional name for this function stored in the custom `name` section.
     pub name: Option<NameAnnotation<'a>>,
-    /// The type that we're declaring.
+    /// The inner definition.
     pub def: TypeDef<'a>,
-    /// The declared parent type of this definition.
-    pub parent: Option<Index<'a>>,
-    /// Whether this type is final or not. By default types are final.
-    pub final_type: Option<bool>,
 }
 
 impl<'a> Peek for Type<'a> {
@@ -956,37 +981,13 @@ impl<'a> Parse<'a> for Type<'a> {
         let span = parser.parse::<kw::r#type>()?.0;
         let id = parser.parse()?;
         let name = parser.parse()?;
-
-        let (parent, def, final_type) = if parser.peek2::<kw::sub>()? {
-            parser.parens(|parser| {
-                parser.parse::<kw::sub>()?;
-
-                let final_type: Option<bool> = if parser.peek::<kw::r#final>()? {
-                    parser.parse::<kw::r#final>()?;
-                    Some(true)
-                } else {
-                    Some(false)
-                };
-
-                let parent = if parser.peek::<Index<'a>>()? {
-                    parser.parse()?
-                } else {
-                    None
-                };
-                let def = parser.parens(|parser| parser.parse())?;
-                Ok((parent, def, final_type))
-            })?
-        } else {
-            (None, parser.parens(|parser| parser.parse())?, None)
-        };
+        let def = parser.parens(|p| p.parse())?;
 
         Ok(Type {
             span,
             id,
             name,
             def,
-            parent,
-            final_type,
         })
     }
 }
