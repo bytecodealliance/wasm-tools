@@ -273,7 +273,7 @@ mod tests {
         fn sub_type_at(&self, _type_idx: u32) -> Option<&crate::SubType> {
             Some(&self.0)
         }
-        fn sub_type_at_id(&self, _id: CoreTypeId) -> Option<&crate::SubType> {
+        fn sub_type_at_id(&self, _id: CoreTypeId) -> &crate::SubType {
             todo!()
         }
         fn type_id_of_function(&self, _at: u32) -> Option<CoreTypeId> {
