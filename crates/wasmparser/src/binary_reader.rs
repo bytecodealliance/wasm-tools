@@ -33,9 +33,15 @@ pub struct BinaryReaderError {
 
 #[derive(Debug, Clone)]
 pub(crate) struct BinaryReaderErrorInner {
-    pub(crate) message: String,
+    pub(crate) kind: BinaryReaderErrorKind,
     pub(crate) offset: usize,
     pub(crate) needed_hint: Option<usize>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum BinaryReaderErrorKind {
+    Custom(String),
+    Invalid(&'static str),
 }
 
 /// The result for `BinaryReader` operations.
@@ -49,22 +55,33 @@ impl fmt::Display for BinaryReaderError {
         write!(
             f,
             "{} (at offset 0x{:x})",
-            self.inner.message, self.inner.offset
+            self.inner.kind, self.inner.offset
         )
     }
 }
 
 impl BinaryReaderError {
     #[cold]
-    pub(crate) fn new(message: impl Into<String>, offset: usize) -> Self {
-        let message = message.into();
+    pub(crate) fn _new(kind: BinaryReaderErrorKind, offset: usize) -> Self {
         BinaryReaderError {
             inner: Box::new(BinaryReaderErrorInner {
-                message,
+                kind,
                 offset,
                 needed_hint: None,
             }),
         }
+    }
+
+    #[cold]
+    pub(crate) fn new(message: impl Into<String>, offset: usize) -> Self {
+        let kind = BinaryReaderErrorKind::Custom(message.into());
+        Self::_new(kind, offset)
+    }
+
+    #[cold]
+    pub(crate) fn invalid(msg: &'static str, offset: usize) -> Self {
+        let kind = BinaryReaderErrorKind::Invalid(msg);
+        BinaryReaderError::_new(kind, offset)
     }
 
     #[cold]
@@ -74,18 +91,13 @@ impl BinaryReaderError {
 
     #[cold]
     pub(crate) fn eof(offset: usize, needed_hint: usize) -> Self {
-        BinaryReaderError {
-            inner: Box::new(BinaryReaderErrorInner {
-                message: "unexpected end-of-file".to_string(),
-                offset,
-                needed_hint: Some(needed_hint),
-            }),
-        }
+        let mut err = BinaryReaderError::new("unexpected end-of-file", offset);
+        err.inner.needed_hint = Some(needed_hint);
+        err
     }
 
-    /// Get this error's message.
-    pub fn message(&self) -> &str {
-        &self.inner.message
+    pub(crate) fn kind_mut(&mut self) -> &mut BinaryReaderErrorKind {
+        &mut self.inner.kind
     }
 
     /// Get the offset within the Wasm binary where the error occurred.
@@ -94,9 +106,18 @@ impl BinaryReaderError {
     }
 
     #[cfg(feature = "validate")]
-    pub(crate) fn add_context(&mut self, mut context: String) {
-        context.push_str("\n");
-        self.inner.message.insert_str(0, &context);
+    pub(crate) fn add_context(&mut self, context: String) {
+        let new = format!("{context}\n{}", self.inner.kind);
+        self.inner.kind = BinaryReaderErrorKind::Custom(new);
+    }
+}
+
+impl fmt::Display for BinaryReaderErrorKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BinaryReaderErrorKind::Custom(msg) => f.write_str(msg),
+            BinaryReaderErrorKind::Invalid(msg) => f.write_str(msg),
+        }
     }
 }
 

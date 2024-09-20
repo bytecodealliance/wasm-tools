@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+use crate::binary_reader::BinaryReaderErrorKind;
 use crate::limits::{
     MAX_WASM_FUNCTION_PARAMS, MAX_WASM_FUNCTION_RETURNS, MAX_WASM_STRUCT_FIELDS,
     MAX_WASM_SUPERTYPES, MAX_WASM_TYPES,
@@ -1709,79 +1710,65 @@ impl<'a> FromReader<'a> for ValType {
                 reader.read_u8()?;
                 Ok(ValType::V128)
             }
-            0x70 | 0x6F | 0x65 | 0x64 | 0x63 | 0x6E | 0x71 | 0x72 | 0x73 | 0x74 | 0x75 | 0x6D
-            | 0x6B | 0x6A | 0x6C | 0x69 | 0x68 => Ok(ValType::Ref(reader.read()?)),
-            _ => bail!(reader.original_position(), "invalid value type"),
+            _ => {
+                // Reclassify errors as invalid value types here because
+                // that's the "root" of what was being parsed rather than
+                // reference types.
+                let refty = reader.read().map_err(|mut e| {
+                    if let BinaryReaderErrorKind::Invalid(msg) = e.kind_mut() {
+                        *msg = "invalid value type";
+                    }
+                    e
+                })?;
+                Ok(ValType::Ref(refty))
+            }
         }
     }
 }
 
 impl<'a> FromReader<'a> for RefType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        let absheapty = |byte, pos| match byte {
-            0x70 => Ok(RefType::FUNC.nullable()),
-            0x6F => Ok(RefType::EXTERN.nullable()),
-            0x6E => Ok(RefType::ANY.nullable()),
-            0x71 => Ok(RefType::NONE.nullable()),
-            0x72 => Ok(RefType::NOEXTERN.nullable()),
-            0x73 => Ok(RefType::NOFUNC.nullable()),
-            0x6D => Ok(RefType::EQ.nullable()),
-            0x6B => Ok(RefType::STRUCT.nullable()),
-            0x6A => Ok(RefType::ARRAY.nullable()),
-            0x6C => Ok(RefType::I31.nullable()),
-            0x69 => Ok(RefType::EXN.nullable()),
-            0x74 => Ok(RefType::NOEXN.nullable()),
-            0x68 => Ok(RefType::CONT.nullable()),
-            0x75 => Ok(RefType::NOCONT.nullable()),
-            _ => bail!(pos, "invalid abstract heap type"),
-        };
-
         // NB: See `FromReader<'a> for ValType` for a table of how this
         // interacts with other value encodings.
-        match reader.read()? {
-            byte @ (0x70 | 0x6F | 0x6E | 0x71 | 0x72 | 0x73 | 0x6D | 0x6B | 0x6A | 0x6C | 0x69
-            | 0x74) => {
-                let pos = reader.original_position();
-                absheapty(byte, pos)
-            }
-            0x65 => {
-                let byte = reader.read()?;
-                let pos = reader.original_position();
-                Ok(absheapty(byte, pos)?.shared().expect("must be abstract"))
-            }
-            byte @ (0x63 | 0x64) => {
-                let nullable = byte == 0x63;
-                let pos = reader.original_position();
+        let pos = reader.original_position();
+        match reader.peek()? {
+            0x63 | 0x64 => {
+                let nullable = reader.read_u8()? == 0x63;
                 RefType::new(nullable, reader.read()?)
                     .ok_or_else(|| crate::BinaryReaderError::new("type index too large", pos))
             }
-            _ => bail!(reader.original_position(), "malformed reference type"),
+            _ => {
+                // Reclassify errors as invalid reference types here because
+                // that's the "root" of what was being parsed rather than
+                // heap types.
+                let hty = reader.read().map_err(|mut e| {
+                    if let BinaryReaderErrorKind::Invalid(msg) = e.kind_mut() {
+                        *msg = "malformed reference type";
+                    }
+                    e
+                })?;
+                RefType::new(true, hty)
+                    .ok_or_else(|| crate::BinaryReaderError::new("type index too large", pos))
+            }
         }
     }
 }
 
 impl<'a> FromReader<'a> for HeapType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        // NB: See `FromReader<'a> for ValType` for a table of how this
-        // interacts with other value encodings.
-        match reader.peek()? {
-            0x65 => {
-                reader.read_u8()?;
-                let ty = reader.read()?;
-                Ok(HeapType::Abstract { shared: true, ty })
-            }
-            0x70 | 0x6F | 0x6E | 0x71 | 0x72 | 0x73 | 0x6D | 0x6B | 0x6A | 0x6C | 0x68 | 0x69
-            | 0x74 | 0x75 => {
-                let ty = reader.read()?;
-                Ok(HeapType::Abstract { shared: false, ty })
-            }
-            _ => {
-                let idx = match u32::try_from(reader.read_var_s33()?) {
-                    Ok(idx) => idx,
-                    Err(_) => {
-                        bail!(reader.original_position(), "invalid indexed ref heap type");
-                    }
-                };
+        // Unconditionally read a `s33` value. If it's positive then that means
+        // it fits in a `u32` meaning that this is a valid concrete type index.
+        // If it's negative, however, then it must be an abstract heap type due
+        // to how non-concrete types are encoded (see `ValType` comments). In
+        // that situation "rewind" the reader and go back to the original bytes
+        // to parse them as an abstract heap type.
+        let mut clone = reader.clone();
+        let s33 = clone.read_var_s33()?;
+        match u32::try_from(s33) {
+            Ok(idx) => {
+                // Be sure to update `reader` with the state after the s33 was
+                // read.
+                *reader = clone;
                 let idx = PackedIndex::from_module_index(idx).ok_or_else(|| {
                     BinaryReaderError::new(
                         "type index greater than implementation limits",
@@ -1790,6 +1777,25 @@ impl<'a> FromReader<'a> for HeapType {
                 })?;
                 Ok(HeapType::Concrete(idx.unpack()))
             }
+            Err(_) => match reader.peek()? {
+                0x65 => {
+                    reader.read_u8()?;
+                    let ty = reader.read()?;
+                    Ok(HeapType::Abstract { shared: true, ty })
+                }
+                _ => {
+                    // Reclassify errors as "invalid heap type" here because
+                    // that's the "root" of what was being parsed rather than
+                    // abstract heap types.
+                    let ty = reader.read().map_err(|mut e| {
+                        if let BinaryReaderErrorKind::Invalid(msg) = e.kind_mut() {
+                            *msg = "invalid heap type";
+                        }
+                        e
+                    })?;
+                    Ok(HeapType::Abstract { shared: false, ty })
+                }
+            },
         }
     }
 }
@@ -1813,7 +1819,10 @@ impl<'a> FromReader<'a> for AbstractHeapType {
             0x68 => Ok(Cont),
             0x75 => Ok(NoCont),
             _ => {
-                bail!(reader.original_position(), "invalid abstract heap type");
+                return Err(BinaryReaderError::invalid(
+                    "invalid abstract heap type",
+                    reader.original_position() - 1,
+                ))
             }
         }
     }

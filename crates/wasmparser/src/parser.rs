@@ -1560,10 +1560,11 @@ mod tests {
                 payload: Payload::CodeSectionStart { count: 1, .. },
             }),
         );
-        assert_eq!(
-            p.parse(&[0], false).unwrap_err().message(),
-            "unexpected end-of-file"
-        );
+        assert!(p
+            .parse(&[0], false)
+            .unwrap_err()
+            .to_string()
+            .contains("unexpected end-of-file"));
 
         // section with 2 functions but section is cut off
         let mut p = parser_after_header();
@@ -1582,10 +1583,11 @@ mod tests {
             }),
         );
         assert_matches!(p.parse(&[], false), Ok(Chunk::NeedMoreData(1)));
-        assert_eq!(
-            p.parse(&[0], false).unwrap_err().message(),
-            "unexpected end-of-file",
-        );
+        assert!(p
+            .parse(&[0], false)
+            .unwrap_err()
+            .to_string()
+            .contains("unexpected end-of-file"));
 
         // trailing data is bad
         let mut p = parser_after_header();
@@ -1603,10 +1605,11 @@ mod tests {
                 payload: Payload::CodeSectionEntry(_),
             }),
         );
-        assert_eq!(
-            p.parse(&[0], false).unwrap_err().message(),
-            "trailing bytes at end of section",
-        );
+        assert!(p
+            .parse(&[0], false)
+            .unwrap_err()
+            .to_string()
+            .contains("trailing bytes at end of section",));
     }
 
     #[test]
@@ -1688,9 +1691,10 @@ mod tests {
         // module. This is a custom section, one byte big, with one content byte. The
         // content byte, however, lives outside of the parent's module code
         // section.
-        assert_eq!(
-            sub.parse(&[0, 1, 0], false).unwrap_err().message(),
-            "section too large",
-        );
+        assert!(sub
+            .parse(&[0, 1, 0], false)
+            .unwrap_err()
+            .to_string()
+            .contains("section too large"));
     }
 }
