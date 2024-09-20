@@ -1165,8 +1165,8 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
         Some(&self.types[id])
     }
 
-    fn sub_type_at_id(&self, at: CoreTypeId) -> Option<&SubType> {
-        Some(&self.types[at])
+    fn sub_type_at_id(&self, at: CoreTypeId) -> &SubType {
+        &self.types[at]
     }
 
     fn type_id_of_function(&self, at: u32) -> Option<CoreTypeId> {
@@ -1244,9 +1244,9 @@ impl WasmModuleResources for ValidatorResources {
         Some(&types[id])
     }
 
-    fn sub_type_at_id(&self, at: CoreTypeId) -> Option<&SubType> {
+    fn sub_type_at_id(&self, at: CoreTypeId) -> &SubType {
         let types = self.0.snapshot.as_ref().unwrap();
-        Some(&types[at])
+        &types[at]
     }
 
     fn type_id_of_function(&self, at: u32) -> Option<CoreTypeId> {

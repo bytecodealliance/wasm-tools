@@ -264,6 +264,19 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
         self.printer.print_core_type_ref(self.state, idx)
     }
 
+    fn cont_type_index(&mut self, idx: u32) -> Result<()> {
+        self.push_str(" ")?;
+        self.printer.print_idx(&self.state.core.type_names, idx)
+    }
+
+    fn argument_index(&mut self, idx: u32) -> Result<()> {
+        self.cont_type_index(idx)
+    }
+
+    fn result_index(&mut self, idx: u32) -> Result<()> {
+        self.cont_type_index(idx)
+    }
+
     fn array_type_index(&mut self, idx: u32) -> Result<()> {
         self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.type_names, idx)
@@ -403,6 +416,11 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
     }
 
     fn resume_table(&mut self, table: ResumeTable) -> Result<()> {
+        // The start_group("resume/resume_throw") have already
+        // increased the nesting depth, but the labels are defined
+        // above this `resume` or `resume_throw`. Therefore we
+        // temporarily decrement this nesting count and increase it
+        // below after printing the on clauses.
         self.printer.nesting -= 1;
         for handle in table.handlers {
             self.result().write_str(" ")?;
@@ -690,35 +708,6 @@ macro_rules! define_visit {
         $self.struct_type_index($ty)?;
         $self.push_str(" ")?;
         $self.printer.print_field_idx($self.state, $ty, $field)?;
-    );
-    (payload $self:ident ContNew $type_index:ident) => (
-        $self.push_str(" ")?;
-        $self.printer.print_idx(&$self.state.core.type_names, $type_index)?;
-    );
-    (payload $self:ident ContBind $argument_index:ident $result_index:ident) => (
-        $self.push_str(" ")?;
-        $self.printer.print_idx(&$self.state.core.type_names, $argument_index)?;
-        $self.push_str(" ")?;
-        $self.printer.print_idx(&$self.state.core.type_names, $result_index)?;
-    );
-    (payload $self:ident Suspend $tag_index:ident) => (
-        $self.tag_index($tag_index)?;
-    );
-    (payload $self:ident Resume $type_index:ident $table:ident) => (
-        $self.push_str(" ")?;
-        $self.printer.print_idx(&$self.state.core.type_names, $type_index)?;
-        $self.resume_table($table)?;
-    );
-    (payload $self:ident ResumeThrow $type_index:ident $tag_index:ident $table:ident) => (
-        $self.push_str(" ")?;
-        $self.printer.print_idx(&$self.state.core.type_names, $type_index)?;
-        $self.tag_index($tag_index)?;
-        $self.resume_table($table)?;
-    );
-    (payload $self:ident Switch $type_index:ident $tag_index:ident) => (
-        $self.push_str(" ")?;
-        $self.printer.print_idx(&$self.state.core.type_names, $type_index)?;
-        $self.tag_index($tag_index)?;
     );
     (payload $self:ident $op:ident $($arg:ident)*) => (
         $($self.$arg($arg)?;)*

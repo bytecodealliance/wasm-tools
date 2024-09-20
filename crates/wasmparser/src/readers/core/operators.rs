@@ -524,7 +524,7 @@ impl<'a> FromReader<'a> for Handle {
             0x01 => Handle::OnSwitch {
                 tag: reader.read_var_u32()?,
             },
-            x => return reader.invalid_leading_byte(x, "on"),
+            x => return reader.invalid_leading_byte(x, "on clause"),
         })
     }
 }

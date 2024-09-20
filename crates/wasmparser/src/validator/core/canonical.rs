@@ -260,19 +260,13 @@ pub(crate) trait InternRecGroup {
                     );
                 }
                 // Check that the type index points to a valid function type.
-                let id = match t.0 {
-                    UnpackedIndex::Id(id) => id,
-                    UnpackedIndex::Module(idx) => self.type_id_at(idx, offset)?,
-                    UnpackedIndex::RecGroup(_) => unreachable!(),
+                let id = match t.0.as_core_type_id() {
+                    None => bail!(offset, "invalid continuation type index"),
+                    Some(id) => id,
                 };
                 match types[id].composite_type.inner {
                     CompositeInnerType::Func(_) => (),
-                    _ => {
-                        return Err(BinaryReaderError::new(
-                            crate::validator::format!("non-function type {}", id.index()),
-                            offset,
-                        ))
-                    }
+                    _ => bail!(offset, "non-function type {}", id.index()),
                 }
             }
         }

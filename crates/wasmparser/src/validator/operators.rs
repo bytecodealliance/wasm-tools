@@ -22,7 +22,6 @@
 // confusing it's recommended to read over that section to see how it maps to
 // the various methods here.
 
-use crate::validator::types::{CoreTypeId, TypeIdentifier};
 use crate::{
     limits::MAX_WASM_FUNCTION_LOCALS, AbstractHeapType, BinaryReaderError, BlockType, BrTable,
     Catch, ContType, FieldType, FuncType, GlobalType, Handle, HeapType, Ieee32, Ieee64, MemArg,
@@ -543,17 +542,6 @@ where
         })?;
 
         self.pop_operand(Some(ref_ty.into()))
-    }
-
-    fn push_concrete_contref(&mut self, nullable: bool, type_index: u32) -> Result<()> {
-        self.cont_type_at(Either::A(type_index))?;
-        self.push_concrete_ref(nullable, type_index)
-    }
-
-    fn pop_concrete_contref(&mut self, nullable: bool, type_index: u32) -> Result<()> {
-        self.cont_type_at(Either::A(type_index))?; // validates whether the `type_index` indeed points to a continuation type.
-        self.pop_concrete_ref(nullable, type_index)?;
-        Ok(())
     }
 
     /// Pop the given label types, checking that they are indeed present on the
@@ -1428,14 +1416,8 @@ where
         }
     }
 
-    fn cont_type_at(&self, key: TypeKey) -> Result<&ContType> {
-        let sub_ty = match key {
-            Either::A(at) => self.sub_type_at(at)?,
-            Either::B(id) => match self.resources.sub_type_at_id(id) {
-                None => bail!(self.offset, "unknown type {}", TypeIdentifier::index(&id)),
-                Some(sub_ty) => sub_ty,
-            },
-        };
+    fn cont_type_at(&self, at: u32) -> Result<&ContType> {
+        let sub_ty = self.sub_type_at(at)?;
         if let CompositeInnerType::Cont(cont_ty) = &sub_ty.composite_type.inner {
             if self.inner.shared && !sub_ty.composite_type.shared {
                 bail!(
@@ -1445,52 +1427,33 @@ where
             }
             Ok(cont_ty)
         } else {
-            bail!(
-                self.offset,
-                "non-continuation type {}",
-                match key {
-                    Either::A(at) => at as usize,
-                    Either::B(id) => TypeIdentifier::index(&id),
-                }
-            )
+            bail!(self.offset, "non-continuation type {at}",)
         }
     }
 
-    fn func_type_of_cont_type_at(&self, key: TypeKey) -> Result<&'resources FuncType> {
-        let cont_ty = self.cont_type_at(key)?;
-        match cont_ty.0.as_core_type_id() {
-            None => bail!(self.offset, "invalid cont type"),
-            Some(func_id) => match self.resources.sub_type_at_id(func_id) {
-                None => bail!(
-                    self.offset,
-                    "unknown type {}",
-                    TypeIdentifier::index(&func_id)
-                ),
-                Some(sub_ty) => {
-                    if let CompositeInnerType::Func(func_ty) = &sub_ty.composite_type.inner {
-                        if self.inner.shared && !sub_ty.composite_type.shared {
-                            bail!(
-                                self.offset,
-                                "shared functions cannot access unshared functions",
-                            );
-                        }
-                        Ok(&func_ty)
-                    } else {
-                        bail!(
-                            self.offset,
-                            "non-function type {}",
-                            TypeIdentifier::index(&func_id)
-                        )
-                    }
-                }
-            },
-        }
+    fn func_type_of_cont_type(&self, cont_ty: &ContType) -> Result<&'resources FuncType> {
+        let func_id = cont_ty.0.as_core_type_id().expect("valid core type id");
+        Ok(self.resources.sub_type_at_id(func_id).unwrap_func())
     }
 
     fn tag_at(&self, at: u32) -> Result<&'resources FuncType> {
         self.resources
             .tag_at(at)
             .ok_or_else(|| format_err!(self.offset, "unknown tag {}: tag index out of bounds", at))
+    }
+
+    // Similar to `tag_at`, but checks that the result type is
+    // empty. This is necessary when enabling the stack switching
+    // feature as it allows non-empty result types on tags.
+    fn exception_tag_at(&self, at: u32) -> Result<&'resources FuncType> {
+        let func_ty = self.tag_at(at)?;
+        if func_ty.results().len() != 0 {
+            bail!(
+                self.offset,
+                "invalid exception type: non-empty tag result type"
+            );
+        }
+        Ok(func_ty)
     }
 
     fn global_type_at(&self, at: u32) -> Result<GlobalType> {
@@ -1565,8 +1528,9 @@ where
         table: ResumeTable,
         type_index: u32, // The type index annotation on the `resume` instruction, which `table` appears on.
     ) -> Result<&'resources FuncType> {
+        let cont_ty = self.cont_type_at(type_index)?;
         // ts1 -> ts2
-        let old_func_ty = self.func_type_of_cont_type_at(Either::A(type_index))?;
+        let old_func_ty = self.func_type_of_cont_type(cont_ty)?;
         for handle in table.handlers {
             match handle {
                 Handle::OnLabel { tag, label } => {
@@ -1577,11 +1541,17 @@ where
                     // Pop the continuation reference.
                     match self.label_types(block.0, block.1)?.last() {
                         Some(ValType::Ref(rt)) if rt.is_concrete_type_ref() => {
-                            let new_cont_id = rt.type_index().unwrap().unpack().as_core_type_id().expect("expected canonicalized index");
-                            let new_func_ty = self.func_type_of_cont_type_at(Either::B(new_cont_id))?;
+                            let sub_ty = self.resources.sub_type_at_id(rt.type_index().unwrap().as_core_type_id().expect("canonicalized index"));
+                            let new_cont =
+                                if let CompositeInnerType::Cont(cont) = &sub_ty.composite_type.inner {
+                                    cont
+                                } else {
+                                    bail!(self.offset, "non-continuation type");
+                                };
+                            let new_func_ty = self.func_type_of_cont_type(&new_cont)?;
                             // Check that (ts2' -> ts2) <: $ft
-                            if new_func_ty.params().len() != tag_ty.results().len() || !self.is_subtype_many(0, new_func_ty.params(), 0, tag_ty.results())
-                                || old_func_ty.results().len() != new_func_ty.results().len() || !self.is_subtype_many(0, old_func_ty.results(), 0, new_func_ty.results()) {
+                            if new_func_ty.params().len() != tag_ty.results().len() || !self.is_subtype_many(new_func_ty.params(), tag_ty.results())
+                                || old_func_ty.results().len() != new_func_ty.results().len() || !self.is_subtype_many(old_func_ty.results(), new_func_ty.results()) {
                                 bail!(self.offset, "type mismatch in continuation type")
                             }
                             let expected_nargs = tag_ty.params().len() + 1;
@@ -1623,17 +1593,10 @@ where
 
     /// Applies `is_subtype` pointwise two equally sized collections
     /// (i.e. equally sized after skipped elements).
-    fn is_subtype_many(
-        &mut self,
-        skipcnt1: usize,
-        ts1: &[ValType],
-        skipcnt2: usize,
-        ts2: &[ValType],
-    ) -> bool {
-        debug_assert!(ts1.iter().skip(skipcnt1).len() == ts2.iter().skip(skipcnt2).len());
+    fn is_subtype_many(&mut self, ts1: &[ValType], ts2: &[ValType]) -> bool {
+        debug_assert!(ts1.len() == ts2.len());
         ts1.iter()
-            .skip(skipcnt1)
-            .zip(ts2.iter().skip(skipcnt2))
+            .zip(ts2.iter())
             .all(|(ty1, ty2)| self.resources.is_subtype(*ty1, *ty2))
     }
 }
@@ -1781,7 +1744,7 @@ where
         for catch in ty.catches {
             match catch {
                 Catch::One { tag, label } => {
-                    let tag = self.tag_at(tag)?;
+                    let tag = self.exception_tag_at(tag)?;
                     let (ty, kind) = self.jump(label)?;
                     let params = tag.params();
                     let types = self.label_types(ty, kind)?;
@@ -1797,7 +1760,7 @@ where
                     }
                 }
                 Catch::OneRef { tag, label } => {
-                    let tag = self.tag_at(tag)?;
+                    let tag = self.exception_tag_at(tag)?;
                     let (ty, kind) = self.jump(label)?;
                     let tag_params = tag.params().iter().copied();
                     let label_types = self.label_types(ty, kind)?;
@@ -1854,7 +1817,7 @@ where
     }
     fn visit_throw(&mut self, index: u32) -> Self::Output {
         // Check values associated with the exception.
-        let ty = self.tag_at(index)?;
+        let ty = self.exception_tag_at(index)?;
         for ty in ty.clone().params().iter().rev() {
             self.pop_operand(Some(*ty))?;
         }
@@ -4838,7 +4801,7 @@ where
             init_height,
         });
         // Push exception argument types.
-        let ty = self.tag_at(index)?;
+        let ty = self.exception_tag_at(index)?;
         for ty in ty.params() {
             self.push_operand(*ty)?;
         }
@@ -4889,17 +4852,19 @@ where
         Ok(())
     }
     fn visit_cont_new(&mut self, type_index: u32) -> Self::Output {
-        let cont_ty = self.cont_type_at(Either::A(type_index))?;
-        let rt = RefType::concrete(true, cont_ty.0.pack().expect("type index too large"));
+        let cont_ty = self.cont_type_at(type_index)?;
+        let rt = RefType::concrete(true, cont_ty.0);
         self.pop_ref(Some(rt))?;
-        self.push_concrete_contref(false, type_index)?;
+        self.push_concrete_ref(false, type_index)?;
         Ok(())
     }
     fn visit_cont_bind(&mut self, argument_index: u32, result_index: u32) -> Self::Output {
         // [ts1 ts1'] -> [ts2]
-        let arg_func = self.func_type_of_cont_type_at(Either::A(argument_index))?;
+        let arg_cont = self.cont_type_at(argument_index)?;
+        let arg_func = self.func_type_of_cont_type(arg_cont)?;
         // [ts1''] -> [ts2']
-        let res_func = self.func_type_of_cont_type_at(Either::A(result_index))?;
+        let res_cont = self.cont_type_at(result_index)?;
+        let res_func = self.func_type_of_cont_type(res_cont)?;
 
         // Verify that the argument's domain is at least as large as the
         // result's domain.
@@ -4910,15 +4875,15 @@ where
         let argcnt = arg_func.params().len() - res_func.params().len();
 
         // Check that [ts1'] -> [ts2] <: [ts1''] -> [ts2']
-        if !self.is_subtype_many(0, res_func.params(), argcnt, arg_func.params())
+        if !self.is_subtype_many(res_func.params(), &arg_func.params()[argcnt..])
             || arg_func.results().len() != res_func.results().len()
-            || !self.is_subtype_many(0, arg_func.results(), 0, res_func.results())
+            || !self.is_subtype_many(arg_func.results(), res_func.results())
         {
             bail!(self.offset, "type mismatch in continuation types");
         }
 
         // Check that the continuation is available on the stack.
-        self.pop_concrete_contref(true, argument_index)?;
+        self.pop_concrete_ref(true, argument_index)?;
 
         // Check that the argument prefix is available on the stack.
         for &ty in arg_func.params().iter().take(argcnt).rev() {
@@ -4926,7 +4891,7 @@ where
         }
 
         // Construct the result type.
-        self.push_concrete_contref(false, result_index)?;
+        self.push_concrete_ref(false, result_index)?;
 
         Ok(())
     }
@@ -4943,7 +4908,7 @@ where
     fn visit_resume(&mut self, type_index: u32, table: ResumeTable) -> Self::Output {
         // [ts1] -> [ts2]
         let ft = self.check_resume_table(table, type_index)?;
-        self.pop_concrete_contref(true, type_index)?;
+        self.pop_concrete_ref(true, type_index)?;
         // Check that ts1 are available on the stack.
         for &ty in ft.params().iter().rev() {
             self.pop_operand(Some(ty))?;
@@ -4964,11 +4929,11 @@ where
         // [ts1] -> [ts2]
         let ft = self.check_resume_table(table, type_index)?;
         // [ts1'] -> []
-        let tag_ty = self.tag_at(tag_index)?;
+        let tag_ty = self.exception_tag_at(tag_index)?;
         if tag_ty.results().len() != 0 {
             bail!(self.offset, "type mismatch: non-empty tag result type")
         }
-        self.pop_concrete_contref(true, type_index)?;
+        self.pop_concrete_ref(true, type_index)?;
         // Check that ts1' are available on the stack.
         for &ty in tag_ty.params().iter().rev() {
             self.pop_operand(Some(ty))?;
@@ -4982,7 +4947,8 @@ where
     }
     fn visit_switch(&mut self, type_index: u32, tag_index: u32) -> Self::Output {
         // [t1* (ref null $ct2)] -> [te1*]
-        let func_ty = self.func_type_of_cont_type_at(Either::A(type_index))?;
+        let cont_ty = self.cont_type_at(type_index)?;
+        let func_ty = self.func_type_of_cont_type(cont_ty)?;
         // [] -> [t*]
         let tag_ty = self.tag_at(tag_index)?;
         if tag_ty.params().len() != 0 {
@@ -4997,17 +4963,24 @@ where
                     .unpack()
                     .as_core_type_id()
                     .expect("expected canonicalized index");
-                let other_func_ty = self.func_type_of_cont_type_at(Either::B(other_cont_id))?;
+                let sub_ty = self.resources.sub_type_at_id(other_cont_id);
+                let other_cont_ty =
+                    if let CompositeInnerType::Cont(cont) = &sub_ty.composite_type.inner {
+                        cont
+                    } else {
+                        bail!(self.offset, "non-continuation type");
+                    };
+                let other_func_ty = self.func_type_of_cont_type(&other_cont_ty)?;
                 if func_ty.results().len() != tag_ty.results().len()
-                    || !self.is_subtype_many(0, func_ty.results(), 0, tag_ty.results())
+                    || !self.is_subtype_many(func_ty.results(), tag_ty.results())
                     || other_func_ty.results().len() != tag_ty.results().len()
-                    || !self.is_subtype_many(0, tag_ty.results(), 0, other_func_ty.results())
+                    || !self.is_subtype_many(tag_ty.results(), other_func_ty.results())
                 {
                     bail!(self.offset, "type mismatch in continuation types")
                 }
 
                 // Pop the continuation reference.
-                self.pop_concrete_contref(true, type_index)?;
+                self.pop_concrete_ref(true, type_index)?;
 
                 // Check that the arguments t1* are available on the
                 // stack.
@@ -5033,8 +5006,6 @@ where
         Ok(())
     }
 }
-
-type TypeKey = Either<u32, CoreTypeId>;
 
 #[derive(Clone, Debug)]
 enum Either<A, B> {

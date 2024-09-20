@@ -799,7 +799,7 @@ pub struct StructType {
 
 /// Represents a type of a continuation in a WebAssembly module.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct ContType(pub UnpackedIndex);
+pub struct ContType(pub PackedIndex);
 
 impl ContType {
     /// Maps any `UnpackedIndex` via the specified closure.
@@ -808,12 +808,9 @@ impl ContType {
         &mut self,
         map: &mut dyn FnMut(&mut PackedIndex) -> Result<()>,
     ) -> Result<()> {
-        let mut idx = self
-            .0
-            .pack()
-            .expect("implementation limit: unable to pack continuation type index");
+        let mut idx = self.0;
         map(&mut idx)?;
-        *self = ContType(PackedIndex::unpack(&idx));
+        *self = ContType(idx);
         Ok(())
     }
 }
@@ -2112,18 +2109,12 @@ impl<'a> FromReader<'a> for StructType {
 
 impl<'a> FromReader<'a> for ContType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        let idx = match u32::try_from(reader.read_var_s33()?) {
-            Ok(idx) => idx,
-            Err(_) => {
-                bail!(reader.original_position(), "invalid cont type");
-            }
-        };
-        let idx = PackedIndex::from_module_index(idx).ok_or_else(|| {
+        let idx = PackedIndex::from_module_index(reader.read_var_u32()?).ok_or_else(|| {
             BinaryReaderError::new(
                 "type index greater than implementation limits",
                 reader.original_position(),
             )
         })?;
-        Ok(ContType(idx.unpack()))
+        Ok(ContType(idx))
     }
 }

@@ -1149,7 +1149,9 @@ pub mod utils {
         reencoder: &mut T,
         cont_ty: wasmparser::ContType,
     ) -> Result<crate::ContType, Error<T::Error>> {
-        Ok(crate::ContType(reencoder.type_index_unpacked(cont_ty.0)?))
+        Ok(crate::ContType(
+            reencoder.type_index_unpacked(cont_ty.0.unpack())?,
+        ))
     }
 
     pub fn val_type<T: ?Sized + Reencode>(
@@ -1595,7 +1597,8 @@ pub mod utils {
             (map $arg:ident try_table) => ($arg);
             (map $arg:ident argument_index) => (reencoder.type_index($arg));
             (map $arg:ident result_index) => (reencoder.type_index($arg));
-            (map $arg:ident handlers) => ((
+            (map $arg:ident cont_type_index) => (reencoder.type_index($arg));
+            (map $arg:ident resume_table) => ((
                 $arg.handlers.into_iter().map(|h| reencoder.handle(h)).collect::<Vec<_>>().into()
             ));
 

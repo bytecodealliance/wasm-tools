@@ -270,7 +270,7 @@ impl<'a> Matches for WithRecGroup<&'a ContType> {
                         types
                             .at_canonicalized_unpacked_index(
                                 WithRecGroup::rec_group(a),
-                                *ca,
+                                ca.unpack(),
                                 usize::MAX,
                             )
                             .expect("type references are checked during canonicalization")
@@ -281,7 +281,7 @@ impl<'a> Matches for WithRecGroup<&'a ContType> {
                         types
                             .at_canonicalized_unpacked_index(
                                 WithRecGroup::rec_group(b),
-                                *cb,
+                                cb.unpack(),
                                 usize::MAX,
                             )
                             .expect("type references are checked during canonicalization")

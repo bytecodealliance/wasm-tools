@@ -145,14 +145,14 @@
       "line": 164,
       "filename": "cont.6.wasm",
       "module_type": "binary",
-      "text": "non-continuation type 0"
+      "text": "non-continuation type"
     },
     {
       "type": "assert_invalid",
       "line": 177,
       "filename": "cont.7.wasm",
       "module_type": "binary",
-      "text": "non-continuation type 0"
+      "text": "non-continuation type"
     },
     {
       "type": "assert_invalid",

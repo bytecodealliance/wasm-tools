@@ -1211,16 +1211,16 @@ pub enum Instruction<'a> {
     },
     Suspend(u32),
     Resume {
-        type_index: u32,
-        handlers: Cow<'a, [Handle]>,
+        cont_type_index: u32,
+        resume_table: Cow<'a, [Handle]>,
     },
     ResumeThrow {
-        type_index: u32,
+        cont_type_index: u32,
         tag_index: u32,
-        handlers: Cow<'a, [Handle]>,
+        resume_table: Cow<'a, [Handle]>,
     },
     Switch {
-        type_index: u32,
+        cont_type_index: u32,
         tag_index: u32,
     },
 }
@@ -3732,29 +3732,29 @@ impl Encode for Instruction<'_> {
                 tag_index.encode(sink);
             }
             Instruction::Resume {
-                type_index,
-                ref handlers,
+                cont_type_index,
+                ref resume_table,
             } => {
                 sink.push(0xE3);
-                type_index.encode(sink);
-                handlers.encode(sink);
+                cont_type_index.encode(sink);
+                resume_table.encode(sink);
             }
             Instruction::ResumeThrow {
-                type_index,
+                cont_type_index,
                 tag_index,
-                ref handlers,
+                ref resume_table,
             } => {
                 sink.push(0xE4);
-                type_index.encode(sink);
+                cont_type_index.encode(sink);
                 tag_index.encode(sink);
-                handlers.encode(sink);
+                resume_table.encode(sink);
             }
             Instruction::Switch {
-                type_index,
+                cont_type_index,
                 tag_index,
             } => {
                 sink.push(0xE5);
-                type_index.encode(sink);
+                cont_type_index.encode(sink);
                 tag_index.encode(sink);
             }
         }
