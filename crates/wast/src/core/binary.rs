@@ -361,24 +361,73 @@ impl SectionItem for RecOrType<'_> {
 
 impl Type<'_> {
     pub(crate) fn to_subtype(&self) -> wasm_encoder::SubType {
-        wasm_encoder::SubType {
-            composite_type: self.def.to_composite_type(),
-            is_final: self.final_type.unwrap_or(true),
-            supertype_idx: self.parent.map(|i| i.unwrap_u32()),
-        }
+        self.def.to_subtype()
     }
 }
 
 impl TypeDef<'_> {
-    pub(crate) fn to_composite_type(&self) -> wasm_encoder::CompositeType {
+    pub(crate) fn to_subtype(&self) -> wasm_encoder::SubType {
         use wasm_encoder::CompositeInnerType::*;
-        wasm_encoder::CompositeType {
+        let composite_type = wasm_encoder::CompositeType {
             inner: match &self.kind {
                 InnerTypeKind::Func(ft) => Func(ft.into()),
                 InnerTypeKind::Struct(st) => Struct(st.into()),
                 InnerTypeKind::Array(at) => Array(at.into()),
             },
             shared: self.shared,
+        };
+        wasm_encoder::SubType {
+            composite_type,
+            is_final: self.final_type.unwrap_or(true),
+            supertype_idx: self.parent.map(|i| i.unwrap_u32()),
+        }
+    }
+}
+
+impl From<ValType<'_>> for wasm_encoder::ValType {
+    fn from(ty: ValType) -> Self {
+        match ty {
+            ValType::I32 => Self::I32,
+            ValType::I64 => Self::I64,
+            ValType::F32 => Self::F32,
+            ValType::F64 => Self::F64,
+            ValType::V128 => Self::V128,
+            ValType::Ref(r) => Self::Ref(r.into()),
+        }
+    }
+}
+
+impl From<RefType<'_>> for wasm_encoder::RefType {
+    fn from(r: RefType<'_>) -> Self {
+        wasm_encoder::RefType {
+            nullable: r.nullable,
+            heap_type: r.heap.into(),
+        }
+    }
+}
+
+impl From<HeapType<'_>> for wasm_encoder::HeapType {
+    fn from(r: HeapType<'_>) -> Self {
+        use wasm_encoder::AbstractHeapType::*;
+        match r {
+            HeapType::Abstract { shared, ty } => {
+                let ty = match ty {
+                    AbstractHeapType::Func => Func,
+                    AbstractHeapType::Extern => Extern,
+                    AbstractHeapType::Exn => Exn,
+                    AbstractHeapType::NoExn => NoExn,
+                    AbstractHeapType::Any => Any,
+                    AbstractHeapType::Eq => Eq,
+                    AbstractHeapType::Struct => Struct,
+                    AbstractHeapType::Array => Array,
+                    AbstractHeapType::NoFunc => NoFunc,
+                    AbstractHeapType::NoExtern => NoExtern,
+                    AbstractHeapType::None => None,
+                    AbstractHeapType::I31 => I31,
+                };
+                Self::Abstract { shared, ty }
+            }
+            HeapType::Concrete(i) => Self::Concrete(i.unwrap_u32()),
         }
     }
 }
@@ -554,7 +603,7 @@ impl TagType<'_> {
         match self {
             TagType::Exception(r) => wasm_encoder::TagType {
                 kind: wasm_encoder::TagKind::Exception,
-                func_type_idx: r.into(),
+                func_type_idx: r.unwrap_u32(),
             },
         }
     }

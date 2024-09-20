@@ -7,7 +7,7 @@ use wasm_encoder::{
     ComponentDefinedTypeEncoder, ComponentExportSection, ComponentImportSection,
     ComponentInstanceSection, ComponentNameSection, ComponentSection, ComponentSectionId,
     ComponentStartSection, ComponentTypeEncoder, ComponentTypeSection, CoreTypeSection,
-    InstanceSection, NameMap, NestedComponentSection, RawSection, SubType,
+    InstanceSection, NameMap, NestedComponentSection, RawSection,
 };
 
 pub fn encode(component: &Component<'_>, options: &EncodeOptions) -> Vec<u8> {
@@ -33,6 +33,7 @@ fn encode_fields(
             ComponentField::CoreModule(m) => e.encode_core_module(m, options),
             ComponentField::CoreInstance(i) => e.encode_core_instance(i),
             ComponentField::CoreType(t) => e.encode_core_type(t),
+            ComponentField::CoreRec(t) => e.encode_core_rec(t),
             ComponentField::Component(c) => e.encode_component(c, options),
             ComponentField::Instance(i) => e.encode_instance(i),
             ComponentField::Alias(a) => e.encode_alias(a),
@@ -58,12 +59,7 @@ fn encode_fields(
 fn encode_core_type(encoder: ComponentCoreTypeEncoder, ty: &CoreTypeDef) {
     match ty {
         CoreTypeDef::Def(def) => {
-            let sub_type = SubType {
-                is_final: true,
-                supertype_idx: None,
-                composite_type: def.to_composite_type(),
-            };
-            encoder.core().subtype(&sub_type);
+            encoder.core().subtype(&def.to_subtype());
         }
         CoreTypeDef::Module(t) => {
             encoder.module(&t.into());
@@ -229,6 +225,17 @@ impl<'a> Encoder<'a> {
     fn encode_core_type(&mut self, ty: &CoreType<'a>) {
         self.core_type_names.push(get_name(&ty.id, &ty.name));
         encode_core_type(self.core_types.ty(), &ty.def);
+        self.flush(Some(self.core_types.id()));
+    }
+
+    fn encode_core_rec(&mut self, ty: &core::Rec<'a>) {
+        for ty in ty.types.iter() {
+            self.core_type_names.push(get_name(&ty.id, &ty.name));
+        }
+        self.core_types
+            .ty()
+            .core()
+            .rec(ty.types.iter().map(|t| t.to_subtype()));
         self.flush(Some(self.core_types.id()));
     }
 
@@ -555,66 +562,6 @@ impl Custom<'_> {
     }
 }
 
-// TODO: move these core conversion functions to the core module
-// once we update core encoding to use wasm-encoder.
-impl From<core::ValType<'_>> for wasm_encoder::ValType {
-    fn from(ty: core::ValType) -> Self {
-        match ty {
-            core::ValType::I32 => Self::I32,
-            core::ValType::I64 => Self::I64,
-            core::ValType::F32 => Self::F32,
-            core::ValType::F64 => Self::F64,
-            core::ValType::V128 => Self::V128,
-            core::ValType::Ref(r) => Self::Ref(r.into()),
-        }
-    }
-}
-
-impl From<core::RefType<'_>> for wasm_encoder::RefType {
-    fn from(r: core::RefType<'_>) -> Self {
-        wasm_encoder::RefType {
-            nullable: r.nullable,
-            heap_type: r.heap.into(),
-        }
-    }
-}
-
-impl From<core::HeapType<'_>> for wasm_encoder::HeapType {
-    fn from(r: core::HeapType<'_>) -> Self {
-        use wasm_encoder::AbstractHeapType::*;
-        match r {
-            core::HeapType::Abstract { shared, ty } => {
-                let ty = match ty {
-                    core::AbstractHeapType::Func => Func,
-                    core::AbstractHeapType::Extern => Extern,
-                    core::AbstractHeapType::Exn => Exn,
-                    core::AbstractHeapType::NoExn => NoExn,
-                    core::AbstractHeapType::Any => Any,
-                    core::AbstractHeapType::Eq => Eq,
-                    core::AbstractHeapType::Struct => Struct,
-                    core::AbstractHeapType::Array => Array,
-                    core::AbstractHeapType::NoFunc => NoFunc,
-                    core::AbstractHeapType::NoExtern => NoExtern,
-                    core::AbstractHeapType::None => None,
-                    core::AbstractHeapType::I31 => I31,
-                };
-                Self::Abstract { shared, ty }
-            }
-            core::HeapType::Concrete(Index::Num(i, _)) => Self::Concrete(i),
-            core::HeapType::Concrete(_) => panic!("unresolved index"),
-        }
-    }
-}
-
-impl<T: std::fmt::Debug> From<&core::TypeUse<'_, T>> for u32 {
-    fn from(u: &core::TypeUse<'_, T>) -> Self {
-        match &u.index {
-            Some(i) => (*i).into(),
-            None => unreachable!("unresolved type use in encoding: {:?}", u),
-        }
-    }
-}
-
 impl From<&CoreInstantiationArgKind<'_>> for wasm_encoder::ModuleArg {
     fn from(kind: &CoreInstantiationArgKind) -> Self {
         match kind {
@@ -806,6 +753,9 @@ impl From<&ModuleType<'_>> for wasm_encoder::ModuleType {
             match decl {
                 ModuleTypeDecl::Type(t) => {
                     encoded.ty().subtype(&t.to_subtype());
+                }
+                ModuleTypeDecl::Rec(rec) => {
+                    encoded.ty().rec(rec.types.iter().map(|t| t.to_subtype()));
                 }
                 ModuleTypeDecl::Alias(a) => match &a.target {
                     AliasTarget::Outer {

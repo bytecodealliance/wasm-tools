@@ -105,6 +105,7 @@ impl<'a> Expander<'a> {
                 self.expand_core_type(t);
                 None
             }
+            ComponentField::CoreRec(_) => None,
             ComponentField::Component(c) => self.expand_nested_component(c),
             ComponentField::Instance(i) => self.expand_instance(i),
             ComponentField::Type(t) => {
@@ -452,6 +453,7 @@ impl<'a> Expander<'a> {
                     core::InnerTypeKind::Struct(_) => {}
                     core::InnerTypeKind::Array(_) => {}
                 },
+                ModuleTypeDecl::Rec(_) => {}
                 ModuleTypeDecl::Alias(_) => {}
                 ModuleTypeDecl::Import(ty) => {
                     expand_sig(&mut ty.item, &mut to_prepend, &mut func_type_to_idx);
@@ -497,8 +499,6 @@ impl<'a> Expander<'a> {
                         // `shared` function must use an explicit type index,
                         // e.g., `(func (type $ft))`.
                         def: key.to_def(item.span, /* shared = */ false),
-                        parent: None,
-                        final_type: None,
                     }));
                     let idx = Index::Id(id);
                     t.index = Some(idx);

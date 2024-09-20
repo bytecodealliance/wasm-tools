@@ -217,8 +217,6 @@ impl<'a> Expander<'a> {
             //  a function `shared` inline; a `shared` function must use an
             // explicit type index, e.g., `(func (type $ft))`.
             def: key.to_def(span, /* shared = */ false),
-            parent: None,
-            final_type: None,
         }));
         let idx = Index::Id(id);
         key.insert(self, idx);
@@ -264,6 +262,8 @@ impl<'a> TypeKey<'a> for FuncKey<'a> {
                 results: self.1.clone(),
             }),
             shared,
+            parent: None,
+            final_type: None,
         }
     }
 
