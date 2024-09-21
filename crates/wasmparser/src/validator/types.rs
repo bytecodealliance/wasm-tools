@@ -12,14 +12,21 @@ use crate::{
     PackedIndex, PrimitiveValType, RecGroup, RefType, Result, SubType, TableType, TypeRef,
     UnpackedIndex, ValType, WithRecGroup,
 };
+#[cfg(not(feature = "portable-atomics"))]
 use alloc::sync::Arc;
 use core::ops::{Deref, DerefMut, Index, Range};
-use core::sync::atomic::{AtomicUsize, Ordering};
+use core::sync::atomic::Ordering;
+#[cfg(not(feature = "portable-atomics"))]
+use ::core::sync::atomic::AtomicUsize;
 use core::{
     borrow::Borrow,
     hash::{Hash, Hasher},
     mem,
 };
+#[cfg(feature = "portable-atomics")]
+use portable_atomic_util::Arc;
+#[cfg(feature = "portable-atomics")]
+use portable_atomic::AtomicUsize;
 
 /// The maximum number of parameters in the canonical ABI that can be passed by value.
 ///

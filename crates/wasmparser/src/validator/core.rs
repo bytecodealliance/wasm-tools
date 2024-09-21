@@ -17,8 +17,11 @@ use crate::{
     WasmModuleResources,
 };
 use crate::{prelude::*, CompositeInnerType};
+#[cfg(not(feature = "portable-atomics"))]
 use alloc::sync::Arc;
 use core::mem;
+#[cfg(feature = "portable-atomics")]
+use portable_atomic_util::Arc;
 
 // Section order for WebAssembly modules.
 //
@@ -1293,8 +1296,11 @@ const _: () = {
 };
 
 mod arc {
+    #[cfg(not(feature = "portable-atomics"))]
     use alloc::sync::Arc;
     use core::ops::Deref;
+    #[cfg(feature = "portable-atomics")]
+    use portable_atomic_util::Arc;
 
     enum Inner<T> {
         Owned(T),

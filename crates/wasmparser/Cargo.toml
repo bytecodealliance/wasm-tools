@@ -26,6 +26,8 @@ semver = { workspace = true, optional = true }
 hashbrown = { workspace = true, optional = true }
 ahash = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
+portable-atomic-util = { workspace = true, optional = true }
+portable-atomic = { workspace = true, optional = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
@@ -60,16 +62,13 @@ no-hash-maps = []
 # A feature that enables validating WebAssembly files. This is enabled by
 # default but not required if you're only parsing a file, for example, as
 # opposed to validating all of its contents.
-validate = [
-  'dep:indexmap',
-  'dep:semver',
-  'dep:hashbrown',
-  'dep:ahash',
-]
+validate = ['dep:indexmap', 'dep:semver', 'dep:hashbrown', 'dep:ahash']
 
 # Enable Serialize/Deserialize implementations for types in
 # `wasmparser::collections`
 serde = ['dep:serde', 'indexmap/serde', 'hashbrown/serde']
+
+portable-atomics = ["portable-atomic-util", "portable-atomic"]
 
 # A feature that enables the guts of the `WasmFeatures` type in this crate.
 #

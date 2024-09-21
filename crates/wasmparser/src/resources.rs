@@ -179,7 +179,11 @@ where
     }
 }
 
-impl<T> WasmModuleResources for alloc::sync::Arc<T>
+#[cfg(not(feature = "portable-atomics"))]
+use alloc::sync::Arc;
+#[cfg(feature = "portable-atomics")]
+use portable_atomic_util::Arc;
+impl<T> WasmModuleResources for Arc<T>
 where
     T: WasmModuleResources,
 {
