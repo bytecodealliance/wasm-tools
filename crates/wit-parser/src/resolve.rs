@@ -2059,10 +2059,14 @@ package {name} is defined in two different locations:\n\
             );
         }
 
-        // Finally perform the actual transformation of the imports. Here all
-        // imports are removed if they're replaced and otherwise all imports
-        // have their dependencies updated, possibly transitively, to point to
-        // the new interfaces in `replacements`.
+        // Finally perform the actual transformation of the imports/exports.
+        // Here all imports are removed if they're replaced and otherwise all
+        // imports have their dependencies updated, possibly transitively, to
+        // point to the new interfaces in `replacements`.
+        //
+        // Afterwards exports are additionally updated, but only their
+        // dependencies on imports which were remapped. Exports themselves are
+        // not deduplicated and/or removed.
         for (key, item) in mem::take(&mut self.worlds[world_id].imports) {
             if let WorldItem::Interface { id, .. } = item {
                 if replacements.contains_key(&id) {
@@ -2070,22 +2074,14 @@ package {name} is defined in two different locations:\n\
                 }
             }
 
-            match item {
-                WorldItem::Type(t) => self.update_interface_dep_of_type(t, &replacements),
-                WorldItem::Interface { id, .. } => {
-                    let types = self.interfaces[id]
-                        .types
-                        .values()
-                        .copied()
-                        .collect::<Vec<_>>();
-                    for ty in types {
-                        self.update_interface_dep_of_type(ty, &replacements);
-                    }
-                }
-                WorldItem::Function(_) => {}
-            }
+            self.update_interface_deps_of_world_item(&item, &replacements);
 
             let prev = self.worlds[world_id].imports.insert(key, item);
+            assert!(prev.is_none());
+        }
+        for (key, item) in mem::take(&mut self.worlds[world_id].exports) {
+            self.update_interface_deps_of_world_item(&item, &replacements);
+            let prev = self.worlds[world_id].exports.insert(key, item);
             assert!(prev.is_none());
         }
 
@@ -2109,6 +2105,27 @@ package {name} is defined in two different locations:\n\
         self.assert_valid();
 
         Ok(())
+    }
+
+    fn update_interface_deps_of_world_item(
+        &mut self,
+        item: &WorldItem,
+        replacements: &HashMap<InterfaceId, InterfaceId>,
+    ) {
+        match *item {
+            WorldItem::Type(t) => self.update_interface_dep_of_type(t, &replacements),
+            WorldItem::Interface { id, .. } => {
+                let types = self.interfaces[id]
+                    .types
+                    .values()
+                    .copied()
+                    .collect::<Vec<_>>();
+                for ty in types {
+                    self.update_interface_dep_of_type(ty, &replacements);
+                }
+            }
+            WorldItem::Function(_) => {}
+        }
     }
 
     /// Returns the "semver track" of an interface plus the interface's version.
