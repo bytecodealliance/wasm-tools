@@ -2091,14 +2091,22 @@ package {name} is defined in two different locations:\n\
 
         // Run through `elaborate_world` to reorder imports as appropriate and
         // fill anything back in if it's actually required by exports. For now
-        // this doesn't tamper with exports at all.
-        self.elaborate_world(world_id).with_context(|| {
-            let name = &self.worlds[world_id].name;
-            format!(
-                "failed to elaborate world `{name}` after deduplicating imports \
-                 based on semver"
-            )
-        })?;
+        // this doesn't tamper with exports at all. Also note that this is
+        // applied to all worlds in this `Resolve` because interfaces were
+        // modified directly.
+        let ids = self.worlds.iter().map(|(id, _)| id).collect::<Vec<_>>();
+        for world_id in ids {
+            self.elaborate_world(world_id).with_context(|| {
+                let name = &self.worlds[world_id].name;
+                format!(
+                    "failed to elaborate world `{name}` after deduplicating imports \
+                     based on semver"
+                )
+            })?;
+        }
+
+        #[cfg(debug_assertions)]
+        self.assert_valid();
 
         Ok(())
     }
