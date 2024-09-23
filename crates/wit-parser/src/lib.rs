@@ -189,6 +189,36 @@ impl PackageName {
         }
         s
     }
+
+    /// Determines the "semver compatible track" for the given version.
+    ///
+    /// This method implements the logic from the component model where semver
+    /// versions can be compatible with one another. For example versions 1.2.0
+    /// and 1.2.1 would be considered both compatible with one another because
+    /// they're on the same semver compatible track.
+    ///
+    /// This predicate is used during
+    /// [`Resolve::merge_world_imports_based_on_semver`] for example to
+    /// determine whether two imports can be merged together. This is
+    /// additionally used when creating components to match up imports in
+    /// core wasm to imports in worlds.
+    pub fn version_compat_track(version: &Version) -> Version {
+        let mut version = version.clone();
+        version.build = semver::BuildMetadata::EMPTY;
+        if !version.pre.is_empty() {
+            return version;
+        }
+        if version.major != 0 {
+            version.minor = 0;
+            version.patch = 0;
+            return version;
+        }
+        if version.minor != 0 {
+            version.patch = 0;
+            return version;
+        }
+        version
+    }
 }
 
 impl fmt::Display for PackageName {

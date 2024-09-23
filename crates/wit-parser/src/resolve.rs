@@ -2118,7 +2118,7 @@ package {name} is defined in two different locations:\n\
         let pkg = &self.packages[iface.package?];
         let version = pkg.name.version.as_ref()?;
         let mut name = pkg.name.clone();
-        name.version = Some(version_compat_track(version));
+        name.version = Some(PackageName::version_compat_track(version));
         Some(((name, iface.name.clone()?), version))
     }
 
@@ -2148,24 +2148,6 @@ package {name} is defined in two different locations:\n\
         let replacement_id = self.interfaces[*replace_with].types[name];
         self.types[ty].kind = TypeDefKind::Type(Type::Id(replacement_id));
     }
-}
-
-fn version_compat_track(version: &Version) -> Version {
-    let mut version = version.clone();
-    version.build = semver::BuildMetadata::EMPTY;
-    if !version.pre.is_empty() {
-        return version;
-    }
-    if version.major != 0 {
-        version.minor = 0;
-        version.patch = 0;
-        return version;
-    }
-    if version.minor != 0 {
-        version.patch = 0;
-        return version;
-    }
-    version
 }
 
 /// Structure returned by [`Resolve::merge`] which contains mappings from
