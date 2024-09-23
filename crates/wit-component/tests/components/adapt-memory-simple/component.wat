@@ -25,16 +25,16 @@
     (type (;0;) (func (param i32 i32)))
     (type (;1;) (func (param i32 i32)))
     (table (;0;) 2 2 funcref)
-    (export "0" (func $indirect-new-log))
-    (export "1" (func $adapt-old-log))
+    (export "0" (func $adapt-old-log))
+    (export "1" (func $indirect-new-log))
     (export "$imports" (table 0))
-    (func $indirect-new-log (;0;) (type 0) (param i32 i32)
+    (func $adapt-old-log (;0;) (type 0) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 0
       call_indirect (type 0)
     )
-    (func $adapt-old-log (;1;) (type 1) (param i32 i32)
+    (func $indirect-new-log (;1;) (type 1) (param i32 i32)
       local.get 0
       local.get 1
       i32.const 1
@@ -56,7 +56,7 @@
     )
   )
   (core instance (;0;) (instantiate 2))
-  (alias core export 0 "1" (core func (;0;)))
+  (alias core export 0 "0" (core func (;0;)))
   (core instance (;1;)
     (export "log" (func 0))
   )
@@ -65,7 +65,7 @@
     )
   )
   (alias core export 2 "memory" (core memory (;0;)))
-  (alias core export 0 "0" (core func (;1;)))
+  (alias core export 0 "1" (core func (;1;)))
   (core instance (;3;)
     (export "log" (func 1))
   )
@@ -74,9 +74,9 @@
     )
   )
   (alias core export 0 "$imports" (core table (;0;)))
+  (alias core export 4 "log" (core func (;2;)))
   (alias export 0 "log" (func (;0;)))
-  (core func (;2;) (canon lower (func 0) (memory 0) string-encoding=utf8))
-  (alias core export 4 "log" (core func (;3;)))
+  (core func (;3;) (canon lower (func 0) (memory 0) string-encoding=utf8))
   (core instance (;5;)
     (export "$imports" (table 0))
     (export "0" (func 2))
