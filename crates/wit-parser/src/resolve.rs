@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::fmt;
 use std::mem;
 use std::path::{Path, PathBuf};
 
@@ -1888,8 +1889,7 @@ package {name} is defined in two different locations:\n\
                     // more refactoring, so it's left to a future date in the
                     // hopes that most folks won't actually run into this for
                     // the time being.
-                    "interface `{name}` transitively depends on an interface in \
-                     incompatible ways",
+                    InvalidTransitiveDependency(name),
                 );
             }
         }
@@ -3217,6 +3217,34 @@ fn update_stability(from: &Stability, into: &mut Stability) -> Result<()> {
     // generate an error.
     bail!("mismatch in stability attributes")
 }
+
+/// An error that can be returned during "world elaboration" during various
+/// [`Resolve`] operations.
+///
+/// Methods on [`Resolve`] which mutate its internals, such as
+/// [`Resolve::push_dir`] or [`Resolve::importize`] can fail if `world` imports
+/// in WIT packages are invalid. This error indicates one of these situations
+/// where an invalid dependency graph between imports and exports are detected.
+///
+/// Note that at this time this error is subtle and not easy to understand, and
+/// work needs to be done to explain this better and additionally provide a
+/// better error message. For now though this type enables callers to test for
+/// the exact kind of error emitted.
+#[derive(Debug, Clone)]
+pub struct InvalidTransitiveDependency(String);
+
+impl fmt::Display for InvalidTransitiveDependency {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "interface `{}` transitively depends on an interface in \
+             incompatible ways",
+            self.0
+        )
+    }
+}
+
+impl std::error::Error for InvalidTransitiveDependency {}
 
 #[cfg(test)]
 mod tests {

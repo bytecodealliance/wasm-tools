@@ -6,7 +6,7 @@
 //! type structures.
 
 use arbitrary::{Result, Unstructured};
-use wit_parser::Resolve;
+use wit_parser::{InvalidTransitiveDependency, Resolve};
 
 mod config;
 pub use self::config::Config;
@@ -25,10 +25,7 @@ pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
         let id = match resolve.push_group(group) {
             Ok(id) => id,
             Err(e) => {
-                if e.to_string().contains(
-                    "interface transitively depends on an interface in \
-                     incompatible ways",
-                ) {
+                if e.is::<InvalidTransitiveDependency>() {
                     return Err(arbitrary::Error::IncorrectFormat);
                 }
                 panic!("bad wit parse: {e:?}")
