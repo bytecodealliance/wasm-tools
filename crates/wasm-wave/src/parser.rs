@@ -51,7 +51,13 @@ impl<'source> Parser<'source> {
         let name = self.parse_label()?;
         self.advance()?;
         self.expect_token(Token::ParenOpen)?;
-        let params = self.parse_tuple()?;
+
+        let params = if self.next_is(Token::ParenClose) {
+            self.advance()?;
+            None
+        } else {
+            Some(self.parse_tuple()?)
+        };
         Ok(UntypedFuncCall::new(self.lex.source(), name, params))
     }
 

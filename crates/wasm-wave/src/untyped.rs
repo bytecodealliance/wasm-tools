@@ -60,11 +60,15 @@ impl std::fmt::Display for UntypedValue<'_> {
 pub struct UntypedFuncCall<'source> {
     source: Cow<'source, str>,
     name: Node,
-    params: Node,
+    params: Option<Node>,
 }
 
 impl<'source> UntypedFuncCall<'source> {
-    pub(crate) fn new(source: impl Into<Cow<'source, str>>, name: Node, params: Node) -> Self {
+    pub(crate) fn new(
+        source: impl Into<Cow<'source, str>>,
+        name: Node,
+        params: Option<Node>,
+    ) -> Self {
         Self {
             source: source.into(),
             name,
@@ -100,8 +104,10 @@ impl<'source> UntypedFuncCall<'source> {
     }
 
     /// Returns the function parameters node.
-    pub fn params_node(&self) -> &Node {
-        &self.params
+    ///
+    /// Returns `None` if the function call has no parameters.
+    pub fn params_node(&self) -> Option<&Node> {
+        self.params.as_ref()
     }
 
     /// Returns the function name.
@@ -117,14 +123,20 @@ impl<'source> UntypedFuncCall<'source> {
         &self,
         types: impl IntoIterator<Item = &'types V::Type>,
     ) -> Result<Vec<V>, ParserError> {
-        self.params.to_wasm_params(types, self.source())
+        match &self.params {
+            Some(params) => params.to_wasm_params(types, self.source()),
+            None => Ok(vec![]),
+        }
     }
 }
 
 impl std::fmt::Display for UntypedFuncCall<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.name.slice(&self.source))?;
-        fmt_node(f, &self.params, &self.source)
+        match &self.params {
+            Some(params) => fmt_node(f, params, &self.source),
+            None => f.write_str("()"),
+        }
     }
 }
 
