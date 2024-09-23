@@ -586,13 +586,6 @@ pub struct WitOpts {
     /// items are otherwise hidden by default.
     #[clap(long)]
     all_features: bool,
-
-    /// Indicates whether imports into the final component are merged based on
-    /// semver ranges.
-    ///
-    /// This is enabled by default.
-    #[clap(long, value_name = "MERGE")]
-    merge_imports_based_on_semver: Option<bool>,
 }
 
 impl WitOpts {
@@ -687,10 +680,7 @@ impl WitOpts {
                 if wasmparser::Parser::is_component(&input) {
                     wit_component::decode(&input)
                 } else {
-                    let (wasm, bindgen) = wit_component::metadata::decode(
-                        &input,
-                        self.merge_imports_based_on_semver.unwrap_or(true),
-                    )?;
+                    let (wasm, bindgen) = wit_component::metadata::decode(&input)?;
                     if wasm.is_none() {
                         bail!(
                             "input is a core wasm module with no `component-type*` \

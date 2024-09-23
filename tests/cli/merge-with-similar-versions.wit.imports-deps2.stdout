@@ -24,8 +24,6 @@ world imports-deps {
 world imports-deps2 {
   import a:b/foo@0.1.1;
   import a:b/depend-on-foo@0.1.1;
-  import a:b/foo@0.1.0;
-  import a:b/depend-on-foo@0.1.0;
 }
 world invalid-semver {
   import a:b/invalid-semver@0.1.0;

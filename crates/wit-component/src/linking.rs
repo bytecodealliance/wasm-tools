@@ -1305,14 +1305,8 @@ impl Linker {
             .libraries
             .iter()
             .map(|(name, module, dl_openable)| {
-                Metadata::try_new(
-                    name,
-                    *dl_openable,
-                    module,
-                    &adapter_names,
-                    self.merge_imports_based_on_semver.unwrap_or(true),
-                )
-                .with_context(|| format!("failed to extract linking metadata from {name}"))
+                Metadata::try_new(name, *dl_openable, module, &adapter_names)
+                    .with_context(|| format!("failed to extract linking metadata from {name}"))
             })
             .collect::<Result<Vec<_>>>()?;
 
@@ -1436,9 +1430,11 @@ impl Linker {
             self.stack_size.unwrap_or(DEFAULT_STACK_SIZE_BYTES),
         );
 
-        let mut encoder = ComponentEncoder::default()
-            .validate(self.validate)
-            .module(&env_module)?;
+        let mut encoder = ComponentEncoder::default().validate(self.validate);
+        if let Some(merge) = self.merge_imports_based_on_semver {
+            encoder = encoder.merge_imports_based_on_semver(merge);
+        };
+        encoder = encoder.module(&env_module)?;
 
         for (name, module) in &self.adapters {
             encoder = encoder.adapter(name, module)?;

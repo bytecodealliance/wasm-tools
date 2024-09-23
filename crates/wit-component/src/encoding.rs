@@ -1888,8 +1888,7 @@ impl ComponentEncoder {
     }
 
     fn decode<'a>(&self, wasm: &'a [u8]) -> Result<(Cow<'a, [u8]>, Bindgen)> {
-        let (bytes, metadata) =
-            metadata::decode(wasm, self.merge_imports_based_on_semver.unwrap_or(true))?;
+        let (bytes, metadata) = metadata::decode(wasm)?;
         match bytes {
             Some(wasm) => Ok((Cow::Owned(wasm), metadata)),
             None => Ok((Cow::Borrowed(wasm), metadata)),
@@ -1897,8 +1896,7 @@ impl ComponentEncoder {
     }
 
     fn merge_metadata(&mut self, metadata: Bindgen) -> Result<IndexSet<WorldKey>> {
-        self.metadata
-            .merge(metadata, self.merge_imports_based_on_semver.unwrap_or(true))
+        self.metadata.merge(metadata)
     }
 
     /// Sets whether or not the encoder will validate its output.
@@ -2035,9 +2033,15 @@ impl ComponentEncoder {
     }
 
     /// Encode the component and return the bytes.
-    pub fn encode(&self) -> Result<Vec<u8>> {
+    pub fn encode(&mut self) -> Result<Vec<u8>> {
         if self.module.is_empty() {
             bail!("a module is required when encoding a component");
+        }
+
+        if self.merge_imports_based_on_semver.unwrap_or(true) {
+            self.metadata
+                .resolve
+                .merge_world_imports_based_on_semver(self.metadata.world)?;
         }
 
         let world = ComponentWorld::new(self).context("failed to decode world from module")?;

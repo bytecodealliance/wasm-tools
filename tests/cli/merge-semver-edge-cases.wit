@@ -1,27 +1,16 @@
-// RUN[new-import-new-dep]: component embed --dummy --world new-dep-a % | \
-//                          component embed         --world new-dep-b % | \
-//                          component wit
-//
-// RUN[reorder-new-dep]: component embed --dummy --world reorder-dep-a % | \
-//                       component embed         --world reorder-dep-b % | \
-//                       component wit
+// RUN[new-import-new-dep]: component wit % --merge-world-imports-based-on-semver new-dep
+// RUN[reorder-new-dep]: component wit % --merge-world-imports-based-on-semver reorder-dep
 
 package foo:bar;
 
-world new-dep-a {
+world new-dep {
   import a:b/foo@0.1.0;
-}
-
-world new-dep-b {
   import a:b/foo@0.1.1;
 }
 
-world reorder-dep-a {
+world reorder-dep {
   import a:b/add-dep-on-prev-foo@0.1.0;
   import a:b/foo@0.1.0;
-}
-
-world reorder-dep-b {
   import a:b/add-dep-on-prev-foo@0.1.1;
 }
 

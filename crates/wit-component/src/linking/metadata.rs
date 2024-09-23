@@ -214,9 +214,8 @@ impl<'a> Metadata<'a> {
         dl_openable: bool,
         module: &'a [u8],
         adapter_names: &HashSet<&str>,
-        merge_imports_based_on_semver: bool,
     ) -> Result<Self> {
-        let bindgen = crate::metadata::decode(module, merge_imports_based_on_semver)?.1;
+        let bindgen = crate::metadata::decode(module)?.1;
         let has_component_exports = !bindgen.resolve.worlds[bindgen.world].exports.is_empty();
 
         let mut result = Self {

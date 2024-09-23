@@ -133,10 +133,7 @@ pub struct ModuleMetadata {
 /// If a `component-type` custom section was found then a new binary is
 /// optionally returned with the custom sections stripped out. If no
 /// `component-type` custom sections are found then `None` is returned.
-pub fn decode(
-    wasm: &[u8],
-    merge_imports_based_on_semver: bool,
-) -> Result<(Option<Vec<u8>>, Bindgen)> {
+pub fn decode(wasm: &[u8]) -> Result<(Option<Vec<u8>>, Bindgen)> {
     let mut ret = Bindgen::default();
     let mut new_module = wasm_encoder::Module::new();
 
@@ -147,7 +144,7 @@ pub fn decode(
             wasmparser::Payload::CustomSection(cs) if cs.name().starts_with("component-type") => {
                 let data = Bindgen::decode_custom_section(cs.data())
                     .with_context(|| format!("decoding custom section {}", cs.name()))?;
-                ret.merge(data, merge_imports_based_on_semver)
+                ret.merge(data)
                     .with_context(|| format!("updating metadata for section {}", cs.name()))?;
                 found_custom = true;
             }
@@ -304,11 +301,7 @@ impl Bindgen {
     ///
     /// This function returns the set of exports that the main world of
     /// `other` added to the world in `self`.
-    pub fn merge(
-        &mut self,
-        other: Bindgen,
-        merge_imports_based_on_semver: bool,
-    ) -> Result<IndexSet<WorldKey>> {
+    pub fn merge(&mut self, other: Bindgen) -> Result<IndexSet<WorldKey>> {
         let Bindgen {
             resolve,
             world,
@@ -329,13 +322,6 @@ impl Bindgen {
         self.resolve
             .merge_worlds(world, self.world)
             .context("failed to merge worlds from two documents")?;
-
-        // If requested additionally deduplicate any imports based on semver.
-        if merge_imports_based_on_semver {
-            self.resolve
-                .merge_world_imports_based_on_semver(self.world)
-                .context("failed to deduplicate imports based on semver")?;
-        }
 
         for (name, encoding) in export_encodings {
             let prev = self
