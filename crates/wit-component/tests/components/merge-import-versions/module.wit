@@ -10,13 +10,13 @@ package a:b@0.1.0 {
     resource r {
       constructor();
     }
-    x: func();
+    x: func(x: string);
   }
 }
 
 package a:b@0.1.1 {
   interface c {
-    x: func();
+    x: func(x: string);
     y: func();
 
     resource r {

@@ -982,33 +982,23 @@ impl<'a> EncodingState<'a> {
     }
 
     fn encode_shim_instantiation(&mut self) -> Result<Shims<'a>> {
-        let mut signatures = Vec::new();
         let mut ret = Shims::default();
 
-        ret.append_indirect(self.info, CustomModule::Main, &mut signatures)
+        ret.append_indirect(self.info, CustomModule::Main)
             .context("failed to register indirect shims for main module")?;
 
         // For all required adapter modules a shim is created for each required
         // function and additionally a set of shims are created for the
         // interface imported into the shim module itself.
         for (adapter_name, _adapter) in self.info.adapters.iter() {
-            ret.append_indirect(
-                self.info,
-                CustomModule::Adapter(adapter_name),
-                &mut signatures,
-            )
-            .with_context(|| {
-                format!("failed to register indirect shims for adapter {adapter_name}")
-            })?;
+            ret.append_indirect(self.info, CustomModule::Adapter(adapter_name))
+                .with_context(|| {
+                    format!("failed to register indirect shims for adapter {adapter_name}")
+                })?;
         }
 
-        if ret.list.is_empty() {
+        if ret.shims.is_empty() {
             return Ok(ret);
-        }
-
-        for shim in ret.list.iter() {
-            let prev = ret.shim_names.insert(shim.kind.clone(), shim.name.clone());
-            assert!(prev.is_none());
         }
 
         assert!(self.shim_instance_index.is_none());
@@ -1033,19 +1023,19 @@ impl<'a> EncodingState<'a> {
         let mut func_indexes = Vec::new();
         let mut func_names = NameMap::new();
 
-        for (i, (sig, shim)) in signatures.iter().zip(&ret.list).enumerate() {
+        for (i, shim) in ret.shims.values().enumerate() {
             let i = i as u32;
-            let type_index = *sigs.entry(sig).or_insert_with(|| {
+            let type_index = *sigs.entry(&shim.sig).or_insert_with(|| {
                 let index = types.len();
                 types.ty().function(
-                    sig.params.iter().map(to_val_type),
-                    sig.results.iter().map(to_val_type),
+                    shim.sig.params.iter().map(to_val_type),
+                    shim.sig.results.iter().map(to_val_type),
                 );
                 index
             });
 
             functions.function(type_index);
-            Self::encode_shim_function(type_index, i, &mut code, sig.params.len() as u32);
+            Self::encode_shim_function(type_index, i, &mut code, shim.sig.params.len() as u32);
             exports.export(&shim.name, ExportKind::Func, i);
 
             imports_section.import("", &shim.name, EntityType::Function(type_index));
@@ -1058,8 +1048,8 @@ impl<'a> EncodingState<'a> {
 
         let table_type = TableType {
             element_type: RefType::FUNCREF,
-            minimum: signatures.len() as u64,
-            maximum: Some(signatures.len() as u64),
+            minimum: ret.shims.len() as u64,
+            maximum: Some(ret.shims.len() as u64),
             table64: false,
             shared: false,
         };
@@ -1125,7 +1115,7 @@ impl<'a> EncodingState<'a> {
     }
 
     fn encode_indirect_lowerings(&mut self, shims: &Shims<'_>) -> Result<()> {
-        if shims.list.is_empty() {
+        if shims.shims.is_empty() {
             return Ok(());
         }
 
@@ -1139,7 +1129,7 @@ impl<'a> EncodingState<'a> {
         let mut exports = Vec::new();
         exports.push((INDIRECT_TABLE_NAME, ExportKind::Table, table_index));
 
-        for shim in shims.list.iter() {
+        for shim in shims.shims.values() {
             let core_func_index = match &shim.kind {
                 // Indirect lowerings are a `canon lower`'d function with
                 // options specified from a previously instantiated instance.
@@ -1248,10 +1238,11 @@ impl<'a> EncodingState<'a> {
                 // validation, if one is present.
                 let exports = self.info.exports_for(for_module);
                 let dtor = exports.resource_dtor(*ty).map(|name| {
-                    let name = &shims.shim_names[&ShimKind::ResourceDtor {
+                    let name = &shims.shims[&ShimKind::ResourceDtor {
                         module: for_module,
                         export: name,
-                    }];
+                    }]
+                        .name;
                     let shim = self.shim_instance_index.unwrap();
                     self.core_alias_export(shim, name, ExportKind::Func)
                 });
@@ -1365,10 +1356,11 @@ impl<'a> EncodingState<'a> {
                     .expect("shim should be instantiated");
                 let index = self.core_alias_export(
                     shim_instance,
-                    &shims.shim_names[&ShimKind::Adapter {
+                    &shims.shims[&ShimKind::Adapter {
                         adapter: module,
                         func: field,
-                    }],
+                    }]
+                        .name,
                     ExportKind::Func,
                 );
                 return Ok((ExportKind::Func, index));
@@ -1459,12 +1451,13 @@ impl<'a> EncodingState<'a> {
                 self.core_alias_export(
                     self.shim_instance_index
                         .expect("shim should be instantiated"),
-                    &shims.shim_names[&ShimKind::IndirectLowering {
+                    &shims.shims[&ShimKind::IndirectLowering {
                         interface: interface.clone(),
                         index,
                         realloc: for_module,
                         encoding,
-                    }],
+                    }]
+                        .name,
                     ExportKind::Func,
                 )
             }
@@ -1578,10 +1571,7 @@ impl<'a> EncodingState<'a> {
 #[derive(Default)]
 struct Shims<'a> {
     /// The list of all shims that a module will require.
-    list: Vec<Shim<'a>>,
-
-    /// A map from a shim to the name of the shim in the shim instance.
-    shim_names: IndexMap<ShimKind<'a>, String>,
+    shims: IndexMap<ShimKind<'a>, Shim<'a>>,
 }
 
 struct Shim<'a> {
@@ -1600,6 +1590,9 @@ struct Shim<'a> {
 
     /// Precise information about what this shim is a lowering of.
     kind: ShimKind<'a>,
+
+    /// Wasm type of this shim.
+    sig: WasmSignature,
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
@@ -1663,7 +1656,6 @@ impl<'a> Shims<'a> {
         &mut self,
         world: &'a ComponentWorld<'a>,
         for_module: CustomModule<'a>,
-        sigs: &mut Vec<WasmSignature>,
     ) -> Result<()> {
         let module_imports = world.imports_for(for_module);
         let module_exports = world.exports_for(for_module);
@@ -1685,15 +1677,9 @@ impl<'a> Shims<'a> {
                 // Adapter imports into the main module must got through an
                 // indirection, so that's registered here.
                 Import::AdapterExport(ty) => {
-                    let name = self.list.len().to_string();
+                    let name = self.shims.len().to_string();
                     log::debug!("shim {name} is adapter `{module}::{field}`");
-                    sigs.push(WasmSignature {
-                        params: ty.params().iter().map(to_wasm_type).collect(),
-                        results: ty.results().iter().map(to_wasm_type).collect(),
-                        indirect_params: false,
-                        retptr: false,
-                    });
-                    self.list.push(Shim {
+                    self.push(Shim {
                         name,
                         debug_name: format!("adapt-{module}-{field}"),
                         // Pessimistically assume that all adapters require
@@ -1703,6 +1689,12 @@ impl<'a> Shims<'a> {
                         kind: ShimKind::Adapter {
                             adapter: module,
                             func: field,
+                        },
+                        sig: WasmSignature {
+                            params: ty.params().iter().map(to_wasm_type).collect(),
+                            results: ty.results().iter().map(to_wasm_type).collect(),
+                            indirect_params: false,
+                            retptr: false,
                         },
                     });
                     continue;
@@ -1727,7 +1719,7 @@ impl<'a> Shims<'a> {
             let key = key.map(|key| resolve.name_world_key(key));
             let interface = &world.import_map[&key];
             let (index, _, lowering) = interface.lowerings.get_full(name).unwrap();
-            let shim_name = self.list.len().to_string();
+            let shim_name = self.shims.len().to_string();
             match lowering {
                 Lowering::Direct | Lowering::ResourceDrop(_) => {}
 
@@ -1735,7 +1727,6 @@ impl<'a> Shims<'a> {
                     log::debug!(
                         "shim {shim_name} is import `{module}::{field}` lowering {index} `{name}`",
                     );
-                    sigs.push(sig.clone());
                     let encoding = *metadata
                         .import_encodings
                         .get(&(module.to_string(), field.to_string()))
@@ -1745,7 +1736,7 @@ impl<'a> Shims<'a> {
                                 `{module}::{field}`"
                             )
                         })?;
-                    self.list.push(Shim {
+                    self.push(Shim {
                         name: shim_name,
                         debug_name: format!("indirect-{module}-{field}"),
                         options: *options,
@@ -1755,6 +1746,7 @@ impl<'a> Shims<'a> {
                             realloc: for_module,
                             encoding,
                         },
+                        sig: sig.clone(),
                     });
                 }
             }
@@ -1770,15 +1762,9 @@ impl<'a> Shims<'a> {
                 Export::ResourceDtor(id) => id,
                 _ => continue,
             };
-            sigs.push(WasmSignature {
-                params: vec![WasmType::I32],
-                results: Vec::new(),
-                indirect_params: false,
-                retptr: false,
-            });
             let resource = resolve.types[*id].name.as_ref().unwrap();
-            let name = self.list.len().to_string();
-            self.list.push(Shim {
+            let name = self.shims.len().to_string();
+            self.push(Shim {
                 name,
                 debug_name: format!("dtor-{resource}"),
                 options: RequiredOptions::empty(),
@@ -1786,10 +1772,20 @@ impl<'a> Shims<'a> {
                     module: for_module,
                     export: export_name,
                 },
+                sig: WasmSignature {
+                    params: vec![WasmType::I32],
+                    results: Vec::new(),
+                    indirect_params: false,
+                    retptr: false,
+                },
             });
         }
 
         Ok(())
+    }
+
+    fn push(&mut self, shim: Shim<'a>) {
+        self.shims.insert(shim.kind.clone(), shim);
     }
 }
 
