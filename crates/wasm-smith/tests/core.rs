@@ -125,6 +125,25 @@ fn smoke_test_no_trapping_mode() {
 }
 
 #[test]
+fn smoke_test_disallow_floats() {
+    let mut rng = SmallRng::seed_from_u64(0);
+    let mut buf = vec![0; 2048];
+    for _ in 0..1024 {
+        rng.fill_bytes(&mut buf);
+        let mut u = Unstructured::new(&buf);
+        let mut cfg = Config::arbitrary(&mut u).unwrap();
+        cfg.disallow_floats = true;
+        if let Ok(module) = Module::new(cfg, &mut u) {
+            let wasm_bytes = module.to_bytes();
+            let mut features = wasm_features();
+            features.remove(WasmFeatures::FLOATS);
+            let mut validator = Validator::new_with_features(features);
+            validate(&mut validator, &wasm_bytes);
+        }
+    }
+}
+
+#[test]
 fn smoke_test_wasm_gc() {
     let mut rng = SmallRng::seed_from_u64(0);
     let mut buf = vec![0; 2048];
