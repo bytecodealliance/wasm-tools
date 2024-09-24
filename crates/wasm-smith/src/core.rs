@@ -1462,7 +1462,7 @@ impl Module {
     }
 
     fn arbitrary_valtype(&self, u: &mut Unstructured) -> Result<ValType> {
-        #[derive(Arbitrary)]
+        #[derive(PartialEq, Eq, PartialOrd, Ord)]
         enum ValTypeClass {
             I32,
             I64,
@@ -1472,25 +1472,28 @@ impl Module {
             Ref,
         }
 
-        match u.arbitrary::<ValTypeClass>()? {
+        let mut val_classes: Vec<_> = self
+            .valtypes
+            .iter()
+            .map(|vt| match vt {
+                ValType::I32 => ValTypeClass::I32,
+                ValType::I64 => ValTypeClass::I64,
+                ValType::F32 => ValTypeClass::F32,
+                ValType::F64 => ValTypeClass::F64,
+                ValType::V128 => ValTypeClass::V128,
+                ValType::Ref(_) => ValTypeClass::Ref,
+            })
+            .collect();
+        val_classes.sort_unstable();
+        val_classes.dedup();
+
+        match u.choose(&val_classes)? {
             ValTypeClass::I32 => Ok(ValType::I32),
             ValTypeClass::I64 => Ok(ValType::I64),
             ValTypeClass::F32 => Ok(ValType::F32),
             ValTypeClass::F64 => Ok(ValType::F64),
-            ValTypeClass::V128 => {
-                if self.config.simd_enabled {
-                    Ok(ValType::V128)
-                } else {
-                    Ok(ValType::I32)
-                }
-            }
-            ValTypeClass::Ref => {
-                if self.config.reference_types_enabled {
-                    Ok(ValType::Ref(self.arbitrary_ref_type(u)?))
-                } else {
-                    Ok(ValType::I32)
-                }
-            }
+            ValTypeClass::V128 => Ok(ValType::V128),
+            ValTypeClass::Ref => Ok(ValType::Ref(self.arbitrary_ref_type(u)?)),
         }
     }
 
