@@ -2482,8 +2482,10 @@ pub(crate) fn configured_valtypes(config: &Config) -> Vec<ValType> {
     let mut valtypes = Vec::with_capacity(25);
     valtypes.push(ValType::I32);
     valtypes.push(ValType::I64);
-    valtypes.push(ValType::F32);
-    valtypes.push(ValType::F64);
+    if !config.disallow_floats {
+        valtypes.push(ValType::F32);
+        valtypes.push(ValType::F64);
+    }
     if config.simd_enabled {
         valtypes.push(ValType::V128);
     }
