@@ -2489,7 +2489,7 @@ pub(crate) fn configured_valtypes(config: &Config) -> Vec<ValType> {
     if config.simd_enabled {
         valtypes.push(ValType::V128);
     }
-    if config.gc_enabled {
+    if config.gc_enabled && config.reference_types_enabled {
         for nullable in [
             // TODO: For now, only create allow nullable reference
             // types. Eventually we should support non-nullable reference types,
