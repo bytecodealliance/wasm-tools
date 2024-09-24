@@ -44,14 +44,14 @@
 use crate::validation::BARE_FUNC_MODULE_NAME;
 use crate::{DecodedWasm, StringEncoding};
 use anyhow::{bail, Context, Result};
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use std::borrow::Cow;
 use wasm_encoder::{
     ComponentBuilder, ComponentExportKind, ComponentType, ComponentTypeRef, CustomSection,
 };
 use wasm_metadata::Producers;
 use wasmparser::{BinaryReader, Encoding, Parser, Payload};
-use wit_parser::{Package, PackageName, Resolve, World, WorldId, WorldItem};
+use wit_parser::{Package, PackageName, Resolve, World, WorldId, WorldItem, WorldKey};
 
 const CURRENT_VERSION: u8 = 0x04;
 const CUSTOM_SECTION_NAME: &str = "wit-component-encoding";
@@ -298,7 +298,10 @@ impl Bindgen {
     ///
     /// Note that at this time there's no support for changing string encodings
     /// between metadata.
-    pub fn merge(&mut self, other: Bindgen) -> Result<WorldId> {
+    ///
+    /// This function returns the set of exports that the main world of
+    /// `other` added to the world in `self`.
+    pub fn merge(&mut self, other: Bindgen) -> Result<IndexSet<WorldKey>> {
         let Bindgen {
             resolve,
             world,
@@ -315,6 +318,7 @@ impl Bindgen {
             .merge(resolve)
             .context("failed to merge WIT package sets together")?
             .map_world(world, None)?;
+        let exports = self.resolve.worlds[world].exports.keys().cloned().collect();
         self.resolve
             .merge_worlds(world, self.world)
             .context("failed to merge worlds from two documents")?;
@@ -349,7 +353,7 @@ impl Bindgen {
             }
         }
 
-        Ok(world)
+        Ok(exports)
     }
 }
 

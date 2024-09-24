@@ -141,6 +141,13 @@ pub struct NewOpts {
     /// Use memory.grow to realloc memory and stack allocation.
     #[clap(long)]
     realloc_via_memory_grow: bool,
+
+    /// Indicates whether imports into the final component are merged based on
+    /// semver ranges.
+    ///
+    /// This is enabled by default.
+    #[clap(long, value_name = "MERGE")]
+    merge_imports_based_on_semver: Option<bool>,
 }
 
 impl NewOpts {
@@ -151,9 +158,12 @@ impl NewOpts {
     /// Executes the application.
     fn run(self) -> Result<()> {
         let wasm = self.io.parse_input_wasm()?;
-        let mut encoder = ComponentEncoder::default()
-            .validate(!self.skip_validation)
-            .module(&wasm)?;
+        let mut encoder = ComponentEncoder::default().validate(!self.skip_validation);
+
+        if let Some(merge) = self.merge_imports_based_on_semver {
+            encoder = encoder.merge_imports_based_on_semver(merge);
+        }
+        encoder = encoder.module(&wasm)?;
 
         for (name, wasm) in self.adapters.iter() {
             encoder = encoder.adapter(name, wasm)?;
@@ -392,6 +402,13 @@ pub struct LinkOpts {
     /// Use built-in implementations of `dlopen`/`dlsym`
     #[clap(long)]
     use_built_in_libdl: bool,
+
+    /// Indicates whether imports into the final component are merged based on
+    /// semver ranges.
+    ///
+    /// This is enabled by default.
+    #[clap(long, value_name = "MERGE")]
+    merge_imports_based_on_semver: Option<bool>,
 }
 
 impl LinkOpts {
@@ -408,6 +425,10 @@ impl LinkOpts {
 
         if let Some(stack_size) = self.stack_size {
             linker = linker.stack_size(stack_size);
+        }
+
+        if let Some(merge) = self.merge_imports_based_on_semver {
+            linker = linker.merge_imports_based_on_semver(merge);
         }
 
         for (name, wasm) in &self.inputs {
@@ -508,7 +529,11 @@ pub struct WitOpts {
     /// of the component which is input.
     ///
     /// This is similar to `--importize-world`, but is used with components.
-    #[clap(long, conflicts_with = "importize_world")]
+    #[clap(
+        long,
+        conflicts_with = "importize_world",
+        conflicts_with = "merge_world_imports_based_on_semver"
+    )]
     importize: bool,
 
     /// The name of the world to generate when using `--importize` or `importize-world`.
@@ -525,8 +550,28 @@ pub struct WitOpts {
     /// to imports.
     ///
     /// This is similar to `--importize`, but is used with WIT packages.
-    #[clap(long, conflicts_with = "importize", value_name = "WORLD")]
+    #[clap(
+        long,
+        conflicts_with = "importize",
+        conflicts_with = "merge_world_imports_based_on_semver",
+        value_name = "WORLD"
+    )]
     importize_world: Option<String>,
+
+    /// Updates the world specified to deduplicate all of its imports based on
+    /// semver versions.
+    ///
+    /// This option can be used to read a WIT world from a package and update it
+    /// to deduplicate WIT imports based on their version. This happens by
+    /// default in the `component new` subcommand for example and this flag can
+    /// be used to explore outside of that command what's happening to the WIT.
+    #[clap(
+        long,
+        conflicts_with = "importize",
+        conflicts_with = "importize_world",
+        value_name = "WORLD"
+    )]
+    merge_world_imports_based_on_semver: Option<String>,
 
     /// Features to enable when parsing the `wit` option.
     ///
@@ -560,6 +605,24 @@ impl WitOpts {
                 self.importize_world.as_deref(),
                 self.importize_out_world_name.as_ref(),
             )?;
+        } else if let Some(world) = &self.merge_world_imports_based_on_semver {
+            let (resolve, world_id) = match &mut decoded {
+                DecodedWasm::Component(..) => {
+                    bail!(
+                        "the `--merge-world-imports-based-on-semver` flag is \
+                        not compatible with a component input"
+                    );
+                }
+                DecodedWasm::WitPackage(resolve, id) => {
+                    let world = resolve.select_world(*id, Some(world))?;
+                    (resolve, world)
+                }
+            };
+            resolve
+                .merge_world_imports_based_on_semver(world_id)
+                .context("failed to merge world imports based on semver")?;
+            let resolve = mem::take(resolve);
+            decoded = DecodedWasm::Component(resolve, world_id);
         }
 
         // Now that the WIT document has been decoded, it's time to emit it.
@@ -663,8 +726,6 @@ impl WitOpts {
                 (resolve, world)
             }
         };
-        // let pkg = decoded.package();
-        // let world_id = decoded.resolve().select_world(main, None)?;
         resolve
             .importize(world_id, out_world_name.cloned())
             .context("failed to move world exports to imports")?;
