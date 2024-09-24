@@ -253,6 +253,11 @@ define_config! {
         /// specification](https://webassembly.github.io/spec/core/syntax/instructions.html);
         /// e.g., numeric, vector, control, memory, etc.
         ///
+        /// Additionally, we include finer-grained categories which exclude floating point
+        /// instructions, e.g. [`InstructionKind::NumericNonFloat`] is a subset of
+        /// [`InstructionKind::Numeric`] consisting of all numeric instructions which
+        /// don't involve floats.
+        ///
         /// Note that modifying this setting is separate from the proposal
         /// flags; that is, if `simd_enabled() == true` but
         /// `allowed_instruction()` does not include vector instructions, the
