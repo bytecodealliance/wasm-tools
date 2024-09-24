@@ -1239,10 +1239,10 @@ impl CodeBuilder<'_> {
         module: &Module,
     ) -> Result<Vec<Instruction>> {
         let max_instructions = module.config.max_instructions;
-        let allowed_instructions = if module.config.disallow_floats {
-            module.config.allowed_instructions.without_floats()
-        } else {
+        let allowed_instructions = if module.config.allow_floats {
             module.config.allowed_instructions
+        } else {
+            module.config.allowed_instructions.without_floats()
         };
         let mut instructions = vec![];
 

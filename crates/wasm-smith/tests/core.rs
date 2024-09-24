@@ -132,7 +132,7 @@ fn smoke_test_disallow_floats() {
         rng.fill_bytes(&mut buf);
         let mut u = Unstructured::new(&buf);
         let mut cfg = Config::arbitrary(&mut u).unwrap();
-        cfg.disallow_floats = true;
+        cfg.allow_floats = false;
         if let Ok(module) = Module::new(cfg, &mut u) {
             let wasm_bytes = module.to_bytes();
             let mut features = wasm_features();

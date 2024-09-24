@@ -265,11 +265,10 @@ define_config! {
         /// contain vector types.
         pub allowed_instructions: InstructionKinds = InstructionKinds::all(),
 
-        /// Indicates whether we should abstain from generating floating point
-        /// instructions and types.
+        /// Determines whether we generate floating point instructions and types.
         ///
-        /// Defaults to `false`.
-        pub disallow_floats: bool = false,
+        /// Defaults to `true`.
+        pub allow_floats: bool = true,
 
         /// Determines whether the bulk memory proposal is enabled for
         /// generating instructions.
@@ -709,7 +708,7 @@ impl<'a> Arbitrary<'a> for Config {
             table_max_size_required: u.arbitrary()?,
             max_table_elements: u.int_in_range(0..=1_000_000)?,
             disallow_traps: u.arbitrary()?,
-            disallow_floats: u.arbitrary()?,
+            allow_floats: u.arbitrary()?,
 
             // These fields, unlike the ones above, are less useful to set.
             // They either make weird inputs or are for features not widely
