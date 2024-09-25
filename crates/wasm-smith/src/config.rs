@@ -253,12 +253,22 @@ define_config! {
         /// specification](https://webassembly.github.io/spec/core/syntax/instructions.html);
         /// e.g., numeric, vector, control, memory, etc.
         ///
+        /// Additionally, we include finer-grained categories which exclude floating point
+        /// instructions, e.g. [`InstructionKind::NumericInt`] is a subset of
+        /// [`InstructionKind::Numeric`] consisting of all numeric instructions which
+        /// don't involve floats.
+        ///
         /// Note that modifying this setting is separate from the proposal
         /// flags; that is, if `simd_enabled() == true` but
         /// `allowed_instruction()` does not include vector instructions, the
         /// generated programs will not include these instructions but could
         /// contain vector types.
         pub allowed_instructions: InstructionKinds = InstructionKinds::all(),
+
+        /// Determines whether we generate floating point instructions and types.
+        ///
+        /// Defaults to `true`.
+        pub allow_floats: bool = true,
 
         /// Determines whether the bulk memory proposal is enabled for
         /// generating instructions.
@@ -698,6 +708,7 @@ impl<'a> Arbitrary<'a> for Config {
             table_max_size_required: u.arbitrary()?,
             max_table_elements: u.int_in_range(0..=1_000_000)?,
             disallow_traps: u.arbitrary()?,
+            allow_floats: u.arbitrary()?,
 
             // These fields, unlike the ones above, are less useful to set.
             // They either make weird inputs or are for features not widely

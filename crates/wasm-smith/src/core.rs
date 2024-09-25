@@ -1465,7 +1465,7 @@ impl Module {
     }
 
     fn arbitrary_valtype(&self, u: &mut Unstructured) -> Result<ValType> {
-        #[derive(Arbitrary)]
+        #[derive(PartialEq, Eq, PartialOrd, Ord)]
         enum ValTypeClass {
             I32,
             I64,
@@ -1475,25 +1475,28 @@ impl Module {
             Ref,
         }
 
-        match u.arbitrary::<ValTypeClass>()? {
+        let mut val_classes: Vec<_> = self
+            .valtypes
+            .iter()
+            .map(|vt| match vt {
+                ValType::I32 => ValTypeClass::I32,
+                ValType::I64 => ValTypeClass::I64,
+                ValType::F32 => ValTypeClass::F32,
+                ValType::F64 => ValTypeClass::F64,
+                ValType::V128 => ValTypeClass::V128,
+                ValType::Ref(_) => ValTypeClass::Ref,
+            })
+            .collect();
+        val_classes.sort_unstable();
+        val_classes.dedup();
+
+        match u.choose(&val_classes)? {
             ValTypeClass::I32 => Ok(ValType::I32),
             ValTypeClass::I64 => Ok(ValType::I64),
             ValTypeClass::F32 => Ok(ValType::F32),
             ValTypeClass::F64 => Ok(ValType::F64),
-            ValTypeClass::V128 => {
-                if self.config.simd_enabled {
-                    Ok(ValType::V128)
-                } else {
-                    Ok(ValType::I32)
-                }
-            }
-            ValTypeClass::Ref => {
-                if self.config.reference_types_enabled {
-                    Ok(ValType::Ref(self.arbitrary_ref_type(u)?))
-                } else {
-                    Ok(ValType::I32)
-                }
-            }
+            ValTypeClass::V128 => Ok(ValType::V128),
+            ValTypeClass::Ref => Ok(ValType::Ref(self.arbitrary_ref_type(u)?)),
         }
     }
 
@@ -2482,12 +2485,14 @@ pub(crate) fn configured_valtypes(config: &Config) -> Vec<ValType> {
     let mut valtypes = Vec::with_capacity(25);
     valtypes.push(ValType::I32);
     valtypes.push(ValType::I64);
-    valtypes.push(ValType::F32);
-    valtypes.push(ValType::F64);
+    if config.allow_floats {
+        valtypes.push(ValType::F32);
+        valtypes.push(ValType::F64);
+    }
     if config.simd_enabled {
         valtypes.push(ValType::V128);
     }
-    if config.gc_enabled {
+    if config.gc_enabled && config.reference_types_enabled {
         for nullable in [
             // TODO: For now, only create allow nullable reference
             // types. Eventually we should support non-nullable reference types,
@@ -2808,6 +2813,24 @@ impl InstructionKinds {
     pub fn contains(&self, kind: InstructionKind) -> bool {
         self.0.contains(kind)
     }
+
+    /// Restrict each [InstructionKind] to its subset not involving floats
+    pub fn without_floats(&self) -> Self {
+        let mut floatless = self.0;
+        if floatless.contains(InstructionKind::Numeric) {
+            floatless -= InstructionKind::Numeric;
+            floatless |= InstructionKind::NumericInt;
+        }
+        if floatless.contains(InstructionKind::Vector) {
+            floatless -= InstructionKind::Vector;
+            floatless |= InstructionKind::VectorInt;
+        }
+        if floatless.contains(InstructionKind::Memory) {
+            floatless -= InstructionKind::Memory;
+            floatless |= InstructionKind::MemoryInt;
+        }
+        Self(floatless)
+    }
 }
 
 flags! {
@@ -2816,15 +2839,18 @@ flags! {
     #[allow(missing_docs)]
     #[cfg_attr(feature = "_internal_cli", derive(serde_derive::Deserialize))]
     pub enum InstructionKind: u16 {
-        Numeric,
-        Vector,
-        Reference,
-        Parametric,
-        Variable,
-        Table,
-        Memory,
-        Control,
-        Aggregate,
+        NumericInt = 1 << 0,
+        Numeric = (1 << 1) | (1 << 0),
+        VectorInt = 1 << 2,
+        Vector = (1 << 3) | (1 << 2),
+        Reference = 1 << 4,
+        Parametric = 1 << 5,
+        Variable = 1 << 6,
+        Table = 1 << 7,
+        MemoryInt = 1 << 8,
+        Memory = (1 << 9) | (1 << 8),
+        Control = 1 << 10,
+        Aggregate = 1 << 11,
     }
 }
 
@@ -2844,12 +2870,15 @@ impl FromStr for InstructionKind {
     type Err = String;
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
+            "numeric_non_float" => Ok(InstructionKind::NumericInt),
             "numeric" => Ok(InstructionKind::Numeric),
+            "vector_non_float" => Ok(InstructionKind::VectorInt),
             "vector" => Ok(InstructionKind::Vector),
             "reference" => Ok(InstructionKind::Reference),
             "parametric" => Ok(InstructionKind::Parametric),
             "variable" => Ok(InstructionKind::Variable),
             "table" => Ok(InstructionKind::Table),
+            "memory_non_float" => Ok(InstructionKind::MemoryInt),
             "memory" => Ok(InstructionKind::Memory),
             "control" => Ok(InstructionKind::Control),
             _ => Err(format!("unknown instruction kind: {}", s)),
