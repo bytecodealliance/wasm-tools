@@ -2819,15 +2819,15 @@ impl InstructionKinds {
         let mut floatless = self.0;
         if floatless.contains(InstructionKind::Numeric) {
             floatless -= InstructionKind::Numeric;
-            floatless |= InstructionKind::NumericNonFloat;
+            floatless |= InstructionKind::NumericInt;
         }
         if floatless.contains(InstructionKind::Vector) {
             floatless -= InstructionKind::Vector;
-            floatless |= InstructionKind::VectorNonFloat;
+            floatless |= InstructionKind::VectorInt;
         }
         if floatless.contains(InstructionKind::Memory) {
             floatless -= InstructionKind::Memory;
-            floatless |= InstructionKind::MemoryNonFloat;
+            floatless |= InstructionKind::MemoryInt;
         }
         Self(floatless)
     }
@@ -2839,15 +2839,15 @@ flags! {
     #[allow(missing_docs)]
     #[cfg_attr(feature = "_internal_cli", derive(serde_derive::Deserialize))]
     pub enum InstructionKind: u16 {
-        NumericNonFloat = 1 << 0,
+        NumericInt = 1 << 0,
         Numeric = (1 << 1) | (1 << 0),
-        VectorNonFloat = 1 << 2,
+        VectorInt = 1 << 2,
         Vector = (1 << 3) | (1 << 2),
         Reference = 1 << 4,
         Parametric = 1 << 5,
         Variable = 1 << 6,
         Table = 1 << 7,
-        MemoryNonFloat = 1 << 8,
+        MemoryInt = 1 << 8,
         Memory = (1 << 9) | (1 << 8),
         Control = 1 << 10,
         Aggregate = 1 << 11,
@@ -2870,15 +2870,15 @@ impl FromStr for InstructionKind {
     type Err = String;
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "numeric_non_float" => Ok(InstructionKind::NumericNonFloat),
+            "numeric_non_float" => Ok(InstructionKind::NumericInt),
             "numeric" => Ok(InstructionKind::Numeric),
-            "vector_non_float" => Ok(InstructionKind::VectorNonFloat),
+            "vector_non_float" => Ok(InstructionKind::VectorInt),
             "vector" => Ok(InstructionKind::Vector),
             "reference" => Ok(InstructionKind::Reference),
             "parametric" => Ok(InstructionKind::Parametric),
             "variable" => Ok(InstructionKind::Variable),
             "table" => Ok(InstructionKind::Table),
-            "memory_non_float" => Ok(InstructionKind::MemoryNonFloat),
+            "memory_non_float" => Ok(InstructionKind::MemoryInt),
             "memory" => Ok(InstructionKind::Memory),
             "control" => Ok(InstructionKind::Control),
             _ => Err(format!("unknown instruction kind: {}", s)),

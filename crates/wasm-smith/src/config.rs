@@ -254,7 +254,7 @@ define_config! {
         /// e.g., numeric, vector, control, memory, etc.
         ///
         /// Additionally, we include finer-grained categories which exclude floating point
-        /// instructions, e.g. [`InstructionKind::NumericNonFloat`] is a subset of
+        /// instructions, e.g. [`InstructionKind::NumericInt`] is a subset of
         /// [`InstructionKind::Numeric`] consisting of all numeric instructions which
         /// don't involve floats.
         ///
