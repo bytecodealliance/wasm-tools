@@ -161,11 +161,13 @@ fn execute(cmd: &mut Command, stdin: Option<&[u8]>, should_fail: bool) -> Result
 
     let mut io = p.stdin.take().unwrap();
     if let Some(stdin) = stdin {
-        io.write_all(stdin)?;
+        io.write_all(stdin).context("failed to write to stdin")?;
     }
     drop(io);
 
-    let output = p.wait_with_output()?;
+    let output = p
+        .wait_with_output()
+        .context("failed to wait for process exit")?;
 
     let mut failure = None;
     match output.status.code() {
