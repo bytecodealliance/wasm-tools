@@ -21,7 +21,7 @@ pub use ast::{parse_use_path, ParsedUsePath};
 mod sizealign;
 pub use sizealign::*;
 mod resolve;
-pub use resolve::{Package, PackageId, Remap, Resolve};
+pub use resolve::{InvalidTransitiveDependency, Package, PackageId, Remap, Resolve};
 mod live;
 pub use live::{LiveTypes, TypeIdVisitor};
 
