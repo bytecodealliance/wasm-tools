@@ -256,9 +256,8 @@ impl Encoder<'_> {
 
         if !list.is_empty() {
             let mut branch_hints = wasm_encoder::BranchHints::new();
-            let mut code_section = Vec::new();
+            let mut code_section = wasm_encoder::CodeSection::new();
 
-            list.len().encode(&mut code_section);
             for func in list.iter() {
                 let hints = func.encode(&mut code_section, dwarf.as_deref_mut());
                 if !hints.is_empty() {
@@ -274,13 +273,10 @@ impl Encoder<'_> {
             }
 
             // Finally, insert the Code section from the tmp buffer
-            self.wasm.section(&wasm_encoder::RawSection {
-                id: wasm_encoder::SectionId::Code as u8,
-                data: &code_section,
-            });
+            self.wasm.section(&code_section);
 
             if let Some(dwarf) = &mut dwarf {
-                dwarf.set_code_section_size(code_section.len());
+                dwarf.set_code_section_size(code_section.byte_len());
             }
         }
         self.custom_sections(CustomPlace::After(CustomPlaceAnchor::Code));
@@ -449,90 +445,13 @@ impl Encode for Option<Id<'_>> {
 
 impl<'a> Encode for ValType<'a> {
     fn encode(&self, e: &mut Vec<u8>) {
-        match self {
-            ValType::I32 => e.push(0x7f),
-            ValType::I64 => e.push(0x7e),
-            ValType::F32 => e.push(0x7d),
-            ValType::F64 => e.push(0x7c),
-            ValType::V128 => e.push(0x7b),
-            ValType::Ref(ty) => {
-                ty.encode(e);
-            }
-        }
+        wasm_encoder::Encode::encode(&wasm_encoder::ValType::from(*self), e)
     }
 }
 
 impl<'a> Encode for HeapType<'a> {
     fn encode(&self, e: &mut Vec<u8>) {
-        match self {
-            HeapType::Abstract { shared, ty } => {
-                if *shared {
-                    e.push(0x65);
-                }
-                ty.encode(e)
-            }
-            // Note that this is encoded as a signed leb128 so be sure to cast
-            // to an i64 first
-            HeapType::Concrete(Index::Num(n, _)) => i64::from(*n).encode(e),
-            HeapType::Concrete(Index::Id(n)) => {
-                panic!("unresolved index in emission: {:?}", n)
-            }
-        }
-    }
-}
-
-impl<'a> Encode for AbstractHeapType {
-    fn encode(&self, e: &mut Vec<u8>) {
-        use AbstractHeapType::*;
-        match self {
-            Func => e.push(0x70),
-            Extern => e.push(0x6f),
-            Cont => e.push(0x68),
-            Exn => e.push(0x69),
-            Any => e.push(0x6e),
-            Eq => e.push(0x6d),
-            Struct => e.push(0x6b),
-            Array => e.push(0x6a),
-            I31 => e.push(0x6c),
-            NoFunc => e.push(0x73),
-            NoExtern => e.push(0x72),
-            NoExn => e.push(0x74),
-            NoCont => e.push(0x75),
-            None => e.push(0x71),
-        }
-    }
-}
-
-impl<'a> Encode for RefType<'a> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        match self {
-            // Binary abbreviations (i.e., short form), for when the ref is
-            // nullable.
-            RefType {
-                nullable: true,
-                heap: heap @ HeapType::Abstract { .. },
-            } => {
-                heap.encode(e);
-            }
-
-            // Generic 'ref null <heaptype>' encoding (i.e., long form).
-            RefType {
-                nullable: true,
-                heap,
-            } => {
-                e.push(0x63);
-                heap.encode(e);
-            }
-
-            // Generic 'ref <heaptype>' encoding.
-            RefType {
-                nullable: false,
-                heap,
-            } => {
-                e.push(0x64);
-                heap.encode(e);
-            }
-        }
+        wasm_encoder::Encode::encode(&wasm_encoder::HeapType::from(*self), e)
     }
 }
 
@@ -672,7 +591,7 @@ impl SectionItem for Table<'_> {
                 ty,
                 init_expr: Some(init_expr),
             } => {
-                section.table_with_init(ty.to_table_type(), &init_expr.to_const_expr(None));
+                section.table_with_init(ty.to_table_type(), &init_expr.to_const_expr());
             }
             _ => panic!("TableKind should be normal during encoding"),
         }
@@ -701,7 +620,7 @@ impl SectionItem for Global<'_> {
     fn encode(&self, section: &mut wasm_encoder::GlobalSection) {
         assert!(self.exports.names.is_empty());
         let init = match &self.kind {
-            GlobalKind::Inline(expr) => expr.to_const_expr(None),
+            GlobalKind::Inline(expr) => expr.to_const_expr(),
             _ => panic!("GlobalKind should be inline during encoding"),
         };
         section.global(self.ty.to_global_type(), &init);
@@ -730,14 +649,14 @@ impl SectionItem for Elem<'_> {
             }
             ElemPayload::Exprs { exprs, ty } => Elements::Expressions(
                 (*ty).into(),
-                Cow::Owned(exprs.iter().map(|e| e.to_const_expr(None)).collect()),
+                Cow::Owned(exprs.iter().map(|e| e.to_const_expr()).collect()),
             ),
         };
         match &self.kind {
             ElemKind::Active { table, offset } => {
                 section.active(
                     table.map(|t| t.unwrap_u32()),
-                    &offset.to_const_expr(None),
+                    &offset.to_const_expr(),
                     elements,
                 );
             }
@@ -765,7 +684,7 @@ impl SectionItem for Data<'_> {
                 section.passive(data);
             }
             DataKind::Active { memory, offset } => {
-                section.active(memory.unwrap_u32(), &offset.to_const_expr(None), data);
+                section.active(memory.unwrap_u32(), &offset.to_const_expr(), data);
             }
         }
     }
@@ -779,7 +698,7 @@ impl Func<'_> {
     /// for each instruction.
     fn encode(
         &self,
-        e: &mut Vec<u8>,
+        section: &mut wasm_encoder::CodeSection,
         mut dwarf: Option<&mut dwarf::Dwarf>,
     ) -> Vec<wasm_encoder::BranchHint> {
         assert!(self.exports.names.is_empty());
@@ -799,32 +718,17 @@ impl Func<'_> {
         // Encode the function into a temporary vector because functions are
         // prefixed with their length. The temporary vector, when encoded,
         // encodes its length first then the body.
-        let mut tmp = Vec::new();
-        locals.encode(&mut tmp);
-        let branch_hints = expr.encode(&mut tmp, dwarf.as_deref_mut());
-        tmp.encode(e);
+        let mut func =
+            wasm_encoder::Function::new_with_locals_types(locals.iter().map(|t| t.ty.into()));
+        let branch_hints = expr.encode(&mut func, dwarf.as_deref_mut());
+        let func_size = func.byte_len();
+        section.function(&func);
 
         if let Some(dwarf) = &mut dwarf {
-            dwarf.end_func(tmp.len(), e.len());
+            dwarf.end_func(func_size, section.byte_len());
         }
 
         branch_hints
-    }
-}
-
-impl Encode for Box<[Local<'_>]> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        let mut locals_compressed = Vec::<(u32, ValType)>::new();
-        for local in self.iter() {
-            if let Some((cnt, prev)) = locals_compressed.last_mut() {
-                if *prev == local.ty {
-                    *cnt += 1;
-                    continue;
-                }
-            }
-            locals_compressed.push((1, local.ty));
-        }
-        locals_compressed.encode(e);
     }
 }
 
@@ -835,11 +739,12 @@ impl Expression<'_> {
     /// Returns all branch hints, if any, found while parsing this function.
     fn encode(
         &self,
-        e: &mut Vec<u8>,
+        func: &mut wasm_encoder::Function,
         mut dwarf: Option<&mut dwarf::Dwarf>,
     ) -> Vec<wasm_encoder::BranchHint> {
         let mut hints = Vec::with_capacity(self.branch_hints.len());
         let mut next_hint = self.branch_hints.iter().peekable();
+        let mut tmp = Vec::new();
 
         for (i, instr) in self.instrs.iter().enumerate() {
             // Branch hints are stored in order of increasing `instr_index` so
@@ -847,7 +752,7 @@ impl Expression<'_> {
             // index.
             if let Some(hint) = next_hint.next_if(|h| h.instr_index == i) {
                 hints.push(wasm_encoder::BranchHint {
-                    branch_func_offset: u32::try_from(e.len()).unwrap(),
+                    branch_func_offset: u32::try_from(func.byte_len() + tmp.len()).unwrap(),
                     branch_hint_value: hint.value,
                 });
             }
@@ -856,22 +761,24 @@ impl Expression<'_> {
             // and source location.
             if let Some(dwarf) = &mut dwarf {
                 if let Some(span) = self.instr_spans.as_ref().map(|s| s[i]) {
-                    dwarf.instr(e.len(), span);
+                    dwarf.instr(func.byte_len() + tmp.len(), span);
                 }
             }
 
             // Finally emit the instruction and move to the next.
-            instr.encode(e);
+            instr.encode(&mut tmp);
         }
-        e.push(0x0b);
+        func.raw(tmp.iter().copied());
+        func.instruction(&wasm_encoder::Instruction::End);
 
         hints
     }
 
-    fn to_const_expr(&self, dwarf: Option<&mut dwarf::Dwarf>) -> wasm_encoder::ConstExpr {
+    fn to_const_expr(&self) -> wasm_encoder::ConstExpr {
         let mut tmp = Vec::new();
-        self.encode(&mut tmp, dwarf);
-        tmp.pop(); // remove trailing 0x0b byte which wasm-encoder doesn't want
+        for instr in self.instrs.iter() {
+            instr.encode(&mut tmp);
+        }
         wasm_encoder::ConstExpr::raw(tmp)
     }
 }
