@@ -34,8 +34,15 @@ pub struct BinaryReaderError {
 #[derive(Debug, Clone)]
 pub(crate) struct BinaryReaderErrorInner {
     pub(crate) message: String,
+    pub(crate) kind: BinaryReaderErrorKind,
     pub(crate) offset: usize,
     pub(crate) needed_hint: Option<usize>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum BinaryReaderErrorKind {
+    Custom,
+    Invalid,
 }
 
 /// The result for `BinaryReader` operations.
@@ -56,15 +63,25 @@ impl fmt::Display for BinaryReaderError {
 
 impl BinaryReaderError {
     #[cold]
-    pub(crate) fn new(message: impl Into<String>, offset: usize) -> Self {
-        let message = message.into();
+    pub(crate) fn _new(kind: BinaryReaderErrorKind, message: String, offset: usize) -> Self {
         BinaryReaderError {
             inner: Box::new(BinaryReaderErrorInner {
+                kind,
                 message,
                 offset,
                 needed_hint: None,
             }),
         }
+    }
+
+    #[cold]
+    pub(crate) fn new(message: impl Into<String>, offset: usize) -> Self {
+        Self::_new(BinaryReaderErrorKind::Custom, message.into(), offset)
+    }
+
+    #[cold]
+    pub(crate) fn invalid(msg: &'static str, offset: usize) -> Self {
+        Self::_new(BinaryReaderErrorKind::Invalid, msg.into(), offset)
     }
 
     #[cold]
@@ -74,13 +91,13 @@ impl BinaryReaderError {
 
     #[cold]
     pub(crate) fn eof(offset: usize, needed_hint: usize) -> Self {
-        BinaryReaderError {
-            inner: Box::new(BinaryReaderErrorInner {
-                message: "unexpected end-of-file".to_string(),
-                offset,
-                needed_hint: Some(needed_hint),
-            }),
-        }
+        let mut err = BinaryReaderError::new("unexpected end-of-file", offset);
+        err.inner.needed_hint = Some(needed_hint);
+        err
+    }
+
+    pub(crate) fn kind(&mut self) -> BinaryReaderErrorKind {
+        self.inner.kind
     }
 
     /// Get this error's message.
@@ -94,9 +111,12 @@ impl BinaryReaderError {
     }
 
     #[cfg(feature = "validate")]
-    pub(crate) fn add_context(&mut self, mut context: String) {
-        context.push_str("\n");
-        self.inner.message.insert_str(0, &context);
+    pub(crate) fn add_context(&mut self, context: String) {
+        self.inner.message = format!("{context}\n{}", self.inner.message);
+    }
+
+    pub(crate) fn set_message(&mut self, message: &str) {
+        self.inner.message = message.to_string();
     }
 }
 
