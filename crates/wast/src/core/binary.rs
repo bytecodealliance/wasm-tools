@@ -437,6 +437,8 @@ impl From<HeapType<'_>> for wasm_encoder::HeapType {
                     AbstractHeapType::NoExtern => NoExtern,
                     AbstractHeapType::None => None,
                     AbstractHeapType::I31 => I31,
+                    AbstractHeapType::Cont => Cont,
+                    AbstractHeapType::NoCont => NoCont,
                 };
                 Self::Abstract { shared, ty }
             }
