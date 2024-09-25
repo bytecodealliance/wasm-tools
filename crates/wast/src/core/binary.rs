@@ -445,13 +445,13 @@ impl Encode for Option<Id<'_>> {
 
 impl<'a> Encode for ValType<'a> {
     fn encode(&self, e: &mut Vec<u8>) {
-        wasm_encoder::Encode::encode(&wasm_encoder::ValType::from(self.clone()), e)
+        wasm_encoder::Encode::encode(&wasm_encoder::ValType::from(*self), e)
     }
 }
 
 impl<'a> Encode for HeapType<'a> {
     fn encode(&self, e: &mut Vec<u8>) {
-        wasm_encoder::Encode::encode(&wasm_encoder::HeapType::from(self.clone()), e)
+        wasm_encoder::Encode::encode(&wasm_encoder::HeapType::from(*self), e)
     }
 }
 
