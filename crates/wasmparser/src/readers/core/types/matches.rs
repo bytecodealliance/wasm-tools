@@ -263,31 +263,13 @@ impl<'a> Matches for WithRecGroup<&'a ContType> {
     fn matches(types: &TypeList, a: Self, b: Self) -> bool {
         match (*a, *b) {
             (ContType(ca), ContType(cb)) => {
-                ca == cb || {
-                    let core_id_a = if let Some(ida) = ca.as_core_type_id() {
-                        ida
-                    } else {
-                        types
-                            .at_canonicalized_unpacked_index(
-                                WithRecGroup::rec_group(a),
-                                ca.unpack(),
-                                usize::MAX,
-                            )
-                            .expect("type references are checked during canonicalization")
-                    };
-                    let core_id_b = if let Some(idb) = cb.as_core_type_id() {
-                        idb
-                    } else {
-                        types
-                            .at_canonicalized_unpacked_index(
-                                WithRecGroup::rec_group(b),
-                                cb.unpack(),
-                                usize::MAX,
-                            )
-                            .expect("type references are checked during canonicalization")
-                    };
-                    types.id_is_subtype(core_id_a, core_id_b)
-                }
+                ca == cb
+                    || types.reftype_is_subtype_impl(
+                        RefType::concrete(false, *ca),
+                        Some(WithRecGroup::rec_group(a)),
+                        RefType::concrete(false, *cb),
+                        Some(WithRecGroup::rec_group(b)),
+                    )
             }
         }
     }

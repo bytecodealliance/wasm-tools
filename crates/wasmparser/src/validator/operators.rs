@@ -1431,9 +1431,9 @@ where
         }
     }
 
-    fn func_type_of_cont_type(&self, cont_ty: &ContType) -> Result<&'resources FuncType> {
+    fn func_type_of_cont_type(&self, cont_ty: &ContType) -> &'resources FuncType {
         let func_id = cont_ty.0.as_core_type_id().expect("valid core type id");
-        Ok(self.resources.sub_type_at_id(func_id).unwrap_func())
+        self.resources.sub_type_at_id(func_id).unwrap_func()
     }
 
     fn tag_at(&self, at: u32) -> Result<&'resources FuncType> {
@@ -1530,7 +1530,7 @@ where
     ) -> Result<&'resources FuncType> {
         let cont_ty = self.cont_type_at(type_index)?;
         // ts1 -> ts2
-        let old_func_ty = self.func_type_of_cont_type(cont_ty)?;
+        let old_func_ty = self.func_type_of_cont_type(cont_ty);
         for handle in table.handlers {
             match handle {
                 Handle::OnLabel { tag, label } => {
@@ -1548,7 +1548,7 @@ where
                                 } else {
                                     bail!(self.offset, "non-continuation type");
                                 };
-                            let new_func_ty = self.func_type_of_cont_type(&new_cont)?;
+                            let new_func_ty = self.func_type_of_cont_type(&new_cont);
                             // Check that (ts2' -> ts2) <: $ft
                             if new_func_ty.params().len() != tag_ty.results().len() || !self.is_subtype_many(new_func_ty.params(), tag_ty.results())
                                 || old_func_ty.results().len() != new_func_ty.results().len() || !self.is_subtype_many(old_func_ty.results(), new_func_ty.results()) {
@@ -4861,10 +4861,10 @@ where
     fn visit_cont_bind(&mut self, argument_index: u32, result_index: u32) -> Self::Output {
         // [ts1 ts1'] -> [ts2]
         let arg_cont = self.cont_type_at(argument_index)?;
-        let arg_func = self.func_type_of_cont_type(arg_cont)?;
+        let arg_func = self.func_type_of_cont_type(arg_cont);
         // [ts1''] -> [ts2']
         let res_cont = self.cont_type_at(result_index)?;
-        let res_func = self.func_type_of_cont_type(res_cont)?;
+        let res_func = self.func_type_of_cont_type(res_cont);
 
         // Verify that the argument's domain is at least as large as the
         // result's domain.
@@ -4948,7 +4948,7 @@ where
     fn visit_switch(&mut self, type_index: u32, tag_index: u32) -> Self::Output {
         // [t1* (ref null $ct2)] -> [te1*]
         let cont_ty = self.cont_type_at(type_index)?;
-        let func_ty = self.func_type_of_cont_type(cont_ty)?;
+        let func_ty = self.func_type_of_cont_type(cont_ty);
         // [] -> [t*]
         let tag_ty = self.tag_at(tag_index)?;
         if tag_ty.params().len() != 0 {
@@ -4970,7 +4970,7 @@ where
                     } else {
                         bail!(self.offset, "non-continuation type");
                     };
-                let other_func_ty = self.func_type_of_cont_type(&other_cont_ty)?;
+                let other_func_ty = self.func_type_of_cont_type(&other_cont_ty);
                 if func_ty.results().len() != tag_ty.results().len()
                     || !self.is_subtype_many(func_ty.results(), tag_ty.results())
                     || other_func_ty.results().len() != tag_ty.results().len()

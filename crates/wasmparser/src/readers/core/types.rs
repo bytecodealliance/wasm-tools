@@ -808,9 +808,7 @@ impl ContType {
         &mut self,
         map: &mut dyn FnMut(&mut PackedIndex) -> Result<()>,
     ) -> Result<()> {
-        let mut idx = self.0;
-        map(&mut idx)?;
-        *self = ContType(idx);
+        map(&mut self.0)?;
         Ok(())
     }
 }

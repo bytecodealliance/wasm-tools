@@ -260,10 +260,7 @@ pub(crate) trait InternRecGroup {
                     );
                 }
                 // Check that the type index points to a valid function type.
-                let id = match t.0.as_core_type_id() {
-                    None => bail!(offset, "invalid continuation type index"),
-                    Some(id) => id,
-                };
+                let id = t.0.as_core_type_id().unwrap();
                 match types[id].composite_type.inner {
                     CompositeInnerType::Func(_) => (),
                     _ => bail!(offset, "non-function type {}", id.index()),

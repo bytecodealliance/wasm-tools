@@ -342,12 +342,6 @@ impl From<&ArrayType<'_>> for wasm_encoder::ArrayType {
     }
 }
 
-impl Encode for ContType<'_> {
-    fn encode(&self, e: &mut Vec<u8>) {
-        self.0.encode(e);
-    }
-}
-
 impl From<&ContType<'_>> for wasm_encoder::ContType {
     fn from(at: &ContType) -> Self {
         wasm_encoder::ContType(at.0.into())
