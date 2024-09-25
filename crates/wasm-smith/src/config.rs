@@ -116,7 +116,7 @@ macro_rules! define_config {
         #[cfg(feature = "_internal_cli")]
         #[doc(hidden)]
         #[derive(Clone, Debug, Default, clap::Parser, serde_derive::Deserialize)]
-        #[serde(rename_all = "kebab-case")]
+        #[serde(rename_all = "kebab-case", deny_unknown_fields)]
         pub struct InternalOptionalConfig {
             /// The imports that may be used when generating the module.
             ///
