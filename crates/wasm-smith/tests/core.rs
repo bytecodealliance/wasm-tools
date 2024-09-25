@@ -152,7 +152,7 @@ fn smoke_test_reference_types() {
         let mut u = Unstructured::new(&buf);
         let mut cfg = Config::arbitrary(&mut u).unwrap();
         cfg.reference_types_enabled = false;
-        cfg.max_tables = 0;
+        cfg.max_tables = 1;
         if let Ok(module) = Module::new(cfg, &mut u) {
             let wasm_bytes = module.to_bytes();
             let mut features = wasm_features();

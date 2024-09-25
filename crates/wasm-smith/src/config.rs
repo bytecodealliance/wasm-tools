@@ -662,11 +662,7 @@ impl<'a> Arbitrary<'a> for Config {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         const MAX_MAXIMUM: usize = 1000;
 
-        let reference_types_enabled: bool = u.arbitrary()?;
-        let max_tables = if reference_types_enabled { 100 } else { 1 };
-        let simd_enabled: bool = u.arbitrary()?;
-
-        Ok(Config {
+        let mut config = Config {
             max_types: u.int_in_range(0..=MAX_MAXIMUM)?,
             max_imports: u.int_in_range(0..=MAX_MAXIMUM)?,
             max_tags: u.int_in_range(0..=MAX_MAXIMUM)?,
@@ -678,23 +674,23 @@ impl<'a> Arbitrary<'a> for Config {
             max_data_segments: u.int_in_range(0..=MAX_MAXIMUM)?,
             max_instructions: u.int_in_range(0..=MAX_MAXIMUM)?,
             max_memories: u.int_in_range(0..=100)?,
-            max_tables,
+            max_tables: u.int_in_range(0..=100)?,
             max_memory32_bytes: u.int_in_range(0..=u32::MAX as u64 + 1)?,
             max_memory64_bytes: u.int_in_range(0..=u64::MAX as u128 + 1)?,
             min_uleb_size: u.int_in_range(0..=5)?,
             bulk_memory_enabled: u.arbitrary()?,
-            reference_types_enabled,
+            reference_types_enabled: u.arbitrary()?,
             simd_enabled: u.arbitrary()?,
             multi_value_enabled: u.arbitrary()?,
             max_aliases: u.int_in_range(0..=MAX_MAXIMUM)?,
             max_nesting_depth: u.int_in_range(0..=10)?,
             saturating_float_to_int_enabled: u.arbitrary()?,
             sign_extension_ops_enabled: u.arbitrary()?,
-            relaxed_simd_enabled: simd_enabled && u.arbitrary()?,
+            relaxed_simd_enabled: u.arbitrary()?,
             exceptions_enabled: u.arbitrary()?,
             threads_enabled: u.arbitrary()?,
             tail_call_enabled: u.arbitrary()?,
-            gc_enabled: reference_types_enabled && u.arbitrary()?,
+            gc_enabled: u.arbitrary()?,
             allowed_instructions: {
                 use flagset::Flags;
                 let mut allowed = Vec::new();
@@ -742,6 +738,37 @@ impl<'a> Arbitrary<'a> for Config {
             // Proposals that are not stage4+ are disabled by default.
             memory64_enabled: false,
             custom_page_sizes_enabled: false,
-        })
+        };
+        config.sanitize();
+        Ok(config)
+    }
+}
+
+impl Config {
+    /// "Shrink" this `Config` where appropriate to ensure its configuration is
+    /// valid for wasm-smith.
+    ///
+    /// This method will take the arbitrary state that this `Config` is in and
+    /// will possibly mutate dependent options as needed by `wasm-smith`. For
+    /// example if the `reference_types_enabled` field is turned off then
+    /// `wasm-smith`, as of the time of this writing, additionally requires that
+    /// the `gc_enabled` is not turned on.
+    ///
+    /// This method will not enable anything that isn't already enabled or
+    /// increase any limit of an item, but it may turn features off or shrink
+    /// limits from what they're previously specified as.
+    pub(crate) fn sanitize(&mut self) {
+        // If reference types are disabled then automatically flag tables as
+        // capped at 1 and disable gc as well.
+        if !self.reference_types_enabled {
+            self.max_tables = self.max_tables.min(1);
+            self.gc_enabled = false;
+        }
+
+        // If simd is disabled then disable all relaxed simd instructions as
+        // well.
+        if !self.simd_enabled {
+            self.relaxed_simd_enabled = false;
+        }
     }
 }

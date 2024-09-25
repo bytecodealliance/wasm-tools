@@ -202,7 +202,8 @@ impl Module {
         Ok(module)
     }
 
-    fn empty(config: Config, duplicate_imports_behavior: DuplicateImportsBehavior) -> Self {
+    fn empty(mut config: Config, duplicate_imports_behavior: DuplicateImportsBehavior) -> Self {
+        config.sanitize();
         Module {
             config,
             duplicate_imports_behavior,
