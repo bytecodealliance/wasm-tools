@@ -127,11 +127,22 @@ pub trait Reencode {
         utils::func_type(self, func_ty)
     }
 
+    fn cont_type(
+        &mut self,
+        cont_ty: wasmparser::ContType,
+    ) -> Result<crate::ContType, Error<Self::Error>> {
+        utils::cont_type(self, cont_ty)
+    }
+
     fn global_type(
         &mut self,
         global_ty: wasmparser::GlobalType,
     ) -> Result<crate::GlobalType, Error<Self::Error>> {
         utils::global_type(self, global_ty)
+    }
+
+    fn handle(&mut self, on: wasmparser::Handle) -> crate::Handle {
+        utils::handle(self, on)
     }
 
     fn heap_type(
@@ -883,6 +894,21 @@ pub mod utils {
         }
     }
 
+    pub fn handle<T: ?Sized + Reencode>(
+        reencoder: &mut T,
+        arg: wasmparser::Handle,
+    ) -> crate::Handle {
+        match arg {
+            wasmparser::Handle::OnLabel { tag, label } => crate::Handle::OnLabel {
+                tag: reencoder.tag_index(tag),
+                label,
+            },
+            wasmparser::Handle::OnSwitch { tag } => crate::Handle::OnSwitch {
+                tag: reencoder.tag_index(tag),
+            },
+        }
+    }
+
     /// Parses the input `section` given from the `wasmparser` crate and
     /// adds the custom section to the `module`.
     pub fn parse_custom_section<T: ?Sized + Reencode>(
@@ -989,6 +1015,8 @@ pub mod utils {
             I31 => crate::AbstractHeapType::I31,
             Exn => crate::AbstractHeapType::Exn,
             NoExn => crate::AbstractHeapType::NoExn,
+            Cont => crate::AbstractHeapType::Cont,
+            NoCont => crate::AbstractHeapType::NoCont,
         }
     }
 
@@ -1052,6 +1080,9 @@ pub mod utils {
             wasmparser::CompositeInnerType::Struct(s) => {
                 crate::CompositeInnerType::Struct(reencoder.struct_type(s)?)
             }
+            wasmparser::CompositeInnerType::Cont(c) => {
+                crate::CompositeInnerType::Cont(reencoder.cont_type(c)?)
+            }
         };
         Ok(crate::CompositeType {
             inner,
@@ -1112,6 +1143,15 @@ pub mod utils {
             wasmparser::StorageType::I16 => crate::StorageType::I16,
             wasmparser::StorageType::Val(v) => crate::StorageType::Val(reencoder.val_type(v)?),
         })
+    }
+
+    pub fn cont_type<T: ?Sized + Reencode>(
+        reencoder: &mut T,
+        cont_ty: wasmparser::ContType,
+    ) -> Result<crate::ContType, Error<T::Error>> {
+        Ok(crate::ContType(
+            reencoder.type_index_unpacked(cont_ty.0.unpack())?,
+        ))
     }
 
     pub fn val_type<T: ?Sized + Reencode>(
@@ -1555,6 +1595,12 @@ pub mod utils {
             (map $arg:ident array_size) => ($arg);
             (map $arg:ident field_index) => ($arg);
             (map $arg:ident try_table) => ($arg);
+            (map $arg:ident argument_index) => (reencoder.type_index($arg));
+            (map $arg:ident result_index) => (reencoder.type_index($arg));
+            (map $arg:ident cont_type_index) => (reencoder.type_index($arg));
+            (map $arg:ident resume_table) => ((
+                $arg.handlers.into_iter().map(|h| reencoder.handle(h)).collect::<Vec<_>>().into()
+            ));
 
             // This case takes the arguments of a wasmparser instruction and creates
             // a wasm-encoder instruction. There are a few special cases for where
@@ -1782,6 +1828,12 @@ impl TryFrom<wasmparser::GlobalType> for crate::GlobalType {
 
     fn try_from(global_ty: wasmparser::GlobalType) -> Result<Self, Self::Error> {
         RoundtripReencoder.global_type(global_ty)
+    }
+}
+
+impl From<wasmparser::Handle> for crate::Handle {
+    fn from(arg: wasmparser::Handle) -> Self {
+        RoundtripReencoder.handle(arg)
     }
 }
 

@@ -383,6 +383,7 @@ impl TestState {
             | WastDirective::AssertExhaustion { .. }
             | WastDirective::AssertUnlinkable { .. }
             | WastDirective::AssertException { .. }
+            | WastDirective::AssertSuspension { .. }
             | WastDirective::Wait { .. } => {}
         }
         Ok(())
@@ -629,6 +630,9 @@ impl TestState {
                 }
                 "multiple-returns.wast" => {
                     features.insert(WasmFeatures::COMPONENT_MODEL_MULTIPLE_RETURNS);
+                }
+                "stack-switching" => {
+                    features.insert(WasmFeatures::STACK_SWITCHING);
                 }
                 _ => {}
             }

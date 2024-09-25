@@ -50,6 +50,9 @@ pub trait WasmModuleResources {
     /// The sub type must be canonicalized.
     fn sub_type_at(&self, type_index: u32) -> Option<&SubType>;
 
+    /// Returns the `SubType` associated with the given core type id.
+    fn sub_type_at_id(&self, id: CoreTypeId) -> &SubType;
+
     /// Returns the type ID associated with the given function index.
     fn type_id_of_function(&self, func_idx: u32) -> Option<CoreTypeId>;
 
@@ -147,6 +150,9 @@ where
     fn sub_type_at(&self, at: u32) -> Option<&SubType> {
         T::sub_type_at(self, at)
     }
+    fn sub_type_at_id(&self, at: CoreTypeId) -> &SubType {
+        T::sub_type_at_id(self, at)
+    }
     fn type_id_of_function(&self, func_idx: u32) -> Option<CoreTypeId> {
         T::type_id_of_function(self, func_idx)
     }
@@ -201,6 +207,10 @@ where
 
     fn sub_type_at(&self, type_idx: u32) -> Option<&SubType> {
         T::sub_type_at(self, type_idx)
+    }
+
+    fn sub_type_at_id(&self, id: CoreTypeId) -> &SubType {
+        T::sub_type_at_id(self, id)
     }
 
     fn type_id_of_function(&self, func_idx: u32) -> Option<CoreTypeId> {

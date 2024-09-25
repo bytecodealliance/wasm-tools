@@ -310,6 +310,15 @@ impl WasmFeatures {
                             Err("exception refs not supported without the exception handling feature")
                         }
                     }
+
+                    // These types were added in the stack switching proposal.
+                    (Cont | NoCont, _) => {
+                        if self.stack_switching() {
+                            Ok(())
+                        } else {
+                            Err("continuation refs not supported without the stack switching feature")
+                        }
+                    }
                 }
             }
         }

@@ -342,6 +342,12 @@ impl From<&ArrayType<'_>> for wasm_encoder::ArrayType {
     }
 }
 
+impl From<&ContType<'_>> for wasm_encoder::ContType {
+    fn from(at: &ContType) -> Self {
+        wasm_encoder::ContType(at.0.into())
+    }
+}
+
 enum RecOrType<'a> {
     Type(&'a Type<'a>),
     Rec(&'a Rec<'a>),
@@ -373,6 +379,7 @@ impl TypeDef<'_> {
                 InnerTypeKind::Func(ft) => Func(ft.into()),
                 InnerTypeKind::Struct(st) => Struct(st.into()),
                 InnerTypeKind::Array(at) => Array(at.into()),
+                InnerTypeKind::Cont(ct) => Cont(ct.into()),
             },
             shared: self.shared,
         };
@@ -424,6 +431,8 @@ impl From<HeapType<'_>> for wasm_encoder::HeapType {
                     AbstractHeapType::NoExtern => NoExtern,
                     AbstractHeapType::None => None,
                     AbstractHeapType::I31 => I31,
+                    AbstractHeapType::Cont => Cont,
+                    AbstractHeapType::NoCont => NoCont,
                 };
                 Self::Abstract { shared, ty }
             }
@@ -478,6 +487,7 @@ impl<'a> Encode for AbstractHeapType {
         match self {
             Func => e.push(0x70),
             Extern => e.push(0x6f),
+            Cont => e.push(0x68),
             Exn => e.push(0x69),
             Any => e.push(0x6e),
             Eq => e.push(0x6d),
@@ -487,6 +497,7 @@ impl<'a> Encode for AbstractHeapType {
             NoFunc => e.push(0x73),
             NoExtern => e.push(0x72),
             NoExn => e.push(0x74),
+            NoCont => e.push(0x75),
             None => e.push(0x71),
         }
     }
@@ -1161,7 +1172,7 @@ fn find_names<'a>(
         if let ModuleField::Type(ty) = field {
             let mut field_names = vec![];
             match &ty.def.kind {
-                InnerTypeKind::Func(_) | InnerTypeKind::Array(_) => {}
+                InnerTypeKind::Func(_) | InnerTypeKind::Array(_) | InnerTypeKind::Cont(_) => {}
                 InnerTypeKind::Struct(ty_struct) => {
                     for (idx, field) in ty_struct.fields.iter().enumerate() {
                         if let Some(name) = get_name(&field.id, &None) {
@@ -1294,6 +1305,57 @@ impl<'a> Encode for TryTableCatch<'a> {
             TryTableCatchKind::CatchAll | TryTableCatchKind::CatchAllRef => {}
         }
         self.label.encode(dst);
+    }
+}
+
+impl<'a> Encode for ContBind<'a> {
+    fn encode(&self, dst: &mut Vec<u8>) {
+        self.argument_index.encode(dst);
+        self.result_index.encode(dst);
+    }
+}
+
+impl<'a> Encode for Resume<'a> {
+    fn encode(&self, dst: &mut Vec<u8>) {
+        self.type_index.encode(dst);
+        self.table.encode(dst);
+    }
+}
+
+impl<'a> Encode for ResumeThrow<'a> {
+    fn encode(&self, dst: &mut Vec<u8>) {
+        self.type_index.encode(dst);
+        self.tag_index.encode(dst);
+        self.table.encode(dst);
+    }
+}
+
+impl<'a> Encode for ResumeTable<'a> {
+    fn encode(&self, dst: &mut Vec<u8>) {
+        self.handlers.encode(dst);
+    }
+}
+
+impl<'a> Encode for Handle<'a> {
+    fn encode(&self, dst: &mut Vec<u8>) {
+        match self {
+            Handle::OnLabel { tag, label } => {
+                dst.push(0x00);
+                tag.encode(dst);
+                label.encode(dst);
+            }
+            Handle::OnSwitch { tag } => {
+                dst.push(0x01);
+                tag.encode(dst);
+            }
+        }
+    }
+}
+
+impl<'a> Encode for Switch<'a> {
+    fn encode(&self, dst: &mut Vec<u8>) {
+        self.type_index.encode(dst);
+        self.tag_index.encode(dst);
     }
 }
 

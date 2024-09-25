@@ -834,6 +834,12 @@ impl Printer<'_, '_> {
                 self.end_group()?; // `struct`
                 r
             }
+            CompositeInnerType::Cont(ty) => {
+                self.start_group("cont")?;
+                let r = self.print_cont_type(state, ty)?;
+                self.end_group()?; // `cont`
+                r
+            }
         };
         if ty.shared {
             self.end_group()?; // `shared`
@@ -959,6 +965,12 @@ impl Printer<'_, '_> {
         Ok(0)
     }
 
+    fn print_cont_type(&mut self, state: &State, ct: &ContType) -> Result<u32> {
+        self.result.write_str(" ")?;
+        self.print_idx(&state.core.type_names, ct.0.as_module_index().unwrap())?;
+        Ok(0)
+    }
+
     fn print_sub_type(&mut self, state: &State, ty: &SubType) -> Result<u32> {
         self.result.write_str(" ")?;
         if ty.is_final {
@@ -1045,6 +1057,8 @@ impl Printer<'_, '_> {
                     I31 => self.print_type_keyword("i31")?,
                     Exn => self.print_type_keyword("exn")?,
                     NoExn => self.print_type_keyword("noexn")?,
+                    Cont => self.print_type_keyword("cont")?,
+                    NoCont => self.print_type_keyword("nocont")?,
                 }
                 if shared {
                     self.end_group()?;

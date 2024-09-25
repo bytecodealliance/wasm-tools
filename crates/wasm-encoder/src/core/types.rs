@@ -31,6 +31,8 @@ pub enum CompositeInnerType {
     Array(ArrayType),
     /// The type is for a struct.
     Struct(StructType),
+    /// The type is for a continuation.
+    Cont(ContType),
 }
 
 /// Represents a type of a function in a WebAssembly module.
@@ -87,6 +89,10 @@ impl StorageType {
         }
     }
 }
+
+/// Represents a type of a continuation in a WebAssembly module.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+pub struct ContType(pub u32);
 
 /// The type of a core WebAssembly value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
@@ -443,6 +449,12 @@ pub enum AbstractHeapType {
 
     /// The abstract `noexn` heap type.
     NoExn,
+
+    /// The abstract `cont` heap type.
+    Cont,
+
+    /// The abstract `nocont` heap type.
+    NoCont,
 }
 
 impl Encode for AbstractHeapType {
@@ -461,6 +473,8 @@ impl Encode for AbstractHeapType {
             I31 => sink.push(0x6C),
             Exn => sink.push(0x69),
             NoExn => sink.push(0x74),
+            Cont => sink.push(0x68),
+            NoCont => sink.push(0x75),
         }
     }
 }
@@ -611,6 +625,11 @@ impl<'a> CoreTypeEncoder<'a> {
         }
     }
 
+    fn encode_cont(&mut self, ty: &ContType) {
+        self.bytes.push(0x5d);
+        i64::from(ty.0).encode(self.bytes);
+    }
+
     /// Define an explicit subtype in this type section.
     pub fn subtype(mut self, ty: &SubType) {
         self.encode_subtype(ty)
@@ -643,6 +662,7 @@ impl<'a> CoreTypeEncoder<'a> {
                 self.encode_array(&ty.element_type, ty.mutable)
             }
             CompositeInnerType::Struct(ty) => self.encode_struct(ty.fields.iter().cloned()),
+            CompositeInnerType::Cont(ty) => self.encode_cont(ty),
         }
     }
 
