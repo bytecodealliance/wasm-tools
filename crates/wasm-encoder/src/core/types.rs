@@ -627,7 +627,7 @@ impl<'a> CoreTypeEncoder<'a> {
 
     fn encode_cont(&mut self, ty: &ContType) {
         self.bytes.push(0x5d);
-        ty.0.encode(self.bytes);
+        i64::from(ty.0).encode(self.bytes);
     }
 
     /// Define an explicit subtype in this type section.

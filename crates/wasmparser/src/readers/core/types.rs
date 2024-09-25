@@ -2107,7 +2107,13 @@ impl<'a> FromReader<'a> for StructType {
 
 impl<'a> FromReader<'a> for ContType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        let idx = PackedIndex::from_module_index(reader.read_var_u32()?).ok_or_else(|| {
+        let idx = match u32::try_from(reader.read_var_s33()?) {
+            Ok(idx) => idx,
+            Err(_) => {
+                bail!(reader.original_position(), "invalid continuation type");
+            }
+        };
+        let idx = PackedIndex::from_module_index(idx).ok_or_else(|| {
             BinaryReaderError::new(
                 "type index greater than implementation limits",
                 reader.original_position(),
