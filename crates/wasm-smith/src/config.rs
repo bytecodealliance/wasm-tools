@@ -745,6 +745,18 @@ impl<'a> Arbitrary<'a> for Config {
 }
 
 impl Config {
+    /// "Shrink" this `Config` where appropriate to ensure its configuration is
+    /// valid for wasm-smith.
+    ///
+    /// This method will take the arbitrary state that this `Config` is in and
+    /// will possibly mutate dependent options as needed by `wasm-smith`. For
+    /// example if the `reference_types_enabled` field is turned off then
+    /// `wasm-smith`, as of the time of this writing, additionally requires that
+    /// the `gc_enabled` is not turned on.
+    ///
+    /// This method will not enable anything that isn't already enabled or
+    /// increase any limit of an item, but it may turn features off or shrink
+    /// limits from what they're previously specified as.
     pub(crate) fn sanitize(&mut self) {
         // If reference types are disabled then automatically flag tables as
         // capped at 1 and disable gc as well.
