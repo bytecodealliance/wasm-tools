@@ -71,20 +71,27 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
 
     let i = u.choose_index(decoded_bindgens.len())?;
     let (mut b1, wasm1, world1) = decoded_bindgens.swap_remove(i);
-    let i = u.choose_index(decoded_bindgens.len())?;
-    let (b2, wasm2, world2) = decoded_bindgens.swap_remove(i);
 
-    log::debug!("merging bindgens world {world1} <- world {world2}");
+    if u.arbitrary()? {
+        let i = u.choose_index(decoded_bindgens.len())?;
+        let (b2, wasm2, world2) = decoded_bindgens.swap_remove(i);
 
-    write_file("bindgen1.wasm", &wasm1);
-    write_file("bindgen2.wasm", &wasm2);
+        log::debug!("merging bindgens world {world1} <- world {world2}");
 
-    // Merging worlds may fail but if successful then a `Resolve` is asserted
-    // to be valid which is what we're interested in here. Note that failure
-    // here can be due to the structure of worlds which aren't reasonable to
-    // control in this generator, so it's just done to see what happens and try
-    // to trigger panics in `Resolve::assert_valid`.
-    let _ = b1.merge(b2);
+        write_file("bindgen1.wasm", &wasm1);
+        write_file("bindgen2.wasm", &wasm2);
+
+        // Merging worlds may fail but if successful then a `Resolve` is asserted
+        // to be valid which is what we're interested in here. Note that failure
+        // here can be due to the structure of worlds which aren't reasonable to
+        // control in this generator, so it's just done to see what happens and try
+        // to trigger panics in `Resolve::assert_valid`.
+        let _ = b1.merge(b2);
+    } else {
+        log::debug!("merging world imports based on semver {world1}");
+        write_file("bindgen1.wasm", &wasm1);
+        let _ = b1.resolve.merge_world_imports_based_on_semver(b1.world);
+    }
     Ok(())
 }
 

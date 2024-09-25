@@ -414,14 +414,80 @@ impl ImportMap {
         resolve: &Resolve,
         items: &IndexMap<WorldKey, WorldItem>,
     ) -> Result<(WorldKey, InterfaceId)> {
-        let key = world_key(resolve, module);
-        match items.get(&key) {
-            Some(WorldItem::Interface { id, .. }) => Ok((key, *id)),
-            Some(WorldItem::Function(_) | WorldItem::Type(_)) => {
-                bail!("import `{module}` is not an interface")
-            }
-            None => bail!("module requires an import interface named `{module}`"),
+        // First see if this is a bare name
+        let bare_name = WorldKey::Name(module.to_string());
+        if let Some(WorldItem::Interface { id, .. }) = items.get(&bare_name) {
+            return Ok((bare_name, *id));
         }
+
+        // ... and if this isn't a bare name then it's time to do some parsing
+        // related to interfaces, versions, and such. First up the `module` name
+        // is parsed as a normal component name from `wasmparser` to see if it's
+        // of the "interface kind". If it's not then that means the above match
+        // should have been a hit but it wasn't, so an error is returned.
+        let kebab_name = ComponentName::new(module, 0);
+        let name = match kebab_name.as_ref().map(|k| k.kind()) {
+            Ok(ComponentNameKind::Interface(name)) => name,
+            _ => bail!("module requires an import interface named `{module}`"),
+        };
+
+        // Prioritize an exact match based on versions, so try that first.
+        let pkgname = PackageName {
+            namespace: name.namespace().to_string(),
+            name: name.package().to_string(),
+            version: name.version(),
+        };
+        if let Some(pkg) = resolve.package_names.get(&pkgname) {
+            if let Some(id) = resolve.packages[*pkg]
+                .interfaces
+                .get(name.interface().as_str())
+            {
+                let key = WorldKey::Interface(*id);
+                if items.contains_key(&key) {
+                    return Ok((key, *id));
+                }
+            }
+        }
+
+        // If an exact match wasn't found then instead search for the first
+        // match based on versions. This means that a core wasm import for
+        // "1.2.3" might end up matching an interface at "1.2.4", for example.
+        // (or "1.2.2", depending on what's available).
+        for (key, _) in items {
+            let id = match key {
+                WorldKey::Interface(id) => *id,
+                WorldKey::Name(_) => continue,
+            };
+            // Make sure the interface names match
+            let interface = &resolve.interfaces[id];
+            if interface.name.as_ref().unwrap() != name.interface().as_str() {
+                continue;
+            }
+
+            // Make sure the package name (without version) matches
+            let pkg = &resolve.packages[interface.package.unwrap()];
+            if pkg.name.namespace != pkgname.namespace || pkg.name.name != pkgname.name {
+                continue;
+            }
+
+            let module_version = match name.version() {
+                Some(version) => version,
+                None => continue,
+            };
+            let pkg_version = match &pkg.name.version {
+                Some(version) => version,
+                None => continue,
+            };
+
+            // Test if the two semver versions are compatible
+            let module_compat = PackageName::version_compat_track(&module_version);
+            let pkg_compat = PackageName::version_compat_track(pkg_version);
+            if module_compat == pkg_compat {
+                return Ok((key.clone(), id));
+            }
+        }
+
+        bail!("module requires an import interface named `{module}`")
     }
 
     fn classify_import_with_library(
@@ -905,29 +971,6 @@ pub fn validate_adapter_module(
     }
 
     Ok(ret)
-}
-
-fn world_key(resolve: &Resolve, name: &str) -> WorldKey {
-    let kebab_name = ComponentName::new(name, 0);
-    let (pkgname, interface) = match kebab_name.as_ref().map(|k| k.kind()) {
-        Ok(ComponentNameKind::Interface(name)) => {
-            let pkgname = PackageName {
-                namespace: name.namespace().to_string(),
-                name: name.package().to_string(),
-                version: name.version(),
-            };
-            (pkgname, name.interface().as_str())
-        }
-        _ => return WorldKey::Name(name.to_string()),
-    };
-    match resolve
-        .package_names
-        .get(&pkgname)
-        .and_then(|p| resolve.packages[*p].interfaces.get(interface))
-    {
-        Some(id) => WorldKey::Interface(*id),
-        None => WorldKey::Name(name.to_string()),
-    }
 }
 
 fn valid_resource_drop(

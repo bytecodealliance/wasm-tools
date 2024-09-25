@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-use crate::limits::MAX_WASM_CATCHES;
+use crate::limits::{MAX_WASM_CATCHES, MAX_WASM_HANDLERS};
 use crate::prelude::*;
 use crate::{BinaryReader, BinaryReaderError, FromReader, Result, ValType};
 
@@ -474,6 +474,57 @@ impl<'a> FromReader<'a> for Catch {
             },
 
             x => return reader.invalid_leading_byte(x, "catch"),
+        })
+    }
+}
+
+/// A representation of dispatch tables on `resume` and `resume_throw`
+/// instructions.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ResumeTable {
+    /// Either the outer blocks which will handle suspensions or
+    /// "switch-to" handlers.
+    pub handlers: Vec<Handle>,
+}
+
+/// Handle clauses that can be specified in [`ResumeTable`].
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[allow(missing_docs)]
+pub enum Handle {
+    /// Equivalent of `(on $tag $lbl)`.
+    OnLabel { tag: u32, label: u32 },
+    /// Equivalent of `(on $tag switch)`.
+    OnSwitch { tag: u32 },
+}
+
+impl ResumeTable {
+    /// Returns the number of entries in the table.
+    pub fn len(&self) -> usize {
+        self.handlers.len()
+    }
+}
+
+impl<'a> FromReader<'a> for ResumeTable {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        let handlers = reader
+            .read_iter(MAX_WASM_HANDLERS, "resume table")?
+            .collect::<Result<_>>()?;
+        let table = ResumeTable { handlers };
+        Ok(table)
+    }
+}
+
+impl<'a> FromReader<'a> for Handle {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
+        Ok(match reader.read_u8()? {
+            0x00 => Handle::OnLabel {
+                tag: reader.read_var_u32()?,
+                label: reader.read_var_u32()?,
+            },
+            0x01 => Handle::OnSwitch {
+                tag: reader.read_var_u32()?,
+            },
+            x => return reader.invalid_leading_byte(x, "on clause"),
         })
     }
 }

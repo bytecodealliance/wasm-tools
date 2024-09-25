@@ -1,6 +1,9 @@
 use super::{Print, Printer, State};
 use anyhow::{anyhow, bail, Result};
-use wasmparser::{BlockType, BrTable, Catch, MemArg, Ordering, RefType, TryTable, VisitOperator};
+use wasmparser::{
+    BlockType, BrTable, Catch, Handle, MemArg, Ordering, RefType, ResumeTable, TryTable,
+    VisitOperator,
+};
 
 pub struct PrintOperator<'printer, 'state, 'a, 'b> {
     pub(super) printer: &'printer mut Printer<'a, 'b>,
@@ -261,6 +264,19 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
         self.printer.print_core_type_ref(self.state, idx)
     }
 
+    fn cont_type_index(&mut self, idx: u32) -> Result<()> {
+        self.push_str(" ")?;
+        self.printer.print_idx(&self.state.core.type_names, idx)
+    }
+
+    fn argument_index(&mut self, idx: u32) -> Result<()> {
+        self.cont_type_index(idx)
+    }
+
+    fn result_index(&mut self, idx: u32) -> Result<()> {
+        self.cont_type_index(idx)
+    }
+
     fn array_type_index(&mut self, idx: u32) -> Result<()> {
         self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.type_names, idx)
@@ -396,6 +412,32 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
         self.label_indices.push(try_table_label);
         self.printer.nesting += 2;
         self.maybe_blockty_label_comment(has_name)?;
+        Ok(())
+    }
+
+    fn resume_table(&mut self, table: ResumeTable) -> Result<()> {
+        // The start_group("resume/resume_throw") have already
+        // increased the nesting depth, but the labels are defined
+        // above this `resume` or `resume_throw`. Therefore we
+        // temporarily decrement this nesting count and increase it
+        // below after printing the on clauses.
+        self.printer.nesting -= 1;
+        for handle in table.handlers {
+            self.result().write_str(" ")?;
+            self.printer.start_group("on")?;
+            match handle {
+                Handle::OnLabel { tag, label } => {
+                    self.tag_index(tag)?;
+                    self.relative_depth(label)?;
+                }
+                Handle::OnSwitch { tag } => {
+                    self.tag_index(tag)?;
+                    self.result().write_str(" switch")?;
+                }
+            }
+            self.printer.end_group()?;
+        }
+        self.printer.nesting += 1;
         Ok(())
     }
 }
@@ -1278,7 +1320,13 @@ macro_rules! define_visit {
     (name ArrayAtomicRmwXor) => ("array.atomic.rmw.xor");
     (name ArrayAtomicRmwXchg) => ("array.atomic.rmw.xchg");
     (name ArrayAtomicRmwCmpxchg) => ("array.atomic.rmw.cmpxchg");
-    (name RefI31Shared) => ("ref.i31_shared")
+    (name RefI31Shared) => ("ref.i31_shared");
+    (name ContNew) => ("cont.new");
+    (name ContBind) => ("cont.bind");
+    (name Suspend) => ("suspend");
+    (name Resume) => ("resume");
+    (name ResumeThrow) => ("resume_throw");
+    (name Switch) => ("switch")
 }
 
 impl<'a> VisitOperator<'a> for PrintOperator<'_, '_, '_, '_> {

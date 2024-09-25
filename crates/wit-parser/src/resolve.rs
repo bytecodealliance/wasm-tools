@@ -1,10 +1,14 @@
+use std::cmp::Ordering;
+use std::collections::hash_map;
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::fmt;
 use std::mem;
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use id_arena::{Arena, Id};
 use indexmap::{IndexMap, IndexSet};
+use semver::Version;
 #[cfg(feature = "serde")]
 use serde_derive::Serialize;
 
@@ -691,13 +695,15 @@ package {name} is defined in two different locations:\n\
         // ids within `self`.
         for id in moved_worlds {
             let id = remap.map_world(id, None)?;
-            let pkg = self.worlds[id].package.as_mut().unwrap();
-            *pkg = remap.packages[pkg.index()];
+            if let Some(pkg) = self.worlds[id].package.as_mut() {
+                *pkg = remap.packages[pkg.index()];
+            }
         }
         for id in moved_interfaces {
             let id = remap.map_interface(id, None)?;
-            let pkg = self.interfaces[id].package.as_mut().unwrap();
-            *pkg = remap.packages[pkg.index()];
+            if let Some(pkg) = self.interfaces[id].package.as_mut() {
+                *pkg = remap.packages[pkg.index()];
+            }
         }
         for id in moved_types {
             let id = remap.map_type(id, None)?;
@@ -1421,8 +1427,10 @@ package {name} is defined in two different locations:\n\
         let mut world_types = Vec::new();
         for (id, world) in self.worlds.iter() {
             log::debug!("validating world {}", &world.name);
-            assert!(self.packages.get(world.package.unwrap()).is_some());
-            assert!(package_worlds[world.package.unwrap().index()].contains(&id));
+            if let Some(package) = world.package {
+                assert!(self.packages.get(package).is_some());
+                assert!(package_worlds[package.index()].contains(&id));
+            }
             assert!(world.includes.is_empty());
 
             let mut types = HashSet::new();
@@ -1888,8 +1896,7 @@ package {name} is defined in two different locations:\n\
                     // more refactoring, so it's left to a future date in the
                     // hopes that most folks won't actually run into this for
                     // the time being.
-                    "interface `{name}` transitively depends on an interface in \
-                     incompatible ways",
+                    InvalidTransitiveDependency(name),
                 );
             }
         }
@@ -1951,6 +1958,220 @@ package {name} is defined in two different locations:\n\
             }
             true
         }
+    }
+
+    /// Remove duplicate imports from a world if they import from the same
+    /// interface with semver-compatible versions.
+    ///
+    /// This will merge duplicate interfaces present at multiple versions in
+    /// both a world by selecting the larger version of the two interfaces. This
+    /// requires that the interfaces are indeed semver-compatible and it means
+    /// that some imports might be removed and replaced. Note that this is only
+    /// done within a single semver track, for example the world imports 0.2.0
+    /// and 0.2.1 then the result afterwards will be that it imports
+    /// 0.2.1. If, however, 0.3.0 where imported then the final result would
+    /// import both 0.2.0 and 0.3.0.
+    pub fn merge_world_imports_based_on_semver(&mut self, world_id: WorldId) -> Result<()> {
+        let world = &self.worlds[world_id];
+
+        // The first pass here is to build a map of "semver tracks" where they
+        // key is per-interface and the value is the maximal version found in
+        // that semver-compatible-track plus the interface which is the maximal
+        // version.
+        //
+        // At the same time a `to_remove` set is maintained to remember what
+        // interfaces are being removed from `from` and `into`. All of
+        // `to_remove` are placed with a known other version.
+        let mut semver_tracks = HashMap::new();
+        let mut to_remove = HashSet::new();
+        for (key, _) in world.imports.iter() {
+            let iface_id = match key {
+                WorldKey::Interface(id) => *id,
+                WorldKey::Name(_) => continue,
+            };
+            let (track, version) = match self.semver_track(iface_id) {
+                Some(track) => track,
+                None => continue,
+            };
+            log::debug!(
+                "{} is on track {}/{}",
+                self.id_of(iface_id).unwrap(),
+                track.0,
+                track.1,
+            );
+            match semver_tracks.entry(track.clone()) {
+                hash_map::Entry::Vacant(e) => {
+                    e.insert((version, iface_id));
+                }
+                hash_map::Entry::Occupied(mut e) => match version.cmp(&e.get().0) {
+                    Ordering::Greater => {
+                        to_remove.insert(e.get().1);
+                        e.insert((version, iface_id));
+                    }
+                    Ordering::Equal => {}
+                    Ordering::Less => {
+                        to_remove.insert(iface_id);
+                    }
+                },
+            }
+        }
+
+        // Build a map of "this interface is replaced with this interface" using
+        // the results of the loop above.
+        let mut replacements = HashMap::new();
+        for id in to_remove {
+            let (track, _) = self.semver_track(id).unwrap();
+            let (_, latest) = semver_tracks[&track];
+            let prev = replacements.insert(id, latest);
+            assert!(prev.is_none());
+        }
+
+        // Validate that `merge_world_item` succeeds for merging all removed
+        // interfaces with their replacement. This is a double-check that the
+        // semver version is actually correct and all items present in the old
+        // interface are in the new.
+        for (to_replace, replace_with) in replacements.iter() {
+            self.merge_world_item(
+                &WorldItem::Interface {
+                    id: *to_replace,
+                    stability: Default::default(),
+                },
+                &WorldItem::Interface {
+                    id: *replace_with,
+                    stability: Default::default(),
+                },
+            )
+            .with_context(|| {
+                let old_name = self.id_of(*to_replace).unwrap();
+                let new_name = self.id_of(*replace_with).unwrap();
+                format!(
+                    "failed to upgrade `{old_name}` to `{new_name}`, was \
+                     this semver-compatible update not semver compatible?"
+                )
+            })?;
+        }
+
+        for (to_replace, replace_with) in replacements.iter() {
+            log::debug!(
+                "REPLACE {} => {}",
+                self.id_of(*to_replace).unwrap(),
+                self.id_of(*replace_with).unwrap(),
+            );
+        }
+
+        // Finally perform the actual transformation of the imports/exports.
+        // Here all imports are removed if they're replaced and otherwise all
+        // imports have their dependencies updated, possibly transitively, to
+        // point to the new interfaces in `replacements`.
+        //
+        // Afterwards exports are additionally updated, but only their
+        // dependencies on imports which were remapped. Exports themselves are
+        // not deduplicated and/or removed.
+        for (key, item) in mem::take(&mut self.worlds[world_id].imports) {
+            if let WorldItem::Interface { id, .. } = item {
+                if replacements.contains_key(&id) {
+                    continue;
+                }
+            }
+
+            self.update_interface_deps_of_world_item(&item, &replacements);
+
+            let prev = self.worlds[world_id].imports.insert(key, item);
+            assert!(prev.is_none());
+        }
+        for (key, item) in mem::take(&mut self.worlds[world_id].exports) {
+            self.update_interface_deps_of_world_item(&item, &replacements);
+            let prev = self.worlds[world_id].exports.insert(key, item);
+            assert!(prev.is_none());
+        }
+
+        // Run through `elaborate_world` to reorder imports as appropriate and
+        // fill anything back in if it's actually required by exports. For now
+        // this doesn't tamper with exports at all. Also note that this is
+        // applied to all worlds in this `Resolve` because interfaces were
+        // modified directly.
+        let ids = self.worlds.iter().map(|(id, _)| id).collect::<Vec<_>>();
+        for world_id in ids {
+            self.elaborate_world(world_id).with_context(|| {
+                let name = &self.worlds[world_id].name;
+                format!(
+                    "failed to elaborate world `{name}` after deduplicating imports \
+                     based on semver"
+                )
+            })?;
+        }
+
+        #[cfg(debug_assertions)]
+        self.assert_valid();
+
+        Ok(())
+    }
+
+    fn update_interface_deps_of_world_item(
+        &mut self,
+        item: &WorldItem,
+        replacements: &HashMap<InterfaceId, InterfaceId>,
+    ) {
+        match *item {
+            WorldItem::Type(t) => self.update_interface_dep_of_type(t, &replacements),
+            WorldItem::Interface { id, .. } => {
+                let types = self.interfaces[id]
+                    .types
+                    .values()
+                    .copied()
+                    .collect::<Vec<_>>();
+                for ty in types {
+                    self.update_interface_dep_of_type(ty, &replacements);
+                }
+            }
+            WorldItem::Function(_) => {}
+        }
+    }
+
+    /// Returns the "semver track" of an interface plus the interface's version.
+    ///
+    /// This function returns `None` if the interface `id` has a package without
+    /// a version. If the version is present, however, the first element of the
+    /// tuple returned is a "semver track" for the specific interface. The
+    /// version listed in `PackageName` will be modified so all
+    /// semver-compatible versions are listed the same way.
+    ///
+    /// The second element in the returned tuple is this interface's package's
+    /// version.
+    fn semver_track(&self, id: InterfaceId) -> Option<((PackageName, String), &Version)> {
+        let iface = &self.interfaces[id];
+        let pkg = &self.packages[iface.package?];
+        let version = pkg.name.version.as_ref()?;
+        let mut name = pkg.name.clone();
+        name.version = Some(PackageName::version_compat_track(version));
+        Some(((name, iface.name.clone()?), version))
+    }
+
+    /// If `ty` is a definition where it's a `use` from another interface, then
+    /// change what interface it's using from according to the pairs in the
+    /// `replacements` map.
+    fn update_interface_dep_of_type(
+        &mut self,
+        ty: TypeId,
+        replacements: &HashMap<InterfaceId, InterfaceId>,
+    ) {
+        let to_replace = match self.type_interface_dep(ty) {
+            Some(id) => id,
+            None => return,
+        };
+        let replace_with = match replacements.get(&to_replace) {
+            Some(id) => id,
+            None => return,
+        };
+        let dep = match self.types[ty].kind {
+            TypeDefKind::Type(Type::Id(id)) => id,
+            _ => return,
+        };
+        let name = self.types[dep].name.as_ref().unwrap();
+        // Note the infallible name indexing happening here. This should be
+        // previously validated with `merge_world_item` to succeed.
+        let replacement_id = self.interfaces[*replace_with].types[name];
+        self.types[ty].kind = TypeDefKind::Type(Type::Id(replacement_id));
     }
 }
 
@@ -3217,6 +3438,34 @@ fn update_stability(from: &Stability, into: &mut Stability) -> Result<()> {
     // generate an error.
     bail!("mismatch in stability attributes")
 }
+
+/// An error that can be returned during "world elaboration" during various
+/// [`Resolve`] operations.
+///
+/// Methods on [`Resolve`] which mutate its internals, such as
+/// [`Resolve::push_dir`] or [`Resolve::importize`] can fail if `world` imports
+/// in WIT packages are invalid. This error indicates one of these situations
+/// where an invalid dependency graph between imports and exports are detected.
+///
+/// Note that at this time this error is subtle and not easy to understand, and
+/// work needs to be done to explain this better and additionally provide a
+/// better error message. For now though this type enables callers to test for
+/// the exact kind of error emitted.
+#[derive(Debug, Clone)]
+pub struct InvalidTransitiveDependency(String);
+
+impl fmt::Display for InvalidTransitiveDependency {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "interface `{}` transitively depends on an interface in \
+             incompatible ways",
+            self.0
+        )
+    }
+}
+
+impl std::error::Error for InvalidTransitiveDependency {}
 
 #[cfg(test)]
 mod tests {

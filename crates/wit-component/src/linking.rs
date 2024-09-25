@@ -1222,6 +1222,11 @@ pub struct Linker {
     ///
     /// If `None`, use `DEFAULT_STACK_SIZE_BYTES`.
     stack_size: Option<u32>,
+
+    /// This affects how when to WIT worlds are merged together, for example
+    /// from two different libraries, whether their imports are unified when the
+    /// semver version ranges for interface allow it.
+    merge_imports_based_on_semver: Option<bool>,
 }
 
 impl Linker {
@@ -1266,6 +1271,16 @@ impl Linker {
     /// Specify whether to use a built-in implementation of `dlopen`/`dlsym`.
     pub fn use_built_in_libdl(mut self, use_built_in_libdl: bool) -> Self {
         self.use_built_in_libdl = use_built_in_libdl;
+        self
+    }
+
+    /// This affects how when to WIT worlds are merged together, for example
+    /// from two different libraries, whether their imports are unified when the
+    /// semver version ranges for interface allow it.
+    ///
+    /// This is enabled by default.
+    pub fn merge_imports_based_on_semver(mut self, merge: bool) -> Self {
+        self.merge_imports_based_on_semver = Some(merge);
         self
     }
 
@@ -1415,9 +1430,11 @@ impl Linker {
             self.stack_size.unwrap_or(DEFAULT_STACK_SIZE_BYTES),
         );
 
-        let mut encoder = ComponentEncoder::default()
-            .validate(self.validate)
-            .module(&env_module)?;
+        let mut encoder = ComponentEncoder::default().validate(self.validate);
+        if let Some(merge) = self.merge_imports_based_on_semver {
+            encoder = encoder.merge_imports_based_on_semver(merge);
+        };
+        encoder = encoder.module(&env_module)?;
 
         for (name, module) in &self.adapters {
             encoder = encoder.adapter(name, module)?;

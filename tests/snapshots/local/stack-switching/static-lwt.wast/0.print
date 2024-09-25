@@ -1,0 +1,5 @@
+(module $lwt
+  (type (;0;) (func))
+  (tag $yield (;0;) (type 0))
+  (export "yield" (tag 0))
+)

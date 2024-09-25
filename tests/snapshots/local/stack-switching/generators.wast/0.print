@@ -1,0 +1,5 @@
+(module $generator
+  (type (;0;) (func (param i32)))
+  (tag $yield (;0;) (type 0) (param i32))
+  (export "yield" (tag 0))
+)
