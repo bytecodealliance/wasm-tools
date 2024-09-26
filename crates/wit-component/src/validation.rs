@@ -140,7 +140,7 @@ pub enum ImportInstance {
 pub enum Import {
     /// A top-level world function, with the name provided here, is imported
     /// into the module.
-    WorldFunc(String),
+    WorldFunc(WorldKey, String),
 
     /// An interface's function is imported into the module.
     ///
@@ -154,7 +154,7 @@ pub enum Import {
     /// The key provided indicates whether it's for the top-level types of the
     /// world (`None`) or an interface (`Some` with the name of the interface).
     /// The `TypeId` is what resource is being dropped.
-    ImportedResourceDrop(Option<WorldKey>, TypeId),
+    ImportedResourceDrop(WorldKey, Option<InterfaceId>, TypeId),
 
     /// A `canon resource.drop` intrinsic for an exported item is being
     /// imported.
@@ -210,7 +210,7 @@ impl ImportMap {
                 ImportInstance::Names(names) => names.get(func),
                 _ => None,
             });
-        matches!(item, Some(Import::WorldFunc(_)))
+        matches!(item, Some(Import::WorldFunc(_, _)))
     }
 
     /// Returns whether the interface function specified is imported.
@@ -224,7 +224,7 @@ impl ImportMap {
     /// Returns whether the specified resource's drop method is needed to import.
     pub fn uses_imported_resource_drop(&self, resource: TypeId) -> bool {
         self.imports().any(|(_, _, import)| match import {
-            Import::ImportedResourceDrop(_, id) => resource == *id,
+            Import::ImportedResourceDrop(_, _, id) => resource == *id,
             _ => false,
         })
     }
@@ -337,12 +337,12 @@ impl ImportMap {
             let key = WorldKey::Name(name.to_string());
             if let Some(WorldItem::Function(func)) = world.imports.get(&key) {
                 validate_func(resolve, ty, func, AbiVariant::GuestImport)?;
-                return Ok(Import::WorldFunc(func.name.clone()));
+                return Ok(Import::WorldFunc(key, func.name.clone()));
             }
 
             let get_resource = resource_test_for_world(resolve, world_id);
             if let Some(id) = valid_resource_drop(name, ty, get_resource)? {
-                return Ok(Import::ImportedResourceDrop(None, id));
+                return Ok(Import::ImportedResourceDrop(key, None, id));
             }
 
             match world.imports.get(&key) {
@@ -397,7 +397,7 @@ impl ImportMap {
             })?;
             Ok(Import::InterfaceFunc(key, id, f.name.clone()))
         } else if let Some(ty) = valid_resource_drop(import.name, ty, get_resource)? {
-            Ok(Import::ImportedResourceDrop(Some(key), ty))
+            Ok(Import::ImportedResourceDrop(key, Some(id), ty))
         } else {
             bail!(
                 "import interface `{}` is missing function \
@@ -576,13 +576,13 @@ pub enum Export {
     WorldFunc(String),
 
     /// A post-return for a top-level function of a world.
-    WorldFuncPostReturn(String),
+    WorldFuncPostReturn(WorldKey),
 
     /// An export of a function in an interface.
     InterfaceFunc(InterfaceId, String),
 
     /// A post-return for the above function.
-    InterfaceFuncPostReturn(InterfaceId, String),
+    InterfaceFuncPostReturn(WorldKey, String),
 
     /// A destructor for an exported resource.
     ResourceDtor(TypeId),
@@ -676,11 +676,14 @@ impl ExportMap {
                     format!("failed to validate export for `{key}`")
                 })?;
                 match id {
-                    Some(id) => {
-                        return Ok(Some(Export::InterfaceFuncPostReturn(id, f.name.clone())));
+                    Some(_id) => {
+                        return Ok(Some(Export::InterfaceFuncPostReturn(
+                            key.clone(),
+                            f.name.clone(),
+                        )));
                     }
                     None => {
-                        return Ok(Some(Export::WorldFuncPostReturn(f.name.clone())));
+                        return Ok(Some(Export::WorldFuncPostReturn(key.clone())));
                     }
                 }
             }
@@ -765,25 +768,21 @@ impl ExportMap {
 
     /// Returns the name of the post-return export, if any, for the `interface`
     /// and `func` combo.
-    pub fn post_return(&self, interface: Option<InterfaceId>, func: &Function) -> Option<&str> {
-        self.find(|m| match (m, interface) {
-            (Export::WorldFuncPostReturn(f), None) => func.name == *f,
-            (Export::InterfaceFuncPostReturn(i, f), Some(id)) => *i == id && func.name == *f,
+    pub fn post_return(&self, key: &WorldKey, func: &Function) -> Option<&str> {
+        self.find(|m| match m {
+            Export::WorldFuncPostReturn(k) => k == key,
+            Export::InterfaceFuncPostReturn(k, f) => k == key && func.name == *f,
             _ => false,
         })
     }
 
     /// Returns the realloc that the exported function `interface` and `func`
     /// are using.
-    pub fn export_realloc_for(
-        &self,
-        interface: Option<InterfaceId>,
-        func: &Function,
-    ) -> Option<&str> {
+    pub fn export_realloc_for(&self, key: &WorldKey, func: &Function) -> Option<&str> {
         // TODO: This realloc detection should probably be improved with
         // some sort of scheme to have per-function reallocs like
         // `cabi_realloc_{name}` or something like that.
-        let _ = (interface, func);
+        let _ = (key, func);
 
         if let Some(name) = self.find(|m| matches!(m, Export::GeneralPurposeExportRealloc)) {
             return Some(name);

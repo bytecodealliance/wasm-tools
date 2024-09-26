@@ -250,7 +250,7 @@ impl<'a> ComponentWorld<'a> {
             .chain(self.info.imports.imports())
         {
             match import {
-                Import::WorldFunc(name) => {
+                Import::WorldFunc(_, name) => {
                     required
                         .interface_funcs
                         .entry(None)
@@ -264,7 +264,7 @@ impl<'a> ComponentWorld<'a> {
                         .or_default()
                         .insert(name);
                 }
-                Import::ImportedResourceDrop(_, id) => {
+                Import::ImportedResourceDrop(_, _, id) => {
                     required.resource_drops.insert(*id);
                 }
                 _ => {}

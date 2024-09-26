@@ -655,13 +655,19 @@ impl<'a> EncodingState<'a> {
                         .root_import_type_encoder(None)
                         .encode_func_type(resolve, func)?;
                     let core_name = world_func_core_names[&func.name];
-                    let idx = self.encode_lift(module, &core_name, None, func, ty)?;
+                    let idx = self.encode_lift(module, &core_name, export_name, func, ty)?;
                     self.component
                         .export(&export_string, ComponentExportKind::Func, idx, None);
                 }
                 WorldItem::Interface { id, .. } => {
                     let core_names = interface_func_core_names.get(id);
-                    self.encode_interface_export(&export_string, module, *id, core_names)?;
+                    self.encode_interface_export(
+                        &export_string,
+                        module,
+                        export_name,
+                        *id,
+                        core_names,
+                    )?;
                 }
                 WorldItem::Type(_) => unreachable!(),
             }
@@ -674,6 +680,7 @@ impl<'a> EncodingState<'a> {
         &mut self,
         export_name: &str,
         module: CustomModule<'_>,
+        key: &WorldKey,
         export: InterfaceId,
         interface_func_core_names: Option<&IndexMap<&str, &str>>,
     ) -> Result<()> {
@@ -691,9 +698,7 @@ impl<'a> EncodingState<'a> {
         for (_, func) in &resolve.interfaces[export].functions {
             let core_name = interface_func_core_names.unwrap()[func.name.as_str()];
             let ty = root.encode_func_type(resolve, func)?;
-            let func_index = root
-                .state
-                .encode_lift(module, &core_name, Some(export), func, ty)?;
+            let func_index = root.state.encode_lift(module, &core_name, key, func, ty)?;
             imports.push((
                 import_func_name(func),
                 ComponentExportKind::Func,
@@ -986,7 +991,7 @@ impl<'a> EncodingState<'a> {
         &mut self,
         module: CustomModule<'_>,
         core_name: &str,
-        interface: Option<InterfaceId>,
+        key: &WorldKey,
         func: &Function,
         ty: u32,
     ) -> Result<u32> {
@@ -997,16 +1002,19 @@ impl<'a> EncodingState<'a> {
 
         let options = RequiredOptions::for_export(resolve, func);
 
-        let encoding = metadata.export_encodings[core_name];
+        let encoding = metadata
+            .export_encodings
+            .get(resolve, key, &func.name)
+            .unwrap();
         let exports = self.info.exports_for(module);
         let realloc_index = exports
-            .export_realloc_for(interface, func)
+            .export_realloc_for(key, func)
             .map(|name| self.core_alias_export(instance_index, name, ExportKind::Func));
         let mut options = options
             .into_iter(encoding, self.memory_index, realloc_index)?
             .collect::<Vec<_>>();
 
-        if let Some(post_return) = exports.post_return(interface, func) {
+        if let Some(post_return) = exports.post_return(key, func) {
             let post_return = self.core_alias_export(instance_index, post_return, ExportKind::Func);
             options.push(CanonicalOption::PostReturn(post_return));
         }
@@ -1379,7 +1387,7 @@ impl<'a> EncodingState<'a> {
         log::trace!("attempting to materialize import of `{module}::{field}` for {for_module:?}");
         let resolve = &self.info.encoder.metadata.resolve;
         let name_tmp;
-        let (key, name) = match import {
+        let (key, name, interface_key) = match import {
             // Main module dependencies on an adapter in use are done with an
             // indirection here, so load the shim function and use that.
             Import::AdapterExport(_) => {
@@ -1446,18 +1454,17 @@ impl<'a> EncodingState<'a> {
             // through to the code below. This is where these are connected to a
             // WIT `ImportedInterface` one way or another with the name that was
             // detected during validation.
-            Import::ImportedResourceDrop(key, id) => {
+            Import::ImportedResourceDrop(key, iface, id) => {
                 let ty = &resolve.types[*id];
                 let name = ty.name.as_ref().unwrap();
                 name_tmp = format!("{RESOURCE_DROP}{name}");
-                (key.as_ref(), &name_tmp)
+                (key, &name_tmp, iface.map(|_| resolve.name_world_key(key)))
             }
-            Import::WorldFunc(name) => (None, name),
-            Import::InterfaceFunc(key, _, name) => (Some(key), name),
+            Import::WorldFunc(key, name) => (key, name, None),
+            Import::InterfaceFunc(key, _, name) => (key, name, Some(resolve.name_world_key(key))),
         };
 
-        let interface = key.map(|key| resolve.name_world_key(key));
-        let import = &self.info.import_map[&interface];
+        let import = &self.info.import_map[&interface_key];
         let (index, _, lowering) = import.lowerings.get_full(name).unwrap();
         let metadata = self.info.module_metadata_for(for_module);
 
@@ -1480,12 +1487,12 @@ impl<'a> EncodingState<'a> {
             // created, so the specific export is loaded here and used as an
             // import.
             Lowering::Indirect { .. } => {
-                let encoding = metadata.import_encodings[&(module.to_string(), field.to_string())];
+                let encoding = metadata.import_encodings.get(resolve, key, name).unwrap();
                 self.core_alias_export(
                     self.shim_instance_index
                         .expect("shim should be instantiated"),
                     &shims.shims[&ShimKind::IndirectLowering {
-                        interface: interface.clone(),
+                        interface: interface_key,
                         index,
                         realloc: for_module,
                         encoding,
@@ -1696,7 +1703,7 @@ impl<'a> Shims<'a> {
         let resolve = &world.encoder.metadata.resolve;
 
         for (module, field, import) in module_imports.imports() {
-            let (key, name) = match import {
+            let (key, name, interface_key) = match import {
                 // These imports don't require shims, they can be satisfied
                 // as-needed when required.
                 Import::ImportedResourceDrop(..)
@@ -1746,11 +1753,12 @@ impl<'a> Shims<'a> {
                 // WIT-level functions may require an indirection, so yield some
                 // metadata out of this `match` to the loop below to figure that
                 // out.
-                Import::InterfaceFunc(key, _, name) => (Some(key), name),
-                Import::WorldFunc(name) => (None, name),
+                Import::InterfaceFunc(key, _, name) => {
+                    (key, name, Some(resolve.name_world_key(key)))
+                }
+                Import::WorldFunc(key, name) => (key, name, None),
             };
-            let key = key.map(|key| resolve.name_world_key(key));
-            let interface = &world.import_map[&key];
+            let interface = &world.import_map[&interface_key];
             let (index, _, lowering) = interface.lowerings.get_full(name).unwrap();
             let shim_name = self.shims.len().to_string();
             match lowering {
@@ -1760,9 +1768,9 @@ impl<'a> Shims<'a> {
                     log::debug!(
                         "shim {shim_name} is import `{module}::{field}` lowering {index} `{name}`",
                     );
-                    let encoding = *metadata
+                    let encoding = metadata
                         .import_encodings
-                        .get(&(module.to_string(), field.to_string()))
+                        .get(resolve, key, name)
                         .ok_or_else(|| {
                             anyhow::anyhow!(
                                 "missing component metadata for import of \
@@ -1774,7 +1782,7 @@ impl<'a> Shims<'a> {
                         debug_name: format!("indirect-{module}-{field}"),
                         options: *options,
                         kind: ShimKind::IndirectLowering {
-                            interface: key,
+                            interface: interface_key,
                             index,
                             realloc: for_module,
                             encoding,
