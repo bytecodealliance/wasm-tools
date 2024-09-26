@@ -1012,6 +1012,15 @@ package {name} is defined in two different locations:\n\
         Some(self.id_of_name(interface.package.unwrap(), interface.name.as_ref()?))
     }
 
+    /// Returns the "canonicalized interface name" of `interface`.
+    ///
+    /// Returns `None` for unnamed interfaces. See `BuildTargets.md` in the
+    /// upstream component model repository for more information about this.
+    pub fn canonicalized_id_of(&self, interface: InterfaceId) -> Option<String> {
+        let interface = &self.interfaces[interface];
+        Some(self.canonicalized_id_of_name(interface.package.unwrap(), interface.name.as_ref()?))
+    }
+
     /// Convert a world to an "importized" version where the world is updated
     /// in-place to reflect what it would look like to be imported.
     ///
@@ -1086,6 +1095,27 @@ package {name} is defined in two different locations:\n\
         base.push_str(name);
         if let Some(version) = &package.name.version {
             base.push_str(&format!("@{version}"));
+        }
+        base
+    }
+
+    /// Returns the "canonicalized interface name" of the specified `name`
+    /// within the `pkg`.
+    ///
+    /// See `BuildTargets.md` in the upstream component model repository for
+    /// more information about this.
+    pub fn canonicalized_id_of_name(&self, pkg: PackageId, name: &str) -> String {
+        let package = &self.packages[pkg];
+        let mut base = String::new();
+        base.push_str(&package.name.namespace);
+        base.push_str(":");
+        base.push_str(&package.name.name);
+        base.push_str("/");
+        base.push_str(name);
+        if let Some(version) = &package.name.version {
+            base.push_str("@");
+            let string = PackageName::version_compat_track_string(version);
+            base.push_str(&string);
         }
         base
     }

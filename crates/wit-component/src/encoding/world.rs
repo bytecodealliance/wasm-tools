@@ -1,6 +1,6 @@
 use super::{Adapter, ComponentEncoder, LibraryInfo, RequiredOptions};
 use crate::validation::{
-    validate_adapter_module, validate_module, Import, ImportMap, ValidatedModule, RESOURCE_DROP,
+    validate_adapter_module, validate_module, Import, ImportMap, ValidatedModule,
 };
 use anyhow::{Context, Result};
 use indexmap::{IndexMap, IndexSet};
@@ -461,7 +461,7 @@ impl ImportedInterface {
         let name = ty.name.as_deref().expect("resources must be named");
 
         if required.resource_drops.contains(&id) {
-            let name = format!("{RESOURCE_DROP}{name}");
+            let name = format!("{name}_drop");
             let prev = self.lowerings.insert(name, Lowering::ResourceDrop(id));
             assert!(prev.is_none());
         }

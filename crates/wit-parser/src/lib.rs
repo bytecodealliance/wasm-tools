@@ -219,6 +219,23 @@ impl PackageName {
         }
         version
     }
+
+    /// Returns the string corresponding to
+    /// [`PackageName::version_compat_track`]. This is done to match the
+    /// component model's expected naming scheme of imports and exports.
+    pub fn version_compat_track_string(version: &Version) -> String {
+        let version = Self::version_compat_track(version);
+        if !version.pre.is_empty() {
+            return version.to_string();
+        }
+        if version.major != 0 {
+            return format!("{}", version.major);
+        }
+        if version.minor != 0 {
+            return format!("{}.{}", version.major, version.minor);
+        }
+        version.to_string()
+    }
 }
 
 impl fmt::Display for PackageName {
@@ -850,6 +867,20 @@ impl FunctionKind {
     }
 }
 
+/// Possible forms of name mangling that are supported by this crate.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Mangling {
+    /// The "standard" component model mangling format for 32-bit linear
+    /// memories. This is specified in WebAssembly/component-model#378
+    Standard32,
+
+    /// The "legacy" name mangling supported in versions 218-and-prior for this
+    /// crate. This is the original support for how components were created from
+    /// core wasm modules and this does not correspond to any standard. This is
+    /// preserved for now while tools transition to the new scheme.
+    Legacy,
+}
+
 impl Function {
     pub fn item_name(&self) -> &str {
         match &self.kind {
@@ -873,10 +904,28 @@ impl Function {
     }
 
     /// Gets the core export name for this function.
-    pub fn core_export_name<'a>(&'a self, interface: Option<&str>) -> Cow<'a, str> {
+    pub fn standard32_core_export_name<'a>(&'a self, interface: Option<&str>) -> Cow<'a, str> {
+        self.core_export_name(interface, Mangling::Standard32)
+    }
+
+    pub fn legacy_core_export_name<'a>(&'a self, interface: Option<&str>) -> Cow<'a, str> {
+        self.core_export_name(interface, Mangling::Legacy)
+    }
+    /// Gets the core export name for this function.
+    pub fn core_export_name<'a>(
+        &'a self,
+        interface: Option<&str>,
+        mangling: Mangling,
+    ) -> Cow<'a, str> {
         match interface {
-            Some(interface) => Cow::Owned(format!("{interface}#{}", self.name)),
-            None => Cow::Borrowed(&self.name),
+            Some(interface) => match mangling {
+                Mangling::Standard32 => Cow::Owned(format!("cm32p2|{interface}|{}", self.name)),
+                Mangling::Legacy => Cow::Owned(format!("{interface}#{}", self.name)),
+            },
+            None => match mangling {
+                Mangling::Standard32 => Cow::Owned(format!("cm32p2||{}", self.name)),
+                Mangling::Legacy => Cow::Borrowed(&self.name),
+            },
         }
     }
 }

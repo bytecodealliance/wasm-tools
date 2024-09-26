@@ -67,7 +67,7 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId) -> Vec<u8> {
             WorldItem::Interface { id: export, .. } => {
                 let name = resolve.name_world_key(name);
                 for (_, func) in resolve.interfaces[*export].functions.iter() {
-                    let name = func.core_export_name(Some(&name));
+                    let name = func.legacy_core_export_name(Some(&name));
                     push_func(&mut wat, &name, resolve, func);
                 }
 

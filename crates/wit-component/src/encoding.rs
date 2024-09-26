@@ -72,7 +72,7 @@
 //! component model.
 
 use crate::metadata::{self, Bindgen, ModuleMetadata};
-use crate::validation::{Export, ExportMap, Import, ImportInstance, ImportMap, RESOURCE_DROP};
+use crate::validation::{Export, ExportMap, Import, ImportInstance, ImportMap};
 use crate::StringEncoding;
 use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
@@ -647,6 +647,7 @@ impl<'a> EncodingState<'a> {
         }
 
         let world = &resolve.worlds[self.info.encoder.metadata.world];
+
         for export_name in exports {
             let export_string = resolve.name_world_key(export_name);
             match &world.exports[export_name] {
@@ -1457,7 +1458,7 @@ impl<'a> EncodingState<'a> {
             Import::ImportedResourceDrop(key, iface, id) => {
                 let ty = &resolve.types[*id];
                 let name = ty.name.as_ref().unwrap();
-                name_tmp = format!("{RESOURCE_DROP}{name}");
+                name_tmp = format!("{name}_drop");
                 (key, &name_tmp, iface.map(|_| resolve.name_world_key(key)))
             }
             Import::WorldFunc(key, name) => (key, name, None),
