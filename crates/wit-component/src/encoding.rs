@@ -615,6 +615,37 @@ impl<'a> EncodingState<'a> {
             CustomModule::Main => &self.info.encoder.main_module_exports,
             CustomModule::Adapter(name) => &self.info.encoder.adapters[name].required_exports,
         };
+        if exports.is_empty() {
+            return Ok(());
+        }
+
+        let mut interface_func_core_names = IndexMap::new();
+        let mut world_func_core_names = IndexMap::new();
+        for (core_name, export) in self.info.exports_for(module).iter() {
+            match export {
+                Export::WorldFunc(name) => {
+                    let prev = world_func_core_names.insert(name, core_name);
+                    assert!(prev.is_none());
+                }
+                Export::InterfaceFunc(id, name) => {
+                    let prev = interface_func_core_names
+                        .entry(id)
+                        .or_insert(IndexMap::new())
+                        .insert(name.as_str(), core_name);
+                    assert!(prev.is_none());
+                }
+                Export::WorldFuncPostReturn(..)
+                | Export::InterfaceFuncPostReturn(..)
+                | Export::ResourceDtor(..)
+                | Export::Memory
+                | Export::GeneralPurposeRealloc
+                | Export::GeneralPurposeExportRealloc
+                | Export::GeneralPurposeImportRealloc
+                | Export::Initialize
+                | Export::ReallocForAdapter => continue,
+            }
+        }
+
         let world = &resolve.worlds[self.info.encoder.metadata.world];
         for export_name in exports {
             let export_string = resolve.name_world_key(export_name);
@@ -623,13 +654,14 @@ impl<'a> EncodingState<'a> {
                     let ty = self
                         .root_import_type_encoder(None)
                         .encode_func_type(resolve, func)?;
-                    let core_name = func.core_export_name(None);
+                    let core_name = world_func_core_names[&func.name];
                     let idx = self.encode_lift(module, &core_name, None, func, ty)?;
                     self.component
                         .export(&export_string, ComponentExportKind::Func, idx, None);
                 }
                 WorldItem::Interface { id, .. } => {
-                    self.encode_interface_export(&export_string, module, *id)?;
+                    let core_names = interface_func_core_names.get(id);
+                    self.encode_interface_export(&export_string, module, *id, core_names)?;
                 }
                 WorldItem::Type(_) => unreachable!(),
             }
@@ -643,6 +675,7 @@ impl<'a> EncodingState<'a> {
         export_name: &str,
         module: CustomModule<'_>,
         export: InterfaceId,
+        interface_func_core_names: Option<&IndexMap<&str, &str>>,
     ) -> Result<()> {
         log::trace!("encode interface export `{export_name}`");
         let resolve = &self.info.encoder.metadata.resolve;
@@ -656,7 +689,7 @@ impl<'a> EncodingState<'a> {
         let mut imports = Vec::new();
         let mut root = self.root_export_type_encoder(Some(export));
         for (_, func) in &resolve.interfaces[export].functions {
-            let core_name = func.core_export_name(Some(export_name));
+            let core_name = interface_func_core_names.unwrap()[func.name.as_str()];
             let ty = root.encode_func_type(resolve, func)?;
             let func_index = root
                 .state
