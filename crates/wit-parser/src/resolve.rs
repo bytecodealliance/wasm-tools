@@ -18,9 +18,9 @@ use crate::ast::{parse_use_path, ParsedUsePath};
 use crate::serde_::{serialize_arena, serialize_id_map};
 use crate::{
     AstItem, Docs, Error, Function, FunctionKind, Handle, IncludeName, Interface, InterfaceId,
-    InterfaceSpan, PackageName, Results, SourceMap, Stability, Type, TypeDef, TypeDefKind, TypeId,
-    TypeIdVisitor, TypeOwner, UnresolvedPackage, UnresolvedPackageGroup, World, WorldId, WorldItem,
-    WorldKey, WorldSpan,
+    InterfaceSpan, Mangling, PackageName, Results, SourceMap, Stability, Type, TypeDef,
+    TypeDefKind, TypeId, TypeIdVisitor, TypeOwner, UnresolvedPackage, UnresolvedPackageGroup,
+    World, WorldId, WorldItem, WorldKey, WorldSpan,
 };
 
 mod clone;
@@ -1308,6 +1308,17 @@ package {name} is defined in two different locations:\n\
         }
     }
 
+    /// Same as [`Resolve::name_world_key`] except that `WorldKey::Interfaces`
+    /// uses [`Resolve::canonicalized_id_of`].
+    pub fn name_canonicalized_world_key(&self, key: &WorldKey) -> String {
+        match key {
+            WorldKey::Name(s) => s.to_string(),
+            WorldKey::Interface(i) => self
+                .canonicalized_id_of(*i)
+                .expect("unexpected anonymous interface"),
+        }
+    }
+
     /// Returns the interface that `id` uses a type from, if it uses a type from
     /// a different interface than `id` is defined within.
     ///
@@ -2203,6 +2214,226 @@ package {name} is defined in two different locations:\n\
         let replacement_id = self.interfaces[*replace_with].types[name];
         self.types[ty].kind = TypeDefKind::Type(Type::Id(replacement_id));
     }
+
+    /// Returns the core wasm module/field names for the specified `import`.
+    ///
+    /// This function will return the core wasm module/field that can be used to
+    /// use `import` with the name `mangling` scheme specified as well. This can
+    /// be useful for bindings generators, for example, and these names are
+    /// recognized by `wit-component` and `wasm-tools component new`.
+    pub fn wasm_import_name(&self, mangling: Mangling, import: WasmImport<'_>) -> (String, String) {
+        match mangling {
+            Mangling::Standard32 => match import {
+                WasmImport::Func { interface, func } => {
+                    let module = match interface {
+                        Some(key) => format!("cm32p2|{}", self.name_canonicalized_world_key(key)),
+                        None => format!("cm32p2"),
+                    };
+                    (module, func.name.clone())
+                }
+                WasmImport::ResourceIntrinsic {
+                    interface,
+                    resource,
+                    intrinsic,
+                } => {
+                    let name = self.types[resource].name.as_ref().unwrap();
+                    let (prefix, name) = match intrinsic {
+                        ResourceIntrinsic::ImportedDrop => ("", format!("{name}_drop")),
+                        ResourceIntrinsic::ExportedDrop => ("_ex_", format!("{name}_drop")),
+                        ResourceIntrinsic::ExportedNew => ("_ex_", format!("{name}_new")),
+                        ResourceIntrinsic::ExportedRep => ("_ex_", format!("{name}_rep")),
+                    };
+                    let module = match interface {
+                        Some(key) => {
+                            format!("cm32p2|{prefix}{}", self.name_canonicalized_world_key(key))
+                        }
+                        None => {
+                            assert_eq!(prefix, "");
+                            format!("cm32p2")
+                        }
+                    };
+                    (module, name)
+                }
+            },
+            Mangling::Legacy => match import {
+                WasmImport::Func { interface, func } => {
+                    let module = match interface {
+                        Some(key) => self.name_world_key(key),
+                        None => format!("$root"),
+                    };
+                    (module, func.name.clone())
+                }
+                WasmImport::ResourceIntrinsic {
+                    interface,
+                    resource,
+                    intrinsic,
+                } => {
+                    let name = self.types[resource].name.as_ref().unwrap();
+                    let (prefix, name) = match intrinsic {
+                        ResourceIntrinsic::ImportedDrop => ("", format!("[resource-drop]{name}")),
+                        ResourceIntrinsic::ExportedDrop => {
+                            ("[export]", format!("[resource-drop]{name}"))
+                        }
+                        ResourceIntrinsic::ExportedNew => {
+                            ("[export]", format!("[resource-new]{name}"))
+                        }
+                        ResourceIntrinsic::ExportedRep => {
+                            ("[export]", format!("[resource-rep]{name}"))
+                        }
+                    };
+                    let module = match interface {
+                        Some(key) => format!("{prefix}{}", self.name_world_key(key)),
+                        None => {
+                            assert_eq!(prefix, "");
+                            format!("$root")
+                        }
+                    };
+                    (module, name)
+                }
+            },
+        }
+    }
+
+    /// Returns the core wasm export name for the specified `import`.
+    ///
+    /// This is the same as [`Resovle::wasm_import_name`], except for exports.
+    pub fn wasm_export_name(&self, mangling: Mangling, import: WasmExport<'_>) -> String {
+        match mangling {
+            Mangling::Standard32 => match import {
+                WasmExport::Func {
+                    interface,
+                    func,
+                    post_return,
+                } => {
+                    let mut name = String::from("cm32p2|");
+                    if let Some(interface) = interface {
+                        let s = self.name_canonicalized_world_key(interface);
+                        name.push_str(&s);
+                    }
+                    name.push_str("|");
+                    name.push_str(&func.name);
+                    if post_return {
+                        name.push_str("_post");
+                    }
+                    name
+                }
+                WasmExport::ResourceDtor {
+                    interface,
+                    resource,
+                } => {
+                    let name = self.types[resource].name.as_ref().unwrap();
+                    let interface = self.name_canonicalized_world_key(interface);
+                    format!("cm32p2|{interface}|{name}_dtor")
+                }
+                WasmExport::Memory => "cm32p2_memory".to_string(),
+                WasmExport::Initialize => "cm32p2_initialize".to_string(),
+                WasmExport::Realloc => "cm32p2_realloc".to_string(),
+            },
+            Mangling::Legacy => match import {
+                WasmExport::Func {
+                    interface,
+                    func,
+                    post_return,
+                } => {
+                    let mut name = String::new();
+                    if post_return {
+                        name.push_str("cabi_post_");
+                    }
+                    if let Some(interface) = interface {
+                        let s = self.name_world_key(interface);
+                        name.push_str(&s);
+                        name.push_str("#");
+                    }
+                    name.push_str(&func.name);
+                    name
+                }
+                WasmExport::ResourceDtor {
+                    interface,
+                    resource,
+                } => {
+                    let name = self.types[resource].name.as_ref().unwrap();
+                    let interface = self.name_world_key(interface);
+                    format!("{interface}#[dtor]{name}")
+                }
+                WasmExport::Memory => "memory".to_string(),
+                WasmExport::Initialize => "_initialize".to_string(),
+                WasmExport::Realloc => "cabi_realloc".to_string(),
+            },
+        }
+    }
+}
+
+/// Possible imports that can be passed to [`Resolve::wasm_import_name`].
+#[derive(Debug)]
+pub enum WasmImport<'a> {
+    /// A WIT function is being imported. Optionally from an interface.
+    Func {
+        /// The name of the interface that the function is being imported from.
+        ///
+        /// If the function is imported directly from the world then this is
+        /// `Noen`.
+        interface: Option<&'a WorldKey>,
+
+        /// The function being imported.
+        func: &'a Function,
+    },
+
+    /// A resource-related intrinsic is being imported.
+    ResourceIntrinsic {
+        /// The optional interface to import from, same as `WasmImport::Func`.
+        interface: Option<&'a WorldKey>,
+
+        /// The resource that's being operated on.
+        resource: TypeId,
+
+        /// The intrinsic that's being imported.
+        intrinsic: ResourceIntrinsic,
+    },
+}
+
+/// Intrinsic definitions to go with [`WasmImport::ResourceIntrinsic`] which
+/// also goes with [`Resolve::wasm_import_name`].
+#[derive(Debug)]
+pub enum ResourceIntrinsic {
+    ImportedDrop,
+    ExportedDrop,
+    ExportedNew,
+    ExportedRep,
+}
+
+/// Different kinds of exports that can be passed to
+/// [`Resolve::wasm_export_name`] to export from core wasm modules.
+#[derive(Debug)]
+pub enum WasmExport<'a> {
+    /// A WIT function is being exported, optionally from an interface.
+    Func {
+        /// An optional interface which owns `func`. Use `None` for top-level
+        /// world function.
+        interface: Option<&'a WorldKey>,
+
+        /// The function being exported.
+        func: &'a Function,
+
+        /// Whether or not this is a post-return function or not.
+        post_return: bool,
+    },
+
+    /// A destructor for a resource exported from this module.
+    ResourceDtor {
+        /// The interface that owns the resource.
+        interface: &'a WorldKey,
+        /// The resource itself that the destructor is for.
+        resource: TypeId,
+    },
+
+    /// Linear memory, the one that the canonical ABI uses.
+    Memory,
+
+    /// An initialization function (not the core wasm `start`).
+    Initialize,
+
+    /// The general-purpose realloc hook.
+    Realloc,
 }
 
 /// Structure returned by [`Resolve::merge`] which contains mappings from

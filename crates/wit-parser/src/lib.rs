@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use id_arena::{Arena, Id};
 use indexmap::IndexMap;
 use semver::Version;
@@ -21,7 +21,7 @@ pub use ast::{parse_use_path, ParsedUsePath};
 mod sizealign;
 pub use sizealign::*;
 mod resolve;
-pub use resolve::{InvalidTransitiveDependency, Package, PackageId, Remap, Resolve};
+pub use resolve::*;
 mod live;
 pub use live::{LiveTypes, TypeIdVisitor};
 
@@ -879,6 +879,23 @@ pub enum Mangling {
     /// core wasm modules and this does not correspond to any standard. This is
     /// preserved for now while tools transition to the new scheme.
     Legacy,
+}
+
+impl std::str::FromStr for Mangling {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Mangling> {
+        match s {
+            "legacy" => Ok(Mangling::Legacy),
+            "standard32" => Ok(Mangling::Standard32),
+            _ => {
+                bail!(
+                    "unknown name mangling `{s}`, \
+                     supported values are `legacy` or `standard32`"
+                )
+            }
+        }
+    }
 }
 
 impl Function {

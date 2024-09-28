@@ -2158,6 +2158,7 @@ impl ComponentWorld<'_> {
 mod test {
     use super::*;
     use crate::{dummy_module, embed_component_metadata};
+    use wit_parser::Mangling;
 
     #[test]
     fn it_renames_imports() {
@@ -2183,7 +2184,7 @@ world test {
             .unwrap();
         let world = resolve.select_world(pkg, None).unwrap();
 
-        let mut module = dummy_module(&resolve, world);
+        let mut module = dummy_module(&resolve, world, Mangling::Standard32);
 
         embed_component_metadata(&mut module, &resolve, world, StringEncoding::UTF8).unwrap();
 

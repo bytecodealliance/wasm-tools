@@ -15,7 +15,7 @@ use wat::Detect;
 use wit_component::{
     embed_component_metadata, ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter,
 };
-use wit_parser::{PackageId, Resolve};
+use wit_parser::{Mangling, PackageId, Resolve};
 
 /// WebAssembly wit-based component tooling.
 #[derive(Parser)]
@@ -278,8 +278,19 @@ pub struct EmbedOpts {
     /// imports/exports and the right signatures for the component model. This
     /// can be useful to, perhaps, inspect a template module and what it looks
     /// like to work with an interface in the component model.
-    #[clap(long)]
+    ///
+    /// This option is equivalent to `--dummy-names standard32`
+    #[clap(long, conflicts_with = "dummy_names")]
     dummy: bool,
+
+    /// Same as `--dummy`, but the style of core wasm names is specified.
+    ///
+    /// This flag is the same as `--dummy` where if specified a core wasm module
+    /// is not read but is instead generated. The value of the option here is
+    /// the name mangling scheme to use for core wasm names generated. Current
+    /// options are `legacy|standard32`.
+    #[clap(long, conflicts_with = "dummy")]
+    dummy_names: Option<Mangling>,
 
     /// Print the output in the WebAssembly text format instead of binary.
     #[clap(long, short = 't')]
@@ -293,14 +304,15 @@ impl EmbedOpts {
 
     /// Executes the application.
     fn run(self) -> Result<()> {
-        let wasm = if self.dummy {
-            None
-        } else {
-            Some(self.io.parse_input_wasm()?)
-        };
         let (resolve, pkg_id) = self.resolve.load()?;
         let world = resolve.select_world(pkg_id, self.world.as_deref())?;
-        let mut wasm = wasm.unwrap_or_else(|| wit_component::dummy_module(&resolve, world));
+        let mut wasm = if self.dummy {
+            wit_component::dummy_module(&resolve, world, Mangling::Standard32)
+        } else if let Some(mangling) = self.dummy_names {
+            wit_component::dummy_module(&resolve, world, mangling)
+        } else {
+            self.io.parse_input_wasm()?
+        };
 
         embed_component_metadata(
             &mut wasm,
