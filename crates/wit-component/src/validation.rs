@@ -550,7 +550,7 @@ impl ExportMap {
                 let ty = types[types.core_function_at(export.index)].unwrap_func();
                 self.raw_exports.insert(export.name.to_string(), ty.clone());
             }
-            _ => return Ok(None),
+            _ => {}
         }
 
         // Handle a few special-cased names first.
