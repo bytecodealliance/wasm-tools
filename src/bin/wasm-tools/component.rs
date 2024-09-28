@@ -148,6 +148,17 @@ pub struct NewOpts {
     /// This is enabled by default.
     #[clap(long, value_name = "MERGE")]
     merge_imports_based_on_semver: Option<bool>,
+
+    /// Reject usage of the "legacy" naming scheme of `wit-component` and
+    /// require the new naming scheme to be used.
+    ///
+    /// This flag can be used to ignore core module imports/exports that don't
+    /// conform to WebAssembly/component-model#378. This turns off
+    /// compatibility `wit-component`'s historical naming scheme. This is
+    /// intended to be used to test if a tool is compatible with a hypothetical
+    /// removal of the old scheme in the future.
+    #[clap(long)]
+    reject_legacy_names: bool,
 }
 
 impl NewOpts {
@@ -158,7 +169,9 @@ impl NewOpts {
     /// Executes the application.
     fn run(self) -> Result<()> {
         let wasm = self.io.parse_input_wasm()?;
-        let mut encoder = ComponentEncoder::default().validate(!self.skip_validation);
+        let mut encoder = ComponentEncoder::default()
+            .validate(!self.skip_validation)
+            .reject_legacy_names(self.reject_legacy_names);
 
         if let Some(merge) = self.merge_imports_based_on_semver {
             encoder = encoder.merge_imports_based_on_semver(merge);

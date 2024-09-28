@@ -63,18 +63,7 @@ pub enum Lowering {
 
 impl<'a> ComponentWorld<'a> {
     pub fn new(encoder: &'a ComponentEncoder) -> Result<Self> {
-        let adapters = encoder
-            .adapters
-            .keys()
-            .map(|s| s.as_str())
-            .collect::<IndexSet<_>>();
-        let info = validate_module(
-            &encoder.module,
-            &encoder.metadata,
-            &encoder.main_module_exports,
-            &adapters,
-        )
-        .context("module was not valid")?;
+        let info = validate_module(encoder, &encoder.module).context("module was not valid")?;
 
         let mut ret = ComponentWorld {
             encoder,
@@ -85,7 +74,7 @@ impl<'a> ComponentWorld<'a> {
             exports_used: HashMap::new(),
         };
 
-        ret.process_adapters(&adapters)?;
+        ret.process_adapters()?;
         ret.process_imports()?;
         ret.process_exports_used();
         ret.process_live_type_imports();
@@ -97,7 +86,7 @@ impl<'a> ComponentWorld<'a> {
     /// adapters and figure out what functions are required from the
     /// adapter itself, either because the functions are imported by the
     /// main module or they're part of the adapter's exports.
-    fn process_adapters(&mut self, adapters: &IndexSet<&str>) -> Result<()> {
+    fn process_adapters(&mut self) -> Result<()> {
         let resolve = &self.encoder.metadata.resolve;
         let world = self.encoder.metadata.world;
         for (
@@ -156,13 +145,11 @@ impl<'a> ComponentWorld<'a> {
                 // imports may have deleted some imports which means that the
                 // final component may not need to import as many interfaces.
                 let info = validate_adapter_module(
+                    self.encoder,
                     &wasm,
-                    resolve,
-                    world,
                     &required_by_import,
                     required_exports,
                     library_info.as_ref(),
-                    adapters,
                 )
                 .with_context(|| {
                     format!("failed to validate the imports of the adapter module `{name}`")
@@ -189,13 +176,11 @@ impl<'a> ComponentWorld<'a> {
                 )
             };
             let info = validate_adapter_module(
+                self.encoder,
                 &wasm,
-                resolve,
-                world,
                 &required_by_import,
                 required_exports,
                 library_info.as_ref(),
-                adapters,
             )
             .with_context(|| {
                 format!("failed to validate the imports of the minimized adapter module `{name}`")

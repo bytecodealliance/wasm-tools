@@ -1878,7 +1878,7 @@ pub struct LibraryInfo {
 }
 
 /// Represents an adapter or library to be instantiated as part of the component
-struct Adapter {
+pub(super) struct Adapter {
     /// The wasm of the module itself, with `component-type` sections stripped
     wasm: Vec<u8>,
 
@@ -1900,13 +1900,14 @@ struct Adapter {
 #[derive(Default)]
 pub struct ComponentEncoder {
     module: Vec<u8>,
-    metadata: Bindgen,
+    pub(super) metadata: Bindgen,
     validate: bool,
-    main_module_exports: IndexSet<WorldKey>,
-    adapters: IndexMap<String, Adapter>,
+    pub(super) main_module_exports: IndexSet<WorldKey>,
+    pub(super) adapters: IndexMap<String, Adapter>,
     import_name_map: HashMap<String, String>,
     realloc_via_memory_grow: bool,
     merge_imports_based_on_semver: Option<bool>,
+    pub(super) reject_legacy_names: bool,
 }
 
 impl ComponentEncoder {
@@ -1956,6 +1957,19 @@ impl ComponentEncoder {
     /// This is enabled by default.
     pub fn merge_imports_based_on_semver(mut self, merge: bool) -> Self {
         self.merge_imports_based_on_semver = Some(merge);
+        self
+    }
+
+    /// Sets whether to reject the historical mangling/name scheme for core wasm
+    /// imports/exports as they map to the component model.
+    ///
+    /// The `wit-component` crate supported a different set of names prior to
+    /// WebAssembly/component-model#378 and this can be used to disable this
+    /// support.
+    ///
+    /// This is disabled by default.
+    pub fn reject_legacy_names(mut self, reject: bool) -> Self {
+        self.reject_legacy_names = reject;
         self
     }
 

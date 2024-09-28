@@ -1,5 +1,5 @@
 use crate::encoding::{Instance, Item, LibraryInfo, MainOrAdapter};
-use crate::metadata::Bindgen;
+use crate::ComponentEncoder;
 use anyhow::{bail, Context, Result};
 use indexmap::{map::Entry, IndexMap, IndexSet};
 use std::mem;
@@ -50,11 +50,9 @@ pub struct ValidatedModule {
 
 impl ValidatedModule {
     fn new(
+        encoder: &ComponentEncoder,
         bytes: &[u8],
-        resolve: &Resolve,
-        world: WorldId,
         exports: &IndexSet<WorldKey>,
-        adapters: &IndexSet<&str>,
         info: Option<&LibraryInfo>,
     ) -> Result<ValidatedModule> {
         let mut validator = Validator::new();
@@ -75,21 +73,20 @@ impl ValidatedModule {
                 Payload::ImportSection(s) => {
                     for import in s {
                         let import = import?;
-                        ret.imports
-                            .add(import, resolve, world, adapters, info, types)?;
+                        ret.imports.add(import, encoder, info, types)?;
                     }
                 }
                 Payload::ExportSection(s) => {
                     for export in s {
                         let export = export?;
-                        ret.exports.add(export, resolve, world, &exports, types)?;
+                        ret.exports.add(export, encoder, &exports, types)?;
                     }
                 }
                 _ => continue,
             }
         }
 
-        ret.exports.validate(resolve, world, exports)?;
+        ret.exports.validate(encoder, exports)?;
 
         Ok(ret)
     }
@@ -255,32 +252,26 @@ impl ImportMap {
     fn add(
         &mut self,
         import: wasmparser::Import<'_>,
-        resolve: &Resolve,
-        world: WorldId,
-        adapters: &IndexSet<&str>,
+        encoder: &ComponentEncoder,
         library_info: Option<&LibraryInfo>,
         types: TypesRef<'_>,
     ) -> Result<()> {
         if self.classify_import_with_library(import, library_info)? {
             return Ok(());
         }
-        let item = self
-            .classify(import, resolve, world, adapters, types)
-            .with_context(|| {
-                format!(
-                    "failed to resolve import `{}::{}`",
-                    import.module, import.name,
-                )
-            })?;
+        let item = self.classify(import, encoder, types).with_context(|| {
+            format!(
+                "failed to resolve import `{}::{}`",
+                import.module, import.name,
+            )
+        })?;
         self.insert_import(import, item)
     }
 
     fn classify(
         &self,
         import: wasmparser::Import<'_>,
-        resolve: &Resolve,
-        world_id: WorldId,
-        adapters: &IndexSet<&str>,
+        encoder: &ComponentEncoder,
         types: TypesRef<'_>,
     ) -> Result<Import> {
         // Special-case the main module's memory imported into adapters which
@@ -311,15 +302,16 @@ impl ImportMap {
 
         // Handle main module imports that match known adapters and set it up as
         // an import of an adapter export.
-        if adapters.contains(import.module) {
+        if encoder.adapters.contains_key(import.module) {
             return Ok(Import::AdapterExport(ty.clone()));
         }
 
         let (module, names) = match import.module.strip_prefix("cm32p2") {
             Some(suffix) => (suffix, STANDARD),
+            None if encoder.reject_legacy_names => (import.module, STANDARD),
             None => (import.module, LEGACY),
         };
-        self.classify_component_model_import(module, import.name, resolve, world_id, ty, names)
+        self.classify_component_model_import(module, import.name, encoder, ty, names)
     }
 
     /// Attempts to classify the import `{module}::{name}` with the rules
@@ -328,11 +320,12 @@ impl ImportMap {
         &self,
         module: &str,
         name: &str,
-        resolve: &Resolve,
-        world_id: WorldId,
+        encoder: &ComponentEncoder,
         ty: &FuncType,
         names: &dyn NameMangling,
     ) -> Result<Import> {
+        let resolve = &encoder.metadata.resolve;
+        let world_id = encoder.metadata.world;
         let world = &resolve.worlds[world_id];
 
         if module == names.import_root() {
@@ -408,7 +401,7 @@ impl ImportMap {
         }
         bail!(
             "import interface `{module}` is missing function \
-                 `{name}` that is required by the module",
+             `{name}` that is required by the module",
         )
     }
 
@@ -533,12 +526,11 @@ impl ExportMap {
     fn add(
         &mut self,
         export: wasmparser::Export<'_>,
-        resolve: &Resolve,
-        world: WorldId,
+        encoder: &ComponentEncoder,
         exports: &IndexSet<WorldKey>,
         types: TypesRef<'_>,
     ) -> Result<()> {
-        if let Some(item) = self.classify(export, resolve, world, exports, types)? {
+        if let Some(item) = self.classify(export, encoder, exports, types)? {
             log::debug!("classifying export `{}` as {item:?}", export.name);
             let prev = self.names.insert(export.name.to_string(), item);
             assert!(prev.is_none());
@@ -549,8 +541,7 @@ impl ExportMap {
     fn classify(
         &mut self,
         export: wasmparser::Export<'_>,
-        resolve: &Resolve,
-        world: WorldId,
+        encoder: &ComponentEncoder,
         exports: &IndexSet<WorldKey>,
         types: TypesRef<'_>,
     ) -> Result<Option<Export>> {
@@ -559,7 +550,6 @@ impl ExportMap {
                 let ty = types[types.core_function_at(export.index)].unwrap_func();
                 self.raw_exports.insert(export.name.to_string(), ty.clone());
             }
-            ExternalKind::Memory => return Ok(Some(Export::Memory)),
             _ => return Ok(None),
         }
 
@@ -576,10 +566,11 @@ impl ExportMap {
 
         let (name, names) = match export.name.strip_prefix("cm32p2") {
             Some(name) => (name, STANDARD),
+            None if encoder.reject_legacy_names => return Ok(None),
             None => (export.name, LEGACY),
         };
         if let Some(export) = self
-            .classify_component_export(names, name, &export, resolve, world, exports, types)
+            .classify_component_export(names, name, &export, encoder, exports, types)
             .with_context(|| format!("failed to classify export `{}`", export.name))?
         {
             return Ok(Some(export));
@@ -593,11 +584,12 @@ impl ExportMap {
         names: &dyn NameMangling,
         name: &str,
         export: &wasmparser::Export<'_>,
-        resolve: &Resolve,
-        world: WorldId,
+        encoder: &ComponentEncoder,
         exports: &IndexSet<WorldKey>,
         types: TypesRef<'_>,
     ) -> Result<Option<Export>> {
+        let resolve = &encoder.metadata.resolve;
+        let world = encoder.metadata.world;
         match export.kind {
             ExternalKind::Func => {}
             ExternalKind::Memory => {
@@ -748,12 +740,9 @@ impl ExportMap {
         self.names.iter().map(|(n, e)| (n.as_str(), e))
     }
 
-    fn validate(
-        &self,
-        resolve: &Resolve,
-        world: WorldId,
-        exports: &IndexSet<WorldKey>,
-    ) -> Result<()> {
+    fn validate(&self, encoder: &ComponentEncoder, exports: &IndexSet<WorldKey>) -> Result<()> {
+        let resolve = &encoder.metadata.resolve;
+        let world = encoder.metadata.world;
         // Multi-memory isn't supported because otherwise we don't know what
         // memory to put things in.
         if self
@@ -1193,20 +1182,8 @@ impl NameMangling for Legacy {
 /// The `ValidatedModule` return value contains the metadata which describes the
 /// input module on success. This is then further used to generate a component
 /// for this module.
-pub fn validate_module(
-    bytes: &[u8],
-    metadata: &Bindgen,
-    exports: &IndexSet<WorldKey>,
-    adapters: &IndexSet<&str>,
-) -> Result<ValidatedModule> {
-    ValidatedModule::new(
-        bytes,
-        &metadata.resolve,
-        metadata.world,
-        exports,
-        adapters,
-        None,
-    )
+pub fn validate_module(encoder: &ComponentEncoder, bytes: &[u8]) -> Result<ValidatedModule> {
+    ValidatedModule::new(encoder, bytes, &encoder.main_module_exports, None)
 }
 
 /// This function will validate the `bytes` provided as a wasm adapter module.
@@ -1227,15 +1204,13 @@ pub fn validate_module(
 /// allowing the module to import tables and globals, as well as import
 /// functions at the world level, not just at the interface level.
 pub fn validate_adapter_module(
+    encoder: &ComponentEncoder,
     bytes: &[u8],
-    resolve: &Resolve,
-    world: WorldId,
     required_by_import: &IndexMap<String, FuncType>,
     exports: &IndexSet<WorldKey>,
     library_info: Option<&LibraryInfo>,
-    adapters: &IndexSet<&str>,
 ) -> Result<ValidatedModule> {
-    let ret = ValidatedModule::new(bytes, resolve, world, exports, adapters, library_info)?;
+    let ret = ValidatedModule::new(encoder, bytes, exports, library_info)?;
 
     for (name, required_ty) in required_by_import {
         let actual = match ret.exports.raw_exports.get(name) {
