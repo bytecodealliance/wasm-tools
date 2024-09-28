@@ -19,9 +19,9 @@ const PAGE_SIZE: i32 = 64 * 1024;
 ///
 /// This internally performs a "gc" pass after removing exports to ensure that
 /// the resulting module imports the minimal set of functions necessary.
-pub fn run<T>(
+pub fn run(
     wasm: &[u8],
-    required: &IndexMap<String, T>,
+    required: &IndexSet<String>,
     main_module_realloc: Option<&str>,
 ) -> Result<Vec<u8>> {
     assert!(!required.is_empty());
@@ -31,21 +31,14 @@ pub fn run<T>(
 
     // Make sure that all required names are present in the module, and then
     // remove all names that are not required.
-    for (name, _ty) in required {
+    for name in required {
         if !module.exports.contains_key(name.as_str()) {
             bail!("adapter module does not have export `{name}`")
         }
     }
     let mut not_required = IndexSet::new();
     for name in module.exports.keys().copied() {
-        // If we need `name` then we also need cabi_post_`name`:
-        let name = if let Some(suffix) = name.strip_prefix("cabi_post_") {
-            suffix
-        } else {
-            name
-        };
-
-        if !required.contains_key(name) && !always_keep(name) {
+        if !required.contains(name) {
             not_required.insert(name);
         }
     }
@@ -55,15 +48,6 @@ pub fn run<T>(
     assert!(!module.exports.is_empty());
     module.liveness()?;
     module.encode(main_module_realloc)
-}
-
-fn always_keep(name: &str) -> bool {
-    match name {
-        // Explicitly keep `cabi_realloc` if it's there in case an interface
-        // needs it for a lowering.
-        "cabi_realloc" | "cabi_import_realloc" | "cabi_export_realloc" => true,
-        _ => false,
-    }
 }
 
 /// This function generates a Wasm function body which implements `cabi_realloc` in terms of `memory.grow`.  It
