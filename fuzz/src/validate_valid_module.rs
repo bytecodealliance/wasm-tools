@@ -35,38 +35,45 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         panic!("Invalid {}: {}", component_or_module, e);
     }
 
-    // After validation make sure that binary-to-text and text-to-binary
-    // transforms all work as well.
+    // Round-trip `wasm_bytes` through text and back to binary.
     let wat_string = wasmprinter::print_bytes(&wasm_bytes).unwrap_or_else(|e| {
         panic!(
             "failed first disassembly of Wasm into wat with `wasmprinter::print_bytes`: {}",
             e
         )
     });
-
     let wasm_bytes = wat::parse_str(&wat_string).unwrap_or_else(|e| {
         panic!(
             "failed to assemble wat into Wasm with `wat::parse_str`: {}",
             e
         )
     });
-    if log::log_enabled!(log::Level::Debug) {
-        log::debug!("Writing roundtripped wasm to `test2.wasm`...");
-        std::fs::write("test2.wasm", &wasm_bytes).unwrap();
-    }
+    crate::log_wasm(&wasm_bytes, &config);
 
-    let wat_string2 = wasmprinter::print_bytes(&wasm_bytes).unwrap_or_else(|e| {
+    let mut wat_string2 = String::new();
+    // Now round-trip the result one more time, but this time with "folded
+    // instructions" (e.g. s-expressions in the text format).
+    wasmprinter::Config::new()
+        .fold_instructions(true)
+        .print(
+            &wasm_bytes,
+            &mut wasmprinter::PrintFmtWrite(&mut wat_string2),
+        )
+        .unwrap_or_else(|e| {
+            panic!(
+                "failed second disassembly of Wasm into wat with `wasmprinter::print_bytes`: {}",
+                e
+            )
+        });
+    let wasm_bytes2 = wat::parse_str(&wat_string2).unwrap_or_else(|e| {
         panic!(
-            "failed second disassembly of Wasm into wat with `wasmprinter::print_bytes`: {}",
+            "failed to assemble wat into Wasm with `wat::parse_str`: {}",
             e
         )
     });
-    if log::log_enabled!(log::Level::Debug) {
-        log::debug!("Writing round tripped text format to `test2.wat`...");
-        std::fs::write("test2.wat", &wat_string2).unwrap();
-    }
+    crate::log_wasm(&wasm_bytes2, &config);
 
-    if wat_string != wat_string2 {
+    if wasm_bytes != wasm_bytes2 {
         panic!("failed to roundtrip valid module");
     }
     Ok(())

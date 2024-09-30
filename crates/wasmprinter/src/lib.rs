@@ -170,14 +170,16 @@ impl Config {
 
     /// Whether or not to print binary offsets of each item as comments in the
     /// text format whenever a newline is printed.
-    pub fn print_offsets(&mut self, print: bool) {
+    pub fn print_offsets(&mut self, print: bool) -> &mut Self {
         self.print_offsets = print;
+        self
     }
 
     /// Whether or not to print only a "skeleton" which skips function bodies,
     /// data segment contents, element segment contents, etc.
-    pub fn print_skeleton(&mut self, print: bool) {
+    pub fn print_skeleton(&mut self, print: bool) -> &mut Self {
         self.print_skeleton = print;
+        self
     }
 
     /// Assign names to all unnamed items.
@@ -190,13 +192,29 @@ impl Config {
     ///
     /// Note that if the resulting text output is converted back to binary the
     /// resulting `name` custom section will not be the same as before.
-    pub fn name_unnamed(&mut self, enable: bool) {
+    pub fn name_unnamed(&mut self, enable: bool) -> &mut Self {
         self.name_unnamed = enable;
+        self
     }
 
     /// Print instructions in folded form where possible.
-    pub fn fold_instructions(&mut self, enable: bool) {
+    ///
+    /// This will cause printing to favor the s-expression (parenthesized) form
+    /// of WebAssembly instructions. For example this output would be generated
+    /// for a simple `add` function:
+    ///
+    /// ```wasm
+    /// (module
+    ///     (func $foo (param i32 i32) (result i32)
+    ///         (i32.add
+    ///             (local.get 0)
+    ///             (local.get 1))
+    ///     )
+    /// )
+    /// ```
+    pub fn fold_instructions(&mut self, enable: bool) -> &mut Self {
         self.fold_instructions = enable;
+        self
     }
 
     /// Prints a WebAssembly binary into a `String`
