@@ -26,6 +26,10 @@ pub struct Opts {
     /// doesn't previously have a name.
     #[clap(long)]
     name_unnamed: bool,
+
+    /// Print instructions in the folded format.
+    #[clap(short, long)]
+    fold_instructions: bool,
 }
 
 impl Opts {
@@ -40,6 +44,7 @@ impl Opts {
         config.print_offsets(self.print_offsets);
         config.print_skeleton(self.skeleton);
         config.name_unnamed(self.name_unnamed);
+        config.fold_instructions(self.fold_instructions);
         self.io.output(wasm_tools::Output::Wat {
             wasm: &wasm,
             config,

@@ -966,7 +966,7 @@ impl<'a> Module<'a> {
 // While not exactly the most robust solution this should work well enough for
 // now.
 macro_rules! define_visit {
-    ($(@$p:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
+    ($(@$p:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
         $(
             fn $visit(&mut self $(, $($arg: $argty),*)?)  {
                 $(

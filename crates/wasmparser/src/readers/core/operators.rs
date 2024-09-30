@@ -30,6 +30,43 @@ pub enum BlockType {
     FuncType(u32),
 }
 
+/// The kind of a control flow [`Frame`].
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum FrameKind {
+    /// A Wasm `block` control block.
+    Block,
+    /// A Wasm `if` control block.
+    If,
+    /// A Wasm `else` control block.
+    Else,
+    /// A Wasm `loop` control block.
+    Loop,
+    /// A Wasm `try` control block.
+    ///
+    /// # Note
+    ///
+    /// This belongs to the Wasm exception handling proposal.
+    TryTable,
+    /// A Wasm legacy `try` control block.
+    ///
+    /// # Note
+    ///
+    /// See: `WasmFeatures::legacy_exceptions` Note in `crates/wasmparser/src/features.rs`
+    LegacyTry,
+    /// A Wasm legacy `catch` control block.
+    ///
+    /// # Note
+    ///
+    /// See: `WasmFeatures::legacy_exceptions` Note in `crates/wasmparser/src/features.rs`
+    LegacyCatch,
+    /// A Wasm legacy `catch_all` control block.
+    ///
+    /// # Note
+    ///
+    /// See: `WasmFeatures::legacy_exceptions` Note in `crates/wasmparser/src/features.rs`
+    LegacyCatchAll,
+}
+
 /// Represents a memory immediate in a WebAssembly memory instruction.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct MemArg {
@@ -177,7 +214,7 @@ pub enum Ordering {
 }
 
 macro_rules! define_operator {
-    ($(@$proposal:ident $op:ident $({ $($payload:tt)* })? => $visit:ident)*) => {
+    ($(@$proposal:ident $op:ident $({ $($payload:tt)* })? => $visit:ident ($($ann:tt)*))*) => {
         /// Instructions as defined [here].
         ///
         /// [here]: https://webassembly.github.io/spec/core/binary/instructions.html
@@ -358,7 +395,7 @@ impl<'a> Iterator for OperatorsIteratorWithOffsets<'a> {
 }
 
 macro_rules! define_visit_operator {
-    ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
+    ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
         $(
             fn $visit(&mut self $($(,$arg: $argty)*)?) -> Self::Output;
         )*
@@ -381,7 +418,7 @@ pub trait VisitOperator<'a> {
     /// implement [`VisitOperator`] on their own.
     fn visit_operator(&mut self, op: &Operator<'a>) -> Self::Output {
         macro_rules! visit_operator {
-            ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
+            ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
                 match op {
                     $(
                         Operator::$op $({ $($arg),* })? => self.$visit($($($arg.clone()),*)?),
@@ -397,7 +434,7 @@ pub trait VisitOperator<'a> {
 }
 
 macro_rules! define_visit_operator_delegate {
-    ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
+    ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
         $(
             fn $visit(&mut self $($(,$arg: $argty)*)?) -> Self::Output {
                 V::$visit(&mut *self, $($($arg),*)?)

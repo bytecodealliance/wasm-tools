@@ -110,6 +110,11 @@ pub trait Print {
     fn reset_color(&mut self) -> io::Result<()> {
         Ok(())
     }
+
+    /// Returns `true` if the device uses colors without interacting synchronously with a terminal (e.g. ANSI)
+    fn supports_async_color(&self) -> bool {
+        false
+    }
 }
 
 /// An adapter between the [`std::io::Write`] trait and [`Print`].
@@ -186,5 +191,9 @@ where
 
     fn reset_color(&mut self) -> io::Result<()> {
         self.0.reset()
+    }
+
+    fn supports_async_color(&self) -> bool {
+        self.0.supports_color() && !self.0.is_synchronous()
     }
 }

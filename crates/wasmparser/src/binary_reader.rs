@@ -862,7 +862,7 @@ impl<'a> BinaryReader<'a> {
     /// }
     ///
     /// macro_rules! define_visit_operator {
-    ///     ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
+    ///     ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
     ///         $(
     ///             fn $visit(&mut self $($(,$arg: $argty)*)?) -> Self::Output {
     ///                 println!("{}: {}", self.offset, stringify!($visit));
@@ -2083,7 +2083,7 @@ impl<'a> OperatorFactory<'a> {
 }
 
 macro_rules! define_visit_operator {
-    ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident)*) => {
+    ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
         $(
             fn $visit(&mut self $($(,$arg: $argty)*)?) -> Operator<'a> {
                 Operator::$op $({ $($arg),* })?

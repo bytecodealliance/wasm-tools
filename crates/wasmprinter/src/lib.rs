@@ -9,6 +9,7 @@
 #![deny(missing_docs)]
 
 use anyhow::{anyhow, bail, Context, Result};
+use operator::{OpPrinter, OperatorSeparator, OperatorState, PrintOperator, PrintOperatorFolded};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::io;
@@ -52,6 +53,7 @@ pub struct Config {
     print_offsets: bool,
     print_skeleton: bool,
     name_unnamed: bool,
+    fold_instructions: bool,
 }
 
 /// This structure is the actual structure that prints WebAssembly binaries.
@@ -68,8 +70,10 @@ struct Printer<'cfg, 'env> {
 struct CoreState {
     types: Vec<Option<SubType>>,
     funcs: u32,
+    func_to_type: Vec<Option<u32>>,
     memories: u32,
     tags: u32,
+    tag_to_type: Vec<Option<u32>>,
     globals: u32,
     tables: u32,
     modules: u32,
@@ -188,6 +192,11 @@ impl Config {
     /// resulting `name` custom section will not be the same as before.
     pub fn name_unnamed(&mut self, enable: bool) {
         self.name_unnamed = enable;
+    }
+
+    /// Print instructions in folded form where possible.
+    pub fn fold_instructions(&mut self, enable: bool) {
+        self.fold_instructions = enable;
     }
 
     /// Prints a WebAssembly binary into a `String`
@@ -343,7 +352,6 @@ impl Printer<'_, '_> {
         let mut states: Vec<State> = Vec::new();
         let mut parser = Parser::new(0);
         let mut parsers = Vec::new();
-        let mut func_reader = None;
 
         loop {
             let payload = match parser.parse(bytes, true)? {
@@ -466,7 +474,9 @@ impl Printer<'_, '_> {
                             MAX_WASM_FUNCTIONS
                         );
                     }
-                    func_reader = Some(reader.into_iter());
+                    for ty in reader {
+                        states.last_mut().unwrap().core.func_to_type.push(Some(ty?))
+                    }
                 }
                 Payload::TableSection(s) => {
                     self.update_custom_section_place(&mut states, "after table");
@@ -511,11 +521,7 @@ impl Printer<'_, '_> {
                     Self::ensure_module(&states)?;
                 }
                 Payload::CodeSectionEntry(body) => {
-                    if let Some(ref mut reader) = func_reader {
-                        if let Some(Ok(ty)) = reader.next() {
-                            self.print_code_section_entry(states.last_mut().unwrap(), &body, ty)?
-                        }
-                    }
+                    self.print_code_section_entry(states.last_mut().unwrap(), &body)?
                 }
                 Payload::DataCountSection { .. } => {
                     Self::ensure_module(&states)?;
@@ -1081,10 +1087,21 @@ impl Printer<'_, '_> {
             self.newline(offset)?;
             self.print_import(state, &import, true)?;
             match import.ty {
-                TypeRef::Func(_) => state.core.funcs += 1,
+                TypeRef::Func(idx) => {
+                    debug_assert!(state.core.func_to_type.len() == state.core.funcs as usize);
+                    state.core.funcs += 1;
+                    state.core.func_to_type.push(Some(idx))
+                }
                 TypeRef::Table(_) => state.core.tables += 1,
                 TypeRef::Memory(_) => state.core.memories += 1,
-                TypeRef::Tag(_) => state.core.tags += 1,
+                TypeRef::Tag(TagType {
+                    kind: _,
+                    func_type_idx: idx,
+                }) => {
+                    debug_assert!(state.core.tag_to_type.len() == state.core.tags as usize);
+                    state.core.tags += 1;
+                    state.core.tag_to_type.push(Some(idx))
+                }
                 TypeRef::Global(_) => state.core.globals += 1,
             }
         }
@@ -1219,7 +1236,7 @@ impl Printer<'_, '_> {
                 TableInit::RefNull => {}
                 TableInit::Expr(expr) => {
                     self.result.write_str(" ")?;
-                    self.print_const_expr(state, expr)?;
+                    self.print_const_expr(state, expr, self.config.fold_instructions)?;
                 }
             }
             self.end_group()?;
@@ -1245,7 +1262,9 @@ impl Printer<'_, '_> {
             self.newline(offset)?;
             self.print_tag_type(state, &tag, true)?;
             self.end_group()?;
+            debug_assert!(state.core.tag_to_type.len() == state.core.tags as usize);
             state.core.tags += 1;
+            state.core.tag_to_type.push(Some(tag.func_type_idx));
         }
         Ok(())
     }
@@ -1256,7 +1275,7 @@ impl Printer<'_, '_> {
             self.newline(offset)?;
             self.print_global_type(state, &global.ty, true)?;
             self.result.write_str(" ")?;
-            self.print_const_expr(state, &global.init_expr)?;
+            self.print_const_expr(state, &global.init_expr, self.config.fold_instructions)?;
             self.end_group()?;
             state.core.globals += 1;
         }
@@ -1267,7 +1286,6 @@ impl Printer<'_, '_> {
         &mut self,
         state: &mut State,
         body: &FunctionBody<'_>,
-        ty: u32,
     ) -> Result<()> {
         let mut body = body.get_binary_reader();
         let offset = body.original_position();
@@ -1276,6 +1294,10 @@ impl Printer<'_, '_> {
         let func_idx = state.core.funcs;
         self.print_name(&state.core.func_names, func_idx)?;
         self.result.write_str(" ")?;
+        let ty = match state.core.func_to_type.get(func_idx as usize) {
+            Some(Some(x)) => *x,
+            _ => panic!("invalid function type"),
+        };
         let params = self
             .print_core_functype_idx(state, ty, Some(func_idx))?
             .unwrap_or(0);
@@ -1307,7 +1329,7 @@ impl Printer<'_, '_> {
         func_idx: u32,
         params: u32,
         body: &mut BinaryReader<'_>,
-        mut branch_hints: &[(usize, BranchHint)],
+        branch_hints: &[(usize, BranchHint)],
     ) -> Result<()> {
         let mut first = true;
         let mut local_idx = 0;
@@ -1338,28 +1360,18 @@ impl Printer<'_, '_> {
         locals.finish(self)?;
 
         let nesting_start = self.nesting;
+        let fold_instructions = self.config.fold_instructions;
+        let mut operator_state = OperatorState::new(self, OperatorSeparator::Newline);
 
-        let mut op_printer =
-            operator::PrintOperator::new(self, state, operator::OperatorSeparator::Newline);
-        while !body.is_end_then_eof() {
-            // Branch hints are stored in increasing order of their body offset
-            // so print them whenever their instruction comes up.
-            if let Some(((hint_offset, hint), rest)) = branch_hints.split_first() {
-                if hint.func_offset == (body.original_position() - func_start) as u32 {
-                    branch_hints = rest;
-                    op_printer.printer.newline(*hint_offset)?;
-                    let desc = if hint.taken { "\"\\01\"" } else { "\"\\00\"" };
-                    op_printer.printer.result.start_comment()?;
-                    write!(
-                        op_printer.printer.result,
-                        "(@metadata.code.branch_hint {desc})",
-                    )?;
-                    op_printer.printer.result.reset_color()?;
-                }
-            }
-
-            op_printer.op_offset = body.original_position();
-            body.visit_operator(&mut op_printer)??;
+        if fold_instructions {
+            let mut folded_printer = PrintOperatorFolded::new(self, state, &mut operator_state);
+            folded_printer.set_offset(func_start);
+            folded_printer.begin_function(func_idx)?;
+            Self::print_operators(body, branch_hints, func_start, &mut folded_printer)?;
+            folded_printer.finalize()?;
+        } else {
+            let mut flat_printer = PrintOperator::new(self, state, &mut operator_state);
+            Self::print_operators(body, branch_hints, func_start, &mut flat_printer)?;
         }
 
         // If this was an invalid function body then the nesting may not
@@ -1372,6 +1384,28 @@ impl Printer<'_, '_> {
             self.newline(body.original_position())?;
         }
 
+        Ok(())
+    }
+
+    fn print_operators<'a, O: OpPrinter>(
+        body: &mut BinaryReader<'a>,
+        mut branch_hints: &[(usize, BranchHint)],
+        func_start: usize,
+        op_printer: &mut O,
+    ) -> Result<()> {
+        while !body.is_end_then_eof() {
+            // Branch hints are stored in increasing order of their body offset
+            // so print them whenever their instruction comes up.
+            if let Some(((hint_offset, hint), rest)) = branch_hints.split_first() {
+                if hint.func_offset == (body.original_position() - func_start) as u32 {
+                    branch_hints = rest;
+                    op_printer.branch_hint(*hint_offset, hint.taken)?;
+                }
+            }
+
+            op_printer.set_offset(body.original_position());
+            op_printer.visit_operator(body)?;
+        }
         Ok(())
     }
 
@@ -1629,29 +1663,30 @@ impl Printer<'_, '_> {
 
         if reader.read().is_ok() && !reader.is_end_then_eof() {
             write!(self.result, "{explicit} ")?;
+            self.print_const_expr(state, expr, self.config.fold_instructions)?;
+        } else {
+            self.print_const_expr(state, expr, false)?;
         }
-
-        self.print_const_expr(state, expr)?;
 
         self.end_group()?;
         Ok(())
     }
 
     /// Prints the operators of `expr` space-separated.
-    fn print_const_expr(&mut self, state: &mut State, expr: &ConstExpr) -> Result<()> {
-        let mut reader = expr.get_operators_reader();
-        let mut first = true;
+    fn print_const_expr(&mut self, state: &mut State, expr: &ConstExpr, fold: bool) -> Result<()> {
+        let mut reader = expr.get_binary_reader();
+        let mut operator_state = OperatorState::new(self, OperatorSeparator::NoneThenSpace);
 
-        let mut op_printer =
-            operator::PrintOperator::new(self, state, operator::OperatorSeparator::None);
-        while !reader.is_end_then_eof() {
-            if first {
-                first = false;
-            } else {
-                write!(op_printer.printer.result, " ")?;
-            }
-            reader.visit_operator(&mut op_printer)??;
+        if fold {
+            let mut folded_printer = PrintOperatorFolded::new(self, state, &mut operator_state);
+            folded_printer.begin_const_expr();
+            Self::print_operators(&mut reader, &[], 0, &mut folded_printer)?;
+            folded_printer.finalize()?;
+        } else {
+            let mut op_printer = PrintOperator::new(self, state, &mut operator_state);
+            Self::print_operators(&mut reader, &[], 0, &mut op_printer)?;
         }
+
         Ok(())
     }
 
@@ -2358,7 +2393,9 @@ impl Printer<'_, '_> {
                     self.print_canonical_options(state, &options)?;
                     self.end_group()?;
                     self.end_group()?;
+                    debug_assert!(state.core.func_to_type.len() == state.core.funcs as usize);
                     state.core.funcs += 1;
+                    state.core.func_to_type.push(None)
                 }
                 CanonicalFunction::ResourceNew { resource } => {
                     self.start_group("core func ")?;
@@ -2368,7 +2405,9 @@ impl Printer<'_, '_> {
                     self.print_idx(&state.component.type_names, resource)?;
                     self.end_group()?;
                     self.end_group()?;
+                    debug_assert!(state.core.func_to_type.len() == state.core.funcs as usize);
                     state.core.funcs += 1;
+                    state.core.func_to_type.push(None)
                 }
                 CanonicalFunction::ResourceDrop { resource } => {
                     self.start_group("core func ")?;
@@ -2378,7 +2417,9 @@ impl Printer<'_, '_> {
                     self.print_idx(&state.component.type_names, resource)?;
                     self.end_group()?;
                     self.end_group()?;
+                    debug_assert!(state.core.func_to_type.len() == state.core.funcs as usize);
                     state.core.funcs += 1;
+                    state.core.func_to_type.push(None)
                 }
                 CanonicalFunction::ResourceRep { resource } => {
                     self.start_group("core func ")?;
@@ -2388,7 +2429,9 @@ impl Printer<'_, '_> {
                     self.print_idx(&state.component.type_names, resource)?;
                     self.end_group()?;
                     self.end_group()?;
+                    debug_assert!(state.core.func_to_type.len() == state.core.funcs as usize);
                     state.core.funcs += 1;
+                    state.core.func_to_type.push(None)
                 }
                 CanonicalFunction::ThreadSpawn {
                     func_ty_index: func_index,
@@ -2597,7 +2640,9 @@ impl Printer<'_, '_> {
                         self.start_group("core func ")?;
                         self.print_name(&state.core.func_names, state.core.funcs)?;
                         self.end_group()?;
+                        debug_assert!(state.core.func_to_type.len() == state.core.funcs as usize);
                         state.core.funcs += 1;
+                        state.core.func_to_type.push(None)
                     }
                     ExternalKind::Table => {
                         self.start_group("core table ")?;
@@ -2619,9 +2664,11 @@ impl Printer<'_, '_> {
                     }
                     ExternalKind::Tag => {
                         self.start_group("core tag ")?;
-                        self.print_name(&state.core.tag_names, state.core.tags)?;
+                        self.print_name(&state.core.tag_names, state.core.tags as u32)?;
                         self.end_group()?;
+                        debug_assert!(state.core.tag_to_type.len() == state.core.tags as usize);
                         state.core.tags += 1;
+                        state.core.tag_to_type.push(None)
                     }
                 }
                 self.end_group()?; // alias export
