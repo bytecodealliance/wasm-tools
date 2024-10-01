@@ -31,3 +31,10 @@ anyhow = { workspace = true }
 tempfile = "3.2.0"
 wasmparser = { path = "../wasmparser" }
 wasmprinter = { path = "../wasmprinter" }
+
+[features]
+default = ['component-model']
+
+# On-by-default: conditional support for emitting components in addition to
+# core modules.
+component-model = []

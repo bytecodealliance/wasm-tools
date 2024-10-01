@@ -52,7 +52,7 @@ dwarf = ["dep:gimli"]
 
 # On-by-default this builds in support for parsing the text format of
 # components.
-component-model = ['wasm-module']
+component-model = ['wasm-module', 'wasm-encoder/component-model']
 
 [[test]]
 name = "parse-fail"
