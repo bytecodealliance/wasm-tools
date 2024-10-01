@@ -1761,6 +1761,7 @@ impl Module {
         }
 
         // For each export, add necessary prerequisites to the module.
+        let exports_types = exports_types.as_ref();
         for export in required_exports {
             let new_index = match exports_types
                 .entity_type_from_export(&export)

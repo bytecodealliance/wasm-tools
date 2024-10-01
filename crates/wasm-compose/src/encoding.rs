@@ -1177,7 +1177,7 @@ impl DependencyRegistrar<'_, '_> {
 
         // Recurse for aliases to see edges across components, and otherwise
         // recurse on the structure of the type below.
-        if let Some(ty) = self.types.peel_alias(ty) {
+        if let Some(ty) = self.types.as_ref().peel_alias(ty) {
             return self.ty(ty);
         }
 

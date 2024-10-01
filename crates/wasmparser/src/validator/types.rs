@@ -457,7 +457,7 @@ impl AnyTypeId {
     pub fn peel_alias(&self, types: &Types) -> Option<Self> {
         match *self {
             Self::Core(id) => id.peel_alias(types).map(Self::Core),
-            Self::Component(id) => types.peel_alias(id).map(Self::Component),
+            Self::Component(id) => types.as_ref().peel_alias(id).map(Self::Component),
         }
     }
 }
@@ -482,7 +482,7 @@ impl ComponentCoreTypeId {
     pub fn peel_alias(&self, types: &Types) -> Option<Self> {
         match *self {
             Self::Sub(_) => None,
-            Self::Module(id) => types.peel_alias(id).map(Self::Module),
+            Self::Module(id) => types.as_ref().peel_alias(id).map(Self::Module),
         }
     }
 }
@@ -1884,6 +1884,14 @@ impl<'a> TypesRef<'a> {
         }
     }
 
+    /// Gets the count of imported, exported, or aliased values.
+    pub fn value_count(&self) -> usize {
+        match &self.kind {
+            TypesRefKind::Module(_) => 0,
+            TypesRefKind::Component(component) => component.values.len(),
+        }
+    }
+
     /// Gets the entity type for the given import.
     pub fn entity_type_from_import(&self, import: &Import) -> Option<EntityType> {
         match &self.kind {
@@ -2010,14 +2018,8 @@ impl Types {
         }
     }
 
-    /// Get the id of the validator that these types are associated with.
-    #[inline]
-    pub fn id(&self) -> ValidatorId {
-        self.id
-    }
-
-    /// Gets a reference to this validation type information.
-    pub fn as_ref(&self) -> TypesRef {
+    /// Return a [`TypesRef`] through which types can be inspected.
+    pub fn as_ref(&self) -> TypesRef<'_> {
         TypesRef {
             id: self.id,
             list: &self.list,
@@ -2026,302 +2028,6 @@ impl Types {
                 TypesKind::Component(component) => TypesRefKind::Component(component),
             },
         }
-    }
-
-    /// Gets a type based on its type id.
-    ///
-    /// Returns `None` if the type id is unknown.
-    pub fn get<T>(&self, id: T) -> Option<&T::Data>
-    where
-        T: TypeIdentifier,
-    {
-        self.as_ref().get(id)
-    }
-
-    /// Gets a core WebAssembly type at the given type index.
-    ///
-    /// Note that this is in contrast to [`TypesRef::component_type_at`] which
-    /// gets a component type from its index.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `index` is not a valid function index.
-    pub fn core_type_at(&self, index: u32) -> ComponentCoreTypeId {
-        self.as_ref().core_type_at(index)
-    }
-
-    /// Gets a component WebAssembly type at the given type index.
-    ///
-    /// Note that this is in contrast to [`TypesRef::core_type_at`] which gets a
-    /// core type from its index.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `index` is not a valid type index.
-    pub fn component_any_type_at(&self, index: u32) -> ComponentAnyTypeId {
-        self.as_ref().component_any_type_at(index)
-    }
-
-    /// Gets a component type at the given type index.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `index` is not a valid component type index.
-    pub fn component_type_at(&self, index: u32) -> ComponentTypeId {
-        self.as_ref().component_type_at(index)
-    }
-
-    /// Gets a component type from the given component type index.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `index` is not a valid defined type index or if this type
-    /// information represents a core module.
-    pub fn component_defined_type_at(&self, index: u32) -> ComponentDefinedTypeId {
-        self.as_ref().component_defined_type_at(index)
-    }
-
-    /// Gets the count of core types.
-    pub fn type_count(&self) -> usize {
-        match &self.kind {
-            TypesKind::Module(module) => module.types.len(),
-            TypesKind::Component(component) => component.core_types.len(),
-        }
-    }
-
-    /// Gets the type of a table at the given table index.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `index` is not a valid function index.
-    pub fn table_at(&self, index: u32) -> TableType {
-        self.as_ref().table_at(index)
-    }
-
-    /// Gets the count of imported and defined tables.
-    pub fn table_count(&self) -> usize {
-        match &self.kind {
-            TypesKind::Module(module) => module.tables.len(),
-            TypesKind::Component(component) => component.core_tables.len(),
-        }
-    }
-
-    /// Gets the type of a memory at the given memory index.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `index` is not a valid function index.
-    pub fn memory_at(&self, index: u32) -> MemoryType {
-        self.as_ref().memory_at(index)
-    }
-
-    /// Gets the count of imported and defined memories.
-    pub fn memory_count(&self) -> u32 {
-        self.as_ref().memory_count()
-    }
-
-    /// Gets the type of a global at the given global index.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `index` is not a valid function index.
-    pub fn global_at(&self, index: u32) -> GlobalType {
-        self.as_ref().global_at(index)
-    }
-
-    /// Gets the count of imported and defined globals.
-    pub fn global_count(&self) -> u32 {
-        self.as_ref().global_count()
-    }
-
-    /// Gets the type of a tag at the given tag index.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `index` is not a valid function index.
-    pub fn tag_at(&self, index: u32) -> CoreTypeId {
-        self.as_ref().tag_at(index)
-    }
-
-    /// Gets the count of imported and defined tags.
-    pub fn tag_count(&self) -> u32 {
-        self.as_ref().tag_count()
-    }
-
-    /// Gets the type of a core function at the given function index.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `index` is not a valid function index.
-    pub fn core_function_at(&self, index: u32) -> CoreTypeId {
-        self.as_ref().core_function_at(index)
-    }
-
-    /// Gets the count of core functions defined so far.
-    ///
-    /// Note that this includes imported functions, defined functions, and for
-    /// components lowered/aliased functions.
-    pub fn core_function_count(&self) -> u32 {
-        self.as_ref().function_count()
-    }
-
-    /// Gets the type of an element segment at the given element segment index.
-    ///
-    /// # Panics
-    ///
-    /// This will panic if the `index` provided is out of bounds.
-    pub fn element_at(&self, index: u32) -> RefType {
-        self.as_ref().element_at(index)
-    }
-
-    /// Gets the count of element segments.
-    pub fn element_count(&self) -> u32 {
-        self.as_ref().element_count()
-    }
-
-    /// Gets the type of a component function at the given function index.
-    ///
-    /// # Panics
-    ///
-    /// This will panic if the `index` provided is out of bounds or if this type
-    /// information represents a core module.
-    pub fn component_function_at(&self, index: u32) -> ComponentFuncTypeId {
-        self.as_ref().component_function_at(index)
-    }
-
-    /// Gets the count of imported, exported, or aliased component functions.
-    pub fn component_function_count(&self) -> u32 {
-        self.as_ref().component_function_count()
-    }
-
-    /// Gets the type of a module at the given module index.
-    ///
-    /// # Panics
-    ///
-    /// This will panic if the `index` provided is out of bounds or if this type
-    /// information represents a core module.
-    pub fn module_at(&self, index: u32) -> ComponentCoreModuleTypeId {
-        self.as_ref().module_at(index)
-    }
-
-    /// Gets the count of imported, exported, or aliased modules.
-    pub fn module_count(&self) -> usize {
-        match &self.kind {
-            TypesKind::Module(_) => 0,
-            TypesKind::Component(component) => component.core_modules.len(),
-        }
-    }
-
-    /// Gets the type of a module instance at the given module instance index.
-    ///
-    /// # Panics
-    ///
-    /// This will panic if the `index` provided is out of bounds or if this type
-    /// information represents a core module.
-    pub fn core_instance_at(&self, index: u32) -> ComponentCoreInstanceTypeId {
-        self.as_ref().core_instance_at(index)
-    }
-
-    /// Gets the count of imported, exported, or aliased core module instances.
-    pub fn core_instance_count(&self) -> usize {
-        match &self.kind {
-            TypesKind::Module(_) => 0,
-            TypesKind::Component(component) => component.core_instances.len(),
-        }
-    }
-
-    /// Gets the type of a component at the given component index.
-    ///
-    /// # Panics
-    ///
-    /// This will panic if the `index` provided is out of bounds or if this type
-    /// information represents a core module.
-    pub fn component_at(&self, index: u32) -> ComponentTypeId {
-        self.as_ref().component_at(index)
-    }
-
-    /// Gets the count of imported, exported, or aliased components.
-    pub fn component_count(&self) -> usize {
-        match &self.kind {
-            TypesKind::Module(_) => 0,
-            TypesKind::Component(component) => component.components.len(),
-        }
-    }
-
-    /// Gets the type of an component instance at the given component instance index.
-    ///
-    /// # Panics
-    ///
-    /// This will panic if the `index` provided is out of bounds or if this type
-    /// information represents a core module.
-    pub fn component_instance_at(&self, index: u32) -> ComponentInstanceTypeId {
-        self.as_ref().component_instance_at(index)
-    }
-
-    /// Gets the count of imported, exported, or aliased component instances.
-    pub fn component_instance_count(&self) -> usize {
-        match &self.kind {
-            TypesKind::Module(_) => 0,
-            TypesKind::Component(component) => component.instances.len(),
-        }
-    }
-
-    /// Gets the type of a value at the given value index.
-    ///
-    /// # Panics
-    ///
-    /// This will panic if the `index` provided is out of bounds or if this type
-    /// information represents a core module.
-    pub fn value_at(&self, index: u32) -> ComponentValType {
-        self.as_ref().value_at(index)
-    }
-
-    /// Gets the count of imported, exported, or aliased values.
-    pub fn value_count(&self) -> usize {
-        match &self.kind {
-            TypesKind::Module(_) => 0,
-            TypesKind::Component(component) => component.values.len(),
-        }
-    }
-
-    /// Gets the entity type from the given import.
-    pub fn entity_type_from_import(&self, import: &Import) -> Option<EntityType> {
-        self.as_ref().entity_type_from_import(import)
-    }
-
-    /// Gets the entity type from the given export.
-    pub fn entity_type_from_export(&self, export: &Export) -> Option<EntityType> {
-        self.as_ref().entity_type_from_export(export)
-    }
-
-    /// Gets the component entity type for the given component import name.
-    pub fn component_entity_type_of_import(&self, name: &str) -> Option<ComponentEntityType> {
-        self.as_ref().component_entity_type_of_import(name)
-    }
-
-    /// Gets the component entity type for the given component export name.
-    pub fn component_entity_type_of_export(&self, name: &str) -> Option<ComponentEntityType> {
-        self.as_ref().component_entity_type_of_export(name)
-    }
-
-    /// Attempts to lookup the type id that `ty` is an alias of.
-    ///
-    /// Returns `None` if `ty` wasn't listed as aliasing a prior type.
-    pub fn peel_alias<T>(&self, ty: T) -> Option<T>
-    where
-        T: Aliasable,
-    {
-        self.list.peel_alias(ty)
-    }
-
-    /// Same as [`TypesRef::core_imports`]
-    pub fn core_imports<'a>(&self) -> Option<impl Iterator<Item = (&str, &str, EntityType)> + '_> {
-        self.as_ref().core_imports()
-    }
-
-    /// Same as [`TypesRef::core_exports`]
-    pub fn core_exports(&self) -> Option<impl Iterator<Item = (&str, EntityType)> + '_> {
-        self.as_ref().core_exports()
     }
 }
 

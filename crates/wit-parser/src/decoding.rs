@@ -157,7 +157,7 @@ impl ComponentInfo {
             };
             match export.kind {
                 ComponentExternalKind::Type => matches!(
-                    self.types.component_any_type_at(export.index),
+                    self.types.as_ref().component_any_type_at(export.index),
                     types::ComponentAnyTypeId::Component(_)
                 ),
                 _ => false,
@@ -188,7 +188,7 @@ impl ComponentInfo {
                 Extern::Export(e) => e,
                 _ => unreachable!(),
             };
-            let id = self.types.component_type_at(export.index);
+            let id = self.types.as_ref().component_type_at(export.index);
             let ty = &self.types[id];
             if pkg.is_some() {
                 bail!("more than one top-level exported component type found");
@@ -228,7 +228,7 @@ impl ComponentInfo {
             };
 
             let index = export.index;
-            let id = self.types.component_type_at(index);
+            let id = self.types.as_ref().component_type_at(index);
             let component = &self.types[id];
 
             // The single export of this component will determine if it's a world or an interface:
@@ -454,7 +454,7 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
         bail!("expected an un-ascribed exported type");
     }
     let types = types.as_ref().unwrap();
-    let world = match types.component_any_type_at(exports[0].index) {
+    let world = match types.as_ref().component_any_type_at(exports[0].index) {
         ComponentAnyTypeId::Component(c) => c,
         _ => bail!("expected an exported component type"),
     };
@@ -639,7 +639,11 @@ impl WitPackageDecoder<'_> {
         package: &mut PackageFields<'a>,
     ) -> Result<()> {
         log::debug!("decoding component import `{name}`");
-        let ty = self.types.component_entity_type_of_import(name).unwrap();
+        let ty = self
+            .types
+            .as_ref()
+            .component_entity_type_of_import(name)
+            .unwrap();
         let owner = TypeOwner::World(world);
         let (name, item) = match ty {
             types::ComponentEntityType::Instance(i) => {
@@ -690,7 +694,7 @@ impl WitPackageDecoder<'_> {
     ) -> Result<()> {
         let name = &export.name;
         log::debug!("decoding component export `{name}`");
-        let types = &self.types;
+        let types = self.types.as_ref();
         let ty = types.component_entity_type_of_export(name).unwrap();
         let (name, item) = match ty {
             types::ComponentEntityType::Func(i) => {
@@ -859,7 +863,7 @@ impl WitPackageDecoder<'_> {
         let mut cur = id;
         while prev.is_none() {
             prev = self.type_map.get(&cur).copied();
-            cur = match self.types.peel_alias(cur) {
+            cur = match self.types.as_ref().peel_alias(cur) {
                 Some(next) => next,
                 None => break,
             };

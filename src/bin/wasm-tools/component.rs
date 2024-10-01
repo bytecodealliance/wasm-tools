@@ -998,6 +998,7 @@ impl UnbundleOpts {
             // create an import corresponding to that module in the import
             // section.
             let mut module_ty = ModuleTypeCreator::new(&mut core_types, &types);
+            let types = types.as_ref();
 
             for (module, name, ty) in types.core_imports().unwrap() {
                 let ty = module_ty.convert_entity_type(ty)?;
