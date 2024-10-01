@@ -1530,12 +1530,13 @@ mod tests {
             Validator::new_with_features(WasmFeatures::default() | WasmFeatures::EXCEPTIONS);
 
         let types = validator.validate_all(&bytes)?;
+        let types = types.as_ref();
 
-        assert_eq!(types.type_count(), 2);
+        assert_eq!(types.core_type_count(), 2);
         assert_eq!(types.memory_count(), 1);
         assert_eq!(types.table_count(), 1);
         assert_eq!(types.global_count(), 1);
-        assert_eq!(types.core_function_count(), 1);
+        assert_eq!(types.function_count(), 1);
         assert_eq!(types.tag_count(), 1);
         assert_eq!(types.element_count(), 1);
         assert_eq!(types.module_count(), 0);
@@ -1621,6 +1622,7 @@ mod tests {
             Validator::new_with_features(WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL);
 
         let types = validator.validate_all(&bytes)?;
+        let types = types.as_ref();
 
         let t_id = types.component_defined_type_at(0);
         let a1_id = types.component_defined_type_at(1);
@@ -1654,6 +1656,7 @@ mod tests {
             Validator::new_with_features(WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL);
 
         let types = validator.validate_all(&bytes)?;
+        let types = types.as_ref();
 
         let t_id = types.component_defined_type_at(0);
         let a1_id = types.component_defined_type_at(1);
