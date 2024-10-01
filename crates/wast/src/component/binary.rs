@@ -1,7 +1,7 @@
 use crate::component::*;
 use crate::core;
 use crate::core::EncodeOptions;
-use crate::token::{Id, Index, NameAnnotation};
+use crate::token::{Id, NameAnnotation};
 use wasm_encoder::{
     CanonicalFunctionSection, ComponentAliasSection, ComponentCoreTypeEncoder,
     ComponentDefinedTypeEncoder, ComponentExportSection, ComponentImportSection,
@@ -583,27 +583,6 @@ impl From<&CoreItemRef<'_, core::ExportKind>> for (wasm_encoder::ExportKind, u32
             core::ExportKind::Memory => (wasm_encoder::ExportKind::Memory, item.idx.into()),
             core::ExportKind::Global => (wasm_encoder::ExportKind::Global, item.idx.into()),
             core::ExportKind::Tag => (wasm_encoder::ExportKind::Tag, item.idx.into()),
-        }
-    }
-}
-
-impl From<core::ExportKind> for wasm_encoder::ExportKind {
-    fn from(kind: core::ExportKind) -> Self {
-        match kind {
-            core::ExportKind::Func => Self::Func,
-            core::ExportKind::Table => Self::Table,
-            core::ExportKind::Memory => Self::Memory,
-            core::ExportKind::Global => Self::Global,
-            core::ExportKind::Tag => Self::Tag,
-        }
-    }
-}
-
-impl From<Index<'_>> for u32 {
-    fn from(i: Index<'_>) -> Self {
-        match i {
-            Index::Num(i, _) => i,
-            Index::Id(_) => unreachable!("unresolved index in encoding: {:?}", i),
         }
     }
 }

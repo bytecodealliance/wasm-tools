@@ -377,6 +377,10 @@ id! {
     pub mod core;
 
     // Support for component model parsing
+    #[cfg(feature = "component-model")]
+    pub mod component;
+    #[cfg(not(feature = "component-model"))]
+    #[path = "component_disabled.rs"]
     pub mod component;
 }
 

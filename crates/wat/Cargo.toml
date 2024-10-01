@@ -23,7 +23,12 @@ workspace = true
 wast = { workspace = true }
 
 [features]
+default = ['component-model']
+
 # Off-by-default feature to support emitting DWARF debugging information in
 # parsed binaries pointing back to source locations in the original `*.wat`
 # source.
 dwarf = ['wast/dwarf']
+
+# On-by-default feature to support parsing the component model text format.
+component-model = []

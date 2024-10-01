@@ -1,3 +1,4 @@
+#[cfg(feature = "component-model")]
 use crate::component::Component;
 use crate::core::*;
 use crate::encode::Encode;
@@ -77,6 +78,7 @@ impl<'a> EncodeOptions<'a> {
     /// Encodes the given [`Component`] with these options.
     ///
     /// For more information see [`Component::encode`].
+    #[cfg(feature = "component-model")]
     pub fn encode_component(
         &self,
         component: &mut Component<'_>,
@@ -91,7 +93,10 @@ impl<'a> EncodeOptions<'a> {
     pub fn encode_wat(&self, wat: &mut Wat<'_>) -> std::result::Result<Vec<u8>, crate::Error> {
         match wat {
             Wat::Module(m) => self.encode_module(m),
+            #[cfg(feature = "component-model")]
             Wat::Component(c) => self.encode_component(c),
+            #[cfg(not(feature = "component-model"))]
+            Wat::Component(_) => unreachable!(),
         }
     }
 }
@@ -574,6 +579,15 @@ impl Index<'_> {
     }
 }
 
+impl From<Index<'_>> for u32 {
+    fn from(i: Index<'_>) -> Self {
+        match i {
+            Index::Num(i, _) => i,
+            Index::Id(_) => unreachable!("unresolved index in encoding: {:?}", i),
+        }
+    }
+}
+
 impl SectionItem for Table<'_> {
     type Section = wasm_encoder::TableSection;
     const ANCHOR: CustomPlaceAnchor = CustomPlaceAnchor::Table;
@@ -633,6 +647,18 @@ impl SectionItem for Export<'_> {
 
     fn encode(&self, section: &mut wasm_encoder::ExportSection) {
         section.export(self.name, self.kind.into(), self.item.unwrap_u32());
+    }
+}
+
+impl From<ExportKind> for wasm_encoder::ExportKind {
+    fn from(kind: ExportKind) -> Self {
+        match kind {
+            ExportKind::Func => Self::Func,
+            ExportKind::Table => Self::Table,
+            ExportKind::Memory => Self::Memory,
+            ExportKind::Global => Self::Global,
+            ExportKind::Tag => Self::Tag,
+        }
     }
 }
 
