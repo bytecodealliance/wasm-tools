@@ -402,7 +402,7 @@ impl Validator {
     ///
     /// // Validate the first Wasm module and get the ID of its type.
     /// let types = validator.validate_all(&wasm1)?;
-    /// let id1 = types.core_type_at(0);
+    /// let id1 = types.as_ref().core_type_at(0);
     ///
     /// // Reset the validator so we can parse the second wasm module inside
     /// // this validator's same context.
@@ -411,7 +411,7 @@ impl Validator {
     /// // Validate the second Wasm module and get the ID of its second type,
     /// // which is the same type as the first Wasm module's only type.
     /// let types = validator.validate_all(&wasm2)?;
-    /// let id2 = types.core_type_at(1);
+    /// let id2 = types.as_ref().core_type_at(1);
     ///
     /// // Because both modules were processed in the same `Validator`, they
     /// // share the same types context and therefore the same type defined
