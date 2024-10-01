@@ -48,7 +48,7 @@ pub fn print_bytes(wasm: impl AsRef<[u8]>) -> Result<String> {
 ///
 /// This structure is used to control the overal structure of how wasm binaries
 /// are printed and tweaks various ways that configures the output.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Config {
     print_offsets: bool,
     print_skeleton: bool,

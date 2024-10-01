@@ -21,8 +21,7 @@ pub fn validate_maybe_invalid_module(u: &mut Unstructured<'_>) -> Result<()> {
         config.allow_invalid_funcs = true;
         Ok(())
     })?;
-    validate_all(crate::validator_for_config(&config), &wasm);
-    Ok(())
+    validate_all(u, crate::validator_for_config(&config), &wasm)
 }
 
 pub fn validate_raw_bytes(u: &mut Unstructured<'_>) -> Result<()> {
@@ -30,19 +29,33 @@ pub fn validate_raw_bytes(u: &mut Unstructured<'_>) -> Result<()> {
     let validator = Validator::new_with_features(WasmFeatures::from_bits_truncate(u.arbitrary()?));
     let wasm = u.bytes(u.len())?;
     crate::log_wasm(wasm, "");
-    validate_all(validator, wasm);
-    Ok(())
+    validate_all(u, validator, wasm)
 }
 
-fn validate_all(mut validator: Validator, wasm: &[u8]) {
+fn validate_all(u: &mut Unstructured<'_>, mut validator: Validator, wasm: &[u8]) -> Result<()> {
+    // First try printing this module. Generate a random configuration for
+    // printing and then see what happens. Mostly making sure nothing panics
+    // here.
+    let mut cfg = wasmprinter::Config::new();
+    cfg.fold_instructions(u.arbitrary()?);
+    cfg.print_skeleton(u.arbitrary()?);
+    cfg.print_offsets(u.arbitrary()?);
+    cfg.name_unnamed(u.arbitrary()?);
+    log::debug!("print config {cfg:?}");
+    let mut wat = String::new();
+    let _ = cfg.print(wasm, &mut wasmprinter::PrintFmtWrite(&mut wat));
+
+    // After printing then try to parse and validate the module. See how far we
+    // get as invalid modules are explicitly allowed here. Generally looking for
+    // panics and excessive resource usage here.
     for payload in Parser::new(0).parse_all(wasm) {
         let payload = match payload {
             Ok(p) => p,
-            Err(_) => return,
+            Err(_) => return Ok(()),
         };
 
         if validator.payload(&payload).is_err() {
-            return;
+            return Ok(());
         }
 
         // Check that the payload's range is in bounds, since the payload is
@@ -91,4 +104,6 @@ fn validate_all(mut validator: Validator, wasm: &[u8]) {
             End(_) => {}
         }
     }
+
+    Ok(())
 }
