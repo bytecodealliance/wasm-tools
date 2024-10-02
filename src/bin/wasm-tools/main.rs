@@ -52,8 +52,10 @@ macro_rules! subcommands {
 }
 
 subcommands! {
+    #[command(alias = "wat2wasm")]
     (parse, "parse")
     (validate, "validate")
+    #[command(alias = "wasm2wat")]
     (print, "print")
     (smith, "smith")
     // The shrink subcommand relies on executing new processes to test a
@@ -73,6 +75,7 @@ subcommands! {
     (wit_smith, "wit-smith")
     (addr2line, "addr2line")
     (completion, "completion")
+    #[command(alias = "wast2json")]
     (json_from_wast, "json-from-wast")
 }
 
