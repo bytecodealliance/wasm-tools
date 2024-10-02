@@ -45,7 +45,7 @@ $ wasm-tools help
 
 # Examples
 
-Basic validation/printing:
+Basic validation/printing/parsing:
 
 ```sh
 # Validate a WebAssembly file
@@ -66,6 +66,9 @@ $ wasm-tools print foo.wasm
 
 # Convert a binary module to text
 $ wasm-tools print foo.wasm -o foo.wat
+
+# Convert a text module to binary
+$ wasm-tools parse foo.wat -o foo.wasm
 ```
 
 Simple mutation as well as piping commands together:
@@ -167,6 +170,45 @@ that can be use programmatically as well:
 The `wasm-tools` CLI contains useful tools for debugging WebAssembly modules and
 components. The various subcommands all have `--help` explainer texts to
 describe more about their functionality as well.
+
+# WebAssembly proposals
+
+This repository strives to implement any standardized proposal to WebAssembly.
+All proposals that are [Stage 4+](https://github.com/WebAssembly/proposals) are
+enabled by default in validation. Support in the text format is always enabled
+at all times for all proposals.
+
+Currently implemented proposals in this repository that are stage 4+ are:
+
+* [x] [annotations](https://github.com/WebAssembly/annotations)
+* [x] [branch-hinting](https://github.com/WebAssembly/branch-hinting)
+* [x] [bulk-memory](https://github.com/WebAssembly/bulk-memory-operations)
+* [x] [exceptions](https://github.com/WebAssembly/exceptions)
+* [x] [extended-const](https://github.com/WebAssembly/extended-const)
+* [x] [function-references](https://github.com/WebAssembly/function-references)
+* [x] [gc](https://github.com/WebAssembly/gc)
+* [x] [memory64](https://github.com/WebAssembly/memory64)
+* [x] [multi-memory](https://github.com/WebAssembly/multi-memory)
+* [x] [multi-value](https://github.com/WebAssembly/multi-value)
+* [x] [mutable-global](https://github.com/WebAssembly/mutable-global)
+* [x] [reference-types](https://github.com/WebAssembly/reference-types)
+* [x] [relaxed-simd](https://github.com/WebAssembly/relaxed-simd)
+* [x] [saturating-float-to-int](https://github.com/WebAssembly/nontrapping-float-to-int-conversions)
+* [x] [sign-extension-ops](https://github.com/WebAssembly/sign-extension-ops)
+* [x] [simd](https://github.com/WebAssembly/simd)
+* [x] [tail-call](https://github.com/WebAssembly/tail-call)
+* [x] [threads](https://github.com/WebAssembly/threads)
+
+These proposals are implemented but have not yet reached stage 4. This means
+they are disabled by default in validation and their implementation may change
+over time as the proposal evolves. Additionally the proposal may also have
+changed since these proposals were implemented, so there may be a mismatch too.
+
+* [x] [component-model](https://github.com/WebAssembly/component-model)
+* [x] [custom-page-sizes](https://github.com/WebAssembly/custom-page-sizes)
+* [x] [memory-control](https://github.com/WebAssembly/memory-control)
+* [x] [shared-everything-threads](https://github.com/WebAssembly/shared-everything-threads)
+* [x] [stack-switching](https://github.com/WebAssembly/stack-switching)
 
 # Libraries
 
