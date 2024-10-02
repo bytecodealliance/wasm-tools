@@ -402,7 +402,7 @@ impl Validator {
     ///
     /// // Validate the first Wasm module and get the ID of its type.
     /// let types = validator.validate_all(&wasm1)?;
-    /// let id1 = types.core_type_at(0);
+    /// let id1 = types.as_ref().core_type_at(0);
     ///
     /// // Reset the validator so we can parse the second wasm module inside
     /// // this validator's same context.
@@ -411,7 +411,7 @@ impl Validator {
     /// // Validate the second Wasm module and get the ID of its second type,
     /// // which is the same type as the first Wasm module's only type.
     /// let types = validator.validate_all(&wasm2)?;
-    /// let id2 = types.core_type_at(1);
+    /// let id2 = types.as_ref().core_type_at(1);
     ///
     /// // Because both modules were processed in the same `Validator`, they
     /// // share the same types context and therefore the same type defined
@@ -1530,12 +1530,13 @@ mod tests {
             Validator::new_with_features(WasmFeatures::default() | WasmFeatures::EXCEPTIONS);
 
         let types = validator.validate_all(&bytes)?;
+        let types = types.as_ref();
 
-        assert_eq!(types.type_count(), 2);
+        assert_eq!(types.core_type_count(), 2);
         assert_eq!(types.memory_count(), 1);
         assert_eq!(types.table_count(), 1);
         assert_eq!(types.global_count(), 1);
-        assert_eq!(types.core_function_count(), 1);
+        assert_eq!(types.function_count(), 1);
         assert_eq!(types.tag_count(), 1);
         assert_eq!(types.element_count(), 1);
         assert_eq!(types.module_count(), 0);
@@ -1621,6 +1622,7 @@ mod tests {
             Validator::new_with_features(WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL);
 
         let types = validator.validate_all(&bytes)?;
+        let types = types.as_ref();
 
         let t_id = types.component_defined_type_at(0);
         let a1_id = types.component_defined_type_at(1);
@@ -1654,6 +1656,7 @@ mod tests {
             Validator::new_with_features(WasmFeatures::default() | WasmFeatures::COMPONENT_MODEL);
 
         let types = validator.validate_all(&bytes)?;
+        let types = types.as_ref();
 
         let t_id = types.component_defined_type_at(0);
         let a1_id = types.component_defined_type_at(1);
