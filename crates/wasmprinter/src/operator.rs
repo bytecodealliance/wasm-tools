@@ -1699,13 +1699,16 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
     }
 
     fn push_if(&mut self, ty: BlockType, plain: String) -> Result<()> {
-        let mut predicate = vec![self
+        let mut predicate = Vec::new();
+        if let Some(phrase) = self
             .control
             .last_mut()
             .ok_or_else(|| anyhow!("no enclosing block"))?
             .folded
             .pop()
-            .ok_or_else(|| anyhow!("no predicate"))?];
+        {
+            predicate.push(phrase)
+        }
         if let Some(hint) = self.branch_hint.take() {
             predicate.push(hint);
         }
