@@ -244,18 +244,6 @@ macro_rules! define_type_id {
     };
 }
 
-/// A core WebAssembly type, in the core WebAssembly types index space.
-pub enum CoreType {
-    /// A sub type.
-    Sub(SubType),
-
-    /// A module type.
-    ///
-    /// Does not actually appear in core Wasm at the moment. Only used for the
-    /// core types index space within components.
-    Module(ModuleType),
-}
-
 /// Represents a unique identifier for a core type type known to a
 /// [`crate::Validator`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -300,36 +288,6 @@ impl TypeData for SubType {
             CompositeInnerType::Cont(_) => 1,
         };
         TypeInfo::core(size)
-    }
-}
-
-impl CoreType {
-    /// Get the underlying `SubType` or panic.
-    pub fn unwrap_sub(&self) -> &SubType {
-        match self {
-            CoreType::Sub(s) => s,
-            CoreType::Module(_) => panic!("`unwrap_sub` on module type"),
-        }
-    }
-
-    /// Get the underlying `FuncType` within this `SubType` or panic.
-    pub fn unwrap_func(&self) -> &FuncType {
-        match &self.unwrap_sub().composite_type.inner {
-            CompositeInnerType::Func(f) => f,
-            CompositeInnerType::Array(_)
-            | CompositeInnerType::Struct(_)
-            | CompositeInnerType::Cont(_) => {
-                panic!("`unwrap_func` on non-func composite type")
-            }
-        }
-    }
-
-    /// Get the underlying `ModuleType` or panic.
-    pub fn unwrap_module(&self) -> &ModuleType {
-        match self {
-            CoreType::Module(m) => m,
-            CoreType::Sub(_) => panic!("`unwrap_module` on a subtype"),
-        }
     }
 }
 
