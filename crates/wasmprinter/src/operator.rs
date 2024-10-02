@@ -1702,10 +1702,10 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
         let mut predicate = vec![self
             .control
             .last_mut()
-            .expect("no enclosing block")
+            .ok_or_else(|| anyhow!("no enclosing block"))?
             .folded
             .pop()
-            .expect("no predicate")];
+            .ok_or_else(|| anyhow!("no predicate"))?];
         if let Some(hint) = self.branch_hint.take() {
             predicate.push(hint);
         }
@@ -1826,7 +1826,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
 
         self.control
             .last_mut()
-            .expect("end without outer block")
+            .ok_or_else(|| anyhow!("end without outer block"))?
             .folded
             .push(inst);
         Ok(())
