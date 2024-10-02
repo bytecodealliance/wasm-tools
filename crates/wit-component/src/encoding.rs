@@ -72,7 +72,7 @@
 //! component model.
 
 use crate::metadata::{self, Bindgen, ModuleMetadata};
-use crate::validation::{Export, ExportMap, Import, ImportInstance, ImportMap, RESOURCE_DROP};
+use crate::validation::{Export, ExportMap, Import, ImportInstance, ImportMap};
 use crate::StringEncoding;
 use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
@@ -615,7 +615,39 @@ impl<'a> EncodingState<'a> {
             CustomModule::Main => &self.info.encoder.main_module_exports,
             CustomModule::Adapter(name) => &self.info.encoder.adapters[name].required_exports,
         };
+        if exports.is_empty() {
+            return Ok(());
+        }
+
+        let mut interface_func_core_names = IndexMap::new();
+        let mut world_func_core_names = IndexMap::new();
+        for (core_name, export) in self.info.exports_for(module).iter() {
+            match export {
+                Export::WorldFunc(name) => {
+                    let prev = world_func_core_names.insert(name, core_name);
+                    assert!(prev.is_none());
+                }
+                Export::InterfaceFunc(id, name) => {
+                    let prev = interface_func_core_names
+                        .entry(id)
+                        .or_insert(IndexMap::new())
+                        .insert(name.as_str(), core_name);
+                    assert!(prev.is_none());
+                }
+                Export::WorldFuncPostReturn(..)
+                | Export::InterfaceFuncPostReturn(..)
+                | Export::ResourceDtor(..)
+                | Export::Memory
+                | Export::GeneralPurposeRealloc
+                | Export::GeneralPurposeExportRealloc
+                | Export::GeneralPurposeImportRealloc
+                | Export::Initialize
+                | Export::ReallocForAdapter => continue,
+            }
+        }
+
         let world = &resolve.worlds[self.info.encoder.metadata.world];
+
         for export_name in exports {
             let export_string = resolve.name_world_key(export_name);
             match &world.exports[export_name] {
@@ -623,13 +655,20 @@ impl<'a> EncodingState<'a> {
                     let ty = self
                         .root_import_type_encoder(None)
                         .encode_func_type(resolve, func)?;
-                    let core_name = func.core_export_name(None);
-                    let idx = self.encode_lift(module, &core_name, None, func, ty)?;
+                    let core_name = world_func_core_names[&func.name];
+                    let idx = self.encode_lift(module, &core_name, export_name, func, ty)?;
                     self.component
                         .export(&export_string, ComponentExportKind::Func, idx, None);
                 }
                 WorldItem::Interface { id, .. } => {
-                    self.encode_interface_export(&export_string, module, *id)?;
+                    let core_names = interface_func_core_names.get(id);
+                    self.encode_interface_export(
+                        &export_string,
+                        module,
+                        export_name,
+                        *id,
+                        core_names,
+                    )?;
                 }
                 WorldItem::Type(_) => unreachable!(),
             }
@@ -642,7 +681,9 @@ impl<'a> EncodingState<'a> {
         &mut self,
         export_name: &str,
         module: CustomModule<'_>,
+        key: &WorldKey,
         export: InterfaceId,
+        interface_func_core_names: Option<&IndexMap<&str, &str>>,
     ) -> Result<()> {
         log::trace!("encode interface export `{export_name}`");
         let resolve = &self.info.encoder.metadata.resolve;
@@ -656,11 +697,9 @@ impl<'a> EncodingState<'a> {
         let mut imports = Vec::new();
         let mut root = self.root_export_type_encoder(Some(export));
         for (_, func) in &resolve.interfaces[export].functions {
-            let core_name = func.core_export_name(Some(export_name));
+            let core_name = interface_func_core_names.unwrap()[func.name.as_str()];
             let ty = root.encode_func_type(resolve, func)?;
-            let func_index = root
-                .state
-                .encode_lift(module, &core_name, Some(export), func, ty)?;
+            let func_index = root.state.encode_lift(module, &core_name, key, func, ty)?;
             imports.push((
                 import_func_name(func),
                 ComponentExportKind::Func,
@@ -953,7 +992,7 @@ impl<'a> EncodingState<'a> {
         &mut self,
         module: CustomModule<'_>,
         core_name: &str,
-        interface: Option<InterfaceId>,
+        key: &WorldKey,
         func: &Function,
         ty: u32,
     ) -> Result<u32> {
@@ -964,16 +1003,19 @@ impl<'a> EncodingState<'a> {
 
         let options = RequiredOptions::for_export(resolve, func);
 
-        let encoding = metadata.export_encodings[core_name];
+        let encoding = metadata
+            .export_encodings
+            .get(resolve, key, &func.name)
+            .unwrap();
         let exports = self.info.exports_for(module);
         let realloc_index = exports
-            .export_realloc_for(interface, func)
+            .export_realloc_for(key, func)
             .map(|name| self.core_alias_export(instance_index, name, ExportKind::Func));
         let mut options = options
             .into_iter(encoding, self.memory_index, realloc_index)?
             .collect::<Vec<_>>();
 
-        if let Some(post_return) = exports.post_return(interface, func) {
+        if let Some(post_return) = exports.post_return(key, func) {
             let post_return = self.core_alias_export(instance_index, post_return, ExportKind::Func);
             options.push(CanonicalOption::PostReturn(post_return));
         }
@@ -1346,7 +1388,7 @@ impl<'a> EncodingState<'a> {
         log::trace!("attempting to materialize import of `{module}::{field}` for {for_module:?}");
         let resolve = &self.info.encoder.metadata.resolve;
         let name_tmp;
-        let (key, name) = match import {
+        let (key, name, interface_key) = match import {
             // Main module dependencies on an adapter in use are done with an
             // indirection here, so load the shim function and use that.
             Import::AdapterExport(_) => {
@@ -1413,18 +1455,17 @@ impl<'a> EncodingState<'a> {
             // through to the code below. This is where these are connected to a
             // WIT `ImportedInterface` one way or another with the name that was
             // detected during validation.
-            Import::ImportedResourceDrop(key, id) => {
+            Import::ImportedResourceDrop(key, iface, id) => {
                 let ty = &resolve.types[*id];
                 let name = ty.name.as_ref().unwrap();
-                name_tmp = format!("{RESOURCE_DROP}{name}");
-                (key.as_ref(), &name_tmp)
+                name_tmp = format!("{name}_drop");
+                (key, &name_tmp, iface.map(|_| resolve.name_world_key(key)))
             }
-            Import::WorldFunc(name) => (None, name),
-            Import::InterfaceFunc(key, _, name) => (Some(key), name),
+            Import::WorldFunc(key, name) => (key, name, None),
+            Import::InterfaceFunc(key, _, name) => (key, name, Some(resolve.name_world_key(key))),
         };
 
-        let interface = key.map(|key| resolve.name_world_key(key));
-        let import = &self.info.import_map[&interface];
+        let import = &self.info.import_map[&interface_key];
         let (index, _, lowering) = import.lowerings.get_full(name).unwrap();
         let metadata = self.info.module_metadata_for(for_module);
 
@@ -1447,12 +1488,12 @@ impl<'a> EncodingState<'a> {
             // created, so the specific export is loaded here and used as an
             // import.
             Lowering::Indirect { .. } => {
-                let encoding = metadata.import_encodings[&(module.to_string(), field.to_string())];
+                let encoding = metadata.import_encodings.get(resolve, key, name).unwrap();
                 self.core_alias_export(
                     self.shim_instance_index
                         .expect("shim should be instantiated"),
                     &shims.shims[&ShimKind::IndirectLowering {
-                        interface: interface.clone(),
+                        interface: interface_key,
                         index,
                         realloc: for_module,
                         encoding,
@@ -1663,7 +1704,7 @@ impl<'a> Shims<'a> {
         let resolve = &world.encoder.metadata.resolve;
 
         for (module, field, import) in module_imports.imports() {
-            let (key, name) = match import {
+            let (key, name, interface_key) = match import {
                 // These imports don't require shims, they can be satisfied
                 // as-needed when required.
                 Import::ImportedResourceDrop(..)
@@ -1713,11 +1754,12 @@ impl<'a> Shims<'a> {
                 // WIT-level functions may require an indirection, so yield some
                 // metadata out of this `match` to the loop below to figure that
                 // out.
-                Import::InterfaceFunc(key, _, name) => (Some(key), name),
-                Import::WorldFunc(name) => (None, name),
+                Import::InterfaceFunc(key, _, name) => {
+                    (key, name, Some(resolve.name_world_key(key)))
+                }
+                Import::WorldFunc(key, name) => (key, name, None),
             };
-            let key = key.map(|key| resolve.name_world_key(key));
-            let interface = &world.import_map[&key];
+            let interface = &world.import_map[&interface_key];
             let (index, _, lowering) = interface.lowerings.get_full(name).unwrap();
             let shim_name = self.shims.len().to_string();
             match lowering {
@@ -1727,9 +1769,9 @@ impl<'a> Shims<'a> {
                     log::debug!(
                         "shim {shim_name} is import `{module}::{field}` lowering {index} `{name}`",
                     );
-                    let encoding = *metadata
+                    let encoding = metadata
                         .import_encodings
-                        .get(&(module.to_string(), field.to_string()))
+                        .get(resolve, key, name)
                         .ok_or_else(|| {
                             anyhow::anyhow!(
                                 "missing component metadata for import of \
@@ -1741,7 +1783,7 @@ impl<'a> Shims<'a> {
                         debug_name: format!("indirect-{module}-{field}"),
                         options: *options,
                         kind: ShimKind::IndirectLowering {
-                            interface: key,
+                            interface: interface_key,
                             index,
                             realloc: for_module,
                             encoding,
@@ -1836,7 +1878,7 @@ pub struct LibraryInfo {
 }
 
 /// Represents an adapter or library to be instantiated as part of the component
-struct Adapter {
+pub(super) struct Adapter {
     /// The wasm of the module itself, with `component-type` sections stripped
     wasm: Vec<u8>,
 
@@ -1858,13 +1900,14 @@ struct Adapter {
 #[derive(Default)]
 pub struct ComponentEncoder {
     module: Vec<u8>,
-    metadata: Bindgen,
+    pub(super) metadata: Bindgen,
     validate: bool,
-    main_module_exports: IndexSet<WorldKey>,
-    adapters: IndexMap<String, Adapter>,
+    pub(super) main_module_exports: IndexSet<WorldKey>,
+    pub(super) adapters: IndexMap<String, Adapter>,
     import_name_map: HashMap<String, String>,
     realloc_via_memory_grow: bool,
     merge_imports_based_on_semver: Option<bool>,
+    pub(super) reject_legacy_names: bool,
 }
 
 impl ComponentEncoder {
@@ -1914,6 +1957,19 @@ impl ComponentEncoder {
     /// This is enabled by default.
     pub fn merge_imports_based_on_semver(mut self, merge: bool) -> Self {
         self.merge_imports_based_on_semver = Some(merge);
+        self
+    }
+
+    /// Sets whether to reject the historical mangling/name scheme for core wasm
+    /// imports/exports as they map to the component model.
+    ///
+    /// The `wit-component` crate supported a different set of names prior to
+    /// WebAssembly/component-model#378 and this can be used to disable this
+    /// support.
+    ///
+    /// This is disabled by default.
+    pub fn reject_legacy_names(mut self, reject: bool) -> Self {
+        self.reject_legacy_names = reject;
         self
     }
 
@@ -2116,6 +2172,7 @@ impl ComponentWorld<'_> {
 mod test {
     use super::*;
     use crate::{dummy_module, embed_component_metadata};
+    use wit_parser::Mangling;
 
     #[test]
     fn it_renames_imports() {
@@ -2141,7 +2198,7 @@ world test {
             .unwrap();
         let world = resolve.select_world(pkg, None).unwrap();
 
-        let mut module = dummy_module(&resolve, world);
+        let mut module = dummy_module(&resolve, world, Mangling::Standard32);
 
         embed_component_metadata(&mut module, &resolve, world, StringEncoding::UTF8).unwrap();
 

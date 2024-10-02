@@ -41,7 +41,6 @@
 //! The dual of `encode` is the `decode_custom_section` fucntion which decodes
 //! the three arguments originally passed to `encode`.
 
-use crate::validation::BARE_FUNC_MODULE_NAME;
 use crate::{DecodedWasm, StringEncoding};
 use anyhow::{bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
@@ -112,11 +111,105 @@ impl Default for Bindgen {
 pub struct ModuleMetadata {
     /// Per-function options imported into the core wasm module, currently only
     /// related to string encoding.
-    pub import_encodings: IndexMap<(String, String), StringEncoding>,
+    pub import_encodings: EncodingMap,
 
     /// Per-function options exported from the core wasm module, currently only
     /// related to string encoding.
-    pub export_encodings: IndexMap<String, StringEncoding>,
+    pub export_encodings: EncodingMap,
+}
+
+/// Internal map that keeps track of encodings for various world imports and
+/// exports.
+///
+/// Stored in [`ModuleMetadata`].
+#[derive(Default)]
+pub struct EncodingMap {
+    /// A map of an "identifying string" for world items to what string
+    /// encoding the import or export is using.
+    ///
+    /// The keys of this map are created by `EncodingMap::key` and are
+    /// specifically chosen to be able to be looked up during both insertion and
+    /// fetching. Note that in particular this map does not use `*Id` types such
+    /// as `InterfaceId` from `wit_parser`. This is due to the fact that during
+    /// world merging new interfaces are created for named imports (e.g. `import
+    /// x: interface { ... }`) as inline interfaces are copied from one world to
+    /// another. Additionally during world merging different interfaces at the
+    /// same version may be deduplicated.
+    ///
+    /// For these reasons a string-based key is chosen to avoid juggling IDs
+    /// through the world merging process. Additionally versions are chopped off
+    /// for now to help with a problem such as:
+    ///
+    /// * The main module imports a:b/c@0.1.0
+    /// * An adapter imports a:b/c@0.1.1
+    /// * The final world uses a:b/c@0.1.1, but the main module has no
+    ///   encoding listed for that exact item.
+    ///
+    /// By chopping off versions this is able to get everything registered
+    /// correctly even in the fact of merging interfaces and worlds.
+    encodings: IndexMap<String, StringEncoding>,
+}
+
+impl EncodingMap {
+    fn insert_all(
+        &mut self,
+        resolve: &Resolve,
+        set: &IndexMap<WorldKey, WorldItem>,
+        encoding: StringEncoding,
+    ) {
+        for (name, item) in set {
+            match item {
+                WorldItem::Function(func) => {
+                    let key = self.key(resolve, name, &func.name);
+                    self.encodings.insert(key, encoding);
+                }
+                WorldItem::Interface { id, .. } => {
+                    for (func, _) in resolve.interfaces[*id].functions.iter() {
+                        let key = self.key(resolve, name, func);
+                        self.encodings.insert(key, encoding);
+                    }
+                }
+                WorldItem::Type(_) => {}
+            }
+        }
+    }
+
+    /// Looks up the encoding of the function `func` which is scoped under `key`
+    /// in the world in question.
+    pub fn get(&self, resolve: &Resolve, key: &WorldKey, func: &str) -> Option<StringEncoding> {
+        let key = self.key(resolve, key, func);
+        self.encodings.get(&key).copied()
+    }
+
+    fn key(&self, resolve: &Resolve, key: &WorldKey, func: &str) -> String {
+        format!(
+            "{}/{func}",
+            match key {
+                WorldKey::Name(name) => name.to_string(),
+                WorldKey::Interface(id) => {
+                    let iface = &resolve.interfaces[*id];
+                    let pkg = &resolve.packages[iface.package.unwrap()];
+                    format!(
+                        "{}:{}/{}",
+                        pkg.name.namespace,
+                        pkg.name.name,
+                        iface.name.as_ref().unwrap()
+                    )
+                }
+            }
+        )
+    }
+
+    fn merge(&mut self, other: EncodingMap) -> Result<()> {
+        for (key, encoding) in other.encodings {
+            if let Some(prev) = self.encodings.insert(key.clone(), encoding) {
+                if prev != encoding {
+                    bail!("conflicting string encodings specified for `{key}`");
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 /// This function will parse the core `wasm` binary given as input and return a
@@ -313,38 +406,18 @@ impl Bindgen {
             producers,
         } = other;
 
-        let world = self
+        let remap = self
             .resolve
             .merge(resolve)
-            .context("failed to merge WIT package sets together")?
-            .map_world(world, None)?;
+            .context("failed to merge WIT package sets together")?;
+        let world = remap.map_world(world, None)?;
         let exports = self.resolve.worlds[world].exports.keys().cloned().collect();
         self.resolve
             .merge_worlds(world, self.world)
             .context("failed to merge worlds from two documents")?;
 
-        for (name, encoding) in export_encodings {
-            let prev = self
-                .metadata
-                .export_encodings
-                .insert(name.clone(), encoding);
-            if let Some(prev) = prev {
-                if prev != encoding {
-                    bail!("conflicting string encodings specified for export `{name}`");
-                }
-            }
-        }
-        for ((module, name), encoding) in import_encodings {
-            let prev = self
-                .metadata
-                .import_encodings
-                .insert((module.clone(), name.clone()), encoding);
-            if let Some(prev) = prev {
-                if prev != encoding {
-                    bail!("conflicting string encodings specified for import `{module}::{name}`");
-                }
-            }
-        }
+        self.metadata.import_encodings.merge(import_encodings)?;
+        self.metadata.export_encodings.merge(export_encodings)?;
         if let Some(producers) = producers {
             if let Some(mine) = &mut self.producers {
                 mine.merge(&producers);
@@ -364,45 +437,10 @@ impl ModuleMetadata {
         let mut ret = ModuleMetadata::default();
 
         let world = &resolve.worlds[world];
-        for (name, item) in world.imports.iter() {
-            let name = resolve.name_world_key(name);
-            match item {
-                WorldItem::Function(_) => {
-                    let prev = ret
-                        .import_encodings
-                        .insert((BARE_FUNC_MODULE_NAME.to_string(), name.clone()), encoding);
-                    assert!(prev.is_none());
-                }
-                WorldItem::Interface { id, .. } => {
-                    for (func, _) in resolve.interfaces[*id].functions.iter() {
-                        let prev = ret
-                            .import_encodings
-                            .insert((name.clone(), func.clone()), encoding);
-                        assert!(prev.is_none());
-                    }
-                }
-                WorldItem::Type(_) => {}
-            }
-        }
-
-        for (name, item) in world.exports.iter() {
-            let name = resolve.name_world_key(name);
-            match item {
-                WorldItem::Function(func) => {
-                    let name = func.core_export_name(None).into_owned();
-                    let prev = ret.export_encodings.insert(name.clone(), encoding);
-                    assert!(prev.is_none());
-                }
-                WorldItem::Interface { id, .. } => {
-                    for (_, func) in resolve.interfaces[*id].functions.iter() {
-                        let name = func.core_export_name(Some(&name)).into_owned();
-                        let prev = ret.export_encodings.insert(name, encoding);
-                        assert!(prev.is_none());
-                    }
-                }
-                WorldItem::Type(_) => {}
-            }
-        }
+        ret.export_encodings
+            .insert_all(resolve, &world.exports, encoding);
+        ret.import_encodings
+            .insert_all(resolve, &world.imports, encoding);
 
         ret
     }

@@ -1,7 +1,7 @@
 use arbitrary::{Result, Unstructured};
 use std::path::Path;
 use wit_component::*;
-use wit_parser::{PackageId, Resolve};
+use wit_parser::{Mangling, PackageId, Resolve};
 
 pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     let wasm = u.arbitrary().and_then(|config| {
@@ -36,7 +36,12 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     let mut decoded_bindgens = Vec::new();
     for (id, world) in resolve.worlds.iter().take(20) {
         log::debug!("embedding world {} as in a dummy module", world.name);
-        let mut dummy = wit_component::dummy_module(&resolve, id);
+        let mangling = match u.int_in_range(0..=1)? {
+            0 => Mangling::Legacy,
+            1 => Mangling::Standard32,
+            _ => unreachable!(),
+        };
+        let mut dummy = wit_component::dummy_module(&resolve, id, mangling);
         wit_component::embed_component_metadata(&mut dummy, &resolve, id, StringEncoding::UTF8)
             .unwrap();
         write_file("dummy.wasm", &dummy);
