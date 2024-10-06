@@ -16,8 +16,7 @@
 use crate::prelude::*;
 use crate::{
     limits::*, AbstractHeapType, BinaryReaderError, Encoding, FromReader, FunctionBody, HeapType,
-    Parser, Payload, RefType, Result, SectionLimited, ValType, WasmFeatures,
-    WASM_COMPONENT_VERSION, WASM_MODULE_VERSION,
+    Parser, Payload, RefType, Result, SectionLimited, ValType, WasmFeatures, WASM_MODULE_VERSION,
 };
 use ::core::mem;
 use ::core::ops::Range;
@@ -49,6 +48,7 @@ fn test_validate() {
 }
 
 mod component;
+mod component_types;
 mod core;
 mod func;
 pub mod names;
@@ -651,11 +651,11 @@ impl Validator {
                         is not enabled - enable the feature to allow component validation",
                     );
                 }
-                if num == WASM_COMPONENT_VERSION {
+                if num == crate::WASM_COMPONENT_VERSION {
                     self.components
                         .push(ComponentState::new(ComponentKind::Component));
                     State::Component
-                } else if num < WASM_COMPONENT_VERSION {
+                } else if num < crate::WASM_COMPONENT_VERSION {
                     bail!(range.start, "unsupported component version: {num:#x}");
                 } else {
                     bail!(range.start, "unknown component version: {num:#x}");

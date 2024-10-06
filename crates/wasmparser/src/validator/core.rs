@@ -552,7 +552,7 @@ pub(crate) struct Module {
 }
 
 impl Module {
-    pub fn add_types(
+    pub(crate) fn add_types(
         &mut self,
         rec_group: RecGroup,
         features: &WasmFeatures,
