@@ -14,7 +14,7 @@ workspace = true
 clap = { workspace = true, optional = true }
 anyhow = { workspace = true }
 wasmparser = { workspace = true }
-wasm-encoder = { workspace = true }
+wasm-encoder = { workspace = true, features = ['component-model'] }
 indexmap = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 serde_derive = { workspace = true }
