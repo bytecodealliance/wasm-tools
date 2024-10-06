@@ -48,7 +48,7 @@ fn test_validate() {
 }
 
 mod component;
-mod component_types;
+pub mod component_types;
 mod core;
 mod func;
 pub mod names;

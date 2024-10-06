@@ -9,13 +9,14 @@ use std::collections::{hash_map::Entry, HashMap};
 use std::mem;
 use wasm_encoder::*;
 use wasmparser::{
-    names::KebabString,
-    types::{
-        self, AnyTypeId, ComponentAnyTypeId, ComponentCoreModuleTypeId, ComponentCoreTypeId,
-        ComponentDefinedTypeId, ComponentEntityType, ComponentFuncTypeId, ComponentInstanceTypeId,
-        ComponentTypeId, Remap, Remapping, ResourceId, SubtypeCx,
+    component_types::{
+        self as ct, AnyTypeId, ComponentAnyTypeId, ComponentCoreModuleTypeId, ComponentCoreTypeId,
+        ComponentDefinedType, ComponentDefinedTypeId, ComponentEntityType, ComponentFuncTypeId,
+        ComponentInstanceTypeId, ComponentTypeId, RecordType, Remap, Remapping, ResourceId,
+        SubtypeCx, TupleType, VariantType,
     },
-    ComponentExternalKind,
+    names::KebabString,
+    types, ComponentExternalKind,
 };
 
 fn type_ref_to_export_kind(ty: wasmparser::ComponentTypeRef) -> ComponentExportKind {
@@ -269,8 +270,8 @@ impl<'a> TypeEncoder<'a> {
         exports: E,
     ) -> ComponentType
     where
-        I: IntoIterator<Item = (&'a str, wasmparser::types::ComponentEntityType)>,
-        E: IntoIterator<Item = (&'a str, wasmparser::types::ComponentEntityType)>,
+        I: IntoIterator<Item = (&'a str, ComponentEntityType)>,
+        E: IntoIterator<Item = (&'a str, ComponentEntityType)>,
     {
         state.push(Encodable::Component(ComponentType::new()));
 
@@ -300,7 +301,7 @@ impl<'a> TypeEncoder<'a> {
 
     pub fn instance<E>(&self, state: &mut TypeState<'a>, exports: E) -> InstanceType
     where
-        E: IntoIterator<Item = (&'a str, wasmparser::types::ComponentEntityType)>,
+        E: IntoIterator<Item = (&'a str, ComponentEntityType)>,
     {
         state.push(Encodable::Instance(InstanceType::new()));
 
@@ -390,19 +391,15 @@ impl<'a> TypeEncoder<'a> {
     fn component_entity_type(
         &self,
         state: &mut TypeState<'a>,
-        ty: wasmparser::types::ComponentEntityType,
+        ty: ComponentEntityType,
     ) -> ComponentTypeRef {
         match ty {
-            wasmparser::types::ComponentEntityType::Module(id) => {
-                ComponentTypeRef::Module(self.ty(state, id.into()))
-            }
-            wasmparser::types::ComponentEntityType::Func(id) => {
-                ComponentTypeRef::Func(self.ty(state, id.into()))
-            }
-            wasmparser::types::ComponentEntityType::Value(ty) => {
+            ComponentEntityType::Module(id) => ComponentTypeRef::Module(self.ty(state, id.into())),
+            ComponentEntityType::Func(id) => ComponentTypeRef::Func(self.ty(state, id.into())),
+            ComponentEntityType::Value(ty) => {
                 ComponentTypeRef::Value(self.component_val_type(state, ty))
             }
-            wasmparser::types::ComponentEntityType::Type {
+            ComponentEntityType::Type {
                 created: created @ ComponentAnyTypeId::Resource(_),
                 referenced,
             } => {
@@ -414,13 +411,13 @@ impl<'a> TypeEncoder<'a> {
                     ComponentTypeRef::Type(TypeBounds::Eq(self.ty(state, referenced.into())))
                 }
             }
-            wasmparser::types::ComponentEntityType::Type { referenced, .. } => {
+            ComponentEntityType::Type { referenced, .. } => {
                 ComponentTypeRef::Type(TypeBounds::Eq(self.ty(state, referenced.into())))
             }
-            wasmparser::types::ComponentEntityType::Instance(id) => {
+            ComponentEntityType::Instance(id) => {
                 ComponentTypeRef::Instance(self.ty(state, id.into()))
             }
-            wasmparser::types::ComponentEntityType::Component(id) => {
+            ComponentEntityType::Component(id) => {
                 ComponentTypeRef::Component(self.ty(state, id.into()))
             }
         }
@@ -626,13 +623,11 @@ impl<'a> TypeEncoder<'a> {
     fn component_val_type(
         &self,
         state: &mut TypeState<'a>,
-        ty: wasmparser::types::ComponentValType,
+        ty: ct::ComponentValType,
     ) -> ComponentValType {
         match ty {
-            wasmparser::types::ComponentValType::Primitive(ty) => {
-                ComponentValType::Primitive(ty.into())
-            }
-            wasmparser::types::ComponentValType::Type(id) => {
+            ct::ComponentValType::Primitive(ty) => ComponentValType::Primitive(ty.into()),
+            ct::ComponentValType::Type(id) => {
                 ComponentValType::Type(self.ty(state, ComponentAnyTypeId::from(id).into()))
             }
         }
@@ -642,7 +637,7 @@ impl<'a> TypeEncoder<'a> {
         let ty = &self.0.types[id];
 
         match ty {
-            wasmparser::types::ComponentDefinedType::Primitive(ty) => {
+            ComponentDefinedType::Primitive(ty) => {
                 let index = state.cur.encodable.type_count();
                 state
                     .cur
@@ -652,27 +647,21 @@ impl<'a> TypeEncoder<'a> {
                     .primitive((*ty).into());
                 index
             }
-            wasmparser::types::ComponentDefinedType::Record(r) => self.record(state, r),
-            wasmparser::types::ComponentDefinedType::Variant(v) => self.variant(state, v),
-            wasmparser::types::ComponentDefinedType::List(ty) => self.list(state, *ty),
-            wasmparser::types::ComponentDefinedType::Tuple(t) => self.tuple(state, t),
-            wasmparser::types::ComponentDefinedType::Flags(names) => {
-                Self::flags(&mut state.cur.encodable, names)
-            }
-            wasmparser::types::ComponentDefinedType::Enum(cases) => {
-                Self::enum_type(&mut state.cur.encodable, cases)
-            }
-            wasmparser::types::ComponentDefinedType::Option(ty) => self.option(state, *ty),
-            wasmparser::types::ComponentDefinedType::Result { ok, err } => {
-                self.result(state, *ok, *err)
-            }
-            wasmparser::types::ComponentDefinedType::Own(r) => {
+            ComponentDefinedType::Record(r) => self.record(state, r),
+            ComponentDefinedType::Variant(v) => self.variant(state, v),
+            ComponentDefinedType::List(ty) => self.list(state, *ty),
+            ComponentDefinedType::Tuple(t) => self.tuple(state, t),
+            ComponentDefinedType::Flags(names) => Self::flags(&mut state.cur.encodable, names),
+            ComponentDefinedType::Enum(cases) => Self::enum_type(&mut state.cur.encodable, cases),
+            ComponentDefinedType::Option(ty) => self.option(state, *ty),
+            ComponentDefinedType::Result { ok, err } => self.result(state, *ok, *err),
+            ComponentDefinedType::Own(r) => {
                 let ty = self.ty(state, (*r).into());
                 let index = state.cur.encodable.type_count();
                 state.cur.encodable.ty().defined_type().own(ty);
                 index
             }
-            wasmparser::types::ComponentDefinedType::Borrow(r) => {
+            ComponentDefinedType::Borrow(r) => {
                 let ty = self.ty(state, (*r).into());
                 let index = state.cur.encodable.type_count();
                 state.cur.encodable.ty().defined_type().borrow(ty);
@@ -681,7 +670,7 @@ impl<'a> TypeEncoder<'a> {
         }
     }
 
-    fn record(&self, state: &mut TypeState<'a>, record: &wasmparser::types::RecordType) -> u32 {
+    fn record(&self, state: &mut TypeState<'a>, record: &RecordType) -> u32 {
         let fields = record
             .fields
             .iter()
@@ -693,7 +682,7 @@ impl<'a> TypeEncoder<'a> {
         index
     }
 
-    fn variant(&self, state: &mut TypeState<'a>, variant: &wasmparser::types::VariantType) -> u32 {
+    fn variant(&self, state: &mut TypeState<'a>, variant: &VariantType) -> u32 {
         let cases = variant
             .cases
             .iter()
@@ -712,14 +701,14 @@ impl<'a> TypeEncoder<'a> {
         index
     }
 
-    fn list(&self, state: &mut TypeState<'a>, ty: wasmparser::types::ComponentValType) -> u32 {
+    fn list(&self, state: &mut TypeState<'a>, ty: ct::ComponentValType) -> u32 {
         let ty = self.component_val_type(state, ty);
         let index = state.cur.encodable.type_count();
         state.cur.encodable.ty().defined_type().list(ty);
         index
     }
 
-    fn tuple(&self, state: &mut TypeState<'a>, tuple: &wasmparser::types::TupleType) -> u32 {
+    fn tuple(&self, state: &mut TypeState<'a>, tuple: &TupleType) -> u32 {
         let types = tuple
             .types
             .iter()
@@ -754,7 +743,7 @@ impl<'a> TypeEncoder<'a> {
         index
     }
 
-    fn option(&self, state: &mut TypeState<'a>, ty: wasmparser::types::ComponentValType) -> u32 {
+    fn option(&self, state: &mut TypeState<'a>, ty: ct::ComponentValType) -> u32 {
         let ty = self.component_val_type(state, ty);
 
         let index = state.cur.encodable.type_count();
@@ -765,8 +754,8 @@ impl<'a> TypeEncoder<'a> {
     fn result(
         &self,
         state: &mut TypeState<'a>,
-        ok: Option<wasmparser::types::ComponentValType>,
-        err: Option<wasmparser::types::ComponentValType>,
+        ok: Option<ct::ComponentValType>,
+        err: Option<ct::ComponentValType>,
     ) -> u32 {
         let ok = ok.map(|ty| self.component_val_type(state, ty));
         let err = err.map(|ty| self.component_val_type(state, ty));
@@ -1190,10 +1179,10 @@ impl DependencyRegistrar<'_, '_> {
         }
     }
 
-    fn val_type(&mut self, ty: types::ComponentValType) {
+    fn val_type(&mut self, ty: ct::ComponentValType) {
         match ty {
-            types::ComponentValType::Type(t) => self.ty(t.into()),
-            types::ComponentValType::Primitive(_) => {}
+            ct::ComponentValType::Type(t) => self.ty(t.into()),
+            ct::ComponentValType::Primitive(_) => {}
         }
     }
 
@@ -1224,33 +1213,31 @@ impl DependencyRegistrar<'_, '_> {
 
     fn defined(&mut self, ty: ComponentDefinedTypeId) {
         match &self.types[ty] {
-            types::ComponentDefinedType::Primitive(_)
-            | types::ComponentDefinedType::Enum(_)
-            | types::ComponentDefinedType::Flags(_) => {}
-            types::ComponentDefinedType::List(t) | types::ComponentDefinedType::Option(t) => {
-                self.val_type(*t)
-            }
-            types::ComponentDefinedType::Own(r) | types::ComponentDefinedType::Borrow(r) => {
+            ComponentDefinedType::Primitive(_)
+            | ComponentDefinedType::Enum(_)
+            | ComponentDefinedType::Flags(_) => {}
+            ComponentDefinedType::List(t) | ComponentDefinedType::Option(t) => self.val_type(*t),
+            ComponentDefinedType::Own(r) | ComponentDefinedType::Borrow(r) => {
                 self.ty(ComponentAnyTypeId::Resource(*r))
             }
-            types::ComponentDefinedType::Record(r) => {
+            ComponentDefinedType::Record(r) => {
                 for (_, ty) in r.fields.iter() {
                     self.val_type(*ty);
                 }
             }
-            types::ComponentDefinedType::Tuple(r) => {
+            ComponentDefinedType::Tuple(r) => {
                 for ty in r.types.iter() {
                     self.val_type(*ty);
                 }
             }
-            types::ComponentDefinedType::Variant(r) => {
+            ComponentDefinedType::Variant(r) => {
                 for (_, case) in r.cases.iter() {
                     if let Some(ty) = case.ty {
                         self.val_type(ty);
                     }
                 }
             }
-            types::ComponentDefinedType::Result { ok, err } => {
+            ComponentDefinedType::Result { ok, err } => {
                 if let Some(ok) = ok {
                     self.val_type(*ok);
                 }

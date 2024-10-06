@@ -1,8 +1,10 @@
 //! Types relating to type information provided by validation.
 
-pub use super::component_types::*;
 use super::core::Module;
 use crate::validator::component::ComponentState;
+use crate::validator::component_types::{
+    ComponentCoreTypeId, ComponentTypeAlloc, ComponentTypeList,
+};
 use crate::{collections::map::Entry, AbstractHeapType};
 use crate::{prelude::*, CompositeInnerType};
 use crate::{
