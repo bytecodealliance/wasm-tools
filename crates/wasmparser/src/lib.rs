@@ -49,8 +49,10 @@ mod prelude {
     pub use alloc::vec;
     pub use alloc::vec::Vec;
 
+    #[cfg(all(feature = "validate", feature = "component-model"))]
+    pub use crate::collections::IndexSet;
     #[cfg(feature = "validate")]
-    pub use crate::collections::{IndexMap, IndexSet, Map, Set};
+    pub use crate::collections::{IndexMap, Map, Set};
 }
 
 /// A helper macro to conveniently iterate over all opcodes recognized by this

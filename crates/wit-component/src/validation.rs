@@ -298,7 +298,7 @@ impl ImportMap {
             TypeRef::Func(ty) => ty,
             _ => bail!("module is only allowed to import functions"),
         };
-        let ty = types[types.core_type_at(ty_index).unwrap_sub()].unwrap_func();
+        let ty = types[types.core_type_at_in_module(ty_index)].unwrap_func();
 
         // Handle main module imports that match known adapters and set it up as
         // an import of an adapter export.

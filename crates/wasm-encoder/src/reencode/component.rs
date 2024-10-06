@@ -493,9 +493,6 @@ pub mod component_utils {
             wasmparser::Payload::CustomSection(section) => {
                 reencoder.parse_component_custom_section(component, section)?;
             }
-            wasmparser::Payload::UnknownSection { id, contents, .. } => {
-                reencoder.parse_unknown_component_section(component, id, contents)?;
-            }
             wasmparser::Payload::ModuleSection {
                 parser,
                 unchecked_range,
@@ -521,6 +518,14 @@ pub mod component_utils {
                 reencoder.parse_component_start_section(component, start)?;
             }
             wasmparser::Payload::End(_) => {}
+
+            other => match other.as_section() {
+                Some((id, range)) => {
+                    let section = &whole_component[range];
+                    reencoder.parse_unknown_component_section(component, id, section)?;
+                }
+                None => unreachable!(),
+            },
         }
         Ok(())
     }

@@ -43,7 +43,7 @@ name = "benchmark"
 harness = false
 
 [features]
-default = ['std', 'validate', 'serde', 'features']
+default = ['std', 'validate', 'serde', 'features', 'component-model']
 
 # A feature which enables implementations of `std::error::Error` as appropriate
 # along with other convenience APIs. This additionally uses the standard
@@ -78,3 +78,8 @@ serde = ['dep:serde', 'indexmap/serde', 'hashbrown/serde']
 # features/proposals support are fixed at compile time to `wasmparser`'s default
 # set of supported features.
 features = []
+
+# A feature that enables parsing and validating the component-model proposal for
+# WebAssembly. This is enabled by default but if your use case is only
+# interested in working with core modules then this feature can be disabled.
+component-model = []

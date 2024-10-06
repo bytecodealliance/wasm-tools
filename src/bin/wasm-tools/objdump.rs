@@ -82,9 +82,9 @@ impl Opts {
                     &format!("custom {:?}", c.name()),
                 )?,
 
-                UnknownSection { .. } => {}
-
                 End(_) => printer.end()?,
+
+                _ => {}
             }
         }
 

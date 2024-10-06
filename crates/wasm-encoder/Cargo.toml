@@ -37,4 +37,4 @@ default = ['component-model']
 
 # On-by-default: conditional support for emitting components in addition to
 # core modules.
-component-model = []
+component-model = ['wasmparser?/component-model']

@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use std::fmt::Write as _;
 use std::io::Write;
 use termcolor::{Color, ColorSpec, WriteColor};
@@ -520,7 +520,7 @@ impl<'a> Dump<'a> {
                                 me.print(pos)
                             })?;
                         }
-                        KnownCustom::Unknown => {
+                        _other => {
                             self.print_byte_header()?;
                             for _ in 0..NBYTES {
                                 write!(self.dst, "---")?;
@@ -530,26 +530,27 @@ impl<'a> Dump<'a> {
                         }
                     }
                 }
-                Payload::UnknownSection {
-                    id,
-                    range,
-                    contents,
-                } => {
-                    write!(self.state, "unknown section: {}", id)?;
-                    self.color_print(range.start)?;
-                    self.print_byte_header()?;
-                    for _ in 0..NBYTES {
-                        write!(self.dst, "---")?;
-                    }
-                    writeln!(self.dst, "-| ... {} bytes of data", contents.len())?;
-                    self.cur += contents.len();
-                }
                 Payload::End(_) => {
                     self.nesting -= 1;
                     if self.nesting > 0 {
                         i = stack.pop().unwrap();
                     }
                 }
+                other => match other.as_section() {
+                    Some((id, range)) => {
+                        write!(self.state, "unknown section: {}", id)?;
+                        self.color_print(range.start)?;
+                        self.print_byte_header()?;
+                        for _ in 0..NBYTES {
+                            write!(self.dst, "---")?;
+                        }
+                        writeln!(self.dst, "-| ... {} bytes of data", range.len())?;
+                        self.cur += range.len();
+                    }
+                    None => {
+                        bail!("unsupported payload {other:?}")
+                    }
+                },
             }
         }
 

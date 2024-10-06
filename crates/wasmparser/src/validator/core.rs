@@ -862,6 +862,7 @@ impl Module {
         Ok(())
     }
 
+    #[cfg(feature = "component-model")]
     pub(crate) fn imports_for_module_type(
         &self,
         offset: usize,

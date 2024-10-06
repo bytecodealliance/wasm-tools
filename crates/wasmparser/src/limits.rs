@@ -56,26 +56,44 @@ pub fn max_wasm_memory64_pages(page_size: u64) -> u64 {
 }
 
 // Component-related limits
+#[cfg(feature = "component-model")]
 pub const MAX_WASM_MODULE_SIZE: usize = 1024 * 1024 * 1024; //= 1 GiB
+#[cfg(feature = "component-model")]
 pub const MAX_WASM_MODULE_TYPE_DECLS: usize = 100_000;
+#[cfg(feature = "component-model")]
 pub const MAX_WASM_COMPONENT_TYPE_DECLS: usize = 100_000;
+#[cfg(feature = "component-model")]
 pub const MAX_WASM_INSTANCE_TYPE_DECLS: usize = 100_000;
+#[cfg(feature = "component-model")]
 pub const MAX_WASM_RECORD_FIELDS: usize = 10_000;
+#[cfg(feature = "component-model")]
 pub const MAX_WASM_VARIANT_CASES: usize = 10_000;
+#[cfg(feature = "component-model")]
 pub const MAX_WASM_TUPLE_TYPES: usize = 10_000;
+#[cfg(feature = "component-model")]
 pub const MAX_WASM_FLAG_NAMES: usize = 1_000;
+#[cfg(feature = "component-model")]
 pub const MAX_WASM_ENUM_CASES: usize = 10_000;
+#[cfg(feature = "component-model")]
 pub const MAX_WASM_INSTANTIATION_EXPORTS: usize = 100_000;
+#[cfg(feature = "component-model")]
 pub const MAX_WASM_CANONICAL_OPTIONS: usize = 10;
+#[cfg(feature = "component-model")]
 pub const MAX_WASM_INSTANTIATION_ARGS: usize = 100_000;
+#[cfg(feature = "component-model")]
 pub const MAX_WASM_START_ARGS: usize = 1000;
 pub const MAX_WASM_TYPE_SIZE: u32 = 1_000_000;
+#[cfg(feature = "component-model")]
 pub const MAX_WASM_MODULES: usize = 1_000;
+#[cfg(feature = "component-model")]
 pub const MAX_WASM_COMPONENTS: usize = 1_000;
+#[cfg(feature = "component-model")]
 pub const MAX_WASM_INSTANCES: usize = 1_000;
+#[cfg(feature = "component-model")]
 pub const MAX_WASM_VALUES: usize = 1_000;
 
 /// Core items in components such as globals/memories/tables don't actually
 /// create new definitions but are instead just aliases to preexisting items.
 /// This means they have a different limit than the core wasm based limits.
+#[cfg(feature = "component-model")]
 pub const MAX_CORE_INDEX_SPACE_ITEMS: usize = 1_000_000;

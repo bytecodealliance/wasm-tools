@@ -321,31 +321,12 @@ impl<'a> Module<'a> {
                     _ => {}
                 },
 
-                // sections that shouldn't appear in the specially-crafted core wasm
-                // adapter self we're processing
-                Payload::DataCountSection { .. }
-                | Payload::ElementSection(_)
-                | Payload::DataSection(_)
-                | Payload::StartSection { .. }
-                | Payload::TagSection(_)
-                | Payload::UnknownSection { .. } => {
-                    bail!("unsupported section found in adapter module")
-                }
-
-                // component-model related things that shouldn't show up
-                Payload::ModuleSection { .. }
-                | Payload::ComponentSection { .. }
-                | Payload::InstanceSection(_)
-                | Payload::ComponentInstanceSection(_)
-                | Payload::ComponentAliasSection(_)
-                | Payload::ComponentCanonicalSection(_)
-                | Payload::ComponentStartSection { .. }
-                | Payload::ComponentImportSection(_)
-                | Payload::CoreTypeSection(_)
-                | Payload::ComponentExportSection(_)
-                | Payload::ComponentTypeSection(_) => {
-                    bail!("component section found in adapter module")
-                }
+                // sections that shouldn't appear in the specially-crafted core
+                // wasm adapter self we're processing
+                other => match other.as_section() {
+                    Some((id, _)) => bail!("unsupported section `{}` in adapter", id),
+                    None => bail!("unsupported payload in adapter"),
+                },
             }
         }
 

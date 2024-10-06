@@ -1190,6 +1190,34 @@ pub struct ResourceId {
 }
 
 impl<'a> TypesRef<'a> {
+    /// Gets a core WebAssembly type id from a type index.
+    ///
+    /// Note that this is not to be confused with
+    /// [`TypesRef::component_type_at`] which gets a component type from its
+    /// index, nor [`TypesRef::core_type_count_in_module`] which does not work
+    /// for components.
+    ///
+    /// # Panics
+    ///
+    /// This will panic if the `index` provided is out of bounds.
+    pub fn core_type_at_in_component(&self, index: u32) -> ComponentCoreTypeId {
+        match &self.kind {
+            TypesRefKind::Module(_) => panic!("use `component_type_at_in_module` instead"),
+            TypesRefKind::Component(component) => component.core_types[index as usize],
+        }
+    }
+
+    /// Returns the number of core types defined so far within a component.
+    ///
+    /// This should only be used for components. For modules see
+    /// [`TypesRef::core_type_count_in_module`].
+    pub fn core_type_count_in_component(&self) -> u32 {
+        match &self.kind {
+            TypesRefKind::Module(_) => 0,
+            TypesRefKind::Component(component) => component.core_types.len() as u32,
+        }
+    }
+
     /// Gets a type id from a type index.
     ///
     /// # Panics

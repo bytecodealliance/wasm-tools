@@ -1,10 +1,10 @@
 //! Types relating to type information provided by validation.
 
 use super::core::Module;
+#[cfg(feature = "component-model")]
 use crate::validator::component::ComponentState;
-use crate::validator::component_types::{
-    ComponentCoreTypeId, ComponentTypeAlloc, ComponentTypeList,
-};
+#[cfg(feature = "component-model")]
+use crate::validator::component_types::{ComponentTypeAlloc, ComponentTypeList};
 use crate::{collections::map::Entry, AbstractHeapType};
 use crate::{prelude::*, CompositeInnerType};
 use crate::{
@@ -199,6 +199,7 @@ impl TypeInfo {
 
     /// Creates a new blank set of information about a leaf "borrow" type which
     /// has size 1.
+    #[cfg(feature = "component-model")]
     pub(crate) fn borrow() -> TypeInfo {
         TypeInfo::_new(1, true)
     }
@@ -222,6 +223,7 @@ impl TypeInfo {
     ///
     /// Returns an error if the type size would exceed this crate's static limit
     /// of a type size.
+    #[cfg(feature = "component-model")]
     pub(crate) fn combine(&mut self, other: TypeInfo, offset: usize) -> Result<()> {
         *self = TypeInfo::_new(
             super::combine_type_sizes(self.size(), other.size(), offset)?,
@@ -234,6 +236,7 @@ impl TypeInfo {
         self.0 & 0xffffff
     }
 
+    #[cfg(feature = "component-model")]
     pub(crate) fn contains_borrow(&self) -> bool {
         (self.0 >> 31) != 0
     }
@@ -255,6 +258,7 @@ pub enum EntityType {
 }
 
 impl EntityType {
+    #[cfg(feature = "component-model")]
     pub(crate) fn desc(&self) -> &'static str {
         match self {
             Self::Func(_) => "func",
@@ -276,6 +280,7 @@ impl EntityType {
 #[allow(clippy::large_enum_variant)]
 pub(super) enum TypesKind {
     Module(Arc<Module>),
+    #[cfg(feature = "component-model")]
     Component(ComponentState),
 }
 
@@ -291,6 +296,7 @@ pub struct Types {
 #[derive(Clone, Copy)]
 pub(super) enum TypesRefKind<'a> {
     Module(&'a Module),
+    #[cfg(feature = "component-model")]
     Component(&'a ComponentState),
 }
 
@@ -313,6 +319,7 @@ impl<'a> TypesRef<'a> {
         }
     }
 
+    #[cfg(feature = "component-model")]
     pub(crate) fn from_component(
         id: ValidatorId,
         types: &'a TypeList,
@@ -359,24 +366,31 @@ impl<'a> TypesRef<'a> {
 
     /// Gets a core WebAssembly type id from a type index.
     ///
-    /// Note that this is not to be confused with [`TypesRef::component_type_at`] which
-    /// gets a component type from its index.
+    /// Note that this is not to be confused with
+    /// [`TypesRef::component_type_at`] which gets a component type from its
+    /// index, nor [`TypesRef::core_type_at_in_component`] which is for
+    /// learning about core types in components.
     ///
     /// # Panics
     ///
     /// This will panic if the `index` provided is out of bounds.
-    pub fn core_type_at(&self, index: u32) -> ComponentCoreTypeId {
+    pub fn core_type_at_in_module(&self, index: u32) -> CoreTypeId {
         match &self.kind {
             TypesRefKind::Module(module) => module.types[index as usize].into(),
-            TypesRefKind::Component(component) => component.core_types[index as usize],
+            #[cfg(feature = "component-model")]
+            TypesRefKind::Component(_) => panic!("use `core_type_at_in_component` instead"),
         }
     }
 
     /// Returns the number of core types defined so far.
-    pub fn core_type_count(&self) -> u32 {
+    ///
+    /// Note that this is only for core modules, for components you should use
+    /// [`TypesRef::core_type_count_in_component`] instead.
+    pub fn core_type_count_in_module(&self) -> u32 {
         match &self.kind {
             TypesRefKind::Module(module) => module.types.len() as u32,
-            TypesRefKind::Component(component) => component.core_types.len() as u32,
+            #[cfg(feature = "component-model")]
+            TypesRefKind::Component(_) => 0,
         }
     }
 
@@ -388,6 +402,7 @@ impl<'a> TypesRef<'a> {
     pub fn table_at(&self, index: u32) -> TableType {
         let tables = match &self.kind {
             TypesRefKind::Module(module) => &module.tables,
+            #[cfg(feature = "component-model")]
             TypesRefKind::Component(component) => &component.core_tables,
         };
         tables[index as usize]
@@ -397,6 +412,7 @@ impl<'a> TypesRef<'a> {
     pub fn table_count(&self) -> u32 {
         match &self.kind {
             TypesRefKind::Module(module) => module.tables.len() as u32,
+            #[cfg(feature = "component-model")]
             TypesRefKind::Component(component) => component.core_tables.len() as u32,
         }
     }
@@ -409,6 +425,7 @@ impl<'a> TypesRef<'a> {
     pub fn memory_at(&self, index: u32) -> MemoryType {
         let memories = match &self.kind {
             TypesRefKind::Module(module) => &module.memories,
+            #[cfg(feature = "component-model")]
             TypesRefKind::Component(component) => &component.core_memories,
         };
 
@@ -419,6 +436,7 @@ impl<'a> TypesRef<'a> {
     pub fn memory_count(&self) -> u32 {
         match &self.kind {
             TypesRefKind::Module(module) => module.memories.len() as u32,
+            #[cfg(feature = "component-model")]
             TypesRefKind::Component(component) => component.core_memories.len() as u32,
         }
     }
@@ -431,6 +449,7 @@ impl<'a> TypesRef<'a> {
     pub fn global_at(&self, index: u32) -> GlobalType {
         let globals = match &self.kind {
             TypesRefKind::Module(module) => &module.globals,
+            #[cfg(feature = "component-model")]
             TypesRefKind::Component(component) => &component.core_globals,
         };
 
@@ -441,6 +460,7 @@ impl<'a> TypesRef<'a> {
     pub fn global_count(&self) -> u32 {
         match &self.kind {
             TypesRefKind::Module(module) => module.globals.len() as u32,
+            #[cfg(feature = "component-model")]
             TypesRefKind::Component(component) => component.core_globals.len() as u32,
         }
     }
@@ -453,6 +473,7 @@ impl<'a> TypesRef<'a> {
     pub fn tag_at(&self, index: u32) -> CoreTypeId {
         let tags = match &self.kind {
             TypesRefKind::Module(module) => &module.tags,
+            #[cfg(feature = "component-model")]
             TypesRefKind::Component(component) => &component.core_tags,
         };
         tags[index as usize]
@@ -462,6 +483,7 @@ impl<'a> TypesRef<'a> {
     pub fn tag_count(&self) -> u32 {
         match &self.kind {
             TypesRefKind::Module(module) => module.tags.len() as u32,
+            #[cfg(feature = "component-model")]
             TypesRefKind::Component(component) => component.core_tags.len() as u32,
         }
     }
@@ -474,6 +496,7 @@ impl<'a> TypesRef<'a> {
     pub fn core_function_at(&self, index: u32) -> CoreTypeId {
         match &self.kind {
             TypesRefKind::Module(module) => module.types[module.functions[index as usize] as usize],
+            #[cfg(feature = "component-model")]
             TypesRefKind::Component(component) => component.core_funcs[index as usize],
         }
     }
@@ -485,6 +508,7 @@ impl<'a> TypesRef<'a> {
     pub fn function_count(&self) -> u32 {
         match &self.kind {
             TypesRefKind::Module(module) => module.functions.len() as u32,
+            #[cfg(feature = "component-model")]
             TypesRefKind::Component(component) => component.core_funcs.len() as u32,
         }
     }
@@ -497,6 +521,7 @@ impl<'a> TypesRef<'a> {
     pub fn element_at(&self, index: u32) -> RefType {
         match &self.kind {
             TypesRefKind::Module(module) => module.element_types[index as usize],
+            #[cfg(feature = "component-model")]
             TypesRefKind::Component(_) => {
                 panic!("no elements on a component")
             }
@@ -507,6 +532,7 @@ impl<'a> TypesRef<'a> {
     pub fn element_count(&self) -> u32 {
         match &self.kind {
             TypesRefKind::Module(module) => module.element_types.len() as u32,
+            #[cfg(feature = "component-model")]
             TypesRefKind::Component(_) => 0,
         }
     }
@@ -521,6 +547,7 @@ impl<'a> TypesRef<'a> {
                 TypeRef::Global(ty) => EntityType::Global(ty),
                 TypeRef::Tag(ty) => EntityType::Tag(*module.types.get(ty.func_type_idx as usize)?),
             }),
+            #[cfg(feature = "component-model")]
             TypesRefKind::Component(_) => None,
         }
     }
@@ -545,6 +572,7 @@ impl<'a> TypesRef<'a> {
                     module.types[*module.functions.get(export.index as usize)? as usize],
                 ),
             }),
+            #[cfg(feature = "component-model")]
             TypesRefKind::Component(_) => None,
         }
     }
@@ -562,6 +590,7 @@ impl<'a> TypesRef<'a> {
                     .iter()
                     .flat_map(|((m, n), t)| t.iter().map(move |t| (m.as_str(), n.as_str(), *t))),
             ),
+            #[cfg(feature = "component-model")]
             TypesRefKind::Component(_) => None,
         }
     }
@@ -574,6 +603,7 @@ impl<'a> TypesRef<'a> {
             TypesRefKind::Module(module) => {
                 Some(module.exports.iter().map(|(n, t)| (n.as_str(), *t)))
             }
+            #[cfg(feature = "component-model")]
             TypesRefKind::Component(_) => None,
         }
     }
@@ -599,6 +629,7 @@ impl Types {
         }
     }
 
+    #[cfg(feature = "component-model")]
     pub(crate) fn from_component(
         id: ValidatorId,
         types: TypeList,
@@ -618,6 +649,7 @@ impl Types {
             list: &self.list,
             kind: match &self.kind {
                 TypesKind::Module(module) => TypesRefKind::Module(module),
+                #[cfg(feature = "component-model")]
                 TypesKind::Component(component) => TypesRefKind::Component(component),
             },
         }
@@ -707,6 +739,7 @@ impl<T> SnapshotList<T> {
     }
 
     /// Same as `Vec::truncate` but can only truncate uncommitted elements.
+    #[cfg(feature = "component-model")]
     pub(crate) fn truncate(&mut self, len: usize) {
         assert!(len >= self.snapshots_total);
         self.cur.truncate(len - self.snapshots_total);
@@ -808,6 +841,7 @@ pub struct TypeList {
     // can happen.
     pub(super) canonical_rec_groups: Option<Map<RecGroup, RecGroupId>>,
 
+    #[cfg(feature = "component-model")]
     pub(super) component: ComponentTypeList,
 }
 
@@ -1185,6 +1219,7 @@ impl TypeList {
             core_type_to_depth: None,
             rec_group_elements: self.rec_group_elements.commit(),
             canonical_rec_groups: None,
+            #[cfg(feature = "component-model")]
             component: self.component.commit(),
         }
     }
@@ -1206,6 +1241,7 @@ where
 /// types contained within this list.
 pub(crate) struct TypeAlloc {
     list: TypeList,
+    #[cfg(feature = "component-model")]
     pub(super) component_alloc: ComponentTypeAlloc,
 }
 
@@ -1213,6 +1249,7 @@ impl Default for TypeAlloc {
     fn default() -> TypeAlloc {
         let mut ret = TypeAlloc {
             list: TypeList::default(),
+            #[cfg(feature = "component-model")]
             component_alloc: ComponentTypeAlloc::default(),
         };
         ret.list.core_type_to_depth = Some(Default::default());

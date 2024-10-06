@@ -18,9 +18,11 @@ use ::core::fmt;
 use ::core::marker;
 use ::core::ops::Range;
 
+#[cfg(feature = "component-model")]
 mod component;
 mod core;
 
+#[cfg(feature = "component-model")]
 pub use self::component::*;
 pub use self::core::*;
 
