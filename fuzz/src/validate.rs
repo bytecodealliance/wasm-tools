@@ -102,6 +102,8 @@ fn validate_all(u: &mut Unstructured<'_>, mut validator: Validator, wasm: &[u8])
 
             // No associated range.
             End(_) => {}
+
+            _ => {}
         }
     }
 
