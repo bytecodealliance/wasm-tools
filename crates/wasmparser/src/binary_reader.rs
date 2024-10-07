@@ -110,7 +110,7 @@ impl BinaryReaderError {
         self.inner.offset
     }
 
-    #[cfg(feature = "validate")]
+    #[cfg(all(feature = "validate", feature = "component-model"))]
     pub(crate) fn add_context(&mut self, context: String) {
         self.inner.message = format!("{context}\n{}", self.inner.message);
     }

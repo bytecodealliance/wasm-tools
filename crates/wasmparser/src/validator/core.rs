@@ -552,7 +552,7 @@ pub(crate) struct Module {
 }
 
 impl Module {
-    pub fn add_types(
+    pub(crate) fn add_types(
         &mut self,
         rec_group: RecGroup,
         features: &WasmFeatures,
@@ -862,6 +862,7 @@ impl Module {
         Ok(())
     }
 
+    #[cfg(feature = "component-model")]
     pub(crate) fn imports_for_module_type(
         &self,
         offset: usize,

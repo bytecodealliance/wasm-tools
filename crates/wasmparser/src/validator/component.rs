@@ -2,22 +2,20 @@
 
 use super::{
     check_max,
-    core::{InternRecGroup, Module},
-    types::{
-        AliasableResourceId, ComponentCoreInstanceTypeId, ComponentDefinedTypeId,
-        ComponentFuncType, ComponentFuncTypeId, ComponentInstanceType, ComponentInstanceTypeId,
-        ComponentType, ComponentTypeId, ComponentValType, CoreTypeId, EntityType, InstanceType,
-        ModuleType, RecordType, Remapping, ResourceId, TypeAlloc, TypeList, VariantCase,
+    component_types::{
+        AliasableResourceId, ComponentAnyTypeId, ComponentCoreInstanceTypeId,
+        ComponentCoreModuleTypeId, ComponentCoreTypeId, ComponentDefinedType,
+        ComponentDefinedTypeId, ComponentEntityType, ComponentFuncType, ComponentFuncTypeId,
+        ComponentInstanceType, ComponentInstanceTypeId, ComponentType, ComponentTypeId,
+        ComponentValType, Context, CoreInstanceTypeKind, InstanceType, LoweringInfo, ModuleType,
+        RecordType, Remap, Remapping, ResourceId, SubtypeCx, TupleType, VariantCase, VariantType,
     },
+    core::{InternRecGroup, Module},
+    types::{CoreTypeId, EntityType, TypeAlloc, TypeInfo, TypeList},
 };
 use crate::collections::index_map::Entry;
 use crate::limits::*;
 use crate::prelude::*;
-use crate::types::{
-    ComponentAnyTypeId, ComponentCoreModuleTypeId, ComponentCoreTypeId, ComponentDefinedType,
-    ComponentEntityType, Context, CoreInstanceTypeKind, LoweringInfo, Remap, SubtypeCx, TupleType,
-    TypeInfo, VariantType,
-};
 use crate::validator::names::{ComponentName, ComponentNameKind, KebabStr, KebabString};
 use crate::{
     BinaryReaderError, CanonicalOption, ComponentExportName, ComponentExternalKind,

@@ -628,7 +628,10 @@ impl Printer<'_, '_> {
                     }
                 }
 
-                Payload::UnknownSection { id, .. } => bail!("found unknown section `{}`", id),
+                other => match other.as_section() {
+                    Some((id, _)) => bail!("found unknown section `{}`", id),
+                    None => bail!("found unknown payload"),
+                },
             }
         }
 
@@ -2813,13 +2816,7 @@ impl Printer<'_, '_> {
 
             // Custom sections without a text format at this time and unknown
             // custom sections get a `@custom` annotation printed.
-            KnownCustom::CoreDump(_)
-            | KnownCustom::CoreDumpModules(_)
-            | KnownCustom::CoreDumpStack(_)
-            | KnownCustom::CoreDumpInstances(_)
-            | KnownCustom::Linking(_)
-            | KnownCustom::Reloc(_)
-            | KnownCustom::Unknown => self.print_raw_custom_section(state, section),
+            _ => self.print_raw_custom_section(state, section),
         }
     }
 

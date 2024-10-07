@@ -5,9 +5,13 @@ use std::mem;
 use std::{collections::HashMap, io::Read};
 use wasmparser::Chunk;
 use wasmparser::{
+    component_types::{
+        ComponentAnyTypeId, ComponentDefinedType, ComponentEntityType, ComponentFuncType,
+        ComponentInstanceType, ComponentType, ComponentValType,
+    },
     names::{ComponentName, ComponentNameKind},
     types,
-    types::ComponentAnyTypeId,
+    types::Types,
     ComponentExternalKind, Parser, Payload, PrimitiveValType, ValidPayload, Validator,
 };
 
@@ -158,7 +162,7 @@ impl ComponentInfo {
             match export.kind {
                 ComponentExternalKind::Type => matches!(
                     self.types.as_ref().component_any_type_at(export.index),
-                    types::ComponentAnyTypeId::Component(_)
+                    ComponentAnyTypeId::Component(_)
                 ),
                 _ => false,
             }
@@ -243,12 +247,12 @@ impl ComponentInfo {
             let name = component.exports.keys().nth(0).unwrap();
 
             let name = match component.exports[name] {
-                types::ComponentEntityType::Component(ty) => {
+                ComponentEntityType::Component(ty) => {
                     let package_name =
                         decoder.decode_world(name.as_str(), &self.types[ty], &mut fields)?;
                     package_name
                 }
-                types::ComponentEntityType::Instance(ty) => {
+                ComponentEntityType::Instance(ty) => {
                     let package_name = decoder.decode_interface(
                         name.as_str(),
                         &component.imports,
@@ -467,7 +471,7 @@ pub fn decode_world(wasm: &[u8]) -> Result<(Resolve, WorldId)> {
     assert_eq!(ty.exports.len(), 1);
     let name = ty.exports.keys().nth(0).unwrap();
     let ty = match ty.exports[0] {
-        types::ComponentEntityType::Component(ty) => ty,
+        ComponentEntityType::Component(ty) => ty,
         _ => unreachable!(),
     };
     let name = decoder.decode_world(
@@ -497,7 +501,7 @@ struct PackageFields<'a> {
 
 struct WitPackageDecoder<'a> {
     resolve: Resolve,
-    types: &'a types::Types,
+    types: &'a Types,
     foreign_packages: IndexMap<String, Package>,
     iface_to_package_index: HashMap<InterfaceId, usize>,
     named_interfaces: HashMap<String, InterfaceId>,
@@ -512,11 +516,11 @@ struct WitPackageDecoder<'a> {
     resources: HashMap<TypeOwner, HashMap<String, TypeId>>,
 
     /// A map from a type id to what it's been translated to.
-    type_map: HashMap<types::ComponentAnyTypeId, TypeId>,
+    type_map: HashMap<ComponentAnyTypeId, TypeId>,
 }
 
 impl WitPackageDecoder<'_> {
-    fn new<'a>(types: &'a types::Types) -> WitPackageDecoder<'a> {
+    fn new<'a>(types: &'a Types) -> WitPackageDecoder<'a> {
         WitPackageDecoder {
             resolve: Resolve::default(),
             types,
@@ -528,16 +532,12 @@ impl WitPackageDecoder<'_> {
         }
     }
 
-    fn decode_v1_package(
-        &mut self,
-        name: &ComponentName,
-        ty: &types::ComponentType,
-    ) -> Result<Package> {
+    fn decode_v1_package(&mut self, name: &ComponentName, ty: &ComponentType) -> Result<Package> {
         // Process all imports for this package first, where imports are
         // importing from remote packages.
         for (name, ty) in ty.imports.iter() {
             let ty = match ty {
-                types::ComponentEntityType::Instance(idx) => &self.types[*idx],
+                ComponentEntityType::Instance(idx) => &self.types[*idx],
                 _ => bail!("import `{name}` is not an instance"),
             };
             self.register_import(name, ty)
@@ -566,12 +566,12 @@ impl WitPackageDecoder<'_> {
 
         for (name, ty) in ty.exports.iter() {
             match ty {
-                types::ComponentEntityType::Instance(idx) => {
+                ComponentEntityType::Instance(idx) => {
                     let ty = &self.types[*idx];
                     self.register_interface(name.as_str(), ty, &mut fields)
                         .with_context(|| format!("failed to process export `{name}`"))?;
                 }
-                types::ComponentEntityType::Component(idx) => {
+                ComponentEntityType::Component(idx) => {
                     let ty = &self.types[*idx];
                     self.register_world(name.as_str(), ty, &mut fields)
                         .with_context(|| format!("failed to process export `{name}`"))?;
@@ -585,8 +585,8 @@ impl WitPackageDecoder<'_> {
     fn decode_interface<'a>(
         &mut self,
         name: &str,
-        imports: &wasmparser::collections::IndexMap<String, types::ComponentEntityType>,
-        ty: &types::ComponentInstanceType,
+        imports: &wasmparser::collections::IndexMap<String, ComponentEntityType>,
+        ty: &ComponentInstanceType,
         fields: &mut PackageFields<'a>,
     ) -> Result<PackageName> {
         let component_name = self
@@ -600,7 +600,7 @@ impl WitPackageDecoder<'_> {
 
         for (name, ty) in imports.iter() {
             let ty = match ty {
-                types::ComponentEntityType::Instance(idx) => &self.types[*idx],
+                ComponentEntityType::Instance(idx) => &self.types[*idx],
                 _ => bail!("import `{name}` is not an instance"),
             };
             self.register_import(name, ty)
@@ -615,7 +615,7 @@ impl WitPackageDecoder<'_> {
     fn decode_world<'a>(
         &mut self,
         name: &str,
-        ty: &types::ComponentType,
+        ty: &ComponentType,
         fields: &mut PackageFields<'a>,
     ) -> Result<PackageName> {
         let kebab_name = self
@@ -646,7 +646,7 @@ impl WitPackageDecoder<'_> {
             .unwrap();
         let owner = TypeOwner::World(world);
         let (name, item) = match ty {
-            types::ComponentEntityType::Instance(i) => {
+            ComponentEntityType::Instance(i) => {
                 let ty = &self.types[i];
                 let (name, id) = if name.contains('/') {
                     let id = self.register_import(name, ty)?;
@@ -663,14 +663,14 @@ impl WitPackageDecoder<'_> {
                     },
                 )
             }
-            types::ComponentEntityType::Func(i) => {
+            ComponentEntityType::Func(i) => {
                 let ty = &self.types[i];
                 let func = self
                     .convert_function(name, ty, owner)
                     .with_context(|| format!("failed to decode function from import `{name}`"))?;
                 (WorldKey::Name(name.to_string()), WorldItem::Function(func))
             }
-            types::ComponentEntityType::Type {
+            ComponentEntityType::Type {
                 referenced,
                 created,
             } => {
@@ -697,7 +697,7 @@ impl WitPackageDecoder<'_> {
         let types = self.types.as_ref();
         let ty = types.component_entity_type_of_export(name).unwrap();
         let (name, item) = match ty {
-            types::ComponentEntityType::Func(i) => {
+            ComponentEntityType::Func(i) => {
                 let ty = &types[i];
                 let func = self
                     .convert_function(name, ty, TypeOwner::World(world))
@@ -705,7 +705,7 @@ impl WitPackageDecoder<'_> {
 
                 (WorldKey::Name(name.to_string()), WorldItem::Function(func))
             }
-            types::ComponentEntityType::Instance(i) => {
+            ComponentEntityType::Instance(i) => {
                 let ty = &types[i];
                 let (name, id) = if name.contains('/') {
                     let id = self.register_import(name, ty)?;
@@ -739,11 +739,7 @@ impl WitPackageDecoder<'_> {
     /// dependency the foreign package structure, types, etc, all need to be
     /// created. For a local dependency it's instead ensured that all the types
     /// line up with the previous definitions.
-    fn register_import(
-        &mut self,
-        name: &str,
-        ty: &types::ComponentInstanceType,
-    ) -> Result<InterfaceId> {
+    fn register_import(&mut self, name: &str, ty: &ComponentInstanceType) -> Result<InterfaceId> {
         let (is_local, interface) = match self.named_interfaces.get(name) {
             Some(id) => (true, *id),
             None => (false, self.extract_dep_interface(name)?),
@@ -752,7 +748,7 @@ impl WitPackageDecoder<'_> {
         for (name, ty) in ty.exports.iter() {
             log::debug!("decoding import instance export `{name}`");
             match *ty {
-                types::ComponentEntityType::Type {
+                ComponentEntityType::Type {
                     referenced,
                     created,
                 } => {
@@ -781,10 +777,10 @@ impl WitPackageDecoder<'_> {
                         Some(id) => {
                             log::debug!("type already exist");
                             match referenced {
-                                types::ComponentAnyTypeId::Defined(ty) => {
+                                ComponentAnyTypeId::Defined(ty) => {
                                     self.register_defined(id, &self.types[ty])?;
                                 }
-                                types::ComponentAnyTypeId::Resource(_) => {}
+                                ComponentAnyTypeId::Resource(_) => {}
                                 _ => unreachable!(),
                             }
                             let prev = self.type_map.insert(created, id);
@@ -825,7 +821,7 @@ impl WitPackageDecoder<'_> {
                 // This has similar logic to types above where we lazily fill in
                 // functions for remote dependencies and otherwise assert
                 // they're already defined for local dependencies.
-                types::ComponentEntityType::Func(ty) => {
+                ComponentEntityType::Func(ty) => {
                     let def = &self.types[ty];
                     if self.resolve.interfaces[interface]
                         .functions
@@ -852,7 +848,7 @@ impl WitPackageDecoder<'_> {
         Ok(interface)
     }
 
-    fn find_alias(&self, id: types::ComponentAnyTypeId) -> Option<TypeId> {
+    fn find_alias(&self, id: ComponentAnyTypeId) -> Option<TypeId> {
         // Consult `type_map` for `referenced` or anything in its
         // chain of aliases to determine what it maps to. This may
         // bottom out in `None` in the case that this type is
@@ -933,7 +929,7 @@ impl WitPackageDecoder<'_> {
     fn register_interface<'a>(
         &mut self,
         name: &str,
-        ty: &types::ComponentInstanceType,
+        ty: &ComponentInstanceType,
         package: &mut PackageFields<'a>,
     ) -> Result<(WorldKey, InterfaceId)> {
         // If this interface's name is already known then that means this is an
@@ -961,7 +957,7 @@ impl WitPackageDecoder<'_> {
         let owner = TypeOwner::Interface(self.resolve.interfaces.next_id());
         for (name, ty) in ty.exports.iter() {
             match *ty {
-                types::ComponentEntityType::Type {
+                ComponentEntityType::Type {
                     referenced,
                     created,
                 } => {
@@ -972,7 +968,7 @@ impl WitPackageDecoder<'_> {
                     assert!(prev.is_none());
                 }
 
-                types::ComponentEntityType::Func(ty) => {
+                ComponentEntityType::Func(ty) => {
                     let ty = &self.types[ty];
                     let func = self
                         .convert_function(name.as_str(), ty, owner)
@@ -1021,8 +1017,8 @@ impl WitPackageDecoder<'_> {
         &mut self,
         name: &str,
         owner: TypeOwner,
-        referenced: types::ComponentAnyTypeId,
-        created: types::ComponentAnyTypeId,
+        referenced: ComponentAnyTypeId,
+        created: ComponentAnyTypeId,
     ) -> Result<TypeId> {
         let kind = match self.find_alias(referenced) {
             // If this `TypeId` points to a type which has
@@ -1038,10 +1034,10 @@ impl WitPackageDecoder<'_> {
             None => {
                 log::debug!("type export for `{name}` is a new type");
                 match referenced {
-                    types::ComponentAnyTypeId::Defined(ty) => self
+                    ComponentAnyTypeId::Defined(ty) => self
                         .convert_defined(&self.types[ty])
                         .context("failed to convert unaliased type")?,
-                    types::ComponentAnyTypeId::Resource(_) => TypeDefKind::Resource,
+                    ComponentAnyTypeId::Resource(_) => TypeDefKind::Resource,
                     _ => unreachable!(),
                 }
             }
@@ -1074,7 +1070,7 @@ impl WitPackageDecoder<'_> {
     fn register_world<'a>(
         &mut self,
         name: &str,
-        ty: &types::ComponentType,
+        ty: &ComponentType,
         package: &mut PackageFields<'a>,
     ) -> Result<WorldId> {
         let name = self
@@ -1094,7 +1090,7 @@ impl WitPackageDecoder<'_> {
         let owner = TypeOwner::World(self.resolve.worlds.next_id());
         for (name, ty) in ty.imports.iter() {
             let (name, item) = match ty {
-                types::ComponentEntityType::Instance(idx) => {
+                ComponentEntityType::Instance(idx) => {
                     let ty = &self.types[*idx];
                     let (name, id) = if name.contains('/') {
                         // If a name is an interface import then it is either to
@@ -1117,7 +1113,7 @@ impl WitPackageDecoder<'_> {
                         },
                     )
                 }
-                types::ComponentEntityType::Type {
+                ComponentEntityType::Type {
                     created,
                     referenced,
                 } => {
@@ -1125,7 +1121,7 @@ impl WitPackageDecoder<'_> {
                         self.register_type_export(name.as_str(), owner, *referenced, *created)?;
                     (WorldKey::Name(name.to_string()), WorldItem::Type(ty))
                 }
-                types::ComponentEntityType::Func(idx) => {
+                ComponentEntityType::Func(idx) => {
                     let ty = &self.types[*idx];
                     let func = self.convert_function(name.as_str(), ty, owner)?;
                     (WorldKey::Name(name.to_string()), WorldItem::Function(func))
@@ -1137,7 +1133,7 @@ impl WitPackageDecoder<'_> {
 
         for (name, ty) in ty.exports.iter() {
             let (name, item) = match ty {
-                types::ComponentEntityType::Instance(idx) => {
+                ComponentEntityType::Instance(idx) => {
                     let ty = &self.types[*idx];
                     let (name, id) = if name.contains('/') {
                         // Note that despite this being an export this is
@@ -1160,7 +1156,7 @@ impl WitPackageDecoder<'_> {
                     )
                 }
 
-                types::ComponentEntityType::Func(idx) => {
+                ComponentEntityType::Func(idx) => {
                     let ty = &self.types[*idx];
                     let func = self.convert_function(name.as_str(), ty, owner)?;
                     (WorldKey::Name(name.to_string()), WorldItem::Function(func))
@@ -1179,7 +1175,7 @@ impl WitPackageDecoder<'_> {
     fn convert_function(
         &mut self,
         name: &str,
-        ty: &types::ComponentFuncType,
+        ty: &ComponentFuncType,
         owner: TypeOwner,
     ) -> Result<Function> {
         let name = ComponentName::new(name, 0).unwrap();
@@ -1240,10 +1236,10 @@ impl WitPackageDecoder<'_> {
         })
     }
 
-    fn convert_valtype(&mut self, ty: &types::ComponentValType) -> Result<Type> {
+    fn convert_valtype(&mut self, ty: &ComponentValType) -> Result<Type> {
         let id = match ty {
-            types::ComponentValType::Primitive(ty) => return Ok(self.convert_primitive(*ty)),
-            types::ComponentValType::Type(id) => *id,
+            ComponentValType::Primitive(ty) => return Ok(self.convert_primitive(*ty)),
+            ComponentValType::Type(id) => *id,
         };
 
         // Don't create duplicate types for anything previously created.
@@ -1292,18 +1288,16 @@ impl WitPackageDecoder<'_> {
     /// Converts a wasmparser `ComponentDefinedType`, the definition of a type
     /// in the component model, to a WIT `TypeDefKind` to get inserted into the
     /// types arena by the caller.
-    fn convert_defined(&mut self, ty: &types::ComponentDefinedType) -> Result<TypeDefKind> {
+    fn convert_defined(&mut self, ty: &ComponentDefinedType) -> Result<TypeDefKind> {
         match ty {
-            types::ComponentDefinedType::Primitive(t) => {
-                Ok(TypeDefKind::Type(self.convert_primitive(*t)))
-            }
+            ComponentDefinedType::Primitive(t) => Ok(TypeDefKind::Type(self.convert_primitive(*t))),
 
-            types::ComponentDefinedType::List(t) => {
+            ComponentDefinedType::List(t) => {
                 let t = self.convert_valtype(t)?;
                 Ok(TypeDefKind::List(t))
             }
 
-            types::ComponentDefinedType::Tuple(t) => {
+            ComponentDefinedType::Tuple(t) => {
                 let types = t
                     .types
                     .iter()
@@ -1312,12 +1306,12 @@ impl WitPackageDecoder<'_> {
                 Ok(TypeDefKind::Tuple(Tuple { types }))
             }
 
-            types::ComponentDefinedType::Option(t) => {
+            ComponentDefinedType::Option(t) => {
                 let t = self.convert_valtype(t)?;
                 Ok(TypeDefKind::Option(t))
             }
 
-            types::ComponentDefinedType::Result { ok, err } => {
+            ComponentDefinedType::Result { ok, err } => {
                 let ok = match ok {
                     Some(t) => Some(self.convert_valtype(t)?),
                     None => None,
@@ -1329,7 +1323,7 @@ impl WitPackageDecoder<'_> {
                 Ok(TypeDefKind::Result(Result_ { ok, err }))
             }
 
-            types::ComponentDefinedType::Record(r) => {
+            ComponentDefinedType::Record(r) => {
                 let fields = r
                     .fields
                     .iter()
@@ -1346,7 +1340,7 @@ impl WitPackageDecoder<'_> {
                 Ok(TypeDefKind::Record(Record { fields }))
             }
 
-            types::ComponentDefinedType::Variant(v) => {
+            ComponentDefinedType::Variant(v) => {
                 let cases = v
                     .cases
                     .iter()
@@ -1367,7 +1361,7 @@ impl WitPackageDecoder<'_> {
                 Ok(TypeDefKind::Variant(Variant { cases }))
             }
 
-            types::ComponentDefinedType::Flags(f) => {
+            ComponentDefinedType::Flags(f) => {
                 let flags = f
                     .iter()
                     .map(|name| Flag {
@@ -1378,7 +1372,7 @@ impl WitPackageDecoder<'_> {
                 Ok(TypeDefKind::Flags(Flags { flags }))
             }
 
-            types::ComponentDefinedType::Enum(e) => {
+            ComponentDefinedType::Enum(e) => {
                 let cases = e
                     .iter()
                     .cloned()
@@ -1390,12 +1384,12 @@ impl WitPackageDecoder<'_> {
                 Ok(TypeDefKind::Enum(Enum { cases }))
             }
 
-            types::ComponentDefinedType::Own(id) => {
+            ComponentDefinedType::Own(id) => {
                 let id = self.type_map[&(*id).into()];
                 Ok(TypeDefKind::Handle(Handle::Own(id)))
             }
 
-            types::ComponentDefinedType::Borrow(id) => {
+            ComponentDefinedType::Borrow(id) => {
                 let id = self.type_map[&(*id).into()];
                 Ok(TypeDefKind::Handle(Handle::Borrow(id)))
             }
@@ -1420,7 +1414,7 @@ impl WitPackageDecoder<'_> {
         }
     }
 
-    fn register_defined(&mut self, id: TypeId, def: &types::ComponentDefinedType) -> Result<()> {
+    fn register_defined(&mut self, id: TypeId, def: &ComponentDefinedType) -> Result<()> {
         Registrar {
             types: &self.types,
             type_map: &mut self.type_map,
@@ -1558,19 +1552,19 @@ impl WitPackageDecoder<'_> {
 /// Helper type to register the structure of a wasm-defined type against a
 /// wit-defined type.
 struct Registrar<'a> {
-    types: &'a types::Types,
-    type_map: &'a mut HashMap<types::ComponentAnyTypeId, TypeId>,
+    types: &'a Types,
+    type_map: &'a mut HashMap<ComponentAnyTypeId, TypeId>,
     resolve: &'a Resolve,
 }
 
 impl Registrar<'_> {
     /// Verifies that the wasm structure of `def` matches the wit structure of
     /// `id` and recursively registers types.
-    fn defined(&mut self, id: TypeId, def: &types::ComponentDefinedType) -> Result<()> {
+    fn defined(&mut self, id: TypeId, def: &ComponentDefinedType) -> Result<()> {
         match def {
-            types::ComponentDefinedType::Primitive(_) => Ok(()),
+            ComponentDefinedType::Primitive(_) => Ok(()),
 
-            types::ComponentDefinedType::List(t) => {
+            ComponentDefinedType::List(t) => {
                 let ty = match &self.resolve.types[id].kind {
                     TypeDefKind::List(r) => r,
                     // Note that all cases below have this match and the general
@@ -1586,7 +1580,7 @@ impl Registrar<'_> {
                 self.valtype(t, ty)
             }
 
-            types::ComponentDefinedType::Tuple(t) => {
+            ComponentDefinedType::Tuple(t) => {
                 let ty = match &self.resolve.types[id].kind {
                     TypeDefKind::Tuple(r) => r,
                     TypeDefKind::Type(Type::Id(_)) => return Ok(()),
@@ -1601,7 +1595,7 @@ impl Registrar<'_> {
                 Ok(())
             }
 
-            types::ComponentDefinedType::Option(t) => {
+            ComponentDefinedType::Option(t) => {
                 let ty = match &self.resolve.types[id].kind {
                     TypeDefKind::Option(r) => r,
                     TypeDefKind::Type(Type::Id(_)) => return Ok(()),
@@ -1610,7 +1604,7 @@ impl Registrar<'_> {
                 self.valtype(t, ty)
             }
 
-            types::ComponentDefinedType::Result { ok, err } => {
+            ComponentDefinedType::Result { ok, err } => {
                 let ty = match &self.resolve.types[id].kind {
                     TypeDefKind::Result(r) => r,
                     TypeDefKind::Type(Type::Id(_)) => return Ok(()),
@@ -1629,7 +1623,7 @@ impl Registrar<'_> {
                 Ok(())
             }
 
-            types::ComponentDefinedType::Record(def) => {
+            ComponentDefinedType::Record(def) => {
                 let ty = match &self.resolve.types[id].kind {
                     TypeDefKind::Record(r) => r,
                     TypeDefKind::Type(Type::Id(_)) => return Ok(()),
@@ -1647,7 +1641,7 @@ impl Registrar<'_> {
                 Ok(())
             }
 
-            types::ComponentDefinedType::Variant(def) => {
+            ComponentDefinedType::Variant(def) => {
                 let ty = match &self.resolve.types[id].kind {
                     TypeDefKind::Variant(r) => r,
                     TypeDefKind::Type(Type::Id(_)) => return Ok(()),
@@ -1670,17 +1664,17 @@ impl Registrar<'_> {
             }
 
             // These have no recursive structure so they can bail out.
-            types::ComponentDefinedType::Flags(_)
-            | types::ComponentDefinedType::Enum(_)
-            | types::ComponentDefinedType::Own(_)
-            | types::ComponentDefinedType::Borrow(_) => Ok(()),
+            ComponentDefinedType::Flags(_)
+            | ComponentDefinedType::Enum(_)
+            | ComponentDefinedType::Own(_)
+            | ComponentDefinedType::Borrow(_) => Ok(()),
         }
     }
 
-    fn valtype(&mut self, wasm: &types::ComponentValType, wit: &Type) -> Result<()> {
+    fn valtype(&mut self, wasm: &ComponentValType, wit: &Type) -> Result<()> {
         let wasm = match wasm {
-            types::ComponentValType::Type(wasm) => *wasm,
-            types::ComponentValType::Primitive(_wasm) => {
+            ComponentValType::Type(wasm) => *wasm,
+            ComponentValType::Primitive(_wasm) => {
                 assert!(!matches!(wit, Type::Id(_)));
                 return Ok(());
             }

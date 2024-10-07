@@ -699,7 +699,7 @@ impl FuncType {
         &mut self.params_results[self.len_params..]
     }
 
-    #[cfg(feature = "validate")]
+    #[cfg(all(feature = "validate", feature = "component-model"))]
     pub(crate) fn desc(&self) -> String {
         use core::fmt::Write;
 

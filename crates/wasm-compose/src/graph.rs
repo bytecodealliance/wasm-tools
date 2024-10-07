@@ -11,11 +11,12 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 use wasmparser::{
-    names::ComponentName,
-    types::{
+    component_types::{
         ComponentAnyTypeId, ComponentEntityType, ComponentInstanceTypeId, Remap, Remapping,
-        ResourceId, SubtypeCx, Types, TypesRef,
+        ResourceId, SubtypeCx,
     },
+    names::ComponentName,
+    types::{Types, TypesRef},
     Chunk, ComponentExternalKind, ComponentTypeRef, Encoding, Parser, Payload, ValidPayload,
     Validator,
 };

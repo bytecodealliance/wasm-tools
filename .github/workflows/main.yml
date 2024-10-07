@@ -245,6 +245,10 @@ jobs:
       - run: cargo check --no-default-features -p wasmparser --features no-hash-maps
       - run: cargo check --no-default-features -p wasmparser --features serde
       - run: cargo check --no-default-features -p wasmparser --features serde,no-hash-maps
+      - run: cargo check --no-default-features -p wasmparser --features component-model
+      - run: cargo check --no-default-features -p wasmparser --features component-model,validate
+      - run: cargo check --no-default-features -p wasmparser --features std,component-model
+      - run: cargo check --no-default-features -p wasmparser --features std,component-model,validate
       - run: cargo check --no-default-features -p wast
       - run: cargo check --no-default-features -p wast --features wasm-module
       - run: cargo check --no-default-features -p wast --features wasm-module,component-model

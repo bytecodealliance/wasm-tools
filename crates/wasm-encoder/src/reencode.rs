@@ -602,6 +602,7 @@ impl Reencode for RoundtripReencoder {
 pub mod utils {
     use super::{Error, Reencode};
     use crate::{CoreTypeEncoder, Encode};
+    use std::ops::Range;
 
     pub fn parse_core_module<T: ?Sized + Reencode>(
         reencoder: &mut T,
@@ -620,7 +621,17 @@ pub mod utils {
             reencoder.intersperse_section_hook(module, after, before)
         }
 
+        // Convert from `range` to a byte range within `data` while
+        // accounting for various offsets. Then create a
+        // `CodeSectionReader` (which notably the payload does not
+        // give us here) and recurse with that. This means that
+        // users overridding `parse_code_section` always get that
+        // function called.
         let orig_offset = parser.offset() as usize;
+        let get_original_section = |range: Range<usize>| {
+            data.get(range.start - orig_offset..range.end - orig_offset)
+                .ok_or(Error::InvalidCodeSectionSize)
+        };
         let mut last_section = None;
 
         for section in parser.parse_all(data) {
@@ -778,11 +789,7 @@ pub mod utils {
                     // give us here) and recurse with that. This means that
                     // users overridding `parse_code_section` always get that
                     // function called.
-                    let section = match data.get(range.start - orig_offset..range.end - orig_offset)
-                    {
-                        Some(section) => section,
-                        None => return Err(Error::InvalidCodeSectionSize),
-                    };
+                    let section = get_original_section(range.clone())?;
                     let reader = wasmparser::BinaryReader::new(section, range.start);
                     let section = wasmparser::CodeSectionReader::new(reader)?;
                     reencoder.parse_code_section(&mut codes, section)?;
@@ -794,6 +801,7 @@ pub mod utils {
                 // that we just skip all these payloads.
                 wasmparser::Payload::CodeSectionEntry(_) => {}
 
+                #[cfg(feature = "component-model")]
                 wasmparser::Payload::ModuleSection { .. }
                 | wasmparser::Payload::InstanceSection(_)
                 | wasmparser::Payload::CoreTypeSection(_)
@@ -810,12 +818,17 @@ pub mod utils {
                 wasmparser::Payload::CustomSection(section) => {
                     reencoder.parse_custom_section(module, section)?;
                 }
-                wasmparser::Payload::UnknownSection { id, contents, .. } => {
-                    reencoder.parse_unknown_section(module, id, contents)?;
-                }
                 wasmparser::Payload::End(_) => {
                     handle_intersperse_section_hook(reencoder, module, &mut last_section, None)?;
                 }
+
+                other => match other.as_section() {
+                    Some((id, range)) => {
+                        let section = get_original_section(range)?;
+                        reencoder.parse_unknown_section(module, id, section)?;
+                    }
+                    None => unreachable!(),
+                },
             }
         }
 

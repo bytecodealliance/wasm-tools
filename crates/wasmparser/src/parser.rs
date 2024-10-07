@@ -1,15 +1,18 @@
 use crate::binary_reader::WASM_MAGIC_NUMBER;
 use crate::prelude::*;
-use crate::CoreTypeSectionReader;
 #[cfg(feature = "features")]
 use crate::WasmFeatures;
+#[cfg(feature = "component-model")]
 use crate::{
-    limits::MAX_WASM_MODULE_SIZE, BinaryReader, BinaryReaderError, ComponentCanonicalSectionReader,
-    ComponentExportSectionReader, ComponentImportSectionReader, ComponentInstanceSectionReader,
-    ComponentStartFunction, ComponentTypeSectionReader, CustomSectionReader, DataSectionReader,
-    ElementSectionReader, ExportSectionReader, FromReader, FunctionBody, FunctionSectionReader,
-    GlobalSectionReader, ImportSectionReader, InstanceSectionReader, MemorySectionReader, Result,
-    SectionLimited, TableSectionReader, TagSectionReader, TypeSectionReader,
+    limits::MAX_WASM_MODULE_SIZE, ComponentCanonicalSectionReader, ComponentExportSectionReader,
+    ComponentImportSectionReader, ComponentInstanceSectionReader, ComponentStartFunction,
+    ComponentTypeSectionReader, CoreTypeSectionReader, InstanceSectionReader, SectionLimited,
+};
+use crate::{
+    BinaryReader, BinaryReaderError, CustomSectionReader, DataSectionReader, ElementSectionReader,
+    ExportSectionReader, FromReader, FunctionBody, FunctionSectionReader, GlobalSectionReader,
+    ImportSectionReader, MemorySectionReader, Result, TableSectionReader, TagSectionReader,
+    TypeSectionReader,
 };
 use core::fmt;
 use core::iter;
@@ -107,6 +110,7 @@ pub enum Chunk<'a> {
 /// full parse. Each payload returned is intended to be a *window* into the
 /// original `data` passed to [`Parser::parse`] which can be further processed
 /// if necessary.
+#[non_exhaustive]
 pub enum Payload<'a> {
     /// Indicates the header of a WebAssembly module or component.
     Version {
@@ -212,6 +216,7 @@ pub enum Payload<'a> {
     ///
     /// Note that binaries will not be parsed correctly if you feed the data for
     /// a nested module into the parent [`Parser`].
+    #[cfg(feature = "component-model")]
     ModuleSection {
         /// The parser for the nested module.
         parser: Parser,
@@ -226,11 +231,13 @@ pub enum Payload<'a> {
     /// used to parse the contents of the core instance section.
     ///
     /// Currently this section is only parsed in a component.
+    #[cfg(feature = "component-model")]
     InstanceSection(InstanceSectionReader<'a>),
     /// A core type section was received and the provided parser can be
     /// used to parse the contents of the core type section.
     ///
     /// Currently this section is only parsed in a component.
+    #[cfg(feature = "component-model")]
     CoreTypeSection(CoreTypeSectionReader<'a>),
     /// A component section from a WebAssembly component was received and the
     /// provided parser can be used to parse the nested component.
@@ -244,6 +251,7 @@ pub enum Payload<'a> {
     ///
     /// Note that binaries will not be parsed correctly if you feed the data for
     /// a nested component into the parent [`Parser`].
+    #[cfg(feature = "component-model")]
     ComponentSection {
         /// The parser for the nested component.
         parser: Parser,
@@ -256,17 +264,22 @@ pub enum Payload<'a> {
     },
     /// A component instance section was received and the provided reader can be
     /// used to parse the contents of the component instance section.
+    #[cfg(feature = "component-model")]
     ComponentInstanceSection(ComponentInstanceSectionReader<'a>),
     /// A component alias section was received and the provided reader can be
     /// used to parse the contents of the component alias section.
+    #[cfg(feature = "component-model")]
     ComponentAliasSection(SectionLimited<'a, crate::ComponentAlias<'a>>),
     /// A component type section was received and the provided reader can be
     /// used to parse the contents of the component type section.
+    #[cfg(feature = "component-model")]
     ComponentTypeSection(ComponentTypeSectionReader<'a>),
     /// A component canonical section was received and the provided reader can be
     /// used to parse the contents of the component canonical section.
+    #[cfg(feature = "component-model")]
     ComponentCanonicalSection(ComponentCanonicalSectionReader<'a>),
     /// A component start section was received.
+    #[cfg(feature = "component-model")]
     ComponentStartSection {
         /// The start function description.
         start: ComponentStartFunction,
@@ -275,9 +288,11 @@ pub enum Payload<'a> {
     },
     /// A component import section was received and the provided reader can be
     /// used to parse the contents of the component import section.
+    #[cfg(feature = "component-model")]
     ComponentImportSection(ComponentImportSectionReader<'a>),
     /// A component export section was received, and the provided reader can be
     /// used to parse the contents of the component export section.
+    #[cfg(feature = "component-model")]
     ComponentExportSection(ComponentExportSectionReader<'a>),
 
     /// A module or component custom section was received.
@@ -321,16 +336,27 @@ const DATA_SECTION: u8 = 11;
 const DATA_COUNT_SECTION: u8 = 12;
 const TAG_SECTION: u8 = 13;
 
+#[cfg(feature = "component-model")]
 const COMPONENT_MODULE_SECTION: u8 = 1;
+#[cfg(feature = "component-model")]
 const COMPONENT_CORE_INSTANCE_SECTION: u8 = 2;
+#[cfg(feature = "component-model")]
 const COMPONENT_CORE_TYPE_SECTION: u8 = 3;
+#[cfg(feature = "component-model")]
 const COMPONENT_SECTION: u8 = 4;
+#[cfg(feature = "component-model")]
 const COMPONENT_INSTANCE_SECTION: u8 = 5;
+#[cfg(feature = "component-model")]
 const COMPONENT_ALIAS_SECTION: u8 = 6;
+#[cfg(feature = "component-model")]
 const COMPONENT_TYPE_SECTION: u8 = 7;
+#[cfg(feature = "component-model")]
 const COMPONENT_CANONICAL_SECTION: u8 = 8;
+#[cfg(feature = "component-model")]
 const COMPONENT_START_SECTION: u8 = 9;
+#[cfg(feature = "component-model")]
 const COMPONENT_IMPORT_SECTION: u8 = 10;
+#[cfg(feature = "component-model")]
 const COMPONENT_EXPORT_SECTION: u8 = 11;
 
 impl Parser {
@@ -532,9 +558,6 @@ impl Parser {
     ///
     ///             CustomSection(_) => { /* ... */ }
     ///
-    ///             // most likely you'd return an error here
-    ///             UnknownSection { id, .. } => { /* ... */ }
-    ///
     ///             // Once we've reached the end of a parser we either resume
     ///             // at the parent parser or we break out of the loop because
     ///             // we're done.
@@ -545,6 +568,9 @@ impl Parser {
     ///                     break;
     ///                 }
     ///             }
+    ///
+    ///             // most likely you'd return an error here
+    ///             _ => { /* ... */ }
     ///         }
     ///
     ///         // once we're done processing the payload we can forget the
@@ -715,6 +741,7 @@ impl Parser {
                     }
 
                     // Component sections
+                    #[cfg(feature = "component-model")]
                     (Encoding::Component, COMPONENT_MODULE_SECTION)
                     | (Encoding::Component, COMPONENT_SECTION) => {
                         if len as usize > MAX_WASM_MODULE_SIZE {
@@ -748,43 +775,52 @@ impl Parser {
                             _ => unreachable!(),
                         })
                     }
+                    #[cfg(feature = "component-model")]
                     (Encoding::Component, COMPONENT_CORE_INSTANCE_SECTION) => {
                         section(reader, len, InstanceSectionReader::new, InstanceSection)
                     }
+                    #[cfg(feature = "component-model")]
                     (Encoding::Component, COMPONENT_CORE_TYPE_SECTION) => {
                         section(reader, len, CoreTypeSectionReader::new, CoreTypeSection)
                     }
+                    #[cfg(feature = "component-model")]
                     (Encoding::Component, COMPONENT_INSTANCE_SECTION) => section(
                         reader,
                         len,
                         ComponentInstanceSectionReader::new,
                         ComponentInstanceSection,
                     ),
+                    #[cfg(feature = "component-model")]
                     (Encoding::Component, COMPONENT_ALIAS_SECTION) => {
                         section(reader, len, SectionLimited::new, ComponentAliasSection)
                     }
+                    #[cfg(feature = "component-model")]
                     (Encoding::Component, COMPONENT_TYPE_SECTION) => section(
                         reader,
                         len,
                         ComponentTypeSectionReader::new,
                         ComponentTypeSection,
                     ),
+                    #[cfg(feature = "component-model")]
                     (Encoding::Component, COMPONENT_CANONICAL_SECTION) => section(
                         reader,
                         len,
                         ComponentCanonicalSectionReader::new,
                         ComponentCanonicalSection,
                     ),
+                    #[cfg(feature = "component-model")]
                     (Encoding::Component, COMPONENT_START_SECTION) => {
                         let (start, range) = single_item(reader, len, "component start")?;
                         Ok(ComponentStartSection { start, range })
                     }
+                    #[cfg(feature = "component-model")]
                     (Encoding::Component, COMPONENT_IMPORT_SECTION) => section(
                         reader,
                         len,
                         ComponentImportSectionReader::new,
                         ComponentImportSection,
                     ),
+                    #[cfg(feature = "component-model")]
                     (Encoding::Component, COMPONENT_EXPORT_SECTION) => section(
                         reader,
                         len,
@@ -919,13 +955,19 @@ impl Parser {
     ///
     ///             CustomSection(_) => { /* ... */ }
     ///
-    ///             // most likely you'd return an error here
-    ///             UnknownSection { id, .. } => { /* ... */ }
-    ///
     ///             // Once we've reached the end of a parser we either resume
     ///             // at the parent parser or the payload iterator is at its
     ///             // end and we're done.
     ///             End(_) => {}
+    ///
+    ///             // most likely you'd return an error here, but if you want
+    ///             // you can also inspect the raw contents of unknown sections
+    ///             other => {
+    ///                 match other.as_section() {
+    ///                     Some((id, range)) => { /* ... */ }
+    ///                     None => { /* ... */ }
+    ///                 }
+    ///             }
     ///         }
     ///     }
     ///
@@ -959,6 +1001,7 @@ impl Parser {
             };
 
             match &payload {
+                #[cfg(feature = "component-model")]
                 Payload::ModuleSection { parser, .. }
                 | Payload::ComponentSection { parser, .. } => {
                     stack.push(cur.clone());
@@ -1157,22 +1200,33 @@ impl Payload<'_> {
             CodeSectionStart { range, .. } => Some((CODE_SECTION, range.clone())),
             CodeSectionEntry(_) => None,
 
+            #[cfg(feature = "component-model")]
             ModuleSection {
                 unchecked_range: range,
                 ..
             } => Some((COMPONENT_MODULE_SECTION, range.clone())),
+            #[cfg(feature = "component-model")]
             InstanceSection(s) => Some((COMPONENT_CORE_INSTANCE_SECTION, s.range())),
+            #[cfg(feature = "component-model")]
             CoreTypeSection(s) => Some((COMPONENT_CORE_TYPE_SECTION, s.range())),
+            #[cfg(feature = "component-model")]
             ComponentSection {
                 unchecked_range: range,
                 ..
             } => Some((COMPONENT_SECTION, range.clone())),
+            #[cfg(feature = "component-model")]
             ComponentInstanceSection(s) => Some((COMPONENT_INSTANCE_SECTION, s.range())),
+            #[cfg(feature = "component-model")]
             ComponentAliasSection(s) => Some((COMPONENT_ALIAS_SECTION, s.range())),
+            #[cfg(feature = "component-model")]
             ComponentTypeSection(s) => Some((COMPONENT_TYPE_SECTION, s.range())),
+            #[cfg(feature = "component-model")]
             ComponentCanonicalSection(s) => Some((COMPONENT_CANONICAL_SECTION, s.range())),
+            #[cfg(feature = "component-model")]
             ComponentStartSection { range, .. } => Some((COMPONENT_START_SECTION, range.clone())),
+            #[cfg(feature = "component-model")]
             ComponentImportSection(s) => Some((COMPONENT_IMPORT_SECTION, s.range())),
+            #[cfg(feature = "component-model")]
             ComponentExportSection(s) => Some((COMPONENT_EXPORT_SECTION, s.range())),
 
             CustomSection(c) => Some((CUSTOM_SECTION, c.range())),
@@ -1229,6 +1283,7 @@ impl fmt::Debug for Payload<'_> {
             CodeSectionEntry(_) => f.debug_tuple("CodeSectionEntry").field(&"...").finish(),
 
             // Component sections
+            #[cfg(feature = "component-model")]
             ModuleSection {
                 parser: _,
                 unchecked_range: range,
@@ -1236,8 +1291,11 @@ impl fmt::Debug for Payload<'_> {
                 .debug_struct("ModuleSection")
                 .field("range", range)
                 .finish(),
+            #[cfg(feature = "component-model")]
             InstanceSection(_) => f.debug_tuple("InstanceSection").field(&"...").finish(),
+            #[cfg(feature = "component-model")]
             CoreTypeSection(_) => f.debug_tuple("CoreTypeSection").field(&"...").finish(),
+            #[cfg(feature = "component-model")]
             ComponentSection {
                 parser: _,
                 unchecked_range: range,
@@ -1245,27 +1303,34 @@ impl fmt::Debug for Payload<'_> {
                 .debug_struct("ComponentSection")
                 .field("range", range)
                 .finish(),
+            #[cfg(feature = "component-model")]
             ComponentInstanceSection(_) => f
                 .debug_tuple("ComponentInstanceSection")
                 .field(&"...")
                 .finish(),
+            #[cfg(feature = "component-model")]
             ComponentAliasSection(_) => f
                 .debug_tuple("ComponentAliasSection")
                 .field(&"...")
                 .finish(),
+            #[cfg(feature = "component-model")]
             ComponentTypeSection(_) => f.debug_tuple("ComponentTypeSection").field(&"...").finish(),
+            #[cfg(feature = "component-model")]
             ComponentCanonicalSection(_) => f
                 .debug_tuple("ComponentCanonicalSection")
                 .field(&"...")
                 .finish(),
+            #[cfg(feature = "component-model")]
             ComponentStartSection { .. } => f
                 .debug_tuple("ComponentStartSection")
                 .field(&"...")
                 .finish(),
+            #[cfg(feature = "component-model")]
             ComponentImportSection(_) => f
                 .debug_tuple("ComponentImportSection")
                 .field(&"...")
                 .finish(),
+            #[cfg(feature = "component-model")]
             ComponentExportSection(_) => f
                 .debug_tuple("ComponentExportSection")
                 .field(&"...")

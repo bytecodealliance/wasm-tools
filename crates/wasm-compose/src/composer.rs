@@ -12,7 +12,8 @@ use anyhow::{anyhow, bail, Context, Result};
 use indexmap::IndexMap;
 use std::{collections::VecDeque, ffi::OsStr, path::Path};
 use wasmparser::{
-    types::{ComponentEntityType, ComponentInstanceTypeId, TypesRef},
+    component_types::{ComponentEntityType, ComponentInstanceTypeId},
+    types::TypesRef,
     ComponentExternalKind, ComponentTypeRef,
 };
 
