@@ -20,7 +20,7 @@ all-features = true
 workspace = true
 
 [dependencies]
-wast = { workspace = true }
+wast = { workspace = true, features = ['wasm-module'] }
 
 [features]
 default = ['component-model']
@@ -31,4 +31,4 @@ default = ['component-model']
 dwarf = ['wast/dwarf']
 
 # On-by-default feature to support parsing the component model text format.
-component-model = []
+component-model = ['wast/component-model']
