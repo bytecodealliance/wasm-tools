@@ -127,7 +127,7 @@ rayon = { workspace = true, optional = true }
 bitflags = { workspace = true, optional = true }
 
 # Dependencies of `print`
-wasmprinter = { workspace = true }
+wasmprinter = { workspace = true, features = ['component-model'] }
 
 # Dependencies of `smith`
 arbitrary = { workspace = true, optional = true }
