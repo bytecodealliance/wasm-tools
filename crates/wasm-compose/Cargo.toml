@@ -16,8 +16,8 @@ workspace = true
 
 [dependencies]
 wat = { workspace = true }
-wasm-encoder = { workspace = true, features = ['wasmparser'] }
-wasmparser = { workspace = true, features = ['validate'] }
+wasm-encoder = { workspace = true, features = ['wasmparser', 'component-model'] }
+wasmparser = { workspace = true, features = ['validate', 'component-model'] }
 indexmap = { workspace = true, features = ["serde"] }
 anyhow = { workspace = true }
 serde = { workspace = true }
