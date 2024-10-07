@@ -12,6 +12,9 @@ version.workspace = true
 exclude = ["/benches/corpus"]
 rust-version.workspace = true
 
+[package.metadata.docs.rs]
+all-features = true
+
 [[bench]]
 name = "corpus"
 harness = false
@@ -28,7 +31,7 @@ indexmap = { workspace = true }
 leb128 = { workspace = true }
 serde = { workspace = true, optional = true }
 serde_derive = { workspace = true, optional = true }
-wasm-encoder = { workspace = true, features = ['component-model'] }
+wasm-encoder = { workspace = true }
 wasmparser = { workspace = true, optional = true, features = ['validate'] }
 wat = { workspace = true, optional = true }
 
@@ -45,3 +48,4 @@ libfuzzer-sys = { workspace = true }
 [features]
 _internal_cli = ["clap", "flagset/serde", "serde", "serde_derive", "wasmparser", "wat"]
 wasmparser = ['dep:wasmparser', 'wasm-encoder/wasmparser']
+component-model = ['wasm-encoder/component-model']

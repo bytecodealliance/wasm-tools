@@ -50,16 +50,19 @@
 //! The design and implementation strategy of wasm-smith is outlined in
 //! [this article](https://fitzgeraldnick.com/2020/08/24/writing-a-test-case-generator.html).
 
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![deny(missing_docs, missing_debug_implementations)]
 // Needed for the `instructions!` macro in `src/code_builder.rs`.
 #![recursion_limit = "512"]
 
+#[cfg(feature = "component-model")]
 mod component;
 mod config;
 mod core;
 
 pub use crate::core::{InstructionKind, InstructionKinds, Module};
 use arbitrary::{Result, Unstructured};
+#[cfg(feature = "component-model")]
 pub use component::Component;
 pub use config::{Config, MemoryOffsetChoices};
 use std::{collections::HashSet, fmt::Write, str};
@@ -137,6 +140,7 @@ pub(crate) fn unique_string(
     Ok(name)
 }
 
+#[cfg(feature = "component-model")]
 pub(crate) fn unique_kebab_string(
     max_size: usize,
     names: &mut HashSet<String>,
@@ -185,6 +189,7 @@ pub(crate) fn unique_kebab_string(
     Ok(name)
 }
 
+#[cfg(feature = "component-model")]
 pub(crate) fn unique_url(
     max_size: usize,
     names: &mut HashSet<String>,
