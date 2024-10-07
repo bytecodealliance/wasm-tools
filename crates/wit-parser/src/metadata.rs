@@ -15,7 +15,7 @@
 //! format to store this information inline.
 
 use crate::{
-    Docs, Function, InterfaceId, PackageId, Resolve, Stability, TypeDefKind, TypeId, WorldId,
+    Docs, Function, InterfaceId, Nest, PackageId, Resolve, Stability, TypeDefKind, TypeId, WorldId,
     WorldItem, WorldKey,
 };
 use anyhow::{bail, Result};
@@ -521,6 +521,11 @@ struct InterfaceMetadata {
         serde(default, skip_serializing_if = "StringMap::is_empty")
     )]
     types: StringMap<TypeMetadata>,
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "StringMap::is_empty")
+    )]
+    nested: StringMap<NestMetadata>,
 }
 
 impl InterfaceMetadata {
@@ -539,12 +544,24 @@ impl InterfaceMetadata {
             .map(|(name, id)| (name.to_string(), TypeMetadata::extract(resolve, *id)))
             .filter(|(_, item)| !item.is_empty())
             .collect();
+        let nested: IndexMap<String, NestMetadata> = interface
+            .nested
+            .iter()
+            .map(|n| {
+                let iface = &resolve.interfaces[n.id];
+                (
+                    iface.name.clone().unwrap(),
+                    NestMetadata::extract(n.clone()),
+                )
+            })
+            .collect();
 
         Self {
             docs: interface.docs.contents.clone(),
             stability: interface.stability.clone(),
             funcs,
             types,
+            nested,
         }
     }
 
@@ -555,6 +572,7 @@ impl InterfaceMetadata {
             };
             data.inject(resolve, id)?;
         }
+        let clone = resolve.interfaces.clone();
         let interface = &mut resolve.interfaces[id];
         for (name, data) in &self.funcs {
             let Some(f) = interface.functions.get_mut(name) else {
@@ -566,6 +584,16 @@ impl InterfaceMetadata {
             interface.docs.contents = Some(docs.to_string());
         }
         interface.stability = self.stability.clone();
+        for (name, data) in &self.nested {
+            if let Some(n) = interface.nested.iter_mut().find(|n| {
+                let iface = &clone[n.id];
+                iface.name.as_ref().unwrap() == name
+            }) {
+                data.inject(n)?;
+            } else {
+                bail!("missing nested item {name:?}");
+            }
+        }
         Ok(())
     }
 
@@ -654,6 +682,26 @@ impl FunctionMetadata {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
+struct NestMetadata {
+    docs: Docs,
+    stability: Stability,
+}
+
+impl NestMetadata {
+    fn extract(nest: Nest) -> Self {
+        Self {
+            docs: nest.docs,
+            stability: nest.stability,
+        }
+    }
+    fn inject(&self, nest: &mut Nest) -> Result<()> {
+        nest.stability = self.stability.clone();
+        nest.docs = self.docs.clone();
+        Ok(())
+    }
+}
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(deny_unknown_fields))]
 struct TypeMetadata {

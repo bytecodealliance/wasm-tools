@@ -1,6 +1,6 @@
 package foo:root;
 
-package foo:nest {
+package foo:nested {
   interface nesty {
     use foo:dep1/i1.{o};
     type l = list<o>;
@@ -9,7 +9,7 @@ package foo:nest {
 
 interface i0 {
   use foo:dep1/i1.{o};
-  use foo:nest/nesty.{l};
+  use foo:nested/nesty.{l};
 
   type r = result<o>;
   type r1 = result<l>;

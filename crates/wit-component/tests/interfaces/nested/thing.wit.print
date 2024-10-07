@@ -1,0 +1,15 @@
+package foo:thing@1.0.0;
+
+interface something {
+  /// nesting can be documented
+  nest foo:nestee/things@1.0.0;
+  @since(version = 1.0.0)
+  nest foo:nestee/more@1.0.0;
+  @since(version = 1.0.0)
+  record my-record {
+    foo: string,
+  }
+
+  hello: func() -> string;
+}
+

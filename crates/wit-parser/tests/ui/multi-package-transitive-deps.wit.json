@@ -131,7 +131,7 @@
   ],
   "packages": [
     {
-      "name": "foo:nest",
+      "name": "foo:nested",
       "interfaces": {
         "types": 0
       },

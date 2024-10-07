@@ -3049,6 +3049,9 @@ impl Remap {
                 iface.functions.insert(name, func);
             }
         }
+        for nest in &mut iface.nested {
+            nest.id = self.interfaces[nest.id.index()].unwrap();
+        }
 
         Ok(())
     }

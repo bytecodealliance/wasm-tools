@@ -127,6 +127,13 @@ impl WitPrinter {
     fn print_interface(&mut self, resolve: &Resolve, id: InterfaceId) -> Result<()> {
         let prev_items = mem::replace(&mut self.any_items, false);
         let interface = &resolve.interfaces[id];
+        for nest in &interface.nested {
+            self.print_stability(&nest.stability);
+            self.print_docs(&nest.docs);
+            self.output.push_str("nest ");
+            self.print_path_to_interface(resolve, nest.id, interface.package.unwrap())?;
+            self.output.push_str(";\n");
+        }
 
         let mut resource_funcs = HashMap::new();
         let mut freestanding = Vec::new();

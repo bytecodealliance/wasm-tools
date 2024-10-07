@@ -1,0 +1,8 @@
+package foo:nestnest;
+
+interface deep {
+  record deep-record {
+    foo: string
+  }
+  type anything = string;
+}

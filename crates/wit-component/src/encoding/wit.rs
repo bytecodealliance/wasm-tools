@@ -272,11 +272,15 @@ impl InterfaceEncoder<'_> {
         }
     }
 
-    fn encode_instance(&mut self, interface: InterfaceId) -> Result<u32> {
+    fn encode_instance_contents(&mut self, interface: InterfaceId) -> Result<InstanceType> {
         self.push_instance();
         let iface = &self.resolve.interfaces[interface];
         let mut type_order = IndexSet::new();
         for (_, id) in iface.types.iter() {
+            let ty = &self.resolve.types[*id];
+            if let TypeOwner::Interface(iface_id) = ty.owner {
+                self.interface = Some(iface_id);
+            }
             self.encode_valtype(self.resolve, &Type::Id(*id))?;
             type_order.insert(*id);
         }
@@ -311,12 +315,43 @@ impl InterfaceEncoder<'_> {
                 .unwrap()
                 .export(name, ComponentTypeRef::Func(ty));
         }
-        let instance = self.pop_instance();
+        let mut instance = self.pop_instance();
+        for nest in &iface.nested {
+            let ty = instance.ty();
+            ty.instance(&self.encode_instance_contents(nest.id)?);
+            instance.export(
+                &self.interface_path(nest.id),
+                ComponentTypeRef::Instance(instance.type_count() - 1),
+            );
+        }
+
+        Ok(instance)
+    }
+
+    fn encode_instance(&mut self, interface: InterfaceId) -> Result<u32> {
+        let instance = self.encode_instance_contents(interface)?;
         let idx = self.outer.type_count();
         self.outer.ty().instance(&instance);
         self.import_map.insert(interface, self.instances);
         self.instances += 1;
         Ok(idx)
+    }
+
+    fn interface_path(&self, iface: InterfaceId) -> String {
+        let iface = &self.resolve.interfaces[iface];
+        let pkg_id = iface.package.unwrap();
+        let pkg = &self.resolve.packages[pkg_id];
+        if let Some(v) = &pkg.name.version {
+            format!(
+                "{}:{}/{}@{}",
+                pkg.name.namespace,
+                pkg.name.name,
+                iface.name.as_ref().unwrap(),
+                v.to_string()
+            )
+        } else {
+            format!("{}/{}", pkg.name.to_string(), iface.name.as_ref().unwrap())
+        }
     }
 
     fn push_instance(&mut self) {

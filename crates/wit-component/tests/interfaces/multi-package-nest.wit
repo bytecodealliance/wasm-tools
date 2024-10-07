@@ -1,0 +1,11 @@
+package foo:bar;
+
+package foo:other {
+  interface i {
+    type t = string;
+  }
+}
+
+interface i1 {
+  nest foo:other/i;
+}

@@ -1,0 +1,17 @@
+package foo:nestee@1.0.0;
+
+interface things {
+  //nesting can be documented
+  @since(version = 1.0.0)
+  nest foo:nestnest/deep;
+  record nest-record {
+    foo: string
+  }
+  goodbye: func() -> nest-record;
+}
+
+interface more {
+  resource foo {
+    bar: func() -> option<string>;
+  }
+}

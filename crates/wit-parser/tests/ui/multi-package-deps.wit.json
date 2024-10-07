@@ -144,7 +144,7 @@
       "worlds": {}
     },
     {
-      "name": "foo:nest",
+      "name": "foo:nested",
       "interfaces": {
         "nesty": 2
       },

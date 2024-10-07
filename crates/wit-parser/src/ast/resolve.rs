@@ -311,6 +311,7 @@ impl<'a> Resolver<'a> {
         });
         self.interfaces.alloc(Interface {
             name: None,
+            nested: Vec::new(),
             types: IndexMap::new(),
             docs: Docs::default(),
             stability: Default::default(),
@@ -792,7 +793,7 @@ impl<'a> Resolver<'a> {
             fields.iter().filter_map(|i| match i {
                 ast::InterfaceItem::Use(u) => Some(TypeItem::Use(u)),
                 ast::InterfaceItem::TypeDef(t) => Some(TypeItem::Def(t)),
-                ast::InterfaceItem::Func(_) => None,
+                ast::InterfaceItem::Func(_) | ast::InterfaceItem::Nest(_) => None,
             }),
         )?;
 
@@ -839,6 +840,18 @@ impl<'a> Resolver<'a> {
                     }
                 }
                 ast::InterfaceItem::TypeDef(_) => {}
+                ast::InterfaceItem::Nest(n) => {
+                    let (item, name, span) = self.resolve_ast_item_path(&n.from)?;
+                    let nested_id = self.extract_iface_from_item(&item, &name, span)?;
+
+                    let stability = self.stability(&n.attributes)?;
+                    let docs = self.docs(&n.docs);
+                    self.interfaces[interface_id].nested.push(crate::Nest {
+                        id: nested_id,
+                        docs,
+                        stability,
+                    });
+                }
             }
         }
         for func in funcs {
@@ -1369,7 +1382,7 @@ impl<'a> Resolver<'a> {
         Type::Id(*id)
     }
 
-    fn docs(&mut self, doc: &super::Docs<'_>) -> Docs {
+    fn docs(&self, doc: &super::Docs<'_>) -> Docs {
         let mut docs = vec![];
         for doc in doc.docs.iter() {
             if let Some(doc) = doc.strip_prefix("/**") {
@@ -1402,7 +1415,7 @@ impl<'a> Resolver<'a> {
         Docs { contents }
     }
 
-    fn stability(&mut self, attrs: &[ast::Attribute<'_>]) -> Result<Stability> {
+    fn stability(&self, attrs: &[ast::Attribute<'_>]) -> Result<Stability> {
         match attrs {
             [] => Ok(Stability::Unknown),
 

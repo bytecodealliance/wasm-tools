@@ -26,7 +26,7 @@ mod live;
 pub use live::{LiveTypes, TypeIdVisitor};
 
 #[cfg(feature = "serde")]
-use serde_derive::Serialize;
+use serde_derive::{Deserialize, Serialize};
 #[cfg(feature = "serde")]
 mod serde_;
 #[cfg(feature = "serde")]
@@ -458,6 +458,19 @@ impl WorldItem {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[derive(Debug, Clone)]
+pub struct Nest {
+    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
+    pub id: InterfaceId,
+    pub docs: Docs,
+    #[cfg_attr(
+        feature = "serde",
+        serde(skip_serializing_if = "Stability::is_unknown")
+    )]
+    pub stability: Stability,
+}
+
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Interface {
@@ -466,6 +479,9 @@ pub struct Interface {
     /// This is `None` for inline interfaces in worlds.
     pub name: Option<String>,
 
+    /// The nested interfaces in this interface.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Vec::is_empty",))]
+    pub nested: Vec<Nest>,
     /// Exported types from this interface.
     ///
     /// Export names are listed within the types themselves. Note that the
@@ -742,7 +758,7 @@ pub struct Stream {
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Docs {
     pub contents: Option<String>,
 }
