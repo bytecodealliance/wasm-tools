@@ -97,7 +97,7 @@ gimli = "0.30.0"
 id-arena = "2"
 
 wasm-compose = { version = "0.218.0", path = "crates/wasm-compose" }
-wasm-encoder = { version = "0.218.0", path = "crates/wasm-encoder" }
+wasm-encoder = { version = "0.218.0", path = "crates/wasm-encoder", default-features = false }
 wasm-metadata = { version = "0.218.0", path = "crates/wasm-metadata" }
 wasm-mutate = { version = "0.218.0", path = "crates/wasm-mutate" }
 wasm-shrink = { version = "0.218.0", path = "crates/wasm-shrink" }

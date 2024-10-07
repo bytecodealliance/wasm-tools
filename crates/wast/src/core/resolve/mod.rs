@@ -6,6 +6,7 @@ mod deinline_import_export;
 mod names;
 pub(crate) mod types;
 
+#[cfg(feature = "component-model")]
 pub(crate) use names::ResolveCoreType;
 
 #[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]

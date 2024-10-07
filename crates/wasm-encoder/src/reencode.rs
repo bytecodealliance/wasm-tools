@@ -6,8 +6,10 @@
 use crate::CoreTypeEncoder;
 use std::convert::Infallible;
 
+#[cfg(feature = "component-model")]
 mod component;
 
+#[cfg(feature = "component-model")]
 pub use self::component::*;
 
 #[allow(missing_docs)] // FIXME

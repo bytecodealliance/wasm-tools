@@ -35,7 +35,7 @@ wat = { path = "../wat" }
 rand = { workspace = true }
 
 [features]
-default = ['wasm-module']
+default = ['wasm-module', 'component-model']
 
 # Includes default parsing support for `*.wat` and `*.wast` files (wasm
 # modules). This isn't always needed though if you're parsing just an
@@ -49,6 +49,10 @@ wasm-module = []
 # parsed binaries pointing back to source locations in the original `*.wat`
 # source.
 dwarf = ["dep:gimli"]
+
+# On-by-default this builds in support for parsing the text format of
+# components.
+component-model = ['wasm-module', 'wasm-encoder/component-model']
 
 [[test]]
 name = "parse-fail"

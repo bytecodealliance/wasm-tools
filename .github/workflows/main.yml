@@ -247,6 +247,13 @@ jobs:
       - run: cargo check --no-default-features -p wasmparser --features serde,no-hash-maps
       - run: cargo check --no-default-features -p wast
       - run: cargo check --no-default-features -p wast --features wasm-module
+      - run: cargo check --no-default-features -p wast --features wasm-module,component-model
+      - run: cargo check --no-default-features -p wat
+      - run: cargo check --no-default-features -p wat --features component-model
+      - run: cargo check --no-default-features -p wat --features dwarf
+      - run: cargo check --no-default-features -p wasm-encoder
+      - run: cargo check --no-default-features -p wasm-encoder --features component-model
+      - run: cargo check --no-default-features -p wasm-encoder --features wasmparser
       - run: |
           if cargo tree -p wasm-smith --no-default-features -e no-dev | grep wasmparser; then
             echo wasm-smith without default features should not depend on wasmparser

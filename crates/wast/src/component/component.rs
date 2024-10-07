@@ -8,6 +8,7 @@ use crate::token::{Id, NameAnnotation, Span};
 
 /// A parsed WebAssembly component module.
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct Component<'a> {
     /// Where this `component` was defined
     pub span: Span,
