@@ -122,7 +122,7 @@ wat = { workspace = true, features = ['dwarf'] }
 termcolor = { workspace = true }
 
 # Dependencies of `validate`
-wasmparser = { workspace = true, optional = true }
+wasmparser = { workspace = true, optional = true, features = ['component-model'] }
 rayon = { workspace = true, optional = true }
 bitflags = { workspace = true, optional = true }
 
