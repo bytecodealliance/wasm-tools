@@ -250,6 +250,8 @@ jobs:
       - run: cargo check --no-default-features -p wasmparser --features component-model,validate
       - run: cargo check --no-default-features -p wasmparser --features std,component-model
       - run: cargo check --no-default-features -p wasmparser --features std,component-model,validate
+      - run: cargo check --no-default-features -p wasmprinter
+      - run: cargo check --no-default-features -p wasmprinter --features component-model
       - run: cargo check --no-default-features -p wast
       - run: cargo check --no-default-features -p wast --features wasm-module
       - run: cargo check --no-default-features -p wast --features wasm-module,component-model

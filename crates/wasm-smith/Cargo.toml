@@ -39,8 +39,8 @@ wat = { workspace = true, optional = true }
 criterion = { workspace = true }
 rand = { workspace = true }
 wasmparser = { workspace = true, features = ["validate", "features"] }
-wasmprinter = { path = "../wasmprinter" }
-wat = { path = "../wat" }
+wasmprinter = { workspace = true }
+wat = { workspace = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
 libfuzzer-sys = { workspace = true }

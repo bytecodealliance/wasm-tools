@@ -18,8 +18,12 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-wasmparser = { workspace = true, features = ['std', 'component-model'] }
+wasmparser = { workspace = true, features = ['std'] }
 termcolor = { workspace = true }
 
 [dev-dependencies]
 wat = { path = "../wat" }
+
+[features]
+default = ['component-model']
+component-model = ['wasmparser/component-model']
