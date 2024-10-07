@@ -278,6 +278,7 @@ pub(crate) struct CompositeType {
 }
 
 impl CompositeType {
+    #[cfg(any(feature = "component-model", feature = "wasmparser"))]
     pub(crate) fn new_func(func: Rc<FuncType>, shared: bool) -> Self {
         Self {
             inner: CompositeInnerType::Func(func),
