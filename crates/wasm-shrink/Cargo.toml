@@ -25,5 +25,5 @@ wasmparser = { workspace = true, features = ['validate', 'features'] }
 
 [dev-dependencies]
 env_logger = { workspace = true }
-wasmprinter = { path = "../wasmprinter" }
-wat = { path = "../wat" }
+wasmprinter = { workspace = true }
+wat = { workspace = true }

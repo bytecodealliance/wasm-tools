@@ -18,8 +18,8 @@ use std::time::Duration;
 // note that this list must be topologically sorted by dependencies
 const CRATES_TO_PUBLISH: &[&str] = &[
     "wasmparser",
-    "wasm-encoder",
     "wasmprinter",
+    "wasm-encoder",
     "wast",
     "wat",
     "wasm-smith",
