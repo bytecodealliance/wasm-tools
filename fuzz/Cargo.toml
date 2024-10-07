@@ -18,7 +18,7 @@ libfuzzer-sys = { workspace = true }
 log = { workspace = true }
 tempfile = "3.0"
 wasm-mutate = { path = "../crates/wasm-mutate" }
-wasm-smith = { path = "../crates/wasm-smith" }
+wasm-smith = { path = "../crates/wasm-smith", features = ['component-model'] }
 wasmparser = { path = "../crates/wasmparser" }
 wasmprinter = { path = "../crates/wasmprinter" }
 wasmtime = { workspace = true, optional = true }
