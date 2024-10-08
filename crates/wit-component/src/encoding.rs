@@ -1827,7 +1827,12 @@ impl<'a> Shims<'a> {
     }
 
     fn push(&mut self, shim: Shim<'a>) {
-        self.shims.insert(shim.kind.clone(), shim);
+        // Only one shim per `ShimKind` is retained, so if it's already present
+        // don't overwrite it. If it's not present though go ahead and insert
+        // it.
+        if !self.shims.contains_key(&shim.kind) {
+            self.shims.insert(shim.kind.clone(), shim);
+        }
     }
 }
 
