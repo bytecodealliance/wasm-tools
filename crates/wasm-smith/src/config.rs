@@ -599,6 +599,13 @@ define_config! {
         ///
         /// Defaults to `false`.
         pub allow_invalid_funcs: bool = false,
+
+        /// Determines whether the [wide-arithmetic proposal] is enabled.
+        ///
+        /// [wide-arithmetic proposal]: https://github.com/WebAssembly/wide-arithmetic
+        ///
+        /// Defaults to `false`.
+        pub wide_arithmetic_enabled: bool = false,
     }
 }
 
@@ -738,6 +745,7 @@ impl<'a> Arbitrary<'a> for Config {
             // Proposals that are not stage4+ are disabled by default.
             memory64_enabled: false,
             custom_page_sizes_enabled: false,
+            wide_arithmetic_enabled: false,
         };
         config.sanitize();
         Ok(config)

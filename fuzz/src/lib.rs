@@ -60,6 +60,7 @@ pub fn generate_valid_component(
     config.memory64_enabled = u.arbitrary()?;
     config.exceptions_enabled = u.arbitrary()?;
     config.canonicalize_nans = u.arbitrary()?;
+    config.wide_arithmetic_enabled = u.arbitrary()?;
 
     configure(&mut config, u)?;
 
@@ -111,6 +112,10 @@ pub fn validator_for_config(config: &Config) -> wasmparser::Validator {
     // this point.
     features.set(WasmFeatures::FUNCTION_REFERENCES, config.gc_enabled);
     features.set(WasmFeatures::GC, config.gc_enabled);
+    features.set(
+        WasmFeatures::WIDE_ARITHMETIC,
+        config.wide_arithmetic_enabled,
+    );
     wasmparser::Validator::new_with_features(features)
 }
 

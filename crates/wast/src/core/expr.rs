@@ -1195,6 +1195,12 @@ instructions! {
         Resume(Resume<'a>)             : [0xe3] : "resume",
         ResumeThrow(ResumeThrow<'a>)   : [0xe4] : "resume_throw",
         Switch(Switch<'a>)             : [0xe5] : "switch",
+
+        // Wide arithmetic proposal
+        I64Add128   : [0xfc, 19] : "i64.add128",
+        I64Sub128   : [0xfc, 20] : "i64.sub128",
+        I64MulWideS : [0xfc, 21] : "i64.mul_wide_s",
+        I64MulWideU : [0xfc, 22] : "i64.mul_wide_u",
     }
 }
 

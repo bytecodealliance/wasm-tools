@@ -1223,6 +1223,12 @@ pub enum Instruction<'a> {
         cont_type_index: u32,
         tag_index: u32,
     },
+
+    // Wide Arithmetic
+    I64Add128,
+    I64Sub128,
+    I64MulWideS,
+    I64MulWideU,
 }
 
 impl Encode for Instruction<'_> {
@@ -3756,6 +3762,22 @@ impl Encode for Instruction<'_> {
                 sink.push(0xE5);
                 cont_type_index.encode(sink);
                 tag_index.encode(sink);
+            }
+            Instruction::I64Add128 => {
+                sink.push(0xFC);
+                19u32.encode(sink);
+            }
+            Instruction::I64Sub128 => {
+                sink.push(0xFC);
+                20u32.encode(sink);
+            }
+            Instruction::I64MulWideS => {
+                sink.push(0xFC);
+                21u32.encode(sink);
+            }
+            Instruction::I64MulWideU => {
+                sink.push(0xFC);
+                22u32.encode(sink);
             }
         }
     }

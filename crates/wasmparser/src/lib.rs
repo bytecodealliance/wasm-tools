@@ -815,6 +815,11 @@ macro_rules! for_each_operator {
             @stack_switching Resume { cont_type_index: u32, resume_table: $crate::ResumeTable } => visit_resume (arity 1 type -> type)
             @stack_switching ResumeThrow { cont_type_index: u32, tag_index: u32, resume_table: $crate::ResumeTable } => visit_resume_throw (arity 1 tag -> type)
             @stack_switching Switch { cont_type_index: u32, tag_index: u32 } => visit_switch (arity type -> ~switch)
+
+            @wide_arithmetic I64Add128 => visit_i64_add128 (arity 4 -> 2)
+            @wide_arithmetic I64Sub128 => visit_i64_sub128 (arity 4 -> 2)
+            @wide_arithmetic I64MulWideS => visit_i64_mul_wide_s (arity 2 -> 2)
+            @wide_arithmetic I64MulWideU => visit_i64_mul_wide_u (arity 2 -> 2)
         }
     };
 }

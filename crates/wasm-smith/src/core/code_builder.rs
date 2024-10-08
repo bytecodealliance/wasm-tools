@@ -590,6 +590,10 @@ instructions! {
     (Some(simd_v128_v128_on_stack_relaxed), i16x8_relaxed_q15mulr_s, VectorInt),
     (Some(simd_v128_v128_on_stack_relaxed), i16x8_relaxed_dot_i8x16_i7x16_s, VectorInt),
     (Some(simd_v128_v128_v128_on_stack_relaxed), i32x4_relaxed_dot_i8x16_i7x16_add_s, VectorInt),
+    (Some(wide_arithmetic_binop128_on_stack), i64_add128, NumericInt),
+    (Some(wide_arithmetic_binop128_on_stack), i64_sub128, NumericInt),
+    (Some(wide_arithmetic_mul_wide_on_stack), i64_mul_wide_s, NumericInt),
+    (Some(wide_arithmetic_mul_wide_on_stack), i64_mul_wide_u, NumericInt),
 }
 
 pub(crate) struct CodeBuilderAllocations {
@@ -7266,3 +7270,59 @@ simd_ternop!(
     I32x4RelaxedDotI8x16I7x16AddS,
     i32x4_relaxed_dot_i8x16_i7x16_add_s
 );
+
+fn wide_arithmetic_binop128_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.wide_arithmetic_enabled && builder.types_on_stack(module, &[ValType::I64; 4])
+}
+
+fn wide_arithmetic_mul_wide_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.wide_arithmetic_enabled && builder.types_on_stack(module, &[ValType::I64; 2])
+}
+
+fn i64_add128(
+    _: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    builder.pop_operands(module, &[ValType::I64; 4]);
+    builder.push_operands(&[ValType::I64; 2]);
+    instructions.push(Instruction::I64Add128);
+    Ok(())
+}
+
+fn i64_sub128(
+    _: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    builder.pop_operands(module, &[ValType::I64; 4]);
+    builder.push_operands(&[ValType::I64; 2]);
+    instructions.push(Instruction::I64Sub128);
+    Ok(())
+}
+
+fn i64_mul_wide_s(
+    _: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    builder.pop_operands(module, &[ValType::I64; 2]);
+    builder.push_operands(&[ValType::I64; 2]);
+    instructions.push(Instruction::I64MulWideS);
+    Ok(())
+}
+
+fn i64_mul_wide_u(
+    _: &mut Unstructured,
+    module: &Module,
+    builder: &mut CodeBuilder,
+    instructions: &mut Vec<Instruction>,
+) -> Result<()> {
+    builder.pop_operands(module, &[ValType::I64; 2]);
+    builder.push_operands(&[ValType::I64; 2]);
+    instructions.push(Instruction::I64MulWideU);
+    Ok(())
+}
