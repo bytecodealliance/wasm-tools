@@ -1640,6 +1640,24 @@ where
             .zip(ts2.iter())
             .all(|(ty1, ty2)| self.resources.is_subtype(*ty1, *ty2))
     }
+
+    fn check_binop128(&mut self) -> Result<()> {
+        self.pop_operand(Some(ValType::I64))?;
+        self.pop_operand(Some(ValType::I64))?;
+        self.pop_operand(Some(ValType::I64))?;
+        self.pop_operand(Some(ValType::I64))?;
+        self.push_operand(ValType::I64)?;
+        self.push_operand(ValType::I64)?;
+        Ok(())
+    }
+
+    fn check_i64_mul_wide(&mut self) -> Result<()> {
+        self.pop_operand(Some(ValType::I64))?;
+        self.pop_operand(Some(ValType::I64))?;
+        self.push_operand(ValType::I64)?;
+        self.push_operand(ValType::I64)?;
+        Ok(())
+    }
 }
 
 pub fn ty_to_str(ty: ValType) -> &'static str {
@@ -1704,6 +1722,7 @@ macro_rules! validate_proposal {
     (desc gc) => ("gc");
     (desc legacy_exceptions) => ("legacy exceptions");
     (desc stack_switching) => ("stack switching");
+    (desc wide_arithmetic) => ("wide arithmetic");
 }
 
 impl<'a, T> VisitOperator<'a> for WasmProposalValidator<'_, '_, T>
@@ -5034,6 +5053,18 @@ where
             ),
         }
         Ok(())
+    }
+    fn visit_i64_add128(&mut self) -> Result<()> {
+        self.check_binop128()
+    }
+    fn visit_i64_sub128(&mut self) -> Result<()> {
+        self.check_binop128()
+    }
+    fn visit_i64_mul_wide_s(&mut self) -> Result<()> {
+        self.check_i64_mul_wide()
+    }
+    fn visit_i64_mul_wide_u(&mut self) -> Result<()> {
+        self.check_i64_mul_wide()
     }
 }
 

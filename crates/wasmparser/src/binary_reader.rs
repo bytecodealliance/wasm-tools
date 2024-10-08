@@ -1357,6 +1357,11 @@ impl<'a> BinaryReader<'a> {
                 visitor.visit_memory_discard(mem)
             }
 
+            0x13 => visitor.visit_i64_add128(),
+            0x14 => visitor.visit_i64_sub128(),
+            0x15 => visitor.visit_i64_mul_wide_s(),
+            0x16 => visitor.visit_i64_mul_wide_u(),
+
             _ => bail!(pos, "unknown 0xfc subopcode: 0x{code:x}"),
         })
     }

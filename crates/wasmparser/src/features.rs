@@ -227,6 +227,8 @@ define_wasm_features! {
         pub gc_types: GC_TYPES(1 << 26) = true;
         /// The WebAssembly [stack-switching proposal](https://github.com/WebAssembly/stack-switching).
         pub stack_switching: STACK_SWITCHING(1 << 27) = false;
+        /// The WebAssembly [wide-arithmetic proposal](https://github.com/WebAssembly/wide-arithmetic).
+        pub wide_arithmetic: WIDE_ARITHMETIC(1 << 28) = false;
     }
 }
 

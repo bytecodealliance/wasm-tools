@@ -1379,7 +1379,11 @@ macro_rules! define_visit {
     (name Suspend) => ("suspend");
     (name Resume) => ("resume");
     (name ResumeThrow) => ("resume_throw");
-    (name Switch) => ("switch")
+    (name Switch) => ("switch");
+    (name I64Add128) => ("i64.add128");
+    (name I64Sub128) => ("i64.sub128");
+    (name I64MulWideS) => ("i64.mul_wide_s");
+    (name I64MulWideU) => ("i64.mul_wide_u");
 }
 
 impl<'a> VisitOperator<'a> for PrintOperator<'_, '_, '_, '_> {
