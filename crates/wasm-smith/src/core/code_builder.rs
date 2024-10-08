@@ -7271,10 +7271,12 @@ simd_ternop!(
     i32x4_relaxed_dot_i8x16_i7x16_add_s
 );
 
+#[inline]
 fn wide_arithmetic_binop128_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.wide_arithmetic_enabled && builder.types_on_stack(module, &[ValType::I64; 4])
 }
 
+#[inline]
 fn wide_arithmetic_mul_wide_on_stack(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.wide_arithmetic_enabled && builder.types_on_stack(module, &[ValType::I64; 2])
 }
