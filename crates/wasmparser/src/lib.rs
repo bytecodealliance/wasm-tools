@@ -80,6 +80,8 @@ mod prelude {
 /// - `@simd`: [Wasm `simd` proposal]
 /// - `@relaxed_simd`: [Wasm `relaxed-simd` proposal]
 /// - `@gc`: [Wasm `gc` proposal]
+/// - `@stack_switching`: [Wasm `stack-switching` proposal]
+/// - `@wide_arithmetic`: [Wasm `wide-arithmetic` proposal]
 ///
 /// [Wasm `exception-handling` proposal]:
 /// https://github.com/WebAssembly/exception-handling
@@ -110,6 +112,12 @@ mod prelude {
 ///
 /// [Wasm `gc` proposal]:
 /// https://github.com/WebAssembly/gc
+///
+/// [Wasm `stack-switching` proposal]:
+/// https://github.com/WebAssembly/stack-switching
+///
+/// [Wasm `wide-arithmetic` proposal]:
+/// https://github.com/WebAssembly/wide-arithmetic
 ///
 /// ```
 /// macro_rules! define_visit_operator {
@@ -146,6 +154,59 @@ mod prelude {
 ///     type Output = ();
 ///
 ///     wasmparser::for_each_operator!(define_visit_operator);
+/// }
+/// ```
+///
+/// If you only wanted to visit the initial base set of wasm instructions, for
+/// example, you could do:
+///
+/// ```
+/// macro_rules! visit_only_mvp {
+///     // delegate the macro invocation to sub-invocations of this macro to
+///     // deal with each instruction on a case-by-case basis.
+///     ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
+///         $(
+///             visit_only_mvp!(visit_one @$proposal $op $({ $($arg: $argty),* })? => $visit);
+///         )*
+///     };
+///
+///     // MVP instructions are defined manually, so do nothing.
+///     (visit_one @mvp $($rest:tt)*) => {};
+///
+///     // Non-MVP instructions all return `false` here. The exact type depends
+///     // on `type Output` in the trait implementation below. You could change
+///     // it to `Result<()>` for example and return an error here too.
+///     (visit_one @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident) => {
+///         fn $visit(&mut self $($(,$arg: $argty)*)?) -> bool {
+///             false
+///         }
+///     }
+/// }
+/// # // to get this example to compile another macro is used here to define
+/// # // visit methods for all mvp oeprators.
+/// # macro_rules! visit_mvp {
+/// #     ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
+/// #         $(
+/// #             visit_mvp!(visit_one @$proposal $op $({ $($arg: $argty),* })? => $visit);
+/// #         )*
+/// #     };
+/// #     (visit_one @mvp $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident) => {
+/// #         fn $visit(&mut self $($(,$arg: $argty)*)?) -> bool {
+/// #             true
+/// #         }
+/// #     };
+/// #     (visit_one @$proposal:ident $($rest:tt)*) => {};
+/// # }
+///
+/// pub struct VisitOnlyMvp;
+///
+/// impl<'a> wasmparser::VisitOperator<'a> for VisitOnlyMvp {
+///     type Output = bool;
+///
+///     wasmparser::for_each_operator!(visit_only_mvp);
+/// #   wasmparser::for_each_operator!(visit_mvp);
+///
+///     // manually define `visit_*` for all MVP operators here
 /// }
 /// ```
 #[macro_export]

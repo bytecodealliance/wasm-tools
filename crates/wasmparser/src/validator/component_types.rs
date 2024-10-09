@@ -1421,8 +1421,8 @@ impl<'a> TypesRef<'a> {
 impl Types {
     /// Gets a component WebAssembly type at the given type index.
     ///
-    /// Note that this is in contrast to [`TypesRef::core_type_at`] which gets a
-    /// core type from its index.
+    /// Note that this is in contrast to [`TypesRef::core_type_at_in_component`]
+    /// which gets a core type from its index.
     ///
     /// # Panics
     ///
