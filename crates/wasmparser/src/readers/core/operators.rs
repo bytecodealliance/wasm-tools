@@ -30,7 +30,7 @@ pub enum BlockType {
     FuncType(u32),
 }
 
-/// The kind of a control flow [`Frame`].
+/// The kind of a control flow `Frame`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum FrameKind {
     /// A Wasm `block` control block.
