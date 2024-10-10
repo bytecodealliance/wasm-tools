@@ -189,6 +189,11 @@ impl<T: WasmModuleResources> FuncValidator<T> {
         self.validator.finish(offset)
     }
 
+    /// Returns the Wasm features enabled for this validator.
+    pub fn features(&self) -> &WasmFeatures {
+        &self.validator.features
+    }
+
     /// Returns the underlying module resources that this validator is using.
     pub fn resources(&self) -> &T {
         &self.resources
