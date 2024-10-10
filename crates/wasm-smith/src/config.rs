@@ -273,8 +273,8 @@ define_config! {
         /// Determines whether the bulk memory proposal is enabled for
         /// generating instructions.
         ///
-        /// Defaults to `false`.
-        pub bulk_memory_enabled: bool = false,
+        /// Defaults to `true`.
+        pub bulk_memory_enabled: bool = true,
 
         /// Returns whether NaN values are canonicalized after all f32/f64
         /// operation. Defaults to false.
