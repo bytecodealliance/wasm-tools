@@ -3861,6 +3861,15 @@ impl ConstExpr {
         }
     }
 
+    /// Create a constant expression with the sequence of instructions
+    pub fn extended<'a>(insns: impl IntoIterator<Item = Instruction<'a>>) -> Self {
+        let mut bytes = vec![];
+        for insn in insns {
+            insn.encode(&mut bytes);
+        }
+        Self { bytes }
+    }
+
     fn new_insn(insn: Instruction) -> Self {
         let mut bytes = vec![];
         insn.encode(&mut bytes);
