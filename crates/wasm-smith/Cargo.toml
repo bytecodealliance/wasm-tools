@@ -32,7 +32,7 @@ leb128 = { workspace = true }
 serde = { workspace = true, optional = true }
 serde_derive = { workspace = true, optional = true }
 wasm-encoder = { workspace = true }
-wasmparser = { workspace = true, optional = true, features = ['validate'] }
+wasmparser = { workspace = true, optional = true, features = ['validate', 'features'] }
 wat = { workspace = true, optional = true }
 
 [dev-dependencies]

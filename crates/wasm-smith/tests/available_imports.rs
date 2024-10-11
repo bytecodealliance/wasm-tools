@@ -8,7 +8,7 @@ use wasmparser::Validator;
 use wasmparser::{Parser, TypeRef, ValType};
 
 mod common;
-use common::{parser_features_from_config, validate};
+use common::validate;
 
 #[test]
 fn smoke_test_imports_config() {
@@ -21,7 +21,7 @@ fn smoke_test_imports_config() {
 
         let mut u = Unstructured::new(&buf);
         let (config, available) = import_config(&mut u);
-        let features = parser_features_from_config(&config);
+        let features = config.features();
 
         if let Ok(module) = Module::new(config, &mut u) {
             let wasm_bytes = module.to_bytes();

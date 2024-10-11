@@ -1664,8 +1664,18 @@ impl Module {
         // type of that value.
         let ty = self.arbitrary_matching_val_type(u, ty)?;
         match ty {
-            ValType::I32 => choices.push(Box::new(|u, _| Ok(ConstExpr::i32_const(u.arbitrary()?)))),
-            ValType::I64 => choices.push(Box::new(|u, _| Ok(ConstExpr::i64_const(u.arbitrary()?)))),
+            ValType::I32 => {
+                choices.push(Box::new(|u, _| Ok(ConstExpr::i32_const(u.arbitrary()?))));
+                if self.config.extended_const_enabled {
+                    choices.push(Box::new(arbitrary_extended_const));
+                }
+            }
+            ValType::I64 => {
+                choices.push(Box::new(|u, _| Ok(ConstExpr::i64_const(u.arbitrary()?))));
+                if self.config.extended_const_enabled {
+                    choices.push(Box::new(arbitrary_extended_const));
+                }
+            }
             ValType::F32 => choices.push(Box::new(|u, _| Ok(ConstExpr::f32_const(u.arbitrary()?)))),
             ValType::F64 => choices.push(Box::new(|u, _| Ok(ConstExpr::f64_const(u.arbitrary()?)))),
             ValType::V128 => {
@@ -1707,7 +1717,68 @@ impl Module {
         let f = u.choose(&choices)?;
         let ret = f(u, ty);
         self.const_expr_choices = choices;
-        ret
+        return ret;
+
+        /// Implementation of generation of expressions from the
+        /// `extended-const` proposal to WebAssembly. This proposal enabled
+        /// using `i{32,64}.{add,sub,mul}` in constant expressions in addition
+        /// to the previous `i{32,64}.const` instructions. Note that at this
+        /// time this doesn't use the full expression generator in
+        /// `code_builder.rs` but instead inlines just what's necessary for
+        /// constant expressions here.
+        fn arbitrary_extended_const(u: &mut Unstructured<'_>, ty: ValType) -> Result<ConstExpr> {
+            use wasm_encoder::Instruction::*;
+
+            // This only works for i32/i64, would need refactoring for different
+            // types.
+            assert!(ty == ValType::I32 || ty == ValType::I64);
+            let add = if ty == ValType::I32 { I32Add } else { I64Add };
+            let sub = if ty == ValType::I32 { I32Sub } else { I64Sub };
+            let mul = if ty == ValType::I32 { I32Mul } else { I64Mul };
+            let const_: fn(&mut Unstructured<'_>) -> Result<wasm_encoder::Instruction<'static>> =
+                if ty == ValType::I32 {
+                    |u| u.arbitrary().map(I32Const)
+                } else {
+                    |u| u.arbitrary().map(I64Const)
+                };
+
+            // Here `instrs` is the list of instructions, in reverse order, that
+            // are going to be emitted. The `needed` value keeps track of how
+            // many values are needed to complete this expression. New
+            // instructions must be generated while some more items are needed.
+            let mut instrs = Vec::new();
+            let mut needed = 1;
+            while needed > 0 {
+                // If fuzz data has been exhausted or if this is a "large
+                // enough" constant expression then force generation of
+                // constants to finish out the expression.
+                let choice = if u.is_empty() || instrs.len() > 10 {
+                    0
+                } else {
+                    u.int_in_range(0..=3)?
+                };
+                match choice {
+                    0 => {
+                        instrs.push(const_(u)?);
+                        needed -= 1;
+                    }
+                    1 => {
+                        instrs.push(add.clone());
+                        needed += 1;
+                    }
+                    2 => {
+                        instrs.push(sub.clone());
+                        needed += 1;
+                    }
+                    3 => {
+                        instrs.push(mul.clone());
+                        needed += 1;
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            Ok(ConstExpr::extended(instrs.into_iter().rev()))
+        }
     }
 
     fn arbitrary_globals(&mut self, u: &mut Unstructured) -> Result<()> {

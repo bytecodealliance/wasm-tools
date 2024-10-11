@@ -4,7 +4,7 @@ use wasm_smith::{Config, Module};
 use wasmparser::{Validator, WasmFeatures};
 
 mod common;
-use common::{parser_features_from_config, validate};
+use common::validate;
 
 #[test]
 fn smoke_test_module() {
@@ -77,6 +77,7 @@ fn multi_value_disabled() {
 }
 
 #[test]
+#[cfg(feature = "wasmparser")]
 fn smoke_can_smith_valid_webassembly_one_point_oh() {
     let mut rng = SmallRng::seed_from_u64(42);
     let mut buf = vec![0; 10240];
@@ -97,7 +98,7 @@ fn smoke_can_smith_valid_webassembly_one_point_oh() {
         cfg.gc_enabled = false;
         cfg.max_memories = 1;
         cfg.max_tables = 1;
-        let features = parser_features_from_config(&cfg);
+        let features = cfg.features();
         if let Ok(module) = Module::new(cfg, &mut u) {
             let wasm_bytes = module.to_bytes();
             // This table should set to `true` only features specified in wasm-core-1 spec.

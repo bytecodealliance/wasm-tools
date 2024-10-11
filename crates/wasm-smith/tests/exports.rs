@@ -8,7 +8,7 @@ use wasmparser::{
 };
 
 mod common;
-use common::{parser_features_from_config, validate};
+use common::validate;
 
 #[derive(Debug, PartialEq)]
 enum ExportType {
@@ -144,7 +144,7 @@ fn smoke_test_exports(exports_test_case: &str, seed: u64) {
         let mut config = Config::arbitrary(&mut u).expect("arbitrary config");
         config.exports = Some(wasm.clone());
 
-        let features = parser_features_from_config(&config);
+        let features = config.features();
         let module = Module::new(config, &mut u).unwrap();
         let wasm_bytes = module.to_bytes();
 
