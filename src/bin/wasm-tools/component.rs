@@ -13,7 +13,8 @@ use wasmparser::types::{CoreTypeId, EntityType, Types};
 use wasmparser::{Payload, ValidPayload};
 use wat::Detect;
 use wit_component::{
-    embed_component_metadata, ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter,
+    embed_component_metadata, metadata, ComponentEncoder, DecodedWasm, Linker, StringEncoding,
+    WitPrinter,
 };
 use wit_parser::{Mangling, PackageId, Resolve};
 
@@ -306,8 +307,12 @@ pub struct EmbedOpts {
     dummy_names: Option<Mangling>,
 
     /// Print the output in the WebAssembly text format instead of binary.
-    #[clap(long, short = 't')]
+    #[clap(long, short = 't', conflicts_with = "custom")]
     wat: bool,
+
+    /// Print the output as Web Assembly Custom Section.
+    #[clap(long, short = 'c', conflicts_with = "wat")]
+    custom: bool,
 }
 
 impl EmbedOpts {
@@ -326,6 +331,18 @@ impl EmbedOpts {
         } else {
             self.io.parse_input_wasm()?
         };
+
+        if self.custom {
+            let encoded = metadata::encode(
+                &resolve,
+                world,
+                self.encoding.unwrap_or(StringEncoding::UTF8),
+                None,
+            )?;
+
+            self.io.output_wasm(&encoded, false)?;
+            return Ok(());
+        }
 
         embed_component_metadata(
             &mut wasm,
