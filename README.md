@@ -188,7 +188,7 @@ Currently implemented proposals in this repository that are stage 4+ are:
 * [x] [exceptions](https://github.com/WebAssembly/exceptions)
 * [x] [extended-const](https://github.com/WebAssembly/extended-const)
 * [x] [extended-name-section](https://github.com/WebAssembly/extended-name-section)
-  (note this is note phase 4 but `wast` does not have the concept of features)
+  (note this is not phase 4 but `wast` does not have the concept of features)
 * [x] [function-references](https://github.com/WebAssembly/function-references)
 * [x] [gc](https://github.com/WebAssembly/gc)
 * [x] [multi-memory](https://github.com/WebAssembly/multi-memory)
@@ -202,7 +202,7 @@ Currently implemented proposals in this repository that are stage 4+ are:
 * [x] [tail-call](https://github.com/WebAssembly/tail-call)
 * [x] [threads](https://github.com/WebAssembly/threads)
 * [x] [wat-numeric-values](https://github.com/WebAssembly/wat-numeric-values)
-  (note this is note phase 4 but `wast` does not have the concept of features)
+  (note this is not phase 4 but `wast` does not have the concept of features)
 
 These proposals are implemented but have not yet reached stage 4. This means
 they are disabled by default in validation and their implementation may change
