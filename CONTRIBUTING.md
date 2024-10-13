@@ -34,7 +34,7 @@ Many crates in this repository (located in `crates/*`) both have unit tests
 $ cargo test -p wasmparser
 ```
 
-Running all tests can be done by fist ensuring that the spec test suite is
+Running all tests can be done by first ensuring that the spec test suite is
 checked out:
 
 ```
