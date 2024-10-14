@@ -30,6 +30,10 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     if config.custom_page_sizes_enabled {
         return Ok(());
     }
+    // Not implemented in wasmtime at this time.
+    if config.wide_arithmetic_enabled {
+        return Ok(());
+    }
 
     #[cfg(feature = "wasmtime")]
     {
