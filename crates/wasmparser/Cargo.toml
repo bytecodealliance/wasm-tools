@@ -51,6 +51,9 @@ default = ['std', 'validate', 'serde', 'features', 'component-model']
 std = ['indexmap/std']
 
 # Tells the `wasmparser` crate to provide (and use) hash-based collections internally.
+#
+# Disabling this crate feature allows to drop `hashbrown`, `indexmap` and `ahash` dependencies
+# entirely, reducing compilation times and shrink binary sizes.
 hash-collections = [
   'dep:hashbrown',
   'dep:indexmap',
