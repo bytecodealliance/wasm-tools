@@ -1,6 +1,9 @@
 //! An ordered map based on a B-Tree that keeps insertion order of elements.
 
-#[cfg(not(feature = "no-hash-maps"))]
+#[cfg(all(
+    feature = "hash-collections",
+    not(feature = "prefer-btree-collections")
+))]
 mod impls {
     use crate::collections::hash;
     use indexmap::IndexMap;
@@ -17,7 +20,10 @@ mod impls {
     pub type ValuesMutImpl<'a, K, V> = indexmap::map::ValuesMut<'a, K, V>;
 }
 
-#[cfg(feature = "no-hash-maps")]
+#[cfg(any(
+    not(feature = "hash-collections"),
+    feature = "prefer-btree-collections"
+))]
 mod impls {
     pub type IndexMapImpl<K, V> = super::IndexMap<K, V>;
     pub type EntryImpl<'a, K, V> = super::Entry<'a, K, V>;

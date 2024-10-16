@@ -43,29 +43,30 @@ name = "benchmark"
 harness = false
 
 [features]
-default = ['std', 'validate', 'serde', 'features', 'component-model']
+default = ['std', 'validate', 'serde', 'features', 'component-model', 'hash-collections']
 
 # A feature which enables implementations of `std::error::Error` as appropriate
 # along with other convenience APIs. This additionally uses the standard
 # library's source of randomness for seeding hash maps.
 std = ['indexmap/std']
 
-# Tells the wasmparser crate to avoid using hash based maps and sets.
+# Tells the `wasmparser` crate to provide (and use) hash-based collections internally.
 #
-# Some embedded environments cannot provide a random source which is required
-# to properly initialize hashmap based data structures for resilience against
-# malious actors that control their inputs.
-no-hash-maps = []
+# Disabling this crate feature allows to drop `hashbrown`, `indexmap` and `ahash` dependencies
+# entirely, reducing compilation times and shrink binary sizes.
+hash-collections = [
+  'dep:hashbrown',
+  'dep:indexmap',
+  'dep:ahash',
+]
+# Tells the `wasmparser` crate to prefer using its built-in btree-based collections 
+# even if `hash-collections` is enabled.
+prefer-btree-collections = []
 
 # A feature that enables validating WebAssembly files. This is enabled by
 # default but not required if you're only parsing a file, for example, as
 # opposed to validating all of its contents.
-validate = [
-  'dep:indexmap',
-  'dep:semver',
-  'dep:hashbrown',
-  'dep:ahash',
-]
+validate = ['dep:semver']
 
 # Enable Serialize/Deserialize implementations for types in
 # `wasmparser::collections`
