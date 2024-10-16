@@ -295,6 +295,10 @@ impl TypeDef {
     pub fn set_docs(&mut self, docs: Option<impl Into<Docs>>) {
         self.docs = docs.map(|d| d.into());
     }
+
+    pub fn docs(&self) -> &Option<Docs> {
+        &self.docs
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

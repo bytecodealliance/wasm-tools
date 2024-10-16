@@ -29,6 +29,14 @@ impl Package {
         }
     }
 
+    pub fn name(&self) -> &PackageName {
+        &self.name
+    }
+
+    pub fn set_name(&mut self, name: impl Into<PackageName>) {
+        self.name = name.into();
+    }
+
     /// Add an `Interface` to the package
     pub fn interface(&mut self, interface: Interface) {
         self.items.push(PackageItem::Interface(interface))
@@ -124,6 +132,30 @@ impl PackageName {
             name: name.into(),
             version,
         }
+    }
+
+    pub fn namespace(&self) -> &str {
+        &self.namespace
+    }
+
+    pub fn set_namespace(&mut self, namespace: impl Into<String>) {
+        self.namespace = namespace.into();
+    }
+
+    pub fn name(&self) -> &Ident {
+        &self.name
+    }
+
+    pub fn set_name(&mut self, name: impl Into<Ident>) {
+        self.name = name.into()
+    }
+
+    pub fn version(&self) -> Option<&Version> {
+        self.version.as_ref()
+    }
+
+    pub fn set_version(&mut self, version: Option<impl Into<Version>>) {
+        self.version = version.map(|v| v.into())
     }
 }
 

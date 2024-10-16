@@ -30,6 +30,14 @@ impl Interface {
         }
     }
 
+    pub fn name(&self) -> &Ident {
+        &self.name
+    }
+
+    pub fn set_name(&mut self, name: impl Into<Ident>) {
+        self.name = name.into();
+    }
+
     /// Add a `TypeDef` to the interface
     pub fn type_def(&mut self, type_def: TypeDef) {
         self.items.push(InterfaceItem::TypeDef(type_def));
@@ -38,6 +46,14 @@ impl Interface {
     /// Add an `Function` to the interface
     pub fn function(&mut self, function: StandaloneFunc) {
         self.items.push(InterfaceItem::Function(function));
+    }
+
+    pub fn uses(&self) -> &[Use] {
+        &self.uses
+    }
+
+    pub fn uses_mut(&mut self) -> &mut [Use] {
+        &mut self.uses
     }
 
     /// Add a `Use` to the interface
