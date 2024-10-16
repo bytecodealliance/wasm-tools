@@ -19,6 +19,22 @@ impl Include {
         }
     }
 
+    pub fn use_path(&self) -> &Ident {
+        &self.use_path
+    }
+
+    pub fn set_use_path(&mut self, use_path: impl Into<Ident>) {
+        self.use_path = use_path.into();
+    }
+
+    pub fn include_names_list(&self) -> &[(String, String)] {
+        &self.include_names_list
+    }
+
+    pub fn include_names_list_mut(&mut self) -> &mut Vec<(String, String)> {
+        &mut self.include_names_list
+    }
+
     pub fn with(&mut self, id: &str, alias: &str) {
         self.include_names_list
             .push((id.to_string(), alias.to_string()));

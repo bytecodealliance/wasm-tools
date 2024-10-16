@@ -32,6 +32,14 @@ impl Use {
         self.use_names_list
             .push((id.into(), alias.map(|s| s.into())));
     }
+
+    pub fn use_names_list(&self) -> &[(Ident, Option<Ident>)] {
+        &self.use_names_list
+    }
+
+    pub fn use_names_list_mut(&mut self) -> &mut Vec<(Ident, Option<Ident>)> {
+        &mut self.use_names_list
+    }
 }
 
 impl Render for Use {

@@ -43,7 +43,7 @@ impl Flag {
         }
     }
 
-    pub fn name(&mut self) -> &Ident {
+    pub fn name(&self) -> &Ident {
         &self.name
     }
 
@@ -51,7 +51,7 @@ impl Flag {
         self.name = name.into();
     }
 
-    pub fn docs(&mut self) -> &Option<Docs> {
+    pub fn docs(&self) -> &Option<Docs> {
         &self.docs
     }
 

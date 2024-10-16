@@ -35,6 +35,14 @@ impl World {
         &self.name
     }
 
+    pub fn items(&self) -> &[WorldItem] {
+        &self.items
+    }
+
+    pub fn items_mut(&mut self) -> &mut Vec<WorldItem> {
+        &mut self.items
+    }
+
     /// Add an import or export to the world
     pub fn item(&mut self, item: WorldItem) {
         self.items.push(item);
@@ -63,6 +71,10 @@ impl World {
     }
     pub fn use_(&mut self, use_: Use) {
         self.item(WorldItem::Use(use_));
+    }
+
+    pub fn docs(&self) -> Option<&Docs> {
+        self.docs.as_ref()
     }
 
     /// Set the documentation
