@@ -20,7 +20,7 @@ tempfile = "3.0"
 wasm-mutate = { workspace = true }
 wasm-smith = { workspace = true, features = ['component-model', 'wasmparser'] }
 wasmparser = { workspace = true, features = ['features'] }
-wasmprinter = { workspace = true }
+wasmprinter = { workspace = true, features = ['component-model'] }
 wasmtime = { workspace = true, optional = true }
 wast = { workspace = true }
 wat = { workspace = true }
