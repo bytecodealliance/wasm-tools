@@ -1,5 +1,5 @@
 (module
-  (type $a (;0;) (shared(array (mut i32))))
+  (type $a (;0;) (shared (array (mut i32))))
   (type (;1;) (func (param (ref null $a) i32 i32) (result i32)))
   (export "array-atomic-rmw.xor-i32-acq_rel" (func 0))
   (func (;0;) (type 1) (param $x (ref null $a)) (param $y i32) (param $z i32) (result i32)
