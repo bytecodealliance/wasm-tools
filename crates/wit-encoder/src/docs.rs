@@ -16,6 +16,14 @@ impl Docs {
             contents: contents.into(),
         }
     }
+
+    pub fn contents(&self) -> &str {
+        self.contents.as_ref()
+    }
+
+    pub fn set_contents(&mut self, contents: impl Into<String>) {
+        self.contents = contents.into();
+    }
 }
 
 impl<S> From<S> for Docs
