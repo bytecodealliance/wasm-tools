@@ -813,6 +813,7 @@ impl Printer<'_, '_> {
     fn print_composite(&mut self, state: &State, ty: &CompositeType, ty_idx: u32) -> Result<u32> {
         if ty.shared {
             self.start_group("shared")?;
+            self.result.write_str(" ")?;
         }
         let r = match &ty.inner {
             CompositeInnerType::Func(ty) => {

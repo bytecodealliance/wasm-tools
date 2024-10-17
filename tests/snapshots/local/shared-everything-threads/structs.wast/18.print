@@ -1,5 +1,5 @@
 (module
-  (type $s (;0;) (shared(struct (field $i8 (mut i8)) (field $i16 (mut i16)) (field $i32 (mut i32)) (field $i64 (mut i64)) (field $anyref (mut (ref null (shared any)))) (field $eqref (mut (ref null (shared eq)))))))
+  (type $s (;0;) (shared (struct (field $i8 (mut i8)) (field $i16 (mut i16)) (field $i32 (mut i32)) (field $i64 (mut i64)) (field $anyref (mut (ref null (shared any)))) (field $eqref (mut (ref null (shared eq)))))))
   (type (;1;) (func (param (ref null $s)) (result i32)))
   (type (;2;) (func (param (ref null $s)) (result i64)))
   (type (;3;) (func (param (ref null $s)) (result (ref null (shared any)))))
