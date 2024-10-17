@@ -31,7 +31,7 @@ impl World {
         self.name = name.into();
     }
 
-    pub fn name(&mut self) -> &Ident {
+    pub fn name(&self) -> &Ident {
         &self.name
     }
 
@@ -259,7 +259,7 @@ impl WorldNamedInterface {
         self.name = name.into();
     }
 
-    pub fn name(&mut self) -> &Ident {
+    pub fn name(&self) -> &Ident {
         &self.name
     }
 
