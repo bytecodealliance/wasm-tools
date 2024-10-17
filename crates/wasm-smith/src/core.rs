@@ -2258,8 +2258,9 @@ impl Module {
 
         self.code.reserve(self.num_defined_funcs);
         let mut allocs = CodeBuilderAllocations::new(self, self.config.exports.is_some());
-        for (_, ty) in self.funcs[self.funcs.len() - self.num_defined_funcs..].iter() {
-            let body = self.arbitrary_func_body(u, ty, &mut allocs)?;
+        for (idx, ty) in self.funcs[self.funcs.len() - self.num_defined_funcs..].iter() {
+            let shared = self.is_shared_type(*idx);
+            let body = self.arbitrary_func_body(u, ty, &mut allocs, shared)?;
             self.code.push(body);
         }
         allocs.finish(u, self)?;
@@ -2271,9 +2272,10 @@ impl Module {
         u: &mut Unstructured,
         ty: &FuncType,
         allocs: &mut CodeBuilderAllocations,
+        shared: bool,
     ) -> Result<Code> {
         let mut locals = self.arbitrary_locals(u)?;
-        let builder = allocs.builder(ty, &mut locals);
+        let builder = allocs.builder(ty, &mut locals, shared);
         let instructions = if self.config.allow_invalid_funcs && u.arbitrary().unwrap_or(false) {
             Instructions::Arbitrary(arbitrary_vec_u8(u)?)
         } else {

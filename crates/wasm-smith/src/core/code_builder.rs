@@ -668,6 +668,7 @@ pub(crate) struct CodeBuilderAllocations {
 }
 
 pub(crate) struct CodeBuilder<'a> {
+    shared: bool,
     func_ty: &'a FuncType,
     locals: &'a mut Vec<ValType>,
     allocs: &'a mut CodeBuilderAllocations,
@@ -903,6 +904,7 @@ impl CodeBuilderAllocations {
         &'a mut self,
         func_ty: &'a FuncType,
         locals: &'a mut Vec<ValType>,
+        shared: bool,
     ) -> CodeBuilder<'a> {
         self.controls.clear();
         self.controls.push(Control {
@@ -916,6 +918,7 @@ impl CodeBuilderAllocations {
         self.options.clear();
 
         CodeBuilder {
+            shared,
             func_ty,
             locals,
             allocs: self,
