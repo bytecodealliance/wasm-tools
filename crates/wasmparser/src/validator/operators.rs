@@ -33,7 +33,7 @@ use core::ops::{Deref, DerefMut};
 
 pub(crate) struct OperatorValidator {
     pub(super) locals: Locals,
-    pub(super) local_inits: Vec<bool>,
+    local_inits: LocalInits,
 
     // This is a list of flags for wasm features which are used to gate various
     // instructions.
@@ -46,9 +46,6 @@ pub(crate) struct OperatorValidator {
     control: Vec<Frame>,
     /// The `operands` is the current type stack.
     operands: Vec<MaybeType>,
-    /// When local_inits is modified, the relevant index is recorded here to be
-    /// undone when control pops
-    inits: Vec<u32>,
 
     /// Offset of the `end` instruction which emptied the `control` stack, which
     /// must be the end of the function.
@@ -59,6 +56,76 @@ pub(crate) struct OperatorValidator {
 
     #[cfg(debug_assertions)]
     pub(crate) pop_push_count: (u32, u32),
+}
+
+#[derive(Default)]
+struct LocalInits {
+    local_inits: Vec<bool>,
+    /// When local_inits is modified, the relevant index is recorded here to be
+    /// undone when control pops
+    inits: Vec<u32>,
+}
+
+impl LocalInits {
+    /// Defines new function local parameters.
+    pub fn define_params(&mut self, count: usize) {
+        let Some(new_len) = self.local_inits.len().checked_add(count) else {
+            panic!("tried to define too many function locals as parameters: {count}");
+        };
+        self.local_inits.resize(new_len, true);
+    }
+
+    /// Defines `count` function locals of type `ty`.
+    pub fn define_locals(&mut self, count: u32, ty: ValType) {
+        let Ok(count) = usize::try_from(count) else {
+            panic!("tried to define too many function locals: {count}");
+        };
+        let Some(new_len) = self.local_inits.len().checked_add(count) else {
+            panic!("tried to define too many function locals: {count}");
+        };
+        self.local_inits.resize(new_len, ty.is_defaultable());
+    }
+
+    /// Returns `true` if the local at `local_index` has already been initialized.
+    pub fn is_init(&self, local_index: u32) -> bool {
+        self.local_inits[local_index as usize]
+    }
+
+    /// Marks the local at `local_index` as initialized.
+    pub fn set_init(&mut self, local_index: u32) {
+        if self.is_init(local_index) {
+            return;
+        }
+        self.local_inits[local_index as usize] = true;
+        self.inits.push(local_index);
+    }
+
+    /// Registers a new control frame and returns its `height`.
+    pub fn push_ctrl(&mut self) -> usize {
+        self.inits.len()
+    }
+
+    /// Pops a control frame via its `height`.
+    ///
+    /// This uninitializes all locals that have been initialized within it.
+    pub fn pop_ctrl(&mut self, height: usize) {
+        for local_index in self.inits.split_off(height) {
+            self.local_inits[local_index as usize] = false;
+        }
+    }
+
+    /// Clears the [`LocalInits`].
+    ///
+    /// After this operation `self` will be empty and ready for reuse.
+    pub fn clear(&mut self) {
+        self.local_inits.clear();
+        self.inits.clear();
+    }
+
+    /// Returns `true` if `self` is empty.
+    pub fn is_empty(&self) -> bool {
+        self.local_inits.is_empty()
+    }
 }
 
 // No science was performed in the creation of this number, feel free to change
@@ -120,8 +187,7 @@ pub struct OperatorValidatorAllocations {
     popped_types_tmp: Vec<MaybeType>,
     control: Vec<Frame>,
     operands: Vec<MaybeType>,
-    local_inits: Vec<bool>,
-    inits: Vec<u32>,
+    local_inits: LocalInits,
     locals_first: Vec<ValType>,
     locals_all: Vec<(u32, ValType)>,
 }
@@ -226,7 +292,6 @@ impl OperatorValidator {
             control,
             operands,
             local_inits,
-            inits,
             locals_first,
             locals_all,
         } = allocs;
@@ -234,7 +299,7 @@ impl OperatorValidator {
         debug_assert!(control.is_empty());
         debug_assert!(operands.is_empty());
         debug_assert!(local_inits.is_empty());
-        debug_assert!(inits.is_empty());
+        debug_assert!(local_inits.is_empty());
         debug_assert!(locals_first.is_empty());
         debug_assert!(locals_all.is_empty());
         OperatorValidator {
@@ -244,7 +309,6 @@ impl OperatorValidator {
                 all: locals_all,
             },
             local_inits,
-            inits,
             features: *features,
             popped_types_tmp,
             operands,
@@ -293,8 +357,8 @@ impl OperatorValidator {
         if let CompositeInnerType::Func(func_ty) = &sub_ty.composite_type.inner {
             for ty in func_ty.params() {
                 ret.locals.define(1, *ty);
-                ret.local_inits.push(true);
             }
+            ret.local_inits.define_params(func_ty.params().len());
         } else {
             bail!(offset, "expected func type at index {ty}, found {sub_ty}")
         }
@@ -343,8 +407,7 @@ impl OperatorValidator {
                 offset,
             ));
         }
-        self.local_inits
-            .resize(self.local_inits.len() + count as usize, ty.is_defaultable());
+        self.local_inits.define_locals(count, ty);
         Ok(())
     }
 
@@ -418,7 +481,7 @@ impl OperatorValidator {
         format_err!(offset, "operators remaining after end of function")
     }
 
-    pub fn into_allocations(self) -> OperatorValidatorAllocations {
+    pub fn into_allocations(mut self) -> OperatorValidatorAllocations {
         fn clear<T>(mut tmp: Vec<T>) -> Vec<T> {
             tmp.clear();
             tmp
@@ -427,8 +490,10 @@ impl OperatorValidator {
             popped_types_tmp: clear(self.popped_types_tmp),
             control: clear(self.control),
             operands: clear(self.operands),
-            local_inits: clear(self.local_inits),
-            inits: clear(self.inits),
+            local_inits: {
+                self.local_inits.clear();
+                self.local_inits
+            },
             locals_first: clear(self.locals.first),
             locals_all: clear(self.locals.all),
         }
@@ -816,7 +881,7 @@ where
         // Push a new frame which has a snapshot of the height of the current
         // operand stack.
         let height = self.operands.len();
-        let init_height = self.inits.len();
+        let init_height = self.local_inits.push_ctrl();
         self.control.push(Frame {
             kind,
             block_type: ty,
@@ -848,9 +913,7 @@ where
         let init_height = frame.init_height;
 
         // reset_locals in the spec
-        for init in self.inits.split_off(init_height) {
-            self.local_inits[init as usize] = false;
-        }
+        self.local_inits.pop_ctrl(init_height);
 
         // Pop all the result types, in reverse order, from the operand stack.
         // These types will, possibly, be transferred to the next frame.
@@ -2034,7 +2097,7 @@ where
     fn visit_local_get(&mut self, local_index: u32) -> Self::Output {
         let ty = self.local(local_index)?;
         debug_assert_type_indices_are_ids(ty);
-        if !self.local_inits[local_index as usize] {
+        if !self.local_inits.is_init(local_index) {
             bail!(self.offset, "uninitialized local: {}", local_index);
         }
         self.push_operand(ty)?;
@@ -2043,20 +2106,13 @@ where
     fn visit_local_set(&mut self, local_index: u32) -> Self::Output {
         let ty = self.local(local_index)?;
         self.pop_operand(Some(ty))?;
-        if !self.local_inits[local_index as usize] {
-            self.local_inits[local_index as usize] = true;
-            self.inits.push(local_index);
-        }
+        self.local_inits.set_init(local_index);
         Ok(())
     }
     fn visit_local_tee(&mut self, local_index: u32) -> Self::Output {
         let expected_ty = self.local(local_index)?;
         self.pop_operand(Some(expected_ty))?;
-        if !self.local_inits[local_index as usize] {
-            self.local_inits[local_index as usize] = true;
-            self.inits.push(local_index);
-        }
-
+        self.local_inits.set_init(local_index);
         self.push_operand(expected_ty)?;
         Ok(())
     }
@@ -4841,7 +4897,7 @@ where
         }
         // Start a new frame and push `exnref` value.
         let height = self.operands.len();
-        let init_height = self.inits.len();
+        let init_height = self.local_inits.push_ctrl();
         self.control.push(Frame {
             kind: FrameKind::LegacyCatch,
             block_type: frame.block_type,
@@ -4890,7 +4946,7 @@ where
             bail!(self.offset, "catch_all found outside of a `try` block");
         }
         let height = self.operands.len();
-        let init_height = self.inits.len();
+        let init_height = self.local_inits.push_ctrl();
         self.control.push(Frame {
             kind: FrameKind::LegacyCatchAll,
             block_type: frame.block_type,
