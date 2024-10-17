@@ -1660,8 +1660,8 @@ fn block(
 }
 
 #[inline]
-fn try_table_valid(module: &Module, _: &mut CodeBuilder) -> bool {
-    module.config.exceptions_enabled
+fn try_table_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.exceptions_enabled && !builder.shared
 }
 
 fn try_table(
@@ -1983,6 +1983,7 @@ fn call_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
         .functions
         .keys()
         .any(|func_ty| builder.types_on_stack(module, &func_ty.params))
+        && !builder.shared
 }
 
 fn call(
@@ -2017,6 +2018,9 @@ fn call_ref_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
         None => return false,
     };
     if module.config.disallow_traps && funcref.nullable {
+        return false;
+    }
+    if builder.shared {
         return false;
     }
     match funcref.heap_type {
@@ -2070,6 +2074,9 @@ fn call_indirect_valid_impl(
         // the `i`th slot in a table and dynamically avoid trapping
         // `call_indirect`s. Therefore, we can't emit *any*
         // `call_indirect` instructions if we want to avoid traps.
+        return false;
+    }
+    if builder.shared {
         return false;
     }
     let can_call32 = builder.type_on_stack(module, ValType::I32)
@@ -2130,6 +2137,9 @@ fn return_call_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     if !module.config.tail_call_enabled {
         return false;
     }
+    if builder.shared {
+        return false;
+    }
 
     builder.allocs.functions.keys().any(|func_ty| {
         builder.types_on_stack(module, &func_ty.params)
@@ -2165,6 +2175,9 @@ fn return_call(
 #[inline]
 fn return_call_ref_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     if !module.config.gc_enabled {
+        return false;
+    }
+    if builder.shared {
         return false;
     }
 
@@ -2255,6 +2268,7 @@ fn throw_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
             .tags
             .keys()
             .any(|k| builder.types_on_stack(module, k))
+        && !builder.shared
 }
 
 fn throw(
@@ -2282,7 +2296,9 @@ fn throw(
 
 #[inline]
 fn throw_ref_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.exceptions_enabled && builder.types_on_stack(module, &[ValType::EXNREF])
+    module.config.exceptions_enabled
+        && builder.types_on_stack(module, &[ValType::EXNREF])
+        && !builder.shared
 }
 
 fn throw_ref(
@@ -2765,8 +2781,8 @@ fn local_tee(
 }
 
 #[inline]
-fn global_get_valid(module: &Module, _: &mut CodeBuilder) -> bool {
-    module.globals.len() > 0
+fn global_get_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.globals.len() > 0 && !builder.shared
 }
 
 fn global_get(
@@ -2792,6 +2808,7 @@ fn global_set_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
         .mutable_globals
         .iter()
         .any(|(ty, _)| builder.type_on_stack(module, *ty))
+        && !builder.shared
 }
 
 fn global_set(
@@ -5589,7 +5606,7 @@ fn table_fill_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled
         && module.config.bulk_memory_enabled
         && !module.config.disallow_traps // Non-trapping table fill generation not yet implemented
-        && table_fill_candidates(module, builder).next().is_some()
+        && table_fill_candidates(module, builder).next().is_some() && !builder.shared
 }
 
 fn table_fill_candidates<'a>(
@@ -5629,7 +5646,7 @@ fn table_fill(
 fn table_set_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.reference_types_enabled
     && !module.config.disallow_traps // Non-trapping table.set generation not yet implemented
-    && table_set_candidates(module, builder).next().is_some()
+    && table_set_candidates(module, builder).next().is_some() && !builder.shared
 }
 
 fn table_set_candidates<'a>(
@@ -5668,6 +5685,9 @@ fn table_get_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     if module.config.disallow_traps {
         return false;
     }
+    if builder.shared {
+        return false;
+    }
     if builder.type_on_stack(module, ValType::I32) && builder.allocs.table32.len() > 0 {
         return true;
     }
@@ -5698,8 +5718,8 @@ fn table_get(
 }
 
 #[inline]
-fn table_size_valid(module: &Module, _: &mut CodeBuilder) -> bool {
-    module.config.reference_types_enabled && module.tables.len() > 0
+fn table_size_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
+    module.config.reference_types_enabled && module.tables.len() > 0 && !builder.shared
 }
 
 fn table_size(
@@ -5717,7 +5737,9 @@ fn table_size(
 
 #[inline]
 fn table_grow_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.reference_types_enabled && table_grow_candidates(module, builder).next().is_some()
+    module.config.reference_types_enabled
+        && table_grow_candidates(module, builder).next().is_some()
+        && !builder.shared
 }
 
 fn table_grow_candidates<'a>(
@@ -5755,6 +5777,9 @@ fn table_copy_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     }
     // Non-trapping table.copy generation not yet implemented
     if module.config.disallow_traps {
+        return false;
+    }
+    if builder.shared {
         return false;
     }
     if builder.types_on_stack(module, &[ValType::I64, ValType::I64, ValType::I64]) {
@@ -5800,6 +5825,9 @@ fn table_init_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     }
     // Non-trapping table.init generation not yet implemented.
     if module.config.disallow_traps {
+        return false;
+    }
+    if builder.shared {
         return false;
     }
     if builder.allocs.table32_init.len() > 0
@@ -5858,6 +5886,7 @@ fn struct_new_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
             .iter()
             .copied()
             .any(|i| builder.field_types_on_stack(module, &module.ty(i).unwrap_struct().fields))
+        && !builder.shared
 }
 
 fn struct_new(
@@ -5894,7 +5923,7 @@ fn struct_new(
 }
 
 #[inline]
-fn struct_new_default_valid(module: &Module, _builder: &mut CodeBuilder) -> bool {
+fn struct_new_default_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.gc_enabled
         && module.struct_types.iter().copied().any(|i| {
             module
@@ -5904,6 +5933,7 @@ fn struct_new_default_valid(module: &Module, _builder: &mut CodeBuilder) -> bool
                 .iter()
                 .all(|f| f.element_type.is_defaultable())
         })
+        && !builder.shared
 }
 
 fn struct_new_default(
@@ -5955,6 +5985,7 @@ fn struct_get_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     module.config.gc_enabled
         && !module.config.disallow_traps
         && builder.non_empty_struct_ref_on_stack(module, !module.config.disallow_traps)
+        && !builder.shared
 }
 
 fn struct_get(
@@ -5993,6 +6024,9 @@ fn struct_get(
 #[inline]
 fn struct_set_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     if !module.config.gc_enabled {
+        return false;
+    }
+    if builder.shared {
         return false;
     }
     match builder.concrete_struct_ref_type_on_stack_at(module, 1) {
@@ -6051,6 +6085,7 @@ fn array_new_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
             .array_types
             .iter()
             .any(|i| builder.field_type_on_stack_at(module, 1, module.ty(*i).unwrap_array().0))
+        && !builder.shared
 }
 
 fn array_new(
@@ -6092,6 +6127,7 @@ fn array_new_fixed_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
             .array_types
             .iter()
             .any(|i| builder.field_type_on_stack(module, module.ty(*i).unwrap_array().0))
+        && !builder.shared
 }
 
 fn array_new_fixed(
@@ -6151,6 +6187,7 @@ fn array_new_default_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
             .array_types
             .iter()
             .any(|i| module.ty(*i).unwrap_array().0.element_type.is_defaultable())
+        && !builder.shared
 }
 
 fn array_new_default(
@@ -6200,7 +6237,7 @@ fn array_new_data_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
         && module.array_types.iter().any(|i| {
             let ty = module.ty(*i).unwrap_array().0.element_type.unpack();
             ty.is_numeric() | ty.is_vector()
-        })
+        }) && !builder.shared
 }
 
 fn array_new_data(
@@ -6264,6 +6301,7 @@ fn array_new_elem_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
             .array_types
             .iter()
             .any(|i| module_has_elem_segment_of_array_type(module, module.ty(*i).unwrap_array()))
+        && !builder.shared
 }
 
 fn array_new_elem(
@@ -6329,6 +6367,7 @@ fn array_get_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
         && !module.config.disallow_traps // TODO: add support for disallowing traps
         && builder.type_on_stack(module, ValType::I32)
         && builder.concrete_array_ref_type_on_stack_at(module, 1).is_some()
+        && !builder.shared
 }
 
 fn array_get(
@@ -6363,6 +6402,9 @@ fn array_set_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     {
         return false;
     }
+    if builder.shared {
+        return false;
+    }
     match builder.concrete_array_ref_type_on_stack_at(module, 2) {
         None => false,
         Some((_nullable, _idx, array_ty)) => {
@@ -6386,7 +6428,9 @@ fn array_set(
 
 #[inline]
 fn array_len_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
-    module.config.gc_enabled && builder.type_on_stack(module, ValType::Ref(RefType::ARRAYREF))
+    module.config.gc_enabled
+        && builder.type_on_stack(module, ValType::Ref(RefType::ARRAYREF))
+        && !builder.shared
 }
 
 fn array_len(
@@ -6409,6 +6453,9 @@ fn array_fill_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
         || !builder.type_on_stack_at(module, 0, ValType::I32)
         || !builder.type_on_stack_at(module, 2, ValType::I32)
     {
+        return false;
+    }
+    if builder.shared {
         return false;
     }
     match builder.concrete_array_ref_type_on_stack_at(module, 3) {
@@ -6442,6 +6489,9 @@ fn array_copy_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
         || !builder.type_on_stack_at(module, 1, ValType::I32)
         || !builder.type_on_stack_at(module, 3, ValType::I32)
     {
+        return false;
+    }
+    if builder.shared {
         return false;
     }
     let x = match builder.concrete_array_ref_type_on_stack_at(module, 4) {
@@ -6493,6 +6543,9 @@ fn array_init_data_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
     {
         return false;
     }
+    if builder.shared {
+        return false;
+    }
     match builder.concrete_array_ref_type_on_stack_at(module, 3) {
         None => return false,
         Some((_, _, ty)) => {
@@ -6531,6 +6584,9 @@ fn array_init_elem_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
         || module.config.disallow_traps
         || !builder.types_on_stack(module, &[ValType::I32, ValType::I32, ValType::I32])
     {
+        return false;
+    }
+    if builder.shared {
         return false;
     }
     match builder.concrete_array_ref_type_on_stack_at(module, 3) {
