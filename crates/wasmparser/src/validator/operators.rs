@@ -23,7 +23,7 @@
 // the various methods here.
 
 use crate::{
-    limits::MAX_WASM_FUNCTION_LOCALS, AbstractHeapType, BinaryReaderError, BlockType,
+    hint::likely, limits::MAX_WASM_FUNCTION_LOCALS, AbstractHeapType, BinaryReaderError, BlockType,
     BrTable, Catch, ContType, FieldType, FrameKind, FuncType, GlobalType, Handle, HeapType, Ieee32,
     Ieee64, MemArg, ModuleArity, RefType, Result, ResumeTable, StorageType, StructType, SubType,
     TableType, TryTable, UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources,
@@ -105,16 +105,17 @@ impl LocalInits {
     /// Returns `true` if the local at `local_index` has already been initialized.
     #[inline]
     pub fn is_init(&self, local_index: u32) -> bool {
-        if local_index < self.first_non_default_local {
+        if likely(local_index < self.first_non_default_local) {
             return true;
         }
         self.local_inits[local_index as usize]
     }
 
     /// Marks the local at `local_index` as initialized.
+    #[inline]
     pub fn set_init(&mut self, local_index: u32) {
-        if local_index < self.first_non_default_local {
-            return
+        if likely(local_index < self.first_non_default_local) {
+            return;
         }
         self.local_inits[local_index as usize] = true;
         self.inits.push(local_index);
