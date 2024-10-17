@@ -23,10 +23,11 @@
 // the various methods here.
 
 use crate::{
-    limits::MAX_WASM_FUNCTION_LOCALS, AbstractHeapType, BinaryReaderError, BlockType, BrTable,
-    Catch, ContType, FieldType, FrameKind, FuncType, GlobalType, Handle, HeapType, Ieee32, Ieee64,
-    MemArg, ModuleArity, RefType, Result, ResumeTable, StorageType, StructType, SubType, TableType,
-    TryTable, UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources, V128,
+    hint::likely, limits::MAX_WASM_FUNCTION_LOCALS, AbstractHeapType, BinaryReaderError, BlockType,
+    BrTable, Catch, ContType, FieldType, FrameKind, FuncType, GlobalType, Handle, HeapType, Ieee32,
+    Ieee64, MemArg, ModuleArity, RefType, Result, ResumeTable, StorageType, StructType, SubType,
+    TableType, TryTable, UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources,
+    V128,
 };
 use crate::{prelude::*, CompositeInnerType, Ordering};
 use core::ops::{Deref, DerefMut};
@@ -58,12 +59,22 @@ pub(crate) struct OperatorValidator {
     pub(crate) pop_push_count: (u32, u32),
 }
 
-#[derive(Default)]
 struct LocalInits {
     local_inits: Vec<bool>,
     /// When local_inits is modified, the relevant index is recorded here to be
     /// undone when control pops
     inits: Vec<u32>,
+    first_non_default_local: u32,
+}
+
+impl Default for LocalInits {
+    fn default() -> Self {
+        Self {
+            local_inits: Vec::default(),
+            inits: Vec::default(),
+            first_non_default_local: u32::MAX,
+        }
+    }
 }
 
 impl LocalInits {
@@ -80,14 +91,23 @@ impl LocalInits {
         let Ok(count) = usize::try_from(count) else {
             panic!("tried to define too many function locals: {count}");
         };
-        let Some(new_len) = self.local_inits.len().checked_add(count) else {
+        let len = self.local_inits.len();
+        let Some(new_len) = len.checked_add(count) else {
             panic!("tried to define too many function locals: {count}");
         };
-        self.local_inits.resize(new_len, ty.is_defaultable());
+        let is_defaultable = ty.is_defaultable();
+        if !is_defaultable && self.first_non_default_local == u32::MAX {
+            self.first_non_default_local = len as u32;
+        }
+        self.local_inits.resize(new_len, is_defaultable);
     }
 
     /// Returns `true` if the local at `local_index` has already been initialized.
+    #[inline]
     pub fn is_init(&self, local_index: u32) -> bool {
+        if local_index < self.first_non_default_local {
+            return true;
+        }
         self.local_inits[local_index as usize]
     }
 
@@ -120,6 +140,7 @@ impl LocalInits {
     pub fn clear(&mut self) {
         self.local_inits.clear();
         self.inits.clear();
+        self.first_non_default_local = u32::MAX;
     }
 
     /// Returns `true` if `self` is empty.
