@@ -1,6 +1,6 @@
 (module
-  (type $i8 (;0;) (shared(struct (field (mut i8)))))
-  (type $i32 (;1;) (shared(struct (field (mut i32)))))
+  (type $i8 (;0;) (shared (struct (field (mut i8)))))
+  (type $i32 (;1;) (shared (struct (field (mut i32)))))
   (type $unshared (;2;) (struct (field (mut i8))))
   (type (;3;) (func))
   (type (;4;) (func (param (ref null $i8))))

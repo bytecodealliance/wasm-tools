@@ -1,5 +1,5 @@
 (module
-  (type $t (;0;) (shared(func)))
+  (type $t (;0;) (shared (func)))
   (import "spectest" "global_t" (global (;0;) (shared (ref $t))))
   (import "spectest" "global_mut_t" (global (;1;) (shared mut (ref $t))))
   (import "spectest" "global_null_t" (global (;2;) (shared (ref null $t))))

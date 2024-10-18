@@ -1,7 +1,7 @@
 (module
-  (type $i8 (;0;) (shared(array (mut i8))))
-  (type $i32 (;1;) (shared(array (mut i32))))
-  (type $funcs (;2;) (shared(array (mut (ref null (shared func))))))
+  (type $i8 (;0;) (shared (array (mut i8))))
+  (type $i32 (;1;) (shared (array (mut i32))))
+  (type $funcs (;2;) (shared (array (mut (ref null (shared func))))))
   (type (;3;) (func))
   (type (;4;) (func (param (ref null $i8))))
   (elem (;0;) (ref null (shared func)))
