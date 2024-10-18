@@ -551,16 +551,29 @@ define_config! {
         /// Defaults to `true`.
         pub relaxed_simd_enabled: bool = true,
 
-        /// Determines whether the nontrapping-float-to-int-conversions propsal
-        /// is enabled.
+        /// Determines whether the non-trapping float-to-int conversions
+        /// proposal is enabled.
         ///
         /// Defaults to `true`.
         pub saturating_float_to_int_enabled: bool = true,
 
-        /// Determines whether the sign-extension-ops propsal is enabled.
+        /// Determines whether the sign-extension-ops proposal is enabled.
         ///
         /// Defaults to `true`.
         pub sign_extension_ops_enabled: bool = true,
+
+        /// Determines whether the shared-everything-threads proposal is
+        /// enabled.
+        ///
+        /// The [shared-everything-threads] proposal, among other things,
+        /// extends `shared` attributes to all WebAssembly objects; it builds on
+        /// the [threads] proposal.
+        ///
+        /// [shared-everything-threads]: https://github.com/WebAssembly/shared-everything-threads
+        /// [threads]: https://github.com/WebAssembly/threads
+        ///
+        /// Defaults to `false`.
+        pub shared_everything_threads_enabled: bool = false,
 
         /// Determines whether the SIMD proposal is enabled for generating
         /// instructions.
@@ -754,6 +767,7 @@ impl<'a> Arbitrary<'a> for Config {
             memory64_enabled: false,
             custom_page_sizes_enabled: false,
             wide_arithmetic_enabled: false,
+            shared_everything_threads_enabled: false,
         };
         config.sanitize();
         Ok(config)
@@ -821,6 +835,10 @@ impl Config {
         features.set(WasmFeatures::FUNCTION_REFERENCES, self.gc_enabled);
         features.set(WasmFeatures::GC, self.gc_enabled);
         features.set(WasmFeatures::THREADS, self.threads_enabled);
+        features.set(
+            WasmFeatures::SHARED_EVERYTHING_THREADS,
+            self.shared_everything_threads_enabled,
+        );
         features.set(
             WasmFeatures::CUSTOM_PAGE_SIZES,
             self.custom_page_sizes_enabled,
