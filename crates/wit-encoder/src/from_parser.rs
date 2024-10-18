@@ -1,10 +1,10 @@
-use id_arena::Id;
-
 use crate::{
-    Enum, Flags, Interface, InterfaceItem, Package, PackageName, Params, Record, Resource,
+    Enum, Flags, Ident, Interface, InterfaceItem, Package, PackageName, Params, Record, Resource,
     ResourceFunc, Result_, Results, StandaloneFunc, Tuple, Type, TypeDef, TypeDefKind, Variant,
     World, WorldItem,
 };
+use id_arena::Id;
+use wit_parser::PackageId;
 
 pub fn packages_from_parsed(resolve: &wit_parser::Resolve) -> Vec<Package> {
     let converter = Converter::new(resolve);
@@ -24,15 +24,16 @@ impl<'a> Converter<'a> {
         self.resolve
             .packages
             .iter()
-            .map(|(_, p)| self.convert_package(p))
+            .map(|(p_id, p)| self.convert_package(p_id, p))
             .collect()
     }
 
-    fn convert_package(&self, package: &wit_parser::Package) -> Package {
+    fn convert_package(&self, package_id: PackageId, package: &wit_parser::Package) -> Package {
         let mut output = Package::new(self.convert_package_name(&package.name));
         for (_, id) in &package.interfaces {
             let interface = self.resolve.interfaces.get(*id).unwrap();
             output.interface(self.convert_interface(
+                package_id,
                 interface,
                 None,
                 wit_parser::TypeOwner::Interface(*id),
@@ -40,7 +41,7 @@ impl<'a> Converter<'a> {
         }
         for (_, id) in &package.worlds {
             let world = self.resolve.worlds.get(*id).unwrap();
-            output.world(self.convert_world(world, wit_parser::TypeOwner::World(*id)));
+            output.world(self.convert_world(package_id, world, wit_parser::TypeOwner::World(*id)));
         }
         output
     }
@@ -53,33 +54,30 @@ impl<'a> Converter<'a> {
         )
     }
 
-    fn convert_world(&self, world: &wit_parser::World, owner: wit_parser::TypeOwner) -> World {
+    fn convert_world(
+        &self,
+        package_id: PackageId,
+        world: &wit_parser::World,
+        owner: wit_parser::TypeOwner,
+    ) -> World {
         let mut output = World::new(world.name.clone());
 
         for (key, item) in &world.imports {
             match item {
                 wit_parser::WorldItem::Interface { id, .. } => {
                     let interface = self.resolve.interfaces.get(*id).unwrap();
-                    output.item(match &interface.name {
-                        Some(name) => {
-                            // standalone
-                            WorldItem::named_interface_import(name.clone())
-                        }
-                        None => {
-                            // inlined
-                            let name = match key {
-                                wit_parser::WorldKey::Name(name) => name.clone(),
-                                wit_parser::WorldKey::Interface(_) => {
-                                    unreachable!("inlined interface must have a kye name")
-                                }
-                            };
-                            WorldItem::inline_interface_import(self.convert_interface(
-                                interface,
-                                Some(name),
-                                owner,
-                            ))
-                        }
-                    });
+                    let ident = self.interface_ident(package_id, Some(key), interface);
+
+                    if interface.name.is_some() {
+                        output.item(WorldItem::named_interface_import(ident))
+                    } else {
+                        output.item(WorldItem::inline_interface_import(self.convert_interface(
+                            package_id,
+                            interface,
+                            Some(ident),
+                            owner,
+                        )))
+                    }
                 }
                 wit_parser::WorldItem::Function(func) => {
                     if let Some(func) = self.standalone_func_convert(func) {
@@ -95,26 +93,17 @@ impl<'a> Converter<'a> {
             match item {
                 wit_parser::WorldItem::Interface { id, .. } => {
                     let interface = self.resolve.interfaces.get(*id).unwrap();
-                    output.item(match &interface.name {
-                        Some(name) => {
-                            // standalone
-                            WorldItem::named_interface_export(name.clone())
-                        }
-                        None => {
-                            // inlined
-                            let name = match key {
-                                wit_parser::WorldKey::Name(name) => name.clone(),
-                                wit_parser::WorldKey::Interface(_) => {
-                                    unreachable!("inlined interface must have a kye name")
-                                }
-                            };
-                            WorldItem::inline_interface_export(self.convert_interface(
-                                interface,
-                                Some(name),
-                                owner,
-                            ))
-                        }
-                    });
+                    let ident = self.interface_ident(package_id, Some(key), interface);
+                    if interface.name.is_some() {
+                        output.item(WorldItem::named_interface_export(ident));
+                    } else {
+                        output.item(WorldItem::inline_interface_export(self.convert_interface(
+                            package_id,
+                            interface,
+                            Some(ident),
+                            owner,
+                        )));
+                    }
                 }
                 wit_parser::WorldItem::Function(func) => {
                     if let Some(func) = self.standalone_func_convert(func) {
@@ -132,15 +121,17 @@ impl<'a> Converter<'a> {
 
     fn convert_interface(
         &self,
+        package_id: PackageId,
         interface: &wit_parser::Interface,
-        inlined_name: Option<String>,
+        inlined_name: Option<Ident>,
         owner: wit_parser::TypeOwner,
     ) -> Interface {
-        let mut output = Interface::new(interface.name.clone().unwrap_or_else(|| {
-            inlined_name
-                .clone()
-                .expect("inlined interface must pass in inlined_name")
-        }));
+        let mut output =
+            Interface::new(interface.name.clone().map(Ident::new).unwrap_or_else(|| {
+                inlined_name
+                    .clone()
+                    .expect("inlined interface must pass in inlined_name")
+            }));
 
         for (_, func) in &interface.functions {
             if let Some(func) = self.standalone_func_convert(func) {
@@ -166,24 +157,21 @@ impl<'a> Converter<'a> {
                     output.item(InterfaceItem::TypeDef(type_def));
                 }
             } else {
-                let interface_name = match underlying_type_def.owner {
-                    wit_parser::TypeOwner::Interface(id) => self
-                        .resolve
-                        .interfaces
-                        .get(id)
-                        .unwrap()
-                        .name
-                        .clone()
-                        .expect("can't use type from inline interface"),
+                let interface_ident = match underlying_type_def.owner {
+                    wit_parser::TypeOwner::Interface(id) => self.interface_ident(
+                        package_id,
+                        None,
+                        self.resolve.interfaces.get(id).unwrap(),
+                    ),
                     _ => panic!("Type not part of an interface"),
                 };
                 let local_type_name = type_def.name.clone().unwrap();
                 let underlying_local_type_name = underlying_type_def.name.clone().unwrap();
                 if underlying_local_type_name == local_type_name {
-                    output.use_type(interface_name, local_type_name, None);
+                    output.use_type(interface_ident, local_type_name, None);
                 } else {
                     output.use_type(
-                        interface_name,
+                        interface_ident,
                         underlying_local_type_name,
                         Some(local_type_name.into()),
                     );
@@ -487,6 +475,51 @@ impl<'a> Converter<'a> {
             output.types_mut().push(self.convert_type(ty));
         }
         output
+    }
+
+    fn interface_ident(
+        &self,
+        package_id: PackageId,
+        world_key: Option<&wit_parser::WorldKey>,
+        interface: &wit_parser::Interface,
+    ) -> Ident {
+        match &interface.name {
+            Some(name) => {
+                // Standalone
+                if interface.package == Some(package_id) {
+                    Ident::new(name.clone())
+                } else {
+                    let package = interface
+                        .package
+                        .map(|package_id| self.resolve.packages.get(package_id).unwrap());
+
+                    match package {
+                        Some(package) => Ident::new(format!(
+                            "{}:{}/{}{}",
+                            package.name.namespace,
+                            package.name.name,
+                            name,
+                            package
+                                .name
+                                .version
+                                .as_ref()
+                                .map(|version| format!("@{}", version))
+                                .unwrap_or_else(|| "".to_string())
+                        )),
+                        None => Ident::new(name.clone()),
+                    }
+                }
+            }
+            None => match world_key {
+                Some(world_key) => match world_key {
+                    wit_parser::WorldKey::Name(name) => Ident::new(name.clone()),
+                    wit_parser::WorldKey::Interface(_) => {
+                        unreachable!("inlined interface must have a world key name")
+                    }
+                },
+                None => panic!("inlined interface requires a world key"),
+            },
+        }
     }
 }
 
