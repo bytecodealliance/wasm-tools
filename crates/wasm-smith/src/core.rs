@@ -1618,12 +1618,26 @@ impl Module {
             return Ok(());
         }
 
+        // For now, only define non-shared functions. Until we can update
+        // instruction generation to understand the additional sharedness
+        // validation, we don't want to generate instructions that touch
+        // unshared objects from a shared context (TODO: handle shared).
+        let unshared_func_types: Vec<_> = self
+            .func_types
+            .iter()
+            .copied()
+            .filter(|&i| !self.is_shared_type(i))
+            .collect();
+        if unshared_func_types.is_empty() {
+            return Ok(());
+        }
+
         arbitrary_loop(u, self.config.min_funcs, self.config.max_funcs, |u| {
             if !self.can_add_local_or_import_func() {
                 return Ok(false);
             }
-            let max = self.func_types.len() - 1;
-            let ty = self.func_types[u.int_in_range(0..=max)?];
+            let max = unshared_func_types.len() - 1;
+            let ty = unshared_func_types[u.int_in_range(0..=max)?];
             self.funcs.push((ty, self.func_type(ty).clone()));
             self.num_defined_funcs += 1;
             Ok(true)
