@@ -668,6 +668,7 @@ pub(crate) struct CodeBuilderAllocations {
 }
 
 pub(crate) struct CodeBuilder<'a> {
+    #[allow(dead_code)]
     shared: bool,
     func_ty: &'a FuncType,
     locals: &'a mut Vec<ValType>,
