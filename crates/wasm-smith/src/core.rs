@@ -1758,7 +1758,10 @@ impl Module {
                 match ty.heap_type {
                     HeapType::Abstract {
                         ty: AbstractHeapType::Func,
-                        ..
+                        // TODO: handle shared; here we should pick as choices
+                        // only functions that match the sharedness of this
+                        // type.
+                        shared: false,
                     } if num_funcs > 0 => {
                         choices.push(Box::new(move |u, _| {
                             let func = u.int_in_range(0..=num_funcs - 1)?;
