@@ -572,10 +572,7 @@ impl Module {
         let index = u32::try_from(self.types.len()).unwrap();
 
         if let Some(supertype) = ty.supertype {
-            debug_assert!(
-                !self.is_shared_type(supertype)
-                    || (self.is_shared_type(supertype) && ty.composite_type.shared)
-            );
+            assert_eq!(self.is_shared_type(supertype), ty.composite_type.shared);
             self.super_to_sub_types
                 .entry(supertype)
                 .or_default()
@@ -932,67 +929,71 @@ impl Module {
         u: &mut Unstructured,
         ty: HeapType,
     ) -> Result<HeapType> {
+        use {AbstractHeapType as AHT, CompositeInnerType as CT, HeapType as HT};
+
         if !self.config.gc_enabled {
             return Ok(ty);
         }
-        use CompositeInnerType as CT;
-        use HeapType as HT;
+
         let mut choices = vec![ty];
         match ty {
             HT::Abstract { shared, ty } => {
                 use AbstractHeapType::*;
-                let ht = |ty| HT::Abstract { shared, ty };
+                let add_abstract = |choices: &mut Vec<HT>, tys: &[AHT]| {
+                    choices.extend(tys.iter().map(|&ty| HT::Abstract { shared, ty }));
+                };
+                let add_concrete = |choices: &mut Vec<HT>, tys: &[u32]| {
+                    choices.extend(
+                        tys.iter()
+                            .filter(|&&idx| shared == self.is_shared_type(idx))
+                            .copied()
+                            .map(HT::Concrete),
+                    );
+                };
                 match ty {
                     None => {
-                        choices.extend([ht(Any), ht(Eq), ht(Struct), ht(Array), ht(I31)]);
-                        choices.extend(self.array_types.iter().copied().map(HT::Concrete));
-                        choices.extend(self.struct_types.iter().copied().map(HT::Concrete));
+                        add_abstract(&mut choices, &[Any, Eq, Struct, Array, I31]);
+                        add_concrete(&mut choices, &self.array_types);
+                        add_concrete(&mut choices, &self.struct_types);
                     }
                     NoExtern => {
-                        choices.push(ht(Extern));
+                        add_abstract(&mut choices, &[Extern]);
                     }
                     NoFunc => {
-                        choices.extend(self.func_types.iter().copied().map(HT::Concrete));
-                        choices.push(ht(Func));
+                        add_abstract(&mut choices, &[Func]);
+                        add_concrete(&mut choices, &self.func_types);
                     }
                     NoExn => {
-                        choices.push(ht(Exn));
+                        add_abstract(&mut choices, &[Exn]);
                     }
                     Struct | Array | I31 => {
-                        choices.extend([ht(Any), ht(Eq)]);
+                        add_abstract(&mut choices, &[Any, Eq]);
                     }
                     Eq => {
-                        choices.push(ht(Any));
+                        add_abstract(&mut choices, &[Any]);
                     }
                     NoCont => {
-                        choices.push(ht(Cont));
+                        add_abstract(&mut choices, &[Cont]);
                     }
                     Exn | Any | Func | Extern | Cont => {}
                 }
             }
             HT::Concrete(mut idx) => {
                 if let Some(sub_ty) = &self.types.get(usize::try_from(idx).unwrap()) {
+                    use AbstractHeapType::*;
                     let ht = |ty| HT::Abstract {
                         shared: sub_ty.composite_type.shared,
                         ty,
                     };
                     match &sub_ty.composite_type.inner {
                         CT::Array(_) => {
-                            choices.extend([
-                                ht(AbstractHeapType::Any),
-                                ht(AbstractHeapType::Eq),
-                                ht(AbstractHeapType::Array),
-                            ]);
+                            choices.extend([ht(Any), ht(Eq), ht(Array)]);
                         }
                         CT::Func(_) => {
-                            choices.push(ht(AbstractHeapType::Func));
+                            choices.push(ht(Func));
                         }
                         CT::Struct(_) => {
-                            choices.extend([
-                                ht(AbstractHeapType::Any),
-                                ht(AbstractHeapType::Eq),
-                                ht(AbstractHeapType::Struct),
-                            ]);
+                            choices.extend([ht(Any), ht(Eq), ht(Struct)]);
                         }
                     }
                 } else {
