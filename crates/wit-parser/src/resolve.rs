@@ -18,9 +18,9 @@ use crate::ast::{parse_use_path, ParsedUsePath};
 use crate::serde_::{serialize_arena, serialize_id_map};
 use crate::{
     AstItem, Docs, Error, Function, FunctionKind, Handle, IncludeName, Interface, InterfaceId,
-    InterfaceSpan, Mangling, PackageName, Results, SourceMap, Stability, Type, TypeDef,
-    TypeDefKind, TypeId, TypeIdVisitor, TypeOwner, UnresolvedPackage, UnresolvedPackageGroup,
-    World, WorldId, WorldItem, WorldKey, WorldSpan,
+    InterfaceSpan, Mangling, PackageName, PackageNotFoundError, Results, SourceMap, Stability,
+    Type, TypeDef, TypeDefKind, TypeId, TypeIdVisitor, TypeOwner, UnresolvedPackage,
+    UnresolvedPackageGroup, World, WorldId, WorldItem, WorldKey, WorldSpan,
 };
 
 mod clone;
@@ -2786,7 +2786,13 @@ impl Remap {
                 .package_names
                 .get(pkg_name)
                 .copied()
-                .ok_or_else(|| Error::new(span, "package not found"))?;
+                .ok_or_else(|| {
+                    PackageNotFoundError::new(
+                        span,
+                        pkg_name.clone(),
+                        resolve.package_names.keys().cloned().collect(),
+                    )
+                })?;
 
             // Functions can't be imported so this should be empty.
             assert!(unresolved_iface.functions.is_empty());

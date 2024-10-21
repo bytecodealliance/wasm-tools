@@ -1,4 +1,4 @@
-use crate::{Error, UnresolvedPackageGroup};
+use crate::{Error, PackageNotFoundError, UnresolvedPackageGroup};
 use anyhow::{bail, Context, Result};
 use lex::{Span, Token, Tokenizer};
 use semver::Version;
@@ -1756,6 +1756,19 @@ impl SourceMap {
             }
         }
         if let Some(_) = err.downcast_mut::<Error>() {
+            return Err(err);
+        }
+        if let Some(notfound) = err.downcast_mut::<PackageNotFoundError>() {
+            if notfound.highlighted.is_none() {
+                let msg = self.highlight_err(
+                    notfound.span.start,
+                    Some(notfound.span.end),
+                    &format!("{notfound}"),
+                );
+                notfound.highlighted = Some(msg);
+            }
+        }
+        if let Some(_) = err.downcast_mut::<PackageNotFoundError>() {
             return Err(err);
         }
 
