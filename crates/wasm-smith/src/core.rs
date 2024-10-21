@@ -1719,7 +1719,6 @@ impl Module {
     fn arbitrary_const_expr(&mut self, ty: ValType, u: &mut Unstructured) -> Result<ConstExpr> {
         let mut choices = mem::take(&mut self.const_expr_choices);
         choices.clear();
-        let num_funcs = self.funcs.len() as u32;
 
         // MVP wasm can `global.get` any immutable imported global in a
         // constant expression, and the GC proposal enables this for all
@@ -1759,15 +1758,25 @@ impl Module {
                 match ty.heap_type {
                     HeapType::Abstract {
                         ty: AbstractHeapType::Func,
-                        // TODO: handle shared; here we should pick as choices
-                        // only functions that match the sharedness of this
-                        // type.
-                        shared: false,
-                    } if num_funcs > 0 => {
-                        choices.push(Box::new(move |u, _| {
-                            let func = u.int_in_range(0..=num_funcs - 1)?;
-                            Ok(ConstExpr::ref_func(func))
-                        }));
+                        shared,
+                    } => {
+                        let num_funcs = self
+                            .funcs
+                            .iter()
+                            .filter(|(t, _)| shared == self.is_shared_type(*t))
+                            .count();
+                        if num_funcs > 0 {
+                            let pick = u.int_in_range(0..=num_funcs - 1)?;
+                            let (i, _) = self
+                                .funcs
+                                .iter()
+                                .map(|(t, _)| *t)
+                                .enumerate()
+                                .filter(|(_, t)| shared == self.is_shared_type(*t))
+                                .nth(pick)
+                                .unwrap();
+                            choices.push(Box::new(move |_, _| Ok(ConstExpr::ref_func(i as u32))));
+                        }
                     }
 
                     HeapType::Concrete(ty) => {
