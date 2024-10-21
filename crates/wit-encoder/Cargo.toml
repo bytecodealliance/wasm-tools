@@ -33,4 +33,5 @@ wit-parser = { workspace = true, optional = true }
 id-arena = { workspace = true, optional = true }
 
 [dev-dependencies]
+anyhow = { workspace = true }
 indoc = { workspace = true }

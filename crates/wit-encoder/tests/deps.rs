@@ -1,4 +1,6 @@
+use anyhow::Result;
 use pretty_assertions::assert_eq;
+use wit_encoder::{packages_from_parsed, Package};
 use wit_parser::Resolve;
 
 const MAIN_PACKAGE_CASE_1: &str = indoc::indoc! {"
@@ -93,40 +95,57 @@ const DEP_PACKAGE_C: &str = indoc::indoc! {"
 
 #[test]
 fn resolve_encode_resolve_round_trip_with_use_and_include() {
-    let packages = {
-        let mut resolve = Resolve::new();
-        resolve.push_str("dep_c.wit", DEP_PACKAGE_C).unwrap();
-        resolve.push_str("dep_b.wit", DEP_PACKAGE_B).unwrap();
-        resolve.push_str("dep_a.wit", DEP_PACKAGE_A).unwrap();
-        resolve
-            .push_str("main_foo.wit", MAIN_PACKAGE_CASE_1)
-            .unwrap();
+    let packages = packages_from_parsed(
+        &resolve_packages(&[
+            ("dep_c.wit", DEP_PACKAGE_C),
+            ("dep_b.wit", DEP_PACKAGE_B),
+            ("dep_a.wit", DEP_PACKAGE_A),
+            ("main_foo.wit", MAIN_PACKAGE_CASE_1),
+        ])
+        .unwrap(),
+    );
 
-        wit_encoder::packages_from_parsed(&resolve)
-    };
     assert_eq!(packages.len(), 4);
 
-    // The order of converted packages currently follows the order of pushes to the parser's package arena.
-    // If this changes, then explicit sorting or search is required in this test.
-    assert_eq!(packages[0].name().name().raw_name(), "dep-c");
-    assert_eq!(packages[1].name().name().raw_name(), "dep-b");
-    assert_eq!(packages[2].name().name().raw_name(), "dep-a");
-    assert_eq!(packages[3].name().name().raw_name(), "main");
+    assert_package_names(
+        &packages,
+        &["foo:dep-c", "foo:dep-b@1.2.3", "foo:dep-a", "foo:main"],
+    );
 
     // Resolve should still work after rendering the encoded packages
-    {
-        let mut resolve = Resolve::new();
-        resolve
-            .push_str("dep_c.wit", &packages[0].to_string())
-            .unwrap();
-        resolve
-            .push_str("dep_b.wit", &packages[1].to_string())
-            .unwrap();
-        resolve
-            .push_str("dep_a.wit", &packages[2].to_string())
-            .unwrap();
-        resolve
-            .push_str("main_foo.wit", &packages[3].to_string())
-            .unwrap();
+    let packages = packages_from_parsed(
+        &resolve_packages(&[
+            ("dep_c.wit", &packages[0].to_string()),
+            ("dep_b.wit", &packages[1].to_string()),
+            ("dep_a.wit", &packages[2].to_string()),
+            ("main_foo.wit", &packages[3].to_string()),
+        ])
+        .unwrap(),
+    );
+
+    // Check that no package is lost
+    assert_package_names(
+        &packages,
+        &["foo:dep-c", "foo:dep-b@1.2.3", "foo:dep-a", "foo:main"],
+    );
+}
+
+fn resolve_packages(packages: &[(&str, &str)]) -> Result<Resolve> {
+    let mut resolve = Resolve::new();
+    for (name, wit) in packages {
+        resolve.push_str(name, wit)?;
     }
+    Ok(resolve)
+}
+
+// The order of converted packages currently follows the order of pushes to the parser's package arena.
+// If this changes, then explicit sorting or search should be added to these tests
+fn assert_package_names(packages: &[Package], package_names: &[&str]) {
+    assert_eq!(
+        packages
+            .iter()
+            .map(|p| p.name().to_string())
+            .collect::<Vec<_>>(),
+        package_names
+    );
 }
