@@ -235,7 +235,12 @@ impl Parser {
             }),
         })?;
         match self.parse_bytes(Some(file), &contents) {
-            Ok(bytes) => Ok(bytes.into_owned()),
+            Ok(Cow::Borrowed(bytes)) => {
+                assert_eq!(bytes.len(), contents.len());
+                assert_eq!(bytes.as_ptr(), contents.as_ptr());
+                Ok(contents)
+            }
+            Ok(Cow::Owned(bytes)) => Ok(bytes),
             Err(mut e) => {
                 e.set_path(file);
                 Err(e)

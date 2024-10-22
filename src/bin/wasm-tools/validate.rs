@@ -66,7 +66,9 @@ impl Opts {
     }
 
     pub fn run(&self) -> Result<()> {
+        let start = Instant::now();
         let wasm = self.io.parse_input_wasm()?;
+        log::info!("read module in {:?}", start.elapsed());
 
         // If validation fails then try to attach extra information to the
         // error based on DWARF information in the input wasm binary. If
