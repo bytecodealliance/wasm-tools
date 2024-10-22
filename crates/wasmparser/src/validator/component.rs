@@ -1697,7 +1697,6 @@ impl ComponentState {
         }
 
         let mut set = Set::default();
-        #[cfg(not(feature = "no-hash-maps"))] // TODO: remove when unified map type is available
         set.reserve(core::cmp::max(ty.params.len(), ty.results.type_count()));
 
         let params = ty

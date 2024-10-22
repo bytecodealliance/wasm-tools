@@ -109,10 +109,7 @@ where
     /// Reserves capacity for at least `additional` more elements to be inserted in the [`IndexMap`].
     #[inline]
     pub fn reserve(&mut self, additional: usize) {
-        #[cfg(not(feature = "no-hash-maps"))]
         self.inner.reserve(additional);
-        #[cfg(feature = "no-hash-maps")]
-        let _ = additional;
     }
 
     /// Returns true if `key` is contains in the [`IndexMap`].
