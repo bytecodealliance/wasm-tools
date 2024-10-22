@@ -273,6 +273,52 @@ impl fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
+#[derive(Debug)]
+struct PackageNotFoundError {
+    span: Span,
+    requested: PackageName,
+    known: Vec<PackageName>,
+    highlighted: Option<String>,
+}
+
+impl PackageNotFoundError {
+    pub fn new(span: Span, requested: PackageName, known: Vec<PackageName>) -> Self {
+        Self {
+            span,
+            requested,
+            known,
+            highlighted: None,
+        }
+    }
+}
+
+impl fmt::Display for PackageNotFoundError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(highlighted) = &self.highlighted {
+            return highlighted.fmt(f);
+        }
+        if self.known.is_empty() {
+            write!(
+                f,
+                "package '{}' not found. no known packages.",
+                self.requested
+            )?;
+        } else {
+            write!(
+                f,
+                "package '{}' not found. known packages:\n",
+                self.requested
+            )?;
+            for known in self.known.iter() {
+                write!(f, "    {known}\n")?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl std::error::Error for PackageNotFoundError {}
+
 impl UnresolvedPackageGroup {
     /// Parses the given string as a wit document.
     ///
