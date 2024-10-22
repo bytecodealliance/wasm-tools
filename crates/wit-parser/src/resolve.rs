@@ -115,7 +115,70 @@ pub struct Package {
 
 pub type PackageId = Id<Package>;
 
-type PackageSourcesById = BTreeMap<PackageId, Vec<PathBuf>>;
+/// All the sources used during resolving a directory or path.
+#[derive(Clone, Debug)]
+pub struct PackageSourceMap {
+    sources: Vec<Vec<PathBuf>>,
+    package_id_to_source_map_idx: BTreeMap<PackageId, usize>,
+}
+
+impl PackageSourceMap {
+    fn from_single_source(package_id: PackageId, source: &Path) -> Self {
+        Self {
+            sources: vec![vec![source.to_path_buf()]],
+            package_id_to_source_map_idx: BTreeMap::from([(package_id, 0)]),
+        }
+    }
+
+    fn from_source_maps(
+        source_maps: Vec<SourceMap>,
+        package_id_to_source_map_idx: BTreeMap<PackageId, usize>,
+    ) -> PackageSourceMap {
+        for (package_id, idx) in &package_id_to_source_map_idx {
+            if *idx >= source_maps.len() {
+                panic!(
+                    "Invalid source map index: {}, package id: {:?}, source maps size: {}",
+                    idx,
+                    package_id,
+                    source_maps.len()
+                )
+            }
+        }
+
+        Self {
+            sources: source_maps
+                .into_iter()
+                .map(|source_map| {
+                    source_map
+                        .source_files()
+                        .map(|path| path.to_path_buf())
+                        .collect()
+                })
+                .collect(),
+            package_id_to_source_map_idx,
+        }
+    }
+
+    /// All unique source paths.
+    pub fn paths(&self) -> impl Iterator<Item = &Path> {
+        // Usually any two source map should not have duplicated source paths,
+        // but it can happen, e.g. with using [`Resolve::push_str`] directly.
+        // To be sure we use a set for deduplication here.
+        self.sources
+            .iter()
+            .flatten()
+            .map(|path_buf| path_buf.as_ref())
+            .collect::<HashSet<&Path>>()
+            .into_iter()
+    }
+
+    /// Source paths for package
+    pub fn package_paths(&self, id: PackageId) -> Option<impl Iterator<Item = &Path>> {
+        self.package_id_to_source_map_idx
+            .get(&id)
+            .map(|&idx| self.sources[idx].iter().map(|path_buf| path_buf.as_ref()))
+    }
+}
 
 enum ParsedFile {
     #[cfg(feature = "decoding")]
@@ -178,27 +241,24 @@ impl Resolve {
     /// inserted packages into this `Resolve`. Resolution for packages is based
     /// on the name of each package and reference.
     ///
-    /// This method returns a `PackageId` and additionally a
-    /// mapping of `PackageId`s to `PathBuf` elements. The `PackageId` represent the main
-    /// package that was parsed. For example if a single WIT file was specified
-    /// this will be the main package found in the file. For a directory this
+    /// This method returns a `PackageId` and additionally a `PackageSourceMap`.
+    /// The `PackageId` represent the main package that was parsed. For example if a single WIT
+    /// file was specified  this will be the main package found in the file. For a directory this
     /// will be all the main package in the directory itself. The `PackageId` value is useful
     /// to pass to [`Resolve::select_world`] to take a user-specified world in a
     /// conventional fashion and select which to use for bindings generation.
     ///
-    /// The returned mapping of `PackageId`s to `PathBuf` elements represents all files parsed
-    /// during this operation, grouped by `PackageId`s. Because of nested packages the same file
-    /// can be the source of multiple packages. This can be useful for systems that want to
-    /// rebuild or regenerate bindings based on files modified, or for ones which like to identify
-    /// the used files for a package.
+    /// The returned [`PackageSourceMap`] contains all the sources used during this operation.
+    /// This can be useful for systems that want to rebuild or regenerate bindings based on files modified,
+    /// or for ones which like to identify the used files for a package.
     ///
     /// More information can also be found at [`Resolve::push_dir`] and
     /// [`Resolve::push_file`].
-    pub fn push_path(&mut self, path: impl AsRef<Path>) -> Result<(PackageId, PackageSourcesById)> {
+    pub fn push_path(&mut self, path: impl AsRef<Path>) -> Result<(PackageId, PackageSourceMap)> {
         self._push_path(path.as_ref())
     }
 
-    fn _push_path(&mut self, path: &Path) -> Result<(PackageId, PackageSourcesById)> {
+    fn _push_path(&mut self, path: &Path) -> Result<(PackageId, PackageSourceMap)> {
         if path.is_dir() {
             self.push_dir(path).with_context(|| {
                 format!(
@@ -208,7 +268,7 @@ impl Resolve {
             })
         } else {
             let id = self.push_file(path)?;
-            Ok((id, BTreeMap::from([(id, vec![path.to_path_buf()])])))
+            Ok((id, PackageSourceMap::from_single_source(id, path)))
         }
     }
 
@@ -216,7 +276,7 @@ impl Resolve {
         &mut self,
         main: UnresolvedPackageGroup,
         deps: Vec<UnresolvedPackageGroup>,
-    ) -> Result<(PackageId, PackageSourcesById)> {
+    ) -> Result<(PackageId, PackageSourceMap)> {
         let mut pkg_details_map = BTreeMap::new();
         let mut source_maps = Vec::new();
 
@@ -274,7 +334,7 @@ package {name} is defined in two different locations:\n\
         // Ensure that the final output is topologically sorted. Use a set to ensure that we render
         // the buffers for each `SourceMap` only once, even though multiple packages may reference
         // the same `SourceMap`.
-        let mut package_sources = BTreeMap::new();
+        let mut package_id_to_source_map_idx = BTreeMap::new();
         let mut main_pkg_id = None;
         for name in order {
             let (pkg, source_map_index) = pkg_details_map.remove(&name).unwrap();
@@ -285,16 +345,13 @@ package {name} is defined in two different locations:\n\
                 assert!(main_pkg_id.is_none());
                 main_pkg_id = Some(id);
             }
-            package_sources.insert(
-                id,
-                source_map
-                    .source_files()
-                    .map(|path| path.to_path_buf())
-                    .collect::<Vec<_>>(),
-            );
+            package_id_to_source_map_idx.insert(id, source_map_index);
         }
 
-        Ok((main_pkg_id.unwrap(), package_sources))
+        Ok((
+            main_pkg_id.unwrap(),
+            PackageSourceMap::from_source_maps(source_maps, package_id_to_source_map_idx),
+        ))
     }
 
     /// Parses the filesystem directory at `path` as a WIT package and returns
@@ -326,16 +383,15 @@ package {name} is defined in two different locations:\n\
     /// `path`. This argument is useful for passing to [`Resolve::select_world`]
     /// for choosing something to bindgen with.
     ///
-    /// The second value returned here is a map of paths that were parsed
-    /// when generating the return value, grouped by the PackageId which they contributed to.
-    /// Packages might share sources, because of nested packages. This can be useful for:
+    /// The second value returned is a [`PackageSourceMap`], which contains all the sources
+    /// that were parsed during resolving. This can be useful for:
     /// * build systems that want to rebuild bindings whenever one of the files changed
     /// * or other tools, which want to identify the sources for the resolved packages
-    pub fn push_dir(&mut self, path: impl AsRef<Path>) -> Result<(PackageId, PackageSourcesById)> {
+    pub fn push_dir(&mut self, path: impl AsRef<Path>) -> Result<(PackageId, PackageSourceMap)> {
         self._push_dir(path.as_ref())
     }
 
-    fn _push_dir(&mut self, path: &Path) -> Result<(PackageId, PackageSourcesById)> {
+    fn _push_dir(&mut self, path: &Path) -> Result<(PackageId, PackageSourceMap)> {
         let top_pkg = UnresolvedPackageGroup::parse_dir(path)
             .with_context(|| format!("failed to parse package: {}", path.display()))?;
         let deps = path.join("deps");
