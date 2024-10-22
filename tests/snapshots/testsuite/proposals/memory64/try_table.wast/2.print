@@ -15,15 +15,16 @@
   (type (;13;) (func (result f64 exnref)))
   (type (;14;) (func (result i32)))
   (import "test" "e0" (tag $imported-e0 (;0;) (type 0)))
+  (import "test" "e0" (tag $imported-e0-alias (;1;) (type 0)))
   (import "test" "throw" (func $imported-throw (;0;) (type 0)))
   (table (;0;) 1 1 funcref)
-  (tag $e0 (;1;) (type 0))
-  (tag $e1 (;2;) (type 0))
-  (tag $e2 (;3;) (type 0))
-  (tag $e-i32 (;4;) (type 1) (param i32))
-  (tag $e-f32 (;5;) (type 2) (param f32))
-  (tag $e-i64 (;6;) (type 3) (param i64))
-  (tag $e-f64 (;7;) (type 4) (param f64))
+  (tag $e0 (;2;) (type 0))
+  (tag $e1 (;3;) (type 0))
+  (tag $e2 (;4;) (type 0))
+  (tag $e-i32 (;5;) (type 1) (param i32))
+  (tag $e-f32 (;6;) (type 2) (param f32))
+  (tag $e-i64 (;7;) (type 3) (param i64))
+  (tag $e-f64 (;8;) (type 4) (param f64))
   (export "simple-throw-catch" (func 2))
   (export "unreachable-not-caught" (func 3))
   (export "trap-in-callee" (func 5))
@@ -39,10 +40,11 @@
   (export "throw-catch_ref-param-f64" (func 15))
   (export "catch-param-i32" (func 17))
   (export "catch-imported" (func 18))
-  (export "catchless-try" (func 19))
-  (export "return-call-in-try-catch" (func 21))
-  (export "return-call-indirect-in-try-catch" (func 22))
-  (export "try-with-param" (func 23))
+  (export "catch-imported-alias" (func 19))
+  (export "catchless-try" (func 20))
+  (export "return-call-in-try-catch" (func 22))
+  (export "return-call-indirect-in-try-catch" (func 23))
+  (export "try-with-param" (func 24))
   (elem (;0;) (table 0) (i32.const 0) func $throw-void)
   (func $throw-if (;1;) (type 5) (param i32) (result i32)
     local.get 0
@@ -264,7 +266,17 @@
     end
     i32.const 2
   )
-  (func (;19;) (type 5) (param i32) (result i32)
+  (func (;19;) (type 14) (result i32)
+    block $h
+      try_table (result i32) (catch $imported-e0 $h) ;; label = @2
+        i32.const 1
+        throw $imported-e0-alias
+      end
+      return
+    end
+    i32.const 2
+  )
+  (func (;20;) (type 5) (param i32) (result i32)
     block $h
       try_table (result i32) (catch $e0 $h) ;; label = @2
         try_table (result i32) ;; label = @3
@@ -276,17 +288,17 @@
     end
     i32.const 1
   )
-  (func $throw-void (;20;) (type 0)
+  (func $throw-void (;21;) (type 0)
     throw $e0
   )
-  (func (;21;) (type 0)
+  (func (;22;) (type 0)
     block $h
       try_table (catch $e0 $h) ;; label = @2
         return_call $throw-void
       end
     end
   )
-  (func (;22;) (type 0)
+  (func (;23;) (type 0)
     block $h
       try_table (catch $e0 $h) ;; label = @2
         i32.const 0
@@ -294,7 +306,7 @@
       end
     end
   )
-  (func (;23;) (type 0)
+  (func (;24;) (type 0)
     i32.const 0
     try_table (type 1) (param i32) ;; label = @1
       drop
