@@ -41,21 +41,21 @@ mod clone;
 #[derive(Default, Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Resolve {
-    /// All knowns worlds within this `Resolve`.
+    /// All known worlds within this `Resolve`.
     ///
     /// Each world points at a `PackageId` which is stored below. No ordering is
     /// guaranteed between this list of worlds.
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_arena"))]
     pub worlds: Arena<World>,
 
-    /// All knowns interfaces within this `Resolve`.
+    /// All known interfaces within this `Resolve`.
     ///
     /// Each interface points at a `PackageId` which is stored below. No
     /// ordering is guaranteed between this list of interfaces.
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_arena"))]
     pub interfaces: Arena<Interface>,
 
-    /// All knowns types within this `Resolve`.
+    /// All known types within this `Resolve`.
     ///
     /// Types are topologically sorted such that any type referenced from one
     /// type is guaranteed to be defined previously. Otherwise though these are
@@ -63,7 +63,7 @@ pub struct Resolve {
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_arena"))]
     pub types: Arena<TypeDef>,
 
-    /// All knowns packages within this `Resolve`.
+    /// All known packages within this `Resolve`.
     ///
     /// This list of packages is not sorted. Sorted packages can be queried
     /// through [`Resolve::topological_packages`].
@@ -114,6 +114,71 @@ pub struct Package {
 }
 
 pub type PackageId = Id<Package>;
+
+/// All the sources used during resolving a directory or path.
+#[derive(Clone, Debug)]
+pub struct PackageSourceMap {
+    sources: Vec<Vec<PathBuf>>,
+    package_id_to_source_map_idx: BTreeMap<PackageId, usize>,
+}
+
+impl PackageSourceMap {
+    fn from_single_source(package_id: PackageId, source: &Path) -> Self {
+        Self {
+            sources: vec![vec![source.to_path_buf()]],
+            package_id_to_source_map_idx: BTreeMap::from([(package_id, 0)]),
+        }
+    }
+
+    fn from_source_maps(
+        source_maps: Vec<SourceMap>,
+        package_id_to_source_map_idx: BTreeMap<PackageId, usize>,
+    ) -> PackageSourceMap {
+        for (package_id, idx) in &package_id_to_source_map_idx {
+            if *idx >= source_maps.len() {
+                panic!(
+                    "Invalid source map index: {}, package id: {:?}, source maps size: {}",
+                    idx,
+                    package_id,
+                    source_maps.len()
+                )
+            }
+        }
+
+        Self {
+            sources: source_maps
+                .into_iter()
+                .map(|source_map| {
+                    source_map
+                        .source_files()
+                        .map(|path| path.to_path_buf())
+                        .collect()
+                })
+                .collect(),
+            package_id_to_source_map_idx,
+        }
+    }
+
+    /// All unique source paths.
+    pub fn paths(&self) -> impl Iterator<Item = &Path> {
+        // Usually any two source map should not have duplicated source paths,
+        // but it can happen, e.g. with using [`Resolve::push_str`] directly.
+        // To be sure we use a set for deduplication here.
+        self.sources
+            .iter()
+            .flatten()
+            .map(|path_buf| path_buf.as_ref())
+            .collect::<HashSet<&Path>>()
+            .into_iter()
+    }
+
+    /// Source paths for package
+    pub fn package_paths(&self, id: PackageId) -> Option<impl Iterator<Item = &Path>> {
+        self.package_id_to_source_map_idx
+            .get(&id)
+            .map(|&idx| self.sources[idx].iter().map(|path_buf| path_buf.as_ref()))
+    }
+}
 
 enum ParsedFile {
     #[cfg(feature = "decoding")]
@@ -176,26 +241,24 @@ impl Resolve {
     /// inserted packages into this `Resolve`. Resolution for packages is based
     /// on the name of each package and reference.
     ///
-    /// This method returns a list of `PackageId` elements and additionally a
-    /// list of `PathBuf` elements. The `PackageId` elements represent the "main
-    /// package" that was parsed. For example if a single WIT file was specified
-    /// this will be all the packages found in the file. For a directory this
-    /// will be all the packages in the directory itself, but not in the `deps`
-    /// directory. The list of `PackageId` values is useful to pass to
-    /// [`Resolve::select_world`] to take a user-specified world in a
+    /// This method returns a `PackageId` and additionally a `PackageSourceMap`.
+    /// The `PackageId` represent the main package that was parsed. For example if a single WIT
+    /// file was specified  this will be the main package found in the file. For a directory this
+    /// will be all the main package in the directory itself. The `PackageId` value is useful
+    /// to pass to [`Resolve::select_world`] to take a user-specified world in a
     /// conventional fashion and select which to use for bindings generation.
     ///
-    /// The returned list of `PathBuf` elements represents all files parsed
-    /// during this operation. This can be useful for systems that want to
-    /// rebuild or regenerate bindings based on files modified.
+    /// The returned [`PackageSourceMap`] contains all the sources used during this operation.
+    /// This can be useful for systems that want to rebuild or regenerate bindings based on files modified,
+    /// or for ones which like to identify the used files for a package.
     ///
     /// More information can also be found at [`Resolve::push_dir`] and
     /// [`Resolve::push_file`].
-    pub fn push_path(&mut self, path: impl AsRef<Path>) -> Result<(PackageId, Vec<PathBuf>)> {
+    pub fn push_path(&mut self, path: impl AsRef<Path>) -> Result<(PackageId, PackageSourceMap)> {
         self._push_path(path.as_ref())
     }
 
-    fn _push_path(&mut self, path: &Path) -> Result<(PackageId, Vec<PathBuf>)> {
+    fn _push_path(&mut self, path: &Path) -> Result<(PackageId, PackageSourceMap)> {
         if path.is_dir() {
             self.push_dir(path).with_context(|| {
                 format!(
@@ -205,7 +268,7 @@ impl Resolve {
             })
         } else {
             let id = self.push_file(path)?;
-            Ok((id, vec![path.to_path_buf()]))
+            Ok((id, PackageSourceMap::from_single_source(id, path)))
         }
     }
 
@@ -213,7 +276,7 @@ impl Resolve {
         &mut self,
         main: UnresolvedPackageGroup,
         deps: Vec<UnresolvedPackageGroup>,
-    ) -> Result<(PackageId, Vec<PathBuf>)> {
+    ) -> Result<(PackageId, PackageSourceMap)> {
         let mut pkg_details_map = BTreeMap::new();
         let mut source_maps = Vec::new();
 
@@ -269,8 +332,9 @@ package {name} is defined in two different locations:\n\
         }
 
         // Ensure that the final output is topologically sorted. Use a set to ensure that we render
-        // the buffers for each `SourceMap` only once, even though multiple packages may references
+        // the buffers for each `SourceMap` only once, even though multiple packages may reference
         // the same `SourceMap`.
+        let mut package_id_to_source_map_idx = BTreeMap::new();
         let mut main_pkg_id = None;
         for name in order {
             let (pkg, source_map_index) = pkg_details_map.remove(&name).unwrap();
@@ -281,15 +345,13 @@ package {name} is defined in two different locations:\n\
                 assert!(main_pkg_id.is_none());
                 main_pkg_id = Some(id);
             }
+            package_id_to_source_map_idx.insert(id, source_map_index);
         }
 
-        let path_bufs = source_maps
-            .iter()
-            .flat_map(|s| s.source_files())
-            .map(|p| p.to_path_buf())
-            .collect();
-
-        Ok((main_pkg_id.unwrap(), path_bufs))
+        Ok((
+            main_pkg_id.unwrap(),
+            PackageSourceMap::from_source_maps(source_maps, package_id_to_source_map_idx),
+        ))
     }
 
     /// Parses the filesystem directory at `path` as a WIT package and returns
@@ -314,24 +376,22 @@ package {name} is defined in two different locations:\n\
     ///
     /// In all cases entries in the `deps` folder are added to `self` first
     /// before adding files found in `path` itself. All WIT packages found are
-    /// candidates for name-based resolution that other packages may used.
+    /// candidates for name-based resolution that other packages may use.
     ///
-    /// This function returns a tuple of two values. The first value is a list
-    /// of [`PackageId`] values which represents the WIT packages found within
-    /// `path`, but not those within `deps`. The `path` provided may contain
-    /// only a single WIT package but might also use the multi-package form of
-    /// WIT, and the returned list will indicate which was used. This argument
-    /// is useful for passing to [`Resolve::select_world`] for choosing
-    /// something to bindgen with.
+    /// This function returns a tuple of two values. The first value is a
+    /// [`PackageId`], which represents the main WIT package found within
+    /// `path`. This argument is useful for passing to [`Resolve::select_world`]
+    /// for choosing something to bindgen with.
     ///
-    /// The second value returned here is the list of paths that were parsed
-    /// when generating the return value. This can be useful for build systems
-    /// that want to rebuild bindings whenever one of the files change.
-    pub fn push_dir(&mut self, path: impl AsRef<Path>) -> Result<(PackageId, Vec<PathBuf>)> {
+    /// The second value returned is a [`PackageSourceMap`], which contains all the sources
+    /// that were parsed during resolving. This can be useful for:
+    /// * build systems that want to rebuild bindings whenever one of the files changed
+    /// * or other tools, which want to identify the sources for the resolved packages
+    pub fn push_dir(&mut self, path: impl AsRef<Path>) -> Result<(PackageId, PackageSourceMap)> {
         self._push_dir(path.as_ref())
     }
 
-    fn _push_dir(&mut self, path: &Path) -> Result<(PackageId, Vec<PathBuf>)> {
+    fn _push_dir(&mut self, path: &Path) -> Result<(PackageId, PackageSourceMap)> {
         let top_pkg = UnresolvedPackageGroup::parse_dir(path)
             .with_context(|| format!("failed to parse package: {}", path.display()))?;
         let deps = path.join("deps");
