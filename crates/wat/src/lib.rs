@@ -235,6 +235,12 @@ impl Parser {
             }),
         })?;
         match self.parse_bytes(Some(file), &contents) {
+            // If the result here is borrowed then that means that the input
+            // `&contents` was itself already a wasm module. We've already got
+            // an owned copy of that so return `contents` directly after
+            // double-checking it is indeed the same as the `bytes` return value
+            // here. That helps avoid a copy of `bytes` via something like
+            // `Cow::to_owned` which would otherwise copy the bytes.
             Ok(Cow::Borrowed(bytes)) => {
                 assert_eq!(bytes.len(), contents.len());
                 assert_eq!(bytes.as_ptr(), contents.as_ptr());
