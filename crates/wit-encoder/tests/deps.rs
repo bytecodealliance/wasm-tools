@@ -163,7 +163,6 @@ fn resolve_encode_resolve_round_trip_with_use_and_include() {
         &["foo:dep-c", "foo:dep-b@1.2.3", "foo:dep-a", "foo:main"],
     );
 
-
     // Check for the encoded main wit
     assert_eq!(MAIN_PACKAGE_RESOLVED_ENCODED, &packages[3].to_string());
 }
