@@ -2321,6 +2321,7 @@ dependencies = [
 name = "wit-encoder"
 version = "0.219.1"
 dependencies = [
+ "anyhow",
  "id-arena",
  "indoc",
  "pretty_assertions",

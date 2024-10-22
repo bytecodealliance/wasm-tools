@@ -31,7 +31,7 @@ impl World {
         self.name = name.into();
     }
 
-    pub fn name(&mut self) -> &Ident {
+    pub fn name(&self) -> &Ident {
         &self.name
     }
 
@@ -254,7 +254,20 @@ impl WorldNamedInterface {
             docs: None,
         }
     }
-    pub fn docs(&mut self, docs: Option<impl Into<Docs>>) {
+
+    pub fn set_name(&mut self, name: impl Into<Ident>) {
+        self.name = name.into();
+    }
+
+    pub fn name(&self) -> &Ident {
+        &self.name
+    }
+
+    pub fn set_docs(&mut self, docs: Option<impl Into<Docs>>) {
         self.docs = docs.map(|d| d.into());
+    }
+
+    pub fn docs(&self) -> Option<&Docs> {
+        self.docs.as_ref()
     }
 }
