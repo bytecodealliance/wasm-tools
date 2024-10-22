@@ -662,7 +662,10 @@ impl TestState {
                     features.insert(WasmFeatures::REFERENCE_TYPES);
                     features.insert(WasmFeatures::GC);
                 }
-                "custom-page-sizes" => features.insert(WasmFeatures::CUSTOM_PAGE_SIZES),
+                "custom-page-sizes" => {
+                    features.insert(WasmFeatures::CUSTOM_PAGE_SIZES);
+                    features.insert(WasmFeatures::MULTI_MEMORY);
+                }
                 "import-extended.wast" => {
                     features.insert(WasmFeatures::COMPONENT_MODEL_NESTED_NAMES);
                 }
@@ -674,6 +677,9 @@ impl TestState {
                 }
                 "stack-switching" => {
                     features.insert(WasmFeatures::STACK_SWITCHING);
+                }
+                "wide-arithmetic" => {
+                    features.insert(WasmFeatures::WIDE_ARITHMETIC);
                 }
                 _ => {}
             }
