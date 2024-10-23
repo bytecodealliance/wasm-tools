@@ -59,11 +59,19 @@ pub(crate) struct OperatorValidator {
     pub(crate) pop_push_count: (u32, u32),
 }
 
+/// Captures the initialization of non-defaultable locals.
 struct LocalInits {
+    /// Records if a local is already initialized.
     local_inits: Vec<bool>,
-    /// When local_inits is modified, the relevant index is recorded here to be
-    /// undone when control pops
+    /// When `local_inits` is modified, the relevant `index` is recorded
+    /// here to be undone when control pops.
     inits: Vec<u32>,
+    /// The index of the first non-defaultable local.
+    /// 
+    /// # Note
+    /// 
+    /// This is an optimization so that we only have to perform expensive
+    /// look-ups for locals that have a local index equal to or higher than this.
     first_non_default_local: u32,
 }
 
