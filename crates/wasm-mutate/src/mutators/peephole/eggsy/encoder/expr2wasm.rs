@@ -525,6 +525,9 @@ pub fn expr2wasm(
                     Lang::F64x2ReplaceLane(lane, _) => insn(Instruction::F64x2ReplaceLane(*lane)),
 
                     Lang::I8x16Swizzle(_) => insn(Instruction::I8x16Swizzle),
+                    Lang::I8x16Shuffle(indices, _) => {
+                        insn(Instruction::I8x16Shuffle(indices.indices))
+                    }
                     Lang::I8x16Splat(_) => insn(Instruction::I8x16Splat),
                     Lang::I16x8Splat(_) => insn(Instruction::I16x8Splat),
                     Lang::I32x4Splat(_) => insn(Instruction::I32x4Splat),

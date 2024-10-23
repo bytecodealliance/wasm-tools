@@ -347,6 +347,7 @@ impl PeepholeMutationAnalysis {
             Lang::F64x2ReplaceLane(..) => Ok(PrimitiveTypeInfo::V128),
 
             Lang::I8x16Swizzle(_) => Ok(PrimitiveTypeInfo::V128),
+            Lang::I8x16Shuffle(..) => Ok(PrimitiveTypeInfo::V128),
             Lang::I8x16Splat(_) => Ok(PrimitiveTypeInfo::V128),
             Lang::I16x8Splat(_) => Ok(PrimitiveTypeInfo::V128),
             Lang::I32x4Splat(_) => Ok(PrimitiveTypeInfo::V128),

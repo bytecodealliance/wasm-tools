@@ -1595,4 +1595,18 @@ mod tests {
         mutator.rules = Some(rules);
         config.match_mutation(original, mutator, expected);
     }
+
+    #[test]
+    fn i8x16_shuffle_handled() {
+        test_default_peephole_mutator(
+            "(module (func (param v128 v128)
+                local.get 0
+                local.get 1
+                i8x16.shuffle 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+                drop)
+            )",
+            "(module (func (param v128 v128)))",
+            4,
+        );
+    }
 }
