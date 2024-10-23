@@ -67,9 +67,9 @@ struct LocalInits {
     /// here to be undone when control pops.
     inits: Vec<u32>,
     /// The index of the first non-defaultable local.
-    /// 
+    ///
     /// # Note
-    /// 
+    ///
     /// This is an optimization so that we only have to perform expensive
     /// look-ups for locals that have a local index equal to or higher than this.
     first_non_default_local: u32,
