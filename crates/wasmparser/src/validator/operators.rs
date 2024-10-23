@@ -122,7 +122,7 @@ impl LocalInits {
     /// Marks the local at `local_index` as initialized.
     #[inline]
     pub fn set_init(&mut self, local_index: u32) {
-        if likely(local_index < self.first_non_default_local) {
+        if !self.is_uninit(local_index) {
             return;
         }
         self.local_inits[local_index as usize] = true;
