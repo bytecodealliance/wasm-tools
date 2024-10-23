@@ -904,7 +904,6 @@ pub use crate::readers::*;
 mod arity;
 mod binary_reader;
 mod features;
-mod hint;
 mod limits;
 mod parser;
 mod readers;

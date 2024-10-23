@@ -23,12 +23,13 @@
 // the various methods here.
 
 use crate::{
-    hint::likely, limits::MAX_WASM_FUNCTION_LOCALS, AbstractHeapType, BinaryReaderError, BlockType,
+    limits::MAX_WASM_FUNCTION_LOCALS, AbstractHeapType, BinaryReaderError, BlockType,
     BrTable, Catch, ContType, FieldType, FrameKind, FuncType, GlobalType, Handle, HeapType, Ieee32,
     Ieee64, MemArg, ModuleArity, RefType, Result, ResumeTable, StorageType, StructType, SubType,
     TableType, TryTable, UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources,
     V128,
 };
+use super::hint::likely;
 use crate::{prelude::*, CompositeInnerType, Ordering};
 use core::ops::{Deref, DerefMut};
 
