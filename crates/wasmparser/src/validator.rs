@@ -53,11 +53,11 @@ mod component;
 pub mod component_types;
 mod core;
 mod func;
+mod hint;
 #[cfg(feature = "component-model")]
 pub mod names;
 mod operators;
 pub mod types;
-mod hint;
 
 #[cfg(feature = "component-model")]
 use self::component::*;

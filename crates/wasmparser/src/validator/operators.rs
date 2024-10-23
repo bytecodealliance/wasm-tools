@@ -22,14 +22,13 @@
 // confusing it's recommended to read over that section to see how it maps to
 // the various methods here.
 
-use crate::{
-    limits::MAX_WASM_FUNCTION_LOCALS, AbstractHeapType, BinaryReaderError, BlockType,
-    BrTable, Catch, ContType, FieldType, FrameKind, FuncType, GlobalType, Handle, HeapType, Ieee32,
-    Ieee64, MemArg, ModuleArity, RefType, Result, ResumeTable, StorageType, StructType, SubType,
-    TableType, TryTable, UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources,
-    V128,
-};
 use super::hint::likely;
+use crate::{
+    limits::MAX_WASM_FUNCTION_LOCALS, AbstractHeapType, BinaryReaderError, BlockType, BrTable,
+    Catch, ContType, FieldType, FrameKind, FuncType, GlobalType, Handle, HeapType, Ieee32, Ieee64,
+    MemArg, ModuleArity, RefType, Result, ResumeTable, StorageType, StructType, SubType, TableType,
+    TryTable, UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources, V128,
+};
 use crate::{prelude::*, CompositeInnerType, Ordering};
 use core::ops::{Deref, DerefMut};
 
