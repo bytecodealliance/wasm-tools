@@ -122,11 +122,10 @@ impl LocalInits {
     /// Marks the local at `local_index` as initialized.
     #[inline]
     pub fn set_init(&mut self, local_index: u32) {
-        if !self.is_uninit(local_index) {
-            return;
+        if self.is_uninit(local_index) {
+            self.local_inits[local_index as usize] = true;
+            self.inits.push(local_index);
         }
-        self.local_inits[local_index as usize] = true;
-        self.inits.push(local_index);
     }
 
     /// Registers a new control frame and returns its `height`.
