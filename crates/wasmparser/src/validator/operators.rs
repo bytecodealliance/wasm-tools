@@ -112,11 +112,11 @@ impl LocalInits {
 
     /// Returns `true` if the local at `local_index` has already been initialized.
     #[inline]
-    pub fn is_init(&self, local_index: u32) -> bool {
+    pub fn is_uninit(&self, local_index: u32) -> bool {
         if likely(local_index < self.first_non_default_local) {
-            return true;
+            return false;
         }
-        self.local_inits[local_index as usize]
+        !self.local_inits[local_index as usize]
     }
 
     /// Marks the local at `local_index` as initialized.
@@ -2127,7 +2127,7 @@ where
     fn visit_local_get(&mut self, local_index: u32) -> Self::Output {
         let ty = self.local(local_index)?;
         debug_assert_type_indices_are_ids(ty);
-        if !self.local_inits.is_init(local_index) {
+        if self.local_inits.is_uninit(local_index) {
             bail!(self.offset, "uninitialized local: {}", local_index);
         }
         self.push_operand(ty)?;
