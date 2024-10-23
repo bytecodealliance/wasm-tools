@@ -1847,37 +1847,30 @@
       "text": "alignment must not be larger than natural"
     },
     {
-      "type": "assert_malformed",
+      "type": "assert_invalid",
       "line": 892,
       "filename": "align.109.wasm",
       "module_type": "binary",
-      "text": "malformed memop alignment"
+      "text": "alignment must not be larger than natural"
     },
     {
-      "type": "assert_malformed",
+      "type": "assert_invalid",
       "line": 911,
       "filename": "align.110.wasm",
       "module_type": "binary",
-      "text": "malformed memop alignment"
+      "text": "alignment must not be larger than natural"
     },
     {
-      "type": "assert_malformed",
+      "type": "assert_invalid",
       "line": 930,
       "filename": "align.111.wasm",
       "module_type": "binary",
-      "text": "malformed memop alignment"
+      "text": "alignment must not be larger than natural"
     },
     {
       "type": "assert_invalid",
       "line": 949,
       "filename": "align.112.wasm",
-      "module_type": "binary",
-      "text": "type mismatch"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 968,
-      "filename": "align.113.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     }

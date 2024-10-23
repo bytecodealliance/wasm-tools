@@ -1049,7 +1049,7 @@ where
         {
             bail!(
                 self.offset,
-                "indirect calls must go through a table with type <= funcref",
+                "type mismatch: indirect calls must go through a table with type <= funcref",
             );
         }
         self.pop_operand(Some(tab.index_type()))?;
