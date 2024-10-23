@@ -714,7 +714,7 @@ lang! {
         F64x2ReplaceLane(u8, [Id; 2]) = "f64x2.replace_lane",
 
         I8x16Swizzle([Id; 2]) = "i8x16.swizzle",
-        I8x16Shuffle(Shuffle, [Id; 2]) = "i8x16.swizzle",
+        I8x16Shuffle(Shuffle, [Id; 2]) = "i8x16.shuffle",
         I8x16Splat([Id; 1]) = "i8x16.splat",
         I16x8Splat([Id; 1]) = "i16x8.splat",
         I32x4Splat([Id; 1]) = "i32x4.splat",
