@@ -53,7 +53,6 @@ mod component;
 pub mod component_types;
 mod core;
 mod func;
-mod hint;
 #[cfg(feature = "component-model")]
 pub mod names;
 mod operators;

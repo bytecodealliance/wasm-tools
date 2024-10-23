@@ -22,7 +22,6 @@
 // confusing it's recommended to read over that section to see how it maps to
 // the various methods here.
 
-use super::hint::likely;
 use crate::{
     limits::MAX_WASM_FUNCTION_LOCALS, AbstractHeapType, BinaryReaderError, BlockType, BrTable,
     Catch, ContType, FieldType, FrameKind, FuncType, GlobalType, Handle, HeapType, Ieee32, Ieee64,
@@ -113,7 +112,7 @@ impl LocalInits {
     /// Returns `true` if the local at `local_index` has already been initialized.
     #[inline]
     pub fn is_uninit(&self, local_index: u32) -> bool {
-        if likely(local_index < self.first_non_default_local) {
+        if local_index < self.first_non_default_local {
             return false;
         }
         !self.local_inits[local_index as usize]
