@@ -800,6 +800,12 @@ impl Config {
         if !self.simd_enabled {
             self.relaxed_simd_enabled = false;
         }
+
+        // It is impossible to use the shared-everything-threads proposal
+        // without threads, which it is built on.
+        if !self.threads_enabled {
+            self.shared_everything_threads_enabled = false;
+        }
     }
 
     /// Returns the set of features that are necessary for validating against
