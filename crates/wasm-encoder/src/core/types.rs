@@ -293,6 +293,14 @@ impl RefType {
         },
     };
 
+    /// Create a new abstract reference type.
+    pub fn new_abstract(ty: AbstractHeapType, nullable: bool, shared: bool) -> Self {
+        Self {
+            nullable,
+            heap_type: HeapType::Abstract { shared, ty },
+        }
+    }
+
     /// Set the nullability of this reference type.
     pub fn nullable(mut self, nullable: bool) -> Self {
         self.nullable = nullable;

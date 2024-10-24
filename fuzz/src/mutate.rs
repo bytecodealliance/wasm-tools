@@ -11,12 +11,16 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
 
     let mut seed = 0;
     let mut preserve_semantics = false;
-    let (wasm, _config) = crate::generate_valid_module(u, |_config, u| {
+    let (wasm, _config) = crate::generate_valid_module(u, |config, u| {
         // NB: wasm-mutate is a general-purpose tool so unsupported proposals by
         // wasm-mutate are not disabled here. Those must be rejected with a
         // first-class error in wasm-mutate instead of panicking.
         seed = u.arbitrary()?;
         preserve_semantics = u.arbitrary()?;
+
+        // NB: the mutator will change shared to unshared in ways that create
+        // invalid modules so we disable the proposal (TODO: handle shared).
+        config.shared_everything_threads_enabled = false;
         Ok(())
     })?;
     log::debug!("seed = {}", seed);
