@@ -793,6 +793,7 @@ impl Config {
         if !self.reference_types_enabled {
             self.max_tables = self.max_tables.min(1);
             self.gc_enabled = false;
+            self.shared_everything_threads_enabled = false;
         }
 
         // If simd is disabled then disable all relaxed simd instructions as
