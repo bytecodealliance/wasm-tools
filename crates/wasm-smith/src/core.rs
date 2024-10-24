@@ -2637,7 +2637,7 @@ impl Module {
     }
 
     fn arbitrary_shared(&self, u: &mut Unstructured) -> Result<bool> {
-        Ok(self.config.shared_everything_threads_enabled && u.arbitrary()?)
+        Ok(self.config.shared_everything_threads_enabled && u.ratio(1, 4)?)
     }
 
     fn is_shared_type(&self, index: u32) -> bool {
