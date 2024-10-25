@@ -26,7 +26,6 @@ pub enum Opts {
     Embed(EmbedOpts),
     Targets(TargetsOpts),
     Link(LinkOpts),
-    Section(SectionOpts),
     SemverCheck(SemverCheckOpts),
     Unbundle(UnbundleOpts),
 }
@@ -39,7 +38,6 @@ impl Opts {
             Opts::Embed(embed) => embed.run(),
             Opts::Targets(targets) => targets.run(),
             Opts::Link(link) => link.run(),
-            Opts::Section(section) => section.run(),
             Opts::SemverCheck(s) => s.run(),
             Opts::Unbundle(s) => s.run(),
         }
@@ -52,7 +50,6 @@ impl Opts {
             Opts::Embed(embed) => embed.general_opts(),
             Opts::Targets(targets) => targets.general_opts(),
             Opts::Link(link) => link.general_opts(),
-            Opts::Section(section) => section.general_opts(),
             Opts::SemverCheck(s) => s.general_opts(),
             Opts::Unbundle(s) => s.general_opts(),
         }
@@ -312,6 +309,10 @@ pub struct EmbedOpts {
     /// Print the output in the WebAssembly text format instead of binary.
     #[clap(long, short = 't')]
     wat: bool,
+
+    /// Print the wasm custom section only.
+    #[clap(long, short = 's')]
+    only_custom: bool,
 }
 
 impl EmbedOpts {
@@ -322,7 +323,21 @@ impl EmbedOpts {
     /// Executes the application.
     fn run(self) -> Result<()> {
         let (resolve, pkg_id) = self.resolve.load()?;
+
         let world = resolve.select_world(pkg_id, self.world.as_deref())?;
+
+        if self.only_custom {
+            let encoded = metadata::encode(
+                &resolve,
+                world,
+                self.encoding.unwrap_or(StringEncoding::UTF8),
+                None,
+            )?;
+
+            self.io.output_wasm(&encoded, self.wat)?;
+            return Ok(());
+        }
+
         let mut wasm = if self.dummy {
             wit_component::dummy_module(&resolve, world, Mangling::Standard32)
         } else if let Some(mangling) = self.dummy_names {
@@ -339,67 +354,6 @@ impl EmbedOpts {
         )?;
 
         self.io.output_wasm(&wasm, self.wat)?;
-
-        Ok(())
-    }
-}
-
-#[derive(Parser)]
-/// Outputs the core wasm section for a given world.
-///
-/// This subcommand produces core wasm sections for a given world, to be used
-/// in language tooling while converting core wasm modules to components.
-///
-/// This metadata describe the imports and exports of a core wasm module with a
-/// WIT package's `world`. The metadata will be used when creating a full
-/// component.
-pub struct SectionOpts {
-    #[clap(flatten)]
-    resolve: WitResolve,
-
-    #[clap(flatten)]
-    io: wasm_tools::InputOutput,
-
-    /// The expected string encoding format for the component.
-    ///
-    /// Supported values are: `utf8` (default), `utf16`, and `compact-utf16`.
-    /// This is only applicable to the `wit` argument to describe the string
-    /// encoding of the functions in that world.
-    #[clap(long, value_name = "ENCODING")]
-    encoding: Option<StringEncoding>,
-
-    /// The world that the component uses.
-    ///
-    /// This is the path, within the `WIT` source provided as a positional
-    /// argument, to the `world` that the core wasm module works with. If this
-    /// option is omitted then the "main package" pointed to by `WIT` must have
-    /// a single world and that's what is used to embed. Otherwise this could be
-    /// a bare string `foo` to point to the `world foo` within the main
-    /// package of WIT. Finally this can be a fully qualified name too such as
-    /// `wasi:http/proxy` which can select a world from a WIT dependency as
-    /// well.
-    #[clap(short, long)]
-    world: Option<String>,
-}
-
-impl SectionOpts {
-    fn general_opts(&self) -> &wasm_tools::GeneralOpts {
-        self.io.general_opts()
-    }
-
-    /// Executes the application.
-    fn run(self) -> Result<()> {
-        let (resolve, pkg_id) = self.resolve.load()?;
-        let world = resolve.select_world(pkg_id, self.world.as_deref())?;
-
-        let encoded = metadata::encode(
-            &resolve,
-            world,
-            self.encoding.unwrap_or(StringEncoding::UTF8),
-            None,
-        )?;
-
-        self.io.output_wasm(&encoded, false)?;
 
         Ok(())
     }
