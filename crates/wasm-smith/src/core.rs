@@ -66,6 +66,10 @@ pub struct Module {
     /// Whether we should encode a types section, even if `self.types` is empty.
     should_encode_types: bool,
 
+    /// Whether we should propagate sharedness to types generated inside
+    /// `propagate_shared`.
+    must_share: bool,
+
     /// All of this module's imports. These don't have their own index space,
     /// but instead introduce entries to each imported entity's associated index
     /// space.
@@ -246,6 +250,7 @@ impl Module {
             max_type_limit: MaxTypeLimit::ModuleTypes,
             interesting_values32: Vec::new(),
             interesting_values64: Vec::new(),
+            must_share: false,
         }
     }
 }
@@ -680,8 +685,9 @@ impl Module {
     fn arbitrary_sub_type(&mut self, u: &mut Unstructured) -> Result<SubType> {
         if !self.config.gc_enabled {
             let shared = self.arbitrary_shared(u)?;
+            let func_type = self.propagate_shared(shared, |m| m.arbitrary_func_type(u))?;
             let composite_type = CompositeType {
-                inner: CompositeInnerType::Func(self.arbitrary_func_type(u, shared)?),
+                inner: CompositeInnerType::Func(func_type),
                 shared,
             };
             return Ok(SubType {
@@ -715,7 +721,9 @@ impl Module {
                 *f = self.arbitrary_matching_func_type(u, f)?;
             }
             CompositeInnerType::Struct(s) => {
-                *s = self.arbitrary_matching_struct_type(u, s, composite_type.shared)?;
+                *s = self.propagate_shared(composite_type.shared, |m| {
+                    m.arbitrary_matching_struct_type(u, s)
+                })?;
             }
         }
         Ok(SubType {
@@ -729,7 +737,6 @@ impl Module {
         &mut self,
         u: &mut Unstructured,
         ty: &StructType,
-        must_share: bool,
     ) -> Result<StructType> {
         let len_extra_fields = u.int_in_range(0..=5)?;
         let mut fields = Vec::with_capacity(ty.fields.len() + len_extra_fields);
@@ -737,7 +744,7 @@ impl Module {
             fields.push(self.arbitrary_matching_field_type(u, *field)?);
         }
         for _ in 0..len_extra_fields {
-            fields.push(self.arbitrary_field_type(u, must_share)?);
+            fields.push(self.arbitrary_field_type(u)?);
         }
         Ok(StructType {
             fields: fields.into_boxed_slice(),
@@ -1024,85 +1031,75 @@ impl Module {
         if !self.config.gc_enabled {
             return Ok(CompositeType {
                 shared,
-                inner: CT::Func(self.arbitrary_func_type(u, shared)?),
+                inner: CT::Func(self.propagate_shared(shared, |m| m.arbitrary_func_type(u))?),
             });
         }
 
         match u.int_in_range(0..=2)? {
             0 => Ok(CompositeType {
                 shared,
-                inner: CT::Array(ArrayType(self.arbitrary_field_type(u, shared)?)),
+                inner: CT::Array(ArrayType(
+                    self.propagate_shared(shared, |m| m.arbitrary_field_type(u))?,
+                )),
             }),
             1 => Ok(CompositeType {
                 shared,
-                inner: CT::Func(self.arbitrary_func_type(u, shared)?),
+                inner: CT::Func(self.propagate_shared(shared, |m| m.arbitrary_func_type(u))?),
             }),
             2 => Ok(CompositeType {
                 shared,
-                inner: CT::Struct(self.arbitrary_struct_type(u, shared)?),
+                inner: CT::Struct(self.propagate_shared(shared, |m| m.arbitrary_struct_type(u))?),
             }),
             _ => unreachable!(),
         }
     }
 
-    fn arbitrary_struct_type(
-        &mut self,
-        u: &mut Unstructured,
-        must_share: bool,
-    ) -> Result<StructType> {
+    fn arbitrary_struct_type(&mut self, u: &mut Unstructured) -> Result<StructType> {
         let len = u.int_in_range(0..=20)?;
         let mut fields = Vec::with_capacity(len);
         for _ in 0..len {
-            fields.push(self.arbitrary_field_type(u, must_share)?);
+            fields.push(self.arbitrary_field_type(u)?);
         }
         Ok(StructType {
             fields: fields.into_boxed_slice(),
         })
     }
 
-    fn arbitrary_field_type(
-        &mut self,
-        u: &mut Unstructured,
-        must_share: bool,
-    ) -> Result<FieldType> {
+    fn arbitrary_field_type(&mut self, u: &mut Unstructured) -> Result<FieldType> {
         Ok(FieldType {
-            element_type: self.arbitrary_storage_type(u, must_share)?,
+            element_type: self.arbitrary_storage_type(u)?,
             mutable: u.arbitrary()?,
         })
     }
 
-    fn arbitrary_storage_type(
-        &mut self,
-        u: &mut Unstructured,
-        must_share: bool,
-    ) -> Result<StorageType> {
+    fn arbitrary_storage_type(&mut self, u: &mut Unstructured) -> Result<StorageType> {
         match u.int_in_range(0..=2)? {
             0 => Ok(StorageType::I8),
             1 => Ok(StorageType::I16),
-            2 => Ok(StorageType::Val(self.arbitrary_valtype(u, must_share)?)),
+            2 => Ok(StorageType::Val(self.arbitrary_valtype(u)?)),
             _ => unreachable!(),
         }
     }
 
-    fn arbitrary_ref_type(&self, u: &mut Unstructured, must_share: bool) -> Result<RefType> {
+    fn arbitrary_ref_type(&self, u: &mut Unstructured) -> Result<RefType> {
         if !self.config.reference_types_enabled {
             // Create a `RefType::FUNCREF` but with variable sharedness.
             Ok(RefType {
                 nullable: true,
                 heap_type: HeapType::Abstract {
-                    shared: must_share,
+                    shared: self.arbitrary_shared(u)?,
                     ty: AbstractHeapType::Func,
                 },
             })
         } else {
             Ok(RefType {
                 nullable: true,
-                heap_type: self.arbitrary_heap_type(u, must_share)?,
+                heap_type: self.arbitrary_heap_type(u)?,
             })
         }
     }
 
-    fn arbitrary_heap_type(&self, u: &mut Unstructured, must_share: bool) -> Result<HeapType> {
+    fn arbitrary_heap_type(&self, u: &mut Unstructured) -> Result<HeapType> {
         assert!(self.config.reference_types_enabled);
 
         let concrete_type_limit = match self.max_type_limit {
@@ -1118,7 +1115,7 @@ impl Module {
             // shared type, though, we can use either a shared or unshared
             // concrete type.
             if let Some(ty) = self.types.get(idx as usize) {
-                if !(must_share && !ty.composite_type.shared) {
+                if !(self.must_share && !ty.composite_type.shared) {
                     return Ok(HeapType::Concrete(idx));
                 }
             }
@@ -1138,21 +1135,17 @@ impl Module {
         }
 
         Ok(HeapType::Abstract {
-            shared: must_share || self.arbitrary_shared(u)?,
+            shared: self.arbitrary_shared(u)?,
             ty: *u.choose(&choices)?,
         })
     }
 
-    fn arbitrary_func_type(
-        &mut self,
-        u: &mut Unstructured,
-        must_share: bool,
-    ) -> Result<Rc<FuncType>> {
+    fn arbitrary_func_type(&mut self, u: &mut Unstructured) -> Result<Rc<FuncType>> {
         let mut params = vec![];
         let mut results = vec![];
         let max_params = 20;
         arbitrary_loop(u, 0, max_params, |u| {
-            params.push(self.arbitrary_valtype(u, must_share)?);
+            params.push(self.arbitrary_valtype(u)?);
             Ok(true)
         })?;
         let max_results = if self.config.multi_value_enabled {
@@ -1161,7 +1154,7 @@ impl Module {
             1
         };
         arbitrary_loop(u, 0, max_results, |u| {
-            results.push(self.arbitrary_valtype(u, must_share)?);
+            results.push(self.arbitrary_valtype(u)?);
             Ok(true)
         })?;
         Ok(Rc::new(FuncType { params, results }))
@@ -1547,7 +1540,7 @@ impl Module {
             .filter(move |i| self.func_type(*i).results.is_empty())
     }
 
-    fn arbitrary_valtype(&self, u: &mut Unstructured, must_share: bool) -> Result<ValType> {
+    fn arbitrary_valtype(&self, u: &mut Unstructured) -> Result<ValType> {
         #[derive(PartialEq, Eq, PartialOrd, Ord)]
         enum ValTypeClass {
             I32,
@@ -1579,14 +1572,19 @@ impl Module {
             ValTypeClass::F32 => Ok(ValType::F32),
             ValTypeClass::F64 => Ok(ValType::F64),
             ValTypeClass::V128 => Ok(ValType::V128),
-            ValTypeClass::Ref => Ok(ValType::Ref(self.arbitrary_ref_type(u, must_share)?)),
+            ValTypeClass::Ref => Ok(ValType::Ref(self.arbitrary_ref_type(u)?)),
         }
     }
 
     fn arbitrary_global_type(&self, u: &mut Unstructured) -> Result<GlobalType> {
-        let shared = self.arbitrary_shared(u)?;
+        let val_type = self.arbitrary_valtype(u)?;
+        // Propagate the inner type's sharedness to the global type.
+        let shared = match val_type {
+            ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => self.arbitrary_shared(u)?,
+            ValType::Ref(r) => self.is_shared_ref_type(r),
+        };
         Ok(GlobalType {
-            val_type: self.arbitrary_valtype(u, shared)?,
+            val_type,
             mutable: u.arbitrary()?,
             shared,
         })
@@ -2210,9 +2208,7 @@ impl Module {
                 // segment. Passive/declared segments can be declared with any
                 // reference type, but active segments must match their table.
                 let ty = match kind {
-                    ElementKind::Passive | ElementKind::Declared => {
-                        self.arbitrary_ref_type(u, false)? // TODO: handle shared (no shared element types yet)
-                    }
+                    ElementKind::Passive | ElementKind::Declared => self.arbitrary_ref_type(u)?,
                     ElementKind::Active { table, .. } => {
                         let idx = table.unwrap_or(0);
                         self.arbitrary_matching_ref_type(u, self.tables[idx as usize].element_type)?
@@ -2318,8 +2314,7 @@ impl Module {
     fn arbitrary_locals(&self, u: &mut Unstructured) -> Result<Vec<ValType>> {
         let mut ret = Vec::new();
         arbitrary_loop(u, 0, 100, |u| {
-            let shared = self.arbitrary_shared(u)?;
-            ret.push(self.arbitrary_valtype(u, shared)?);
+            ret.push(self.arbitrary_valtype(u)?);
             Ok(true)
         })?;
         Ok(ret)
@@ -2636,8 +2631,26 @@ impl Module {
         }
     }
 
+    fn propagate_shared<T>(&mut self, must_share: bool, mut f: impl FnMut(&mut Self) -> T) -> T {
+        let tmp = mem::replace(&mut self.must_share, must_share);
+        let result = f(self);
+        self.must_share = tmp;
+        result
+    }
+
     fn arbitrary_shared(&self, u: &mut Unstructured) -> Result<bool> {
-        Ok(self.config.shared_everything_threads_enabled && u.ratio(1, 4)?)
+        if self.must_share {
+            Ok(true)
+        } else {
+            Ok(self.config.shared_everything_threads_enabled && u.ratio(1, 4)?)
+        }
+    }
+
+    fn is_shared_ref_type(&self, ty: RefType) -> bool {
+        match ty.heap_type {
+            HeapType::Abstract { shared, .. } => shared,
+            HeapType::Concrete(i) => self.types[i as usize].composite_type.shared,
+        }
     }
 
     fn is_shared_type(&self, index: u32) -> bool {
@@ -2744,10 +2757,15 @@ pub(crate) fn arbitrary_table_type(
     if config.disallow_traps {
         assert!(minimum > 0);
     }
-    let shared = config.shared_everything_threads_enabled && u.arbitrary()?;
     let element_type = match module {
-        Some(module) => module.arbitrary_ref_type(u, shared)?,
+        Some(module) => module.arbitrary_ref_type(u)?,
         None => RefType::FUNCREF,
+    };
+
+    // Propagate the element type's sharedness to the table type.
+    let shared = match module {
+        Some(module) => module.is_shared_ref_type(element_type),
+        None => false,
     };
 
     Ok(TableType {

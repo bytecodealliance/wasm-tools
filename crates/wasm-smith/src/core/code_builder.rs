@@ -1228,7 +1228,7 @@ impl CodeBuilder<'_> {
     fn arbitrary_block_type(&self, u: &mut Unstructured, module: &Module) -> Result<BlockType> {
         let mut options: Vec<Box<dyn Fn(&mut Unstructured) -> Result<BlockType>>> = vec![
             Box::new(|_| Ok(BlockType::Empty)),
-            Box::new(|u| Ok(BlockType::Result(module.arbitrary_valtype(u, false)?))), // TODO: handle shared
+            Box::new(|u| Ok(BlockType::Result(module.arbitrary_valtype(u)?))),
         ];
         if module.config.multi_value_enabled {
             for (i, ty) in module.func_types() {
@@ -5467,10 +5467,7 @@ fn ref_as_non_null(
 ) -> Result<()> {
     let ref_ty = match builder.pop_ref_type() {
         Some(r) => r,
-        None => {
-            let shared = module.arbitrary_shared(u)?;
-            module.arbitrary_ref_type(u, shared)?
-        }
+        None => module.arbitrary_ref_type(u)?,
     };
     builder.push_operand(Some(ValType::Ref(RefType {
         nullable: false,
@@ -5512,10 +5509,7 @@ fn ref_test(
 ) -> Result<()> {
     let ref_ty = match builder.pop_ref_type() {
         Some(r) => r,
-        None => {
-            let shared = module.arbitrary_shared(u)?;
-            module.arbitrary_ref_type(u, shared)?
-        }
+        None => module.arbitrary_ref_type(u)?,
     };
     builder.push_operand(Some(ValType::I32));
 
@@ -5543,10 +5537,7 @@ fn ref_cast(
 ) -> Result<()> {
     let ref_ty = match builder.pop_ref_type() {
         Some(r) => r,
-        None => {
-            let shared = module.arbitrary_shared(u)?;
-            module.arbitrary_ref_type(u, shared)?
-        }
+        None => module.arbitrary_ref_type(u)?,
     };
     let sub_ty = RefType {
         nullable: if !ref_ty.nullable {
