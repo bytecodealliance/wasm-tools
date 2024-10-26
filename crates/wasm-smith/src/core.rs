@@ -1580,7 +1580,9 @@ impl Module {
         let val_type = self.arbitrary_valtype(u)?;
         // Propagate the inner type's sharedness to the global type.
         let shared = match val_type {
-            ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => self.arbitrary_shared(u)?,
+            ValType::I32 | ValType::I64 | ValType::F32 | ValType::F64 | ValType::V128 => {
+                self.arbitrary_shared(u)?
+            }
             ValType::Ref(r) => self.is_shared_ref_type(r),
         };
         Ok(GlobalType {
