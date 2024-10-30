@@ -1344,7 +1344,7 @@ impl Module {
 
         // Returns the index to the translated type in the to-be type section, and the reference to
         // the type itself.
-        let mut make_func_type = |parsed_sig_idx: u32| {
+        let mut make_func_type = |module: &Self, parsed_sig_idx: u32| {
             let serialized_sig_idx = match available_types.get_mut(parsed_sig_idx as usize) {
                 None => panic!("signature index refers to a type out of bounds"),
                 Some((_, Some(idx))) => *idx as usize,
@@ -1367,8 +1367,7 @@ impl Module {
                             .collect(),
                     });
                     index_store.replace(new_index as u32);
-                    let shared =
-                        self.config.shared_everything_threads_enabled && u.arbitrary().ok()?;
+                    let shared = module.arbitrary_shared(u).ok()?;
                     new_types.push(SubType {
                         is_final: true,
                         supertype: None,
@@ -1392,7 +1391,7 @@ impl Module {
                 wasmparser::TypeRef::Func(sig_idx) => {
                     if self.funcs.len() >= self.config.max_funcs {
                         continue;
-                    } else if let Some((sig_idx, func_type)) = make_func_type(*sig_idx) {
+                    } else if let Some((sig_idx, func_type)) = make_func_type(&self, *sig_idx) {
                         let entity = EntityType::Func(sig_idx as u32, Rc::clone(&func_type));
                         if type_size_budget < entity.size() {
                             continue;
@@ -1408,7 +1407,8 @@ impl Module {
                     let can_add_tag = self.tags.len() < self.config.max_tags;
                     if !self.config.exceptions_enabled || !can_add_tag {
                         continue;
-                    } else if let Some((sig_idx, func_type)) = make_func_type(*func_type_idx) {
+                    } else if let Some((sig_idx, func_type)) = make_func_type(&self, *func_type_idx)
+                    {
                         let tag_type = TagType {
                             func_type_idx: sig_idx,
                             func_type,
