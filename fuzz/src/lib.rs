@@ -27,6 +27,7 @@ pub fn generate_valid_module(
     config.canonicalize_nans = u.arbitrary()?;
     config.custom_page_sizes_enabled = u.arbitrary()?;
     config.wide_arithmetic_enabled = u.arbitrary()?;
+    config.shared_everything_threads_enabled = u.arbitrary()?;
 
     configure(&mut config, u)?;
 

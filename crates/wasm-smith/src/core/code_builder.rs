@@ -668,6 +668,8 @@ pub(crate) struct CodeBuilderAllocations {
 }
 
 pub(crate) struct CodeBuilder<'a> {
+    #[allow(dead_code)]
+    shared: bool,
     func_ty: &'a FuncType,
     locals: &'a mut Vec<ValType>,
     allocs: &'a mut CodeBuilderAllocations,
@@ -903,6 +905,7 @@ impl CodeBuilderAllocations {
         &'a mut self,
         func_ty: &'a FuncType,
         locals: &'a mut Vec<ValType>,
+        shared: bool,
     ) -> CodeBuilder<'a> {
         self.controls.clear();
         self.controls.push(Control {
@@ -916,6 +919,7 @@ impl CodeBuilderAllocations {
         self.options.clear();
 
         CodeBuilder {
+            shared,
             func_ty,
             locals,
             allocs: self,
@@ -2323,8 +2327,8 @@ fn br_on_null(
                 let ty = *u.choose(&[
                     Func, Extern, Any, None, NoExtern, NoFunc, Eq, Struct, Array, I31,
                 ])?;
-                // TODO: handle shared
-                HeapType::Abstract { shared: false, ty }
+                let shared = module.arbitrary_shared(u)?;
+                HeapType::Abstract { shared, ty }
             }
         }
     };
@@ -5397,25 +5401,26 @@ fn ref_null(
     }
     if module.config.gc_enabled {
         use AbstractHeapType::*;
-        let r = |heap_type| RefType {
-            nullable: true,
-            heap_type,
-        };
-        let a = |abstract_heap_type| HeapType::Abstract {
-            shared: false, // TODO: handle shared
-            ty: abstract_heap_type,
-        };
-        choices.push(r(a(Any)));
-        choices.push(r(a(Eq)));
-        choices.push(r(a(Array)));
-        choices.push(r(a(Struct)));
-        choices.push(r(a(I31)));
-        choices.push(r(a(None)));
-        choices.push(r(a(NoFunc)));
-        choices.push(r(a(NoExtern)));
+        let abs_ref_types = [Any, Eq, Array, Struct, I31, None, NoFunc, NoExtern];
+        choices.extend(
+            abs_ref_types
+                .iter()
+                .map(|&ty| RefType::new_abstract(ty, true, false)),
+        );
+        if module.config().shared_everything_threads_enabled {
+            choices.extend(
+                abs_ref_types
+                    .iter()
+                    .map(|&ty| RefType::new_abstract(ty, true, true)),
+            );
+        }
+
         for i in 0..module.types.len() {
             let i = u32::try_from(i).unwrap();
-            choices.push(r(HeapType::Concrete(i)));
+            choices.push(RefType {
+                nullable: true,
+                heap_type: HeapType::Concrete(i),
+            });
         }
     }
     let ty = *u.choose(&choices)?;
