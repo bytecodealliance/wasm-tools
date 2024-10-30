@@ -714,6 +714,7 @@ lang! {
         F64x2ReplaceLane(u8, [Id; 2]) = "f64x2.replace_lane",
 
         I8x16Swizzle([Id; 2]) = "i8x16.swizzle",
+        I8x16Shuffle(Shuffle, [Id; 2]) = "i8x16.shuffle",
         I8x16Splat([Id; 1]) = "i8x16.splat",
         I16x8Splat([Id; 1]) = "i16x8.splat",
         I32x4Splat([Id; 1]) = "i32x4.splat",
@@ -1185,6 +1186,40 @@ impl FromStr for MemArgLane {
         }
 
         Ok(MemArgLane { lane, memarg })
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
+pub struct Shuffle {
+    pub indices: [u8; 16],
+}
+
+impl fmt::Display for Shuffle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (i, idx) in self.indices.iter().enumerate() {
+            if i != 0 {
+                write!(f, ".")?;
+            }
+            write!(f, "{idx}")?;
+        }
+        Ok(())
+    }
+}
+
+impl FromStr for Shuffle {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Shuffle, String> {
+        let indices = s
+            .split('.')
+            .map(|part| part.parse::<u8>())
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| format!("failed to parse integer"))?;
+        let indices: &[u8; 16] = indices
+            .as_slice()
+            .try_into()
+            .map_err(|_| format!("wrong number of lanes"))?;
+
+        Ok(Shuffle { indices: *indices })
     }
 }
 
