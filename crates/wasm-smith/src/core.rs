@@ -1107,6 +1107,8 @@ impl Module {
             // shared type, though, we can use either a shared or unshared
             // concrete type.
             if let Some(ty) = self.types.get(idx as usize) {
+                // TODO: in the future, once we can easily query a list of
+                // existing shared types, remove this extra check.
                 if !(self.must_share && !ty.composite_type.shared) {
                     return Ok(HeapType::Concrete(idx));
                 }
