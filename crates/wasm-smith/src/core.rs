@@ -1083,20 +1083,12 @@ impl Module {
 
     fn arbitrary_ref_type(&self, u: &mut Unstructured) -> Result<RefType> {
         if !self.config.reference_types_enabled {
-            // Create a `RefType::FUNCREF` but with variable sharedness.
-            Ok(RefType {
-                nullable: true,
-                heap_type: HeapType::Abstract {
-                    shared: self.arbitrary_shared(u)?,
-                    ty: AbstractHeapType::Func,
-                },
-            })
-        } else {
-            Ok(RefType {
-                nullable: true,
-                heap_type: self.arbitrary_heap_type(u)?,
-            })
+            return Ok(RefType::FUNCREF);
         }
+        Ok(RefType {
+            nullable: true,
+            heap_type: self.arbitrary_heap_type(u)?,
+        })
     }
 
     fn arbitrary_heap_type(&self, u: &mut Unstructured) -> Result<HeapType> {
