@@ -504,7 +504,7 @@ macro_rules! float {
             // because we can just parse hexadecimal digits and then shift
             // their bits into place in the significand. But in addition to
             // that, we also need to handle non-normalized representations,
-            // where the integral part is not "1", to convert then to
+            // where the integral part is not "1", to convert them to
             // normalized results, to round, in case we get more digits than
             // the target format supports, and to handle overflow and subnormal
             // cases.
