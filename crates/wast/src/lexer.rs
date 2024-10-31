@@ -261,13 +261,13 @@ pub enum Float<'a> {
     },
     /// A parsed and separated floating point value
     Val {
-        /// Whether or not the `integral` and `decimal` are specified in hex
+        /// Whether or not the `integral` and `fractional` are specified in hex
         hex: bool,
         /// The float parts before the `.`
         integral: Cow<'a, str>,
         /// The float parts after the `.`
-        decimal: Option<Cow<'a, str>>,
-        /// The exponent to multiple this `integral.decimal` portion of the
+        fractional: Option<Cow<'a, str>>,
+        /// The exponent to multiple this `integral.fractional` portion of the
         /// float by. If `hex` is true this is `2^exponent` and otherwise it's
         /// `10^exponent`
         exponent: Option<Cow<'a, str>>,
@@ -673,7 +673,7 @@ impl<'a> Lexer<'a> {
             }
         }
 
-        // A number can optionally be after the decimal so only actually try to
+        // A number can optionally be after the dot so only actually try to
         // parse one if it's there.
         if it.clone().next() == Some(&b'.') {
             it.next();
@@ -1079,7 +1079,7 @@ impl Token {
                 hex,
             } => {
                 let src = self.src(s);
-                let (integral, decimal, exponent) = match src.find('.') {
+                let (integral, fractional, exponent) = match src.find('.') {
                     Some(i) => {
                         let integral = &src[..i];
                         let rest = &src[i + 1..];
@@ -1106,7 +1106,7 @@ impl Token {
                     }
                 };
                 let mut integral = Cow::Borrowed(integral.strip_prefix('+').unwrap_or(integral));
-                let mut decimal = decimal.and_then(|s| {
+                let mut fractional = fractional.and_then(|s| {
                     if s.is_empty() {
                         None
                     } else {
@@ -1117,8 +1117,8 @@ impl Token {
                     exponent.map(|s| Cow::Borrowed(s.strip_prefix('+').unwrap_or(s)));
                 if has_underscores {
                     *integral.to_mut() = integral.replace("_", "");
-                    if let Some(decimal) = &mut decimal {
-                        *decimal.to_mut() = decimal.replace("_", "");
+                    if let Some(fractional) = &mut fractional {
+                        *fractional.to_mut() = fractional.replace("_", "");
                     }
                     if let Some(exponent) = &mut exponent {
                         *exponent.to_mut() = exponent.replace("_", "");
@@ -1130,7 +1130,7 @@ impl Token {
                 Float::Val {
                     hex,
                     integral,
-                    decimal,
+                    fractional,
                     exponent,
                 }
             }
@@ -1501,7 +1501,7 @@ mod tests {
             get_float("1.2"),
             Float::Val {
                 integral: "1".into(),
-                decimal: Some("2".into()),
+                fractional: Some("2".into()),
                 exponent: None,
                 hex: false,
             },
@@ -1510,7 +1510,7 @@ mod tests {
             get_float("1.2e3"),
             Float::Val {
                 integral: "1".into(),
-                decimal: Some("2".into()),
+                fractional: Some("2".into()),
                 exponent: Some("3".into()),
                 hex: false,
             },
@@ -1519,7 +1519,7 @@ mod tests {
             get_float("-1_2.1_1E+0_1"),
             Float::Val {
                 integral: "-12".into(),
-                decimal: Some("11".into()),
+                fractional: Some("11".into()),
                 exponent: Some("01".into()),
                 hex: false,
             },
@@ -1528,7 +1528,7 @@ mod tests {
             get_float("+1_2.1_1E-0_1"),
             Float::Val {
                 integral: "12".into(),
-                decimal: Some("11".into()),
+                fractional: Some("11".into()),
                 exponent: Some("-01".into()),
                 hex: false,
             },
@@ -1537,7 +1537,7 @@ mod tests {
             get_float("0x1_2.3_4p5_6"),
             Float::Val {
                 integral: "12".into(),
-                decimal: Some("34".into()),
+                fractional: Some("34".into()),
                 exponent: Some("56".into()),
                 hex: true,
             },
@@ -1546,7 +1546,7 @@ mod tests {
             get_float("+0x1_2.3_4P-5_6"),
             Float::Val {
                 integral: "12".into(),
-                decimal: Some("34".into()),
+                fractional: Some("34".into()),
                 exponent: Some("-56".into()),
                 hex: true,
             },
@@ -1555,7 +1555,7 @@ mod tests {
             get_float("1."),
             Float::Val {
                 integral: "1".into(),
-                decimal: None,
+                fractional: None,
                 exponent: None,
                 hex: false,
             },
@@ -1564,7 +1564,7 @@ mod tests {
             get_float("0x1p-24"),
             Float::Val {
                 integral: "1".into(),
-                decimal: None,
+                fractional: None,
                 exponent: Some("-24".into()),
                 hex: true,
             },
