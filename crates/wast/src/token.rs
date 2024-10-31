@@ -410,7 +410,7 @@ macro_rules! float {
                             $parse(&Float::Val {
                                 hex: base == 16,
                                 integral: s.into(),
-                                decimal: None,
+                                fractional: None,
                                 exponent: None,
                             }),
                             rest,
@@ -436,7 +436,7 @@ macro_rules! float {
             let signif_mask = (1 << exp_offset) - 1;
             let bias = (1 << ($exp_bits - 1)) - 1;
 
-            let (hex, integral, decimal, exponent_str) = match val {
+            let (hex, integral, fractional, exponent_str) = match val {
                 // Infinity is when the exponent bits are all set and
                 // the significand is zero.
                 Float::Inf { negative } => {
@@ -471,8 +471,8 @@ macro_rules! float {
                 }
 
                 // This is trickier, handle this below
-                Float::Val { hex, integral, decimal, exponent } => {
-                    (hex, integral, decimal, exponent)
+                Float::Val { hex, integral, fractional, exponent } => {
+                    (hex, integral, fractional, exponent)
                 }
             };
 
@@ -480,9 +480,9 @@ macro_rules! float {
             // correctly.
             if !*hex {
                 let mut s = integral.to_string();
-                if let Some(decimal) = decimal {
+                if let Some(fractional) = fractional {
                     s.push_str(".");
-                    s.push_str(&decimal);
+                    s.push_str(&fractional);
                 }
                 if let Some(exponent) = exponent_str {
                     s.push_str("e");
@@ -501,7 +501,7 @@ macro_rules! float {
             // this below does. It was copied from Gecko's implementation in
             // `WasmTextToBinary.cpp`. Would love comments on this if you have
             // them!
-            let decimal = decimal.as_ref().map(|s| &**s).unwrap_or("");
+            let fractional = fractional.as_ref().map(|s| &**s).unwrap_or("");
             let negative = integral.starts_with('-');
             let integral = integral.trim_start_matches('-').trim_start_matches('0');
 
@@ -510,15 +510,15 @@ macro_rules! float {
             // adjustments depending on where the digit was found, but the
             // general idea here is that I'm not really sure why things are
             // calculated the way they are but it should match Gecko.
-            let decimal_no_leading = decimal.trim_start_matches('0');
-            let decimal_iter = if integral.is_empty() {
-                decimal_no_leading.chars()
+            let fractional_no_leading = fractional.trim_start_matches('0');
+            let fractional_iter = if integral.is_empty() {
+                fractional_no_leading.chars()
             } else {
-                decimal.chars()
+                fractional.chars()
             };
             let mut digits = integral.chars()
                 .map(|c| (to_hex(c) as $int, false))
-                .chain(decimal_iter.map(|c| (to_hex(c) as $int, true)));
+                .chain(fractional_iter.map(|c| (to_hex(c) as $int, true)));
             let lead_nonzero_digit = match digits.next() {
                 Some((c, _)) => c,
                 // No digits? Must be `+0` or `-0`, being careful to handle the
@@ -530,7 +530,7 @@ macro_rules! float {
             let mut exponent = if !integral.is_empty() {
                 1
             } else {
-                -((decimal.len() - decimal_no_leading.len() + 1) as i32) + 1
+                -((fractional.len() - fractional_no_leading.len() + 1) as i32) + 1
             };
             let lz = (lead_nonzero_digit as u8).leading_zeros() as i32 - 4;
             exponent = exponent.checked_mul(4)?.checked_sub(lz + 1)?;
@@ -542,8 +542,8 @@ macro_rules! float {
             // digits. Again, not entirely sure why everything is the way it is
             // here! This is copied frmo gecko.
             let mut discarded_extra_nonzero = false;
-            for (digit, decimal) in digits {
-                if !decimal {
+            for (digit, is_fractional) in digits {
+                if !is_fractional {
                     exponent += 4;
                 }
                 if significand_pos > -4 {
@@ -699,7 +699,7 @@ mod tests {
             (@mk $a:tt, $b:expr, $e:expr) => (crate::lexer::Float::Val {
                 hex: true,
                 integral: $a.into(),
-                decimal: $b,
+                fractional: $b,
                 exponent: $e
             });
         }
