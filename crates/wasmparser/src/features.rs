@@ -233,19 +233,34 @@ define_wasm_features! {
 }
 
 impl WasmFeatures {
-    /// The feature set associated with the 1.0 version of the
-    /// WebAssembly specification or the "MVP" feature set.
+    /// The feature set associated with the MVP release of WebAssembly (its
+    /// first release).
+    //
+    // Note that the features listed here are the wasmparser-specific built-in
+    // features such as "floats" and "gc-types". These don't actually correspond
+    // to any wasm proposals themselves and instead just gate constructs in
+    // wasm. They're listed here so they otherwise don't have to be listed
+    // below, but for example wasm with `externref` will be rejected due to lack
+    // of `externref` first.
     #[cfg(feature = "features")]
-    pub const WASM1: WasmFeatures = WasmFeatures::FLOATS.union(WasmFeatures::GC_TYPES);
+    pub const MVP: WasmFeatures = WasmFeatures::FLOATS.union(WasmFeatures::GC_TYPES);
+
+    /// The feature set associated with the 1.0 version of the
+    /// WebAssembly specification circa 2017.
+    ///
+    /// <https://webassembly.github.io/spec/versions/core/WebAssembly-1.0.pdf>
+    #[cfg(feature = "features")]
+    pub const WASM1: WasmFeatures = WasmFeatures::MVP.union(WasmFeatures::MUTABLE_GLOBAL);
 
     /// The feature set associated with the 2.0 version of the
-    /// WebAssembly specification.
+    /// WebAssembly specification circa 2022.
+    ///
+    /// <https://webassembly.github.io/spec/versions/core/WebAssembly-2.0.pdf>
     #[cfg(feature = "features")]
     pub const WASM2: WasmFeatures = WasmFeatures::WASM1
         .union(WasmFeatures::BULK_MEMORY)
         .union(WasmFeatures::REFERENCE_TYPES)
         .union(WasmFeatures::SIGN_EXTENSION)
-        .union(WasmFeatures::MUTABLE_GLOBAL)
         .union(WasmFeatures::SATURATING_FLOAT_TO_INT)
         .union(WasmFeatures::MULTI_VALUE)
         .union(WasmFeatures::SIMD);
@@ -256,6 +271,9 @@ impl WasmFeatures {
     /// Note that as of the time of this writing the 3.0 version of the
     /// specification is not yet published. The precise set of features set
     /// here may change as that continues to evolve.
+    ///
+    /// (draft)
+    /// <https://webassembly.github.io/spec/versions/core/WebAssembly-3.0-draft.pdf>
     #[cfg(feature = "features")]
     pub const WASM3: WasmFeatures = WasmFeatures::WASM2
         .union(WasmFeatures::GC)
