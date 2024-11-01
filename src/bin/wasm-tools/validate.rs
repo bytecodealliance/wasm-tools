@@ -213,7 +213,7 @@ fn parse_features(arg: &str) -> Result<Vec<FeatureAction>> {
     let mut ret = Vec::new();
 
     const GROUPS: &[(&str, WasmFeatures)] = &[
-        ("mvp", WasmFeatures::WASM1),
+        ("mvp", WasmFeatures::MVP),
         ("wasm1", WasmFeatures::WASM1),
         ("wasm2", WasmFeatures::WASM2),
         ("wasm3", WasmFeatures::WASM3),
