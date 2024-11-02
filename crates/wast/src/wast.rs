@@ -498,6 +498,7 @@ pub enum QuoteWatTest {
 
 #[derive(Debug)]
 #[allow(missing_docs)]
+#[non_exhaustive]
 pub enum WastArg<'a> {
     Core(WastArgCore<'a>),
     // TODO: technically this isn't cargo-compliant since it means that this
@@ -524,6 +525,7 @@ impl<'a> Parse<'a> for WastArg<'a> {
 
 #[derive(Debug)]
 #[allow(missing_docs)]
+#[non_exhaustive]
 pub enum WastRet<'a> {
     Core(WastRetCore<'a>),
     #[cfg(feature = "component-model")]
