@@ -147,7 +147,7 @@ where
     }
 }
 
-/// An adapter between the [`std::fmt::Write`] trait and [`termcolor::WriteColor`].
+/// An adapter between the [`termcolor::WriteColor`] trait and [`Print`].
 pub struct PrintTermcolor<T>(pub T);
 
 impl<T> Print for PrintTermcolor<T>
