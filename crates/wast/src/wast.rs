@@ -501,10 +501,6 @@ pub enum QuoteWatTest {
 #[non_exhaustive]
 pub enum WastArg<'a> {
     Core(WastArgCore<'a>),
-    // TODO: technically this isn't cargo-compliant since it means that this
-    // isn't and additive feature by defining this conditionally. That being
-    // said this seems unlikely to break many in practice so this isn't a shared
-    // type, so fixing this is left to a future commit.
     #[cfg(feature = "component-model")]
     Component(WastVal<'a>),
 }
