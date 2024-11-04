@@ -54,7 +54,7 @@ pub struct Opts {
     ///
     /// This is defaulted to `true` to enable parsing all upstream spec tests
     /// but can be disabled if desired too.
-    #[clap(long)]
+    #[clap(long, value_name = "true|false")]
     allow_confusing_unicode: Option<bool>,
 }
 
