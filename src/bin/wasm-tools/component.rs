@@ -13,7 +13,8 @@ use wasmparser::types::{CoreTypeId, EntityType, Types};
 use wasmparser::{Payload, ValidPayload};
 use wat::Detect;
 use wit_component::{
-    embed_component_metadata, ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter,
+    embed_component_metadata, metadata, ComponentEncoder, DecodedWasm, Linker, StringEncoding,
+    WitPrinter,
 };
 use wit_parser::{Mangling, PackageId, Resolve};
 
@@ -308,6 +309,15 @@ pub struct EmbedOpts {
     /// Print the output in the WebAssembly text format instead of binary.
     #[clap(long, short = 't')]
     wat: bool,
+
+    /// Print the wasm custom section only.
+    #[clap(
+        long,
+        conflicts_with = "wat",
+        conflicts_with = "dummy",
+        conflicts_with = "dummy_names"
+    )]
+    only_custom: bool,
 }
 
 impl EmbedOpts {
@@ -318,7 +328,21 @@ impl EmbedOpts {
     /// Executes the application.
     fn run(self) -> Result<()> {
         let (resolve, pkg_id) = self.resolve.load()?;
+
         let world = resolve.select_world(pkg_id, self.world.as_deref())?;
+
+        if self.only_custom {
+            let encoded = metadata::encode(
+                &resolve,
+                world,
+                self.encoding.unwrap_or(StringEncoding::UTF8),
+                None,
+            )?;
+
+            self.io.output_wasm(&encoded, false)?;
+            return Ok(());
+        }
+
         let mut wasm = if self.dummy {
             wit_component::dummy_module(&resolve, world, Mangling::Standard32)
         } else if let Some(mangling) = self.dummy_names {
