@@ -339,7 +339,7 @@ impl EmbedOpts {
                 None,
             )?;
 
-            self.io.output_wasm(&encoded, self.wat)?;
+            self.io.output_wasm(&encoded, false)?;
             return Ok(());
         }
 
@@ -358,7 +358,7 @@ impl EmbedOpts {
             self.encoding.unwrap_or(StringEncoding::UTF8),
         )?;
 
-        self.io.output_wasm(&wasm, false)?;
+        self.io.output_wasm(&wasm, self.wat)?;
 
         Ok(())
     }
