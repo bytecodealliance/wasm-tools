@@ -311,7 +311,12 @@ pub struct EmbedOpts {
     wat: bool,
 
     /// Print the wasm custom section only.
-    #[clap(long, short = 's')]
+    #[clap(
+        long,
+        conflicts_with = "wat",
+        conflicts_with = "dummy",
+        conflicts_with = "dummy_names"
+    )]
     only_custom: bool,
 }
 
@@ -353,7 +358,7 @@ impl EmbedOpts {
             self.encoding.unwrap_or(StringEncoding::UTF8),
         )?;
 
-        self.io.output_wasm(&wasm, self.wat)?;
+        self.io.output_wasm(&wasm, false)?;
 
         Ok(())
     }
