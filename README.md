@@ -191,6 +191,7 @@ Currently implemented proposals in this repository that are stage 4+ are:
   (note this is not phase 4 but `wast` does not have the concept of features)
 * [x] [function-references](https://github.com/WebAssembly/function-references)
 * [x] [gc](https://github.com/WebAssembly/gc)
+* [x] [memory64](https://github.com/WebAssembly/memory64)
 * [x] [multi-memory](https://github.com/WebAssembly/multi-memory)
 * [x] [multi-value](https://github.com/WebAssembly/multi-value)
 * [x] [mutable-global](https://github.com/WebAssembly/mutable-global)
@@ -211,7 +212,6 @@ changed since these proposals were implemented, so there may be a mismatch too.
 
 * [x] [custom-page-sizes](https://github.com/WebAssembly/custom-page-sizes)
 * [x] [memory-control](https://github.com/WebAssembly/memory-control)
-* [x] [memory64](https://github.com/WebAssembly/memory64)
 * [x] [shared-everything-threads](https://github.com/WebAssembly/shared-everything-threads)
 * [x] [stack-switching](https://github.com/WebAssembly/stack-switching)
 * [x] [wide-arithmetic](https://github.com/WebAssembly/wide-arithmetic)

@@ -455,10 +455,10 @@ define_config! {
         /// Note that this is irrelevant unless value model support is enabled.
         pub max_values: usize = 10,
 
-        /// Returns whether 64-bit memories are allowed. Defaults to false.
+        /// Returns whether 64-bit memories are allowed. Defaults to true.
         ///
         /// Note that this is the gate for the memory64 proposal to WebAssembly.
-        pub memory64_enabled: bool = false,
+        pub memory64_enabled: bool = true,
 
         /// Whether every Wasm memory must have a maximum size
         /// specified. Defaults to `false`.
@@ -718,6 +718,7 @@ impl<'a> Arbitrary<'a> for Config {
             threads_enabled: u.arbitrary()?,
             tail_call_enabled: u.arbitrary()?,
             gc_enabled: u.arbitrary()?,
+            memory64_enabled: u.arbitrary()?,
             allowed_instructions: {
                 use flagset::Flags;
                 let mut allowed = Vec::new();
@@ -764,7 +765,6 @@ impl<'a> Arbitrary<'a> for Config {
             allow_invalid_funcs: false,
 
             // Proposals that are not stage4+ are disabled by default.
-            memory64_enabled: false,
             custom_page_sizes_enabled: false,
             wide_arithmetic_enabled: false,
             shared_everything_threads_enabled: false,

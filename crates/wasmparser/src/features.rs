@@ -179,7 +179,7 @@ define_wasm_features! {
         /// The WebAssembly exception handling proposal.
         pub exceptions: EXCEPTIONS(1 << 13) = true;
         /// The WebAssembly memory64 proposal.
-        pub memory64: MEMORY64(1 << 14) = false;
+        pub memory64: MEMORY64(1 << 14) = true;
         /// The WebAssembly extended_const proposal.
         pub extended_const: EXTENDED_CONST(1 << 15) = true;
         /// The WebAssembly component model proposal.
