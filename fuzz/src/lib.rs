@@ -23,7 +23,6 @@ pub fn generate_valid_module(
 
     // These are disabled in the swarm config by default, but we want to test
     // them. Use the input data to determine whether these features are enabled.
-    config.memory64_enabled = u.arbitrary()?;
     config.canonicalize_nans = u.arbitrary()?;
     config.custom_page_sizes_enabled = u.arbitrary()?;
     config.wide_arithmetic_enabled = u.arbitrary()?;
@@ -58,7 +57,6 @@ pub fn generate_valid_component(
     // them. Use the input data to determine whether these features are enabled.
     config.simd_enabled = u.arbitrary()?;
     config.relaxed_simd_enabled = config.simd_enabled && u.arbitrary()?;
-    config.memory64_enabled = u.arbitrary()?;
     config.exceptions_enabled = u.arbitrary()?;
     config.canonicalize_nans = u.arbitrary()?;
 
