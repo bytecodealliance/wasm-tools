@@ -89,6 +89,7 @@ macro_rules! define_type_id {
             }
         }
 
+
         // The size of type IDs was seen to have a large-ish impact in #844, so
         // this assert ensures that it stays relatively small.
         const _: () = {
@@ -106,9 +107,10 @@ pub struct CoreTypeId {
     index: u32,
 }
 
-const _: () = {
+#[test]
+fn assert_core_type_id_small() {
     assert!(core::mem::size_of::<CoreTypeId>() <= 4);
-};
+}
 
 impl TypeIdentifier for CoreTypeId {
     type Data = SubType;

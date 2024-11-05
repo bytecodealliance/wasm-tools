@@ -476,9 +476,10 @@ pub struct ComponentDefinedTypeId {
     alias_id: u32,
 }
 
-const _: () = {
+#[test]
+fn assert_defined_type_small() {
     assert!(core::mem::size_of::<ComponentDefinedTypeId>() <= 8);
-};
+}
 
 impl TypeIdentifier for ComponentDefinedTypeId {
     type Data = ComponentDefinedType;
