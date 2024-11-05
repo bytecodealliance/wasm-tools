@@ -1208,11 +1208,12 @@ instructions! {
 // since big `*.wat` files will have a lot of these. This is a small ratchet to
 // make sure that this enum doesn't become larger than it already is, although
 // ideally it also wouldn't be as large as it is now.
-const _: () = {
+#[test]
+fn assert_instruction_not_too_large() {
     let size = std::mem::size_of::<Instruction<'_>>();
     let pointer = std::mem::size_of::<u64>();
     assert!(size <= pointer * 11);
-};
+}
 
 impl<'a> Instruction<'a> {
     pub(crate) fn needs_data_count(&self) -> bool {
