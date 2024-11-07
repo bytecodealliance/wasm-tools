@@ -3,8 +3,7 @@
   (global $g (;0;) (mut eqref) ref.null eq)
   (func (;0;) (type 0)
     ref.null eq
-    ref.null eq
-    global.atomic.rmw.cmpxchg acq_rel $g
+    global.atomic.rmw.xchg acq_rel $g
     drop
   )
 )

@@ -42,6 +42,23 @@
     (table shared 0 (ref $t)))
   "shared tables must have a shared element type")
 
+;; A shared table must be initialized from shared objects.
+(module
+  (type $f (shared (func)))
+  (global $g (shared (ref null $f)) (ref.null $f))
+  (table $t shared 1 (ref null $f))
+  (elem (ref null $f) (global.get $g))
+)
+(assert_invalid
+  (module
+    (type $f (shared (func)))
+    (global $g (ref null $f) (ref.null $f))
+    (table $t shared 1 (ref null $f))
+    ;; When we initialize a shared element, everything must be shared, including
+    ;; the used global.
+    (elem (ref null $f) (global.get $g)))
+  "invalid type")
+
 ;; Check `table.atomic.*` instructions.
 (module (;eq;)
   (table $a (import "spectest" "table_eq") shared 1 (ref null (shared eq)))
