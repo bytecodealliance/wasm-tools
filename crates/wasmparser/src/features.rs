@@ -283,7 +283,8 @@ impl WasmFeatures {
         .union(WasmFeatures::MULTI_MEMORY)
         .union(WasmFeatures::RELAXED_SIMD)
         .union(WasmFeatures::THREADS)
-        .union(WasmFeatures::EXCEPTIONS);
+        .union(WasmFeatures::EXCEPTIONS)
+        .union(WasmFeatures::MEMORY64);
 }
 
 #[cfg(feature = "features")]
