@@ -40,8 +40,8 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
-    - uses: bytecodealliance/wasmtime/.github/actions/binary-compatible-builds@v20.0.0
+    - uses: ./.github/actions/install-rust
+    - uses: bytecodealliance/wasmtime/.github/actions/binary-compatible-builds@main
       with:
         name: ${{ matrix.build }}
       if: matrix.build != 'wasm32-wasip1'
@@ -63,7 +63,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
-      - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
+      - uses: ./.github/actions/install-rust
       - name: Test (prefer-btree-collections)
         run: cargo test --workspace --locked --features prefer-btree-collections
 
@@ -74,15 +74,15 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            rust: default
+            rust: stable
           - os: ubuntu-latest
             rust: beta
           - os: ubuntu-latest
-            rust: nightly-2024-09-10
+            rust: nightly
           - os: macos-latest
-            rust: default
+            rust: stable
           - os: windows-latest
-            rust: default
+            rust: stable
           - os: ubuntu-latest
             rust: msrv
             # skip testing crates that require wasmtime since wasmtime has a
@@ -95,7 +95,7 @@ jobs:
           # test that if `RUST_BACKTRACE=1` is set in the environment that all
           # tests with blessed error messages still pass.
           - os: ubuntu-latest
-            rust: default
+            rust: stable
             env:
               RUST_BACKTRACE: 1
     env: ${{ matrix.env || fromJSON('{}') }}
@@ -103,7 +103,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
+    - uses: ./.github/actions/install-rust
       with:
         toolchain: ${{ matrix.rust }}
     - run: cargo test --locked --all ${{ matrix.flags }}
@@ -115,7 +115,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
+    - uses: ./.github/actions/install-rust
     - run: cargo test --locked -p wasmparser --benches
     - run: cargo test --locked -p wasm-encoder --all-features
     - run: cargo test -p wasm-smith --features wasmparser
@@ -134,7 +134,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
+    - uses: ./.github/actions/install-rust
     - run: cmake -S examples -B examples/build -DCMAKE_BUILD_TYPE=Release
     - run: cmake --build examples/build --config Release
 
@@ -145,7 +145,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
+    - uses: ./.github/actions/install-rust
       with:
         toolchain: 1.79.0
     - run: rustup target add wasm32-wasip1
@@ -162,7 +162,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
+    - uses: ./.github/actions/install-rust
     - run: rustup target add wasm32-wasip1
     - run: |
         tag=v10.0.1
@@ -183,7 +183,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
+    - uses: ./.github/actions/install-rust
     - run: rustup component add rustfmt
     - run: printf "\n" > playground/component/src/bindings.rs
     # Note that this doesn't use `cargo fmt` because that doesn't format
@@ -198,7 +198,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
+    - uses: ./.github/actions/install-rust
       with:
         toolchain: nightly
     - run: cargo install cargo-fuzz
@@ -209,7 +209,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
+      - uses: ./.github/actions/install-rust
       - run: rustup target add x86_64-unknown-none
       - run: cargo check --benches -p wasm-smith
       - run: cargo check --no-default-features
@@ -281,7 +281,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
+      - uses: ./.github/actions/install-rust
       - run: rustup component add clippy
       - run: cargo clippy --workspace --all-targets --exclude dl --exclude component
 
@@ -292,7 +292,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
+    - uses: ./.github/actions/install-rust
     - run: rustc ci/publish.rs
     # Make sure we can bump version numbers for the next release
     - run: ./publish bump
