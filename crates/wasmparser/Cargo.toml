@@ -48,7 +48,7 @@ default = ['std', 'validate', 'serde', 'features', 'component-model', 'hash-coll
 # A feature which enables implementations of `std::error::Error` as appropriate
 # along with other convenience APIs. This additionally uses the standard
 # library's source of randomness for seeding hash maps.
-std = ['indexmap/std']
+std = ['indexmap?/std']
 
 # Tells the `wasmparser` crate to provide (and use) hash-based collections internally.
 #
@@ -70,7 +70,7 @@ validate = ['dep:semver']
 
 # Enable Serialize/Deserialize implementations for types in
 # `wasmparser::collections`
-serde = ['dep:serde', 'indexmap/serde', 'hashbrown/serde']
+serde = ['dep:serde', 'indexmap?/serde', 'hashbrown?/serde']
 
 # A feature that enables the guts of the `WasmFeatures` type in this crate.
 #
