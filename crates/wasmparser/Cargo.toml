@@ -84,3 +84,5 @@ features = []
 # WebAssembly. This is enabled by default but if your use case is only
 # interested in working with core modules then this feature can be disabled.
 component-model = []
+
+simd = []
