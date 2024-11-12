@@ -496,12 +496,28 @@ impl<'a, 'b, V: VisitOperator<'a> + ?Sized> VisitOperator<'a> for &'b mut V {
     for_each_operator!(define_visit_operator_delegate);
 }
 
+impl<'a, V: VisitSimdOperator + ?Sized> VisitSimdOperator for &'a mut V {
+    type Output = V::Output;
+    fn visit_simd_operator(&mut self, op: &SimdOperator) -> Self::Output {
+        V::visit_simd_operator(*self, op)
+    }
+    for_each_simd_operator!(define_visit_operator_delegate);
+}
+
 impl<'a, V: VisitOperator<'a> + ?Sized> VisitOperator<'a> for Box<V> {
     type Output = V::Output;
     fn visit_operator(&mut self, op: &Operator<'a>) -> Self::Output {
         V::visit_operator(&mut *self, op)
     }
     for_each_operator!(define_visit_operator_delegate);
+}
+
+impl<V: VisitSimdOperator + ?Sized> VisitSimdOperator for Box<V> {
+    type Output = V::Output;
+    fn visit_simd_operator(&mut self, op: &SimdOperator) -> Self::Output {
+        V::visit_simd_operator(&mut *self, op)
+    }
+    for_each_simd_operator!(define_visit_operator_delegate);
 }
 
 /// A `try_table` entries representation.
