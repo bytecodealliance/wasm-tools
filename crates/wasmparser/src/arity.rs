@@ -249,6 +249,7 @@ impl Operator<'_> {
                             operator_arity!(arity module $({ $($arg: $argty),* })? $($ann)*)
                         }
                     )*
+                    Self::Simd(operator) => operator.operator_arity(),
                 }
             );
         }

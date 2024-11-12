@@ -224,6 +224,7 @@ macro_rules! define_operator {
             $(
                 $op $({ $($payload)* })?,
             )*
+            Simd(SimdOperator),
         }
     }
 }
@@ -439,6 +440,12 @@ pub trait VisitOperator<'a> {
                     $(
                         Operator::$op $({ $($arg),* })? => self.$visit($($($arg.clone()),*)?),
                     )*
+                    Operator::Simd(op) => {
+                        let Some(visitor) = self.simd_visitor() else {
+                            panic!("missing SIMD visitor for: {op:?}")
+                        };
+                        visitor.visit_simd_operator(op)
+                    }
                 }
             }
         }
