@@ -445,15 +445,14 @@ pub trait VisitOperator<'a> {
         for_each_operator!(visit_operator)
     }
 
+    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<Output = Self::Output>> { None }
+
     for_each_operator!(define_visit_operator);
 }
 
 /// Trait implemented by types that can visit all [`Operator`] variants.
 #[allow(missing_docs)]
-pub trait VisitSimdOperator {
-    /// The result type of the visitor.
-    type Output;
-
+pub trait VisitSimdOperator<'a>: VisitOperator<'a> {
     /// Visits the SIMD [`Operator`] `op` using the given `offset`.
     ///
     /// # Note
@@ -493,11 +492,13 @@ impl<'a, 'b, V: VisitOperator<'a> + ?Sized> VisitOperator<'a> for &'b mut V {
     fn visit_operator(&mut self, op: &Operator<'a>) -> Self::Output {
         V::visit_operator(*self, op)
     }
+    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<Output = V::Output>> {
+        V::simd_visitor(*self)
+    }
     for_each_operator!(define_visit_operator_delegate);
 }
 
-impl<'a, V: VisitSimdOperator + ?Sized> VisitSimdOperator for &'a mut V {
-    type Output = V::Output;
+impl<'a, 'b, V: VisitSimdOperator<'a> + ?Sized> VisitSimdOperator<'a> for &'b mut V {
     fn visit_simd_operator(&mut self, op: &SimdOperator) -> Self::Output {
         V::visit_simd_operator(*self, op)
     }
@@ -509,11 +510,13 @@ impl<'a, V: VisitOperator<'a> + ?Sized> VisitOperator<'a> for Box<V> {
     fn visit_operator(&mut self, op: &Operator<'a>) -> Self::Output {
         V::visit_operator(&mut *self, op)
     }
+    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<Output = V::Output>> {
+        V::simd_visitor(&mut *self)
+    }
     for_each_operator!(define_visit_operator_delegate);
 }
 
-impl<V: VisitSimdOperator + ?Sized> VisitSimdOperator for Box<V> {
-    type Output = V::Output;
+impl<'a, V: VisitSimdOperator<'a> + ?Sized> VisitSimdOperator<'a> for Box<V> {
     fn visit_simd_operator(&mut self, op: &SimdOperator) -> Self::Output {
         V::visit_simd_operator(&mut *self, op)
     }
