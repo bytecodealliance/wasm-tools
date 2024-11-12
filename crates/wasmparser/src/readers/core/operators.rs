@@ -445,7 +445,7 @@ pub trait VisitOperator<'a> {
         for_each_operator!(visit_operator)
     }
 
-    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<Output = Self::Output>> { None }
+    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = Self::Output>> { None }
 
     for_each_operator!(define_visit_operator);
 }
@@ -492,7 +492,7 @@ impl<'a, 'b, V: VisitOperator<'a> + ?Sized> VisitOperator<'a> for &'b mut V {
     fn visit_operator(&mut self, op: &Operator<'a>) -> Self::Output {
         V::visit_operator(*self, op)
     }
-    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<Output = V::Output>> {
+    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = V::Output>> {
         V::simd_visitor(*self)
     }
     for_each_operator!(define_visit_operator_delegate);
@@ -510,7 +510,7 @@ impl<'a, V: VisitOperator<'a> + ?Sized> VisitOperator<'a> for Box<V> {
     fn visit_operator(&mut self, op: &Operator<'a>) -> Self::Output {
         V::visit_operator(&mut *self, op)
     }
-    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<Output = V::Output>> {
+    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = V::Output>> {
         V::simd_visitor(&mut *self)
     }
     for_each_operator!(define_visit_operator_delegate);

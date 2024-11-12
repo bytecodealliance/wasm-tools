@@ -1121,10 +1121,10 @@ impl<'a> BinaryReader<'a> {
             0xfb => self.visit_0xfb_operator(pos, visitor)?,
             0xfc => self.visit_0xfc_operator(pos, visitor)?,
             0xfd => {
-                let Some(ref mut visitor) = visitor.simd_visitor() else {
+                let Some(mut visitor) = visitor.simd_visitor() else {
                     bail!(pos, "unexpected SIMD opcode: 0x{code:x}")
                 };
-                self.visit_0xfd_operator(pos, visitor)?
+                self.visit_0xfd_operator(pos, &mut visitor)?
             },
             0xfe => self.visit_0xfe_operator(pos, visitor)?,
 
