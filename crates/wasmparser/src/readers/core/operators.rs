@@ -229,6 +229,22 @@ macro_rules! define_operator {
 }
 for_each_operator!(define_operator);
 
+macro_rules! define_simd_operator {
+    ($(@$proposal:ident $op:ident $({ $($payload:tt)* })? => $visit:ident ($($ann:tt)*))*) => {
+        /// SIMD instructions as defined [here].
+        ///
+        /// [here]: https://webassembly.github.io/spec/core/binary/instructions.html
+        #[derive(Debug, Clone, Eq, PartialEq)]
+        #[allow(missing_docs)]
+        pub enum SimdOperator {
+            $(
+                $op $({ $($payload)* })?,
+            )*
+        }
+    }
+}
+for_each_simd_operator!(define_simd_operator);
+
 /// A reader for a core WebAssembly function's operators.
 #[derive(Clone)]
 pub struct OperatorsReader<'a> {
