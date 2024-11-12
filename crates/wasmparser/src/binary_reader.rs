@@ -1120,7 +1120,12 @@ impl<'a> BinaryReader<'a> {
 
             0xfb => self.visit_0xfb_operator(pos, visitor)?,
             0xfc => self.visit_0xfc_operator(pos, visitor)?,
-            0xfd => self.visit_0xfd_operator(pos, visitor)?,
+            0xfd => {
+                let Some(ref mut visitor) = visitor.simd_visitor() else {
+                    bail!(pos, "unexpected SIMD opcode: 0x{code:x}")
+                };
+                self.visit_0xfd_operator(pos, visitor)?
+            },
             0xfe => self.visit_0xfe_operator(pos, visitor)?,
 
             _ => bail!(pos, "illegal opcode: 0x{code:x}"),
@@ -1372,7 +1377,7 @@ impl<'a> BinaryReader<'a> {
         visitor: &mut T,
     ) -> Result<<T as VisitOperator<'a>>::Output>
     where
-        T: VisitOperator<'a>,
+        T: VisitSimdOperator<'a>,
     {
         let code = self.read_var_u32()?;
         Ok(match code {
