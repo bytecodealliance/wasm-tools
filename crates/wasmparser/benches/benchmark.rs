@@ -1,6 +1,7 @@
 use anyhow::Result;
 use criterion::{criterion_group, criterion_main, Criterion};
 use once_cell::unsync::Lazy;
+use wasmparser::VisitSimdOperator;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -365,4 +366,11 @@ impl<'a> VisitOperator<'a> for NopVisit {
     type Output = ();
 
     wasmparser::for_each_operator!(define_visit_operator);
+}
+
+#[allow(unused_variables)]
+impl<'a> VisitSimdOperator for NopVisit {
+    type Output = ();
+
+    wasmparser::for_each_simd_operator!(define_visit_operator);
 }
