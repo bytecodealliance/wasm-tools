@@ -441,12 +441,41 @@ pub trait VisitOperator<'a> {
                     )*
                 }
             }
-
         }
         for_each_operator!(visit_operator)
     }
 
     for_each_operator!(define_visit_operator);
+}
+
+/// Trait implemented by types that can visit all [`Operator`] variants.
+#[allow(missing_docs)]
+pub trait VisitSimdOperator {
+    /// The result type of the visitor.
+    type Output;
+
+    /// Visits the SIMD [`Operator`] `op` using the given `offset`.
+    ///
+    /// # Note
+    ///
+    /// This is a convenience method that is intended for non-performance
+    /// critical use cases. For performance critical implementations users
+    /// are recommended to directly use the respective `visit` methods or
+    /// implement [`VisitOperator`] on their own.
+    fn visit_simd_operator(&mut self, op: &SimdOperator) -> Self::Output {
+        macro_rules! visit_simd_operator {
+            ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
+                match op {
+                    $(
+                        SimdOperator::$op $({ $($arg),* })? => self.$visit($($($arg.clone()),*)?),
+                    )*
+                }
+            }
+        }
+        for_each_simd_operator!(visit_simd_operator)
+    }
+
+    for_each_simd_operator!(define_visit_operator);
 }
 
 macro_rules! define_visit_operator_delegate {
