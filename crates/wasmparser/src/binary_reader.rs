@@ -2100,7 +2100,16 @@ macro_rules! define_visit_operator {
 impl<'a> VisitOperator<'a> for OperatorFactory<'a> {
     type Output = Operator<'a>;
 
+    #[cfg(feature = "simd")]
+    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<Output = Self::Output>> {
+        Some(self)
+    }
+
     for_each_operator!(define_visit_operator);
+}
+
+impl<'a> VisitSimdOperator<'a> for OperatorFactory<'a> {
+    for_each_simd_operator!(define_visit_operator);
 }
 
 /// Iterator returned from [`BinaryReader::read_iter`].
