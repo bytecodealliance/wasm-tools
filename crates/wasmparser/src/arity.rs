@@ -14,8 +14,7 @@
  */
 
 use crate::{
-    BinaryReader, BinaryReaderError, BlockType, CompositeInnerType, ContType, FrameKind, FuncType,
-    Operator, RefType, Result, SubType,
+    BinaryReader, BinaryReaderError, BlockType, CompositeInnerType, ContType, FrameKind, FuncType, Operator, RefType, Result, SimdOperator, SubType
 };
 
 /// To compute the arity (param and result counts) of "variable-arity"
@@ -240,10 +239,10 @@ impl Operator<'_> {
     /// an impl ModuleArity, which stores the necessary module state.
     pub fn operator_arity(&self, module: &impl ModuleArity) -> Option<(u32, u32)> {
         macro_rules! define_arity {
-            ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*) )*) => (
+            ( $(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*) )*) => (
                 match self.clone() {
                     $(
-                        Operator::$op $({ $($arg),* })? => {
+                        Self::$op $({ $($arg),* })? => {
                             $(
                                 $(let _ = $arg;)*
                             )?
@@ -254,5 +253,27 @@ impl Operator<'_> {
             );
         }
         for_each_operator!(define_arity)
+    }
+}
+
+impl SimdOperator {
+    /// Compute the arity (param and result counts) of the operator, given
+    /// an impl ModuleArity, which stores the necessary module state.
+    pub fn operator_arity(&self) -> Option<(u32, u32)> {
+        macro_rules! define_arity {
+            ( $(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*) )*) => (
+                match self.clone() {
+                    $(
+                        Self::$op $({ $($arg),* })? => {
+                            $(
+                                $(let _ = $arg;)*
+                            )?
+                            operator_arity!(arity module $({ $($arg: $argty),* })? $($ann)*)
+                        }
+                    )*
+                }
+            );
+        }
+        for_each_simd_operator!(define_arity)
     }
 }
