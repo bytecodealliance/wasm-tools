@@ -6,9 +6,7 @@ pub(crate) use canonical::InternRecGroup;
 
 use self::arc::MaybeOwned;
 use super::{
-    check_max, combine_type_sizes,
-    operators::{ty_to_str, OperatorValidator, OperatorValidatorAllocations},
-    types::{CoreTypeId, EntityType, RecGroupId, TypeAlloc, TypeList},
+    check_max, combine_type_sizes, operators::{ty_to_str, OperatorValidator, OperatorValidatorAllocations}, types::{CoreTypeId, EntityType, RecGroupId, TypeAlloc, TypeList}
 };
 use crate::{
     limits::*, BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind,
@@ -568,6 +566,23 @@ impl Module {
                 "types",
                 offset,
             )?;
+        }
+        if !(
+            features.contains(WasmFeatures::FUNCTION_REFERENCES) ||
+            features.contains(WasmFeatures::GC) ||
+            features.contains(WasmFeatures::COMPONENT_MODEL)
+        ) {
+            // Without `function-references`, `gc` and the `component-model` proposals
+            // we can use a special type validation that is simpler and more efficient.
+            if rec_group.is_explicit_rec_group() {
+                bail!(offset, "requires `gc` proposal to be enabled")
+            }
+            for ty in rec_group.types() {
+                let id = types.push(ty.clone());
+                self.add_type_id(id);
+                self.check_composite_type(&ty.composite_type, features, &types, offset)?;
+            }
+            return Ok(())
         }
         self.canonicalize_and_intern_rec_group(features, types, rec_group, offset)
     }
