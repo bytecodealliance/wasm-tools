@@ -568,9 +568,9 @@ impl Module {
             )?;
         }
         if !(
-            features.contains(WasmFeatures::FUNCTION_REFERENCES) ||
-            features.contains(WasmFeatures::GC) ||
-            features.contains(WasmFeatures::COMPONENT_MODEL)
+            features.function_references() ||
+            features.gc() ||
+            features.component_model()
         ) {
             // Without `function-references`, `gc` and the `component-model` proposals
             // we can use a special type validation that is simpler and more efficient.
