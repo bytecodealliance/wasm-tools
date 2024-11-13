@@ -24,7 +24,6 @@ bitflags = "2.4.1"
 indexmap = { workspace = true, optional = true }
 semver = { workspace = true, optional = true }
 hashbrown = { workspace = true, optional = true }
-ahash = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 
 [dev-dependencies]
@@ -52,12 +51,11 @@ std = ['indexmap?/std']
 
 # Tells the `wasmparser` crate to provide (and use) hash-based collections internally.
 #
-# Disabling this crate feature allows to drop `hashbrown`, `indexmap` and `ahash` dependencies
+# Disabling this crate feature allows to drop `hashbrown`, `indexmap` dependencies
 # entirely, reducing compilation times and shrink binary sizes.
 hash-collections = [
   'dep:hashbrown',
   'dep:indexmap',
-  'dep:ahash',
 ]
 # Tells the `wasmparser` crate to prefer using its built-in btree-based collections 
 # even if `hash-collections` is enabled.
