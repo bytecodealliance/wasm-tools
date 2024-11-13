@@ -6,7 +6,9 @@ pub(crate) use canonical::InternRecGroup;
 
 use self::arc::MaybeOwned;
 use super::{
-    check_max, combine_type_sizes, operators::{ty_to_str, OperatorValidator, OperatorValidatorAllocations}, types::{CoreTypeId, EntityType, RecGroupId, TypeAlloc, TypeList}
+    check_max, combine_type_sizes,
+    operators::{ty_to_str, OperatorValidator, OperatorValidatorAllocations},
+    types::{CoreTypeId, EntityType, RecGroupId, TypeAlloc, TypeList},
 };
 use crate::{
     limits::*, BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind,
@@ -567,11 +569,7 @@ impl Module {
                 offset,
             )?;
         }
-        if !(
-            features.function_references() ||
-            features.gc() ||
-            features.component_model()
-        ) {
+        if !(features.function_references() || features.gc() || features.component_model()) {
             // Without `function-references`, `gc` and the `component-model` proposals
             // we can use a special type validation that is simpler and more efficient.
             if rec_group.is_explicit_rec_group() {
@@ -582,7 +580,7 @@ impl Module {
                 self.add_type_id(id);
                 self.check_composite_type(&ty.composite_type, features, &types, offset)?;
             }
-            return Ok(())
+            return Ok(());
         }
         self.canonicalize_and_intern_rec_group(features, types, rec_group, offset)
     }
