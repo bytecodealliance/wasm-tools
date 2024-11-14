@@ -576,9 +576,9 @@ impl Module {
                 bail!(offset, "requires `gc` proposal to be enabled")
             }
             for ty in rec_group.types() {
+                self.check_composite_type(&ty.composite_type, features, &types, offset)?;
                 let id = types.push(ty.clone());
                 self.add_type_id(id);
-                self.check_composite_type(&ty.composite_type, features, &types, offset)?;
             }
             return Ok(());
         }
