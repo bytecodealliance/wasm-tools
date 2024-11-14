@@ -64,7 +64,7 @@ prefer-btree-collections = []
 # A feature that enables validating WebAssembly files. This is enabled by
 # default but not required if you're only parsing a file, for example, as
 # opposed to validating all of its contents.
-validate = ['dep:semver']
+validate = []
 
 # Enable Serialize/Deserialize implementations for types in
 # `wasmparser::collections`
@@ -81,4 +81,4 @@ features = []
 # A feature that enables parsing and validating the component-model proposal for
 # WebAssembly. This is enabled by default but if your use case is only
 # interested in working with core modules then this feature can be disabled.
-component-model = []
+component-model = ['dep:semver']
