@@ -569,7 +569,7 @@ impl Module {
                 offset,
             )?;
         }
-        if !(features.function_references() || features.gc() || features.component_model()) {
+        if !(features.function_references() || features.gc() || features.component_model() || features.stack_switching()) {
             // Without `function-references`, `gc` and the `component-model` proposals
             // we can use a special type validation that is simpler and more efficient.
             if rec_group.is_explicit_rec_group() {
