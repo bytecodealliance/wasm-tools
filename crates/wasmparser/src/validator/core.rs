@@ -574,8 +574,8 @@ impl Module {
             || features.component_model()
             || features.stack_switching())
         {
-            // Without `function-references`, `gc` and the `component-model` proposals
-            // we can use a special type validation that is simpler and more efficient.
+            // Note: without the proposals guarded above we can use a special
+            //       type validation that is both simpler and more efficient.
             if rec_group.is_explicit_rec_group() {
                 bail!(offset, "requires `gc` proposal to be enabled")
             }
