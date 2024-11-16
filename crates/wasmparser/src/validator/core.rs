@@ -574,12 +574,12 @@ impl Module {
         const ALLOWED_FEATURES: WasmFeatures = WasmFeatures::WASM2
             .union(WasmFeatures::CUSTOM_PAGE_SIZES)
             .union(WasmFeatures::EXTENDED_CONST)
-            .union(WasmFeatures::MULTI_MEMORY)
-            .union(WasmFeatures::WIDE_ARITHMETIC)
             .union(WasmFeatures::MEMORY64)
-            .union(WasmFeatures::TAIL_CALL)
+            .union(WasmFeatures::MULTI_MEMORY)
             .union(WasmFeatures::RELAXED_SIMD)
-            .union(WasmFeatures::THREADS);
+            .union(WasmFeatures::TAIL_CALL)
+            .union(WasmFeatures::THREADS)
+            .union(WasmFeatures::WIDE_ARITHMETIC);
         if ALLOWED_FEATURES.contains(*features) {
             // Note: without the proposals guarded above we can use a special
             //       type validation that is both simpler and more efficient.
