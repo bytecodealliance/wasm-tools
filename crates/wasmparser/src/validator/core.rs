@@ -571,7 +571,7 @@ impl Module {
         }
         /// The subset of `WasmFeatures` for which we know that the
         /// fast type section validation can be safely applied.
-        /// 
+        ///
         /// Fast type section validation does not have to canonicalize
         /// (deduplicate) types and does not have to perform sub-typing
         /// checks.
