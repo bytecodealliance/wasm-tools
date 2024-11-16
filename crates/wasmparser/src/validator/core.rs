@@ -571,7 +571,11 @@ impl Module {
         }
         /// The subset of `WasmFeatures` for which we know that the
         /// fast type section validation can be safely applied.
-        const ALLOWED_FEATURES: WasmFeatures = WasmFeatures::WASM2
+        /// 
+        /// Fast type section validation does not have to canonicalize
+        /// (deduplicate) types and does not have to perform sub-typing
+        /// checks.
+        const FAST_VALIDATION_FEATURES: WasmFeatures = WasmFeatures::WASM2
             .union(WasmFeatures::CUSTOM_PAGE_SIZES)
             .union(WasmFeatures::EXTENDED_CONST)
             .union(WasmFeatures::MEMORY64)
@@ -580,9 +584,7 @@ impl Module {
             .union(WasmFeatures::TAIL_CALL)
             .union(WasmFeatures::THREADS)
             .union(WasmFeatures::WIDE_ARITHMETIC);
-        if ALLOWED_FEATURES.contains(*features) {
-            // Note: without the proposals guarded above we can use a special
-            //       type validation that is both simpler and more efficient.
+        if FAST_VALIDATION_FEATURES.contains(*features) {
             if rec_group.is_explicit_rec_group() {
                 bail!(offset, "requires `gc` proposal to be enabled")
             }
