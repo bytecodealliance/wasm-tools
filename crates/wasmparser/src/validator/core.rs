@@ -761,12 +761,6 @@ impl Module {
         }
 
         self.check_limits(ty.initial, ty.maximum, offset)?;
-        if ty.initial > MAX_WASM_TABLE_ENTRIES as u64 {
-            return Err(BinaryReaderError::new(
-                "minimum table size is out of bounds",
-                offset,
-            ));
-        }
 
         if ty.shared {
             if !features.shared_everything_threads() {

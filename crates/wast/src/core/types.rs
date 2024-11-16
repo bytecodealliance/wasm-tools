@@ -613,17 +613,9 @@ impl<'a> Parse<'a> for Limits {
             false
         };
 
-        let parse = || {
-            if is64 {
-                parser.parse::<u64>()
-            } else {
-                parser.parse::<u32>().map(|x| x.into())
-            }
-        };
-
-        let min = parse()?;
+        let min = parser.parse()?;
         let max = if parser.peek::<u64>()? {
-            Some(parse()?)
+            Some(parser.parse()?)
         } else {
             None
         };
@@ -663,8 +655,9 @@ pub struct MemoryType {
     pub page_size_log2: Option<u32>,
 }
 
-fn page_size(parser: Parser<'_>) -> Result<Option<u32>> {
-    if parser.peek::<LParen>()? {
+/// Parse `(pagesize N)` or nothing.
+pub fn page_size(parser: Parser<'_>) -> Result<Option<u32>> {
+    if parser.peek::<LParen>()? && parser.peek2::<kw::pagesize>()? {
         Ok(Some(parser.parens(|parser| {
             parser.parse::<kw::pagesize>()?;
             let span = parser.cur_span();

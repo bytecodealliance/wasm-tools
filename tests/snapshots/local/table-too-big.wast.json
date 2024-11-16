@@ -2,11 +2,10 @@
   "source_filename": "tests/local/table-too-big.wast",
   "commands": [
     {
-      "type": "assert_invalid",
-      "line": 2,
+      "type": "module_definition",
+      "line": 1,
       "filename": "table-too-big.0.wasm",
-      "module_type": "binary",
-      "text": "minimum table size is out of bounds"
+      "module_type": "binary"
     }
   ]
 }
