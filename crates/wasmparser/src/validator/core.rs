@@ -569,6 +569,40 @@ impl Module {
                 offset,
             )?;
         }
+        if self.try_fast_validation(&rec_group, features, types, offset)? {
+            return Ok(());
+        }
+        self.canonicalize_and_intern_rec_group(features, types, rec_group, offset)
+    }
+
+    #[cfg(not(feature = "features"))]
+    fn try_fast_validation(
+        &mut self,
+        _rec_group: &RecGroup,
+        _features: &WasmFeatures,
+        _types: &mut TypeAlloc,
+        _offset: usize,
+    ) -> Result<bool> {
+        Ok(false)
+    }
+
+    /// Performs fast type section validation if possible.
+    ///
+    /// - Returns `Ok(true)` if fast validation was performed, else returns `Ok(false)`.
+    /// - Returns `Err(_)` if a type section validation error was encountered.
+    ///
+    /// # Note
+    ///
+    /// Fast type section validation can only be performed on a
+    /// statically known subset of `WasmFeatures`.
+    #[cfg(feature = "features")]
+    fn try_fast_validation(
+        &mut self,
+        rec_group: &RecGroup,
+        features: &WasmFeatures,
+        types: &mut TypeAlloc,
+        offset: usize,
+    ) -> Result<bool> {
         /// The subset of `WasmFeatures` for which we know that the
         /// fast type section validation can be safely applied.
         ///
@@ -584,18 +618,18 @@ impl Module {
             .union(WasmFeatures::TAIL_CALL)
             .union(WasmFeatures::THREADS)
             .union(WasmFeatures::WIDE_ARITHMETIC);
-        if FAST_VALIDATION_FEATURES.contains(*features) {
-            if rec_group.is_explicit_rec_group() {
-                bail!(offset, "requires `gc` proposal to be enabled")
-            }
-            for ty in rec_group.types() {
-                let id = types.push(ty.clone());
-                self.add_type_id(id);
-                self.check_composite_type(&ty.composite_type, features, &types, offset)?;
-            }
-            return Ok(());
+        if !FAST_VALIDATION_FEATURES.contains(*features) {
+            return Ok(false);
         }
-        self.canonicalize_and_intern_rec_group(features, types, rec_group, offset)
+        if rec_group.is_explicit_rec_group() {
+            bail!(offset, "requires `gc` proposal to be enabled")
+        }
+        for ty in rec_group.types() {
+            let id = types.push(ty.clone());
+            self.add_type_id(id);
+            self.check_composite_type(&ty.composite_type, features, &types, offset)?;
+        }
+        Ok(true)
     }
 
     pub fn add_import(
