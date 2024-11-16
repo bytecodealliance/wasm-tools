@@ -89,7 +89,7 @@ semver = { version = "1.0.0", default-features = false }
 smallvec = "1.11.1"
 libtest-mimic = "0.7.0"
 bitflags = "2.5.0"
-hashbrown = { version = "0.14.3", default-features = false, features = ['ahash'] }
+hashbrown = { version = "0.15.1", default-features = false, features = ['default-hasher'] }
 ahash = { version = "0.8.11", default-features = false }
 termcolor = "1.2.0"
 indoc = "2.0.5"

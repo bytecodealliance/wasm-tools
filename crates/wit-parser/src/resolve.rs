@@ -1500,6 +1500,11 @@ package {name} is defined in two different locations:\n\
             let mut worlds = HashSet::new();
             for (name, world) in pkg.worlds.iter() {
                 assert!(worlds.insert(*world));
+                assert_eq!(
+                    pkg.worlds.get_key_value(name),
+                    Some((name, world)),
+                    "`MutableKeys` impl may have been used to change a key's hash or equality"
+                );
                 let world = &self.worlds[*world];
                 assert_eq!(*name, world.name);
                 assert_eq!(world.package.unwrap(), id);
