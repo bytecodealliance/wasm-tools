@@ -124,6 +124,7 @@
       "line": 35,
       "filename": "table.19.wat",
       "module_type": "text",
+      "binary_filename": "table.19.wasm",
       "text": "table size must be at most 2^32-1"
     },
     {
@@ -131,6 +132,7 @@
       "line": 39,
       "filename": "table.20.wat",
       "module_type": "text",
+      "binary_filename": "table.20.wasm",
       "text": "table size must be at most 2^32-1"
     },
     {
@@ -138,6 +140,7 @@
       "line": 43,
       "filename": "table.21.wat",
       "module_type": "text",
+      "binary_filename": "table.21.wasm",
       "text": "table size must be at most 2^32-1"
     },
     {

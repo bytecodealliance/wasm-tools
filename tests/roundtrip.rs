@@ -697,173 +697,19 @@ fn error_matches(test: &Path, error: &str, message: &str) -> bool {
     if error.contains(message) {
         return true;
     }
-    // we are in control over all tsets in `tests/local/*` so all the error
-    // messages there should exactly match the `assert_invalid` or such. No need
-    // for fuzzy matching on error messages.
+
+    // we are in control over all tests in `tests/local/*` so all the error
+    // messages there should exactly match the `assert_invalid` or such
     if test.starts_with("tests/local") {
         return false;
     }
 
-    if message == "unknown operator"
-        || message == "unexpected token"
-        || message == "wrong number of lane literals"
-        || message == "type mismatch"
-        || message == "malformed lane index"
-        || message == "expected i8 literal"
-        || message == "invalid lane length"
-        || message == "unclosed annotation"
-        || message == "malformed annotation id"
-        || message == "alignment must be a power of two"
-        || message == "i32 constant out of range"
-        || message == "constant expression required"
-        || message == "legacy exceptions support is not enabled"
-    {
-        return error.contains("expected ")
-            || error.contains("constant out of range")
-            || error.contains("extra tokens remaining")
-            || error.contains("unimplemented validation of deprecated opcode")
-            || error.contains("legacy exceptions support is not enabled");
-    }
-
-    if message == "illegal character" {
-        return error.contains("unexpected character");
-    }
-
-    if message == "unclosed string" {
-        return error.contains("unexpected end-of-file");
-    }
-
-    if message == "duplicate identifier" {
-        return error.contains("duplicate") && error.contains("identifier");
-    }
-
-    // wasmparser differentiates these cases, the spec interpreter apparently
-    // doesn't
-    if message == "function and code section have inconsistent lengths" {
-        return error.contains("code section without function section");
-    }
-
-    // This test in binary.wast uses a section id implemented by other
-    // proposals, so it's valid from wasmparser's point of view
-    if message == "malformed section id" {
-        return error.contains("unexpected end-of-file");
-    }
-
-    // The spec interpreter will apparently read beyond the limits of a section
-    // as defined by its size to parse a function, wasmparser doesn't do that.
-    // That means that the error message here is legitimately different.
-    if message == "section size mismatch" {
-        return error.contains("control frames remain at end of function");
-    }
-
-    if message == "malformed import kind" {
-        return error.contains("invalid leading byte")
-            // wasmparser understands more import kinds than the default spec
-            // interpreter
-            || error.contains("unexpected end-of-file");
-    }
-
-    if message == "integer representation too long" {
-        // wasmparser implements more features than the default spec
-        // interpreter, so these error looks different.
-        return error.contains("invalid memory limits flags")
-            || error.contains("invalid table resizable limits flags")
-            // different error message for types
-            || error.contains("invalid leading byte")
-            // the spec interpreter will read past section boundaries when
-            // decoding, wasmparser won't, producing different errors.
-            || error.contains("unexpected end-of-file")
-            || error.contains("malformed section id");
-    }
-
-    if message == "integer too large" {
-        // wasmparser implements more features than the default spec
-        // interpreter, so these error looks different.
-        return error.contains("threads must be enabled for shared memories")
-            || error.contains("shared tables require the shared-everything-threads proposal")
-            || error.contains("invalid table resizable limits flags")
-            // honestly this feels like the spec interpreter is just weird
-            || error.contains("unexpected end-of-file")
-            // This mostly comes from the memory64/binary-leb128.wast test file
-            // which I think is largely busted as it looks like a bunch of lebs
-            // were inflated to a larger size while not updating the binary
-            // encoding of the size of the section.
-            || error.contains("invalid var_u32: integer representation too long")
-            || error.contains("malformed section id");
-    }
-
-    // wasmparser blames a truncated file here, the spec interpreter blames the
-    // section counts/lengths.
-    if message == "length out of bounds" || message == "unexpected end of section or function" {
-        return error.contains("unexpected end-of-file")
-            || error.contains("control frames remain at end of function");
-    }
-
-    // binary.wast includes a test in which a 0b (End) is eaten by a botched
-    // br_table.  The test assumes that the parser (not the validator) errors on
-    // a missing End before failing to validate the botched instruction.  However
-    // wasmparser fails to validate the botched instruction first
-    if message == "unexpected end" {
-        return error.contains("type index out of bounds") || error.contains("END opcode expected");
-    }
-
-    if message == "unexpected content after last section" {
-        return error.contains("section out of order")
-            || error.contains("function and code section have inconsistent lengths")
-            || error.contains("type index out of bounds");
-    }
-
-    if message == "malformed limits flags" {
-        return error.contains("invalid memory limits flags")
-            || error.contains("invalid table resizable limits flags")
-            // These tests need to be updated for the new limits flags in the
-            // custom-page-sizes-proposal.
-            || error.contains("unexpected end-of-file");
-    }
-
-    if message == "malformed memop flags" {
-        return error.contains("malformed memop alignment");
-    }
-
-    // Our error for these tests is happening as a parser error of
-    // the text file, not a validation error of the binary.
-    if message == "memory size must be at most 65536 pages (4GiB)" {
-        return error.contains("invalid u32 number: constant out of range");
-    }
-
-    if message == "illegal opcode" {
-        // The test suite contains a test with a global section where the
-        // init expression is truncated and doesn't have an "end"
-        // instruction. That's reported with wasmparser as end-of-file
-        // because the end of the section was reached while the spec
-        // interpreter says "illegal opcode".
-        return error.contains("unexpected end-of-file");
-    }
-    if message == "unknown global" {
-        return error.contains("global.get of locally defined global");
-    }
-
-    if message == "immutable global" {
-        return error.contains("global is immutable");
-    }
-
-    if message.starts_with("unknown operator") {
-        return error.starts_with("unknown operator") || error.starts_with("unexpected token");
-    }
-
-    if message.starts_with("type mismatch") {
-        return error.starts_with("type mismatch");
-    }
-
-    if message == "table size must be at most 2^32-1" {
-        return error.contains("invalid u32 number: constant out of range");
-    }
-
-    // WebAssembly/annotations#25 - the spec interpreter's lexer is different
-    // than ours which produces a different error message.
-    if message == "empty identifier" || message == "empty annotation id" {
-        return error.contains("invalid character in string");
-    }
-
-    return false;
+    // Historically wasm-tools tried to match the upstream error message. This
+    // generally led to a large sequence of matches here which is not easy to
+    // maintain and is particularly difficult when test suites and proposals
+    // conflict with each other (e.g. one asserts one error message and another
+    // asserts a different error message). Overall we didn't benefit a whole lot
+    // from trying to match errors so just assume the error is roughly the same
+    // and otherwise don't try to match it.
+    true
 }

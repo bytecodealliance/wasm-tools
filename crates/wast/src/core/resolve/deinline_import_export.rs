@@ -48,7 +48,11 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                     }
                     // If data is defined inline insert an explicit `data` module
                     // field here instead, switching this to a `Normal` memory.
-                    MemoryKind::Inline { is64, ref data } => {
+                    MemoryKind::Inline {
+                        is64,
+                        ref data,
+                        page_size_log2,
+                    } => {
                         let len = data.iter().map(|l| l.len()).sum::<usize>() as u64;
                         let pages = (len + default_page_size() - 1) / default_page_size();
                         let kind = MemoryKind::Normal(MemoryType {
@@ -58,7 +62,7 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                                 max: Some(pages),
                             },
                             shared: false,
-                            page_size_log2: None,
+                            page_size_log2,
                         });
                         let data = match mem::replace(&mut m.kind, kind) {
                             MemoryKind::Inline { data, .. } => data,

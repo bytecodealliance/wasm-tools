@@ -38,6 +38,8 @@ pub enum MemoryKind<'a> {
         is64: bool,
         /// The inline data specified for this memory
         data: Vec<DataVal<'a>>,
+        /// Optional page size for this inline memory.
+        page_size_log2: Option<u32>,
     },
 }
 
@@ -68,6 +70,7 @@ impl<'a> Parse<'a> for Memory<'a> {
             } else {
                 parser.parse::<Option<kw::i64>>()?.is_some()
             };
+            let page_size_log2 = page_size(parser)?;
             let data = parser.parens(|parser| {
                 parser.parse::<kw::data>()?;
                 let mut data = Vec::new();
@@ -76,7 +79,11 @@ impl<'a> Parse<'a> for Memory<'a> {
                 }
                 Ok(data)
             })?;
-            MemoryKind::Inline { data, is64 }
+            MemoryKind::Inline {
+                data,
+                is64,
+                page_size_log2,
+            }
         } else if l.peek::<u32>()? || l.peek::<kw::i32>()? || l.peek::<kw::i64>()? {
             MemoryKind::Normal(parser.parse()?)
         } else {
