@@ -1,10 +1,10 @@
 {
-  "source_filename": "tests/local/table-too-big.wast",
+  "source_filename": "tests/local/table-big.wast",
   "commands": [
     {
       "type": "module_definition",
       "line": 1,
-      "filename": "table-too-big.0.wasm",
+      "filename": "table-big.0.wasm",
       "module_type": "binary"
     }
   ]
