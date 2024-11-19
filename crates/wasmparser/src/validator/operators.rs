@@ -1755,7 +1755,20 @@ where
 {
     type Output = Result<()>;
 
+    #[cfg(feature = "simd")]
+    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = Self::Output>> {
+        Some(self)
+    }
+
     for_each_operator!(validate_proposal);
+}
+
+#[cfg(feature = "simd")]
+impl<'a, T> VisitSimdOperator<'a> for WasmProposalValidator<'_, '_, T>
+where
+    T: WasmModuleResources,
+{
+    crate::for_each_simd_operator!(validate_proposal);
 }
 
 #[track_caller]
