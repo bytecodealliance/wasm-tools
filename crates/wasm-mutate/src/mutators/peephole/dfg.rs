@@ -780,13 +780,27 @@ impl<'a> DFGBuilder {
                 }
 
                 Op::Simd(SimdOp::V128Load { memarg }) => self.load(idx, memarg, Lang::V128Load),
-                Op::Simd(SimdOp::V128Load8x8S { memarg }) => self.load(idx, memarg, Lang::V128Load8x8S),
-                Op::Simd(SimdOp::V128Load8x8U { memarg }) => self.load(idx, memarg, Lang::V128Load8x8U),
-                Op::Simd(SimdOp::V128Load16x4S { memarg }) => self.load(idx, memarg, Lang::V128Load16x4S),
-                Op::Simd(SimdOp::V128Load16x4U { memarg }) => self.load(idx, memarg, Lang::V128Load16x4U),
-                Op::Simd(SimdOp::V128Load32x2S { memarg }) => self.load(idx, memarg, Lang::V128Load32x2S),
-                Op::Simd(SimdOp::V128Load32x2U { memarg }) => self.load(idx, memarg, Lang::V128Load32x2U),
-                Op::Simd(SimdOp::V128Load8Splat { memarg }) => self.load(idx, memarg, Lang::V128Load8Splat),
+                Op::Simd(SimdOp::V128Load8x8S { memarg }) => {
+                    self.load(idx, memarg, Lang::V128Load8x8S)
+                }
+                Op::Simd(SimdOp::V128Load8x8U { memarg }) => {
+                    self.load(idx, memarg, Lang::V128Load8x8U)
+                }
+                Op::Simd(SimdOp::V128Load16x4S { memarg }) => {
+                    self.load(idx, memarg, Lang::V128Load16x4S)
+                }
+                Op::Simd(SimdOp::V128Load16x4U { memarg }) => {
+                    self.load(idx, memarg, Lang::V128Load16x4U)
+                }
+                Op::Simd(SimdOp::V128Load32x2S { memarg }) => {
+                    self.load(idx, memarg, Lang::V128Load32x2S)
+                }
+                Op::Simd(SimdOp::V128Load32x2U { memarg }) => {
+                    self.load(idx, memarg, Lang::V128Load32x2U)
+                }
+                Op::Simd(SimdOp::V128Load8Splat { memarg }) => {
+                    self.load(idx, memarg, Lang::V128Load8Splat)
+                }
                 Op::Simd(SimdOp::V128Load16Splat { memarg }) => {
                     self.load(idx, memarg, Lang::V128Load16Splat)
                 }
@@ -796,8 +810,12 @@ impl<'a> DFGBuilder {
                 Op::Simd(SimdOp::V128Load64Splat { memarg }) => {
                     self.load(idx, memarg, Lang::V128Load64Splat)
                 }
-                Op::Simd(SimdOp::V128Load32Zero { memarg }) => self.load(idx, memarg, Lang::V128Load32Zero),
-                Op::Simd(SimdOp::V128Load64Zero { memarg }) => self.load(idx, memarg, Lang::V128Load64Zero),
+                Op::Simd(SimdOp::V128Load32Zero { memarg }) => {
+                    self.load(idx, memarg, Lang::V128Load32Zero)
+                }
+                Op::Simd(SimdOp::V128Load64Zero { memarg }) => {
+                    self.load(idx, memarg, Lang::V128Load64Zero)
+                }
                 Op::Simd(SimdOp::V128Store { memarg }) => self.store(idx, memarg, Lang::V128Store),
                 Op::Simd(SimdOp::V128Load8Lane { memarg, lane }) => {
                     self.load_lane(idx, memarg, lane, Lang::V128Load8Lane)
@@ -964,10 +982,18 @@ impl<'a> DFGBuilder {
                 Op::Simd(SimdOp::I16x8Bitmask) => self.unop(idx, Lang::I16x8Bitmask),
                 Op::Simd(SimdOp::I16x8NarrowI32x4S) => self.binop(idx, Lang::I16x8NarrowI32x4S),
                 Op::Simd(SimdOp::I16x8NarrowI32x4U) => self.binop(idx, Lang::I16x8NarrowI32x4U),
-                Op::Simd(SimdOp::I16x8ExtendLowI8x16S) => self.unop(idx, Lang::I16x8ExtendLowI8x16S),
-                Op::Simd(SimdOp::I16x8ExtendHighI8x16S) => self.unop(idx, Lang::I16x8ExtendHighI8x16S),
-                Op::Simd(SimdOp::I16x8ExtendLowI8x16U) => self.unop(idx, Lang::I16x8ExtendLowI8x16U),
-                Op::Simd(SimdOp::I16x8ExtendHighI8x16U) => self.unop(idx, Lang::I16x8ExtendHighI8x16U),
+                Op::Simd(SimdOp::I16x8ExtendLowI8x16S) => {
+                    self.unop(idx, Lang::I16x8ExtendLowI8x16S)
+                }
+                Op::Simd(SimdOp::I16x8ExtendHighI8x16S) => {
+                    self.unop(idx, Lang::I16x8ExtendHighI8x16S)
+                }
+                Op::Simd(SimdOp::I16x8ExtendLowI8x16U) => {
+                    self.unop(idx, Lang::I16x8ExtendLowI8x16U)
+                }
+                Op::Simd(SimdOp::I16x8ExtendHighI8x16U) => {
+                    self.unop(idx, Lang::I16x8ExtendHighI8x16U)
+                }
                 Op::Simd(SimdOp::I16x8Shl) => self.binop(idx, Lang::I16x8Shl),
                 Op::Simd(SimdOp::I16x8ShrS) => self.binop(idx, Lang::I16x8ShrS),
                 Op::Simd(SimdOp::I16x8ShrU) => self.binop(idx, Lang::I16x8ShrU),
@@ -983,10 +1009,18 @@ impl<'a> DFGBuilder {
                 Op::Simd(SimdOp::I16x8MaxS) => self.binop(idx, Lang::I16x8MaxS),
                 Op::Simd(SimdOp::I16x8MaxU) => self.binop(idx, Lang::I16x8MaxU),
                 Op::Simd(SimdOp::I16x8AvgrU) => self.binop(idx, Lang::I16x8AvgrU),
-                Op::Simd(SimdOp::I16x8ExtMulLowI8x16S) => self.binop(idx, Lang::I16x8ExtMulLowI8x16S),
-                Op::Simd(SimdOp::I16x8ExtMulHighI8x16S) => self.binop(idx, Lang::I16x8ExtMulHighI8x16S),
-                Op::Simd(SimdOp::I16x8ExtMulLowI8x16U) => self.binop(idx, Lang::I16x8ExtMulLowI8x16U),
-                Op::Simd(SimdOp::I16x8ExtMulHighI8x16U) => self.binop(idx, Lang::I16x8ExtMulHighI8x16U),
+                Op::Simd(SimdOp::I16x8ExtMulLowI8x16S) => {
+                    self.binop(idx, Lang::I16x8ExtMulLowI8x16S)
+                }
+                Op::Simd(SimdOp::I16x8ExtMulHighI8x16S) => {
+                    self.binop(idx, Lang::I16x8ExtMulHighI8x16S)
+                }
+                Op::Simd(SimdOp::I16x8ExtMulLowI8x16U) => {
+                    self.binop(idx, Lang::I16x8ExtMulLowI8x16U)
+                }
+                Op::Simd(SimdOp::I16x8ExtMulHighI8x16U) => {
+                    self.binop(idx, Lang::I16x8ExtMulHighI8x16U)
+                }
 
                 Op::Simd(SimdOp::I32x4ExtAddPairwiseI16x8S) => {
                     self.unop(idx, Lang::I32x4ExtAddPairwiseI16x8S)
@@ -998,10 +1032,18 @@ impl<'a> DFGBuilder {
                 Op::Simd(SimdOp::I32x4Neg) => self.unop(idx, Lang::I32x4Neg),
                 Op::Simd(SimdOp::I32x4AllTrue) => self.unop(idx, Lang::I32x4AllTrue),
                 Op::Simd(SimdOp::I32x4Bitmask) => self.unop(idx, Lang::I32x4Bitmask),
-                Op::Simd(SimdOp::I32x4ExtendLowI16x8S) => self.unop(idx, Lang::I32x4ExtendLowI16x8S),
-                Op::Simd(SimdOp::I32x4ExtendHighI16x8S) => self.unop(idx, Lang::I32x4ExtendHighI16x8S),
-                Op::Simd(SimdOp::I32x4ExtendLowI16x8U) => self.unop(idx, Lang::I32x4ExtendLowI16x8U),
-                Op::Simd(SimdOp::I32x4ExtendHighI16x8U) => self.unop(idx, Lang::I32x4ExtendHighI16x8U),
+                Op::Simd(SimdOp::I32x4ExtendLowI16x8S) => {
+                    self.unop(idx, Lang::I32x4ExtendLowI16x8S)
+                }
+                Op::Simd(SimdOp::I32x4ExtendHighI16x8S) => {
+                    self.unop(idx, Lang::I32x4ExtendHighI16x8S)
+                }
+                Op::Simd(SimdOp::I32x4ExtendLowI16x8U) => {
+                    self.unop(idx, Lang::I32x4ExtendLowI16x8U)
+                }
+                Op::Simd(SimdOp::I32x4ExtendHighI16x8U) => {
+                    self.unop(idx, Lang::I32x4ExtendHighI16x8U)
+                }
                 Op::Simd(SimdOp::I32x4Shl) => self.binop(idx, Lang::I32x4Shl),
                 Op::Simd(SimdOp::I32x4ShrS) => self.binop(idx, Lang::I32x4ShrS),
                 Op::Simd(SimdOp::I32x4ShrU) => self.binop(idx, Lang::I32x4ShrU),
@@ -1013,29 +1055,53 @@ impl<'a> DFGBuilder {
                 Op::Simd(SimdOp::I32x4MaxS) => self.binop(idx, Lang::I32x4MaxS),
                 Op::Simd(SimdOp::I32x4MaxU) => self.binop(idx, Lang::I32x4MaxU),
                 Op::Simd(SimdOp::I32x4DotI16x8S) => self.binop(idx, Lang::I32x4DotI16x8S),
-                Op::Simd(SimdOp::I32x4ExtMulLowI16x8S) => self.binop(idx, Lang::I32x4ExtMulLowI16x8S),
-                Op::Simd(SimdOp::I32x4ExtMulHighI16x8S) => self.binop(idx, Lang::I32x4ExtMulHighI16x8S),
-                Op::Simd(SimdOp::I32x4ExtMulLowI16x8U) => self.binop(idx, Lang::I32x4ExtMulLowI16x8U),
-                Op::Simd(SimdOp::I32x4ExtMulHighI16x8U) => self.binop(idx, Lang::I32x4ExtMulHighI16x8U),
+                Op::Simd(SimdOp::I32x4ExtMulLowI16x8S) => {
+                    self.binop(idx, Lang::I32x4ExtMulLowI16x8S)
+                }
+                Op::Simd(SimdOp::I32x4ExtMulHighI16x8S) => {
+                    self.binop(idx, Lang::I32x4ExtMulHighI16x8S)
+                }
+                Op::Simd(SimdOp::I32x4ExtMulLowI16x8U) => {
+                    self.binop(idx, Lang::I32x4ExtMulLowI16x8U)
+                }
+                Op::Simd(SimdOp::I32x4ExtMulHighI16x8U) => {
+                    self.binop(idx, Lang::I32x4ExtMulHighI16x8U)
+                }
 
                 Op::Simd(SimdOp::I64x2Abs) => self.unop(idx, Lang::I64x2Abs),
                 Op::Simd(SimdOp::I64x2Neg) => self.unop(idx, Lang::I64x2Neg),
                 Op::Simd(SimdOp::I64x2AllTrue) => self.unop(idx, Lang::I64x2AllTrue),
                 Op::Simd(SimdOp::I64x2Bitmask) => self.unop(idx, Lang::I64x2Bitmask),
-                Op::Simd(SimdOp::I64x2ExtendLowI32x4S) => self.unop(idx, Lang::I64x2ExtendLowI32x4S),
-                Op::Simd(SimdOp::I64x2ExtendHighI32x4S) => self.unop(idx, Lang::I64x2ExtendHighI32x4S),
-                Op::Simd(SimdOp::I64x2ExtendLowI32x4U) => self.unop(idx, Lang::I64x2ExtendLowI32x4U),
-                Op::Simd(SimdOp::I64x2ExtendHighI32x4U) => self.unop(idx, Lang::I64x2ExtendHighI32x4U),
+                Op::Simd(SimdOp::I64x2ExtendLowI32x4S) => {
+                    self.unop(idx, Lang::I64x2ExtendLowI32x4S)
+                }
+                Op::Simd(SimdOp::I64x2ExtendHighI32x4S) => {
+                    self.unop(idx, Lang::I64x2ExtendHighI32x4S)
+                }
+                Op::Simd(SimdOp::I64x2ExtendLowI32x4U) => {
+                    self.unop(idx, Lang::I64x2ExtendLowI32x4U)
+                }
+                Op::Simd(SimdOp::I64x2ExtendHighI32x4U) => {
+                    self.unop(idx, Lang::I64x2ExtendHighI32x4U)
+                }
                 Op::Simd(SimdOp::I64x2Shl) => self.binop(idx, Lang::I64x2Shl),
                 Op::Simd(SimdOp::I64x2ShrS) => self.binop(idx, Lang::I64x2ShrS),
                 Op::Simd(SimdOp::I64x2ShrU) => self.binop(idx, Lang::I64x2ShrU),
                 Op::Simd(SimdOp::I64x2Add) => self.binop(idx, Lang::I64x2Add),
                 Op::Simd(SimdOp::I64x2Sub) => self.binop(idx, Lang::I64x2Sub),
                 Op::Simd(SimdOp::I64x2Mul) => self.binop(idx, Lang::I64x2Mul),
-                Op::Simd(SimdOp::I64x2ExtMulLowI32x4S) => self.binop(idx, Lang::I64x2ExtMulLowI32x4S),
-                Op::Simd(SimdOp::I64x2ExtMulHighI32x4S) => self.binop(idx, Lang::I64x2ExtMulHighI32x4S),
-                Op::Simd(SimdOp::I64x2ExtMulLowI32x4U) => self.binop(idx, Lang::I64x2ExtMulLowI32x4U),
-                Op::Simd(SimdOp::I64x2ExtMulHighI32x4U) => self.binop(idx, Lang::I64x2ExtMulHighI32x4U),
+                Op::Simd(SimdOp::I64x2ExtMulLowI32x4S) => {
+                    self.binop(idx, Lang::I64x2ExtMulLowI32x4S)
+                }
+                Op::Simd(SimdOp::I64x2ExtMulHighI32x4S) => {
+                    self.binop(idx, Lang::I64x2ExtMulHighI32x4S)
+                }
+                Op::Simd(SimdOp::I64x2ExtMulLowI32x4U) => {
+                    self.binop(idx, Lang::I64x2ExtMulLowI32x4U)
+                }
+                Op::Simd(SimdOp::I64x2ExtMulHighI32x4U) => {
+                    self.binop(idx, Lang::I64x2ExtMulHighI32x4U)
+                }
 
                 Op::Simd(SimdOp::F32x4Ceil) => self.unop(idx, Lang::F32x4Ceil),
                 Op::Simd(SimdOp::F32x4Floor) => self.unop(idx, Lang::F32x4Floor),
@@ -1072,12 +1138,24 @@ impl<'a> DFGBuilder {
                 Op::Simd(SimdOp::I32x4TruncSatF32x4U) => self.unop(idx, Lang::I32x4TruncSatF32x4U),
                 Op::Simd(SimdOp::F32x4ConvertI32x4S) => self.unop(idx, Lang::F32x4ConvertI32x4S),
                 Op::Simd(SimdOp::F32x4ConvertI32x4U) => self.unop(idx, Lang::F32x4ConvertI32x4U),
-                Op::Simd(SimdOp::I32x4TruncSatF64x2SZero) => self.unop(idx, Lang::I32x4TruncSatF64x2SZero),
-                Op::Simd(SimdOp::I32x4TruncSatF64x2UZero) => self.unop(idx, Lang::I32x4TruncSatF64x2UZero),
-                Op::Simd(SimdOp::F64x2ConvertLowI32x4S) => self.unop(idx, Lang::F64x2ConvertLowI32x4S),
-                Op::Simd(SimdOp::F64x2ConvertLowI32x4U) => self.unop(idx, Lang::F64x2ConvertLowI32x4U),
-                Op::Simd(SimdOp::F32x4DemoteF64x2Zero) => self.unop(idx, Lang::F32x4DemoteF64x2Zero),
-                Op::Simd(SimdOp::F64x2PromoteLowF32x4) => self.unop(idx, Lang::F64x2PromoteLowF32x4),
+                Op::Simd(SimdOp::I32x4TruncSatF64x2SZero) => {
+                    self.unop(idx, Lang::I32x4TruncSatF64x2SZero)
+                }
+                Op::Simd(SimdOp::I32x4TruncSatF64x2UZero) => {
+                    self.unop(idx, Lang::I32x4TruncSatF64x2UZero)
+                }
+                Op::Simd(SimdOp::F64x2ConvertLowI32x4S) => {
+                    self.unop(idx, Lang::F64x2ConvertLowI32x4S)
+                }
+                Op::Simd(SimdOp::F64x2ConvertLowI32x4U) => {
+                    self.unop(idx, Lang::F64x2ConvertLowI32x4U)
+                }
+                Op::Simd(SimdOp::F32x4DemoteF64x2Zero) => {
+                    self.unop(idx, Lang::F32x4DemoteF64x2Zero)
+                }
+                Op::Simd(SimdOp::F64x2PromoteLowF32x4) => {
+                    self.unop(idx, Lang::F64x2PromoteLowF32x4)
+                }
 
                 op => {
                     // If the operator is not implemented, warn and bail out. We
