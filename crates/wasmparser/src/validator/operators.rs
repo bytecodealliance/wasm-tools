@@ -1280,91 +1280,7 @@ where
         self.push_operand(op_ty)?;
         Ok(())
     }
-}
 
-#[cfg(feature = "simd")]
-impl<'resources, R> OperatorValidatorTemp<'_, 'resources, R>
-where
-    R: WasmModuleResources,
-{
-    fn check_simd_lane_index(&self, index: u8, max: u8) -> Result<()> {
-        if index >= max {
-            bail!(self.offset, "SIMD index out of bounds");
-        }
-        Ok(())
-    }
-
-    /// Checks a [`V128`] splat operator.
-    fn check_v128_splat(&mut self, src_ty: ValType) -> Result<()> {
-        self.pop_operand(Some(src_ty))?;
-        self.push_operand(ValType::V128)?;
-        Ok(())
-    }
-
-    /// Checks a [`V128`] binary operator.
-    fn check_v128_binary_op(&mut self) -> Result<()> {
-        self.pop_operand(Some(ValType::V128))?;
-        self.pop_operand(Some(ValType::V128))?;
-        self.push_operand(ValType::V128)?;
-        Ok(())
-    }
-
-    /// Checks a [`V128`] binary float operator.
-    fn check_v128_fbinary_op(&mut self) -> Result<()> {
-        self.check_floats_enabled()?;
-        self.check_v128_binary_op()
-    }
-
-    /// Checks a [`V128`] unary operator.
-    fn check_v128_unary_op(&mut self) -> Result<()> {
-        self.pop_operand(Some(ValType::V128))?;
-        self.push_operand(ValType::V128)?;
-        Ok(())
-    }
-
-    /// Checks a [`V128`] unary float operator.
-    fn check_v128_funary_op(&mut self) -> Result<()> {
-        self.check_floats_enabled()?;
-        self.check_v128_unary_op()
-    }
-
-    /// Checks a [`V128`] relaxed ternary operator.
-    fn check_v128_ternary_op(&mut self) -> Result<()> {
-        self.pop_operand(Some(ValType::V128))?;
-        self.pop_operand(Some(ValType::V128))?;
-        self.pop_operand(Some(ValType::V128))?;
-        self.push_operand(ValType::V128)?;
-        Ok(())
-    }
-
-    /// Checks a [`V128`] test operator.
-    fn check_v128_bitmask_op(&mut self) -> Result<()> {
-        self.pop_operand(Some(ValType::V128))?;
-        self.push_operand(ValType::I32)?;
-        Ok(())
-    }
-
-    /// Checks a [`V128`] shift operator.
-    fn check_v128_shift_op(&mut self) -> Result<()> {
-        self.pop_operand(Some(ValType::I32))?;
-        self.pop_operand(Some(ValType::V128))?;
-        self.push_operand(ValType::V128)?;
-        Ok(())
-    }
-
-    /// Checks a [`V128`] common load operator.
-    fn check_v128_load_op(&mut self, memarg: MemArg) -> Result<()> {
-        let idx = self.check_memarg(memarg)?;
-        self.pop_operand(Some(idx))?;
-        self.push_operand(ValType::V128)?;
-        Ok(())
-    }
-}
-
-impl<'resources, R> OperatorValidatorTemp<'_, 'resources, R>
-where
-    R: WasmModuleResources,
-{
     /// Common helper for `ref.test` and `ref.cast` downcasting/checking
     /// instructions. Returns the given `heap_type` as a `ValType`.
     fn check_downcast(&mut self, nullable: bool, mut heap_type: HeapType) -> Result<RefType> {
@@ -1761,6 +1677,85 @@ where
         self.pop_operand(Some(ValType::I64))?;
         self.push_operand(ValType::I64)?;
         self.push_operand(ValType::I64)?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "simd")]
+impl<'resources, R> OperatorValidatorTemp<'_, 'resources, R>
+where
+    R: WasmModuleResources,
+{
+    fn check_simd_lane_index(&self, index: u8, max: u8) -> Result<()> {
+        if index >= max {
+            bail!(self.offset, "SIMD index out of bounds");
+        }
+        Ok(())
+    }
+
+    /// Checks a [`V128`] splat operator.
+    fn check_v128_splat(&mut self, src_ty: ValType) -> Result<()> {
+        self.pop_operand(Some(src_ty))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+
+    /// Checks a [`V128`] binary operator.
+    fn check_v128_binary_op(&mut self) -> Result<()> {
+        self.pop_operand(Some(ValType::V128))?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+
+    /// Checks a [`V128`] binary float operator.
+    fn check_v128_fbinary_op(&mut self) -> Result<()> {
+        self.check_floats_enabled()?;
+        self.check_v128_binary_op()
+    }
+
+    /// Checks a [`V128`] unary operator.
+    fn check_v128_unary_op(&mut self) -> Result<()> {
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+
+    /// Checks a [`V128`] unary float operator.
+    fn check_v128_funary_op(&mut self) -> Result<()> {
+        self.check_floats_enabled()?;
+        self.check_v128_unary_op()
+    }
+
+    /// Checks a [`V128`] relaxed ternary operator.
+    fn check_v128_ternary_op(&mut self) -> Result<()> {
+        self.pop_operand(Some(ValType::V128))?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+
+    /// Checks a [`V128`] test operator.
+    fn check_v128_bitmask_op(&mut self) -> Result<()> {
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::I32)?;
+        Ok(())
+    }
+
+    /// Checks a [`V128`] shift operator.
+    fn check_v128_shift_op(&mut self) -> Result<()> {
+        self.pop_operand(Some(ValType::I32))?;
+        self.pop_operand(Some(ValType::V128))?;
+        self.push_operand(ValType::V128)?;
+        Ok(())
+    }
+
+    /// Checks a [`V128`] common load operator.
+    fn check_v128_load_op(&mut self, memarg: MemArg) -> Result<()> {
+        let idx = self.check_memarg(memarg)?;
+        self.pop_operand(Some(idx))?;
+        self.push_operand(ValType::V128)?;
         Ok(())
     }
 }
