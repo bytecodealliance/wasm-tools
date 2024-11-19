@@ -1,5 +1,5 @@
-use crate::{Result, VisitOperator, VisitSimdOperator};
 use super::BinaryReader;
+use crate::{Result, VisitOperator, VisitSimdOperator};
 
 impl<'a> BinaryReader<'a> {
     pub(super) fn visit_0xfd_operator<T>(
