@@ -4,7 +4,7 @@ use termcolor::{Ansi, NoColor};
 use wasmparser::{
     BinaryReader, BlockType, BrTable, Catch, CompositeInnerType, ContType, FrameKind, FuncType,
     Handle, MemArg, ModuleArity, Operator, Ordering, RefType, ResumeTable, SubType, TryTable,
-    VisitOperator,
+    VisitOperator, VisitSimdOperator,
 };
 
 pub struct OperatorState {
@@ -1389,7 +1389,17 @@ macro_rules! define_visit {
 impl<'a> VisitOperator<'a> for PrintOperator<'_, '_, '_, '_> {
     type Output = Result<()>;
 
+    #[cfg(feature = "simd")]
+    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = Self::Output>> {
+        Some(self)
+    }
+
     wasmparser::for_each_operator!(define_visit);
+}
+
+#[cfg(feature = "simd")]
+impl<'a> VisitSimdOperator<'a> for PrintOperator<'_, '_, '_, '_> {
+    wasmparser::for_each_simd_operator!(define_visit);
 }
 
 pub trait OpPrinter {

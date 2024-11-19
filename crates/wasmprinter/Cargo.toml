@@ -25,5 +25,6 @@ termcolor = { workspace = true }
 wat = { path = "../wat" }
 
 [features]
-default = ['component-model']
+default = ['component-model', 'simd']
 component-model = ['wasmparser/component-model']
+simd = ['wasmparser/simd']
