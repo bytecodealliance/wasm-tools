@@ -85,4 +85,7 @@ features = []
 # interested in working with core modules then this feature can be disabled.
 component-model = []
 
+# A feature that enables parsing and validating the `simd` and `relaxed-simd`
+# proposals for WebAssembly. This is enabled by default but if your use case is
+# only interested in working on non-SIMD code then this feature can be disabled.
 simd = []
