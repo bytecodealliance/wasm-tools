@@ -601,9 +601,9 @@ impl Reencode for RoundtripReencoder {
 #[allow(missing_docs)] // FIXME
 pub mod utils {
     use super::{Error, Reencode};
+    use crate::Instruction;
     use crate::{CoreTypeEncoder, Encode};
     use std::ops::Range;
-    use crate::Instruction;
 
     pub fn parse_core_module<T: ?Sized + Reencode>(
         reencoder: &mut T,
@@ -1547,6 +1547,7 @@ pub mod utils {
         }
     }
 
+    #[rustfmt::skip]
     macro_rules! translate_map {
         // This case is used to map, based on the name of the field, from the
         // wasmparser payload type to the wasm-encoder payload type through
@@ -1600,6 +1601,7 @@ pub mod utils {
         ));
     }
 
+    #[rustfmt::skip]
     macro_rules! translate_build {
         // This case takes the arguments of a wasmparser instruction and creates
         // a wasm-encoder instruction. There are a few special cases for where
