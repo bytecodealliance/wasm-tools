@@ -22,15 +22,15 @@
 // confusing it's recommended to read over that section to see how it maps to
 // the various methods here.
 
-#[cfg(feature = "simd")]
-use crate::VisitSimdOperator;
 use crate::{
     limits::MAX_WASM_FUNCTION_LOCALS, AbstractHeapType, BinaryReaderError, BlockType, BrTable,
     Catch, ContType, FieldType, FrameKind, FuncType, GlobalType, Handle, HeapType, Ieee32, Ieee64,
     MemArg, ModuleArity, RefType, Result, ResumeTable, StorageType, StructType, SubType, TableType,
-    TryTable, UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources, V128,
+    TryTable, UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources,
 };
 use crate::{prelude::*, CompositeInnerType, Ordering};
+#[cfg(feature = "simd")]
+use crate::{VisitSimdOperator, V128};
 use core::ops::{Deref, DerefMut};
 
 pub(crate) struct OperatorValidator {
@@ -1024,13 +1024,6 @@ where
         self.check_memory_index(memarg.memory)
     }
 
-    fn check_simd_lane_index(&self, index: u8, max: u8) -> Result<()> {
-        if index >= max {
-            bail!(self.offset, "SIMD index out of bounds");
-        }
-        Ok(())
-    }
-
     /// Validates a block type, primarily with various in-flight proposals.
     fn check_block_type(&self, ty: &mut BlockType) -> Result<()> {
         match ty {
@@ -1287,6 +1280,19 @@ where
         self.push_operand(op_ty)?;
         Ok(())
     }
+}
+
+#[cfg(feature = "simd")]
+impl<'resources, R> OperatorValidatorTemp<'_, 'resources, R>
+where
+    R: WasmModuleResources,
+{
+    fn check_simd_lane_index(&self, index: u8, max: u8) -> Result<()> {
+        if index >= max {
+            bail!(self.offset, "SIMD index out of bounds");
+        }
+        Ok(())
+    }
 
     /// Checks a [`V128`] splat operator.
     fn check_v128_splat(&mut self, src_ty: ValType) -> Result<()> {
@@ -1353,7 +1359,12 @@ where
         self.push_operand(ValType::V128)?;
         Ok(())
     }
+}
 
+impl<'resources, R> OperatorValidatorTemp<'_, 'resources, R>
+where
+    R: WasmModuleResources,
+{
     /// Common helper for `ref.test` and `ref.cast` downcasting/checking
     /// instructions. Returns the given `heap_type` as a `ValType`.
     fn check_downcast(&mut self, nullable: bool, mut heap_type: HeapType) -> Result<RefType> {

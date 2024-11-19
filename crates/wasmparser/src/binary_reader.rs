@@ -1121,10 +1121,11 @@ impl<'a> BinaryReader<'a> {
             0xfb => self.visit_0xfb_operator(pos, visitor)?,
             0xfc => self.visit_0xfc_operator(pos, visitor)?,
             0xfd => {
-                let Some(mut visitor) = visitor.simd_visitor() else {
-                    bail!(pos, "unexpected SIMD opcode: 0x{code:x}")
-                };
-                self.visit_0xfd_operator(pos, &mut visitor)?
+                #[cfg(feature = "simd")]
+                if let Some(mut visitor) = visitor.simd_visitor() {
+                    return self.visit_0xfd_operator(pos, &mut visitor);
+                }
+                bail!(pos, "unexpected SIMD opcode: 0x{code:x}")
             }
             0xfe => self.visit_0xfe_operator(pos, visitor)?,
 
@@ -1893,6 +1894,7 @@ impl<'a> BinaryReader<'a> {
         self.remaining_buffer() == &[0x0b]
     }
 
+    #[cfg(feature = "simd")]
     fn read_lane_index(&mut self, max: u8) -> Result<u8> {
         let index = self.read_u8()?;
         if index >= max {
@@ -1904,6 +1906,7 @@ impl<'a> BinaryReader<'a> {
         Ok(index)
     }
 
+    #[cfg(feature = "simd")]
     fn read_v128(&mut self) -> Result<V128> {
         let mut bytes = [0; 16];
         bytes.clone_from_slice(self.read_bytes(16)?);

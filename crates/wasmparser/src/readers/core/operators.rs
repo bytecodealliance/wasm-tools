@@ -444,6 +444,7 @@ pub trait VisitOperator<'a> {
                     $(
                         Operator::$op $({ $($arg),* })? => self.$visit($($($arg.clone()),*)?),
                     )*
+                    #[cfg(feature = "simd")]
                     Operator::Simd(op) => {
                         let Some(visitor) = self.simd_visitor() else {
                             panic!("missing SIMD visitor for: {op:?}")
