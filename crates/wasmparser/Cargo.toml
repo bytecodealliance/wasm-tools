@@ -43,7 +43,7 @@ name = "benchmark"
 harness = false
 
 [features]
-default = ['std', 'validate', 'serde', 'features', 'component-model', 'hash-collections']
+default = ['std', 'validate', 'serde', 'features', 'component-model', 'hash-collections', 'simd']
 
 # A feature which enables implementations of `std::error::Error` as appropriate
 # along with other convenience APIs. This additionally uses the standard
