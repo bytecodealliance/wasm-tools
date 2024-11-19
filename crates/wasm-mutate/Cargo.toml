@@ -13,8 +13,8 @@ workspace = true
 [dependencies]
 clap = { workspace = true, optional = true }
 thiserror = "1.0.28"
-wasmparser = { workspace = true }
-wasm-encoder = { workspace = true, features = ["wasmparser"] }
+wasmparser = { workspace = true, features = ["simd"]}
+wasm-encoder = { workspace = true, features = ["wasmparser", "simd"] }
 rand = { workspace = true }
 log = { workspace = true }
 egg = "0.6.0"

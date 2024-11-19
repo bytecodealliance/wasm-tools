@@ -5,7 +5,7 @@ use crate::{Error, Mutator, ReencodeResult};
 use rand::Rng;
 use wasm_encoder::reencode::{self, Reencode, RoundtripReencoder};
 use wasm_encoder::{ElementSection, GlobalSection};
-use wasmparser::{ConstExpr, ElementSectionReader, GlobalSectionReader};
+use wasmparser::{ConstExpr, ElementSectionReader, GlobalSectionReader, SimdOperator};
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum ConstExpressionMutator {
@@ -76,7 +76,7 @@ impl<'cfg, 'wasm> Reencode for InitTranslator<'cfg, 'wasm> {
             O::RefNull { .. } | O::I32Const { value: 0 | 1 } | O::I64Const { value: 0 | 1 } => true,
             O::F32Const { value } => value.bits() == 0,
             O::F64Const { value } => value.bits() == 0,
-            O::V128Const { value } => value.i128() == 0,
+            O::Simd(SimdOperator::V128Const { value }) => value.i128() == 0,
             _ => false,
         };
         if is_simplest {
@@ -86,7 +86,7 @@ impl<'cfg, 'wasm> Reencode for InitTranslator<'cfg, 'wasm> {
         let ty = match op {
             O::I32Const { .. } => T::I32,
             O::I64Const { .. } => T::I64,
-            O::V128Const { .. } => T::V128,
+            O::Simd(SimdOperator::V128Const { .. }) => T::V128,
             O::F32Const { .. } => T::F32,
             O::F64Const { .. } => T::F64,
             O::RefFunc { .. }
@@ -131,7 +131,7 @@ impl<'cfg, 'wasm> Reencode for InitTranslator<'cfg, 'wasm> {
             } else {
                 self.config.rng().gen()
             }),
-            T::V128 => CE::v128_const(if let O::V128Const { value } = op {
+            T::V128 => CE::v128_const(if let O::Simd(SimdOperator::V128Const { value }) = op {
                 self.config.rng().gen_range(0..value.i128() as u128) as i128
             } else {
                 self.config.rng().gen()
