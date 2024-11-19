@@ -2106,7 +2106,7 @@ impl<'a> VisitOperator<'a> for OperatorFactory<'a> {
     type Output = Operator<'a>;
 
     #[cfg(feature = "simd")]
-    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<Output = Self::Output>> {
+    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = Self::Output>> {
         Some(self)
     }
 
