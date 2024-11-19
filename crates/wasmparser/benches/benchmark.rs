@@ -369,8 +369,6 @@ impl<'a> VisitOperator<'a> for NopVisit {
 }
 
 #[allow(unused_variables)]
-impl<'a> VisitSimdOperator for NopVisit {
-    type Output = ();
-
+impl<'a> VisitSimdOperator<'a> for NopVisit {
     wasmparser::for_each_simd_operator!(define_visit_operator);
 }
