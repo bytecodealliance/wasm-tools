@@ -217,6 +217,7 @@
       "line": 77,
       "filename": "memory.25.wat",
       "module_type": "text",
+      "binary_filename": "memory.25.wasm",
       "text": "memory size must be at most 65536 pages (4GiB)"
     },
     {
@@ -224,6 +225,7 @@
       "line": 81,
       "filename": "memory.26.wat",
       "module_type": "text",
+      "binary_filename": "memory.26.wasm",
       "text": "memory size must be at most 65536 pages (4GiB)"
     },
     {
@@ -231,6 +233,7 @@
       "line": 85,
       "filename": "memory.27.wat",
       "module_type": "text",
+      "binary_filename": "memory.27.wasm",
       "text": "memory size must be at most 65536 pages (4GiB)"
     },
     {
