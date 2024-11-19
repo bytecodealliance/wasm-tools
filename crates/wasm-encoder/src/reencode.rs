@@ -603,6 +603,7 @@ pub mod utils {
     use super::{Error, Reencode};
     use crate::{CoreTypeEncoder, Encode};
     use std::ops::Range;
+    use crate::Instruction;
 
     pub fn parse_core_module<T: ?Sized + Reencode>(
         reencoder: &mut T,
@@ -1546,96 +1547,124 @@ pub mod utils {
         }
     }
 
+    macro_rules! translate_map {
+        // This case is used to map, based on the name of the field, from the
+        // wasmparser payload type to the wasm-encoder payload type through
+        // `Translator` as applicable.
+        ($reencoder:ident $arg:ident tag_index) => ($reencoder.tag_index($arg));
+        ($reencoder:ident $arg:ident function_index) => ($reencoder.function_index($arg));
+        ($reencoder:ident $arg:ident table) => ($reencoder.table_index($arg));
+        ($reencoder:ident $arg:ident table_index) => ($reencoder.table_index($arg));
+        ($reencoder:ident $arg:ident dst_table) => ($reencoder.table_index($arg));
+        ($reencoder:ident $arg:ident src_table) => ($reencoder.table_index($arg));
+        ($reencoder:ident $arg:ident type_index) => ($reencoder.type_index($arg));
+        ($reencoder:ident $arg:ident array_type_index) => ($reencoder.type_index($arg));
+        ($reencoder:ident $arg:ident array_type_index_dst) => ($reencoder.type_index($arg));
+        ($reencoder:ident $arg:ident array_type_index_src) => ($reencoder.type_index($arg));
+        ($reencoder:ident $arg:ident struct_type_index) => ($reencoder.type_index($arg));
+        ($reencoder:ident $arg:ident global_index) => ($reencoder.global_index($arg));
+        ($reencoder:ident $arg:ident mem) => ($reencoder.memory_index($arg));
+        ($reencoder:ident $arg:ident src_mem) => ($reencoder.memory_index($arg));
+        ($reencoder:ident $arg:ident dst_mem) => ($reencoder.memory_index($arg));
+        ($reencoder:ident $arg:ident data_index) => ($reencoder.data_index($arg));
+        ($reencoder:ident $arg:ident elem_index) => ($reencoder.element_index($arg));
+        ($reencoder:ident $arg:ident array_data_index) => ($reencoder.data_index($arg));
+        ($reencoder:ident $arg:ident array_elem_index) => ($reencoder.element_index($arg));
+        ($reencoder:ident $arg:ident blockty) => ($reencoder.block_type($arg)?);
+        ($reencoder:ident $arg:ident relative_depth) => ($arg);
+        ($reencoder:ident $arg:ident targets) => ((
+            $arg
+                .targets()
+                .collect::<Result<Vec<_>, wasmparser::BinaryReaderError>>()?
+                .into(),
+            $arg.default(),
+        ));
+        ($reencoder:ident $arg:ident ty) => ($reencoder.val_type($arg)?);
+        ($reencoder:ident $arg:ident hty) => ($reencoder.heap_type($arg)?);
+        ($reencoder:ident $arg:ident from_ref_type) => ($reencoder.ref_type($arg)?);
+        ($reencoder:ident $arg:ident to_ref_type) => ($reencoder.ref_type($arg)?);
+        ($reencoder:ident $arg:ident memarg) => ($reencoder.mem_arg($arg));
+        ($reencoder:ident $arg:ident ordering) => ($reencoder.ordering($arg));
+        ($reencoder:ident $arg:ident local_index) => ($arg);
+        ($reencoder:ident $arg:ident value) => ($arg);
+        ($reencoder:ident $arg:ident lane) => ($arg);
+        ($reencoder:ident $arg:ident lanes) => ($arg);
+        ($reencoder:ident $arg:ident array_size) => ($arg);
+        ($reencoder:ident $arg:ident field_index) => ($arg);
+        ($reencoder:ident $arg:ident try_table) => ($arg);
+        ($reencoder:ident $arg:ident argument_index) => ($reencoder.type_index($arg));
+        ($reencoder:ident $arg:ident result_index) => ($reencoder.type_index($arg));
+        ($reencoder:ident $arg:ident cont_type_index) => ($reencoder.type_index($arg));
+        ($reencoder:ident $arg:ident resume_table) => ((
+            $arg.handlers.into_iter().map(|h| $reencoder.handle(h)).collect::<Vec<_>>().into()
+        ));
+    }
+
+    macro_rules! translate_build {
+        // This case takes the arguments of a wasmparser instruction and creates
+        // a wasm-encoder instruction. There are a few special cases for where
+        // the structure of a wasmparser instruction differs from that of
+        // wasm-encoder.
+        ($reencoder:ident $op:ident) => (Instruction::$op);
+        ($reencoder:ident BrTable $arg:ident) => (Instruction::BrTable($arg.0, $arg.1));
+        ($reencoder:ident I32Const $arg:ident) => (Instruction::I32Const($arg));
+        ($reencoder:ident I64Const $arg:ident) => (Instruction::I64Const($arg));
+        ($reencoder:ident F32Const $arg:ident) => (Instruction::F32Const(f32::from_bits($arg.bits())));
+        ($reencoder:ident F64Const $arg:ident) => (Instruction::F64Const(f64::from_bits($arg.bits())));
+        ($reencoder:ident V128Const $arg:ident) => (Instruction::V128Const($arg.i128()));
+        ($reencoder:ident TryTable $table:ident) => (Instruction::TryTable($reencoder.block_type($table.ty)?, {
+            $table.catches.into_iter().map(|c| $reencoder.catch(c)).collect::<Vec<_>>().into()
+        }));
+        ($reencoder:ident $op:ident $arg:ident) => (Instruction::$op($arg));
+        ($reencoder:ident $op:ident $($arg:ident)*) => (Instruction::$op { $($arg),* });
+    }
+
     pub fn instruction<'a, T: ?Sized + Reencode>(
         reencoder: &mut T,
         arg: wasmparser::Operator<'a>,
     ) -> Result<crate::Instruction<'a>, Error<T::Error>> {
-        use crate::Instruction;
-
         macro_rules! translate {
             ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
                 Ok(match arg {
                     $(
                         wasmparser::Operator::$op $({ $($arg),* })? => {
                             $(
-                                $(let $arg = translate!(map $arg $arg);)*
+                                $(let $arg = translate_map!(reencoder $arg $arg);)*
                             )?
-                            translate!(build $op $($($arg)*)?)
+                            translate_build!(reencoder $op $($($arg)*)?)
+                        }
+                    )*
+                    #[cfg(feature = "simd")]
+                    wasmparser::Operator::Simd(simd_arg) => simd_instruction(reencoder, simd_arg)?,
+                    unexpected => unreachable!("encountered unexpected Wasm operator: {unexpected:?}"),
+                })
+            };
+        }
+
+        wasmparser::for_each_operator!(translate)
+    }
+
+    #[cfg(feature = "simd")]
+    fn simd_instruction<'a, T: ?Sized + Reencode>(
+        reencoder: &mut T,
+        arg: wasmparser::SimdOperator,
+    ) -> Result<crate::Instruction<'a>, Error<T::Error>> {
+        macro_rules! translate_simd {
+            ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
+                Ok(match arg {
+                    $(
+                        wasmparser::SimdOperator::$op $({ $($arg),* })? => {
+                            $(
+                                $(let $arg = translate_map!(reencoder $arg $arg);)*
+                            )?
+                            translate_build!(reencoder $op $($($arg)*)?)
                         }
                     )*
                 })
             };
-
-            // This case is used to map, based on the name of the field, from the
-            // wasmparser payload type to the wasm-encoder payload type through
-            // `Translator` as applicable.
-            (map $arg:ident tag_index) => (reencoder.tag_index($arg));
-            (map $arg:ident function_index) => (reencoder.function_index($arg));
-            (map $arg:ident table) => (reencoder.table_index($arg));
-            (map $arg:ident table_index) => (reencoder.table_index($arg));
-            (map $arg:ident dst_table) => (reencoder.table_index($arg));
-            (map $arg:ident src_table) => (reencoder.table_index($arg));
-            (map $arg:ident type_index) => (reencoder.type_index($arg));
-            (map $arg:ident array_type_index) => (reencoder.type_index($arg));
-            (map $arg:ident array_type_index_dst) => (reencoder.type_index($arg));
-            (map $arg:ident array_type_index_src) => (reencoder.type_index($arg));
-            (map $arg:ident struct_type_index) => (reencoder.type_index($arg));
-            (map $arg:ident global_index) => (reencoder.global_index($arg));
-            (map $arg:ident mem) => (reencoder.memory_index($arg));
-            (map $arg:ident src_mem) => (reencoder.memory_index($arg));
-            (map $arg:ident dst_mem) => (reencoder.memory_index($arg));
-            (map $arg:ident data_index) => (reencoder.data_index($arg));
-            (map $arg:ident elem_index) => (reencoder.element_index($arg));
-            (map $arg:ident array_data_index) => (reencoder.data_index($arg));
-            (map $arg:ident array_elem_index) => (reencoder.element_index($arg));
-            (map $arg:ident blockty) => (reencoder.block_type($arg)?);
-            (map $arg:ident relative_depth) => ($arg);
-            (map $arg:ident targets) => ((
-                $arg
-                    .targets()
-                    .collect::<Result<Vec<_>, wasmparser::BinaryReaderError>>()?
-                    .into(),
-                $arg.default(),
-            ));
-            (map $arg:ident ty) => (reencoder.val_type($arg)?);
-            (map $arg:ident hty) => (reencoder.heap_type($arg)?);
-            (map $arg:ident from_ref_type) => (reencoder.ref_type($arg)?);
-            (map $arg:ident to_ref_type) => (reencoder.ref_type($arg)?);
-            (map $arg:ident memarg) => (reencoder.mem_arg($arg));
-            (map $arg:ident ordering) => (reencoder.ordering($arg));
-            (map $arg:ident local_index) => ($arg);
-            (map $arg:ident value) => ($arg);
-            (map $arg:ident lane) => ($arg);
-            (map $arg:ident lanes) => ($arg);
-            (map $arg:ident array_size) => ($arg);
-            (map $arg:ident field_index) => ($arg);
-            (map $arg:ident try_table) => ($arg);
-            (map $arg:ident argument_index) => (reencoder.type_index($arg));
-            (map $arg:ident result_index) => (reencoder.type_index($arg));
-            (map $arg:ident cont_type_index) => (reencoder.type_index($arg));
-            (map $arg:ident resume_table) => ((
-                $arg.handlers.into_iter().map(|h| reencoder.handle(h)).collect::<Vec<_>>().into()
-            ));
-
-            // This case takes the arguments of a wasmparser instruction and creates
-            // a wasm-encoder instruction. There are a few special cases for where
-            // the structure of a wasmparser instruction differs from that of
-            // wasm-encoder.
-            (build $op:ident) => (Instruction::$op);
-            (build BrTable $arg:ident) => (Instruction::BrTable($arg.0, $arg.1));
-            (build I32Const $arg:ident) => (Instruction::I32Const($arg));
-            (build I64Const $arg:ident) => (Instruction::I64Const($arg));
-            (build F32Const $arg:ident) => (Instruction::F32Const(f32::from_bits($arg.bits())));
-            (build F64Const $arg:ident) => (Instruction::F64Const(f64::from_bits($arg.bits())));
-            (build V128Const $arg:ident) => (Instruction::V128Const($arg.i128()));
-            (build TryTable $table:ident) => (Instruction::TryTable(reencoder.block_type($table.ty)?, {
-                $table.catches.into_iter().map(|c| reencoder.catch(c)).collect::<Vec<_>>().into()
-            }));
-            (build $op:ident $arg:ident) => (Instruction::$op($arg));
-            (build $op:ident $($arg:ident)*) => (Instruction::$op { $($arg),* });
         }
 
-        wasmparser::for_each_operator!(translate)
+        wasmparser::for_each_simd_operator!(translate_simd)
     }
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
