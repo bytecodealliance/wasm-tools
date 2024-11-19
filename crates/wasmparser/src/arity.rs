@@ -13,8 +13,11 @@
  * limitations under the License.
  */
 
+#[cfg(feature = "simd")]
+use crate::SimdOperator;
 use crate::{
-    BinaryReader, BinaryReaderError, BlockType, CompositeInnerType, ContType, FrameKind, FuncType, Operator, RefType, Result, SimdOperator, SubType
+    BinaryReader, BinaryReaderError, BlockType, CompositeInnerType, ContType, FrameKind, FuncType,
+    Operator, RefType, Result, SubType,
 };
 
 /// To compute the arity (param and result counts) of "variable-arity"
@@ -249,6 +252,7 @@ impl Operator<'_> {
                             operator_arity!(arity module $({ $($arg: $argty),* })? $($ann)*)
                         }
                     )*
+                    #[cfg(feature = "simd")]
                     Self::Simd(operator) => operator.operator_arity(),
                 }
             );
@@ -257,6 +261,7 @@ impl Operator<'_> {
     }
 }
 
+#[cfg(feature = "simd")]
 impl SimdOperator {
     /// Compute the arity (param and result counts) of the operator, given
     /// an impl ModuleArity, which stores the necessary module state.

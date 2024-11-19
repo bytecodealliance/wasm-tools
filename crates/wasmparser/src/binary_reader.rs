@@ -1125,7 +1125,7 @@ impl<'a> BinaryReader<'a> {
                     bail!(pos, "unexpected SIMD opcode: 0x{code:x}")
                 };
                 self.visit_0xfd_operator(pos, &mut visitor)?
-            },
+            }
             0xfe => self.visit_0xfe_operator(pos, visitor)?,
 
             _ => bail!(pos, "illegal opcode: 0x{code:x}"),
@@ -1371,6 +1371,7 @@ impl<'a> BinaryReader<'a> {
         })
     }
 
+    #[cfg(feature = "simd")]
     fn visit_0xfd_operator<T>(
         &mut self,
         pos: usize,
@@ -2113,6 +2114,7 @@ impl<'a> VisitOperator<'a> for OperatorFactory<'a> {
     for_each_operator!(define_visit_operator);
 }
 
+#[cfg(feature = "simd")]
 macro_rules! define_visit_simd_operator {
     ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
         $(
@@ -2123,6 +2125,7 @@ macro_rules! define_visit_simd_operator {
     }
 }
 
+#[cfg(feature = "simd")]
 impl<'a> VisitSimdOperator<'a> for OperatorFactory<'a> {
     for_each_simd_operator!(define_visit_simd_operator);
 }

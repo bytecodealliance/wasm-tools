@@ -22,13 +22,15 @@
 // confusing it's recommended to read over that section to see how it maps to
 // the various methods here.
 
+#[cfg(feature = "simd")]
+use crate::VisitSimdOperator;
 use crate::{
     limits::MAX_WASM_FUNCTION_LOCALS, AbstractHeapType, BinaryReaderError, BlockType, BrTable,
     Catch, ContType, FieldType, FrameKind, FuncType, GlobalType, Handle, HeapType, Ieee32, Ieee64,
     MemArg, ModuleArity, RefType, Result, ResumeTable, StorageType, StructType, SubType, TableType,
     TryTable, UnpackedIndex, ValType, VisitOperator, WasmFeatures, WasmModuleResources, V128,
 };
-use crate::{prelude::*, CompositeInnerType, Ordering, VisitSimdOperator};
+use crate::{prelude::*, CompositeInnerType, Ordering};
 use core::ops::{Deref, DerefMut};
 
 pub(crate) struct OperatorValidator {
@@ -4274,6 +4276,7 @@ where
     }
 }
 
+#[cfg(feature = "simd")]
 impl<'a, T> VisitSimdOperator<'a> for OperatorValidatorTemp<'_, '_, T>
 where
     T: WasmModuleResources,

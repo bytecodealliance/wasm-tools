@@ -1,10 +1,10 @@
 use anyhow::Result;
 use criterion::{criterion_group, criterion_main, Criterion};
 use once_cell::unsync::Lazy;
-use wasmparser::VisitSimdOperator;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
+use wasmparser::VisitSimdOperator;
 use wasmparser::{DataKind, ElementKind, Parser, Payload, Validator, VisitOperator, WasmFeatures};
 
 /// A benchmark input.

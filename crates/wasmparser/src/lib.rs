@@ -623,6 +623,7 @@ macro_rules! for_each_operator {
 
 /// Docs: TODO
 #[macro_export]
+#[cfg(feature = "simd")]
 macro_rules! for_each_simd_operator {
     ($mac:ident) => {
         $mac! {
