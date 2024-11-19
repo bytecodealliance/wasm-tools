@@ -1,6 +1,5 @@
 use super::OperatorValidatorTemp;
 use crate::{MemArg, Result, ValType, WasmModuleResources};
-#[cfg(feature = "simd")]
 use crate::{VisitSimdOperator, V128};
 
 impl<'resources, R> OperatorValidatorTemp<'_, 'resources, R>

@@ -14,6 +14,8 @@
  */
 
 #[cfg(feature = "simd")]
+use crate::for_each_simd_operator;
+#[cfg(feature = "simd")]
 use crate::SimdOperator;
 use crate::{
     BinaryReader, BinaryReaderError, BlockType, CompositeInnerType, ContType, FrameKind, FuncType,
