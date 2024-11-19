@@ -459,6 +459,29 @@ pub trait VisitOperator<'a> {
         for_each_operator!(visit_operator)
     }
 
+    /// Returns a mutable reference to a [`VisitSimdOperator`] visitor.
+    /// 
+    /// - If an implementer does _not_ want to support Wasm `simd` proposal
+    ///   nothing has to be done since the default implementation already suffices.
+    /// - If an implementer _does_ want to support Wasm `simd` proposal this
+    ///   method usually is implemented as `Some(self)` where the implementing
+    ///   type (`Self`) typically also implements `VisitSimdOperator`.
+    /// 
+    /// # Example
+    /// 
+    /// ```
+    /// impl VisitOperator for MyVisitor {
+    ///     fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = Self::Output>> {
+    ///         Some(self)
+    ///     }
+    /// 
+    ///     // implement remaining visitation methods here ...
+    /// }
+    /// 
+    /// impl VisitSimdOperator for MyVisitor {
+    ///     // implement SIMD visitation methods here ...
+    /// }
+    /// ```
     #[cfg(feature = "simd")]
     fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = Self::Output>> {
         None
