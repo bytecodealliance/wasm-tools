@@ -84,11 +84,13 @@ impl<'a> Converter<'a> {
                         output.item(WorldItem::function_import(func));
                     }
                 }
-                wit_parser::WorldItem::Type(_) => {
-                    todo!();
+                wit_parser::WorldItem::Type(type_id) => {
+                    let (target, item, rename) = self.convert_world_item_type(package_id, *type_id);
+                    output.use_type(target, item, rename)
                 }
             }
         }
+
         for (key, item) in &world.exports {
             match item {
                 wit_parser::WorldItem::Interface { id, .. } => {
@@ -110,13 +112,40 @@ impl<'a> Converter<'a> {
                         output.item(WorldItem::function_export(func));
                     }
                 }
-                wit_parser::WorldItem::Type(_) => {
-                    todo!();
+                wit_parser::WorldItem::Type(type_id) => {
+                    let (target, item, rename) = self.convert_world_item_type(package_id, *type_id);
+                    output.use_type(target, item, rename)
                 }
             }
         }
 
+        output.uses_mut().sort();
+        output.items_mut().sort();
+
         output
+    }
+
+    fn convert_world_item_type(
+        &self,
+        package_id: PackageId,
+        type_id: wit_parser::TypeId,
+    ) -> (Ident, Ident, Option<Ident>) {
+        let type_def = self.resolve.types.get(type_id).unwrap();
+        let underlying_type_def = self.underlying_type_def(&type_def);
+        let interface_ident = self
+            .type_def_owner_interface_ident(package_id, underlying_type_def)
+            .expect("Type not part of an interface");
+        let local_type_name = type_def.name.clone().unwrap();
+        let underlying_local_type_name = underlying_type_def.name.clone().unwrap();
+        if underlying_local_type_name == local_type_name {
+            (interface_ident, local_type_name.into(), None)
+        } else {
+            (
+                interface_ident,
+                underlying_local_type_name.into(),
+                Some(local_type_name.into()),
+            )
+        }
     }
 
     fn convert_interface(
@@ -140,31 +169,16 @@ impl<'a> Converter<'a> {
         }
         for (_, type_id) in &interface.types {
             let type_def = self.resolve.types.get(*type_id).unwrap();
-
-            let underlying_type_def = match &type_def.kind {
-                wit_parser::TypeDefKind::Type(type_) => match &type_ {
-                    wit_parser::Type::Id(type_id) => {
-                        let type_def = self.resolve.types.get(*type_id).unwrap();
-                        type_def
-                    }
-                    _ => type_def,
-                },
-                _ => type_def,
-            };
+            let underlying_type_def = self.underlying_type_def(&type_def);
 
             if underlying_type_def.owner == owner {
                 if let Some(type_def) = self.convert_type_def(type_def, *type_id) {
                     output.item(InterfaceItem::TypeDef(type_def));
                 }
             } else {
-                let interface_ident = match underlying_type_def.owner {
-                    wit_parser::TypeOwner::Interface(id) => self.interface_ident(
-                        package_id,
-                        None,
-                        self.resolve.interfaces.get(id).unwrap(),
-                    ),
-                    _ => panic!("Type not part of an interface"),
-                };
+                let interface_ident = self
+                    .type_def_owner_interface_ident(package_id, underlying_type_def)
+                    .expect("Type not part of an interface");
                 let local_type_name = type_def.name.clone().unwrap();
                 let underlying_local_type_name = underlying_type_def.name.clone().unwrap();
                 if underlying_local_type_name == local_type_name {
@@ -178,6 +192,9 @@ impl<'a> Converter<'a> {
                 }
             }
         }
+
+        output.uses_mut().sort();
+        output.items_mut().sort();
 
         output
     }
@@ -519,6 +536,31 @@ impl<'a> Converter<'a> {
                 },
                 None => panic!("inlined interface requires a world key"),
             },
+        }
+    }
+
+    fn underlying_type_def(&'a self, type_def: &'a wit_parser::TypeDef) -> &'a wit_parser::TypeDef {
+        match &type_def.kind {
+            wit_parser::TypeDefKind::Type(type_) => match &type_ {
+                wit_parser::Type::Id(type_id) => {
+                    let type_def = self.resolve.types.get(*type_id).unwrap();
+                    type_def
+                }
+                _ => type_def,
+            },
+            _ => type_def,
+        }
+    }
+
+    fn type_def_owner_interface_ident(
+        &self,
+        package_id: PackageId,
+        type_def: &wit_parser::TypeDef,
+    ) -> Option<Ident> {
+        if let wit_parser::TypeOwner::Interface(id) = type_def.owner {
+            Some(self.interface_ident(package_id, None, self.resolve.interfaces.get(id).unwrap()))
+        } else {
+            None
         }
     }
 }
