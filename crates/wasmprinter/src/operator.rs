@@ -4,8 +4,10 @@ use termcolor::{Ansi, NoColor};
 use wasmparser::{
     BinaryReader, BlockType, BrTable, Catch, CompositeInnerType, ContType, FrameKind, FuncType,
     Handle, MemArg, ModuleArity, Operator, Ordering, RefType, ResumeTable, SubType, TryTable,
-    VisitOperator, VisitSimdOperator,
+    VisitOperator,
 };
+#[cfg(feature = "simd")]
+use wasmparser::VisitSimdOperator;
 
 pub struct OperatorState {
     op_offset: usize,
@@ -385,11 +387,13 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
         self.printer.print_idx(&self.state.core.element_names, idx)
     }
 
+    #[cfg(feature = "simd")]
     fn lane(&mut self, lane: u8) -> Result<()> {
         write!(self.result(), " {lane}")?;
         Ok(())
     }
 
+    #[cfg(feature = "simd")]
     fn lanes(&mut self, lanes: [u8; 16]) -> Result<()> {
         for lane in lanes.iter() {
             write!(self.result(), " {lane}")?;
