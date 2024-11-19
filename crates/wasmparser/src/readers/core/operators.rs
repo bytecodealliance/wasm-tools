@@ -235,7 +235,7 @@ for_each_operator!(define_operator);
 #[cfg(feature = "simd")]
 macro_rules! define_simd_operator {
     ($(@$proposal:ident $op:ident $({ $($payload:tt)* })? => $visit:ident ($($ann:tt)*))*) => {
-        /// SIMD instructions as defined [here].
+        /// The subset of Wasm SIMD instructions as defined [here].
         ///
         /// [here]: https://webassembly.github.io/spec/core/binary/instructions.html
         #[derive(Debug, Clone, Eq, PartialEq)]
