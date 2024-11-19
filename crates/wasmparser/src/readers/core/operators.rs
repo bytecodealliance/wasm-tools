@@ -469,6 +469,7 @@ pub trait VisitOperator<'a> {
 
 /// Trait implemented by types that can visit all [`SimdOperator`] variants.
 #[cfg(feature = "simd")]
+#[allow(missing_docs)]
 pub trait VisitSimdOperator<'a>: VisitOperator<'a> {
     /// Visits the SIMD [`Operator`] `op` using the given `offset`.
     ///
