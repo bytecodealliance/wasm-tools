@@ -1,13 +1,13 @@
 use super::{Config, Print, PrintTermcolor, Printer, State};
 use anyhow::{anyhow, bail, Result};
 use termcolor::{Ansi, NoColor};
+#[cfg(feature = "simd")]
+use wasmparser::VisitSimdOperator;
 use wasmparser::{
     BinaryReader, BlockType, BrTable, Catch, CompositeInnerType, ContType, FrameKind, FuncType,
     Handle, MemArg, ModuleArity, Operator, Ordering, RefType, ResumeTable, SubType, TryTable,
     VisitOperator,
 };
-#[cfg(feature = "simd")]
-use wasmparser::VisitSimdOperator;
 
 pub struct OperatorState {
     op_offset: usize,
