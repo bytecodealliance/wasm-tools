@@ -10,7 +10,11 @@ const MAIN_PACKAGE_SOURCE: &str = indoc::indoc! {"
       use foo:dep-a/dep-a-interface-b.{ ra };
     }
 
-    interface main-interface-b {}
+    interface main-interface-b {
+        record mb {
+            x: f32,
+        }
+    }
 
     interface main-interface-c {}
 
@@ -19,14 +23,17 @@ const MAIN_PACKAGE_SOURCE: &str = indoc::indoc! {"
     interface main-interface-e {}
 
     world main-world-a {
+      use foo:dep-c/dep-c-interface-b.{ cb, cb as cbcb };
       import foo:dep-c/dep-c-interface-a;
       export foo:dep-c/dep-c-interface-b;
       include foo:dep-c/dep-c-world-a;
 
+      use foo:dep-b/dep-b-interface-b@1.2.3.{ bb, bb as bbbb };
       import foo:dep-b/dep-b-interface-a@1.2.3;
       export foo:dep-b/dep-b-interface-b@1.2.3;
       include foo:dep-b/dep-b-world-b@1.2.3;
 
+      use main-interface-b.{ mb, mb as mbmb };
       import main-interface-b;
       export main-interface-a;
       include main-world-b;
@@ -45,7 +52,11 @@ const MAIN_PACKAGE_RESOLVED_ENCODED: &str = indoc::indoc! {"
       use foo:dep-a/dep-a-interface-b.{ ra };
     }
 
-    interface main-interface-b {}
+    interface main-interface-b {
+      record mb {
+        x: f32,
+      }
+    }
 
     interface main-interface-c {}
 
@@ -59,16 +70,21 @@ const MAIN_PACKAGE_RESOLVED_ENCODED: &str = indoc::indoc! {"
     }
 
     world main-world-a {
-      import foo:dep-c/dep-c-interface-a;
-      import foo:dep-b/dep-b-interface-a@1.2.3;
-      import main-interface-b;
-      import foo:dep-c/dep-c-interface-c;
-      import main-interface-d;
+      use foo:dep-b/dep-b-interface-b@1.2.3.{ bb, bb as bbbb };
+      use foo:dep-c/dep-c-interface-b.{ cb, cb as cbcb };
+      use main-interface-b.{ mb, mb as mbmb };
       import foo:dep-a/dep-a-interface-b;
-      export foo:dep-c/dep-c-interface-b;
+      import foo:dep-b/dep-b-interface-a@1.2.3;
+      import foo:dep-b/dep-b-interface-b@1.2.3;
+      import foo:dep-c/dep-c-interface-a;
+      import foo:dep-c/dep-c-interface-b;
+      import foo:dep-c/dep-c-interface-c;
+      import main-interface-b;
+      import main-interface-d;
       export foo:dep-b/dep-b-interface-b@1.2.3;
-      export main-interface-a;
+      export foo:dep-c/dep-c-interface-b;
       export foo:dep-c/dep-c-interface-d;
+      export main-interface-a;
       export main-interface-d;
     }
 "};
@@ -96,6 +112,10 @@ const DEP_PACKAGE_B: &str = indoc::indoc! {"
 
     interface dep-b-interface-b {
       use foo:dep-c/dep-c-interface-a.{a};
+
+      record bb {
+        x: f32,
+      }
     }
 
     world dep-b-world-a {
@@ -115,7 +135,11 @@ const DEP_PACKAGE_C: &str = indoc::indoc! {"
       }
     }
 
-    interface dep-c-interface-b {}
+    interface dep-c-interface-b {
+      record cb {
+        x: f32,
+      }
+    }
 
     interface dep-c-interface-c {}
 

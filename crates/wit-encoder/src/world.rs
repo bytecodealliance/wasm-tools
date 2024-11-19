@@ -9,6 +9,9 @@ pub struct World {
     /// The WIT identifier name of this world.
     name: Ident,
 
+    /// Interface uses
+    uses: Vec<Use>,
+
     /// All imported and exported items into this world.
     items: Vec<WorldItem>,
 
@@ -21,6 +24,7 @@ impl World {
     pub fn new(name: impl Into<Ident>) -> Self {
         Self {
             name: name.into(),
+            uses: vec![],
             items: vec![],
             docs: None,
         }
@@ -69,8 +73,34 @@ impl World {
     pub fn include(&mut self, include: Include) {
         self.item(WorldItem::Include(include));
     }
+
+    pub fn uses(&self) -> &[Use] {
+        &self.uses
+    }
+    pub fn uses_mut(&mut self) -> &mut [Use] {
+        &mut self.uses
+    }
     pub fn use_(&mut self, use_: Use) {
-        self.item(WorldItem::Use(use_));
+        self.uses.push(use_);
+    }
+    pub fn use_type(
+        &mut self,
+        target: impl Into<Ident>,
+        item: impl Into<Ident>,
+        rename: Option<Ident>,
+    ) {
+        let target = target.into();
+        let use_ = self.uses.iter_mut().find(|u| u.target() == &target);
+        match use_ {
+            Some(use_) => use_.item(item, rename),
+            None => {
+                self.use_({
+                    let mut use_ = Use::new(target);
+                    use_.item(item, rename);
+                    use_
+                });
+            }
+        }
     }
 
     pub fn docs(&self) -> Option<&Docs> {
@@ -105,6 +135,7 @@ impl Render for World {
         }
         write!(f, "{}world {} {{\n", opts.spaces(), self.name)?;
         let opts = &opts.indent();
+        self.uses.render(f, opts)?;
         for item in &self.items {
             match item {
                 WorldItem::InlineInterfaceImport(interface) => {
@@ -165,7 +196,6 @@ impl Render for World {
                     render_function(f, opts, function)?;
                 }
                 WorldItem::Include(include) => include.render(f, opts)?,
-                WorldItem::Use(use_) => use_.render(f, opts)?,
             }
         }
         let opts = &opts.outdent();
@@ -198,9 +228,6 @@ pub enum WorldItem {
 
     /// Include type
     Include(Include),
-
-    /// Use
-    Use(Use),
 }
 
 impl WorldItem {
