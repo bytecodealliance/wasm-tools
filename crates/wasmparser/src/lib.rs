@@ -60,6 +60,8 @@ mod prelude {
 /// the [`VisitOperator`] trait if your use case uniformly handles all operators
 /// the same way.
 ///
+/// Note: SIMD operators are handled by the [`for_each_simd_operator`] macro.
+///
 /// It is also possible to specialize handling of operators depending on the
 /// Wasm proposal from which they are originating.
 ///
@@ -77,8 +79,6 @@ mod prelude {
 /// - `@saturating_float_to_int`: [Wasm `non_trapping_float-to-int-conversions` proposal]
 /// - `@bulk_memory `:[Wasm `bulk-memory` proposal]
 /// - `@threads`: [Wasm `threads` proposal]
-/// - `@simd`: [Wasm `simd` proposal]
-/// - `@relaxed_simd`: [Wasm `relaxed-simd` proposal]
 /// - `@gc`: [Wasm `gc` proposal]
 /// - `@stack_switching`: [Wasm `stack-switching` proposal]
 /// - `@wide_arithmetic`: [Wasm `wide-arithmetic` proposal]
@@ -103,12 +103,6 @@ mod prelude {
 ///
 /// [Wasm `threads` proposal]:
 /// https://github.com/webassembly/threads
-///
-/// [Wasm `simd` proposal]:
-/// https://github.com/webassembly/simd
-///
-/// [Wasm `relaxed-simd` proposal]:
-/// https://github.com/WebAssembly/relaxed-simd
 ///
 /// [Wasm `gc` proposal]:
 /// https://github.com/WebAssembly/gc
@@ -621,7 +615,24 @@ macro_rules! for_each_operator {
     };
 }
 
-/// Docs: TODO
+/// A helper macro to conveniently iterate over all opcodes recognized by this
+/// crate. This can be used to work with either the [`SimdOperator`] enumeration or
+/// the [`VisitSimdOperator`] trait if your use case uniformly handles all operators
+/// the same way.
+///
+/// The list of specializable Wasm proposals is as follows:
+///
+/// - `@simd`: [Wasm `simd` proposal]
+/// - `@relaxed_simd`: [Wasm `relaxed-simd` proposal]
+///
+/// For more information about the structure and use of this macro please
+/// refer to the documentation of the [`for_each_operator`] macro.
+///
+/// [Wasm `simd` proposal]:
+/// https://github.com/webassembly/simd
+///
+/// [Wasm `relaxed-simd` proposal]:
+/// https://github.com/WebAssembly/relaxed-simd
 #[macro_export]
 #[cfg(feature = "simd")]
 macro_rules! for_each_simd_operator {
