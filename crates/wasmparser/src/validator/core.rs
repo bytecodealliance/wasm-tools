@@ -524,6 +524,7 @@ impl ModuleState {
         impl<'a> VisitOperator<'a> for VisitConstOperator<'a> {
             type Output = Result<()>;
 
+            #[cfg(feature = "simd")]
             fn simd_visitor(
                 &mut self,
             ) -> Option<&mut dyn crate::VisitSimdOperator<'a, Output = Self::Output>> {
