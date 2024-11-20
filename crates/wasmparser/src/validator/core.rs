@@ -10,14 +10,14 @@ use super::{
     operators::{ty_to_str, OperatorValidator, OperatorValidatorAllocations},
     types::{CoreTypeId, EntityType, RecGroupId, TypeAlloc, TypeList},
 };
+#[cfg(feature = "simd")]
+use crate::VisitSimdOperator;
 use crate::{
     limits::*, BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind,
     FuncType, Global, GlobalType, HeapType, MemoryType, RecGroup, RefType, Result, SubType, Table,
     TableInit, TableType, TagType, TypeRef, UnpackedIndex, ValType, VisitOperator, WasmFeatures,
     WasmModuleResources,
 };
-#[cfg(feature = "simd")]
-use crate::VisitSimdOperator;
 use crate::{prelude::*, CompositeInnerType};
 use alloc::sync::Arc;
 use core::mem;
@@ -524,7 +524,9 @@ impl ModuleState {
         impl<'a> VisitOperator<'a> for VisitConstOperator<'a> {
             type Output = Result<()>;
 
-            fn simd_visitor(&mut self) -> Option<&mut dyn crate::VisitSimdOperator<'a, Output = Self::Output>> {
+            fn simd_visitor(
+                &mut self,
+            ) -> Option<&mut dyn crate::VisitSimdOperator<'a, Output = Self::Output>> {
                 Some(self)
             }
 
