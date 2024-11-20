@@ -203,6 +203,7 @@ default = [
   'compose',
   'demangle',
   'component',
+  'simd',
   'metadata',
   'wit-smith',
   'addr2line',
@@ -238,6 +239,11 @@ component = [
   'wasm-encoder',
   'dep:wasmparser',
   'dep:serde_json',
+]
+simd = [
+  'wasmparser/simd',
+  'wasmprinter/simd',
+  'wasm-encoder/simd',
 ]
 metadata = ['dep:wasmparser', 'wasm-metadata', 'dep:serde_json']
 wit-smith = ['dep:wit-smith', 'arbitrary']
