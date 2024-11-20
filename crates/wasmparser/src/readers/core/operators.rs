@@ -469,7 +469,7 @@ pub trait VisitOperator<'a> {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```compile_fail
     /// impl VisitOperator for MyVisitor {
     ///     fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = Self::Output>> {
     ///         Some(self)
