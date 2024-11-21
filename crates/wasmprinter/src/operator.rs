@@ -1,7 +1,6 @@
 use super::{Config, Print, PrintTermcolor, Printer, State};
 use anyhow::{anyhow, bail, Result};
 use termcolor::{Ansi, NoColor};
-#[cfg(feature = "simd")]
 use wasmparser::VisitSimdOperator;
 use wasmparser::{
     BinaryReader, BlockType, BrTable, Catch, CompositeInnerType, ContType, FrameKind, FuncType,
@@ -387,13 +386,11 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
         self.printer.print_idx(&self.state.core.element_names, idx)
     }
 
-    #[cfg(feature = "simd")]
     fn lane(&mut self, lane: u8) -> Result<()> {
         write!(self.result(), " {lane}")?;
         Ok(())
     }
 
-    #[cfg(feature = "simd")]
     fn lanes(&mut self, lanes: [u8; 16]) -> Result<()> {
         for lane in lanes.iter() {
             write!(self.result(), " {lane}")?;
@@ -1393,7 +1390,6 @@ macro_rules! define_visit {
 impl<'a> VisitOperator<'a> for PrintOperator<'_, '_, '_, '_> {
     type Output = Result<()>;
 
-    #[cfg(feature = "simd")]
     fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = Self::Output>> {
         Some(self)
     }
@@ -1401,7 +1397,6 @@ impl<'a> VisitOperator<'a> for PrintOperator<'_, '_, '_, '_> {
     wasmparser::for_each_operator!(define_visit);
 }
 
-#[cfg(feature = "simd")]
 impl<'a> VisitSimdOperator<'a> for PrintOperator<'_, '_, '_, '_> {
     wasmparser::for_each_simd_operator!(define_visit);
 }
