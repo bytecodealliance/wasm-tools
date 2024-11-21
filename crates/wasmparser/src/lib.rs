@@ -56,154 +56,6 @@ mod prelude {
     pub use crate::collections::{IndexMap, Map, Set};
 }
 
-/// A helper macro to conveniently iterate over all opcodes recognized by this
-/// crate. This can be used to work with either the [`Operator`] enumeration or
-/// the [`VisitOperator`] trait if your use case uniformly handles all operators
-/// the same way.
-///
-/// Note: SIMD operators are handled by the [`for_each_simd_operator`] macro.
-///
-/// It is also possible to specialize handling of operators depending on the
-/// Wasm proposal from which they are originating.
-///
-/// This is an "iterator macro" where this macro is invoked with the name of
-/// another macro, and then that macro is invoked with the list of all
-/// operators. An example invocation of this looks like:
-///
-/// The list of specializable Wasm proposals is as follows:
-///
-/// - `@mvp`: Denoting a Wasm operator from the initial Wasm MVP version.
-/// - `@exceptions`: [Wasm `exception-handling` proposal]
-/// - `@tail_call`: [Wasm `tail-calls` proposal]
-/// - `@reference_types`: [Wasm `reference-types` proposal]
-/// - `@sign_extension`: [Wasm `sign-extension-ops` proposal]
-/// - `@saturating_float_to_int`: [Wasm `non_trapping_float-to-int-conversions` proposal]
-/// - `@bulk_memory `:[Wasm `bulk-memory` proposal]
-/// - `@threads`: [Wasm `threads` proposal]
-/// - `@gc`: [Wasm `gc` proposal]
-/// - `@stack_switching`: [Wasm `stack-switching` proposal]
-/// - `@wide_arithmetic`: [Wasm `wide-arithmetic` proposal]
-///
-/// [Wasm `exception-handling` proposal]:
-/// https://github.com/WebAssembly/exception-handling
-///
-/// [Wasm `tail-calls` proposal]:
-/// https://github.com/WebAssembly/tail-call
-///
-/// [Wasm `reference-types` proposal]:
-/// https://github.com/WebAssembly/reference-types
-///
-/// [Wasm `sign-extension-ops` proposal]:
-/// https://github.com/WebAssembly/sign-extension-ops
-///
-/// [Wasm `non_trapping_float-to-int-conversions` proposal]:
-/// https://github.com/WebAssembly/nontrapping-float-to-int-conversions
-///
-/// [Wasm `bulk-memory` proposal]:
-/// https://github.com/WebAssembly/bulk-memory-operations
-///
-/// [Wasm `threads` proposal]:
-/// https://github.com/webassembly/threads
-///
-/// [Wasm `gc` proposal]:
-/// https://github.com/WebAssembly/gc
-///
-/// [Wasm `stack-switching` proposal]:
-/// https://github.com/WebAssembly/stack-switching
-///
-/// [Wasm `wide-arithmetic` proposal]:
-/// https://github.com/WebAssembly/wide-arithmetic
-///
-/// ```
-/// macro_rules! define_visit_operator {
-///     // The outer layer of repetition represents how all operators are
-///     // provided to the macro at the same time.
-///     //
-///     // The `$proposal` identifier indicates the Wasm proposals from which
-///     // the Wasm operator is originating.
-///     // For example to specialize the macro match arm for Wasm SIMD proposal
-///     // operators you could write `@simd` instead of `@$proposal:ident` to
-///     // only catch those operators.
-///     //
-///     // The `$op` name is bound to the `Operator` variant name. The
-///     // payload of the operator is optionally specified (the `$(...)?`
-///     // clause) since not all instructions have payloads. Within the payload
-///     // each argument is named and has its type specified.
-///     //
-///     // The `$visit` name is bound to the corresponding name in the
-///     // `VisitOperator` trait that this corresponds to.
-///     //
-///     // The `$ann` annotations give information about the operator's type (e.g. binary i32 or arity 2 -> 1).
-///     ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
-///         $(
-///             fn $visit(&mut self $($(,$arg: $argty)*)?) {
-///                 // do nothing for this example
-///             }
-///         )*
-///     }
-/// }
-///
-/// pub struct VisitAndDoNothing;
-///
-/// impl<'a> wasmparser::VisitOperator<'a> for VisitAndDoNothing {
-///     type Output = ();
-///
-///     wasmparser::for_each_operator!(define_visit_operator);
-/// }
-/// ```
-///
-/// If you only wanted to visit the initial base set of wasm instructions, for
-/// example, you could do:
-///
-/// ```
-/// macro_rules! visit_only_mvp {
-///     // delegate the macro invocation to sub-invocations of this macro to
-///     // deal with each instruction on a case-by-case basis.
-///     ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
-///         $(
-///             visit_only_mvp!(visit_one @$proposal $op $({ $($arg: $argty),* })? => $visit);
-///         )*
-///     };
-///
-///     // MVP instructions are defined manually, so do nothing.
-///     (visit_one @mvp $($rest:tt)*) => {};
-///
-///     // Non-MVP instructions all return `false` here. The exact type depends
-///     // on `type Output` in the trait implementation below. You could change
-///     // it to `Result<()>` for example and return an error here too.
-///     (visit_one @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident) => {
-///         fn $visit(&mut self $($(,$arg: $argty)*)?) -> bool {
-///             false
-///         }
-///     }
-/// }
-/// # // to get this example to compile another macro is used here to define
-/// # // visit methods for all mvp oeprators.
-/// # macro_rules! visit_mvp {
-/// #     ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
-/// #         $(
-/// #             visit_mvp!(visit_one @$proposal $op $({ $($arg: $argty),* })? => $visit);
-/// #         )*
-/// #     };
-/// #     (visit_one @mvp $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident) => {
-/// #         fn $visit(&mut self $($(,$arg: $argty)*)?) -> bool {
-/// #             true
-/// #         }
-/// #     };
-/// #     (visit_one @$proposal:ident $($rest:tt)*) => {};
-/// # }
-///
-/// pub struct VisitOnlyMvp;
-///
-/// impl<'a> wasmparser::VisitOperator<'a> for VisitOnlyMvp {
-///     type Output = bool;
-///
-///     wasmparser::for_each_operator!(visit_only_mvp);
-/// #   wasmparser::for_each_operator!(visit_mvp);
-///
-///     // manually define `visit_*` for all MVP operators here
-/// }
-/// ```
 #[macro_export]
 #[doc(hidden)]
 macro_rules! _for_each_operator {
@@ -885,6 +737,155 @@ macro_rules! define_for_each_non_simd_operator {
     (@ $($t:tt)*) => {define_for_each_non_simd_operator!(filter [] @ $($t)*);};
 
     (filter [$($t:tt)*]) => {
+        /// A helper macro to conveniently iterate over all opcodes recognized by this
+        /// crate. This can be used to work with either the [`Operator`] enumeration or
+        /// the [`VisitOperator`] trait if your use case uniformly handles all operators
+        /// the same way.
+        ///
+        /// Note: SIMD operators are handled by the [`for_each_simd_operator`] macro.
+        ///
+        /// It is also possible to specialize handling of operators depending on the
+        /// Wasm proposal from which they are originating.
+        ///
+        /// This is an "iterator macro" where this macro is invoked with the name of
+        /// another macro, and then that macro is invoked with the list of all
+        /// operators. An example invocation of this looks like:
+        ///
+        /// The list of specializable Wasm proposals is as follows:
+        ///
+        /// - `@mvp`: Denoting a Wasm operator from the initial Wasm MVP version.
+        /// - `@exceptions`: [Wasm `exception-handling` proposal]
+        /// - `@tail_call`: [Wasm `tail-calls` proposal]
+        /// - `@reference_types`: [Wasm `reference-types` proposal]
+        /// - `@sign_extension`: [Wasm `sign-extension-ops` proposal]
+        /// - `@saturating_float_to_int`: [Wasm `non_trapping_float-to-int-conversions` proposal]
+        /// - `@bulk_memory `:[Wasm `bulk-memory` proposal]
+        /// - `@threads`: [Wasm `threads` proposal]
+        /// - `@gc`: [Wasm `gc` proposal]
+        /// - `@stack_switching`: [Wasm `stack-switching` proposal]
+        /// - `@wide_arithmetic`: [Wasm `wide-arithmetic` proposal]
+        ///
+        /// [Wasm `exception-handling` proposal]:
+        /// https://github.com/WebAssembly/exception-handling
+        ///
+        /// [Wasm `tail-calls` proposal]:
+        /// https://github.com/WebAssembly/tail-call
+        ///
+        /// [Wasm `reference-types` proposal]:
+        /// https://github.com/WebAssembly/reference-types
+        ///
+        /// [Wasm `sign-extension-ops` proposal]:
+        /// https://github.com/WebAssembly/sign-extension-ops
+        ///
+        /// [Wasm `non_trapping_float-to-int-conversions` proposal]:
+        /// https://github.com/WebAssembly/nontrapping-float-to-int-conversions
+        ///
+        /// [Wasm `bulk-memory` proposal]:
+        /// https://github.com/WebAssembly/bulk-memory-operations
+        ///
+        /// [Wasm `threads` proposal]:
+        /// https://github.com/webassembly/threads
+        ///
+        /// [Wasm `gc` proposal]:
+        /// https://github.com/WebAssembly/gc
+        ///
+        /// [Wasm `stack-switching` proposal]:
+        /// https://github.com/WebAssembly/stack-switching
+        ///
+        /// [Wasm `wide-arithmetic` proposal]:
+        /// https://github.com/WebAssembly/wide-arithmetic
+        ///
+        /// ```
+        /// macro_rules! define_visit_operator {
+        ///     // The outer layer of repetition represents how all operators are
+        ///     // provided to the macro at the same time.
+        ///     //
+        ///     // The `$proposal` identifier indicates the Wasm proposals from which
+        ///     // the Wasm operator is originating.
+        ///     // For example to specialize the macro match arm for Wasm SIMD proposal
+        ///     // operators you could write `@simd` instead of `@$proposal:ident` to
+        ///     // only catch those operators.
+        ///     //
+        ///     // The `$op` name is bound to the `Operator` variant name. The
+        ///     // payload of the operator is optionally specified (the `$(...)?`
+        ///     // clause) since not all instructions have payloads. Within the payload
+        ///     // each argument is named and has its type specified.
+        ///     //
+        ///     // The `$visit` name is bound to the corresponding name in the
+        ///     // `VisitOperator` trait that this corresponds to.
+        ///     //
+        ///     // The `$ann` annotations give information about the operator's type (e.g. binary i32 or arity 2 -> 1).
+        ///     ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
+        ///         $(
+        ///             fn $visit(&mut self $($(,$arg: $argty)*)?) {
+        ///                 // do nothing for this example
+        ///             }
+        ///         )*
+        ///     }
+        /// }
+        ///
+        /// pub struct VisitAndDoNothing;
+        ///
+        /// impl<'a> wasmparser::VisitOperator<'a> for VisitAndDoNothing {
+        ///     type Output = ();
+        ///
+        ///     wasmparser::for_each_operator!(define_visit_operator);
+        /// }
+        /// ```
+        ///
+        /// If you only wanted to visit the initial base set of wasm instructions, for
+        /// example, you could do:
+        ///
+        /// ```
+        /// macro_rules! visit_only_mvp {
+        ///     // delegate the macro invocation to sub-invocations of this macro to
+        ///     // deal with each instruction on a case-by-case basis.
+        ///     ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
+        ///         $(
+        ///             visit_only_mvp!(visit_one @$proposal $op $({ $($arg: $argty),* })? => $visit);
+        ///         )*
+        ///     };
+        ///
+        ///     // MVP instructions are defined manually, so do nothing.
+        ///     (visit_one @mvp $($rest:tt)*) => {};
+        ///
+        ///     // Non-MVP instructions all return `false` here. The exact type depends
+        ///     // on `type Output` in the trait implementation below. You could change
+        ///     // it to `Result<()>` for example and return an error here too.
+        ///     (visit_one @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident) => {
+        ///         fn $visit(&mut self $($(,$arg: $argty)*)?) -> bool {
+        ///             false
+        ///         }
+        ///     }
+        /// }
+        /// # // to get this example to compile another macro is used here to define
+        /// # // visit methods for all mvp oeprators.
+        /// # macro_rules! visit_mvp {
+        /// #     ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
+        /// #         $(
+        /// #             visit_mvp!(visit_one @$proposal $op $({ $($arg: $argty),* })? => $visit);
+        /// #         )*
+        /// #     };
+        /// #     (visit_one @mvp $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident) => {
+        /// #         fn $visit(&mut self $($(,$arg: $argty)*)?) -> bool {
+        /// #             true
+        /// #         }
+        /// #     };
+        /// #     (visit_one @$proposal:ident $($rest:tt)*) => {};
+        /// # }
+        ///
+        /// pub struct VisitOnlyMvp;
+        ///
+        /// impl<'a> wasmparser::VisitOperator<'a> for VisitOnlyMvp {
+        ///     type Output = bool;
+        ///
+        ///     wasmparser::for_each_operator!(visit_only_mvp);
+        /// #   wasmparser::for_each_operator!(visit_mvp);
+        ///
+        ///     // manually define `visit_*` for all MVP operators here
+        /// }
+        /// ```
+        #[macro_export]
         macro_rules! for_each_operator {
             ($m:ident) => {
                 $m! { $($t)* }
@@ -925,6 +926,28 @@ macro_rules! define_for_each_simd_operator {
     (@ $($t:tt)*) => {define_for_each_simd_operator!(filter [] @ $($t)*);};
 
     (filter [$($t:tt)*]) => {
+        /// A helper macro to conveniently iterate over all opcodes recognized by this
+        /// crate. This can be used to work with either the [`SimdOperator`] enumeration or
+        /// the [`VisitSimdOperator`] trait if your use case uniformly handles all operators
+        /// the same way.
+        ///
+        /// The list of specializable Wasm proposals is as follows:
+        ///
+        /// - `@simd`: [Wasm `simd` proposal]
+        /// - `@relaxed_simd`: [Wasm `relaxed-simd` proposal]
+        ///
+        /// For more information about the structure and use of this macro please
+        /// refer to the documentation of the [`for_each_operator`] macro.
+        ///
+        /// [Wasm `simd` proposal]:
+        /// https://github.com/webassembly/simd
+        ///
+        /// [Wasm `relaxed-simd` proposal]:
+        /// https://github.com/WebAssembly/relaxed-simd
+        ///
+        /// [`SimdOperator`]: crate::SimdOperator
+        /// [`VisitSimdOperator`]: crate::VisitSimdOperator
+        #[macro_export]
         macro_rules! for_each_simd_operator {
             ($m:ident) => {
                 $m! { $($t)* }
