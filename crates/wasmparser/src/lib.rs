@@ -881,7 +881,6 @@ macro_rules! _for_each_operator {
     };
 }
 
-// #[cfg(feature = "simd")]
 macro_rules! define_for_each_non_simd_operator {
     (@ $($t:tt)*) => {define_for_each_non_simd_operator!(filter [] @ $($t)*);};
 
