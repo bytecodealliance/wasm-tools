@@ -919,7 +919,6 @@ macro_rules! define_for_each_non_simd_operator {
     };
 }
 _for_each_operator!(define_for_each_non_simd_operator);
-use for_each_operator;
 
 #[cfg(feature = "simd")]
 macro_rules! define_for_each_simd_operator {
@@ -988,8 +987,6 @@ macro_rules! define_for_each_simd_operator {
 }
 #[cfg(feature = "simd")]
 _for_each_operator!(define_for_each_simd_operator);
-#[cfg(feature = "simd")]
-use for_each_simd_operator;
 
 macro_rules! format_err {
     ($offset:expr, $($arg:tt)*) => {

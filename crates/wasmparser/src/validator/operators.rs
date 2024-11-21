@@ -1768,7 +1768,7 @@ impl<'a, T> VisitSimdOperator<'a> for WasmProposalValidator<'_, '_, T>
 where
     T: WasmModuleResources,
 {
-    crate::for_each_simd_operator!(validate_proposal);
+    for_each_simd_operator!(validate_proposal);
 }
 
 #[track_caller]

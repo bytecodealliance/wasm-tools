@@ -13,8 +13,6 @@
  * limitations under the License.
  */
 
-#[cfg(feature = "simd")]
-use crate::for_each_simd_operator;
 use crate::limits::{MAX_WASM_CATCHES, MAX_WASM_HANDLERS};
 use crate::prelude::*;
 use crate::{BinaryReader, BinaryReaderError, FromReader, Result, ValType};

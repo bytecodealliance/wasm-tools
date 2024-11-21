@@ -536,7 +536,7 @@ impl ModuleState {
 
         #[cfg(feature = "simd")]
         impl<'a> VisitSimdOperator<'a> for VisitConstOperator<'a> {
-            crate::for_each_simd_operator!(define_visit_operator);
+            for_each_simd_operator!(define_visit_operator);
         }
     }
 }

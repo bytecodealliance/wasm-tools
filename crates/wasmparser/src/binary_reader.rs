@@ -16,8 +16,6 @@
 #[cfg(feature = "simd")]
 mod simd;
 
-#[cfg(feature = "simd")]
-use crate::for_each_simd_operator;
 use crate::prelude::*;
 use crate::{limits::*, *};
 use core::fmt;
