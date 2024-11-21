@@ -242,7 +242,6 @@ component = [
 ]
 simd = [
   'wasmparser/simd',
-  'wasm-encoder/simd',
 ]
 metadata = ['dep:wasmparser', 'wasm-metadata', 'dep:serde_json']
 wit-smith = ['dep:wit-smith', 'arbitrary']

@@ -29,14 +29,12 @@ wasmparser = { optional = true, workspace = true }
 [dev-dependencies]
 anyhow = { workspace = true }
 tempfile = "3.2.0"
-wasmparser = { path = "../wasmparser" }
+wasmparser = { path = "../wasmparser", features = ["simd"] }
 wasmprinter = { workspace = true }
 
 [features]
-default = ['component-model', 'simd']
+default = ['component-model']
 
 # On-by-default: conditional support for emitting components in addition to
 # core modules.
 component-model = ['wasmparser?/component-model']
-# On-by-default: conditional support for emitting SIMD wasm operators.
-simd = ['wasmparser?/simd']

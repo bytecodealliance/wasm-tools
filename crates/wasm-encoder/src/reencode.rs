@@ -1636,7 +1636,6 @@ pub mod utils {
                             translate_build!(reencoder $op $($($arg)*)?)
                         }
                     )*
-                    #[cfg(feature = "simd")]
                     wasmparser::Operator::Simd(simd_arg) => simd_instruction(reencoder, simd_arg)?,
                     unexpected => unreachable!("encountered unexpected Wasm operator: {unexpected:?}"),
                 })
@@ -1646,7 +1645,6 @@ pub mod utils {
         wasmparser::for_each_operator!(translate)
     }
 
-    #[cfg(feature = "simd")]
     fn simd_instruction<'a, T: ?Sized + Reencode>(
         reencoder: &mut T,
         arg: wasmparser::SimdOperator,
