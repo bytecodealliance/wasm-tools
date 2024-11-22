@@ -912,7 +912,7 @@ macro_rules! define_for_each_non_simd_operator {
         define_for_each_non_simd_operator!(
             filter [
                 $($t)*
-                @simd $op $({ $($arg: $argty),* })? => $visit ($($ann)*)
+                @$proposal $op $({ $($arg: $argty),* })? => $visit ($($ann)*)
             ]
             $($rest)*
         );
@@ -973,7 +973,7 @@ macro_rules! define_for_each_simd_operator {
         define_for_each_simd_operator!(
             filter [
                 $($t)*
-                @simd $op $({ $($arg: $argty),* })? => $visit ($($ann)*)
+                @relaxed_simd $op $({ $($arg: $argty),* })? => $visit ($($ann)*)
             ]
             $($rest)*
         );
