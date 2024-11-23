@@ -736,6 +736,31 @@ macro_rules! _for_each_operator {
 macro_rules! define_for_each_non_simd_operator {
     (@ $($t:tt)*) => {define_for_each_non_simd_operator!(filter [] @ $($t)*);};
 
+    (
+        filter [$($t:tt)*]
+        @simd $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*) $($rest:tt)*
+    ) => {
+        define_for_each_non_simd_operator!(filter [$($t)*] $($rest)*);
+    };
+    (
+        filter [$($t:tt)*]
+        @relaxed_simd $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*) $($rest:tt)*
+    ) => {
+        define_for_each_non_simd_operator!(filter [$($t)*] $($rest)*);
+    };
+    (
+        filter [$($t:tt)*]
+        @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*) $($rest:tt)*
+    ) => {
+        define_for_each_non_simd_operator!(
+            filter [
+                $($t)*
+                @$proposal $op $({ $($arg: $argty),* })? => $visit ($($ann)*)
+            ]
+            $($rest)*
+        );
+    };
+
     (filter [$($t:tt)*]) => {
         /// A helper macro to conveniently iterate over all opcodes recognized by this
         /// crate. This can be used to work with either the [`Operator`] enumeration or
@@ -892,67 +917,12 @@ macro_rules! define_for_each_non_simd_operator {
             }
         }
     };
-
-    (
-        filter [$($t:tt)*]
-        @simd $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*) $($rest:tt)*
-    ) => {
-        define_for_each_non_simd_operator!(filter [$($t)*] $($rest)*);
-    };
-    (
-        filter [$($t:tt)*]
-        @relaxed_simd $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*) $($rest:tt)*
-    ) => {
-        define_for_each_non_simd_operator!(filter [$($t)*] $($rest)*);
-    };
-    (
-        filter [$($t:tt)*]
-        @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*) $($rest:tt)*
-    ) => {
-        define_for_each_non_simd_operator!(
-            filter [
-                $($t)*
-                @$proposal $op $({ $($arg: $argty),* })? => $visit ($($ann)*)
-            ]
-            $($rest)*
-        );
-    };
 }
 _for_each_operator!(define_for_each_non_simd_operator);
 
 #[cfg(feature = "simd")]
 macro_rules! define_for_each_simd_operator {
     (@ $($t:tt)*) => {define_for_each_simd_operator!(filter [] @ $($t)*);};
-
-    (filter [$($t:tt)*]) => {
-        /// A helper macro to conveniently iterate over all opcodes recognized by this
-        /// crate. This can be used to work with either the [`SimdOperator`] enumeration or
-        /// the [`VisitSimdOperator`] trait if your use case uniformly handles all operators
-        /// the same way.
-        ///
-        /// The list of specializable Wasm proposals is as follows:
-        ///
-        /// - `@simd`: [Wasm `simd` proposal]
-        /// - `@relaxed_simd`: [Wasm `relaxed-simd` proposal]
-        ///
-        /// For more information about the structure and use of this macro please
-        /// refer to the documentation of the [`for_each_operator`] macro.
-        ///
-        /// [Wasm `simd` proposal]:
-        /// https://github.com/webassembly/simd
-        ///
-        /// [Wasm `relaxed-simd` proposal]:
-        /// https://github.com/WebAssembly/relaxed-simd
-        ///
-        /// [`SimdOperator`]: crate::SimdOperator
-        /// [`VisitSimdOperator`]: crate::VisitSimdOperator
-        #[macro_export]
-        macro_rules! for_each_simd_operator {
-            ($m:ident) => {
-                $m! { $($t)* }
-            }
-        }
-    };
 
     (
         filter [$($t:tt)*]
@@ -983,6 +953,36 @@ macro_rules! define_for_each_simd_operator {
         @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*) $($rest:tt)*
     ) => {
         define_for_each_simd_operator!(filter [$($t)*] $($rest)*);
+    };
+
+    (filter [$($t:tt)*]) => {
+        /// A helper macro to conveniently iterate over all opcodes recognized by this
+        /// crate. This can be used to work with either the [`SimdOperator`] enumeration or
+        /// the [`VisitSimdOperator`] trait if your use case uniformly handles all operators
+        /// the same way.
+        ///
+        /// The list of specializable Wasm proposals is as follows:
+        ///
+        /// - `@simd`: [Wasm `simd` proposal]
+        /// - `@relaxed_simd`: [Wasm `relaxed-simd` proposal]
+        ///
+        /// For more information about the structure and use of this macro please
+        /// refer to the documentation of the [`for_each_operator`] macro.
+        ///
+        /// [Wasm `simd` proposal]:
+        /// https://github.com/webassembly/simd
+        ///
+        /// [Wasm `relaxed-simd` proposal]:
+        /// https://github.com/WebAssembly/relaxed-simd
+        ///
+        /// [`SimdOperator`]: crate::SimdOperator
+        /// [`VisitSimdOperator`]: crate::VisitSimdOperator
+        #[macro_export]
+        macro_rules! for_each_simd_operator {
+            ($m:ident) => {
+                $m! { $($t)* }
+            }
+        }
     };
 }
 #[cfg(feature = "simd")]
