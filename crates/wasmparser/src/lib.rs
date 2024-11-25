@@ -67,15 +67,6 @@ macro_rules! _for_each_operator {
             @mvp Loop { blockty: $crate::BlockType } => visit_loop (arity block -> ~block)
             @mvp If { blockty: $crate::BlockType } => visit_if (arity 1 block -> ~block)
             @mvp Else => visit_else (arity ~end -> ~end)
-            @exceptions TryTable { try_table: $crate::TryTable } => visit_try_table (arity try_table -> ~try_table)
-            @exceptions Throw { tag_index: u32 } => visit_throw (arity tag -> 0)
-            @exceptions ThrowRef => visit_throw_ref (arity 1 -> 0)
-            // Deprecated old instructions from the exceptions proposal
-            @legacy_exceptions Try { blockty: $crate::BlockType } => visit_try (arity block -> ~block)
-            @legacy_exceptions Catch { tag_index: u32 } => visit_catch (arity ~end -> ~tag)
-            @legacy_exceptions Rethrow { relative_depth: u32 } => visit_rethrow (arity 0 -> 0)
-            @legacy_exceptions Delegate { relative_depth: u32 } => visit_delegate (arity ~end -> end)
-            @legacy_exceptions CatchAll => visit_catch_all (arity ~end -> 0)
             @mvp End => visit_end (arity implicit_else ~end -> implicit_else end)
             @mvp Br { relative_depth: u32 } => visit_br (arity br -> 0)
             @mvp BrIf { relative_depth: u32 } => visit_br_if (arity 1 br -> br)
@@ -83,11 +74,8 @@ macro_rules! _for_each_operator {
             @mvp Return => visit_return (arity ~ret -> 0)
             @mvp Call { function_index: u32 } => visit_call (arity func -> func)
             @mvp CallIndirect { type_index: u32, table_index: u32 } => visit_call_indirect (arity 1 type -> type)
-            @tail_call ReturnCall { function_index: u32 } => visit_return_call (arity func -> 0)
-            @tail_call ReturnCallIndirect { type_index: u32, table_index: u32 } => visit_return_call_indirect (arity 1 type -> 0)
             @mvp Drop => visit_drop (arity 1 -> 0)
             @mvp Select => visit_select (arity 3 -> 1)
-            @reference_types TypedSelect { ty: $crate::ValType } => visit_typed_select (arity 3 -> 1)
             @mvp LocalGet { local_index: u32 } => visit_local_get (arity 0 -> 1)
             @mvp LocalSet { local_index: u32 } => visit_local_set (arity 1 -> 0)
             @mvp LocalTee { local_index: u32 } => visit_local_tee (arity 1 -> 1)
@@ -122,10 +110,6 @@ macro_rules! _for_each_operator {
             @mvp I64Const { value: i64 } => visit_i64_const (push i64)
             @mvp F32Const { value: $crate::Ieee32 } => visit_f32_const (push f32)
             @mvp F64Const { value: $crate::Ieee64 } => visit_f64_const (push f64)
-            @reference_types RefNull { hty: $crate::HeapType } => visit_ref_null (arity 0 -> 1)
-            @reference_types RefIsNull => visit_ref_is_null (arity 1 -> 1)
-            @reference_types RefFunc { function_index: u32 } => visit_ref_func (arity 0 -> 1)
-            @gc RefEq => visit_ref_eq (arity 2 -> 1)
             @mvp I32Eqz => visit_i32_eqz (test i32)
             @mvp I32Eq => visit_i32_eq (cmp i32)
             @mvp I32Ne => visit_i32_ne (cmp i32)
@@ -249,15 +233,17 @@ macro_rules! _for_each_operator {
             @mvp I64ReinterpretF64 => visit_i64_reinterpret_f64 (conversion i64 f64)
             @mvp F32ReinterpretI32 => visit_f32_reinterpret_i32 (conversion f32 i32)
             @mvp F64ReinterpretI64 => visit_f64_reinterpret_i64 (conversion f64 i64)
+
             @sign_extension I32Extend8S => visit_i32_extend8_s (unary i32)
             @sign_extension I32Extend16S => visit_i32_extend16_s (unary i32)
             @sign_extension I64Extend8S => visit_i64_extend8_s (unary i64)
             @sign_extension I64Extend16S => visit_i64_extend16_s (unary i64)
             @sign_extension I64Extend32S => visit_i64_extend32_s (unary i64)
-
+            
             // 0xFB prefixed operators
             // Garbage Collection
             // http://github.com/WebAssembly/gc
+            @gc RefEq => visit_ref_eq (arity 2 -> 1)
             @gc StructNew { struct_type_index: u32 } => visit_struct_new (arity type -> 1)
             @gc StructNewDefault { struct_type_index: u32 } => visit_struct_new_default (arity 0 -> 1)
             @gc StructGet { struct_type_index: u32, field_index: u32 } => visit_struct_get (arity 1 -> 1)
@@ -324,11 +310,20 @@ macro_rules! _for_each_operator {
             // 0xFC prefixed operators
             // reference-types
             // https://github.com/WebAssembly/reference-types
+            @reference_types TypedSelect { ty: $crate::ValType } => visit_typed_select (arity 3 -> 1)
+            @reference_types RefNull { hty: $crate::HeapType } => visit_ref_null (arity 0 -> 1)
+            @reference_types RefIsNull => visit_ref_is_null (arity 1 -> 1)
+            @reference_types RefFunc { function_index: u32 } => visit_ref_func (arity 0 -> 1)
             @reference_types TableFill { table: u32 } => visit_table_fill (arity 3 -> 0)
             @reference_types TableGet { table: u32 } => visit_table_get (arity 1 -> 1)
             @reference_types TableSet { table: u32 } => visit_table_set (arity 2 -> 0)
             @reference_types TableGrow { table: u32 } => visit_table_grow (arity 2 -> 1)
             @reference_types TableSize { table: u32 } => visit_table_size (arity 0 -> 1)
+
+            // Wasm tail-call proposal
+            // https://github.com/WebAssembly/tail-call
+            @tail_call ReturnCall { function_index: u32 } => visit_return_call (arity func -> 0)
+            @tail_call ReturnCallIndirect { type_index: u32, table_index: u32 } => visit_return_call_indirect (arity 1 type -> 0)
 
             // OxFC prefixed operators
             // memory control (experimental)
@@ -669,6 +664,16 @@ macro_rules! _for_each_operator {
             @relaxed_simd I16x8RelaxedQ15mulrS => visit_i16x8_relaxed_q15mulr_s (binary v128)
             @relaxed_simd I16x8RelaxedDotI8x16I7x16S => visit_i16x8_relaxed_dot_i8x16_i7x16_s (binary v128)
             @relaxed_simd I32x4RelaxedDotI8x16I7x16AddS => visit_i32x4_relaxed_dot_i8x16_i7x16_add_s (ternary v128)
+
+            @exceptions TryTable { try_table: $crate::TryTable } => visit_try_table (arity try_table -> ~try_table)
+            @exceptions Throw { tag_index: u32 } => visit_throw (arity tag -> 0)
+            @exceptions ThrowRef => visit_throw_ref (arity 1 -> 0)
+            // Deprecated old instructions from the exceptions proposal
+            @legacy_exceptions Try { blockty: $crate::BlockType } => visit_try (arity block -> ~block)
+            @legacy_exceptions Catch { tag_index: u32 } => visit_catch (arity ~end -> ~tag)
+            @legacy_exceptions Rethrow { relative_depth: u32 } => visit_rethrow (arity 0 -> 0)
+            @legacy_exceptions Delegate { relative_depth: u32 } => visit_delegate (arity ~end -> end)
+            @legacy_exceptions CatchAll => visit_catch_all (arity ~end -> 0)
 
             // Also 0xFE prefixed operators
             // shared-everything threads
