@@ -405,6 +405,13 @@ impl ModuleState {
                         .insert(index);
                 }
             }
+
+            fn not_const(&self, instr: &str) -> BinaryReaderError {
+                BinaryReaderError::new(
+                    format!("constant expression required: non-constant operator: {instr}"),
+                    self.offset,
+                )
+            }
         }
 
         macro_rules! define_visit_operator {
@@ -512,10 +519,7 @@ impl ModuleState {
             }};
 
             (@visit $self:ident $op:ident $($args:tt)*) => {{
-                Err(BinaryReaderError::new(
-                    format!("constant expression required: non-constant operator: {}", stringify!($op)),
-                    $self.offset,
-                ))
+                Err($self.not_const(stringify!($op)))
             }}
         }
 
