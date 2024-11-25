@@ -242,7 +242,7 @@ macro_rules! _for_each_operator {
                 I64Extend16S => visit_i64_extend16_s (unary i64)
                 I64Extend32S => visit_i64_extend32_s (unary i64)
             }
-            
+
             // 0xFB prefixed operators
             // Garbage Collection
             // http://github.com/WebAssembly/gc
