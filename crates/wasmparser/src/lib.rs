@@ -1038,7 +1038,7 @@ pub use _for_each_operator as _for_each_operator_delegate;
 ///     }
 /// }
 /// # // to get this example to compile another macro is used here to define
-/// # // visit methods for all mvp oeprators.
+/// # // visit methods for all mvp operators.
 /// # macro_rules! visit_mvp {
 /// #     ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
 /// #         $(
