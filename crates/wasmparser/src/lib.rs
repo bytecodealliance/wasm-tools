@@ -1066,6 +1066,7 @@ pub use _for_each_operator as _for_each_operator_delegate;
 ///     // manually define `visit_*` for all MVP operators here
 /// }
 /// ```
+#[doc(inline)]
 pub use _for_each_operator_delegate as for_each_operator;
 
 /// Used to implement the `VisitOperator` trait.
@@ -1221,6 +1222,7 @@ pub use _for_each_operator_delegate as for_each_operator;
 ///     // manually define `visit_*` for all MVP operators here
 /// }
 /// ```
+#[doc(inline)]
 pub use _for_each_non_simd_operator as for_each_visit_operator;
 
 /// Used to implement the `VisitSimdOperator` trait.
@@ -1241,6 +1243,7 @@ pub use _for_each_non_simd_operator as for_each_visit_operator;
 ///
 /// [`VisitSimdOperator`]: crate::VisitSimdOperator
 #[cfg(feature = "simd")]
+#[doc(inline)]
 pub use _for_each_simd_operator as for_each_visit_simd_operator;
 
 macro_rules! format_err {
