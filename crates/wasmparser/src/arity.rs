@@ -13,8 +13,6 @@
  * limitations under the License.
  */
 
-#[cfg(feature = "simd")]
-use crate::SimdOperator;
 use crate::{
     BinaryReader, BinaryReaderError, BlockType, CompositeInnerType, ContType, FrameKind, FuncType,
     Operator, RefType, Result, SubType,
@@ -252,34 +250,9 @@ impl Operator<'_> {
                             operator_arity!(arity module $({ $($arg: $argty),* })? $($ann)*)
                         }
                     )*
-                    #[cfg(feature = "simd")]
-                    Self::Simd(operator) => operator.operator_arity(),
                 }
             );
         }
-        for_each_visit_operator!(define_arity)
-    }
-}
-
-#[cfg(feature = "simd")]
-impl SimdOperator {
-    /// Compute the arity (param and result counts) of the operator, given
-    /// an impl ModuleArity, which stores the necessary module state.
-    pub fn operator_arity(&self) -> Option<(u32, u32)> {
-        macro_rules! define_arity {
-            ( $(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*) )*) => (
-                match self.clone() {
-                    $(
-                        Self::$op $({ $($arg),* })? => {
-                            $(
-                                $(let _ = $arg;)*
-                            )?
-                            operator_arity!(arity module $({ $($arg: $argty),* })? $($ann)*)
-                        }
-                    )*
-                }
-            );
-        }
-        for_each_visit_simd_operator!(define_arity)
+        for_each_operator!(define_arity)
     }
 }

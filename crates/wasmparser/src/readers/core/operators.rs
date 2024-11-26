@@ -225,30 +225,10 @@ macro_rules! define_operator {
             $(
                 $op $({ $($payload)* })?,
             )*
-            #[cfg(feature = "simd")]
-            Simd(SimdOperator),
         }
     }
 }
-for_each_visit_operator!(define_operator);
-
-#[cfg(feature = "simd")]
-macro_rules! define_simd_operator {
-    ($(@$proposal:ident $op:ident $({ $($payload:tt)* })? => $visit:ident ($($ann:tt)*))*) => {
-        /// The subset of Wasm SIMD instructions as defined [here].
-        ///
-        /// [here]: https://webassembly.github.io/spec/core/binary/instructions.html
-        #[derive(Debug, Clone, Eq, PartialEq)]
-        #[allow(missing_docs)]
-        pub enum SimdOperator {
-            $(
-                $op $({ $($payload)* })?,
-            )*
-        }
-    }
-}
-#[cfg(feature = "simd")]
-for_each_visit_simd_operator!(define_simd_operator);
+for_each_operator!(define_operator);
 
 /// A reader for a core WebAssembly function's operators.
 #[derive(Clone)]
@@ -439,20 +419,15 @@ pub trait VisitOperator<'a> {
     /// implement [`VisitOperator`] on their own.
     fn visit_operator(&mut self, op: &Operator<'a>) -> Self::Output {
         macro_rules! visit_operator {
-            ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
+            ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {{
                 match op {
-                    $(
-                        Operator::$op $({ $($arg),* })? => self.$visit($($($arg.clone()),*)?),
-                    )*
+                    $( Operator::$op $({ $($arg),* })? => return self.$visit($($($arg.clone()),*)?), )*
                     #[cfg(feature = "simd")]
-                    Operator::Simd(op) => {
-                        let Some(visitor) = self.simd_visitor() else {
-                            panic!("missing SIMD visitor for: {op:?}")
-                        };
-                        visitor.visit_simd_operator(op)
-                    }
-                }
-            }
+                    _ => {},
+                };
+                #[cfg(feature = "simd")]
+                _visit_simd_operator(self, op)
+            }};
         }
         for_each_visit_operator!(visit_operator)
     }
@@ -488,31 +463,30 @@ pub trait VisitOperator<'a> {
     for_each_visit_operator!(define_visit_operator);
 }
 
-/// Trait implemented by types that can visit all [`SimdOperator`] variants.
+/// Special handler for visiting `simd` and `relaxed-simd` [`Operator`] variants.
+#[cfg(feature = "simd")]
+fn _visit_simd_operator<'a, V>(visitor: &mut V, op: &Operator<'a>) -> V::Output
+where
+    V: VisitOperator<'a> + ?Sized,
+{
+    macro_rules! visit_simd_operator {
+        ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {{
+            let Some(simd_visitor) = visitor.simd_visitor() else {
+                panic!("missing SIMD visitor to visit operator: {op:?}")
+            };
+            match op {
+                $( Operator::$op $({ $($arg),* })? => simd_visitor.$visit($($($arg.clone()),*)?), )*
+                unexpected => unreachable!("unexpected non-SIMD operator: {unexpected:?}"),
+            }
+        }};
+    }
+    for_each_visit_simd_operator!(visit_simd_operator)
+}
+
+/// Trait implemented by types that can visit all Wasm `simd` and `relaxed-simd` [`Operator`]s.
 #[cfg(feature = "simd")]
 #[allow(missing_docs)]
 pub trait VisitSimdOperator<'a>: VisitOperator<'a> {
-    /// Visits the SIMD [`Operator`] `op` using the given `offset`.
-    ///
-    /// # Note
-    ///
-    /// This is a convenience method that is intended for non-performance
-    /// critical use cases. For performance critical implementations users
-    /// are recommended to directly use the respective `visit` methods or
-    /// implement [`VisitOperator`] on their own.
-    fn visit_simd_operator(&mut self, op: &SimdOperator) -> Self::Output {
-        macro_rules! visit_simd_operator {
-            ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
-                match op {
-                    $(
-                        SimdOperator::$op $({ $($arg),* })? => self.$visit($($($arg.clone()),*)?),
-                    )*
-                }
-            }
-        }
-        for_each_visit_simd_operator!(visit_simd_operator)
-    }
-
     for_each_visit_simd_operator!(define_visit_operator);
 }
 
@@ -540,9 +514,6 @@ impl<'a, 'b, V: VisitOperator<'a> + ?Sized> VisitOperator<'a> for &'b mut V {
 
 #[cfg(feature = "simd")]
 impl<'a, 'b, V: VisitSimdOperator<'a> + ?Sized> VisitSimdOperator<'a> for &'b mut V {
-    fn visit_simd_operator(&mut self, op: &SimdOperator) -> Self::Output {
-        V::visit_simd_operator(*self, op)
-    }
     for_each_visit_simd_operator!(define_visit_operator_delegate);
 }
 
@@ -560,9 +531,6 @@ impl<'a, V: VisitOperator<'a> + ?Sized> VisitOperator<'a> for Box<V> {
 
 #[cfg(feature = "simd")]
 impl<'a, V: VisitSimdOperator<'a> + ?Sized> VisitSimdOperator<'a> for Box<V> {
-    fn visit_simd_operator(&mut self, op: &SimdOperator) -> Self::Output {
-        V::visit_simd_operator(&mut *self, op)
-    }
     for_each_visit_simd_operator!(define_visit_operator_delegate);
 }
 

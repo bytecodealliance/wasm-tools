@@ -1804,19 +1804,8 @@ impl<'a> VisitOperator<'a> for OperatorFactory<'a> {
 }
 
 #[cfg(feature = "simd")]
-macro_rules! define_visit_simd_operator {
-    ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
-        $(
-            fn $visit(&mut self $($(,$arg: $argty)*)?) -> Operator<'a> {
-                Operator::Simd(SimdOperator::$op $({ $($arg),* })?)
-            }
-        )*
-    }
-}
-
-#[cfg(feature = "simd")]
 impl<'a> VisitSimdOperator<'a> for OperatorFactory<'a> {
-    for_each_visit_simd_operator!(define_visit_simd_operator);
+    for_each_visit_simd_operator!(define_visit_operator);
 }
 
 /// Iterator returned from [`BinaryReader::read_iter`].
