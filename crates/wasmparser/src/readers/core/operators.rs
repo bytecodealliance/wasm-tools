@@ -421,12 +421,10 @@ pub trait VisitOperator<'a> {
         macro_rules! visit_operator {
             ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {{
                 match op {
-                    $( Operator::$op $({ $($arg),* })? => return self.$visit($($($arg.clone()),*)?), )*
+                    $( Operator::$op $({ $($arg),* })? => self.$visit($($($arg.clone()),*)?), )*
                     #[cfg(feature = "simd")]
-                    _ => {},
-                };
-                #[cfg(feature = "simd")]
-                _visit_simd_operator(self, op)
+                    other => visit_simd_operator(self, other),
+                }
             }};
         }
         crate::for_each_visit_operator!(visit_operator)
@@ -465,15 +463,15 @@ pub trait VisitOperator<'a> {
 
 /// Special handler for visiting `simd` and `relaxed-simd` [`Operator`] variants.
 #[cfg(feature = "simd")]
-fn _visit_simd_operator<'a, V>(visitor: &mut V, op: &Operator<'a>) -> V::Output
+fn visit_simd_operator<'a, V>(visitor: &mut V, op: &Operator<'a>) -> V::Output
 where
     V: VisitOperator<'a> + ?Sized,
 {
+    let Some(simd_visitor) = visitor.simd_visitor() else {
+        panic!("missing SIMD visitor to visit operator: {op:?}")
+    };
     macro_rules! visit_simd_operator {
         ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {{
-            let Some(simd_visitor) = visitor.simd_visitor() else {
-                panic!("missing SIMD visitor to visit operator: {op:?}")
-            };
             match op {
                 $( Operator::$op $({ $($arg),* })? => simd_visitor.$visit($($($arg.clone()),*)?), )*
                 unexpected => unreachable!("unexpected non-SIMD operator: {unexpected:?}"),

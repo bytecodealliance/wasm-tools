@@ -937,7 +937,7 @@ _for_each_operator_group!(define_for_each_simd_operator);
 ///
 /// This is an "iterator macro" where this macro is invoked with the name of
 /// another macro, and then that macro is invoked with the list of all
-/// operators. An example invocation of this looks like:
+/// operators.
 ///
 /// The list of specializable Wasm proposals is as follows:
 ///
@@ -1067,7 +1067,7 @@ pub use _for_each_operator_impl as for_each_operator;
 ///
 /// This is an "iterator macro" where this macro is invoked with the name of
 /// another macro, and then that macro is invoked with the list of all
-/// operators. An example invocation of this looks like:
+/// operators.
 ///
 /// The list of specializable Wasm proposals is as follows:
 ///
@@ -1082,6 +1082,11 @@ pub use _for_each_operator_impl as for_each_operator;
 /// - `@gc`: [Wasm `gc` proposal]
 /// - `@stack_switching`: [Wasm `stack-switching` proposal]
 /// - `@wide_arithmetic`: [Wasm `wide-arithmetic` proposal]
+///
+/// Note that this macro does not iterate over the SIMD-related proposals. Those
+/// are provided in [`VisitSimdOperator`] and [`for_each_visit_simd_operator`].
+/// This macro only handles non-SIMD related operators and so users wanting to
+/// handle the SIMD-class of operators need to use that trait/macro as well.
 ///
 /// [Wasm `exception-handling` proposal]:
 /// https://github.com/WebAssembly/exception-handling
