@@ -1563,6 +1563,7 @@ pub mod utils {
                             translate!(build $op $($($arg)*)?)
                         }
                     )*
+                    unexpected => unreachable!("encountered unexpected Wasm operator: {unexpected:?}"),
                 })
             };
 

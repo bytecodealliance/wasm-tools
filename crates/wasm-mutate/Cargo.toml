@@ -13,8 +13,8 @@ workspace = true
 [dependencies]
 clap = { workspace = true, optional = true }
 thiserror = "1.0.28"
-wasmparser = { workspace = true }
-wasm-encoder = { workspace = true, features = ["wasmparser"] }
+wasmparser = { workspace = true, features = ['simd'] }
+wasm-encoder = { workspace = true, features = ['wasmparser'] }
 rand = { workspace = true }
 log = { workspace = true }
 egg = "0.6.0"
@@ -24,4 +24,4 @@ anyhow = { workspace = true }
 wat = { workspace = true }
 wasmprinter = { workspace = true }
 env_logger = { workspace = true }
-wasmparser = { workspace = true, features = ['validate', 'features'] }
+wasmparser = { workspace = true, features = ['validate', 'features', 'simd'] }

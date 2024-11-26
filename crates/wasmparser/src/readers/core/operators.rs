@@ -220,6 +220,7 @@ macro_rules! define_operator {
         /// [here]: https://webassembly.github.io/spec/core/binary/instructions.html
         #[derive(Debug, Clone, Eq, PartialEq)]
         #[allow(missing_docs)]
+        #[non_exhaustive]
         pub enum Operator<'a> {
             $(
                 $op $({ $($payload)* })?,
@@ -227,7 +228,7 @@ macro_rules! define_operator {
         }
     }
 }
-for_each_operator!(define_operator);
+crate::for_each_operator!(define_operator);
 
 /// A reader for a core WebAssembly function's operators.
 #[derive(Clone)]
@@ -418,19 +419,73 @@ pub trait VisitOperator<'a> {
     /// implement [`VisitOperator`] on their own.
     fn visit_operator(&mut self, op: &Operator<'a>) -> Self::Output {
         macro_rules! visit_operator {
-            ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
+            ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {{
                 match op {
-                    $(
-                        Operator::$op $({ $($arg),* })? => self.$visit($($($arg.clone()),*)?),
-                    )*
+                    $( Operator::$op $({ $($arg),* })? => self.$visit($($($arg.clone()),*)?), )*
+                    #[cfg(feature = "simd")]
+                    other => visit_simd_operator(self, other),
                 }
-            }
-
+            }};
         }
-        for_each_operator!(visit_operator)
+        crate::for_each_visit_operator!(visit_operator)
     }
 
-    for_each_operator!(define_visit_operator);
+    /// Returns a mutable reference to a [`VisitSimdOperator`] visitor.
+    ///
+    /// - If an implementer does _not_ want to support Wasm `simd` proposal
+    ///   nothing has to be done since the default implementation already suffices.
+    /// - If an implementer _does_ want to support Wasm `simd` proposal this
+    ///   method usually is implemented as `Some(self)` where the implementing
+    ///   type (`Self`) typically also implements `VisitSimdOperator`.
+    ///
+    /// # Example
+    ///
+    /// ```compile_fail
+    /// impl VisitOperator for MyVisitor {
+    ///     fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = Self::Output>> {
+    ///         Some(self)
+    ///     }
+    ///
+    ///     // implement remaining visitation methods here ...
+    /// }
+    ///
+    /// impl VisitSimdOperator for MyVisitor {
+    ///     // implement SIMD visitation methods here ...
+    /// }
+    /// ```
+    #[cfg(feature = "simd")]
+    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = Self::Output>> {
+        None
+    }
+
+    crate::for_each_visit_operator!(define_visit_operator);
+}
+
+/// Special handler for visiting `simd` and `relaxed-simd` [`Operator`] variants.
+#[cfg(feature = "simd")]
+fn visit_simd_operator<'a, V>(visitor: &mut V, op: &Operator<'a>) -> V::Output
+where
+    V: VisitOperator<'a> + ?Sized,
+{
+    let Some(simd_visitor) = visitor.simd_visitor() else {
+        panic!("missing SIMD visitor to visit operator: {op:?}")
+    };
+    macro_rules! visit_simd_operator {
+        ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {{
+            match op {
+                $( Operator::$op $({ $($arg),* })? => simd_visitor.$visit($($($arg.clone()),*)?), )*
+                unexpected => unreachable!("unexpected non-SIMD operator: {unexpected:?}"),
+            }
+        }};
+    }
+    crate::for_each_visit_simd_operator!(visit_simd_operator)
+}
+
+/// Trait implemented by types that can visit all Wasm `simd` and `relaxed-simd` [`Operator`]s.
+#[cfg(feature = "simd")]
+#[allow(missing_docs)]
+pub trait VisitSimdOperator<'a>: VisitOperator<'a> {
+    crate::for_each_visit_simd_operator!(define_visit_operator);
 }
 
 macro_rules! define_visit_operator_delegate {
@@ -448,7 +503,16 @@ impl<'a, 'b, V: VisitOperator<'a> + ?Sized> VisitOperator<'a> for &'b mut V {
     fn visit_operator(&mut self, op: &Operator<'a>) -> Self::Output {
         V::visit_operator(*self, op)
     }
-    for_each_operator!(define_visit_operator_delegate);
+    #[cfg(feature = "simd")]
+    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = V::Output>> {
+        V::simd_visitor(*self)
+    }
+    crate::for_each_visit_operator!(define_visit_operator_delegate);
+}
+
+#[cfg(feature = "simd")]
+impl<'a, 'b, V: VisitSimdOperator<'a> + ?Sized> VisitSimdOperator<'a> for &'b mut V {
+    crate::for_each_visit_simd_operator!(define_visit_operator_delegate);
 }
 
 impl<'a, V: VisitOperator<'a> + ?Sized> VisitOperator<'a> for Box<V> {
@@ -456,7 +520,16 @@ impl<'a, V: VisitOperator<'a> + ?Sized> VisitOperator<'a> for Box<V> {
     fn visit_operator(&mut self, op: &Operator<'a>) -> Self::Output {
         V::visit_operator(&mut *self, op)
     }
-    for_each_operator!(define_visit_operator_delegate);
+    #[cfg(feature = "simd")]
+    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = V::Output>> {
+        V::simd_visitor(&mut *self)
+    }
+    crate::for_each_visit_operator!(define_visit_operator_delegate);
+}
+
+#[cfg(feature = "simd")]
+impl<'a, V: VisitSimdOperator<'a> + ?Sized> VisitSimdOperator<'a> for Box<V> {
+    crate::for_each_visit_simd_operator!(define_visit_operator_delegate);
 }
 
 /// A `try_table` entries representation.

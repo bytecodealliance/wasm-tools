@@ -253,6 +253,6 @@ impl Operator<'_> {
                 }
             );
         }
-        for_each_operator!(define_arity)
+        crate::for_each_operator!(define_arity)
     }
 }

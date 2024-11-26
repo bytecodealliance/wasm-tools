@@ -20,7 +20,7 @@ workspace = true
 all-features = true
 
 [dependencies]
-wasmparser = { workspace = true, features = ['component-model'] }
+wasmparser = { workspace = true, features = ['component-model', 'simd'] }
 wasm-encoder = { workspace = true, features = ["wasmparser"] }
 wasm-metadata = { workspace = true }
 wit-parser = { workspace = true, features = ['decoding', 'serde'] }

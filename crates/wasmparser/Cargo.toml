@@ -42,7 +42,7 @@ name = "benchmark"
 harness = false
 
 [features]
-default = ['std', 'validate', 'serde', 'features', 'component-model', 'hash-collections']
+default = ['std', 'validate', 'serde', 'features', 'component-model', 'hash-collections', 'simd']
 
 # A feature which enables implementations of `std::error::Error` as appropriate
 # along with other convenience APIs. This additionally uses the standard
@@ -82,3 +82,8 @@ features = []
 # WebAssembly. This is enabled by default but if your use case is only
 # interested in working with core modules then this feature can be disabled.
 component-model = ['dep:semver']
+
+# A feature that enables parsing and validating the `simd` and `relaxed-simd`
+# proposals for WebAssembly. This is enabled by default but if your use case is
+# only interested in working on non-SIMD code then this feature can be disabled.
+simd = []

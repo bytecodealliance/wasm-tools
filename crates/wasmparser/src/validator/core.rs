@@ -10,6 +10,8 @@ use super::{
     operators::{ty_to_str, OperatorValidator, OperatorValidatorAllocations},
     types::{CoreTypeId, EntityType, RecGroupId, TypeAlloc, TypeList},
 };
+#[cfg(feature = "simd")]
+use crate::VisitSimdOperator;
 use crate::{
     limits::*, BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind,
     FuncType, Global, GlobalType, HeapType, MemoryType, RecGroup, RefType, Result, SubType, Table,
@@ -438,7 +440,7 @@ impl ModuleState {
                 $self.validator().visit_f64_const($val)
             }};
             (@visit $self:ident visit_v128_const $val:ident) => {{
-                $self.validator().visit_v128_const($val)
+                $self.validator().simd_visitor().unwrap().visit_v128_const($val)
             }};
             (@visit $self:ident visit_ref_null $val:ident) => {{
                 $self.validator().visit_ref_null($val)
@@ -526,7 +528,19 @@ impl ModuleState {
         impl<'a> VisitOperator<'a> for VisitConstOperator<'a> {
             type Output = Result<()>;
 
-            for_each_operator!(define_visit_operator);
+            #[cfg(feature = "simd")]
+            fn simd_visitor(
+                &mut self,
+            ) -> Option<&mut dyn crate::VisitSimdOperator<'a, Output = Self::Output>> {
+                Some(self)
+            }
+
+            crate::for_each_visit_operator!(define_visit_operator);
+        }
+
+        #[cfg(feature = "simd")]
+        impl<'a> VisitSimdOperator<'a> for VisitConstOperator<'a> {
+            crate::for_each_visit_simd_operator!(define_visit_operator);
         }
     }
 }

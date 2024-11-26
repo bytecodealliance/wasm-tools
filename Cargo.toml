@@ -102,7 +102,7 @@ wasm-metadata = { version = "0.220.0", path = "crates/wasm-metadata" }
 wasm-mutate = { version = "0.220.0", path = "crates/wasm-mutate" }
 wasm-shrink = { version = "0.220.0", path = "crates/wasm-shrink" }
 wasm-smith = { version = "0.220.0", path = "crates/wasm-smith" }
-wasmparser = { version = "0.220.0", path = "crates/wasmparser", default-features = false, features = ['std'] }
+wasmparser = { version = "0.220.0", path = "crates/wasmparser", default-features = false, features = ['std','simd'] }
 wasmprinter = { version = "0.220.0", path = "crates/wasmprinter", default-features = false }
 wast = { version = "220.0.0", path = "crates/wast", default-features = false }
 wat = { version = "1.220.0", path = "crates/wat", default-features = false }
@@ -122,7 +122,7 @@ wat = { workspace = true, features = ['dwarf', 'component-model'] }
 termcolor = { workspace = true }
 
 # Dependencies of `validate`
-wasmparser = { workspace = true, optional = true, features = ['component-model'] }
+wasmparser = { workspace = true, optional = true, features = ['component-model', 'simd'] }
 rayon = { workspace = true, optional = true }
 bitflags = { workspace = true, optional = true }
 
