@@ -240,10 +240,10 @@ impl Operator<'_> {
     /// an impl ModuleArity, which stores the necessary module state.
     pub fn operator_arity(&self, module: &impl ModuleArity) -> Option<(u32, u32)> {
         macro_rules! define_arity {
-            ( $(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*) )*) => (
+            ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*) )*) => (
                 match self.clone() {
                     $(
-                        Self::$op $({ $($arg),* })? => {
+                        Operator::$op $({ $($arg),* })? => {
                             $(
                                 $(let _ = $arg;)*
                             )?

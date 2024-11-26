@@ -55,6 +55,18 @@ mod prelude {
     pub use crate::collections::{IndexMap, Map, Set};
 }
 
+/// A helper macro which is used to itself define further macros below.
+///
+/// This is a little complicated, so first off sorry about that. The idea here
+/// though is that there's one source of truth for the listing of instructions
+/// in `wasmparser` and this is the one location. All other locations should be
+/// derivative from this. As this one source of truth it has all instructions
+/// from all proposals all grouped together. Down below though, for compile
+/// time, currently the simd instructions are split out into their own macro.
+/// The structure/syntax of this macro is to facilitate easily splitting out
+/// entire groups of instructions.
+///
+/// This is used below to define more macros.
 macro_rules! _for_each_operator_group {
     ($mac:ident) => {
         $mac! {
@@ -769,54 +781,24 @@ macro_rules! _for_each_operator_group {
     };
 }
 
-#[cfg(feature = "simd")]
-macro_rules! define_for_each_operator {
-    (
-        $(
-            @$proposal:ident {
-                $( $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*) )*
-            }
-        )*
-    ) => {
-        #[macro_export]
-        #[doc(hidden)]
-        macro_rules! _for_each_operator {
-            ($m:ident) => {
-                $m! {
-                    $(
-                        $(
-                            @$proposal $op $({$($arg: $argty),*})? => $visit ($($ann)*)
-                        )*
-                    )*
-                }
-            }
-        }
-    };
-}
-#[cfg(feature = "simd")]
-_for_each_operator_group!(define_for_each_operator);
-
+/// Helper macro to define a `_for_each_non_simd_operator` which receives
+/// the syntax of each instruction individually, but only the non-simd
+/// operators.
 macro_rules! define_for_each_non_simd_operator {
+    // Switch from `_for_each_operator_group` syntax to this macro's syntax to
+    // be a "tt muncher macro"
     (@ $($t:tt)*) => {define_for_each_non_simd_operator!(filter [] @ $($t)*);};
 
-    (
-        filter [$($t:tt)*]
-        @simd {
-            $( $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*) )*
-        }
-        $($rest:tt)*
-    ) => {
-        define_for_each_non_simd_operator!(filter [$($t)*] $($rest)*);
+    // filter out simd/relaxed-simd proposals
+    (filter $filter:tt @simd $simd:tt $($rest:tt)*) => {
+        define_for_each_non_simd_operator!(filter $filter $($rest)*);
     };
-    (
-        filter [$($t:tt)*]
-        @relaxed_simd {
-            $( $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*) )*
-        }
-        $($rest:tt)*
-    ) => {
-        define_for_each_non_simd_operator!(filter [$($t)*] $($rest)*);
+    (filter $filter:tt @relaxed_simd $simd:tt $($rest:tt)*) => {
+        define_for_each_non_simd_operator!(filter $filter $($rest)*);
     };
+
+    // For all other proposals add in tokens where the `@proposal` is prepended
+    // before each instruction.
     (
         filter [$($t:tt)*]
         @$proposal:ident {
@@ -833,22 +815,66 @@ macro_rules! define_for_each_non_simd_operator {
         );
     };
 
+    // At the end the `$t` list here is how we want to define
+    // `_for_each_non_simd_operator`, so define the macro with these tokens.
     (filter [$($t:tt)*]) => {
         #[macro_export]
         #[doc(hidden)]
-        macro_rules! _for_each_non_simd_operator {
+        macro_rules! _for_each_visit_operator_impl {
             ($m:ident) => {
                 $m! { $($t)* }
             }
         }
+
+        // When simd is disabled then this macro is additionally the
+        // `for_each_operator!` macro implementation
+        #[cfg(not(feature = "simd"))]
+        #[doc(hidden)]
+        pub use _for_each_visit_operator_impl as _for_each_operator_impl;
     };
 }
 _for_each_operator_group!(define_for_each_non_simd_operator);
 
+/// When the simd feature is enabled then `_for_each_operator_impl` is defined
+/// to be the same as the above `define_for_each_non_simd_operator` macro except
+/// with all proposals thrown in.
+#[cfg(feature = "simd")]
+macro_rules! define_for_each_operator_impl_with_simd {
+    (
+        $(
+            @$proposal:ident {
+                $( $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*) )*
+            }
+        )*
+    ) => {
+        #[macro_export]
+        #[doc(hidden)]
+        macro_rules! _for_each_operator_impl {
+            ($m:ident) => {
+                $m! {
+                    $(
+                        $(
+                            @$proposal $op $({$($arg: $argty),*})? => $visit ($($ann)*)
+                        )*
+                    )*
+                }
+            }
+        }
+    };
+}
+#[cfg(feature = "simd")]
+_for_each_operator_group!(define_for_each_operator_impl_with_simd);
+
+/// Helper macro to define the `_for_each_simd_operator_impl` macro.
+///
+/// This is basically the same as `define_for_each_non_simd_operator` above
+/// except that it's filtering on different proposals.
 #[cfg(feature = "simd")]
 macro_rules! define_for_each_simd_operator {
+    // Switch to "tt muncher" mode
     (@ $($t:tt)*) => {define_for_each_simd_operator!(filter [] @ $($t)*);};
 
+    // Collect the `@simd` and `@relaxed_simd` proposals.
     (
         filter [$($t:tt)*]
         @simd {
@@ -879,20 +905,17 @@ macro_rules! define_for_each_simd_operator {
             $($rest)*
         );
     };
-    (
-        filter [$($t:tt)*]
-        @$proposal:ident {
-            $( $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*) )*
-        }
-        $($rest:tt)*
-    ) => {
-        define_for_each_simd_operator!(filter [$($t)*] $($rest)*);
+
+    // Skip all other proposals.
+    (filter $filter:tt @$proposal:ident $instrs:tt $($rest:tt)*) => {
+        define_for_each_simd_operator!(filter $filter $($rest)*);
     };
 
+    // Base case to define the base macro.
     (filter [$($t:tt)*]) => {
         #[macro_export]
         #[doc(hidden)]
-        macro_rules! _for_each_simd_operator {
+        macro_rules! _for_each_visit_simd_operator_impl {
             ($m:ident) => {
                 $m! { $($t)* }
             }
@@ -901,14 +924,6 @@ macro_rules! define_for_each_simd_operator {
 }
 #[cfg(feature = "simd")]
 _for_each_operator_group!(define_for_each_simd_operator);
-
-#[cfg(not(feature = "simd"))]
-#[doc(hidden)]
-pub use _for_each_non_simd_operator as _for_each_operator_delegate;
-
-#[cfg(feature = "simd")]
-#[doc(hidden)]
-pub use _for_each_operator as _for_each_operator_delegate;
 
 /// Used to implement routines for the [`Operator`] enum.
 ///
@@ -1038,7 +1053,7 @@ pub use _for_each_operator as _for_each_operator_delegate;
 /// }
 /// ```
 #[doc(inline)]
-pub use _for_each_operator_delegate as for_each_operator;
+pub use _for_each_operator_impl as for_each_operator;
 
 /// Used to implement the [`VisitOperator`] trait.
 ///
@@ -1194,7 +1209,7 @@ pub use _for_each_operator_delegate as for_each_operator;
 /// }
 /// ```
 #[doc(inline)]
-pub use _for_each_non_simd_operator as for_each_visit_operator;
+pub use _for_each_visit_operator_impl as for_each_visit_operator;
 
 /// Used to implement the [`VisitSimdOperator`] trait.
 ///
@@ -1215,7 +1230,7 @@ pub use _for_each_non_simd_operator as for_each_visit_operator;
 /// [`VisitSimdOperator`]: crate::VisitSimdOperator
 #[cfg(feature = "simd")]
 #[doc(inline)]
-pub use _for_each_simd_operator as for_each_visit_simd_operator;
+pub use _for_each_visit_simd_operator_impl as for_each_visit_simd_operator;
 
 macro_rules! format_err {
     ($offset:expr, $($arg:tt)*) => {
