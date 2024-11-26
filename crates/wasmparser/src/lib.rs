@@ -1241,11 +1241,6 @@ macro_rules! for_each_visit_operator {
 
 /// Used to implement the `VisitSimdOperator` trait.
 ///
-/// A helper macro to conveniently iterate over all opcodes recognized by this
-/// crate. This can be used to work with either the [`SimdOperator`] enumeration or
-/// the [`VisitSimdOperator`] trait if your use case uniformly handles all operators
-/// the same way.
-///
 /// The list of specializable Wasm proposals is as follows:
 ///
 /// - `@simd`: [Wasm `simd` proposal]
@@ -1260,7 +1255,6 @@ macro_rules! for_each_visit_operator {
 /// [Wasm `relaxed-simd` proposal]:
 /// https://github.com/WebAssembly/relaxed-simd
 ///
-/// [`SimdOperator`]: crate::SimdOperator
 /// [`VisitSimdOperator`]: crate::VisitSimdOperator
 #[cfg(feature = "simd")]
 #[macro_export]
