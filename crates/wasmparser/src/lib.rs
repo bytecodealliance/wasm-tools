@@ -977,41 +977,39 @@ pub use _for_each_operator as _for_each_operator_delegate;
 /// https://github.com/WebAssembly/wide-arithmetic
 ///
 /// ```
-/// macro_rules! define_visit_operator {
-///     // The outer layer of repetition represents how all operators are
-///     // provided to the macro at the same time.
-///     //
-///     // The `$proposal` identifier indicates the Wasm proposals from which
-///     // the Wasm operator is originating.
-///     // For example to specialize the macro match arm for Wasm SIMD proposal
-///     // operators you could write `@simd` instead of `@$proposal:ident` to
-///     // only catch those operators.
-///     //
-///     // The `$op` name is bound to the `Operator` variant name. The
-///     // payload of the operator is optionally specified (the `$(...)?`
-///     // clause) since not all instructions have payloads. Within the payload
-///     // each argument is named and has its type specified.
-///     //
-///     // The `$visit` name is bound to the corresponding name in the
-///     // `VisitOperator` trait that this corresponds to.
-///     //
-///     // The `$ann` annotations give information about the operator's type (e.g. binary i32 or arity 2 -> 1).
-///     ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
-///         $(
-///             fn $visit(&mut self $($(,$arg: $argty)*)?) {
-///                 // do nothing for this example
+/// fn do_nothing(op: &wasmparser::Operator) {
+///     macro_rules! define_impl_operator {
+///         // The outer layer of repetition represents how all operators are
+///         // provided to the macro at the same time.
+///         //
+///         // The `$proposal` identifier indicates the Wasm proposals from which
+///         // the Wasm operator is originating.
+///         // For example to specialize the macro match arm for Wasm SIMD proposal
+///         // operators you could write `@simd` instead of `@$proposal:ident` to
+///         // only catch those operators.
+///         //
+///         // The `$op` name is bound to the `Operator` variant name. The
+///         // payload of the operator is optionally specified (the `$(...)?`
+///         // clause) since not all instructions have payloads. Within the payload
+///         // each argument is named and has its type specified.
+///         //
+///         // The `$visit` name is bound to the corresponding name in the
+///         // `VisitOperator` trait that this corresponds to.
+///         //
+///         // The `$ann` annotations give information about the operator's type (e.g. binary i32 or arity 2 -> 1).
+///         ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
+///             match op {
+///                 $(
+///                     wasmparser::Operator::$op $( { $($arg),* } )? => {
+///                         // do nothing for this example
+///                     }
+///                 )*
+///                 _ => unreachable!(), // required because `Operator` enum is non-exhaustive
 ///             }
-///         )*
+///         }
 ///     }
-/// }
-///
-/// pub struct VisitAndDoNothing;
-///
-/// impl<'a> wasmparser::VisitOperator<'a> for VisitAndDoNothing {
-///     type Output = ();
-///
-///     wasmparser::for_each_visit_operator!(define_visit_operator);
-/// }
+///     wasmparser::for_each_operator!(define_impl_operator);
+/// } 
 /// ```
 ///
 /// If you only wanted to visit the initial base set of wasm instructions, for
