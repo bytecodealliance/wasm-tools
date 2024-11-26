@@ -991,7 +991,15 @@ macro_rules! define_visit {
 impl<'a> VisitOperator<'a> for Module<'a> {
     type Output = ();
 
-    wasmparser::for_each_operator!(define_visit);
+    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = Self::Output>> {
+        Some(self)
+    }
+
+    wasmparser::for_each_visit_operator!(define_visit);
+}
+
+impl<'a> VisitSimdOperator<'a> for Module<'a> {
+    wasmparser::for_each_visit_simd_operator!(define_visit);
 }
 
 /// Helper function to filter `iter` based on the `live` set, yielding an
