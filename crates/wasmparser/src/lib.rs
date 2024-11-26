@@ -910,7 +910,7 @@ pub use _for_each_non_simd_operator as _for_each_operator_delegate;
 #[doc(hidden)]
 pub use _for_each_operator as _for_each_operator_delegate;
 
-/// Used to implement routines for the `Operator` enum.
+/// Used to implement routines for the [`Operator`] enum.
 ///
 /// A helper macro to conveniently iterate over all opcodes recognized by this
 /// crate. This can be used to work with either the [`Operator`] enumeration or
@@ -1069,7 +1069,7 @@ pub use _for_each_operator as _for_each_operator_delegate;
 #[doc(inline)]
 pub use _for_each_operator_delegate as for_each_operator;
 
-/// Used to implement the `VisitOperator` trait.
+/// Used to implement the [`VisitOperator`] trait.
 ///
 /// A helper macro to conveniently iterate over all opcodes recognized by this
 /// crate. This can be used to work with either the [`Operator`] enumeration or
@@ -1225,7 +1225,7 @@ pub use _for_each_operator_delegate as for_each_operator;
 #[doc(inline)]
 pub use _for_each_non_simd_operator as for_each_visit_operator;
 
-/// Used to implement the `VisitSimdOperator` trait.
+/// Used to implement the [`VisitSimdOperator`] trait.
 ///
 /// The list of specializable Wasm proposals is as follows:
 ///
