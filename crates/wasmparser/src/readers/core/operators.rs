@@ -230,7 +230,7 @@ macro_rules! define_operator {
         }
     }
 }
-for_each_operator!(define_operator);
+for_each_visit_operator!(define_operator);
 
 #[cfg(feature = "simd")]
 macro_rules! define_simd_operator {
@@ -248,7 +248,7 @@ macro_rules! define_simd_operator {
     }
 }
 #[cfg(feature = "simd")]
-for_each_simd_operator!(define_simd_operator);
+for_each_visit_simd_operator!(define_simd_operator);
 
 /// A reader for a core WebAssembly function's operators.
 #[derive(Clone)]
@@ -454,7 +454,7 @@ pub trait VisitOperator<'a> {
                 }
             }
         }
-        for_each_operator!(visit_operator)
+        for_each_visit_operator!(visit_operator)
     }
 
     /// Returns a mutable reference to a [`VisitSimdOperator`] visitor.
@@ -485,7 +485,7 @@ pub trait VisitOperator<'a> {
         None
     }
 
-    for_each_operator!(define_visit_operator);
+    for_each_visit_operator!(define_visit_operator);
 }
 
 /// Trait implemented by types that can visit all [`SimdOperator`] variants.
@@ -510,10 +510,10 @@ pub trait VisitSimdOperator<'a>: VisitOperator<'a> {
                 }
             }
         }
-        for_each_simd_operator!(visit_simd_operator)
+        for_each_visit_simd_operator!(visit_simd_operator)
     }
 
-    for_each_simd_operator!(define_visit_operator);
+    for_each_visit_simd_operator!(define_visit_operator);
 }
 
 macro_rules! define_visit_operator_delegate {
@@ -535,7 +535,7 @@ impl<'a, 'b, V: VisitOperator<'a> + ?Sized> VisitOperator<'a> for &'b mut V {
     fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = V::Output>> {
         V::simd_visitor(*self)
     }
-    for_each_operator!(define_visit_operator_delegate);
+    for_each_visit_operator!(define_visit_operator_delegate);
 }
 
 #[cfg(feature = "simd")]
@@ -543,7 +543,7 @@ impl<'a, 'b, V: VisitSimdOperator<'a> + ?Sized> VisitSimdOperator<'a> for &'b mu
     fn visit_simd_operator(&mut self, op: &SimdOperator) -> Self::Output {
         V::visit_simd_operator(*self, op)
     }
-    for_each_simd_operator!(define_visit_operator_delegate);
+    for_each_visit_simd_operator!(define_visit_operator_delegate);
 }
 
 impl<'a, V: VisitOperator<'a> + ?Sized> VisitOperator<'a> for Box<V> {
@@ -555,7 +555,7 @@ impl<'a, V: VisitOperator<'a> + ?Sized> VisitOperator<'a> for Box<V> {
     fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = V::Output>> {
         V::simd_visitor(&mut *self)
     }
-    for_each_operator!(define_visit_operator_delegate);
+    for_each_visit_operator!(define_visit_operator_delegate);
 }
 
 #[cfg(feature = "simd")]
@@ -563,7 +563,7 @@ impl<'a, V: VisitSimdOperator<'a> + ?Sized> VisitSimdOperator<'a> for Box<V> {
     fn visit_simd_operator(&mut self, op: &SimdOperator) -> Self::Output {
         V::visit_simd_operator(&mut *self, op)
     }
-    for_each_simd_operator!(define_visit_operator_delegate);
+    for_each_visit_simd_operator!(define_visit_operator_delegate);
 }
 
 /// A `try_table` entries representation.

@@ -257,7 +257,7 @@ impl Operator<'_> {
                 }
             );
         }
-        for_each_operator!(define_arity)
+        for_each_visit_operator!(define_arity)
     }
 }
 
@@ -280,6 +280,6 @@ impl SimdOperator {
                 }
             );
         }
-        for_each_simd_operator!(define_arity)
+        for_each_visit_simd_operator!(define_arity)
     }
 }

@@ -1800,7 +1800,7 @@ impl<'a> VisitOperator<'a> for OperatorFactory<'a> {
         Some(self)
     }
 
-    for_each_operator!(define_visit_operator);
+    for_each_visit_operator!(define_visit_operator);
 }
 
 #[cfg(feature = "simd")]
@@ -1816,7 +1816,7 @@ macro_rules! define_visit_simd_operator {
 
 #[cfg(feature = "simd")]
 impl<'a> VisitSimdOperator<'a> for OperatorFactory<'a> {
-    for_each_simd_operator!(define_visit_simd_operator);
+    for_each_visit_simd_operator!(define_visit_simd_operator);
 }
 
 /// Iterator returned from [`BinaryReader::read_iter`].

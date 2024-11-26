@@ -531,12 +531,12 @@ impl ModuleState {
                 Some(self)
             }
 
-            for_each_operator!(define_visit_operator);
+            for_each_visit_operator!(define_visit_operator);
         }
 
         #[cfg(feature = "simd")]
         impl<'a> VisitSimdOperator<'a> for VisitConstOperator<'a> {
-            for_each_simd_operator!(define_visit_operator);
+            for_each_visit_simd_operator!(define_visit_operator);
         }
     }
 }

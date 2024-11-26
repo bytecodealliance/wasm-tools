@@ -1760,7 +1760,7 @@ where
         Some(self)
     }
 
-    for_each_operator!(validate_proposal);
+    for_each_visit_operator!(validate_proposal);
 }
 
 #[cfg(feature = "simd")]
@@ -1768,7 +1768,7 @@ impl<'a, T> VisitSimdOperator<'a> for WasmProposalValidator<'_, '_, T>
 where
     T: WasmModuleResources,
 {
-    for_each_simd_operator!(validate_proposal);
+    for_each_visit_simd_operator!(validate_proposal);
 }
 
 #[track_caller]
