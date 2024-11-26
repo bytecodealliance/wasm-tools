@@ -1010,7 +1010,7 @@ pub use _for_each_operator as _for_each_operator_delegate;
 /// impl<'a> wasmparser::VisitOperator<'a> for VisitAndDoNothing {
 ///     type Output = ();
 ///
-///     wasmparser::for_each_operator!(define_visit_operator);
+///     wasmparser::for_each_visit_operator!(define_visit_operator);
 /// }
 /// ```
 ///
@@ -1060,8 +1060,8 @@ pub use _for_each_operator as _for_each_operator_delegate;
 /// impl<'a> wasmparser::VisitOperator<'a> for VisitOnlyMvp {
 ///     type Output = bool;
 ///
-///     wasmparser::for_each_operator!(visit_only_mvp);
-/// #   wasmparser::for_each_operator!(visit_mvp);
+///     wasmparser::for_each_visit_operator!(visit_only_mvp);
+/// #   wasmparser::for_each_visit_operator!(visit_mvp);
 ///
 ///     // manually define `visit_*` for all MVP operators here
 /// }
@@ -1166,7 +1166,7 @@ pub use _for_each_operator_delegate as for_each_operator;
 /// impl<'a> wasmparser::VisitOperator<'a> for VisitAndDoNothing {
 ///     type Output = ();
 ///
-///     wasmparser::for_each_operator!(define_visit_operator);
+///     wasmparser::for_each_visit_operator!(define_visit_operator);
 /// }
 /// ```
 ///
@@ -1216,8 +1216,8 @@ pub use _for_each_operator_delegate as for_each_operator;
 /// impl<'a> wasmparser::VisitOperator<'a> for VisitOnlyMvp {
 ///     type Output = bool;
 ///
-///     wasmparser::for_each_operator!(visit_only_mvp);
-/// #   wasmparser::for_each_operator!(visit_mvp);
+///     wasmparser::for_each_visit_operator!(visit_only_mvp);
+/// #   wasmparser::for_each_visit_operator!(visit_mvp);
 ///
 ///     // manually define `visit_*` for all MVP operators here
 /// }

@@ -849,7 +849,7 @@ impl<'a> BinaryReader<'a> {
     /// Store an offset for use in diagnostics or any other purposes:
     ///
     /// ```
-    /// # use wasmparser::{BinaryReader, VisitOperator, Result, for_each_operator};
+    /// # use wasmparser::{BinaryReader, VisitOperator, Result, for_each_visit_operator};
     ///
     /// pub fn dump(mut reader: BinaryReader) -> Result<()> {
     ///     let mut visitor = Dumper { offset: 0 };
@@ -876,7 +876,7 @@ impl<'a> BinaryReader<'a> {
     ///
     /// impl<'a> VisitOperator<'a> for Dumper {
     ///     type Output = ();
-    ///     for_each_operator!(define_visit_operator);
+    ///     for_each_visit_operator!(define_visit_operator);
     /// }
     ///
     /// ```
