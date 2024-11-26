@@ -1800,12 +1800,12 @@ impl<'a> VisitOperator<'a> for OperatorFactory<'a> {
         Some(self)
     }
 
-    for_each_visit_operator!(define_visit_operator);
+    crate::for_each_visit_operator!(define_visit_operator);
 }
 
 #[cfg(feature = "simd")]
 impl<'a> VisitSimdOperator<'a> for OperatorFactory<'a> {
-    for_each_visit_simd_operator!(define_visit_operator);
+    crate::for_each_visit_simd_operator!(define_visit_operator);
 }
 
 /// Iterator returned from [`BinaryReader::read_iter`].
