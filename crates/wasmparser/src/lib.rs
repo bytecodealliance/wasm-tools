@@ -1016,52 +1016,25 @@ pub use _for_each_operator as _for_each_operator_delegate;
 /// example, you could do:
 ///
 /// ```
-/// macro_rules! visit_only_mvp {
-///     // delegate the macro invocation to sub-invocations of this macro to
-///     // deal with each instruction on a case-by-case basis.
-///     ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
-///         $(
-///             visit_only_mvp!(visit_one @$proposal $op $({ $($arg: $argty),* })? => $visit);
-///         )*
-///     };
+/// fn is_mvp_operator(op: &wasmparser::Operator) -> bool {
+///     macro_rules! define_match_operator {
+///         // delegate the macro invocation to sub-invocations of this macro to
+///         // deal with each instruction on a case-by-case basis.
+///         ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
+///             match op {
+///                 $(
+///                     wasmparser::Operator::$op $( { $($arg),* } )? => {
+///                         define_match_operator!(impl_one @$proposal)
+///                     }
+///                 )*
+///                 _ => unreachable!(), // required because `Operator` enum is non-exhaustive
+///             }
+///         };
 ///
-///     // MVP instructions are defined manually, so do nothing.
-///     (visit_one @mvp $($rest:tt)*) => {};
-///
-///     // Non-MVP instructions all return `false` here. The exact type depends
-///     // on `type Output` in the trait implementation below. You could change
-///     // it to `Result<()>` for example and return an error here too.
-///     (visit_one @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident) => {
-///         fn $visit(&mut self $($(,$arg: $argty)*)?) -> bool {
-///             false
-///         }
+///         (impl_one @mvp) => { true };
+///         (impl_one @$proposal:ident) => { false };
 ///     }
-/// }
-/// # // to get this example to compile another macro is used here to define
-/// # // visit methods for all mvp operators.
-/// # macro_rules! visit_mvp {
-/// #     ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
-/// #         $(
-/// #             visit_mvp!(visit_one @$proposal $op $({ $($arg: $argty),* })? => $visit);
-/// #         )*
-/// #     };
-/// #     (visit_one @mvp $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident) => {
-/// #         fn $visit(&mut self $($(,$arg: $argty)*)?) -> bool {
-/// #             true
-/// #         }
-/// #     };
-/// #     (visit_one @$proposal:ident $($rest:tt)*) => {};
-/// # }
-///
-/// pub struct VisitOnlyMvp;
-///
-/// impl<'a> wasmparser::VisitOperator<'a> for VisitOnlyMvp {
-///     type Output = bool;
-///
-///     wasmparser::for_each_visit_operator!(visit_only_mvp);
-/// #   wasmparser::for_each_visit_operator!(visit_mvp);
-///
-///     // manually define `visit_*` for all MVP operators here
+///     wasmparser::for_each_operator!(define_match_operator)
 /// }
 /// ```
 #[doc(inline)]
