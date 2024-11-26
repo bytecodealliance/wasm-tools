@@ -1394,11 +1394,11 @@ impl<'a> VisitOperator<'a> for PrintOperator<'_, '_, '_, '_> {
         Some(self)
     }
 
-    wasmparser::for_each_operator!(define_visit);
+    wasmparser::for_each_visit_operator!(define_visit);
 }
 
 impl<'a> VisitSimdOperator<'a> for PrintOperator<'_, '_, '_, '_> {
-    wasmparser::for_each_simd_operator!(define_visit);
+    wasmparser::for_each_visit_simd_operator!(define_visit);
 }
 
 pub trait OpPrinter {
