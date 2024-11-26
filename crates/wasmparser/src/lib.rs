@@ -55,8 +55,6 @@ mod prelude {
     pub use crate::collections::{IndexMap, Map, Set};
 }
 
-#[macro_export]
-#[doc(hidden)]
 macro_rules! _for_each_operator_group {
     ($mac:ident) => {
         $mac! {
@@ -904,23 +902,13 @@ macro_rules! define_for_each_simd_operator {
 #[cfg(feature = "simd")]
 _for_each_operator_group!(define_for_each_simd_operator);
 
-#[cfg(feature = "simd")]
-#[macro_export]
-#[doc(hidden)]
-macro_rules! _for_each_operator_delegate {
-    ($mac:ident) => {
-        _for_each_operator! { $mac }
-    };
-}
-
 #[cfg(not(feature = "simd"))]
-#[macro_export]
 #[doc(hidden)]
-macro_rules! _for_each_operator_delegate {
-    ($mac:ident) => {
-        _for_each_non_simd_operator! { $mac }
-    };
-}
+pub use _for_each_non_simd_operator as _for_each_operator_delegate;
+
+#[cfg(feature = "simd")]
+#[doc(hidden)]
+pub use _for_each_operator as _for_each_operator_delegate;
 
 /// Used to implement routines for the `Operator` enum.
 ///
@@ -1078,12 +1066,7 @@ macro_rules! _for_each_operator_delegate {
 ///     // manually define `visit_*` for all MVP operators here
 /// }
 /// ```
-#[macro_export]
-macro_rules! for_each_operator {
-    ($mac:ident) => {
-        _for_each_operator_delegate! { $mac }
-    };
-}
+pub use _for_each_operator_delegate as for_each_operator;
 
 /// Used to implement the `VisitOperator` trait.
 ///
@@ -1238,12 +1221,7 @@ macro_rules! for_each_operator {
 ///     // manually define `visit_*` for all MVP operators here
 /// }
 /// ```
-#[macro_export]
-macro_rules! for_each_visit_operator {
-    ($mac:ident) => {
-        _for_each_non_simd_operator! { $mac }
-    };
-}
+pub use _for_each_non_simd_operator as for_each_visit_operator;
 
 /// Used to implement the `VisitSimdOperator` trait.
 ///
@@ -1263,12 +1241,7 @@ macro_rules! for_each_visit_operator {
 ///
 /// [`VisitSimdOperator`]: crate::VisitSimdOperator
 #[cfg(feature = "simd")]
-#[macro_export]
-macro_rules! for_each_visit_simd_operator {
-    ($mac:ident) => {
-        _for_each_simd_operator! { $mac }
-    };
-}
+pub use _for_each_simd_operator as for_each_visit_simd_operator;
 
 macro_rules! format_err {
     ($offset:expr, $($arg:tt)*) => {
