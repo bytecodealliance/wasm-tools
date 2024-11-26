@@ -55,6 +55,7 @@ mod prelude {
     pub use crate::collections::{IndexMap, Map, Set};
 }
 
+#[macro_export]
 #[doc(hidden)]
 macro_rules! _for_each_operator_group {
     ($mac:ident) => {
@@ -779,6 +780,7 @@ macro_rules! define_for_each_operator {
             }
         )*
     ) => {
+        #[macro_export]
         #[doc(hidden)]
         macro_rules! _for_each_operator {
             ($m:ident) => {
@@ -834,6 +836,7 @@ macro_rules! define_for_each_non_simd_operator {
     };
 
     (filter [$($t:tt)*]) => {
+        #[macro_export]
         #[doc(hidden)]
         macro_rules! _for_each_non_simd_operator {
             ($m:ident) => {
@@ -889,6 +892,7 @@ macro_rules! define_for_each_simd_operator {
     };
 
     (filter [$($t:tt)*]) => {
+        #[macro_export]
         #[doc(hidden)]
         macro_rules! _for_each_simd_operator {
             ($m:ident) => {
@@ -901,6 +905,7 @@ macro_rules! define_for_each_simd_operator {
 _for_each_operator_group!(define_for_each_simd_operator);
 
 #[cfg(feature = "simd")]
+#[macro_export]
 #[doc(hidden)]
 macro_rules! _for_each_operator_delegate {
     ($mac:ident) => {
@@ -909,6 +914,7 @@ macro_rules! _for_each_operator_delegate {
 }
 
 #[cfg(not(feature = "simd"))]
+#[macro_export]
 #[doc(hidden)]
 macro_rules! _for_each_operator_delegate {
     ($mac:ident) => {
