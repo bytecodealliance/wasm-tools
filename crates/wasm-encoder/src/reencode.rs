@@ -1636,35 +1636,12 @@ pub mod utils {
                             translate_build!(reencoder $op $($($arg)*)?)
                         }
                     )*
-                    wasmparser::Operator::Simd(simd_arg) => simd_instruction(reencoder, simd_arg)?,
                     unexpected => unreachable!("encountered unexpected Wasm operator: {unexpected:?}"),
                 })
             };
         }
 
         wasmparser::for_each_operator!(translate)
-    }
-
-    fn simd_instruction<'a, T: ?Sized + Reencode>(
-        reencoder: &mut T,
-        arg: wasmparser::SimdOperator,
-    ) -> Result<crate::Instruction<'a>, Error<T::Error>> {
-        macro_rules! translate_simd {
-            ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
-                Ok(match arg {
-                    $(
-                        wasmparser::SimdOperator::$op $({ $($arg),* })? => {
-                            $(
-                                $(let $arg = translate_map!(reencoder $arg $arg);)*
-                            )?
-                            translate_build!(reencoder $op $($($arg)*)?)
-                        }
-                    )*
-                })
-            };
-        }
-
-        wasmparser::for_each_simd_operator!(translate_simd)
     }
 
     /// Parses the input `section` given from the `wasmparser` crate and adds
