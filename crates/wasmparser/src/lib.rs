@@ -1009,7 +1009,7 @@ pub use _for_each_operator as _for_each_operator_delegate;
 ///         }
 ///     }
 ///     wasmparser::for_each_operator!(define_match_operator);
-/// } 
+/// }
 /// ```
 ///
 /// If you only wanted to visit the initial base set of wasm instructions, for
