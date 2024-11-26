@@ -369,10 +369,10 @@ impl<'a> VisitOperator<'a> for NopVisit {
         Some(self)
     }
 
-    wasmparser::for_each_operator!(define_visit_operator);
+    wasmparser::for_each_visit_operator!(define_visit_operator);
 }
 
 #[allow(unused_variables)]
 impl<'a> VisitSimdOperator<'a> for NopVisit {
-    wasmparser::for_each_simd_operator!(define_visit_operator);
+    wasmparser::for_each_visit_simd_operator!(define_visit_operator);
 }
