@@ -978,7 +978,7 @@ pub use _for_each_operator as _for_each_operator_delegate;
 ///
 /// ```
 /// fn do_nothing(op: &wasmparser::Operator) {
-///     macro_rules! define_impl_operator {
+///     macro_rules! define_match_operator {
 ///         // The outer layer of repetition represents how all operators are
 ///         // provided to the macro at the same time.
 ///         //
@@ -1008,7 +1008,7 @@ pub use _for_each_operator as _for_each_operator_delegate;
 ///             }
 ///         }
 ///     }
-///     wasmparser::for_each_operator!(define_impl_operator);
+///     wasmparser::for_each_operator!(define_match_operator);
 /// } 
 /// ```
 ///
