@@ -916,12 +916,12 @@ macro_rules! _for_each_operator_delegate {
     };
 }
 
+/// Used to implement routines for the `Operator` enum.
+///
 /// A helper macro to conveniently iterate over all opcodes recognized by this
 /// crate. This can be used to work with either the [`Operator`] enumeration or
 /// the [`VisitOperator`] trait if your use case uniformly handles all operators
 /// the same way.
-///
-/// Note: SIMD operators are handled by the [`for_each_simd_operator`] macro.
 ///
 /// It is also possible to specialize handling of operators depending on the
 /// Wasm proposal from which they are originating.
@@ -1079,12 +1079,12 @@ macro_rules! for_each_operator {
     };
 }
 
+/// Used to implement the `VisitOperator` trait.
+///
 /// A helper macro to conveniently iterate over all opcodes recognized by this
 /// crate. This can be used to work with either the [`Operator`] enumeration or
 /// the [`VisitOperator`] trait if your use case uniformly handles all operators
 /// the same way.
-///
-/// Note: SIMD operators are handled by the [`for_each_simd_operator`] macro.
 ///
 /// It is also possible to specialize handling of operators depending on the
 /// Wasm proposal from which they are originating.
@@ -1239,6 +1239,8 @@ macro_rules! for_each_visit_operator {
     };
 }
 
+/// Used to implement the `VisitSimdOperator` trait.
+///
 /// A helper macro to conveniently iterate over all opcodes recognized by this
 /// crate. This can be used to work with either the [`SimdOperator`] enumeration or
 /// the [`VisitSimdOperator`] trait if your use case uniformly handles all operators
