@@ -1233,6 +1233,43 @@ pub use _for_each_visit_operator_impl as for_each_visit_operator;
 /// https://github.com/WebAssembly/relaxed-simd
 ///
 /// [`VisitSimdOperator`]: crate::VisitSimdOperator
+///
+/// ```
+/// # macro_rules! define_visit_operator {
+/// #     ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
+/// #         $( fn $visit(&mut self $($(,$arg: $argty)*)?) {} )*
+/// #     }
+/// # }
+/// pub struct VisitAndDoNothing;
+/// 
+/// impl<'a> wasmparser::VisitOperator<'a> for VisitAndDoNothing {
+///     type Output = ();
+///
+///     // implement all the visit methods ..
+///     # wasmparser::for_each_visit_operator!(define_visit_operator);
+/// }
+///
+/// macro_rules! define_visit_simd_operator {
+///     // The outer layer of repetition represents how all operators are
+///     // provided to the macro at the same time.
+///     //
+///     // The `$proposal` identifier is either `@simd` or `@relaxed_simd`.
+///     // 
+///     // The shape of this macro is identical to [`for_each_visit_operator`].
+///     // Please refer to its documentation if you want to learn more.
+///     ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
+///         $(
+///             fn $visit(&mut self $($(,$arg: $argty)*)?) {
+///                 // do nothing for this example
+///             }
+///         )*
+///     }
+/// }
+///
+/// impl<'a> wasmparser::VisitSimdOperator<'a> for VisitAndDoNothing {
+///     wasmparser::for_each_visit_simd_operator!(define_visit_simd_operator);
+/// }
+/// ```
 #[cfg(feature = "simd")]
 #[doc(inline)]
 pub use _for_each_visit_simd_operator_impl as for_each_visit_simd_operator;
