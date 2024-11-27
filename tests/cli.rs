@@ -201,10 +201,22 @@ fn execute(cmd: &mut Command, stdin: Option<&[u8]>, should_fail: bool) -> Result
 fn assert_output(bless: bool, output: &[u8], path: &Path, tempdir: &TempDir) -> Result<()> {
     let tempdir = tempdir.path().to_str().unwrap();
     // sanitize the output to be consistent across platforms and handle per-test
-    // differences such as `%tmpdir`.
+    // differences such as `%tmpdir`, as well as the version number of the crate being
+    // tested in the producers custom section.
     let output = String::from_utf8_lossy(output)
         .replace(tempdir, "%tmpdir")
-        .replace("\\", "/");
+        .replace("\\", "/")
+        .lines()
+        .map(|line| {
+            if let Some(start) = line.find("(processed-by \"wit-component\"") {
+                let (before, _) = line.split_at(start);
+                format!("{before}(processed-by \"wit-component\" \"%version\")")
+            } else {
+                line.to_owned()
+            }
+        })
+        .collect::<Vec<String>>()
+        .join("\n");
 
     if bless {
         if output.is_empty() {
@@ -222,9 +234,13 @@ fn assert_output(bless: bool, output: &[u8], path: &Path, tempdir: &TempDir) -> 
             Ok(())
         }
     } else {
-        let contents = std::fs::read_to_string(path)
+        let mut contents = std::fs::read_to_string(path)
             .with_context(|| format!("failed to read {path:?}"))?
             .replace("\r\n", "\n");
+        // Drop any trailing newline, the lines iterator on output above will do the same
+        if contents.ends_with('\n') {
+            contents.pop();
+        }
         if output != contents {
             bail!(
                 "failed test: result is not as expected:{}",
