@@ -440,17 +440,29 @@ pub trait VisitOperator<'a> {
     ///
     /// # Example
     ///
-    /// ```compile_fail
-    /// impl VisitOperator for MyVisitor {
+    /// ```
+    /// # macro_rules! define_visit_operator {
+    /// #     ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
+    /// #         $( fn $visit(&mut self $($(,$arg: $argty)*)?) {} )*
+    /// #     }
+    /// # }
+    /// # use wasmparser::{VisitOperator, VisitSimdOperator};
+    /// pub struct MyVisitor;
+    ///
+    /// impl<'a> VisitOperator<'a> for MyVisitor {
+    ///     type Output = ();
+    ///
     ///     fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = Self::Output>> {
     ///         Some(self)
     ///     }
     ///
     ///     // implement remaining visitation methods here ...
+    ///     # wasmparser::for_each_visit_operator!(define_visit_operator);
     /// }
     ///
-    /// impl VisitSimdOperator for MyVisitor {
+    /// impl VisitSimdOperator<'_> for MyVisitor {
     ///     // implement SIMD visitation methods here ...
+    ///     # wasmparser::for_each_visit_simd_operator!(define_visit_operator);
     /// }
     /// ```
     #[cfg(feature = "simd")]
