@@ -1241,7 +1241,7 @@ pub use _for_each_visit_operator_impl as for_each_visit_operator;
 /// #     }
 /// # }
 /// pub struct VisitAndDoNothing;
-/// 
+///
 /// impl<'a> wasmparser::VisitOperator<'a> for VisitAndDoNothing {
 ///     type Output = ();
 ///
@@ -1254,7 +1254,7 @@ pub use _for_each_visit_operator_impl as for_each_visit_operator;
 ///     // provided to the macro at the same time.
 ///     //
 ///     // The `$proposal` identifier is either `@simd` or `@relaxed_simd`.
-///     // 
+///     //
 ///     // The shape of this macro is identical to [`for_each_visit_operator`].
 ///     // Please refer to its documentation if you want to learn more.
 ///     ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
