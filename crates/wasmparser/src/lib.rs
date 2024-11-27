@@ -1130,8 +1130,8 @@ pub use _for_each_operator_impl as for_each_operator;
 ///     //
 ///     // The `$proposal` identifier indicates the Wasm proposals from which
 ///     // the Wasm operator is originating.
-///     // For example to specialize the macro match arm for Wasm SIMD proposal
-///     // operators you could write `@simd` instead of `@$proposal:ident` to
+///     // For example to specialize the macro match arm for Wasm `gc` proposal
+///     // operators you could write `@gc` instead of `@$proposal:ident` to
 ///     // only catch those operators.
 ///     //
 ///     // The `$op` name is bound to the `Operator` variant name. The
