@@ -1,7 +1,7 @@
-
 use std::vec;
 
 use wasm_metadata::*;
+
 #[test]
 fn add_to_empty_module() {
     let wat = "(module)";

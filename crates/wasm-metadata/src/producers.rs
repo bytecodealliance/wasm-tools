@@ -1,17 +1,9 @@
 use anyhow::Result;
 use indexmap::{map::Entry, IndexMap};
-use serde_derive::{Deserialize, Serialize};
-use spdx::Expression;
-use std::borrow::Cow;
+use serde_derive::Serialize;
 use std::fmt;
-use std::fmt::Display;
-use std::mem;
-use std::ops::Range;
-use wasm_encoder::{ComponentSection as _, ComponentSectionId, Encode, Section};
-use wasmparser::{
-    BinaryReader, ComponentNameSectionReader, KnownCustom, NameSectionReader, Parser, Payload::*,
-    ProducersSectionReader,
-};
+use wasm_encoder::Encode;
+use wasmparser::{BinaryReader, KnownCustom, Parser, ProducersSectionReader};
 
 use crate::{rewrite_wasm, AddMetadata};
 /// A representation of a WebAssembly producers section.
