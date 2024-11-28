@@ -9,7 +9,7 @@ use crate::{
 /// Implements a WAVE-formatted [`Display`] for a [`WasmType`].
 pub struct DisplayType<'a, T: WasmType>(pub &'a T);
 
-impl<'a, T: WasmType> Display for DisplayType<'a, T> {
+impl<T: WasmType> Display for DisplayType<'_, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let ty = self.0;
         match ty.kind() {
@@ -95,7 +95,7 @@ impl<'a, T: WasmType> Display for DisplayType<'a, T> {
 /// Implements a WAVE-formatted [`Display`] for a [`WasmValue`].
 pub struct DisplayValue<'a, T: WasmValue>(pub &'a T);
 
-impl<'a, T: WasmValue> Display for DisplayValue<'a, T> {
+impl<T: WasmValue> Display for DisplayValue<'_, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut buf = vec![];
         Writer::new(&mut buf)
@@ -155,7 +155,7 @@ impl<T: WasmFunc> Display for DisplayFunc<T> {
 /// Implements a WAVE-formatted [`Display`] for [`WasmValue`] func arguments.
 pub struct DisplayFuncArgs<'a, T: WasmValue>(pub &'a [T]);
 
-impl<'a, T: WasmValue> Display for DisplayFuncArgs<'a, T> {
+impl<T: WasmValue> Display for DisplayFuncArgs<'_, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("(")?;
         for (idx, v) in self.0.iter().enumerate() {
@@ -171,7 +171,7 @@ impl<'a, T: WasmValue> Display for DisplayFuncArgs<'a, T> {
 /// Implements a WAVE-formatted [`Display`] for [`WasmValue`] func results.
 pub struct DisplayFuncResults<'a, T: WasmValue>(pub &'a [T]);
 
-impl<'a, T: WasmValue> Display for DisplayFuncResults<'a, T> {
+impl<T: WasmValue> Display for DisplayFuncResults<'_, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.0.len() == 1 {
             DisplayValue(&self.0[0]).fmt(f)

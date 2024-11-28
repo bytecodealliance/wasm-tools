@@ -95,7 +95,7 @@ impl From<String> for Value {
     }
 }
 
-impl<'a> ValueTyped for &'a str {
+impl ValueTyped for &str {
     fn value_type() -> Type {
         String::value_type()
     }
