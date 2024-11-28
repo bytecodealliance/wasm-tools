@@ -1,6 +1,6 @@
 //! Read and manipulate WebAssembly metadata
 
-#![warn(missing_debug_implementations)]
+#![warn(missing_debug_implementations, missing_docs)]
 
 pub use add_metadata::AddMetadata;
 pub use metadata::Metadata;
