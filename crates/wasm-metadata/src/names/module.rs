@@ -1,3 +1,5 @@
+use std::fmt::{self, Debug};
+
 use anyhow::Result;
 use wasm_encoder::Encode;
 use wasmparser::{BinaryReader, NameSectionReader};
@@ -8,6 +10,14 @@ use crate::utils::{indirect_name_map, name_map};
 pub struct ModuleNames<'a> {
     module_name: Option<String>,
     names: Vec<wasmparser::Name<'a>>,
+}
+
+impl<'a> Debug for ModuleNames<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ModuleNames")
+            .field("module_name", &self.module_name)
+            .finish_non_exhaustive()
+    }
 }
 
 impl<'a> ModuleNames<'a> {

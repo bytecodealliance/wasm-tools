@@ -1,5 +1,7 @@
 //! Read and manipulate WebAssembly metadata
 
+#![warn(missing_debug_implementations)]
+
 pub use add_metadata::AddMetadata;
 pub use metadata::Metadata;
 pub use names::{ComponentNames, ModuleNames};
