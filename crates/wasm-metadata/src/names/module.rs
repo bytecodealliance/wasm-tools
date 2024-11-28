@@ -2,7 +2,7 @@ use anyhow::Result;
 use wasm_encoder::Encode;
 use wasmparser::{BinaryReader, NameSectionReader};
 
-use crate::{indirect_name_map, name_map};
+use crate::utils::{indirect_name_map, name_map};
 
 /// Helper for rewriting a module's name section with a new module name.
 pub struct ModuleNames<'a> {

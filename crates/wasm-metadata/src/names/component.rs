@@ -2,7 +2,7 @@ use anyhow::Result;
 use wasm_encoder::Encode;
 use wasmparser::{BinaryReader, ComponentNameSectionReader};
 
-use crate::name_map;
+use crate::utils::name_map;
 
 /// Helper for rewriting a component's component-name section with a new component name.
 pub struct ComponentNames<'a> {
