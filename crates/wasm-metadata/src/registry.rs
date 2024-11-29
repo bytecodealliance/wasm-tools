@@ -345,11 +345,11 @@ impl Display for CustomLicense {
 mod test {
     use super::*;
     use crate::Metadata;
+    use wasm_encoder::Module;
 
     #[test]
     fn overwrite_registry_metadata() {
-        let wat = "(module)";
-        let module = wat::parse_str(wat).unwrap();
+        let module = Module::new().finish();
         let registry_metadata = RegistryMetadata {
             authors: Some(vec!["Foo".to_owned()]),
             ..Default::default()

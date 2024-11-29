@@ -1,11 +1,11 @@
 use std::vec;
 
+use wasm_encoder::{Component, Module};
 use wasm_metadata::*;
 
 #[test]
 fn add_to_empty_component() {
-    let wat = "(component)";
-    let component = wat::parse_str(wat).unwrap();
+    let component = Component::new().finish();
     let add = AddMetadata {
         name: Some("foo".to_owned()),
         language: vec!["bar".to_owned()],
@@ -105,8 +105,7 @@ fn add_to_empty_component() {
 #[test]
 fn add_to_nested_component() {
     // Create the same old module, stick some metadata into it
-    let wat = "(module)";
-    let module = wat::parse_str(wat).unwrap();
+    let module = Module::new().finish();
     let add = AddMetadata {
         name: Some("foo".to_owned()),
         language: vec!["bar".to_owned()],

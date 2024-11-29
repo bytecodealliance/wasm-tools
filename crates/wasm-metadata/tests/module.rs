@@ -1,11 +1,11 @@
 use std::vec;
 
+use wasm_encoder::Module;
 use wasm_metadata::*;
 
 #[test]
 fn add_to_empty_module() {
-    let wat = "(module)";
-    let module = wat::parse_str(wat).unwrap();
+    let module = Module::new().finish();
     let add = AddMetadata {
         name: Some("foo".to_owned()),
         language: vec!["bar".to_owned()],
