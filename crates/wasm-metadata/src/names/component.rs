@@ -7,7 +7,6 @@ use wasmparser::{BinaryReader, ComponentNameSectionReader};
 use crate::utils::name_map;
 
 /// Helper for rewriting a component's component-name section with a new component name.
-#[derive(Clone)]
 pub struct ComponentNames<'a> {
     component_name: Option<String>,
     names: Vec<wasmparser::ComponentName<'a>>,
