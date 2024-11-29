@@ -174,6 +174,7 @@ impl fmt::Display for Producers {
 }
 
 /// Contents of a producers field
+#[derive(Debug)]
 pub struct ProducersField<'a>(&'a IndexMap<String, String>);
 
 impl<'a> ProducersField<'a> {

@@ -1,3 +1,5 @@
+use std::fmt::{self, Debug};
+
 use anyhow::Result;
 use wasm_encoder::Encode;
 use wasmparser::{BinaryReader, ComponentNameSectionReader};
@@ -8,6 +10,14 @@ use crate::utils::name_map;
 pub struct ComponentNames<'a> {
     component_name: Option<String>,
     names: Vec<wasmparser::ComponentName<'a>>,
+}
+
+impl<'a> Debug for ComponentNames<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ComponentNames")
+            .field("component_name", &self.component_name)
+            .finish_non_exhaustive()
+    }
 }
 
 impl<'a> ComponentNames<'a> {

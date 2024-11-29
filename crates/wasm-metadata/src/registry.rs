@@ -7,6 +7,7 @@ use wasmparser::Parser;
 
 use crate::{rewrite_wasm, Producers};
 
+/// Metadata used by a Warg registry
 #[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq)]
 pub struct RegistryMetadata {
     /// List of authors who has created this package.
@@ -46,6 +47,7 @@ impl RegistryMetadata {
         rewrite_wasm(&None, &Producers::empty(), Some(&self), input)
     }
 
+    /// Parse a Wasm binary and extract the `Registry` section, if there is any.
     pub fn from_wasm(bytes: &[u8]) -> Result<Option<Self>> {
         let mut depth = 0;
         for payload in Parser::new(0).parse_all(bytes) {
@@ -70,6 +72,8 @@ impl RegistryMetadata {
         return Ok(registry);
     }
 
+    /// Validate the `RegistryMetadata::license` an
+    /// `RegistryMetadata::CustomLicense` are valid SPDX expressions.
     pub fn validate(&self) -> Result<()> {
         fn validate_expression(expression: &str) -> Result<Vec<String>> {
             let expression = Expression::parse(expression)?;
@@ -257,9 +261,12 @@ impl Display for RegistryMetadata {
     }
 }
 
+/// A link from the registry to an external website
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct Link {
+    /// The type of link
     pub ty: LinkType,
+    /// The address of the link
     pub value: String,
 }
 
@@ -269,12 +276,18 @@ impl Display for Link {
     }
 }
 
+/// What kind of link is this?
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum LinkType {
+    /// Documentation
     Documentation,
+    /// Homepage
     Homepage,
+    /// Code repository
     Repository,
+    /// Funding and donations
     Funding,
+    /// Some other link type
     #[serde(untagged)]
     Custom(String),
 }
@@ -293,6 +306,8 @@ impl Display for LinkType {
     }
 }
 
+/// A human readable short form license identifier for a license not on the SPDX
+/// License List.
 #[derive(Debug, Deserialize, Serialize, Default, Clone, PartialEq)]
 pub struct CustomLicense {
     /// License Identifier
