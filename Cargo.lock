@@ -1679,7 +1679,6 @@ dependencies = [
  "spdx",
  "wasm-encoder 0.221.0",
  "wasmparser 0.221.0",
- "wat",
 ]
 
 [[package]]

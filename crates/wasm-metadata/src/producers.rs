@@ -191,11 +191,11 @@ impl<'a> ProducersField<'a> {
 mod test {
     use super::*;
     use crate::Metadata;
+    use wasm_encoder::Module;
 
     #[test]
     fn producers_empty_module() {
-        let wat = "(module)";
-        let module = wat::parse_str(wat).unwrap();
+        let module = Module::new().finish();
         let mut producers = Producers::empty();
         producers.add("language", "bar", "");
         producers.add("processed-by", "baz", "1.0");
@@ -221,8 +221,7 @@ mod test {
 
     #[test]
     fn producers_add_another_field() {
-        let wat = "(module)";
-        let module = wat::parse_str(wat).unwrap();
+        let module = Module::new().finish();
         let mut producers = Producers::empty();
         producers.add("language", "bar", "");
         producers.add("processed-by", "baz", "1.0");
@@ -252,8 +251,7 @@ mod test {
 
     #[test]
     fn producers_overwrite_field() {
-        let wat = "(module)";
-        let module = wat::parse_str(wat).unwrap();
+        let module = Module::new().finish();
         let mut producers = Producers::empty();
         producers.add("processed-by", "baz", "1.0");
         let module = producers.add_to_wasm(&module).unwrap();
