@@ -302,3 +302,41 @@ impl From<WasmFeatures> for WasmFeaturesInflated {
         features.inflate()
     }
 }
+
+impl WasmFeatures {
+    /// Returns whether any types considered valid with this set of
+    /// `WasmFeatures` requires any type canonicalization/interning internally.
+    #[cfg(feature = "validate")]
+    pub(crate) fn needs_type_canonicalization(&self) -> bool {
+        #[cfg(feature = "features")]
+        {
+            // Types from the function-references proposal and beyond (namely
+            // GC) need type canonicalization for inter-type references and for
+            // rec-groups to work. Prior proposals have no such inter-type
+            // references structurally and as such can hit various fast paths in
+            // the validator to do a bit less work when processing the type
+            // section.
+            //
+            // None of these proposals below support inter-type references. If
+            // `self` contains any proposal outside of this set then it requires
+            // type canonicalization.
+            const FAST_VALIDATION_FEATURES: WasmFeatures = WasmFeatures::WASM2
+                .union(WasmFeatures::CUSTOM_PAGE_SIZES)
+                .union(WasmFeatures::EXTENDED_CONST)
+                .union(WasmFeatures::MEMORY64)
+                .union(WasmFeatures::MULTI_MEMORY)
+                .union(WasmFeatures::RELAXED_SIMD)
+                .union(WasmFeatures::TAIL_CALL)
+                .union(WasmFeatures::THREADS)
+                .union(WasmFeatures::WIDE_ARITHMETIC);
+            !FAST_VALIDATION_FEATURES.contains(*self)
+        }
+        #[cfg(not(feature = "features"))]
+        {
+            // GC/function-references are enabled by default, so
+            // canonicalization is required if feature flags aren't enabled at
+            // runtime.
+            true
+        }
+    }
+}

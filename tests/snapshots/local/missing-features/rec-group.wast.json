@@ -21,6 +21,27 @@
       "filename": "rec-group.2.wasm",
       "module_type": "binary",
       "text": "requires `gc` proposal to be enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 14,
+      "filename": "rec-group.3.wasm",
+      "module_type": "binary",
+      "text": "reference types support is not enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 18,
+      "filename": "rec-group.4.wasm",
+      "module_type": "binary",
+      "text": "gc proposal must be enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 22,
+      "filename": "rec-group.5.wasm",
+      "module_type": "binary",
+      "text": "gc proposal must be enabled"
     }
   ]
 }

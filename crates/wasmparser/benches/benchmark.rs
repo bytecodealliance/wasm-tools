@@ -273,6 +273,9 @@ fn define_benchmarks(c: &mut Criterion) {
     fn validator() -> Validator {
         Validator::new_with_features(WasmFeatures::all())
     }
+    fn old_validator() -> Validator {
+        Validator::new_with_features(WasmFeatures::WASM2)
+    }
 
     let test_inputs = once_cell::unsync::Lazy::new(collect_benchmark_inputs);
 
@@ -330,6 +333,14 @@ fn define_benchmarks(c: &mut Criterion) {
                 validator().validate_all(&wasm).unwrap();
             })
         });
+        if old_validator().validate_all(&wasm).is_ok() {
+            c.bench_function(&format!("validate-old/{name}"), |b| {
+                Lazy::force(&wasm);
+                b.iter(|| {
+                    old_validator().validate_all(&wasm).unwrap();
+                })
+            });
+        }
         c.bench_function(&format!("parse/{name}"), |b| {
             Lazy::force(&wasm);
             b.iter(|| {
