@@ -306,6 +306,7 @@ impl From<WasmFeatures> for WasmFeaturesInflated {
 impl WasmFeatures {
     /// Returns whether any types considered valid with this set of
     /// `WasmFeatures` requires any type canonicalization/interning internally.
+    #[cfg(feature = "validate")]
     pub(crate) fn needs_type_canonicalization(&self) -> bool {
         #[cfg(feature = "features")]
         {
