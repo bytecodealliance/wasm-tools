@@ -63,6 +63,9 @@ license = "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"
 version = "0.221.0"
 # Current policy for wasm-tools is the same as Wasmtime which is that this
 # number can be no larger than the current stable release of Rust minus 2.
+#
+# NB: if this number increases to 1.81-or-later delete the
+# `crates/wasmparser/build.rs` script as it's no longer necessary.
 rust-version = "1.76.0"
 
 [workspace.dependencies]
