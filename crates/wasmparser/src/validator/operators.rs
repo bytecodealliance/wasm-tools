@@ -493,6 +493,25 @@ impl OperatorValidator {
         })
     }
 
+    /// Same as `with_resources` above but guarantees it's able to visit simd
+    /// operators as well.
+    #[cfg(feature = "simd")]
+    pub fn with_resources_simd<'a, 'validator, 'resources, T>(
+        &'validator mut self,
+        resources: &'resources T,
+        offset: usize,
+    ) -> impl VisitSimdOperator<'a, Output = Result<()>> + ModuleArity + 'validator
+    where
+        T: WasmModuleResources,
+        'resources: 'validator,
+    {
+        WasmProposalValidator(OperatorValidatorTemp {
+            offset,
+            inner: self,
+            resources,
+        })
+    }
+
     pub fn finish(&mut self, offset: usize) -> Result<()> {
         if self.control.last().is_some() {
             bail!(
