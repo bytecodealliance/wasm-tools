@@ -8,7 +8,7 @@ fn add_to_empty_module() {
     let module = Module::new().finish();
     let add = AddMetadata {
         name: Some("foo".to_owned()),
-        language: vec!["bar".to_owned()],
+        language: vec![("bar".to_owned(), "1.0".to_owned())],
         processed_by: vec![("baz".to_owned(), "1.0".to_owned())],
         sdk: vec![],
         registry_metadata: Some(RegistryMetadata {
@@ -46,7 +46,10 @@ fn add_to_empty_module() {
         } => {
             assert_eq!(name, Some("foo".to_owned()));
             let producers = producers.expect("some producers");
-            assert_eq!(producers.get("language").unwrap().get("bar").unwrap(), "");
+            assert_eq!(
+                producers.get("language").unwrap().get("bar").unwrap(),
+                "1.0"
+            );
             assert_eq!(
                 producers.get("processed-by").unwrap().get("baz").unwrap(),
                 "1.0"
@@ -94,7 +97,7 @@ fn add_to_empty_module() {
             );
 
             assert_eq!(range.start, 0);
-            assert_eq!(range.end, 422);
+            assert_eq!(range.end, 425);
         }
         _ => panic!("metadata should be module"),
     }

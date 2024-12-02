@@ -1,4 +1,4 @@
 component foo:
     language:
-        foo
+        foo: 1
     module:
