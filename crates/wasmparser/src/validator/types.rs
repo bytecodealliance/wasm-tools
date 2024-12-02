@@ -868,45 +868,63 @@ impl TypeList {
     /// Intern the given recursion group (that has already been canonicalized)
     /// and return its associated id and whether this was a new recursion group
     /// or not.
-    pub fn intern_canonical_rec_group(&mut self, rec_group: RecGroup) -> (bool, RecGroupId) {
-        let canonical_rec_groups = self
-            .canonical_rec_groups
-            .as_mut()
-            .expect("cannot intern into a committed list");
-        let entry = match canonical_rec_groups.entry(rec_group) {
-            Entry::Occupied(e) => return (false, *e.get()),
-            Entry::Vacant(e) => e,
-        };
-
+    ///
+    /// If the `needs_type_canonicalization` flag is provided then the type will
+    /// be intern'd here and its indices will be canonicalized to `CoreTypeId`
+    /// from the previous `RecGroup`-based indices.
+    ///
+    /// If the `needs_type_canonicalization` flag is `false` then it must be
+    /// required that `RecGroup` doesn't have any rec-group-relative references
+    /// and it will additionally not be intern'd.
+    pub fn intern_canonical_rec_group(
+        &mut self,
+        needs_type_canonicalization: bool,
+        mut rec_group: RecGroup,
+    ) -> (bool, RecGroupId) {
         let rec_group_id = self.rec_group_elements.len();
         let rec_group_id = u32::try_from(rec_group_id).unwrap();
         let rec_group_id = RecGroupId::from_index(rec_group_id);
+
+        if needs_type_canonicalization {
+            let canonical_rec_groups = self
+                .canonical_rec_groups
+                .as_mut()
+                .expect("cannot intern into a committed list");
+            let entry = match canonical_rec_groups.entry(rec_group) {
+                Entry::Occupied(e) => return (false, *e.get()),
+                Entry::Vacant(e) => e,
+            };
+            rec_group = entry.key().clone();
+            entry.insert(rec_group_id);
+        }
 
         let start = self.core_types.len();
         let start = u32::try_from(start).unwrap();
         let start = CoreTypeId::from_index(start);
 
-        for ty in entry.key().types() {
+        for mut ty in rec_group.into_types() {
             debug_assert_eq!(self.core_types.len(), self.core_type_to_supertype.len());
             debug_assert_eq!(self.core_types.len(), self.core_type_to_rec_group.len());
 
             self.core_type_to_supertype
-                .push(ty.supertype_idx.map(|idx| match idx.unpack() {
-                    UnpackedIndex::RecGroup(offset) => CoreTypeId::from_index(start.index + offset),
-                    UnpackedIndex::Id(id) => id,
-                    UnpackedIndex::Module(_) => unreachable!("in canonical form"),
-                }));
-            let mut ty = ty.clone();
-            ty.remap_indices(&mut |index| {
-                match index.unpack() {
-                    UnpackedIndex::Id(_) => {}
-                    UnpackedIndex::Module(_) => unreachable!(),
+                .push(ty.supertype_idx.and_then(|idx| match idx.unpack() {
                     UnpackedIndex::RecGroup(offset) => {
-                        *index = UnpackedIndex::Id(CoreTypeId::from_index(start.index + offset))
-                            .pack()
-                            .unwrap();
+                        Some(CoreTypeId::from_index(start.index + offset))
                     }
-                };
+                    UnpackedIndex::Id(id) => Some(id),
+                    // Only invalid wasm has this, at this point, so defer the
+                    // error to later.
+                    UnpackedIndex::Module(_) => None,
+                }));
+            ty.remap_indices(&mut |index| {
+                // Note that `UnpackedIndex::Id` is unmodified and
+                // `UnpackedIndex::Module` means that this is invalid wasm which
+                // will get an error returned later.
+                if let UnpackedIndex::RecGroup(offset) = index.unpack() {
+                    *index = UnpackedIndex::Id(CoreTypeId::from_index(start.index + offset))
+                        .pack()
+                        .unwrap();
+                }
                 Ok(())
             })
             .expect("cannot fail");
@@ -922,7 +940,6 @@ impl TypeList {
 
         self.rec_group_elements.push(range.clone());
 
-        entry.insert(rec_group_id);
         return (true, rec_group_id);
     }
 
@@ -930,7 +947,7 @@ impl TypeList {
     /// [`Self::intern_canonical_rec_group`].
     pub fn intern_sub_type(&mut self, sub_ty: SubType, offset: usize) -> CoreTypeId {
         let (_is_new, group_id) =
-            self.intern_canonical_rec_group(RecGroup::implicit(offset, sub_ty));
+            self.intern_canonical_rec_group(false, RecGroup::implicit(offset, sub_ty));
         self[group_id].start
     }
 

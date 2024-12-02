@@ -99,10 +99,13 @@ pub(crate) trait InternRecGroup {
                 "rec group usage requires `gc` proposal to be enabled"
             );
         }
-        TypeCanonicalizer::new(self, offset)
-            .with_features(features)
-            .canonicalize_rec_group(&mut rec_group)?;
-        let (is_new, rec_group_id) = types.intern_canonical_rec_group(rec_group);
+        if features.needs_type_canonicalization() {
+            TypeCanonicalizer::new(self, offset)
+                .with_features(features)
+                .canonicalize_rec_group(&mut rec_group)?;
+        }
+        let (is_new, rec_group_id) =
+            types.intern_canonical_rec_group(features.needs_type_canonicalization(), rec_group);
         let range = &types[rec_group_id];
         let start = range.start.index();
         let end = range.end.index();

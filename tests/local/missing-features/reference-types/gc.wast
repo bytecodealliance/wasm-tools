@@ -31,3 +31,15 @@
 (assert_invalid
   (module (func ref.null array drop))
   "heap types not supported without the gc feature")
+
+(assert_invalid
+  (module (type $t (func (param (ref $t)))))
+  "function references required for index")
+
+(assert_invalid
+  (module (type $t (sub (func))))
+  "gc proposal must be enabled")
+
+(assert_invalid
+  (module (type $t (func)) (type (sub $t (func))))
+  "gc proposal must be enabled")
