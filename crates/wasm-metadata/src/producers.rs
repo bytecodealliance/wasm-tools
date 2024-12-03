@@ -113,8 +113,8 @@ impl Producers {
     /// Construct the fields specified by [`AddMetadata`]
     pub(crate) fn from_meta(add: &AddMetadata) -> Self {
         let mut s = Self::empty();
-        for lang in add.language.iter() {
-            s.add("language", &lang, "");
+        for (lang, version) in add.language.iter() {
+            s.add("language", &lang, &version);
         }
         for (name, version) in add.processed_by.iter() {
             s.add("processed-by", &name, &version);

@@ -1,6 +1,6 @@
 module foo:
     language:
-        bar
+        bar: 1
     processed-by:
         baz: 1
     sdk:

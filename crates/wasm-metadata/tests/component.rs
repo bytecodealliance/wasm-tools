@@ -8,7 +8,7 @@ fn add_to_empty_component() {
     let component = Component::new().finish();
     let add = AddMetadata {
         name: Some("foo".to_owned()),
-        language: vec!["bar".to_owned()],
+        language: vec![("bar".to_owned(), "1.0".to_owned())],
         processed_by: vec![("baz".to_owned(), "1.0".to_owned())],
         sdk: vec![],
         registry_metadata: Some(RegistryMetadata {
@@ -48,7 +48,10 @@ fn add_to_empty_component() {
             assert!(children.is_empty());
             assert_eq!(name, Some("foo".to_owned()));
             let producers = producers.expect("some producers");
-            assert_eq!(producers.get("language").unwrap().get("bar").unwrap(), "");
+            assert_eq!(
+                producers.get("language").unwrap().get("bar").unwrap(),
+                "1.0"
+            );
             assert_eq!(
                 producers.get("processed-by").unwrap().get("baz").unwrap(),
                 "1.0"
@@ -96,7 +99,7 @@ fn add_to_empty_component() {
             );
 
             assert_eq!(range.start, 0);
-            assert_eq!(range.end, 432);
+            assert_eq!(range.end, 435);
         }
         _ => panic!("metadata should be component"),
     }
@@ -108,7 +111,7 @@ fn add_to_nested_component() {
     let module = Module::new().finish();
     let add = AddMetadata {
         name: Some("foo".to_owned()),
-        language: vec!["bar".to_owned()],
+        language: vec![("bar".to_owned(), "1.0".to_owned())],
         processed_by: vec![("baz".to_owned(), "1.0".to_owned())],
         sdk: vec![],
         registry_metadata: Some(RegistryMetadata {
@@ -161,7 +164,10 @@ fn add_to_nested_component() {
                 } => {
                     assert_eq!(name, &Some("foo".to_owned()));
                     let producers = producers.as_ref().expect("some producers");
-                    assert_eq!(producers.get("language").unwrap().get("bar").unwrap(), "");
+                    assert_eq!(
+                        producers.get("language").unwrap().get("bar").unwrap(),
+                        "1.0"
+                    );
                     assert_eq!(
                         producers.get("processed-by").unwrap().get("baz").unwrap(),
                         "1.0"
@@ -174,7 +180,7 @@ fn add_to_nested_component() {
                     );
 
                     assert_eq!(range.start, 10);
-                    assert_eq!(range.end, 120);
+                    assert_eq!(range.end, 123);
                 }
                 _ => panic!("child is a module"),
             }

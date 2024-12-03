@@ -14,8 +14,8 @@ pub struct AddMetadata {
     pub name: Option<String>,
 
     /// Add a programming language to the producers section
-    #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
-    pub language: Vec<String>,
+    #[cfg_attr(feature = "clap", clap(long, value_parser = parse_key_value, value_name = "NAME=VERSION"))]
+    pub language: Vec<(String, String)>,
 
     /// Add a tool and its version to the producers section
     #[cfg_attr(feature = "clap", clap(long = "processed-by", value_parser = parse_key_value, value_name="NAME=VERSION"))]

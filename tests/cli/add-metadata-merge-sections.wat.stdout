@@ -1,6 +1,6 @@
 module:
     language:
-        foo
-        bar
+        foo: 3
+        bar: 1
     sdk:
         foo: 2
