@@ -2,13 +2,23 @@ use std::borrow::Cow;
 use std::fmt::{self, Display};
 
 use anyhow::{ensure, Result};
+use serde::Serialize;
 use wasm_encoder::{ComponentSection, CustomSection, Encode};
 use wasmparser::CustomSectionReader;
 
 /// Contact details of the people or organization responsible for the image
 /// encoded as a freeform string.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Author(CustomSection<'static>);
+
+impl Serialize for Author {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
 
 impl Display for Author {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -75,5 +85,12 @@ mod test {
             }
         }
         assert!(parsed);
+    }
+
+    #[test]
+    fn serialize() {
+        let author = Author::new("Chashu Cat");
+        let json = serde_json::to_string(&author).unwrap();
+        assert_eq!("Chashu Cat", json);
     }
 }

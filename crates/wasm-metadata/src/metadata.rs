@@ -4,7 +4,7 @@ use std::fmt;
 use std::ops::Range;
 use wasmparser::{KnownCustom, Parser, Payload::*};
 
-use crate::{ComponentNames, ModuleNames, Producers, RegistryMetadata};
+use crate::{Author, ComponentNames, ModuleNames, Producers, RegistryMetadata};
 
 /// A tree of the metadata found in a WebAssembly binary.
 #[derive(Debug, Serialize)]
@@ -18,6 +18,8 @@ pub enum Metadata {
         producers: Option<Producers>,
         /// The component's registry metadata section, if any.
         registry_metadata: Option<RegistryMetadata>,
+        /// The component's author section, if any.
+        author: Option<Author>,
         /// All child modules and components inside the component.
         children: Vec<Box<Metadata>>,
         /// Byte range of the module in the parent binary
@@ -31,6 +33,8 @@ pub enum Metadata {
         producers: Option<Producers>,
         /// The module's registry metadata section, if any.
         registry_metadata: Option<RegistryMetadata>,
+        /// The component's author section, if any.
+        author: Option<Author>,
         /// Byte range of the module in the parent binary
         range: Range<usize>,
     },
