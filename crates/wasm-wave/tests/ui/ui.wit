@@ -2,10 +2,10 @@ package ui:tests;
 
 interface ui {
     nullary: func();
-    %float32: func(val: f32);
-    %list-float32: func(vals: list<f32>);
-    %float64: func(val: f64);
-    %list-float64: func(vals: list<f64>);
+    %f32: func(val: f32);
+    %list-f32: func(vals: list<f32>);
+    %f64: func(val: f64);
+    %list-f64: func(vals: list<f64>);
     %char: func(val: char);
     list-chars: func(vals: list<char>);
     %string: func(val: string);

@@ -26,10 +26,7 @@ fn nan() {
 
         {
             use wasm_wave::value::Value;
-            assert_eq!(
-                Value::make_float32(val).unwrap_float32().to_bits(),
-                expected
-            );
+            assert_eq!(Value::make_f32(val).unwrap_f32().to_bits(), expected);
         }
     }
 
@@ -52,10 +49,7 @@ fn nan() {
 
         {
             use wasm_wave::value::Value;
-            assert_eq!(
-                Value::make_float64(val).unwrap_float64().to_bits(),
-                expected
-            );
+            assert_eq!(Value::make_f64(val).unwrap_f64().to_bits(), expected);
         }
     }
 }

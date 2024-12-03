@@ -45,8 +45,8 @@ pub(super) enum ValueEnum {
     U32(u32),
     S64(i64),
     U64(u64),
-    Float32(f32),
-    Float64(f64),
+    F32(f32),
+    F64(f64),
     Char(char),
     String(Box<str>),
     List(List),
@@ -144,8 +144,8 @@ impl WasmValue for Value {
             ValueEnum::U16(_) => WasmTypeKind::U16,
             ValueEnum::U32(_) => WasmTypeKind::U32,
             ValueEnum::U64(_) => WasmTypeKind::U64,
-            ValueEnum::Float32(_) => WasmTypeKind::Float32,
-            ValueEnum::Float64(_) => WasmTypeKind::Float64,
+            ValueEnum::F32(_) => WasmTypeKind::F32,
+            ValueEnum::F64(_) => WasmTypeKind::F64,
             ValueEnum::Char(_) => WasmTypeKind::Char,
             ValueEnum::String(_) => WasmTypeKind::String,
             ValueEnum::List(_) => WasmTypeKind::List,
@@ -173,14 +173,14 @@ impl WasmValue for Value {
         (Char, char, make_char, unwrap_char)
     );
 
-    fn make_float32(val: f32) -> Self {
+    fn make_f32(val: f32) -> Self {
         let val = canonicalize_nan32(val);
-        Self(ValueEnum::Float32(val))
+        Self(ValueEnum::F32(val))
     }
 
-    fn make_float64(val: f64) -> Self {
+    fn make_f64(val: f64) -> Self {
         let val = canonicalize_nan64(val);
-        Self(ValueEnum::Float64(val))
+        Self(ValueEnum::F64(val))
     }
 
     fn make_string(val: std::borrow::Cow<str>) -> Self {
@@ -315,13 +315,13 @@ impl WasmValue for Value {
         Ok(Self(ValueEnum::Flags(Flags { ty, flags })))
     }
 
-    fn unwrap_float32(&self) -> f32 {
-        let val = *unwrap_val!(&self.0, ValueEnum::Float32, "float32");
+    fn unwrap_f32(&self) -> f32 {
+        let val = *unwrap_val!(&self.0, ValueEnum::F32, "f32");
         canonicalize_nan32(val)
     }
 
-    fn unwrap_float64(&self) -> f64 {
-        let val = *unwrap_val!(&self.0, ValueEnum::Float64, "float64");
+    fn unwrap_f64(&self) -> f64 {
+        let val = *unwrap_val!(&self.0, ValueEnum::F64, "f64");
         canonicalize_nan64(val)
     }
 
@@ -404,8 +404,8 @@ fn check_type2(expected: &Type, val: &Value) -> Result<(), WasmValueError> {
         (ValueEnum::U16(_), &Type::U16) => {}
         (ValueEnum::U32(_), &Type::U32) => {}
         (ValueEnum::U64(_), &Type::U64) => {}
-        (ValueEnum::Float32(_), &Type::FLOAT32) => {}
-        (ValueEnum::Float64(_), &Type::FLOAT64) => {}
+        (ValueEnum::F32(_), &Type::F32) => {}
+        (ValueEnum::F64(_), &Type::F64) => {}
         (ValueEnum::Char(_), &Type::CHAR) => {}
         (ValueEnum::String(_), &Type::STRING) => {}
         (ValueEnum::List(list), _) => {

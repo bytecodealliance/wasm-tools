@@ -32,8 +32,8 @@ fn float_round_trips() {
         (f32::INFINITY, f64::INFINITY),
         (f32::NEG_INFINITY, f64::NEG_INFINITY),
     ] {
-        test_value_round_trip(Value::make_float32(float32));
-        test_value_round_trip(Value::make_float64(float64));
+        test_value_round_trip(Value::make_f32(float32));
+        test_value_round_trip(Value::make_f64(float64));
     }
 }
 
@@ -130,8 +130,8 @@ fn local_ty(val: &Value) -> Type {
         ValueEnum::U16(_) => Type::U16,
         ValueEnum::U32(_) => Type::U32,
         ValueEnum::U64(_) => Type::U64,
-        ValueEnum::Float32(_) => Type::FLOAT32,
-        ValueEnum::Float64(_) => Type::FLOAT64,
+        ValueEnum::F32(_) => Type::F32,
+        ValueEnum::F64(_) => Type::F64,
         ValueEnum::Char(_) => Type::CHAR,
         ValueEnum::String(_) => Type::STRING,
         ValueEnum::List(inner) => Type(TypeEnum::List(inner.ty.clone())),

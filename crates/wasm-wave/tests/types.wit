@@ -7,7 +7,7 @@ world tests {
     export bools: func() -> tuple<bool, bool>
     export sints: func() -> tuple<s8, s16, s32, s64>
     export uints: func() -> tuple<u8, u16, u32, u64>
-    export floats: func() -> tuple<float32, float64>
+    export floats: func() -> tuple<f32, f64>
     export options: func() -> tuple<option<u8>, option<option<s8>>>
     export list-chars: func() -> list<char>
     export list-strings: func() -> list<string>
