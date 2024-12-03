@@ -1,105 +1,120 @@
 ;; --enable-gc
 
 (module
-  (type $a (sub (func)))
-  (type $b (sub $a (func)))
-  (type $c (sub $b (func)))
-  (type $b1 (sub final $a (func)))
+  ;; nullability matching for field types
+  (type $non_null (sub (array (ref null any))))
+  (type $nullable (sub $non_null (array (ref any))))
 
-  ;; struct, ref types, mutability, nullability
-  (type $d (sub (struct)))
-  (type $e (sub $d (struct (field (mut (ref null $d)))))) ;; width
-  (type $f (sub final $e (struct (field (ref $e))))) ;; depth
+  ;; struct width and depth subtyping
+  (type $struct_base  (sub               (struct)))
+  (type $struct_width (sub $struct_base  (struct (field (ref null $struct_base)))))
+  (type $struct_depth (sub $struct_width (struct (field (ref $struct_base)))))
 
-  ;; func
-  (type $g (sub (func (param (ref $e)) (result (ref $e)))))
-  (type $h (sub $g (func (param (ref $d)) (result (ref $f)))))
-
-  (type $j (sub (func (param (ref $b)) (result (ref $b)))))
-  (type $k (sub $j (func (param (ref $a)) (result (ref $c)))))
-
-  ;; valid: expanded param/result types are equal to those of the parent
-  (type $l (sub $j (func (param (ref $b)) (result (ref $b)))))
-
-  ;; array, val types, ref types, mutability, nullability
-  (type $m (sub (array (mut i32))))
-  (type $n (sub $m (array i32)))
-
-  (type $o (sub (array i32)))
-  (type $p (sub $o (array i32)))
-
-  (type $o1 (sub (array i64)))
-  (type $p1 (sub $o1 (array i64)))
+  ;; function param and result subtyping
+  (type $func_base (sub (func (param eqref) (result eqref))))
+  (type $func_contravariant_params (sub $func_base (func (param anyref) (result eqref))))
+  (type $func_covariant_results (sub $func_base (func (param eqref) (result nullref))))
 
   ;; any refs
-  (type $q (sub (array (mut anyref))))
-  (type $q0 (sub $q (array (ref any))))
+  (type $any (sub (array anyref)))
+  (type $any_2 (sub $any (array anyref)))
+  (type $any_mut (sub (array (mut anyref))))
+  (type $any_mut_2 (sub $any_mut (array (mut anyref))))
 
   ;; eq refs
-  (type $q1 (sub $q (array (mut eqref))))
-  (type $q2 (sub $q1 (array (mut (ref eq)))))
-  (type $q3 (sub $q2 (array (ref eq))))
+  (type $eq (sub $any (array eqref)))
+  (type $eq_2 (sub $eq (array eqref)))
+  (type $eq_mut (sub (array (mut eqref))))
+  (type $eq_mut_2 (sub $eq_mut (array (mut eqref))))
 
   ;; i31 refs
-  (type $r (sub $q (array i31ref)))
-  (type $r1 (sub $q1 (array i31ref)))
-  (type $s (sub $r (array (ref i31))))
-  (type $s1 (sub $q1 (array (ref i31))))
-  (type $s2 (sub $q2 (array (ref i31))))
+  (type $i31 (sub $eq (array i31ref)))
+  (type $i31_2 (sub $i31 (array i31ref)))
+  (type $i31_mut (sub (array (mut i31ref))))
+  (type $i31_mut_2 (sub $i31_mut (array (mut i31ref))))
 
   ;; array refs
-  (type $rr (sub $q (array arrayref)))
-  (type $rr1 (sub $q1 (array arrayref)))
-  (type $ss (sub $rr (array (ref array))))
-  (type $ss0 (sub $ss (array (ref $rr))))
-  (type $ss1 (sub $q1 (array (ref array))))
-  (type (sub $q1 (array (ref $rr))))
-  (type $ss2 (sub $q2 (array (ref array))))
-  (type (sub $q2 (array (ref $rr))))
+  (type $array (sub $eq (array arrayref)))
+  (type $array_2 (sub $array (array arrayref)))
+  (type $array_mut (sub (array (mut arrayref))))
+  (type $array_mut_2 (sub $array_mut (array (mut arrayref))))
+
+  ;; concrete array refs
+  (type $concrete_array (sub $array (array (ref null $array))))
+  (type $concrete_array_2 (sub $concrete_array (array (ref null $array))))
+  (type $concrete_array_mut (sub (array (ref null $array_mut))))
+  (type $concrete_array_mut_2 (sub $concrete_array_mut (array (ref null $array_mut))))
 
   ;; struct refs
-  (type $rrr (sub $q (array structref)))
-  (type $rrr1 (sub $q1 (array structref)))
-  (type $sss (sub $rrr (array (ref struct))))
-  (type $sss0 (sub $rrr (array (ref null $d))))
-  (type $sss1 (sub $q1 (array (ref struct))))
-  (type (sub $q1 (array (ref $d))))
-  (type $sss2 (sub $q2 (array (ref struct))))
-  (type (sub $q2 (array (ref $d))))
+  (type $struct (sub $eq (array structref)))
+  (type $struct_2 (sub $struct (array structref)))
+  (type $struct_mut (sub (array (mut structref))))
+  (type $struct_mut_2 (sub $struct_mut (array (mut structref))))
+
+  ;; concrete struct refs
+  (type $my_struct (struct))
+  (type $concrete_struct (sub $struct (array (ref null $my_struct))))
+  (type $concrete_struct_2 (sub $concrete_struct (array (ref null $my_struct))))
+  (type $concrete_struct_mut (sub (array (mut (ref null $my_struct)))))
+  (type $concrete_struct_mut_2 (sub $concrete_struct_mut (array (mut (ref null $my_struct)))))
 
   ;; none refs
-  (type $z1 (sub $q (array (mut nullref))))
-  (type $z2 (sub $q0 (array (ref none))))
-  (type $z3 (sub $z1 (array (mut (ref none)))))
-  (type $z4 (sub $z1 (array nullref)))
-  (type (sub $q1 (array nullref)))
-  (type (sub $r (array nullref)))
-  (type (sub $rr (array nullref)))
-  (type (sub $rrr (array nullref)))
-  (type (sub $q1 (array (ref none))))
-  (type (sub $r (array (ref none))))
-  (type (sub $rr (array (ref none))))
-  (type (sub $rrr (array (ref none))))
+  (type $none (sub (array nullref)))
+  (type $none_2 (sub $none (array nullref)))
+  (type $none_any (sub $any (array nullref)))
+  (type $none_any_2 (sub $none_any (array nullref)))
+  (type $none_eq (sub $eq (array nullref)))
+  (type $none_eq_2 (sub $none_eq (array nullref)))
+  (type $none_i31 (sub $i31 (array nullref)))
+  (type $none_i31_2 (sub $none_i31 (array nullref)))
+  (type $none_array (sub $array (array nullref)))
+  (type $none_array_2 (sub $none_array (array nullref)))
+  (type $none_concrete_array (sub $concrete_array (array nullref)))
+  (type $none_concrete_array_2 (sub $none_concrete_array (array nullref)))
+  (type $none_struct (sub $struct (array nullref)))
+  (type $none_struct_2 (sub $none_struct (array nullref)))
+  (type $none_concrete_struct (sub $concrete_struct (array nullref)))
+  (type $none_concrete_struct_2 (sub $none_concrete_struct (array nullref)))
+  (type $none_mut (sub (array (mut nullref))))
+  (type $none_mut_2 (sub $none_mut (array (mut nullref))))
 
   ;; func refs
-  (type $t (sub (array (mut funcref))))
-  (type $u (sub $t (array (ref null func))))
-  (type $v (sub $u (array (ref func))))
-  (type $w (sub $v (array (ref $a))))
-  (type $x (sub $t (array (ref null $a))))
-  (type $y (sub $w (array (ref nofunc))))
-  (type $z (sub $x (array nullfuncref)))
+  (type $func (sub (array funcref)))
+  (type $func_2 (sub $func (array funcref)))
+  (type $func_mut (sub (array (mut funcref))))
+  (type $func_mut_2 (sub $func_mut (array (mut funcref))))
+
+  ;; concrete func refs
+  (type $my_func (func))
+  (type $concrete_func (sub $func (array (ref null $my_func))))
+  (type $concrete_func_2 (sub $concrete_func (array (ref null $my_func))))
+  (type $concrete_func_mut (sub (array (mut (ref null $my_func)))))
+  (type $concrete_func_mut_2 (sub $concrete_func_mut (array (mut (ref null $my_func)))))
+
+  ;; nofunc
+  (type $nofunc (sub $concrete_func (array nullfuncref)))
+  (type $nofunc_2 (sub $nofunc (array nullfuncref)))
+  (type $nofunc_mut (sub (array (mut nullfuncref))))
+  (type $nofunc_mut_2 (sub $nofunc_mut (array (mut nullfuncref))))
 
   ;; extern refs
-  (type $t0 (sub (array (mut externref))))
-  (type $u0 (sub $t0 (array (ref null extern))))
-  (type $v0 (sub $u0 (array (ref extern))))
-  (type $y0 (sub $v0 (array (ref noextern))))
-  (type $y01 (sub $u0 (array (ref noextern))))
-  (type $z0 (sub $u0 (array nullexternref)))
+  (type $extern (sub (array externref)))
+  (type $extern_2 (sub $extern (array externref)))
+  (type $extern_mut (sub (array (mut externref))))
+  (type $extern_mut_2 (sub $extern_mut (array (mut externref))))
 
-  (type $A (sub (struct (field $vt (mut i32)))))
-  (type $B (sub $A (struct (field $vt (mut i32)))))
-  (type (sub $A (struct (field $tv (mut i32))))) ;; same field, different name
-  (type (sub $A (struct (field (mut i32)) (field $vt (mut i64))))) ;; different field, same name
+  ;; noextern
+  (type $noextern (sub $extern (array nullexternref)))
+  (type $noextern_2 (sub $noextern (array nullexternref)))
+  (type $noextern_mut (sub (array (mut nullexternref))))
+  (type $noextern_mut_2 (sub $noextern_mut (array (mut nullexternref))))
+
+  ;; field names
+  (type $struct_with_named_field (sub (struct (field $field (mut i32)))))
+  ;; same field, same name
+  (type (sub $struct_with_named_field (struct (field $field (mut i32)))))
+  ;; same field, different name
+  (type (sub $struct_with_named_field (struct (field $different (mut i32)))))
+  ;; different field, same name
+  (type (sub $struct_with_named_field (struct (field (mut i32)) (field $field (mut i64)))))
 )
