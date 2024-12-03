@@ -91,6 +91,6 @@ mod test {
     fn serialize() {
         let author = Author::new("Chashu Cat");
         let json = serde_json::to_string(&author).unwrap();
-        assert_eq!("Chashu Cat", json);
+        assert_eq!(r#""Chashu Cat""#, json);
     }
 }
