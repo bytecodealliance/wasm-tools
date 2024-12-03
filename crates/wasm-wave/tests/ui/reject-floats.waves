@@ -1,19 +1,19 @@
 // Reject "-nan".
-float32(-nan);
-float64(-nan);
-float32(NaN);
-float64(NaN);
+f32(-nan);
+f64(-nan);
+f32(NaN);
+f64(NaN);
 // Reject "infinity", "-infinity", and uppercase variations.
-float32(infinity);
-float64(-infinity);
-float32(INFINITY);
-float64(-INFINITY);
-float32(Infinity);
-float64(-Infinity);
-float32(Infinity);
-float64(-Infinity);
+f32(infinity);
+f64(-infinity);
+f32(INFINITY);
+f64(-INFINITY);
+f32(Infinity);
+f64(-Infinity);
+f32(Infinity);
+f64(-Infinity);
 // Reject mixed case variations of "inf" and "nan".
-float32(Inf);
-float64(-Inf);
-float32(INF);
-float64(-INF);
+f32(Inf);
+f64(-Inf);
+f32(INF);
+f64(-INF);

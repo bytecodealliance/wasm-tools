@@ -37,16 +37,16 @@ impl<W: Write> Writer<W> {
             WasmTypeKind::U16 => self.write_display(val.unwrap_u16()),
             WasmTypeKind::U32 => self.write_display(val.unwrap_u32()),
             WasmTypeKind::U64 => self.write_display(val.unwrap_u64()),
-            WasmTypeKind::Float32 => {
-                let f = val.unwrap_float32();
+            WasmTypeKind::F32 => {
+                let f = val.unwrap_f32();
                 if f.is_nan() {
                     self.write_str("nan") // Display is "NaN"
                 } else {
                     self.write_display(f)
                 }
             }
-            WasmTypeKind::Float64 => {
-                let f = val.unwrap_float64();
+            WasmTypeKind::F64 => {
+                let f = val.unwrap_f64();
                 if f.is_nan() {
                     self.write_str("nan") // Display is "NaN"
                 } else {

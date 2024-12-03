@@ -30,8 +30,8 @@ impl Type {
     pub const U16: Self = Self(TypeEnum::Simple(SimpleType(WasmTypeKind::U16)));
     pub const U32: Self = Self(TypeEnum::Simple(SimpleType(WasmTypeKind::U32)));
     pub const U64: Self = Self(TypeEnum::Simple(SimpleType(WasmTypeKind::U64)));
-    pub const FLOAT32: Self = Self(TypeEnum::Simple(SimpleType(WasmTypeKind::Float32)));
-    pub const FLOAT64: Self = Self(TypeEnum::Simple(SimpleType(WasmTypeKind::Float64)));
+    pub const F32: Self = Self(TypeEnum::Simple(SimpleType(WasmTypeKind::F32)));
+    pub const F64: Self = Self(TypeEnum::Simple(SimpleType(WasmTypeKind::F64)));
     pub const CHAR: Self = Self(TypeEnum::Simple(SimpleType(WasmTypeKind::Char)));
     pub const STRING: Self = Self(TypeEnum::Simple(SimpleType(WasmTypeKind::String)));
 
@@ -139,7 +139,7 @@ const fn is_simple(kind: WasmTypeKind) -> bool {
     use WasmTypeKind::*;
     matches!(
         kind,
-        Bool | S8 | S16 | S32 | S64 | U8 | U16 | U32 | U64 | Float32 | Float64 | Char | String
+        Bool | S8 | S16 | S32 | S64 | U8 | U16 | U32 | U64 | F32 | F64 | Char | String
     )
 }
 
