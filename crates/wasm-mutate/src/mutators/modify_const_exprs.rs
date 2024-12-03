@@ -112,7 +112,7 @@ impl<'cfg, 'wasm> Reencode for InitTranslator<'cfg, 'wasm> {
         // removing the offset) as other values may not necessarily be valid
         // (e.g. maximum table size is limited)
         let is_element_offset = matches!(self.kind, ConstExpressionMutator::ElementOffset);
-        let should_zero = is_element_offset || self.config.rng().gen::<u8>() & 0b11 == 0;
+        let should_zero = is_element_offset || self.config.rng().r#gen::<u8>() & 0b11 == 0;
         let new_op = match ty {
             T::I32 if should_zero => CE::i32_const(0),
             T::I64 if should_zero => CE::i64_const(0),
@@ -123,28 +123,28 @@ impl<'cfg, 'wasm> Reencode for InitTranslator<'cfg, 'wasm> {
                 let range = if value < 0 { value..0 } else { 0..value };
                 self.config.rng().gen_range(range)
             } else {
-                self.config.rng().gen()
+                self.config.rng().r#gen()
             }),
             T::I64 => CE::i64_const(if let O::I64Const { value } = op {
                 let range = if value < 0 { value..0 } else { 0..value };
                 self.config.rng().gen_range(range)
             } else {
-                self.config.rng().gen()
+                self.config.rng().r#gen()
             }),
             T::V128 => CE::v128_const(if let O::V128Const { value } = op {
                 self.config.rng().gen_range(0..value.i128() as u128) as i128
             } else {
-                self.config.rng().gen()
+                self.config.rng().r#gen()
             }),
             T::F32 => CE::f32_const(if let O::F32Const { value } = op {
                 f32::from_bits(value.bits()) / 2.0
             } else {
-                f32::from_bits(self.config.rng().gen())
+                f32::from_bits(self.config.rng().r#gen())
             }),
             T::F64 => CE::f64_const(if let O::F64Const { value } = op {
                 f64::from_bits(value.bits()) / 2.0
             } else {
-                f64::from_bits(self.config.rng().gen())
+                f64::from_bits(self.config.rng().r#gen())
             }),
             T::FuncRef => CE::ref_null(wasm_encoder::HeapType::FUNC),
             T::ExternRef => CE::ref_null(wasm_encoder::HeapType::EXTERN),

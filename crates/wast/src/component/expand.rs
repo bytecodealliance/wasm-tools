@@ -490,7 +490,7 @@ impl<'a> Expander<'a> {
                         t.index = Some(*idx);
                         return;
                     }
-                    let id = gensym::gen(item.span);
+                    let id = gensym::generate(item.span);
                     to_prepend.push(ModuleTypeDecl::Type(core::Type {
                         span: item.span,
                         id: Some(id),
@@ -612,7 +612,7 @@ impl<'a> Expander<'a> {
         // And if this type isn't already defined we append it to the index
         // space with a fresh and unique name.
         let span = Span::from_offset(0); // FIXME(#613): don't manufacture
-        let id = gensym::gen(span);
+        let id = gensym::generate(span);
 
         self.types_to_prepend.push(inline.into_any_type(span, id));
 
@@ -658,7 +658,7 @@ impl<'a> Expander<'a> {
 
         // And if this type isn't already defined we append it to the index
         // space with a fresh and unique name.
-        let id = gensym::gen(span);
+        let id = gensym::generate(span);
 
         self.types_to_prepend.push(inline.into_any_type(span, id));
 
@@ -711,7 +711,7 @@ impl<'a> Expander<'a> {
 
         // And if this type isn't already defined we append it to the index
         // space with a fresh and unique name.
-        let id = gensym::gen(span);
+        let id = gensym::generate(span);
 
         self.types_to_prepend.push(inline.into_any_type(span, id));
 
@@ -731,7 +731,7 @@ impl<'a> Expander<'a> {
             CoreInstantiationArgKind::Instance(_) => return,
             CoreInstantiationArgKind::BundleOfExports(span, exports) => (*span, mem::take(exports)),
         };
-        let id = gensym::gen(span);
+        let id = gensym::generate(span);
         self.component_fields_to_prepend
             .push(ComponentField::CoreInstance(CoreInstance {
                 span,
@@ -751,7 +751,7 @@ impl<'a> Expander<'a> {
             InstantiationArgKind::Item(_) => return,
             InstantiationArgKind::BundleOfExports(span, exports) => (*span, mem::take(exports)),
         };
-        let id = gensym::gen(span);
+        let id = gensym::generate(span);
         self.component_fields_to_prepend
             .push(ComponentField::Instance(Instance {
                 span,

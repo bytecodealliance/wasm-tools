@@ -296,7 +296,7 @@ impl<'wasm> WasmMutate<'wasm> {
         // Next a length of the replacement is chosen. Note that the replacement
         // is always smaller than the input if reduction is requested, otherwise
         // we choose some arbitrary length of bytes to insert.
-        let max_size = if self.reduce || self.rng().gen() {
+        let max_size = if self.reduce || self.rng().r#gen() {
             0
         } else {
             max_size

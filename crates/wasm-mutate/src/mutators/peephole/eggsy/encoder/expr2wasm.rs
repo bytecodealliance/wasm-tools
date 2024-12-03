@@ -116,16 +116,16 @@ pub fn expr2wasm(
                     Lang::I64Load16S(memarg, _) => insn(Instruction::I64Load16S(memarg.into())),
                     Lang::I64Load32U(memarg, _) => insn(Instruction::I64Load32U(memarg.into())),
                     Lang::I64Load32S(memarg, _) => insn(Instruction::I64Load32S(memarg.into())),
-                    Lang::RandI32 => insn(Instruction::I32Const(config.rng().gen())),
-                    Lang::RandI64 => insn(Instruction::I64Const(config.rng().gen())),
+                    Lang::RandI32 => insn(Instruction::I32Const(config.rng().r#gen())),
+                    Lang::RandI64 => insn(Instruction::I64Const(config.rng().r#gen())),
                     Lang::RandF32 => {
                         newfunc.instruction(&Instruction::F32Const(f32::from_bits(
-                            config.rng().gen(),
+                            config.rng().r#gen(),
                         )));
                     }
                     Lang::RandF64 => {
                         newfunc.instruction(&Instruction::F64Const(f64::from_bits(
-                            config.rng().gen(),
+                            config.rng().r#gen(),
                         )));
                     }
                     Lang::Undef => { /* Do nothig */ }
@@ -135,7 +135,7 @@ pub fn expr2wasm(
                             Lang::I32(value) => {
                                 // Getting type from eclass.
 
-                                let r: i32 = config.rng().gen();
+                                let r: i32 = config.rng().r#gen();
                                 insn(Instruction::I32Const(r));
                                 insn(Instruction::I32Const(
                                     (Wrapping(*value as i32) - Wrapping(r)).0,
@@ -156,7 +156,7 @@ pub fn expr2wasm(
                             Lang::I64(value) => {
                                 // Getting type from eclass.
 
-                                let r: i64 = config.rng().gen();
+                                let r: i64 = config.rng().r#gen();
                                 insn(Instruction::I64Const(r));
                                 insn(Instruction::I64Const((Wrapping(*value) - Wrapping(r)).0));
                                 insn(Instruction::I64Add);

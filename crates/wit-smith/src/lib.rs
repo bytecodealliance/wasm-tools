@@ -17,7 +17,7 @@ mod generate;
 /// The `config` guides the generation of the document and the `u` bytes are
 /// used as input to construct the document.
 pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
-    let pkgs = generate::Generator::new(config.clone()).gen(u)?;
+    let pkgs = generate::Generator::new(config.clone()).generate(u)?;
     let mut resolve = Resolve::default();
     let mut last = None;
     for pkg in pkgs {

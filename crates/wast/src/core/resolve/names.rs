@@ -681,14 +681,11 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
     fn resolve_resume_table(&self, table: &mut ResumeTable<'a>) -> Result<(), Error> {
         for handle in &mut table.handlers {
             match handle {
-                Handle::OnLabel {
-                    ref mut tag,
-                    ref mut label,
-                } => {
+                Handle::OnLabel { tag, label } => {
                     self.resolver.resolve(tag, Ns::Tag)?;
                     self.resolve_label(label)?;
                 }
-                Handle::OnSwitch { ref mut tag } => {
+                Handle::OnSwitch { tag } => {
                     self.resolver.resolve(tag, Ns::Tag)?;
                 }
             }
