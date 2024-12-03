@@ -235,8 +235,8 @@ implemented in this repository as well. These libraries are:
   files and interfaces.
 * [**`wit-component`**](crates/wit-component) - a crate to create components
   from core wasm modules.
-* [**`wasm-metadata`**](crates/wasm-metadata) - a crate to manipulate name and
-  producer metadata (custom sections) in a wasm module or component.
+* [**`wasm-metadata`**](crates/wasm-metadata) - a crate to read and manipulate
+  WebAssembly metadata
 
 It's recommended to use the libraries directly rather than the CLI tooling when
 embedding into a separate project.
