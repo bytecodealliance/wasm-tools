@@ -42,6 +42,7 @@ fn add_to_empty_component() {
             name,
             producers,
             registry_metadata,
+            author,
             children,
             range,
         } => {
@@ -97,6 +98,8 @@ fn add_to_empty_component() {
                 registry_metadata.categories.unwrap(),
                 vec!["Tools".to_owned()]
             );
+
+            assert!(author.is_none());
 
             assert_eq!(range.start, 0);
             assert_eq!(range.end, 435);
@@ -159,6 +162,7 @@ fn add_to_nested_component() {
                 Metadata::Module {
                     name,
                     producers,
+                    author,
                     registry_metadata,
                     range,
                 } => {
@@ -178,6 +182,8 @@ fn add_to_nested_component() {
                         registry_metadata.authors.as_ref().unwrap(),
                         &["Foo".to_owned()]
                     );
+
+                    assert!(author.is_none());
 
                     assert_eq!(range.start, 10);
                     assert_eq!(range.end, 123);

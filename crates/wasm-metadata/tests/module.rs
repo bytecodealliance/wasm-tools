@@ -41,6 +41,7 @@ fn add_to_empty_module() {
         Metadata::Module {
             name,
             producers,
+            author,
             registry_metadata,
             range,
         } => {
@@ -95,6 +96,8 @@ fn add_to_empty_module() {
                 registry_metadata.categories.unwrap(),
                 vec!["Tools".to_owned()]
             );
+
+            assert!(author.is_none());
 
             assert_eq!(range.start, 0);
             assert_eq!(range.end, 425);

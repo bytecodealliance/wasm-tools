@@ -8,7 +8,7 @@ use wasmparser::CustomSectionReader;
 
 /// Contact details of the people or organization responsible for the image
 /// encoded as a freeform string.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Author(CustomSection<'static>);
 
 impl Serialize for Author {

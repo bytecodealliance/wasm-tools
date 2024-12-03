@@ -124,6 +124,7 @@ impl Metadata {
         Metadata::Component {
             name: None,
             producers: None,
+            author: None,
             registry_metadata: None,
             children: Vec::new(),
             range,
@@ -134,6 +135,7 @@ impl Metadata {
         Metadata::Module {
             name: None,
             producers: None,
+            author: None,
             registry_metadata: None,
             range,
         }
