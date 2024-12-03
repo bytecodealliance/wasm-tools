@@ -7,14 +7,14 @@ pub fn reset() {
     NEXT.with(|c| c.set(0));
 }
 
-pub fn gen(span: Span) -> Id<'static> {
+pub fn generate(span: Span) -> Id<'static> {
     NEXT.with(|next| {
-        let gen = next.get() + 1;
-        next.set(gen);
-        Id::gensym(span, gen)
+        let generation = next.get() + 1;
+        next.set(generation);
+        Id::gensym(span, generation)
     })
 }
 
 pub fn fill<'a>(span: Span, slot: &mut Option<Id<'a>>) -> Id<'a> {
-    *slot.get_or_insert_with(|| gen(span))
+    *slot.get_or_insert_with(|| generate(span))
 }

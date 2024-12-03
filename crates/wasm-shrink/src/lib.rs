@@ -294,7 +294,7 @@ impl ShrinkRun {
             self.attempt += 1;
 
             let mut mutate = WasmMutate::default();
-            let seed = self.rng.gen();
+            let seed = self.rng.r#gen();
             mutate.reduce(true).seed(seed);
             log::trace!("Attempt #{}: seed: {}", self.attempt, seed);
 

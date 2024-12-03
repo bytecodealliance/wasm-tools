@@ -244,7 +244,7 @@ impl PeepholeMutator {
                     root,
                     egraph.clone(),
                     self.max_tree_depth,
-                    config.rng().gen(),
+                    config.rng().r#gen(),
                 ));
 
                 // Filter expression equal to the original one

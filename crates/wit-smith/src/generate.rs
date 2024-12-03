@@ -20,7 +20,7 @@ type InterfaceList = IndexMap<String, FileInterface>;
 type PackageList = Vec<(PackageName, InterfaceList)>;
 
 struct InterfaceGenerator<'a> {
-    gen: &'a Generator,
+    generator: &'a Generator,
     file: &'a mut File,
     config: &'a Config,
     unique_names: HashSet<String>,
@@ -55,7 +55,7 @@ impl Generator {
         }
     }
 
-    pub fn gen(&mut self, u: &mut Unstructured<'_>) -> Result<Vec<Package>> {
+    pub fn generate(&mut self, u: &mut Unstructured<'_>) -> Result<Vec<Package>> {
         let mut packages = Vec::new();
         let mut names = HashSet::new();
         while packages.len() < self.config.max_packages && packages.is_empty() {
@@ -129,13 +129,13 @@ impl Generator {
 
             // Only generate Use/Done if we've already generated a world or interface. This ensures
             // that we never generate empty packages, which aren't representable.
-            let gen = if empty {
+            let generate = if empty {
                 u.choose(&[Generate::World, Generate::Interface])?.clone()
             } else {
                 u.arbitrary()?
             };
 
-            match gen {
+            match generate {
                 Generate::World => {
                     let name = file.gen_unique_package_name(u, &mut package_names)?;
                     log::debug!("new world `{name}` in {i}");
@@ -258,9 +258,9 @@ impl Generator {
         name: Option<&str>,
         file: &mut File,
     ) -> Result<(String, TypeList)> {
-        let mut gen = InterfaceGenerator::new(self, file);
-        let ret = gen.gen_interface(u, name)?;
-        Ok((ret, gen.types_in_interface))
+        let mut generator = InterfaceGenerator::new(self, file);
+        let ret = generator.gen_interface(u, name)?;
+        Ok((ret, generator.types_in_interface))
     }
 
     fn gen_path<'a>(
@@ -317,11 +317,11 @@ impl Generator {
 }
 
 impl<'a> InterfaceGenerator<'a> {
-    fn new(gen: &'a Generator, file: &'a mut File) -> InterfaceGenerator<'a> {
+    fn new(generator: &'a Generator, file: &'a mut File) -> InterfaceGenerator<'a> {
         InterfaceGenerator {
-            gen,
+            generator,
             file,
-            config: &gen.config,
+            config: &generator.config,
             types_in_interface: Vec::new(),
             // Claim the name `memory` to avoid conflicting with the canonical
             // ABI always using a linear memory named `memory`.
@@ -454,7 +454,7 @@ impl<'a> InterfaceGenerator<'a> {
                     self.gen_func_sig(u, &mut part, false)?;
                 }
                 ItemKind::Interface(dir) => {
-                    let id = match self.gen.gen_path(u, self.file, &mut part)? {
+                    let id = match self.generator.gen_path(u, self.file, &mut part)? {
                         Some((_name, id, _types)) => id,
                         // If an interface couldn't be chosen or wasn't
                         // chosen then skip this import. A unique name was
@@ -477,8 +477,8 @@ impl<'a> InterfaceGenerator<'a> {
                     part.push_str(";");
                 }
                 ItemKind::AnonInterface(_) => {
-                    let iface =
-                        InterfaceGenerator::new(self.gen, self.file).gen_interface(u, None)?;
+                    let iface = InterfaceGenerator::new(self.generator, self.file)
+                        .gen_interface(u, None)?;
                     part.push_str(&iface);
                 }
 
@@ -572,7 +572,7 @@ impl<'a> InterfaceGenerator<'a> {
 
     fn gen_use(&mut self, u: &mut Unstructured<'_>, part: &mut String) -> Result<bool> {
         let mut path = String::new();
-        let (_name, _id, types) = match self.gen.gen_path(u, self.file, &mut path)? {
+        let (_name, _id, types) = match self.generator.gen_path(u, self.file, &mut path)? {
             Some(types) => types,
             None => return Ok(false),
         };

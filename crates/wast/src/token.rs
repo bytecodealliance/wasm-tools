@@ -53,7 +53,7 @@ impl Span {
 #[derive(Copy, Clone)]
 pub struct Id<'a> {
     name: &'a str,
-    gen: u32,
+    generation: u32,
     span: Span,
 }
 
@@ -63,14 +63,18 @@ impl<'a> Id<'a> {
     /// Note that `name` can be any arbitrary string according to the
     /// WebAssembly/annotations proposal.
     pub fn new(name: &'a str, span: Span) -> Id<'a> {
-        Id { name, gen: 0, span }
+        Id {
+            name,
+            generation: 0,
+            span,
+        }
     }
 
     #[cfg(feature = "wasm-module")]
-    pub(crate) fn gensym(span: Span, gen: u32) -> Id<'a> {
+    pub(crate) fn gensym(span: Span, generation: u32) -> Id<'a> {
         Id {
             name: "gensym",
-            gen,
+            generation,
             span,
         }
     }
@@ -89,20 +93,20 @@ impl<'a> Id<'a> {
 
     #[cfg(feature = "wasm-module")]
     pub(crate) fn is_gensym(&self) -> bool {
-        self.gen != 0
+        self.generation != 0
     }
 }
 
 impl<'a> Hash for Id<'a> {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         self.name.hash(hasher);
-        self.gen.hash(hasher);
+        self.generation.hash(hasher);
     }
 }
 
 impl<'a> PartialEq for Id<'a> {
     fn eq(&self, other: &Id<'a>) -> bool {
-        self.name == other.name && self.gen == other.gen
+        self.name == other.name && self.generation == other.generation
     }
 }
 
@@ -115,7 +119,7 @@ impl<'a> Parse<'a> for Id<'a> {
                 return Ok((
                     Id {
                         name,
-                        gen: 0,
+                        generation: 0,
                         span: c.cur_span(),
                     },
                     rest,
@@ -128,8 +132,10 @@ impl<'a> Parse<'a> for Id<'a> {
 
 impl fmt::Debug for Id<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.gen != 0 {
-            f.debug_struct("Id").field("gen", &self.gen).finish()
+        if self.generation != 0 {
+            f.debug_struct("Id")
+                .field("generation", &self.generation)
+                .finish()
         } else {
             self.name.fmt(f)
         }

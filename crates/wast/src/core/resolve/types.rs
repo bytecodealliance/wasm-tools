@@ -209,7 +209,7 @@ impl<'a> Expander<'a> {
         }
 
         // ... and failing that we insert a new type definition.
-        let id = gensym::gen(span);
+        let id = gensym::generate(span);
         self.to_prepend.push(ModuleField::Type(Type {
             span,
             id: Some(id),
