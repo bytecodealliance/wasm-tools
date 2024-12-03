@@ -756,10 +756,14 @@ impl Module {
         u: &mut Unstructured,
         ty: FieldType,
     ) -> Result<FieldType> {
-        Ok(FieldType {
-            element_type: self.arbitrary_matching_storage_type(u, ty.element_type)?,
-            mutable: if ty.mutable { u.arbitrary()? } else { false },
-        })
+        if ty.mutable {
+            Ok(ty)
+        } else {
+            Ok(FieldType {
+                element_type: self.arbitrary_matching_storage_type(u, ty.element_type)?,
+                mutable: false,
+            })
+        }
     }
 
     fn arbitrary_matching_storage_type(
