@@ -233,11 +233,28 @@ impl<'a> Matches for WithRecGroup<&'a StructType> {
 
 impl Matches for WithRecGroup<FieldType> {
     fn matches(types: &TypeList, a: Self, b: Self) -> bool {
-        (b.mutable || !a.mutable)
+        // `a`'s storage type must match `b`'s storage type.
+        if !Matches::matches(
+            types,
+            WithRecGroup::map(a, |a| a.element_type),
+            WithRecGroup::map(b, |b| b.element_type),
+        ) {
+            return false;
+        }
+
+        // And either both fields are immutable...
+        if !a.mutable && !b.mutable {
+            return true;
+        }
+
+        // Or both fields are mutable and `b`'s storage type must match `a`'s
+        // storage type, a.k.a. they must be the exact same storage type.
+        a.mutable
+            && b.mutable
             && Matches::matches(
                 types,
-                WithRecGroup::map(a, |a| a.element_type),
                 WithRecGroup::map(b, |b| b.element_type),
+                WithRecGroup::map(a, |a| a.element_type),
             )
     }
 }
