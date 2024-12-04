@@ -11,6 +11,7 @@ fn add_to_empty_component() {
         language: vec![("bar".to_owned(), "1.0".to_owned())],
         processed_by: vec![("baz".to_owned(), "1.0".to_owned())],
         sdk: vec![],
+        author: Some(Author::new("Chashu Cat")),
         registry_metadata: Some(RegistryMetadata {
             authors: Some(vec!["foo".to_owned()]),
             description: Some("foo bar baz".to_owned()),
@@ -42,6 +43,7 @@ fn add_to_empty_component() {
             name,
             producers,
             registry_metadata,
+            author,
             children,
             range,
         } => {
@@ -56,6 +58,8 @@ fn add_to_empty_component() {
                 producers.get("processed-by").unwrap().get("baz").unwrap(),
                 "1.0"
             );
+
+            assert_eq!(author.unwrap(), Author::new("Chashu Cat"));
 
             let registry_metadata = registry_metadata.unwrap();
 
@@ -99,7 +103,7 @@ fn add_to_empty_component() {
             );
 
             assert_eq!(range.start, 0);
-            assert_eq!(range.end, 435);
+            assert_eq!(range.end, 454);
         }
         _ => panic!("metadata should be component"),
     }
@@ -114,6 +118,7 @@ fn add_to_nested_component() {
         language: vec![("bar".to_owned(), "1.0".to_owned())],
         processed_by: vec![("baz".to_owned(), "1.0".to_owned())],
         sdk: vec![],
+        author: Some(Author::new("Chashu Cat")),
         registry_metadata: Some(RegistryMetadata {
             authors: Some(vec!["Foo".to_owned()]),
             ..Default::default()
@@ -159,6 +164,7 @@ fn add_to_nested_component() {
                 Metadata::Module {
                     name,
                     producers,
+                    author,
                     registry_metadata,
                     range,
                 } => {
@@ -173,14 +179,16 @@ fn add_to_nested_component() {
                         "1.0"
                     );
 
+                    assert_eq!(author, &Some(Author::new("Chashu Cat")));
+
                     let registry_metadata = registry_metadata.as_ref().unwrap();
                     assert_eq!(
                         registry_metadata.authors.as_ref().unwrap(),
                         &["Foo".to_owned()]
                     );
 
-                    assert_eq!(range.start, 10);
-                    assert_eq!(range.end, 123);
+                    assert_eq!(range.start, 11);
+                    assert_eq!(range.end, 143);
                 }
                 _ => panic!("child is a module"),
             }

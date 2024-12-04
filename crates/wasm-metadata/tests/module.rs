@@ -11,6 +11,7 @@ fn add_to_empty_module() {
         language: vec![("bar".to_owned(), "1.0".to_owned())],
         processed_by: vec![("baz".to_owned(), "1.0".to_owned())],
         sdk: vec![],
+        author: Some(Author::new("Chashu Cat")),
         registry_metadata: Some(RegistryMetadata {
             authors: Some(vec!["foo".to_owned()]),
             description: Some("foo bar baz".to_owned()),
@@ -41,6 +42,7 @@ fn add_to_empty_module() {
         Metadata::Module {
             name,
             producers,
+            author,
             registry_metadata,
             range,
         } => {
@@ -54,6 +56,8 @@ fn add_to_empty_module() {
                 producers.get("processed-by").unwrap().get("baz").unwrap(),
                 "1.0"
             );
+
+            assert_eq!(author.unwrap(), Author::new("Chashu Cat"));
 
             let registry_metadata = registry_metadata.unwrap();
 
@@ -97,7 +101,7 @@ fn add_to_empty_module() {
             );
 
             assert_eq!(range.start, 0);
-            assert_eq!(range.end, 425);
+            assert_eq!(range.end, 444);
         }
         _ => panic!("metadata should be module"),
     }

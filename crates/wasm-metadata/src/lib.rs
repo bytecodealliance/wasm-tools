@@ -5,6 +5,7 @@
 pub use add_metadata::AddMetadata;
 pub use metadata::Metadata;
 pub use names::{ComponentNames, ModuleNames};
+pub use oci_annotations::Author;
 pub use producers::{Producers, ProducersField};
 pub use registry::{CustomLicense, Link, LinkType, RegistryMetadata};
 
@@ -13,6 +14,7 @@ pub(crate) use rewrite::rewrite_wasm;
 mod add_metadata;
 mod metadata;
 mod names;
+mod oci_annotations;
 mod producers;
 mod registry;
 mod rewrite;

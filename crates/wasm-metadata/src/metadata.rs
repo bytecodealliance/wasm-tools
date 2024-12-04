@@ -4,7 +4,7 @@ use std::fmt;
 use std::ops::Range;
 use wasmparser::{KnownCustom, Parser, Payload::*};
 
-use crate::{ComponentNames, ModuleNames, Producers, RegistryMetadata};
+use crate::{Author, ComponentNames, ModuleNames, Producers, RegistryMetadata};
 
 /// A tree of the metadata found in a WebAssembly binary.
 #[derive(Debug, Serialize)]
@@ -18,6 +18,8 @@ pub enum Metadata {
         producers: Option<Producers>,
         /// The component's registry metadata section, if any.
         registry_metadata: Option<RegistryMetadata>,
+        /// The component's author section, if any.
+        author: Option<Author>,
         /// All child modules and components inside the component.
         children: Vec<Box<Metadata>>,
         /// Byte range of the module in the parent binary
@@ -31,6 +33,8 @@ pub enum Metadata {
         producers: Option<Producers>,
         /// The module's registry metadata section, if any.
         registry_metadata: Option<RegistryMetadata>,
+        /// The component's author section, if any.
+        author: Option<Author>,
         /// Byte range of the module in the parent binary
         range: Range<usize>,
     },
@@ -106,6 +110,13 @@ impl Metadata {
                             .expect("non-empty metadata stack")
                             .set_registry_metadata(registry);
                     }
+                    KnownCustom::Unknown if c.name() == "author" => {
+                        let a = Author::parse_custom_section(&c)?;
+                        match metadata.last_mut().expect("non-empty metadata stack") {
+                            Metadata::Module { author, .. } => *author = Some(a),
+                            Metadata::Component { author, .. } => *author = Some(a),
+                        }
+                    }
                     _ => {}
                 },
                 _ => {}
@@ -120,6 +131,7 @@ impl Metadata {
         Metadata::Component {
             name: None,
             producers: None,
+            author: None,
             registry_metadata: None,
             children: Vec::new(),
             range,
@@ -130,6 +142,7 @@ impl Metadata {
         Metadata::Module {
             name: None,
             producers: None,
+            author: None,
             registry_metadata: None,
             range,
         }

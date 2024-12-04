@@ -44,7 +44,7 @@ impl RegistryMetadata {
     /// Merge into an existing wasm module. Rewrites the module with this registry-metadata section
     /// overwriting its existing one, or adds this registry-metadata section if none is present.
     pub fn add_to_wasm(&self, input: &[u8]) -> Result<Vec<u8>> {
-        rewrite_wasm(&None, &Producers::empty(), Some(&self), input)
+        rewrite_wasm(&None, &Producers::empty(), &None, Some(&self), input)
     }
 
     /// Parse a Wasm binary and extract the `Registry` section, if there is any.
