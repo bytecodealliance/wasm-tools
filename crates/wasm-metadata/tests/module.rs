@@ -11,6 +11,7 @@ fn add_to_empty_module() {
         language: vec![("bar".to_owned(), "1.0".to_owned())],
         processed_by: vec![("baz".to_owned(), "1.0".to_owned())],
         sdk: vec![],
+        author: Some(Author::new("Chashu Cat")),
         registry_metadata: Some(RegistryMetadata {
             authors: Some(vec!["foo".to_owned()]),
             description: Some("foo bar baz".to_owned()),
@@ -56,6 +57,8 @@ fn add_to_empty_module() {
                 "1.0"
             );
 
+            assert_eq!(author.unwrap(), Author::new("Chashu Cat"));
+
             let registry_metadata = registry_metadata.unwrap();
 
             assert!(registry_metadata.validate().is_ok());
@@ -97,10 +100,8 @@ fn add_to_empty_module() {
                 vec!["Tools".to_owned()]
             );
 
-            assert!(author.is_none());
-
             assert_eq!(range.start, 0);
-            assert_eq!(range.end, 425);
+            assert_eq!(range.end, 444);
         }
         _ => panic!("metadata should be module"),
     }

@@ -110,6 +110,13 @@ impl Metadata {
                             .expect("non-empty metadata stack")
                             .set_registry_metadata(registry);
                     }
+                    KnownCustom::Unknown if c.name() == "author" => {
+                        let a = Author::parse_custom_section(&c)?;
+                        match metadata.last_mut().expect("non-empty metadata stack") {
+                            Metadata::Module { author, .. } => *author = Some(a),
+                            Metadata::Component { author, .. } => *author = Some(a),
+                        }
+                    }
                     _ => {}
                 },
                 _ => {}

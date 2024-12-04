@@ -1,4 +1,4 @@
-use crate::{ComponentNames, ModuleNames, Producers, RegistryMetadata};
+use crate::{Author, ComponentNames, ModuleNames, Producers, RegistryMetadata};
 use anyhow::Result;
 use std::borrow::Cow;
 use std::mem;
@@ -9,6 +9,7 @@ use wasmparser::{KnownCustom, Parser, Payload::*};
 pub(crate) fn rewrite_wasm(
     add_name: &Option<String>,
     add_producers: &Producers,
+    add_author: &Option<Author>,
     add_registry_metadata: Option<&RegistryMetadata>,
     input: &[u8],
 ) -> Result<Vec<u8>> {
@@ -90,6 +91,13 @@ pub(crate) fn rewrite_wasm(
                             continue;
                         }
                     }
+                    KnownCustom::Unknown if c.name() == "author" => {
+                        if add_author.is_none() {
+                            let author = Author::parse_custom_section(c)?;
+                            author.append_to(&mut output);
+                            continue;
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -118,6 +126,9 @@ pub(crate) fn rewrite_wasm(
         producers.merge(add_producers);
         // Encode into output:
         producers.section().append_to(&mut output);
+    }
+    if let Some(author) = add_author {
+        author.append_to(&mut output);
     }
     if add_registry_metadata.is_some() {
         let registry_metadata = wasm_encoder::CustomSection {

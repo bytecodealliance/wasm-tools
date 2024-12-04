@@ -1,4 +1,4 @@
-use crate::{rewrite_wasm, Producers, RegistryMetadata};
+use crate::{rewrite_wasm, Author, Producers, RegistryMetadata};
 
 use anyhow::Result;
 
@@ -24,6 +24,11 @@ pub struct AddMetadata {
     /// Add an SDK and its version to the producers section
     #[cfg_attr(feature="clap", clap(long, value_parser = parse_key_value, value_name="NAME=VERSION"))]
     pub sdk: Vec<(String, String)>,
+
+    /// Contact details of the people or organization responsible,
+    /// encoded as a freeform string.
+    #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
+    pub author: Option<Author>,
 
     /// Add an registry metadata to the registry-metadata section
     #[cfg_attr(feature="clap", clap(long, value_parser = parse_registry_metadata_value, value_name="PATH"))]
@@ -54,6 +59,7 @@ impl AddMetadata {
         rewrite_wasm(
             &self.name,
             &Producers::from_meta(self),
+            &self.author,
             self.registry_metadata.as_ref(),
             input,
         )

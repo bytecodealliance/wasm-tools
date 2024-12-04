@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::{encoding_size, Encode, Section, SectionId};
 
 /// A custom section holding arbitrary data.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct CustomSection<'a> {
     /// The name of this custom section.
     pub name: Cow<'a, str>,
