@@ -1,4 +1,4 @@
-use crate::{rewrite_wasm, Author, Producers, RegistryMetadata};
+use crate::{rewrite_wasm, Author, Description, Producers, RegistryMetadata};
 
 use anyhow::Result;
 
@@ -30,6 +30,10 @@ pub struct AddMetadata {
     #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
     pub author: Option<Author>,
 
+    /// A human-readable description of the binary
+    #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
+    pub description: Option<Description>,
+
     /// Add an registry metadata to the registry-metadata section
     #[cfg_attr(feature="clap", clap(long, value_parser = parse_registry_metadata_value, value_name="PATH"))]
     pub registry_metadata: Option<RegistryMetadata>,
@@ -60,6 +64,7 @@ impl AddMetadata {
             &self.name,
             &Producers::from_meta(self),
             &self.author,
+            &self.description,
             self.registry_metadata.as_ref(),
             input,
         )
