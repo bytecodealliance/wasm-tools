@@ -454,7 +454,7 @@ impl ComponentBuilder {
 
     /// Declares a new `stream.cancel-write` intrinsic.
     pub fn stream_cancel_write(&mut self, ty: u32, async_: bool) -> u32 {
-        self.canonical_functions().stream_cancel_read(ty, async_);
+        self.canonical_functions().stream_cancel_write(ty, async_);
         inc(&mut self.core_funcs)
     }
 
@@ -504,7 +504,7 @@ impl ComponentBuilder {
 
     /// Declares a new `future.cancel-write` intrinsic.
     pub fn future_cancel_write(&mut self, ty: u32, async_: bool) -> u32 {
-        self.canonical_functions().future_cancel_read(ty, async_);
+        self.canonical_functions().future_cancel_write(ty, async_);
         inc(&mut self.core_funcs)
     }
 

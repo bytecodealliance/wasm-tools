@@ -230,14 +230,22 @@ pub enum Import {
     },
     StreamCancelRead {
         ty: TypeId,
+        imported: bool,
         async_: bool,
     },
     StreamCancelWrite {
         ty: TypeId,
+        imported: bool,
         async_: bool,
     },
-    StreamCloseReadable(TypeId),
-    StreamCloseWritable(TypeId),
+    StreamCloseReadable {
+        ty: TypeId,
+        imported: bool,
+    },
+    StreamCloseWritable {
+        ty: TypeId,
+        imported: bool,
+    },
     FutureNew(PayloadInfo),
     FutureRead {
         async_: bool,
@@ -249,14 +257,22 @@ pub enum Import {
     },
     FutureCancelRead {
         ty: TypeId,
+        imported: bool,
         async_: bool,
     },
     FutureCancelWrite {
         ty: TypeId,
+        imported: bool,
         async_: bool,
     },
-    FutureCloseReadable(TypeId),
-    FutureCloseWritable(TypeId),
+    FutureCloseReadable {
+        ty: TypeId,
+        imported: bool,
+    },
+    FutureCloseWritable {
+        ty: TypeId,
+        imported: bool,
+    },
     ErrorContextNew {
         encoding: StringEncoding,
     },
@@ -1464,9 +1480,11 @@ impl NameMangling for Legacy {
                             &FuncType::new([ValType::I32], [ValType::I32]),
                             ty,
                         )?;
+                        let info = info(key)?;
                         Import::FutureCancelWrite {
                             async_,
-                            ty: info(key)?.ty,
+                            ty: info.ty,
+                            imported: info.imported,
                         }
                     } else if let Some(key) = match_payload_prefix(name, "[future-cancel-read-") {
                         validate_func_sig(
@@ -1474,9 +1492,11 @@ impl NameMangling for Legacy {
                             &FuncType::new([ValType::I32], [ValType::I32]),
                             ty,
                         )?;
+                        let info = info(key)?;
                         Import::FutureCancelRead {
                             async_,
-                            ty: info(key)?.ty,
+                            ty: info.ty,
+                            imported: info.imported,
                         }
                     } else if let Some(key) = match_payload_prefix(name, "[future-close-writable-")
                     {
@@ -1484,14 +1504,22 @@ impl NameMangling for Legacy {
                             bail!("async `future.close-writable` calls not supported");
                         }
                         validate_func_sig(name, &FuncType::new([ValType::I32; 2], []), ty)?;
-                        Import::FutureCloseWritable(info(key)?.ty)
+                        let info = info(key)?;
+                        Import::FutureCloseWritable {
+                            ty: info.ty,
+                            imported: info.imported,
+                        }
                     } else if let Some(key) = match_payload_prefix(name, "[future-close-readable-")
                     {
                         if async_ {
                             bail!("async `future.close-readable` calls not supported");
                         }
                         validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
-                        Import::FutureCloseReadable(info(key)?.ty)
+                        let info = info(key)?;
+                        Import::FutureCloseReadable {
+                            ty: info.ty,
+                            imported: info.imported,
+                        }
                     } else if let Some(key) = match_payload_prefix(name, "[stream-new-") {
                         if async_ {
                             bail!("async `stream.new` calls not supported");
@@ -1524,9 +1552,11 @@ impl NameMangling for Legacy {
                             &FuncType::new([ValType::I32], [ValType::I32]),
                             ty,
                         )?;
+                        let info = info(key)?;
                         Import::StreamCancelWrite {
                             async_,
-                            ty: info(key)?.ty,
+                            ty: info.ty,
+                            imported: info.imported,
                         }
                     } else if let Some(key) = match_payload_prefix(name, "[stream-cancel-read-") {
                         validate_func_sig(
@@ -1534,9 +1564,11 @@ impl NameMangling for Legacy {
                             &FuncType::new([ValType::I32], [ValType::I32]),
                             ty,
                         )?;
+                        let info = info(key)?;
                         Import::StreamCancelRead {
                             async_,
-                            ty: info(key)?.ty,
+                            ty: info.ty,
+                            imported: info.imported,
                         }
                     } else if let Some(key) = match_payload_prefix(name, "[stream-close-writable-")
                     {
@@ -1544,14 +1576,22 @@ impl NameMangling for Legacy {
                             bail!("async `stream.close-writable` calls not supported");
                         }
                         validate_func_sig(name, &FuncType::new([ValType::I32; 2], []), ty)?;
-                        Import::StreamCloseWritable(info(key)?.ty)
+                        let info = info(key)?;
+                        Import::StreamCloseWritable {
+                            ty: info.ty,
+                            imported: info.imported,
+                        }
                     } else if let Some(key) = match_payload_prefix(name, "[stream-close-readable-")
                     {
                         if async_ {
                             bail!("async `stream.close-readable` calls not supported");
                         }
                         validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
-                        Import::StreamCloseReadable(info(key)?.ty)
+                        let info = info(key)?;
+                        Import::StreamCloseReadable {
+                            ty: info.ty,
+                            imported: info.imported,
+                        }
                     } else {
                         bail!("unrecognized payload import: {name}");
                     },

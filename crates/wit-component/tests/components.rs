@@ -157,7 +157,7 @@ fn run_test(path: &Path) -> Result<()> {
         WasmFeatures::WASM2 | WasmFeatures::COMPONENT_MODEL | WasmFeatures::COMPONENT_MODEL_ASYNC;
     Validator::new_with_features(features)
         .validate_all(&bytes)
-        .context("failed to validated component output")?;
+        .context("failed to validate component output")?;
 
     let wat = wasmprinter::print_bytes(&bytes).context("failed to print bytes")?;
     assert_output(&wat, &component_path)?;
