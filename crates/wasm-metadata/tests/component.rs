@@ -12,6 +12,7 @@ fn add_to_empty_component() {
         processed_by: vec![("baz".to_owned(), "1.0".to_owned())],
         sdk: vec![],
         author: Some(Author::new("Chashu Cat")),
+        description: Some(Description::new("Chashu likes tuna")),
         registry_metadata: Some(RegistryMetadata {
             authors: Some(vec!["foo".to_owned()]),
             description: Some("foo bar baz".to_owned()),
@@ -44,6 +45,7 @@ fn add_to_empty_component() {
             producers,
             registry_metadata,
             author,
+            description,
             children,
             range,
         } => {
@@ -60,6 +62,7 @@ fn add_to_empty_component() {
             );
 
             assert_eq!(author.unwrap(), Author::new("Chashu Cat"));
+            assert_eq!(description.unwrap(), Description::new("Chashu likes tuna"));
 
             let registry_metadata = registry_metadata.unwrap();
 
@@ -103,7 +106,7 @@ fn add_to_empty_component() {
             );
 
             assert_eq!(range.start, 0);
-            assert_eq!(range.end, 454);
+            assert_eq!(range.end, 485);
         }
         _ => panic!("metadata should be component"),
     }
@@ -119,6 +122,7 @@ fn add_to_nested_component() {
         processed_by: vec![("baz".to_owned(), "1.0".to_owned())],
         sdk: vec![],
         author: Some(Author::new("Chashu Cat")),
+        description: Some(Description::new("Chashu likes tuna")),
         registry_metadata: Some(RegistryMetadata {
             authors: Some(vec!["Foo".to_owned()]),
             ..Default::default()
@@ -167,6 +171,7 @@ fn add_to_nested_component() {
                     author,
                     registry_metadata,
                     range,
+                    description,
                 } => {
                     assert_eq!(name, &Some("foo".to_owned()));
                     let producers = producers.as_ref().expect("some producers");
@@ -180,6 +185,7 @@ fn add_to_nested_component() {
                     );
 
                     assert_eq!(author, &Some(Author::new("Chashu Cat")));
+                    assert_eq!(description, &Some(Description::new("Chashu likes tuna")));
 
                     let registry_metadata = registry_metadata.as_ref().unwrap();
                     assert_eq!(
@@ -188,7 +194,7 @@ fn add_to_nested_component() {
                     );
 
                     assert_eq!(range.start, 11);
-                    assert_eq!(range.end, 143);
+                    assert_eq!(range.end, 174);
                 }
                 _ => panic!("child is a module"),
             }
