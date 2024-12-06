@@ -16,6 +16,7 @@ fn add_to_empty_module() {
         licenses: Some(
             Licenses::new("Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT").unwrap(),
         ),
+        source: Some(Source::new("https://github.com/bytecodealliance/wasm-tools").unwrap()),
         registry_metadata: Some(RegistryMetadata {
             authors: Some(vec!["foo".to_owned()]),
             description: Some("foo bar baz".to_owned()),
@@ -49,6 +50,7 @@ fn add_to_empty_module() {
             author,
             description,
             licenses,
+            source,
             registry_metadata,
             range,
         } => {
@@ -84,6 +86,12 @@ fn add_to_empty_module() {
                 registry_metadata.license.unwrap(),
                 "MIT OR LicenseRef-FOO".to_owned()
             );
+
+            assert_eq!(
+                source.unwrap(),
+                Source::new("https://github.com/bytecodealliance/wasm-tools").unwrap(),
+            );
+
             assert_eq!(
                 registry_metadata.custom_licenses.unwrap(),
                 vec![CustomLicense {
@@ -112,7 +120,7 @@ fn add_to_empty_module() {
             );
 
             assert_eq!(range.start, 0);
-            assert_eq!(range.end, 537);
+            assert_eq!(range.end, 592);
         }
         _ => panic!("metadata should be module"),
     }

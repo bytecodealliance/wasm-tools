@@ -5,7 +5,7 @@
 pub use add_metadata::AddMetadata;
 pub use metadata::Metadata;
 pub use names::{ComponentNames, ModuleNames};
-pub use oci_annotations::{Author, Description, Licenses};
+pub use oci_annotations::{Author, Description, Licenses, Source};
 pub use producers::{Producers, ProducersField};
 pub use registry::{CustomLicense, Link, LinkType, RegistryMetadata};
 

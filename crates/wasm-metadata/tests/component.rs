@@ -16,6 +16,7 @@ fn add_to_empty_component() {
         licenses: Some(
             Licenses::new("Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT").unwrap(),
         ),
+        source: Some(Source::new("https://github.com/bytecodealliance/wasm-tools").unwrap()),
         registry_metadata: Some(RegistryMetadata {
             authors: Some(vec!["foo".to_owned()]),
             description: Some("foo bar baz".to_owned()),
@@ -50,6 +51,7 @@ fn add_to_empty_component() {
             author,
             description,
             licenses,
+            source,
             children,
             range,
         } => {
@@ -70,6 +72,10 @@ fn add_to_empty_component() {
             assert_eq!(
                 licenses.unwrap(),
                 Licenses::new("Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT").unwrap()
+            );
+            assert_eq!(
+                source.unwrap(),
+                Source::new("https://github.com/bytecodealliance/wasm-tools").unwrap(),
             );
 
             let registry_metadata = registry_metadata.unwrap();
@@ -114,7 +120,7 @@ fn add_to_empty_component() {
             );
 
             assert_eq!(range.start, 0);
-            assert_eq!(range.end, 547);
+            assert_eq!(range.end, 602);
         }
         _ => panic!("metadata should be component"),
     }
@@ -134,6 +140,7 @@ fn add_to_nested_component() {
         licenses: Some(
             Licenses::new("Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT").unwrap(),
         ),
+        source: Some(Source::new("https://github.com/bytecodealliance/wasm-tools").unwrap()),
         registry_metadata: Some(RegistryMetadata {
             authors: Some(vec!["Foo".to_owned()]),
             ..Default::default()
@@ -182,6 +189,7 @@ fn add_to_nested_component() {
                     author,
                     licenses,
                     registry_metadata,
+                    source,
                     range,
                     description,
                 } => {
@@ -205,6 +213,12 @@ fn add_to_nested_component() {
                                 .unwrap()
                         )
                     );
+                    assert_eq!(
+                        source,
+                        &Some(
+                            Source::new("https://github.com/bytecodealliance/wasm-tools").unwrap()
+                        ),
+                    );
 
                     let registry_metadata = registry_metadata.as_ref().unwrap();
                     assert_eq!(
@@ -213,7 +227,7 @@ fn add_to_nested_component() {
                     );
 
                     assert_eq!(range.start, 11);
-                    assert_eq!(range.end, 236);
+                    assert_eq!(range.end, 291);
                 }
                 _ => panic!("child is a module"),
             }
