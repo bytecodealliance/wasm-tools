@@ -33,7 +33,10 @@ wasmparser = { path = "../wasmparser" }
 wasmprinter = { workspace = true }
 
 [features]
-default = ['component-model']
+default = ['std', 'component-model']
+
+# A feature which enables implementations of `std::error::Error` as appropriate.
+std = []
 
 # On-by-default: conditional support for emitting components in addition to
 # core modules.

@@ -574,6 +574,7 @@ impl<E: core::fmt::Display> core::fmt::Display for Error<E> {
     }
 }
 
+#[cfg(all(not(feature = "std"), core_error))]
 impl<E: 'static + core::error::Error> core::error::Error for Error<E> {
     fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         match self {
