@@ -5,7 +5,7 @@ use std::ops::Range;
 use wasmparser::{KnownCustom, Parser, Payload::*};
 
 use crate::{
-    Author, ComponentNames, Description, Licenses, ModuleNames, Producers, RegistryMetadata,
+    Author, ComponentNames, Description, Licenses, ModuleNames, Producers, RegistryMetadata, Source,
 };
 
 /// A tree of the metadata found in a WebAssembly binary.
@@ -26,6 +26,8 @@ pub enum Metadata {
         description: Option<Description>,
         /// License(s) under which contained software is distributed as an SPDX License Expression.
         licenses: Option<Licenses>,
+        /// URL to get source code for building the image
+        source: Option<Source>,
         /// All child modules and components inside the component.
         children: Vec<Box<Metadata>>,
         /// Byte range of the module in the parent binary
@@ -45,6 +47,8 @@ pub enum Metadata {
         description: Option<Description>,
         /// License(s) under which contained software is distributed as an SPDX License Expression.
         licenses: Option<Licenses>,
+        /// URL to get source code for building the image
+        source: Option<Source>,
         /// Byte range of the module in the parent binary
         range: Range<usize>,
     },
@@ -141,6 +145,13 @@ impl Metadata {
                             Metadata::Component { licenses, .. } => *licenses = Some(a),
                         }
                     }
+                    KnownCustom::Unknown if c.name() == "source" => {
+                        let a = Source::parse_custom_section(&c)?;
+                        match metadata.last_mut().expect("non-empty metadata stack") {
+                            Metadata::Module { source, .. } => *source = Some(a),
+                            Metadata::Component { source, .. } => *source = Some(a),
+                        }
+                    }
                     _ => {}
                 },
                 _ => {}
@@ -158,6 +169,7 @@ impl Metadata {
             author: None,
             description: None,
             licenses: None,
+            source: None,
             registry_metadata: None,
             children: Vec::new(),
             range,
@@ -171,6 +183,7 @@ impl Metadata {
             author: None,
             description: None,
             licenses: None,
+            source: None,
             registry_metadata: None,
             range,
         }

@@ -20,3 +20,4 @@ serde = { workspace = true }
 serde_derive = { workspace = true }
 serde_json = { version = "1" }
 spdx = "0.10.1"
+url = { workspace = true }

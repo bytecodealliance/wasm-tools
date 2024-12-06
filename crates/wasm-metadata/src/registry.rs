@@ -50,6 +50,7 @@ impl RegistryMetadata {
             &None,
             &None,
             &None,
+            &None,
             Some(&self),
             input,
         )
