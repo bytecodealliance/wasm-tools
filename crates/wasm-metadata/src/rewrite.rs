@@ -1,8 +1,5 @@
-use crate::{
-    Author, ComponentNames, Description, Licenses, ModuleNames, Producers, RegistryMetadata, Source,
-};
+use crate::{Author, ComponentNames, Description, Licenses, ModuleNames, Producers, Source};
 use anyhow::Result;
-use std::borrow::Cow;
 use std::mem;
 use wasm_encoder::ComponentSection as _;
 use wasm_encoder::{ComponentSectionId, Encode, Section};
@@ -15,7 +12,6 @@ pub(crate) fn rewrite_wasm(
     add_description: &Option<Description>,
     add_licenses: &Option<Licenses>,
     add_source: &Option<Source>,
-    add_registry_metadata: Option<&RegistryMetadata>,
     input: &[u8],
 ) -> Result<Vec<u8>> {
     let mut producers_found = false;
@@ -81,20 +77,6 @@ pub(crate) fn rewrite_wasm(
                         names.merge(&ComponentNames::from_name(add_name));
                         names.section()?.as_custom().append_to(&mut output);
                         continue;
-                    }
-                    KnownCustom::Unknown if c.name() == "registry-metadata" => {
-                        // Pass section through if a new registry metadata isn't provided, otherwise ignore and overwrite with new
-                        if add_registry_metadata.is_none() {
-                            let registry: RegistryMetadata =
-                                RegistryMetadata::from_bytes(&c.data(), 0)?;
-
-                            let registry_metadata = wasm_encoder::CustomSection {
-                                name: Cow::Borrowed("registry-metadata"),
-                                data: Cow::Owned(serde_json::to_vec(&registry)?),
-                            };
-                            registry_metadata.append_to(&mut output);
-                            continue;
-                        }
                     }
                     KnownCustom::Unknown if c.name() == "author" => {
                         if add_author.is_none() {
@@ -164,13 +146,6 @@ pub(crate) fn rewrite_wasm(
     }
     if let Some(source) = add_source {
         source.append_to(&mut output);
-    }
-    if add_registry_metadata.is_some() {
-        let registry_metadata = wasm_encoder::CustomSection {
-            name: Cow::Borrowed("registry-metadata"),
-            data: Cow::Owned(serde_json::to_vec(&add_registry_metadata)?),
-        };
-        registry_metadata.append_to(&mut output);
     }
     Ok(output)
 }

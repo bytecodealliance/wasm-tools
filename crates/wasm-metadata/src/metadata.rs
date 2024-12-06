@@ -4,9 +4,7 @@ use std::fmt;
 use std::ops::Range;
 use wasmparser::{KnownCustom, Parser, Payload::*};
 
-use crate::{
-    Author, ComponentNames, Description, Licenses, ModuleNames, Producers, RegistryMetadata, Source,
-};
+use crate::{Author, ComponentNames, Description, Licenses, ModuleNames, Producers, Source};
 
 /// A tree of the metadata found in a WebAssembly binary.
 #[derive(Debug, Serialize)]
@@ -18,8 +16,6 @@ pub enum Metadata {
         name: Option<String>,
         /// The component's producers section, if any.
         producers: Option<Producers>,
-        /// The component's registry metadata section, if any.
-        registry_metadata: Option<RegistryMetadata>,
         /// The component's author section, if any.
         author: Option<Author>,
         /// Human-readable description of the binary
@@ -39,8 +35,6 @@ pub enum Metadata {
         name: Option<String>,
         /// The module's producers section, if any.
         producers: Option<Producers>,
-        /// The module's registry metadata section, if any.
-        registry_metadata: Option<RegistryMetadata>,
         /// The component's author section, if any.
         author: Option<Author>,
         /// Human-readable description of the binary
@@ -116,14 +110,6 @@ impl Metadata {
                             .expect("non-empty metadata stack")
                             .set_producers(producers);
                     }
-                    KnownCustom::Unknown if c.name() == "registry-metadata" => {
-                        let registry: RegistryMetadata =
-                            RegistryMetadata::from_bytes(&c.data(), 0)?;
-                        metadata
-                            .last_mut()
-                            .expect("non-empty metadata stack")
-                            .set_registry_metadata(registry);
-                    }
                     KnownCustom::Unknown if c.name() == "author" => {
                         let a = Author::parse_custom_section(&c)?;
                         match metadata.last_mut().expect("non-empty metadata stack") {
@@ -170,7 +156,6 @@ impl Metadata {
             description: None,
             licenses: None,
             source: None,
-            registry_metadata: None,
             children: Vec::new(),
             range,
         }
@@ -184,7 +169,6 @@ impl Metadata {
             description: None,
             licenses: None,
             source: None,
-            registry_metadata: None,
             range,
         }
     }
@@ -200,16 +184,6 @@ impl Metadata {
             Metadata::Component { producers, .. } => *producers = Some(p),
         }
     }
-    fn set_registry_metadata(&mut self, r: RegistryMetadata) {
-        match self {
-            Metadata::Module {
-                registry_metadata, ..
-            } => *registry_metadata = Some(r),
-            Metadata::Component {
-                registry_metadata, ..
-            } => *registry_metadata = Some(r),
-        }
-    }
     fn push_child(&mut self, child: Self) {
         match self {
             Metadata::Module { .. } => panic!("module shouldnt have children"),
@@ -221,10 +195,7 @@ impl Metadata {
         let spaces = std::iter::repeat(" ").take(indent).collect::<String>();
         match self {
             Metadata::Module {
-                name,
-                producers,
-                registry_metadata,
-                ..
+                name, producers, ..
             } => {
                 if let Some(name) = name {
                     writeln!(f, "{spaces}module {name}:")?;
@@ -234,15 +205,11 @@ impl Metadata {
                 if let Some(producers) = producers {
                     producers.display(f, indent + 4)?;
                 }
-                if let Some(registry_metadata) = registry_metadata {
-                    registry_metadata.display(f, indent + 4)?;
-                }
                 Ok(())
             }
             Metadata::Component {
                 name,
                 producers,
-                registry_metadata,
                 children,
                 ..
             } => {
@@ -253,9 +220,6 @@ impl Metadata {
                 }
                 if let Some(producers) = producers {
                     producers.display(f, indent + 4)?;
-                }
-                if let Some(registry_metadata) = registry_metadata {
-                    registry_metadata.display(f, indent + 4)?;
                 }
                 for c in children {
                     c.display(f, indent + 4)?;
