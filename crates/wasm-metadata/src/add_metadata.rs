@@ -1,4 +1,4 @@
-use crate::{rewrite_wasm, Author, Description, Producers, RegistryMetadata};
+use crate::{rewrite_wasm, Author, Description, Licenses, Producers, RegistryMetadata};
 
 use anyhow::Result;
 
@@ -34,6 +34,10 @@ pub struct AddMetadata {
     #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
     pub description: Option<Description>,
 
+    /// License(s) under which contained software is distributed as an SPDX License Expression.
+    #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
+    pub licenses: Option<Licenses>,
+
     /// Add an registry metadata to the registry-metadata section
     #[cfg_attr(feature="clap", clap(long, value_parser = parse_registry_metadata_value, value_name="PATH"))]
     pub registry_metadata: Option<RegistryMetadata>,
@@ -65,6 +69,7 @@ impl AddMetadata {
             &Producers::from_meta(self),
             &self.author,
             &self.description,
+            &self.licenses,
             self.registry_metadata.as_ref(),
             input,
         )

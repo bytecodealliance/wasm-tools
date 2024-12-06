@@ -13,6 +13,9 @@ fn add_to_empty_component() {
         sdk: vec![],
         author: Some(Author::new("Chashu Cat")),
         description: Some(Description::new("Chashu likes tuna")),
+        licenses: Some(
+            Licenses::new("Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT").unwrap(),
+        ),
         registry_metadata: Some(RegistryMetadata {
             authors: Some(vec!["foo".to_owned()]),
             description: Some("foo bar baz".to_owned()),
@@ -46,6 +49,7 @@ fn add_to_empty_component() {
             registry_metadata,
             author,
             description,
+            licenses,
             children,
             range,
         } => {
@@ -63,6 +67,10 @@ fn add_to_empty_component() {
 
             assert_eq!(author.unwrap(), Author::new("Chashu Cat"));
             assert_eq!(description.unwrap(), Description::new("Chashu likes tuna"));
+            assert_eq!(
+                licenses.unwrap(),
+                Licenses::new("Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT").unwrap()
+            );
 
             let registry_metadata = registry_metadata.unwrap();
 
@@ -106,7 +114,7 @@ fn add_to_empty_component() {
             );
 
             assert_eq!(range.start, 0);
-            assert_eq!(range.end, 485);
+            assert_eq!(range.end, 547);
         }
         _ => panic!("metadata should be component"),
     }
@@ -123,6 +131,9 @@ fn add_to_nested_component() {
         sdk: vec![],
         author: Some(Author::new("Chashu Cat")),
         description: Some(Description::new("Chashu likes tuna")),
+        licenses: Some(
+            Licenses::new("Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT").unwrap(),
+        ),
         registry_metadata: Some(RegistryMetadata {
             authors: Some(vec!["Foo".to_owned()]),
             ..Default::default()
@@ -169,6 +180,7 @@ fn add_to_nested_component() {
                     name,
                     producers,
                     author,
+                    licenses,
                     registry_metadata,
                     range,
                     description,
@@ -186,6 +198,13 @@ fn add_to_nested_component() {
 
                     assert_eq!(author, &Some(Author::new("Chashu Cat")));
                     assert_eq!(description, &Some(Description::new("Chashu likes tuna")));
+                    assert_eq!(
+                        licenses,
+                        &Some(
+                            Licenses::new("Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT")
+                                .unwrap()
+                        )
+                    );
 
                     let registry_metadata = registry_metadata.as_ref().unwrap();
                     assert_eq!(
@@ -194,7 +213,7 @@ fn add_to_nested_component() {
                     );
 
                     assert_eq!(range.start, 11);
-                    assert_eq!(range.end, 174);
+                    assert_eq!(range.end, 236);
                 }
                 _ => panic!("child is a module"),
             }
