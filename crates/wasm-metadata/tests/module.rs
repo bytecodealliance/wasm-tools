@@ -13,6 +13,9 @@ fn add_to_empty_module() {
         sdk: vec![],
         author: Some(Author::new("Chashu Cat")),
         description: Some(Description::new("Chashu likes tuna")),
+        licenses: Some(
+            Licenses::new("Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT").unwrap(),
+        ),
         registry_metadata: Some(RegistryMetadata {
             authors: Some(vec!["foo".to_owned()]),
             description: Some("foo bar baz".to_owned()),
@@ -45,6 +48,7 @@ fn add_to_empty_module() {
             producers,
             author,
             description,
+            licenses,
             registry_metadata,
             range,
         } => {
@@ -61,6 +65,10 @@ fn add_to_empty_module() {
 
             assert_eq!(author.unwrap(), Author::new("Chashu Cat"));
             assert_eq!(description.unwrap(), Description::new("Chashu likes tuna"));
+            assert_eq!(
+                licenses.unwrap(),
+                Licenses::new("Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT").unwrap()
+            );
 
             let registry_metadata = registry_metadata.unwrap();
 
@@ -104,7 +112,7 @@ fn add_to_empty_module() {
             );
 
             assert_eq!(range.start, 0);
-            assert_eq!(range.end, 475);
+            assert_eq!(range.end, 537);
         }
         _ => panic!("metadata should be module"),
     }

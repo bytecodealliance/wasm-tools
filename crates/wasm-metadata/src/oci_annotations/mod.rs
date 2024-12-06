@@ -17,6 +17,8 @@
 
 pub use author::Author;
 pub use description::Description;
+pub use licenses::Licenses;
 
 mod author;
 mod description;
+mod licenses;
