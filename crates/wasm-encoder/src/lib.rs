@@ -73,6 +73,9 @@
 #![deny(missing_docs, missing_debug_implementations)]
 
 extern crate alloc;
+#[cfg(feature = "std")]
+#[macro_use]
+extern crate std;
 
 #[cfg(feature = "component-model")]
 mod component;
