@@ -17,7 +17,6 @@ mod tables;
 mod tags;
 mod types;
 
-use alloc::vec::Vec;
 pub use branch_hints::*;
 pub use code::*;
 pub use custom::*;
@@ -38,6 +37,7 @@ pub use tags::*;
 pub use types::*;
 
 use crate::Encode;
+use alloc::vec::Vec;
 
 pub(crate) const CORE_FUNCTION_SORT: u8 = 0x00;
 pub(crate) const CORE_TABLE_SORT: u8 = 0x01;

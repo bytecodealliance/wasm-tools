@@ -21,9 +21,9 @@ pub use self::modules::*;
 pub use self::names::*;
 pub use self::start::*;
 pub use self::types::*;
-use alloc::vec::Vec;
 
 use crate::{CustomSection, Encode, ProducersSection, RawCustomSection};
+use alloc::vec::Vec;
 
 // Core sorts extended by the component model
 const CORE_TYPE_SORT: u8 = 0x10;

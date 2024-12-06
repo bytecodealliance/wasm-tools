@@ -9,7 +9,7 @@ use alloc::vec::Vec;
 /// # Example
 ///
 /// ```
-/// use alloc::borrow::Cow;
+/// use std::borrow::Cow;
 /// use wasm_encoder::{
 ///     Elements, ElementSection, Module, TableSection, TableType,
 ///     RefType, ConstExpr
