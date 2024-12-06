@@ -1,5 +1,6 @@
 use crate::{encode_section, ConstExpr, Encode, RefType, Section, SectionId};
-use std::borrow::Cow;
+use alloc::borrow::Cow;
+use alloc::vec::Vec;
 
 /// An encoder for the element section.
 ///
@@ -8,7 +9,7 @@ use std::borrow::Cow;
 /// # Example
 ///
 /// ```
-/// use std::borrow::Cow;
+/// use alloc::borrow::Cow;
 /// use wasm_encoder::{
 ///     Elements, ElementSection, Module, TableSection, TableType,
 ///     RefType, ConstExpr

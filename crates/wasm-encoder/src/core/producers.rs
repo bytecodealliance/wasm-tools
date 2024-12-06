@@ -1,6 +1,6 @@
-use std::borrow::Cow;
-
 use crate::{CustomSection, Encode, Section, SectionId};
+use alloc::borrow::Cow;
+use alloc::vec::Vec;
 
 /// An encoder for the [producers custom
 /// section](https://github.com/WebAssembly/tool-conventions/blob/main/ProducersSection.md).

@@ -1,4 +1,5 @@
 use crate::{Component, ComponentSection, ComponentSectionId, Encode};
+use alloc::vec::Vec;
 
 /// An encoder for the component section of WebAssembly components.
 ///

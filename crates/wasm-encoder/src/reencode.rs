@@ -4,7 +4,7 @@
 //! input.
 
 use crate::CoreTypeEncoder;
-use std::convert::Infallible;
+use core::convert::Infallible;
 
 #[cfg(feature = "component-model")]
 mod component;
@@ -546,8 +546,8 @@ impl<E> From<wasmparser::BinaryReaderError> for Error<E> {
     }
 }
 
-impl<E: std::fmt::Display> std::fmt::Display for Error<E> {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl<E: core::fmt::Display> core::fmt::Display for Error<E> {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
         match self {
             Self::ParseError(_e) => {
                 write!(fmt, "There was an error when parsing")
@@ -574,8 +574,8 @@ impl<E: std::fmt::Display> std::fmt::Display for Error<E> {
     }
 }
 
-impl<E: 'static + std::error::Error> std::error::Error for Error<E> {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+impl<E: 'static + core::error::Error> core::error::Error for Error<E> {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         match self {
             Self::ParseError(e) => Some(e),
             Self::UserError(e) => Some(e),
@@ -602,7 +602,8 @@ impl Reencode for RoundtripReencoder {
 pub mod utils {
     use super::{Error, Reencode};
     use crate::{CoreTypeEncoder, Encode};
-    use std::ops::Range;
+    use alloc::vec::Vec;
+    use core::ops::Range;
 
     pub fn parse_core_module<T: ?Sized + Reencode>(
         reencoder: &mut T,
@@ -616,7 +617,7 @@ pub mod utils {
             last_section: &mut Option<crate::SectionId>,
             next_section: Option<crate::SectionId>,
         ) -> Result<(), Error<T::Error>> {
-            let after = std::mem::replace(last_section, next_section);
+            let after = core::mem::replace(last_section, next_section);
             let before = next_section;
             reencoder.intersperse_section_hook(module, after, before)
         }

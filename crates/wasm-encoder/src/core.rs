@@ -17,6 +17,7 @@ mod tables;
 mod tags;
 mod types;
 
+use alloc::vec::Vec;
 pub use branch_hints::*;
 pub use code::*;
 pub use custom::*;

@@ -1,4 +1,5 @@
 use crate::{encode_section, ComponentSection, ComponentSectionId, Encode};
+use alloc::vec::Vec;
 
 /// Represents options for canonical function definitions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -21,6 +21,7 @@ pub use self::modules::*;
 pub use self::names::*;
 pub use self::start::*;
 pub use self::types::*;
+use alloc::vec::Vec;
 
 use crate::{CustomSection, Encode, ProducersSection, RawCustomSection};
 

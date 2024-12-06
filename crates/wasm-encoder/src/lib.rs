@@ -69,7 +69,10 @@
 //! ```
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![no_std]
 #![deny(missing_docs, missing_debug_implementations)]
+
+extern crate alloc;
 
 #[cfg(feature = "component-model")]
 mod component;
@@ -82,6 +85,8 @@ pub mod reencode;
 pub use self::component::*;
 pub use self::core::*;
 pub use self::raw::*;
+
+use alloc::vec::Vec;
 
 /// Implemented by types that can be encoded into a byte sink.
 pub trait Encode {

@@ -1,4 +1,5 @@
 use crate::reencode::{Error, Reencode, RoundtripReencoder};
+use alloc::boxed::Box;
 
 #[allow(missing_docs)] // FIXME
 pub trait ReencodeComponent: Reencode {
@@ -386,6 +387,8 @@ pub mod component_utils {
     use super::super::utils::name_map;
     use super::ReencodeComponent;
     use crate::reencode::Error;
+    use alloc::boxed::Box;
+    use alloc::vec::Vec;
 
     pub fn parse_component<T: ?Sized + ReencodeComponent>(
         reencoder: &mut T,

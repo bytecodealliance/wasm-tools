@@ -2,6 +2,7 @@ use crate::{
     encode_section, Encode, GlobalType, MemoryType, Section, SectionId, TableType, TagType,
     CORE_FUNCTION_SORT, CORE_GLOBAL_SORT, CORE_MEMORY_SORT, CORE_TABLE_SORT, CORE_TAG_SORT,
 };
+use alloc::vec::Vec;
 
 /// The type of an entity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

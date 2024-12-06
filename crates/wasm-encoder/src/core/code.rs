@@ -1,5 +1,7 @@
 use crate::{encode_section, Encode, HeapType, RefType, Section, SectionId, ValType};
-use std::borrow::Cow;
+use alloc::borrow::Cow;
+use alloc::vec;
+use alloc::vec::Vec;
 
 /// An encoder for the code section.
 ///

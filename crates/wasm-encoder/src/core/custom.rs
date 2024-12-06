@@ -1,6 +1,6 @@
-use std::borrow::Cow;
-
 use crate::{encoding_size, Encode, Section, SectionId};
+use alloc::borrow::Cow;
+use alloc::vec::Vec;
 
 /// A custom section holding arbitrary data.
 #[derive(Clone, Debug, PartialEq)]
@@ -47,6 +47,7 @@ impl Section for RawCustomSection<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::vec;
 
     #[test]
     fn test_custom_section() {

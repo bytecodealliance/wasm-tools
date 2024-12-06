@@ -1,6 +1,7 @@
 use crate::component::*;
 use crate::{ExportKind, Module, RawSection, ValType};
-use std::mem;
+use alloc::vec::Vec;
+use core::mem;
 
 /// Convenience type to build a component incrementally and automatically keep
 /// track of index spaces.

@@ -1,6 +1,7 @@
-use std::borrow::Cow;
-
 use crate::{encoding_size, CustomSection, Encode, Section, SectionId};
+use alloc::borrow::Cow;
+use alloc::vec;
+use alloc::vec::Vec;
 
 /// An encoder for the custom `name` section.
 ///
