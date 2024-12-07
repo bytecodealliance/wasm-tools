@@ -3,6 +3,7 @@ use super::{
     VALUE_SORT,
 };
 use crate::{encode_section, ComponentSection, ComponentSectionId, ComponentTypeRef, Encode};
+use alloc::vec::Vec;
 
 /// Represents the kind of an export from a WebAssembly component.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

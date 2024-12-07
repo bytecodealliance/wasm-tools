@@ -1,5 +1,6 @@
 use crate::{encode_section, ConstExpr, Encode, RefType, Section, SectionId};
-use std::borrow::Cow;
+use alloc::borrow::Cow;
+use alloc::vec::Vec;
 
 /// An encoder for the element section.
 ///

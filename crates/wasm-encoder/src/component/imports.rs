@@ -2,6 +2,7 @@ use crate::{
     encode_section, ComponentExportKind, ComponentSection, ComponentSectionId, ComponentValType,
     Encode,
 };
+use alloc::vec::Vec;
 
 /// Represents the possible type bounds for type references.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]

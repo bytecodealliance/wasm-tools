@@ -1,5 +1,6 @@
 use crate::{CustomSection, Encode, Section, SectionId};
-use std::borrow::Cow;
+use alloc::borrow::Cow;
+use alloc::vec::Vec;
 
 /// Helper structure to encode the `metadata.code.branch_hint` custom section.
 ///

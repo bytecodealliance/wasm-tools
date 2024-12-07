@@ -2,6 +2,7 @@ use super::{COMPONENT_SORT, CORE_MODULE_SORT, CORE_SORT, CORE_TYPE_SORT, TYPE_SO
 use crate::{
     encode_section, ComponentExportKind, ComponentSection, ComponentSectionId, Encode, ExportKind,
 };
+use alloc::vec::Vec;
 
 /// Represents the kinds of outer aliasable items in a component.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

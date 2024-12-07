@@ -1,6 +1,8 @@
-use std::borrow::Cow;
-
 use crate::{CustomSection, Encode, Section};
+use alloc::borrow::Cow;
+use alloc::string::String;
+use alloc::vec;
+use alloc::vec::Vec;
 
 /// The "core" custom section for coredumps, as described in the
 /// [tool-conventions

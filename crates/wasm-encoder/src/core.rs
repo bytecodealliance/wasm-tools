@@ -37,6 +37,7 @@ pub use tags::*;
 pub use types::*;
 
 use crate::Encode;
+use alloc::vec::Vec;
 
 pub(crate) const CORE_FUNCTION_SORT: u8 = 0x00;
 pub(crate) const CORE_TABLE_SORT: u8 = 0x01;

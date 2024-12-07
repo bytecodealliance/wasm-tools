@@ -3,6 +3,7 @@ use crate::{
     encode_section, Alias, ComponentExportKind, ComponentOuterAliasKind, ComponentSection,
     ComponentSectionId, ComponentTypeRef, CoreTypeEncoder, Encode, EntityType, ValType,
 };
+use alloc::vec::Vec;
 
 /// Represents the type of a core module.
 #[derive(Debug, Clone, Default)]

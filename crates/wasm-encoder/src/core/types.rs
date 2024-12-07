@@ -1,4 +1,6 @@
 use crate::{encode_section, Encode, Section, SectionId};
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 
 /// Represents a subtype of possible other types in a WebAssembly module.
 #[derive(Debug, Clone)]
