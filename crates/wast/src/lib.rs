@@ -556,8 +556,35 @@ pub mod kw {
     custom_keyword!(thread);
     custom_keyword!(thread_spawn = "thread.spawn");
     custom_keyword!(thread_hw_concurrency = "thread.hw_concurrency");
+    custom_keyword!(task_backpressure = "task.backpressure");
+    custom_keyword!(task_return = "task.return");
+    custom_keyword!(task_wait = "task.wait");
+    custom_keyword!(task_poll = "task.poll");
+    custom_keyword!(task_yield = "task.yield");
+    custom_keyword!(subtask_drop = "subtask.drop");
+    custom_keyword!(stream_new = "stream.new");
+    custom_keyword!(stream_read = "stream.read");
+    custom_keyword!(stream_write = "stream.write");
+    custom_keyword!(stream_cancel_read = "stream.cancel-read");
+    custom_keyword!(stream_cancel_write = "stream.cancel-write");
+    custom_keyword!(stream_close_readable = "stream.close-readable");
+    custom_keyword!(stream_close_writable = "stream.close-writable");
+    custom_keyword!(future_new = "future.new");
+    custom_keyword!(future_read = "future.read");
+    custom_keyword!(future_write = "future.write");
+    custom_keyword!(future_cancel_read = "future.cancel-read");
+    custom_keyword!(future_cancel_write = "future.cancel-write");
+    custom_keyword!(future_close_readable = "future.close-readable");
+    custom_keyword!(future_close_writable = "future.close-writable");
+    custom_keyword!(error_context_new = "error-context.new");
+    custom_keyword!(error_context_debug_message = "error-context.debug-message");
+    custom_keyword!(error_context_drop = "error-context.drop");
     custom_keyword!(wait);
     custom_keyword!(definition);
+    custom_keyword!(r#async = "async");
+    custom_keyword!(callback);
+    custom_keyword!(stream);
+    custom_keyword!(future);
 }
 
 /// Common annotations used to parse WebAssembly text files.

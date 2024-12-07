@@ -19,9 +19,9 @@ use crate::prelude::*;
 use crate::validator::names::{ComponentName, ComponentNameKind, KebabStr, KebabString};
 use crate::{
     BinaryReaderError, CanonicalOption, ComponentExportName, ComponentExternalKind,
-    ComponentOuterAliasKind, ComponentTypeRef, CompositeInnerType, ExternalKind, FuncType,
-    GlobalType, InstantiationArgKind, MemoryType, PackedIndex, RefType, Result, SubType, TableType,
-    TypeBounds, ValType, WasmFeatures,
+    ComponentOuterAliasKind, ComponentTypeRef, CompositeInnerType, CompositeType, ExternalKind,
+    FuncType, GlobalType, InstantiationArgKind, MemoryType, PackedIndex, RecGroup, RefType, Result,
+    SubType, TableType, TypeBounds, ValType, WasmFeatures,
 };
 use core::mem;
 
@@ -721,7 +721,8 @@ impl ComponentState {
             // named.
             ComponentDefinedType::Primitive(_)
             | ComponentDefinedType::Flags(_)
-            | ComponentDefinedType::Enum(_) => true,
+            | ComponentDefinedType::Enum(_)
+            | ComponentDefinedType::ErrorContext => true,
 
             // Referenced types of all these aggregates must all be
             // named.
@@ -753,6 +754,12 @@ impl ComponentState {
             ComponentDefinedType::Own(id) | ComponentDefinedType::Borrow(id) => {
                 set.contains(&ComponentAnyTypeId::from(*id))
             }
+
+            ComponentDefinedType::Future(ty) => ty
+                .as_ref()
+                .map(|ty| types.type_named_valtype(ty, set))
+                .unwrap_or(true),
+            ComponentDefinedType::Stream(ty) => types.type_named_valtype(ty, set),
         }
     }
 
@@ -949,14 +956,23 @@ impl ComponentState {
         options: Vec<CanonicalOption>,
         types: &TypeList,
         offset: usize,
+        features: &WasmFeatures,
     ) -> Result<()> {
         let ty = self.function_type_at(type_index, types, offset)?;
         let core_ty = types[self.core_function_at(core_func_index, offset)?].unwrap_func();
 
         // Lifting a function is for an export, so match the expected canonical ABI
         // export signature
-        let info = ty.lower(types, false);
-        self.check_options(Some(core_ty), &info, &options, types, offset)?;
+        let info = ty.lower(types, false, options.contains(&CanonicalOption::Async));
+        self.check_options(
+            Some(core_ty),
+            &info,
+            &options,
+            types,
+            offset,
+            features,
+            true,
+        )?;
 
         if core_ty.params() != info.params.as_slice() {
             bail!(
@@ -990,14 +1006,15 @@ impl ComponentState {
         options: Vec<CanonicalOption>,
         types: &mut TypeAlloc,
         offset: usize,
+        features: &WasmFeatures,
     ) -> Result<()> {
         let ty = &types[self.function_at(func_index, offset)?];
 
         // Lowering a function is for an import, so use a function type that matches
         // the expected canonical ABI import signature.
-        let info = ty.lower(types, true);
+        let info = ty.lower(types, true, options.contains(&CanonicalOption::Async));
 
-        self.check_options(None, &info, &options, types, offset)?;
+        self.check_options(None, &info, &options, types, offset, features, true)?;
 
         let lowered_ty = SubType::func(info.into_func_type(), false);
         let id = types.intern_sub_type(lowered_ty, offset);
@@ -1044,6 +1061,812 @@ impl ComponentState {
         let func_ty = FuncType::new([ValType::I32], [rep]);
         let core_ty = SubType::func(func_ty, false);
         let id = types.intern_sub_type(core_ty, offset);
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
+    pub fn task_backpressure(
+        &mut self,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`task.backpressure` requires the component model async feature"
+            )
+        }
+
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(
+            offset,
+            SubType {
+                is_final: true,
+                supertype_idx: None,
+                composite_type: CompositeType {
+                    shared: false,
+                    inner: CompositeInnerType::Func(FuncType::new([ValType::I32], [])),
+                },
+            },
+        ));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
+    pub fn task_return(
+        &mut self,
+        type_index: u32,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`task.return` requires the component model async feature"
+            )
+        }
+
+        let id = self.type_id_at(type_index, offset)?;
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
+    pub fn task_wait(
+        &mut self,
+        _async_: bool,
+        memory: u32,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`task.wait` requires the component model async feature"
+            )
+        }
+
+        self.memory_at(memory, offset)?;
+
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(
+            offset,
+            SubType {
+                is_final: true,
+                supertype_idx: None,
+                composite_type: CompositeType {
+                    shared: false,
+                    inner: CompositeInnerType::Func(FuncType::new([ValType::I32], [ValType::I32])),
+                },
+            },
+        ));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
+    pub fn task_poll(
+        &mut self,
+        _async_: bool,
+        memory: u32,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`task.poll` requires the component model async feature"
+            )
+        }
+
+        self.memory_at(memory, offset)?;
+
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(
+            offset,
+            SubType {
+                is_final: true,
+                supertype_idx: None,
+                composite_type: CompositeType {
+                    shared: false,
+                    inner: CompositeInnerType::Func(FuncType::new([ValType::I32], [ValType::I32])),
+                },
+            },
+        ));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
+    pub fn task_yield(
+        &mut self,
+        _async_: bool,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`task.yield` requires the component model async feature"
+            )
+        }
+
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(
+            offset,
+            SubType {
+                is_final: true,
+                supertype_idx: None,
+                composite_type: CompositeType {
+                    shared: false,
+                    inner: CompositeInnerType::Func(FuncType::new([], [])),
+                },
+            },
+        ));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
+    pub fn subtask_drop(
+        &mut self,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`subtask.drop` requires the component model async feature"
+            )
+        }
+
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(
+            offset,
+            SubType {
+                is_final: true,
+                supertype_idx: None,
+                composite_type: CompositeType {
+                    shared: false,
+                    inner: CompositeInnerType::Func(FuncType::new([ValType::I32], [])),
+                },
+            },
+        ));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
+    pub fn stream_new(
+        &mut self,
+        ty: u32,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`stream.new` requires the component model async feature"
+            )
+        }
+
+        let ty = self.defined_type_at(ty, offset)?;
+        let ComponentDefinedType::Stream(_) = &types[ty] else {
+            bail!(offset, "`stream.new` requires a stream type")
+        };
+
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(
+            offset,
+            SubType {
+                is_final: true,
+                supertype_idx: None,
+                composite_type: CompositeType {
+                    shared: false,
+                    inner: CompositeInnerType::Func(FuncType::new([], [ValType::I32])),
+                },
+            },
+        ));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
+    pub fn stream_read(
+        &mut self,
+        ty: u32,
+        options: Vec<CanonicalOption>,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`stream.read` requires the component model async feature"
+            )
+        }
+
+        let ty = self.defined_type_at(ty, offset)?;
+        let ComponentDefinedType::Stream(payload_type) = &types[ty] else {
+            bail!(offset, "`stream.read` requires a stream type")
+        };
+
+        let mut info = LoweringInfo::default();
+        info.requires_memory = true;
+        info.requires_realloc = payload_type.contains_ptr(types);
+        self.check_options(None, &info, &options, types, offset, features, true)?;
+
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(
+            offset,
+            SubType {
+                is_final: true,
+                supertype_idx: None,
+                composite_type: CompositeType {
+                    shared: false,
+                    inner: CompositeInnerType::Func(FuncType::new(
+                        [ValType::I32; 3],
+                        [ValType::I32],
+                    )),
+                },
+            },
+        ));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
+    pub fn stream_write(
+        &mut self,
+        ty: u32,
+        options: Vec<CanonicalOption>,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`stream.write` requires the component model async feature"
+            )
+        }
+
+        let ty = self.defined_type_at(ty, offset)?;
+        let ComponentDefinedType::Stream(_) = &types[ty] else {
+            bail!(offset, "`stream.write` requires a stream type")
+        };
+
+        let mut info = LoweringInfo::default();
+        info.requires_memory = true;
+        info.requires_realloc = false;
+        self.check_options(None, &info, &options, types, offset, features, true)?;
+
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(
+            offset,
+            SubType {
+                is_final: true,
+                supertype_idx: None,
+                composite_type: CompositeType {
+                    shared: false,
+                    inner: CompositeInnerType::Func(FuncType::new(
+                        [ValType::I32; 3],
+                        [ValType::I32],
+                    )),
+                },
+            },
+        ));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
+    pub fn stream_cancel_read(
+        &mut self,
+        ty: u32,
+        _async_: bool,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`stream.cancel-read` requires the component model async feature"
+            )
+        }
+
+        let ty = self.defined_type_at(ty, offset)?;
+        let ComponentDefinedType::Stream(_) = &types[ty] else {
+            bail!(offset, "`stream.cancel-read` requires a stream type")
+        };
+
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(
+            offset,
+            SubType {
+                is_final: true,
+                supertype_idx: None,
+                composite_type: CompositeType {
+                    shared: false,
+                    inner: CompositeInnerType::Func(FuncType::new([ValType::I32], [ValType::I32])),
+                },
+            },
+        ));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
+    pub fn stream_cancel_write(
+        &mut self,
+        ty: u32,
+        _async_: bool,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`stream.cancel-write` requires the component model async feature"
+            )
+        }
+
+        let ty = self.defined_type_at(ty, offset)?;
+        let ComponentDefinedType::Stream(_) = &types[ty] else {
+            bail!(offset, "`stream.cancel-write` requires a stream type")
+        };
+
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(
+            offset,
+            SubType {
+                is_final: true,
+                supertype_idx: None,
+                composite_type: CompositeType {
+                    shared: false,
+                    inner: CompositeInnerType::Func(FuncType::new([ValType::I32], [ValType::I32])),
+                },
+            },
+        ));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
+    pub fn stream_close_readable(
+        &mut self,
+        ty: u32,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`stream.close-readable` requires the component model async feature"
+            )
+        }
+
+        let ty = self.defined_type_at(ty, offset)?;
+        let ComponentDefinedType::Stream(_) = &types[ty] else {
+            bail!(offset, "`stream.close-readable` requires a stream type")
+        };
+
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(
+            offset,
+            SubType {
+                is_final: true,
+                supertype_idx: None,
+                composite_type: CompositeType {
+                    shared: false,
+                    inner: CompositeInnerType::Func(FuncType::new([ValType::I32], [])),
+                },
+            },
+        ));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
+    pub fn stream_close_writable(
+        &mut self,
+        ty: u32,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`stream.close-writable` requires the component model async feature"
+            )
+        }
+
+        let ty = self.defined_type_at(ty, offset)?;
+        let ComponentDefinedType::Stream(_) = &types[ty] else {
+            bail!(offset, "`stream.close-writable` requires a stream type")
+        };
+
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(
+            offset,
+            SubType {
+                is_final: true,
+                supertype_idx: None,
+                composite_type: CompositeType {
+                    shared: false,
+                    inner: CompositeInnerType::Func(FuncType::new([ValType::I32; 2], [])),
+                },
+            },
+        ));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
+    pub fn future_new(
+        &mut self,
+        ty: u32,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`future.new` requires the component model async feature"
+            )
+        }
+
+        let ty = self.defined_type_at(ty, offset)?;
+        let ComponentDefinedType::Future(_) = &types[ty] else {
+            bail!(offset, "`future.new` requires a future type")
+        };
+
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(
+            offset,
+            SubType {
+                is_final: true,
+                supertype_idx: None,
+                composite_type: CompositeType {
+                    shared: false,
+                    inner: CompositeInnerType::Func(FuncType::new([], [ValType::I32])),
+                },
+            },
+        ));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
+    pub fn future_read(
+        &mut self,
+        ty: u32,
+        options: Vec<CanonicalOption>,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`future.read` requires the component model async feature"
+            )
+        }
+
+        let ty = self.defined_type_at(ty, offset)?;
+        let ComponentDefinedType::Future(payload_type) = &types[ty] else {
+            bail!(offset, "`future.read` requires a future type")
+        };
+
+        let mut info = LoweringInfo::default();
+        info.requires_memory = true;
+        info.requires_realloc = payload_type
+            .map(|ty| ty.contains_ptr(types))
+            .unwrap_or(false);
+        self.check_options(None, &info, &options, types, offset, features, true)?;
+
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(
+            offset,
+            SubType {
+                is_final: true,
+                supertype_idx: None,
+                composite_type: CompositeType {
+                    shared: false,
+                    inner: CompositeInnerType::Func(FuncType::new(
+                        [ValType::I32; 2],
+                        [ValType::I32],
+                    )),
+                },
+            },
+        ));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
+    pub fn future_write(
+        &mut self,
+        ty: u32,
+        options: Vec<CanonicalOption>,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`future.write` requires the component model async feature"
+            )
+        }
+
+        let ty = self.defined_type_at(ty, offset)?;
+        let ComponentDefinedType::Future(_) = &types[ty] else {
+            bail!(offset, "`future.write` requires a future type")
+        };
+
+        let mut info = LoweringInfo::default();
+        info.requires_memory = true;
+        info.requires_realloc = false;
+        self.check_options(None, &info, &options, types, offset, features, true)?;
+
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(
+            offset,
+            SubType {
+                is_final: true,
+                supertype_idx: None,
+                composite_type: CompositeType {
+                    shared: false,
+                    inner: CompositeInnerType::Func(FuncType::new(
+                        [ValType::I32; 2],
+                        [ValType::I32],
+                    )),
+                },
+            },
+        ));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
+    pub fn future_cancel_read(
+        &mut self,
+        ty: u32,
+        _async_: bool,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`future.cancel-read` requires the component model async feature"
+            )
+        }
+
+        let ty = self.defined_type_at(ty, offset)?;
+        let ComponentDefinedType::Future(_) = &types[ty] else {
+            bail!(offset, "`future.cancel-read` requires a future type")
+        };
+
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(
+            offset,
+            SubType {
+                is_final: true,
+                supertype_idx: None,
+                composite_type: CompositeType {
+                    shared: false,
+                    inner: CompositeInnerType::Func(FuncType::new([ValType::I32], [ValType::I32])),
+                },
+            },
+        ));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
+    pub fn future_cancel_write(
+        &mut self,
+        ty: u32,
+        _async_: bool,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`future.cancel-write` requires the component model async feature"
+            )
+        }
+
+        let ty = self.defined_type_at(ty, offset)?;
+        let ComponentDefinedType::Future(_) = &types[ty] else {
+            bail!(offset, "`future.cancel-write` requires a future type")
+        };
+
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(
+            offset,
+            SubType {
+                is_final: true,
+                supertype_idx: None,
+                composite_type: CompositeType {
+                    shared: false,
+                    inner: CompositeInnerType::Func(FuncType::new([ValType::I32], [ValType::I32])),
+                },
+            },
+        ));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
+    pub fn future_close_readable(
+        &mut self,
+        ty: u32,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`future.close-readable` requires the component model async feature"
+            )
+        }
+
+        let ty = self.defined_type_at(ty, offset)?;
+        let ComponentDefinedType::Future(_) = &types[ty] else {
+            bail!(offset, "`future.close-readable` requires a future type")
+        };
+
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(
+            offset,
+            SubType {
+                is_final: true,
+                supertype_idx: None,
+                composite_type: CompositeType {
+                    shared: false,
+                    inner: CompositeInnerType::Func(FuncType::new([ValType::I32], [])),
+                },
+            },
+        ));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
+    pub fn future_close_writable(
+        &mut self,
+        ty: u32,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`future.close-writable` requires the component model async feature"
+            )
+        }
+
+        let ty = self.defined_type_at(ty, offset)?;
+        let ComponentDefinedType::Future(_) = &types[ty] else {
+            bail!(offset, "`future.close-writable` requires a future type")
+        };
+
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(
+            offset,
+            SubType {
+                is_final: true,
+                supertype_idx: None,
+                composite_type: CompositeType {
+                    shared: false,
+                    inner: CompositeInnerType::Func(FuncType::new([ValType::I32; 2], [])),
+                },
+            },
+        ));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
+    pub fn error_context_new(
+        &mut self,
+        options: Vec<CanonicalOption>,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`error-context.new` requires the component model async feature"
+            )
+        }
+
+        let mut info = LoweringInfo::default();
+        info.requires_memory = true;
+        info.requires_realloc = false;
+        self.check_options(None, &info, &options, types, offset, features, false)?;
+
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(
+            offset,
+            SubType {
+                is_final: true,
+                supertype_idx: None,
+                composite_type: CompositeType {
+                    shared: false,
+                    inner: CompositeInnerType::Func(FuncType::new(
+                        [ValType::I32; 2],
+                        [ValType::I32],
+                    )),
+                },
+            },
+        ));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
+    pub fn error_context_debug_message(
+        &mut self,
+        options: Vec<CanonicalOption>,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`error-context.debug-message` requires the component model async feature"
+            )
+        }
+
+        let mut info = LoweringInfo::default();
+        info.requires_memory = true;
+        info.requires_realloc = true;
+        self.check_options(None, &info, &options, types, offset, features, false)?;
+
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(
+            offset,
+            SubType {
+                is_final: true,
+                supertype_idx: None,
+                composite_type: CompositeType {
+                    shared: false,
+                    inner: CompositeInnerType::Func(FuncType::new([ValType::I32; 2], [])),
+                },
+            },
+        ));
+        let id = types[group_id].start;
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
+    pub fn error_context_drop(
+        &mut self,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`error-context.drop` requires the component model async feature"
+            )
+        }
+
+        let (_is_new, group_id) = types.intern_canonical_rec_group(RecGroup::implicit(
+            offset,
+            SubType {
+                is_final: true,
+                supertype_idx: None,
+                composite_type: CompositeType {
+                    shared: false,
+                    inner: CompositeInnerType::Func(FuncType::new([ValType::I32], [])),
+                },
+            },
+        ));
+        let id = types[group_id].start;
         self.core_funcs.push(id);
         Ok(())
     }
@@ -1293,6 +2116,8 @@ impl ComponentState {
         options: &[CanonicalOption],
         types: &TypeList,
         offset: usize,
+        features: &WasmFeatures,
+        allow_async: bool,
     ) -> Result<()> {
         fn display(option: CanonicalOption) -> &'static str {
             match option {
@@ -1302,6 +2127,8 @@ impl ComponentState {
                 CanonicalOption::Memory(_) => "memory",
                 CanonicalOption::Realloc(_) => "realloc",
                 CanonicalOption::PostReturn(_) => "post-return",
+                CanonicalOption::Async => "async",
+                CanonicalOption::Callback(_) => "callback",
             }
         }
 
@@ -1309,6 +2136,8 @@ impl ComponentState {
         let mut memory = None;
         let mut realloc = None;
         let mut post_return = None;
+        let mut async_ = false;
+        let mut callback = None;
 
         for option in options {
             match option {
@@ -1390,7 +2219,60 @@ impl ComponentState {
                         }
                     }
                 }
+                CanonicalOption::Async => {
+                    if async_ {
+                        return Err(BinaryReaderError::new(
+                            "canonical option `async` is specified more than once",
+                            offset,
+                        ));
+                    } else {
+                        if !features.component_model_async() {
+                            bail!(
+                                offset,
+                                "canonical option `async` requires the component model async feature"
+                            );
+                        }
+
+                        async_ = true;
+                    }
+                }
+                CanonicalOption::Callback(idx) => {
+                    callback = match callback {
+                        None => {
+                            if core_ty.is_none() {
+                                return Err(BinaryReaderError::new(
+                                    "canonical option `callback` cannot be specified for lowerings",
+                                    offset,
+                                ));
+                            }
+
+                            let ty = types[self.core_function_at(*idx, offset)?].unwrap_func();
+
+                            if ty.params() != [ValType::I32; 4] && ty.params() != [ValType::I32] {
+                                return Err(BinaryReaderError::new(
+                                    "canonical option `callback` uses a core function with an incorrect signature",
+                                    offset,
+                                ));
+                            }
+                            Some(*idx)
+                        }
+                        Some(_) => {
+                            return Err(BinaryReaderError::new(
+                                "canonical option `callback` is specified more than once",
+                                offset,
+                            ))
+                        }
+                    }
+                }
             }
+        }
+
+        if async_ && !allow_async {
+            bail!(offset, "async option not allowed here")
+        }
+
+        if callback.is_some() && !async_ {
+            bail!(offset, "cannot specify callback without lifting async")
         }
 
         if info.requires_memory && memory.is_none() {
@@ -1817,7 +2699,7 @@ impl ComponentState {
             cx.entity_type(arg, expected, offset).with_context(|| {
                 format!(
                     "type mismatch for export `{name}` of module \
-                         instantiation argument `{module}`"
+                     instantiation argument `{module}`"
                 )
             })?;
         }
@@ -2598,6 +3480,14 @@ impl ComponentState {
             crate::ComponentDefinedType::Borrow(idx) => Ok(ComponentDefinedType::Borrow(
                 self.resource_at(idx, types, offset)?,
             )),
+            crate::ComponentDefinedType::Future(ty) => Ok(ComponentDefinedType::Future(
+                ty.map(|ty| self.create_component_val_type(ty, offset))
+                    .transpose()?,
+            )),
+            crate::ComponentDefinedType::Stream(ty) => Ok(ComponentDefinedType::Stream(
+                self.create_component_val_type(ty, offset)?,
+            )),
+            crate::ComponentDefinedType::ErrorContext => Ok(ComponentDefinedType::ErrorContext),
         }
     }
 

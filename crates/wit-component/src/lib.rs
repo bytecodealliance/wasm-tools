@@ -21,7 +21,7 @@ pub use encoding::{encode, ComponentEncoder};
 pub use linking::Linker;
 pub use printing::*;
 pub use targets::*;
-pub use wit_parser::decoding::{decode, decode_reader, DecodedWasm};
+pub use wit_parser::decoding::{decode, decode_reader, decode_reader_with_features, DecodedWasm};
 
 pub mod metadata;
 

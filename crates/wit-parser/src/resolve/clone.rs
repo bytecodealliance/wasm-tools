@@ -105,11 +105,12 @@ impl<'a> Cloner<'a> {
             TypeDefKind::Type(_)
             | TypeDefKind::Resource
             | TypeDefKind::Flags(_)
-            | TypeDefKind::Enum(_) => {}
+            | TypeDefKind::Enum(_)
+            | TypeDefKind::ErrorContext => {}
             TypeDefKind::Handle(Handle::Own(ty) | Handle::Borrow(ty)) => {
                 self.type_id(ty);
             }
-            TypeDefKind::Option(ty) | TypeDefKind::List(ty) => {
+            TypeDefKind::Option(ty) | TypeDefKind::List(ty) | TypeDefKind::Stream(ty) => {
                 self.ty(ty);
             }
             TypeDefKind::Tuple(list) => {
@@ -142,7 +143,6 @@ impl<'a> Cloner<'a> {
                     self.ty(ty);
                 }
             }
-            TypeDefKind::Stream(_) => unimplemented!(),
             TypeDefKind::Unknown => {}
         }
     }

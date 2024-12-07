@@ -1283,11 +1283,18 @@ impl Validator {
                         options.into_vec(),
                         types,
                         offset,
+                        features,
                     ),
                     crate::CanonicalFunction::Lower {
                         func_index,
                         options,
-                    } => current.lower_function(func_index, options.into_vec(), types, offset),
+                    } => current.lower_function(
+                        func_index,
+                        options.into_vec(),
+                        types,
+                        offset,
+                        features,
+                    ),
                     crate::CanonicalFunction::ResourceNew { resource } => {
                         current.resource_new(resource, types, offset)
                     }
@@ -1302,6 +1309,74 @@ impl Validator {
                     }
                     crate::CanonicalFunction::ThreadHwConcurrency => {
                         current.thread_hw_concurrency(types, offset, features)
+                    }
+                    crate::CanonicalFunction::TaskBackpressure => {
+                        current.task_backpressure(types, offset, features)
+                    }
+                    crate::CanonicalFunction::TaskReturn { type_index } => {
+                        current.task_return(type_index, offset, features)
+                    }
+                    crate::CanonicalFunction::TaskWait { async_, memory } => {
+                        current.task_wait(async_, memory, types, offset, features)
+                    }
+                    crate::CanonicalFunction::TaskPoll { async_, memory } => {
+                        current.task_poll(async_, memory, types, offset, features)
+                    }
+                    crate::CanonicalFunction::TaskYield { async_ } => {
+                        current.task_yield(async_, types, offset, features)
+                    }
+                    crate::CanonicalFunction::SubtaskDrop => {
+                        current.subtask_drop(types, offset, features)
+                    }
+                    crate::CanonicalFunction::StreamNew { ty } => {
+                        current.stream_new(ty, types, offset, features)
+                    }
+                    crate::CanonicalFunction::StreamRead { ty, options } => {
+                        current.stream_read(ty, options.into_vec(), types, offset, features)
+                    }
+                    crate::CanonicalFunction::StreamWrite { ty, options } => {
+                        current.stream_write(ty, options.into_vec(), types, offset, features)
+                    }
+                    crate::CanonicalFunction::StreamCancelRead { ty, async_ } => {
+                        current.stream_cancel_read(ty, async_, types, offset, features)
+                    }
+                    crate::CanonicalFunction::StreamCancelWrite { ty, async_ } => {
+                        current.stream_cancel_write(ty, async_, types, offset, features)
+                    }
+                    crate::CanonicalFunction::StreamCloseReadable { ty } => {
+                        current.stream_close_readable(ty, types, offset, features)
+                    }
+                    crate::CanonicalFunction::StreamCloseWritable { ty } => {
+                        current.stream_close_writable(ty, types, offset, features)
+                    }
+                    crate::CanonicalFunction::FutureNew { ty } => {
+                        current.future_new(ty, types, offset, features)
+                    }
+                    crate::CanonicalFunction::FutureRead { ty, options } => {
+                        current.future_read(ty, options.into_vec(), types, offset, features)
+                    }
+                    crate::CanonicalFunction::FutureWrite { ty, options } => {
+                        current.future_write(ty, options.into_vec(), types, offset, features)
+                    }
+                    crate::CanonicalFunction::FutureCancelRead { ty, async_ } => {
+                        current.future_cancel_read(ty, async_, types, offset, features)
+                    }
+                    crate::CanonicalFunction::FutureCancelWrite { ty, async_ } => {
+                        current.future_cancel_write(ty, async_, types, offset, features)
+                    }
+                    crate::CanonicalFunction::FutureCloseReadable { ty } => {
+                        current.future_close_readable(ty, types, offset, features)
+                    }
+                    crate::CanonicalFunction::FutureCloseWritable { ty } => {
+                        current.future_close_writable(ty, types, offset, features)
+                    }
+                    crate::CanonicalFunction::ErrorContextNew { options } => {
+                        current.error_context_new(options.into_vec(), types, offset, features)
+                    }
+                    crate::CanonicalFunction::ErrorContextDebugMessage { options } => current
+                        .error_context_debug_message(options.into_vec(), types, offset, features),
+                    crate::CanonicalFunction::ErrorContextDrop => {
+                        current.error_context_drop(types, offset, features)
                     }
                 }
             },

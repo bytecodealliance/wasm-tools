@@ -14,7 +14,7 @@ use std::{collections::VecDeque, ffi::OsStr, path::Path};
 use wasmparser::{
     component_types::{ComponentEntityType, ComponentInstanceTypeId},
     types::TypesRef,
-    ComponentExternalKind, ComponentTypeRef,
+    ComponentExternalKind, ComponentTypeRef, WasmFeatures,
 };
 
 /// The root component name used in configuration.
@@ -72,9 +72,13 @@ struct CompositionGraphBuilder<'a> {
 }
 
 impl<'a> CompositionGraphBuilder<'a> {
-    fn new(root_path: &Path, config: &'a Config) -> Result<Self> {
+    fn new(root_path: &Path, config: &'a Config, features: WasmFeatures) -> Result<Self> {
         let mut graph = CompositionGraph::new();
-        graph.add_component(Component::from_file(ROOT_COMPONENT_NAME, root_path)?)?;
+        graph.add_component(Component::from_file(
+            ROOT_COMPONENT_NAME,
+            root_path,
+            features,
+        )?)?;
 
         let definitions = config
             .definitions
@@ -87,7 +91,7 @@ impl<'a> CompositionGraphBuilder<'a> {
                     )
                 })?;
 
-                let component = Component::from_file(name, config.dir.join(path))?;
+                let component = Component::from_file(name, config.dir.join(path), features)?;
 
                 Ok((graph.add_component(component)?, None))
             })
@@ -105,19 +109,19 @@ impl<'a> CompositionGraphBuilder<'a> {
     ///
     /// If a component with the given name already exists, its id is returned.
     /// Returns `Ok(None)` if a matching component cannot be found.
-    fn add_component(&mut self, name: &str) -> Result<Option<ComponentId>> {
+    fn add_component(&mut self, name: &str, features: WasmFeatures) -> Result<Option<ComponentId>> {
         if let Some((id, _)) = self.graph.get_component_by_name(name) {
             return Ok(Some(id));
         }
 
-        match self.find_component(name)? {
+        match self.find_component(name, features)? {
             Some(component) => Ok(Some(self.graph.add_component(component)?)),
             None => Ok(None),
         }
     }
 
     /// Finds the component with the given name on disk.
-    fn find_component(&self, name: &str) -> Result<Option<Component<'a>>> {
+    fn find_component(&self, name: &str, features: WasmFeatures) -> Result<Option<Component<'a>>> {
         // Check the config for an explicit path (must be a valid component)
         if let Some(dep) = self.config.dependencies.get(name) {
             log::debug!(
@@ -127,13 +131,14 @@ impl<'a> CompositionGraphBuilder<'a> {
             return Ok(Some(Component::from_file(
                 name,
                 self.config.dir.join(&dep.path),
+                features,
             )?));
         }
 
         // Otherwise, search the paths for a valid component with the same name
         log::info!("searching for a component with name `{name}`");
         for dir in std::iter::once(&self.config.dir).chain(self.config.search_paths.iter()) {
-            if let Some(component) = Self::parse_component(dir, name)? {
+            if let Some(component) = Self::parse_component(dir, name, features)? {
                 return Ok(Some(component));
             }
         }
@@ -144,7 +149,11 @@ impl<'a> CompositionGraphBuilder<'a> {
     /// Parses a component from the given directory, if it exists.
     ///
     /// Returns `Ok(None)` if the component does not exist.
-    fn parse_component(dir: &Path, name: &str) -> Result<Option<Component<'a>>> {
+    fn parse_component(
+        dir: &Path,
+        name: &str,
+        features: WasmFeatures,
+    ) -> Result<Option<Component<'a>>> {
         let mut path = dir.join(name);
 
         for ext in ["wasm", "wat"] {
@@ -154,7 +163,7 @@ impl<'a> CompositionGraphBuilder<'a> {
                 continue;
             }
 
-            return Ok(Some(Component::from_file(name, &path)?));
+            return Ok(Some(Component::from_file(name, &path, features)?));
         }
 
         Ok(None)
@@ -165,12 +174,17 @@ impl<'a> CompositionGraphBuilder<'a> {
     /// Returns an index into `instances` for the instance being instantiated.
     ///
     /// Returns `Ok(None)` if a component to instantiate cannot be found.
-    fn instantiate(&mut self, name: &str, component_name: &str) -> Result<Option<(usize, bool)>> {
+    fn instantiate(
+        &mut self,
+        name: &str,
+        component_name: &str,
+        features: WasmFeatures,
+    ) -> Result<Option<(usize, bool)>> {
         if let Some(index) = self.instances.get_index_of(name) {
             return Ok(Some((index, true)));
         }
 
-        match self.add_component(component_name)? {
+        match self.add_component(component_name, features)? {
             Some(component_id) => {
                 let (index, prev) = self
                     .instances
@@ -301,13 +315,18 @@ impl<'a> CompositionGraphBuilder<'a> {
     /// Processes a dependency in the graph.
     ///
     /// Returns `Ok(Some(index))` if the dependency resulted in a new dependency instance being created.
-    fn process_dependency(&mut self, dependency: Dependency) -> Result<Option<usize>> {
+    fn process_dependency(
+        &mut self,
+        dependency: Dependency,
+        features: WasmFeatures,
+    ) -> Result<Option<usize>> {
         match dependency.kind {
             DependencyKind::Instance { instance, export } => self.process_instance_dependency(
                 dependency.dependent,
                 dependency.import,
                 &instance,
                 export.as_deref(),
+                features,
             ),
             DependencyKind::Definition { index, export } => {
                 // The dependency is on a definition component, so we simply connect the dependent to the definition's export
@@ -348,6 +367,7 @@ impl<'a> CompositionGraphBuilder<'a> {
         import: InstanceImportRef,
         instance: &str,
         export: Option<&str>,
+        features: WasmFeatures,
     ) -> Result<Option<usize>> {
         let name = self.config.dependency_name(instance);
 
@@ -356,7 +376,7 @@ impl<'a> CompositionGraphBuilder<'a> {
             dependent_name = self.instances.get_index(dependent_index).unwrap().0,
         );
 
-        match self.instantiate(instance, name)? {
+        match self.instantiate(instance, name, features)? {
             Some((instance, existing)) => {
                 let (dependent, import_name, import_type) = self.resolve_import_ref(import);
 
@@ -478,12 +498,12 @@ impl<'a> CompositionGraphBuilder<'a> {
     }
 
     /// Build the instantiation graph.
-    fn build(mut self) -> Result<(InstanceId, CompositionGraph<'a>)> {
+    fn build(mut self, features: WasmFeatures) -> Result<(InstanceId, CompositionGraph<'a>)> {
         let mut queue: VecDeque<Dependency> = VecDeque::new();
 
         // Instantiate the root and push its dependencies to the queue
         let (root_instance, existing) = self
-            .instantiate(ROOT_COMPONENT_NAME, ROOT_COMPONENT_NAME)?
+            .instantiate(ROOT_COMPONENT_NAME, ROOT_COMPONENT_NAME, features)?
             .unwrap();
 
         assert!(!existing);
@@ -492,12 +512,10 @@ impl<'a> CompositionGraphBuilder<'a> {
 
         // Process all remaining dependencies in the queue
         while let Some(dependency) = queue.pop_front() {
-            if let Some(instance) = self.process_dependency(dependency)? {
+            if let Some(instance) = self.process_dependency(dependency, features)? {
                 self.push_dependencies(instance, &mut queue)?;
             }
         }
-
-        self.graph.unify_imported_resources();
 
         Ok((self.instances[root_instance], self.graph))
     }
@@ -513,6 +531,7 @@ impl<'a> CompositionGraphBuilder<'a> {
 pub struct ComponentComposer<'a> {
     component: &'a Path,
     config: &'a Config,
+    features: WasmFeatures,
 }
 
 impl<'a> ComponentComposer<'a> {
@@ -521,8 +540,12 @@ impl<'a> ComponentComposer<'a> {
     /// ## Arguments
     /// * `component` - The path to the component to compose.
     /// * `config` - The configuration to use for the composition.
-    pub fn new(component: &'a Path, config: &'a Config) -> Self {
-        Self { component, config }
+    pub fn new(component: &'a Path, config: &'a Config, features: WasmFeatures) -> Self {
+        Self {
+            component,
+            config,
+            features,
+        }
     }
 
     /// Composes a WebAssembly component based on the composer's configuration.
@@ -531,7 +554,8 @@ impl<'a> ComponentComposer<'a> {
     /// Returns the bytes of the composed component.
     pub fn compose(&self) -> Result<Vec<u8>> {
         let (root_instance, graph) =
-            CompositionGraphBuilder::new(self.component, self.config)?.build()?;
+            CompositionGraphBuilder::new(self.component, self.config, self.features)?
+                .build(self.features)?;
 
         // If only the root component was instantiated, then there are no resolved dependencies
         if graph.instances.len() == 1 {

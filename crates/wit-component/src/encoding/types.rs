@@ -153,8 +153,9 @@ pub trait ValtypeEncoder<'a> {
                         ComponentValType::Type(index)
                     }
                     TypeDefKind::Type(ty) => self.encode_valtype(resolve, ty)?,
-                    TypeDefKind::Future(_) => todo!("encoding for future type"),
-                    TypeDefKind::Stream(_) => todo!("encoding for stream type"),
+                    TypeDefKind::Future(ty) => self.encode_future(resolve, ty)?,
+                    TypeDefKind::Stream(ty) => self.encode_stream(resolve, ty)?,
+                    TypeDefKind::ErrorContext => self.encode_error_context()?,
                     TypeDefKind::Unknown => unreachable!(),
                     TypeDefKind::Resource => {
                         let name = ty.name.as_ref().expect("resources must be named");
@@ -307,6 +308,30 @@ pub trait ValtypeEncoder<'a> {
     fn encode_enum(&mut self, enum_: &Enum) -> Result<ComponentValType> {
         let (index, encoder) = self.defined_type();
         encoder.enum_type(enum_.cases.iter().map(|c| c.name.as_str()));
+        Ok(ComponentValType::Type(index))
+    }
+
+    fn encode_future(
+        &mut self,
+        resolve: &'a Resolve,
+        payload: &Option<Type>,
+    ) -> Result<ComponentValType> {
+        let ty = self.encode_optional_valtype(resolve, payload.as_ref())?;
+        let (index, encoder) = self.defined_type();
+        encoder.future(ty);
+        Ok(ComponentValType::Type(index))
+    }
+
+    fn encode_stream(&mut self, resolve: &'a Resolve, payload: &Type) -> Result<ComponentValType> {
+        let ty = self.encode_valtype(resolve, payload)?;
+        let (index, encoder) = self.defined_type();
+        encoder.stream(ty);
+        Ok(ComponentValType::Type(index))
+    }
+
+    fn encode_error_context(&mut self) -> Result<ComponentValType> {
+        let (index, encoder) = self.defined_type();
+        encoder.error_context();
         Ok(ComponentValType::Type(index))
     }
 }

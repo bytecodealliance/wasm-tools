@@ -255,9 +255,11 @@ impl SizeAlign {
             // A resource is represented as an index.
             // A future is represented as an index.
             // A stream is represented as an index.
-            TypeDefKind::Handle(_) | TypeDefKind::Future(_) | TypeDefKind::Stream(_) => {
-                int_size_align(Int::U32)
-            }
+            // An error is represented as an index.
+            TypeDefKind::Handle(_)
+            | TypeDefKind::Future(_)
+            | TypeDefKind::Stream(_)
+            | TypeDefKind::ErrorContext => int_size_align(Int::U32),
             // This shouldn't be used for anything since raw resources aren't part of the ABI -- just handles to
             // them.
             TypeDefKind::Resource => ElementInfo::new(

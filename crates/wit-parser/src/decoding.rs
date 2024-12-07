@@ -13,6 +13,7 @@ use wasmparser::{
     types,
     types::Types,
     ComponentExternalKind, Parser, Payload, PrimitiveValType, ValidPayload, Validator,
+    WasmFeatures,
 };
 
 /// Represents information about a decoded WebAssembly component.
@@ -46,8 +47,8 @@ enum WitEncodingVersion {
 impl ComponentInfo {
     /// Creates a new component info by parsing the given WebAssembly component bytes.
 
-    fn from_reader(mut reader: impl Read) -> Result<Self> {
-        let mut validator = Validator::new();
+    fn from_reader(mut reader: impl Read, features: WasmFeatures) -> Result<Self> {
+        let mut validator = Validator::new_with_features(features);
         let mut externs = Vec::new();
         let mut depth = 1;
         let mut types = None;
@@ -379,7 +380,16 @@ impl DecodedWasm {
 
 /// Decode for incremental reading
 pub fn decode_reader(reader: impl Read) -> Result<DecodedWasm> {
-    let info = ComponentInfo::from_reader(reader)?;
+    decode_reader_with_features(reader, WasmFeatures::default())
+}
+
+/// Like [`decode_reader`], but using caller-specified `WasmFeatures` when
+/// validating input.
+pub fn decode_reader_with_features(
+    reader: impl Read,
+    features: WasmFeatures,
+) -> Result<DecodedWasm> {
+    let info = ComponentInfo::from_reader(reader, features)?;
 
     if let Some(version) = info.is_wit_package() {
         match version {
@@ -400,6 +410,7 @@ pub fn decode_reader(reader: impl Read) -> Result<DecodedWasm> {
         Ok(DecodedWasm::Component(resolve, world))
     }
 }
+
 /// Decodes an in-memory WebAssembly binary into a WIT [`Resolve`] and
 /// associated metadata.
 ///
@@ -1260,15 +1271,16 @@ impl WitPackageDecoder<'_> {
             | TypeDefKind::Tuple(_)
             | TypeDefKind::Option(_)
             | TypeDefKind::Result(_)
-            | TypeDefKind::Handle(_) => {}
+            | TypeDefKind::Handle(_)
+            | TypeDefKind::Future(_)
+            | TypeDefKind::Stream(_)
+            | TypeDefKind::ErrorContext => {}
 
             TypeDefKind::Resource
             | TypeDefKind::Record(_)
             | TypeDefKind::Enum(_)
             | TypeDefKind::Variant(_)
-            | TypeDefKind::Flags(_)
-            | TypeDefKind::Future(_)
-            | TypeDefKind::Stream(_) => {
+            | TypeDefKind::Flags(_) => {
                 bail!("unexpected unnamed type of kind '{}'", kind.as_str());
             }
             TypeDefKind::Unknown => unreachable!(),
@@ -1393,6 +1405,14 @@ impl WitPackageDecoder<'_> {
                 let id = self.type_map[&(*id).into()];
                 Ok(TypeDefKind::Handle(Handle::Borrow(id)))
             }
+
+            ComponentDefinedType::Future(ty) => Ok(TypeDefKind::Future(
+                ty.as_ref().map(|ty| self.convert_valtype(ty)).transpose()?,
+            )),
+
+            ComponentDefinedType::Stream(ty) => Ok(TypeDefKind::Stream(self.convert_valtype(ty)?)),
+
+            ComponentDefinedType::ErrorContext => Ok(TypeDefKind::ErrorContext),
         }
     }
 
@@ -1663,11 +1683,34 @@ impl Registrar<'_> {
                 Ok(())
             }
 
+            ComponentDefinedType::Future(payload) => {
+                let ty = match &self.resolve.types[id].kind {
+                    TypeDefKind::Future(p) => p,
+                    TypeDefKind::Type(Type::Id(_)) => return Ok(()),
+                    _ => bail!("expected a future"),
+                };
+                match (payload, ty) {
+                    (Some(a), Some(b)) => self.valtype(a, b),
+                    (None, None) => Ok(()),
+                    _ => bail!("disagreement on future payload"),
+                }
+            }
+
+            ComponentDefinedType::Stream(payload) => {
+                let ty = match &self.resolve.types[id].kind {
+                    TypeDefKind::Stream(p) => p,
+                    TypeDefKind::Type(Type::Id(_)) => return Ok(()),
+                    _ => bail!("expected a stream"),
+                };
+                self.valtype(payload, ty)
+            }
+
             // These have no recursive structure so they can bail out.
             ComponentDefinedType::Flags(_)
             | ComponentDefinedType::Enum(_)
             | ComponentDefinedType::Own(_)
-            | ComponentDefinedType::Borrow(_) => Ok(()),
+            | ComponentDefinedType::Borrow(_)
+            | ComponentDefinedType::ErrorContext => Ok(()),
         }
     }
 

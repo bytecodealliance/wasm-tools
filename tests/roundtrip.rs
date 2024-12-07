@@ -681,6 +681,10 @@ impl TestState {
                 "wide-arithmetic" => {
                     features.insert(WasmFeatures::WIDE_ARITHMETIC);
                 }
+                "component-model-async" => {
+                    features.insert(WasmFeatures::COMPONENT_MODEL);
+                    features.insert(WasmFeatures::COMPONENT_MODEL_ASYNC);
+                }
                 _ => {}
             }
         }

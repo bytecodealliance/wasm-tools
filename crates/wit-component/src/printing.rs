@@ -534,12 +534,21 @@ impl WitPrinter {
                         self.output.push_str(">");
                     }
                     TypeDefKind::Type(ty) => self.print_type_name(resolve, ty)?,
-                    TypeDefKind::Future(_) => {
-                        todo!("document has an unnamed future type")
+                    TypeDefKind::Future(ty) => {
+                        if let Some(ty) = ty {
+                            self.output.push_str("future<");
+                            self.print_type_name(resolve, ty)?;
+                            self.output.push_str(">");
+                        } else {
+                            self.output.push_str("future");
+                        }
                     }
-                    TypeDefKind::Stream(_) => {
-                        todo!("document has an unnamed stream type")
+                    TypeDefKind::Stream(ty) => {
+                        self.output.push_str("stream<");
+                        self.print_type_name(resolve, ty)?;
+                        self.output.push_str(">");
                     }
+                    TypeDefKind::ErrorContext => self.output.push_str("error-context"),
                     TypeDefKind::Unknown => unreachable!(),
                 }
             }
@@ -695,8 +704,9 @@ impl WitPrinter {
                         }
                         None => bail!("unnamed type in document"),
                     },
-                    TypeDefKind::Future(_) => todo!("declare future"),
-                    TypeDefKind::Stream(_) => todo!("declare stream"),
+                    TypeDefKind::Future(_) => panic!("no need to declare futures"),
+                    TypeDefKind::Stream(_) => panic!("no need to declare streams"),
+                    TypeDefKind::ErrorContext => panic!("no need to declare error-contexts"),
                     TypeDefKind::Unknown => unreachable!(),
                 }
             }
@@ -987,6 +997,7 @@ fn is_keyword(name: &str) -> bool {
             | "with"
             | "include"
             | "constructor"
+            | "error"
     )
 }
 
