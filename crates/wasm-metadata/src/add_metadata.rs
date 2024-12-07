@@ -1,4 +1,4 @@
-use crate::{rewrite_wasm, Author, Description, Licenses, Producers, RegistryMetadata, Source};
+use crate::{rewrite_wasm, Author, Description, Licenses, Producers, Source};
 
 use anyhow::Result;
 
@@ -41,10 +41,6 @@ pub struct AddMetadata {
     /// URL to get source code for building the image
     #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
     pub source: Option<Source>,
-
-    /// Add an registry metadata to the registry-metadata section
-    #[cfg_attr(feature="clap", clap(long, value_parser = parse_registry_metadata_value, value_name="PATH"))]
-    pub registry_metadata: Option<RegistryMetadata>,
 }
 
 #[cfg(feature = "clap")]
@@ -52,15 +48,6 @@ pub(crate) fn parse_key_value(s: &str) -> Result<(String, String)> {
     s.split_once('=')
         .map(|(k, v)| (k.to_owned(), v.to_owned()))
         .ok_or_else(|| anyhow::anyhow!("expected KEY=VALUE"))
-}
-
-#[cfg(feature = "clap")]
-pub(crate) fn parse_registry_metadata_value(s: &str) -> Result<RegistryMetadata> {
-    let contents = std::fs::read(s)?;
-
-    let registry_metadata = RegistryMetadata::from_bytes(&contents, 0)?;
-
-    Ok(registry_metadata)
 }
 
 impl AddMetadata {
@@ -75,7 +62,6 @@ impl AddMetadata {
             &self.description,
             &self.licenses,
             &self.source,
-            self.registry_metadata.as_ref(),
             input,
         )
     }
