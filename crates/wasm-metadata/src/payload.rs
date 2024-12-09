@@ -178,45 +178,49 @@ impl Payload {
         }
     }
 
-    //     match self {
-    //         Self::Module {
-    //             name, producers, ..
-    //         } => {
-    //             if let Some(name) = name {
-    //                 writeln!(f, "{spaces}module {name}:")?;
-    //             } else {
-    //                 writeln!(f, "{spaces}module:")?;
-    //             }
-    //             if let Some(producers) = producers {
-    //                 producers.display(f, indent + 4)?;
-    //             }
-    //             Ok(())
-    //         }
-    //         Self::Component {
-    //             name,
-    //             producers,
-    //             children,
-    //             ..
-    //         } => {
-    //             if let Some(name) = name {
-    //                 writeln!(f, "{spaces}component {name}:")?;
-    //             } else {
-    //                 writeln!(f, "{spaces}component:")?;
-    //             }
-    //             if let Some(producers) = producers {
-    //                 producers.display(f, indent + 4)?;
-    //             }
-    //             for c in children {
-    //                 c.display(f, indent + 4)?;
-    //             }
-    //             Ok(())
-    //         }
-    //     }
-    // }
+    fn display(&self, f: &mut fmt::Formatter, indent: usize) -> fmt::Result {
+        let spaces = std::iter::repeat(" ").take(indent).collect::<String>();
+        match self {
+            Self::Module {
+                metadata: Metadata {
+                    name, producers, ..
+                },
+            } => {
+                if let Some(name) = name {
+                    writeln!(f, "{spaces}module {name}:")?;
+                } else {
+                    writeln!(f, "{spaces}module:")?;
+                }
+                if let Some(producers) = producers {
+                    producers.display(f, indent + 4)?;
+                }
+                Ok(())
+            }
+            Self::Component {
+                children,
+                metadata: Metadata {
+                    name, producers, ..
+                },
+            } => {
+                if let Some(name) = name {
+                    writeln!(f, "{spaces}component {name}:")?;
+                } else {
+                    writeln!(f, "{spaces}component:")?;
+                }
+                if let Some(producers) = producers {
+                    producers.display(f, indent + 4)?;
+                }
+                for c in children {
+                    c.display(f, indent + 4)?;
+                }
+                Ok(())
+            }
+        }
+    }
 }
 
-// impl Display for Payload {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         self.display(f, 0)
-//     }
-// }
+impl Display for Payload {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.display(f, 0)
+    }
+}
