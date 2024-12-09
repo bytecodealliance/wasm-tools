@@ -169,7 +169,7 @@ impl RequiredOptions {
                 ret |= RequiredOptions::REALLOC;
             }
         }
-        if abi == AbiVariant::GuestExportAsync {
+        if let AbiVariant::GuestExportAsync | AbiVariant::GuestExportAsyncStackful = abi {
             ret |= RequiredOptions::ASYNC;
         }
         ret

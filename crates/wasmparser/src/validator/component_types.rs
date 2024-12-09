@@ -891,21 +891,34 @@ impl TypeData for ComponentFuncType {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum Abi {
+    LowerSync,
+    LowerAsync,
+    LiftSync,
+    LiftAsync,
+    LiftAsyncStackful,
+}
+
 impl ComponentFuncType {
     /// Lowers the component function type to core parameter and result types for the
     /// canonical ABI.
-    pub(crate) fn lower(&self, types: &TypeList, is_lower: bool, async_: bool) -> LoweringInfo {
+    pub(crate) fn lower(&self, types: &TypeList, abi: Abi) -> LoweringInfo {
         let mut info = LoweringInfo::default();
 
-        if async_ && is_lower {
-            for _ in 0..2 {
-                info.params.push(ValType::I32);
+        let is_lower = match abi {
+            Abi::LowerAsync => {
+                for _ in 0..2 {
+                    info.params.push(ValType::I32);
+                }
+                info.results.push(ValType::I32);
+                info.requires_memory = true;
+                info.requires_realloc = self.results.iter().any(|(_, ty)| ty.contains_ptr(types));
+                return info;
             }
-            info.results.push(ValType::I32);
-            info.requires_memory = true;
-            info.requires_realloc = self.results.iter().any(|(_, ty)| ty.contains_ptr(types));
-            return info;
-        }
+            Abi::LowerSync => true,
+            Abi::LiftSync | Abi::LiftAsync | Abi::LiftAsyncStackful => false,
+        };
 
         for (_, ty) in self.params.iter() {
             // Check to see if `ty` has a pointer somewhere in it, needed for
@@ -940,32 +953,37 @@ impl ComponentFuncType {
             }
         }
 
-        if async_ {
-            info.results.push(ValType::I32);
-        } else {
-            for (_, ty) in self.results.iter() {
-                // Results of lowered functions that contains pointers must be
-                // allocated by the callee meaning that realloc is required.
-                // Results of lifted function are allocated by the guest which
-                // means that no realloc option is necessary.
-                if is_lower && !info.requires_realloc {
-                    info.requires_realloc = ty.contains_ptr(types);
-                }
-
-                if !ty.push_wasm_types(types, &mut info.results) {
-                    // Too many results to return directly, either a retptr parameter will be used (import)
-                    // or a single pointer will be returned (export)
-                    info.results.clear();
-                    if is_lower {
-                        info.params.max = MAX_LOWERED_TYPES;
-                        assert!(info.params.push(ValType::I32));
-                    } else {
-                        assert!(info.results.push(ValType::I32));
+        match abi {
+            Abi::LowerAsync => unreachable!(),
+            Abi::LowerSync | Abi::LiftSync => {
+                for (_, ty) in self.results.iter() {
+                    // Results of lowered functions that contains pointers must be
+                    // allocated by the callee meaning that realloc is required.
+                    // Results of lifted function are allocated by the guest which
+                    // means that no realloc option is necessary.
+                    if is_lower && !info.requires_realloc {
+                        info.requires_realloc = ty.contains_ptr(types);
                     }
-                    info.requires_memory = true;
-                    break;
+
+                    if !ty.push_wasm_types(types, &mut info.results) {
+                        // Too many results to return directly, either a retptr parameter will be used (import)
+                        // or a single pointer will be returned (export)
+                        info.results.clear();
+                        if is_lower {
+                            info.params.max = MAX_LOWERED_TYPES;
+                            assert!(info.params.push(ValType::I32));
+                        } else {
+                            assert!(info.results.push(ValType::I32));
+                        }
+                        info.requires_memory = true;
+                        break;
+                    }
                 }
             }
+            Abi::LiftAsync => {
+                info.results.push(ValType::I32);
+            }
+            Abi::LiftAsyncStackful => {}
         }
 
         // Memory is always required when realloc is required

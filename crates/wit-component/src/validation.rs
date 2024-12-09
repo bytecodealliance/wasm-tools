@@ -816,6 +816,8 @@ impl ExportMap {
         let full_name = name;
         let (abi, name) = if let Some(name) = names.async_name(name) {
             (AbiVariant::GuestExportAsync, name)
+        } else if let Some(name) = names.async_stackful_name(name) {
+            (AbiVariant::GuestExportAsyncStackful, name)
         } else {
             (AbiVariant::GuestExport, name)
         };
@@ -1081,6 +1083,7 @@ trait NameMangling {
     fn subtask_drop(&self) -> Option<&str>;
     fn callback_name<'a>(&self, s: &'a str) -> Option<&'a str>;
     fn async_name<'a>(&self, s: &'a str) -> Option<&'a str>;
+    fn async_stackful_name<'a>(&self, s: &'a str) -> Option<&'a str>;
     fn error_context_new(&self, s: &str) -> Option<StringEncoding>;
     fn error_context_debug_message<'a>(&self, s: &'a str) -> Option<(StringEncoding, &'a str)>;
     fn error_context_drop(&self) -> Option<&str>;
@@ -1173,6 +1176,10 @@ impl NameMangling for Standard {
         None
     }
     fn async_name<'a>(&self, s: &'a str) -> Option<&'a str> {
+        _ = s;
+        None
+    }
+    fn async_stackful_name<'a>(&self, s: &'a str) -> Option<&'a str> {
         _ = s;
         None
     }
@@ -1356,6 +1363,9 @@ impl NameMangling for Legacy {
     }
     fn async_name<'a>(&self, s: &'a str) -> Option<&'a str> {
         s.strip_prefix("[async]")
+    }
+    fn async_stackful_name<'a>(&self, s: &'a str) -> Option<&'a str> {
+        s.strip_prefix("[async-stackful]")
     }
     fn error_context_new(&self, s: &str) -> Option<StringEncoding> {
         parse_encoding(

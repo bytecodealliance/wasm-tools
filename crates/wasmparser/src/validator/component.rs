@@ -3,7 +3,7 @@
 use super::{
     check_max,
     component_types::{
-        AliasableResourceId, ComponentAnyTypeId, ComponentCoreInstanceTypeId,
+        Abi, AliasableResourceId, ComponentAnyTypeId, ComponentCoreInstanceTypeId,
         ComponentCoreModuleTypeId, ComponentCoreTypeId, ComponentDefinedType,
         ComponentDefinedTypeId, ComponentEntityType, ComponentFuncType, ComponentFuncTypeId,
         ComponentInstanceType, ComponentInstanceTypeId, ComponentType, ComponentTypeId,
@@ -963,7 +963,21 @@ impl ComponentState {
 
         // Lifting a function is for an export, so match the expected canonical ABI
         // export signature
-        let info = ty.lower(types, false, options.contains(&CanonicalOption::Async));
+        let info = ty.lower(
+            types,
+            if options.contains(&CanonicalOption::Async) {
+                if options
+                    .iter()
+                    .any(|v| matches!(v, CanonicalOption::Callback(_)))
+                {
+                    Abi::LiftAsync
+                } else {
+                    Abi::LiftAsyncStackful
+                }
+            } else {
+                Abi::LiftSync
+            },
+        );
         self.check_options(
             Some(core_ty),
             &info,
@@ -1012,7 +1026,14 @@ impl ComponentState {
 
         // Lowering a function is for an import, so use a function type that matches
         // the expected canonical ABI import signature.
-        let info = ty.lower(types, true, options.contains(&CanonicalOption::Async));
+        let info = ty.lower(
+            types,
+            if options.contains(&CanonicalOption::Async) {
+                Abi::LowerAsync
+            } else {
+                Abi::LowerSync
+            },
+        );
 
         self.check_options(None, &info, &options, types, offset, features, true)?;
 

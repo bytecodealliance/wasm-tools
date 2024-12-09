@@ -129,6 +129,7 @@ pub enum AbiVariant {
     GuestExport,
     GuestImportAsync,
     GuestExportAsync,
+    GuestExportAsyncStackful,
 }
 
 impl Resolve {
@@ -164,7 +165,9 @@ impl Resolve {
                 (&func.kind, variant),
                 (
                     crate::FunctionKind::Method(_),
-                    AbiVariant::GuestExport | AbiVariant::GuestExportAsync
+                    AbiVariant::GuestExport
+                        | AbiVariant::GuestExportAsync
+                        | AbiVariant::GuestExportAsyncStackful
                 )
             ) {
                 // Guest exported methods always receive resource rep as first argument
@@ -178,13 +181,24 @@ impl Resolve {
             }
         }
 
-        if let AbiVariant::GuestExportAsync = variant {
-            return WasmSignature {
-                params,
-                indirect_params,
-                results: vec![WasmType::Pointer],
-                retptr: false,
-            };
+        match variant {
+            AbiVariant::GuestExportAsync => {
+                return WasmSignature {
+                    params,
+                    indirect_params,
+                    results: vec![WasmType::Pointer],
+                    retptr: false,
+                };
+            }
+            AbiVariant::GuestExportAsyncStackful => {
+                return WasmSignature {
+                    params,
+                    indirect_params,
+                    results: Vec::new(),
+                    retptr: false,
+                };
+            }
+            _ => {}
         }
 
         let mut results = Vec::new();
