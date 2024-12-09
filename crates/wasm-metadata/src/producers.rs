@@ -204,11 +204,9 @@ mod test {
         let module = producers.add_to_wasm(&module).unwrap();
 
         match Payload::from_binary(&module).unwrap() {
-            Payload::Module {
-                metadata: Metadata {
-                    name, producers, ..
-                },
-            } => {
+            Payload::Module(Metadata {
+                name, producers, ..
+            }) => {
                 assert_eq!(name, None);
                 let producers = producers.expect("some producers");
                 assert_eq!(producers.get("language").unwrap().get("bar").unwrap(), "");
@@ -234,11 +232,9 @@ mod test {
         let module = producers.add_to_wasm(&module).unwrap();
 
         match Payload::from_binary(&module).unwrap() {
-            Payload::Module {
-                metadata: Metadata {
-                    name, producers, ..
-                },
-            } => {
+            Payload::Module(Metadata {
+                name, producers, ..
+            }) => {
                 assert_eq!(name, None);
                 let producers = producers.expect("some producers");
                 assert_eq!(producers.get("language").unwrap().get("bar").unwrap(), "");
@@ -264,9 +260,7 @@ mod test {
         let module = producers.add_to_wasm(&module).unwrap();
 
         match Payload::from_binary(&module).unwrap() {
-            Payload::Module {
-                metadata: Metadata { producers, .. },
-            } => {
+            Payload::Module(Metadata { producers, .. }) => {
                 let producers = producers.expect("some producers");
                 assert_eq!(
                     producers.get("processed-by").unwrap().get("baz").unwrap(),

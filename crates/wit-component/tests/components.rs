@@ -171,9 +171,7 @@ fn run_test(path: &Path) -> Result<()> {
     match Payload::from_binary(&bytes).unwrap() {
         // Depends on the ComponentEncoder always putting the first module as the 0th child:
         Payload::Component { children, .. } => match &children[0] {
-            Payload::Module {
-                metadata: Metadata { producers, .. },
-            } => {
+            Payload::Module(Metadata { producers, .. }) => {
                 let producers = producers.as_ref().expect("child module has producers");
                 let processed_by = producers
                     .get("processed-by")

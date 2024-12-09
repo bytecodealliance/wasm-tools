@@ -25,10 +25,7 @@ pub enum Payload {
         children: Vec<Payload>,
     },
     /// A representation of a Wasm Module
-    Module {
-        /// The metadata associated with the Module
-        metadata: Metadata,
-    },
+    Module(Metadata),
 }
 
 impl Payload {
@@ -142,7 +139,7 @@ impl Payload {
     pub fn metadata(&self) -> &Metadata {
         match self {
             Payload::Component { metadata, .. } => metadata,
-            Payload::Module { metadata } => metadata,
+            Payload::Module(metadata) => metadata,
         }
     }
 
@@ -150,7 +147,7 @@ impl Payload {
     pub fn metadata_mut(&mut self) -> &mut Metadata {
         match self {
             Payload::Component { metadata, .. } => metadata,
-            Payload::Module { metadata } => metadata,
+            Payload::Module(metadata) => metadata,
         }
     }
 
@@ -164,9 +161,7 @@ impl Payload {
     }
 
     fn empty_module(range: Range<usize>) -> Self {
-        let mut this = Self::Module {
-            metadata: Metadata::default(),
-        };
+        let mut this = Self::Module(Metadata::default());
         this.metadata_mut().range = range;
         this
     }
@@ -181,11 +176,9 @@ impl Payload {
     fn display(&self, f: &mut fmt::Formatter, indent: usize) -> fmt::Result {
         let spaces = std::iter::repeat(" ").take(indent).collect::<String>();
         match self {
-            Self::Module {
-                metadata: Metadata {
-                    name, producers, ..
-                },
-            } => {
+            Self::Module(Metadata {
+                name, producers, ..
+            }) => {
                 if let Some(name) = name {
                     writeln!(f, "{spaces}module {name}:")?;
                 } else {

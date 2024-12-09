@@ -116,18 +116,15 @@ fn add_to_nested_component() {
             assert_eq!(children.len(), 1);
 
             match children.get(0).unwrap() {
-                Payload::Module {
-                    metadata:
-                        Metadata {
-                            name,
-                            producers,
-                            author,
-                            licenses,
-                            source,
-                            range,
-                            description,
-                        },
-                } => {
+                Payload::Module(Metadata {
+                    name,
+                    producers,
+                    author,
+                    licenses,
+                    source,
+                    range,
+                    description,
+                }) => {
                     assert_eq!(name, &Some("foo".to_owned()));
                     let producers = producers.as_ref().expect("some producers");
                     assert_eq!(
