@@ -3,6 +3,7 @@ use libtest_mimic::{Arguments, Trial};
 use pretty_assertions::assert_eq;
 use std::{borrow::Cow, fs, path::Path};
 use wasm_encoder::{Encode, Section};
+use wasm_metadata::{Metadata, Payload};
 use wit_component::{ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter};
 use wit_parser::{PackageId, Resolve, UnresolvedPackageGroup};
 
@@ -167,11 +168,10 @@ fn run_test(path: &Path) -> Result<()> {
         .context("failed to parse printed WIT")?;
 
     // Check that the producer data got piped through properly
-    let metadata = wasm_metadata::Metadata::from_binary(&bytes)?;
-    match metadata {
+    match Payload::from_binary(&bytes).unwrap() {
         // Depends on the ComponentEncoder always putting the first module as the 0th child:
-        wasm_metadata::Metadata::Component { children, .. } => match children[0].as_ref() {
-            wasm_metadata::Metadata::Module { producers, .. } => {
+        Payload::Component { children, .. } => match &children[0] {
+            Payload::Module(Metadata { producers, .. }) => {
                 let producers = producers.as_ref().expect("child module has producers");
                 let processed_by = producers
                     .get("processed-by")

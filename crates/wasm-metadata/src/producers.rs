@@ -191,7 +191,7 @@ impl<'a> ProducersField<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::Metadata;
+    use crate::{Metadata, Payload};
     use wasm_encoder::Module;
 
     #[test]
@@ -203,11 +203,10 @@ mod test {
 
         let module = producers.add_to_wasm(&module).unwrap();
 
-        let metadata = Metadata::from_binary(&module).unwrap();
-        match metadata {
-            Metadata::Module {
+        match Payload::from_binary(&module).unwrap() {
+            Payload::Module(Metadata {
                 name, producers, ..
-            } => {
+            }) => {
                 assert_eq!(name, None);
                 let producers = producers.expect("some producers");
                 assert_eq!(producers.get("language").unwrap().get("bar").unwrap(), "");
@@ -232,11 +231,10 @@ mod test {
         producers.add("language", "waaat", "");
         let module = producers.add_to_wasm(&module).unwrap();
 
-        let metadata = Metadata::from_binary(&module).unwrap();
-        match metadata {
-            Metadata::Module {
+        match Payload::from_binary(&module).unwrap() {
+            Payload::Module(Metadata {
                 name, producers, ..
-            } => {
+            }) => {
                 assert_eq!(name, None);
                 let producers = producers.expect("some producers");
                 assert_eq!(producers.get("language").unwrap().get("bar").unwrap(), "");
@@ -261,9 +259,8 @@ mod test {
         producers.add("processed-by", "baz", "420");
         let module = producers.add_to_wasm(&module).unwrap();
 
-        let metadata = Metadata::from_binary(&module).unwrap();
-        match metadata {
-            Metadata::Module { producers, .. } => {
+        match Payload::from_binary(&module).unwrap() {
+            Payload::Module(Metadata { producers, .. }) => {
                 let producers = producers.expect("some producers");
                 assert_eq!(
                     producers.get("processed-by").unwrap().get("baz").unwrap(),
