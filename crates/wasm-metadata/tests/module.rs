@@ -20,16 +20,18 @@ fn add_to_empty_module() {
     };
     let module = add.to_wasm(&module).unwrap();
 
-    let metadata = Metadata::from_binary(&module).unwrap();
-    match metadata {
-        Metadata::Module {
-            name,
-            producers,
-            author,
-            description,
-            licenses,
-            source,
-            range,
+    match Payload::from_binary(&module).unwrap() {
+        Payload::Module {
+            metadata:
+                Metadata {
+                    name,
+                    producers,
+                    author,
+                    description,
+                    licenses,
+                    source,
+                    range,
+                },
         } => {
             assert_eq!(name, Some("foo".to_owned()));
             let producers = producers.expect("some producers");

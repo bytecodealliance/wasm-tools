@@ -20,17 +20,19 @@ fn add_to_empty_component() {
     };
     let component = add.to_wasm(&component).unwrap();
 
-    let metadata = Metadata::from_binary(&component).unwrap();
-    match metadata {
-        Metadata::Component {
-            name,
-            producers,
-            author,
-            description,
-            licenses,
-            source,
+    match Payload::from_binary(&component).unwrap() {
+        Payload::Component {
             children,
-            range,
+            metadata:
+                Metadata {
+                    name,
+                    producers,
+                    author,
+                    description,
+                    licenses,
+                    source,
+                    range,
+                },
         } => {
             assert!(children.is_empty());
             assert_eq!(name, Some("foo".to_owned()));
@@ -96,13 +98,12 @@ fn add_to_nested_component() {
     };
     let component = add.to_wasm(&component).unwrap();
 
-    let metadata = Metadata::from_binary(&component).unwrap();
-    match metadata {
-        Metadata::Component {
-            name,
-            producers,
+    match Payload::from_binary(&component).unwrap() {
+        Payload::Component {
             children,
-            ..
+            metadata: Metadata {
+                name, producers, ..
+            },
         } => {
             // Check that the component metadata is in the component
             assert_eq!(name, Some("gussie".to_owned()));
@@ -113,16 +114,19 @@ fn add_to_nested_component() {
             );
             // Check that there is a single child with the metadata set for the module
             assert_eq!(children.len(), 1);
-            let child = children.get(0).unwrap();
-            match &**child {
-                Metadata::Module {
-                    name,
-                    producers,
-                    author,
-                    licenses,
-                    source,
-                    range,
-                    description,
+
+            match children.get(0).unwrap() {
+                Payload::Module {
+                    metadata:
+                        Metadata {
+                            name,
+                            producers,
+                            author,
+                            licenses,
+                            source,
+                            range,
+                            description,
+                        },
                 } => {
                     assert_eq!(name, &Some("foo".to_owned()));
                     let producers = producers.as_ref().expect("some producers");

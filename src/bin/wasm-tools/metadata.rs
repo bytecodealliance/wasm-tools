@@ -44,7 +44,7 @@ impl ShowOpts {
         let input = self.io.parse_input_wasm()?;
         let mut output = self.io.output_writer()?;
 
-        let metadata = wasm_metadata::Metadata::from_binary(&input)?;
+        let metadata = wasm_metadata::Payload::from_binary(&input)?;
         if self.json {
             write!(output, "{}", serde_json::to_string(&metadata)?)?;
         } else {

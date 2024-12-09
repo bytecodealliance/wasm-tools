@@ -2,7 +2,7 @@ use std::fmt::{self, Display};
 use std::ops::Range;
 
 use anyhow::Result;
-use serde::Serialize;
+use serde_derive::Serialize;
 use wasmparser::{KnownCustom, Parser, Payload::*};
 
 use crate::{
