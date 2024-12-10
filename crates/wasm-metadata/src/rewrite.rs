@@ -17,6 +17,7 @@ pub(crate) fn rewrite_wasm(
     add_source: &Option<Source>,
     add_homepage: &Option<Homepage>,
     add_revision: &Option<Revision>,
+    add_version: &Option<crate::Version>,
     input: &[u8],
 ) -> Result<Vec<u8>> {
     let mut producers_found = false;
@@ -125,6 +126,13 @@ pub(crate) fn rewrite_wasm(
                             continue;
                         }
                     }
+                    KnownCustom::Unknown if c.name() == "version" => {
+                        if add_version.is_none() {
+                            let version = crate::Version::parse_custom_section(c)?;
+                            version.append_to(&mut output);
+                            continue;
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -171,6 +179,9 @@ pub(crate) fn rewrite_wasm(
     }
     if let Some(revision) = add_revision {
         revision.append_to(&mut output);
+    }
+    if let Some(version) = add_version {
+        version.append_to(&mut output);
     }
     Ok(output)
 }

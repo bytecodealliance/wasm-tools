@@ -1,4 +1,6 @@
-use crate::{rewrite_wasm, Author, Description, Homepage, Licenses, Producers, Revision, Source};
+use crate::{
+    rewrite_wasm, Author, Description, Homepage, Licenses, Producers, Revision, Source, Version,
+};
 
 use anyhow::Result;
 
@@ -49,6 +51,10 @@ pub struct AddMetadata {
     /// Source control revision identifier for the packaged software.
     #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
     pub revision: Option<Revision>,
+
+    /// Version of the packaged software
+    #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
+    pub version: Option<Version>,
 }
 
 #[cfg(feature = "clap")]
@@ -72,6 +78,7 @@ impl AddMetadata {
             &self.source,
             &self.homepage,
             &self.revision,
+            &self.version,
             input,
         )
     }

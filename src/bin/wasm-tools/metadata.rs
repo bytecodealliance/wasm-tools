@@ -107,6 +107,7 @@ fn fmt_payload(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result<()> {
         homepage,
         range,
         revision,
+        version,
     } = payload.metadata();
 
     // Print the basic information
@@ -140,6 +141,9 @@ fn fmt_payload(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result<()> {
     }
     if let Some(revision) = revision {
         table.add_row(vec!["revision", &revision.to_string()]);
+    }
+    if let Some(version) = version {
+        table.add_row(vec!["version", &version.to_string()]);
     }
 
     if let Some(producers) = producers {
