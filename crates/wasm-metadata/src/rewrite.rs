@@ -1,4 +1,6 @@
-use crate::{Author, ComponentNames, Description, Licenses, ModuleNames, Producers, Source};
+use crate::{
+    Author, ComponentNames, Description, Homepage, Licenses, ModuleNames, Producers, Source,
+};
 use anyhow::Result;
 use std::mem;
 use wasm_encoder::ComponentSection as _;
@@ -12,6 +14,7 @@ pub(crate) fn rewrite_wasm(
     add_description: &Option<Description>,
     add_licenses: &Option<Licenses>,
     add_source: &Option<Source>,
+    add_homepage: &Option<Homepage>,
     input: &[u8],
 ) -> Result<Vec<u8>> {
     let mut producers_found = false;
@@ -106,6 +109,13 @@ pub(crate) fn rewrite_wasm(
                             continue;
                         }
                     }
+                    KnownCustom::Unknown if c.name() == "homepage" => {
+                        if add_source.is_none() {
+                            let homepage = Homepage::parse_custom_section(c)?;
+                            homepage.append_to(&mut output);
+                            continue;
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -146,6 +156,9 @@ pub(crate) fn rewrite_wasm(
     }
     if let Some(source) = add_source {
         source.append_to(&mut output);
+    }
+    if let Some(homepage) = add_homepage {
+        homepage.append_to(&mut output);
     }
     Ok(output)
 }
