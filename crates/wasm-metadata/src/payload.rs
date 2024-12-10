@@ -202,6 +202,7 @@ impl Display for Payload {
             producers,
             licenses,
             source,
+            homepage,
             range,
         } = self.metadata();
 
@@ -225,11 +226,14 @@ impl Display for Payload {
         if let Some(licenses) = licenses {
             table.add_row(vec!["licenses", &licenses.to_string()]);
         }
+        if let Some(author) = author {
+            table.add_row(vec!["author", &author.to_string()]);
+        }
         if let Some(source) = source {
             table.add_row(vec!["source", &source.to_string()]);
         }
-        if let Some(author) = author {
-            table.add_row(vec!["author", &author.to_string()]);
+        if let Some(homepage) = homepage {
+            table.add_row(vec!["homepage", &homepage.to_string()]);
         }
 
         if let Some(producers) = producers {
