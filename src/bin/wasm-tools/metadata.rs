@@ -1,5 +1,11 @@
-use anyhow::Result;
 use std::io::Write;
+
+use anyhow::Result;
+use comfy_table::modifiers::UTF8_ROUND_CORNERS;
+use comfy_table::presets::UTF8_FULL;
+use comfy_table::{ContentArrangement, Table};
+use termcolor::WriteColor;
+use wasm_metadata::{Metadata, Payload};
 
 /// Manipulate metadata (module name, producers) to a WebAssembly file.
 #[derive(clap::Parser)]
@@ -44,11 +50,11 @@ impl ShowOpts {
         let input = self.io.parse_input_wasm()?;
         let mut output = self.io.output_writer()?;
 
-        let metadata = wasm_metadata::Payload::from_binary(&input)?;
+        let payload = wasm_metadata::Payload::from_binary(&input)?;
         if self.json {
-            write!(output, "{}", serde_json::to_string(&metadata)?)?;
+            write!(output, "{}", serde_json::to_string(&payload)?)?;
         } else {
-            write!(output, "{metadata}")?;
+            fmt_payload(&payload, &mut output)?;
         }
         Ok(())
     }
@@ -81,4 +87,76 @@ impl AddOpts {
         self.io.output_wasm(&output, self.wat)?;
         Ok(())
     }
+}
+
+fn fmt_payload(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result<()> {
+    let mut table = Table::new();
+    table
+        .load_preset(UTF8_FULL)
+        .apply_modifier(UTF8_ROUND_CORNERS)
+        .set_content_arrangement(ContentArrangement::Dynamic)
+        .set_width(80)
+        .set_header(vec!["KIND", "VALUE"]);
+    let Metadata {
+        name,
+        author,
+        description,
+        producers,
+        licenses,
+        source,
+        homepage,
+        range,
+    } = payload.metadata();
+
+    // Print the basic information
+    let kind = match payload {
+        Payload::Component { .. } => "component",
+        Payload::Module(_) => "module",
+    };
+    table.add_row(vec!["kind", &kind]);
+    let name = name.as_deref().unwrap_or("<unknown>");
+    table.add_row(vec!["name", &name]);
+    table.add_row(vec![
+        "range",
+        &format!("0x{:x}..0x{:x}", range.start, range.end),
+    ]);
+
+    // Print the OCI annotations
+    if let Some(description) = description {
+        table.add_row(vec!["description", &description.to_string()]);
+    }
+    if let Some(licenses) = licenses {
+        table.add_row(vec!["licenses", &licenses.to_string()]);
+    }
+    if let Some(author) = author {
+        table.add_row(vec!["author", &author.to_string()]);
+    }
+    if let Some(source) = source {
+        table.add_row(vec!["source", &source.to_string()]);
+    }
+    if let Some(homepage) = homepage {
+        table.add_row(vec!["homepage", &homepage.to_string()]);
+    }
+
+    if let Some(producers) = producers {
+        for (name, pairs) in producers.iter() {
+            for (field, version) in pairs.iter() {
+                match version.len() {
+                    0 => table.add_row(vec![name, &format!("{field}")]),
+                    _ => table.add_row(vec![name, &format!("{field} [{version}]")]),
+                };
+            }
+        }
+    }
+
+    // Write the table to the writer
+    writeln!(f, "{table}")?;
+
+    if let Payload::Component { children, .. } = payload {
+        for payload in children {
+            fmt_payload(payload, f)?;
+        }
+    }
+
+    Ok(())
 }

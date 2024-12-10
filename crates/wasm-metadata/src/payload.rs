@@ -1,10 +1,6 @@
-use std::fmt::{self, Display};
 use std::ops::Range;
 
 use anyhow::Result;
-use comfy_table::modifiers::UTF8_ROUND_CORNERS;
-use comfy_table::presets::UTF8_FULL;
-use comfy_table::{ContentArrangement, Table};
 use serde_derive::Serialize;
 use wasmparser::{KnownCustom, Parser, Payload::*};
 
@@ -183,79 +179,5 @@ impl Payload {
             Self::Module { .. } => panic!("module shouldnt have children"),
             Self::Component { children, .. } => children.push(child),
         }
-    }
-}
-
-impl Display for Payload {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut table = Table::new();
-        table
-            .load_preset(UTF8_FULL)
-            .apply_modifier(UTF8_ROUND_CORNERS)
-            .set_content_arrangement(ContentArrangement::Dynamic)
-            .set_width(80)
-            .set_header(vec!["KIND", "VALUE"]);
-        let Metadata {
-            name,
-            author,
-            description,
-            producers,
-            licenses,
-            source,
-            homepage,
-            range,
-        } = self.metadata();
-
-        // Print the basic information
-        let kind = match self {
-            Payload::Component { .. } => "component",
-            Payload::Module(_) => "module",
-        };
-        table.add_row(vec!["kind", &kind]);
-        let name = name.as_deref().unwrap_or("<unknown>");
-        table.add_row(vec!["name", &name]);
-        table.add_row(vec![
-            "range",
-            &format!("0x{:x}..0x{:x}", range.start, range.end),
-        ]);
-
-        // Print the OCI annotations
-        if let Some(description) = description {
-            table.add_row(vec!["description", &description.to_string()]);
-        }
-        if let Some(licenses) = licenses {
-            table.add_row(vec!["licenses", &licenses.to_string()]);
-        }
-        if let Some(author) = author {
-            table.add_row(vec!["author", &author.to_string()]);
-        }
-        if let Some(source) = source {
-            table.add_row(vec!["source", &source.to_string()]);
-        }
-        if let Some(homepage) = homepage {
-            table.add_row(vec!["homepage", &homepage.to_string()]);
-        }
-
-        if let Some(producers) = producers {
-            for (name, pairs) in producers.iter() {
-                for (field, version) in pairs.iter() {
-                    match version.len() {
-                        0 => table.add_row(vec![name, &format!("{field}")]),
-                        _ => table.add_row(vec![name, &format!("{field} [{version}]")]),
-                    };
-                }
-            }
-        }
-
-        // Write the table to the writer
-        writeln!(f, "{table}")?;
-
-        if let Self::Component { children, .. } = self {
-            for metadata in children {
-                write!(f, "{metadata}")?;
-            }
-        }
-
-        Ok(())
     }
 }

@@ -1923,7 +1923,6 @@ version = "0.221.2"
 dependencies = [
  "anyhow",
  "clap",
- "comfy-table",
  "indexmap 2.6.0",
  "serde",
  "serde_derive",
@@ -2016,6 +2015,7 @@ dependencies = [
  "bitflags",
  "clap",
  "clap_complete",
+ "comfy-table",
  "cpp_demangle",
  "env_logger",
  "gimli 0.30.0",

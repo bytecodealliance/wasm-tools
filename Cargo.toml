@@ -123,6 +123,7 @@ env_logger = { workspace = true }
 log = { workspace = true }
 clap = { workspace = true, features = ['wrap_help'] }
 clap_complete = { workspace = true, optional = true }
+comfy-table = { workspace = true }
 tempfile = "3.2.0"
 wat = { workspace = true, features = ['dwarf', 'component-model'] }
 termcolor = { workspace = true }
