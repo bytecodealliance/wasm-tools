@@ -18,6 +18,7 @@ fn add_to_empty_module() {
         ),
         source: Some(Source::new("https://github.com/bytecodealliance/wasm-tools").unwrap()),
         homepage: Some(Homepage::new("https://github.com/bytecodealliance/wasm-tools").unwrap()),
+        revision: Some(Revision::new("de978e17a80c1118f606fce919ba9b7d5a04a5ad")),
     };
     let module = add.to_wasm(&module).unwrap();
 
@@ -31,6 +32,7 @@ fn add_to_empty_module() {
             range,
             description,
             homepage,
+            revision,
         }) => {
             assert_eq!(name, Some("foo".to_owned()));
             let producers = producers.expect("some producers");
@@ -56,6 +58,10 @@ fn add_to_empty_module() {
             assert_eq!(
                 homepage.unwrap(),
                 Homepage::new("https://github.com/bytecodealliance/wasm-tools").unwrap(),
+            );
+            assert_eq!(
+                revision.unwrap(),
+                Revision::new("de978e17a80c1118f606fce919ba9b7d5a04a5ad")
             );
 
             assert_eq!(range.start, 0);

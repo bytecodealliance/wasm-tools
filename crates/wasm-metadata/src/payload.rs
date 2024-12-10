@@ -6,7 +6,7 @@ use wasmparser::{KnownCustom, Parser, Payload::*};
 
 use crate::{
     Author, ComponentNames, Description, Homepage, Licenses, Metadata, ModuleNames, Producers,
-    Source,
+    Revision, Source,
 };
 
 /// Data representing either a Wasm Component or module
@@ -132,6 +132,14 @@ impl Payload {
                             .expect("non-empty metadata stack")
                             .metadata_mut();
                         *homepage = Some(a);
+                    }
+                    KnownCustom::Unknown if c.name() == "revision" => {
+                        let a = Revision::parse_custom_section(&c)?;
+                        let Metadata { revision, .. } = output
+                            .last_mut()
+                            .expect("non-empty metadata stack")
+                            .metadata_mut();
+                        *revision = Some(a);
                     }
                     _ => {}
                 },

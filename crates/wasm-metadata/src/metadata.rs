@@ -1,7 +1,7 @@
 use serde_derive::Serialize;
 use std::ops::Range;
 
-use crate::{Author, Description, Homepage, Licenses, Producers, Source};
+use crate::{Author, Description, Homepage, Licenses, Producers, Revision, Source};
 
 /// Metadata associated with a Wasm Component or Module
 #[derive(Debug, Serialize, Default)]
@@ -21,6 +21,8 @@ pub struct Metadata {
     pub source: Option<Source>,
     /// URL to find more information on the binary
     pub homepage: Option<Homepage>,
+    /// Source control revision identifier for the packaged software.
+    pub revision: Option<Revision>,
     /// Byte range of the module in the parent binary
     pub range: Range<usize>,
 }
