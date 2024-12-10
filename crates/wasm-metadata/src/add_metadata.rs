@@ -1,4 +1,6 @@
-use crate::{rewrite_wasm, Author, Description, Homepage, Licenses, Producers, Source};
+use crate::{
+    rewrite_wasm, Author, Description, Homepage, Licenses, Producers, Revision, Source, Version,
+};
 
 use anyhow::Result;
 
@@ -45,6 +47,14 @@ pub struct AddMetadata {
     /// URL to find more information on the binary
     #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
     pub homepage: Option<Homepage>,
+
+    /// Source control revision identifier for the packaged software.
+    #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
+    pub revision: Option<Revision>,
+
+    /// Version of the packaged software
+    #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
+    pub version: Option<Version>,
 }
 
 #[cfg(feature = "clap")]
@@ -67,6 +77,8 @@ impl AddMetadata {
             &self.licenses,
             &self.source,
             &self.homepage,
+            &self.revision,
+            &self.version,
             input,
         )
     }

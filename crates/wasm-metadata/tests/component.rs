@@ -18,6 +18,8 @@ fn add_to_empty_component() {
         ),
         source: Some(Source::new("https://github.com/bytecodealliance/wasm-tools").unwrap()),
         homepage: Some(Homepage::new("https://github.com/bytecodealliance/wasm-tools").unwrap()),
+        revision: Some(Revision::new("de978e17a80c1118f606fce919ba9b7d5a04a5ad")),
+        version: Some(Version::new("1.0.0")),
     };
     let component = add.to_wasm(&component).unwrap();
 
@@ -34,6 +36,8 @@ fn add_to_empty_component() {
                     source,
                     range,
                     homepage,
+                    revision,
+                    version,
                 },
         } => {
             assert!(children.is_empty());
@@ -62,9 +66,14 @@ fn add_to_empty_component() {
                 homepage.unwrap(),
                 Homepage::new("https://github.com/bytecodealliance/wasm-tools").unwrap(),
             );
+            assert_eq!(
+                revision.unwrap(),
+                Revision::new("de978e17a80c1118f606fce919ba9b7d5a04a5ad")
+            );
+            assert_eq!(version.unwrap(), Version::new("1.0.0"));
 
             assert_eq!(range.start, 0);
-            assert_eq!(range.end, 308);
+            assert_eq!(range.end, 374);
         }
         _ => panic!("metadata should be component"),
     }
@@ -86,6 +95,8 @@ fn add_to_nested_component() {
         ),
         source: Some(Source::new("https://github.com/bytecodealliance/wasm-tools").unwrap()),
         homepage: Some(Homepage::new("https://github.com/bytecodealliance/wasm-tools").unwrap()),
+        revision: Some(Revision::new("de978e17a80c1118f606fce919ba9b7d5a04a5ad")),
+        version: Some(Version::new("1.0.0")),
     };
     let module = add.to_wasm(&module).unwrap();
 
@@ -132,6 +143,8 @@ fn add_to_nested_component() {
                     range,
                     description,
                     homepage,
+                    revision,
+                    version,
                 }) => {
                     assert_eq!(name, &Some("foo".to_owned()));
                     let producers = producers.as_ref().expect("some producers");
@@ -166,9 +179,14 @@ fn add_to_nested_component() {
                                 .unwrap()
                         ),
                     );
+                    assert_eq!(
+                        revision,
+                        &Some(Revision::new("de978e17a80c1118f606fce919ba9b7d5a04a5ad"))
+                    );
+                    assert_eq!(version, &Some(Version::new("1.0.0")));
 
                     assert_eq!(range.start, 11);
-                    assert_eq!(range.end, 309);
+                    assert_eq!(range.end, 375);
                 }
                 _ => panic!("child is a module"),
             }

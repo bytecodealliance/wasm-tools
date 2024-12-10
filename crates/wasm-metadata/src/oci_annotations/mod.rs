@@ -19,10 +19,14 @@ pub use author::Author;
 pub use description::Description;
 pub use homepage::Homepage;
 pub use licenses::Licenses;
+pub use revision::Revision;
 pub use source::Source;
+pub use version::Version;
 
 mod author;
 mod description;
 mod homepage;
 mod licenses;
+mod revision;
 mod source;
+mod version;
