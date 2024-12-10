@@ -6,7 +6,8 @@ use serde_derive::Serialize;
 use wasmparser::{KnownCustom, Parser, Payload::*};
 
 use crate::{
-    Author, ComponentNames, Description, Licenses, Metadata, ModuleNames, Producers, Source,
+    Author, ComponentNames, Description, Homepage, Licenses, Metadata, ModuleNames, Producers,
+    Source,
 };
 
 /// Data representing either a Wasm Component or module
@@ -124,6 +125,14 @@ impl Payload {
                             .expect("non-empty metadata stack")
                             .metadata_mut();
                         *source = Some(a);
+                    }
+                    KnownCustom::Unknown if c.name() == "homepage" => {
+                        let a = Homepage::parse_custom_section(&c)?;
+                        let Metadata { homepage, .. } = output
+                            .last_mut()
+                            .expect("non-empty metadata stack")
+                            .metadata_mut();
+                        *homepage = Some(a);
                     }
                     _ => {}
                 },
