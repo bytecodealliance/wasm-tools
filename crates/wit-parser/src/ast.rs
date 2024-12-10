@@ -741,6 +741,7 @@ enum Type<'a> {
     Result(Result_<'a>),
     Future(Future<'a>),
     Stream(Stream<'a>),
+    ErrorContext(Span),
 }
 
 enum Handle<'a> {
@@ -897,8 +898,7 @@ struct Result_<'a> {
 
 struct Stream<'a> {
     span: Span,
-    element: Option<Box<Type<'a>>>,
-    end: Option<Box<Type<'a>>>,
+    ty: Box<Type<'a>>,
 }
 
 struct NamedFunc<'a> {
@@ -1403,28 +1403,20 @@ impl<'a> Type<'a> {
                 Ok(Type::Future(Future { span, ty }))
             }
 
-            // stream<T, Z>
-            // stream<_, Z>
             // stream<T>
             // stream
             Some((span, Token::Stream)) => {
-                let mut element = None;
-                let mut end = None;
-
-                if tokens.eat(Token::LessThan)? {
-                    if tokens.eat(Token::Underscore)? {
-                        tokens.expect(Token::Comma)?;
-                        end = Some(Box::new(Type::parse(tokens)?));
-                    } else {
-                        element = Some(Box::new(Type::parse(tokens)?));
-                        if tokens.eat(Token::Comma)? {
-                            end = Some(Box::new(Type::parse(tokens)?));
-                        }
-                    };
-                    tokens.expect(Token::GreaterThan)?;
-                };
-                Ok(Type::Stream(Stream { span, element, end }))
+                tokens.expect(Token::LessThan)?;
+                let ty = Type::parse(tokens)?;
+                tokens.expect(Token::GreaterThan)?;
+                Ok(Type::Stream(Stream {
+                    span,
+                    ty: Box::new(ty),
+                }))
             }
+
+            // error
+            Some((span, Token::ErrorContext)) => Ok(Type::ErrorContext(span)),
 
             // own<T>
             Some((_span, Token::Own)) => {
@@ -1471,7 +1463,8 @@ impl<'a> Type<'a> {
             | Type::F32(span)
             | Type::F64(span)
             | Type::Char(span)
-            | Type::String(span) => *span,
+            | Type::String(span)
+            | Type::ErrorContext(span) => *span,
             Type::Name(id) => id.span,
             Type::List(l) => l.span,
             Type::Handle(h) => h.span(),

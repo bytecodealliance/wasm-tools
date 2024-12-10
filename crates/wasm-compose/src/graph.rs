@@ -18,7 +18,7 @@ use wasmparser::{
     names::ComponentName,
     types::{Types, TypesRef},
     Chunk, ComponentExternalKind, ComponentTypeRef, Encoding, Parser, Payload, ValidPayload,
-    Validator,
+    Validator, WasmFeatures,
 };
 
 pub(crate) fn type_desc(item: ComponentEntityType) -> &'static str {
@@ -50,7 +50,7 @@ pub struct Component<'a> {
 
 impl<'a> Component<'a> {
     /// Constructs a new component from reading the given file.
-    pub fn from_file(name: &str, path: impl AsRef<Path>) -> Result<Self> {
+    pub fn from_file(name: &str, path: impl AsRef<Path>, features: WasmFeatures) -> Result<Self> {
         let path = path.as_ref();
         log::info!("parsing WebAssembly component file `{}`", path.display());
         let component = Self::parse(
@@ -61,6 +61,7 @@ impl<'a> Component<'a> {
                     format!("failed to parse component `{path}`", path = path.display())
                 })?
                 .into(),
+            features,
         )
         .with_context(|| format!("failed to parse component `{path}`", path = path.display()))?;
 
@@ -73,7 +74,11 @@ impl<'a> Component<'a> {
     }
 
     /// Constructs a new component from the given bytes.
-    pub fn from_bytes(name: impl Into<String>, bytes: impl Into<Cow<'a, [u8]>>) -> Result<Self> {
+    pub fn from_bytes(
+        name: impl Into<String>,
+        bytes: impl Into<Cow<'a, [u8]>>,
+        features: WasmFeatures,
+    ) -> Result<Self> {
         let mut bytes = bytes.into();
 
         match wat::parse_bytes(bytes.as_ref()).context("failed to parse component")? {
@@ -88,6 +93,7 @@ impl<'a> Component<'a> {
             ComponentName::new(&name.into(), 0)?.to_string(),
             None,
             bytes,
+            features,
         )
         .context("failed to parse component")?;
 
@@ -96,10 +102,15 @@ impl<'a> Component<'a> {
         Ok(component)
     }
 
-    fn parse(name: String, path: Option<PathBuf>, bytes: Cow<'a, [u8]>) -> Result<Self> {
+    fn parse(
+        name: String,
+        path: Option<PathBuf>,
+        bytes: Cow<'a, [u8]>,
+        features: WasmFeatures,
+    ) -> Result<Self> {
         let mut parser = Parser::new(0);
         let mut parsers = Vec::new();
-        let mut validator = Validator::new();
+        let mut validator = Validator::new_with_features(features);
         let mut imports = IndexMap::new();
         let mut exports = IndexMap::new();
 
@@ -439,7 +450,7 @@ pub(crate) struct Instance {
 }
 
 /// The options for encoding a composition graph.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Default)]
 pub struct EncodeOptions {
     /// Whether or not to define instantiated components.
     ///
@@ -448,7 +459,7 @@ pub struct EncodeOptions {
 
     /// The instance in the graph to export.
     ///
-    /// If `Some`, the instance's exports will be aliased and
+    /// If non-empty, the instance's exports will be aliased and
     /// exported from the resulting component.
     pub export: Option<InstanceId>,
 
@@ -508,9 +519,6 @@ impl ResourceMapping {
                         if value.1 == export_resource {
                             self.map.insert(export_resource, value);
                             self.map.insert(import_resource, value);
-                        } else {
-                            // Can't set two different exports equal to each other -- give up.
-                            return None;
                         }
                     } else {
                         // Couldn't find an export with a name that matches this
@@ -559,14 +567,19 @@ impl<'a> CompositionGraph<'a> {
     /// connected to exports, group them by name, and update the resource
     /// mapping to make all resources within each group equivalent.
     ///
-    /// This should be the last step prior to encoding, after all
-    /// inter-component connections have been made.  It ensures that each set of
-    /// identical imports composed component can be merged into a single import
-    /// in the output component.
+    /// This ensures that each set of identical imports in the composed
+    /// components can be merged into a single import in the output component.
+    //
+    // TODO: How do we balance the need to call this early (so we can match up
+    // imports with exports which mutually import the same resources) with the
+    // need to delay decisions about where resources are coming from (so that we
+    // can match up imported resources with exported resources)?  Right now I
+    // think we're erring on the side if the former at the expense of the
+    // latter.
     pub(crate) fn unify_imported_resources(&self) {
         let mut resource_mapping = self.resource_mapping.borrow_mut();
 
-        let mut resource_imports = HashMap::<_, Vec<_>>::new();
+        let mut resource_imports = IndexMap::<_, IndexSet<_>>::new();
         for (component_id, component) in &self.components {
             let component = &component.component;
             for import_name in component.imports.keys() {
@@ -584,12 +597,14 @@ impl<'a> CompositionGraph<'a> {
                             ..
                         } = ty
                         {
-                            if !resource_mapping.map.contains_key(&resource_id.resource()) {
-                                resource_imports
-                                    .entry(vec![import_name.to_string(), export_name.to_string()])
-                                    .or_default()
-                                    .push((*component_id, resource_id.resource()))
+                            let set = resource_imports
+                                .entry(vec![import_name.to_string(), export_name.to_string()])
+                                .or_default();
+
+                            if let Some(pair) = resource_mapping.map.get(&resource_id.resource()) {
+                                set.insert(*pair);
                             }
+                            set.insert((*component_id, resource_id.resource()));
                         }
                     }
                 }
@@ -597,7 +612,7 @@ impl<'a> CompositionGraph<'a> {
         }
 
         for resources in resource_imports.values() {
-            match &resources[..] {
+            match &resources.iter().copied().collect::<Vec<_>>()[..] {
                 [] => unreachable!(),
                 [_] => {}
                 [first, rest @ ..] => {
@@ -653,10 +668,8 @@ impl<'a> CompositionGraph<'a> {
                 .remap_component_entity(&mut import_type, remapping);
             remapping.reset_type_cache();
 
-            if context
-                .component_entity_type(&export_type, &import_type, 0)
-                .is_ok()
-            {
+            let v = context.component_entity_type(&export_type, &import_type, 0);
+            if v.is_ok() {
                 *self.resource_mapping.borrow_mut() = resource_mapping;
                 true
             } else {
@@ -705,6 +718,10 @@ impl<'a> CompositionGraph<'a> {
         };
 
         assert!(self.components.insert(id, entry).is_none());
+
+        if self.components.len() > 1 {
+            self.unify_imported_resources();
+        }
 
         Ok(id)
     }
@@ -1030,7 +1047,7 @@ mod test {
 
     #[test]
     fn it_rejects_modules() -> Result<()> {
-        match Component::from_bytes("a", b"(module)".as_ref()) {
+        match Component::from_bytes("a", b"(module)".as_ref(), WasmFeatures::default()) {
             Ok(_) => panic!("expected a failure to parse"),
             Err(e) => assert_eq!(
                 format!("{e:#}"),
@@ -1043,7 +1060,7 @@ mod test {
 
     #[test]
     fn it_rejects_invalid_components() -> Result<()> {
-        match Component::from_bytes("a", b"(component (export \"x\" (func 0)))".as_ref()) {
+        match Component::from_bytes("a", b"(component (export \"x\" (func 0)))".as_ref(), WasmFeatures::default()) {
             Ok(_) => panic!("expected a failure to parse"),
             Err(e) => assert_eq!(format!("{e:#}"), "failed to parse component: unknown function 0: function index out of bounds (at offset 0xb)"),
         }
@@ -1054,9 +1071,17 @@ mod test {
     #[test]
     fn it_ensures_unique_component_names() -> Result<()> {
         let mut graph = CompositionGraph::new();
-        graph.add_component(Component::from_bytes("a", b"(component)".as_ref())?)?;
+        graph.add_component(Component::from_bytes(
+            "a",
+            b"(component)".as_ref(),
+            WasmFeatures::default(),
+        )?)?;
 
-        match graph.add_component(Component::from_bytes("a", b"(component)".as_ref())?) {
+        match graph.add_component(Component::from_bytes(
+            "a",
+            b"(component)".as_ref(),
+            WasmFeatures::default(),
+        )?) {
             Ok(_) => panic!("expected a failure to add component"),
             Err(e) => assert_eq!(format!("{e:#}"), "a component with name `a` already exists"),
         }
@@ -1078,7 +1103,11 @@ mod test {
     #[test]
     fn it_instantiates_a_component() -> Result<()> {
         let mut graph = CompositionGraph::new();
-        let id = graph.add_component(Component::from_bytes("a", b"(component)".as_ref())?)?;
+        let id = graph.add_component(Component::from_bytes(
+            "a",
+            b"(component)".as_ref(),
+            WasmFeatures::default(),
+        )?)?;
         let id = graph.instantiate(id)?;
         assert_eq!(graph.get_component_of_instance(id).unwrap().1.name(), "a");
         Ok(())
@@ -1094,7 +1123,11 @@ mod test {
     #[test]
     fn it_gets_a_component() -> Result<()> {
         let mut graph = CompositionGraph::new();
-        let id = graph.add_component(Component::from_bytes("a", b"(component)".as_ref())?)?;
+        let id = graph.add_component(Component::from_bytes(
+            "a",
+            b"(component)".as_ref(),
+            WasmFeatures::default(),
+        )?)?;
         assert_eq!(graph.get_component(id).unwrap().name(), "a");
         assert_eq!(graph.get_component_by_name("a").unwrap().1.name(), "a");
         Ok(())
@@ -1106,10 +1139,12 @@ mod test {
         let a = graph.add_component(Component::from_bytes(
             "a",
             b"(component (import \"x\" (func)))".as_ref(),
+            WasmFeatures::default(),
         )?)?;
         let b = graph.add_component(Component::from_bytes(
             "b",
             b"(component (import \"x\" (func)) (export \"y\" (func 0)))".as_ref(),
+            WasmFeatures::default(),
         )?)?;
         let ai = graph.instantiate(a)?;
         let bi = graph.instantiate(b)?;
@@ -1139,10 +1174,12 @@ mod test {
         let a = graph.add_component(Component::from_bytes(
             "a",
             b"(component (import \"x\" (func)))".as_ref(),
+            WasmFeatures::default(),
         )?)?;
         let b = graph.add_component(Component::from_bytes(
             "b",
             b"(component (import \"x\" (func)) (export \"y\" (func 0)))".as_ref(),
+            WasmFeatures::default(),
         )?)?;
         let ai = graph.instantiate(a)?;
         let bi = graph.instantiate(b)?;
@@ -1164,10 +1201,12 @@ mod test {
         let a = graph.add_component(Component::from_bytes(
             "a",
             b"(component (import \"x\" (func)))".as_ref(),
+            WasmFeatures::default(),
         )?)?;
         let b = graph.add_component(Component::from_bytes(
             "b",
             b"(component (import \"x\" (func)) (export \"y\" (func 0)))".as_ref(),
+            WasmFeatures::default(),
         )?)?;
         let ai = graph.instantiate(a)?;
         let bi = graph.instantiate(b)?;
@@ -1190,10 +1229,12 @@ mod test {
         let a = graph.add_component(Component::from_bytes(
             "a",
             b"(component (import \"x\" (func)))".as_ref(),
+            WasmFeatures::default(),
         )?)?;
         let b = graph.add_component(Component::from_bytes(
             "b",
             b"(component (import \"x\" (func)) (export \"y\" (func 0)))".as_ref(),
+            WasmFeatures::default(),
         )?)?;
         let ai = graph.instantiate(a)?;
         let bi = graph.instantiate(b)?;
@@ -1217,10 +1258,11 @@ mod test {
             "a",
             b"(component (import \"i1\" (func)) (import \"i2\" (instance (export \"no\" (func)))))"
                 .as_ref(),
+            WasmFeatures::default(),
         )?)?;
         let b = graph.add_component(Component::from_bytes(
             "b",
-            b"(component (import \"i1\" (func)) (import \"i2\" (core module)) (export \"e1\" (func 0)) (export \"e2\" (core module 0)))".as_ref(),
+            b"(component (import \"i1\" (func)) (import \"i2\" (core module)) (export \"e1\" (func 0)) (export \"e2\" (core module 0)))".as_ref(), WasmFeatures::default(),
         )?)?;
         let ai = graph.instantiate(a)?;
         let bi = graph.instantiate(b)?;
@@ -1297,10 +1339,12 @@ mod test {
         let a = graph.add_component(Component::from_bytes(
             "a",
             b"(component (import \"i1\" (func)) (export \"e1\" (func 0)))".as_ref(),
+            WasmFeatures::default(),
         )?)?;
         let b = graph.add_component(Component::from_bytes(
             "b",
             b"(component (import \"i1\" (func)) (export \"e1\" (func 0)))".as_ref(),
+            WasmFeatures::default(),
         )?)?;
         let ai = graph.instantiate(a)?;
         let bi = graph.instantiate(b)?;
@@ -1323,8 +1367,16 @@ mod test {
     #[test]
     fn it_encodes_an_empty_component() -> Result<()> {
         let mut graph = CompositionGraph::new();
-        graph.add_component(Component::from_bytes("a", b"(component)".as_ref())?)?;
-        graph.add_component(Component::from_bytes("b", b"(component)".as_ref())?)?;
+        graph.add_component(Component::from_bytes(
+            "a",
+            b"(component)".as_ref(),
+            WasmFeatures::default(),
+        )?)?;
+        graph.add_component(Component::from_bytes(
+            "b",
+            b"(component)".as_ref(),
+            WasmFeatures::default(),
+        )?)?;
 
         let encoded = graph.encode(EncodeOptions {
             define_components: false,
@@ -1346,8 +1398,16 @@ mod test {
     fn it_encodes_component_imports() -> Result<()> {
         let mut graph = CompositionGraph::new();
         // Add a component that doesn't get instantiated (shouldn't be imported)
-        graph.add_component(Component::from_bytes("a", b"(component)".as_ref())?)?;
-        let b = graph.add_component(Component::from_bytes("b", b"(component)".as_ref())?)?;
+        graph.add_component(Component::from_bytes(
+            "a",
+            b"(component)".as_ref(),
+            WasmFeatures::default(),
+        )?)?;
+        let b = graph.add_component(Component::from_bytes(
+            "b",
+            b"(component)".as_ref(),
+            WasmFeatures::default(),
+        )?)?;
         graph.instantiate(b)?;
 
         let encoded = graph.encode(EncodeOptions {
@@ -1376,8 +1436,16 @@ mod test {
     fn it_encodes_defined_components() -> Result<()> {
         let mut graph = CompositionGraph::new();
         // Add a component that doesn't get instantiated (shouldn't be imported)
-        graph.add_component(Component::from_bytes("a", b"(component)".as_ref())?)?;
-        let b = graph.add_component(Component::from_bytes("b", b"(component)".as_ref())?)?;
+        graph.add_component(Component::from_bytes(
+            "a",
+            b"(component)".as_ref(),
+            WasmFeatures::default(),
+        )?)?;
+        let b = graph.add_component(Component::from_bytes(
+            "b",
+            b"(component)".as_ref(),
+            WasmFeatures::default(),
+        )?)?;
         graph.instantiate(b)?;
 
         let encoded = graph.encode(EncodeOptions {
@@ -1418,6 +1486,7 @@ mod test {
   (export \"e5\" (type 1))
 )"
             .as_ref(),
+            WasmFeatures::default(),
         )?)?;
         let b = graph.add_component(Component::from_bytes(
             "b",
@@ -1430,6 +1499,7 @@ mod test {
   (import \"i5\" (type (eq 0)))
 )"
             .as_ref(),
+            WasmFeatures::default(),
         )?)?;
 
         let ai = graph.instantiate(a)?;
