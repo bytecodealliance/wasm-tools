@@ -148,7 +148,7 @@ impl Producers {
     /// Merge into an existing wasm module. Rewrites the module with this producers section
     /// merged into its existing one, or adds this producers section if none is present.
     pub fn add_to_wasm(&self, input: &[u8]) -> Result<Vec<u8>> {
-        rewrite_wasm(&None, self, &None, &None, &None, &None, input)
+        rewrite_wasm(&None, self, &None, &None, &None, &None, &None, input)
     }
 
     pub(crate) fn display(&self, f: &mut fmt::Formatter, indent: usize) -> fmt::Result {

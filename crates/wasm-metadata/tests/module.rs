@@ -17,6 +17,7 @@ fn add_to_empty_module() {
             Licenses::new("Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT").unwrap(),
         ),
         source: Some(Source::new("https://github.com/bytecodealliance/wasm-tools").unwrap()),
+        homepage: Some(Homepage::new("https://github.com/bytecodealliance/wasm-tools").unwrap()),
     };
     let module = add.to_wasm(&module).unwrap();
 
@@ -29,6 +30,7 @@ fn add_to_empty_module() {
             source,
             range,
             description,
+            homepage,
         }) => {
             assert_eq!(name, Some("foo".to_owned()));
             let producers = producers.expect("some producers");
@@ -51,9 +53,13 @@ fn add_to_empty_module() {
                 source.unwrap(),
                 Source::new("https://github.com/bytecodealliance/wasm-tools").unwrap(),
             );
+            assert_eq!(
+                homepage.unwrap(),
+                Homepage::new("https://github.com/bytecodealliance/wasm-tools").unwrap(),
+            );
 
             assert_eq!(range.start, 0);
-            assert_eq!(range.end, 241);
+            assert_eq!(range.end, 298);
         }
         _ => panic!("metadata should be module"),
     }

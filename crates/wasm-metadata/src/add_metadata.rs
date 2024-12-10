@@ -1,4 +1,4 @@
-use crate::{rewrite_wasm, Author, Description, Licenses, Producers, Source};
+use crate::{rewrite_wasm, Author, Description, Homepage, Licenses, Producers, Source};
 
 use anyhow::Result;
 
@@ -41,6 +41,10 @@ pub struct AddMetadata {
     /// URL to get source code for building the image
     #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
     pub source: Option<Source>,
+
+    /// URL to find more information on the binary
+    #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
+    pub homepage: Option<Homepage>,
 }
 
 #[cfg(feature = "clap")]
@@ -62,6 +66,7 @@ impl AddMetadata {
             &self.description,
             &self.licenses,
             &self.source,
+            &self.homepage,
             input,
         )
     }

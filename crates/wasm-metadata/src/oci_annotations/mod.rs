@@ -17,10 +17,12 @@
 
 pub use author::Author;
 pub use description::Description;
+pub use homepage::Homepage;
 pub use licenses::Licenses;
 pub use source::Source;
 
 mod author;
 mod description;
+mod homepage;
 mod licenses;
 mod source;

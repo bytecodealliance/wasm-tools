@@ -17,6 +17,7 @@ fn add_to_empty_component() {
             Licenses::new("Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT").unwrap(),
         ),
         source: Some(Source::new("https://github.com/bytecodealliance/wasm-tools").unwrap()),
+        homepage: Some(Homepage::new("https://github.com/bytecodealliance/wasm-tools").unwrap()),
     };
     let component = add.to_wasm(&component).unwrap();
 
@@ -32,6 +33,7 @@ fn add_to_empty_component() {
                     licenses,
                     source,
                     range,
+                    homepage,
                 },
         } => {
             assert!(children.is_empty());
@@ -56,9 +58,13 @@ fn add_to_empty_component() {
                 source.unwrap(),
                 Source::new("https://github.com/bytecodealliance/wasm-tools").unwrap(),
             );
+            assert_eq!(
+                homepage.unwrap(),
+                Homepage::new("https://github.com/bytecodealliance/wasm-tools").unwrap(),
+            );
 
             assert_eq!(range.start, 0);
-            assert_eq!(range.end, 251);
+            assert_eq!(range.end, 308);
         }
         _ => panic!("metadata should be component"),
     }
@@ -79,6 +85,7 @@ fn add_to_nested_component() {
             Licenses::new("Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT").unwrap(),
         ),
         source: Some(Source::new("https://github.com/bytecodealliance/wasm-tools").unwrap()),
+        homepage: Some(Homepage::new("https://github.com/bytecodealliance/wasm-tools").unwrap()),
     };
     let module = add.to_wasm(&module).unwrap();
 
@@ -124,6 +131,7 @@ fn add_to_nested_component() {
                     source,
                     range,
                     description,
+                    homepage,
                 }) => {
                     assert_eq!(name, &Some("foo".to_owned()));
                     let producers = producers.as_ref().expect("some producers");
@@ -151,9 +159,16 @@ fn add_to_nested_component() {
                             Source::new("https://github.com/bytecodealliance/wasm-tools").unwrap()
                         ),
                     );
+                    assert_eq!(
+                        homepage,
+                        &Some(
+                            Homepage::new("https://github.com/bytecodealliance/wasm-tools")
+                                .unwrap()
+                        ),
+                    );
 
                     assert_eq!(range.start, 11);
-                    assert_eq!(range.end, 252);
+                    assert_eq!(range.end, 309);
                 }
                 _ => panic!("child is a module"),
             }
