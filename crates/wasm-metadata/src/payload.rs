@@ -2,6 +2,9 @@ use std::fmt::{self, Display};
 use std::ops::Range;
 
 use anyhow::Result;
+use comfy_table::modifiers::UTF8_ROUND_CORNERS;
+use comfy_table::presets::UTF8_FULL;
+use comfy_table::{ContentArrangement, Table};
 use serde_derive::Serialize;
 use wasmparser::{KnownCustom, Parser, Payload::*};
 
@@ -181,48 +184,74 @@ impl Payload {
             Self::Component { children, .. } => children.push(child),
         }
     }
-
-    fn display(&self, f: &mut fmt::Formatter, indent: usize) -> fmt::Result {
-        let spaces = std::iter::repeat(" ").take(indent).collect::<String>();
-        match self {
-            Self::Module(Metadata {
-                name, producers, ..
-            }) => {
-                if let Some(name) = name {
-                    writeln!(f, "{spaces}module {name}:")?;
-                } else {
-                    writeln!(f, "{spaces}module:")?;
-                }
-                if let Some(producers) = producers {
-                    producers.display(f, indent + 4)?;
-                }
-                Ok(())
-            }
-            Self::Component {
-                children,
-                metadata: Metadata {
-                    name, producers, ..
-                },
-            } => {
-                if let Some(name) = name {
-                    writeln!(f, "{spaces}component {name}:")?;
-                } else {
-                    writeln!(f, "{spaces}component:")?;
-                }
-                if let Some(producers) = producers {
-                    producers.display(f, indent + 4)?;
-                }
-                for c in children {
-                    c.display(f, indent + 4)?;
-                }
-                Ok(())
-            }
-        }
-    }
 }
 
 impl Display for Payload {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.display(f, 0)
+        let mut table = Table::new();
+        table
+            .load_preset(UTF8_FULL)
+            .apply_modifier(UTF8_ROUND_CORNERS)
+            .set_content_arrangement(ContentArrangement::Dynamic)
+            .set_width(80)
+            .set_header(vec!["KIND", "VALUE"]);
+        let Metadata {
+            name,
+            author,
+            description,
+            producers,
+            licenses,
+            source,
+            range,
+        } = self.metadata();
+
+        // Print the basic information
+        let kind = match self {
+            Payload::Component { .. } => "component",
+            Payload::Module(_) => "module",
+        };
+        table.add_row(vec!["kind", &kind]);
+        let name = name.as_deref().unwrap_or("<unknown>");
+        table.add_row(vec!["name", &name]);
+        table.add_row(vec![
+            "range",
+            &format!("0x{:x}..0x{:x}", range.start, range.end),
+        ]);
+
+        // Print the OCI annotations
+        if let Some(description) = description {
+            table.add_row(vec!["description", &description.to_string()]);
+        }
+        if let Some(licenses) = licenses {
+            table.add_row(vec!["licenses", &licenses.to_string()]);
+        }
+        if let Some(source) = source {
+            table.add_row(vec!["source", &source.to_string()]);
+        }
+        if let Some(author) = author {
+            table.add_row(vec!["author", &author.to_string()]);
+        }
+
+        if let Some(producers) = producers {
+            for (name, pairs) in producers.iter() {
+                for (field, version) in pairs.iter() {
+                    match version.len() {
+                        0 => table.add_row(vec![name, &format!("{field}")]),
+                        _ => table.add_row(vec![name, &format!("{field} [{version}]")]),
+                    };
+                }
+            }
+        }
+
+        // Write the table to the writer
+        writeln!(f, "{table}")?;
+
+        if let Self::Component { children, .. } = self {
+            for metadata in children {
+                write!(f, "{metadata}")?;
+            }
+        }
+
+        Ok(())
     }
 }
