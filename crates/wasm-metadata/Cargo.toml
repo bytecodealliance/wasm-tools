@@ -18,6 +18,6 @@ wasm-encoder = { workspace = true, features = ['component-model'] }
 indexmap = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 serde_derive = { workspace = true }
-serde_json = { version = "1" }
-spdx = "0.10.1"
+serde_json = { workspace = true }
+spdx = { workspace = true }
 url = { workspace = true }
