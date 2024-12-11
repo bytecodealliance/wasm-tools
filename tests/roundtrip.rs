@@ -120,7 +120,7 @@ fn find_tests() -> Vec<PathBuf> {
 /// time. There's further filters applied while testing.
 fn skip_test(test: &Path, contents: &[u8]) -> bool {
     let _ = contents;
-    test.iter().any(|p| p == "exception-handling") && test.iter().any(|p| p == "legacy")
+    test.iter().any(|p| p == "legacy")
 }
 
 fn skip_validation(_test: &Path) -> bool {
@@ -680,6 +680,9 @@ impl TestState {
                 }
                 "wide-arithmetic" => {
                     features.insert(WasmFeatures::WIDE_ARITHMETIC);
+                }
+                "wasm-3.0" => {
+                    features.insert(WasmFeatures::WASM3);
                 }
                 _ => {}
             }

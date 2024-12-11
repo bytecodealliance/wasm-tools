@@ -9,148 +9,155 @@
       "text": "invalid custom page size"
     },
     {
-      "type": "assert_invalid",
-      "line": 9,
-      "filename": "custom-page-sizes-invalid.1.wasm",
-      "module_type": "binary",
+      "type": "assert_malformed",
+      "line": 8,
+      "filename": "custom-page-sizes-invalid.1.wat",
+      "module_type": "text",
       "text": "invalid custom page size"
     },
     {
       "type": "assert_invalid",
-      "line": 13,
+      "line": 14,
       "filename": "custom-page-sizes-invalid.2.wasm",
       "module_type": "binary",
       "text": "invalid custom page size"
     },
     {
       "type": "assert_invalid",
-      "line": 17,
+      "line": 18,
       "filename": "custom-page-sizes-invalid.3.wasm",
       "module_type": "binary",
       "text": "invalid custom page size"
     },
     {
       "type": "assert_invalid",
-      "line": 21,
+      "line": 22,
       "filename": "custom-page-sizes-invalid.4.wasm",
       "module_type": "binary",
       "text": "invalid custom page size"
     },
     {
       "type": "assert_invalid",
-      "line": 25,
+      "line": 26,
       "filename": "custom-page-sizes-invalid.5.wasm",
       "module_type": "binary",
       "text": "invalid custom page size"
     },
     {
       "type": "assert_invalid",
-      "line": 29,
+      "line": 30,
       "filename": "custom-page-sizes-invalid.6.wasm",
       "module_type": "binary",
       "text": "invalid custom page size"
     },
     {
       "type": "assert_invalid",
-      "line": 33,
+      "line": 34,
       "filename": "custom-page-sizes-invalid.7.wasm",
       "module_type": "binary",
       "text": "invalid custom page size"
     },
     {
       "type": "assert_invalid",
-      "line": 37,
+      "line": 38,
       "filename": "custom-page-sizes-invalid.8.wasm",
       "module_type": "binary",
       "text": "invalid custom page size"
     },
     {
       "type": "assert_invalid",
-      "line": 41,
+      "line": 42,
       "filename": "custom-page-sizes-invalid.9.wasm",
       "module_type": "binary",
       "text": "invalid custom page size"
     },
     {
       "type": "assert_invalid",
-      "line": 45,
+      "line": 46,
       "filename": "custom-page-sizes-invalid.10.wasm",
       "module_type": "binary",
       "text": "invalid custom page size"
     },
     {
       "type": "assert_invalid",
-      "line": 49,
+      "line": 50,
       "filename": "custom-page-sizes-invalid.11.wasm",
       "module_type": "binary",
       "text": "invalid custom page size"
     },
     {
       "type": "assert_invalid",
-      "line": 53,
+      "line": 54,
       "filename": "custom-page-sizes-invalid.12.wasm",
       "module_type": "binary",
       "text": "invalid custom page size"
     },
     {
       "type": "assert_invalid",
-      "line": 57,
+      "line": 58,
       "filename": "custom-page-sizes-invalid.13.wasm",
       "module_type": "binary",
       "text": "invalid custom page size"
     },
     {
       "type": "assert_invalid",
-      "line": 61,
+      "line": 62,
       "filename": "custom-page-sizes-invalid.14.wasm",
       "module_type": "binary",
       "text": "invalid custom page size"
     },
     {
       "type": "assert_invalid",
-      "line": 65,
+      "line": 66,
       "filename": "custom-page-sizes-invalid.15.wasm",
       "module_type": "binary",
       "text": "invalid custom page size"
     },
     {
       "type": "assert_invalid",
-      "line": 71,
+      "line": 70,
       "filename": "custom-page-sizes-invalid.16.wasm",
       "module_type": "binary",
       "text": "invalid custom page size"
     },
     {
-      "type": "assert_malformed",
-      "line": 78,
+      "type": "assert_invalid",
+      "line": 76,
       "filename": "custom-page-sizes-invalid.17.wasm",
       "module_type": "binary",
       "text": "invalid custom page size"
     },
     {
-      "type": "module",
-      "line": 92,
-      "name": "m",
+      "type": "assert_malformed",
+      "line": 83,
       "filename": "custom-page-sizes-invalid.18.wasm",
+      "module_type": "binary",
+      "text": "invalid custom page size"
+    },
+    {
+      "type": "module",
+      "line": 97,
+      "name": "m",
+      "filename": "custom-page-sizes-invalid.19.wasm",
       "module_type": "binary"
     },
     {
       "type": "register",
-      "line": 96,
+      "line": 101,
       "name": "m",
       "as": "m"
     },
     {
       "type": "assert_unlinkable",
-      "line": 99,
-      "filename": "custom-page-sizes-invalid.19.wasm",
+      "line": 104,
+      "filename": "custom-page-sizes-invalid.20.wasm",
       "module_type": "binary",
       "text": "memory types incompatible"
     },
     {
       "type": "assert_unlinkable",
-      "line": 106,
-      "filename": "custom-page-sizes-invalid.20.wasm",
+      "line": 111,
+      "filename": "custom-page-sizes-invalid.21.wasm",
       "module_type": "binary",
       "text": "memory types incompatible"
     }
