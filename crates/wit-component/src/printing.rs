@@ -1043,65 +1043,76 @@ fn is_keyword(name: &str) -> bool {
 struct Output {
     indent: usize,
     output: String,
+    // set to true after newline, then to false after first item is indented.
+    needs_indent: bool,
 }
 
 impl Output {
-    fn newline(&mut self) {
-        // Trim trailing whitespace, if any, then push an indented
-        // newline
-        while let Some(c) = self.output.chars().next_back() {
-            if c.is_whitespace() && c != '\n' {
-                self.output.pop();
-            } else {
-                break;
+    fn indent_if_needed(&mut self) {
+        if self.needs_indent {
+            for _ in 0..self.indent {
+                self.output.push_str("  ");
             }
+            self.needs_indent = false;
         }
+    }
+
+    fn newline(&mut self) {
         self.output.push('\n');
-        for _ in 0..self.indent {
-            self.output.push_str("  ");
-        }
+        self.needs_indent = true;
     }
 
     fn keyword(&mut self, src: &str) {
         assert!(!src.contains('\n'));
         assert_eq!(src, src.trim());
+        self.indent_if_needed();
         self.output.push_str(src);
     }
 
     fn doc(&mut self, doc: &str) {
         assert!(!doc.contains('\n'));
-        self.output.push_str("/// ");
-        self.output.push_str(doc);
+        self.indent_if_needed();
+        self.output.push_str("///");
+        if !doc.is_empty() {
+            self.output.push_str(" ");
+            self.output.push_str(doc);
+        }
         self.newline();
     }
 
     fn semicolon(&mut self) {
+        assert!(
+            !self.needs_indent,
+            "`semicolon` is never called after newline"
+        );
         self.output.push_str(";");
         self.newline();
     }
 
     fn indent_start(&mut self) {
+        assert!(
+            !self.needs_indent,
+            "`indent_start` is never called after newline"
+        );
         self.output.push_str(" {");
         self.indent += 1;
         self.newline();
     }
 
     fn indent_end(&mut self) {
-        if self.output.ends_with("  ") {
-            self.output.pop();
-            self.output.pop();
-        }
-        self.output.push_str("}");
         // Note that a `saturating_sub` is used here to prevent a panic
         // here in the case of invalid code being generated in debug
         // mode. It's typically easier to debug those issues through
         // looking at the source code rather than getting a panic.
         self.indent = self.indent.saturating_sub(1);
+        self.indent_if_needed();
+        self.output.push_str("}");
         self.newline();
     }
 
     fn str(&mut self, src: &str) {
         assert!(!src.contains('\n'));
+        self.indent_if_needed();
         self.output.push_str(src);
     }
 }
