@@ -65,10 +65,19 @@ impl WitPrinter {
         Ok(std::mem::take(&mut self.output).into())
     }
 
-    fn print_package(&mut self, resolve: &Resolve, pkg: PackageId, is_main: bool) -> Result<()> {
+    /// Prints the specified `pkg`.
+    ///
+    /// If `is_main` is not set, nested package notation is used.
+    pub fn print_package(
+        &mut self,
+        resolve: &Resolve,
+        pkg: PackageId,
+        is_main: bool,
+    ) -> Result<()> {
         let pkg = &resolve.packages[pkg];
         self.print_docs(&pkg.docs);
-        self.output.push_str("package ");
+        self.output.push_keyword("package");
+        self.output.push_str(" ");
         self.print_name(&pkg.name.namespace);
         self.output.push_str(":");
         self.print_name(&pkg.name.name);
@@ -86,7 +95,8 @@ impl WitPrinter {
         for (name, id) in pkg.interfaces.iter() {
             self.print_docs(&resolve.interfaces[*id].docs);
             self.print_stability(&resolve.interfaces[*id].stability);
-            self.output.push_str("interface ");
+            self.output.push_keyword("interface");
+            self.output.push_str(" ");
             self.print_name(name);
             self.output.push_str(" {\n");
             self.print_interface(resolve, *id)?;
@@ -100,7 +110,8 @@ impl WitPrinter {
         for (name, id) in pkg.worlds.iter() {
             self.print_docs(&resolve.worlds[*id].docs);
             self.print_stability(&resolve.worlds[*id].stability);
-            self.output.push_str("world ");
+            self.output.push_keyword("world");
+            self.output.push_str(" ");
             self.print_name(name);
             self.output.push_str(" {\n");
             self.print_world(resolve, *id)?;
@@ -215,7 +226,8 @@ impl WitPrinter {
         for (owner, stability, tys) in types_to_import {
             self.any_items = true;
             self.print_stability(stability);
-            write!(&mut self.output, "use ")?;
+            self.output.push_keyword("use");
+            self.output.push_str(" ");
             let id = match owner {
                 TypeOwner::Interface(id) => id,
                 // it's only possible to import types from interfaces at
@@ -232,7 +244,9 @@ impl WitPrinter {
                     self.print_name(my_name);
                 } else {
                     self.print_name(other_name);
-                    self.output.push_str(" as ");
+                    self.output.push_str(" ");
+                    self.output.push_keyword("as");
+                    self.output.push_str(" ");
                     self.print_name(my_name);
                 }
             }
@@ -260,7 +274,8 @@ impl WitPrinter {
 
     fn print_resource(&mut self, resolve: &Resolve, id: TypeId, funcs: &[&Function]) -> Result<()> {
         let ty = &resolve.types[id];
-        self.output.push_str("resource ");
+        self.output.push_keyword("resource");
+        self.output.push_str(" ");
         self.print_name(ty.name.as_ref().expect("resources must be named"));
         if funcs.is_empty() {
             self.print_semicolon();
@@ -281,7 +296,8 @@ impl WitPrinter {
                 FunctionKind::Static(_) => {
                     self.print_name(func.item_name());
                     self.output.push_str(": ");
-                    self.output.push_str("static ");
+                    self.output.push_keyword("static");
+                    self.output.push_str(" ");
                 }
                 FunctionKind::Freestanding => unreachable!(),
             }
@@ -297,8 +313,14 @@ impl WitPrinter {
     fn print_function(&mut self, resolve: &Resolve, func: &Function) -> Result<()> {
         // Constructors are named slightly differently.
         match &func.kind {
-            FunctionKind::Constructor(_) => self.output.push_str("constructor("),
-            _ => self.output.push_str("func("),
+            FunctionKind::Constructor(_) => {
+                self.output.push_keyword("constructor");
+                self.output.push_str("(");
+            }
+            _ => {
+                self.output.push_keyword("func");
+                self.output.push_str("(");
+            }
         }
 
         // Methods don't print their `self` argument
@@ -394,7 +416,7 @@ impl WitPrinter {
         name: &WorldKey,
         item: &WorldItem,
         cur_pkg: PackageId,
-        desc: &str,
+        import_or_export_keyword: &str,
     ) -> Result<()> {
         // Print inline item docs
         if matches!(name, WorldKey::Name(_)) {
@@ -407,7 +429,7 @@ impl WitPrinter {
         }
 
         self.print_stability(item.stability(resolve));
-        self.output.push_str(desc);
+        self.output.push_keyword(import_or_export_keyword);
         self.output.push_str(" ");
         match name {
             WorldKey::Name(name) => {
@@ -416,9 +438,10 @@ impl WitPrinter {
                 match item {
                     WorldItem::Interface { id, .. } => {
                         assert!(resolve.interfaces[*id].name.is_none());
-                        writeln!(self.output, "interface {{")?;
+                        self.output.push_keyword("interface");
+                        self.output.push_str(" {\n");
                         self.print_interface(resolve, *id)?;
-                        writeln!(self.output, "}}")?;
+                        self.output.push_str("}\n");
                     }
                     WorldItem::Function(f) => {
                         self.print_function(resolve, f)?;
@@ -465,33 +488,34 @@ impl WitPrinter {
         Ok(())
     }
 
-    fn print_type_name(&mut self, resolve: &Resolve, ty: &Type) -> Result<()> {
+    /// Print the name of type `ty`.
+    pub fn print_type_name(&mut self, resolve: &Resolve, ty: &Type) -> Result<()> {
         match ty {
-            Type::Bool => self.output.push_str("bool"),
-            Type::U8 => self.output.push_str("u8"),
-            Type::U16 => self.output.push_str("u16"),
-            Type::U32 => self.output.push_str("u32"),
-            Type::U64 => self.output.push_str("u64"),
-            Type::S8 => self.output.push_str("s8"),
-            Type::S16 => self.output.push_str("s16"),
-            Type::S32 => self.output.push_str("s32"),
-            Type::S64 => self.output.push_str("s64"),
+            Type::Bool => self.output.push_keyword("bool"),
+            Type::U8 => self.output.push_keyword("u8"),
+            Type::U16 => self.output.push_keyword("u16"),
+            Type::U32 => self.output.push_keyword("u32"),
+            Type::U64 => self.output.push_keyword("u64"),
+            Type::S8 => self.output.push_keyword("s8"),
+            Type::S16 => self.output.push_keyword("s16"),
+            Type::S32 => self.output.push_keyword("s32"),
+            Type::S64 => self.output.push_keyword("s64"),
             Type::F32 => {
                 if self.print_f32_f64 {
-                    self.output.push_str("f32")
+                    self.output.push_keyword("f32")
                 } else {
-                    self.output.push_str("f32")
+                    self.output.push_keyword("f32")
                 }
             }
             Type::F64 => {
                 if self.print_f32_f64 {
-                    self.output.push_str("f64")
+                    self.output.push_keyword("f64")
                 } else {
-                    self.output.push_str("f64")
+                    self.output.push_keyword("f64")
                 }
             }
-            Type::Char => self.output.push_str("char"),
-            Type::String => self.output.push_str("string"),
+            Type::Char => self.output.push_keyword("char"),
+            Type::String => self.output.push_keyword("string"),
 
             Type::Id(id) => {
                 let ty = &resolve.types[*id];
@@ -529,7 +553,8 @@ impl WitPrinter {
                         bail!("resolve has unnamed variant type")
                     }
                     TypeDefKind::List(ty) => {
-                        self.output.push_str("list<");
+                        self.output.push_keyword("list");
+                        self.output.push_str("<");
                         self.print_type_name(resolve, ty)?;
                         self.output.push_str(">");
                     }
@@ -558,7 +583,8 @@ impl WitPrinter {
             Handle::Own(ty) => {
                 let ty = &resolve.types[*ty];
                 if force_handle_type_printed {
-                    self.output.push_str("own<");
+                    self.output.push_keyword("own");
+                    self.output.push_str("<");
                 }
                 self.print_name(
                     ty.name
@@ -571,7 +597,8 @@ impl WitPrinter {
             }
 
             Handle::Borrow(ty) => {
-                self.output.push_str("borrow<");
+                self.output.push_keyword("borrow");
+                self.output.push_str("<");
                 let ty = &resolve.types[*ty];
                 self.print_name(
                     ty.name
@@ -586,7 +613,8 @@ impl WitPrinter {
     }
 
     fn print_tuple_type(&mut self, resolve: &Resolve, tuple: &Tuple) -> Result<()> {
-        self.output.push_str("tuple<");
+        self.output.push_keyword("tuple");
+        self.output.push_str("<");
         for (i, ty) in tuple.types.iter().enumerate() {
             if i > 0 {
                 self.output.push_str(", ");
@@ -599,7 +627,8 @@ impl WitPrinter {
     }
 
     fn print_option_type(&mut self, resolve: &Resolve, payload: &Type) -> Result<()> {
-        self.output.push_str("option<");
+        self.output.push_keyword("option");
+        self.output.push_str("<");
         self.print_type_name(resolve, payload)?;
         self.output.push_str(">");
         Ok(())
@@ -611,7 +640,8 @@ impl WitPrinter {
                 ok: Some(ok),
                 err: Some(err),
             } => {
-                self.output.push_str("result<");
+                self.output.push_keyword("result");
+                self.output.push_str("<");
                 self.print_type_name(resolve, ok)?;
                 self.output.push_str(", ");
                 self.print_type_name(resolve, err)?;
@@ -621,7 +651,8 @@ impl WitPrinter {
                 ok: None,
                 err: Some(err),
             } => {
-                self.output.push_str("result<_, ");
+                self.output.push_keyword("result");
+                self.output.push_str("<_, ");
                 self.print_type_name(resolve, err)?;
                 self.output.push_str(">");
             }
@@ -629,7 +660,8 @@ impl WitPrinter {
                 ok: Some(ok),
                 err: None,
             } => {
-                self.output.push_str("result<");
+                self.output.push_keyword("result");
+                self.output.push_str("<");
                 self.print_type_name(resolve, ok)?;
                 self.output.push_str(">");
             }
@@ -637,7 +669,7 @@ impl WitPrinter {
                 ok: None,
                 err: None,
             } => {
-                self.output.push_str("result");
+                self.output.push_keyword("result");
             }
         }
         Ok(())
@@ -686,7 +718,8 @@ impl WitPrinter {
                     }
                     TypeDefKind::Type(inner) => match ty.name.as_deref() {
                         Some(name) => {
-                            self.output.push_str("type ");
+                            self.output.push_keyword("type");
+                            self.output.push_str(" ");
                             self.print_name(name);
                             self.output.push_str(" = ");
                             self.print_type_name(resolve, inner)?;
@@ -712,7 +745,8 @@ impl WitPrinter {
     ) -> Result<()> {
         match name {
             Some(name) => {
-                self.output.push_str("type ");
+                self.output.push_keyword("type");
+                self.output.push_str(" ");
                 self.print_name(name);
                 self.output.push_str(" = ");
                 // Note that the `true` here forces owned handles to be printed
@@ -738,7 +772,8 @@ impl WitPrinter {
     ) -> Result<()> {
         match name {
             Some(name) => {
-                self.output.push_str("record ");
+                self.output.push_keyword("record");
+                self.output.push_str(" ");
                 self.print_name(name);
                 self.output.push_str(" {\n");
                 for field in &record.fields {
@@ -762,7 +797,8 @@ impl WitPrinter {
         tuple: &Tuple,
     ) -> Result<()> {
         if let Some(name) = name {
-            self.output.push_str("type ");
+            self.output.push_keyword("type");
+            self.output.push_str(" ");
             self.print_name(name);
             self.output.push_str(" = ");
             self.print_tuple_type(resolve, tuple)?;
@@ -775,7 +811,8 @@ impl WitPrinter {
     fn declare_flags(&mut self, name: Option<&str>, flags: &Flags) -> Result<()> {
         match name {
             Some(name) => {
-                self.output.push_str("flags ");
+                self.output.push_keyword("flags");
+                self.output.push_str(" ");
                 self.print_name(name);
                 self.output.push_str(" {\n");
                 for flag in &flags.flags {
@@ -800,7 +837,8 @@ impl WitPrinter {
             Some(name) => name,
             None => bail!("document has unnamed variant type"),
         };
-        self.output.push_str("variant ");
+        self.output.push_keyword("variant");
+        self.output.push_str(" ");
         self.print_name(name);
         self.output.push_str(" {\n");
         for case in &variant.cases {
@@ -824,7 +862,8 @@ impl WitPrinter {
         payload: &Type,
     ) -> Result<()> {
         if let Some(name) = name {
-            self.output.push_str("type ");
+            self.output.push_keyword("type");
+            self.output.push_str(" ");
             self.print_name(name);
             self.output.push_str(" = ");
             self.print_option_type(resolve, payload)?;
@@ -841,7 +880,8 @@ impl WitPrinter {
         result: &Result_,
     ) -> Result<()> {
         if let Some(name) = name {
-            self.output.push_str("type ");
+            self.output.push_keyword("type");
+            self.output.push_str(" ");
             self.print_name(name);
             self.output.push_str(" = ");
             self.print_result_type(resolve, result)?;
@@ -856,7 +896,8 @@ impl WitPrinter {
             Some(name) => name,
             None => bail!("document has unnamed enum type"),
         };
-        self.output.push_str("enum ");
+        self.output.push_keyword("enum");
+        self.output.push_str(" ");
         self.print_name(name);
         self.output.push_str(" {\n");
         for case in &enum_.cases {
@@ -870,9 +911,12 @@ impl WitPrinter {
 
     fn declare_list(&mut self, resolve: &Resolve, name: Option<&str>, ty: &Type) -> Result<()> {
         if let Some(name) = name {
-            self.output.push_str("type ");
+            self.output.push_keyword("type");
+            self.output.push_str(" ");
             self.print_name(name);
-            self.output.push_str(" = list<");
+            self.output.push_str(" = ");
+            self.output.push_keyword("list");
+            self.output.push_str("<");
             self.print_type_name(resolve, ty)?;
             self.output.push_str(">");
             self.print_semicolon();
@@ -894,9 +938,7 @@ impl WitPrinter {
         if self.emit_docs {
             if let Some(contents) = &docs.contents {
                 for line in contents.lines() {
-                    self.output.push_str("/// ");
-                    self.output.push_str(line);
-                    self.output.push_str("\n");
+                    self.output.push_doc(line);
                 }
             }
         }
@@ -906,11 +948,17 @@ impl WitPrinter {
         match stability {
             Stability::Unknown => {}
             Stability::Stable { since, deprecated } => {
-                self.output.push_str("@since(version = ");
+                self.output.push_keyword("@since");
+                self.output.push_str("(");
+                self.output.push_keyword("version");
+                self.output.push_str(" = ");
                 self.output.push_str(&since.to_string());
                 self.output.push_str(")\n");
                 if let Some(version) = deprecated {
-                    self.output.push_str("@deprecated(version = ");
+                    self.output.push_keyword("@deprecated");
+                    self.output.push_str("(");
+                    self.output.push_keyword("version");
+                    self.output.push_str(" = ");
                     self.output.push_str(&version.to_string());
                     self.output.push_str(")\n");
                 }
@@ -919,11 +967,17 @@ impl WitPrinter {
                 feature,
                 deprecated,
             } => {
-                self.output.push_str("@unstable(feature = ");
+                self.output.push_keyword("@unstable");
+                self.output.push_str("(");
+                self.output.push_keyword("feature");
+                self.output.push_str(" = ");
                 self.output.push_str(feature);
                 self.output.push_str(")\n");
                 if let Some(version) = deprecated {
-                    self.output.push_str("@deprecated(version = ");
+                    self.output.push_keyword("@deprecated");
+                    self.output.push_str("(");
+                    self.output.push_keyword("version");
+                    self.output.push_str(" = ");
                     self.output.push_str(&version.to_string());
                     self.output.push_str(")\n");
                 }
@@ -999,6 +1053,18 @@ struct Output {
 }
 
 impl Output {
+    fn push_keyword(&mut self, src: &str) {
+        assert!(!src.contains('\n'));
+        assert_eq!(src, src.trim());
+        self.push_str(src);
+    }
+
+    fn push_doc(&mut self, doc: &str) {
+        self.push_str("/// ");
+        self.push_str(doc);
+        self.push_str("\n");
+    }
+
     fn push_str(&mut self, src: &str) {
         let lines = src.lines().collect::<Vec<_>>();
         for (i, line) in lines.iter().enumerate() {
@@ -1051,5 +1117,11 @@ impl Write for Output {
 impl From<Output> for String {
     fn from(output: Output) -> String {
         output.output
+    }
+}
+
+impl From<WitPrinter> for String {
+    fn from(value: WitPrinter) -> String {
+        value.output.output
     }
 }
