@@ -1,6 +1,5 @@
 use anyhow::{anyhow, bail, Result};
 use std::collections::HashMap;
-use std::fmt::{self, Write};
 use std::mem;
 use wit_parser::*;
 
@@ -102,9 +101,10 @@ impl WitPrinter {
             self.output.indent_start();
             self.print_interface(resolve, *id)?;
             if is_main {
-                writeln!(&mut self.output, "}}\n")?;
+                self.output.indent_end();
+                self.output.newline();
             } else {
-                writeln!(&mut self.output, "}}")?;
+                self.output.indent_end();
             }
         }
 
@@ -116,10 +116,10 @@ impl WitPrinter {
             self.print_name(name);
             self.output.indent_start();
             self.print_world(resolve, *id)?;
-            writeln!(&mut self.output, "}}")?;
+            self.output.indent_end();
         }
         if !is_main {
-            writeln!(&mut self.output, "}}")?;
+            self.output.indent_end();
         }
         Ok(())
     }
@@ -231,10 +231,10 @@ impl WitPrinter {
                 _ => unreachable!(),
             };
             self.print_path_to_interface(resolve, id, my_pkg)?;
-            write!(&mut self.output, ".{{")?;
+            self.output.push_str(".{"); // Note: not changing the indentation.
             for (i, (my_name, other_name)) in tys.into_iter().enumerate() {
                 if i > 0 {
-                    write!(&mut self.output, ", ")?;
+                    self.output.push_str(", ");
                 }
                 if my_name == other_name {
                     self.print_name(my_name);
@@ -246,7 +246,7 @@ impl WitPrinter {
                     self.print_name(my_name);
                 }
             }
-            write!(&mut self.output, "}}")?;
+            self.output.push_str("}");
             self.output.semicolon();
         }
 
@@ -1047,7 +1047,19 @@ struct Output {
 
 impl Output {
     fn newline(&mut self) {
-        self.push_str("\n");
+        // Trim trailing whitespace, if any, then push an indented
+        // newline
+        while let Some(c) = self.output.chars().next_back() {
+            if c.is_whitespace() && c != '\n' {
+                self.output.pop();
+            } else {
+                break;
+            }
+        }
+        self.output.push('\n');
+        for _ in 0..self.indent {
+            self.output.push_str("  ");
+        }
     }
 
     fn push_keyword(&mut self, src: &str) {
@@ -1078,51 +1090,23 @@ impl Output {
     }
 
     fn push_str(&mut self, src: &str) {
-        let lines = src.lines().collect::<Vec<_>>();
-        for (i, line) in lines.iter().enumerate() {
-            let trimmed = line.trim();
-            if trimmed.starts_with('}') && self.output.ends_with("  ") {
-                self.output.pop();
-                self.output.pop();
-            }
-            self.output.push_str(if lines.len() == 1 {
-                line
-            } else {
-                line.trim_start()
-            });
-            if trimmed.ends_with('{') {
-                self.indent += 1;
-            }
-            if trimmed.starts_with('}') {
-                // Note that a `saturating_sub` is used here to prevent a panic
-                // here in the case of invalid code being generated in debug
-                // mode. It's typically easier to debug those issues through
-                // looking at the source code rather than getting a panic.
-                self.indent = self.indent.saturating_sub(1);
-            }
-            if i != lines.len() - 1 || src.ends_with('\n') {
-                // Trim trailing whitespace, if any, then push an indented
-                // newline
-                while let Some(c) = self.output.chars().next_back() {
-                    if c.is_whitespace() && c != '\n' {
-                        self.output.pop();
-                    } else {
-                        break;
-                    }
-                }
-                self.output.push('\n');
-                for _ in 0..self.indent {
-                    self.output.push_str("  ");
-                }
-            }
+        assert!(!src.contains('\n'));
+        let trimmed = src.trim();
+        if trimmed.starts_with('}') && self.output.ends_with("  ") {
+            self.output.pop();
+            self.output.pop();
         }
-    }
-}
-
-impl Write for Output {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
-        self.push_str(s);
-        Ok(())
+        self.output.push_str(src);
+        if trimmed.ends_with('{') {
+            self.indent += 1;
+        }
+        if trimmed.starts_with('}') {
+            // Note that a `saturating_sub` is used here to prevent a panic
+            // here in the case of invalid code being generated in debug
+            // mode. It's typically easier to debug those issues through
+            // looking at the source code rather than getting a panic.
+            self.indent = self.indent.saturating_sub(1);
+        }
     }
 }
 
