@@ -7,8 +7,9 @@ use wit_parser::*;
 const PRINT_F32_F64_DEFAULT: bool = true;
 
 /// A utility for printing WebAssembly interface definitions to a string.
-pub struct WitPrinter {
-    output: Output,
+pub struct WitPrinter<O: Output = OutputToString> {
+    /// Visitor that holds the WIT document being printed.
+    pub output: O,
 
     // Count of how many items in this current block have been printed to print
     // a blank line between each item, but not the first item.
@@ -22,27 +23,14 @@ pub struct WitPrinter {
 
 impl Default for WitPrinter {
     fn default() -> Self {
-        Self {
-            output: Default::default(),
-            any_items: false,
-            emit_docs: true,
-            print_f32_f64: match std::env::var("WIT_REQUIRE_F32_F64") {
-                Ok(s) => s == "1",
-                Err(_) => PRINT_F32_F64_DEFAULT,
-            },
-        }
+        Self::new()
     }
 }
 
-impl WitPrinter {
-    /// Configure whether doc comments will be printed.
-    ///
-    /// Defaults to true.
-    pub fn emit_docs(&mut self, enabled: bool) -> &mut Self {
-        self.emit_docs = enabled;
-        self
-    }
-
+impl<O: Output> WitPrinter<O>
+where
+    String: From<O>,
+{
     /// Prints the specified `pkg` which is located in `resolve` to a string.
     ///
     /// The `nested` list of packages are other packages to include at the end
@@ -53,6 +41,34 @@ impl WitPrinter {
         pkg: PackageId,
         nested: &[PackageId],
     ) -> Result<String> {
+        self.print_all(resolve, pkg, nested).map(String::from)
+    }
+}
+
+impl<O: Output> WitPrinter<O> {
+    /// Craete new instance.
+    pub fn new() -> Self {
+        Self {
+            output: O::default(),
+            any_items: false,
+            emit_docs: true,
+            print_f32_f64: match std::env::var("WIT_REQUIRE_F32_F64") {
+                Ok(s) => s == "1",
+                Err(_) => PRINT_F32_F64_DEFAULT,
+            },
+        }
+    }
+
+    /// Prints the specified `pkg` which is located in `resolve` to `O`.
+    ///
+    /// The `nested` list of packages are other packages to include at the end
+    /// of the output in `package ... { ... }` syntax.
+    pub fn print_all(
+        &mut self,
+        resolve: &Resolve,
+        pkg: PackageId,
+        nested: &[PackageId],
+    ) -> Result<O> {
         self.print_package(resolve, pkg, true)?;
         for (i, pkg_id) in nested.iter().enumerate() {
             if i > 0 {
@@ -62,7 +78,15 @@ impl WitPrinter {
             self.print_package(resolve, *pkg_id, false)?;
         }
 
-        Ok(std::mem::take(&mut self.output).into())
+        Ok(std::mem::take(&mut self.output))
+    }
+
+    /// Configure whether doc comments will be printed.
+    ///
+    /// Defaults to true.
+    pub fn emit_docs(&mut self, enabled: bool) -> &mut Self {
+        self.emit_docs = enabled;
+        self
     }
 
     /// Prints the specified `pkg`.
@@ -1037,26 +1061,54 @@ fn is_keyword(name: &str) -> bool {
     )
 }
 
+/// A visitor that receives tokens emitted by `WitPrinter`.
+pub trait Output: Default {
+    /// A newline is added.
+    fn newline(&mut self);
+    /// A keyword is added. Keywords are hardcoded strings from `[a-z]`, but can start with `@`
+    /// when printing a [Feature Gate](https://github.com/WebAssembly/component-model/blob/main/design/mvp/WIT.md#feature-gates)
+    fn keyword(&mut self, src: &str);
+    /// Called when a single documentation line is added.
+    /// The `doc` parameter can be an empty string.
+    fn doc(&mut self, doc: &str);
+    /// A semicolon is added.
+    fn semicolon(&mut self);
+    /// Start of indentation.
+    fn indent_start(&mut self);
+    /// End of indentation.
+    fn indent_end(&mut self);
+    /// Any string is added.
+    /// Parameter `src` can contain punctation characters, and must be escaped
+    /// when outputing to languages like HTML. Does not contain:
+    /// * newline characters
+    /// * keywords
+    /// * documentation comments
+    fn str(&mut self, src: &str);
+}
+
 /// Helper structure to help maintain an indentation level when printing source,
-/// modeled after the support in `wit-bindgen-core`.
+/// modeled after the support in `wit-bindgen-core`. Indentation is set to two spaces.
 #[derive(Default)]
-struct Output {
+pub struct OutputToString {
     indent: usize,
     output: String,
     // set to true after newline, then to false after first item is indented.
     needs_indent: bool,
 }
 
-impl Output {
+impl OutputToString {
     fn indent_if_needed(&mut self) {
         if self.needs_indent {
             for _ in 0..self.indent {
+                // Indenting by two spaces.
                 self.output.push_str("  ");
             }
             self.needs_indent = false;
         }
     }
+}
 
+impl Output for OutputToString {
     fn newline(&mut self) {
         self.output.push('\n');
         self.needs_indent = true;
@@ -1074,7 +1126,7 @@ impl Output {
         self.indent_if_needed();
         self.output.push_str("///");
         if !doc.is_empty() {
-            self.output.push_str(" ");
+            self.output.push(' ');
             self.output.push_str(doc);
         }
         self.newline();
@@ -1085,7 +1137,7 @@ impl Output {
             !self.needs_indent,
             "`semicolon` is never called after newline"
         );
-        self.output.push_str(";");
+        self.output.push(';');
         self.newline();
     }
 
@@ -1106,7 +1158,7 @@ impl Output {
         // looking at the source code rather than getting a panic.
         self.indent = self.indent.saturating_sub(1);
         self.indent_if_needed();
-        self.output.push_str("}");
+        self.output.push('}');
         self.newline();
     }
 
@@ -1117,14 +1169,8 @@ impl Output {
     }
 }
 
-impl From<Output> for String {
-    fn from(output: Output) -> String {
+impl From<OutputToString> for String {
+    fn from(output: OutputToString) -> String {
         output.output
-    }
-}
-
-impl From<WitPrinter> for String {
-    fn from(value: WitPrinter) -> String {
-        value.output.output
     }
 }
