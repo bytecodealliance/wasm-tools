@@ -246,7 +246,7 @@ impl WitPrinter {
                     self.print_name(my_name);
                 }
             }
-            self.output.str("}");
+            self.output.str("}"); // Note: not changing the indentation.
             self.output.semicolon();
         }
 
@@ -1065,48 +1065,44 @@ impl Output {
     fn keyword(&mut self, src: &str) {
         assert!(!src.contains('\n'));
         assert_eq!(src, src.trim());
-        self.str(src);
+        self.output.push_str(src);
     }
 
     fn doc(&mut self, doc: &str) {
-        self.str("/// ");
-        self.str(doc);
+        assert!(!doc.contains('\n'));
+        self.output.push_str("/// ");
+        self.output.push_str(doc);
         self.newline();
     }
 
     fn semicolon(&mut self) {
-        self.str(";");
+        self.output.push_str(";");
         self.newline();
     }
 
     fn indent_start(&mut self) {
-        self.str(" {");
+        self.output.push_str(" {");
+        self.indent += 1;
         self.newline();
     }
 
     fn indent_end(&mut self) {
-        self.str("}");
+        if self.output.ends_with("  ") {
+            self.output.pop();
+            self.output.pop();
+        }
+        self.output.push_str("}");
+        // Note that a `saturating_sub` is used here to prevent a panic
+        // here in the case of invalid code being generated in debug
+        // mode. It's typically easier to debug those issues through
+        // looking at the source code rather than getting a panic.
+        self.indent = self.indent.saturating_sub(1);
         self.newline();
     }
 
     fn str(&mut self, src: &str) {
         assert!(!src.contains('\n'));
-        let trimmed = src.trim();
-        if trimmed.starts_with('}') && self.output.ends_with("  ") {
-            self.output.pop();
-            self.output.pop();
-        }
         self.output.push_str(src);
-        if trimmed.ends_with('{') {
-            self.indent += 1;
-        }
-        if trimmed.starts_with('}') {
-            // Note that a `saturating_sub` is used here to prevent a panic
-            // here in the case of invalid code being generated in debug
-            // mode. It's typically easier to debug those issues through
-            // looking at the source code rather than getting a panic.
-            self.indent = self.indent.saturating_sub(1);
-        }
     }
 }
 
