@@ -57,7 +57,8 @@ impl WitPrinter {
         self.print_package(resolve, pkg, true)?;
         for (i, pkg_id) in nested.iter().enumerate() {
             if i > 0 {
-                self.output.push_str("\n\n");
+                self.output.newline();
+                self.output.newline();
             }
             self.print_package(resolve, *pkg_id, false)?;
         }
@@ -87,10 +88,9 @@ impl WitPrinter {
 
         if is_main {
             self.output.semicolon();
-            self.output.push_str("\n");
+            self.output.newline();
         } else {
-            self.output.push_str(" {\n");
-            //self.output.indent_start();
+            self.output.indent_start();
         }
 
         for (name, id) in pkg.interfaces.iter() {
@@ -99,7 +99,7 @@ impl WitPrinter {
             self.output.push_keyword("interface");
             self.output.push_str(" ");
             self.print_name(name);
-            self.output.push_str(" {\n");
+            self.output.indent_start();
             self.print_interface(resolve, *id)?;
             if is_main {
                 writeln!(&mut self.output, "}}\n")?;
@@ -114,7 +114,7 @@ impl WitPrinter {
             self.output.push_keyword("world");
             self.output.push_str(" ");
             self.print_name(name);
-            self.output.push_str(" {\n");
+            self.output.indent_start();
             self.print_world(resolve, *id)?;
             writeln!(&mut self.output, "}}")?;
         }
@@ -126,7 +126,7 @@ impl WitPrinter {
 
     fn new_item(&mut self) {
         if self.any_items {
-            self.output.push_str("\n");
+            self.output.newline();
         }
         self.any_items = true;
     }
@@ -276,7 +276,7 @@ impl WitPrinter {
             self.output.semicolon();
             return Ok(());
         }
-        self.output.push_str(" {\n");
+        self.output.indent_start();
         for func in funcs {
             self.print_docs(&func.docs);
             self.print_stability(&func.stability);
@@ -298,7 +298,7 @@ impl WitPrinter {
             self.print_function(resolve, func)?;
             self.output.semicolon();
         }
-        self.output.push_str("}\n");
+        self.output.indent_end();
 
         Ok(())
     }
@@ -432,9 +432,9 @@ impl WitPrinter {
                     WorldItem::Interface { id, .. } => {
                         assert!(resolve.interfaces[*id].name.is_none());
                         self.output.push_keyword("interface");
-                        self.output.push_str(" {\n");
+                        self.output.indent_start();
                         self.print_interface(resolve, *id)?;
-                        self.output.push_str("}\n");
+                        self.output.indent_end();
                     }
                     WorldItem::Function(f) => {
                         self.print_function(resolve, f)?;
@@ -764,15 +764,16 @@ impl WitPrinter {
                 self.output.push_keyword("record");
                 self.output.push_str(" ");
                 self.print_name(name);
-                self.output.push_str(" {\n");
+                self.output.indent_start();
                 for field in &record.fields {
                     self.print_docs(&field.docs);
                     self.print_name(&field.name);
                     self.output.push_str(": ");
                     self.print_type_name(resolve, &field.ty)?;
-                    self.output.push_str(",\n");
+                    self.output.push_str(",");
+                    self.output.newline();
                 }
-                self.output.push_str("}\n");
+                self.output.indent_end();
                 Ok(())
             }
             None => bail!("document has unnamed record type"),
@@ -802,13 +803,14 @@ impl WitPrinter {
                 self.output.push_keyword("flags");
                 self.output.push_str(" ");
                 self.print_name(name);
-                self.output.push_str(" {\n");
+                self.output.indent_start();
                 for flag in &flags.flags {
                     self.print_docs(&flag.docs);
                     self.print_name(&flag.name);
-                    self.output.push_str(",\n");
+                    self.output.push_str(",");
+                    self.output.newline();
                 }
-                self.output.push_str("}\n");
+                self.output.indent_end();
             }
             None => bail!("document has unnamed flags type"),
         }
@@ -828,7 +830,7 @@ impl WitPrinter {
         self.output.push_keyword("variant");
         self.output.push_str(" ");
         self.print_name(name);
-        self.output.push_str(" {\n");
+        self.output.indent_start();
         for case in &variant.cases {
             self.print_docs(&case.docs);
             self.print_name(&case.name);
@@ -837,9 +839,10 @@ impl WitPrinter {
                 self.print_type_name(resolve, &ty)?;
                 self.output.push_str(")");
             }
-            self.output.push_str(",\n");
+            self.output.push_str(",");
+            self.output.newline();
         }
-        self.output.push_str("}\n");
+        self.output.indent_end();
         Ok(())
     }
 
@@ -885,13 +888,14 @@ impl WitPrinter {
         self.output.push_keyword("enum");
         self.output.push_str(" ");
         self.print_name(name);
-        self.output.push_str(" {\n");
+        self.output.indent_start();
         for case in &enum_.cases {
             self.print_docs(&case.docs);
             self.print_name(&case.name);
-            self.output.push_str(",\n");
+            self.output.push_str(",");
+            self.output.newline();
         }
-        self.output.push_str("}\n");
+        self.output.indent_end();
         Ok(())
     }
 
@@ -938,14 +942,16 @@ impl WitPrinter {
                 self.output.push_keyword("version");
                 self.output.push_str(" = ");
                 self.output.push_str(&since.to_string());
-                self.output.push_str(")\n");
+                self.output.push_str(")");
+                self.output.newline();
                 if let Some(version) = deprecated {
                     self.output.push_keyword("@deprecated");
                     self.output.push_str("(");
                     self.output.push_keyword("version");
                     self.output.push_str(" = ");
                     self.output.push_str(&version.to_string());
-                    self.output.push_str(")\n");
+                    self.output.push_str(")");
+                    self.output.newline();
                 }
             }
             Stability::Unstable {
@@ -957,14 +963,16 @@ impl WitPrinter {
                 self.output.push_keyword("feature");
                 self.output.push_str(" = ");
                 self.output.push_str(feature);
-                self.output.push_str(")\n");
+                self.output.push_str(")");
+                self.output.newline();
                 if let Some(version) = deprecated {
                     self.output.push_keyword("@deprecated");
                     self.output.push_str("(");
                     self.output.push_keyword("version");
                     self.output.push_str(" = ");
                     self.output.push_str(&version.to_string());
-                    self.output.push_str(")\n");
+                    self.output.push_str(")");
+                    self.output.newline();
                 }
             }
         }
@@ -1038,6 +1046,10 @@ struct Output {
 }
 
 impl Output {
+    fn newline(&mut self) {
+        self.push_str("\n");
+    }
+
     fn push_keyword(&mut self, src: &str) {
         assert!(!src.contains('\n'));
         assert_eq!(src, src.trim());
@@ -1047,12 +1059,22 @@ impl Output {
     fn push_doc(&mut self, doc: &str) {
         self.push_str("/// ");
         self.push_str(doc);
-        self.push_str("\n");
+        self.newline();
     }
 
     fn semicolon(&mut self) {
         self.push_str(";");
-        self.push_str("\n");
+        self.newline();
+    }
+
+    fn indent_start(&mut self) {
+        self.push_str(" {");
+        self.newline();
+    }
+
+    fn indent_end(&mut self) {
+        self.push_str("}");
+        self.newline();
     }
 
     fn push_str(&mut self, src: &str) {
