@@ -86,10 +86,11 @@ impl WitPrinter {
         }
 
         if is_main {
-            self.print_semicolon();
-            self.output.push_str("\n\n");
+            self.output.semicolon();
+            self.output.push_str("\n");
         } else {
             self.output.push_str(" {\n");
+            //self.output.indent_start();
         }
 
         for (name, id) in pkg.interfaces.iter() {
@@ -121,10 +122,6 @@ impl WitPrinter {
             writeln!(&mut self.output, "}}")?;
         }
         Ok(())
-    }
-
-    fn print_semicolon(&mut self) {
-        self.output.push_str(";");
     }
 
     fn new_item(&mut self) {
@@ -166,8 +163,7 @@ impl WitPrinter {
             self.print_name(name);
             self.output.push_str(": ");
             self.print_function(resolve, func)?;
-            self.print_semicolon();
-            self.output.push_str("\n");
+            self.output.semicolon();
         }
 
         self.any_items = prev_items;
@@ -251,8 +247,7 @@ impl WitPrinter {
                 }
             }
             write!(&mut self.output, "}}")?;
-            self.print_semicolon();
-            self.output.push_str("\n");
+            self.output.semicolon();
         }
 
         for id in types_to_declare {
@@ -278,8 +273,7 @@ impl WitPrinter {
         self.output.push_str(" ");
         self.print_name(ty.name.as_ref().expect("resources must be named"));
         if funcs.is_empty() {
-            self.print_semicolon();
-            self.output.push_str("\n");
+            self.output.semicolon();
             return Ok(());
         }
         self.output.push_str(" {\n");
@@ -302,8 +296,7 @@ impl WitPrinter {
                 FunctionKind::Freestanding => unreachable!(),
             }
             self.print_function(resolve, func)?;
-            self.print_semicolon();
-            self.output.push_str("\n");
+            self.output.semicolon();
         }
         self.output.push_str("}\n");
 
@@ -445,8 +438,7 @@ impl WitPrinter {
                     }
                     WorldItem::Function(f) => {
                         self.print_function(resolve, f)?;
-                        self.print_semicolon();
-                        self.output.push_str("\n");
+                        self.output.semicolon();
                     }
                     // Types are handled separately
                     WorldItem::Type(_) => unreachable!(),
@@ -458,8 +450,7 @@ impl WitPrinter {
                     _ => unreachable!(),
                 }
                 self.print_path_to_interface(resolve, *id, cur_pkg)?;
-                self.print_semicolon();
-                self.output.push_str("\n");
+                self.output.semicolon();
             }
         }
         Ok(())
@@ -723,8 +714,7 @@ impl WitPrinter {
                             self.print_name(name);
                             self.output.push_str(" = ");
                             self.print_type_name(resolve, inner)?;
-                            self.print_semicolon();
-                            self.output.push_str("\n");
+                            self.output.semicolon();
                         }
                         None => bail!("unnamed type in document"),
                     },
@@ -755,8 +745,7 @@ impl WitPrinter {
                 // own<b>`. By forcing a handle to be printed here it's staying
                 // true to what's in the WIT document.
                 self.print_handle_type(resolve, handle, true)?;
-                self.print_semicolon();
-                self.output.push_str("\n");
+                self.output.semicolon();
 
                 Ok(())
             }
@@ -802,8 +791,7 @@ impl WitPrinter {
             self.print_name(name);
             self.output.push_str(" = ");
             self.print_tuple_type(resolve, tuple)?;
-            self.print_semicolon();
-            self.output.push_str("\n");
+            self.output.semicolon();
         }
         Ok(())
     }
@@ -867,8 +855,7 @@ impl WitPrinter {
             self.print_name(name);
             self.output.push_str(" = ");
             self.print_option_type(resolve, payload)?;
-            self.print_semicolon();
-            self.output.push_str("\n");
+            self.output.semicolon();
         }
         Ok(())
     }
@@ -885,8 +872,7 @@ impl WitPrinter {
             self.print_name(name);
             self.output.push_str(" = ");
             self.print_result_type(resolve, result)?;
-            self.print_semicolon();
-            self.output.push_str("\n");
+            self.output.semicolon();
         }
         Ok(())
     }
@@ -919,8 +905,7 @@ impl WitPrinter {
             self.output.push_str("<");
             self.print_type_name(resolve, ty)?;
             self.output.push_str(">");
-            self.print_semicolon();
-            self.output.push_str("\n");
+            self.output.semicolon();
             return Ok(());
         }
 
@@ -1062,6 +1047,11 @@ impl Output {
     fn push_doc(&mut self, doc: &str) {
         self.push_str("/// ");
         self.push_str(doc);
+        self.push_str("\n");
+    }
+
+    fn semicolon(&mut self) {
+        self.push_str(";");
         self.push_str("\n");
     }
 
