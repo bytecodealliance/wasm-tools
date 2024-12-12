@@ -108,7 +108,7 @@ impl<O: Output> WitPrinter<O> {
         self.output.str(":");
         self.print_name_type(&pkg.name.name);
         if let Some(version) = &pkg.name.version {
-            self.output.str(&format!("@{version}"));
+            self.output.version(&version.to_string(), true);
         }
 
         if is_main {
@@ -499,7 +499,7 @@ impl<O: Output> WitPrinter<O> {
             self.output.str("/");
             self.print_name_type(iface.name.as_ref().unwrap());
             if let Some(version) = &pkg.version {
-                self.output.str(&format!("@{version}"));
+                self.output.version(&version.to_string(), true);
             }
         }
         Ok(())
@@ -981,7 +981,7 @@ impl<O: Output> WitPrinter<O> {
                 self.output.str("(");
                 self.output.keyword("version");
                 self.output.str(" = ");
-                self.output.str(&since.to_string());
+                self.output.version(&since.to_string(), false);
                 self.output.str(")");
                 self.output.newline();
                 if let Some(version) = deprecated {
@@ -989,7 +989,7 @@ impl<O: Output> WitPrinter<O> {
                     self.output.str("(");
                     self.output.keyword("version");
                     self.output.str(" = ");
-                    self.output.str(&version.to_string());
+                    self.output.version(&version.to_string(), false);
                     self.output.str(")");
                     self.output.newline();
                 }
@@ -1010,7 +1010,7 @@ impl<O: Output> WitPrinter<O> {
                     self.output.str("(");
                     self.output.keyword("version");
                     self.output.str(" = ");
-                    self.output.str(&version.to_string());
+                    self.output.version(&version.to_string(), false);
                     self.output.str(")");
                     self.output.newline();
                 }
@@ -1090,25 +1090,27 @@ pub trait Output: Default {
     fn param(&mut self, src: &str);
     /// A case belonging to a variant, enum or flags is added.
     fn case(&mut self, src: &str);
-    /// Generic argument section starts.
+    /// Generic argument section starts. In WIT this represents the `<` character.
     fn generic_args_start(&mut self);
-    /// Generic argument section ends.
+    /// Generic argument section ends. In WIT this represents the '>' character.
     fn generic_args_end(&mut self);
     /// Called when a single documentation line is added.
-    /// The `doc` parameter can be an empty string.
+    /// The `doc` parameter starts with `///` omitted, and can be an empty string.
     fn doc(&mut self, doc: &str);
+    /// A version is added.
+    ///
+    /// Parameter `src` never starts with the  `@` prefix.
+    /// Parameter `at_sign` signals whether the `@` sign should be printed or not.
+    fn version(&mut self, src: &str, at_sign: bool);
     /// A semicolon is added.
     fn semicolon(&mut self);
-    /// Start of indentation.
+    /// Start of indentation. In WIT this represents ` {\n`.
     fn indent_start(&mut self);
-    /// End of indentation.
+    /// End of indentation. In WIT this represents `}\n`.
     fn indent_end(&mut self);
-    /// Any string is added.
+    /// Any string that does not have a specialized function is added.
     /// Parameter `src` can contain punctation characters, and must be escaped
-    /// when outputing to languages like HTML. Does not contain:
-    /// * newline characters
-    /// * keywords
-    /// * documentation comments
+    /// when outputing to languages like HTML.
     fn str(&mut self, src: &str);
 }
 
@@ -1193,6 +1195,15 @@ impl Output for OutputToString {
             self.output.push_str(doc);
         }
         self.newline();
+    }
+
+    fn version(&mut self, src: &str, at_sign: bool) {
+        assert!(!src.starts_with('@'));
+        assert!(!src.contains('\n'));
+        if at_sign {
+            self.output.push('@');
+        }
+        self.output.push_str(src);
     }
 
     fn semicolon(&mut self) {
