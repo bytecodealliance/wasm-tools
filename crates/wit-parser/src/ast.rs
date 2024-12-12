@@ -1404,7 +1404,6 @@ impl<'a> Type<'a> {
             }
 
             // stream<T>
-            // stream
             Some((span, Token::Stream)) => {
                 tokens.expect(Token::LessThan)?;
                 let ty = Type::parse(tokens)?;
@@ -1415,7 +1414,7 @@ impl<'a> Type<'a> {
                 }))
             }
 
-            // error
+            // error-context
             Some((span, Token::ErrorContext)) => Ok(Type::ErrorContext(span)),
 
             // own<T>

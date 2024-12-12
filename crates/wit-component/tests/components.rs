@@ -154,9 +154,7 @@ fn run_test(path: &Path) -> Result<()> {
         }
     };
 
-    let features =
-        WasmFeatures::WASM2 | WasmFeatures::COMPONENT_MODEL | WasmFeatures::COMPONENT_MODEL_ASYNC;
-    Validator::new_with_features(features)
+    Validator::new_with_features(WasmFeatures::all())
         .validate_all(&bytes)
         .context("failed to validate component output")?;
 

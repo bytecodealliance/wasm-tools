@@ -1014,53 +1014,55 @@ impl Function {
 }
 
 fn find_futures_and_streams(resolve: &Resolve, ty: Type, results: &mut Vec<TypeId>) {
-    if let Type::Id(id) = ty {
-        match &resolve.types[id].kind {
-            TypeDefKind::Resource
-            | TypeDefKind::Handle(_)
-            | TypeDefKind::Flags(_)
-            | TypeDefKind::Enum(_)
-            | TypeDefKind::ErrorContext => {}
-            TypeDefKind::Record(r) => {
-                for Field { ty, .. } in &r.fields {
-                    find_futures_and_streams(resolve, *ty, results);
-                }
-            }
-            TypeDefKind::Tuple(t) => {
-                for ty in &t.types {
-                    find_futures_and_streams(resolve, *ty, results);
-                }
-            }
-            TypeDefKind::Variant(v) => {
-                for Case { ty, .. } in &v.cases {
-                    if let Some(ty) = ty {
-                        find_futures_and_streams(resolve, *ty, results);
-                    }
-                }
-            }
-            TypeDefKind::Option(ty) | TypeDefKind::List(ty) | TypeDefKind::Type(ty) => {
+    let Type::Id(id) = ty else {
+        return;
+    };
+
+    match &resolve.types[id].kind {
+        TypeDefKind::Resource
+        | TypeDefKind::Handle(_)
+        | TypeDefKind::Flags(_)
+        | TypeDefKind::Enum(_)
+        | TypeDefKind::ErrorContext => {}
+        TypeDefKind::Record(r) => {
+            for Field { ty, .. } in &r.fields {
                 find_futures_and_streams(resolve, *ty, results);
             }
-            TypeDefKind::Result(r) => {
-                if let Some(ty) = r.ok {
-                    find_futures_and_streams(resolve, ty, results);
-                }
-                if let Some(ty) = r.err {
-                    find_futures_and_streams(resolve, ty, results);
-                }
+        }
+        TypeDefKind::Tuple(t) => {
+            for ty in &t.types {
+                find_futures_and_streams(resolve, *ty, results);
             }
-            TypeDefKind::Future(ty) => {
+        }
+        TypeDefKind::Variant(v) => {
+            for Case { ty, .. } in &v.cases {
                 if let Some(ty) = ty {
                     find_futures_and_streams(resolve, *ty, results);
                 }
-                results.push(id);
             }
-            TypeDefKind::Stream(ty) => {
-                find_futures_and_streams(resolve, *ty, results);
-                results.push(id);
-            }
-            TypeDefKind::Unknown => unreachable!(),
         }
+        TypeDefKind::Option(ty) | TypeDefKind::List(ty) | TypeDefKind::Type(ty) => {
+            find_futures_and_streams(resolve, *ty, results);
+        }
+        TypeDefKind::Result(r) => {
+            if let Some(ty) = r.ok {
+                find_futures_and_streams(resolve, ty, results);
+            }
+            if let Some(ty) = r.err {
+                find_futures_and_streams(resolve, ty, results);
+            }
+        }
+        TypeDefKind::Future(ty) => {
+            if let Some(ty) = ty {
+                find_futures_and_streams(resolve, *ty, results);
+            }
+            results.push(id);
+        }
+        TypeDefKind::Stream(ty) => {
+            find_futures_and_streams(resolve, *ty, results);
+            results.push(id);
+        }
+        TypeDefKind::Unknown => unreachable!(),
     }
 }
 

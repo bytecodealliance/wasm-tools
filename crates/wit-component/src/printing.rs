@@ -997,7 +997,7 @@ fn is_keyword(name: &str) -> bool {
             | "with"
             | "include"
             | "constructor"
-            | "error"
+            | "error-context"
     )
 }
 
