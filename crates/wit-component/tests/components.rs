@@ -161,16 +161,13 @@ fn run_test(path: &Path) -> Result<()> {
     let wat = wasmprinter::print_bytes(&bytes).context("failed to print bytes")?;
     assert_output(&wat, &component_path)?;
     let mut parser = Parser::new(0);
-    parser.set_features(features);
-    let (pkg, resolve) =
-        match wit_component::decode_reader_with_features(bytes.as_slice(), features)
-            .context("failed to decode resolve")?
-        {
-            DecodedWasm::WitPackage(..) => unreachable!(),
-            DecodedWasm::Component(resolve, world) => {
-                (resolve.worlds[world].package.unwrap(), resolve)
-            }
-        };
+    parser.set_features(WasmFeatures::all());
+    let (pkg, resolve) = match wit_component::decode_reader(bytes.as_slice())
+        .context("failed to decode resolve")?
+    {
+        DecodedWasm::WitPackage(..) => unreachable!(),
+        DecodedWasm::Component(resolve, world) => (resolve.worlds[world].package.unwrap(), resolve),
+    };
     let wit = WitPrinter::default()
         .print(&resolve, pkg, &[])
         .context("failed to print WIT")?;
