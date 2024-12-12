@@ -101,15 +101,7 @@ impl<O: Output> WitPrinter<O> {
         is_main: bool,
     ) -> Result<()> {
         let pkg = &resolve.packages[pkg];
-        self.print_docs(&pkg.docs);
-        self.output.keyword("package");
-        self.output.str(" ");
-        self.print_name_type(&pkg.name.namespace);
-        self.output.str(":");
-        self.print_name_type(&pkg.name.name);
-        if let Some(version) = &pkg.name.version {
-            self.output.version(&version.to_string(), true);
-        }
+        self.print_package_outer(pkg)?;
 
         if is_main {
             self.output.semicolon();
@@ -119,18 +111,12 @@ impl<O: Output> WitPrinter<O> {
         }
 
         for (name, id) in pkg.interfaces.iter() {
-            self.print_docs(&resolve.interfaces[*id].docs);
-            self.print_stability(&resolve.interfaces[*id].stability);
-            self.output.keyword("interface");
-            self.output.str(" ");
-            self.print_name_type(name);
+            self.print_interface_outer(resolve, *id, name)?;
             self.output.indent_start();
             self.print_interface(resolve, *id)?;
+            self.output.indent_end();
             if is_main {
-                self.output.indent_end();
                 self.output.newline();
-            } else {
-                self.output.indent_end();
             }
         }
 
@@ -150,6 +136,21 @@ impl<O: Output> WitPrinter<O> {
         Ok(())
     }
 
+    /// Print the specified package without its content.
+    /// Does not print the semicolon nor starts the indentation.
+    pub fn print_package_outer(&mut self, pkg: &Package) -> Result<()> {
+        self.print_docs(&pkg.docs);
+        self.output.keyword("package");
+        self.output.str(" ");
+        self.print_name_type(&pkg.name.namespace);
+        self.output.str(":");
+        self.print_name_type(&pkg.name.name);
+        if let Some(version) = &pkg.name.version {
+            self.output.version(&version.to_string(), true);
+        }
+        Ok(())
+    }
+
     fn new_item(&mut self) {
         if self.any_items {
             self.output.newline();
@@ -157,8 +158,24 @@ impl<O: Output> WitPrinter<O> {
         self.any_items = true;
     }
 
-    /// Print the given WebAssembly interface to a string.
-    fn print_interface(&mut self, resolve: &Resolve, id: InterfaceId) -> Result<()> {
+    /// Print the given WebAssembly interface without its content.
+    /// Does not print the semicolon nor starts the indentation.
+    pub fn print_interface_outer(
+        &mut self,
+        resolve: &Resolve,
+        id: InterfaceId,
+        name: &str,
+    ) -> Result<()> {
+        self.print_docs(&resolve.interfaces[id].docs);
+        self.print_stability(&resolve.interfaces[id].stability);
+        self.output.keyword("interface");
+        self.output.str(" ");
+        self.print_name_type(name);
+        Ok(())
+    }
+
+    /// Print the inner content of a given WebAssembly interface.
+    pub fn print_interface(&mut self, resolve: &Resolve, id: InterfaceId) -> Result<()> {
         let prev_items = mem::replace(&mut self.any_items, false);
         let interface = &resolve.interfaces[id];
 
@@ -197,7 +214,8 @@ impl<O: Output> WitPrinter<O> {
         Ok(())
     }
 
-    fn print_types<'a>(
+    /// Print types of an interface.
+    pub fn print_types<'a>(
         &mut self,
         resolve: &Resolve,
         owner: TypeOwner,
