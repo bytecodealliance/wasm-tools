@@ -47,7 +47,7 @@ fn component_composing() -> Result<()> {
                 ..Default::default()
             }
         };
-        let composer = ComponentComposer::new(&root_path, &config, WasmFeatures::default());
+        let composer = ComponentComposer::new(&root_path, &config);
 
         let r = composer.compose();
         let (output, baseline_path) = if error_path.is_file() {
