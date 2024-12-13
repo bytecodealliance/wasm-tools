@@ -9,7 +9,46 @@ use wit_parser::*;
 const PRINT_F32_F64_DEFAULT: bool = true;
 
 /// A utility for printing WebAssembly interface definitions to a string.
-pub struct WitPrinter<O: Output = OutputToString> {
+pub struct WitPrinter {
+    ext: WitPrinterExt<OutputToString>,
+}
+
+impl Default for WitPrinter {
+    fn default() -> Self {
+        Self {
+            ext: WitPrinterExt::new(OutputToString::default()),
+        }
+    }
+}
+
+impl WitPrinter {
+    /// Prints the specified `pkg` which is located in `resolve` to a string.
+    ///
+    /// The `nested` list of packages are other packages to include at the end
+    /// of the output in `package ... { ... }` syntax.
+    pub fn print(
+        &mut self,
+        resolve: &Resolve,
+        pkg: PackageId,
+        nested: &[PackageId],
+    ) -> Result<String> {
+        let old_ext = mem::replace(&mut self.ext, WitPrinterExt::new(OutputToString::default()));
+        old_ext
+            .print_all(resolve, pkg, nested)
+            .map(|output| output.output)
+    }
+
+    /// Configure whether doc comments will be printed.
+    ///
+    /// Defaults to true.
+    pub fn emit_docs(&mut self, enabled: bool) -> &mut Self {
+        self.ext.emit_docs = enabled;
+        self
+    }
+}
+
+/// An extensible utility for printing WebAssembly interface definitions to a parametrized `Output`.
+pub struct WitPrinterExt<O: Output> {
     /// Visitor that holds the WIT document being printed.
     pub output: O,
 
@@ -23,35 +62,11 @@ pub struct WitPrinter<O: Output = OutputToString> {
     print_f32_f64: bool,
 }
 
-impl Default for WitPrinter {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<O: Output> WitPrinter<O>
-where
-    String: From<O>,
-{
-    /// Prints the specified `pkg` which is located in `resolve` to a string.
-    ///
-    /// The `nested` list of packages are other packages to include at the end
-    /// of the output in `package ... { ... }` syntax.
-    pub fn print(
-        &mut self,
-        resolve: &Resolve,
-        pkg: PackageId,
-        nested: &[PackageId],
-    ) -> Result<String> {
-        self.print_all(resolve, pkg, nested).map(String::from)
-    }
-}
-
-impl<O: Output> WitPrinter<O> {
+impl<O: Output> WitPrinterExt<O> {
     /// Craete new instance.
-    pub fn new() -> Self {
+    pub fn new(output: O) -> Self {
         Self {
-            output: O::default(),
+            output,
             any_items: false,
             emit_docs: true,
             print_f32_f64: match std::env::var("WIT_REQUIRE_F32_F64") {
@@ -66,7 +81,7 @@ impl<O: Output> WitPrinter<O> {
     /// The `nested` list of packages are other packages to include at the end
     /// of the output in `package ... { ... }` syntax.
     pub fn print_all(
-        &mut self,
+        mut self,
         resolve: &Resolve,
         pkg: PackageId,
         nested: &[PackageId],
@@ -80,7 +95,7 @@ impl<O: Output> WitPrinter<O> {
             self.print_package(resolve, *pkg_id, false)?;
         }
 
-        Ok(std::mem::take(&mut self.output))
+        Ok(self.output)
     }
 
     /// Configure whether doc comments will be printed.
@@ -1101,7 +1116,7 @@ fn is_keyword(name: &str) -> bool {
 }
 
 /// A visitor that receives tokens emitted by `WitPrinter`.
-pub trait Output: Default {
+pub trait Output {
     /// A newline is added.
     fn newline(&mut self);
     /// A keyword is added. Keywords are hardcoded strings from `[a-z]`, but can start with `@`
