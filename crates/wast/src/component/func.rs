@@ -671,15 +671,7 @@ impl<'a> Parse<'a> for CanonStreamCancelRead<'a> {
 
         Ok(Self {
             ty: parser.parse()?,
-            async_: {
-                let mut l = parser.lookahead1();
-                if l.peek::<kw::r#async>()? {
-                    parser.parse::<kw::r#async>()?;
-                    true
-                } else {
-                    false
-                }
-            },
+            async_: parser.parse::<Option<kw::r#async>>()?.is_some(),
         })
     }
 }
@@ -700,15 +692,7 @@ impl<'a> Parse<'a> for CanonStreamCancelWrite<'a> {
 
         Ok(Self {
             ty: parser.parse()?,
-            async_: {
-                let mut l = parser.lookahead1();
-                if l.peek::<kw::r#async>()? {
-                    parser.parse::<kw::r#async>()?;
-                    true
-                } else {
-                    false
-                }
-            },
+            async_: parser.parse::<Option<kw::r#async>>()?.is_some(),
         })
     }
 }
@@ -820,15 +804,7 @@ impl<'a> Parse<'a> for CanonFutureCancelRead<'a> {
 
         Ok(Self {
             ty: parser.parse()?,
-            async_: {
-                let mut l = parser.lookahead1();
-                if l.peek::<kw::r#async>()? {
-                    parser.parse::<kw::r#async>()?;
-                    true
-                } else {
-                    false
-                }
-            },
+            async_: parser.parse::<Option<kw::r#async>>()?.is_some(),
         })
     }
 }
@@ -849,15 +825,7 @@ impl<'a> Parse<'a> for CanonFutureCancelWrite<'a> {
 
         Ok(Self {
             ty: parser.parse()?,
-            async_: {
-                let mut l = parser.lookahead1();
-                if l.peek::<kw::r#async>()? {
-                    parser.parse::<kw::r#async>()?;
-                    true
-                } else {
-                    false
-                }
-            },
+            async_: parser.parse::<Option<kw::r#async>>()?.is_some(),
         })
     }
 }
