@@ -45,6 +45,12 @@ macro_rules! define_wasm_features {
         }
 
         impl WasmFeatures {
+            /// Construct a `WasmFeatures` which includes all features.
+            #[cfg(not(feature = "features"))]
+            pub fn all() -> Self {
+                Self { _priv: () }
+            }
+
             /// Construct a bit-packed `WasmFeatures` from the inflated struct version.
             #[inline]
             #[cfg(feature = "features")]
