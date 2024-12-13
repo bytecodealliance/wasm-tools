@@ -456,14 +456,6 @@ impl<'a> Parse<'a> for CanonResourceNew<'a> {
     }
 }
 
-impl Default for CanonResourceNew<'_> {
-    fn default() -> Self {
-        CanonResourceNew {
-            ty: Index::Num(0, Span::from_offset(0)),
-        }
-    }
-}
-
 /// Information relating to the `resource.drop` intrinsic.
 #[derive(Debug)]
 pub struct CanonResourceDrop<'a> {
@@ -478,14 +470,6 @@ impl<'a> Parse<'a> for CanonResourceDrop<'a> {
         Ok(Self {
             ty: parser.parse()?,
         })
-    }
-}
-
-impl Default for CanonResourceDrop<'_> {
-    fn default() -> Self {
-        CanonResourceDrop {
-            ty: Index::Num(0, Span::from_offset(0)),
-        }
     }
 }
 
@@ -506,14 +490,6 @@ impl<'a> Parse<'a> for CanonResourceRep<'a> {
     }
 }
 
-impl Default for CanonResourceRep<'_> {
-    fn default() -> Self {
-        CanonResourceRep {
-            ty: Index::Num(0, Span::from_offset(0)),
-        }
-    }
-}
-
 /// Information relating to the `thread.spawn` intrinsic.
 #[derive(Debug)]
 pub struct CanonThreadSpawn<'a> {
@@ -531,14 +507,6 @@ impl<'a> Parse<'a> for CanonThreadSpawn<'a> {
     }
 }
 
-impl Default for CanonThreadSpawn<'_> {
-    fn default() -> Self {
-        CanonThreadSpawn {
-            ty: Index::Num(0, Span::from_offset(0)),
-        }
-    }
-}
-
 /// Information relating to the `thread.spawn` intrinsic.
 #[derive(Debug)]
 pub struct CanonThreadHwConcurrency;
@@ -547,12 +515,6 @@ impl<'a> Parse<'a> for CanonThreadHwConcurrency {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::thread_hw_concurrency>()?;
         Ok(Self)
-    }
-}
-
-impl Default for CanonThreadHwConcurrency {
-    fn default() -> Self {
-        Self
     }
 }
 
@@ -570,14 +532,6 @@ impl<'a> Parse<'a> for CanonTaskReturn<'a> {
         Ok(Self {
             ty: parser.parse()?,
         })
-    }
-}
-
-impl Default for CanonTaskReturn<'_> {
-    fn default() -> Self {
-        Self {
-            ty: Index::Num(0, Span::from_offset(0)),
-        }
     }
 }
 
@@ -604,19 +558,6 @@ impl<'a> Parse<'a> for CanonTaskWait<'a> {
     }
 }
 
-impl Default for CanonTaskWait<'_> {
-    fn default() -> Self {
-        Self {
-            async_: false,
-            memory: CoreItemRef {
-                kind: kw::memory(Span::from_offset(0)),
-                idx: Index::Num(0, Span::from_offset(0)),
-                export_name: None,
-            },
-        }
-    }
-}
-
 /// Information relating to the `task.poll` intrinsic.
 #[derive(Debug)]
 pub struct CanonTaskPoll<'a> {
@@ -640,19 +581,6 @@ impl<'a> Parse<'a> for CanonTaskPoll<'a> {
     }
 }
 
-impl Default for CanonTaskPoll<'_> {
-    fn default() -> Self {
-        Self {
-            async_: false,
-            memory: CoreItemRef {
-                kind: kw::memory(Span::from_offset(0)),
-                idx: Index::Num(0, Span::from_offset(0)),
-                export_name: None,
-            },
-        }
-    }
-}
-
 /// Information relating to the `task.yield` intrinsic.
 #[derive(Debug)]
 pub struct CanonTaskYield {
@@ -670,12 +598,6 @@ impl<'a> Parse<'a> for CanonTaskYield {
     }
 }
 
-impl Default for CanonTaskYield {
-    fn default() -> Self {
-        Self { async_: false }
-    }
-}
-
 /// Information relating to the `stream.new` intrinsic.
 #[derive(Debug)]
 pub struct CanonStreamNew<'a> {
@@ -690,14 +612,6 @@ impl<'a> Parse<'a> for CanonStreamNew<'a> {
         Ok(Self {
             ty: parser.parse()?,
         })
-    }
-}
-
-impl Default for CanonStreamNew<'_> {
-    fn default() -> Self {
-        Self {
-            ty: Index::Num(0, Span::from_offset(0)),
-        }
     }
 }
 
@@ -721,15 +635,6 @@ impl<'a> Parse<'a> for CanonStreamRead<'a> {
     }
 }
 
-impl Default for CanonStreamRead<'_> {
-    fn default() -> Self {
-        Self {
-            ty: Index::Num(0, Span::from_offset(0)),
-            opts: Vec::new(),
-        }
-    }
-}
-
 /// Information relating to the `stream.write` intrinsic.
 #[derive(Debug)]
 pub struct CanonStreamWrite<'a> {
@@ -747,15 +652,6 @@ impl<'a> Parse<'a> for CanonStreamWrite<'a> {
             ty: parser.parse()?,
             opts: parser.parse()?,
         })
-    }
-}
-
-impl Default for CanonStreamWrite<'_> {
-    fn default() -> Self {
-        Self {
-            ty: Index::Num(0, Span::from_offset(0)),
-            opts: Vec::new(),
-        }
     }
 }
 
@@ -788,15 +684,6 @@ impl<'a> Parse<'a> for CanonStreamCancelRead<'a> {
     }
 }
 
-impl Default for CanonStreamCancelRead<'_> {
-    fn default() -> Self {
-        Self {
-            ty: Index::Num(0, Span::from_offset(0)),
-            async_: false,
-        }
-    }
-}
-
 /// Information relating to the `stream.cancel-write` intrinsic.
 #[derive(Debug)]
 pub struct CanonStreamCancelWrite<'a> {
@@ -826,15 +713,6 @@ impl<'a> Parse<'a> for CanonStreamCancelWrite<'a> {
     }
 }
 
-impl Default for CanonStreamCancelWrite<'_> {
-    fn default() -> Self {
-        Self {
-            ty: Index::Num(0, Span::from_offset(0)),
-            async_: false,
-        }
-    }
-}
-
 /// Information relating to the `stream.close-readable` intrinsic.
 #[derive(Debug)]
 pub struct CanonStreamCloseReadable<'a> {
@@ -849,14 +727,6 @@ impl<'a> Parse<'a> for CanonStreamCloseReadable<'a> {
         Ok(Self {
             ty: parser.parse()?,
         })
-    }
-}
-
-impl Default for CanonStreamCloseReadable<'_> {
-    fn default() -> Self {
-        Self {
-            ty: Index::Num(0, Span::from_offset(0)),
-        }
     }
 }
 
@@ -877,14 +747,6 @@ impl<'a> Parse<'a> for CanonStreamCloseWritable<'a> {
     }
 }
 
-impl Default for CanonStreamCloseWritable<'_> {
-    fn default() -> Self {
-        Self {
-            ty: Index::Num(0, Span::from_offset(0)),
-        }
-    }
-}
-
 /// Information relating to the `future.new` intrinsic.
 #[derive(Debug)]
 pub struct CanonFutureNew<'a> {
@@ -899,14 +761,6 @@ impl<'a> Parse<'a> for CanonFutureNew<'a> {
         Ok(Self {
             ty: parser.parse()?,
         })
-    }
-}
-
-impl Default for CanonFutureNew<'_> {
-    fn default() -> Self {
-        Self {
-            ty: Index::Num(0, Span::from_offset(0)),
-        }
     }
 }
 
@@ -930,15 +784,6 @@ impl<'a> Parse<'a> for CanonFutureRead<'a> {
     }
 }
 
-impl Default for CanonFutureRead<'_> {
-    fn default() -> Self {
-        Self {
-            ty: Index::Num(0, Span::from_offset(0)),
-            opts: Vec::new(),
-        }
-    }
-}
-
 /// Information relating to the `future.write` intrinsic.
 #[derive(Debug)]
 pub struct CanonFutureWrite<'a> {
@@ -956,15 +801,6 @@ impl<'a> Parse<'a> for CanonFutureWrite<'a> {
             ty: parser.parse()?,
             opts: parser.parse()?,
         })
-    }
-}
-
-impl Default for CanonFutureWrite<'_> {
-    fn default() -> Self {
-        Self {
-            ty: Index::Num(0, Span::from_offset(0)),
-            opts: Vec::new(),
-        }
     }
 }
 
@@ -997,15 +833,6 @@ impl<'a> Parse<'a> for CanonFutureCancelRead<'a> {
     }
 }
 
-impl Default for CanonFutureCancelRead<'_> {
-    fn default() -> Self {
-        Self {
-            ty: Index::Num(0, Span::from_offset(0)),
-            async_: false,
-        }
-    }
-}
-
 /// Information relating to the `future.cancel-write` intrinsic.
 #[derive(Debug)]
 pub struct CanonFutureCancelWrite<'a> {
@@ -1035,15 +862,6 @@ impl<'a> Parse<'a> for CanonFutureCancelWrite<'a> {
     }
 }
 
-impl Default for CanonFutureCancelWrite<'_> {
-    fn default() -> Self {
-        Self {
-            ty: Index::Num(0, Span::from_offset(0)),
-            async_: false,
-        }
-    }
-}
-
 /// Information relating to the `future.close-readable` intrinsic.
 #[derive(Debug)]
 pub struct CanonFutureCloseReadable<'a> {
@@ -1058,14 +876,6 @@ impl<'a> Parse<'a> for CanonFutureCloseReadable<'a> {
         Ok(Self {
             ty: parser.parse()?,
         })
-    }
-}
-
-impl Default for CanonFutureCloseReadable<'_> {
-    fn default() -> Self {
-        Self {
-            ty: Index::Num(0, Span::from_offset(0)),
-        }
     }
 }
 
@@ -1086,14 +896,6 @@ impl<'a> Parse<'a> for CanonFutureCloseWritable<'a> {
     }
 }
 
-impl Default for CanonFutureCloseWritable<'_> {
-    fn default() -> Self {
-        Self {
-            ty: Index::Num(0, Span::from_offset(0)),
-        }
-    }
-}
-
 /// Information relating to the `error-context.new` intrinsic.
 #[derive(Debug)]
 pub struct CanonErrorContextNew<'a> {
@@ -1111,12 +913,6 @@ impl<'a> Parse<'a> for CanonErrorContextNew<'a> {
     }
 }
 
-impl Default for CanonErrorContextNew<'_> {
-    fn default() -> Self {
-        Self { opts: Vec::new() }
-    }
-}
-
 /// Information relating to the `error-context.debug-message` intrinsic.
 #[derive(Debug)]
 pub struct CanonErrorContextDebugMessage<'a> {
@@ -1131,12 +927,6 @@ impl<'a> Parse<'a> for CanonErrorContextDebugMessage<'a> {
         Ok(Self {
             opts: parser.parse()?,
         })
-    }
-}
-
-impl Default for CanonErrorContextDebugMessage<'_> {
-    fn default() -> Self {
-        Self { opts: Vec::new() }
     }
 }
 
