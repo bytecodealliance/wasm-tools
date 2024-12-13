@@ -505,10 +505,6 @@ impl<'a> EncodingState<'a> {
         let ty = encoder.ty;
         // Don't encode empty instance types since they're not
         // meaningful to the runtime of the component anyway.
-        //
-        // TODO: Is this correct? What if another imported interface needs to
-        // alias a type exported by this interface but can't because we skipped
-        // encoding the import?
         if ty.is_empty() {
             return Ok(());
         }
@@ -1380,21 +1376,18 @@ impl<'a> EncodingState<'a> {
                 ShimKind::TaskPoll { async_ } => self
                     .component
                     .task_poll(*async_, self.memory_index.unwrap()),
-                ShimKind::ErrorContextNew {
-                    for_module,
-                    encoding,
-                }
-                | ShimKind::ErrorContextDebugMessage {
-                    for_module,
-                    encoding,
-                    ..
-                } => match &shim.kind {
+                ShimKind::ErrorContextNew { encoding }
+                | ShimKind::ErrorContextDebugMessage { encoding, .. } => match &shim.kind {
                     ShimKind::ErrorContextNew { .. } => self.component.error_context_new(
                         (RequiredOptions::MEMORY | RequiredOptions::STRING_ENCODING)
                             .into_iter(*encoding, self.memory_index, None)?
                             .collect::<Vec<_>>(),
                     ),
-                    ShimKind::ErrorContextDebugMessage { realloc, .. } => {
+                    ShimKind::ErrorContextDebugMessage {
+                        for_module,
+                        realloc,
+                        ..
+                    } => {
                         let instance_index = self.instance_for(*for_module);
                         let realloc_index =
                             Some(self.core_alias_export(instance_index, realloc, ExportKind::Func));
@@ -1422,7 +1415,19 @@ impl<'a> EncodingState<'a> {
         Ok(())
     }
 
+    /// Encode the specified `stream` or `future` type in the component using
+    /// either the `root_import_type_encoder` or the `root_export_type_encoder`
+    /// depending on the value of `imported`.
+    ///
+    /// Note that the payload type `T` of `stream<T>` or `future<T>` may be an
+    /// imported or exported type, and that determines the appropriate type
+    /// encoder to use.
     fn payload_type_index(&mut self, ty: TypeId, imported: bool) -> Result<u32> {
+        // `stream` and `future` types don't have owners, but their payload
+        // types (or the payload type of the payload type, etc. in the case of
+        // nesting) might have an owner, in which case we need to find that in
+        // order to make the types match up e.g. when we're exporting a resource
+        // that's used as a payload type.
         fn owner(resolve: &Resolve, ty: TypeId) -> Option<InterfaceId> {
             let def = &resolve.types[ty];
             match &def.kind {
@@ -1843,7 +1848,6 @@ impl<'a> EncodingState<'a> {
                     self.shim_instance_index
                         .expect("shim should be instantiated"),
                     &shims.shims[&ShimKind::ErrorContextNew {
-                        for_module,
                         encoding: *encoding,
                     }]
                         .name,
@@ -2053,6 +2057,8 @@ struct Shim<'a> {
     sig: WasmSignature,
 }
 
+/// Which variation of `{stream|future}.{read|write}` we're emitting for a
+/// `ShimKind::PayloadFunc`.
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 enum PayloadFuncKind {
     FutureWrite,
@@ -2092,25 +2098,46 @@ enum ShimKind<'a> {
         /// The exported function name of this destructor in the core module.
         export: &'a str,
     },
+    /// A shim used for a `{stream|future}.{read|write}` built-in function,
+    /// which must refer to the core module instance's memory from/to which
+    /// payload values must be lifted/lowered.
     PayloadFunc {
+        /// Which instance to pull the `realloc` function and string encoding
+        /// from, if necessary.
         for_module: CustomModule<'a>,
+        /// Whether this read/write call is using the `async` option.
         async_: bool,
+        /// Additional information regarding the function where this `stream` or
+        /// `future` type appeared, which we use in combination with
+        /// `for_module` to determine which `realloc` and string encoding to
+        /// use, as well as which type to specify when emitting the built-in.
         info: &'a PayloadInfo,
+        /// Which variation of `{stream|future}.{read|write}` we're emitting.
         kind: PayloadFuncKind,
     },
-    TaskWait {
-        async_: bool,
-    },
-    TaskPoll {
-        async_: bool,
-    },
+    /// A shim used for the `task.wait` built-in function, which must refer to
+    /// the core module instance's memory to which results will be written.
+    TaskWait { async_: bool },
+    /// A shim used for the `task.poll` built-in function, which must refer to
+    /// the core module instance's memory to which results will be written.
+    TaskPoll { async_: bool },
+    /// A shim used for the `error-context.new` built-in function, which must
+    /// refer to the core module instance's memory from which the debug message
+    /// will be read.
     ErrorContextNew {
-        for_module: CustomModule<'a>,
+        /// String encoding to use when lifting the debug message.
         encoding: StringEncoding,
     },
+    /// A shim used for the `error-context.debug-message` built-in function,
+    /// which must refer to the core module instance's memory to which results
+    /// will be written.
     ErrorContextDebugMessage {
+        /// Which instance to pull the `realloc` function from, if necessary.
         for_module: CustomModule<'a>,
+        /// The string encoding to use when lowering the debug message.
         encoding: StringEncoding,
+        /// The realloc function to use when allocating linear memory for the
+        /// debug message.
         realloc: &'a str,
     },
 }
@@ -2289,7 +2316,6 @@ impl<'a> Shims<'a> {
                         debug_name: "error-new".to_string(),
                         options: RequiredOptions::empty(),
                         kind: ShimKind::ErrorContextNew {
-                            for_module,
                             encoding: *encoding,
                         },
                         sig: WasmSignature {

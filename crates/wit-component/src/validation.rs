@@ -117,17 +117,48 @@ pub enum ImportInstance {
     Names(IndexMap<String, Import>),
 }
 
+/// Represents metadata about a `stream<T>` or `future<T>` type for a specific
+/// payload type `T`.
+///
+/// Currently, the name mangling scheme we use to represent `stream` and
+/// `future` intrinsics as core module function imports refers to a specific
+/// `stream` or `future` type by naming an imported or exported component
+/// function which has that type as a parameter or return type (where the
+/// specific type is refered to using an ordinal numbering scheme).  Not only
+/// does this approach unambiguously indicate the type of interest, but it
+/// allows us to reuse the `realloc`, string encoding, memory, etc. used by that
+/// function when emitting intrinsic declarations.
+///
+/// TODO: Rather than reusing the same canon opts as the function in which the
+/// type appears, consider encoding them in the name mangling stream on an
+/// individual basis, similar to how we encode `error-context.*` built-in
+/// imports.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct PayloadInfo {
+    /// The original, mangled import name used to import this built-in
+    /// (currently used only for hashing and debugging).
     pub name: String,
+    /// The resolved type id for the `stream` or `future` type of interest.
     pub ty: TypeId,
+    /// The component-level function import or export where the type appeared as
+    /// a parameter or result type.
     pub function: Function,
+    /// The world key representing the import or export context of `function`.
     pub key: WorldKey,
+    /// The interface that `function` was imported from or exported in, if any.
     pub interface: Option<InterfaceId>,
+    /// Whether `function` is being imported or exported.
+    ///
+    /// This may affect how we emit the declaration of the built-in, e.g. if the
+    /// payload type is an exported resource.
     pub imported: bool,
 }
 
 impl Hash for PayloadInfo {
+    /// We derive `Hash` for this type by hand and exclude the `function` field
+    /// because (A) `Function` doesn't implement `Hash` and (B) the other fields
+    /// are sufficient to uniquely identify the type of interest, which function
+    /// it appeared in, and which parameter or return type we found it in.
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.name.hash(state);
         self.ty.hash(state);
@@ -195,10 +226,7 @@ pub enum Import {
     MainModuleMemory,
 
     /// An adapter is importing an arbitrary item from the main module.
-    MainModuleExport {
-        name: String,
-        kind: ExportKind,
-    },
+    MainModuleExport { name: String, kind: ExportKind },
 
     /// An arbitrary item from either the main module or an adapter is being
     /// imported.
@@ -207,79 +235,160 @@ pub enum Import {
     /// one day.
     Item(Item),
 
+    /// A `canon task.return` intrinsic for an exported function.
+    ///
+    /// This allows an exported function to return a value and then continue
+    /// running.
+    ///
+    /// As of this writing, only async-lifted exports use `task.return`, but the
+    /// plan is to also support it for sync-lifted exports in the future as
+    /// well.
     ExportedTaskReturn(Function),
+
+    /// A `canon task.backpressure` intrinsic.
+    ///
+    /// This allows the guest to dynamically indicate whether it's ready for
+    /// additional concurrent calls.
     TaskBackpressure,
-    TaskWait {
-        async_: bool,
-    },
-    TaskPoll {
-        async_: bool,
-    },
-    TaskYield {
-        async_: bool,
-    },
+
+    /// A `canon task.wait` intrinsic.
+    ///
+    /// This allows the guest to wait for any pending calls to async-lowered
+    /// imports and/or `stream` and `future` operations to complete without
+    /// unwinding the current Wasm stack.
+    TaskWait { async_: bool },
+
+    /// A `canon task.poll` intrinsic.
+    ///
+    /// This allows the guest to check whether any pending calls to
+    /// async-lowered imports and/or `stream` and `future` operations have
+    /// completed without unwinding the current Wasm stack and without blocking.
+    TaskPoll { async_: bool },
+
+    /// A `canon task.wait` intrinsic.
+    ///
+    /// This allows the guest to yield (e.g. during an computationally-intensive
+    /// operation) and allow other subtasks to make progress.
+    TaskYield { async_: bool },
+
+    /// A `canon subtask.drop` intrinsic.
+    ///
+    /// This allows the guest to release its handle to an completed subtask.
     SubtaskDrop,
+
+    /// A `canon stream.new` intrinsic.
+    ///
+    /// This allows the guest to create a new `stream` of the specified type.
     StreamNew(PayloadInfo),
-    StreamRead {
-        async_: bool,
-        info: PayloadInfo,
-    },
-    StreamWrite {
-        async_: bool,
-        info: PayloadInfo,
-    },
+
+    /// A `canon stream.read` intrinsic.
+    ///
+    /// This allows the guest to read the next values (if any) from the specifed
+    /// stream.
+    StreamRead { async_: bool, info: PayloadInfo },
+
+    /// A `canon stream.write` intrinsic.
+    ///
+    /// This allows the guest to write one or more values to the specifed
+    /// stream.
+    StreamWrite { async_: bool, info: PayloadInfo },
+
+    /// A `canon stream.cancel-read` intrinsic.
+    ///
+    /// This allows the guest to cancel a pending read it initiated earlier (but
+    /// which may have already partially or entirely completed).
     StreamCancelRead {
         ty: TypeId,
         imported: bool,
         async_: bool,
     },
+
+    /// A `canon stream.cancel-write` intrinsic.
+    ///
+    /// This allows the guest to cancel a pending write it initiated earlier
+    /// (but which may have already partially or entirely completed).
     StreamCancelWrite {
         ty: TypeId,
         imported: bool,
         async_: bool,
     },
-    StreamCloseReadable {
-        ty: TypeId,
-        imported: bool,
-    },
-    StreamCloseWritable {
-        ty: TypeId,
-        imported: bool,
-    },
+
+    /// A `canon stream.close-readable` intrinsic.
+    ///
+    /// This allows the guest to close the readable end of a `stream`.
+    StreamCloseReadable { ty: TypeId, imported: bool },
+
+    /// A `canon stream.close-writable` intrinsic.
+    ///
+    /// This allows the guest to close the writable end of a `stream`.
+    StreamCloseWritable { ty: TypeId, imported: bool },
+
+    /// A `canon future.new` intrinsic.
+    ///
+    /// This allows the guest to create a new `future` of the specified type.
     FutureNew(PayloadInfo),
-    FutureRead {
-        async_: bool,
-        info: PayloadInfo,
-    },
-    FutureWrite {
-        async_: bool,
-        info: PayloadInfo,
-    },
+
+    /// A `canon future.read` intrinsic.
+    ///
+    /// This allows the guest to read the value (if any) from the specifed
+    /// future.
+    FutureRead { async_: bool, info: PayloadInfo },
+
+    /// A `canon future.write` intrinsic.
+    ///
+    /// This allows the guest to write a value to the specifed future.
+    FutureWrite { async_: bool, info: PayloadInfo },
+
+    /// A `canon future.cancel-read` intrinsic.
+    ///
+    /// This allows the guest to cancel a pending read it initiated earlier (but
+    /// which may have already completed).
     FutureCancelRead {
         ty: TypeId,
         imported: bool,
         async_: bool,
     },
+
+    /// A `canon future.cancel-write` intrinsic.
+    ///
+    /// This allows the guest to cancel a pending write it initiated earlier
+    /// (but which may have already completed).
     FutureCancelWrite {
         ty: TypeId,
         imported: bool,
         async_: bool,
     },
-    FutureCloseReadable {
-        ty: TypeId,
-        imported: bool,
-    },
-    FutureCloseWritable {
-        ty: TypeId,
-        imported: bool,
-    },
-    ErrorContextNew {
-        encoding: StringEncoding,
-    },
+
+    /// A `canon future.close-readable` intrinsic.
+    ///
+    /// This allows the guest to close the readable end of a `future`.
+    FutureCloseReadable { ty: TypeId, imported: bool },
+
+    /// A `canon future.close-writable` intrinsic.
+    ///
+    /// This allows the guest to close the writable end of a `future`.
+    FutureCloseWritable { ty: TypeId, imported: bool },
+
+    /// A `canon error-context.new` intrinsic.
+    ///
+    /// This allows the guest to create a new `error-context` instance with a
+    /// specified debug message.
+    ErrorContextNew { encoding: StringEncoding },
+
+    /// A `canon error-context.debug-message` intrinsic.
+    ///
+    /// This allows the guest to retrieve the debug message from a
+    /// `error-context` instance.  Note that the content of this message might
+    /// not be identical to what was passed in to `error-context.new`.
     ErrorContextDebugMessage {
         encoding: StringEncoding,
         realloc: String,
     },
+
+    /// A `canon error-context.drop` intrinsic.
+    ///
+    /// This allows the guest to release its handle to the specified
+    /// `error-context` instance.
     ErrorContextDrop,
 }
 
