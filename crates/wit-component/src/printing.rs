@@ -125,7 +125,7 @@ impl<O: Output> WitPrinter<O> {
             self.print_stability(&resolve.worlds[*id].stability);
             self.output.keyword("world");
             self.output.str(" ");
-            self.print_name_type(name);
+            self.print_name_type(name, TypeKind::WorldDeclaration);
             self.output.indent_start();
             self.print_world(resolve, *id)?;
             self.output.indent_end();
@@ -142,11 +142,11 @@ impl<O: Output> WitPrinter<O> {
         self.print_docs(&pkg.docs);
         self.output.keyword("package");
         self.output.str(" ");
-        self.print_name_type(&pkg.name.namespace);
+        self.print_name_type(&pkg.name.namespace, TypeKind::NamespaceDeclaration);
         self.output.str(":");
-        self.print_name_type(&pkg.name.name);
+        self.print_name_type(&pkg.name.name, TypeKind::PackageNameDeclaration);
         if let Some(version) = &pkg.name.version {
-            self.output.version(&version.to_string(), true);
+            self.print_name_type(&format!("@{version}"), TypeKind::VersionDeclaration);
         }
         Ok(())
     }
@@ -170,7 +170,7 @@ impl<O: Output> WitPrinter<O> {
         self.print_stability(&resolve.interfaces[id].stability);
         self.output.keyword("interface");
         self.output.str(" ");
-        self.print_name_type(name);
+        self.print_name_type(name, TypeKind::InterfaceDeclaration);
         Ok(())
     }
 
@@ -203,7 +203,7 @@ impl<O: Output> WitPrinter<O> {
             self.new_item();
             self.print_docs(&func.docs);
             self.print_stability(&func.stability);
-            self.print_name_type(name);
+            self.print_name_type(name, TypeKind::FunctionFreestanding);
             self.output.str(": ");
             self.print_function(resolve, func)?;
             self.output.semicolon();
@@ -281,13 +281,13 @@ impl<O: Output> WitPrinter<O> {
                     self.output.str(", ");
                 }
                 if my_name == other_name {
-                    self.print_name_type(my_name);
+                    self.print_name_type(my_name, TypeKind::TypeImport);
                 } else {
-                    self.print_name_type(other_name);
+                    self.print_name_type(other_name, TypeKind::TypeImport);
                     self.output.str(" ");
                     self.output.keyword("as");
                     self.output.str(" ");
-                    self.print_name_type(my_name);
+                    self.print_name_type(my_name, TypeKind::TypeAlias);
                 }
             }
             self.output.str("}"); // Note: not changing the indentation.
@@ -313,9 +313,12 @@ impl<O: Output> WitPrinter<O> {
 
     fn print_resource(&mut self, resolve: &Resolve, id: TypeId, funcs: &[&Function]) -> Result<()> {
         let ty = &resolve.types[id];
-        self.output.r#type("resource");
+        self.output.r#type("resource", TypeKind::BuiltIn);
         self.output.str(" ");
-        self.print_name_type(ty.name.as_ref().expect("resources must be named"));
+        self.print_name_type(
+            ty.name.as_ref().expect("resources must be named"),
+            TypeKind::Resource,
+        );
         if funcs.is_empty() {
             self.output.semicolon();
             return Ok(());
@@ -328,11 +331,11 @@ impl<O: Output> WitPrinter<O> {
             match &func.kind {
                 FunctionKind::Constructor(_) => {}
                 FunctionKind::Method(_) => {
-                    self.print_name_type(func.item_name());
+                    self.print_name_type(func.item_name(), TypeKind::FunctionMethod);
                     self.output.str(": ");
                 }
                 FunctionKind::Static(_) => {
-                    self.print_name_type(func.item_name());
+                    self.print_name_type(func.item_name(), TypeKind::FunctionStatic);
                     self.output.str(": ");
                     self.output.keyword("static");
                     self.output.str(" ");
@@ -470,7 +473,7 @@ impl<O: Output> WitPrinter<O> {
         self.output.str(" ");
         match name {
             WorldKey::Name(name) => {
-                self.print_name_type(name);
+                self.print_name_type(name, TypeKind::Other);
                 self.output.str(": ");
                 match item {
                     WorldItem::Interface { id, .. } => {
@@ -508,16 +511,16 @@ impl<O: Output> WitPrinter<O> {
     ) -> Result<()> {
         let iface = &resolve.interfaces[interface];
         if iface.package == Some(cur_pkg) {
-            self.print_name_type(iface.name.as_ref().unwrap());
+            self.print_name_type(iface.name.as_ref().unwrap(), TypeKind::InterfacePath);
         } else {
             let pkg = &resolve.packages[iface.package.unwrap()].name;
-            self.print_name_type(&pkg.namespace);
+            self.print_name_type(&pkg.namespace, TypeKind::NamespacePath);
             self.output.str(":");
-            self.print_name_type(&pkg.name);
+            self.print_name_type(&pkg.name, TypeKind::PackageNamePath);
             self.output.str("/");
-            self.print_name_type(iface.name.as_ref().unwrap());
+            self.print_name_type(iface.name.as_ref().unwrap(), TypeKind::InterfacePath);
             if let Some(version) = &pkg.version {
-                self.output.version(&version.to_string(), true);
+                self.print_name_type(&format!("@{version}"), TypeKind::VersionPath);
             }
         }
         Ok(())
@@ -526,36 +529,36 @@ impl<O: Output> WitPrinter<O> {
     /// Print the name of type `ty`.
     pub fn print_type_name(&mut self, resolve: &Resolve, ty: &Type) -> Result<()> {
         match ty {
-            Type::Bool => self.output.r#type("bool"),
-            Type::U8 => self.output.r#type("u8"),
-            Type::U16 => self.output.r#type("u16"),
-            Type::U32 => self.output.r#type("u32"),
-            Type::U64 => self.output.r#type("u64"),
-            Type::S8 => self.output.r#type("s8"),
-            Type::S16 => self.output.r#type("s16"),
-            Type::S32 => self.output.r#type("s32"),
-            Type::S64 => self.output.r#type("s64"),
+            Type::Bool => self.output.r#type("bool", TypeKind::BuiltIn),
+            Type::U8 => self.output.r#type("u8", TypeKind::BuiltIn),
+            Type::U16 => self.output.r#type("u16", TypeKind::BuiltIn),
+            Type::U32 => self.output.r#type("u32", TypeKind::BuiltIn),
+            Type::U64 => self.output.r#type("u64", TypeKind::BuiltIn),
+            Type::S8 => self.output.r#type("s8", TypeKind::BuiltIn),
+            Type::S16 => self.output.r#type("s16", TypeKind::BuiltIn),
+            Type::S32 => self.output.r#type("s32", TypeKind::BuiltIn),
+            Type::S64 => self.output.r#type("s64", TypeKind::BuiltIn),
             Type::F32 => {
                 if self.print_f32_f64 {
-                    self.output.r#type("f32")
+                    self.output.r#type("f32", TypeKind::BuiltIn)
                 } else {
-                    self.output.r#type("f32")
+                    self.output.r#type("f32", TypeKind::BuiltIn)
                 }
             }
             Type::F64 => {
                 if self.print_f32_f64 {
-                    self.output.r#type("f64")
+                    self.output.r#type("f64", TypeKind::BuiltIn)
                 } else {
-                    self.output.r#type("f64")
+                    self.output.r#type("f64", TypeKind::BuiltIn)
                 }
             }
-            Type::Char => self.output.r#type("char"),
-            Type::String => self.output.r#type("string"),
+            Type::Char => self.output.r#type("char", TypeKind::BuiltIn),
+            Type::String => self.output.r#type("string", TypeKind::BuiltIn),
 
             Type::Id(id) => {
                 let ty = &resolve.types[*id];
                 if let Some(name) = &ty.name {
-                    self.print_name_type(name);
+                    self.print_name_type(name, TypeKind::Other);
                     return Ok(());
                 }
 
@@ -588,7 +591,7 @@ impl<O: Output> WitPrinter<O> {
                         bail!("resolve has unnamed variant type")
                     }
                     TypeDefKind::List(ty) => {
-                        self.output.r#type("list");
+                        self.output.r#type("list", TypeKind::BuiltIn);
                         self.output.generic_args_start();
                         self.print_type_name(resolve, ty)?;
                         self.output.generic_args_end();
@@ -618,13 +621,14 @@ impl<O: Output> WitPrinter<O> {
             Handle::Own(ty) => {
                 let ty = &resolve.types[*ty];
                 if force_handle_type_printed {
-                    self.output.r#type("own");
+                    self.output.r#type("own", TypeKind::BuiltIn);
                     self.output.generic_args_start();
                 }
                 self.print_name_type(
                     ty.name
                         .as_ref()
                         .ok_or_else(|| anyhow!("unnamed resource type"))?,
+                    TypeKind::Resource,
                 );
                 if force_handle_type_printed {
                     self.output.generic_args_end();
@@ -632,13 +636,14 @@ impl<O: Output> WitPrinter<O> {
             }
 
             Handle::Borrow(ty) => {
-                self.output.r#type("borrow");
+                self.output.r#type("borrow", TypeKind::BuiltIn);
                 self.output.generic_args_start();
                 let ty = &resolve.types[*ty];
                 self.print_name_type(
                     ty.name
                         .as_ref()
                         .ok_or_else(|| anyhow!("unnamed resource type"))?,
+                    TypeKind::Resource,
                 );
                 self.output.generic_args_end();
             }
@@ -648,7 +653,7 @@ impl<O: Output> WitPrinter<O> {
     }
 
     fn print_tuple_type(&mut self, resolve: &Resolve, tuple: &Tuple) -> Result<()> {
-        self.output.r#type("tuple");
+        self.output.r#type("tuple", TypeKind::BuiltIn);
         self.output.generic_args_start();
         for (i, ty) in tuple.types.iter().enumerate() {
             if i > 0 {
@@ -662,7 +667,7 @@ impl<O: Output> WitPrinter<O> {
     }
 
     fn print_option_type(&mut self, resolve: &Resolve, payload: &Type) -> Result<()> {
-        self.output.r#type("option");
+        self.output.r#type("option", TypeKind::BuiltIn);
         self.output.generic_args_start();
         self.print_type_name(resolve, payload)?;
         self.output.generic_args_end();
@@ -675,7 +680,7 @@ impl<O: Output> WitPrinter<O> {
                 ok: Some(ok),
                 err: Some(err),
             } => {
-                self.output.r#type("result");
+                self.output.r#type("result", TypeKind::BuiltIn);
                 self.output.generic_args_start();
                 self.print_type_name(resolve, ok)?;
                 self.output.str(", ");
@@ -686,7 +691,7 @@ impl<O: Output> WitPrinter<O> {
                 ok: None,
                 err: Some(err),
             } => {
-                self.output.r#type("result");
+                self.output.r#type("result", TypeKind::BuiltIn);
                 self.output.generic_args_start();
                 self.output.str("_, ");
                 self.print_type_name(resolve, err)?;
@@ -696,7 +701,7 @@ impl<O: Output> WitPrinter<O> {
                 ok: Some(ok),
                 err: None,
             } => {
-                self.output.r#type("result");
+                self.output.r#type("result", TypeKind::BuiltIn);
                 self.output.generic_args_start();
                 self.print_type_name(resolve, ok)?;
                 self.output.generic_args_end();
@@ -705,7 +710,7 @@ impl<O: Output> WitPrinter<O> {
                 ok: None,
                 err: None,
             } => {
-                self.output.r#type("result");
+                self.output.r#type("result", TypeKind::BuiltIn);
             }
         }
         Ok(())
@@ -756,7 +761,7 @@ impl<O: Output> WitPrinter<O> {
                         Some(name) => {
                             self.output.keyword("type");
                             self.output.str(" ");
-                            self.print_name_type(name);
+                            self.print_name_type(name, TypeKind::TypeName);
                             self.output.str(" = ");
                             self.print_type_name(resolve, inner)?;
                             self.output.semicolon();
@@ -782,7 +787,7 @@ impl<O: Output> WitPrinter<O> {
             Some(name) => {
                 self.output.keyword("type");
                 self.output.str(" ");
-                self.print_name_type(name);
+                self.print_name_type(name, TypeKind::Resource);
                 self.output.str(" = ");
                 // Note that the `true` here forces owned handles to be printed
                 // as `own<T>`. The purpose of this is because `type a = b`, if
@@ -808,7 +813,7 @@ impl<O: Output> WitPrinter<O> {
             Some(name) => {
                 self.output.keyword("record");
                 self.output.str(" ");
-                self.print_name_type(name);
+                self.print_name_type(name, TypeKind::Record);
                 self.output.indent_start();
                 for field in &record.fields {
                     self.print_docs(&field.docs);
@@ -834,7 +839,7 @@ impl<O: Output> WitPrinter<O> {
         if let Some(name) = name {
             self.output.keyword("type");
             self.output.str(" ");
-            self.print_name_type(name);
+            self.print_name_type(name, TypeKind::Tuple);
             self.output.str(" = ");
             self.print_tuple_type(resolve, tuple)?;
             self.output.semicolon();
@@ -847,7 +852,7 @@ impl<O: Output> WitPrinter<O> {
             Some(name) => {
                 self.output.keyword("flags");
                 self.output.str(" ");
-                self.print_name_type(name);
+                self.print_name_type(name, TypeKind::Flags);
                 self.output.indent_start();
                 for flag in &flags.flags {
                     self.print_docs(&flag.docs);
@@ -874,7 +879,7 @@ impl<O: Output> WitPrinter<O> {
         };
         self.output.keyword("variant");
         self.output.str(" ");
-        self.print_name_type(name);
+        self.print_name_type(name, TypeKind::Variant);
         self.output.indent_start();
         for case in &variant.cases {
             self.print_docs(&case.docs);
@@ -900,7 +905,7 @@ impl<O: Output> WitPrinter<O> {
         if let Some(name) = name {
             self.output.keyword("type");
             self.output.str(" ");
-            self.print_name_type(name);
+            self.print_name_type(name, TypeKind::Option);
             self.output.str(" = ");
             self.print_option_type(resolve, payload)?;
             self.output.semicolon();
@@ -917,7 +922,7 @@ impl<O: Output> WitPrinter<O> {
         if let Some(name) = name {
             self.output.keyword("type");
             self.output.str(" ");
-            self.print_name_type(name);
+            self.print_name_type(name, TypeKind::Result);
             self.output.str(" = ");
             self.print_result_type(resolve, result)?;
             self.output.semicolon();
@@ -932,7 +937,7 @@ impl<O: Output> WitPrinter<O> {
         };
         self.output.keyword("enum");
         self.output.str(" ");
-        self.print_name_type(name);
+        self.print_name_type(name, TypeKind::Enum);
         self.output.indent_start();
         for case in &enum_.cases {
             self.print_docs(&case.docs);
@@ -948,9 +953,9 @@ impl<O: Output> WitPrinter<O> {
         if let Some(name) = name {
             self.output.keyword("type");
             self.output.str(" ");
-            self.print_name_type(name);
+            self.print_name_type(name, TypeKind::List);
             self.output.str(" = ");
-            self.output.r#type("list");
+            self.output.r#type("list", TypeKind::BuiltIn);
             self.output.str("<");
             self.print_type_name(resolve, ty)?;
             self.output.str(">");
@@ -969,8 +974,8 @@ impl<O: Output> WitPrinter<O> {
         }
     }
 
-    fn print_name_type(&mut self, name: &str) {
-        self.output.r#type(Self::escape_name(name).deref());
+    fn print_name_type(&mut self, name: &str, kind: TypeKind) {
+        self.output.r#type(Self::escape_name(name).deref(), kind);
     }
 
     fn print_name_param(&mut self, name: &str) {
@@ -999,7 +1004,7 @@ impl<O: Output> WitPrinter<O> {
                 self.output.str("(");
                 self.output.keyword("version");
                 self.output.str(" = ");
-                self.output.version(&since.to_string(), false);
+                self.print_name_type(&since.to_string(), TypeKind::VersionAnnotation);
                 self.output.str(")");
                 self.output.newline();
                 if let Some(version) = deprecated {
@@ -1007,7 +1012,7 @@ impl<O: Output> WitPrinter<O> {
                     self.output.str("(");
                     self.output.keyword("version");
                     self.output.str(" = ");
-                    self.output.version(&version.to_string(), false);
+                    self.print_name_type(&version.to_string(), TypeKind::VersionAnnotation);
                     self.output.str(")");
                     self.output.newline();
                 }
@@ -1028,7 +1033,7 @@ impl<O: Output> WitPrinter<O> {
                     self.output.str("(");
                     self.output.keyword("version");
                     self.output.str(" = ");
-                    self.output.version(&version.to_string(), false);
+                    self.print_name_type(&version.to_string(), TypeKind::VersionAnnotation);
                     self.output.str(")");
                     self.output.newline();
                 }
@@ -1103,8 +1108,8 @@ pub trait Output: Default {
     /// when printing a [Feature Gate](https://github.com/WebAssembly/component-model/blob/main/design/mvp/WIT.md#feature-gates)
     fn keyword(&mut self, src: &str);
     /// A type is added.
-    fn r#type(&mut self, src: &str);
-    /// A parameter name of a record or named return is added.
+    fn r#type(&mut self, src: &str, kind: TypeKind);
+    /// A parameter name of a function, record or a named return is added.
     fn param(&mut self, src: &str);
     /// A case belonging to a variant, enum or flags is added.
     fn case(&mut self, src: &str);
@@ -1115,11 +1120,6 @@ pub trait Output: Default {
     /// Called when a single documentation line is added.
     /// The `doc` parameter starts with `///` omitted, and can be an empty string.
     fn doc(&mut self, doc: &str);
-    /// A version is added.
-    ///
-    /// Parameter `src` never starts with the  `@` prefix.
-    /// Parameter `at_sign` signals whether the `@` sign should be printed or not.
-    fn version(&mut self, src: &str, at_sign: bool);
     /// A semicolon is added.
     fn semicolon(&mut self);
     /// Start of indentation. In WIT this represents ` {\n`.
@@ -1130,6 +1130,71 @@ pub trait Output: Default {
     /// Parameter `src` can contain punctation characters, and must be escaped
     /// when outputing to languages like HTML.
     fn str(&mut self, src: &str);
+}
+
+/// Represents the different kinds of types that can be encountered while
+/// visiting a WIT file.
+///
+/// Each variant refers to the name of the respective element (e.g., function, type, or namespace),
+/// not the entire declaration.
+#[non_exhaustive]
+#[derive(Clone, Copy, Debug)]
+pub enum TypeKind {
+    /// A built-in type, such as "list" or "option".
+    BuiltIn,
+    /// An enumeration type name.
+    Enum,
+    /// A flags type name.
+    Flags,
+    /// A freestanding function name, not associated with any specific type or namespace.
+    /// For example, "myfunc" in `myfunc: func() -> string;`.
+    FunctionFreestanding,
+    /// A method, associated with a resource.
+    FunctionMethod,
+    /// A static function, associated with a resource.
+    FunctionStatic,
+    /// An interface declaration name.
+    InterfaceDeclaration,
+    /// An interface name when printing a path, for example in `use`.
+    InterfacePath,
+    /// A list type name.
+    List,
+    /// A namespace declaration.
+    NamespaceDeclaration,
+    /// A namespace when printing a path, for example in `use`.
+    NamespacePath,
+    /// An option type name.
+    Option,
+    /// A package name declaration.
+    PackageNameDeclaration,
+    /// A package name when printing a path, for example in `use`.
+    PackageNamePath,
+    /// A record type name.
+    Record,
+    /// A resource type name.
+    Resource,
+    /// A result type name.
+    Result,
+    /// A tuple type name.
+    Tuple,
+    /// A type alias.
+    TypeAlias,
+    /// An imported type name.
+    TypeImport,
+    /// A user-defined type name.
+    TypeName,
+    /// A variant type name.
+    Variant,
+    /// A version declaration.
+    VersionDeclaration,
+    /// A version when printing a path, for example in `use`.
+    VersionPath,
+    /// A version when printing stability annotations, for example in `@since`
+    VersionAnnotation,
+    /// A world declaration name.
+    WorldDeclaration,
+    /// A fallback for types that do not fit into any other category.
+    Other,
 }
 
 /// Helper structure to help maintain an indentation level when printing source,
@@ -1176,7 +1241,7 @@ impl Output for OutputToString {
         self.indent_and_print(src);
     }
 
-    fn r#type(&mut self, src: &str) {
+    fn r#type(&mut self, src: &str, _kind: TypeKind) {
         self.indent_and_print(src);
     }
 
@@ -1213,15 +1278,6 @@ impl Output for OutputToString {
             self.output.push_str(doc);
         }
         self.newline();
-    }
-
-    fn version(&mut self, src: &str, at_sign: bool) {
-        assert!(!src.starts_with('@'));
-        assert!(!src.contains('\n'));
-        if at_sign {
-            self.output.push('@');
-        }
-        self.output.push_str(src);
     }
 
     fn semicolon(&mut self) {
