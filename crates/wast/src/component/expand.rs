@@ -117,10 +117,8 @@ impl<'a> Expander<'a> {
                 None
             }
             ComponentField::CoreFunc(f) => Some(self.expand_core_func(CoreFunc {
-                span: f.span,
-                id: f.id,
-                name: f.name,
                 kind: mem::replace(&mut f.kind, CoreFuncKind::ErrorContextDrop),
+                ..*f
             })),
             ComponentField::Func(f) => self.expand_func(f),
             ComponentField::Import(i) => {
