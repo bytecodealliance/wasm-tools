@@ -493,7 +493,13 @@ impl<'a> EncodingState<'a> {
         // Next encode all required functions from this imported interface
         // into the instance type.
         for (_, func) in interface.functions.iter() {
-            if !info.lowerings.contains_key(&func.name) {
+            if !(info
+                .lowerings
+                .contains_key(&(func.name.clone(), AbiVariant::GuestImport))
+                || info
+                    .lowerings
+                    .contains_key(&(func.name.clone(), AbiVariant::GuestImportAsync)))
+            {
                 continue;
             }
             log::trace!("encoding function type for `{}`", func.name);
@@ -526,7 +532,13 @@ impl<'a> EncodingState<'a> {
                 WorldItem::Interface { .. } | WorldItem::Type(_) => continue,
             };
             let name = resolve.name_world_key(name);
-            if !info.lowerings.contains_key(&name) {
+            if !(info
+                .lowerings
+                .contains_key(&(name.clone(), AbiVariant::GuestImport))
+                || info
+                    .lowerings
+                    .contains_key(&(name.clone(), AbiVariant::GuestImportAsync)))
+            {
                 continue;
             }
             log::trace!("encoding function type for `{}`", func.name);
@@ -1214,7 +1226,7 @@ impl<'a> EncodingState<'a> {
                     encoding,
                 } => {
                     let interface = &self.info.import_map[interface];
-                    let (name, _) = interface.lowerings.get_index(*index).unwrap();
+                    let ((name, _), _) = interface.lowerings.get_index(*index).unwrap();
                     let func_index = match &interface.interface {
                         Some(interface_id) => {
                             let instance_index = self.imported_instances[interface_id];
@@ -1880,7 +1892,7 @@ impl<'a> EncodingState<'a> {
         };
 
         let import = &self.info.import_map[&interface_key];
-        let (index, _, lowering) = import.lowerings.get_full(name).unwrap();
+        let (index, _, lowering) = import.lowerings.get_full(&(name.clone(), abi)).unwrap();
         let metadata = self.info.module_metadata_for(for_module);
 
         let index = match lowering {
@@ -2200,7 +2212,7 @@ impl<'a> Shims<'a> {
             };
 
         for (module, field, import) in module_imports.imports() {
-            let (key, name, interface_key) = match import {
+            let (key, name, interface_key, abi) = match import {
                 // These imports don't require shims, they can be satisfied
                 // as-needed when required.
                 Import::ImportedResourceDrop(..)
@@ -2388,13 +2400,13 @@ impl<'a> Shims<'a> {
                 // WIT-level functions may require an indirection, so yield some
                 // metadata out of this `match` to the loop below to figure that
                 // out.
-                Import::InterfaceFunc(key, _, name, _) => {
-                    (key, name, Some(resolve.name_world_key(key)))
+                Import::InterfaceFunc(key, _, name, abi) => {
+                    (key, name, Some(resolve.name_world_key(key)), *abi)
                 }
-                Import::WorldFunc(key, name, _) => (key, name, None),
+                Import::WorldFunc(key, name, abi) => (key, name, None, *abi),
             };
             let interface = &world.import_map[&interface_key];
-            let (index, _, lowering) = interface.lowerings.get_full(name).unwrap();
+            let (index, _, lowering) = interface.lowerings.get_full(&(name.clone(), abi)).unwrap();
             let shim_name = self.shims.len().to_string();
             match lowering {
                 Lowering::Direct | Lowering::ResourceDrop(_) => {}

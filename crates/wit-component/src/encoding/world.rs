@@ -47,7 +47,7 @@ pub struct ComponentWorld<'a> {
 
 #[derive(Debug)]
 pub struct ImportedInterface {
-    pub lowerings: IndexMap<String, Lowering>,
+    pub lowerings: IndexMap<(String, AbiVariant), Lowering>,
     pub interface: Option<InterfaceId>,
 }
 
@@ -420,26 +420,28 @@ struct Required<'a> {
 
 impl ImportedInterface {
     fn add_func(&mut self, required: &Required<'_>, resolve: &Resolve, func: &Function) {
-        let abi = match required.interface_funcs.get(&self.interface) {
-            Some(set) if set.contains(&(func.name.as_str(), AbiVariant::GuestImport)) => {
-                AbiVariant::GuestImport
+        let mut abis = Vec::with_capacity(2);
+        if let Some(set) = required.interface_funcs.get(&self.interface) {
+            if set.contains(&(func.name.as_str(), AbiVariant::GuestImport)) {
+                abis.push(AbiVariant::GuestImport);
             }
-            Some(set) if set.contains(&(func.name.as_str(), AbiVariant::GuestImportAsync)) => {
-                AbiVariant::GuestImportAsync
+            if set.contains(&(func.name.as_str(), AbiVariant::GuestImportAsync)) {
+                abis.push(AbiVariant::GuestImportAsync);
             }
-            _ => return,
-        };
-        log::trace!("add func {}", func.name);
-        let options = RequiredOptions::for_import(resolve, func, abi);
-        let lowering = if options.is_empty() {
-            Lowering::Direct
-        } else {
-            let sig = resolve.wasm_signature(abi, func);
-            Lowering::Indirect { sig, options }
-        };
+        }
+        for abi in abis {
+            log::trace!("add func {} {abi:?}", func.name);
+            let options = RequiredOptions::for_import(resolve, func, abi);
+            let lowering = if options.is_empty() {
+                Lowering::Direct
+            } else {
+                let sig = resolve.wasm_signature(abi, func);
+                Lowering::Indirect { sig, options }
+            };
 
-        let prev = self.lowerings.insert(func.name.clone(), lowering);
-        assert!(prev.is_none());
+            let prev = self.lowerings.insert((func.name.clone(), abi), lowering);
+            assert!(prev.is_none());
+        }
     }
 
     fn add_type(&mut self, required: &Required<'_>, resolve: &Resolve, id: TypeId) {
@@ -452,7 +454,9 @@ impl ImportedInterface {
 
         if required.resource_drops.contains(&id) {
             let name = format!("{name}_drop");
-            let prev = self.lowerings.insert(name, Lowering::ResourceDrop(id));
+            let prev = self
+                .lowerings
+                .insert((name, AbiVariant::GuestImport), Lowering::ResourceDrop(id));
             assert!(prev.is_none());
         }
     }
