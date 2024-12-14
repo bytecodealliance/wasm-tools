@@ -51,6 +51,7 @@ pub struct Module {
     /// All types locally defined in this module (available in the type index
     /// space).
     types: Vec<SubType>,
+    empty_rec_groups: u32,
 
     /// Non-overlapping ranges within `types` that belong to the same rec
     /// group. All of `types` is covered by these ranges. When GC is not
@@ -251,6 +252,7 @@ impl Module {
             interesting_values32: Vec::new(),
             interesting_values64: Vec::new(),
             must_share: false,
+            empty_rec_groups: 0,
         }
     }
 }
@@ -568,7 +570,12 @@ impl Module {
             if !keep_going {
                 break;
             }
-            self.arbitrary_rec_group(u, AllowEmptyRecGroup::Yes)?;
+            let allow_empty = if self.empty_rec_groups > 10 {
+                AllowEmptyRecGroup::Yes
+            } else {
+                AllowEmptyRecGroup::No
+            };
+            self.arbitrary_rec_group(u, allow_empty)?;
         }
         Ok(())
     }
@@ -627,6 +634,9 @@ impl Module {
                 let ty = self.arbitrary_sub_type(u)?;
                 self.add_type(ty);
             }
+            if rec_group_size == 0 {
+                self.empty_rec_groups += 1;
+            }
         } else {
             let type_ref_limit = u32::try_from(self.types.len()).unwrap();
             self.max_type_limit = MaxTypeLimit::Num(type_ref_limit);
@@ -673,6 +683,9 @@ impl Module {
         let candidates: Vec<_> = self.clonable_rec_groups(kind).collect();
         let group = u.choose(&candidates)?.clone();
         let new_rec_group_start = self.types.len();
+        if group.len() == 0 {
+            self.empty_rec_groups += 1;
+        }
         for index in group {
             let orig_ty_index = u32::try_from(index).unwrap();
             let ty = self.ty(orig_ty_index).clone();
