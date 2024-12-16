@@ -610,7 +610,7 @@ impl Module {
 
         if self.config.gc_enabled {
             // With small probability, clone an existing rec group.
-            if self.clonable_rec_groups(kind).next().is_some() && u.ratio(1, u8::MAX)? {
+            if self.rec_groups.len() > 0 && u.ratio(1, u8::MAX)? {
                 return self.clone_rec_group(u, kind);
             }
 
@@ -640,29 +640,19 @@ impl Module {
         Ok(())
     }
 
-    /// Returns an iterator of rec groups that we could currently clone while
-    /// still staying within the max types limit.
-    fn clonable_rec_groups(
-        &self,
-        kind: AllowEmptyRecGroup,
-    ) -> impl Iterator<Item = Range<usize>> + '_ {
-        self.rec_groups
-            .iter()
-            .filter(move |r| {
-                match kind {
-                    AllowEmptyRecGroup::Yes => {}
-                    AllowEmptyRecGroup::No => {
-                        if r.is_empty() {
-                            return false;
-                        }
-                    }
-                }
-                r.end - r.start <= self.config.max_types.saturating_sub(self.types.len())
-            })
-            .cloned()
-    }
-
     fn clone_rec_group(&mut self, u: &mut Unstructured, kind: AllowEmptyRecGroup) -> Result<()> {
+        // Choose an arbitrary rec group to clone, but bail out if the selected
+        // rec group isn't valid to clone. For example if empty groups aren't
+        // allowed and the selected group is empty, or if cloning the rec group
+        // would cause the maximum number of types to be exceeded.
+        let group = u.choose(&self.rec_groups)?.clone();
+        if group.is_empty() && kind == AllowEmptyRecGroup::No {
+            return Ok(());
+        }
+        if group.len() > self.config.max_types.saturating_sub(self.types.len()) {
+            return Ok(());
+        }
+
         // NB: this does *not* guarantee that the cloned rec group will
         // canonicalize the same as the original rec group and be deduplicated.
         // That would require a second pass over the cloned types to rewrite
@@ -670,8 +660,6 @@ impl Module {
         // new rec group. That might make sense to do one day, but for now we
         // don't do it. That also means that we can't mark the new types as
         // "subtypes" of the old types and vice versa.
-        let candidates: Vec<_> = self.clonable_rec_groups(kind).collect();
-        let group = u.choose(&candidates)?.clone();
         let new_rec_group_start = self.types.len();
         for index in group {
             let orig_ty_index = u32::try_from(index).unwrap();
