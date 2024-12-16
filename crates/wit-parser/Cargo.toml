@@ -25,7 +25,7 @@ log = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true, optional = true }
 serde_derive = { workspace = true, optional = true }
-wasmparser = { workspace = true, optional = true, features = ['validate', 'component-model'] }
+wasmparser = { workspace = true, optional = true, features = ['validate', 'component-model', 'features'] }
 serde_json = { workspace = true, optional = true }
 wat = { workspace = true, optional = true }
 

@@ -684,6 +684,10 @@ impl TestState {
                 "wasm-3.0" => {
                     features.insert(WasmFeatures::WASM3);
                 }
+                "component-model-async" => {
+                    features.insert(WasmFeatures::COMPONENT_MODEL);
+                    features.insert(WasmFeatures::COMPONENT_MODEL_ASYNC);
+                }
                 _ => {}
             }
         }

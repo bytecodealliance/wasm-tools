@@ -386,7 +386,72 @@ impl<'a> Resolver<'a> {
             CanonicalFuncKind::ThreadSpawn(info) => {
                 self.resolve_ns(&mut info.ty, Ns::CoreType)?;
             }
-            CanonicalFuncKind::ThreadHwConcurrency(_) => {}
+            CanonicalFuncKind::ThreadHwConcurrency(_)
+            | CanonicalFuncKind::TaskBackpressure
+            | CanonicalFuncKind::TaskYield(_)
+            | CanonicalFuncKind::SubtaskDrop
+            | CanonicalFuncKind::ErrorContextDrop => {}
+            CanonicalFuncKind::TaskReturn(info) => {
+                self.resolve_ns(&mut info.ty, Ns::CoreType)?;
+            }
+            CanonicalFuncKind::TaskWait(info) => {
+                self.core_item_ref(&mut info.memory)?;
+            }
+            CanonicalFuncKind::TaskPoll(info) => {
+                self.core_item_ref(&mut info.memory)?;
+            }
+            CanonicalFuncKind::StreamNew(info) => {
+                self.resolve_ns(&mut info.ty, Ns::Type)?;
+            }
+            CanonicalFuncKind::StreamRead(info) => {
+                self.resolve_ns(&mut info.ty, Ns::Type)?;
+                self.canon_opts(&mut info.opts)?;
+            }
+            CanonicalFuncKind::StreamWrite(info) => {
+                self.resolve_ns(&mut info.ty, Ns::Type)?;
+                self.canon_opts(&mut info.opts)?;
+            }
+            CanonicalFuncKind::StreamCancelRead(info) => {
+                self.resolve_ns(&mut info.ty, Ns::Type)?;
+            }
+            CanonicalFuncKind::StreamCancelWrite(info) => {
+                self.resolve_ns(&mut info.ty, Ns::Type)?;
+            }
+            CanonicalFuncKind::StreamCloseReadable(info) => {
+                self.resolve_ns(&mut info.ty, Ns::Type)?;
+            }
+            CanonicalFuncKind::StreamCloseWritable(info) => {
+                self.resolve_ns(&mut info.ty, Ns::Type)?;
+            }
+            CanonicalFuncKind::FutureNew(info) => {
+                self.resolve_ns(&mut info.ty, Ns::Type)?;
+            }
+            CanonicalFuncKind::FutureRead(info) => {
+                self.resolve_ns(&mut info.ty, Ns::Type)?;
+                self.canon_opts(&mut info.opts)?;
+            }
+            CanonicalFuncKind::FutureWrite(info) => {
+                self.resolve_ns(&mut info.ty, Ns::Type)?;
+                self.canon_opts(&mut info.opts)?;
+            }
+            CanonicalFuncKind::FutureCancelRead(info) => {
+                self.resolve_ns(&mut info.ty, Ns::Type)?;
+            }
+            CanonicalFuncKind::FutureCancelWrite(info) => {
+                self.resolve_ns(&mut info.ty, Ns::Type)?;
+            }
+            CanonicalFuncKind::FutureCloseReadable(info) => {
+                self.resolve_ns(&mut info.ty, Ns::Type)?;
+            }
+            CanonicalFuncKind::FutureCloseWritable(info) => {
+                self.resolve_ns(&mut info.ty, Ns::Type)?;
+            }
+            CanonicalFuncKind::ErrorContextNew(info) => {
+                self.canon_opts(&mut info.opts)?;
+            }
+            CanonicalFuncKind::ErrorContextDebugMessage(info) => {
+                self.canon_opts(&mut info.opts)?;
+            }
         }
 
         Ok(())
@@ -395,9 +460,14 @@ impl<'a> Resolver<'a> {
     fn canon_opts(&mut self, opts: &mut [CanonOpt<'a>]) -> Result<(), Error> {
         for opt in opts {
             match opt {
-                CanonOpt::StringUtf8 | CanonOpt::StringUtf16 | CanonOpt::StringLatin1Utf16 => {}
+                CanonOpt::StringUtf8
+                | CanonOpt::StringUtf16
+                | CanonOpt::StringLatin1Utf16
+                | CanonOpt::Async => {}
                 CanonOpt::Memory(r) => self.core_item_ref(r)?,
-                CanonOpt::Realloc(r) | CanonOpt::PostReturn(r) => self.core_item_ref(r)?,
+                CanonOpt::Realloc(r) | CanonOpt::PostReturn(r) | CanonOpt::Callback(r) => {
+                    self.core_item_ref(r)?
+                }
             }
         }
 
@@ -481,6 +551,14 @@ impl<'a> Resolver<'a> {
             }
             ComponentDefinedType::Own(t) | ComponentDefinedType::Borrow(t) => {
                 self.resolve_ns(t, Ns::Type)?;
+            }
+            ComponentDefinedType::Stream(s) => {
+                self.component_val_type(&mut s.element)?;
+            }
+            ComponentDefinedType::Future(f) => {
+                if let Some(ty) = &mut f.element {
+                    self.component_val_type(ty)?;
+                }
             }
         }
         Ok(())
@@ -882,7 +960,30 @@ impl<'a> ComponentState<'a> {
                 | CanonicalFuncKind::ResourceRep(_)
                 | CanonicalFuncKind::ResourceDrop(_)
                 | CanonicalFuncKind::ThreadSpawn(_)
-                | CanonicalFuncKind::ThreadHwConcurrency(_) => {
+                | CanonicalFuncKind::ThreadHwConcurrency(_)
+                | CanonicalFuncKind::TaskBackpressure
+                | CanonicalFuncKind::TaskReturn(_)
+                | CanonicalFuncKind::TaskWait(_)
+                | CanonicalFuncKind::TaskPoll(_)
+                | CanonicalFuncKind::TaskYield(_)
+                | CanonicalFuncKind::SubtaskDrop
+                | CanonicalFuncKind::StreamNew(_)
+                | CanonicalFuncKind::StreamRead(_)
+                | CanonicalFuncKind::StreamWrite(_)
+                | CanonicalFuncKind::StreamCancelRead(_)
+                | CanonicalFuncKind::StreamCancelWrite(_)
+                | CanonicalFuncKind::StreamCloseReadable(_)
+                | CanonicalFuncKind::StreamCloseWritable(_)
+                | CanonicalFuncKind::FutureNew(_)
+                | CanonicalFuncKind::FutureRead(_)
+                | CanonicalFuncKind::FutureWrite(_)
+                | CanonicalFuncKind::FutureCancelRead(_)
+                | CanonicalFuncKind::FutureCancelWrite(_)
+                | CanonicalFuncKind::FutureCloseReadable(_)
+                | CanonicalFuncKind::FutureCloseWritable(_)
+                | CanonicalFuncKind::ErrorContextNew(_)
+                | CanonicalFuncKind::ErrorContextDebugMessage(_)
+                | CanonicalFuncKind::ErrorContextDrop => {
                     self.core_funcs.register(f.id, "core func")?
                 }
             },

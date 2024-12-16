@@ -4,6 +4,7 @@ use pretty_assertions::assert_eq;
 use std::{borrow::Cow, fs, path::Path};
 use wasm_encoder::{Encode, Section};
 use wasm_metadata::{Metadata, Payload};
+use wasmparser::{Parser, Validator, WasmFeatures};
 use wit_component::{ComponentEncoder, DecodedWasm, Linker, StringEncoding, WitPrinter};
 use wit_parser::{PackageId, Resolve, UnresolvedPackageGroup};
 
@@ -90,7 +91,7 @@ fn run_test(path: &Path) -> Result<()> {
             .with_context(|| format!("failed to read core module at {module_path:?}"))?;
         adapters
             .try_fold(
-                ComponentEncoder::default().module(&module)?.validate(true),
+                ComponentEncoder::default().module(&module)?,
                 |encoder, path| {
                     let (name, wasm) = read_name_and_module("adapt-", &path?, &resolve, pkg_id)?;
                     Ok::<_, Error>(encoder.adapter(&name, &wasm)?)
@@ -109,7 +110,7 @@ fn run_test(path: &Path) -> Result<()> {
         // Sort list to ensure deterministic order, which determines priority in cases of duplicate symbols:
         libs.sort_by(|(_, a, _), (_, b, _)| a.cmp(b));
 
-        let mut linker = Linker::default().validate(true);
+        let mut linker = Linker::default().validate(false);
 
         if path.join("stub-missing-functions").is_file() {
             linker = linker.stub_missing_functions(true);
@@ -153,9 +154,17 @@ fn run_test(path: &Path) -> Result<()> {
         }
     };
 
+    Validator::new_with_features(WasmFeatures::all())
+        .validate_all(&bytes)
+        .context("failed to validate component output")?;
+
     let wat = wasmprinter::print_bytes(&bytes).context("failed to print bytes")?;
     assert_output(&wat, &component_path)?;
-    let (pkg, resolve) = match wit_component::decode(&bytes).context("failed to decode resolve")? {
+    let mut parser = Parser::new(0);
+    parser.set_features(WasmFeatures::all());
+    let (pkg, resolve) = match wit_component::decode_reader(bytes.as_slice())
+        .context("failed to decode resolve")?
+    {
         DecodedWasm::WitPackage(..) => unreachable!(),
         DecodedWasm::Component(resolve, world) => (resolve.worlds[world].package.unwrap(), resolve),
     };

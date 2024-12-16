@@ -388,6 +388,8 @@ pub enum ComponentDefinedType<'a> {
     Result(ResultType<'a>),
     Own(Index<'a>),
     Borrow(Index<'a>),
+    Stream(Stream<'a>),
+    Future(Future<'a>),
 }
 
 impl<'a> ComponentDefinedType<'a> {
@@ -415,6 +417,10 @@ impl<'a> ComponentDefinedType<'a> {
         } else if l.peek::<kw::borrow>()? {
             parser.parse::<kw::borrow>()?;
             Ok(Self::Borrow(parser.parse()?))
+        } else if l.peek::<kw::stream>()? {
+            Ok(Self::Stream(parser.parse()?))
+        } else if l.peek::<kw::future>()? {
+            Ok(Self::Future(parser.parse()?))
         } else {
             Err(l.error())
         }
@@ -680,6 +686,38 @@ impl<'a> Parse<'a> for ResultType<'a> {
         Ok(Self {
             ok: ok.map(Box::new),
             err: err.map(Box::new),
+        })
+    }
+}
+
+/// A stream type.
+#[derive(Debug)]
+pub struct Stream<'a> {
+    /// The element type of the stream.
+    pub element: Box<ComponentValType<'a>>,
+}
+
+impl<'a> Parse<'a> for Stream<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.parse::<kw::stream>()?;
+        Ok(Self {
+            element: Box::new(parser.parse()?),
+        })
+    }
+}
+
+/// A future type.
+#[derive(Debug)]
+pub struct Future<'a> {
+    /// The element type of the future, if any.
+    pub element: Option<Box<ComponentValType<'a>>>,
+}
+
+impl<'a> Parse<'a> for Future<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.parse::<kw::future>()?;
+        Ok(Self {
+            element: parser.parse::<Option<ComponentValType>>()?.map(Box::new),
         })
     }
 }
