@@ -1,4 +1,4 @@
-/// RUN: component wit --all-features %
+///  RUN: component wit --all-features %
 package a:b;
 
 @unstable(feature = foo)
@@ -17,4 +17,3 @@ interface bar {
     y: t,
   }
 }
-

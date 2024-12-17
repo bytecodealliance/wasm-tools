@@ -1,13 +1,13 @@
-/// RUN[simple]: component wit --importize-world simple %
-/// RUN[simple-rename]: component wit --importize-world simple-rename --importize-out-world-name test-rename  %
-/// RUN[simple-component]: component embed --dummy --world simple % | /
-/// component wit --importize
-/// RUN[with-deps]: component wit --importize-world with-deps %
-/// RUN[simple-toplevel]: component wit --importize-world simple-toplevel %
-/// RUN[toplevel-deps]: component wit --importize-world toplevel-deps %
-/// FAIL[fail1]: component wit --importize-world fail1 %
-/// RUN[trim-imports]: component wit --importize-world trim-imports %
-/// RUN[tricky-import]: component wit --importize-world tricky-import %
+///  RUN[simple]: component wit --importize-world simple %
+///  RUN[simple-rename]: component wit --importize-world simple-rename --importize-out-world-name test-rename  %
+///  RUN[simple-component]: component embed --dummy --world simple % | /
+///                         component wit --importize
+///  RUN[with-deps]: component wit --importize-world with-deps %
+///  RUN[simple-toplevel]: component wit --importize-world simple-toplevel %
+///  RUN[toplevel-deps]: component wit --importize-world toplevel-deps %
+///  FAIL[fail1]: component wit --importize-world fail1 %
+///  RUN[trim-imports]: component wit --importize-world trim-imports %
+///  RUN[tricky-import]: component wit --importize-world tricky-import %
 package importize:importize;
 
 interface t {
