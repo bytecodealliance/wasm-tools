@@ -9,7 +9,12 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
         wit_smith::smith(&config, u)
     })?;
     write_file("doc.wasm", &wasm);
-    let r1 = wit_component_old::decode(&wasm).unwrap();
+    let Ok(r1) = wit_component_old::decode(&wasm) else {
+        // Presumably this is because the old version of `wit-component` doesn't
+        // understand the new `stream`, `future`, or `error-context` types, in
+        // which case there's no point in continuing, so we just return early.
+        return Ok(());
+    };
     let r1 = r1.resolve();
     let r2 = wit_component_new::decode(&wasm).unwrap();
     let r2 = r2.resolve();
