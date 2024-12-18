@@ -308,7 +308,7 @@ impl<O: Output> WitPrinter<O> {
 
     fn print_resource(&mut self, resolve: &Resolve, id: TypeId, funcs: &[&Function]) -> Result<()> {
         let ty = &resolve.types[id];
-        self.output.r#type("resource", TypeKind::BuiltIn);
+        self.output.ty("resource", TypeKind::BuiltIn);
         self.output.str(" ");
         self.print_name_type(
             ty.name.as_ref().expect("resources must be named"),
@@ -524,31 +524,31 @@ impl<O: Output> WitPrinter<O> {
     /// Print the name of type `ty`.
     pub fn print_type_name(&mut self, resolve: &Resolve, ty: &Type) -> Result<()> {
         match ty {
-            Type::Bool => self.output.r#type("bool", TypeKind::BuiltIn),
-            Type::U8 => self.output.r#type("u8", TypeKind::BuiltIn),
-            Type::U16 => self.output.r#type("u16", TypeKind::BuiltIn),
-            Type::U32 => self.output.r#type("u32", TypeKind::BuiltIn),
-            Type::U64 => self.output.r#type("u64", TypeKind::BuiltIn),
-            Type::S8 => self.output.r#type("s8", TypeKind::BuiltIn),
-            Type::S16 => self.output.r#type("s16", TypeKind::BuiltIn),
-            Type::S32 => self.output.r#type("s32", TypeKind::BuiltIn),
-            Type::S64 => self.output.r#type("s64", TypeKind::BuiltIn),
+            Type::Bool => self.output.ty("bool", TypeKind::BuiltIn),
+            Type::U8 => self.output.ty("u8", TypeKind::BuiltIn),
+            Type::U16 => self.output.ty("u16", TypeKind::BuiltIn),
+            Type::U32 => self.output.ty("u32", TypeKind::BuiltIn),
+            Type::U64 => self.output.ty("u64", TypeKind::BuiltIn),
+            Type::S8 => self.output.ty("s8", TypeKind::BuiltIn),
+            Type::S16 => self.output.ty("s16", TypeKind::BuiltIn),
+            Type::S32 => self.output.ty("s32", TypeKind::BuiltIn),
+            Type::S64 => self.output.ty("s64", TypeKind::BuiltIn),
             Type::F32 => {
                 if self.print_f32_f64 {
-                    self.output.r#type("f32", TypeKind::BuiltIn)
+                    self.output.ty("f32", TypeKind::BuiltIn)
                 } else {
-                    self.output.r#type("f32", TypeKind::BuiltIn)
+                    self.output.ty("f32", TypeKind::BuiltIn)
                 }
             }
             Type::F64 => {
                 if self.print_f32_f64 {
-                    self.output.r#type("f64", TypeKind::BuiltIn)
+                    self.output.ty("f64", TypeKind::BuiltIn)
                 } else {
-                    self.output.r#type("f64", TypeKind::BuiltIn)
+                    self.output.ty("f64", TypeKind::BuiltIn)
                 }
             }
-            Type::Char => self.output.r#type("char", TypeKind::BuiltIn),
-            Type::String => self.output.r#type("string", TypeKind::BuiltIn),
+            Type::Char => self.output.ty("char", TypeKind::BuiltIn),
+            Type::String => self.output.ty("string", TypeKind::BuiltIn),
 
             Type::Id(id) => {
                 let ty = &resolve.types[*id];
@@ -586,7 +586,7 @@ impl<O: Output> WitPrinter<O> {
                         bail!("resolve has unnamed variant type")
                     }
                     TypeDefKind::List(ty) => {
-                        self.output.r#type("list", TypeKind::BuiltIn);
+                        self.output.ty("list", TypeKind::BuiltIn);
                         self.output.generic_args_start();
                         self.print_type_name(resolve, ty)?;
                         self.output.generic_args_end();
@@ -616,7 +616,7 @@ impl<O: Output> WitPrinter<O> {
             Handle::Own(ty) => {
                 let ty = &resolve.types[*ty];
                 if force_handle_type_printed {
-                    self.output.r#type("own", TypeKind::BuiltIn);
+                    self.output.ty("own", TypeKind::BuiltIn);
                     self.output.generic_args_start();
                 }
                 self.print_name_type(
@@ -631,7 +631,7 @@ impl<O: Output> WitPrinter<O> {
             }
 
             Handle::Borrow(ty) => {
-                self.output.r#type("borrow", TypeKind::BuiltIn);
+                self.output.ty("borrow", TypeKind::BuiltIn);
                 self.output.generic_args_start();
                 let ty = &resolve.types[*ty];
                 self.print_name_type(
@@ -648,7 +648,7 @@ impl<O: Output> WitPrinter<O> {
     }
 
     fn print_tuple_type(&mut self, resolve: &Resolve, tuple: &Tuple) -> Result<()> {
-        self.output.r#type("tuple", TypeKind::BuiltIn);
+        self.output.ty("tuple", TypeKind::BuiltIn);
         self.output.generic_args_start();
         for (i, ty) in tuple.types.iter().enumerate() {
             if i > 0 {
@@ -662,7 +662,7 @@ impl<O: Output> WitPrinter<O> {
     }
 
     fn print_option_type(&mut self, resolve: &Resolve, payload: &Type) -> Result<()> {
-        self.output.r#type("option", TypeKind::BuiltIn);
+        self.output.ty("option", TypeKind::BuiltIn);
         self.output.generic_args_start();
         self.print_type_name(resolve, payload)?;
         self.output.generic_args_end();
@@ -675,7 +675,7 @@ impl<O: Output> WitPrinter<O> {
                 ok: Some(ok),
                 err: Some(err),
             } => {
-                self.output.r#type("result", TypeKind::BuiltIn);
+                self.output.ty("result", TypeKind::BuiltIn);
                 self.output.generic_args_start();
                 self.print_type_name(resolve, ok)?;
                 self.output.str(", ");
@@ -686,7 +686,7 @@ impl<O: Output> WitPrinter<O> {
                 ok: None,
                 err: Some(err),
             } => {
-                self.output.r#type("result", TypeKind::BuiltIn);
+                self.output.ty("result", TypeKind::BuiltIn);
                 self.output.generic_args_start();
                 self.output.str("_, ");
                 self.print_type_name(resolve, err)?;
@@ -696,7 +696,7 @@ impl<O: Output> WitPrinter<O> {
                 ok: Some(ok),
                 err: None,
             } => {
-                self.output.r#type("result", TypeKind::BuiltIn);
+                self.output.ty("result", TypeKind::BuiltIn);
                 self.output.generic_args_start();
                 self.print_type_name(resolve, ok)?;
                 self.output.generic_args_end();
@@ -705,7 +705,7 @@ impl<O: Output> WitPrinter<O> {
                 ok: None,
                 err: None,
             } => {
-                self.output.r#type("result", TypeKind::BuiltIn);
+                self.output.ty("result", TypeKind::BuiltIn);
             }
         }
         Ok(())
@@ -950,7 +950,7 @@ impl<O: Output> WitPrinter<O> {
             self.output.str(" ");
             self.print_name_type(name, TypeKind::List);
             self.output.str(" = ");
-            self.output.r#type("list", TypeKind::BuiltIn);
+            self.output.ty("list", TypeKind::BuiltIn);
             self.output.str("<");
             self.print_type_name(resolve, ty)?;
             self.output.str(">");
@@ -970,7 +970,7 @@ impl<O: Output> WitPrinter<O> {
     }
 
     fn print_name_type(&mut self, name: &str, kind: TypeKind) {
-        self.output.r#type(Self::escape_name(name).deref(), kind);
+        self.output.ty(Self::escape_name(name).deref(), kind);
     }
 
     fn print_name_param(&mut self, name: &str) {
@@ -1103,7 +1103,7 @@ pub trait Output {
     /// when printing a [Feature Gate](https://github.com/WebAssembly/component-model/blob/main/design/mvp/WIT.md#feature-gates)
     fn keyword(&mut self, src: &str);
     /// A type is added.
-    fn r#type(&mut self, src: &str, kind: TypeKind);
+    fn ty(&mut self, src: &str, kind: TypeKind);
     /// A parameter name of a function, record or a named return is added.
     fn param(&mut self, src: &str);
     /// A case belonging to a variant, enum or flags is added.
@@ -1236,7 +1236,7 @@ impl Output for OutputToString {
         self.indent_and_print(src);
     }
 
-    fn r#type(&mut self, src: &str, _kind: TypeKind) {
+    fn ty(&mut self, src: &str, _kind: TypeKind) {
         self.indent_and_print(src);
     }
 
