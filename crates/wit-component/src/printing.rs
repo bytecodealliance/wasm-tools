@@ -704,9 +704,13 @@ impl WitPrinter {
                         }
                         None => bail!("unnamed type in document"),
                     },
-                    TypeDefKind::Future(_) => panic!("no need to declare futures"),
-                    TypeDefKind::Stream(_) => panic!("no need to declare streams"),
-                    TypeDefKind::ErrorContext => panic!("no need to declare error-contexts"),
+                    TypeDefKind::Future(inner) => {
+                        self.declare_future(resolve, ty.name.as_deref(), inner.as_ref())?
+                    }
+                    TypeDefKind::Stream(inner) => {
+                        self.declare_stream(resolve, ty.name.as_deref(), inner)?
+                    }
+                    TypeDefKind::ErrorContext => self.declare_error_context(ty.name.as_deref())?,
                     TypeDefKind::Unknown => unreachable!(),
                 }
             }
@@ -888,6 +892,54 @@ impl WitPrinter {
             self.print_semicolon();
             self.output.push_str("\n");
             return Ok(());
+        }
+
+        Ok(())
+    }
+
+    fn declare_stream(&mut self, resolve: &Resolve, name: Option<&str>, ty: &Type) -> Result<()> {
+        if let Some(name) = name {
+            self.output.push_str("type ");
+            self.print_name(name);
+            self.output.push_str(" = stream<");
+            self.print_type_name(resolve, ty)?;
+            self.output.push_str(">");
+            self.print_semicolon();
+            self.output.push_str("\n");
+        }
+
+        Ok(())
+    }
+
+    fn declare_future(
+        &mut self,
+        resolve: &Resolve,
+        name: Option<&str>,
+        ty: Option<&Type>,
+    ) -> Result<()> {
+        if let Some(name) = name {
+            self.output.push_str("type ");
+            self.print_name(name);
+            self.output.push_str(" = future");
+            if let Some(ty) = ty {
+                self.output.push_str("<");
+                self.print_type_name(resolve, ty)?;
+                self.output.push_str(">");
+            }
+            self.print_semicolon();
+            self.output.push_str("\n");
+        }
+
+        Ok(())
+    }
+
+    fn declare_error_context(&mut self, name: Option<&str>) -> Result<()> {
+        if let Some(name) = name {
+            self.output.push_str("type ");
+            self.print_name(name);
+            self.output.push_str(" = error-context");
+            self.print_semicolon();
+            self.output.push_str("\n");
         }
 
         Ok(())
