@@ -1045,8 +1045,8 @@ impl<'a> Resolver<'a> {
     ) -> Result<Function> {
         let docs = self.docs(docs);
         let stability = self.stability(attrs)?;
-        let params = self.resolve_params(&func.params, &kind, func.span, &stability)?;
-        let results = self.resolve_results(&func.results, &kind, func.span, &stability)?;
+        let params = self.resolve_params(&func.params, &kind, func.span)?;
+        let results = self.resolve_results(&func.results, &kind, func.span)?;
         Ok(Function {
             docs,
             stability,
@@ -1293,6 +1293,68 @@ impl<'a> Resolver<'a> {
         }
     }
 
+    /// If `stability` is `Stability::Unknown`, recursively inspect the
+    /// specified `kind` until we either bottom out or find a type which has a
+    /// stability that's _not_ unknown.  If we find such a type, return a clone
+    /// of its stability; otherwise return `Stability::Unknown`.
+    ///
+    /// The idea here is that e.g. `option<T>` should inherit `T`'s stability.
+    /// This gets a little ambiguous in the case of e.g. `tuple<T, U, V>`; for
+    /// now, we just pick the first one has a known stability, if any.
+    fn find_stability(&self, kind: &TypeDefKind, stability: &Stability) -> Stability {
+        fn find_in_type(types: &Arena<TypeDef>, ty: Type) -> Option<&Stability> {
+            if let Type::Id(id) = ty {
+                let ty = &types[id];
+                if !matches!(&ty.stability, Stability::Unknown) {
+                    Some(&ty.stability)
+                } else {
+                    find_in_kind(types, &ty.kind)
+                }
+            } else {
+                None
+            }
+        }
+
+        fn find_in_kind<'a>(
+            types: &'a Arena<TypeDef>,
+            kind: &TypeDefKind,
+        ) -> Option<&'a Stability> {
+            match kind {
+                TypeDefKind::Type(ty) => find_in_type(types, *ty),
+                TypeDefKind::Handle(Handle::Borrow(id) | Handle::Own(id)) => {
+                    find_in_type(types, Type::Id(*id))
+                }
+                TypeDefKind::Tuple(t) => t.types.iter().find_map(|ty| find_in_type(types, *ty)),
+                TypeDefKind::List(ty) | TypeDefKind::Stream(ty) | TypeDefKind::Option(ty) => {
+                    find_in_type(types, *ty)
+                }
+                TypeDefKind::Future(ty) => ty.as_ref().and_then(|ty| find_in_type(types, *ty)),
+                TypeDefKind::Result(r) => {
+                    r.ok.as_ref()
+                        .and_then(|ty| find_in_type(types, *ty))
+                        .or_else(|| r.err.as_ref().and_then(|ty| find_in_type(types, *ty)))
+                }
+                // Assume these are named types which will be annotated with an
+                // explicit stability if applicable:
+                TypeDefKind::ErrorContext
+                | TypeDefKind::Resource
+                | TypeDefKind::Variant(_)
+                | TypeDefKind::Record(_)
+                | TypeDefKind::Flags(_)
+                | TypeDefKind::Enum(_)
+                | TypeDefKind::Unknown => None,
+            }
+        }
+
+        if let Stability::Unknown = stability {
+            find_in_kind(&self.types, kind)
+                .cloned()
+                .unwrap_or(Stability::Unknown)
+        } else {
+            stability.clone()
+        }
+    }
+
     fn resolve_type(&mut self, ty: &super::Type<'_>, stability: &Stability) -> Result<Type> {
         // Resources must be declared at the top level to have their methods
         // processed appropriately, but resources also shouldn't show up
@@ -1302,12 +1364,13 @@ impl<'a> Resolver<'a> {
             _ => {}
         }
         let kind = self.resolve_type_def(ty, stability)?;
+        let stability = self.find_stability(&kind, stability);
         Ok(self.anon_type_def(
             TypeDef {
                 kind,
                 name: None,
                 docs: Docs::default(),
-                stability: stability.clone(),
+                stability,
                 owner: TypeOwner::None,
             },
             ty.span(),
@@ -1455,7 +1518,6 @@ impl<'a> Resolver<'a> {
         params: &ParamList<'_>,
         kind: &FunctionKind,
         span: Span,
-        stability: &Stability,
     ) -> Result<Params> {
         let mut ret = IndexMap::new();
         match *kind {
@@ -1467,11 +1529,13 @@ impl<'a> Resolver<'a> {
             // Methods automatically get a `self` initial argument so insert
             // that here before processing the normal parameters.
             FunctionKind::Method(id) => {
+                let kind = TypeDefKind::Handle(Handle::Borrow(id));
+                let stability = self.find_stability(&kind, &Stability::Unknown);
                 let shared = self.anon_type_def(
                     TypeDef {
                         docs: Docs::default(),
-                        stability: stability.clone(),
-                        kind: TypeDefKind::Handle(Handle::Borrow(id)),
+                        stability,
+                        kind,
                         name: None,
                         owner: TypeOwner::None,
                     },
@@ -1481,7 +1545,10 @@ impl<'a> Resolver<'a> {
             }
         }
         for (name, ty) in params {
-            let prev = ret.insert(name.name.to_string(), self.resolve_type(ty, stability)?);
+            let prev = ret.insert(
+                name.name.to_string(),
+                self.resolve_type(ty, &Stability::Unknown)?,
+            );
             if prev.is_some() {
                 bail!(Error::new(
                     name.span,
@@ -1497,7 +1564,6 @@ impl<'a> Resolver<'a> {
         results: &ResultList<'_>,
         kind: &FunctionKind,
         span: Span,
-        stability: &Stability,
     ) -> Result<Results> {
         match *kind {
             // These kinds of methods don't have any adjustments to the return
@@ -1508,9 +1574,10 @@ impl<'a> Resolver<'a> {
                         rs,
                         &FunctionKind::Freestanding,
                         span,
-                        stability,
                     )?)),
-                    ResultList::Anon(ty) => Ok(Results::Anon(self.resolve_type(ty, stability)?)),
+                    ResultList::Anon(ty) => {
+                        Ok(Results::Anon(self.resolve_type(ty, &Stability::Unknown)?))
+                    }
                 }
             }
 
