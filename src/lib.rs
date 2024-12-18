@@ -236,7 +236,7 @@ impl OutputArg {
             }
             Output::Json(s) => self.output_str(s),
             #[cfg(feature = "component")]
-            Output::Wit { wit, mut printer } => {
+            Output::Wit { wit, printer } => {
                 let resolve = wit.resolve();
                 let ids = resolve
                     .packages
