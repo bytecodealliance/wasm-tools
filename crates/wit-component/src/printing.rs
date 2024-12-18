@@ -1095,36 +1095,116 @@ fn is_keyword(name: &str) -> bool {
     )
 }
 
-/// A visitor that receives tokens emitted by `WitPrinter`.
+/// Trait defining visitor methods driven by [`WitPrinter`](WitPrinter).
+///
+/// Some methods in this trait have default implementations. These default
+/// implementations may rely on helper functions that are not
+/// invoked directly by `WitPrinter`.
 pub trait Output {
-    /// A newline is added.
-    fn newline(&mut self);
-    /// A keyword is added. Keywords are hardcoded strings from `[a-z]`, but can start with `@`
-    /// when printing a [Feature Gate](https://github.com/WebAssembly/component-model/blob/main/design/mvp/WIT.md#feature-gates)
-    fn keyword(&mut self, src: &str);
-    /// A type is added.
-    fn ty(&mut self, src: &str, kind: TypeKind);
-    /// A parameter name of a function, record or a named return is added.
-    fn param(&mut self, src: &str);
-    /// A case belonging to a variant, enum or flags is added.
-    fn case(&mut self, src: &str);
-    /// Generic argument section starts. In WIT this represents the `<` character.
-    fn generic_args_start(&mut self);
-    /// Generic argument section ends. In WIT this represents the '>' character.
-    fn generic_args_end(&mut self);
-    /// Called when a single documentation line is added.
-    /// The `doc` parameter starts with `///` omitted, and can be an empty string.
-    fn doc(&mut self, doc: &str);
-    /// A semicolon is added.
-    fn semicolon(&mut self);
+    /// Push a string slice into a buffer or an output.
+    ///
+    /// Parameter `src` can contain punctation characters, and must be escaped
+    /// when outputing to languages like HTML.
+    /// Helper function used exclusively by the default implementations of trait methods.
+    /// This function is not called directly by `WitPrinter`.
+    /// When overriding all the trait methods, users do not need to handle this function.
+    fn push_str(&mut self, src: &str);
+
+    /// Set the appropriate indentation.
+    ///
+    /// Helper function used exclusively by the default implementations of trait methods.
+    /// This function is not called directly by `WitPrinter`.
+    /// When overriding all the trait methods, users do not need to handle this function.
+    fn indent_if_needed(&mut self) -> bool;
+
     /// Start of indentation. In WIT this represents ` {\n`.
     fn indent_start(&mut self);
+
     /// End of indentation. In WIT this represents `}\n`.
     fn indent_end(&mut self);
+
+    /// This method is designed to be used only by the default methods of this trait.
+    /// Called only from the default implementation functions of this trait.
+    fn indent_and_print(&mut self, src: &str) {
+        assert!(!src.contains('\n'));
+        let idented = self.indent_if_needed();
+        if idented && src.starts_with(' ') {
+            panic!("cannot add a space at the begining of a line");
+        }
+        self.push_str(src);
+    }
+
+    /// A newline is added.
+    fn newline(&mut self);
+
+    /// A keyword is added. Keywords are hardcoded strings from `[a-z]`, but can start with `@`
+    /// when printing a [Feature Gate](https://github.com/WebAssembly/component-model/blob/main/design/mvp/WIT.md#feature-gates)
+    fn keyword(&mut self, src: &str) {
+        self.indent_and_print(src);
+    }
+
+    /// A type is added.
+    fn ty(&mut self, src: &str, _kind: TypeKind) {
+        self.indent_and_print(src);
+    }
+
+    /// A parameter name of a function, record or a named return is added.
+    fn param(&mut self, src: &str) {
+        self.indent_and_print(src);
+    }
+
+    /// A case belonging to a variant, enum or flags is added.
+    fn case(&mut self, src: &str) {
+        self.indent_and_print(src);
+    }
+
+    /// Generic argument section starts. In WIT this represents the `<` character.
+    fn generic_args_start(&mut self) {
+        assert!(
+            !self.indent_if_needed(),
+            "`generic_args_start` is never called after newline"
+        );
+        self.push_str("<");
+    }
+
+    /// Generic argument section ends. In WIT this represents the '>' character.
+    fn generic_args_end(&mut self) {
+        assert!(
+            !self.indent_if_needed(),
+            "`generic_args_end` is never called after newline"
+        );
+        self.push_str(">");
+    }
+
+    /// Called when a single documentation line is added.
+    /// The `doc` parameter starts with `///` omitted, and can be an empty string.
+    fn doc(&mut self, doc: &str) {
+        assert!(!doc.contains('\n'));
+        self.indent_if_needed();
+        self.push_str("///");
+        if !doc.is_empty() {
+            self.push_str(" ");
+            self.push_str(doc);
+        }
+        self.newline();
+    }
+
+    /// A semicolon is added.
+    fn semicolon(&mut self) {
+        assert!(
+            !self.indent_if_needed(),
+            "`semicolon` is never called after newline"
+        );
+        self.push_str(";");
+        self.newline();
+    }
+
     /// Any string that does not have a specialized function is added.
     /// Parameter `src` can contain punctation characters, and must be escaped
     /// when outputing to languages like HTML.
-    fn str(&mut self, src: &str);
+    fn str(&mut self, src: &str) {
+        self.indent_and_print(src);
+    }
 }
 
 /// Represents the different kinds of types that can be encountered while
@@ -1202,86 +1282,22 @@ pub struct OutputToString {
     needs_indent: bool,
 }
 
-impl OutputToString {
-    fn indent_if_needed(&mut self) {
+impl Output for OutputToString {
+    fn push_str(&mut self, src: &str) {
+        self.output.push_str(src);
+    }
+
+    fn indent_if_needed(&mut self) -> bool {
         if self.needs_indent {
             for _ in 0..self.indent {
                 // Indenting by two spaces.
                 self.output.push_str("  ");
             }
             self.needs_indent = false;
+            true
+        } else {
+            false
         }
-    }
-
-    fn indent_and_print(&mut self, src: &str) {
-        assert!(!src.contains('\n'));
-        if src.starts_with(' ') {
-            assert!(
-                !self.needs_indent,
-                "cannot add a space at the begining of a line"
-            );
-        }
-        self.indent_if_needed();
-        self.output.push_str(src);
-    }
-}
-
-impl Output for OutputToString {
-    fn newline(&mut self) {
-        self.output.push('\n');
-        self.needs_indent = true;
-    }
-
-    fn keyword(&mut self, src: &str) {
-        self.indent_and_print(src);
-    }
-
-    fn ty(&mut self, src: &str, _kind: TypeKind) {
-        self.indent_and_print(src);
-    }
-
-    fn param(&mut self, src: &str) {
-        self.indent_and_print(src);
-    }
-
-    fn case(&mut self, src: &str) {
-        self.indent_and_print(src);
-    }
-
-    fn generic_args_start(&mut self) {
-        assert!(
-            !self.needs_indent,
-            "`subtype_start` is never called after newline"
-        );
-        self.output.push('<');
-    }
-
-    fn generic_args_end(&mut self) {
-        assert!(
-            !self.needs_indent,
-            "`subtype_end` is never called after newline"
-        );
-        self.output.push('>');
-    }
-
-    fn doc(&mut self, doc: &str) {
-        assert!(!doc.contains('\n'));
-        self.indent_if_needed();
-        self.output.push_str("///");
-        if !doc.is_empty() {
-            self.output.push(' ');
-            self.output.push_str(doc);
-        }
-        self.newline();
-    }
-
-    fn semicolon(&mut self) {
-        assert!(
-            !self.needs_indent,
-            "`semicolon` is never called after newline"
-        );
-        self.output.push(';');
-        self.newline();
     }
 
     fn indent_start(&mut self) {
@@ -1305,8 +1321,9 @@ impl Output for OutputToString {
         self.newline();
     }
 
-    fn str(&mut self, src: &str) {
-        self.indent_and_print(src);
+    fn newline(&mut self) {
+        self.output.push('\n');
+        self.needs_indent = true;
     }
 }
 
