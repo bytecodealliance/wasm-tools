@@ -236,7 +236,7 @@ impl OutputArg {
             }
             Output::Json(s) => self.output_str(s),
             #[cfg(feature = "component")]
-            Output::Wit { wit, printer } => {
+            Output::Wit { wit, mut printer } => {
                 let resolve = wit.resolve();
                 let ids = resolve
                     .packages
@@ -244,7 +244,8 @@ impl OutputArg {
                     .map(|(id, _)| id)
                     .filter(|id| *id != wit.package())
                     .collect::<Vec<_>>();
-                let output = printer.print(resolve, wit.package(), &ids)?;
+                printer.print(resolve, wit.package(), &ids)?;
+                let output = printer.output.to_string();
                 self.output_str(&output)
             }
         }

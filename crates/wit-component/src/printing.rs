@@ -1,6 +1,7 @@
 use anyhow::{anyhow, bail, Result};
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::mem;
 use std::ops::Deref;
 use wit_parser::*;
@@ -29,19 +30,6 @@ impl Default for WitPrinter {
     }
 }
 
-impl<O: Output> WitPrinter<O>
-where
-    String: From<O>,
-{
-    /// Convenience wrapper around [`print_all`](WitPrinter::print_all) that prints the specified `pkg` which is located in `resolve` to a string.
-    ///
-    /// The `nested` list of packages are other packages to include at the end
-    /// of the output in `package ... { ... }` syntax.
-    pub fn print(self, resolve: &Resolve, pkg: PackageId, nested: &[PackageId]) -> Result<String> {
-        self.print_all(resolve, pkg, nested).map(String::from)
-    }
-}
-
 impl<O: Output> WitPrinter<O> {
     /// Craete new instance.
     pub fn new(output: O) -> Self {
@@ -60,12 +48,7 @@ impl<O: Output> WitPrinter<O> {
     ///
     /// The `nested` list of packages are other packages to include at the end
     /// of the output in `package ... { ... }` syntax.
-    pub fn print_all(
-        mut self,
-        resolve: &Resolve,
-        pkg: PackageId,
-        nested: &[PackageId],
-    ) -> Result<O> {
+    pub fn print(&mut self, resolve: &Resolve, pkg: PackageId, nested: &[PackageId]) -> Result<()> {
         self.print_package(resolve, pkg, true)?;
         for (i, pkg_id) in nested.iter().enumerate() {
             if i > 0 {
@@ -74,8 +57,7 @@ impl<O: Output> WitPrinter<O> {
             }
             self.print_package(resolve, *pkg_id, false)?;
         }
-
-        Ok(self.output)
+        Ok(())
     }
 
     /// Configure whether doc comments will be printed.
@@ -1330,5 +1312,11 @@ impl Output for OutputToString {
 impl From<OutputToString> for String {
     fn from(output: OutputToString) -> String {
         output.output
+    }
+}
+
+impl Display for OutputToString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.output.fmt(f)
     }
 }
