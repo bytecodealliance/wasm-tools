@@ -1371,27 +1371,27 @@ impl<'a> Resolver<'a> {
 
     fn docs(&mut self, doc: &super::Docs<'_>) -> Docs {
         let mut docs = vec![];
-        let mut min_leading_ws = usize::MAX;
-        for doc in doc.docs.iter() {
-            let leading_ws = doc.bytes().take_while(|c| c.is_ascii_whitespace()).count();
-            if leading_ws < min_leading_ws {
-                min_leading_ws = leading_ws;
-            }
-        }
 
-        if min_leading_ws == usize::MAX {
-            min_leading_ws = 0;
-        }
-
+        let min_leading_ws = doc
+            .docs
+            .iter()
+            .map(|doc| doc.bytes().take_while(|c| c.is_ascii_whitespace()).count())
+            .min()
+            .unwrap_or(0);
         let ws_pattern = " ".repeat(min_leading_ws);
 
         for doc in doc.docs.iter() {
-            let d = match doc.strip_prefix("/**") {
+            let contents = match doc.strip_prefix("/**") {
                 Some(doc) => doc.strip_suffix("*/").unwrap(),
                 None => doc.trim_start_matches('/'),
             };
 
-            docs.push(d.strip_prefix(&ws_pattern).unwrap_or(d).trim_end());
+            docs.push(
+                contents
+                    .strip_prefix(&ws_pattern)
+                    .unwrap_or(contents)
+                    .trim_end(),
+            );
         }
 
         let contents = if docs.is_empty() {
