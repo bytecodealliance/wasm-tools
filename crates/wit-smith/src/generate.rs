@@ -716,6 +716,9 @@ impl<'a> InterfaceGenerator<'a> {
             Option,
             Result,
             List,
+            Stream,
+            Future,
+            ErrorContext,
         }
 
         *fuel = match fuel.checked_sub(1) {
@@ -822,6 +825,31 @@ impl<'a> InterfaceGenerator<'a> {
                         }
                         (false, false) => {}
                     }
+                }
+                Kind::Stream => {
+                    *fuel = match fuel.checked_sub(1) {
+                        Some(fuel) => fuel,
+                        None => continue,
+                    };
+                    dst.push_str("stream<");
+                    self.gen_type(u, fuel, dst)?;
+                    dst.push_str(">");
+                }
+                Kind::Future => {
+                    *fuel = match fuel.checked_sub(1) {
+                        Some(fuel) => fuel,
+                        None => continue,
+                    };
+                    if u.arbitrary()? {
+                        dst.push_str("future<");
+                        self.gen_type(u, fuel, dst)?;
+                        dst.push_str(">");
+                    } else {
+                        dst.push_str("future");
+                    }
+                }
+                Kind::ErrorContext => {
+                    dst.push_str("error-context");
                 }
             };
         }
