@@ -754,9 +754,13 @@ impl<O: Output> WitPrinter<O> {
                         }
                         None => bail!("unnamed type in document"),
                     },
-                    TypeDefKind::Future(_) => panic!("no need to declare futures"),
-                    TypeDefKind::Stream(_) => panic!("no need to declare streams"),
-                    TypeDefKind::ErrorContext => panic!("no need to declare error-contexts"),
+                    TypeDefKind::Future(inner) => {
+                        self.declare_future(resolve, ty.name.as_deref(), inner.as_ref())?
+                    }
+                    TypeDefKind::Stream(inner) => {
+                        self.declare_stream(resolve, ty.name.as_deref(), inner)?
+                    }
+                    TypeDefKind::ErrorContext => self.declare_error_context(ty.name.as_deref())?,
                     TypeDefKind::Unknown => unreachable!(),
                 }
             }
@@ -948,6 +952,58 @@ impl<O: Output> WitPrinter<O> {
             self.output.str(">");
             self.output.semicolon();
             return Ok(());
+        }
+
+        Ok(())
+    }
+
+    fn declare_stream(&mut self, resolve: &Resolve, name: Option<&str>, ty: &Type) -> Result<()> {
+        if let Some(name) = name {
+            self.output.keyword("type");
+            self.output.str(" ");
+            self.print_name_type(name, TypeKind::Stream);
+            self.output.str(" = ");
+            self.output.ty("stream", TypeKind::BuiltIn);
+            self.output.str("<");
+            self.print_type_name(resolve, ty)?;
+            self.output.str(">");
+            self.output.semicolon();
+        }
+
+        Ok(())
+    }
+
+    fn declare_future(
+        &mut self,
+        resolve: &Resolve,
+        name: Option<&str>,
+        ty: Option<&Type>,
+    ) -> Result<()> {
+        if let Some(name) = name {
+            self.output.keyword("type");
+            self.output.str(" ");
+            self.print_name_type(name, TypeKind::Future);
+            self.output.str(" = ");
+            self.output.ty("future", TypeKind::BuiltIn);
+            if let Some(ty) = ty {
+                self.output.str("<");
+                self.print_type_name(resolve, ty)?;
+                self.output.str(">");
+            }
+            self.output.semicolon();
+        }
+
+        Ok(())
+    }
+
+    fn declare_error_context(&mut self, name: Option<&str>) -> Result<()> {
+        if let Some(name) = name {
+            self.output.keyword("type");
+            self.output.str(" ");
+            self.print_name_type(name, TypeKind::ErrorContext);
+            self.output.str(" = ");
+            self.output.ty("error-context", TypeKind::BuiltIn);
+            self.output.semicolon();
         }
 
         Ok(())
@@ -1212,6 +1268,8 @@ pub enum TypeKind {
     BuiltIn,
     /// An enumeration type name.
     Enum,
+    /// An error-context type name.
+    ErrorContext,
     /// A flags type name.
     Flags,
     /// A freestanding function name, not associated with any specific type or namespace.
@@ -1221,6 +1279,8 @@ pub enum TypeKind {
     FunctionMethod,
     /// A static function, associated with a resource.
     FunctionStatic,
+    /// A future type name.
+    Future,
     /// An interface declaration name.
     InterfaceDeclaration,
     /// An interface name when printing a path, for example in `use`.
@@ -1243,6 +1303,8 @@ pub enum TypeKind {
     Resource,
     /// A result type name.
     Result,
+    /// A stream type name.
+    Stream,
     /// A tuple type name.
     Tuple,
     /// A type alias.
