@@ -801,8 +801,11 @@ impl WitOpts {
 
         let resolve = decoded.resolve();
 
-        let mut printer = WitPrinter::default();
-        printer.emit_docs(!self.no_docs);
+        let configure_printer = || {
+            let mut wit_printer = WitPrinter::default();
+            wit_printer.emit_docs(!self.no_docs);
+            wit_printer
+        };
 
         match &self.out_dir {
             Some(dir) => {
@@ -825,7 +828,9 @@ impl WitOpts {
                 let main = decoded.package();
                 for (id, pkg) in resolve.packages.iter() {
                     let is_main = id == main;
-                    let output = printer.print(resolve, id, &[])?;
+                    let mut printer = configure_printer();
+                    printer.print(resolve, id, &[])?;
+                    let output = printer.output.to_string();
                     let out_dir = if is_main {
                         dir.clone()
                     } else {
@@ -864,7 +869,7 @@ impl WitOpts {
                     &self.general,
                     Output::Wit {
                         wit: &decoded,
-                        printer,
+                        printer: configure_printer(),
                     },
                 )?;
             }

@@ -110,9 +110,9 @@ fn roundtrip_through_printing(file: &str, resolve: &Resolve, pkg: PackageId, was
         .map(|p| p.0)
         .filter(|k| *k != pkg)
         .collect::<Vec<_>>();
-    let doc = WitPrinter::default()
-        .print(resolve, pkg, &package_deps)
-        .unwrap();
+    let mut printer = WitPrinter::default();
+    printer.print(resolve, pkg, &package_deps).unwrap();
+    let doc = printer.output.to_string();
     let new_pkg = new_resolve
         .push_str(&format!("printed-{file}.wit"), &doc)
         .unwrap();
