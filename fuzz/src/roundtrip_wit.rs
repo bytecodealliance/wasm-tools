@@ -1,7 +1,7 @@
 use arbitrary::{Result, Unstructured};
 use std::path::Path;
 use wit_component::*;
-use wit_parser::{Mangling, PackageId, Resolve};
+use wit_parser::{LiftLowerAbi, ManglingAndAbi, PackageId, Resolve};
 
 pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     let wasm = u.arbitrary().and_then(|config| {
@@ -36,9 +36,11 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     let mut decoded_bindgens = Vec::new();
     for (id, world) in resolve.worlds.iter().take(20) {
         log::debug!("embedding world {} as in a dummy module", world.name);
-        let mangling = match u.int_in_range(0..=1)? {
-            0 => Mangling::Legacy,
-            1 => Mangling::Standard32,
+        let mangling = match u.int_in_range(0..=3)? {
+            0 => ManglingAndAbi::Legacy(LiftLowerAbi::Sync),
+            1 => ManglingAndAbi::Legacy(LiftLowerAbi::AsyncCallback),
+            2 => ManglingAndAbi::Legacy(LiftLowerAbi::AsyncStackful),
+            3 => ManglingAndAbi::Standard32,
             _ => unreachable!(),
         };
         let mut dummy = wit_component::dummy_module(&resolve, id, mangling);
@@ -53,7 +55,9 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
             .encode()
             .unwrap();
         write_file("dummy.component.wasm", &wasm);
-        wasmparser::Validator::new().validate_all(&wasm).unwrap();
+        wasmparser::Validator::new_with_features(wasmparser::WasmFeatures::all())
+            .validate_all(&wasm)
+            .unwrap();
 
         // Decode what was just created and record it later for testing merging
         // worlds together.

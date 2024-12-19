@@ -2823,7 +2823,7 @@ impl ComponentWorld<'_> {
 mod test {
     use super::*;
     use crate::{dummy_module, embed_component_metadata};
-    use wit_parser::Mangling;
+    use wit_parser::ManglingAndAbi;
 
     #[test]
     fn it_renames_imports() {
@@ -2849,7 +2849,7 @@ world test {
             .unwrap();
         let world = resolve.select_world(pkg, None).unwrap();
 
-        let mut module = dummy_module(&resolve, world, Mangling::Standard32);
+        let mut module = dummy_module(&resolve, world, ManglingAndAbi::Standard32);
 
         embed_component_metadata(&mut module, &resolve, world, StringEncoding::UTF8).unwrap();
 

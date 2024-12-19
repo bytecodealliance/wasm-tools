@@ -5,7 +5,7 @@ use crate::{
 use anyhow::{bail, Context, Result};
 use wasm_encoder::{ComponentBuilder, ComponentExportKind, ComponentTypeRef};
 use wasmparser::Validator;
-use wit_parser::{Mangling, Resolve, WorldId};
+use wit_parser::{ManglingAndAbi, Resolve, WorldId};
 
 /// Tests whether `new` is a semver-compatible upgrade from the world `prev`.
 ///
@@ -63,7 +63,7 @@ pub fn semver_check(mut resolve: Resolve, prev: WorldId, new: WorldId) -> Result
     let mut root_component = ComponentBuilder::default();
 
     // (1) above - create a dummy component which has the shape of `prev`.
-    let mut prev_as_module = dummy_module(&resolve, prev, Mangling::Standard32);
+    let mut prev_as_module = dummy_module(&resolve, prev, ManglingAndAbi::Standard32);
     embed_component_metadata(&mut prev_as_module, &resolve, prev, StringEncoding::UTF8)
         .context("failed to embed component metadata")?;
     let prev_as_component = ComponentEncoder::default()
