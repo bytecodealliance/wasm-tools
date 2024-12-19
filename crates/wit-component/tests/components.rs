@@ -168,9 +168,11 @@ fn run_test(path: &Path) -> Result<()> {
         DecodedWasm::WitPackage(..) => unreachable!(),
         DecodedWasm::Component(resolve, world) => (resolve.worlds[world].package.unwrap(), resolve),
     };
-    let wit = WitPrinter::default()
+    let mut printer = WitPrinter::default();
+    printer
         .print(&resolve, pkg, &[])
         .context("failed to print WIT")?;
+    let wit = printer.output.to_string();
     assert_output(&wit, &component_wit_path)?;
 
     UnresolvedPackageGroup::parse(&component_wit_path, &wit)
