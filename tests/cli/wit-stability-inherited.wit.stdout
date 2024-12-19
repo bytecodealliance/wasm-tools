@@ -1,4 +1,4 @@
-/// RUN: component wit %
+///  RUN: component wit %
 package a:b@1.0.0;
 
 interface foo {
