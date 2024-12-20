@@ -1,4 +1,4 @@
-/// RUN: component wit %
+///  RUN: component wit %
 package foo:bar;
 
 interface local {
