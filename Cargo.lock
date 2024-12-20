@@ -1999,8 +1999,6 @@ dependencies = [
  "clap",
  "criterion",
  "flagset",
- "indexmap 2.7.0",
- "leb128fmt",
  "libfuzzer-sys",
  "rand",
  "serde",
