@@ -4001,10 +4001,8 @@ impl ConstExpr {
         if prefix != 0xd2 {
             return None;
         }
-        leb128::read::unsigned(&mut &self.bytes[1..])
-            .ok()?
-            .try_into()
-            .ok()
+        let bytes = self.bytes[1..].try_into().ok()?;
+        Some(leb128fmt::decode_u32(bytes)?.0)
     }
 }
 

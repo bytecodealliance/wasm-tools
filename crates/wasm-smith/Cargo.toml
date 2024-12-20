@@ -27,8 +27,6 @@ anyhow = { workspace = true }
 arbitrary = { workspace = true, features = ["derive"] }
 clap = { workspace = true, optional = true }
 flagset = "0.4"
-indexmap = { workspace = true }
-leb128 = { workspace = true }
 serde = { workspace = true, optional = true }
 serde_derive = { workspace = true, optional = true }
 wasm-encoder = { workspace = true }
