@@ -20,7 +20,7 @@ all-features = true
 workspace = true
 
 [dependencies]
-leb128 = { workspace = true }
+leb128fmt = { workspace = true }
 unicode-width = "0.2.0"
 memchr = "2.4.1"
 wasm-encoder = { workspace = true }
