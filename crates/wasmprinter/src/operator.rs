@@ -1453,10 +1453,8 @@ impl OpPrinter for PrintOperatorFolded<'_, '_, '_, '_> {
         let mut buf_color = PrintTermcolor(Ansi::new(Vec::new()));
         let mut buf_nocolor = PrintTermcolor(NoColor::new(Vec::new()));
         let internal_config = Config {
-            print_offsets: false,
-            print_skeleton: false,
             name_unnamed: self.printer.config.name_unnamed,
-            fold_instructions: false,
+            ..Default::default()
         };
         let mut internal_printer = Printer {
             config: &internal_config,
