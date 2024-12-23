@@ -30,6 +30,10 @@ pub struct Opts {
     /// Print instructions in the folded format.
     #[clap(short, long)]
     fold_instructions: bool,
+
+    /// The string to use when indenting.
+    #[clap(long)]
+    indent_text: Option<String>,
 }
 
 impl Opts {
@@ -45,6 +49,9 @@ impl Opts {
         config.print_skeleton(self.skeleton);
         config.name_unnamed(self.name_unnamed);
         config.fold_instructions(self.fold_instructions);
+        if let Some(s) = self.indent_text.as_ref() {
+            config.indent_text(s);
+        }
         self.io.output(wasm_tools::Output::Wat {
             wasm: &wasm,
             config,
