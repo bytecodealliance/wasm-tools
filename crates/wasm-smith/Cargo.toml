@@ -29,14 +29,14 @@ clap = { workspace = true, optional = true }
 flagset = "0.4"
 serde = { workspace = true, optional = true }
 serde_derive = { workspace = true, optional = true }
-wasm-encoder = { workspace = true }
-wasmparser = { workspace = true, optional = true, features = ['validate', 'features', 'simd'] }
+wasm-encoder = { workspace = true, features = ['std'] }
+wasmparser = { workspace = true, optional = true, features = ['std', 'validate', 'features', 'simd'] }
 wat = { workspace = true, optional = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
 rand = { workspace = true }
-wasmparser = { workspace = true, features = ['validate', 'features', 'simd'] }
+wasmparser = { workspace = true, features = ['std', 'validate', 'features', 'simd'] }
 wasmprinter = { workspace = true }
 wat = { workspace = true }
 
