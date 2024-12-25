@@ -148,7 +148,7 @@ struct InterfaceSpan {
 
 #[derive(Debug, Copy, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum AstItem {
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
     Interface(InterfaceId),
@@ -471,7 +471,7 @@ impl WorldKey {
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum WorldItem {
     /// An interface is being imported or exported from a world, indicating that
     /// it's a namespace of functions.
@@ -557,7 +557,7 @@ pub struct TypeDef {
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum TypeDefKind {
     Record(Record),
     Resource,
@@ -609,7 +609,7 @@ impl TypeDefKind {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum TypeOwner {
     /// This type was defined within a `world` block.
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
@@ -625,7 +625,7 @@ pub enum TypeOwner {
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum Handle {
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
     Own(TypeId),
@@ -886,7 +886,7 @@ pub struct Function {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum FunctionKind {
     Freestanding,
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
@@ -1154,7 +1154,7 @@ fn find_futures_and_streams(resolve: &Resolve, ty: Type, results: &mut Vec<TypeI
 /// annotations were added to WIT.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde_derive::Deserialize, Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum Stability {
     /// `@since(version = 1.2.3)`
     ///
