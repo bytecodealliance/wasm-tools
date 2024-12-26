@@ -33,14 +33,14 @@
   "types": [
     {
       "name": "t1",
-      "kind": "errorcontext",
+      "kind": "error-context",
       "owner": {
         "interface": 0
       }
     },
     {
       "name": null,
-      "kind": "errorcontext",
+      "kind": "error-context",
       "owner": null
     },
     {
