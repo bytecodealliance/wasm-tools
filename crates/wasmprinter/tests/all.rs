@@ -13,7 +13,6 @@ fn no_oom() {
     assert!(wat.len() < 500_000_000);
 }
 
-
 #[test]
 fn offsets_and_lines_smoke_test() {
     const MODULE: &str = r#"
