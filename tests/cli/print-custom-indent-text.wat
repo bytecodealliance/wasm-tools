@@ -1,4 +1,4 @@
-;; RUN: print --indent-text "\t" %
+;; RUN: print --indent-text \t --indent 2 %
 
 (;@0     ;) (module
 (;@b     ;)   (type (;0;) (func (param i32) (result i32)))

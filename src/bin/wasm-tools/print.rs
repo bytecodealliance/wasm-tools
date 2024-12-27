@@ -56,9 +56,11 @@ impl Opts {
             Some(s) => {
                 config.indent_text(s);
             }
-            None => if let Some(s) = self.indent {
-                config.indent_text(&" ".repeat(s));
-            },
+            None => {
+                if let Some(s) = self.indent {
+                    config.indent_text(&" ".repeat(s));
+                }
+            }
         }
         self.io.output(wasm_tools::Output::Wat {
             wasm: &wasm,
