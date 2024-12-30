@@ -5442,13 +5442,9 @@ fn ref_func(
 ) -> Result<()> {
     let i = *u.choose(&builder.allocs.referenced_functions)?;
     let ty = module.funcs[usize::try_from(i).unwrap()].0;
-    builder.push_operand(Some(ValType::Ref(if module.config.gc_enabled {
-        RefType {
-            nullable: false,
-            heap_type: HeapType::Concrete(ty),
-        }
-    } else {
-        RefType::FUNCREF
+    builder.push_operand(Some(ValType::Ref(RefType {
+        nullable: false,
+        heap_type: HeapType::Concrete(ty),
     })));
     instructions.push(Instruction::RefFunc(i));
     Ok(())
