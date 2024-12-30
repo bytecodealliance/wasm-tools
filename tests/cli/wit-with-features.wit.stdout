@@ -1,4 +1,4 @@
-/// RUN: component wit --features foo %
+///  RUN: component wit --features foo %
 package a:b;
 
 @unstable(feature = foo)

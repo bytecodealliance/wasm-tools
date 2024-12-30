@@ -1434,13 +1434,29 @@ impl<'a> Resolver<'a> {
 
     fn docs(&mut self, doc: &super::Docs<'_>) -> Docs {
         let mut docs = vec![];
+
+        let min_leading_ws = doc
+            .docs
+            .iter()
+            .map(|doc| doc.bytes().take_while(|c| c.is_ascii_whitespace()).count())
+            .min()
+            .unwrap_or(0);
+        let ws_pattern = " ".repeat(min_leading_ws);
+
         for doc in doc.docs.iter() {
-            if let Some(doc) = doc.strip_prefix("/**") {
-                docs.push(doc.strip_suffix("*/").unwrap().trim());
-            } else {
-                docs.push(doc.trim_start_matches('/').trim());
-            }
+            let contents = match doc.strip_prefix("/**") {
+                Some(doc) => doc.strip_suffix("*/").unwrap(),
+                None => doc.trim_start_matches('/'),
+            };
+
+            docs.push(
+                contents
+                    .strip_prefix(&ws_pattern)
+                    .unwrap_or(contents)
+                    .trim_end(),
+            );
         }
+
         let contents = if docs.is_empty() {
             None
         } else {
