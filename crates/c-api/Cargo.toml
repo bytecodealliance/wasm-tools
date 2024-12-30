@@ -25,7 +25,7 @@ arbitrary = { workspace = true, features = ["derive"] }
 wasm-mutate = { workspace = true }
 wasm-shrink = { workspace = true }
 wasm-smith = { workspace = true }
-wasmparser = { workspace = true }
+wasmparser = { workspace = true, features = ["std"] }
 wasmprinter = { workspace = true }
 wast = { workspace = true }
 wat = { workspace = true }
