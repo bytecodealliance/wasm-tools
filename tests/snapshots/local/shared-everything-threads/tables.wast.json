@@ -55,36 +55,49 @@
       "module_type": "binary"
     },
     {
-      "type": "module",
-      "line": 115,
+      "type": "assert_invalid",
+      "line": 53,
       "filename": "tables.8.wasm",
+      "module_type": "binary",
+      "text": "invalid type"
+    },
+    {
+      "type": "module",
+      "line": 63,
+      "filename": "tables.9.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 132,
+      "filename": "tables.10.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 167,
-      "filename": "tables.9.wasm",
+      "line": 184,
+      "filename": "tables.11.wasm",
       "module_type": "binary",
       "text": "invalid type"
     },
     {
       "type": "assert_invalid",
-      "line": 177,
-      "filename": "tables.10.wasm",
+      "line": 194,
+      "filename": "tables.12.wasm",
       "module_type": "binary",
       "text": "invalid type: `table.atomic.get` only allows subtypes of `anyref`"
     },
     {
       "type": "assert_invalid",
-      "line": 187,
-      "filename": "tables.11.wasm",
+      "line": 204,
+      "filename": "tables.13.wasm",
       "module_type": "binary",
       "text": "invalid type: `table.atomic.set` only allows subtypes of `anyref`"
     },
     {
       "type": "assert_invalid",
-      "line": 198,
-      "filename": "tables.12.wasm",
+      "line": 215,
+      "filename": "tables.14.wasm",
       "module_type": "binary",
       "text": "invalid type: `table.atomic.rmw.xchg` only allows subtypes of `anyref`"
     }
