@@ -900,7 +900,7 @@ impl Module {
     }
 
     fn arbitrary_super_type_of_val_type(
-        &mut self,
+        &self,
         u: &mut Unstructured,
         ty: ValType,
     ) -> Result<ValType> {
@@ -938,8 +938,23 @@ impl Module {
     ) -> Result<HeapType> {
         use {AbstractHeapType as AHT, CompositeInnerType as CT, HeapType as HT};
 
+        // If GC is disabled then favor the "top" type of the input type.
         if !self.config.gc_enabled {
-            return Ok(ty);
+            return Ok(match ty {
+                HeapType::Concrete(i) => {
+                    let CompositeType { inner, shared } = &self.ty(i).composite_type;
+                    let ty = match inner {
+                        CompositeInnerType::Array(_) => AbstractHeapType::Array,
+                        CompositeInnerType::Struct(_) => AbstractHeapType::Struct,
+                        CompositeInnerType::Func(_) => AbstractHeapType::Func,
+                    };
+                    HeapType::Abstract {
+                        shared: *shared,
+                        ty,
+                    }
+                }
+                HeapType::Abstract { .. } => ty,
+            });
         }
 
         let mut choices = vec![ty];

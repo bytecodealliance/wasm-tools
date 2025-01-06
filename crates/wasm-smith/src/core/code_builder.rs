@@ -2654,21 +2654,28 @@ fn select_valid(module: &Module, builder: &mut CodeBuilder) -> bool {
 }
 
 fn select(
-    _: &mut Unstructured,
-    _module: &Module,
+    u: &mut Unstructured,
+    module: &Module,
     builder: &mut CodeBuilder,
     instructions: &mut Vec<Instruction>,
 ) -> Result<()> {
     builder.pop_operand();
-    let t = builder.pop_operand();
-    let u = builder.pop_operand();
-    let ty = t.or(u);
-    builder.allocs.operands.push(ty);
-    match ty {
-        Some(ty @ ValType::Ref(_)) => instructions.push(Instruction::TypedSelect(ty)),
+    let a = builder.pop_operand();
+    let b = builder.pop_operand();
+    let ty = a.or(b);
+    let ty = match ty {
+        Some(ty @ ValType::Ref(_)) => {
+            let ty = module.arbitrary_super_type_of_val_type(u, ty)?;
+            instructions.push(Instruction::TypedSelect(ty));
+            Some(ty)
+        }
         Some(ValType::I32) | Some(ValType::I64) | Some(ValType::F32) | Some(ValType::F64)
-        | Some(ValType::V128) | None => instructions.push(Instruction::Select),
-    }
+        | Some(ValType::V128) | None => {
+            instructions.push(Instruction::Select);
+            ty
+        }
+    };
+    builder.allocs.operands.push(ty);
     Ok(())
 }
 
