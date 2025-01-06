@@ -234,13 +234,9 @@ fn assert_output(bless: bool, output: &[u8], path: &Path, tempdir: &TempDir) -> 
             Ok(())
         }
     } else {
-        let mut contents = std::fs::read_to_string(path)
+        let contents = std::fs::read_to_string(path)
             .with_context(|| format!("failed to read {path:?}"))?
             .replace("\r\n", "\n");
-        // Drop any trailing newline, the lines iterator on output above will do the same
-        if contents.ends_with('\n') {
-            contents.pop();
-        }
         if output != contents {
             bail!(
                 "failed test: result is not as expected:{}",
