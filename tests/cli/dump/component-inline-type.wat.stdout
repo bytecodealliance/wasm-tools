@@ -27,4 +27,4 @@
  0x37 | 0a 06       | component import section
  0x39 | 01          | 1 count
  0x3a | 00 01 64 01 | [func 0] ComponentImport { name: ComponentImportName("d"), ty: Func(2) }
-      | 02         
+      | 02

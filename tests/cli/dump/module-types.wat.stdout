@@ -29,4 +29,4 @@
  0x54 | 01 09 03    | type name section
  0x57 | 01          | 1 count
  0x58 | 00 05 65 6d | Naming { index: 0, name: "empty" }
-      | 70 74 79   
+      | 70 74 79

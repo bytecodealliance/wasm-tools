@@ -70,4 +70,4 @@
  0xbc | 0b 07       | component export section
  0xbe | 01          | 1 count
  0xbf | 00 01 61 04 | export ComponentExport { name: ComponentExportName("a"), kind: Component, index: 3, ty: None }
-      | 03 00      
+      | 03 00
