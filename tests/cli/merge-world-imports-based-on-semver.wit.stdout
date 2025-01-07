@@ -1,4 +1,4 @@
-///  RUN: component wit --merge-world-imports-based-on-semver foo %
+/// RUN: component wit --merge-world-imports-based-on-semver foo %
 package a:b;
 
 world foo {

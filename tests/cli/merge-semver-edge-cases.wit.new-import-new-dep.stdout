@@ -1,5 +1,5 @@
-///  RUN[new-import-new-dep]: component wit % --merge-world-imports-based-on-semver new-dep
-///  RUN[reorder-new-dep]: component wit % --merge-world-imports-based-on-semver reorder-dep
+/// RUN[new-import-new-dep]: component wit % --merge-world-imports-based-on-semver new-dep
+/// RUN[reorder-new-dep]: component wit % --merge-world-imports-based-on-semver reorder-dep
 package foo:bar;
 
 world new-dep {
