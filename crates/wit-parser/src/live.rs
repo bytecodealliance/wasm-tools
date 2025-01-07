@@ -129,7 +129,8 @@ pub trait TypeIdVisitor {
             TypeDefKind::Type(t)
             | TypeDefKind::List(t)
             | TypeDefKind::Option(t)
-            | TypeDefKind::Future(Some(t)) => self.visit_type(resolve, t),
+            | TypeDefKind::Future(Some(t))
+            | TypeDefKind::Stream(t) => self.visit_type(resolve, t),
             TypeDefKind::Handle(handle) => match handle {
                 crate::Handle::Own(ty) => self.visit_type_id(resolve, *ty),
                 crate::Handle::Borrow(ty) => self.visit_type_id(resolve, *ty),
@@ -160,15 +161,10 @@ pub trait TypeIdVisitor {
                     self.visit_type(resolve, ty);
                 }
             }
-            TypeDefKind::Stream(s) => {
-                if let Some(ty) = &s.element {
-                    self.visit_type(resolve, ty);
-                }
-                if let Some(ty) = &s.end {
-                    self.visit_type(resolve, ty);
-                }
-            }
-            TypeDefKind::Flags(_) | TypeDefKind::Enum(_) | TypeDefKind::Future(None) => {}
+            TypeDefKind::ErrorContext
+            | TypeDefKind::Flags(_)
+            | TypeDefKind::Enum(_)
+            | TypeDefKind::Future(None) => {}
             TypeDefKind::Unknown => unreachable!(),
         }
     }

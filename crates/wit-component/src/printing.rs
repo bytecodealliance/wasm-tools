@@ -1,15 +1,18 @@
 use anyhow::{anyhow, bail, Result};
+use std::borrow::Cow;
 use std::collections::HashMap;
-use std::fmt::{self, Write};
+use std::fmt::Display;
 use std::mem;
+use std::ops::Deref;
 use wit_parser::*;
 
 // NB: keep in sync with `crates/wit-parser/src/ast/lex.rs`
 const PRINT_F32_F64_DEFAULT: bool = true;
 
 /// A utility for printing WebAssembly interface definitions to a string.
-pub struct WitPrinter {
-    output: Output,
+pub struct WitPrinter<O: Output = OutputToString> {
+    /// Visitor that holds the WIT document being printed.
+    pub output: O,
 
     // Count of how many items in this current block have been printed to print
     // a blank line between each item, but not the first item.
@@ -23,8 +26,15 @@ pub struct WitPrinter {
 
 impl Default for WitPrinter {
     fn default() -> Self {
+        Self::new(OutputToString::default())
+    }
+}
+
+impl<O: Output> WitPrinter<O> {
+    /// Craete new instance.
+    pub fn new(output: O) -> Self {
         Self {
-            output: Default::default(),
+            output,
             any_items: false,
             emit_docs: true,
             print_f32_f64: match std::env::var("WIT_REQUIRE_F32_F64") {
@@ -33,9 +43,23 @@ impl Default for WitPrinter {
             },
         }
     }
-}
 
-impl WitPrinter {
+    /// Prints the specified `pkg` which is located in `resolve` to `O`.
+    ///
+    /// The `nested` list of packages are other packages to include at the end
+    /// of the output in `package ... { ... }` syntax.
+    pub fn print(&mut self, resolve: &Resolve, pkg: PackageId, nested: &[PackageId]) -> Result<()> {
+        self.print_package(resolve, pkg, true)?;
+        for (i, pkg_id) in nested.iter().enumerate() {
+            if i > 0 {
+                self.output.newline();
+                self.output.newline();
+            }
+            self.print_package(resolve, *pkg_id, false)?;
+        }
+        Ok(())
+    }
+
     /// Configure whether doc comments will be printed.
     ///
     /// Defaults to true.
@@ -44,87 +68,91 @@ impl WitPrinter {
         self
     }
 
-    /// Prints the specified `pkg` which is located in `resolve` to a string.
+    /// Prints the specified `pkg`.
     ///
-    /// The `nested` list of packages are other packages to include at the end
-    /// of the output in `package ... { ... }` syntax.
-    pub fn print(
+    /// If `is_main` is not set, nested package notation is used.
+    pub fn print_package(
         &mut self,
         resolve: &Resolve,
         pkg: PackageId,
-        nested: &[PackageId],
-    ) -> Result<String> {
-        self.print_package(resolve, pkg, true)?;
-        for (i, pkg_id) in nested.iter().enumerate() {
-            if i > 0 {
-                self.output.push_str("\n\n");
-            }
-            self.print_package(resolve, *pkg_id, false)?;
-        }
-
-        Ok(std::mem::take(&mut self.output).into())
-    }
-
-    fn print_package(&mut self, resolve: &Resolve, pkg: PackageId, is_main: bool) -> Result<()> {
+        is_main: bool,
+    ) -> Result<()> {
         let pkg = &resolve.packages[pkg];
-        self.print_docs(&pkg.docs);
-        self.output.push_str("package ");
-        self.print_name(&pkg.name.namespace);
-        self.output.push_str(":");
-        self.print_name(&pkg.name.name);
-        if let Some(version) = &pkg.name.version {
-            self.output.push_str(&format!("@{version}"));
-        }
+        self.print_package_outer(pkg)?;
 
         if is_main {
-            self.print_semicolon();
-            self.output.push_str("\n\n");
+            self.output.semicolon();
+            self.output.newline();
         } else {
-            self.output.push_str(" {\n");
+            self.output.indent_start();
         }
 
         for (name, id) in pkg.interfaces.iter() {
-            self.print_docs(&resolve.interfaces[*id].docs);
-            self.print_stability(&resolve.interfaces[*id].stability);
-            self.output.push_str("interface ");
-            self.print_name(name);
-            self.output.push_str(" {\n");
+            self.print_interface_outer(resolve, *id, name)?;
+            self.output.indent_start();
             self.print_interface(resolve, *id)?;
+            self.output.indent_end();
             if is_main {
-                writeln!(&mut self.output, "}}\n")?;
-            } else {
-                writeln!(&mut self.output, "}}")?;
+                self.output.newline();
             }
         }
 
         for (name, id) in pkg.worlds.iter() {
             self.print_docs(&resolve.worlds[*id].docs);
             self.print_stability(&resolve.worlds[*id].stability);
-            self.output.push_str("world ");
-            self.print_name(name);
-            self.output.push_str(" {\n");
+            self.output.keyword("world");
+            self.output.str(" ");
+            self.print_name_type(name, TypeKind::WorldDeclaration);
+            self.output.indent_start();
             self.print_world(resolve, *id)?;
-            writeln!(&mut self.output, "}}")?;
+            self.output.indent_end();
         }
         if !is_main {
-            writeln!(&mut self.output, "}}")?;
+            self.output.indent_end();
         }
         Ok(())
     }
 
-    fn print_semicolon(&mut self) {
-        self.output.push_str(";");
+    /// Print the specified package without its content.
+    /// Does not print the semicolon nor starts the indentation.
+    pub fn print_package_outer(&mut self, pkg: &Package) -> Result<()> {
+        self.print_docs(&pkg.docs);
+        self.output.keyword("package");
+        self.output.str(" ");
+        self.print_name_type(&pkg.name.namespace, TypeKind::NamespaceDeclaration);
+        self.output.str(":");
+        self.print_name_type(&pkg.name.name, TypeKind::PackageNameDeclaration);
+        if let Some(version) = &pkg.name.version {
+            self.print_name_type(&format!("@{version}"), TypeKind::VersionDeclaration);
+        }
+        Ok(())
     }
 
     fn new_item(&mut self) {
         if self.any_items {
-            self.output.push_str("\n");
+            self.output.newline();
         }
         self.any_items = true;
     }
 
-    /// Print the given WebAssembly interface to a string.
-    fn print_interface(&mut self, resolve: &Resolve, id: InterfaceId) -> Result<()> {
+    /// Print the given WebAssembly interface without its content.
+    /// Does not print the semicolon nor starts the indentation.
+    pub fn print_interface_outer(
+        &mut self,
+        resolve: &Resolve,
+        id: InterfaceId,
+        name: &str,
+    ) -> Result<()> {
+        self.print_docs(&resolve.interfaces[id].docs);
+        self.print_stability(&resolve.interfaces[id].stability);
+        self.output.keyword("interface");
+        self.output.str(" ");
+        self.print_name_type(name, TypeKind::InterfaceDeclaration);
+        Ok(())
+    }
+
+    /// Print the inner content of a given WebAssembly interface.
+    pub fn print_interface(&mut self, resolve: &Resolve, id: InterfaceId) -> Result<()> {
         let prev_items = mem::replace(&mut self.any_items, false);
         let interface = &resolve.interfaces[id];
 
@@ -152,11 +180,10 @@ impl WitPrinter {
             self.new_item();
             self.print_docs(&func.docs);
             self.print_stability(&func.stability);
-            self.print_name(name);
-            self.output.push_str(": ");
+            self.print_name_type(name, TypeKind::FunctionFreestanding);
+            self.output.str(": ");
             self.print_function(resolve, func)?;
-            self.print_semicolon();
-            self.output.push_str("\n");
+            self.output.semicolon();
         }
 
         self.any_items = prev_items;
@@ -164,7 +191,8 @@ impl WitPrinter {
         Ok(())
     }
 
-    fn print_types<'a>(
+    /// Print types of an interface.
+    pub fn print_types<'a>(
         &mut self,
         resolve: &Resolve,
         owner: TypeOwner,
@@ -215,7 +243,8 @@ impl WitPrinter {
         for (owner, stability, tys) in types_to_import {
             self.any_items = true;
             self.print_stability(stability);
-            write!(&mut self.output, "use ")?;
+            self.output.keyword("use");
+            self.output.str(" ");
             let id = match owner {
                 TypeOwner::Interface(id) => id,
                 // it's only possible to import types from interfaces at
@@ -223,22 +252,23 @@ impl WitPrinter {
                 _ => unreachable!(),
             };
             self.print_path_to_interface(resolve, id, my_pkg)?;
-            write!(&mut self.output, ".{{")?;
+            self.output.str(".{"); // Note: not changing the indentation.
             for (i, (my_name, other_name)) in tys.into_iter().enumerate() {
                 if i > 0 {
-                    write!(&mut self.output, ", ")?;
+                    self.output.str(", ");
                 }
                 if my_name == other_name {
-                    self.print_name(my_name);
+                    self.print_name_type(my_name, TypeKind::TypeImport);
                 } else {
-                    self.print_name(other_name);
-                    self.output.push_str(" as ");
-                    self.print_name(my_name);
+                    self.print_name_type(other_name, TypeKind::TypeImport);
+                    self.output.str(" ");
+                    self.output.keyword("as");
+                    self.output.str(" ");
+                    self.print_name_type(my_name, TypeKind::TypeAlias);
                 }
             }
-            write!(&mut self.output, "}}")?;
-            self.print_semicolon();
-            self.output.push_str("\n");
+            self.output.str("}"); // Note: not changing the indentation.
+            self.output.semicolon();
         }
 
         for id in types_to_declare {
@@ -260,14 +290,17 @@ impl WitPrinter {
 
     fn print_resource(&mut self, resolve: &Resolve, id: TypeId, funcs: &[&Function]) -> Result<()> {
         let ty = &resolve.types[id];
-        self.output.push_str("resource ");
-        self.print_name(ty.name.as_ref().expect("resources must be named"));
+        self.output.ty("resource", TypeKind::BuiltIn);
+        self.output.str(" ");
+        self.print_name_type(
+            ty.name.as_ref().expect("resources must be named"),
+            TypeKind::Resource,
+        );
         if funcs.is_empty() {
-            self.print_semicolon();
-            self.output.push_str("\n");
+            self.output.semicolon();
             return Ok(());
         }
-        self.output.push_str(" {\n");
+        self.output.indent_start();
         for func in funcs {
             self.print_docs(&func.docs);
             self.print_stability(&func.stability);
@@ -275,21 +308,21 @@ impl WitPrinter {
             match &func.kind {
                 FunctionKind::Constructor(_) => {}
                 FunctionKind::Method(_) => {
-                    self.print_name(func.item_name());
-                    self.output.push_str(": ");
+                    self.print_name_type(func.item_name(), TypeKind::FunctionMethod);
+                    self.output.str(": ");
                 }
                 FunctionKind::Static(_) => {
-                    self.print_name(func.item_name());
-                    self.output.push_str(": ");
-                    self.output.push_str("static ");
+                    self.print_name_type(func.item_name(), TypeKind::FunctionStatic);
+                    self.output.str(": ");
+                    self.output.keyword("static");
+                    self.output.str(" ");
                 }
                 FunctionKind::Freestanding => unreachable!(),
             }
             self.print_function(resolve, func)?;
-            self.print_semicolon();
-            self.output.push_str("\n");
+            self.output.semicolon();
         }
-        self.output.push_str("}\n");
+        self.output.indent_end();
 
         Ok(())
     }
@@ -297,8 +330,14 @@ impl WitPrinter {
     fn print_function(&mut self, resolve: &Resolve, func: &Function) -> Result<()> {
         // Constructors are named slightly differently.
         match &func.kind {
-            FunctionKind::Constructor(_) => self.output.push_str("constructor("),
-            _ => self.output.push_str("func("),
+            FunctionKind::Constructor(_) => {
+                self.output.keyword("constructor");
+                self.output.str("(");
+            }
+            _ => {
+                self.output.keyword("func");
+                self.output.str("(");
+            }
         }
 
         // Methods don't print their `self` argument
@@ -308,13 +347,13 @@ impl WitPrinter {
         };
         for (i, (name, ty)) in func.params.iter().skip(params_to_skip).enumerate() {
             if i > 0 {
-                self.output.push_str(", ");
+                self.output.str(", ");
             }
-            self.print_name(name);
-            self.output.push_str(": ");
+            self.print_name_param(name);
+            self.output.str(": ");
             self.print_type_name(resolve, ty)?;
         }
-        self.output.push_str(")");
+        self.output.str(")");
 
         // constructors don't have their results printed
         if let FunctionKind::Constructor(_) = func.kind {
@@ -325,20 +364,20 @@ impl WitPrinter {
             Results::Named(rs) => match rs.len() {
                 0 => (),
                 _ => {
-                    self.output.push_str(" -> (");
+                    self.output.str(" -> (");
                     for (i, (name, ty)) in rs.iter().enumerate() {
                         if i > 0 {
-                            self.output.push_str(", ");
+                            self.output.str(", ");
                         }
-                        self.print_name(name);
-                        self.output.push_str(": ");
+                        self.print_name_param(name);
+                        self.output.str(": ");
                         self.print_type_name(resolve, ty)?;
                     }
-                    self.output.push_str(")");
+                    self.output.str(")");
                 }
             },
             Results::Anon(ty) => {
-                self.output.push_str(" -> ");
+                self.output.str(" -> ");
                 self.print_type_name(resolve, ty)?;
             }
         }
@@ -394,7 +433,7 @@ impl WitPrinter {
         name: &WorldKey,
         item: &WorldItem,
         cur_pkg: PackageId,
-        desc: &str,
+        import_or_export_keyword: &str,
     ) -> Result<()> {
         // Print inline item docs
         if matches!(name, WorldKey::Name(_)) {
@@ -407,23 +446,23 @@ impl WitPrinter {
         }
 
         self.print_stability(item.stability(resolve));
-        self.output.push_str(desc);
-        self.output.push_str(" ");
+        self.output.keyword(import_or_export_keyword);
+        self.output.str(" ");
         match name {
             WorldKey::Name(name) => {
-                self.print_name(name);
-                self.output.push_str(": ");
+                self.print_name_type(name, TypeKind::Other);
+                self.output.str(": ");
                 match item {
                     WorldItem::Interface { id, .. } => {
                         assert!(resolve.interfaces[*id].name.is_none());
-                        writeln!(self.output, "interface {{")?;
+                        self.output.keyword("interface");
+                        self.output.indent_start();
                         self.print_interface(resolve, *id)?;
-                        writeln!(self.output, "}}")?;
+                        self.output.indent_end();
                     }
                     WorldItem::Function(f) => {
                         self.print_function(resolve, f)?;
-                        self.print_semicolon();
-                        self.output.push_str("\n");
+                        self.output.semicolon();
                     }
                     // Types are handled separately
                     WorldItem::Type(_) => unreachable!(),
@@ -435,8 +474,7 @@ impl WitPrinter {
                     _ => unreachable!(),
                 }
                 self.print_path_to_interface(resolve, *id, cur_pkg)?;
-                self.print_semicolon();
-                self.output.push_str("\n");
+                self.output.semicolon();
             }
         }
         Ok(())
@@ -450,53 +488,54 @@ impl WitPrinter {
     ) -> Result<()> {
         let iface = &resolve.interfaces[interface];
         if iface.package == Some(cur_pkg) {
-            self.print_name(iface.name.as_ref().unwrap());
+            self.print_name_type(iface.name.as_ref().unwrap(), TypeKind::InterfacePath);
         } else {
             let pkg = &resolve.packages[iface.package.unwrap()].name;
-            self.print_name(&pkg.namespace);
-            self.output.push_str(":");
-            self.print_name(&pkg.name);
-            self.output.push_str("/");
-            self.print_name(iface.name.as_ref().unwrap());
+            self.print_name_type(&pkg.namespace, TypeKind::NamespacePath);
+            self.output.str(":");
+            self.print_name_type(&pkg.name, TypeKind::PackageNamePath);
+            self.output.str("/");
+            self.print_name_type(iface.name.as_ref().unwrap(), TypeKind::InterfacePath);
             if let Some(version) = &pkg.version {
-                self.output.push_str(&format!("@{version}"));
+                self.print_name_type(&format!("@{version}"), TypeKind::VersionPath);
             }
         }
         Ok(())
     }
 
-    fn print_type_name(&mut self, resolve: &Resolve, ty: &Type) -> Result<()> {
+    /// Print the name of type `ty`.
+    pub fn print_type_name(&mut self, resolve: &Resolve, ty: &Type) -> Result<()> {
         match ty {
-            Type::Bool => self.output.push_str("bool"),
-            Type::U8 => self.output.push_str("u8"),
-            Type::U16 => self.output.push_str("u16"),
-            Type::U32 => self.output.push_str("u32"),
-            Type::U64 => self.output.push_str("u64"),
-            Type::S8 => self.output.push_str("s8"),
-            Type::S16 => self.output.push_str("s16"),
-            Type::S32 => self.output.push_str("s32"),
-            Type::S64 => self.output.push_str("s64"),
+            Type::Bool => self.output.ty("bool", TypeKind::BuiltIn),
+            Type::U8 => self.output.ty("u8", TypeKind::BuiltIn),
+            Type::U16 => self.output.ty("u16", TypeKind::BuiltIn),
+            Type::U32 => self.output.ty("u32", TypeKind::BuiltIn),
+            Type::U64 => self.output.ty("u64", TypeKind::BuiltIn),
+            Type::S8 => self.output.ty("s8", TypeKind::BuiltIn),
+            Type::S16 => self.output.ty("s16", TypeKind::BuiltIn),
+            Type::S32 => self.output.ty("s32", TypeKind::BuiltIn),
+            Type::S64 => self.output.ty("s64", TypeKind::BuiltIn),
             Type::F32 => {
                 if self.print_f32_f64 {
-                    self.output.push_str("f32")
+                    self.output.ty("f32", TypeKind::BuiltIn)
                 } else {
-                    self.output.push_str("f32")
+                    self.output.ty("f32", TypeKind::BuiltIn)
                 }
             }
             Type::F64 => {
                 if self.print_f32_f64 {
-                    self.output.push_str("f64")
+                    self.output.ty("f64", TypeKind::BuiltIn)
                 } else {
-                    self.output.push_str("f64")
+                    self.output.ty("f64", TypeKind::BuiltIn)
                 }
             }
-            Type::Char => self.output.push_str("char"),
-            Type::String => self.output.push_str("string"),
+            Type::Char => self.output.ty("char", TypeKind::BuiltIn),
+            Type::String => self.output.ty("string", TypeKind::BuiltIn),
 
             Type::Id(id) => {
                 let ty = &resolve.types[*id];
                 if let Some(name) = &ty.name {
-                    self.print_name(name);
+                    self.print_name_type(name, TypeKind::Other);
                     return Ok(());
                 }
 
@@ -529,17 +568,27 @@ impl WitPrinter {
                         bail!("resolve has unnamed variant type")
                     }
                     TypeDefKind::List(ty) => {
-                        self.output.push_str("list<");
+                        self.output.ty("list", TypeKind::BuiltIn);
+                        self.output.generic_args_start();
+                        self.print_type_name(resolve, ty)?;
+                        self.output.generic_args_end();
+                    }
+                    TypeDefKind::Type(ty) => self.print_type_name(resolve, ty)?,
+                    TypeDefKind::Future(ty) => {
+                        if let Some(ty) = ty {
+                            self.output.push_str("future<");
+                            self.print_type_name(resolve, ty)?;
+                            self.output.push_str(">");
+                        } else {
+                            self.output.push_str("future");
+                        }
+                    }
+                    TypeDefKind::Stream(ty) => {
+                        self.output.push_str("stream<");
                         self.print_type_name(resolve, ty)?;
                         self.output.push_str(">");
                     }
-                    TypeDefKind::Type(ty) => self.print_type_name(resolve, ty)?,
-                    TypeDefKind::Future(_) => {
-                        todo!("document has an unnamed future type")
-                    }
-                    TypeDefKind::Stream(_) => {
-                        todo!("document has an unnamed stream type")
-                    }
+                    TypeDefKind::ErrorContext => self.output.push_str("error-context"),
                     TypeDefKind::Unknown => unreachable!(),
                 }
             }
@@ -558,27 +607,31 @@ impl WitPrinter {
             Handle::Own(ty) => {
                 let ty = &resolve.types[*ty];
                 if force_handle_type_printed {
-                    self.output.push_str("own<");
+                    self.output.ty("own", TypeKind::BuiltIn);
+                    self.output.generic_args_start();
                 }
-                self.print_name(
+                self.print_name_type(
                     ty.name
                         .as_ref()
                         .ok_or_else(|| anyhow!("unnamed resource type"))?,
+                    TypeKind::Resource,
                 );
                 if force_handle_type_printed {
-                    self.output.push_str(">");
+                    self.output.generic_args_end();
                 }
             }
 
             Handle::Borrow(ty) => {
-                self.output.push_str("borrow<");
+                self.output.ty("borrow", TypeKind::BuiltIn);
+                self.output.generic_args_start();
                 let ty = &resolve.types[*ty];
-                self.print_name(
+                self.print_name_type(
                     ty.name
                         .as_ref()
                         .ok_or_else(|| anyhow!("unnamed resource type"))?,
+                    TypeKind::Resource,
                 );
-                self.output.push_str(">");
+                self.output.generic_args_end();
             }
         }
 
@@ -586,22 +639,24 @@ impl WitPrinter {
     }
 
     fn print_tuple_type(&mut self, resolve: &Resolve, tuple: &Tuple) -> Result<()> {
-        self.output.push_str("tuple<");
+        self.output.ty("tuple", TypeKind::BuiltIn);
+        self.output.generic_args_start();
         for (i, ty) in tuple.types.iter().enumerate() {
             if i > 0 {
-                self.output.push_str(", ");
+                self.output.str(", ");
             }
             self.print_type_name(resolve, ty)?;
         }
-        self.output.push_str(">");
+        self.output.generic_args_end();
 
         Ok(())
     }
 
     fn print_option_type(&mut self, resolve: &Resolve, payload: &Type) -> Result<()> {
-        self.output.push_str("option<");
+        self.output.ty("option", TypeKind::BuiltIn);
+        self.output.generic_args_start();
         self.print_type_name(resolve, payload)?;
-        self.output.push_str(">");
+        self.output.generic_args_end();
         Ok(())
     }
 
@@ -611,33 +666,37 @@ impl WitPrinter {
                 ok: Some(ok),
                 err: Some(err),
             } => {
-                self.output.push_str("result<");
+                self.output.ty("result", TypeKind::BuiltIn);
+                self.output.generic_args_start();
                 self.print_type_name(resolve, ok)?;
-                self.output.push_str(", ");
+                self.output.str(", ");
                 self.print_type_name(resolve, err)?;
-                self.output.push_str(">");
+                self.output.generic_args_end();
             }
             Result_ {
                 ok: None,
                 err: Some(err),
             } => {
-                self.output.push_str("result<_, ");
+                self.output.ty("result", TypeKind::BuiltIn);
+                self.output.generic_args_start();
+                self.output.str("_, ");
                 self.print_type_name(resolve, err)?;
-                self.output.push_str(">");
+                self.output.generic_args_end();
             }
             Result_ {
                 ok: Some(ok),
                 err: None,
             } => {
-                self.output.push_str("result<");
+                self.output.ty("result", TypeKind::BuiltIn);
+                self.output.generic_args_start();
                 self.print_type_name(resolve, ok)?;
-                self.output.push_str(">");
+                self.output.generic_args_end();
             }
             Result_ {
                 ok: None,
                 err: None,
             } => {
-                self.output.push_str("result");
+                self.output.ty("result", TypeKind::BuiltIn);
             }
         }
         Ok(())
@@ -686,17 +745,22 @@ impl WitPrinter {
                     }
                     TypeDefKind::Type(inner) => match ty.name.as_deref() {
                         Some(name) => {
-                            self.output.push_str("type ");
-                            self.print_name(name);
-                            self.output.push_str(" = ");
+                            self.output.keyword("type");
+                            self.output.str(" ");
+                            self.print_name_type(name, TypeKind::TypeName);
+                            self.output.str(" = ");
                             self.print_type_name(resolve, inner)?;
-                            self.print_semicolon();
-                            self.output.push_str("\n");
+                            self.output.semicolon();
                         }
                         None => bail!("unnamed type in document"),
                     },
-                    TypeDefKind::Future(_) => todo!("declare future"),
-                    TypeDefKind::Stream(_) => todo!("declare stream"),
+                    TypeDefKind::Future(inner) => {
+                        self.declare_future(resolve, ty.name.as_deref(), inner.as_ref())?
+                    }
+                    TypeDefKind::Stream(inner) => {
+                        self.declare_stream(resolve, ty.name.as_deref(), inner)?
+                    }
+                    TypeDefKind::ErrorContext => self.declare_error_context(ty.name.as_deref())?,
                     TypeDefKind::Unknown => unreachable!(),
                 }
             }
@@ -712,17 +776,17 @@ impl WitPrinter {
     ) -> Result<()> {
         match name {
             Some(name) => {
-                self.output.push_str("type ");
-                self.print_name(name);
-                self.output.push_str(" = ");
+                self.output.keyword("type");
+                self.output.str(" ");
+                self.print_name_type(name, TypeKind::Resource);
+                self.output.str(" = ");
                 // Note that the `true` here forces owned handles to be printed
                 // as `own<T>`. The purpose of this is because `type a = b`, if
                 // `b` is a resource, is encoded differently as `type a =
                 // own<b>`. By forcing a handle to be printed here it's staying
                 // true to what's in the WIT document.
                 self.print_handle_type(resolve, handle, true)?;
-                self.print_semicolon();
-                self.output.push_str("\n");
+                self.output.semicolon();
 
                 Ok(())
             }
@@ -738,17 +802,19 @@ impl WitPrinter {
     ) -> Result<()> {
         match name {
             Some(name) => {
-                self.output.push_str("record ");
-                self.print_name(name);
-                self.output.push_str(" {\n");
+                self.output.keyword("record");
+                self.output.str(" ");
+                self.print_name_type(name, TypeKind::Record);
+                self.output.indent_start();
                 for field in &record.fields {
                     self.print_docs(&field.docs);
-                    self.print_name(&field.name);
-                    self.output.push_str(": ");
+                    self.print_name_param(&field.name);
+                    self.output.str(": ");
                     self.print_type_name(resolve, &field.ty)?;
-                    self.output.push_str(",\n");
+                    self.output.str(",");
+                    self.output.newline();
                 }
-                self.output.push_str("}\n");
+                self.output.indent_end();
                 Ok(())
             }
             None => bail!("document has unnamed record type"),
@@ -762,12 +828,12 @@ impl WitPrinter {
         tuple: &Tuple,
     ) -> Result<()> {
         if let Some(name) = name {
-            self.output.push_str("type ");
-            self.print_name(name);
-            self.output.push_str(" = ");
+            self.output.keyword("type");
+            self.output.str(" ");
+            self.print_name_type(name, TypeKind::Tuple);
+            self.output.str(" = ");
             self.print_tuple_type(resolve, tuple)?;
-            self.print_semicolon();
-            self.output.push_str("\n");
+            self.output.semicolon();
         }
         Ok(())
     }
@@ -775,15 +841,17 @@ impl WitPrinter {
     fn declare_flags(&mut self, name: Option<&str>, flags: &Flags) -> Result<()> {
         match name {
             Some(name) => {
-                self.output.push_str("flags ");
-                self.print_name(name);
-                self.output.push_str(" {\n");
+                self.output.keyword("flags");
+                self.output.str(" ");
+                self.print_name_type(name, TypeKind::Flags);
+                self.output.indent_start();
                 for flag in &flags.flags {
                     self.print_docs(&flag.docs);
-                    self.print_name(&flag.name);
-                    self.output.push_str(",\n");
+                    self.print_name_case(&flag.name);
+                    self.output.str(",");
+                    self.output.newline();
                 }
-                self.output.push_str("}\n");
+                self.output.indent_end();
             }
             None => bail!("document has unnamed flags type"),
         }
@@ -800,20 +868,22 @@ impl WitPrinter {
             Some(name) => name,
             None => bail!("document has unnamed variant type"),
         };
-        self.output.push_str("variant ");
-        self.print_name(name);
-        self.output.push_str(" {\n");
+        self.output.keyword("variant");
+        self.output.str(" ");
+        self.print_name_type(name, TypeKind::Variant);
+        self.output.indent_start();
         for case in &variant.cases {
             self.print_docs(&case.docs);
-            self.print_name(&case.name);
+            self.print_name_case(&case.name);
             if let Some(ty) = case.ty {
-                self.output.push_str("(");
+                self.output.str("(");
                 self.print_type_name(resolve, &ty)?;
-                self.output.push_str(")");
+                self.output.str(")");
             }
-            self.output.push_str(",\n");
+            self.output.str(",");
+            self.output.newline();
         }
-        self.output.push_str("}\n");
+        self.output.indent_end();
         Ok(())
     }
 
@@ -824,12 +894,12 @@ impl WitPrinter {
         payload: &Type,
     ) -> Result<()> {
         if let Some(name) = name {
-            self.output.push_str("type ");
-            self.print_name(name);
-            self.output.push_str(" = ");
+            self.output.keyword("type");
+            self.output.str(" ");
+            self.print_name_type(name, TypeKind::Option);
+            self.output.str(" = ");
             self.print_option_type(resolve, payload)?;
-            self.print_semicolon();
-            self.output.push_str("\n");
+            self.output.semicolon();
         }
         Ok(())
     }
@@ -841,12 +911,12 @@ impl WitPrinter {
         result: &Result_,
     ) -> Result<()> {
         if let Some(name) = name {
-            self.output.push_str("type ");
-            self.print_name(name);
-            self.output.push_str(" = ");
+            self.output.keyword("type");
+            self.output.str(" ");
+            self.print_name_type(name, TypeKind::Result);
+            self.output.str(" = ");
             self.print_result_type(resolve, result)?;
-            self.print_semicolon();
-            self.output.push_str("\n");
+            self.output.semicolon();
         }
         Ok(())
     }
@@ -856,47 +926,114 @@ impl WitPrinter {
             Some(name) => name,
             None => bail!("document has unnamed enum type"),
         };
-        self.output.push_str("enum ");
-        self.print_name(name);
-        self.output.push_str(" {\n");
+        self.output.keyword("enum");
+        self.output.str(" ");
+        self.print_name_type(name, TypeKind::Enum);
+        self.output.indent_start();
         for case in &enum_.cases {
             self.print_docs(&case.docs);
-            self.print_name(&case.name);
-            self.output.push_str(",\n");
+            self.print_name_case(&case.name);
+            self.output.str(",");
+            self.output.newline();
         }
-        self.output.push_str("}\n");
+        self.output.indent_end();
         Ok(())
     }
 
     fn declare_list(&mut self, resolve: &Resolve, name: Option<&str>, ty: &Type) -> Result<()> {
         if let Some(name) = name {
-            self.output.push_str("type ");
-            self.print_name(name);
-            self.output.push_str(" = list<");
+            self.output.keyword("type");
+            self.output.str(" ");
+            self.print_name_type(name, TypeKind::List);
+            self.output.str(" = ");
+            self.output.ty("list", TypeKind::BuiltIn);
+            self.output.str("<");
             self.print_type_name(resolve, ty)?;
-            self.output.push_str(">");
-            self.print_semicolon();
-            self.output.push_str("\n");
+            self.output.str(">");
+            self.output.semicolon();
             return Ok(());
         }
 
         Ok(())
     }
 
-    fn print_name(&mut self, name: &str) {
-        if is_keyword(name) {
-            self.output.push_str("%");
+    fn declare_stream(&mut self, resolve: &Resolve, name: Option<&str>, ty: &Type) -> Result<()> {
+        if let Some(name) = name {
+            self.output.keyword("type");
+            self.output.str(" ");
+            self.print_name_type(name, TypeKind::Stream);
+            self.output.str(" = ");
+            self.output.ty("stream", TypeKind::BuiltIn);
+            self.output.str("<");
+            self.print_type_name(resolve, ty)?;
+            self.output.str(">");
+            self.output.semicolon();
         }
-        self.output.push_str(name);
+
+        Ok(())
+    }
+
+    fn declare_future(
+        &mut self,
+        resolve: &Resolve,
+        name: Option<&str>,
+        ty: Option<&Type>,
+    ) -> Result<()> {
+        if let Some(name) = name {
+            self.output.keyword("type");
+            self.output.str(" ");
+            self.print_name_type(name, TypeKind::Future);
+            self.output.str(" = ");
+            self.output.ty("future", TypeKind::BuiltIn);
+            if let Some(ty) = ty {
+                self.output.str("<");
+                self.print_type_name(resolve, ty)?;
+                self.output.str(">");
+            }
+            self.output.semicolon();
+        }
+
+        Ok(())
+    }
+
+    fn declare_error_context(&mut self, name: Option<&str>) -> Result<()> {
+        if let Some(name) = name {
+            self.output.keyword("type");
+            self.output.str(" ");
+            self.print_name_type(name, TypeKind::ErrorContext);
+            self.output.str(" = ");
+            self.output.ty("error-context", TypeKind::BuiltIn);
+            self.output.semicolon();
+        }
+
+        Ok(())
+    }
+
+    fn escape_name(name: &str) -> Cow<str> {
+        if is_keyword(name) {
+            Cow::Owned(format!("%{name}"))
+        } else {
+            Cow::Borrowed(name)
+        }
+    }
+
+    fn print_name_type(&mut self, name: &str, kind: TypeKind) {
+        self.output.ty(Self::escape_name(name).deref(), kind);
+    }
+
+    fn print_name_param(&mut self, name: &str) {
+        self.output.param(Self::escape_name(name).deref());
+    }
+
+    fn print_name_case(&mut self, name: &str) {
+        self.output.case(Self::escape_name(name).deref());
     }
 
     fn print_docs(&mut self, docs: &Docs) {
         if self.emit_docs {
             if let Some(contents) = &docs.contents {
                 for line in contents.lines() {
-                    self.output.push_str("/// ");
-                    self.output.push_str(line);
-                    self.output.push_str("\n");
+                    self.output.doc(line);
                 }
             }
         }
@@ -906,26 +1043,42 @@ impl WitPrinter {
         match stability {
             Stability::Unknown => {}
             Stability::Stable { since, deprecated } => {
-                self.output.push_str("@since(version = ");
-                self.output.push_str(&since.to_string());
-                self.output.push_str(")\n");
+                self.output.keyword("@since");
+                self.output.str("(");
+                self.output.keyword("version");
+                self.output.str(" = ");
+                self.print_name_type(&since.to_string(), TypeKind::VersionAnnotation);
+                self.output.str(")");
+                self.output.newline();
                 if let Some(version) = deprecated {
-                    self.output.push_str("@deprecated(version = ");
-                    self.output.push_str(&version.to_string());
-                    self.output.push_str(")\n");
+                    self.output.keyword("@deprecated");
+                    self.output.str("(");
+                    self.output.keyword("version");
+                    self.output.str(" = ");
+                    self.print_name_type(&version.to_string(), TypeKind::VersionAnnotation);
+                    self.output.str(")");
+                    self.output.newline();
                 }
             }
             Stability::Unstable {
                 feature,
                 deprecated,
             } => {
-                self.output.push_str("@unstable(feature = ");
-                self.output.push_str(feature);
-                self.output.push_str(")\n");
+                self.output.keyword("@unstable");
+                self.output.str("(");
+                self.output.keyword("feature");
+                self.output.str(" = ");
+                self.output.str(feature);
+                self.output.str(")");
+                self.output.newline();
                 if let Some(version) = deprecated {
-                    self.output.push_str("@deprecated(version = ");
-                    self.output.push_str(&version.to_string());
-                    self.output.push_str(")\n");
+                    self.output.keyword("@deprecated");
+                    self.output.str("(");
+                    self.output.keyword("version");
+                    self.output.str(" = ");
+                    self.print_name_type(&version.to_string(), TypeKind::VersionAnnotation);
+                    self.output.str(")");
+                    self.output.newline();
                 }
             }
         }
@@ -987,69 +1140,256 @@ fn is_keyword(name: &str) -> bool {
             | "with"
             | "include"
             | "constructor"
+            | "error-context"
     )
 }
 
+/// Trait defining visitor methods driven by [`WitPrinter`](WitPrinter).
+///
+/// Some methods in this trait have default implementations. These default
+/// implementations may rely on helper functions that are not
+/// invoked directly by `WitPrinter`.
+pub trait Output {
+    /// Push a string slice into a buffer or an output.
+    ///
+    /// Parameter `src` can contain punctation characters, and must be escaped
+    /// when outputing to languages like HTML.
+    /// Helper function used exclusively by the default implementations of trait methods.
+    /// This function is not called directly by `WitPrinter`.
+    /// When overriding all the trait methods, users do not need to handle this function.
+    fn push_str(&mut self, src: &str);
+
+    /// Set the appropriate indentation.
+    ///
+    /// Helper function used exclusively by the default implementations of trait methods.
+    /// This function is not called directly by `WitPrinter`.
+    /// When overriding all the trait methods, users do not need to handle this function.
+    fn indent_if_needed(&mut self) -> bool;
+
+    /// Start of indentation. In WIT this represents ` {\n`.
+    fn indent_start(&mut self);
+
+    /// End of indentation. In WIT this represents `}\n`.
+    fn indent_end(&mut self);
+
+    /// This method is designed to be used only by the default methods of this trait.
+    /// Called only from the default implementation functions of this trait.
+    fn indent_and_print(&mut self, src: &str) {
+        assert!(!src.contains('\n'));
+        let idented = self.indent_if_needed();
+        if idented && src.starts_with(' ') {
+            panic!("cannot add a space at the begining of a line");
+        }
+        self.push_str(src);
+    }
+
+    /// A newline is added.
+    fn newline(&mut self);
+
+    /// A keyword is added. Keywords are hardcoded strings from `[a-z]`, but can start with `@`
+    /// when printing a [Feature Gate](https://github.com/WebAssembly/component-model/blob/main/design/mvp/WIT.md#feature-gates)
+    fn keyword(&mut self, src: &str) {
+        self.indent_and_print(src);
+    }
+
+    /// A type is added.
+    fn ty(&mut self, src: &str, _kind: TypeKind) {
+        self.indent_and_print(src);
+    }
+
+    /// A parameter name of a function, record or a named return is added.
+    fn param(&mut self, src: &str) {
+        self.indent_and_print(src);
+    }
+
+    /// A case belonging to a variant, enum or flags is added.
+    fn case(&mut self, src: &str) {
+        self.indent_and_print(src);
+    }
+
+    /// Generic argument section starts. In WIT this represents the `<` character.
+    fn generic_args_start(&mut self) {
+        assert!(
+            !self.indent_if_needed(),
+            "`generic_args_start` is never called after newline"
+        );
+        self.push_str("<");
+    }
+
+    /// Generic argument section ends. In WIT this represents the '>' character.
+    fn generic_args_end(&mut self) {
+        assert!(
+            !self.indent_if_needed(),
+            "`generic_args_end` is never called after newline"
+        );
+        self.push_str(">");
+    }
+
+    /// Called when a single documentation line is added.
+    /// The `doc` parameter starts with `///` omitted, and can be an empty string.
+    fn doc(&mut self, doc: &str) {
+        assert!(!doc.contains('\n'));
+        self.indent_if_needed();
+        self.push_str("///");
+        if !doc.is_empty() {
+            self.push_str(" ");
+            self.push_str(doc);
+        }
+        self.newline();
+    }
+
+    /// A semicolon is added.
+    fn semicolon(&mut self) {
+        assert!(
+            !self.indent_if_needed(),
+            "`semicolon` is never called after newline"
+        );
+        self.push_str(";");
+        self.newline();
+    }
+
+    /// Any string that does not have a specialized function is added.
+    /// Parameter `src` can contain punctation characters, and must be escaped
+    /// when outputing to languages like HTML.
+    fn str(&mut self, src: &str) {
+        self.indent_and_print(src);
+    }
+}
+
+/// Represents the different kinds of types that can be encountered while
+/// visiting a WIT file.
+///
+/// Each variant refers to the name of the respective element (e.g., function, type, or namespace),
+/// not the entire declaration.
+#[non_exhaustive]
+#[derive(Clone, Copy, Debug)]
+pub enum TypeKind {
+    /// A built-in type, such as "list" or "option".
+    BuiltIn,
+    /// An enumeration type name.
+    Enum,
+    /// An error-context type name.
+    ErrorContext,
+    /// A flags type name.
+    Flags,
+    /// A freestanding function name, not associated with any specific type or namespace.
+    /// For example, "myfunc" in `myfunc: func() -> string;`.
+    FunctionFreestanding,
+    /// A method, associated with a resource.
+    FunctionMethod,
+    /// A static function, associated with a resource.
+    FunctionStatic,
+    /// A future type name.
+    Future,
+    /// An interface declaration name.
+    InterfaceDeclaration,
+    /// An interface name when printing a path, for example in `use`.
+    InterfacePath,
+    /// A list type name.
+    List,
+    /// A namespace declaration.
+    NamespaceDeclaration,
+    /// A namespace when printing a path, for example in `use`.
+    NamespacePath,
+    /// An option type name.
+    Option,
+    /// A package name declaration.
+    PackageNameDeclaration,
+    /// A package name when printing a path, for example in `use`.
+    PackageNamePath,
+    /// A record type name.
+    Record,
+    /// A resource type name.
+    Resource,
+    /// A result type name.
+    Result,
+    /// A stream type name.
+    Stream,
+    /// A tuple type name.
+    Tuple,
+    /// A type alias.
+    TypeAlias,
+    /// An imported type name.
+    TypeImport,
+    /// A user-defined type name.
+    TypeName,
+    /// A variant type name.
+    Variant,
+    /// A version declaration.
+    VersionDeclaration,
+    /// A version when printing a path, for example in `use`.
+    VersionPath,
+    /// A version when printing stability annotations, for example in `@since`
+    VersionAnnotation,
+    /// A world declaration name.
+    WorldDeclaration,
+    /// A fallback for types that do not fit into any other category.
+    Other,
+}
+
 /// Helper structure to help maintain an indentation level when printing source,
-/// modeled after the support in `wit-bindgen-core`.
+/// modeled after the support in `wit-bindgen-core`. Indentation is set to two spaces.
 #[derive(Default)]
-struct Output {
+pub struct OutputToString {
     indent: usize,
     output: String,
+    // set to true after newline, then to false after first item is indented.
+    needs_indent: bool,
 }
 
-impl Output {
+impl Output for OutputToString {
     fn push_str(&mut self, src: &str) {
-        let lines = src.lines().collect::<Vec<_>>();
-        for (i, line) in lines.iter().enumerate() {
-            let trimmed = line.trim();
-            if trimmed.starts_with('}') && self.output.ends_with("  ") {
-                self.output.pop();
-                self.output.pop();
+        self.output.push_str(src);
+    }
+
+    fn indent_if_needed(&mut self) -> bool {
+        if self.needs_indent {
+            for _ in 0..self.indent {
+                // Indenting by two spaces.
+                self.output.push_str("  ");
             }
-            self.output.push_str(if lines.len() == 1 {
-                line
-            } else {
-                line.trim_start()
-            });
-            if trimmed.ends_with('{') {
-                self.indent += 1;
-            }
-            if trimmed.starts_with('}') {
-                // Note that a `saturating_sub` is used here to prevent a panic
-                // here in the case of invalid code being generated in debug
-                // mode. It's typically easier to debug those issues through
-                // looking at the source code rather than getting a panic.
-                self.indent = self.indent.saturating_sub(1);
-            }
-            if i != lines.len() - 1 || src.ends_with('\n') {
-                // Trim trailing whitespace, if any, then push an indented
-                // newline
-                while let Some(c) = self.output.chars().next_back() {
-                    if c.is_whitespace() && c != '\n' {
-                        self.output.pop();
-                    } else {
-                        break;
-                    }
-                }
-                self.output.push('\n');
-                for _ in 0..self.indent {
-                    self.output.push_str("  ");
-                }
-            }
+            self.needs_indent = false;
+            true
+        } else {
+            false
         }
     }
-}
 
-impl Write for Output {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
-        self.push_str(s);
-        Ok(())
+    fn indent_start(&mut self) {
+        assert!(
+            !self.needs_indent,
+            "`indent_start` is never called after newline"
+        );
+        self.output.push_str(" {");
+        self.indent += 1;
+        self.newline();
+    }
+
+    fn indent_end(&mut self) {
+        // Note that a `saturating_sub` is used here to prevent a panic
+        // here in the case of invalid code being generated in debug
+        // mode. It's typically easier to debug those issues through
+        // looking at the source code rather than getting a panic.
+        self.indent = self.indent.saturating_sub(1);
+        self.indent_if_needed();
+        self.output.push('}');
+        self.newline();
+    }
+
+    fn newline(&mut self) {
+        self.output.push('\n');
+        self.needs_indent = true;
     }
 }
 
-impl From<Output> for String {
-    fn from(output: Output) -> String {
+impl From<OutputToString> for String {
+    fn from(output: OutputToString) -> String {
         output.output
+    }
+}
+
+impl Display for OutputToString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.output.fmt(f)
     }
 }

@@ -800,6 +800,13 @@ pub mod component_utils {
             wasmparser::ComponentDefinedType::Borrow(i) => {
                 defined.borrow(reencoder.component_type_index(i));
             }
+            wasmparser::ComponentDefinedType::Future(t) => {
+                defined.future(t.map(|t| reencoder.component_val_type(t)));
+            }
+            wasmparser::ComponentDefinedType::Stream(t) => {
+                defined.stream(reencoder.component_val_type(t));
+            }
+            wasmparser::ComponentDefinedType::ErrorContext => defined.error_context(),
         }
         Ok(())
     }
@@ -959,6 +966,89 @@ pub mod component_utils {
             }
             wasmparser::CanonicalFunction::ThreadHwConcurrency => {
                 section.thread_hw_concurrency();
+            }
+            wasmparser::CanonicalFunction::TaskBackpressure => {
+                section.task_backpressure();
+            }
+            wasmparser::CanonicalFunction::TaskReturn { type_index } => {
+                section.task_return(reencoder.type_index(type_index));
+            }
+            wasmparser::CanonicalFunction::TaskWait { async_, memory } => {
+                section.task_wait(async_, reencoder.memory_index(memory));
+            }
+            wasmparser::CanonicalFunction::TaskPoll { async_, memory } => {
+                section.task_poll(async_, reencoder.memory_index(memory));
+            }
+            wasmparser::CanonicalFunction::TaskYield { async_ } => {
+                section.task_yield(async_);
+            }
+            wasmparser::CanonicalFunction::SubtaskDrop => {
+                section.subtask_drop();
+            }
+            wasmparser::CanonicalFunction::StreamNew { ty } => {
+                section.stream_new(reencoder.component_type_index(ty));
+            }
+            wasmparser::CanonicalFunction::StreamRead { ty, options } => {
+                section.stream_read(
+                    reencoder.component_type_index(ty),
+                    options.iter().map(|o| reencoder.canonical_option(*o)),
+                );
+            }
+            wasmparser::CanonicalFunction::StreamWrite { ty, options } => {
+                section.stream_write(
+                    reencoder.component_type_index(ty),
+                    options.iter().map(|o| reencoder.canonical_option(*o)),
+                );
+            }
+            wasmparser::CanonicalFunction::StreamCancelRead { ty, async_ } => {
+                section.stream_cancel_read(ty, async_);
+            }
+            wasmparser::CanonicalFunction::StreamCancelWrite { ty, async_ } => {
+                section.stream_cancel_write(ty, async_);
+            }
+            wasmparser::CanonicalFunction::StreamCloseReadable { ty } => {
+                section.stream_close_readable(reencoder.component_type_index(ty));
+            }
+            wasmparser::CanonicalFunction::StreamCloseWritable { ty } => {
+                section.stream_close_writable(reencoder.component_type_index(ty));
+            }
+            wasmparser::CanonicalFunction::FutureNew { ty } => {
+                section.future_new(reencoder.component_type_index(ty));
+            }
+            wasmparser::CanonicalFunction::FutureRead { ty, options } => {
+                section.future_read(
+                    reencoder.component_type_index(ty),
+                    options.iter().map(|o| reencoder.canonical_option(*o)),
+                );
+            }
+            wasmparser::CanonicalFunction::FutureWrite { ty, options } => {
+                section.future_write(
+                    reencoder.component_type_index(ty),
+                    options.iter().map(|o| reencoder.canonical_option(*o)),
+                );
+            }
+            wasmparser::CanonicalFunction::FutureCancelRead { ty, async_ } => {
+                section.future_cancel_read(ty, async_);
+            }
+            wasmparser::CanonicalFunction::FutureCancelWrite { ty, async_ } => {
+                section.future_cancel_write(ty, async_);
+            }
+            wasmparser::CanonicalFunction::FutureCloseReadable { ty } => {
+                section.future_close_readable(reencoder.component_type_index(ty));
+            }
+            wasmparser::CanonicalFunction::FutureCloseWritable { ty } => {
+                section.future_close_writable(reencoder.component_type_index(ty));
+            }
+            wasmparser::CanonicalFunction::ErrorContextNew { options } => {
+                section.error_context_new(options.iter().map(|o| reencoder.canonical_option(*o)));
+            }
+            wasmparser::CanonicalFunction::ErrorContextDebugMessage { options } => {
+                section.error_context_debug_message(
+                    options.iter().map(|o| reencoder.canonical_option(*o)),
+                );
+            }
+            wasmparser::CanonicalFunction::ErrorContextDrop => {
+                section.error_context_drop();
             }
         }
         Ok(())
@@ -1241,6 +1331,10 @@ pub mod component_utils {
             }
             wasmparser::CanonicalOption::PostReturn(u) => {
                 crate::component::CanonicalOption::PostReturn(reencoder.function_index(u))
+            }
+            wasmparser::CanonicalOption::Async => crate::component::CanonicalOption::Async,
+            wasmparser::CanonicalOption::Callback(u) => {
+                crate::component::CanonicalOption::Callback(reencoder.function_index(u))
             }
         }
     }

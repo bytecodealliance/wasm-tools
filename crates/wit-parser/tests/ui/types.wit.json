@@ -53,11 +53,8 @@
         "t48": 49,
         "t49": 50,
         "t50": 51,
-        "t51": 52,
-        "t52": 53,
-        "t53": 54,
-        "bar": 55,
-        "foo": 56
+        "bar": 52,
+        "foo": 53
       },
       "functions": {},
       "package": 0
@@ -677,10 +674,7 @@
     {
       "name": "t48",
       "kind": {
-        "stream": {
-          "element": "u32",
-          "end": "u32"
-        }
+        "stream": "u32"
       },
       "owner": {
         "interface": 0
@@ -689,42 +683,6 @@
     {
       "name": "t49",
       "kind": {
-        "stream": {
-          "element": null,
-          "end": "u32"
-        }
-      },
-      "owner": {
-        "interface": 0
-      }
-    },
-    {
-      "name": "t50",
-      "kind": {
-        "stream": {
-          "element": "u32",
-          "end": null
-        }
-      },
-      "owner": {
-        "interface": 0
-      }
-    },
-    {
-      "name": "t51",
-      "kind": {
-        "stream": {
-          "element": null,
-          "end": null
-        }
-      },
-      "owner": {
-        "interface": 0
-      }
-    },
-    {
-      "name": "t52",
-      "kind": {
         "future": "u32"
       },
       "owner": {
@@ -732,7 +690,7 @@
       }
     },
     {
-      "name": "t53",
+      "name": "t50",
       "kind": {
         "future": null
       },
@@ -752,7 +710,7 @@
     {
       "name": "foo",
       "kind": {
-        "type": 55
+        "type": 52
       },
       "owner": {
         "interface": 0

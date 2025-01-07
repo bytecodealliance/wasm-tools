@@ -16,7 +16,7 @@ use wit_component::{
     embed_component_metadata, metadata, ComponentEncoder, DecodedWasm, Linker, StringEncoding,
     WitPrinter,
 };
-use wit_parser::{Mangling, PackageId, Resolve};
+use wit_parser::{LiftLowerAbi, Mangling, ManglingAndAbi, PackageId, Resolve};
 
 /// WebAssembly wit-based component tooling.
 #[derive(Parser)]
@@ -306,6 +306,26 @@ pub struct EmbedOpts {
     #[clap(long, conflicts_with = "dummy")]
     dummy_names: Option<Mangling>,
 
+    /// With `--dummy-names legacy`, this will generate a core module such that
+    /// all the imports are lowered using the async ABI and the exports are
+    /// lifted using the async-with-callback ABI.
+    ///
+    /// Note that this does not yet work with `--dummy` or `--dummy-names
+    /// standard32` because the standard name mangling scheme does not yet
+    /// support async-related features as of this writing.
+    #[clap(long, requires = "dummy_names", conflicts_with = "async_stackful")]
+    async_callback: bool,
+
+    /// With `--dummy-names legacy`, this will generate a core module such that
+    /// all the imports are lowered using the async ABI and the exports are
+    /// lifted using the async-without-callback (i.e. stackful) ABI.
+    ///
+    /// Note that this does not yet work with `--dummy` or `--dummy-names
+    /// standard32` because the standard name mangling scheme does not yet
+    /// support async-related features as of this writing.
+    #[clap(long, requires = "dummy_names", conflicts_with = "async_callback")]
+    async_stackful: bool,
+
     /// Print the output in the WebAssembly text format instead of binary.
     #[clap(long, short = 't')]
     wat: bool,
@@ -344,9 +364,27 @@ impl EmbedOpts {
         }
 
         let mut wasm = if self.dummy {
-            wit_component::dummy_module(&resolve, world, Mangling::Standard32)
+            wit_component::dummy_module(&resolve, world, ManglingAndAbi::Standard32)
         } else if let Some(mangling) = self.dummy_names {
-            wit_component::dummy_module(&resolve, world, mangling)
+            wit_component::dummy_module(
+                &resolve,
+                world,
+                match mangling {
+                    Mangling::Standard32 => {
+                        if self.async_callback || self.async_stackful {
+                            bail!("non-legacy mangling not yet supported when generating async dummy modules");
+                        }
+                        ManglingAndAbi::Standard32
+                    }
+                    Mangling::Legacy => ManglingAndAbi::Legacy(if self.async_callback {
+                        LiftLowerAbi::AsyncCallback
+                    } else if self.async_stackful {
+                        LiftLowerAbi::AsyncStackful
+                    } else {
+                        LiftLowerAbi::Sync
+                    }),
+                },
+            )
         } else {
             self.io.parse_input_wasm()?
         };
@@ -801,8 +839,11 @@ impl WitOpts {
 
         let resolve = decoded.resolve();
 
-        let mut printer = WitPrinter::default();
-        printer.emit_docs(!self.no_docs);
+        let configure_printer = || {
+            let mut wit_printer = WitPrinter::default();
+            wit_printer.emit_docs(!self.no_docs);
+            wit_printer
+        };
 
         match &self.out_dir {
             Some(dir) => {
@@ -825,7 +866,9 @@ impl WitOpts {
                 let main = decoded.package();
                 for (id, pkg) in resolve.packages.iter() {
                     let is_main = id == main;
-                    let output = printer.print(resolve, id, &[])?;
+                    let mut printer = configure_printer();
+                    printer.print(resolve, id, &[])?;
+                    let output = printer.output.to_string();
                     let out_dir = if is_main {
                         dir.clone()
                     } else {
@@ -864,7 +907,7 @@ impl WitOpts {
                     &self.general,
                     Output::Wit {
                         wit: &decoded,
-                        printer,
+                        printer: configure_printer(),
                     },
                 )?;
             }

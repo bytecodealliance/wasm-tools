@@ -891,11 +891,34 @@ impl TypeData for ComponentFuncType {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum Abi {
+    LowerSync,
+    LowerAsync,
+    LiftSync,
+    LiftAsync,
+    LiftAsyncStackful,
+}
+
 impl ComponentFuncType {
     /// Lowers the component function type to core parameter and result types for the
     /// canonical ABI.
-    pub(crate) fn lower(&self, types: &TypeList, is_lower: bool) -> LoweringInfo {
+    pub(crate) fn lower(&self, types: &TypeList, abi: Abi) -> LoweringInfo {
         let mut info = LoweringInfo::default();
+
+        let is_lower = match abi {
+            Abi::LowerAsync => {
+                for _ in 0..2 {
+                    info.params.push(ValType::I32);
+                }
+                info.results.push(ValType::I32);
+                info.requires_memory = true;
+                info.requires_realloc = self.results.iter().any(|(_, ty)| ty.contains_ptr(types));
+                return info;
+            }
+            Abi::LowerSync => true,
+            Abi::LiftSync | Abi::LiftAsync | Abi::LiftAsyncStackful => false,
+        };
 
         for (_, ty) in self.params.iter() {
             // Check to see if `ty` has a pointer somewhere in it, needed for
@@ -930,28 +953,37 @@ impl ComponentFuncType {
             }
         }
 
-        for (_, ty) in self.results.iter() {
-            // Results of lowered functions that contains pointers must be
-            // allocated by the callee meaning that realloc is required.
-            // Results of lifted function are allocated by the guest which
-            // means that no realloc option is necessary.
-            if is_lower && !info.requires_realloc {
-                info.requires_realloc = ty.contains_ptr(types);
-            }
+        match abi {
+            Abi::LowerAsync => unreachable!(),
+            Abi::LowerSync | Abi::LiftSync => {
+                for (_, ty) in self.results.iter() {
+                    // Results of lowered functions that contains pointers must be
+                    // allocated by the callee meaning that realloc is required.
+                    // Results of lifted function are allocated by the guest which
+                    // means that no realloc option is necessary.
+                    if is_lower && !info.requires_realloc {
+                        info.requires_realloc = ty.contains_ptr(types);
+                    }
 
-            if !ty.push_wasm_types(types, &mut info.results) {
-                // Too many results to return directly, either a retptr parameter will be used (import)
-                // or a single pointer will be returned (export)
-                info.results.clear();
-                if is_lower {
-                    info.params.max = MAX_LOWERED_TYPES;
-                    assert!(info.params.push(ValType::I32));
-                } else {
-                    assert!(info.results.push(ValType::I32));
+                    if !ty.push_wasm_types(types, &mut info.results) {
+                        // Too many results to return directly, either a retptr parameter will be used (import)
+                        // or a single pointer will be returned (export)
+                        info.results.clear();
+                        if is_lower {
+                            info.params.max = MAX_LOWERED_TYPES;
+                            assert!(info.params.push(ValType::I32));
+                        } else {
+                            assert!(info.results.push(ValType::I32));
+                        }
+                        info.requires_memory = true;
+                        break;
+                    }
                 }
-                info.requires_memory = true;
-                break;
             }
+            Abi::LiftAsync => {
+                info.results.push(ValType::I32);
+            }
+            Abi::LiftAsyncStackful => {}
         }
 
         // Memory is always required when realloc is required
@@ -1027,6 +1059,12 @@ pub enum ComponentDefinedType {
     Own(AliasableResourceId),
     /// The type is a borrowed handle to the specified resource.
     Borrow(AliasableResourceId),
+    /// A future type with the specified payload type.
+    Future(Option<ComponentValType>),
+    /// A stream type with the specified payload type.
+    Stream(ComponentValType),
+    /// The error-context type.
+    ErrorContext,
 }
 
 impl TypeData for ComponentDefinedType {
@@ -1034,7 +1072,13 @@ impl TypeData for ComponentDefinedType {
 
     fn type_info(&self, types: &TypeList) -> TypeInfo {
         match self {
-            Self::Primitive(_) | Self::Flags(_) | Self::Enum(_) | Self::Own(_) => TypeInfo::new(),
+            Self::Primitive(_)
+            | Self::Flags(_)
+            | Self::Enum(_)
+            | Self::Own(_)
+            | Self::Future(_)
+            | Self::Stream(_)
+            | Self::ErrorContext => TypeInfo::new(),
             Self::Borrow(_) => TypeInfo::borrow(),
             Self::Record(r) => r.info,
             Self::Variant(v) => v.info,
@@ -1062,7 +1106,13 @@ impl ComponentDefinedType {
                 .any(|case| case.ty.map(|ty| ty.contains_ptr(types)).unwrap_or(false)),
             Self::List(_) => true,
             Self::Tuple(t) => t.types.iter().any(|ty| ty.contains_ptr(types)),
-            Self::Flags(_) | Self::Enum(_) | Self::Own(_) | Self::Borrow(_) => false,
+            Self::Flags(_)
+            | Self::Enum(_)
+            | Self::Own(_)
+            | Self::Borrow(_)
+            | Self::Future(_)
+            | Self::Stream(_)
+            | Self::ErrorContext => false,
             Self::Option(ty) => ty.contains_ptr(types),
             Self::Result { ok, err } => {
                 ok.map(|ty| ty.contains_ptr(types)).unwrap_or(false)
@@ -1091,7 +1141,12 @@ impl ComponentDefinedType {
             Self::Flags(names) => {
                 (0..(names.len() + 31) / 32).all(|_| lowered_types.push(ValType::I32))
             }
-            Self::Enum(_) | Self::Own(_) | Self::Borrow(_) => lowered_types.push(ValType::I32),
+            Self::Enum(_)
+            | Self::Own(_)
+            | Self::Borrow(_)
+            | Self::Future(_)
+            | Self::Stream(_)
+            | Self::ErrorContext => lowered_types.push(ValType::I32),
             Self::Option(ty) => {
                 Self::push_variant_wasm_types([ty].into_iter(), types, lowered_types)
             }
@@ -1159,6 +1214,9 @@ impl ComponentDefinedType {
             ComponentDefinedType::Result { .. } => "result",
             ComponentDefinedType::Own(_) => "own",
             ComponentDefinedType::Borrow(_) => "borrow",
+            ComponentDefinedType::Future(_) => "future",
+            ComponentDefinedType::Stream(_) => "stream",
+            ComponentDefinedType::ErrorContext => "error-context",
         }
     }
 }
@@ -1873,7 +1931,8 @@ impl TypeAlloc {
         match &self[id] {
             ComponentDefinedType::Primitive(_)
             | ComponentDefinedType::Flags(_)
-            | ComponentDefinedType::Enum(_) => {}
+            | ComponentDefinedType::Enum(_)
+            | ComponentDefinedType::ErrorContext => {}
             ComponentDefinedType::Record(r) => {
                 for ty in r.fields.values() {
                     self.free_variables_valtype(ty, set);
@@ -1891,7 +1950,9 @@ impl TypeAlloc {
                     }
                 }
             }
-            ComponentDefinedType::List(ty) | ComponentDefinedType::Option(ty) => {
+            ComponentDefinedType::List(ty)
+            | ComponentDefinedType::Option(ty)
+            | ComponentDefinedType::Stream(ty) => {
                 self.free_variables_valtype(ty, set);
             }
             ComponentDefinedType::Result { ok, err } => {
@@ -1904,6 +1965,11 @@ impl TypeAlloc {
             }
             ComponentDefinedType::Own(id) | ComponentDefinedType::Borrow(id) => {
                 set.insert(id.resource());
+            }
+            ComponentDefinedType::Future(ty) => {
+                if let Some(ty) = ty {
+                    self.free_variables_valtype(ty, set);
+                }
             }
         }
     }
@@ -2005,7 +2071,7 @@ impl TypeAlloc {
         let ty = &self[id];
         match ty {
             // Primitives are always considered named
-            ComponentDefinedType::Primitive(_) => true,
+            ComponentDefinedType::Primitive(_) | ComponentDefinedType::ErrorContext => true,
 
             // These structures are never allowed to be anonymous, so they
             // themselves must be named.
@@ -2028,15 +2094,20 @@ impl TypeAlloc {
                         .map(|t| self.type_named_valtype(t, set))
                         .unwrap_or(true)
             }
-            ComponentDefinedType::List(ty) | ComponentDefinedType::Option(ty) => {
-                self.type_named_valtype(ty, set)
-            }
+            ComponentDefinedType::List(ty)
+            | ComponentDefinedType::Option(ty)
+            | ComponentDefinedType::Stream(ty) => self.type_named_valtype(ty, set),
 
             // own/borrow themselves don't have to be named, but the resource
             // they refer to must be named.
             ComponentDefinedType::Own(id) | ComponentDefinedType::Borrow(id) => {
                 set.contains(&ComponentAnyTypeId::from(*id))
             }
+
+            ComponentDefinedType::Future(ty) => ty
+                .as_ref()
+                .map(|ty| self.type_named_valtype(ty, set))
+                .unwrap_or(true),
         }
     }
 
@@ -2187,7 +2258,8 @@ where
         match &mut tmp {
             ComponentDefinedType::Primitive(_)
             | ComponentDefinedType::Flags(_)
-            | ComponentDefinedType::Enum(_) => {}
+            | ComponentDefinedType::Enum(_)
+            | ComponentDefinedType::ErrorContext => {}
             ComponentDefinedType::Record(r) => {
                 for ty in r.fields.values_mut() {
                     any_changed |= self.remap_valtype(ty, map);
@@ -2205,7 +2277,9 @@ where
                     }
                 }
             }
-            ComponentDefinedType::List(ty) | ComponentDefinedType::Option(ty) => {
+            ComponentDefinedType::List(ty)
+            | ComponentDefinedType::Option(ty)
+            | ComponentDefinedType::Stream(ty) => {
                 any_changed |= self.remap_valtype(ty, map);
             }
             ComponentDefinedType::Result { ok, err } => {
@@ -2218,6 +2292,11 @@ where
             }
             ComponentDefinedType::Own(id) | ComponentDefinedType::Borrow(id) => {
                 any_changed |= self.remap_resource_id(id, map);
+            }
+            ComponentDefinedType::Future(ty) => {
+                if let Some(ty) = ty {
+                    any_changed |= self.remap_valtype(ty, map);
+                }
             }
         }
         self.insert_if_any_changed(map, any_changed, id, tmp)
@@ -3146,6 +3225,21 @@ impl<'a> SubtypeCx<'a> {
             }
             (Own(_), b) => bail!(offset, "expected {}, found own", b.desc()),
             (Borrow(_), b) => bail!(offset, "expected {}, found borrow", b.desc()),
+            (Future(a), Future(b)) => match (a, b) {
+                (None, None) => Ok(()),
+                (Some(a), Some(b)) => self
+                    .component_val_type(a, b, offset)
+                    .with_context(|| "type mismatch in future"),
+                (None, Some(_)) => bail!(offset, "expected future type, but found none"),
+                (Some(_), None) => bail!(offset, "expected future type to not be present"),
+            },
+            (Future(_), b) => bail!(offset, "expected {}, found future", b.desc()),
+            (Stream(a), Stream(b)) => self
+                .component_val_type(a, b, offset)
+                .with_context(|| "type mismatch in stream"),
+            (Stream(_), b) => bail!(offset, "expected {}, found stream", b.desc()),
+            (ErrorContext, ErrorContext) => Ok(()),
+            (ErrorContext, b) => bail!(offset, "expected {}, found error-context", b.desc()),
         }
     }
 

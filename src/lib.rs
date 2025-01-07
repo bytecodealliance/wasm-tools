@@ -244,7 +244,8 @@ impl OutputArg {
                     .map(|(id, _)| id)
                     .filter(|id| *id != wit.package())
                     .collect::<Vec<_>>();
-                let output = printer.print(resolve, wit.package(), &ids)?;
+                printer.print(resolve, wit.package(), &ids)?;
+                let output = printer.output.to_string();
                 self.output_str(&output)
             }
         }

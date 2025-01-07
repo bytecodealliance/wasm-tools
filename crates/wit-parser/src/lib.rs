@@ -1,3 +1,4 @@
+use crate::abi::AbiVariant;
 use anyhow::{bail, Context, Result};
 use id_arena::{Arena, Id};
 use indexmap::IndexMap;
@@ -147,7 +148,7 @@ struct InterfaceSpan {
 
 #[derive(Debug, Copy, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum AstItem {
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
     Interface(InterfaceId),
@@ -470,7 +471,7 @@ impl WorldKey {
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum WorldItem {
     /// An interface is being imported or exported from a world, indicating that
     /// it's a namespace of functions.
@@ -556,7 +557,7 @@ pub struct TypeDef {
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum TypeDefKind {
     Record(Record),
     Resource,
@@ -569,7 +570,8 @@ pub enum TypeDefKind {
     Result(Result_),
     List(Type),
     Future(Option<Type>),
-    Stream(Stream),
+    Stream(Type),
+    ErrorContext,
     Type(Type),
 
     /// This represents a type of unknown structure imported from a foreign
@@ -598,6 +600,7 @@ impl TypeDefKind {
             TypeDefKind::List(_) => "list",
             TypeDefKind::Future(_) => "future",
             TypeDefKind::Stream(_) => "stream",
+            TypeDefKind::ErrorContext => "error-context",
             TypeDefKind::Type(_) => "type",
             TypeDefKind::Unknown => "unknown",
         }
@@ -606,7 +609,7 @@ impl TypeDefKind {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum TypeOwner {
     /// This type was defined within a `world` block.
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
@@ -622,7 +625,7 @@ pub enum TypeOwner {
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum Handle {
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
     Own(TypeId),
@@ -780,13 +783,6 @@ pub struct Result_ {
     pub err: Option<Type>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
-pub struct Stream {
-    pub element: Option<Type>,
-    pub end: Option<Type>,
-}
-
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Docs {
@@ -890,7 +886,7 @@ pub struct Function {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum FunctionKind {
     Freestanding,
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_id"))]
@@ -944,6 +940,86 @@ impl std::str::FromStr for Mangling {
     }
 }
 
+/// Possible lift/lower ABI choices supported when mangling names.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum LiftLowerAbi {
+    /// Both imports and exports will use the synchronous ABI.
+    Sync,
+
+    /// Both imports and exports will use the async ABI (with a callback for
+    /// each export).
+    AsyncCallback,
+
+    /// Both imports and exports will use the async ABI (with no callbacks for
+    /// exports).
+    AsyncStackful,
+}
+
+impl LiftLowerAbi {
+    fn import_prefix(self) -> &'static str {
+        match self {
+            Self::Sync => "",
+            Self::AsyncCallback | Self::AsyncStackful => "[async]",
+        }
+    }
+
+    /// Get the import [`AbiVariant`] corresponding to this [`LiftLowerAbi`]
+    pub fn import_variant(self) -> AbiVariant {
+        match self {
+            Self::Sync => AbiVariant::GuestImport,
+            Self::AsyncCallback | Self::AsyncStackful => AbiVariant::GuestImportAsync,
+        }
+    }
+
+    fn export_prefix(self) -> &'static str {
+        match self {
+            Self::Sync => "",
+            Self::AsyncCallback => "[async]",
+            Self::AsyncStackful => "[async-stackful]",
+        }
+    }
+
+    /// Get the export [`AbiVariant`] corresponding to this [`LiftLowerAbi`]
+    pub fn export_variant(self) -> AbiVariant {
+        match self {
+            Self::Sync => AbiVariant::GuestExport,
+            Self::AsyncCallback => AbiVariant::GuestExportAsync,
+            Self::AsyncStackful => AbiVariant::GuestExportAsyncStackful,
+        }
+    }
+}
+
+/// Combination of [`Mangling`] and [`LiftLowerAbi`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ManglingAndAbi {
+    /// See [`Mangling::Standard32`].
+    ///
+    /// As of this writing, the standard name mangling only supports the
+    /// synchronous ABI.
+    Standard32,
+
+    /// See [`Mangling::Legacy`] and [`LiftLowerAbi`].
+    Legacy(LiftLowerAbi),
+}
+
+impl ManglingAndAbi {
+    /// Get the import [`AbiVariant`] corresponding to this [`ManglingAndAbi`]
+    pub fn import_variant(self) -> AbiVariant {
+        match self {
+            Self::Standard32 => AbiVariant::GuestImport,
+            Self::Legacy(abi) => abi.import_variant(),
+        }
+    }
+
+    /// Get the export [`AbiVariant`] corresponding to this [`ManglingAndAbi`]
+    pub fn export_variant(self) -> AbiVariant {
+        match self {
+            Self::Standard32 => AbiVariant::GuestExport,
+            Self::Legacy(abi) => abi.export_variant(),
+        }
+    }
+}
+
 impl Function {
     pub fn item_name(&self) -> &str {
         match &self.kind {
@@ -991,6 +1067,84 @@ impl Function {
             },
         }
     }
+    /// Collect any future and stream types appearing in the signature of this
+    /// function by doing a depth-first search over the parameter types and then
+    /// the result types.
+    ///
+    /// For example, given the WIT function `foo: func(x: future<future<u32>>,
+    /// y: u32) -> stream<u8>`, we would return `[future<u32>,
+    /// future<future<u32>>, stream<u8>]`.
+    ///
+    /// This may be used by binding generators to refer to specific `future` and
+    /// `stream` types when importing canonical built-ins such as `stream.new`,
+    /// `future.read`, etc.  Using the example above, the import
+    /// `[future-new-0]foo` would indicate a call to `future.new` for the type
+    /// `future<u32>`.  Likewise, `[future-new-1]foo` would indicate a call to
+    /// `future.new` for `future<future<u32>>`, and `[stream-new-2]foo` would
+    /// indicate a call to `stream.new` for `stream<u8>`.
+    pub fn find_futures_and_streams(&self, resolve: &Resolve) -> Vec<TypeId> {
+        let mut results = Vec::new();
+        for (_, ty) in self.params.iter() {
+            find_futures_and_streams(resolve, *ty, &mut results);
+        }
+        for ty in self.results.iter_types() {
+            find_futures_and_streams(resolve, *ty, &mut results);
+        }
+        results
+    }
+}
+
+fn find_futures_and_streams(resolve: &Resolve, ty: Type, results: &mut Vec<TypeId>) {
+    let Type::Id(id) = ty else {
+        return;
+    };
+
+    match &resolve.types[id].kind {
+        TypeDefKind::Resource
+        | TypeDefKind::Handle(_)
+        | TypeDefKind::Flags(_)
+        | TypeDefKind::Enum(_)
+        | TypeDefKind::ErrorContext => {}
+        TypeDefKind::Record(r) => {
+            for Field { ty, .. } in &r.fields {
+                find_futures_and_streams(resolve, *ty, results);
+            }
+        }
+        TypeDefKind::Tuple(t) => {
+            for ty in &t.types {
+                find_futures_and_streams(resolve, *ty, results);
+            }
+        }
+        TypeDefKind::Variant(v) => {
+            for Case { ty, .. } in &v.cases {
+                if let Some(ty) = ty {
+                    find_futures_and_streams(resolve, *ty, results);
+                }
+            }
+        }
+        TypeDefKind::Option(ty) | TypeDefKind::List(ty) | TypeDefKind::Type(ty) => {
+            find_futures_and_streams(resolve, *ty, results);
+        }
+        TypeDefKind::Result(r) => {
+            if let Some(ty) = r.ok {
+                find_futures_and_streams(resolve, ty, results);
+            }
+            if let Some(ty) = r.err {
+                find_futures_and_streams(resolve, ty, results);
+            }
+        }
+        TypeDefKind::Future(ty) => {
+            if let Some(ty) = ty {
+                find_futures_and_streams(resolve, *ty, results);
+            }
+            results.push(id);
+        }
+        TypeDefKind::Stream(ty) => {
+            find_futures_and_streams(resolve, *ty, results);
+            results.push(id);
+        }
+        TypeDefKind::Unknown => unreachable!(),
+    }
 }
 
 /// Representation of the stability attributes associated with a world,
@@ -1000,7 +1154,7 @@ impl Function {
 /// annotations were added to WIT.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde_derive::Deserialize, Serialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum Stability {
     /// `@since(version = 1.2.3)`
     ///
@@ -1071,5 +1225,44 @@ mod test {
         if let Ok(num_cases) = usize::try_from(0x100000000_u64) {
             assert_eq!(discriminant_type(num_cases), Int::U32);
         }
+    }
+
+    #[test]
+    fn test_find_futures_and_streams() {
+        let mut resolve = Resolve::default();
+        let t0 = resolve.types.alloc(TypeDef {
+            name: None,
+            kind: TypeDefKind::Future(Some(Type::U32)),
+            owner: TypeOwner::None,
+            docs: Docs::default(),
+            stability: Stability::Unknown,
+        });
+        let t1 = resolve.types.alloc(TypeDef {
+            name: None,
+            kind: TypeDefKind::Future(Some(Type::Id(t0))),
+            owner: TypeOwner::None,
+            docs: Docs::default(),
+            stability: Stability::Unknown,
+        });
+        let t2 = resolve.types.alloc(TypeDef {
+            name: None,
+            kind: TypeDefKind::Stream(Type::U32),
+            owner: TypeOwner::None,
+            docs: Docs::default(),
+            stability: Stability::Unknown,
+        });
+        let found = Function {
+            name: "foo".into(),
+            kind: FunctionKind::Freestanding,
+            params: vec![("p1".into(), Type::Id(t1)), ("p2".into(), Type::U32)],
+            results: Results::Anon(Type::Id(t2)),
+            docs: Docs::default(),
+            stability: Stability::Unknown,
+        }
+        .find_futures_and_streams(&resolve);
+        assert_eq!(3, found.len());
+        assert_eq!(t0, found[0]);
+        assert_eq!(t1, found[1]);
+        assert_eq!(t2, found[2]);
     }
 }

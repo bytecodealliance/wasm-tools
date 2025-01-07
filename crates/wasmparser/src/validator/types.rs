@@ -11,7 +11,7 @@ use crate::{
     Export, ExternalKind, GlobalType, Import, Matches, MemoryType, PackedIndex, RecGroup, RefType,
     Result, SubType, TableType, TypeRef, UnpackedIndex, ValType, WithRecGroup,
 };
-use crate::{HeapType, ValidatorId};
+use crate::{FuncType, HeapType, ValidatorId};
 use alloc::sync::Arc;
 use core::ops::{Deref, DerefMut, Index, Range};
 use core::{hash::Hash, mem};
@@ -949,6 +949,12 @@ impl TypeList {
         let (_is_new, group_id) =
             self.intern_canonical_rec_group(false, RecGroup::implicit(offset, sub_ty));
         self[group_id].start
+    }
+
+    /// Helper for interning a function type as a rec group; see
+    /// [`Self::intern_sub_type`].
+    pub fn intern_func_type(&mut self, ty: FuncType, offset: usize) -> CoreTypeId {
+        self.intern_sub_type(SubType::func(ty, false), offset)
     }
 
     /// Get the `CoreTypeId` for a local index into a rec group.

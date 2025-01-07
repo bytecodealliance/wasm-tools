@@ -18,9 +18,9 @@ use crate::ast::{parse_use_path, ParsedUsePath};
 use crate::serde_::{serialize_arena, serialize_id_map};
 use crate::{
     AstItem, Docs, Error, Function, FunctionKind, Handle, IncludeName, Interface, InterfaceId,
-    InterfaceSpan, Mangling, PackageName, PackageNotFoundError, Results, SourceMap, Stability,
-    Type, TypeDef, TypeDefKind, TypeId, TypeIdVisitor, TypeOwner, UnresolvedPackage,
-    UnresolvedPackageGroup, World, WorldId, WorldItem, WorldKey, WorldSpan,
+    InterfaceSpan, LiftLowerAbi, ManglingAndAbi, PackageName, PackageNotFoundError, Results,
+    SourceMap, Stability, Type, TypeDef, TypeDefKind, TypeId, TypeIdVisitor, TypeOwner,
+    UnresolvedPackage, UnresolvedPackageGroup, World, WorldId, WorldItem, WorldKey, WorldSpan,
 };
 
 mod clone;
@@ -572,7 +572,8 @@ package {name} is defined in two different locations:\n\
                 | TypeDefKind::Option(_)
                 | TypeDefKind::Result(_)
                 | TypeDefKind::Future(_)
-                | TypeDefKind::Stream(_) => false,
+                | TypeDefKind::Stream(_)
+                | TypeDefKind::ErrorContext => false,
                 TypeDefKind::Type(t) => self.all_bits_valid(t),
 
                 TypeDefKind::Handle(h) => match h {
@@ -2286,9 +2287,13 @@ package {name} is defined in two different locations:\n\
     /// use `import` with the name `mangling` scheme specified as well. This can
     /// be useful for bindings generators, for example, and these names are
     /// recognized by `wit-component` and `wasm-tools component new`.
-    pub fn wasm_import_name(&self, mangling: Mangling, import: WasmImport<'_>) -> (String, String) {
+    pub fn wasm_import_name(
+        &self,
+        mangling: ManglingAndAbi,
+        import: WasmImport<'_>,
+    ) -> (String, String) {
         match mangling {
-            Mangling::Standard32 => match import {
+            ManglingAndAbi::Standard32 => match import {
                 WasmImport::Func { interface, func } => {
                     let module = match interface {
                         Some(key) => format!("cm32p2|{}", self.name_canonicalized_world_key(key)),
@@ -2320,13 +2325,13 @@ package {name} is defined in two different locations:\n\
                     (module, name)
                 }
             },
-            Mangling::Legacy => match import {
+            ManglingAndAbi::Legacy(abi) => match import {
                 WasmImport::Func { interface, func } => {
                     let module = match interface {
                         Some(key) => self.name_world_key(key),
                         None => format!("$root"),
                     };
-                    (module, func.name.clone())
+                    (module, format!("{}{}", abi.import_prefix(), func.name))
                 }
                 WasmImport::ResourceIntrinsic {
                     interface,
@@ -2353,22 +2358,22 @@ package {name} is defined in two different locations:\n\
                             format!("$root")
                         }
                     };
-                    (module, name)
+                    (module, format!("{}{name}", abi.import_prefix()))
                 }
             },
         }
     }
 
-    /// Returns the core wasm export name for the specified `import`.
+    /// Returns the core wasm export name for the specified `export`.
     ///
-    /// This is the same as [`Resovle::wasm_import_name`], except for exports.
-    pub fn wasm_export_name(&self, mangling: Mangling, import: WasmExport<'_>) -> String {
+    /// This is the same as [`Resolve::wasm_import_name`], except for exports.
+    pub fn wasm_export_name(&self, mangling: ManglingAndAbi, export: WasmExport<'_>) -> String {
         match mangling {
-            Mangling::Standard32 => match import {
+            ManglingAndAbi::Standard32 => match export {
                 WasmExport::Func {
                     interface,
                     func,
-                    post_return,
+                    kind,
                 } => {
                     let mut name = String::from("cm32p2|");
                     if let Some(interface) = interface {
@@ -2377,8 +2382,13 @@ package {name} is defined in two different locations:\n\
                     }
                     name.push_str("|");
                     name.push_str(&func.name);
-                    if post_return {
-                        name.push_str("_post");
+                    match kind {
+                        WasmExportKind::Normal => {}
+                        WasmExportKind::PostReturn => name.push_str("_post"),
+                        WasmExportKind::Callback => todo!(
+                            "not yet supported: \
+                             async callback functions using standard name mangling"
+                        ),
                     }
                     name
                 }
@@ -2394,15 +2404,20 @@ package {name} is defined in two different locations:\n\
                 WasmExport::Initialize => "cm32p2_initialize".to_string(),
                 WasmExport::Realloc => "cm32p2_realloc".to_string(),
             },
-            Mangling::Legacy => match import {
+            ManglingAndAbi::Legacy(abi) => match export {
                 WasmExport::Func {
                     interface,
                     func,
-                    post_return,
+                    kind,
                 } => {
-                    let mut name = String::new();
-                    if post_return {
-                        name.push_str("cabi_post_");
+                    let mut name = abi.export_prefix().to_string();
+                    match kind {
+                        WasmExportKind::Normal => {}
+                        WasmExportKind::PostReturn => name.push_str("cabi_post_"),
+                        WasmExportKind::Callback => {
+                            assert!(matches!(abi, LiftLowerAbi::AsyncCallback));
+                            name = format!("[callback]{name}")
+                        }
                     }
                     if let Some(interface) = interface {
                         let s = self.name_world_key(interface);
@@ -2418,7 +2433,7 @@ package {name} is defined in two different locations:\n\
                 } => {
                     let name = self.types[resource].name.as_ref().unwrap();
                     let interface = self.name_world_key(interface);
-                    format!("{interface}#[dtor]{name}")
+                    format!("{}{interface}#[dtor]{name}", abi.export_prefix())
                 }
                 WasmExport::Memory => "memory".to_string(),
                 WasmExport::Initialize => "_initialize".to_string(),
@@ -2466,6 +2481,20 @@ pub enum ResourceIntrinsic {
     ExportedRep,
 }
 
+/// Indicates whether a function export is a normal export, a post-return
+/// function, or a callback function.
+#[derive(Debug)]
+pub enum WasmExportKind {
+    /// Normal function export.
+    Normal,
+
+    /// Post-return function.
+    PostReturn,
+
+    /// Async callback function.
+    Callback,
+}
+
 /// Different kinds of exports that can be passed to
 /// [`Resolve::wasm_export_name`] to export from core wasm modules.
 #[derive(Debug)]
@@ -2479,8 +2508,8 @@ pub enum WasmExport<'a> {
         /// The function being exported.
         func: &'a Function,
 
-        /// Whether or not this is a post-return function or not.
-        post_return: bool,
+        /// Kind of function (normal, post-return, or callback) being exported.
+        kind: WasmExportKind,
     },
 
     /// A destructor for a resource exported from this module.
@@ -2990,7 +3019,7 @@ impl Remap {
                     }
                 }
             }
-            Option(t) => self.update_ty(resolve, t, span)?,
+            Option(t) | List(t) | Stream(t) => self.update_ty(resolve, t, span)?,
             Result(r) => {
                 if let Some(ty) = &mut r.ok {
                     self.update_ty(resolve, ty, span)?;
@@ -2999,16 +3028,8 @@ impl Remap {
                     self.update_ty(resolve, ty, span)?;
                 }
             }
-            List(t) => self.update_ty(resolve, t, span)?,
             Future(Some(t)) => self.update_ty(resolve, t, span)?,
-            Stream(t) => {
-                if let Some(ty) = &mut t.element {
-                    self.update_ty(resolve, ty, span)?;
-                }
-                if let Some(ty) = &mut t.end {
-                    self.update_ty(resolve, ty, span)?;
-                }
-            }
+            ErrorContext => {}
 
             // Note that `update_ty` is specifically not used here as typedefs
             // because for the `type a = b` form that doesn't force `a` to be a
@@ -3399,18 +3420,15 @@ impl Remap {
             TypeDefKind::Flags(_) => false,
             TypeDefKind::Tuple(t) => t.types.iter().any(|t| self.type_has_borrow(resolve, t)),
             TypeDefKind::Enum(_) => false,
-            TypeDefKind::List(ty) | TypeDefKind::Future(Some(ty)) | TypeDefKind::Option(ty) => {
-                self.type_has_borrow(resolve, ty)
-            }
+            TypeDefKind::List(ty)
+            | TypeDefKind::Future(Some(ty))
+            | TypeDefKind::Stream(ty)
+            | TypeDefKind::Option(ty) => self.type_has_borrow(resolve, ty),
             TypeDefKind::Result(r) => [&r.ok, &r.err]
                 .iter()
                 .filter_map(|t| t.as_ref())
                 .any(|t| self.type_has_borrow(resolve, t)),
-            TypeDefKind::Stream(r) => [&r.element, &r.end]
-                .iter()
-                .filter_map(|t| t.as_ref())
-                .any(|t| self.type_has_borrow(resolve, t)),
-            TypeDefKind::Future(None) => false,
+            TypeDefKind::Future(None) | TypeDefKind::ErrorContext => false,
             TypeDefKind::Unknown => unreachable!(),
         }
     }

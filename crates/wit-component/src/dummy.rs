@@ -1,18 +1,18 @@
-use wit_parser::abi::{AbiVariant, WasmType};
+use wit_parser::abi::WasmType;
 use wit_parser::{
-    Function, Mangling, Resolve, ResourceIntrinsic, TypeDefKind, TypeId, WasmExport, WasmImport,
-    WorldId, WorldItem, WorldKey,
+    Function, LiftLowerAbi, ManglingAndAbi, Resolve, ResourceIntrinsic, TypeDefKind, TypeId,
+    WasmExport, WasmExportKind, WasmImport, WorldId, WorldItem, WorldKey,
 };
 
 /// Generate a dummy implementation core Wasm module for a given WIT document
-pub fn dummy_module(resolve: &Resolve, world: WorldId, mangling: Mangling) -> Vec<u8> {
+pub fn dummy_module(resolve: &Resolve, world: WorldId, mangling: ManglingAndAbi) -> Vec<u8> {
     let world = &resolve.worlds[world];
     let mut wat = String::new();
     wat.push_str("(module\n");
     for (name, import) in world.imports.iter() {
         match import {
             WorldItem::Function(func) => {
-                let sig = resolve.wasm_signature(AbiVariant::GuestImport, func);
+                let sig = resolve.wasm_signature(mangling.import_variant(), func);
 
                 let (module, name) = resolve.wasm_import_name(
                     mangling,
@@ -29,7 +29,7 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId, mangling: Mangling) -> Ve
             }
             WorldItem::Interface { id: import, .. } => {
                 for (_, func) in resolve.interfaces[*import].functions.iter() {
-                    let sig = resolve.wasm_signature(AbiVariant::GuestImport, func);
+                    let sig = resolve.wasm_signature(mangling.import_variant(), func);
 
                     let (module, name) = resolve.wasm_import_name(
                         mangling,
@@ -139,7 +139,7 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId, mangling: Mangling) -> Ve
         resolve: &Resolve,
         interface: Option<&WorldKey>,
         resource: TypeId,
-        mangling: Mangling,
+        mangling: ManglingAndAbi,
     ) {
         let ty = &resolve.types[resource];
         match ty.kind {
@@ -162,15 +162,15 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId, mangling: Mangling) -> Ve
         resolve: &Resolve,
         interface: Option<&WorldKey>,
         func: &Function,
-        mangling: Mangling,
+        mangling: ManglingAndAbi,
     ) {
-        let sig = resolve.wasm_signature(AbiVariant::GuestExport, func);
+        let sig = resolve.wasm_signature(mangling.export_variant(), func);
         let name = resolve.wasm_export_name(
             mangling,
             WasmExport::Func {
                 interface,
                 func,
-                post_return: false,
+                kind: WasmExportKind::Normal,
             },
         );
         wat.push_str(&format!("(func (export \"{name}\")"));
@@ -178,17 +178,35 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId, mangling: Mangling) -> Ve
         push_tys(wat, "result", &sig.results);
         wat.push_str(" unreachable)\n");
 
-        let name = resolve.wasm_export_name(
-            mangling,
-            WasmExport::Func {
-                interface,
-                func,
-                post_return: true,
-            },
-        );
-        wat.push_str(&format!("(func (export \"{name}\")"));
-        push_tys(wat, "param", &sig.results);
-        wat.push_str(")\n");
+        match mangling {
+            ManglingAndAbi::Standard32 | ManglingAndAbi::Legacy(LiftLowerAbi::Sync) => {
+                let name = resolve.wasm_export_name(
+                    mangling,
+                    WasmExport::Func {
+                        interface,
+                        func,
+                        kind: WasmExportKind::PostReturn,
+                    },
+                );
+                wat.push_str(&format!("(func (export \"{name}\")"));
+                push_tys(wat, "param", &sig.results);
+                wat.push_str(")\n");
+            }
+            ManglingAndAbi::Legacy(LiftLowerAbi::AsyncCallback) => {
+                let name = resolve.wasm_export_name(
+                    mangling,
+                    WasmExport::Func {
+                        interface,
+                        func,
+                        kind: WasmExportKind::Callback,
+                    },
+                );
+                wat.push_str(&format!(
+                    "(func (export \"{name}\") (param i32 i32 i32 i32) (result i32) unreachable)\n"
+                ));
+            }
+            ManglingAndAbi::Legacy(LiftLowerAbi::AsyncStackful) => {}
+        }
     }
 
     fn push_tys(dst: &mut String, desc: &str, params: &[WasmType]) {

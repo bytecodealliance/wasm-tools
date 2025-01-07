@@ -86,7 +86,9 @@ fn run_test(path: &Path, is_dir: bool) -> Result<()> {
 }
 
 fn assert_print(resolve: &Resolve, pkg_id: PackageId, path: &Path, is_dir: bool) -> Result<()> {
-    let output = WitPrinter::default().print(resolve, pkg_id, &[])?;
+    let mut printer = WitPrinter::default();
+    printer.print(resolve, pkg_id, &[])?;
+    let output = printer.output.to_string();
     let pkg = &resolve.packages[pkg_id];
     let expected = if is_dir {
         path.join(format!("{}.wit.print", &pkg.name.name))
