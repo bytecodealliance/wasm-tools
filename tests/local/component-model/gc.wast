@@ -124,3 +124,12 @@
     ))
   )
   "sub type cannot have a final super type")
+
+(component
+  (type $t (resource (rep i32)))
+  (core func (canon resource.drop $t))
+  (core module
+    (type $t1 (sub (func)))
+    (type (sub $t1 (func)))
+  )
+)
