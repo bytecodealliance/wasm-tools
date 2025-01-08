@@ -144,21 +144,31 @@ impl Opts {
         }
         log::info!("module structure validated in {:?}", start.elapsed());
 
-        // After we've validate the entire wasm module we'll use `rayon` to iterate
-        // over all functions in parallel and perform parallel validation of the
-        // input wasm module.
+        // After we've validate the entire wasm module we'll use `rayon` to
+        // iterate over all functions in parallel and perform parallel
+        // validation of the input wasm module.
+        //
+        // Note that validation results for each function are collected into a
+        // vector to ensure that in the case of multiple errors the first is
+        // always reported. Otherwise `rayon` does not guarantee the order that
+        // failures show up in.
         let start = Instant::now();
-        functions_to_validate.into_par_iter().try_for_each_init(
-            FuncValidatorAllocations::default,
-            |allocs, (to_validate, body)| -> Result<_> {
-                let mut validator = to_validate.into_validator(mem::take(allocs));
-                validator
-                    .validate(&body)
-                    .with_context(|| format!("func {} failed to validate", validator.index()))?;
-                *allocs = validator.into_allocations();
-                Ok(())
-            },
-        )?;
+        functions_to_validate
+            .into_par_iter()
+            .map_init(
+                FuncValidatorAllocations::default,
+                |allocs, (to_validate, body)| -> Result<_> {
+                    let mut validator = to_validate.into_validator(mem::take(allocs));
+                    validator.validate(&body).with_context(|| {
+                        format!("func {} failed to validate", validator.index())
+                    })?;
+                    *allocs = validator.into_allocations();
+                    Ok(())
+                },
+            )
+            .collect::<Vec<_>>()
+            .into_iter()
+            .collect::<Result<Vec<_>>>()?;
         log::info!("functions validated in {:?}", start.elapsed());
         Ok(())
     }
