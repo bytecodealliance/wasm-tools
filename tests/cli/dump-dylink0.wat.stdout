@@ -13,4 +13,4 @@
  0x26 | 04 06 01 01 | ImportInfo([ImportInfo { module: "a", field: "a", flags: SymbolFlags(0x0) }])
       | 61 01 61 00
  0x2e | 03 04 01 01 | ExportInfo([ExportInfo { name: "a", flags: SymbolFlags(BINDING_WEAK | BINDING_LOCAL | UNDEFINED) }])
-      | 61 13      
+      | 61 13

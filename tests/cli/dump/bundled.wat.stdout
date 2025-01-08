@@ -235,4 +235,4 @@
  0x25e | 01          | 1 count
  0x25f | 00 09 72 65 | Naming { index: 0, name: "real-wasi" }
        | 61 6c 2d 77
-       | 61 73 69   
+       | 61 73 69

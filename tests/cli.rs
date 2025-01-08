@@ -203,7 +203,7 @@ fn assert_output(bless: bool, output: &[u8], path: &Path, tempdir: &TempDir) -> 
     // sanitize the output to be consistent across platforms and handle per-test
     // differences such as `%tmpdir`, as well as the version number of the crate being
     // tested in the producers custom section.
-    let output = String::from_utf8_lossy(output)
+    let mut output = String::from_utf8_lossy(output)
         .replace(tempdir, "%tmpdir")
         .replace("\\", "/")
         .lines()
@@ -216,7 +216,14 @@ fn assert_output(bless: bool, output: &[u8], path: &Path, tempdir: &TempDir) -> 
             }
         })
         .collect::<Vec<String>>()
-        .join("\n");
+        .join("\n")
+        .trim_end()
+        .to_string();
+
+    // Leave a single trailing newline on all test outputs
+    if !output.is_empty() {
+        output.push_str("\n");
+    }
 
     if bless {
         if output.is_empty() {
@@ -234,13 +241,9 @@ fn assert_output(bless: bool, output: &[u8], path: &Path, tempdir: &TempDir) -> 
             Ok(())
         }
     } else {
-        let mut contents = std::fs::read_to_string(path)
+        let contents = std::fs::read_to_string(path)
             .with_context(|| format!("failed to read {path:?}"))?
             .replace("\r\n", "\n");
-        // Drop any trailing newline, the lines iterator on output above will do the same
-        if contents.ends_with('\n') {
-            contents.pop();
-        }
         if output != contents {
             bail!(
                 "failed test: result is not as expected:{}",

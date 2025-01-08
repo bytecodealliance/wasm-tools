@@ -1,7 +1,7 @@
 /// RUN[simple]: component wit --importize-world simple %
 /// RUN[simple-rename]: component wit --importize-world simple-rename --importize-out-world-name test-rename  %
 /// RUN[simple-component]: component embed --dummy --world simple % | /
-/// component wit --importize
+///                        component wit --importize
 /// RUN[with-deps]: component wit --importize-world with-deps %
 /// RUN[simple-toplevel]: component wit --importize-world simple-toplevel %
 /// RUN[toplevel-deps]: component wit --importize-world toplevel-deps %

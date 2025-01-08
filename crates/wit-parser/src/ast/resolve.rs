@@ -1434,13 +1434,34 @@ impl<'a> Resolver<'a> {
 
     fn docs(&mut self, doc: &super::Docs<'_>) -> Docs {
         let mut docs = vec![];
+
         for doc in doc.docs.iter() {
-            if let Some(doc) = doc.strip_prefix("/**") {
-                docs.push(doc.strip_suffix("*/").unwrap().trim());
-            } else {
-                docs.push(doc.trim_start_matches('/').trim());
-            }
+            let contents = match doc.strip_prefix("/**") {
+                Some(doc) => doc.strip_suffix("*/").unwrap(),
+                None => doc.trim_start_matches('/'),
+            };
+
+            docs.push(contents.trim_end());
         }
+
+        // Scan the (non-empty) doc lines to find the minimum amount of leading whitespace.
+        // This amount of whitespace will be removed from the start of all doc lines,
+        // normalizing the output while retaining intentional spacing added by the original authors.
+        let min_leading_ws = docs
+            .iter()
+            .filter(|doc| !doc.is_empty())
+            .map(|doc| doc.bytes().take_while(|c| c.is_ascii_whitespace()).count())
+            .min()
+            .unwrap_or(0);
+
+        if min_leading_ws > 0 {
+            let leading_ws_pattern = " ".repeat(min_leading_ws);
+            docs = docs
+                .iter()
+                .map(|doc| doc.strip_prefix(&leading_ws_pattern).unwrap_or(doc))
+                .collect();
+        }
+
         let contents = if docs.is_empty() {
             None
         } else {
