@@ -14,7 +14,7 @@ num_cpus = { workspace = true }
 rand = { workspace = true }
 wasm-mutate = { workspace = true }
 wasmprinter = { workspace = true }
-wasmparser = { workspace = true, features = ['validate'] }
+wasmparser = { workspace = true, features = ['std', 'validate'] }
 wasmtime = { workspace = true }
 env_logger = { workspace = true }
 itertools = "0.13.0"
