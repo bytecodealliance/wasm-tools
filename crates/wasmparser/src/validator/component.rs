@@ -2970,7 +2970,6 @@ impl ComponentState {
                 match self.core_instance_export(instance_index, name, types, offset)? {
                     $expected(ty) => {
                         self.$collection.push(*ty);
-                        Ok(())
                     }
                     _ => {
                         bail!(
@@ -2992,7 +2991,7 @@ impl ComponentState {
                     "functions",
                     offset,
                 )?;
-                push_module_export!(EntityType::Func, core_funcs, "function")
+                push_module_export!(EntityType::Func, core_funcs, "function");
             }
             ExternalKind::Table => {
                 check_max(
@@ -3002,7 +3001,21 @@ impl ComponentState {
                     "tables",
                     offset,
                 )?;
-                push_module_export!(EntityType::Table, core_tables, "table")
+                push_module_export!(EntityType::Table, core_tables, "table");
+
+                let ty = self.core_tables.last().unwrap();
+                if ty.table64 {
+                    bail!(
+                        offset,
+                        "64-bit tables are not compatible with components yet"
+                    );
+                }
+                if ty.shared {
+                    bail!(
+                        offset,
+                        "shared tables are not compatible with components yet"
+                    );
+                }
             }
             ExternalKind::Memory => {
                 check_max(
@@ -3012,7 +3025,21 @@ impl ComponentState {
                     "memories",
                     offset,
                 )?;
-                push_module_export!(EntityType::Memory, core_memories, "memory")
+                push_module_export!(EntityType::Memory, core_memories, "memory");
+
+                let ty = self.core_memories.last().unwrap();
+                if ty.memory64 {
+                    bail!(
+                        offset,
+                        "64-bit linear memories are not compatible with components yet"
+                    );
+                }
+                if ty.shared {
+                    bail!(
+                        offset,
+                        "shared linear memories are not compatible with components yet"
+                    );
+                }
             }
             ExternalKind::Global => {
                 check_max(
@@ -3022,7 +3049,7 @@ impl ComponentState {
                     "globals",
                     offset,
                 )?;
-                push_module_export!(EntityType::Global, core_globals, "global")
+                push_module_export!(EntityType::Global, core_globals, "global");
             }
             ExternalKind::Tag => {
                 check_max(
@@ -3032,9 +3059,11 @@ impl ComponentState {
                     "tags",
                     offset,
                 )?;
-                push_module_export!(EntityType::Tag, core_tags, "tag")
+                push_module_export!(EntityType::Tag, core_tags, "tag");
             }
         }
+
+        Ok(())
     }
 
     fn alias_instance_export(
