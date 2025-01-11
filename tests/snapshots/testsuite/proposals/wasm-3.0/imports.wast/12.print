@@ -1,4 +1,0 @@
-(module
-  (type (;0;) (func (param f32)))
-  (import "test" "func-f32" (func (;0;) (type 0)))
-)

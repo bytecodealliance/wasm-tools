@@ -1,5 +1,0 @@
-interface or world `foo` depends on itself
-     --> tests/ui/parse-fail/use-cycle1.wit:5:11
-      |
-    5 | interface foo {
-      |           ^--

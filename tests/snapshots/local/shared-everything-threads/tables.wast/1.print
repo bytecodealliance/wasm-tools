@@ -1,3 +1,0 @@
-(module
-  (import "spectest" "table_ref" (table (;0;) 1 (ref null (shared func))))
-)

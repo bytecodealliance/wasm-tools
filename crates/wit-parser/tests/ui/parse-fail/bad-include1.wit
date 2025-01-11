@@ -1,5 +1,0 @@
-package foo:foo;
-
-world foo {
-  include non-existance;
-}

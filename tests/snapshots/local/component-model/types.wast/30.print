@@ -1,9 +1,0 @@
-(component $C
-  (core type $t (;0;) (func))
-  (core type (;1;)
-    (module
-      (alias outer $C $t (type (;0;)))
-      (import "" "" (func (type 0)))
-    )
-  )
-)

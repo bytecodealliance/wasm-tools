@@ -1,8 +1,0 @@
-package root:component;
-
-world root {
-  resource a {
-    constructor();
-    other-new: static func() -> a;
-  }
-}

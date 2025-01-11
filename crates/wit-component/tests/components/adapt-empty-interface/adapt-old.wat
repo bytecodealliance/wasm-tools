@@ -1,3 +1,0 @@
-(module
-  (func (export "thunk"))
-)

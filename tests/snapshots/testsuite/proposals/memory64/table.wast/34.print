@@ -1,4 +1,0 @@
-(module
-  (import "spectest" "table64" (table (;0;) i64 0 funcref))
-  (table (;1;) i64 0 funcref)
-)

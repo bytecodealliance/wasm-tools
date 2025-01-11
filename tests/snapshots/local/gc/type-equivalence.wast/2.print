@@ -1,3 +1,0 @@
-(module
-  (type $t (;0;) (func (result (ref $t))))
-)

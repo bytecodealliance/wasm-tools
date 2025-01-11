@@ -1,9 +1,0 @@
-(module
-  (type (;0;) (func))
-  (memory (;0;) i64 0)
-  (func (;0;) (type 0)
-    i64.const 0
-    i32.const 1
-    i32.store8
-  )
-)

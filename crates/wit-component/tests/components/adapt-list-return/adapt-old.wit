@@ -1,5 +1,0 @@
-world adapt-old {
-  import new: interface {
-    read: func() -> list<u8>;
-  }
-}

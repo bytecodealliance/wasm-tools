@@ -1,6 +1,0 @@
-(component
-  (type (;0;) (func))
-  (import "a:b:c:d/e" (func (;0;) (type 0)))
-  (type (;1;) (func))
-  (import "a:b-c:d-e:f-g/h-i/j-k/l-m/n/o/p@1.0.0" (func (;1;) (type 1)))
-)

@@ -1,6 +1,0 @@
-(module $Mref_im
-  (import "Mref_ex" "g-const-func" (global (;0;) funcref))
-  (import "Mref_ex" "g-const-extern" (global (;1;) externref))
-  (import "Mref_ex" "g-var-func" (global (;2;) (mut funcref)))
-  (import "Mref_ex" "g-var-extern" (global (;3;) (mut externref)))
-)

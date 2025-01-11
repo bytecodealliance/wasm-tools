@@ -1,9 +1,0 @@
-(component
-  (type (;0;)
-    (component
-      (type (;0;) string)
-      (import "a" (type (;1;) (eq 0)))
-      (export (;2;) "b" (type (eq 0)))
-    )
-  )
-)

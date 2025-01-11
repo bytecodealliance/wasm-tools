@@ -1,6 +1,0 @@
-(module
-  (@producers)
-  ;; failed to parse custom section `producers`: invalid producers field name: `a
-  ;; a` (at offset 0x15)
-  
-)

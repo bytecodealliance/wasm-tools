@@ -1,1 +1,0 @@
-failed to merge package `foo:foo` into existing copy: failed to merge world `foo`: world contains different number of exports than expected

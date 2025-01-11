@@ -1,0 +1,20 @@
+0x0000 | 00 61 73 6d | version 1
+       | 01 00 00 00
+0x0008 | 01 04       | type section
+0x000a | 01          | 1 count
+0x000b | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
+0x000e | 03 02       | func section
+0x0010 | 01          | 1 count
+0x0011 | 00          | [func 0] type 0
+0x0012 | 0a 0e       | code section
+0x0014 | 01          | 1 count
+============== func 0 ====================
+0x0015 | 0c          | size of function
+0x0016 | 00          | 0 local blocks
+0x0017 | 1b          | Select
+0x0018 | 1c 00       | ??
+0x001a | 1c 01 7f    | TypedSelect { ty: I32 }
+0x001d | 1c 02       | ??
+0x001f | 7f          | I64DivS
+0x0020 | 7f          | I64DivS
+0x0021 | 0b          | End

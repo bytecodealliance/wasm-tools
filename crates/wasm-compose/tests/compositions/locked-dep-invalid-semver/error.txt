@@ -1,5 +1,0 @@
-failed to parse component `tests/compositions/locked-dep-invalid-semver/root.wat`
-
-Caused by:
-    import name `locked-dep=<foo:add@1.0.>` is not a valid extern name
-`1.0.` is not a valid semver: unexpected end of input while parsing patch version number (at offset 0x1b)

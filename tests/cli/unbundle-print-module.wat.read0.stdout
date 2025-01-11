@@ -1,4 +1,0 @@
-(module $a
-  (type (;0;) (func))
-  (import "a" "a" (func (;0;) (type 0)))
-)

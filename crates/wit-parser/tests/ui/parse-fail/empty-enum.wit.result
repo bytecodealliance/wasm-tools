@@ -1,5 +1,0 @@
-empty enum
-     --> tests/ui/parse-fail/empty-enum.wit:5:8
-      |
-    5 |   enum t {}
-      |        ^

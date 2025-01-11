@@ -1,4 +1,0 @@
-failed to connect instance `root` to definition component `tests/compositions/def-mismatch/definitions.wat`
-
-Caused by:
-    source instance export `foo` is not compatible with target instance import `foo`

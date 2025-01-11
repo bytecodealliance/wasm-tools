@@ -1,7 +1,0 @@
-(module
-  (type (;0;) (func))
-  (func (;0;) (type 0)
-    f64.const 0x1.23456789abcdfp+80 (;=1375488932539311400000000;)
-    drop
-  )
-)

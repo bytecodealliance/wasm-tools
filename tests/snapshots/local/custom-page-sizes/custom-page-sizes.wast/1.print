@@ -1,3 +1,0 @@
-(module
-  (memory (;0;) 1 (pagesize 0x10000))
-)

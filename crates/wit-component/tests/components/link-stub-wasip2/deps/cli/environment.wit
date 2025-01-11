@@ -1,5 +1,0 @@
-package wasi:cli@0.2.0;
-
-interface environment {
-  get-environment: func() -> list<tuple<string, string>>;
-}

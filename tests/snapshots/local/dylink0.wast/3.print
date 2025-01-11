@@ -1,7 +1,0 @@
-(module
-  (@dylink.0
-    (needed)
-    (needed "a" "b")
-    (needed "a")
-  )
-)

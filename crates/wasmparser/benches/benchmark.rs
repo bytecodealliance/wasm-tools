@@ -1,11 +1,12 @@
+#[macro_use]
+extern crate criterion;
+
 use anyhow::Result;
-use criterion::{criterion_group, criterion_main, Criterion};
-use once_cell::unsync::Lazy;
+use criterion::Criterion;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
-use wasmparser::VisitSimdOperator;
-use wasmparser::{DataKind, ElementKind, Parser, Payload, Validator, VisitOperator, WasmFeatures};
+use wasmparser::{DataKind, ElementKind, Parser, Payload, Validator, WasmFeatures};
 
 /// A benchmark input.
 pub struct BenchmarkInput {
@@ -59,8 +60,7 @@ fn collect_test_files(path: &Path, list: &mut Vec<BenchmarkInput>) -> Result<()>
                 };
                 for directive in wast.directives {
                     match directive {
-                        wast::WastDirective::Module(mut module)
-                        | wast::WastDirective::ModuleDefinition(mut module) => {
+                        wast::WastDirective::Module(mut module) => {
                             let wasm = module.encode()?;
                             list.push(BenchmarkInput::new(path.clone(), wasm));
                         }
@@ -92,6 +92,18 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
                     item?;
                 }
             }
+            AliasSection(s) => {
+                for item in s {
+                    item?;
+                }
+            }
+            InstanceSection(s) => {
+                for item in s {
+                    for arg in item?.args()? {
+                        arg?;
+                    }
+                }
+            }
             FunctionSection(s) => {
                 for item in s {
                     item?;
@@ -107,7 +119,7 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
                     item?;
                 }
             }
-            TagSection(s) => {
+            EventSection(s) => {
                 for item in s {
                     item?;
                 }
@@ -127,88 +139,32 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
             ElementSection(s) => {
                 for item in s {
                     let item = item?;
-                    if let ElementKind::Active { offset_expr, .. } = item.kind {
-                        for op in offset_expr.get_operators_reader() {
+                    if let ElementKind::Active { init_expr, .. } = item.kind {
+                        for op in init_expr.get_operators_reader() {
                             op?;
                         }
                     }
-                    match item.items {
-                        wasmparser::ElementItems::Functions(r) => {
-                            for op in r {
-                                op?;
-                            }
-                        }
-                        wasmparser::ElementItems::Expressions(_, r) => {
-                            for op in r {
-                                op?;
-                            }
-                        }
+                    for op in item.items.get_items_reader()? {
+                        op?;
                     }
                 }
             }
             DataSection(s) => {
                 for item in s {
                     let item = item?;
-                    if let DataKind::Active { offset_expr, .. } = item.kind {
-                        for op in offset_expr.get_operators_reader() {
+                    if let DataKind::Active { init_expr, .. } = item.kind {
+                        for op in init_expr.get_operators_reader() {
                             op?;
                         }
                     }
                 }
             }
             CodeSectionEntry(body) => {
-                let mut reader = body.get_binary_reader();
-                for _ in 0..reader.read_var_u32()? {
-                    reader.read_var_u32()?;
-                    reader.read::<wasmparser::ValType>()?;
+                for local in body.get_locals_reader()? {
+                    local?;
                 }
-                while !reader.eof() {
-                    reader.visit_operator(&mut NopVisit)?;
-                }
-            }
-
-            // Component sections
-            ModuleSection { .. } => {}
-            InstanceSection(s) => {
-                for item in s {
-                    item?;
-                }
-            }
-            CoreTypeSection(s) => {
-                for item in s {
-                    item?;
-                }
-            }
-            ComponentSection { .. } => {}
-            ComponentInstanceSection(s) => {
-                for item in s {
-                    item?;
-                }
-            }
-            ComponentAliasSection(s) => {
-                for item in s {
-                    item?;
-                }
-            }
-            ComponentTypeSection(s) => {
-                for item in s {
-                    item?;
-                }
-            }
-            ComponentCanonicalSection(s) => {
-                for item in s {
-                    item?;
-                }
-            }
-            ComponentStartSection { .. } => {}
-            ComponentImportSection(s) => {
-                for item in s {
-                    item?;
-                }
-            }
-            ComponentExportSection(s) => {
-                for item in s {
-                    item?;
+                for op in body.get_operators_reader()? {
+                    op?;
                 }
             }
 
@@ -218,25 +174,9 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
             | UnknownSection { .. }
             | CustomSection { .. }
             | CodeSectionStart { .. }
-            | End(_) => {}
-
-            other => {
-                // NB: if you hit this panic if you'd be so kind as to grep
-                // through other locations in the code base that need to be
-                // updated as well. As of the time of this writing the locations
-                // might be:
-                //
-                //  * src/bin/wasm-tools/objdump.rs
-                //  * src/bin/wasm-tools/dump.rs
-                //  * crates/wasm-encoder/src/reencode.rs
-                //  * crates/wasm-encoder/src/reencode/component.rs
-                //  * crates/wasmprinter/src/lib.rs
-                //  * crates/wit-component/src/gc.rs
-                //
-                // This is required due to the `#[non_exhaustive]` nature of
-                // the `Payload` enum.
-                panic!("a new match statement should be added above for this case: {other:?}")
-            }
+            | ModuleSectionStart { .. }
+            | ModuleSectionEntry { .. }
+            | End => {}
         }
     }
     Ok(())
@@ -247,143 +187,51 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
 fn collect_benchmark_inputs() -> Vec<BenchmarkInput> {
     let mut ret = Vec::new();
     collect_test_files("../../tests".as_ref(), &mut ret).unwrap();
-    // Sort to ideally get more deterministic perf that ignores filesystems
-    ret.sort_by_key(|p| p.path.clone());
-    ret
+    return ret;
 }
 
-fn skip_validation(test: &Path) -> bool {
-    let broken = [
-        "gc/gc-rec-sub.wat",
-        "proposals/gc/type-equivalence.wast",
-        "proposals/gc/type-subtyping.wast",
-    ];
-
-    let test_path = test.to_str().unwrap().replace("\\", "/"); // for windows paths
-    if broken.iter().any(|x| test_path.contains(x)) {
-        return true;
-    }
-
-    false
+fn it_works_benchmark(c: &mut Criterion) {
+    let mut inputs = collect_benchmark_inputs();
+    // Filter out all benchmark inputs that fail to parse via `wasmparser`.
+    inputs.retain(|input| read_all_wasm(input.wasm.as_slice()).is_ok());
+    c.bench_function("it works benchmark", move |b| {
+        b.iter(|| {
+            for input in &mut inputs {
+                read_all_wasm(input.wasm.as_slice()).unwrap();
+            }
+        })
+    });
 }
 
-fn define_benchmarks(c: &mut Criterion) {
-    let _ = env_logger::try_init();
-
+fn validate_benchmark(c: &mut Criterion) {
     fn validator() -> Validator {
-        Validator::new_with_features(WasmFeatures::all())
+        let mut ret = Validator::new();
+        ret.wasm_features(WasmFeatures {
+            reference_types: true,
+            multi_value: true,
+            simd: true,
+            exceptions: true,
+            module_linking: true,
+            bulk_memory: true,
+            threads: true,
+            tail_call: true,
+            multi_memory: true,
+            memory64: true,
+            deterministic_only: false,
+        });
+        return ret;
     }
-    fn old_validator() -> Validator {
-        Validator::new_with_features(WasmFeatures::WASM2)
-    }
-
-    let test_inputs = once_cell::unsync::Lazy::new(collect_benchmark_inputs);
-
-    let parse_inputs = once_cell::unsync::Lazy::new(|| {
-        let mut list = Vec::new();
-        for input in test_inputs.iter() {
-            if read_all_wasm(&input.wasm).is_ok() {
-                list.push(&input.wasm);
-            }
-        }
-        list
-    });
-    c.bench_function("parse/tests", |b| {
-        Lazy::force(&parse_inputs);
+    let mut inputs = collect_benchmark_inputs();
+    // Filter out all benchmark inputs that fail to validate via `wasmparser`.
+    inputs.retain(|input| validator().validate_all(&input.wasm).is_ok());
+    c.bench_function("validate benchmark", move |b| {
         b.iter(|| {
-            for wasm in parse_inputs.iter() {
-                read_all_wasm(wasm).unwrap();
+            for input in &mut inputs {
+                validator().validate_all(&input.wasm).unwrap();
             }
         })
     });
-
-    let validate_inputs = once_cell::unsync::Lazy::new(|| {
-        let mut list = Vec::new();
-        for input in test_inputs.iter() {
-            if skip_validation(&input.path) {
-                continue;
-            }
-            log::debug!("Validating {}", input.path.display());
-            if validator().validate_all(&input.wasm).is_ok() {
-                list.push(&input.wasm);
-            }
-        }
-        list
-    });
-    c.bench_function("validate/tests", |b| {
-        Lazy::force(&validate_inputs);
-        b.iter(|| {
-            for wasm in validate_inputs.iter() {
-                validator().validate_all(wasm).unwrap();
-            }
-        })
-    });
-
-    for file in std::fs::read_dir("benches").unwrap() {
-        let file = file.unwrap();
-        let path = file.path();
-        if path.extension().and_then(|s| s.to_str()) != Some("wasm") {
-            continue;
-        }
-        let name = path.file_stem().unwrap().to_str().unwrap();
-        let wasm = Lazy::new(|| std::fs::read(&path).unwrap());
-        c.bench_function(&format!("validate/{name}"), |b| {
-            Lazy::force(&wasm);
-            b.iter(|| {
-                validator().validate_all(&wasm).unwrap();
-            })
-        });
-        if old_validator().validate_all(&wasm).is_ok() {
-            c.bench_function(&format!("validate-old/{name}"), |b| {
-                Lazy::force(&wasm);
-                b.iter(|| {
-                    old_validator().validate_all(&wasm).unwrap();
-                })
-            });
-        }
-        c.bench_function(&format!("parse/{name}"), |b| {
-            Lazy::force(&wasm);
-            b.iter(|| {
-                read_all_wasm(&wasm).unwrap();
-            })
-        });
-    }
 }
 
-criterion_group!(benchmark, define_benchmarks);
+criterion_group!(benchmark, it_works_benchmark, validate_benchmark);
 criterion_main!(benchmark);
-
-struct NopVisit;
-
-macro_rules! define_visit_operator {
-    ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
-        $(
-            fn $visit(&mut self $($(,$arg: $argty)*)?) {
-                define_visit_operator!(@visit $op $( $($arg)* )?);
-            }
-        )*
-    };
-
-    (@visit BrTable $table:ident) => {
-        for target in $table.targets() {
-            target.unwrap();
-        }
-    };
-    (@visit $($rest:tt)*) => {}
-}
-
-#[allow(unused_variables)]
-impl<'a> VisitOperator<'a> for NopVisit {
-    type Output = ();
-
-    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = Self::Output>> {
-        Some(self)
-    }
-
-    wasmparser::for_each_visit_operator!(define_visit_operator);
-}
-
-#[allow(unused_variables)]
-impl<'a> VisitSimdOperator<'a> for NopVisit {
-    wasmparser::for_each_visit_simd_operator!(define_visit_operator);
-}

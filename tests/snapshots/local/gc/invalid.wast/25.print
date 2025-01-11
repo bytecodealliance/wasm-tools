@@ -1,9 +1,0 @@
-(module
-  (type $t1 (;0;) (array (mut i16)))
-  (type $t2 (;1;) (array (mut i16)))
-  (type (;2;) (func))
-  (func (;0;) (type 2)
-    unreachable
-    array.copy $t1 $t2
-  )
-)

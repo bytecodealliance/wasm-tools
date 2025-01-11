@@ -1,8 +1,0 @@
-// RUN: component embed --only-custom -w foo % | print
-
-package a:b;
-
-world foo {
-  import x: func();
-  export y: func();
-}

@@ -1,2 +1,0 @@
-;; RUN: metadata show %
-(module)

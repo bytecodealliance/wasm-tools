@@ -1,1 +1,0 @@
-component `tests/compositions/missing-explicit-export/a.wat` does not export an instance named `x`

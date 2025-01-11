@@ -1,7 +1,0 @@
-list-strings(["\u{0}",,]);
-list-strings([,"\u{0}"]);
-list-strings([,]);
-list-strings([));
-list-strings((]);
-list-strings([});
-list-strings({]);

@@ -1,3 +1,0 @@
-(module
-  (import "spectest" "shared_memory" (memory (;0;) 1 2 shared))
-)

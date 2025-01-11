@@ -1,5 +1,0 @@
-(module
-  (@producers
-    (language "foo" "bar")
-  )
-)

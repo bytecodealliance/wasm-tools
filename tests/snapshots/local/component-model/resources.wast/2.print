@@ -1,4 +1,0 @@
-(component
-  (import "x" (type $x (;0;) (sub resource)))
-  (core func (;0;) (canon resource.drop $x))
-)

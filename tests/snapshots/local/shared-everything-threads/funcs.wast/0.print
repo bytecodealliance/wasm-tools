@@ -1,5 +1,0 @@
-(module
-  (type $f (;0;) (shared (func)))
-  (import "spectest" "shared-func" (func (;0;) (type $f)))
-  (func (;1;) (type $f))
-)

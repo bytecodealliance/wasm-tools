@@ -1,0 +1,29 @@
+0x0000 | 00 61 73 6d | version 1
+       | 01 00 00 00
+0x0008 | 01 05       | type section
+0x000a | 01          | 1 count
+0x000b | 60 01 7f 00 | [type 0] Func(FuncType { params: [I32], returns: [] })
+0x000f | 03 02       | func section
+0x0011 | 01          | 1 count
+0x0012 | 00          | [func 0] type 0
+0x0013 | 0a 06       | code section
+0x0015 | 01          | 1 count
+============== func 0 ====================
+0x0016 | 04          | size of function
+0x0017 | 01          | 1 local blocks
+0x0018 | 01 7c       | 1 locals of type F64
+0x001a | 0b          | End
+0x001b | 00 1c       | custom section
+0x001d | 04 6e 61 6d | name: "name"
+       | 65         
+0x0022 | 00 04       | module name
+0x0024 | 03 66 6f 6f | "foo"
+0x0028 | 01 04       | function names
+0x002a | 01          | 1 count
+0x002b | 00 01 66    | Naming { index: 0, name: "f" }
+0x002e | 02 09       | local names
+0x0030 | 01          | 1 count
+0x0031 | 00          | function 0 locals
+0x0032 | 02          | 2 count
+0x0033 | 00 01 78    | Naming { index: 0, name: "x" }
+0x0036 | 01 01 79    | Naming { index: 1, name: "y" }

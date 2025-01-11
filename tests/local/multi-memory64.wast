@@ -16,9 +16,9 @@
   (memory $c i64 (data "..."))
 
   (func
-    i32.const 0 (i32.load $a) drop
-    i32.const 0 (i32.load $b) drop
-    i64.const 0 (i32.load $c) drop
+    i32.const 0 (i32.load (memory $a)) drop
+    i32.const 0 (i32.load (memory $b)) drop
+    i64.const 0 (i32.load (memory $c)) drop
   )
 )
 

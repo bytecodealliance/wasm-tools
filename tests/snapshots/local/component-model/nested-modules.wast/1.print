@@ -1,9 +1,0 @@
-(component
-  (core type (;0;)
-    (module)
-  )
-  (import "a" (core module (;0;) (type 0)))
-  (core type (;1;)
-    (module)
-  )
-)

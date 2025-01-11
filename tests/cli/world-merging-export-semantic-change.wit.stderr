@@ -1,8 +1,0 @@
-error: updating metadata for section component-type
-
-Caused by:
-    0: failed to merge worlds from two documents
-    1: failed to add export `x`
-    2: failed validating export of `x`
-    3: failed validating transitive import dep `a:b/i3`
-    4: world exports `a:b/i2` but it's also transitively used by an import which means that this is not valid

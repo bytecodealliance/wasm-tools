@@ -1,7 +1,0 @@
-  0x0 | 00 61 73 6d | version 1 (Module)
-      | 01 00 00 00
-  0x8 | 00 08       | custom section
-  0xa | 04 6e 61 6d | name: "name"
-      | 65         
-  0xf | 02 07       | ???
- 0x11 |-------------| ... failed to decode 1 more bytes: unexpected end-of-file (at offset 0x11)

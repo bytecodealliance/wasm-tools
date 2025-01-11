@@ -1,7 +1,0 @@
-(component
-  (core type (;0;)
-    (module
-      (type (;0;) (sub (func)))
-    )
-  )
-)

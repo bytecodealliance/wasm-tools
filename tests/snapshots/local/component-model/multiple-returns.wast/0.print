@@ -1,4 +1,0 @@
-(component
-  (type (;0;) (func (result "foo" string) (result "bar" s32) (result "baz" u32)))
-  (import "a" (func (;0;) (type 0)))
-)

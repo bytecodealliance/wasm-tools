@@ -1,7 +1,0 @@
-package foo:foo;
-
-use foo as bar;
-
-interface foo {}
-
-interface bar {}

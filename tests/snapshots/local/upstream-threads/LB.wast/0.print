@@ -1,4 +1,0 @@
-(module $Mem
-  (memory (;0;) 1 1 shared)
-  (export "shared" (memory 0))
-)

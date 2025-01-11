@@ -1,7 +1,0 @@
-package foo:bar;
-
-interface foo {
-  resource y;
-
-  x: func() -> tuple<borrow<y>>;
-}

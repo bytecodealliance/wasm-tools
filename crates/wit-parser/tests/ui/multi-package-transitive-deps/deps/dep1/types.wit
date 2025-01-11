@@ -1,8 +1,0 @@
-package foo:dep1;
-
-interface types {
-  use foo:dep2/types.{a};
-  record b {
-    r: a,
-  }
-}

@@ -1,6 +1,0 @@
-(component
-  (type $x (;0;) (resource (rep i32)))
-  (core func (;0;) (canon resource.new $x))
-  (core func (;1;) (canon resource.rep $x))
-  (core func (;2;) (canon resource.drop $x))
-)

@@ -1,0 +1,57 @@
+0x0000 | 00 61 73 6d | version 1
+       | 01 00 00 00
+0x0008 | 01 04       | type section
+0x000a | 01          | 1 count
+0x000b | 61 00 00    | [type 0] Module(ModuleType { imports: [], exports: [] })
+0x000e | 02 0d       | import section
+0x0010 | 02          | 2 count
+0x0011 | 01 61 00 ff | import [module 0] Import { module: "a", field: None, ty: Module(0) }
+       | 05 00      
+0x0017 | 01 62 00 ff | import [module 1] Import { module: "b", field: None, ty: Module(0) }
+       | 05 00      
+0x001d | 01 03       | type section
+0x001f | 01          | 1 count
+0x0020 | 62 00       | [type 1] Instance(InstanceType { exports: [] })
+0x0022 | 02 07       | import section
+0x0024 | 01          | 1 count
+0x0025 | 01 63 00 ff | import [instance 0] Import { module: "c", field: None, ty: Instance(1) }
+       | 06 01      
+0x002b | 0f 1c       | instance section
+0x002d | 01          | 1 count
+0x002e | 00 00       | [instance 1] instantiate module:0
+0x0030 | 06          | 6 count
+0x0031 | 01 61 05 01 | [instantiate arg] InstanceArg { name: "a", kind: Module, index: 1 }
+0x0035 | 01 62 00 00 | [instantiate arg] InstanceArg { name: "b", kind: Function, index: 0 }
+0x0039 | 01 63 03 00 | [instantiate arg] InstanceArg { name: "c", kind: Global, index: 0 }
+0x003d | 01 64 06 00 | [instantiate arg] InstanceArg { name: "d", kind: Instance, index: 0 }
+0x0041 | 01 65 02 00 | [instantiate arg] InstanceArg { name: "e", kind: Memory, index: 0 }
+0x0045 | 01 66 01 00 | [instantiate arg] InstanceArg { name: "f", kind: Table, index: 0 }
+0x0049 | 01 04       | type section
+0x004b | 01          | 1 count
+0x004c | 60 00 00    | [type 2] Func(FuncType { params: [], returns: [] })
+0x004f | 03 02       | func section
+0x0051 | 01          | 1 count
+0x0052 | 02          | [func 0] type 2
+0x0053 | 04 04       | table section
+0x0055 | 01          | 1 count
+0x0056 | 70 00 01    | [table 0] TableType { element_type: FuncRef, limits: ResizableLimits { initial: 1, maximum: None } }
+0x0059 | 05 03       | memory section
+0x005b | 01          | 1 count
+0x005c | 00 01       | [memory 0] M32 { limits: ResizableLimits { initial: 1, maximum: None }, shared: false }
+0x005e | 06 06       | global section
+0x0060 | 01          | 1 count
+0x0061 | 7f 00       | [global 0] GlobalType { content_type: I32, mutable: false }
+0x0063 | 41 00       | I32Const { value: 0 }
+0x0065 | 0b          | End
+0x0066 | 0a 04       | code section
+0x0068 | 01          | 1 count
+============== func 0 ====================
+0x0069 | 02          | size of function
+0x006a | 00          | 0 local blocks
+0x006b | 0b          | End
+0x006c | 00 0b       | custom section
+0x006e | 04 6e 61 6d | name: "name"
+       | 65         
+0x0073 | 01 04       | function names
+0x0075 | 01          | 1 count
+0x0076 | 00 01 66    | Naming { index: 0, name: "f" }

@@ -1,5 +1,0 @@
-unterminated string literal
-     --> tests/ui/parse-fail/unterminated-string.wit:3:1
-      |
-    3 | "
-      | ^

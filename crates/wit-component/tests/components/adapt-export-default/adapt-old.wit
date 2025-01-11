@@ -1,3 +1,0 @@
-world adapt-old {
-  export entrypoint: func();
-}

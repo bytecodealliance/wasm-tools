@@ -1,4 +1,0 @@
-package a:b;
-
-@since
-interface foo1 {}

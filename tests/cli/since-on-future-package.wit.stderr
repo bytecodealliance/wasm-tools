@@ -1,4 +1,0 @@
-error: failed to process feature gate for function [b] in package [test:invalid@0.1.0]
-
-Caused by:
-    0: feature gate cannot reference unreleased version 0.1.1 of package [test:invalid@0.1.0] (current version 0.1.0)

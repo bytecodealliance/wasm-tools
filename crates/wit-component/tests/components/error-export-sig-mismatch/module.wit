@@ -1,7 +1,0 @@
-package foo:foo;
-
-world module {
-  export foo: interface {
-    a: func(x: string) -> string;
-  }
-}

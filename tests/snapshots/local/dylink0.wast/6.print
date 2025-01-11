@@ -1,9 +1,0 @@
-(module
-  (@dylink.0
-    (mem-info (memory 1 1))
-    (needed "a" "b")
-    (export-info "a")
-    (import-info "a" "a")
-    (import-info "b" "b" binding-weak)
-  )
-)

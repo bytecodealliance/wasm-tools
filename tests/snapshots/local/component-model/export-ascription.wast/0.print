@@ -1,6 +1,0 @@
-(component
-  (type (;0;) (func))
-  (import "f" (func $f (;0;) (type 0)))
-  (type (;1;) (func))
-  (export (;1;) "f2" (func $f) (func (type 1)))
-)

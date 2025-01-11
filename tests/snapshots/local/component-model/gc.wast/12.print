@@ -1,8 +1,0 @@
-(component
-  (type $t (;0;) (resource (rep i32)))
-  (core func (;0;) (canon resource.drop $t))
-  (core module (;0;)
-    (type $t1 (;0;) (sub (func)))
-    (type (;1;) (sub $t1 (func)))
-  )
-)

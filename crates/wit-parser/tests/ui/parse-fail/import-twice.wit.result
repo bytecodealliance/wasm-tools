@@ -1,5 +1,0 @@
-interface cannot be imported more than once
-     --> tests/ui/parse-fail/import-twice.wit:7:10
-      |
-    7 |   import foo;
-      |          ^--

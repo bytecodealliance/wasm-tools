@@ -1,9 +1,9 @@
 [package]
 name = "wasmprinter"
-version.workspace = true
+version = "0.2.26"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
-edition.workspace = true
-license.workspace = true
+edition = "2018"
+license = "Apache-2.0 WITH LLVM-exception"
 readme = "README.md"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasmprinter"
 homepage = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasmprinter"
@@ -11,19 +11,15 @@ documentation = "https://docs.rs/wasmprinter"
 description = """
 Rust converter from the WebAssembly binary format to the text format.
 """
-rust-version.workspace = true
-
-[lints]
-workspace = true
 
 [dependencies]
-anyhow = { workspace = true }
-wasmparser = { workspace = true, features = ['std', 'simd'] }
-termcolor = { workspace = true }
+anyhow = "1.0"
+wasmparser = { path = '../wasmparser', version = '0.78' }
 
 [dev-dependencies]
+diff = "0.1"
+getopts = "0.2"
+rayon = "1.0"
+tempfile = "3.0"
 wat = { path = "../wat" }
-
-[features]
-default = ['component-model']
-component-model = ['wasmparser/component-model']
+wast = { path = "../wast" }

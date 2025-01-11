@@ -1,6 +1,0 @@
-(module
-  (type (;0;) (func))
-  (func $do_no_demangle_me (;0;) (type 0))
-  (func $rust (;1;) (type 0))
-  (func $"foo(double)" (;2;) (type 0))
-)

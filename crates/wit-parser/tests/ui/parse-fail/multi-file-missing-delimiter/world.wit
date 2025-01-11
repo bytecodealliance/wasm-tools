@@ -1,5 +1,0 @@
-package qux:qaz@2.0.0;
-
-world platform {
-  import observe;
-}

@@ -1,8 +1,0 @@
-// parse-fail
-
-package foo:foo;
-
-interface foo {
-  foo: func();
-  foo: func();
-}

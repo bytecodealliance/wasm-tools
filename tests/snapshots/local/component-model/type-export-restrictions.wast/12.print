@@ -1,6 +1,0 @@
-(component
-  (type $t' (;0;) (record (field "f" u32)))
-  (export $t (;1;) "t" (type $t'))
-  (type $t2 (;2;) (record (field "x" $t)))
-  (export (;3;) "t2" (type $t2))
-)

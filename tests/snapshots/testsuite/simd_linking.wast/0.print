@@ -1,6 +1,0 @@
-(module
-  (global (;0;) v128 v128.const i32x4 0x00000000 0x00000000 0x00000000 0x00000000)
-  (global (;1;) (mut v128) v128.const i32x4 0x00000000 0x00000000 0x00000000 0x00000000)
-  (export "g-v128" (global 0))
-  (export "mg-v128" (global 1))
-)

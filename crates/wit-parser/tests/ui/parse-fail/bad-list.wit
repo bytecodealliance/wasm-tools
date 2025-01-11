@@ -1,7 +1,0 @@
-// parse-fail
-
-interface foo {
-  type x = list<u32
-
-  type y = u32
-}

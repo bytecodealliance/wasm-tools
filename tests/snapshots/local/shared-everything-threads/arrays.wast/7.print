@@ -1,3 +1,0 @@
-(module
-  (type (;0;) (array (ref null (shared any))))
-)

@@ -1,7 +1,0 @@
-(module
-  (rec
-    (type $t2 (;0;) (func (param i32 (ref $t2))))
-  )
-  (type (;1;) (func (param (ref $t2))))
-  (import "Mr1" "f" (func (;0;) (type 1)))
-)

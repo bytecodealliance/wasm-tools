@@ -1,1 +1,0 @@
-component `tests/compositions/incompatible-explicit-export/a.wat` exports an instance named `x` but it is not compatible with import `a` of component `tests/compositions/incompatible-explicit-export/root.wat`

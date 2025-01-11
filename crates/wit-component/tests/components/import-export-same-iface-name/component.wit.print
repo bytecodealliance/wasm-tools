@@ -1,8 +1,0 @@
-package root:component;
-
-world root {
-  import foo:dep/the-name;
-  import foo:foo/the-name;
-
-  export foo:foo/the-name;
-}

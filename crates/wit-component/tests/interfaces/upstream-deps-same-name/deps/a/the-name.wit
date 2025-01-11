@@ -1,4 +1,0 @@
-package foo:a;
-interface the-name {
-  type ty = u8;
-}

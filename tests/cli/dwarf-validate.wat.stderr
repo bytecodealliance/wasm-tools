@@ -1,5 +1,0 @@
-error: tests/cli/dwarf-validate.wat:6:5 function `user-name` failed to validate
-
-Caused by:
-    0: func 0 failed to validate
-    1: type mismatch: expected i32 but nothing on stack (at offset 0x1c)

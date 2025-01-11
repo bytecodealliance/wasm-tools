@@ -1,8 +1,0 @@
-package foo:foo;
-
-interface foo {}
-
-world bar {
-  import foo;
-  import foo;
-}

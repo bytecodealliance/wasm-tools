@@ -1,4 +1,0 @@
-error: invalid value 'unknown' for '--features <FEATURES>': unknown feature `unknown`
-Valid features: mutable-global, saturating-float-to-int, sign-extension, reference-types, multi-value, bulk-memory, simd, relaxed-simd, threads, shared-everything-threads, tail-call, floats, multi-memory, exceptions, memory64, extended-const, component-model, function-references, memory-control, gc, custom-page-sizes, component-model-values, component-model-nested-names, component-model-more-flags, component-model-multiple-returns, legacy-exceptions, gc-types, stack-switching, wide-arithmetic, component-model-async, mvp, wasm1, wasm2, wasm3, all
-
-For more information, try '--help'.

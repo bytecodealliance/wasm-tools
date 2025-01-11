@@ -1,4 +1,0 @@
-(component
-  (import "r" (type $r (;0;) (sub resource)))
-  (export (;1;) "r2" (type $r))
-)

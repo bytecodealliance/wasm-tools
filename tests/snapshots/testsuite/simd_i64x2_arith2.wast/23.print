@@ -1,9 +1,0 @@
-(module
-  (type (;0;) (func (param v128) (result v128)))
-  (export "i64x2.abs-i64x2.abs" (func 0))
-  (func (;0;) (type 0) (param v128) (result v128)
-    local.get 0
-    i64x2.abs
-    i64x2.abs
-  )
-)

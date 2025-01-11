@@ -1,9 +1,0 @@
-(component
-  (type (;0;)
-    (instance
-      (type (;0;) u8)
-      (export (;1;) "t" (type (eq 0)))
-      (export (;2;) "t2" (type (eq 1)))
-    )
-  )
-)

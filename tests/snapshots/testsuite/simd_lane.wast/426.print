@@ -1,7 +1,0 @@
-(module
-  (type (;0;) (func (result f64)))
-  (func (;0;) (type 0) (result f64)
-    v128.const i32x4 0x00000000 0x00000000 0x00000000 0x00000000
-    f64x2.extract_lane 1
-  )
-)

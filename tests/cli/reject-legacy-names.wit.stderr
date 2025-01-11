@@ -1,7 +1,0 @@
-error: failed to encode a component from module
-
-Caused by:
-    0: failed to decode world from module
-    1: module was not valid
-    2: failed to resolve import `$root::y`
-    3: unknown or invalid component model import syntax

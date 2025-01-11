@@ -1,7 +1,0 @@
-package foo:bar;
-
-interface foo {
-  use some:dep/foo.{r};
-
-  type t = own<r>;
-}

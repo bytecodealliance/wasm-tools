@@ -1,5 +1,0 @@
-(module
-  (type (;0;) (func))
-  (import "spectest" "print" (func $print (;0;) (type 0)))
-  (start $print)
-)

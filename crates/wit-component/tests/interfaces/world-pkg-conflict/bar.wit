@@ -1,3 +1,0 @@
-interface a {
-  type t = u32;
-}

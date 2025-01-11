@@ -1,3 +1,0 @@
-package foo:another-pkg;
-
-interface other-interface {}

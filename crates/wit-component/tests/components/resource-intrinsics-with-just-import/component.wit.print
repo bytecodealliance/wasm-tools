@@ -1,7 +1,0 @@
-package root:component;
-
-world root {
-  import foo: interface {
-    resource a;
-  }
-}

@@ -1,5 +1,0 @@
-unexpected end of input at 32..32
-unexpected end of input at 33..33
-unexpected token: Colon at 28..29
-unexpected token: ParenClose at 39..40
-error converting Wasm value: missing field "required" at 13..52

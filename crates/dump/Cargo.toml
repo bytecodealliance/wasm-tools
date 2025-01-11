@@ -1,0 +1,10 @@
+[package]
+name = "wasmparser-dump"
+version = "0.1.0"
+authors = ["The Wasmtime Project Developers"]
+edition = "2018"
+publish = false
+
+[dependencies]
+anyhow = "1"
+wasmparser = { path = "../wasmparser" }

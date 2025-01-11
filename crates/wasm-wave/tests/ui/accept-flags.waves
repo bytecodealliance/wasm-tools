@@ -1,7 +1,0 @@
-permission-flags({});
-permission-flags({ read });
-permission-flags({ read, });
-permission-flags({ write });
-permission-flags({ read, write });
-permission-flags({ write, read });
-permission-flags({ read, write, });

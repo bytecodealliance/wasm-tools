@@ -1,5 +1,0 @@
-(component
-  (type (;0;) (list u8))
-  (type (;1;) (tuple 0 u32))
-  (type $t (;2;) (func (result 1)))
-)

@@ -1,7 +1,0 @@
-package root:component;
-
-world root {
-  import foo:foo/foo;
-
-  export a: func(b: u8);
-}

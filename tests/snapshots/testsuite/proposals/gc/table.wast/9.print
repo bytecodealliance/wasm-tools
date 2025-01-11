@@ -1,4 +1,0 @@
-(module
-  (type $t (;0;) (func))
-  (table (;0;) 1 (ref null $t))
-)

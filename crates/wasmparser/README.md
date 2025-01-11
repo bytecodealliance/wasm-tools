@@ -1,28 +1,36 @@
-# `wasmparser`: A WebAssembly Binary Parser
+# The WebAssembly binary file decoder in Rust
 
 **A [Bytecode Alliance](https://bytecodealliance.org/) project**
 
 [![crates.io link](https://img.shields.io/crates/v/wasmparser.svg)](https://crates.io/crates/wasmparser)
 [![docs.rs docs](https://img.shields.io/static/v1?label=docs&message=wasmparser&color=blue&style=flat-square)](https://docs.rs/wasmparser/)
 
-A simple, event-driven library for parsing WebAssembly binary files (or
-streams).
+The decoder library provides lightweight and fast decoding/parsing of WebAssembly binary files.
 
-The library reports events as they happen and only stores parsing information
-for a brief period of time, making it fast and memory-efficient. The
-event-driven model, however, has some drawbacks. If you need random access to
-the entire WebAssembly data-structure, this is not the right library for
-you. You could however, build such a data-structure using this library.
+The other goal is minimal memory footprint. For this reason, there is no AST or IR of WebAssembly data.
 
-To get started, create a
-[`Parser`](https://docs.rs/wasmparser/latest/wasmparser/struct.Parser.html)
-using
-[`Parser::new`](https://docs.rs/wasmparser/latest/wasmparser/struct.Parser.html#method.new)
-and then follow the examples documented for
-[`Parser::parse`](https://docs.rs/wasmparser/latest/wasmparser/struct.Parser.html#method.parse)
-or
-[`Parser::parse_all`](https://docs.rs/wasmparser/latest/wasmparser/struct.Parser.html#method.parse_all).
+See also its sibling at https://github.com/wasdk/wasmparser
+
 
 ## Documentation
 
-Documentation and examples can be found at https://docs.rs/wasmparser/
+The documentation and examples can be found at the https://docs.rs/wasmparser/
+
+
+## Fuzzing
+
+To fuzz test wasmparser.rs, switch to a nightly Rust compiler and install [cargo-fuzz]:
+
+```
+cargo install cargo-fuzz
+```
+
+Then, from the root of the repository, run:
+
+```
+cargo fuzz run parse
+```
+
+If you want to use files as seeds for the fuzzer, add them to `fuzz/corpus/parse/` and restart cargo-fuzz.
+
+[cargo-fuzz]: https://github.com/rust-fuzz/cargo-fuzz

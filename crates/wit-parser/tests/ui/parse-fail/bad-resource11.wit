@@ -1,5 +1,0 @@
-package foo:bar;
-
-interface foo {
-  type t = own<foo>;
-}

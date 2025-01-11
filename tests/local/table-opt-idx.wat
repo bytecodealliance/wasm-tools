@@ -1,7 +1,7 @@
 (; table indices are optional for backwards compatibility ;)
 (module
   (table 1 funcref)
-  (elem $a func $f)
+  (elem $a $f)
   (func $f)
   (func
     i32.const 0

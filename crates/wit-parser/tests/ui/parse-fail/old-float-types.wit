@@ -1,5 +1,0 @@
-package foo:bar;
-
-interface a {
-  type t1 = float32;
-}

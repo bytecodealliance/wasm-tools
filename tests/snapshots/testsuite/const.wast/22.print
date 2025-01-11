@@ -1,7 +1,0 @@
-(module
-  (type (;0;) (func))
-  (func (;0;) (type 0)
-    f32.const 0x1.fe9af6p+89 (;=1234567900000000000000000000;)
-    drop
-  )
-)

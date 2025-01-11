@@ -1,9 +1,0 @@
-(module
-  (type (;0;) (func))
-  (table (;0;) 1 funcref)
-  (memory (;0;) 0)
-  (elem (;0;) (i32.const 0) ...)
-  (func $f (;0;) (type 0) ...)
-  (data (;0;) (i32.const 0) ...)
-  (@custom "hello" (after data) ...)
-)

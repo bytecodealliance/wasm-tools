@@ -1,3 +1,0 @@
-interface shared1 {
-  type the-type = u32;
-}

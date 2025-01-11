@@ -1,3 +1,0 @@
-(module
-  (import "m" "large-pages-memory" (memory (;0;) 0 (pagesize 0x10000)))
-)

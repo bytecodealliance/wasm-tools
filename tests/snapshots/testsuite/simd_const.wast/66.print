@@ -1,7 +1,0 @@
-(module
-  (type (;0;) (func))
-  (func (;0;) (type 0)
-    v128.const i32x4 0x85ebc8a0 0x7fe1ccf3 0x85ebc8a0 0x7fe1ccf3
-    drop
-  )
-)

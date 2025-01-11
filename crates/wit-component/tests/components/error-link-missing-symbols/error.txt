@@ -1,3 +1,0 @@
-unresolved symbol(s):
-	foo needs bar (function [I32] -> [I32])
-	foo needs foo (function [I32] -> [I32])

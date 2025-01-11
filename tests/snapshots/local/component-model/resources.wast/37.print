@@ -1,9 +1,0 @@
-(component
-  (component $C (;0;)
-    (type $R (;0;) (resource (rep i32)))
-    (export (;1;) "R" (type $R))
-  )
-  (instance $c (;0;) (instantiate $C))
-  (alias export $c "R" (type $R (;0;)))
-  (core func (;0;) (canon resource.drop $R))
-)

@@ -1,4 +1,0 @@
-(module
-  (type $a (;0;) (struct))
-  (import "" "" (global (;0;) (ref $a)))
-)

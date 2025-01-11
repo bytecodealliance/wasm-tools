@@ -4,28 +4,46 @@
 //! Use `BLESS=1` in the environment to auto-update `*.err` files. Be sure to
 //! look at the diff!
 
-use libtest_mimic::{Arguments, Trial};
+use rayon::prelude::*;
 use std::env;
 use std::path::{Path, PathBuf};
 
 fn main() {
     let mut tests = Vec::new();
     find_tests("tests/parse-fail".as_ref(), &mut tests);
+    let filter = std::env::args().nth(1);
+
     let bless = env::var("BLESS").is_ok();
+    let tests = tests
+        .iter()
+        .filter(|test| {
+            if let Some(filter) = &filter {
+                if let Some(s) = test.file_name().and_then(|s| s.to_str()) {
+                    if !s.contains(filter) {
+                        return false;
+                    }
+                }
+            }
+            true
+        })
+        .collect::<Vec<_>>();
 
-    let mut trials = Vec::new();
-    for test in tests {
-        let trial = Trial::test(format!("{test:?}"), move || {
-            run_test(&test, bless).map_err(|e| format!("{e:?}").into())
-        });
-        trials.push(trial);
+    println!("running {} tests\n", tests.len());
+
+    let errors = tests
+        .par_iter()
+        .filter_map(|test| run_test(test, bless).err())
+        .collect::<Vec<_>>();
+
+    if !errors.is_empty() {
+        for msg in errors.iter() {
+            eprintln!("{}", msg);
+        }
+
+        panic!("{} tests failed", errors.len())
     }
 
-    let mut args = Arguments::from_args();
-    if cfg!(target_family = "wasm") && !cfg!(target_feature = "atomics") {
-        args.test_threads = Some(1);
-    }
-    libtest_mimic::run(&args, trials).exit();
+    println!("test result: ok. {} passed\n", tests.len());
 }
 
 fn run_test(test: &Path, bless: bool) -> anyhow::Result<()> {
@@ -35,7 +53,7 @@ fn run_test(test: &Path, bless: bool) -> anyhow::Result<()> {
     };
     let assert = test.with_extension("wat.err");
     if bless {
-        std::fs::write(assert, err)?;
+        std::fs::write(assert, err.to_string())?;
         return Ok(());
     }
 

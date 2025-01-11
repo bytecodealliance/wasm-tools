@@ -1,6 +1,0 @@
-(module
-  (type (;0;) (func))
-  (func $foo (;0;) (type 0))
-  (func $"#func1 foo" (@name "foo") (;1;) (type 0))
-  (func $foo_1 (;2;) (type 0))
-)

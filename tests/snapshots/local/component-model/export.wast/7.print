@@ -1,5 +1,0 @@
-(component
-  (type (;0;) (func))
-  (import "a" (func (;0;) (type 0)))
-  (export (;1;) "wasi:http/types@2.0.0" (func 0))
-)

@@ -1,9 +1,9 @@
 [package]
 name = "wast"
-version = "223.0.0"
+version = "35.0.2"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
-edition.workspace = true
-license.workspace = true
+edition = "2018"
+license = "Apache-2.0 WITH LLVM-exception"
 readme = "README.md"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wast"
 homepage = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wast"
@@ -11,31 +11,18 @@ documentation = "https://docs.rs/wast"
 description = """
 Customizable Rust parsers for the WebAssembly Text formats WAT and WAST
 """
-rust-version.workspace = true
-
-[package.metadata.docs.rs]
-all-features = true
-
-[lints]
-workspace = true
 
 [dependencies]
-leb128 = { workspace = true }
-unicode-width = "0.2.0"
-memchr = "2.4.1"
-wasm-encoder = { workspace = true }
-bumpalo = "3.14.0"
-gimli = { workspace = true, optional = true }
+leb128 = "0.2"
 
 [dev-dependencies]
-anyhow = { workspace = true }
-libtest-mimic = { workspace = true }
+anyhow = "1.0"
+rayon = "1.0"
 wasmparser = { path = "../wasmparser" }
 wat = { path = "../wat" }
-rand = { workspace = true }
 
 [features]
-default = ['wasm-module', 'component-model']
+default = ['wasm-module']
 
 # Includes default parsing support for `*.wat` and `*.wast` files (wasm
 # modules). This isn't always needed though if you're parsing just an
@@ -44,15 +31,6 @@ default = ['wasm-module', 'component-model']
 #
 # This feature is turned on by default.
 wasm-module = []
-
-# Off-by-default feature to support emitting DWARF debugging information in
-# parsed binaries pointing back to source locations in the original `*.wat`
-# source.
-dwarf = ["dep:gimli"]
-
-# On-by-default this builds in support for parsing the text format of
-# components.
-component-model = ['wasm-module', 'wasm-encoder/component-model']
 
 [[test]]
 name = "parse-fail"

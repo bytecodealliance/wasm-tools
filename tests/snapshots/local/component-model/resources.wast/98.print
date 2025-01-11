@@ -1,5 +1,0 @@
-(component
-  (import "a" (type (;0;) (sub resource)))
-  (type (;1;) (func))
-  (import "[static]a.b" (func (;0;) (type 1)))
-)

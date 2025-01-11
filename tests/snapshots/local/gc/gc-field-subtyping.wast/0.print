@@ -1,6 +1,0 @@
-(module
-  (type $a (;0;) (sub (struct (field (mut anyref)))))
-  (type $b (;1;) (sub $a (struct (field (mut anyref)))))
-  (type $c (;2;) (sub (struct (field anyref))))
-  (type $d (;3;) (sub $c (struct (field nullref))))
-)

@@ -1,5 +1,0 @@
-(component
-  (type (;0;) (func))
-  (import "r" (func $r (;0;) (type 0)))
-  (export (;1;) "r2" (func $r))
-)

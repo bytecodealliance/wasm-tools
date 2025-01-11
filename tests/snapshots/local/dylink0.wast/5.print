@@ -1,6 +1,0 @@
-(module
-  (@dylink.0
-    (import-info "a" "a")
-    (import-info "b" "b" binding-weak)
-  )
-)

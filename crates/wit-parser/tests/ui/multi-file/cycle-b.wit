@@ -1,3 +1,0 @@
-interface cycle2 {
-  use cycle1.{t};
-}

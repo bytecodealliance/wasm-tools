@@ -1,4 +1,0 @@
-failed to parse component `tests/compositions/component-not-valid/root.wat`
-
-Caused by:
-    unknown core function 0: function index out of bounds (at offset 0x12)

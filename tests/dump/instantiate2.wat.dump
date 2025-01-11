@@ -1,0 +1,15 @@
+0x0000 | 00 61 73 6d | version 1
+       | 01 00 00 00
+0x0008 | 01 0c       | type section
+0x000a | 02          | 2 count
+0x000b | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
+0x000e | 61 01 00 00 | [type 1] Module(ModuleType { imports: [Import { module: "", field: None, ty: Function(0) }], exports: [] })
+       | ff 00 00 00
+0x0016 | 02 06       | import section
+0x0018 | 01          | 1 count
+0x0019 | 00 00 ff 05 | import [module 0] Import { module: "", field: None, ty: Module(1) }
+       | 01         
+0x001e | 0f 04       | instance section
+0x0020 | 01          | 1 count
+0x0021 | 00 00       | [instance 0] instantiate module:0
+0x0023 | 00          | 0 count

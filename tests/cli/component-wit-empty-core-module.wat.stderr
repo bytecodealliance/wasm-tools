@@ -1,1 +1,0 @@
-error: input is a core wasm module with no `component-type*` custom sections meaning that there is not WIT information; is the information not embedded or is this supposed to be a component?

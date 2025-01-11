@@ -1,7 +1,0 @@
-(module
-  (type (;0;) (func))
-  (func $f (;0;) (type 0)
-    (atomic.fence)
-    (atomic.fence)
-  )
-)

@@ -1,7 +1,0 @@
-(component
-  (type (;0;) (func (param "z" string) (param "a" string)))
-  (import "a" (func $f (;0;) (type 0)))
-  (import "b" (value $v (;0;) string))
-  (import "c" (value $v2 (;1;) string))
-  (start $f (value $v) (value $v2))
-)

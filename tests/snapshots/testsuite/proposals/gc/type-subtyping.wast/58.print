@@ -1,8 +1,0 @@
-(module
-  (type $t1 (;0;) (sub (func)))
-  (type $t2 (;1;) (func))
-  (export "f1" (func 0))
-  (export "f2" (func 1))
-  (func (;0;) (type $t1))
-  (func (;1;) (type $t2))
-)

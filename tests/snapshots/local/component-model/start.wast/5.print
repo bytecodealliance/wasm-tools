@@ -1,6 +1,0 @@
-(component
-  (type (;0;) (func (result string)))
-  (import "a" (func $f (;0;) (type 0)))
-  (start $f (result (value (;0;))))
-  (export (;1;) "b" (value 0))
-)

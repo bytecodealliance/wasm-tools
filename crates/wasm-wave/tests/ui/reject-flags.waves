@@ -1,6 +1,0 @@
-// Duplicate flags.
-permission-flags({ read, read });
-permission-flags({ write, write });
-permission-flags({ read, write, read });
-// Unrecognized flag.
-permission-flags({ read, write, execute });

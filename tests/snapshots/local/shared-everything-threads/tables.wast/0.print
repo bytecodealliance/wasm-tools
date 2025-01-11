@@ -1,8 +1,0 @@
-(module
-  (import "spectest" "table_ref" (table (;0;) shared 1 (ref null (shared func))))
-  (import "spectest" "table_ref_with_max" (table (;1;) shared 1 1 (ref null (shared func))))
-  (table (;2;) shared 1 (ref null (shared func)))
-  (table (;3;) shared 1 1 (ref null (shared func)))
-  (table (;4;) shared 1 1 (ref null (shared func)))
-  (elem (;0;) (table 4) (i32.const 0) (ref null (shared func)) (ref.null (shared func)))
-)

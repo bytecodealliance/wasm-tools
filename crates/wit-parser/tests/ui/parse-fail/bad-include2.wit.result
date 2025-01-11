@@ -1,5 +1,0 @@
-interface or world `foo` depends on itself
-     --> tests/ui/parse-fail/bad-include2.wit:7:7
-      |
-    7 | world foo {
-      |       ^--

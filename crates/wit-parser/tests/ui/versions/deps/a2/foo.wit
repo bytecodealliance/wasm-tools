@@ -1,5 +1,0 @@
-package a:a@2.0.0;
-
-interface foo {
-  type t = u32;
-}

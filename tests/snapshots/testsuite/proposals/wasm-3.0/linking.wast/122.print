@@ -1,6 +1,0 @@
-(module
-  (type $t (;0;) (func))
-  (import "Mtable_ex" "t-funcnull" (table (;0;) 1 funcref))
-  (import "Mtable_ex" "t-refnull" (table (;1;) 1 (ref null $t)))
-  (import "Mtable_ex" "t-extern" (table (;2;) 1 externref))
-)

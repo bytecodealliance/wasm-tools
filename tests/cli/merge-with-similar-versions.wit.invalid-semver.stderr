@@ -1,6 +1,0 @@
-error: failed to merge world imports based on semver
-
-Caused by:
-    0: failed to upgrade `a:b/invalid-semver@0.1.0` to `a:b/invalid-semver@0.1.1`, was this semver-compatible update not semver compatible?
-    1: failed to merge interfaces
-    2: expected function `x` to be present

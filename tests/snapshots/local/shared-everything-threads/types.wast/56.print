@@ -1,9 +1,0 @@
-(module
-  (type $t (;0;) (shared (struct (field i32))))
-  (import "spectest" "global_t" (global (;0;) (shared (ref $t))))
-  (import "spectest" "global_mut_t" (global (;1;) (shared mut (ref $t))))
-  (import "spectest" "global_null_t" (global (;2;) (shared (ref null $t))))
-  (import "spectest" "global_mut_null_t" (global (;3;) (shared mut (ref null $t))))
-  (global (;4;) (shared (ref null $t)) ref.null $t)
-  (global (;5;) (shared mut (ref null $t)) ref.null $t)
-)

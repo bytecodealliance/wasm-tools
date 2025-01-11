@@ -1,7 +1,0 @@
-package foo:%from;
-
-interface a {
-  use foo:foo/only-from@1.0.0.{r};
-
-  foo: func();
-}

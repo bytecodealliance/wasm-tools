@@ -1,7 +1,0 @@
-// RUN: component semver-check % --prev prev --new new
-
-package a:b;
-
-world prev {}
-
-world new {}

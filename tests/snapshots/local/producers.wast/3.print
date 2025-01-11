@@ -1,6 +1,0 @@
-(module
-  (@producers)
-  (@producers
-    (sdk "foo" "bar")
-  )
-)

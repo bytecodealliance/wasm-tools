@@ -12,7 +12,7 @@
 //! use wast::lexer::Lexer;
 //!
 //! let wat = "(module (func $foo))";
-//! for token in Lexer::new(wat).iter(0) {
+//! for token in Lexer::new(wat) {
 //!     println!("{:?}", token?);
 //! }
 //! # Ok(())
@@ -24,144 +24,76 @@
 //!
 //! [`Lexer`]: crate::lexer::Lexer
 
-use crate::token::Span;
-use crate::Error;
+use crate::{Error, Span};
 use std::borrow::Cow;
 use std::char;
 use std::fmt;
-use std::slice;
+use std::iter;
 use std::str;
-use std::str::Utf8Error;
 
 /// A structure used to lex the s-expression syntax of WAT files.
 ///
-/// This structure is used to generate [`Token`] items, which should account for
+/// This structure is used to generate [`Source`] items, which should account for
 /// every single byte of the input as we iterate over it. A [`LexError`] is
 /// returned for any non-lexable text.
 #[derive(Clone)]
 pub struct Lexer<'a> {
+    it: iter::Peekable<str::CharIndices<'a>>,
     input: &'a str,
-    allow_confusing_unicode: bool,
 }
 
-/// A single token parsed from a `Lexer`.
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Token {
-    /// The kind of token this represents, such as whether it's whitespace, a
-    /// keyword, etc.
-    pub kind: TokenKind,
-    /// The byte offset within the original source for where this token came
-    /// from.
-    pub offset: usize,
-    /// The byte length of this token as it resides in the original source.
-    //
-    // NB: this is `u32` to enable packing `Token` into two pointers of size.
-    // This does limit a single token to being at most 4G large, but that seems
-    // probably ok.
-    pub len: u32,
-}
-
-#[test]
-fn token_is_not_too_big() {
-    assert!(std::mem::size_of::<Token>() <= std::mem::size_of::<u64>() * 2);
-}
-
-/// Classification of what was parsed from the input stream.
+/// A fragment of source lex'd from an input string.
 ///
 /// This enumeration contains all kinds of fragments, including comments and
-/// whitespace.
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum TokenKind {
+/// whitespace. For most cases you'll probably ignore these and simply look at
+/// tokens.
+#[derive(Debug, PartialEq)]
+pub enum Token<'a> {
     /// A line comment, preceded with `;;`
-    LineComment,
+    LineComment(&'a str),
 
     /// A block comment, surrounded by `(;` and `;)`. Note that these can be
     /// nested.
-    BlockComment,
+    BlockComment(&'a str),
 
     /// A fragment of source that represents whitespace.
-    Whitespace,
+    Whitespace(&'a str),
 
     /// A left-parenthesis, including the source text for where it comes from.
-    LParen,
+    LParen(&'a str),
     /// A right-parenthesis, including the source text for where it comes from.
-    RParen,
+    RParen(&'a str),
 
     /// A string literal, which is actually a list of bytes.
-    String,
+    String(WasmString<'a>),
 
     /// An identifier (like `$foo`).
     ///
     /// All identifiers start with `$` and the payload here is the original
     /// source text.
-    Id,
+    Id(&'a str),
 
     /// A keyword, or something that starts with an alphabetic character.
     ///
     /// The payload here is the original source text.
-    Keyword,
-
-    /// An annotation (like `@foo`).
-    ///
-    /// All annotations start with `@` and the payload will be the name of the
-    /// annotation.
-    Annotation,
+    Keyword(&'a str),
 
     /// A reserved series of `idchar` symbols. Unknown what this is meant to be
     /// used for, you'll probably generate an error about an unexpected token.
-    Reserved,
+    Reserved(&'a str),
 
     /// An integer.
-    Integer(IntegerKind),
+    Integer(Integer<'a>),
 
     /// A float.
-    Float(FloatKind),
-}
-
-/// Description of the parsed integer from the source.
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct IntegerKind {
-    sign: Option<SignToken>,
-    has_underscores: bool,
-    hex: bool,
-}
-
-/// Description of a parsed float from the source.
-#[allow(missing_docs)]
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum FloatKind {
-    #[doc(hidden)]
-    Inf { negative: bool },
-    #[doc(hidden)]
-    Nan { negative: bool },
-    #[doc(hidden)]
-    NanVal {
-        negative: bool,
-        has_underscores: bool,
-    },
-    #[doc(hidden)]
-    Normal { has_underscores: bool, hex: bool },
-}
-
-enum ReservedKind {
-    /// "..."
-    String,
-    /// anything that's just a sequence of `idchars!()`
-    Idchars,
-    /// $"..."
-    IdString,
-    /// @"..."
-    AnnotationString,
-    /// everything else (a conglomeration of strings, idchars, etc)
-    Reserved,
+    Float(Float<'a>),
 }
 
 /// Errors that can be generated while lexing.
 ///
 /// All lexing errors have line/colum/position information as well as a
 /// `LexError` indicating what kind of error happened while lexing.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LexError {
     /// A dangling block comment was found with an unbalanced `(;` which was
     /// never terminated in the file.
@@ -208,26 +140,12 @@ pub enum LexError {
     /// should always be preceded and succeeded with a digit of some form.
     LoneUnderscore,
 
-    /// A "confusing" unicode character is present in a comment or a string
-    /// literal, such as a character that changes the direction text is
-    /// typically displayed in editors. This could cause the human-read
-    /// version to behave differently than the compiler-visible version, so
-    /// these are simply rejected for now.
-    ConfusingUnicode(char),
-
-    /// An invalid utf-8 sequence was found in a quoted identifier, such as
-    /// `$"\ff"`.
-    InvalidUtf8Id(Utf8Error),
-
-    /// An empty identifier was found, or a lone `$`.
-    EmptyId,
-
-    /// An empty identifier was found, or a lone `@`.
-    EmptyAnnotation,
+    #[doc(hidden)]
+    __Nonexhaustive,
 }
 
 /// A sign token for an integer.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SignToken {
     /// Plus sign: "+",
     Plus,
@@ -235,22 +153,49 @@ pub enum SignToken {
     Minus,
 }
 
-/// A fully parsed integer from a source string with a payload ready to parse
-/// into an integral type.
+/// A parsed integer, signed or unsigned.
+///
+/// Methods can be use to access the value of the integer.
 #[derive(Debug, PartialEq)]
-pub struct Integer<'a> {
+pub struct Integer<'a>(Box<IntegerInner<'a>>);
+
+#[derive(Debug, PartialEq)]
+struct IntegerInner<'a> {
     sign: Option<SignToken>,
+    src: &'a str,
     val: Cow<'a, str>,
     hex: bool,
 }
 
+/// A parsed float.
+///
+/// Methods can be use to access the value of the float.
+#[derive(Debug, PartialEq)]
+pub struct Float<'a>(Box<FloatInner<'a>>);
+
+#[derive(Debug, PartialEq)]
+struct FloatInner<'a> {
+    src: &'a str,
+    val: FloatVal<'a>,
+}
+
+/// A parsed string.
+#[derive(Debug, PartialEq)]
+pub struct WasmString<'a>(Box<WasmStringInner<'a>>);
+
+#[derive(Debug, PartialEq)]
+struct WasmStringInner<'a> {
+    src: &'a str,
+    val: Cow<'a, [u8]>,
+}
+
 /// Possible parsed float values
-#[derive(Debug, PartialEq, Eq)]
-pub enum Float<'a> {
+#[derive(Debug, PartialEq)]
+pub enum FloatVal<'a> {
     /// A float `NaN` representation
     Nan {
         /// The specific bits to encode for this float, optionally
-        val: Option<Cow<'a, str>>,
+        val: Option<u64>,
         /// Whether or not this is a negative `NaN` or not.
         negative: bool,
     },
@@ -261,57 +206,25 @@ pub enum Float<'a> {
     },
     /// A parsed and separated floating point value
     Val {
-        /// Whether or not the `integral` and `fractional` are specified in hex
+        /// Whether or not the `integral` and `decimal` are specified in hex
         hex: bool,
         /// The float parts before the `.`
         integral: Cow<'a, str>,
         /// The float parts after the `.`
-        fractional: Option<Cow<'a, str>>,
-        /// The exponent to multiple this `integral.fractional` portion of the
+        decimal: Option<Cow<'a, str>>,
+        /// The exponent to multiple this `integral.decimal` portion of the
         /// float by. If `hex` is true this is `2^exponent` and otherwise it's
         /// `10^exponent`
         exponent: Option<Cow<'a, str>>,
     },
 }
 
-// https://webassembly.github.io/spec/core/text/values.html#text-idchar
-macro_rules! idchars {
-    () => {
-        b'0'..=b'9'
-        | b'A'..=b'Z'
-        | b'a'..=b'z'
-        | b'!'
-        | b'#'
-        | b'$'
-        | b'%'
-        | b'&'
-        | b'\''
-        | b'*'
-        | b'+'
-        | b'-'
-        | b'.'
-        | b'/'
-        | b':'
-        | b'<'
-        | b'='
-        | b'>'
-        | b'?'
-        | b'@'
-        | b'\\'
-        | b'^'
-        | b'_'
-        | b'`'
-        | b'|'
-        | b'~'
-    }
-}
-
 impl<'a> Lexer<'a> {
     /// Creates a new lexer which will lex the `input` source string.
     pub fn new(input: &str) -> Lexer<'_> {
         Lexer {
+            it: input.char_indices().peekable(),
             input,
-            allow_confusing_unicode: false,
         }
     }
 
@@ -320,309 +233,83 @@ impl<'a> Lexer<'a> {
         self.input
     }
 
-    /// Configures whether "confusing" unicode characters are allowed while
-    /// lexing.
-    ///
-    /// If allowed then no error will happen if these characters are found, but
-    /// otherwise if disallowed a lex error will be produced when these
-    /// characters are found. Confusing characters are denied by default.
-    ///
-    /// For now "confusing characters" are primarily related to the "trojan
-    /// source" problem where it refers to characters which cause humans to read
-    /// text differently than this lexer, such as characters that alter the
-    /// left-to-right display of the source code.
-    pub fn allow_confusing_unicode(&mut self, allow: bool) -> &mut Self {
-        self.allow_confusing_unicode = allow;
-        self
-    }
-
-    /// Lexes the next at the byte position `pos` in the input.
+    /// Lexes the next token in the input.
     ///
     /// Returns `Some` if a token is found or `None` if we're at EOF.
-    ///
-    /// The `pos` argument will be updated to point to the next token on a
-    /// successful parse.
     ///
     /// # Errors
     ///
     /// Returns an error if the input is malformed.
-    pub fn parse(&self, pos: &mut usize) -> Result<Option<Token>, Error> {
-        let offset = *pos;
-        Ok(match self.parse_kind(pos)? {
-            Some(kind) => Some(Token {
-                kind,
-                offset,
-                len: (*pos - offset).try_into().unwrap(),
-            }),
-            None => None,
-        })
+    pub fn parse(&mut self) -> Result<Option<Token<'a>>, Error> {
+        if let Some(ws) = self.ws() {
+            return Ok(Some(Token::Whitespace(ws)));
+        }
+        if let Some(comment) = self.comment()? {
+            return Ok(Some(comment));
+        }
+        if let Some(token) = self.token()? {
+            return Ok(Some(token));
+        }
+        match self.it.next() {
+            Some((i, ch)) => Err(self.error(i, LexError::Unexpected(ch))),
+            None => Ok(None),
+        }
     }
 
-    fn parse_kind(&self, pos: &mut usize) -> Result<Option<TokenKind>, Error> {
-        let start = *pos;
-        // This `match` generally parses the grammar specified at
-        //
-        // https://webassembly.github.io/spec/core/text/lexical.html#text-token
-        let remaining = &self.input.as_bytes()[start..];
-        let byte = match remaining.first() {
-            Some(b) => b,
+    fn token(&mut self) -> Result<Option<Token<'a>>, Error> {
+        // First two are easy, they're just parens
+        if let Some(pos) = self.eat_char('(') {
+            return Ok(Some(Token::LParen(&self.input[pos..pos + 1])));
+        }
+        if let Some(pos) = self.eat_char(')') {
+            return Ok(Some(Token::RParen(&self.input[pos..pos + 1])));
+        }
+
+        // Strings are also pretty easy, leading `"` is a dead giveaway
+        if let Some(pos) = self.eat_char('"') {
+            let val = self.string()?;
+            let src = &self.input[pos..self.cur()];
+            return Ok(Some(Token::String(WasmString(Box::new(WasmStringInner {
+                val,
+                src,
+            })))));
+        }
+
+        let (start, prefix) = match self.it.peek().cloned() {
+            Some((i, ch)) if is_idchar(ch) => (i, ch),
+            Some((i, ch)) if is_reserved_extra(ch) => {
+                self.it.next();
+                return Ok(Some(Token::Reserved(&self.input[i..self.cur()])));
+            }
+            Some((i, ch)) => return Err(self.error(i, LexError::Unexpected(ch))),
             None => return Ok(None),
         };
 
-        match byte {
-            // Open-parens check the next character to see if this is the start
-            // of a block comment, otherwise it's just a bland left-paren
-            // token.
-            b'(' => match remaining.get(1) {
-                Some(b';') => {
-                    let mut level = 1;
-                    // Note that we're doing a byte-level search here for the
-                    // close-delimiter of `;)`. The actual source text is utf-8
-                    // encode in `remaining` but due to how utf-8 works we
-                    // can safely search for an ASCII byte since it'll never
-                    // otherwise appear in the middle of a codepoint and if we
-                    // find it then it's guaranteed to be the right byte.
-                    //
-                    // Mainly we're avoiding the overhead of decoding utf-8
-                    // characters into a Rust `char` since it's otherwise
-                    // unnecessary work.
-                    let mut iter = remaining[2..].iter();
-                    while let Some(ch) = iter.next() {
-                        match ch {
-                            b'(' => {
-                                if let Some(b';') = iter.as_slice().first() {
-                                    level += 1;
-                                    iter.next();
-                                }
-                            }
-                            b';' => {
-                                if let Some(b')') = iter.as_slice().first() {
-                                    level -= 1;
-                                    iter.next();
-                                    if level == 0 {
-                                        let len = remaining.len() - iter.as_slice().len();
-                                        let comment = &self.input[start..][..len];
-                                        *pos += len;
-                                        self.check_confusing_comment(*pos, comment)?;
-                                        return Ok(Some(TokenKind::BlockComment));
-                                    }
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                    Err(self.error(start, LexError::DanglingBlockComment))
-                }
-                _ => {
-                    *pos += 1;
-
-                    Ok(Some(TokenKind::LParen))
-                }
-            },
-
-            b')' => {
-                *pos += 1;
-                Ok(Some(TokenKind::RParen))
+        while let Some((_, ch)) = self.it.peek().cloned() {
+            if is_idchar(ch) {
+                self.it.next();
+            } else {
+                break;
             }
+        }
 
-            // https://webassembly.github.io/spec/core/text/lexical.html#white-space
-            b' ' | b'\n' | b'\r' | b'\t' => {
-                self.skip_ws(pos);
-                Ok(Some(TokenKind::Whitespace))
-            }
-
-            c @ (idchars!() | b'"') => {
-                let (kind, src) = self.parse_reserved(pos)?;
-                match kind {
-                    // If the reserved token was simply a single string then
-                    // that is converted to a standalone string token
-                    ReservedKind::String => return Ok(Some(TokenKind::String)),
-
-                    // If only idchars were consumed then this could be a
-                    // specific kind of standalone token we're interested in.
-                    ReservedKind::Idchars => {
-                        // https://webassembly.github.io/spec/core/text/values.html#integers
-                        if let Some(ret) = self.classify_number(src) {
-                            return Ok(Some(ret));
-                        // https://webassembly.github.io/spec/core/text/values.html#text-id
-                        } else if *c == b'$' {
-                            return Ok(Some(TokenKind::Id));
-                        // part of the WebAssembly/annotations proposal
-                        // (no online url yet)
-                        } else if *c == b'@' {
-                            return Ok(Some(TokenKind::Annotation));
-                        // https://webassembly.github.io/spec/core/text/lexical.html#text-keyword
-                        } else if b'a' <= *c && *c <= b'z' {
-                            return Ok(Some(TokenKind::Keyword));
-                        }
-                    }
-
-                    ReservedKind::IdString => return Ok(Some(TokenKind::Id)),
-                    ReservedKind::AnnotationString => return Ok(Some(TokenKind::Annotation)),
-
-                    // ... otherwise this was a conglomeration of idchars,
-                    // strings, or just idchars that don't match a prior rule,
-                    // meaning this falls through to the fallback `Reserved`
-                    // token.
-                    ReservedKind::Reserved => {}
-                }
-
-                Ok(Some(TokenKind::Reserved))
-            }
-
-            // This could be a line comment, otherwise `;` is a reserved token.
-            // The second byte is checked to see if it's a `;;` line comment
-            //
-            // Note that this character being considered as part of a
-            // `reserved` token is part of the annotations proposal.
-            b';' => match remaining.get(1) {
-                Some(b';') => {
-                    let remaining = &self.input[*pos..];
-                    let byte_pos = memchr::memchr2(b'\n', b'\r', remaining.as_bytes())
-                        .unwrap_or(remaining.len());
-                    *pos += byte_pos;
-                    let comment = &remaining[..byte_pos];
-                    self.check_confusing_comment(*pos, comment)?;
-                    Ok(Some(TokenKind::LineComment))
-                }
-                _ => {
-                    *pos += 1;
-                    Ok(Some(TokenKind::Reserved))
-                }
-            },
-
-            // Other known reserved tokens other than `;`
-            //
-            // Note that these characters being considered as part of a
-            // `reserved` token is part of the annotations proposal.
-            b',' | b'[' | b']' | b'{' | b'}' => {
-                *pos += 1;
-                Ok(Some(TokenKind::Reserved))
-            }
-
-            _ => {
-                let ch = self.input[start..].chars().next().unwrap();
-                Err(self.error(*pos, LexError::Unexpected(ch)))
-            }
+        let reserved = &self.input[start..self.cur()];
+        if let Some(number) = self.number(reserved) {
+            Ok(Some(number))
+        } else if prefix == '$' && reserved.len() > 1 {
+            Ok(Some(Token::Id(reserved)))
+        } else if 'a' <= prefix && prefix <= 'z' {
+            Ok(Some(Token::Keyword(reserved)))
+        } else {
+            Ok(Some(Token::Reserved(reserved)))
         }
     }
 
-    fn skip_ws(&self, pos: &mut usize) {
-        // This table is a byte lookup table to determine whether a byte is a
-        // whitespace byte. There are only 4 whitespace bytes for the `*.wat`
-        // format right now which are ' ', '\t', '\r', and '\n'. These 4 bytes
-        // have a '1' in the table below.
-        //
-        // Due to how utf-8 works (our input is guaranteed to be utf-8) it is
-        // known that if these bytes are found they're guaranteed to be the
-        // whitespace byte, so they can be safely skipped and we don't have to
-        // do full utf-8 decoding. This means that the goal of this function is
-        // to find the first non-whitespace byte in `remaining`.
-        //
-        // For now this lookup table seems to be the fastest, but projects like
-        // https://github.com/lemire/despacer show other simd algorithms which
-        // can possibly accelerate this even more. Note that `*.wat` files often
-        // have a lot of whitespace so this function is typically quite hot when
-        // parsing inputs.
-        #[rustfmt::skip]
-        const WS: [u8; 256] = [
-            //                                   \t \n       \r
-            /* 0x00 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,
-            /* 0x10 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            //        ' '
-            /* 0x20 */ 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            /* 0x30 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            /* 0x40 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            /* 0x50 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            /* 0x60 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            /* 0x70 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            /* 0x80 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            /* 0x90 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            /* 0xa0 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            /* 0xb0 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            /* 0xc0 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            /* 0xd0 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            /* 0xe0 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            /* 0xf0 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        ];
-        let remaining = &self.input[*pos..];
-        let non_ws_pos = remaining
-            .as_bytes()
-            .iter()
-            .position(|b| WS[*b as usize] != 1)
-            .unwrap_or(remaining.len());
-        *pos += non_ws_pos;
-    }
-
-    /// Splits off a "reserved" token which is then further processed later on
-    /// to figure out which kind of token it is `depending on `ReservedKind`.
-    ///
-    /// For more information on this method see the clarification at
-    /// <https://github.com/WebAssembly/spec/pull/1499> but the general gist is
-    /// that this is parsing the grammar:
-    ///
-    /// ```text
-    /// reserved := (idchar | string)+
-    /// ```
-    ///
-    /// which means that it is eating any number of adjacent string/idchar
-    /// tokens (e.g. `a"b"c`) and returning the classification of what was
-    /// eaten. The classification assists in determining what the actual token
-    /// here eaten looks like.
-    fn parse_reserved(&self, pos: &mut usize) -> Result<(ReservedKind, &'a str), Error> {
-        let mut idchars = 0u32;
-        let mut strings = 0u32;
-        let start = *pos;
-        while let Some(byte) = self.input.as_bytes().get(*pos) {
-            match byte {
-                // Normal `idchars` production which appends to the reserved
-                // token that's being produced.
-                idchars!() => {
-                    idchars += 1;
-                    *pos += 1;
-                }
-
-                // https://webassembly.github.io/spec/core/text/values.html#text-string
-                b'"' => {
-                    strings += 1;
-                    *pos += 1;
-                    let mut it = self.input[*pos..].chars();
-                    let result = Lexer::parse_str(&mut it, self.allow_confusing_unicode);
-                    *pos = self.input.len() - it.as_str().len();
-                    match result {
-                        Ok(_) => {}
-                        Err(e) => {
-                            let err_pos = match &e {
-                                LexError::UnexpectedEof => self.input.len(),
-                                _ => self.input[..*pos].char_indices().next_back().unwrap().0,
-                            };
-                            return Err(self.error(err_pos, e));
-                        }
-                    }
-                }
-
-                // Nothing else is considered part of a reserved token
-                _ => break,
-            }
-        }
-        let ret = &self.input[start..*pos];
-        Ok(match (idchars, strings) {
-            (0, 0) => unreachable!(),
-            (0, 1) => (ReservedKind::String, ret),
-            (_, 0) => (ReservedKind::Idchars, ret),
-            // Pattern match `@"..."` and `$"..."` for string-based
-            // identifiers and annotations.
-            (1, 1) if ret.starts_with("$") => (ReservedKind::IdString, ret),
-            (1, 1) if ret.starts_with("@") => (ReservedKind::AnnotationString, ret),
-            _ => (ReservedKind::Reserved, ret),
-        })
-    }
-
-    fn classify_number(&self, src: &str) -> Option<TokenKind> {
-        let (sign, num) = if let Some(stripped) = src.strip_prefix('+') {
-            (Some(SignToken::Plus), stripped)
-        } else if let Some(stripped) = src.strip_prefix('-') {
-            (Some(SignToken::Minus), stripped)
+    fn number(&self, src: &'a str) -> Option<Token<'a>> {
+        let (sign, num) = if src.starts_with('+') {
+            (Some(SignToken::Plus), &src[1..])
+        } else if src.starts_with('-') {
+            (Some(SignToken::Minus), &src[1..])
         } else {
             (None, src)
         };
@@ -631,33 +318,51 @@ impl<'a> Lexer<'a> {
 
         // Handle `inf` and `nan` which are special numbers here
         if num == "inf" {
-            return Some(TokenKind::Float(FloatKind::Inf { negative }));
+            return Some(Token::Float(Float(Box::new(FloatInner {
+                src,
+                val: FloatVal::Inf { negative },
+            }))));
         } else if num == "nan" {
-            return Some(TokenKind::Float(FloatKind::Nan { negative }));
-        } else if let Some(stripped) = num.strip_prefix("nan:0x") {
-            let mut it = stripped.as_bytes().iter();
-            let has_underscores = skip_underscores(&mut it, |x| char::from(x).is_ascii_hexdigit())?;
+            return Some(Token::Float(Float(Box::new(FloatInner {
+                src,
+                val: FloatVal::Nan {
+                    val: None,
+                    negative,
+                },
+            }))));
+        } else if num.starts_with("nan:0x") {
+            let mut it = num[6..].chars();
+            let to_parse = skip_undescores(&mut it, false, char::is_ascii_hexdigit)?;
             if it.next().is_some() {
                 return None;
             }
-            return Some(TokenKind::Float(FloatKind::NanVal {
-                negative,
-                has_underscores,
-            }));
+            let n = u64::from_str_radix(&to_parse, 16).ok()?;
+            return Some(Token::Float(Float(Box::new(FloatInner {
+                src,
+                val: FloatVal::Nan {
+                    val: Some(n),
+                    negative,
+                },
+            }))));
         }
 
         // Figure out if we're a hex number or not
-        let test_valid: fn(u8) -> bool;
-        let (mut it, hex) = if let Some(stripped) = num.strip_prefix("0x") {
-            test_valid = |x: u8| char::from(x).is_ascii_hexdigit();
-            (stripped.as_bytes().iter(), true)
+        let (mut it, hex, test_valid) = if num.starts_with("0x") {
+            (
+                num[2..].chars(),
+                true,
+                char::is_ascii_hexdigit as fn(&char) -> bool,
+            )
         } else {
-            test_valid = |x: u8| char::from(x).is_ascii_digit();
-            (num.as_bytes().iter(), false)
+            (
+                num.chars(),
+                false,
+                char::is_ascii_digit as fn(&char) -> bool,
+            )
         };
 
         // Evaluate the first part, moving out all underscores
-        let mut has_underscores = skip_underscores(&mut it, test_valid)?;
+        let val = skip_undescores(&mut it, negative, test_valid)?;
 
         match it.clone().next() {
             // If we're followed by something this may be a float so keep going.
@@ -665,48 +370,47 @@ impl<'a> Lexer<'a> {
 
             // Otherwise this is a valid integer literal!
             None => {
-                return Some(TokenKind::Integer(IntegerKind {
-                    has_underscores,
+                return Some(Token::Integer(Integer(Box::new(IntegerInner {
                     sign,
+                    src,
+                    val,
                     hex,
-                }))
+                }))))
             }
         }
 
-        // A number can optionally be after the dot so only actually try to
+        // A number can optionally be after the decimal so only actually try to
         // parse one if it's there.
-        if it.clone().next() == Some(&b'.') {
+        let decimal = if it.clone().next() == Some('.') {
             it.next();
             match it.clone().next() {
-                Some(c) if test_valid(*c) => {
-                    if skip_underscores(&mut it, test_valid)? {
-                        has_underscores = true;
-                    }
-                }
-                Some(_) | None => {}
+                Some(c) if test_valid(&c) => Some(skip_undescores(&mut it, false, test_valid)?),
+                Some(_) | None => None,
             }
+        } else {
+            None
         };
 
         // Figure out if there's an exponential part here to make a float, and
         // if so parse it but defer its actual calculation until later.
-        match (hex, it.next()) {
-            (true, Some(b'p')) | (true, Some(b'P')) | (false, Some(b'e')) | (false, Some(b'E')) => {
-                match it.clone().next() {
-                    Some(b'-') => {
+        let exponent = match (hex, it.next()) {
+            (true, Some('p')) | (true, Some('P')) | (false, Some('e')) | (false, Some('E')) => {
+                let negative = match it.clone().next() {
+                    Some('-') => {
                         it.next();
+                        true
                     }
-                    Some(b'+') => {
+                    Some('+') => {
                         it.next();
+                        false
                     }
-                    _ => {}
-                }
-                if skip_underscores(&mut it, |x| char::from(x).is_ascii_digit())? {
-                    has_underscores = true;
-                }
+                    _ => false,
+                };
+                Some(skip_undescores(&mut it, negative, char::is_ascii_digit)?)
             }
-            (_, None) => {}
+            (_, None) => None,
             _ => return None,
-        }
+        };
 
         // We should have eaten everything by now, if not then this is surely
         // not a float or integer literal.
@@ -714,179 +418,193 @@ impl<'a> Lexer<'a> {
             return None;
         }
 
-        return Some(TokenKind::Float(FloatKind::Normal {
-            has_underscores,
-            hex,
-        }));
+        return Some(Token::Float(Float(Box::new(FloatInner {
+            src,
+            val: FloatVal::Val {
+                hex,
+                integral: val,
+                exponent,
+                decimal,
+            },
+        }))));
 
-        fn skip_underscores<'a>(
-            it: &mut slice::Iter<'_, u8>,
-            good: fn(u8) -> bool,
-        ) -> Option<bool> {
+        fn skip_undescores<'a>(
+            it: &mut str::Chars<'a>,
+            negative: bool,
+            good: fn(&char) -> bool,
+        ) -> Option<Cow<'a, str>> {
+            enum State {
+                Raw,
+                Collecting(String),
+            }
             let mut last_underscore = false;
-            let mut has_underscores = false;
-            let first = *it.next()?;
-            if !good(first) {
+            let mut state = if negative {
+                State::Collecting("-".to_string())
+            } else {
+                State::Raw
+            };
+            let input = it.as_str();
+            let first = it.next()?;
+            if !good(&first) {
                 return None;
             }
+            if let State::Collecting(s) = &mut state {
+                s.push(first);
+            }
+            let mut last = 1;
             while let Some(c) = it.clone().next() {
-                if *c == b'_' && !last_underscore {
-                    has_underscores = true;
+                if c == '_' && !last_underscore {
+                    if let State::Raw = state {
+                        state = State::Collecting(input[..last].to_string());
+                    }
                     it.next();
                     last_underscore = true;
                     continue;
                 }
-                if !good(*c) {
+                if !good(&c) {
                     break;
+                }
+                if let State::Collecting(s) = &mut state {
+                    s.push(c);
                 }
                 last_underscore = false;
                 it.next();
+                last += 1;
             }
             if last_underscore {
                 return None;
             }
-            Some(has_underscores)
+            Some(match state {
+                State::Raw => input[..last].into(),
+                State::Collecting(s) => s.into(),
+            })
         }
     }
 
-    /// Verifies that `comment`, which is about to be returned, has a "confusing
-    /// unicode character" in it and should instead be transformed into an
-    /// error.
-    fn check_confusing_comment(&self, end: usize, comment: &str) -> Result<(), Error> {
-        if self.allow_confusing_unicode {
-            return Ok(());
-        }
-
-        // In an effort to avoid utf-8 decoding the entire `comment` the search
-        // here is a bit more optimized. This checks for the `0xe2` byte because
-        // in the utf-8 encoding that's the leading encoding byte for all
-        // "confusing characters". Each instance of 0xe2 is checked to see if it
-        // starts a confusing character, and if so that's returned.
-        //
-        // Also note that 0xe2 will never be found in the middle of a codepoint,
-        // it's always the start of a codepoint. This means that if our special
-        // characters show up they're guaranteed to start with 0xe2 bytes.
-        let bytes = comment.as_bytes();
-        for pos in memchr::Memchr::new(0xe2, bytes) {
-            if let Some(c) = comment[pos..].chars().next() {
-                if is_confusing_unicode(c) {
-                    // Note that `self.cur()` accounts for already having
-                    // parsed `comment`, so we move backwards to where
-                    // `comment` started and then add the index within
-                    // `comment`.
-                    let pos = end - comment.len() + pos;
-                    return Err(self.error(pos, LexError::ConfusingUnicode(c)));
+    /// Attempts to consume whitespace from the input stream, returning `None`
+    /// if there's no whitespace to consume
+    fn ws(&mut self) -> Option<&'a str> {
+        let start = self.cur();
+        loop {
+            match self.it.peek() {
+                Some((_, ' ')) | Some((_, '\n')) | Some((_, '\r')) | Some((_, '\t')) => {
+                    drop(self.it.next())
                 }
+                _ => break,
             }
         }
-
-        Ok(())
+        let end = self.cur();
+        if start != end {
+            Some(&self.input[start..end])
+        } else {
+            None
+        }
     }
 
-    fn parse_str(
-        it: &mut str::Chars<'a>,
-        allow_confusing_unicode: bool,
-    ) -> Result<Cow<'a, [u8]>, LexError> {
+    /// Attempts to read a comment from the input stream
+    fn comment(&mut self) -> Result<Option<Token<'a>>, Error> {
+        if let Some(start) = self.eat_str(";;") {
+            loop {
+                match self.it.peek() {
+                    None | Some((_, '\n')) => break,
+                    _ => drop(self.it.next()),
+                }
+            }
+            let end = self.cur();
+            return Ok(Some(Token::LineComment(&self.input[start..end])));
+        }
+        if let Some(start) = self.eat_str("(;") {
+            let mut level = 1;
+            while let Some((_, ch)) = self.it.next() {
+                if ch == '(' && self.eat_char(';').is_some() {
+                    level += 1;
+                }
+                if ch == ';' && self.eat_char(')').is_some() {
+                    level -= 1;
+                    if level == 0 {
+                        let end = self.cur();
+                        return Ok(Some(Token::BlockComment(&self.input[start..end])));
+                    }
+                }
+            }
+
+            return Err(self.error(start, LexError::DanglingBlockComment));
+        }
+        Ok(None)
+    }
+
+    /// Reads everything for a literal string except the leading `"`. Returns
+    /// the string value that has been read.
+    fn string(&mut self) -> Result<Cow<'a, [u8]>, Error> {
         enum State {
-            Start,
+            Start(usize),
             String(Vec<u8>),
         }
-        let orig = it.as_str();
-        let mut state = State::Start;
+        let mut state = State::Start(self.cur());
         loop {
-            match it.next().ok_or(LexError::UnexpectedEof)? {
-                '"' => break,
-                '\\' => {
+            match self.it.next() {
+                Some((i, '\\')) => {
                     match state {
                         State::String(_) => {}
-                        State::Start => {
-                            let pos = orig.len() - it.as_str().len() - 1;
-                            state = State::String(orig[..pos].as_bytes().to_vec());
+                        State::Start(start) => {
+                            state = State::String(self.input[start..i].as_bytes().to_vec());
                         }
                     }
                     let buf = match &mut state {
                         State::String(b) => b,
-                        State::Start => unreachable!(),
+                        State::Start(_) => unreachable!(),
                     };
-                    match it.next().ok_or(LexError::UnexpectedEof)? {
-                        '"' => buf.push(b'"'),
-                        '\'' => buf.push(b'\''),
-                        't' => buf.push(b'\t'),
-                        'n' => buf.push(b'\n'),
-                        'r' => buf.push(b'\r'),
-                        '\\' => buf.push(b'\\'),
-                        'u' => {
-                            Lexer::must_eat_char(it, '{')?;
-                            let n = Lexer::hexnum(it)?;
-                            let c = char::from_u32(n).ok_or(LexError::InvalidUnicodeValue(n))?;
+                    match self.it.next() {
+                        Some((_, '"')) => buf.push(b'"'),
+                        Some((_, '\'')) => buf.push(b'\''),
+                        Some((_, 't')) => buf.push(b'\t'),
+                        Some((_, 'n')) => buf.push(b'\n'),
+                        Some((_, 'r')) => buf.push(b'\r'),
+                        Some((_, '\\')) => buf.push(b'\\'),
+                        Some((i, 'u')) => {
+                            self.must_eat_char('{')?;
+                            let n = self.hexnum()?;
+                            let c = char::from_u32(n)
+                                .ok_or_else(|| self.error(i, LexError::InvalidUnicodeValue(n)))?;
                             buf.extend(c.encode_utf8(&mut [0; 4]).as_bytes());
-                            Lexer::must_eat_char(it, '}')?;
+                            self.must_eat_char('}')?;
                         }
-                        c1 if c1.is_ascii_hexdigit() => {
-                            let c2 = Lexer::hexdigit(it)?;
+                        Some((_, c1)) if c1.is_ascii_hexdigit() => {
+                            let (_, c2) = self.hexdigit()?;
                             buf.push(to_hex(c1) * 16 + c2);
                         }
-                        c => return Err(LexError::InvalidStringEscape(c)),
+                        Some((i, c)) => return Err(self.error(i, LexError::InvalidStringEscape(c))),
+                        None => return Err(self.error(self.input.len(), LexError::UnexpectedEof)),
                     }
                 }
-                c if (c as u32) < 0x20 || c as u32 == 0x7f => {
-                    return Err(LexError::InvalidStringElement(c))
-                }
-                c if !allow_confusing_unicode && is_confusing_unicode(c) => {
-                    return Err(LexError::ConfusingUnicode(c))
-                }
-                c => match &mut state {
-                    State::Start => {}
-                    State::String(v) => {
-                        v.extend(c.encode_utf8(&mut [0; 4]).as_bytes());
+                Some((_, '"')) => break,
+                Some((i, c)) => {
+                    if (c as u32) < 0x20 || c as u32 == 0x7f {
+                        return Err(self.error(i, LexError::InvalidStringElement(c)));
                     }
-                },
+                    match &mut state {
+                        State::Start(_) => {}
+                        State::String(v) => {
+                            v.extend(c.encode_utf8(&mut [0; 4]).as_bytes());
+                        }
+                    }
+                }
+                None => return Err(self.error(self.input.len(), LexError::UnexpectedEof)),
             }
         }
         match state {
-            State::Start => Ok(orig[..orig.len() - it.as_str().len() - 1].as_bytes().into()),
+            State::Start(pos) => Ok(self.input[pos..self.cur() - 1].as_bytes().into()),
             State::String(s) => Ok(s.into()),
         }
     }
 
-    /// Parses an id-or-string-based name from `it`.
-    ///
-    /// Note that `it` should already have been lexed and this is just
-    /// extracting the value. If the token lexed was `@a` then this should point
-    /// to `a`.
-    ///
-    /// This will automatically detect quoted syntax such as `@"..."` and the
-    /// byte string will be parsed and validated as utf-8.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if a quoted byte string is found and contains invalid
-    /// utf-8.
-    fn parse_name(it: &mut str::Chars<'a>) -> Result<Cow<'a, str>, LexError> {
-        if it.clone().next() == Some('"') {
-            it.next();
-            match Lexer::parse_str(it, true)? {
-                Cow::Borrowed(bytes) => match std::str::from_utf8(bytes) {
-                    Ok(s) => Ok(Cow::Borrowed(s)),
-                    Err(e) => Err(LexError::InvalidUtf8Id(e)),
-                },
-                Cow::Owned(bytes) => match String::from_utf8(bytes) {
-                    Ok(s) => Ok(Cow::Owned(s)),
-                    Err(e) => Err(LexError::InvalidUtf8Id(e.utf8_error())),
-                },
-            }
-        } else {
-            Ok(Cow::Borrowed(it.as_str()))
-        }
-    }
-
-    fn hexnum(it: &mut str::Chars<'_>) -> Result<u32, LexError> {
-        let n = Lexer::hexdigit(it)?;
+    fn hexnum(&mut self) -> Result<u32, Error> {
+        let (_, n) = self.hexdigit()?;
         let mut last_underscore = false;
         let mut n = n as u32;
-        while let Some(c) = it.clone().next() {
+        while let Some((i, c)) = self.it.peek().cloned() {
             if c == '_' {
-                it.next();
+                self.it.next();
                 last_underscore = true;
                 continue;
             }
@@ -894,14 +612,15 @@ impl<'a> Lexer<'a> {
                 break;
             }
             last_underscore = false;
-            it.next();
+            self.it.next();
             n = n
                 .checked_mul(16)
                 .and_then(|n| n.checked_add(to_hex(c) as u32))
-                .ok_or(LexError::NumberTooBig)?;
+                .ok_or_else(|| self.error(i, LexError::NumberTooBig))?;
         }
         if last_underscore {
-            return Err(LexError::LoneUnderscore);
+            let cur = self.cur();
+            return Err(self.error(cur - 1, LexError::LoneUnderscore));
         }
         Ok(n)
     }
@@ -909,282 +628,140 @@ impl<'a> Lexer<'a> {
     /// Reads a hexidecimal digit from the input stream, returning where it's
     /// defined and the hex value. Returns an error on EOF or an invalid hex
     /// digit.
-    fn hexdigit(it: &mut str::Chars<'_>) -> Result<u8, LexError> {
-        let ch = Lexer::must_char(it)?;
+    fn hexdigit(&mut self) -> Result<(usize, u8), Error> {
+        let (i, ch) = self.must_char()?;
         if ch.is_ascii_hexdigit() {
-            Ok(to_hex(ch))
+            Ok((i, to_hex(ch)))
         } else {
-            Err(LexError::InvalidHexDigit(ch))
+            Err(self.error(i, LexError::InvalidHexDigit(ch)))
+        }
+    }
+
+    /// Returns where the match started, if any
+    fn eat_str(&mut self, s: &str) -> Option<usize> {
+        if !self.cur_str().starts_with(s) {
+            return None;
+        }
+        let ret = self.cur();
+        for _ in s.chars() {
+            self.it.next();
+        }
+        Some(ret)
+    }
+
+    /// Returns where the match happened, if any
+    fn eat_char(&mut self, needle: char) -> Option<usize> {
+        match self.it.peek() {
+            Some((i, c)) if *c == needle => {
+                let ret = *i;
+                self.it.next();
+                Some(ret)
+            }
+            _ => None,
         }
     }
 
     /// Reads the next character from the input string and where it's located,
     /// returning an error if the input stream is empty.
-    fn must_char(it: &mut str::Chars<'_>) -> Result<char, LexError> {
-        it.next().ok_or(LexError::UnexpectedEof)
+    fn must_char(&mut self) -> Result<(usize, char), Error> {
+        self.it
+            .next()
+            .ok_or_else(|| self.error(self.input.len(), LexError::UnexpectedEof))
     }
 
     /// Expects that a specific character must be read next
-    fn must_eat_char(it: &mut str::Chars<'_>, wanted: char) -> Result<(), LexError> {
-        let found = Lexer::must_char(it)?;
+    fn must_eat_char(&mut self, wanted: char) -> Result<usize, Error> {
+        let (pos, found) = self.must_char()?;
         if wanted == found {
-            Ok(())
+            Ok(pos)
         } else {
-            Err(LexError::Expected { wanted, found })
+            Err(self.error(pos, LexError::Expected { wanted, found }))
         }
+    }
+
+    /// Returns the current position of our iterator through the input string
+    fn cur(&mut self) -> usize {
+        self.it.peek().map(|p| p.0).unwrap_or(self.input.len())
+    }
+
+    /// Returns the remaining string that we have left to parse
+    fn cur_str(&mut self) -> &'a str {
+        &self.input[self.cur()..]
     }
 
     /// Creates an error at `pos` with the specified `kind`
     fn error(&self, pos: usize, kind: LexError) -> Error {
         Error::lex(Span { offset: pos }, self.input, kind)
     }
+}
 
-    /// Returns an iterator over all tokens in the original source string
-    /// starting at the `pos` specified.
-    pub fn iter(&self, mut pos: usize) -> impl Iterator<Item = Result<Token, Error>> + '_ {
-        std::iter::from_fn(move || self.parse(&mut pos).transpose())
-    }
+impl<'a> Iterator for Lexer<'a> {
+    type Item = Result<Token<'a>, Error>;
 
-    /// Returns whether an annotation is present at `pos`. If it is present then
-    /// `Ok(Some(token))` is returned corresponding to the token, otherwise
-    /// `Ok(None)` is returned. If the next token cannot be parsed then an error
-    /// is returned.
-    pub fn annotation(&self, mut pos: usize) -> Result<Option<Token>, Error> {
-        let bytes = self.input.as_bytes();
-        // Quickly reject anything that for sure isn't an annotation since this
-        // method is used every time an lparen is parsed.
-        if bytes.get(pos) != Some(&b'@') {
-            return Ok(None);
-        }
-        match self.parse(&mut pos)? {
-            Some(token) => match token.kind {
-                TokenKind::Annotation => Ok(Some(token)),
-                _ => Ok(None),
-            },
-            None => Ok(None),
-        }
+    fn next(&mut self) -> Option<Self::Item> {
+        self.parse().transpose()
     }
 }
 
-impl Token {
+impl<'a> Token<'a> {
     /// Returns the original source text for this token.
-    pub fn src<'a>(&self, s: &'a str) -> &'a str {
-        &s[self.offset..][..self.len.try_into().unwrap()]
-    }
-
-    /// Returns the identifier, without the leading `$` symbol, that this token
-    /// represents.
-    ///
-    /// Note that this method returns the contents of the identifier. With a
-    /// string-based identifier this means that escapes have been resolved to
-    /// their string-based equivalent.
-    ///
-    /// Should only be used with `TokenKind::Id`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if this is a string-based identifier (e.g. `$"..."`)
-    /// which is invalid utf-8.
-    pub fn id<'a>(&self, s: &'a str) -> Result<Cow<'a, str>, Error> {
-        let mut ch = self.src(s).chars();
-        let dollar = ch.next();
-        debug_assert_eq!(dollar, Some('$'));
-        let id = Lexer::parse_name(&mut ch).map_err(|e| self.error(s, e))?;
-        if id.is_empty() {
-            return Err(self.error(s, LexError::EmptyId));
+    pub fn src(&self) -> &'a str {
+        match self {
+            Token::Whitespace(s) => s,
+            Token::BlockComment(s) => s,
+            Token::LineComment(s) => s,
+            Token::LParen(s) => s,
+            Token::RParen(s) => s,
+            Token::String(s) => s.src(),
+            Token::Id(s) => s,
+            Token::Keyword(s) => s,
+            Token::Reserved(s) => s,
+            Token::Integer(i) => i.src(),
+            Token::Float(f) => f.src(),
         }
-        Ok(id)
-    }
-
-    /// Returns the annotation, without the leading `@` symbol, that this token
-    /// represents.
-    ///
-    /// Note that this method returns the contents of the identifier. With a
-    /// string-based identifier this means that escapes have been resolved to
-    /// their string-based equivalent.
-    ///
-    /// Should only be used with `TokenKind::Annotation`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if this is a string-based identifier (e.g. `$"..."`)
-    /// which is invalid utf-8.
-    pub fn annotation<'a>(&self, s: &'a str) -> Result<Cow<'a, str>, Error> {
-        let mut ch = self.src(s).chars();
-        let at = ch.next();
-        debug_assert_eq!(at, Some('@'));
-        let id = Lexer::parse_name(&mut ch).map_err(|e| self.error(s, e))?;
-        if id.is_empty() {
-            return Err(self.error(s, LexError::EmptyAnnotation));
-        }
-        Ok(id)
-    }
-
-    /// Returns the keyword this token represents.
-    ///
-    /// Should only be used with [`TokenKind::Keyword`].
-    pub fn keyword<'a>(&self, s: &'a str) -> &'a str {
-        self.src(s)
-    }
-
-    /// Returns the reserved string this token represents.
-    ///
-    /// Should only be used with [`TokenKind::Reserved`].
-    pub fn reserved<'a>(&self, s: &'a str) -> &'a str {
-        self.src(s)
-    }
-
-    /// Returns the parsed string that this token represents.
-    ///
-    /// This returns either a raw byte slice into the source if that's possible
-    /// or an owned representation to handle escaped characters and such.
-    ///
-    /// Should only be used with [`TokenKind::String`].
-    pub fn string<'a>(&self, s: &'a str) -> Cow<'a, [u8]> {
-        let mut ch = self.src(s).chars();
-        ch.next().unwrap();
-        Lexer::parse_str(&mut ch, true).unwrap()
-    }
-
-    /// Returns the decomposed float token that this represents.
-    ///
-    /// This will slice up the float token into its component parts and return a
-    /// description of the float token in the source.
-    ///
-    /// Should only be used with [`TokenKind::Float`].
-    pub fn float<'a>(&self, s: &'a str, kind: FloatKind) -> Float<'a> {
-        match kind {
-            FloatKind::Inf { negative } => Float::Inf { negative },
-            FloatKind::Nan { negative } => Float::Nan {
-                val: None,
-                negative,
-            },
-            FloatKind::NanVal {
-                negative,
-                has_underscores,
-            } => {
-                let src = self.src(s);
-                let src = if src.starts_with("n") { src } else { &src[1..] };
-                let mut val = Cow::Borrowed(src.strip_prefix("nan:0x").unwrap());
-                if has_underscores {
-                    *val.to_mut() = val.replace("_", "");
-                }
-                Float::Nan {
-                    val: Some(val),
-                    negative,
-                }
-            }
-            FloatKind::Normal {
-                has_underscores,
-                hex,
-            } => {
-                let src = self.src(s);
-                let (integral, fractional, exponent) = match src.find('.') {
-                    Some(i) => {
-                        let integral = &src[..i];
-                        let rest = &src[i + 1..];
-                        let exponent = if hex {
-                            rest.find('p').or_else(|| rest.find('P'))
-                        } else {
-                            rest.find('e').or_else(|| rest.find('E'))
-                        };
-                        match exponent {
-                            Some(i) => (integral, Some(&rest[..i]), Some(&rest[i + 1..])),
-                            None => (integral, Some(rest), None),
-                        }
-                    }
-                    None => {
-                        let exponent = if hex {
-                            src.find('p').or_else(|| src.find('P'))
-                        } else {
-                            src.find('e').or_else(|| src.find('E'))
-                        };
-                        match exponent {
-                            Some(i) => (&src[..i], None, Some(&src[i + 1..])),
-                            None => (src, None, None),
-                        }
-                    }
-                };
-                let mut integral = Cow::Borrowed(integral.strip_prefix('+').unwrap_or(integral));
-                let mut fractional = fractional.and_then(|s| {
-                    if s.is_empty() {
-                        None
-                    } else {
-                        Some(Cow::Borrowed(s))
-                    }
-                });
-                let mut exponent =
-                    exponent.map(|s| Cow::Borrowed(s.strip_prefix('+').unwrap_or(s)));
-                if has_underscores {
-                    *integral.to_mut() = integral.replace("_", "");
-                    if let Some(fractional) = &mut fractional {
-                        *fractional.to_mut() = fractional.replace("_", "");
-                    }
-                    if let Some(exponent) = &mut exponent {
-                        *exponent.to_mut() = exponent.replace("_", "");
-                    }
-                }
-                if hex {
-                    *integral.to_mut() = integral.replace("0x", "");
-                }
-                Float::Val {
-                    hex,
-                    integral,
-                    fractional,
-                    exponent,
-                }
-            }
-        }
-    }
-
-    /// Returns the decomposed integer token that this represents.
-    ///
-    /// This will slice up the integer token into its component parts and
-    /// return a description of the integer token in the source.
-    ///
-    /// Should only be used with [`TokenKind::Integer`].
-    pub fn integer<'a>(&self, s: &'a str, kind: IntegerKind) -> Integer<'a> {
-        let src = self.src(s);
-        let val = match kind.sign {
-            Some(SignToken::Plus) => src.strip_prefix('+').unwrap(),
-            Some(SignToken::Minus) => src,
-            None => src,
-        };
-        let mut val = Cow::Borrowed(val);
-        if kind.has_underscores {
-            *val.to_mut() = val.replace("_", "");
-        }
-        if kind.hex {
-            *val.to_mut() = val.replace("0x", "");
-        }
-        Integer {
-            sign: kind.sign,
-            hex: kind.hex,
-            val,
-        }
-    }
-
-    fn error(&self, src: &str, err: LexError) -> Error {
-        Error::lex(
-            Span {
-                offset: self.offset,
-            },
-            src,
-            err,
-        )
     }
 }
 
 impl<'a> Integer<'a> {
     /// Returns the sign token for this integer.
     pub fn sign(&self) -> Option<SignToken> {
-        self.sign
+        self.0.sign
     }
 
-    /// Returns the value string that can be parsed for this integer, as well
-    /// as the base that it should be parsed in
+    /// Returns the original source text for this integer.
+    pub fn src(&self) -> &'a str {
+        self.0.src
+    }
+
+    /// Returns the value string that can be parsed for this integer, as well as
+    /// the base that it should be parsed in
     pub fn val(&self) -> (&str, u32) {
-        (&self.val, if self.hex { 16 } else { 10 })
+        (&self.0.val, if self.0.hex { 16 } else { 10 })
+    }
+}
+
+impl<'a> Float<'a> {
+    /// Returns the original source text for this integer.
+    pub fn src(&self) -> &'a str {
+        self.0.src
+    }
+
+    /// Returns a parsed value of this float with all of the components still
+    /// listed as strings.
+    pub fn val(&self) -> &FloatVal<'a> {
+        &self.0.val
+    }
+}
+
+impl<'a> WasmString<'a> {
+    /// Returns the original source text for this string.
+    pub fn src(&self) -> &'a str {
+        self.0.src
+    }
+
+    /// Returns a parsed value, as a list of bytes, for this string.
+    pub fn val(&self) -> &[u8] {
+        &self.0.val
     }
 }
 
@@ -1193,6 +770,45 @@ fn to_hex(c: char) -> u8 {
         'a'..='f' => c as u8 - b'a' + 10,
         'A'..='F' => c as u8 - b'A' + 10,
         _ => c as u8 - b'0',
+    }
+}
+
+fn is_idchar(c: char) -> bool {
+    match c {
+        '0'..='9'
+        | 'a'..='z'
+        | 'A'..='Z'
+        | '!'
+        | '#'
+        | '$'
+        | '%'
+        | '&'
+        | '\''
+        | '*'
+        | '+'
+        | '-'
+        | '.'
+        | '/'
+        | ':'
+        | '<'
+        | '='
+        | '>'
+        | '?'
+        | '@'
+        | '\\'
+        | '^'
+        | '_'
+        | '`'
+        | '|'
+        | '~' => true,
+        _ => false,
+    }
+}
+
+fn is_reserved_extra(c: char) -> bool {
+    match c {
+        ',' | ';' | '[' | ']' | '{' | '}' => true,
+        _ => false,
     }
 }
 
@@ -1218,10 +834,7 @@ impl fmt::Display for LexError {
             NumberTooBig => f.write_str("number is too big to parse")?,
             InvalidUnicodeValue(c) => write!(f, "invalid unicode scalar value 0x{:x}", c)?,
             LoneUnderscore => write!(f, "bare underscore in numeric literal")?,
-            ConfusingUnicode(c) => write!(f, "likely-confusing unicode character found {:?}", c)?,
-            InvalidUtf8Id(_) => write!(f, "malformed UTF-8 encoding of string-based id")?,
-            EmptyId => write!(f, "empty identifier")?,
-            EmptyAnnotation => write!(f, "empty annotation id")?,
+            __Nonexhaustive => unreachable!(),
         }
         Ok(())
     }
@@ -1229,38 +842,15 @@ impl fmt::Display for LexError {
 
 fn escape_char(c: char) -> String {
     match c {
-        '\t' => String::from("\\t"),
-        '\r' => String::from("\\r"),
-        '\n' => String::from("\\n"),
+        '\t' => String::from("\\\t"),
+        '\r' => String::from("\\\r"),
+        '\n' => String::from("\\\n"),
         '\\' => String::from("\\\\"),
         '\'' => String::from("\\\'"),
         '\"' => String::from("\""),
         '\x20'..='\x7e' => String::from(c),
         _ => c.escape_unicode().to_string(),
     }
-}
-
-/// This is an attempt to protect agains the "trojan source" [1] problem where
-/// unicode characters can cause editors to render source code differently
-/// for humans than the compiler itself sees.
-///
-/// To mitigate this issue, and because it's relatively rare in practice,
-/// this simply rejects characters of that form.
-///
-/// [1]: https://www.trojansource.codes/
-fn is_confusing_unicode(ch: char) -> bool {
-    matches!(
-        ch,
-        '\u{202a}'
-            | '\u{202b}'
-            | '\u{202d}'
-            | '\u{202e}'
-            | '\u{2066}'
-            | '\u{2067}'
-            | '\u{2068}'
-            | '\u{206c}'
-            | '\u{2069}'
-    )
 }
 
 #[cfg(test)]
@@ -1270,9 +860,8 @@ mod tests {
     #[test]
     fn ws_smoke() {
         fn get_whitespace(input: &str) -> &str {
-            let token = get_token(input);
-            match token.kind {
-                TokenKind::Whitespace => token.src(input),
+            match Lexer::new(input).parse().expect("no first token") {
+                Some(Token::Whitespace(s)) => s,
                 other => panic!("unexpected {:?}", other),
             }
         }
@@ -1286,9 +875,8 @@ mod tests {
     #[test]
     fn line_comment_smoke() {
         fn get_line_comment(input: &str) -> &str {
-            let token = get_token(input);
-            match token.kind {
-                TokenKind::LineComment => token.src(input),
+            match Lexer::new(input).parse().expect("no first token") {
+                Some(Token::LineComment(s)) => s,
                 other => panic!("unexpected {:?}", other),
             }
         }
@@ -1297,16 +885,13 @@ mod tests {
         assert_eq!(get_line_comment(";; xyz\nabc"), ";; xyz");
         assert_eq!(get_line_comment(";;\nabc"), ";;");
         assert_eq!(get_line_comment(";;   \nabc"), ";;   ");
-        assert_eq!(get_line_comment(";;   \rabc"), ";;   ");
-        assert_eq!(get_line_comment(";;   \r\nabc"), ";;   ");
     }
 
     #[test]
     fn block_comment_smoke() {
         fn get_block_comment(input: &str) -> &str {
-            let token = get_token(input);
-            match token.kind {
-                TokenKind::BlockComment => token.src(input),
+            match Lexer::new(input).parse().expect("no first token") {
+                Some(Token::BlockComment(s)) => s,
                 other => panic!("unexpected {:?}", other),
             }
         }
@@ -1315,30 +900,32 @@ mod tests {
         assert_eq!(get_block_comment("(; (;;) ;)"), "(; (;;) ;)");
     }
 
-    fn get_token(input: &str) -> Token {
+    fn get_token(input: &str) -> Token<'_> {
         Lexer::new(input)
-            .parse(&mut 0)
+            .parse()
             .expect("no first token")
             .expect("no token")
     }
 
     #[test]
     fn lparen() {
-        assert_eq!(get_token("((").kind, TokenKind::LParen);
+        assert_eq!(get_token("(("), Token::LParen("("));
     }
 
     #[test]
     fn rparen() {
-        assert_eq!(get_token(")(").kind, TokenKind::RParen);
+        assert_eq!(get_token(")("), Token::RParen(")"));
     }
 
     #[test]
     fn strings() {
         fn get_string(input: &str) -> Vec<u8> {
-            let token = get_token(input);
-            match token.kind {
-                TokenKind::String => token.string(input).to_vec(),
-                other => panic!("not keyword {:?}", other),
+            match get_token(input) {
+                Token::String(s) => {
+                    assert_eq!(input, s.src());
+                    s.val().to_vec()
+                }
+                other => panic!("not string {:?}", other),
             }
         }
         assert_eq!(&*get_string("\"\""), b"");
@@ -1369,45 +956,26 @@ mod tests {
 
     #[test]
     fn id() {
-        fn get_id(input: &str) -> String {
-            let token = get_token(input);
-            match token.kind {
-                TokenKind::Id => token.id(input).unwrap().to_string(),
+        fn get_id(input: &str) -> &str {
+            match get_token(input) {
+                Token::Id(s) => s,
                 other => panic!("not id {:?}", other),
             }
         }
-        assert_eq!(get_id("$x"), "x");
-        assert_eq!(get_id("$xyz"), "xyz");
-        assert_eq!(get_id("$x_z"), "x_z");
-        assert_eq!(get_id("$0^"), "0^");
-        assert_eq!(get_id("$0^;;"), "0^");
-        assert_eq!(get_id("$0^ ;;"), "0^");
-        assert_eq!(get_id("$\"x\" ;;"), "x");
-    }
-
-    #[test]
-    fn annotation() {
-        fn get_annotation(input: &str) -> String {
-            let token = get_token(input);
-            match token.kind {
-                TokenKind::Annotation => token.annotation(input).unwrap().to_string(),
-                other => panic!("not annotation {:?}", other),
-            }
-        }
-        assert_eq!(get_annotation("@foo"), "foo");
-        assert_eq!(get_annotation("@foo "), "foo");
-        assert_eq!(get_annotation("@f "), "f");
-        assert_eq!(get_annotation("@\"x\" "), "x");
-        assert_eq!(get_annotation("@0 "), "0");
+        assert_eq!(get_id("$x"), "$x");
+        assert_eq!(get_id("$xyz"), "$xyz");
+        assert_eq!(get_id("$x_z"), "$x_z");
+        assert_eq!(get_id("$0^"), "$0^");
+        assert_eq!(get_id("$0^;;"), "$0^");
+        assert_eq!(get_id("$0^ ;;"), "$0^");
     }
 
     #[test]
     fn keyword() {
         fn get_keyword(input: &str) -> &str {
-            let token = get_token(input);
-            match token.kind {
-                TokenKind::Keyword => token.keyword(input),
-                other => panic!("not keyword {:?}", other),
+            match get_token(input) {
+                Token::Keyword(s) => s,
+                other => panic!("not id {:?}", other),
             }
         }
         assert_eq!(get_keyword("x"), "x");
@@ -1420,21 +988,23 @@ mod tests {
     #[test]
     fn reserved() {
         fn get_reserved(input: &str) -> &str {
-            let token = get_token(input);
-            match token.kind {
-                TokenKind::Reserved => token.reserved(input),
+            match get_token(input) {
+                Token::Reserved(s) => s,
                 other => panic!("not reserved {:?}", other),
             }
         }
+        assert_eq!(get_reserved("$ "), "$");
         assert_eq!(get_reserved("^_x "), "^_x");
     }
 
     #[test]
     fn integer() {
         fn get_integer(input: &str) -> String {
-            let token = get_token(input);
-            match token.kind {
-                TokenKind::Integer(i) => token.integer(input, i).val.to_string(),
+            match get_token(input) {
+                Token::Integer(i) => {
+                    assert_eq!(input, i.src());
+                    i.val().0.to_string()
+                }
                 other => panic!("not integer {:?}", other),
             }
         }
@@ -1451,120 +1021,122 @@ mod tests {
 
     #[test]
     fn float() {
-        fn get_float(input: &str) -> Float<'_> {
-            let token = get_token(input);
-            match token.kind {
-                TokenKind::Float(f) => token.float(input, f),
-                other => panic!("not float {:?}", other),
+        fn get_float(input: &str) -> FloatVal<'_> {
+            match get_token(input) {
+                Token::Float(i) => {
+                    assert_eq!(input, i.src());
+                    i.0.val
+                }
+                other => panic!("not reserved {:?}", other),
             }
         }
         assert_eq!(
             get_float("nan"),
-            Float::Nan {
+            FloatVal::Nan {
                 val: None,
                 negative: false
             },
         );
         assert_eq!(
             get_float("-nan"),
-            Float::Nan {
+            FloatVal::Nan {
                 val: None,
                 negative: true,
             },
         );
         assert_eq!(
             get_float("+nan"),
-            Float::Nan {
+            FloatVal::Nan {
                 val: None,
                 negative: false,
             },
         );
         assert_eq!(
             get_float("+nan:0x1"),
-            Float::Nan {
-                val: Some("1".into()),
+            FloatVal::Nan {
+                val: Some(1),
                 negative: false,
             },
         );
         assert_eq!(
             get_float("nan:0x7f_ffff"),
-            Float::Nan {
-                val: Some("7fffff".into()),
+            FloatVal::Nan {
+                val: Some(0x7fffff),
                 negative: false,
             },
         );
-        assert_eq!(get_float("inf"), Float::Inf { negative: false });
-        assert_eq!(get_float("-inf"), Float::Inf { negative: true });
-        assert_eq!(get_float("+inf"), Float::Inf { negative: false });
+        assert_eq!(get_float("inf"), FloatVal::Inf { negative: false });
+        assert_eq!(get_float("-inf"), FloatVal::Inf { negative: true });
+        assert_eq!(get_float("+inf"), FloatVal::Inf { negative: false });
 
         assert_eq!(
             get_float("1.2"),
-            Float::Val {
+            FloatVal::Val {
                 integral: "1".into(),
-                fractional: Some("2".into()),
+                decimal: Some("2".into()),
                 exponent: None,
                 hex: false,
             },
         );
         assert_eq!(
             get_float("1.2e3"),
-            Float::Val {
+            FloatVal::Val {
                 integral: "1".into(),
-                fractional: Some("2".into()),
+                decimal: Some("2".into()),
                 exponent: Some("3".into()),
                 hex: false,
             },
         );
         assert_eq!(
             get_float("-1_2.1_1E+0_1"),
-            Float::Val {
+            FloatVal::Val {
                 integral: "-12".into(),
-                fractional: Some("11".into()),
+                decimal: Some("11".into()),
                 exponent: Some("01".into()),
                 hex: false,
             },
         );
         assert_eq!(
             get_float("+1_2.1_1E-0_1"),
-            Float::Val {
+            FloatVal::Val {
                 integral: "12".into(),
-                fractional: Some("11".into()),
+                decimal: Some("11".into()),
                 exponent: Some("-01".into()),
                 hex: false,
             },
         );
         assert_eq!(
             get_float("0x1_2.3_4p5_6"),
-            Float::Val {
+            FloatVal::Val {
                 integral: "12".into(),
-                fractional: Some("34".into()),
+                decimal: Some("34".into()),
                 exponent: Some("56".into()),
                 hex: true,
             },
         );
         assert_eq!(
             get_float("+0x1_2.3_4P-5_6"),
-            Float::Val {
+            FloatVal::Val {
                 integral: "12".into(),
-                fractional: Some("34".into()),
+                decimal: Some("34".into()),
                 exponent: Some("-56".into()),
                 hex: true,
             },
         );
         assert_eq!(
             get_float("1."),
-            Float::Val {
+            FloatVal::Val {
                 integral: "1".into(),
-                fractional: None,
+                decimal: None,
                 exponent: None,
                 hex: false,
             },
         );
         assert_eq!(
             get_float("0x1p-24"),
-            Float::Val {
+            FloatVal::Val {
                 integral: "1".into(),
-                fractional: None,
+                decimal: None,
                 exponent: Some("-24".into()),
                 hex: true,
             },

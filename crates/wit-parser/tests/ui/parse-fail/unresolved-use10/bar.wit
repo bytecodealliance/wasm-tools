@@ -1,5 +1,0 @@
-package foo:foo;
-
-interface bar {
-  use foo.{thing};
-}

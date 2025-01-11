@@ -1,6 +1,0 @@
-(component
-  (type $t (;0;) (record (field "f" u32)))
-  (import "t" (type $t' (;1;) (eq $t)))
-  (type $t2 (;2;) (record (field "f" $t')))
-  (import "x" (type (;3;) (eq $t2)))
-)

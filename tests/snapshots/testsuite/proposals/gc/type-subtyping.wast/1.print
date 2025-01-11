@@ -1,8 +1,0 @@
-(module
-  (type $e0 (;0;) (sub (struct)))
-  (type $e1 (;1;) (sub $e0 (struct)))
-  (type $e2 (;2;) (sub $e1 (struct (field i32))))
-  (type $e3 (;3;) (sub $e2 (struct (field i32) (field (ref null $e0)))))
-  (type $e4 (;4;) (sub $e3 (struct (field i32) (field (ref $e0)) (field (mut i64)))))
-  (type $e5 (;5;) (sub $e4 (struct (field i32) (field (ref $e1)) (field (mut i64)))))
-)

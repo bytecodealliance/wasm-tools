@@ -1,7 +1,0 @@
-interface new {
-  foo: func() -> string;
-}
-
-world adapt-old {
-  export new;
-}

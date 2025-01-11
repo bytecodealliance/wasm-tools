@@ -1,8 +1,0 @@
-(module
-  (memory (;0;) 0 0)
-  (memory (;1;) 2)
-  (memory (;2;) 2 4)
-  (export "z" (memory 0))
-  (export "memory-2-inf" (memory 1))
-  (export "memory-2-4" (memory 2))
-)

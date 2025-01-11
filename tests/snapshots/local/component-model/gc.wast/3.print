@@ -1,6 +1,0 @@
-(component
-  (core type (;0;)
-    (module)
-  )
-  (core type (;1;) (func))
-)

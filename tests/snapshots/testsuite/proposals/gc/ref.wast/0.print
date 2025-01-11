@@ -1,5 +1,0 @@
-(module
-  (type $t (;0;) (func))
-  (type (;1;) (func (param funcref externref (ref func) (ref extern) (ref $t) (ref $t) (ref $t) (ref $t) funcref externref (ref null $t) (ref null $t))))
-  (func (;0;) (type 1) (param funcref externref (ref func) (ref extern) (ref $t) (ref $t) (ref $t) (ref $t) funcref externref (ref null $t) (ref null $t)))
-)

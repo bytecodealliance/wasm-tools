@@ -1,7 +1,0 @@
-package foo:foo;
-
-use foo:baz/bar;
-
-world foo {
-    include foo:baz/bar;
-}

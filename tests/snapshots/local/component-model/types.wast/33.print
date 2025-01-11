@@ -1,8 +1,0 @@
-(component
-  (type (;0;)
-    (instance
-      (type (;0;) string)
-      (export (;1;) "a" (type (eq 0)))
-    )
-  )
-)

@@ -7,5 +7,5 @@
     )
     (table (;0;) 1 externref)
   )
-  "indirect calls must go through a table with type <= funcref"
+  "indirect calls must go through a table of funcref"
 )

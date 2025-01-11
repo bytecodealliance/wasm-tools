@@ -1,5 +1,0 @@
-(component
-  (core type $start (;0;) (shared (func (param i32))))
-  (core func $spawn (;0;) (canon thread.spawn $start))
-  (core func $concurrency (;1;) (canon thread.hw_concurrency))
-)

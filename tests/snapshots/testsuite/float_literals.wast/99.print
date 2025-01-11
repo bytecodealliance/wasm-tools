@@ -1,7 +1,0 @@
-(module
-  (type (;0;) (func (result f64)))
-  (export "4294967249" (func 0))
-  (func (;0;) (type 0) (result f64)
-    f64.const 0x1.ffffffa2p+31 (;=4294967249;)
-  )
-)

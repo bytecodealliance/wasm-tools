@@ -1,1 +1,0 @@
-no dependencies of component `tests/compositions/no-deps-resolved/root.wat` were found

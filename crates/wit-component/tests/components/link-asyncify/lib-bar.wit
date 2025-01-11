@@ -1,9 +1,0 @@
-package test:test;
-
-interface test {
-   bar: func();
-}
-
-world lib-bar {
-    export test;
-}

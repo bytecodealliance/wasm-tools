@@ -1,3 +1,0 @@
-(module
-  (import "m" "small-pages-memory" (memory (;0;) 0 (pagesize 0x1)))
-)

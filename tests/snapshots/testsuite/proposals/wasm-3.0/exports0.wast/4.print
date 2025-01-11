@@ -1,6 +1,0 @@
-(module
-  (memory (;0;) 6)
-  (memory (;1;) 3)
-  (export "a" (memory 0))
-  (export "b" (memory 1))
-)

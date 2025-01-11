@@ -1,6 +1,0 @@
-error: updating metadata for section component-type
-
-Caused by:
-    0: failed to merge worlds from two documents
-    1: failed to add export `a:b/i1`
-    2: export `x` depends on `a:b/i1` previously as an import which will change meaning if `a:b/i1` is added as an export

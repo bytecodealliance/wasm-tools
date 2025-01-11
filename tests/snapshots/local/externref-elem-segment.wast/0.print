@@ -1,4 +1,0 @@
-(module
-  (elem $a (;0;) externref)
-  (elem $b (;1;) externref (ref.null extern))
-)

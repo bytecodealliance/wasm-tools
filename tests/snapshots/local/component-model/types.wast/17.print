@@ -1,8 +1,0 @@
-(component $c
-  (core type $f (;0;) (func))
-  (core type $t (;1;)
-    (module
-      (alias outer $c $f (type (;0;)))
-    )
-  )
-)

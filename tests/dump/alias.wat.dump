@@ -1,0 +1,31 @@
+0x0000 | 00 61 73 6d | version 1
+       | 01 00 00 00
+0x0008 | 01 14       | type section
+0x000a | 03          | 3 count
+0x000b | 60 00 00    | [type 0] Func(FuncType { params: [], returns: [] })
+0x000e | 60 01 7f 00 | [type 1] Func(FuncType { params: [I32], returns: [] })
+0x0012 | 62 02 02 66 | [type 2] Instance(InstanceType { exports: [ExportType { name: "f1", ty: Function(0) }, ExportType { name: "f2", ty: Function(1) }] })
+       | 31 00 00 02
+       | 66 32 00 01
+0x001e | 02 07       | import section
+0x0020 | 01          | 1 count
+0x0021 | 01 69 00 ff | import [instance 0] Import { module: "i", field: None, ty: Instance(2) }
+       | 06 02      
+0x0027 | 10 07       | alias section
+0x0029 | 01          | 1 count
+0x002a | 00 00 00 02 | [alias] InstanceExport { instance: 0, kind: Function, export: "f1" }
+       | 66 31      
+0x0030 | 03 02       | func section
+0x0032 | 01          | 1 count
+0x0033 | 00          | [func 1] type 0
+0x0034 | 07 07       | export section
+0x0036 | 01          | 1 count
+0x0037 | 03 72 75 6e | export Export { field: "run", kind: Function, index: 1 }
+       | 00 01      
+0x003d | 0a 06       | code section
+0x003f | 01          | 1 count
+============== func 1 ====================
+0x0040 | 04          | size of function
+0x0041 | 00          | 0 local blocks
+0x0042 | 10 00       | Call { function_index: 0 }
+0x0044 | 0b          | End

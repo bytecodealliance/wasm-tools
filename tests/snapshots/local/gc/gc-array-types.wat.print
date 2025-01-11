@@ -1,7 +1,0 @@
-(module
-  (type $a (;0;) (array i32))
-  (type $b (;1;) (array (mut i32)))
-  (type $c (;2;) (array (mut (ref null $b))))
-  (type $d (;3;) (array i8))
-  (type $e (;4;) (array (mut i16)))
-)

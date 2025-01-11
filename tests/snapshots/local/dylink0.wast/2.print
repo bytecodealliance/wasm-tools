@@ -1,8 +1,0 @@
-(module
-  (@dylink.0
-    (mem-info)
-    (mem-info (memory 1 1))
-    (mem-info (table 1 1))
-    (mem-info (memory 1 1) (table 1 1))
-  )
-)

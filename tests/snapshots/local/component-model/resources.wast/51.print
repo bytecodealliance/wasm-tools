@@ -1,9 +1,0 @@
-(component
-  (type $r' (;0;) (resource (rep i32)))
-  (export $r (;1;) "r" (type $r'))
-  (core func $f (;0;) (canon resource.drop $r))
-  (type (;2;) (own $r))
-  (type (;3;) (func (param "x" 2)))
-  (func (;0;) (type 3) (canon lift (core func $f)))
-  (export (;1;) "f" (func 0))
-)

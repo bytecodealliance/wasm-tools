@@ -1,7 +1,0 @@
-(module
-  (type (;0;) (func))
-  (elem (;0;) funcref (ref.func 0))
-  (func (;0;) (type 0)
-    elem.drop 0
-  )
-)

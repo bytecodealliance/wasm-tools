@@ -1,7 +1,0 @@
-(module
-  (type (;0;) (func))
-  (func (;0;) (type 0)
-    f32.const 0x1.b25ffep-37 (;=0.000000000012345679;)
-    drop
-  )
-)

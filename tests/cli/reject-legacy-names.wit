@@ -1,8 +1,0 @@
-// FAIL: component embed % --dummy-names legacy | component new --reject-legacy-names
-
-package a:b;
-
-world foo {
-  export f: func();
-  import y: func();
-}

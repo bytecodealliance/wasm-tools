@@ -1,5 +1,0 @@
-expected keyword `core`
-     --> tests/parse-fail/bad-core-func-alias.wat:6:27
-      |
-    6 |   (core func $fun3 (alias export $inst "fun"))
-      |                           ^

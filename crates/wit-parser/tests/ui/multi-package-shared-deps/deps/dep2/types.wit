@@ -1,4 +1,0 @@
-package foo:dep2;
-interface types {
-  type type2 = string;
-}

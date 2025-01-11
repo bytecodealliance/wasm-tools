@@ -10,36 +10,36 @@
     drop
 
     i32.const 0
-    i32.load 0
+    i32.load (memory 0)
     drop
 
     i32.const 0
-    i32.load 1
+    i32.load (memory 1)
     drop
 
     i32.const 0
-    i32.load $a
+    i32.load (memory $a)
     drop
 
     i32.const 0
-    i32.load $b
+    i32.load (memory $b)
     drop
 
     i32.const 0
     i32.const 0
-    i32.store 0
+    i32.store (memory 0)
 
     i32.const 0
     i32.const 0
-    i32.store 1
+    i32.store (memory 1)
 
     i32.const 0
     i32.const 0
-    i32.store $a
+    i32.store (memory $a)
 
     i32.const 0
     i32.const 0
-    i32.store $b
+    i32.store (memory $b)
 
     i32.const 0
     i32.const 0
@@ -64,7 +64,7 @@
     i32.const 0
     i32.const 0
     i32.const 0
-    memory.init $b $seg
+    memory.init $seg $b
 
     memory.size $a drop
     memory.size $b drop
@@ -72,132 +72,132 @@
     i32.const 0 memory.grow $b drop
 
     i32.const 0 i32.load drop
-    i32.const 0 i64.load $b drop
-    i32.const 0 f32.load $b drop
-    i32.const 0 f64.load $b drop
-    i32.const 0 i32.load8_s $b drop
-    i32.const 0 i32.load8_u $b drop
-    i32.const 0 i32.load16_s $b drop
-    i32.const 0 i32.load16_u $b drop
-    i32.const 0 i64.load8_s $b drop
-    i32.const 0 i64.load8_u $b drop
-    i32.const 0 i64.load16_s $b drop
-    i32.const 0 i64.load16_u $b drop
-    i32.const 0 i64.load32_s $b drop
-    i32.const 0 i64.load32_u $b drop
-    i32.const 0 i32.const 0 i32.store $b
-    i32.const 0 i64.const 0 i64.store $b
-    i32.const 0 f32.const 0 f32.store $b
-    i32.const 0 f64.const 0 f64.store $b
-    i32.const 0 i32.const 0 i32.store8 $b
-    i32.const 0 i32.const 0 i32.store16 $b
-    i32.const 0 i64.const 0 i64.store8 $b
-    i32.const 0 i64.const 0 i64.store16 $b
-    i32.const 0 i64.const 0 i64.store32 $b
+    i32.const 0 i64.load (memory $b) drop
+    i32.const 0 f32.load (memory $b) drop
+    i32.const 0 f64.load (memory $b) drop
+    i32.const 0 i32.load8_s (memory $b) drop
+    i32.const 0 i32.load8_u (memory $b) drop
+    i32.const 0 i32.load16_s (memory $b) drop
+    i32.const 0 i32.load16_u (memory $b) drop
+    i32.const 0 i64.load8_s (memory $b) drop
+    i32.const 0 i64.load8_u (memory $b) drop
+    i32.const 0 i64.load16_s (memory $b) drop
+    i32.const 0 i64.load16_u (memory $b) drop
+    i32.const 0 i64.load32_s (memory $b) drop
+    i32.const 0 i64.load32_u (memory $b) drop
+    i32.const 0 i32.const 0 i32.store (memory $b)
+    i32.const 0 i64.const 0 i64.store (memory $b)
+    i32.const 0 f32.const 0 f32.store (memory $b)
+    i32.const 0 f64.const 0 f64.store (memory $b)
+    i32.const 0 i32.const 0 i32.store8 (memory $b)
+    i32.const 0 i32.const 0 i32.store16 (memory $b)
+    i32.const 0 i64.const 0 i64.store8 (memory $b)
+    i32.const 0 i64.const 0 i64.store16 (memory $b)
+    i32.const 0 i64.const 0 i64.store32 (memory $b)
 
     i32.const 0
     i32.const 0
-    memory.atomic.notify $b
+    memory.atomic.notify (memory $b)
     drop
 
     i32.const 0
     i32.const 0
     i64.const 0
-    memory.atomic.wait32 $b
+    memory.atomic.wait32 (memory $b)
     drop
 
     i32.const 0
     i64.const 0
     i64.const 0
-    memory.atomic.wait64 $b
+    memory.atomic.wait64 (memory $b)
     drop
 
-    i32.const 0 i32.atomic.load $b drop
-    i32.const 0 i64.atomic.load $b drop
-    i32.const 0 i32.atomic.load8_u $b drop
-    i32.const 0 i32.atomic.load16_u $b drop
-    i32.const 0 i64.atomic.load8_u $b drop
-    i32.const 0 i64.atomic.load16_u $b drop
-    i32.const 0 i64.atomic.load32_u $b drop
-    i32.const 0 i32.const 0 i32.atomic.store $b
-    i32.const 0 i64.const 0 i64.atomic.store $b
-    i32.const 0 i32.const 0 i32.atomic.store8 $b
-    i32.const 0 i32.const 0 i32.atomic.store16 $b
-    i32.const 0 i64.const 0 i64.atomic.store8 $b
-    i32.const 0 i64.const 0 i64.atomic.store16 $b
-    i32.const 0 i64.const 0 i64.atomic.store32 $b
-    i32.const 0 i32.const 0 i32.atomic.rmw.add $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw.add $b drop
-    i32.const 0 i32.const 0 i32.atomic.rmw8.add_u $b drop
-    i32.const 0 i32.const 0 i32.atomic.rmw16.add_u $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw8.add_u $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw16.add_u $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw32.add_u $b drop
-    i32.const 0 i32.const 0 i32.atomic.rmw.sub $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw.sub $b drop
-    i32.const 0 i32.const 0 i32.atomic.rmw8.sub_u $b drop
-    i32.const 0 i32.const 0 i32.atomic.rmw16.sub_u $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw8.sub_u $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw16.sub_u $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw32.sub_u $b drop
-    i32.const 0 i32.const 0 i32.atomic.rmw.and $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw.and $b drop
-    i32.const 0 i32.const 0 i32.atomic.rmw8.and_u $b drop
-    i32.const 0 i32.const 0 i32.atomic.rmw16.and_u $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw8.and_u $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw16.and_u $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw32.and_u $b drop
-    i32.const 0 i32.const 0 i32.atomic.rmw.or $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw.or $b drop
-    i32.const 0 i32.const 0 i32.atomic.rmw8.or_u $b drop
-    i32.const 0 i32.const 0 i32.atomic.rmw16.or_u $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw8.or_u $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw16.or_u $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw32.or_u $b drop
-    i32.const 0 i32.const 0 i32.atomic.rmw.xor $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw.xor $b drop
-    i32.const 0 i32.const 0 i32.atomic.rmw8.xor_u $b drop
-    i32.const 0 i32.const 0 i32.atomic.rmw16.xor_u $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw8.xor_u $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw16.xor_u $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw32.xor_u $b drop
-    i32.const 0 i32.const 0 i32.atomic.rmw.xchg $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw.xchg $b drop
-    i32.const 0 i32.const 0 i32.atomic.rmw8.xchg_u $b drop
-    i32.const 0 i32.const 0 i32.atomic.rmw16.xchg_u $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw8.xchg_u $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw16.xchg_u $b drop
-    i32.const 0 i64.const 0 i64.atomic.rmw32.xchg_u $b drop
-    i32.const 0 i32.const 0 i32.const 0 i32.atomic.rmw.cmpxchg $b drop
-    i32.const 0 i64.const 0 i64.const 0 i64.atomic.rmw.cmpxchg $b drop
-    i32.const 0 i32.const 0 i32.const 0 i32.atomic.rmw8.cmpxchg_u $b drop
-    i32.const 0 i32.const 0 i32.const 0 i32.atomic.rmw16.cmpxchg_u $b drop
-    i32.const 0 i64.const 0 i64.const 0 i64.atomic.rmw8.cmpxchg_u $b drop
-    i32.const 0 i64.const 0 i64.const 0 i64.atomic.rmw16.cmpxchg_u $b drop
-    i32.const 0 i64.const 0 i64.const 0 i64.atomic.rmw32.cmpxchg_u $b drop
+    i32.const 0 i32.atomic.load (memory $b) drop
+    i32.const 0 i64.atomic.load (memory $b) drop
+    i32.const 0 i32.atomic.load8_u (memory $b) drop
+    i32.const 0 i32.atomic.load16_u (memory $b) drop
+    i32.const 0 i64.atomic.load8_u (memory $b) drop
+    i32.const 0 i64.atomic.load16_u (memory $b) drop
+    i32.const 0 i64.atomic.load32_u (memory $b) drop
+    i32.const 0 i32.const 0 i32.atomic.store (memory $b)
+    i32.const 0 i64.const 0 i64.atomic.store (memory $b)
+    i32.const 0 i32.const 0 i32.atomic.store8 (memory $b)
+    i32.const 0 i32.const 0 i32.atomic.store16 (memory $b)
+    i32.const 0 i64.const 0 i64.atomic.store8 (memory $b)
+    i32.const 0 i64.const 0 i64.atomic.store16 (memory $b)
+    i32.const 0 i64.const 0 i64.atomic.store32 (memory $b)
+    i32.const 0 i32.const 0 i32.atomic.rmw.add (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw.add (memory $b) drop
+    i32.const 0 i32.const 0 i32.atomic.rmw8.add_u (memory $b) drop
+    i32.const 0 i32.const 0 i32.atomic.rmw16.add_u (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw8.add_u (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw16.add_u (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw32.add_u (memory $b) drop
+    i32.const 0 i32.const 0 i32.atomic.rmw.sub (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw.sub (memory $b) drop
+    i32.const 0 i32.const 0 i32.atomic.rmw8.sub_u (memory $b) drop
+    i32.const 0 i32.const 0 i32.atomic.rmw16.sub_u (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw8.sub_u (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw16.sub_u (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw32.sub_u (memory $b) drop
+    i32.const 0 i32.const 0 i32.atomic.rmw.and (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw.and (memory $b) drop
+    i32.const 0 i32.const 0 i32.atomic.rmw8.and_u (memory $b) drop
+    i32.const 0 i32.const 0 i32.atomic.rmw16.and_u (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw8.and_u (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw16.and_u (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw32.and_u (memory $b) drop
+    i32.const 0 i32.const 0 i32.atomic.rmw.or (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw.or (memory $b) drop
+    i32.const 0 i32.const 0 i32.atomic.rmw8.or_u (memory $b) drop
+    i32.const 0 i32.const 0 i32.atomic.rmw16.or_u (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw8.or_u (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw16.or_u (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw32.or_u (memory $b) drop
+    i32.const 0 i32.const 0 i32.atomic.rmw.xor (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw.xor (memory $b) drop
+    i32.const 0 i32.const 0 i32.atomic.rmw8.xor_u (memory $b) drop
+    i32.const 0 i32.const 0 i32.atomic.rmw16.xor_u (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw8.xor_u (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw16.xor_u (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw32.xor_u (memory $b) drop
+    i32.const 0 i32.const 0 i32.atomic.rmw.xchg (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw.xchg (memory $b) drop
+    i32.const 0 i32.const 0 i32.atomic.rmw8.xchg_u (memory $b) drop
+    i32.const 0 i32.const 0 i32.atomic.rmw16.xchg_u (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw8.xchg_u (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw16.xchg_u (memory $b) drop
+    i32.const 0 i64.const 0 i64.atomic.rmw32.xchg_u (memory $b) drop
+    i32.const 0 i32.const 0 i32.const 0 i32.atomic.rmw.cmpxchg (memory $b) drop
+    i32.const 0 i64.const 0 i64.const 0 i64.atomic.rmw.cmpxchg (memory $b) drop
+    i32.const 0 i32.const 0 i32.const 0 i32.atomic.rmw8.cmpxchg_u (memory $b) drop
+    i32.const 0 i32.const 0 i32.const 0 i32.atomic.rmw16.cmpxchg_u (memory $b) drop
+    i32.const 0 i64.const 0 i64.const 0 i64.atomic.rmw8.cmpxchg_u (memory $b) drop
+    i32.const 0 i64.const 0 i64.const 0 i64.atomic.rmw16.cmpxchg_u (memory $b) drop
+    i32.const 0 i64.const 0 i64.const 0 i64.atomic.rmw32.cmpxchg_u (memory $b) drop
 
-    i32.const 0 v128.load $b drop
-    i32.const 0 v128.load8x8_s $b drop
-    i32.const 0 v128.load8x8_u $b drop
-    i32.const 0 v128.load16x4_s $b drop
-    i32.const 0 v128.load16x4_u $b drop
-    i32.const 0 v128.load32x2_s $b drop
-    i32.const 0 v128.load32x2_u $b drop
-    i32.const 0 v128.load8_splat $b drop
-    i32.const 0 v128.load16_splat $b drop
-    i32.const 0 v128.load32_splat $b drop
-    i32.const 0 v128.load64_splat $b drop
-    i32.const 0 v128.load32_zero $b drop
-    i32.const 0 v128.load64_zero $b drop
-    i32.const 0 v128.const i64x2 0 0 v128.load8_lane $b 0 drop
-    i32.const 0 v128.const i64x2 0 0 v128.load16_lane $b 0 drop
-    i32.const 0 v128.const i64x2 0 0 v128.load32_lane $b 0 drop
-    i32.const 0 v128.const i64x2 0 0 v128.load64_lane $b 0 drop
-    i32.const 0 v128.const i64x2 0 0 v128.store8_lane $b 0
-    i32.const 0 v128.const i64x2 0 0 v128.store16_lane $b 0
-    i32.const 0 v128.const i64x2 0 0 v128.store32_lane $b 0
-    i32.const 0 v128.const i64x2 0 0 v128.store64_lane $b 0
-    i32.const 0 i32.const 0 i8x16.splat v128.store $b
+    i32.const 0 v128.load (memory $b) drop
+    i32.const 0 v128.load8x8_s (memory $b) drop
+    i32.const 0 v128.load8x8_u (memory $b) drop
+    i32.const 0 v128.load16x4_s (memory $b) drop
+    i32.const 0 v128.load16x4_u (memory $b) drop
+    i32.const 0 v128.load32x2_s (memory $b) drop
+    i32.const 0 v128.load32x2_u (memory $b) drop
+    i32.const 0 v128.load8_splat (memory $b) drop
+    i32.const 0 v128.load16_splat (memory $b) drop
+    i32.const 0 v128.load32_splat (memory $b) drop
+    i32.const 0 v128.load64_splat (memory $b) drop
+    i32.const 0 v128.load32_zero (memory $b) drop
+    i32.const 0 v128.load64_zero (memory $b) drop
+    i32.const 0 v128.const i64x2 0 0 v128.load8_lane (memory $b) 0 drop
+    i32.const 0 v128.const i64x2 0 0 v128.load16_lane (memory $b) 0 drop
+    i32.const 0 v128.const i64x2 0 0 v128.load32_lane (memory $b) 0 drop
+    i32.const 0 v128.const i64x2 0 0 v128.load64_lane (memory $b) 0 drop
+    i32.const 0 v128.const i64x2 0 0 v128.store8_lane (memory $b) 0
+    i32.const 0 v128.const i64x2 0 0 v128.store16_lane (memory $b) 0
+    i32.const 0 v128.const i64x2 0 0 v128.store32_lane (memory $b) 0
+    i32.const 0 v128.const i64x2 0 0 v128.store64_lane (memory $b) 0
+    i32.const 0 i32.const 0 i8x16.splat v128.store (memory $b)
   )
 )
 
@@ -206,7 +206,7 @@
     (memory 0)
     (func
       i32.const 0
-      i32.load 1
+      i32.load (memory 1)
       drop
     )
   )
@@ -214,9 +214,9 @@
 
 (assert_malformed
   (module quote
-    "(func i32.load $a)"
+    "(func i32.load (memory $a))"
   )
-  "unknown memory")
+  "failed to find memory")
 
 (module
   (memory 1)

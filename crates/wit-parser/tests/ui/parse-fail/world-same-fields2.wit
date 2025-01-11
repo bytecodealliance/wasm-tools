@@ -1,8 +1,0 @@
-// parse-fail
-
-package foo:foo;
-
-world a {
-  import foo: interface {}
-  import foo: interface {}
-}

@@ -1,89 +1,31 @@
 [package]
 name = "wasmparser"
-version.workspace = true
+version = "0.78.2"
 authors = ["Yury Delendik <ydelendik@mozilla.com>"]
-license.workspace = true
+license = "Apache-2.0 WITH LLVM-exception"
 repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasmparser"
 homepage = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasmparser"
 keywords = ["parser", "WebAssembly", "wasm"]
 description = """
 A simple event-driven library for parsing WebAssembly binary files.
 """
-edition.workspace = true
-exclude = ["benches/*.wasm"]
-rust-version.workspace = true
-
-[lints]
-workspace = true
-
-[package.metadata.docs.rs]
-all-features = true
-
-[dependencies]
-bitflags = "2.4.1"
-indexmap = { workspace = true, optional = true }
-semver = { workspace = true, optional = true }
-hashbrown = { workspace = true, optional = true }
-serde = { workspace = true, optional = true }
+edition = "2018"
 
 [dev-dependencies]
-anyhow = { workspace = true }
-criterion = { workspace = true }
+anyhow = "1.0"
+criterion = "0.3"
+getopts = "0.2"
 wat = { path = "../wat" }
 wast = { path = "../wast" }
-rayon = { workspace = true }
-once_cell = "1.13.0"
-wasm-encoder = { path = "../wasm-encoder" }
-env_logger.workspace = true
-log.workspace = true
+rayon = "1.3"
+wasmparser-dump = { path = "../dump" }
 
 [[bench]]
 name = "benchmark"
 harness = false
 
 [features]
-default = ['std', 'validate', 'serde', 'features', 'component-model', 'hash-collections', 'simd']
-
-# A feature which enables implementations of `std::error::Error` as appropriate
-# along with other convenience APIs. This additionally uses the standard
-# library's source of randomness for seeding hash maps.
-std = ['indexmap?/std']
-
-# Tells the `wasmparser` crate to provide (and use) hash-based collections internally.
-#
-# Disabling this crate feature allows to drop `hashbrown`, `indexmap` dependencies
-# entirely, reducing compilation times and shrink binary sizes.
-hash-collections = [
-  'dep:hashbrown',
-  'dep:indexmap',
-]
-# Tells the `wasmparser` crate to prefer using its built-in btree-based collections 
-# even if `hash-collections` is enabled.
-prefer-btree-collections = []
-
-# A feature that enables validating WebAssembly files. This is enabled by
-# default but not required if you're only parsing a file, for example, as
-# opposed to validating all of its contents.
-validate = []
-
-# Enable Serialize/Deserialize implementations for types in
-# `wasmparser::collections`
-serde = ['dep:serde', 'indexmap?/serde', 'hashbrown?/serde']
-
-# A feature that enables the guts of the `WasmFeatures` type in this crate.
-#
-# This feature is enabled by default. When disabled this crate does not support
-# runtime configuration of WebAssembly features. Instead the set of WebAssembly
-# features/proposals support are fixed at compile time to `wasmparser`'s default
-# set of supported features.
-features = []
-
-# A feature that enables parsing and validating the component-model proposal for
-# WebAssembly. This is enabled by default but if your use case is only
-# interested in working with core modules then this feature can be disabled.
-component-model = ['dep:semver']
-
-# A feature that enables parsing and validating the `simd` and `relaxed-simd`
-# proposals for WebAssembly. This is enabled by default but if your use case is
-# only interested in working on non-SIMD code then this feature can be disabled.
-simd = []
+# The "deterministic" feature supports only Wasm code with "deterministic" execution
+# across any hardware. This feature is very critical for many Blockchain infrastructures
+# that rely on deterministic executions of smart contracts across different hardwares.
+deterministic = []

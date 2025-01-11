@@ -1,7 +1,0 @@
-(component
-  (type $t (;0;) (record (field "f" u32)))
-  (type $f (;1;) (record (field "t" $t)))
-  (instance (;0;)
-    (export "f" (type $f))
-  )
-)

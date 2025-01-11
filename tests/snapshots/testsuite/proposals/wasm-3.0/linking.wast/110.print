@@ -1,5 +1,0 @@
-(module $G2
-  (import "G1" "g" (global (;0;) i32))
-  (global (;1;) i32 global.get 0)
-  (export "g" (global 1))
-)

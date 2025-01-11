@@ -1,8 +1,0 @@
-package a:b;
-
-interface a {
-  @unstable(feature = inactive)
-  resource a {
-    constructor();
-  }
-}

@@ -1,6 +1,0 @@
-list-chars(vals: ['W', 'A', 'V', 'E', '🌊'])
-list-chars(vals: ['\\', '\'', '\"', '\t', '\n', '\r'])
-list-chars(vals: ['\u{0}', '\u{0}'])
-list-chars(vals: ['x', 'x', 'x'])
-list-chars(vals: ['☃', '☃', '☃'])
-list-chars(vals: ['\"', '\"', '\"'])

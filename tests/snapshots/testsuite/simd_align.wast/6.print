@@ -1,9 +1,0 @@
-(module
-  (type (;0;) (func))
-  (memory (;0;) 1)
-  (func (;0;) (type 0)
-    i32.const 0
-    v128.const i32x4 0x00000000 0x00000001 0x00000002 0x00000003
-    v128.store align=2
-  )
-)

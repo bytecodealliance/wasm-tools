@@ -1,8 +1,0 @@
-package a:b;
-
-@unstable(feature = not-active)
-world a {}
-
-world b {
-  include a;
-}

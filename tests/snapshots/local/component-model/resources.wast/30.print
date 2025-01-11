@@ -1,5 +1,0 @@
-(component
-  (type $r (;0;) (resource (rep i32)))
-  (export (;1;) "r1" (type $r))
-  (export (;2;) "r2" (type $r))
-)

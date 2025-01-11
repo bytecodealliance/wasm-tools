@@ -1,8 +1,0 @@
-(module
-  (table (;0;) 1 funcref)
-  (elem (;0;) (i32.const 0) funcref)
-  (elem (;1;) (i32.const 0) funcref)
-  (elem (;2;) (offset i32.const 0 i32.const 0 i32.add) funcref)
-  (elem (;3;) (offset i32.const 0 i32.const 0 i32.add) funcref)
-  (elem (;4;) (offset i32.const 0 i32.const 0 i32.add) funcref)
-)

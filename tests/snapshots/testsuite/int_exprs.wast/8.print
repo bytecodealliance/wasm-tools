@@ -1,9 +1,0 @@
-(module
-  (type (;0;) (func (param i64) (result i64)))
-  (export "i64.no_fold_wrap_extend_u" (func 0))
-  (func (;0;) (type 0) (param $x i64) (result i64)
-    local.get $x
-    i32.wrap_i64
-    i64.extend_i32_u
-  )
-)

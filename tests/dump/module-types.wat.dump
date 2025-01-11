@@ -1,0 +1,21 @@
+0x0000 | 00 61 73 6d | version 1
+       | 01 00 00 00
+0x0008 | 01 2e       | type section
+0x000a | 04          | 4 count
+0x000b | 62 00       | [type 0] Instance(InstanceType { exports: [] })
+0x000d | 61 00 00    | [type 1] Module(ModuleType { imports: [], exports: [] })
+0x0010 | 60 00 00    | [type 2] Func(FuncType { params: [], returns: [] })
+0x0013 | 61 06 00 00 | [type 3] Module(ModuleType { imports: [Import { module: "", field: None, ty: Module(1) }, Import { module: "", field: None, ty: Function(2) }, Import { module: "", field: None, ty: Global(GlobalType { content_type: I32, mutable: false }) }, Import { module: "", field: None, ty: Table(TableType { element_type: FuncRef, limits: ResizableLimits { initial: 1, maximum: None } }) }, Import { module: "", field: None, ty: Instance(0) }, Import { module: "", field: None, ty: Memory(M32 { limits: ResizableLimits { initial: 1, maximum: None }, shared: false }) }], exports: [] })
+       | ff 05 01 00
+       | 00 ff 00 02
+       | 00 00 ff 03
+       | 7f 00 00 00
+       | ff 01 70 00
+       | 01 00 00 ff
+       | 06 00 00 00
+       | ff 02 00 01
+       | 00         
+0x0038 | 02 06       | import section
+0x003a | 01          | 1 count
+0x003b | 00 00 ff 05 | import [module 0] Import { module: "", field: None, ty: Module(3) }
+       | 03         

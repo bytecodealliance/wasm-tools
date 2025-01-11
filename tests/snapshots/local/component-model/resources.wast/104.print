@@ -1,7 +1,0 @@
-(component
-  (component $C (;0;))
-  (instance (;0;) (instantiate $C
-      (with "this is not kebab case" (component $C))
-    )
-  )
-)

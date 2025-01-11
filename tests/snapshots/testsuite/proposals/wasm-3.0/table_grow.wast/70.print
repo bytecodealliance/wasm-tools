@@ -1,8 +1,0 @@
-(module $Tgit2
-  (type (;0;) (func (result i32)))
-  (import "grown-imported-table" "table" (table (;0;) 3 funcref))
-  (export "size" (func 0))
-  (func (;0;) (type 0) (result i32)
-    table.size 0
-  )
-)

@@ -1,7 +1,0 @@
-(module
-  (type (;0;) (func (param exnref)))
-  (func (;0;) (type 0) (param exnref)
-    local.get 0
-    throw_ref
-  )
-)

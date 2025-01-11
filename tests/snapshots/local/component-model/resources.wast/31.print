@@ -1,8 +1,0 @@
-(component
-  (type (;0;)
-    (component
-      (export (;0;) "r1" (type (sub resource)))
-      (export (;1;) "r2" (type (sub resource)))
-    )
-  )
-)

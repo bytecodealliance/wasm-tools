@@ -1,5 +1,0 @@
-(component $C
-  (core module $m (;0;))
-  (alias outer $C $m (core module $target (;1;)))
-  (export (;2;) "v" (core module $target))
-)

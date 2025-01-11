@@ -26,7 +26,7 @@
 //!
 //! ```
 //! use wasm_encoder::{
-//!     CodeSection, ExportKind, ExportSection, Function, FunctionSection, Instruction,
+//!     CodeSection, Export, ExportSection, Function, FunctionSection, Instruction,
 //!     Module, TypeSection, ValType,
 //! };
 //!
@@ -36,7 +36,7 @@
 //! let mut types = TypeSection::new();
 //! let params = vec![ValType::I32, ValType::I32];
 //! let results = vec![ValType::I32];
-//! types.ty().function(params, results);
+//! types.function(params, results);
 //! module.section(&types);
 //!
 //! // Encode the function section.
@@ -47,17 +47,17 @@
 //!
 //! // Encode the export section.
 //! let mut exports = ExportSection::new();
-//! exports.export("f", ExportKind::Func, 0);
+//! exports.export("f", Export::Function(0));
 //! module.section(&exports);
 //!
 //! // Encode the code section.
 //! let mut codes = CodeSection::new();
 //! let locals = vec![];
 //! let mut f = Function::new(locals);
-//! f.instruction(&Instruction::LocalGet(0));
-//! f.instruction(&Instruction::LocalGet(1));
-//! f.instruction(&Instruction::I32Add);
-//! f.instruction(&Instruction::End);
+//! f.instruction(Instruction::LocalGet(0));
+//! f.instruction(Instruction::LocalGet(1));
+//! f.instruction(Instruction::I32Add);
+//! f.instruction(Instruction::End);
 //! codes.function(&f);
 //! module.section(&codes);
 //!
@@ -68,161 +68,220 @@
 //! assert!(wasmparser::validate(&wasm_bytes).is_ok());
 //! ```
 
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
-#![no_std]
 #![deny(missing_docs, missing_debug_implementations)]
 
-extern crate alloc;
-#[cfg(feature = "std")]
-#[macro_use]
-extern crate std;
+mod aliases;
+mod code;
+mod custom;
+mod data;
+mod elements;
+mod exports;
+mod functions;
+mod globals;
+mod imports;
+mod instances;
+mod linking;
+mod memories;
+mod modules;
+mod start;
+mod tables;
+mod types;
 
-#[cfg(feature = "component-model")]
-mod component;
-mod core;
-mod raw;
-#[cfg(feature = "wasmparser")]
-pub mod reencode;
+pub use aliases::*;
+pub use code::*;
+pub use custom::*;
+pub use data::*;
+pub use elements::*;
+pub use exports::*;
+pub use functions::*;
+pub use globals::*;
+pub use imports::*;
+pub use instances::*;
+pub use linking::*;
+pub use memories::*;
+pub use modules::*;
+pub use start::*;
+pub use tables::*;
+pub use types::*;
 
-#[cfg(feature = "component-model")]
-pub use self::component::*;
-pub use self::core::*;
-pub use self::raw::*;
+pub mod encoders;
 
-use alloc::vec::Vec;
+use std::convert::TryFrom;
 
-/// Implemented by types that can be encoded into a byte sink.
-pub trait Encode {
-    /// Encode the type into the given byte sink.
-    fn encode(&self, sink: &mut Vec<u8>);
+/// A Wasm module that is being encoded.
+#[derive(Clone, Debug)]
+pub struct Module {
+    bytes: Vec<u8>,
 }
 
-impl<T: Encode + ?Sized> Encode for &'_ T {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        T::encode(self, sink)
+/// A WebAssembly section.
+///
+/// Various builders defined in this crate already implement this trait, but you
+/// can also implement it yourself for your own custom section builders, or use
+/// `RawSection` to use a bunch of raw bytes as a section.
+pub trait Section {
+    /// This section's id.
+    ///
+    /// See `SectionId` for known section ids.
+    fn id(&self) -> u8;
+
+    /// Write this section's data and data length prefix into the given sink.
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>;
+}
+
+/// A section made up of uninterpreted, raw bytes.
+///
+/// Allows you to splat any data into a Wasm section.
+#[derive(Clone, Copy, Debug)]
+pub struct RawSection<'a> {
+    /// The id for this section.
+    pub id: u8,
+    /// The raw data for this section.
+    pub data: &'a [u8],
+}
+
+impl Section for RawSection<'_> {
+    fn id(&self) -> u8 {
+        self.id
+    }
+
+    fn encode<S>(&self, sink: &mut S)
+    where
+        S: Extend<u8>,
+    {
+        sink.extend(
+            encoders::u32(u32::try_from(self.data.len()).unwrap()).chain(self.data.iter().copied()),
+        );
     }
 }
 
-impl<T: Encode> Encode for [T] {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        self.len().encode(sink);
-        for item in self {
-            item.encode(sink);
+impl Module {
+    /// Begin writing a new `Module`.
+    #[rustfmt::skip]
+    pub fn new() -> Self {
+        Module {
+            bytes: vec![
+                // Magic
+                0x00, 0x61, 0x73, 0x6D,
+                // Version
+                0x01, 0x00, 0x00, 0x00,
+            ],
+        }
+    }
+
+    /// Write a section into this module.
+    ///
+    /// It is your responsibility to define the sections in the [proper
+    /// order](https://webassembly.github.io/spec/core/binary/modules.html#binary-module),
+    /// and to ensure that each kind of section (other than custom sections) is
+    /// only defined once. While this is a potential footgun, it also allows you
+    /// to use this crate to easily construct test cases for bad Wasm module
+    /// encodings.
+    pub fn section(&mut self, section: &impl Section) -> &mut Self {
+        self.bytes.push(section.id());
+        section.encode(&mut self.bytes);
+        self
+    }
+
+    /// Get the encoded Wasm module as a slice.
+    pub fn as_slice(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    /// Finish writing this Wasm module and extract ownership of the encoded
+    /// bytes.
+    pub fn finish(self) -> Vec<u8> {
+        self.bytes
+    }
+}
+
+/// Known section IDs.
+///
+/// Useful for implementing the `Section` trait, or for setting
+/// `RawSection::id`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[repr(u8)]
+#[allow(missing_docs)]
+pub enum SectionId {
+    Custom = 0,
+    Type = 1,
+    Import = 2,
+    Function = 3,
+    Table = 4,
+    Memory = 5,
+    Global = 6,
+    Export = 7,
+    Start = 8,
+    Element = 9,
+    Code = 10,
+    Data = 11,
+    DataCount = 12,
+    Module = 14,
+    Instance = 15,
+    Alias = 16,
+}
+
+impl From<SectionId> for u8 {
+    #[inline]
+    fn from(id: SectionId) -> u8 {
+        id as u8
+    }
+}
+
+/// Limits for a table or memory.
+#[derive(Clone, Copy, Debug)]
+pub struct Limits {
+    /// The minimum size.
+    pub min: u32,
+    /// The (optional) maximum size.
+    pub max: Option<u32>,
+}
+
+impl Limits {
+    fn encode(&self, bytes: &mut Vec<u8>) {
+        if let Some(max) = self.max {
+            bytes.push(0x01);
+            bytes.extend(encoders::u32(self.min));
+            bytes.extend(encoders::u32(max));
+        } else {
+            bytes.push(0x00);
+            bytes.extend(encoders::u32(self.min));
         }
     }
 }
 
-impl Encode for [u8] {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        self.len().encode(sink);
-        sink.extend(self);
-    }
+/// The type of a value.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum ValType {
+    /// The `i32` type.
+    I32 = 0x7F,
+    /// The `i64` type.
+    I64 = 0x7E,
+    /// The `f32` type.
+    F32 = 0x7D,
+    /// The `f64` type.
+    F64 = 0x7C,
+    /// The `v128` type.
+    ///
+    /// Part of the SIMD proposal.
+    V128 = 0x7B,
+    /// The `funcref` type.
+    ///
+    /// Part of the reference types proposal when used anywhere other than a
+    /// table's element type.
+    FuncRef = 0x70,
+    /// The `externref` type.
+    ///
+    /// Part of the reference types proposal.
+    ExternRef = 0x6F,
 }
 
-impl Encode for str {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        self.len().encode(sink);
-        sink.extend_from_slice(self.as_bytes());
-    }
-}
-
-impl Encode for usize {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        assert!(*self <= u32::max_value() as usize);
-        (*self as u32).encode(sink)
-    }
-}
-
-impl Encode for u32 {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        leb128::write::unsigned(sink, (*self).into()).unwrap();
-    }
-}
-
-impl Encode for i32 {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        leb128::write::signed(sink, (*self).into()).unwrap();
-    }
-}
-
-impl Encode for u64 {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        leb128::write::unsigned(sink, *self).unwrap();
-    }
-}
-
-impl Encode for i64 {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        leb128::write::signed(sink, *self).unwrap();
-    }
-}
-
-impl Encode for f32 {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        let bits = self.to_bits();
-        sink.extend(bits.to_le_bytes())
-    }
-}
-
-impl Encode for f64 {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        let bits = self.to_bits();
-        sink.extend(bits.to_le_bytes())
-    }
-}
-
-fn encode_vec<T, V>(elements: V, sink: &mut Vec<u8>)
-where
-    T: Encode,
-    V: IntoIterator<Item = T>,
-    V::IntoIter: ExactSizeIterator,
-{
-    let elements = elements.into_iter();
-    u32::try_from(elements.len()).unwrap().encode(sink);
-    for x in elements {
-        x.encode(sink);
-    }
-}
-
-impl<T> Encode for Option<T>
-where
-    T: Encode,
-{
-    fn encode(&self, sink: &mut Vec<u8>) {
-        match self {
-            Some(v) => {
-                sink.push(0x01);
-                v.encode(sink);
-            }
-            None => sink.push(0x00),
-        }
-    }
-}
-
-fn encoding_size(n: u32) -> usize {
-    let mut buf = [0u8; 5];
-    leb128::write::unsigned(&mut &mut buf[..], n.into()).unwrap()
-}
-
-fn encode_section(sink: &mut Vec<u8>, count: u32, bytes: &[u8]) {
-    (encoding_size(count) + bytes.len()).encode(sink);
-    count.encode(sink);
-    sink.extend(bytes);
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn it_encodes_an_empty_module() {
-        let bytes = Module::new().finish();
-        assert_eq!(bytes, [0x00, b'a', b's', b'm', 0x01, 0x00, 0x00, 0x00]);
-    }
-
-    #[test]
-    fn it_encodes_an_empty_component() {
-        let bytes = Component::new().finish();
-        assert_eq!(bytes, [0x00, b'a', b's', b'm', 0x0d, 0x00, 0x01, 0x00]);
+impl From<ValType> for u8 {
+    #[inline]
+    fn from(t: ValType) -> u8 {
+        t as u8
     }
 }

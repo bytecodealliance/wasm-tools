@@ -1,4 +1,0 @@
-error: func 0 failed to validate
-
-Caused by:
-    0: type mismatch: expected i32 but nothing on stack (at offset 0x7d)

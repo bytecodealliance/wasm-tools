@@ -1,1 +1,0 @@
-component `tests/compositions/invalid-instantiation-arg/root.wat` has no import named `invalid`

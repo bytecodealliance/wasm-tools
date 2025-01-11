@@ -9,14 +9,15 @@ impl<'a> Parse<'a> for Comments<'a> {
         let comments = parser.step(|mut cursor| {
             let mut comments = Vec::new();
             loop {
-                let (comment, c) = match cursor.comment()? {
+                let (comment, c) = match cursor.comment() {
                     Some(pair) => pair,
                     None => break,
                 };
                 cursor = c;
-                comments.push(match comment.strip_prefix(";;") {
-                    Some(rest) => rest,
-                    None => &comment[2..comment.len() - 2],
+                comments.push(if comment.starts_with(";;") {
+                    &comment[2..]
+                } else {
+                    &comment[2..comment.len() - 2]
                 });
             }
             Ok((comments, cursor))
@@ -48,7 +49,7 @@ fn parse_comments() -> anyhow::Result<()> {
     "#,
     )?;
 
-    let d: Documented<wast::core::Module> = parser::parse(&buf)?;
+    let d: Documented<wast::Module> = parser::parse(&buf)?;
     assert_eq!(d.comments.comments, vec![" hello", " again "]);
     drop(d.item);
 
@@ -65,7 +66,7 @@ multiple;)
     "#,
     )?;
 
-    let d: Documented<wast::core::Func> = parser::parse(&buf)?;
+    let d: Documented<wast::Func> = parser::parse(&buf)?;
     assert_eq!(
         d.comments.comments,
         vec![" this", " is\non\nmultiple", " lines"]

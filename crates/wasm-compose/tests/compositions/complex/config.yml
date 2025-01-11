@@ -1,5 +1,0 @@
-instantiations:
-  b1:
-    dependency: b
-  b2:
-    dependency: b

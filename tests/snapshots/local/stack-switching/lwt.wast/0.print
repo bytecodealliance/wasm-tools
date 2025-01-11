@@ -1,9 +1,0 @@
-(module $lwt
-  (type $func (;0;) (func))
-  (type $cont (;1;) (cont $func))
-  (type (;2;) (func (param (ref $cont))))
-  (tag $yield (;0;) (type $func))
-  (tag $fork (;1;) (type 2) (param (ref $cont)))
-  (export "yield" (tag 0))
-  (export "fork" (tag 1))
-)

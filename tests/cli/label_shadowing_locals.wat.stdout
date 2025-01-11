@@ -1,7 +1,0 @@
-(module
-  (type (;0;) (func (param i32) (result i32)))
-  (func (;0;) (type 0) (param $l i32) (result i32)
-    (local $"#local1 l" (@name "l") i32) (local $"#local2 l" (@name "l") i32)
-    local.get $l
-  )
-)

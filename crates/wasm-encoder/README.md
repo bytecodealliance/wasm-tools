@@ -16,17 +16,18 @@
 
 ## Usage
 
-Add `wasm-encoder` to your `Cargo.toml`
+Add this to your `Cargo.toml`:
 
-```sh
-$ cargo add wasm-encoder
+```toml
+[dependencies]
+wasm-encoder = "0.3"
 ```
 
 And then you can encode WebAssembly binaries via:
 
 ```rust
 use wasm_encoder::{
-    CodeSection, ExportKind, ExportSection, Function, FunctionSection, Instruction,
+    CodeSection, Export, ExportSection, Function, FunctionSection, Instruction,
     Module, TypeSection, ValType,
 };
 
@@ -36,7 +37,7 @@ let mut module = Module::new();
 let mut types = TypeSection::new();
 let params = vec![ValType::I32, ValType::I32];
 let results = vec![ValType::I32];
-types.ty().function(params, results);
+types.function(params, results);
 module.section(&types);
 
 // Encode the function section.
@@ -47,17 +48,17 @@ module.section(&functions);
 
 // Encode the export section.
 let mut exports = ExportSection::new();
-exports.export("f", ExportKind::Func, 0);
+exports.export("f", Export::Function(0));
 module.section(&exports);
 
 // Encode the code section.
 let mut codes = CodeSection::new();
 let locals = vec![];
 let mut f = Function::new(locals);
-f.instruction(&Instruction::LocalGet(0));
-f.instruction(&Instruction::LocalGet(1));
-f.instruction(&Instruction::I32Add);
-f.instruction(&Instruction::End);
+f.instruction(Instruction::LocalGet(0));
+f.instruction(Instruction::LocalGet(1));
+f.instruction(Instruction::I32Add);
+f.instruction(Instruction::End);
 codes.function(&f);
 module.section(&codes);
 
@@ -66,6 +67,7 @@ let wasm_bytes = module.finish();
 
 // We generated a valid Wasm module!
 assert!(wasmparser::validate(&wasm_bytes).is_ok());
+```
 ```
 
 # License

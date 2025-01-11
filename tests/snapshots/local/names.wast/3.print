@@ -1,6 +1,0 @@
-(module
-  (type (;0;) (func))
-  (func (;0;) (type 0)
-    (local $foo i32) (local $"#local1 foo" (@name "foo") i32) (local $foo_1 i32)
-  )
-)

@@ -1,331 +1,122 @@
 name: CI
 on:
+  push:
+    branches: [main]
   pull_request:
-  merge_group:
-
-# Cancel any in-flight jobs for the same PR/branch so there's only one active
-# at a time
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-defaults:
-  run:
-    shell: bash
+    branches: [main]
 
 jobs:
-  build:
-    name: Build wasm-tools
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-        - build: x86_64-linux
-          os: ubuntu-latest
-        - build: x86_64-macos
-          os: macos-latest
-          target: x86_64-apple-darwin
-        - build: aarch64-macos
-          os: macos-latest
-          target: aarch64-apple-darwin
-        - build: x86_64-windows
-          os: windows-latest
-        - build: aarch64-linux
-          os: ubuntu-latest
-          target: aarch64-unknown-linux-gnu
-        - build: wasm32-wasip1
-          os: ubuntu-latest
-          target: wasm32-wasip1
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - uses: ./.github/actions/install-rust
-    - uses: bytecodealliance/wasmtime/.github/actions/binary-compatible-builds@release-28.0.0
-      with:
-        name: ${{ matrix.build }}
-      if: matrix.build != 'wasm32-wasip1'
-    - run: |
-        echo CARGO_BUILD_TARGET=${{ matrix.target }} >> $GITHUB_ENV
-        rustup target add ${{ matrix.target }}
-      if: matrix.target != ''
-    - run: $CENTOS cargo build --release
-    - run: ./ci/build-tarballs.sh "${{ matrix.build }}" "${{ matrix.target }}"
-    - uses: actions/upload-artifact@v4
-      with:
-        name: bins-${{ matrix.build }}
-        path: dist
-
-  test-prefer-btree-collections:
-    name: Test (no-hash-maps)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-      - uses: ./.github/actions/install-rust
-      - name: Test (prefer-btree-collections)
-        run: cargo test --workspace --locked --features prefer-btree-collections
-
   test:
     name: Test
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        build: [stable, beta, nightly, macos, windows]
         include:
-          - os: ubuntu-latest
+          - build: stable
+            os: ubuntu-latest
             rust: stable
-          - os: ubuntu-latest
+          - build: beta
+            os: ubuntu-latest
             rust: beta
-          - os: ubuntu-latest
+          - build: nightly
+            os: ubuntu-latest
             rust: nightly
-          - os: macos-latest
+          - build: macos
+            os: macos-latest
             rust: stable
-          - os: windows-latest
+          - build: windows
+            os: windows-latest
             rust: stable
-          - os: ubuntu-latest
-            rust: msrv
-            # skip testing crates that require wasmtime since wasmtime has a
-            # more aggressive msrv than wasm-tools
-            flags: --exclude fuzz-stats --exclude wit-component --exclude wasm-mutate-stats
-          # this is the rust nightly that oss-fuzz currently uses so we don't
-          # want this to break.
-          - os: ubuntu-latest
-            rust: nightly-2024-07-12
-          # test that if `RUST_BACKTRACE=1` is set in the environment that all
-          # tests with blessed error messages still pass.
-          - os: ubuntu-latest
-            rust: stable
-            env:
-              RUST_BACKTRACE: 1
-    env: ${{ matrix.env || fromJSON('{}') }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v2
       with:
         submodules: true
-    - uses: ./.github/actions/install-rust
-      with:
-        toolchain: ${{ matrix.rust }}
-    - run: cargo test --locked --all ${{ matrix.flags }}
+    - name: Install Rust (rustup)
+      run: rustup update ${{ matrix.rust }} --no-self-update && rustup default ${{ matrix.rust }}
+      shell: bash
+    - name: Install Ninja (Linux)
+      run: sudo apt install ninja-build
+      if: matrix.os == 'ubuntu-latest'
+    - name: Install Ninja (macOS)
+      run: brew install ninja
+      if: matrix.os == 'macos-latest'
+    - name: Install Ninja (Windows)
+      run: choco install ninja
+      if: matrix.os == 'windows-latest'
 
-  test_extra_features:
-    name: Test with extra Cargo features
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - uses: ./.github/actions/install-rust
-    - run: cargo test --locked -p wasmparser --benches
-    - run: cargo test --locked -p wasm-encoder --all-features
-    - run: cargo test -p wasm-smith --features wasmparser
-    - run: cargo test -p wasm-smith --features component-model
+    - name: Build wabt
+      run: |
+        set -e
+        cd tests/wabt
+        cmake . -G Ninja -DBUILD_TESTS=OFF
+        ninja wast2json wat2wasm wasm2wat
+      shell: bash
+    - name: Add wabt to path (unix)
+      run: echo `pwd`/tests/wabt >> $GITHUB_PATH
+      if: matrix.os != 'windows-latest'
+    - name: Add wabt to path (windows)
+      run: echo D:/a/wasm-tools/wasm-tools/tests/wabt >> $GITHUB_PATH
+      if: matrix.os == 'windows-latest'
+      shell: bash
 
-  test_capi:
-    name: Test the C API
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-          - os: macos-latest
-          - os: windows-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - uses: ./.github/actions/install-rust
-    - run: cmake -S examples -B examples/build -DCMAKE_BUILD_TYPE=Release
-    - run: cmake --build examples/build --config Release
-
-  testdl:
-    name: Test libdl.so
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - uses: ./.github/actions/install-rust
-      with:
-        toolchain: 1.79.0
-    - run: rustup target add wasm32-wasip1
-    - run: |
-        curl -LO https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-22/wasi-sdk-22.0-linux.tar.gz
-        tar xf wasi-sdk-22.0-linux.tar.gz
-        export WASI_SDK_PATH=$(pwd)/wasi-sdk-22.0
-        cd crates/wit-component/dl && bash check.sh
-
-  wasm:
-    name: Test on WebAssembly
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - uses: ./.github/actions/install-rust
-    - run: rustup target add wasm32-wasip1
-    - run: |
-        tag=v10.0.1
-        curl -LO https://github.com/bytecodealliance/wasmtime/releases/download/${tag}/wasmtime-${tag}-x86_64-linux.tar.xz
-        tar xf wasmtime-${tag}-x86_64-linux.tar.xz
-        echo `pwd`/wasmtime-${tag}-x86_64-linux >> $GITHUB_PATH
-        echo CARGO_TARGET_WASM32_WASIP1_RUNNER='wasmtime run --dir . --' >> $GITHUB_ENV
-        echo CARGO_BUILD_TARGET='wasm32-wasip1' >> $GITHUB_ENV
-    - run: |
-        cargo --locked test --workspace \
-          --exclude fuzz-stats \
-          --exclude wasm-tools-fuzz \
-          --exclude wasm-mutate-stats \
-          --exclude dl
+    - run: cargo test --all
+    - run: cargo test --all
+      env:
+        RUSTFLAGS: --cfg=wast_check_exhaustive
+    - run: cargo test --manifest-path crates/wasmparser/Cargo.toml --features deterministic
+    - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features
+    - run: cargo build --manifest-path crates/wast/Cargo.toml --no-default-features --features wasm-module
 
   rustfmt:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: ./.github/actions/install-rust
-    - run: rustup component add rustfmt
-    - run: printf "\n" > playground/component/src/bindings.rs
-    # Note that this doesn't use `cargo fmt` because that doesn't format
-    # modules-defined-in-macros which is in use in `wast` for example. This is
-    # the best alternative I can come up with at this time
-    - run: find . -name '*.rs' | xargs rustfmt --check --edition 2021
+    - uses: actions/checkout@v2
+    - name: Install Rust
+      run: rustup update stable && rustup default stable && rustup component add rustfmt
+    - run: cargo fmt -- --check
+
+  compare-with-main:
+    name: wasmparser bench
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - run: git fetch --recurse-submodules=no origin main && git branch main origin/main
+      if: github.ref != 'refs/heads/main'
+    - run: (cd crates/wasmparser && ./compare-with-main.sh)
 
   fuzz:
     name: Fuzz
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v2
       with:
         submodules: true
-    - uses: ./.github/actions/install-rust
-      with:
-        toolchain: nightly
+    - name: Install Rust
+      run: rustup update nightly && rustup default nightly
     - run: cargo install cargo-fuzz
-    - run: cargo fuzz build --dev -s none
-    - run: cargo fuzz build --dev --features wasmtime -s none
+    - run: cargo fuzz build
 
-  check:
+  check_wasm_smith_benches:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/install-rust
-      - run: rustup target add x86_64-unknown-none
+      - uses: actions/checkout@v2
       - run: cargo check --benches -p wasm-smith
-      - run: cargo check --no-default-features
-      - run: cargo check --no-default-features --features print
-      - run: cargo check --no-default-features --features parse
-      - run: cargo check --no-default-features --features validate
-      - run: cargo check --no-default-features --features smith
-      - run: cargo check --no-default-features --features shrink
-      - run: cargo check --no-default-features --features mutate
-      - run: cargo check --no-default-features --features dump
-      - run: cargo check --no-default-features --features objdump
-      - run: cargo check --no-default-features --features strip
-      - run: cargo check --no-default-features --features compose
-      - run: cargo check --no-default-features --features demangle
-      - run: cargo check --no-default-features --features component
-      - run: cargo check --no-default-features --features metadata
-      - run: cargo check --no-default-features --features wit-smith
-      - run: cargo check --no-default-features --features addr2line
-      - run: cargo check --no-default-features --features json-from-wast
-      - run: cargo check --no-default-features --features completion
-      - run: cargo check --no-default-features -p wit-parser
-      - run: cargo check --no-default-features -p wit-parser --features wat
-      - run: cargo check --no-default-features -p wit-parser --features serde
-      - run: cargo check --no-default-features -p wit-parser --features decoding
-      - run: cargo check --no-default-features -p wit-parser --features serde,decoding,wat
-      - run: cargo check --no-default-features -p wasmparser
-      - run: cargo check --no-default-features -p wasmparser --target x86_64-unknown-none
-      - run: cargo check --no-default-features -p wasmparser --target x86_64-unknown-none --features validate,serde
-      - run: cargo check --no-default-features -p wasmparser --target x86_64-unknown-none --features validate,serde,prefer-btree-collections
-      - run: cargo check --no-default-features -p wasmparser --features std
-      - run: cargo check --no-default-features -p wasmparser --features validate
-      - run: cargo check --no-default-features -p wasmparser --features features
-      - run: cargo check --no-default-features -p wasmparser --features features,validate
-      - run: cargo check --no-default-features -p wasmparser --features prefer-btree-collections
-      - run: cargo check --no-default-features -p wasmparser --features serde
-      - run: cargo check --no-default-features -p wasmparser --features serde,prefer-btree-collections
-      - run: cargo check --no-default-features -p wasmparser --features component-model
-      - run: cargo check --no-default-features -p wasmparser --features component-model,validate
-      - run: cargo check --no-default-features -p wasmparser --features std,component-model
-      - run: cargo check --no-default-features -p wasmparser --features std,component-model,validate
-      - run: cargo check --no-default-features -p wasmprinter
-      - run: cargo check --no-default-features -p wasmprinter --features component-model
-      - run: cargo check --no-default-features -p wast
-      - run: cargo check --no-default-features -p wast --features wasm-module
-      - run: cargo check --no-default-features -p wast --features wasm-module,component-model
-      - run: cargo check --no-default-features -p wat
-      - run: cargo check --no-default-features -p wat --features component-model
-      - run: cargo check --no-default-features -p wat --features dwarf
-      - run: cargo check --no-default-features -p wasm-encoder
-      - run: cargo check --no-default-features -p wasm-encoder --features component-model
-      - run: cargo check --no-default-features -p wasm-encoder --features wasmparser
-      - run: cargo check --no-default-features -p wasm-smith
-      - run: cargo check --no-default-features -p wasm-smith --features component-model
-      - run: cargo check --no-default-features -p wasm-smith --features wasmparser
-      - run: cargo check --no-default-features -p wasm-smith --features wasmparser,component-model
-      - run: |
-          if cargo tree -p wasm-smith --no-default-features -e no-dev | grep wasmparser; then
-            echo wasm-smith without default features should not depend on wasmparser
-            exit 1
-          fi
 
-  doc:
+  # Make sure running tests without wabt is supported
+  test_no_wabt:
+    name: Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - run: cargo doc --all
-
-  clippy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/install-rust
-      - run: rustup component add clippy
-      - run: cargo clippy --workspace --all-targets --exclude dl --exclude component
-
-  verify-publish:
-    if: github.repository_owner == 'bytecodealliance'
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v2
       with:
         submodules: true
-    - uses: ./.github/actions/install-rust
-    - run: rustc ci/publish.rs
-    # Make sure we can bump version numbers for the next release
-    - run: ./publish bump
-    # Make sure the tree is publish-able as-is
-    - run: ./publish verify
-
-  # "Join node" which the merge queue waits on.
-  ci-status:
-    name: Record the result of testing and building steps
-    runs-on: ubuntu-latest
-    needs:
-      - test
-      - testdl
-      - wasm
-      - rustfmt
-      - fuzz
-      - check
-      - doc
-      - build
-      - verify-publish
-      - test_capi
-      - test_extra_features
-      - test-prefer-btree-collections
-      - clippy
-    if: always()
-
-    steps:
-    - name: Successful test and build
-      if: ${{ !(contains(needs.*.result, 'failure')) }}
-      run: exit 0
-    - name: Failing test and build
-      if: ${{ contains(needs.*.result, 'failure') }}
-      run: exit 1
-    - name: Report failure on cancellation
-      if: ${{ contains(needs.*.result, 'cancelled') || cancelled() }}
-      run: exit 1
+    - name: Install Rust (rustup)
+      run: rustup update stable --no-self-update && rustup default stable
+      shell: bash
+    - run: cargo test --all
+      env:
+        SKIP_WABT: 1

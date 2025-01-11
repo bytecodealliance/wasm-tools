@@ -1,7 +1,0 @@
-package foo:bar;
-
-interface foo {
-  use foo:baz/i.{r};
-
-  x: func() -> r;
-}

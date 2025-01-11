@@ -17,10 +17,11 @@
 
 ## Usage
 
-Add `wat` to your `Cargo.toml`
+Add this to your `Cargo.toml`:
 
-```sh
-$ cargo add wat
+```toml
+[dependencies]
+wat = "1.0"
 ```
 
 And then you can parse WAT to binary WebAssembly via:
@@ -42,16 +43,16 @@ let wat = r#"
 let binary = wat::parse_str(wat)?;
 ```
 
-## AST Representation
+## Low-level parsing
 
-The `wat` crate does not expose an AST as its goal is to provide a
-forever-stable interface against the `wast` crate. Using `wat` is suitable when
-all you want to do is translate from text-to-binary, for example parsing the
-input of a CLI program into the WebAssembly binary format.
+This repository and project also aims to provide low-level parsing support for
+the WAT and WAST formats. Effectively, if you've got an s-expression lookalike
+that you'd like to parse, you should be able to parse it!
 
-If instead you're interested in working with the AST of a text file or otherwise
-adding your own parsing to the text format you'll want to take a look at the
-[`wast` crate](../wast/README.md).
+The `wat` crate does not support this because it strives to provide strong
+API-level stability guarantees, but the `wast` crate has all the
+low-level details and is the implementation of the `wast` crate. Be sure to
+[check out its `README.md`](../wast/README.md) for more information.
 
 ## Stability and WebAssembly Features
 

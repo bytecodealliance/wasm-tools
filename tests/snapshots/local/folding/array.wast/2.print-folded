@@ -1,9 +1,0 @@
-(module
-  (rec
-    (type $s0 (;0;) (array (ref $s1)))
-    (type $s1 (;1;) (array (ref $s0)))
-  )
-  (type $forward (;2;) (array i32))
-  (type (;3;) (func (param (ref $forward))))
-  (func (;0;) (type 3) (param (ref $forward)))
-)

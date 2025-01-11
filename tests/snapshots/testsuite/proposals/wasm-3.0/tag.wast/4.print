@@ -1,8 +1,0 @@
-(module
-  (rec
-    (type $t1 (;0;) (func))
-    (type $t2 (;1;) (func))
-  )
-  (tag (;0;) (type $t1))
-  (export "tag" (tag 0))
-)

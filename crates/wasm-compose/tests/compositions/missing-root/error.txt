@@ -1,5 +1,0 @@
-failed to parse component `tests/compositions/missing-root/root.wat`
-
-Caused by:
-    0: failed to read from `tests/compositions/missing-root/root.wat`
-    1: platform-specific error

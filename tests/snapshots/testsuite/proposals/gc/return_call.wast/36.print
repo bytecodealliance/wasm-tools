@@ -1,8 +1,0 @@
-(module
-  (type (;0;) (func))
-  (func $arity-1-vs-0 (;0;) (type 0)
-    i32.const 1
-    return_call 1
-  )
-  (func (;1;) (type 0))
-)

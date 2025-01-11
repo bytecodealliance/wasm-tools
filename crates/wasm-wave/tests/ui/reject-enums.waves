@@ -1,8 +1,0 @@
-keyword-cases-enum(true);
-keyword-cases-enum(false);
-keyword-cases-enum(some);
-keyword-cases-enum(none);
-keyword-cases-enum(ok);
-keyword-cases-enum(err);
-keyword-cases-enum(inf);
-keyword-cases-enum(nan);

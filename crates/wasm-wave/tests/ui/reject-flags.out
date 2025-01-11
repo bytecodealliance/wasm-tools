@@ -1,6 +1,0 @@
-// Duplicate flags.
-duplicate flag: "read" at 25..29
-duplicate flag: "write" at 26..31
-duplicate flag: "read" at 32..36
-// Unrecognized flag.
-error converting Wasm value: unknown case "execute" at 17..41

@@ -1,6 +1,0 @@
-(component
-  (import "a" (type $a (;0;) (sub resource)))
-  (type (;1;) (own $a))
-  (type (;2;) (func (result 1)))
-  (import "[constructor]a" (func (;0;) (type 2)))
-)

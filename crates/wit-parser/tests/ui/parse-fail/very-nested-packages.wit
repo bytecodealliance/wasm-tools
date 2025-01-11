@@ -1,8 +1,0 @@
-package a:b;
-
-package a:c {
-  package a:c2 {
-    package a:c3 {
-    }
-  }
-}

@@ -1,1 +1,0 @@
-component `tests/compositions/no-deps/root.wat` does not import any instances

@@ -1,5 +1,0 @@
-(module
-  (type (;0;) (func))
-  (table (;0;) 1 funcref)
-  (func (;0;) (type 0))
-)

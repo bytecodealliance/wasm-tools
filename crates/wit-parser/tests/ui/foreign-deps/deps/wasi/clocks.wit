@@ -1,5 +1,0 @@
-package foo:wasi;
-
-interface clocks {
-  type timestamp = u64;
-}

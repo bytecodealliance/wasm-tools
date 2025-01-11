@@ -1,8 +1,0 @@
-(module $M
-  (rec
-    (type $f1 (;0;) (func))
-    (type (;1;) (struct))
-  )
-  (export "f" (func 0))
-  (func (;0;) (type $f1))
-)

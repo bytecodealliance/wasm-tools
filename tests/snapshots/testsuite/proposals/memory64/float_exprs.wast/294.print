@@ -1,9 +1,0 @@
-(module
-  (type (;0;) (func (param f32) (result f32)))
-  (export "no_fold_promote_demote" (func 0))
-  (func (;0;) (type 0) (param $x f32) (result f32)
-    local.get $x
-    f64.promote_f32
-    f32.demote_f64
-  )
-)

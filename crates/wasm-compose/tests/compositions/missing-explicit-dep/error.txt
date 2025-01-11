@@ -1,5 +1,0 @@
-failed to parse component `tests/compositions/missing-explicit-dep/a.wat`
-
-Caused by:
-    0: failed to read from `tests/compositions/missing-explicit-dep/a.wat`
-    1: platform-specific error

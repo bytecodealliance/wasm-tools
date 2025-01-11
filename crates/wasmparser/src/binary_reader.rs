@@ -13,252 +13,113 @@
  * limitations under the License.
  */
 
-#[cfg(feature = "simd")]
-mod simd;
+use std::convert::TryInto;
+use std::fmt;
+use std::str;
 
-use crate::prelude::*;
-use crate::{limits::*, *};
-use core::fmt;
-use core::marker;
-use core::ops::Range;
-use core::str;
+use crate::limits::*;
 
-pub(crate) const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
+use crate::primitives::{
+    BinaryReaderError, BrTable, CustomSectionKind, ExternalKind, FuncType, GlobalType, Ieee32,
+    Ieee64, LinkingType, MemoryImmediate, MemoryType, NameType, Operator, RelocType,
+    ResizableLimits, ResizableLimits64, Result, SIMDLaneIndex, SectionCode, TableType, Type,
+    TypeOrFuncType, V128,
+};
+use crate::{EventType, ExportType, Import, ImportSectionEntryType, InstanceType, ModuleType};
 
-/// A binary reader for WebAssembly modules.
-#[derive(Debug, Clone)]
-pub struct BinaryReaderError {
-    // Wrap the actual error data in a `Box` so that the error is just one
-    // word. This means that we can continue returning small `Result`s in
-    // registers.
-    pub(crate) inner: Box<BinaryReaderErrorInner>,
+const MAX_WASM_BR_TABLE_SIZE: usize = MAX_WASM_FUNCTION_SIZE;
+
+fn is_name(name: &str, expected: &'static str) -> bool {
+    name == expected
 }
 
-#[derive(Debug, Clone)]
-pub(crate) struct BinaryReaderErrorInner {
-    pub(crate) message: String,
-    pub(crate) kind: BinaryReaderErrorKind,
-    pub(crate) offset: usize,
-    pub(crate) needed_hint: Option<usize>,
+fn is_name_prefix(name: &str, prefix: &'static str) -> bool {
+    name.starts_with(prefix)
 }
 
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum BinaryReaderErrorKind {
-    Custom,
-    Invalid,
+const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
+const WASM_EXPERIMENTAL_VERSION: u32 = 0xd;
+const WASM_SUPPORTED_VERSION: u32 = 0x1;
+
+#[derive(Clone)]
+pub(crate) struct SectionHeader<'a> {
+    pub code: SectionCode<'a>,
+    pub payload_start: usize,
+    pub payload_len: usize,
 }
 
-/// The result for `BinaryReader` operations.
-pub type Result<T, E = BinaryReaderError> = core::result::Result<T, E>;
-
-#[cfg(feature = "std")]
-impl std::error::Error for BinaryReaderError {}
-
-#[cfg(all(not(feature = "std"), core_error))]
-impl core::error::Error for BinaryReaderError {}
-
-impl fmt::Display for BinaryReaderError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{} (at offset 0x{:x})",
-            self.inner.message, self.inner.offset
-        )
-    }
+/// Bytecode range in the WebAssembly module.
+#[derive(Copy, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct Range {
+    /// The start bound of the range.
+    pub start: usize,
+    /// The end bound of the range.
+    pub end: usize,
 }
 
-impl BinaryReaderError {
-    #[cold]
-    pub(crate) fn _new(kind: BinaryReaderErrorKind, message: String, offset: usize) -> Self {
-        BinaryReaderError {
-            inner: Box::new(BinaryReaderErrorInner {
-                kind,
-                message,
-                offset,
-                needed_hint: None,
-            }),
-        }
+impl Range {
+    /// Constructs a new instance of `Range`.
+    ///
+    /// # Panics
+    /// If `start` is greater than `end`.
+    pub fn new(start: usize, end: usize) -> Range {
+        assert!(start <= end);
+        Range { start, end }
     }
 
-    #[cold]
-    pub(crate) fn new(message: impl Into<String>, offset: usize) -> Self {
-        Self::_new(BinaryReaderErrorKind::Custom, message.into(), offset)
-    }
-
-    #[cold]
-    pub(crate) fn invalid(msg: &'static str, offset: usize) -> Self {
-        Self::_new(BinaryReaderErrorKind::Invalid, msg.into(), offset)
-    }
-
-    #[cold]
-    pub(crate) fn fmt(args: fmt::Arguments<'_>, offset: usize) -> Self {
-        BinaryReaderError::new(args.to_string(), offset)
-    }
-
-    #[cold]
-    pub(crate) fn eof(offset: usize, needed_hint: usize) -> Self {
-        let mut err = BinaryReaderError::new("unexpected end-of-file", offset);
-        err.inner.needed_hint = Some(needed_hint);
-        err
-    }
-
-    pub(crate) fn kind(&mut self) -> BinaryReaderErrorKind {
-        self.inner.kind
-    }
-
-    /// Get this error's message.
-    pub fn message(&self) -> &str {
-        &self.inner.message
-    }
-
-    /// Get the offset within the Wasm binary where the error occurred.
-    pub fn offset(&self) -> usize {
-        self.inner.offset
-    }
-
-    #[cfg(all(feature = "validate", feature = "component-model"))]
-    pub(crate) fn add_context(&mut self, context: String) {
-        self.inner.message = format!("{context}\n{}", self.inner.message);
-    }
-
-    pub(crate) fn set_message(&mut self, message: &str) {
-        self.inner.message = message.to_string();
+    /// Returns a new slice between `start` and `end - 1` from `data`.
+    pub fn slice<'a>(&self, data: &'a [u8]) -> &'a [u8] {
+        &data[self.start..self.end]
     }
 }
 
 /// A binary reader of the WebAssembly structures and types.
 #[derive(Clone, Debug, Hash)]
 pub struct BinaryReader<'a> {
-    buffer: &'a [u8],
-    position: usize,
-    original_offset: usize,
-
-    // When the `features` feature is disabled then the `WasmFeatures` type
-    // still exists but this field is still omitted. When `features` is
-    // disabled then the only constructor of this type is `BinaryReader::new`
-    // which documents all known features being active. All known features
-    // being active isn't represented by `WasmFeatures` when the feature is
-    // disabled so the field is omitted here to prevent accidentally using the
-    // wrong listing of features.
-    //
-    // Feature accessors are defined by `foreach_wasm_feature!` below with a
-    // method-per-feature on `BinaryReader` which when the `features` feature
-    // is disabled returns `true` by default.
-    #[cfg(feature = "features")]
-    features: WasmFeatures,
+    pub(crate) buffer: &'a [u8],
+    pub(crate) position: usize,
+    pub(crate) original_offset: usize,
 }
 
 impl<'a> BinaryReader<'a> {
-    /// Creates a new binary reader which will parse the `data` provided.
+    /// Constructs `BinaryReader` type.
     ///
-    /// The `original_offset` provided is used for byte offsets in errors that
-    /// are generated. That offset is added to the current position in `data`.
-    /// This can be helpful when `data` is just a window of a view into a larger
-    /// wasm binary perhaps not even entirely stored locally.
-    ///
-    /// The returned binary reader will have all features known to this crate
-    /// enabled. To reject binaries that aren't valid unless a certain feature
-    /// is enabled use the [`BinaryReader::new_features`] constructor instead.
-    pub fn new(data: &[u8], original_offset: usize) -> BinaryReader {
+    /// # Examples
+    /// ```
+    /// let fn_body = &vec![0x41, 0x00, 0x10, 0x00, 0x0B];
+    /// let mut reader = wasmparser::BinaryReader::new(fn_body);
+    /// while !reader.eof() {
+    ///     let op = reader.read_operator();
+    ///     println!("{:?}", op)
+    /// }
+    /// ```
+    pub fn new(data: &[u8]) -> BinaryReader {
+        BinaryReader {
+            buffer: data,
+            position: 0,
+            original_offset: 0,
+        }
+    }
+
+    /// Constructs a `BinaryReader` with an explicit starting offset.
+    pub fn new_with_offset(data: &[u8], original_offset: usize) -> BinaryReader {
         BinaryReader {
             buffer: data,
             position: 0,
             original_offset,
-            #[cfg(feature = "features")]
-            features: WasmFeatures::all(),
         }
     }
 
-    /// Creates a new binary reader which will parse the `data` provided.
-    ///
-    /// The `original_offset` provided is used for byte offsets in errors that
-    /// are generated. That offset is added to the current position in `data`.
-    /// This can be helpful when `data` is just a window of a view into a larger
-    /// wasm binary perhaps not even entirely stored locally.
-    ///
-    /// The `features` argument provided controls which WebAssembly features are
-    /// active when parsing this data. Wasm features typically don't affect
-    /// parsing too too much and are generally more applicable during
-    /// validation, but features and proposals will often reinterpret
-    /// previously-invalid constructs as now-valid things meaning something
-    /// slightly different. This means that invalid bytes before a feature may
-    /// now be interpreted differently after a feature is implemented. This
-    /// means that the set of activated features can affect what errors are
-    /// generated and when they are generated.
-    ///
-    /// In general it's safe to pass `WasmFeatures::all()` here. There's no
-    /// downside to enabling all features while parsing and only enabling a
-    /// subset of features during validation.
-    ///
-    /// Note that the activated set of features does not guarantee that
-    /// `BinaryReader` will return an error for disabled features. For example
-    /// if SIMD is disabled then SIMD instructions will still be parsed via
-    /// [`BinaryReader::visit_operator`]. Validation must still be performed to
-    /// provide a strict guarantee that if a feature is disabled that a binary
-    /// doesn't leverage the feature. The activated set of features here instead
-    /// only affects locations where preexisting bytes are reinterpreted in
-    /// different ways with future proposals, such as the `memarg` moving from a
-    /// 32-bit offset to a 64-bit offset with the `memory64` proposal.
-    #[cfg(feature = "features")]
-    pub fn new_features(
-        data: &[u8],
-        original_offset: usize,
-        features: WasmFeatures,
-    ) -> BinaryReader {
-        BinaryReader {
-            buffer: data,
-            position: 0,
-            original_offset,
-            features,
-        }
-    }
-
-    /// "Shrinks" this binary reader to retain only the buffer left-to-parse.
-    ///
-    /// The primary purpose of this method is to change the return value of the
-    /// `range()` method. That method returns the range of the original buffer
-    /// within the wasm binary so calling `range()` on the returned
-    /// `BinaryReader` will return a smaller range than if `range()` is called
-    /// on `self`.
-    ///
-    /// Otherwise parsing values from either `self` or the return value should
-    /// return the same thing.
-    pub(crate) fn shrink(&self) -> BinaryReader<'a> {
-        BinaryReader {
-            buffer: &self.buffer[self.position..],
-            position: 0,
-            original_offset: self.original_offset + self.position,
-            #[cfg(feature = "features")]
-            features: self.features,
-        }
-    }
-
-    /// Gets the original position of the binary reader.
-    #[inline]
     pub fn original_position(&self) -> usize {
         self.original_offset + self.position
     }
 
-    /// Returns the currently active set of wasm features that this reader is
-    /// using while parsing.
-    ///
-    /// For more information see [`BinaryReader::new`].
-    #[cfg(feature = "features")]
-    pub fn features(&self) -> WasmFeatures {
-        self.features
-    }
-
-    /// Sets the wasm features active while parsing to the `features` specified.
-    ///
-    /// For more information see [`BinaryReader::new`].
-    #[cfg(feature = "features")]
-    pub fn set_features(&mut self, features: WasmFeatures) {
-        self.features = features;
-    }
-
     /// Returns a range from the starting offset to the end of the buffer.
-    pub fn range(&self) -> Range<usize> {
-        self.original_offset..self.original_offset + self.buffer.len()
+    pub fn range(&self) -> Range {
+        Range {
+            start: self.original_offset,
+            end: self.original_offset + self.buffer.len(),
+        }
     }
 
     pub(crate) fn remaining_buffer(&self) -> &'a [u8] {
@@ -282,145 +143,352 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
-    /// Reads a value of type `T` from this binary reader, advancing the
-    /// internal position in this reader forward as data is read.
-    #[inline]
-    pub fn read<T>(&mut self) -> Result<T>
-    where
-        T: FromReader<'a>,
-    {
-        T::from_reader(self)
-    }
-
-    pub(crate) fn read_u7(&mut self) -> Result<u8> {
+    fn read_var_u1(&mut self) -> Result<u32> {
         let b = self.read_u8()?;
-        if (b & 0x80) != 0 {
+        if (b & 0xFE) != 0 {
             return Err(BinaryReaderError::new(
-                "invalid u7",
+                "Invalid var_u1",
                 self.original_position() - 1,
             ));
         }
         Ok(b)
     }
 
-    pub(crate) fn external_kind_from_byte(byte: u8, offset: usize) -> Result<ExternalKind> {
-        match byte {
-            0x00 => Ok(ExternalKind::Func),
-            0x01 => Ok(ExternalKind::Table),
-            0x02 => Ok(ExternalKind::Memory),
-            0x03 => Ok(ExternalKind::Global),
-            0x04 => Ok(ExternalKind::Tag),
-            x => Err(Self::invalid_leading_byte_error(x, "external kind", offset)),
+    fn read_var_i7(&mut self) -> Result<i32> {
+        let b = self.read_u8()?;
+        if (b & 0x80) != 0 {
+            return Err(BinaryReaderError::new(
+                "Invalid var_i7",
+                self.original_position() - 1,
+            ));
+        }
+        Ok((b << 25) as i32 >> 25)
+    }
+
+    pub(crate) fn read_var_u7(&mut self) -> Result<u32> {
+        let b = self.read_u8()?;
+        if (b & 0x80) != 0 {
+            return Err(BinaryReaderError::new(
+                "Invalid var_u7",
+                self.original_position() - 1,
+            ));
+        }
+        Ok(b)
+    }
+
+    pub fn read_type(&mut self) -> Result<Type> {
+        let code = self.read_var_i7()?;
+        match code {
+            -0x01 => Ok(Type::I32),
+            -0x02 => Ok(Type::I64),
+            -0x03 => Ok(Type::F32),
+            -0x04 => Ok(Type::F64),
+            -0x05 => Ok(Type::V128),
+            -0x10 => Ok(Type::FuncRef),
+            -0x11 => Ok(Type::ExternRef),
+            -0x18 => Ok(Type::ExnRef),
+            -0x20 => Ok(Type::Func),
+            -0x40 => Ok(Type::EmptyBlockType),
+            _ => Err(BinaryReaderError::new(
+                "Invalid type",
+                self.original_position() - 1,
+            )),
         }
     }
 
-    /// Reads a variable-length 32-bit size from the byte stream while checking
-    /// against a limit.
-    pub fn read_size(&mut self, limit: usize, desc: &str) -> Result<usize> {
-        let pos = self.original_position();
-        let size = self.read_var_u32()? as usize;
-        if size > limit {
-            bail!(pos, "{desc} size is out of bounds");
+    pub(crate) fn read_external_kind(&mut self) -> Result<ExternalKind> {
+        let code = self.read_u8()?;
+        match code {
+            0 => Ok(ExternalKind::Function),
+            1 => Ok(ExternalKind::Table),
+            2 => Ok(ExternalKind::Memory),
+            3 => Ok(ExternalKind::Global),
+            4 => Ok(ExternalKind::Event),
+            5 => Ok(ExternalKind::Module),
+            6 => Ok(ExternalKind::Instance),
+            7 => Ok(ExternalKind::Type),
+            _ => Err(BinaryReaderError::new(
+                "Invalid external kind",
+                self.original_position() - 1,
+            )),
         }
-        Ok(size)
     }
 
-    /// Reads a variable-length 32-bit size from the byte stream while checking
-    /// against a limit.
-    ///
-    /// Then reads that many values of type `T` and returns them as an iterator.
-    ///
-    /// Note that regardless of how many items are read from the returned
-    /// iterator the items will still be parsed from this reader.
-    pub fn read_iter<'me, T>(
-        &'me mut self,
-        limit: usize,
-        desc: &str,
-    ) -> Result<BinaryReaderIter<'a, 'me, T>>
-    where
-        T: FromReader<'a>,
-    {
-        let size = self.read_size(limit, desc)?;
-        Ok(BinaryReaderIter {
-            remaining: size,
-            reader: self,
-            _marker: marker::PhantomData,
+    pub(crate) fn read_func_type(&mut self) -> Result<FuncType> {
+        let params_len = self.read_var_u32()? as usize;
+        if params_len > MAX_WASM_FUNCTION_PARAMS {
+            return Err(BinaryReaderError::new(
+                "function params size is out of bound",
+                self.original_position() - 1,
+            ));
+        }
+        let mut params: Vec<Type> = Vec::with_capacity(params_len);
+        for _ in 0..params_len {
+            params.push(self.read_type()?);
+        }
+        let returns_len = self.read_var_u32()? as usize;
+        if returns_len > MAX_WASM_FUNCTION_RETURNS {
+            return Err(BinaryReaderError::new(
+                "function returns size is out of bound",
+                self.original_position() - 1,
+            ));
+        }
+        let mut returns: Vec<Type> = Vec::with_capacity(returns_len);
+        for _ in 0..returns_len {
+            returns.push(self.read_type()?);
+        }
+        Ok(FuncType {
+            params: params.into_boxed_slice(),
+            returns: returns.into_boxed_slice(),
         })
     }
 
-    fn read_memarg(&mut self, max_align: u8) -> Result<MemArg> {
+    pub(crate) fn read_module_type(&mut self) -> Result<ModuleType<'a>> {
+        let pos = self.original_position();
+        let imports_len = self.read_var_u32()? as usize;
+        if imports_len > MAX_WASM_IMPORTS {
+            return Err(BinaryReaderError::new("imports size is out of bounds", pos));
+        }
+        Ok(ModuleType {
+            imports: (0..imports_len)
+                .map(|_| self.read_import())
+                .collect::<Result<_>>()?,
+            exports: self.read_export_types()?,
+        })
+    }
+
+    pub(crate) fn read_instance_type(&mut self) -> Result<InstanceType<'a>> {
+        Ok(InstanceType {
+            exports: self.read_export_types()?,
+        })
+    }
+
+    fn read_export_types(&mut self) -> Result<Box<[ExportType<'a>]>> {
+        let pos = self.original_position();
+        let exports_len = self.read_var_u32()? as usize;
+        if exports_len > MAX_WASM_EXPORTS {
+            return Err(BinaryReaderError::new("exports size is out of bound", pos));
+        }
+        (0..exports_len).map(|_| self.read_export_type()).collect()
+    }
+
+    pub(crate) fn read_import(&mut self) -> Result<Import<'a>> {
+        let module = self.read_string()?;
+        let field = self.read_string()?;
+
+        // For the `field`, figure out if we're the experimental encoding of
+        // single-level imports for the module linking proposal (a single-byte
+        // string which is 0xc0, which is invalid utf-8) or if we have a second
+        // level of import.
+        let field = if field.is_empty() && self.buffer.get(self.position) == Some(&0xff) {
+            self.position += 1;
+            None
+        } else {
+            Some(field)
+        };
+
+        let ty = self.read_import_desc()?;
+        Ok(Import { module, field, ty })
+    }
+
+    pub(crate) fn read_export_type(&mut self) -> Result<ExportType<'a>> {
+        let name = self.read_string()?;
+        let ty = self.read_import_desc()?;
+        Ok(ExportType { name, ty })
+    }
+
+    pub(crate) fn read_import_desc(&mut self) -> Result<ImportSectionEntryType> {
+        Ok(match self.read_external_kind()? {
+            ExternalKind::Function => ImportSectionEntryType::Function(self.read_var_u32()?),
+            ExternalKind::Table => ImportSectionEntryType::Table(self.read_table_type()?),
+            ExternalKind::Memory => ImportSectionEntryType::Memory(self.read_memory_type()?),
+            ExternalKind::Event => ImportSectionEntryType::Event(self.read_event_type()?),
+            ExternalKind::Global => ImportSectionEntryType::Global(self.read_global_type()?),
+            ExternalKind::Module => ImportSectionEntryType::Module(self.read_var_u32()?),
+            ExternalKind::Instance => ImportSectionEntryType::Instance(self.read_var_u32()?),
+            ExternalKind::Type => {
+                return Err(BinaryReaderError::new(
+                    "cannot import types",
+                    self.original_position() - 1,
+                ))
+            }
+        })
+    }
+
+    fn read_resizable_limits(&mut self, max_present: bool) -> Result<ResizableLimits> {
+        let initial = self.read_var_u32()?;
+        let maximum = if max_present {
+            Some(self.read_var_u32()?)
+        } else {
+            None
+        };
+        Ok(ResizableLimits { initial, maximum })
+    }
+
+    fn read_resizable_limits64(&mut self, max_present: bool) -> Result<ResizableLimits64> {
+        let initial = self.read_var_u64()?;
+        let maximum = if max_present {
+            Some(self.read_var_u64()?)
+        } else {
+            None
+        };
+        Ok(ResizableLimits64 { initial, maximum })
+    }
+
+    pub(crate) fn read_table_type(&mut self) -> Result<TableType> {
+        let element_type = self.read_type()?;
+        let flags = self.read_var_u32()?;
+        if (flags & !0x1) != 0 {
+            return Err(BinaryReaderError::new(
+                "invalid table resizable limits flags",
+                self.original_position() - 1,
+            ));
+        }
+        let limits = self.read_resizable_limits((flags & 0x1) != 0)?;
+        Ok(TableType {
+            element_type,
+            limits,
+        })
+    }
+
+    pub(crate) fn read_memory_type(&mut self) -> Result<MemoryType> {
+        let pos = self.original_position();
+        let flags = self.read_u8()?;
+        if (flags & !0x7) != 0 {
+            return Err(BinaryReaderError::new(
+                "invalid table resizable limits flags",
+                pos,
+            ));
+        }
+        if flags & 0x4 == 0 {
+            let limits = self.read_resizable_limits((flags & 0x1) != 0)?;
+            let shared = (flags & 0x2) != 0;
+            Ok(MemoryType::M32 { limits, shared })
+        } else {
+            let limits = self.read_resizable_limits64((flags & 0x1) != 0)?;
+            let shared = (flags & 0x2) != 0;
+            Ok(MemoryType::M64 { limits, shared })
+        }
+    }
+
+    pub(crate) fn read_event_type(&mut self) -> Result<EventType> {
+        let attribute = self.read_var_u32()?;
+        if attribute != 0 {
+            return Err(BinaryReaderError::new(
+                "invalid event attributes",
+                self.original_position() - 1,
+            ));
+        }
+        let type_index = self.read_var_u32()?;
+        Ok(EventType { type_index })
+    }
+
+    pub(crate) fn read_global_type(&mut self) -> Result<GlobalType> {
+        Ok(GlobalType {
+            content_type: self.read_type()?,
+            mutable: self.read_var_u1()? != 0,
+        })
+    }
+
+    fn read_first_byte_and_var_u32(&mut self) -> Result<(u8, u32)> {
+        let pos = self.position;
+        let val = self.read_var_u32()?;
+        Ok((self.buffer[pos], val))
+    }
+
+    fn read_memarg(&mut self) -> Result<MemoryImmediate> {
         let flags_pos = self.original_position();
         let mut flags = self.read_var_u32()?;
-
-        let memory = if self.multi_memory() && flags & (1 << 6) != 0 {
+        let offset = self.read_var_u32()?;
+        let memory = if flags & (1 << 6) != 0 {
             flags ^= 1 << 6;
             self.read_var_u32()?
         } else {
             0
         };
         let align = if flags >= (1 << 6) {
-            return Err(BinaryReaderError::new(
-                "malformed memop alignment: alignment too large",
-                flags_pos,
-            ));
+            return Err(BinaryReaderError::new("alignment too large", flags_pos));
         } else {
             flags as u8
         };
-        let offset = if self.memory64() {
-            self.read_var_u64()?
-        } else {
-            u64::from(self.read_var_u32()?)
-        };
-        Ok(MemArg {
+        Ok(MemoryImmediate {
             align,
-            max_align,
             offset,
             memory,
         })
     }
 
-    fn read_ordering(&mut self) -> Result<Ordering> {
-        let byte = self.read_var_u32()?;
-        match byte {
-            0 => Ok(Ordering::SeqCst),
-            1 => Ok(Ordering::AcqRel),
-            x => Err(BinaryReaderError::new(
-                &format!("invalid atomic consistency ordering {}", x),
-                self.original_position() - 1,
-            )),
+    pub(crate) fn read_section_code(&mut self, id: u32, offset: usize) -> Result<SectionCode<'a>> {
+        match id {
+            0 => {
+                let name = self.read_string()?;
+                let kind = if is_name(name, "name") {
+                    CustomSectionKind::Name
+                } else if is_name(name, "producers") {
+                    CustomSectionKind::Producers
+                } else if is_name(name, "sourceMappingURL") {
+                    CustomSectionKind::SourceMappingURL
+                } else if is_name_prefix(name, "reloc.") {
+                    CustomSectionKind::Reloc
+                } else if is_name(name, "linking") {
+                    CustomSectionKind::Linking
+                } else {
+                    CustomSectionKind::Unknown
+                };
+                Ok(SectionCode::Custom { name, kind })
+            }
+            1 => Ok(SectionCode::Type),
+            2 => Ok(SectionCode::Import),
+            3 => Ok(SectionCode::Function),
+            4 => Ok(SectionCode::Table),
+            5 => Ok(SectionCode::Memory),
+            6 => Ok(SectionCode::Global),
+            7 => Ok(SectionCode::Export),
+            8 => Ok(SectionCode::Start),
+            9 => Ok(SectionCode::Element),
+            10 => Ok(SectionCode::Code),
+            11 => Ok(SectionCode::Data),
+            12 => Ok(SectionCode::DataCount),
+            13 => Ok(SectionCode::Event),
+            14 => Ok(SectionCode::Module),
+            15 => Ok(SectionCode::Instance),
+            16 => Ok(SectionCode::Alias),
+            17 => Ok(SectionCode::ModuleCode),
+            _ => Err(BinaryReaderError::new("Invalid section code", offset)),
         }
     }
 
     fn read_br_table(&mut self) -> Result<BrTable<'a>> {
-        let cnt = self.read_size(MAX_WASM_BR_TABLE_SIZE, "br_table")?;
-        let reader = self.skip(|reader| {
-            for _ in 0..cnt {
-                reader.read_var_u32()?;
-            }
-            Ok(())
-        })?;
-        let default = self.read_var_u32()?;
+        let targets_len = self.read_var_u32()? as usize;
+        if targets_len > MAX_WASM_BR_TABLE_SIZE {
+            return Err(BinaryReaderError::new(
+                "br_table size is out of bound",
+                self.original_position() - 1,
+            ));
+        }
+        let start = self.position;
+        for _ in 0..targets_len {
+            self.skip_var_32()?;
+        }
+        self.skip_var_32()?;
+        let end = self.position;
         Ok(BrTable {
-            reader,
-            cnt: cnt as u32,
-            default,
+            reader: BinaryReader::new_with_offset(&self.buffer[start..end], start),
+            cnt: targets_len as usize,
         })
     }
 
     /// Returns whether the `BinaryReader` has reached the end of the file.
-    #[inline]
     pub fn eof(&self) -> bool {
         self.position >= self.buffer.len()
     }
 
     /// Returns the `BinaryReader`'s current position.
-    #[inline]
     pub fn current_position(&self) -> usize {
         self.position
     }
 
     /// Returns the number of bytes remaining in the `BinaryReader`.
-    #[inline]
     pub fn bytes_remaining(&self) -> usize {
         self.buffer.len() - self.position
     }
@@ -435,16 +503,6 @@ impl<'a> BinaryReader<'a> {
         let start = self.position;
         self.position += size;
         Ok(&self.buffer[start..self.position])
-    }
-
-    /// Reads a length-prefixed list of bytes from this reader and returns a
-    /// new `BinaryReader` to read that list of bytes.
-    pub fn read_reader(&mut self) -> Result<BinaryReader<'a>> {
-        let size = self.read_var_u32()? as usize;
-        self.skip(|reader| {
-            reader.read_bytes(size)?;
-            Ok(())
-        })
     }
 
     /// Advances the `BinaryReader` four bytes and returns a `u32`.
@@ -475,24 +533,41 @@ impl<'a> BinaryReader<'a> {
         Ok(word)
     }
 
-    /// Advances the `BinaryReader` a single byte.
+    /// Advances the `BinaryReader` a single byte, and returns the data as
+    /// a `u32`.
     ///
     /// # Errors
     ///
     /// If `BinaryReader` has no bytes remaining.
-    #[inline]
-    pub fn read_u8(&mut self) -> Result<u8> {
-        let b = match self.buffer.get(self.position) {
-            Some(b) => *b,
-            None => return Err(self.eof_err()),
-        };
+    pub fn read_u8(&mut self) -> Result<u32> {
+        self.ensure_has_byte()?;
+        let b = u32::from(self.buffer[self.position]);
         self.position += 1;
         Ok(b)
     }
 
-    #[cold]
-    fn eof_err(&self) -> BinaryReaderError {
-        BinaryReaderError::eof(self.original_position(), 1)
+    /// Advances the `BinaryReader` up to two bytes to parse a variable
+    /// length integer as a `u8`.
+    ///
+    /// # Errors
+    ///
+    /// If `BinaryReader` has less than one or two bytes remaining, or the
+    /// integer is larger than eight bits.
+    pub fn read_var_u8(&mut self) -> Result<u32> {
+        // Optimization for single byte i32.
+        let byte = self.read_u8()?;
+        if (byte & 0x80) == 0 {
+            return Ok(byte);
+        }
+
+        let result = (self.read_u8()? << 7) | (byte & 0x7F);
+        if result >= 0x100 {
+            return Err(BinaryReaderError::new(
+                "Invalid var_u8",
+                self.original_position() - 1,
+            ));
+        }
+        Ok(result)
     }
 
     /// Advances the `BinaryReader` up to four bytes to parse a variable
@@ -502,31 +577,24 @@ impl<'a> BinaryReader<'a> {
     ///
     /// If `BinaryReader` has less than one or up to four bytes remaining, or
     /// the integer is larger than 32 bits.
-    #[inline]
     pub fn read_var_u32(&mut self) -> Result<u32> {
         // Optimization for single byte i32.
         let byte = self.read_u8()?;
         if (byte & 0x80) == 0 {
-            Ok(u32::from(byte))
-        } else {
-            self.read_var_u32_big(byte)
+            return Ok(byte);
         }
-    }
 
-    fn read_var_u32_big(&mut self, byte: u8) -> Result<u32> {
-        let mut result = (byte & 0x7F) as u32;
+        let mut result = byte & 0x7F;
         let mut shift = 7;
         loop {
             let byte = self.read_u8()?;
             result |= ((byte & 0x7F) as u32) << shift;
             if shift >= 25 && (byte >> (32 - shift)) != 0 {
-                let msg = if byte & 0x80 != 0 {
-                    "invalid var_u32: integer representation too long"
-                } else {
-                    "invalid var_u32: integer too large"
-                };
                 // The continuation bit or unused bits are set.
-                return Err(BinaryReaderError::new(msg, self.original_position() - 1));
+                return Err(BinaryReaderError::new(
+                    "Invalid var_u32",
+                    self.original_position() - 1,
+                ));
             }
             shift += 7;
             if (byte & 0x80) == 0 {
@@ -543,31 +611,24 @@ impl<'a> BinaryReader<'a> {
     ///
     /// If `BinaryReader` has less than one or up to eight bytes remaining, or
     /// the integer is larger than 64 bits.
-    #[inline]
     pub fn read_var_u64(&mut self) -> Result<u64> {
         // Optimization for single byte u64.
         let byte = u64::from(self.read_u8()?);
         if (byte & 0x80) == 0 {
-            Ok(byte)
-        } else {
-            self.read_var_u64_big(byte)
+            return Ok(byte);
         }
-    }
 
-    fn read_var_u64_big(&mut self, byte: u64) -> Result<u64> {
         let mut result = byte & 0x7F;
         let mut shift = 7;
         loop {
             let byte = u64::from(self.read_u8()?);
             result |= (byte & 0x7F) << shift;
             if shift >= 57 && (byte >> (64 - shift)) != 0 {
-                let msg = if byte & 0x80 != 0 {
-                    "invalid var_u64: integer representation too long"
-                } else {
-                    "invalid var_u64: integer too large"
-                };
                 // The continuation bit or unused bits are set.
-                return Err(BinaryReaderError::new(msg, self.original_position() - 1));
+                return Err(BinaryReaderError::new(
+                    "Invalid var_u64",
+                    self.original_position() - 1,
+                ));
             }
             shift += 7;
             if (byte & 0x80) == 0 {
@@ -577,16 +638,36 @@ impl<'a> BinaryReader<'a> {
         Ok(result)
     }
 
-    /// Executes `f` to skip some data in this binary reader and then returns a
-    /// reader which will read the skipped data.
-    pub fn skip(&mut self, f: impl FnOnce(&mut Self) -> Result<()>) -> Result<Self> {
-        let start = self.position;
-        f(self)?;
-        let mut ret = self.clone();
-        ret.buffer = &self.buffer[start..self.position];
-        ret.position = 0;
-        ret.original_offset = self.original_offset + start;
-        Ok(ret)
+    /// Advances the `BinaryReader` up to four bytes over a variable length 32
+    /// bit integer, discarding the result.
+    /// # Errors
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    /// the integer is larger than 32 bits.
+    pub fn skip_var_32(&mut self) -> Result<()> {
+        for _ in 0..5 {
+            let byte = self.read_u8()?;
+            if (byte & 0x80) == 0 {
+                return Ok(());
+            }
+        }
+        Err(BinaryReaderError::new(
+            "Invalid var_32",
+            self.original_position() - 1,
+        ))
+    }
+
+    /// Alias method for `BinaryReader::skip_var_u32`.
+    pub fn skip_type(&mut self) -> Result<()> {
+        self.skip_var_32()
+    }
+
+    /// Advances the `BinaryReader` `len` bytes, skipping the result.
+    /// # Errors
+    /// If `BinaryReader` has less than `len` bytes remaining.
+    pub fn skip_bytes(&mut self, len: usize) -> Result<()> {
+        self.ensure_has_bytes(len)?;
+        self.position += len;
+        Ok(())
     }
 
     /// Advances the `BinaryReader` past a WebAssembly string. This method does
@@ -603,9 +684,15 @@ impl<'a> BinaryReader<'a> {
                 self.original_position() - 1,
             ));
         }
-        self.ensure_has_bytes(len)?;
-        self.position += len;
-        Ok(())
+        self.skip_bytes(len)
+    }
+
+    pub(crate) fn skip_to(&mut self, position: usize) {
+        assert!(
+            self.position <= position && position <= self.buffer.len(),
+            "skip_to allowed only into region past current position"
+        );
+        self.position = position;
     }
 
     /// Advances the `BinaryReader` up to four bytes to parse a variable
@@ -613,18 +700,13 @@ impl<'a> BinaryReader<'a> {
     /// # Errors
     /// If `BinaryReader` has less than one or up to four bytes remaining, or
     /// the integer is larger than 32 bits.
-    #[inline]
     pub fn read_var_i32(&mut self) -> Result<i32> {
         // Optimization for single byte i32.
         let byte = self.read_u8()?;
         if (byte & 0x80) == 0 {
-            Ok(((byte as i32) << 25) >> 25)
-        } else {
-            self.read_var_i32_big(byte)
+            return Ok(((byte as i32) << 25) >> 25);
         }
-    }
 
-    fn read_var_i32_big(&mut self, byte: u8) -> Result<i32> {
         let mut result = (byte & 0x7F) as i32;
         let mut shift = 7;
         loop {
@@ -634,12 +716,10 @@ impl<'a> BinaryReader<'a> {
                 let continuation_bit = (byte & 0x80) != 0;
                 let sign_and_unused_bit = (byte << 1) as i8 >> (32 - shift);
                 if continuation_bit || (sign_and_unused_bit != 0 && sign_and_unused_bit != -1) {
-                    let msg = if continuation_bit {
-                        "invalid var_i32: integer representation too long"
-                    } else {
-                        "invalid var_i32: integer too large"
-                    };
-                    return Err(BinaryReaderError::new(msg, self.original_position() - 1));
+                    return Err(BinaryReaderError::new(
+                        "Invalid var_i32",
+                        self.original_position() - 1,
+                    ));
                 }
                 return Ok(result);
             }
@@ -674,7 +754,7 @@ impl<'a> BinaryReader<'a> {
                 let sign_and_unused_bit = (byte << 1) as i8 >> (33 - shift);
                 if continuation_bit || (sign_and_unused_bit != 0 && sign_and_unused_bit != -1) {
                     return Err(BinaryReaderError::new(
-                        "invalid var_s33: integer representation too long",
+                        "Invalid var_s33",
                         self.original_position() - 1,
                     ));
                 }
@@ -704,12 +784,10 @@ impl<'a> BinaryReader<'a> {
                 let continuation_bit = (byte & 0x80) != 0;
                 let sign_and_unused_bit = ((byte << 1) as i8) >> (64 - shift);
                 if continuation_bit || (sign_and_unused_bit != 0 && sign_and_unused_bit != -1) {
-                    let msg = if continuation_bit {
-                        "invalid var_i64: integer representation too long"
-                    } else {
-                        "invalid var_i64: integer too large"
-                    };
-                    return Err(BinaryReaderError::new(msg, self.original_position() - 1));
+                    return Err(BinaryReaderError::new(
+                        "Invalid var_i64",
+                        self.original_position() - 1,
+                    ));
                 }
                 return Ok(result);
             }
@@ -722,36 +800,28 @@ impl<'a> BinaryReader<'a> {
         Ok((result << ashift) >> ashift)
     }
 
-    /// Advances the `BinaryReader` four bytes to parse a 32 bit floating point
-    /// number, returned as `Ieee32`.
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a 32 bit floating point integer, returned as `Ieee32`.
     /// # Errors
-    /// If `BinaryReader` has less than four bytes remaining.
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    /// the integer is larger than 32 bits.
     pub fn read_f32(&mut self) -> Result<Ieee32> {
         let value = self.read_u32()?;
         Ok(Ieee32(value))
     }
 
-    /// Advances the `BinaryReader` eight bytes to parse a 64 bit floating point
-    /// number, returned as `Ieee64`.
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a 32 bit floating point integer, returned as `Ieee32`.
     /// # Errors
-    /// If `BinaryReader` has less than eight bytes remaining.
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    /// the integer is larger than 32 bits.
     pub fn read_f64(&mut self) -> Result<Ieee64> {
         let value = self.read_u64()?;
         Ok(Ieee64(value))
     }
 
-    /// (internal) Reads a fixed-size WebAssembly string from the module.
-    fn internal_read_string(&mut self, len: usize) -> Result<&'a str> {
-        let bytes = self.read_bytes(len)?;
-        str::from_utf8(bytes).map_err(|_| {
-            BinaryReaderError::new("malformed UTF-8 encoding", self.original_position() - 1)
-        })
-    }
-
     /// Reads a WebAssembly string from the module.
-    ///
     /// # Errors
-    ///
     /// If `BinaryReader` has less than up to four bytes remaining, the string's
     /// length exceeds the remaining bytes, the string's length exceeds
     /// `limits::MAX_WASM_STRING_SIZE`, or the string contains invalid utf-8.
@@ -763,163 +833,315 @@ impl<'a> BinaryReader<'a> {
                 self.original_position() - 1,
             ));
         }
-        return self.internal_read_string(len);
+        let bytes = self.read_bytes(len)?;
+        str::from_utf8(bytes).map_err(|_| {
+            BinaryReaderError::new("invalid UTF-8 encoding", self.original_position() - 1)
+        })
     }
 
-    /// Reads a unlimited WebAssembly string from the module.
-    ///
-    /// Note that this is similar to [`BinaryReader::read_string`] except that
-    /// it will not limit the size of the returned string by
-    /// `limits::MAX_WASM_STRING_SIZE`.
-    pub fn read_unlimited_string(&mut self) -> Result<&'a str> {
-        let len = self.read_var_u32()? as usize;
-        return self.internal_read_string(len);
-    }
-
-    #[cold]
-    pub(crate) fn invalid_leading_byte<T>(&self, byte: u8, desc: &str) -> Result<T> {
-        Err(Self::invalid_leading_byte_error(
-            byte,
-            desc,
-            self.original_position() - 1,
-        ))
-    }
-
-    pub(crate) fn invalid_leading_byte_error(
-        byte: u8,
-        desc: &str,
-        offset: usize,
-    ) -> BinaryReaderError {
-        format_err!(offset, "invalid leading byte (0x{byte:x}) for {desc}")
-    }
-
-    pub(crate) fn peek(&self) -> Result<u8> {
-        self.ensure_has_byte()?;
-        Ok(self.buffer[self.position])
-    }
-
-    pub(crate) fn read_block_type(&mut self) -> Result<BlockType> {
-        let b = self.peek()?;
-
-        // Block types are encoded as either 0x40, a `valtype`, or `s33`. All
-        // current `valtype` encodings are negative numbers when encoded with
-        // sleb128, but it's also required that valtype encodings are in their
-        // canonical form. For example an overlong encoding of -1 as `0xff 0x7f`
-        // is not valid and it is required to be `0x7f`. This means that we
-        // can't simply match on the `s33` that pops out below since reading the
-        // whole `s33` might read an overlong encoding.
-        //
-        // To test for this the first byte `b` is inspected. The highest bit,
-        // the continuation bit in LEB128 encoding, must be clear. The next bit,
-        // the sign bit, must be set to indicate that the number is negative. If
-        // these two conditions hold then we're guaranteed that this is a
-        // negative number.
-        //
-        // After this a value type is read directly instead of looking for an
-        // indexed value type.
-        if b & 0x80 == 0 && b & 0x40 != 0 {
-            if b == 0x40 {
-                self.position += 1;
-                return Ok(BlockType::Empty);
-            }
-            return Ok(BlockType::Type(self.read()?));
+    fn read_memarg_of_align(&mut self, max_align: u8) -> Result<MemoryImmediate> {
+        let align_pos = self.original_position();
+        let imm = self.read_memarg()?;
+        if imm.align > max_align {
+            return Err(BinaryReaderError::new(
+                "alignment must not be larger than natural",
+                align_pos,
+            ));
         }
+        Ok(imm)
+    }
 
-        // Not empty or a singular type, so read the function type index
-        let idx = self.read_var_s33()?;
-        match u32::try_from(idx) {
-            Ok(idx) => Ok(BlockType::FuncType(idx)),
-            Err(_) => {
+    fn read_0xfe_operator(&mut self) -> Result<Operator<'a>> {
+        let code = self.read_var_u32()?;
+        Ok(match code {
+            0x00 => Operator::MemoryAtomicNotify {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0x01 => Operator::MemoryAtomicWait32 {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0x02 => Operator::MemoryAtomicWait64 {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x03 => Operator::AtomicFence {
+                flags: self.read_u8()? as u8,
+            },
+            0x10 => Operator::I32AtomicLoad {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0x11 => Operator::I64AtomicLoad {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x12 => Operator::I32AtomicLoad8U {
+                memarg: self.read_memarg_of_align(0)?,
+            },
+            0x13 => Operator::I32AtomicLoad16U {
+                memarg: self.read_memarg_of_align(1)?,
+            },
+            0x14 => Operator::I64AtomicLoad8U {
+                memarg: self.read_memarg_of_align(0)?,
+            },
+            0x15 => Operator::I64AtomicLoad16U {
+                memarg: self.read_memarg_of_align(1)?,
+            },
+            0x16 => Operator::I64AtomicLoad32U {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0x17 => Operator::I32AtomicStore {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0x18 => Operator::I64AtomicStore {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x19 => Operator::I32AtomicStore8 {
+                memarg: self.read_memarg_of_align(0)?,
+            },
+            0x1a => Operator::I32AtomicStore16 {
+                memarg: self.read_memarg_of_align(1)?,
+            },
+            0x1b => Operator::I64AtomicStore8 {
+                memarg: self.read_memarg_of_align(0)?,
+            },
+            0x1c => Operator::I64AtomicStore16 {
+                memarg: self.read_memarg_of_align(1)?,
+            },
+            0x1d => Operator::I64AtomicStore32 {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0x1e => Operator::I32AtomicRmwAdd {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0x1f => Operator::I64AtomicRmwAdd {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x20 => Operator::I32AtomicRmw8AddU {
+                memarg: self.read_memarg_of_align(0)?,
+            },
+            0x21 => Operator::I32AtomicRmw16AddU {
+                memarg: self.read_memarg_of_align(1)?,
+            },
+            0x22 => Operator::I64AtomicRmw8AddU {
+                memarg: self.read_memarg_of_align(0)?,
+            },
+            0x23 => Operator::I64AtomicRmw16AddU {
+                memarg: self.read_memarg_of_align(1)?,
+            },
+            0x24 => Operator::I64AtomicRmw32AddU {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0x25 => Operator::I32AtomicRmwSub {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0x26 => Operator::I64AtomicRmwSub {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x27 => Operator::I32AtomicRmw8SubU {
+                memarg: self.read_memarg_of_align(0)?,
+            },
+            0x28 => Operator::I32AtomicRmw16SubU {
+                memarg: self.read_memarg_of_align(1)?,
+            },
+            0x29 => Operator::I64AtomicRmw8SubU {
+                memarg: self.read_memarg_of_align(0)?,
+            },
+            0x2a => Operator::I64AtomicRmw16SubU {
+                memarg: self.read_memarg_of_align(1)?,
+            },
+            0x2b => Operator::I64AtomicRmw32SubU {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0x2c => Operator::I32AtomicRmwAnd {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0x2d => Operator::I64AtomicRmwAnd {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x2e => Operator::I32AtomicRmw8AndU {
+                memarg: self.read_memarg_of_align(0)?,
+            },
+            0x2f => Operator::I32AtomicRmw16AndU {
+                memarg: self.read_memarg_of_align(1)?,
+            },
+            0x30 => Operator::I64AtomicRmw8AndU {
+                memarg: self.read_memarg_of_align(0)?,
+            },
+            0x31 => Operator::I64AtomicRmw16AndU {
+                memarg: self.read_memarg_of_align(1)?,
+            },
+            0x32 => Operator::I64AtomicRmw32AndU {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0x33 => Operator::I32AtomicRmwOr {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0x34 => Operator::I64AtomicRmwOr {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x35 => Operator::I32AtomicRmw8OrU {
+                memarg: self.read_memarg_of_align(0)?,
+            },
+            0x36 => Operator::I32AtomicRmw16OrU {
+                memarg: self.read_memarg_of_align(1)?,
+            },
+            0x37 => Operator::I64AtomicRmw8OrU {
+                memarg: self.read_memarg_of_align(0)?,
+            },
+            0x38 => Operator::I64AtomicRmw16OrU {
+                memarg: self.read_memarg_of_align(1)?,
+            },
+            0x39 => Operator::I64AtomicRmw32OrU {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0x3a => Operator::I32AtomicRmwXor {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0x3b => Operator::I64AtomicRmwXor {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x3c => Operator::I32AtomicRmw8XorU {
+                memarg: self.read_memarg_of_align(0)?,
+            },
+            0x3d => Operator::I32AtomicRmw16XorU {
+                memarg: self.read_memarg_of_align(1)?,
+            },
+            0x3e => Operator::I64AtomicRmw8XorU {
+                memarg: self.read_memarg_of_align(0)?,
+            },
+            0x3f => Operator::I64AtomicRmw16XorU {
+                memarg: self.read_memarg_of_align(1)?,
+            },
+            0x40 => Operator::I64AtomicRmw32XorU {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0x41 => Operator::I32AtomicRmwXchg {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0x42 => Operator::I64AtomicRmwXchg {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x43 => Operator::I32AtomicRmw8XchgU {
+                memarg: self.read_memarg_of_align(0)?,
+            },
+            0x44 => Operator::I32AtomicRmw16XchgU {
+                memarg: self.read_memarg_of_align(1)?,
+            },
+            0x45 => Operator::I64AtomicRmw8XchgU {
+                memarg: self.read_memarg_of_align(0)?,
+            },
+            0x46 => Operator::I64AtomicRmw16XchgU {
+                memarg: self.read_memarg_of_align(1)?,
+            },
+            0x47 => Operator::I64AtomicRmw32XchgU {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0x48 => Operator::I32AtomicRmwCmpxchg {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0x49 => Operator::I64AtomicRmwCmpxchg {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x4a => Operator::I32AtomicRmw8CmpxchgU {
+                memarg: self.read_memarg_of_align(0)?,
+            },
+            0x4b => Operator::I32AtomicRmw16CmpxchgU {
+                memarg: self.read_memarg_of_align(1)?,
+            },
+            0x4c => Operator::I64AtomicRmw8CmpxchgU {
+                memarg: self.read_memarg_of_align(0)?,
+            },
+            0x4d => Operator::I64AtomicRmw16CmpxchgU {
+                memarg: self.read_memarg_of_align(1)?,
+            },
+            0x4e => Operator::I64AtomicRmw32CmpxchgU {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+
+            _ => {
                 return Err(BinaryReaderError::new(
-                    "invalid function type",
-                    self.original_position(),
+                    format!("Unknown 0xfe subopcode: 0x{:x}", code),
+                    self.original_position() - 1,
                 ));
             }
+        })
+    }
+
+    fn read_blocktype(&mut self) -> Result<TypeOrFuncType> {
+        let position = self.position;
+        if let Ok(ty) = self.read_type() {
+            Ok(TypeOrFuncType::Type(ty))
+        } else {
+            self.position = position;
+            let idx = self.read_var_s33()?;
+            if idx < 0 || idx > (std::u32::MAX as i64) {
+                return Err(BinaryReaderError::new("invalid function type", position));
+            }
+            Ok(TypeOrFuncType::FuncType(idx as u32))
         }
     }
 
-    /// Visit the next available operator with the specified [`VisitOperator`] instance.
-    ///
-    /// Note that this does not implicitly propagate any additional information such as instruction
-    /// offsets. In order to do so, consider storing such data within the visitor before visiting.
-    ///
+    /// Reads the next available `Operator`.
     /// # Errors
-    ///
-    /// If `BinaryReader` has less bytes remaining than required to parse the `Operator`.
-    ///
-    /// # Examples
-    ///
-    /// Store an offset for use in diagnostics or any other purposes:
-    ///
-    /// ```
-    /// # use wasmparser::{BinaryReader, VisitOperator, Result, for_each_visit_operator};
-    ///
-    /// pub fn dump(mut reader: BinaryReader) -> Result<()> {
-    ///     let mut visitor = Dumper { offset: 0 };
-    ///     while !reader.eof() {
-    ///         visitor.offset = reader.original_position();
-    ///         reader.visit_operator(&mut visitor)?;
-    ///     }
-    ///     Ok(())
-    /// }
-    ///
-    /// struct Dumper {
-    ///     offset: usize
-    /// }
-    ///
-    /// macro_rules! define_visit_operator {
-    ///     ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
-    ///         $(
-    ///             fn $visit(&mut self $($(,$arg: $argty)*)?) -> Self::Output {
-    ///                 println!("{}: {}", self.offset, stringify!($visit));
-    ///             }
-    ///         )*
-    ///     }
-    /// }
-    ///
-    /// impl<'a> VisitOperator<'a> for Dumper {
-    ///     type Output = ();
-    ///     for_each_visit_operator!(define_visit_operator);
-    /// }
-    ///
-    /// ```
-    pub fn visit_operator<T>(&mut self, visitor: &mut T) -> Result<<T as VisitOperator<'a>>::Output>
-    where
-        T: VisitOperator<'a>,
-    {
-        let pos = self.original_position();
+    /// If `BinaryReader` has less bytes remaining than required to parse
+    /// the `Operator`.
+    pub fn read_operator(&mut self) -> Result<Operator<'a>> {
         let code = self.read_u8()? as u8;
         Ok(match code {
-            0x00 => visitor.visit_unreachable(),
-            0x01 => visitor.visit_nop(),
-            0x02 => visitor.visit_block(self.read_block_type()?),
-            0x03 => visitor.visit_loop(self.read_block_type()?),
-            0x04 => visitor.visit_if(self.read_block_type()?),
-            0x05 => visitor.visit_else(),
-            0x06 => visitor.visit_try(self.read_block_type()?),
-            0x07 => visitor.visit_catch(self.read_var_u32()?),
-            0x08 => visitor.visit_throw(self.read_var_u32()?),
-            0x09 => visitor.visit_rethrow(self.read_var_u32()?),
-            0x0a => visitor.visit_throw_ref(),
-            0x0b => visitor.visit_end(),
-            0x0c => visitor.visit_br(self.read_var_u32()?),
-            0x0d => visitor.visit_br_if(self.read_var_u32()?),
-            0x0e => visitor.visit_br_table(self.read_br_table()?),
-            0x0f => visitor.visit_return(),
-            0x10 => visitor.visit_call(self.read_var_u32()?),
-            0x11 => {
-                let index = self.read_var_u32()?;
-                let table = self.read_table_index_or_zero_if_not_reference_types()?;
-                visitor.visit_call_indirect(index, table)
-            }
-            0x12 => visitor.visit_return_call(self.read_var_u32()?),
-            0x13 => visitor.visit_return_call_indirect(self.read_var_u32()?, self.read_var_u32()?),
-            0x14 => visitor.visit_call_ref(self.read()?),
-            0x15 => visitor.visit_return_call_ref(self.read()?),
-            0x18 => visitor.visit_delegate(self.read_var_u32()?),
-            0x19 => visitor.visit_catch_all(),
-            0x1a => visitor.visit_drop(),
-            0x1b => visitor.visit_select(),
+            0x00 => Operator::Unreachable,
+            0x01 => Operator::Nop,
+            0x02 => Operator::Block {
+                ty: self.read_blocktype()?,
+            },
+            0x03 => Operator::Loop {
+                ty: self.read_blocktype()?,
+            },
+            0x04 => Operator::If {
+                ty: self.read_blocktype()?,
+            },
+            0x05 => Operator::Else,
+            0x06 => Operator::Try {
+                ty: self.read_blocktype()?,
+            },
+            0x07 => Operator::Catch {
+                index: self.read_var_u32()?,
+            },
+            0x08 => Operator::Throw {
+                index: self.read_var_u32()?,
+            },
+            0x09 => Operator::Rethrow {
+                relative_depth: self.read_var_u32()?,
+            },
+            0x0a => Operator::Unwind,
+            0x0b => Operator::End,
+            0x0c => Operator::Br {
+                relative_depth: self.read_var_u32()?,
+            },
+            0x0d => Operator::BrIf {
+                relative_depth: self.read_var_u32()?,
+            },
+            0x0e => Operator::BrTable {
+                table: self.read_br_table()?,
+            },
+            0x0f => Operator::Return,
+            0x10 => Operator::Call {
+                function_index: self.read_var_u32()?,
+            },
+            0x11 => Operator::CallIndirect {
+                index: self.read_var_u32()?,
+                table_index: self.read_var_u32()?,
+            },
+            0x12 => Operator::ReturnCall {
+                function_index: self.read_var_u32()?,
+            },
+            0x13 => Operator::ReturnCallIndirect {
+                index: self.read_var_u32()?,
+                table_index: self.read_var_u32()?,
+            },
+            0x18 => Operator::Delegate {
+                relative_depth: self.read_var_u32()?,
+            },
+            0x19 => Operator::CatchAll,
+            0x1a => Operator::Drop,
+            0x1b => Operator::Select,
             0x1c => {
                 let results = self.read_var_u32()?;
                 if results != 1 {
@@ -928,663 +1150,343 @@ impl<'a> BinaryReader<'a> {
                         self.position,
                     ));
                 }
-                visitor.visit_typed_select(self.read()?)
+                Operator::TypedSelect {
+                    ty: self.read_type()?,
+                }
             }
-            0x1f => visitor.visit_try_table(self.read()?),
-
-            0x20 => visitor.visit_local_get(self.read_var_u32()?),
-            0x21 => visitor.visit_local_set(self.read_var_u32()?),
-            0x22 => visitor.visit_local_tee(self.read_var_u32()?),
-            0x23 => visitor.visit_global_get(self.read_var_u32()?),
-            0x24 => visitor.visit_global_set(self.read_var_u32()?),
-            0x25 => visitor.visit_table_get(self.read_var_u32()?),
-            0x26 => visitor.visit_table_set(self.read_var_u32()?),
-
-            0x28 => visitor.visit_i32_load(self.read_memarg(2)?),
-            0x29 => visitor.visit_i64_load(self.read_memarg(3)?),
-            0x2a => visitor.visit_f32_load(self.read_memarg(2)?),
-            0x2b => visitor.visit_f64_load(self.read_memarg(3)?),
-            0x2c => visitor.visit_i32_load8_s(self.read_memarg(0)?),
-            0x2d => visitor.visit_i32_load8_u(self.read_memarg(0)?),
-            0x2e => visitor.visit_i32_load16_s(self.read_memarg(1)?),
-            0x2f => visitor.visit_i32_load16_u(self.read_memarg(1)?),
-            0x30 => visitor.visit_i64_load8_s(self.read_memarg(0)?),
-            0x31 => visitor.visit_i64_load8_u(self.read_memarg(0)?),
-            0x32 => visitor.visit_i64_load16_s(self.read_memarg(1)?),
-            0x33 => visitor.visit_i64_load16_u(self.read_memarg(1)?),
-            0x34 => visitor.visit_i64_load32_s(self.read_memarg(2)?),
-            0x35 => visitor.visit_i64_load32_u(self.read_memarg(2)?),
-            0x36 => visitor.visit_i32_store(self.read_memarg(2)?),
-            0x37 => visitor.visit_i64_store(self.read_memarg(3)?),
-            0x38 => visitor.visit_f32_store(self.read_memarg(2)?),
-            0x39 => visitor.visit_f64_store(self.read_memarg(3)?),
-            0x3a => visitor.visit_i32_store8(self.read_memarg(0)?),
-            0x3b => visitor.visit_i32_store16(self.read_memarg(1)?),
-            0x3c => visitor.visit_i64_store8(self.read_memarg(0)?),
-            0x3d => visitor.visit_i64_store16(self.read_memarg(1)?),
-            0x3e => visitor.visit_i64_store32(self.read_memarg(2)?),
+            0x20 => Operator::LocalGet {
+                local_index: self.read_var_u32()?,
+            },
+            0x21 => Operator::LocalSet {
+                local_index: self.read_var_u32()?,
+            },
+            0x22 => Operator::LocalTee {
+                local_index: self.read_var_u32()?,
+            },
+            0x23 => Operator::GlobalGet {
+                global_index: self.read_var_u32()?,
+            },
+            0x24 => Operator::GlobalSet {
+                global_index: self.read_var_u32()?,
+            },
+            0x25 => Operator::TableGet {
+                table: self.read_var_u32()?,
+            },
+            0x26 => Operator::TableSet {
+                table: self.read_var_u32()?,
+            },
+            0x28 => Operator::I32Load {
+                memarg: self.read_memarg()?,
+            },
+            0x29 => Operator::I64Load {
+                memarg: self.read_memarg()?,
+            },
+            0x2a => Operator::F32Load {
+                memarg: self.read_memarg()?,
+            },
+            0x2b => Operator::F64Load {
+                memarg: self.read_memarg()?,
+            },
+            0x2c => Operator::I32Load8S {
+                memarg: self.read_memarg()?,
+            },
+            0x2d => Operator::I32Load8U {
+                memarg: self.read_memarg()?,
+            },
+            0x2e => Operator::I32Load16S {
+                memarg: self.read_memarg()?,
+            },
+            0x2f => Operator::I32Load16U {
+                memarg: self.read_memarg()?,
+            },
+            0x30 => Operator::I64Load8S {
+                memarg: self.read_memarg()?,
+            },
+            0x31 => Operator::I64Load8U {
+                memarg: self.read_memarg()?,
+            },
+            0x32 => Operator::I64Load16S {
+                memarg: self.read_memarg()?,
+            },
+            0x33 => Operator::I64Load16U {
+                memarg: self.read_memarg()?,
+            },
+            0x34 => Operator::I64Load32S {
+                memarg: self.read_memarg()?,
+            },
+            0x35 => Operator::I64Load32U {
+                memarg: self.read_memarg()?,
+            },
+            0x36 => Operator::I32Store {
+                memarg: self.read_memarg()?,
+            },
+            0x37 => Operator::I64Store {
+                memarg: self.read_memarg()?,
+            },
+            0x38 => Operator::F32Store {
+                memarg: self.read_memarg()?,
+            },
+            0x39 => Operator::F64Store {
+                memarg: self.read_memarg()?,
+            },
+            0x3a => Operator::I32Store8 {
+                memarg: self.read_memarg()?,
+            },
+            0x3b => Operator::I32Store16 {
+                memarg: self.read_memarg()?,
+            },
+            0x3c => Operator::I64Store8 {
+                memarg: self.read_memarg()?,
+            },
+            0x3d => Operator::I64Store16 {
+                memarg: self.read_memarg()?,
+            },
+            0x3e => Operator::I64Store32 {
+                memarg: self.read_memarg()?,
+            },
             0x3f => {
-                let mem = self.read_memory_index_or_zero_if_not_multi_memory()?;
-                visitor.visit_memory_size(mem)
+                let (mem_byte, mem) = self.read_first_byte_and_var_u32()?;
+                Operator::MemorySize { mem_byte, mem }
             }
             0x40 => {
-                let mem = self.read_memory_index_or_zero_if_not_multi_memory()?;
-                visitor.visit_memory_grow(mem)
+                let (mem_byte, mem) = self.read_first_byte_and_var_u32()?;
+                Operator::MemoryGrow { mem_byte, mem }
             }
+            0x41 => Operator::I32Const {
+                value: self.read_var_i32()?,
+            },
+            0x42 => Operator::I64Const {
+                value: self.read_var_i64()?,
+            },
+            0x43 => Operator::F32Const {
+                value: self.read_f32()?,
+            },
+            0x44 => Operator::F64Const {
+                value: self.read_f64()?,
+            },
+            0x45 => Operator::I32Eqz,
+            0x46 => Operator::I32Eq,
+            0x47 => Operator::I32Ne,
+            0x48 => Operator::I32LtS,
+            0x49 => Operator::I32LtU,
+            0x4a => Operator::I32GtS,
+            0x4b => Operator::I32GtU,
+            0x4c => Operator::I32LeS,
+            0x4d => Operator::I32LeU,
+            0x4e => Operator::I32GeS,
+            0x4f => Operator::I32GeU,
+            0x50 => Operator::I64Eqz,
+            0x51 => Operator::I64Eq,
+            0x52 => Operator::I64Ne,
+            0x53 => Operator::I64LtS,
+            0x54 => Operator::I64LtU,
+            0x55 => Operator::I64GtS,
+            0x56 => Operator::I64GtU,
+            0x57 => Operator::I64LeS,
+            0x58 => Operator::I64LeU,
+            0x59 => Operator::I64GeS,
+            0x5a => Operator::I64GeU,
+            0x5b => Operator::F32Eq,
+            0x5c => Operator::F32Ne,
+            0x5d => Operator::F32Lt,
+            0x5e => Operator::F32Gt,
+            0x5f => Operator::F32Le,
+            0x60 => Operator::F32Ge,
+            0x61 => Operator::F64Eq,
+            0x62 => Operator::F64Ne,
+            0x63 => Operator::F64Lt,
+            0x64 => Operator::F64Gt,
+            0x65 => Operator::F64Le,
+            0x66 => Operator::F64Ge,
+            0x67 => Operator::I32Clz,
+            0x68 => Operator::I32Ctz,
+            0x69 => Operator::I32Popcnt,
+            0x6a => Operator::I32Add,
+            0x6b => Operator::I32Sub,
+            0x6c => Operator::I32Mul,
+            0x6d => Operator::I32DivS,
+            0x6e => Operator::I32DivU,
+            0x6f => Operator::I32RemS,
+            0x70 => Operator::I32RemU,
+            0x71 => Operator::I32And,
+            0x72 => Operator::I32Or,
+            0x73 => Operator::I32Xor,
+            0x74 => Operator::I32Shl,
+            0x75 => Operator::I32ShrS,
+            0x76 => Operator::I32ShrU,
+            0x77 => Operator::I32Rotl,
+            0x78 => Operator::I32Rotr,
+            0x79 => Operator::I64Clz,
+            0x7a => Operator::I64Ctz,
+            0x7b => Operator::I64Popcnt,
+            0x7c => Operator::I64Add,
+            0x7d => Operator::I64Sub,
+            0x7e => Operator::I64Mul,
+            0x7f => Operator::I64DivS,
+            0x80 => Operator::I64DivU,
+            0x81 => Operator::I64RemS,
+            0x82 => Operator::I64RemU,
+            0x83 => Operator::I64And,
+            0x84 => Operator::I64Or,
+            0x85 => Operator::I64Xor,
+            0x86 => Operator::I64Shl,
+            0x87 => Operator::I64ShrS,
+            0x88 => Operator::I64ShrU,
+            0x89 => Operator::I64Rotl,
+            0x8a => Operator::I64Rotr,
+            0x8b => Operator::F32Abs,
+            0x8c => Operator::F32Neg,
+            0x8d => Operator::F32Ceil,
+            0x8e => Operator::F32Floor,
+            0x8f => Operator::F32Trunc,
+            0x90 => Operator::F32Nearest,
+            0x91 => Operator::F32Sqrt,
+            0x92 => Operator::F32Add,
+            0x93 => Operator::F32Sub,
+            0x94 => Operator::F32Mul,
+            0x95 => Operator::F32Div,
+            0x96 => Operator::F32Min,
+            0x97 => Operator::F32Max,
+            0x98 => Operator::F32Copysign,
+            0x99 => Operator::F64Abs,
+            0x9a => Operator::F64Neg,
+            0x9b => Operator::F64Ceil,
+            0x9c => Operator::F64Floor,
+            0x9d => Operator::F64Trunc,
+            0x9e => Operator::F64Nearest,
+            0x9f => Operator::F64Sqrt,
+            0xa0 => Operator::F64Add,
+            0xa1 => Operator::F64Sub,
+            0xa2 => Operator::F64Mul,
+            0xa3 => Operator::F64Div,
+            0xa4 => Operator::F64Min,
+            0xa5 => Operator::F64Max,
+            0xa6 => Operator::F64Copysign,
+            0xa7 => Operator::I32WrapI64,
+            0xa8 => Operator::I32TruncF32S,
+            0xa9 => Operator::I32TruncF32U,
+            0xaa => Operator::I32TruncF64S,
+            0xab => Operator::I32TruncF64U,
+            0xac => Operator::I64ExtendI32S,
+            0xad => Operator::I64ExtendI32U,
+            0xae => Operator::I64TruncF32S,
+            0xaf => Operator::I64TruncF32U,
+            0xb0 => Operator::I64TruncF64S,
+            0xb1 => Operator::I64TruncF64U,
+            0xb2 => Operator::F32ConvertI32S,
+            0xb3 => Operator::F32ConvertI32U,
+            0xb4 => Operator::F32ConvertI64S,
+            0xb5 => Operator::F32ConvertI64U,
+            0xb6 => Operator::F32DemoteF64,
+            0xb7 => Operator::F64ConvertI32S,
+            0xb8 => Operator::F64ConvertI32U,
+            0xb9 => Operator::F64ConvertI64S,
+            0xba => Operator::F64ConvertI64U,
+            0xbb => Operator::F64PromoteF32,
+            0xbc => Operator::I32ReinterpretF32,
+            0xbd => Operator::I64ReinterpretF64,
+            0xbe => Operator::F32ReinterpretI32,
+            0xbf => Operator::F64ReinterpretI64,
 
-            0x41 => visitor.visit_i32_const(self.read_var_i32()?),
-            0x42 => visitor.visit_i64_const(self.read_var_i64()?),
-            0x43 => visitor.visit_f32_const(self.read_f32()?),
-            0x44 => visitor.visit_f64_const(self.read_f64()?),
+            0xc0 => Operator::I32Extend8S,
+            0xc1 => Operator::I32Extend16S,
+            0xc2 => Operator::I64Extend8S,
+            0xc3 => Operator::I64Extend16S,
+            0xc4 => Operator::I64Extend32S,
 
-            0x45 => visitor.visit_i32_eqz(),
-            0x46 => visitor.visit_i32_eq(),
-            0x47 => visitor.visit_i32_ne(),
-            0x48 => visitor.visit_i32_lt_s(),
-            0x49 => visitor.visit_i32_lt_u(),
-            0x4a => visitor.visit_i32_gt_s(),
-            0x4b => visitor.visit_i32_gt_u(),
-            0x4c => visitor.visit_i32_le_s(),
-            0x4d => visitor.visit_i32_le_u(),
-            0x4e => visitor.visit_i32_ge_s(),
-            0x4f => visitor.visit_i32_ge_u(),
-            0x50 => visitor.visit_i64_eqz(),
-            0x51 => visitor.visit_i64_eq(),
-            0x52 => visitor.visit_i64_ne(),
-            0x53 => visitor.visit_i64_lt_s(),
-            0x54 => visitor.visit_i64_lt_u(),
-            0x55 => visitor.visit_i64_gt_s(),
-            0x56 => visitor.visit_i64_gt_u(),
-            0x57 => visitor.visit_i64_le_s(),
-            0x58 => visitor.visit_i64_le_u(),
-            0x59 => visitor.visit_i64_ge_s(),
-            0x5a => visitor.visit_i64_ge_u(),
-            0x5b => visitor.visit_f32_eq(),
-            0x5c => visitor.visit_f32_ne(),
-            0x5d => visitor.visit_f32_lt(),
-            0x5e => visitor.visit_f32_gt(),
-            0x5f => visitor.visit_f32_le(),
-            0x60 => visitor.visit_f32_ge(),
-            0x61 => visitor.visit_f64_eq(),
-            0x62 => visitor.visit_f64_ne(),
-            0x63 => visitor.visit_f64_lt(),
-            0x64 => visitor.visit_f64_gt(),
-            0x65 => visitor.visit_f64_le(),
-            0x66 => visitor.visit_f64_ge(),
-            0x67 => visitor.visit_i32_clz(),
-            0x68 => visitor.visit_i32_ctz(),
-            0x69 => visitor.visit_i32_popcnt(),
-            0x6a => visitor.visit_i32_add(),
-            0x6b => visitor.visit_i32_sub(),
-            0x6c => visitor.visit_i32_mul(),
-            0x6d => visitor.visit_i32_div_s(),
-            0x6e => visitor.visit_i32_div_u(),
-            0x6f => visitor.visit_i32_rem_s(),
-            0x70 => visitor.visit_i32_rem_u(),
-            0x71 => visitor.visit_i32_and(),
-            0x72 => visitor.visit_i32_or(),
-            0x73 => visitor.visit_i32_xor(),
-            0x74 => visitor.visit_i32_shl(),
-            0x75 => visitor.visit_i32_shr_s(),
-            0x76 => visitor.visit_i32_shr_u(),
-            0x77 => visitor.visit_i32_rotl(),
-            0x78 => visitor.visit_i32_rotr(),
-            0x79 => visitor.visit_i64_clz(),
-            0x7a => visitor.visit_i64_ctz(),
-            0x7b => visitor.visit_i64_popcnt(),
-            0x7c => visitor.visit_i64_add(),
-            0x7d => visitor.visit_i64_sub(),
-            0x7e => visitor.visit_i64_mul(),
-            0x7f => visitor.visit_i64_div_s(),
-            0x80 => visitor.visit_i64_div_u(),
-            0x81 => visitor.visit_i64_rem_s(),
-            0x82 => visitor.visit_i64_rem_u(),
-            0x83 => visitor.visit_i64_and(),
-            0x84 => visitor.visit_i64_or(),
-            0x85 => visitor.visit_i64_xor(),
-            0x86 => visitor.visit_i64_shl(),
-            0x87 => visitor.visit_i64_shr_s(),
-            0x88 => visitor.visit_i64_shr_u(),
-            0x89 => visitor.visit_i64_rotl(),
-            0x8a => visitor.visit_i64_rotr(),
-            0x8b => visitor.visit_f32_abs(),
-            0x8c => visitor.visit_f32_neg(),
-            0x8d => visitor.visit_f32_ceil(),
-            0x8e => visitor.visit_f32_floor(),
-            0x8f => visitor.visit_f32_trunc(),
-            0x90 => visitor.visit_f32_nearest(),
-            0x91 => visitor.visit_f32_sqrt(),
-            0x92 => visitor.visit_f32_add(),
-            0x93 => visitor.visit_f32_sub(),
-            0x94 => visitor.visit_f32_mul(),
-            0x95 => visitor.visit_f32_div(),
-            0x96 => visitor.visit_f32_min(),
-            0x97 => visitor.visit_f32_max(),
-            0x98 => visitor.visit_f32_copysign(),
-            0x99 => visitor.visit_f64_abs(),
-            0x9a => visitor.visit_f64_neg(),
-            0x9b => visitor.visit_f64_ceil(),
-            0x9c => visitor.visit_f64_floor(),
-            0x9d => visitor.visit_f64_trunc(),
-            0x9e => visitor.visit_f64_nearest(),
-            0x9f => visitor.visit_f64_sqrt(),
-            0xa0 => visitor.visit_f64_add(),
-            0xa1 => visitor.visit_f64_sub(),
-            0xa2 => visitor.visit_f64_mul(),
-            0xa3 => visitor.visit_f64_div(),
-            0xa4 => visitor.visit_f64_min(),
-            0xa5 => visitor.visit_f64_max(),
-            0xa6 => visitor.visit_f64_copysign(),
-            0xa7 => visitor.visit_i32_wrap_i64(),
-            0xa8 => visitor.visit_i32_trunc_f32_s(),
-            0xa9 => visitor.visit_i32_trunc_f32_u(),
-            0xaa => visitor.visit_i32_trunc_f64_s(),
-            0xab => visitor.visit_i32_trunc_f64_u(),
-            0xac => visitor.visit_i64_extend_i32_s(),
-            0xad => visitor.visit_i64_extend_i32_u(),
-            0xae => visitor.visit_i64_trunc_f32_s(),
-            0xaf => visitor.visit_i64_trunc_f32_u(),
-            0xb0 => visitor.visit_i64_trunc_f64_s(),
-            0xb1 => visitor.visit_i64_trunc_f64_u(),
-            0xb2 => visitor.visit_f32_convert_i32_s(),
-            0xb3 => visitor.visit_f32_convert_i32_u(),
-            0xb4 => visitor.visit_f32_convert_i64_s(),
-            0xb5 => visitor.visit_f32_convert_i64_u(),
-            0xb6 => visitor.visit_f32_demote_f64(),
-            0xb7 => visitor.visit_f64_convert_i32_s(),
-            0xb8 => visitor.visit_f64_convert_i32_u(),
-            0xb9 => visitor.visit_f64_convert_i64_s(),
-            0xba => visitor.visit_f64_convert_i64_u(),
-            0xbb => visitor.visit_f64_promote_f32(),
-            0xbc => visitor.visit_i32_reinterpret_f32(),
-            0xbd => visitor.visit_i64_reinterpret_f64(),
-            0xbe => visitor.visit_f32_reinterpret_i32(),
-            0xbf => visitor.visit_f64_reinterpret_i64(),
+            0xd0 => Operator::RefNull {
+                ty: self.read_type()?,
+            },
+            0xd1 => Operator::RefIsNull,
+            0xd2 => Operator::RefFunc {
+                function_index: self.read_var_u32()?,
+            },
 
-            0xc0 => visitor.visit_i32_extend8_s(),
-            0xc1 => visitor.visit_i32_extend16_s(),
-            0xc2 => visitor.visit_i64_extend8_s(),
-            0xc3 => visitor.visit_i64_extend16_s(),
-            0xc4 => visitor.visit_i64_extend32_s(),
+            0xfc => self.read_0xfc_operator()?,
+            0xfd => self.read_0xfd_operator()?,
+            0xfe => self.read_0xfe_operator()?,
 
-            0xd0 => visitor.visit_ref_null(self.read()?),
-            0xd1 => visitor.visit_ref_is_null(),
-            0xd2 => visitor.visit_ref_func(self.read_var_u32()?),
-            0xd3 => visitor.visit_ref_eq(),
-            0xd4 => visitor.visit_ref_as_non_null(),
-            0xd5 => visitor.visit_br_on_null(self.read_var_u32()?),
-            0xd6 => visitor.visit_br_on_non_null(self.read_var_u32()?),
-
-            0xe0 => visitor.visit_cont_new(self.read_var_u32()?),
-            0xe1 => visitor.visit_cont_bind(self.read_var_u32()?, self.read_var_u32()?),
-            0xe2 => visitor.visit_suspend(self.read_var_u32()?),
-            0xe3 => visitor.visit_resume(self.read_var_u32()?, self.read()?),
-            0xe4 => {
-                visitor.visit_resume_throw(self.read_var_u32()?, self.read_var_u32()?, self.read()?)
+            _ => {
+                return Err(BinaryReaderError::new(
+                    format!("Unknown opcode: 0x{:x}", code),
+                    self.original_position() - 1,
+                ));
             }
-            0xe5 => visitor.visit_switch(self.read_var_u32()?, self.read_var_u32()?),
-
-            0xfb => self.visit_0xfb_operator(pos, visitor)?,
-            0xfc => self.visit_0xfc_operator(pos, visitor)?,
-            0xfd => {
-                #[cfg(feature = "simd")]
-                if let Some(mut visitor) = visitor.simd_visitor() {
-                    return self.visit_0xfd_operator(pos, &mut visitor);
-                }
-                bail!(pos, "unexpected SIMD opcode: 0x{code:x}")
-            }
-            0xfe => self.visit_0xfe_operator(pos, visitor)?,
-
-            _ => bail!(pos, "illegal opcode: 0x{code:x}"),
         })
     }
 
-    fn visit_0xfb_operator<T>(
-        &mut self,
-        pos: usize,
-        visitor: &mut T,
-    ) -> Result<<T as VisitOperator<'a>>::Output>
-    where
-        T: VisitOperator<'a>,
-    {
+    fn read_0xfc_operator(&mut self) -> Result<Operator<'a>> {
         let code = self.read_var_u32()?;
         Ok(match code {
-            0x0 => {
-                let type_index = self.read_var_u32()?;
-                visitor.visit_struct_new(type_index)
-            }
-            0x01 => {
-                let type_index = self.read_var_u32()?;
-                visitor.visit_struct_new_default(type_index)
-            }
-            0x02 => {
-                let type_index = self.read_var_u32()?;
-                let field_index = self.read_var_u32()?;
-                visitor.visit_struct_get(type_index, field_index)
-            }
-            0x03 => {
-                let type_index = self.read_var_u32()?;
-                let field_index = self.read_var_u32()?;
-                visitor.visit_struct_get_s(type_index, field_index)
-            }
-            0x04 => {
-                let type_index = self.read_var_u32()?;
-                let field_index = self.read_var_u32()?;
-                visitor.visit_struct_get_u(type_index, field_index)
-            }
-            0x05 => {
-                let type_index = self.read_var_u32()?;
-                let field_index = self.read_var_u32()?;
-                visitor.visit_struct_set(type_index, field_index)
-            }
-            0x06 => {
-                let type_index = self.read_var_u32()?;
-                visitor.visit_array_new(type_index)
-            }
-            0x07 => {
-                let type_index = self.read_var_u32()?;
-                visitor.visit_array_new_default(type_index)
-            }
-            0x08 => {
-                let type_index = self.read_var_u32()?;
-                let n = self.read_var_u32()?;
-                visitor.visit_array_new_fixed(type_index, n)
-            }
-            0x09 => {
-                let type_index = self.read_var_u32()?;
-                let data_index = self.read_var_u32()?;
-                visitor.visit_array_new_data(type_index, data_index)
-            }
-            0x0a => {
-                let type_index = self.read_var_u32()?;
-                let elem_index = self.read_var_u32()?;
-                visitor.visit_array_new_elem(type_index, elem_index)
-            }
-            0x0b => {
-                let type_index = self.read_var_u32()?;
-                visitor.visit_array_get(type_index)
-            }
-            0x0c => {
-                let type_index = self.read_var_u32()?;
-                visitor.visit_array_get_s(type_index)
-            }
-            0x0d => {
-                let type_index = self.read_var_u32()?;
-                visitor.visit_array_get_u(type_index)
-            }
-            0x0e => {
-                let type_index = self.read_var_u32()?;
-                visitor.visit_array_set(type_index)
-            }
-            0x0f => visitor.visit_array_len(),
-            0x10 => {
-                let type_index = self.read_var_u32()?;
-                visitor.visit_array_fill(type_index)
-            }
-            0x11 => {
-                let type_index_dst = self.read_var_u32()?;
-                let type_index_src = self.read_var_u32()?;
-                visitor.visit_array_copy(type_index_dst, type_index_src)
-            }
-            0x12 => {
-                let type_index = self.read_var_u32()?;
-                let data_index = self.read_var_u32()?;
-                visitor.visit_array_init_data(type_index, data_index)
-            }
-            0x13 => {
-                let type_index = self.read_var_u32()?;
-                let elem_index = self.read_var_u32()?;
-                visitor.visit_array_init_elem(type_index, elem_index)
-            }
-            0x14 => visitor.visit_ref_test_non_null(self.read()?),
-            0x15 => visitor.visit_ref_test_nullable(self.read()?),
-            0x16 => visitor.visit_ref_cast_non_null(self.read()?),
-            0x17 => visitor.visit_ref_cast_nullable(self.read()?),
-            0x18 => {
-                let pos = self.original_position();
-                let cast_flags = self.read_u8()?;
-                let relative_depth = self.read_var_u32()?;
-                let (from_type_nullable, to_type_nullable) = match cast_flags {
-                    0b00 => (false, false),
-                    0b01 => (true, false),
-                    0b10 => (false, true),
-                    0b11 => (true, true),
-                    _ => bail!(pos, "invalid cast flags: {cast_flags:08b}"),
-                };
-                let from_heap_type = self.read()?;
-                let from_ref_type =
-                    RefType::new(from_type_nullable, from_heap_type).ok_or_else(|| {
-                        format_err!(pos, "implementation error: type index too large")
-                    })?;
-                let to_heap_type = self.read()?;
-                let to_ref_type =
-                    RefType::new(to_type_nullable, to_heap_type).ok_or_else(|| {
-                        format_err!(pos, "implementation error: type index too large")
-                    })?;
-                visitor.visit_br_on_cast(relative_depth, from_ref_type, to_ref_type)
-            }
-            0x19 => {
-                let pos = self.original_position();
-                let cast_flags = self.read_u8()?;
-                let relative_depth = self.read_var_u32()?;
-                let (from_type_nullable, to_type_nullable) = match cast_flags {
-                    0 => (false, false),
-                    1 => (true, false),
-                    2 => (false, true),
-                    3 => (true, true),
-                    _ => bail!(pos, "invalid cast flags: {cast_flags:08b}"),
-                };
-                let from_heap_type = self.read()?;
-                let from_ref_type =
-                    RefType::new(from_type_nullable, from_heap_type).ok_or_else(|| {
-                        format_err!(pos, "implementation error: type index too large")
-                    })?;
-                let to_heap_type = self.read()?;
-                let to_ref_type =
-                    RefType::new(to_type_nullable, to_heap_type).ok_or_else(|| {
-                        format_err!(pos, "implementation error: type index too large")
-                    })?;
-                visitor.visit_br_on_cast_fail(relative_depth, from_ref_type, to_ref_type)
-            }
-
-            0x1a => visitor.visit_any_convert_extern(),
-            0x1b => visitor.visit_extern_convert_any(),
-
-            0x1c => visitor.visit_ref_i31(),
-            0x1d => visitor.visit_i31_get_s(),
-            0x1e => visitor.visit_i31_get_u(),
-
-            _ => bail!(pos, "unknown 0xfb subopcode: 0x{code:x}"),
-        })
-    }
-
-    fn visit_0xfc_operator<T>(
-        &mut self,
-        pos: usize,
-        visitor: &mut T,
-    ) -> Result<<T as VisitOperator<'a>>::Output>
-    where
-        T: VisitOperator<'a>,
-    {
-        let code = self.read_var_u32()?;
-        Ok(match code {
-            0x00 => visitor.visit_i32_trunc_sat_f32_s(),
-            0x01 => visitor.visit_i32_trunc_sat_f32_u(),
-            0x02 => visitor.visit_i32_trunc_sat_f64_s(),
-            0x03 => visitor.visit_i32_trunc_sat_f64_u(),
-            0x04 => visitor.visit_i64_trunc_sat_f32_s(),
-            0x05 => visitor.visit_i64_trunc_sat_f32_u(),
-            0x06 => visitor.visit_i64_trunc_sat_f64_s(),
-            0x07 => visitor.visit_i64_trunc_sat_f64_u(),
+            0x00 => Operator::I32TruncSatF32S,
+            0x01 => Operator::I32TruncSatF32U,
+            0x02 => Operator::I32TruncSatF64S,
+            0x03 => Operator::I32TruncSatF64U,
+            0x04 => Operator::I64TruncSatF32S,
+            0x05 => Operator::I64TruncSatF32U,
+            0x06 => Operator::I64TruncSatF64S,
+            0x07 => Operator::I64TruncSatF64U,
 
             0x08 => {
                 let segment = self.read_var_u32()?;
                 let mem = self.read_var_u32()?;
-                visitor.visit_memory_init(segment, mem)
+                Operator::MemoryInit { segment, mem }
             }
             0x09 => {
                 let segment = self.read_var_u32()?;
-                visitor.visit_data_drop(segment)
+                Operator::DataDrop { segment }
             }
             0x0a => {
                 let dst = self.read_var_u32()?;
                 let src = self.read_var_u32()?;
-                visitor.visit_memory_copy(dst, src)
+                Operator::MemoryCopy { src, dst }
             }
             0x0b => {
                 let mem = self.read_var_u32()?;
-                visitor.visit_memory_fill(mem)
+                Operator::MemoryFill { mem }
             }
             0x0c => {
                 let segment = self.read_var_u32()?;
                 let table = self.read_var_u32()?;
-                visitor.visit_table_init(segment, table)
+                Operator::TableInit { segment, table }
             }
             0x0d => {
                 let segment = self.read_var_u32()?;
-                visitor.visit_elem_drop(segment)
+                Operator::ElemDrop { segment }
             }
             0x0e => {
                 let dst_table = self.read_var_u32()?;
                 let src_table = self.read_var_u32()?;
-                visitor.visit_table_copy(dst_table, src_table)
+                Operator::TableCopy {
+                    src_table,
+                    dst_table,
+                }
             }
 
             0x0f => {
                 let table = self.read_var_u32()?;
-                visitor.visit_table_grow(table)
+                Operator::TableGrow { table }
             }
             0x10 => {
                 let table = self.read_var_u32()?;
-                visitor.visit_table_size(table)
+                Operator::TableSize { table }
             }
 
             0x11 => {
                 let table = self.read_var_u32()?;
-                visitor.visit_table_fill(table)
+                Operator::TableFill { table }
             }
 
-            0x12 => {
-                let mem = self.read_var_u32()?;
-                visitor.visit_memory_discard(mem)
+            _ => {
+                return Err(BinaryReaderError::new(
+                    format!("Unknown 0xfc subopcode: 0x{:x}", code),
+                    self.original_position() - 1,
+                ));
             }
-
-            0x13 => visitor.visit_i64_add128(),
-            0x14 => visitor.visit_i64_sub128(),
-            0x15 => visitor.visit_i64_mul_wide_s(),
-            0x16 => visitor.visit_i64_mul_wide_u(),
-
-            _ => bail!(pos, "unknown 0xfc subopcode: 0x{code:x}"),
         })
     }
 
-    fn visit_0xfe_operator<T>(
-        &mut self,
-        pos: usize,
-        visitor: &mut T,
-    ) -> Result<<T as VisitOperator<'a>>::Output>
-    where
-        T: VisitOperator<'a>,
-    {
-        let code = self.read_var_u32()?;
-        Ok(match code {
-            0x00 => visitor.visit_memory_atomic_notify(self.read_memarg(2)?),
-            0x01 => visitor.visit_memory_atomic_wait32(self.read_memarg(2)?),
-            0x02 => visitor.visit_memory_atomic_wait64(self.read_memarg(3)?),
-            0x03 => {
-                if self.read_u8()? != 0 {
-                    bail!(pos, "nonzero byte after `atomic.fence`");
-                }
-                visitor.visit_atomic_fence()
-            }
-            0x10 => visitor.visit_i32_atomic_load(self.read_memarg(2)?),
-            0x11 => visitor.visit_i64_atomic_load(self.read_memarg(3)?),
-            0x12 => visitor.visit_i32_atomic_load8_u(self.read_memarg(0)?),
-            0x13 => visitor.visit_i32_atomic_load16_u(self.read_memarg(1)?),
-            0x14 => visitor.visit_i64_atomic_load8_u(self.read_memarg(0)?),
-            0x15 => visitor.visit_i64_atomic_load16_u(self.read_memarg(1)?),
-            0x16 => visitor.visit_i64_atomic_load32_u(self.read_memarg(2)?),
-            0x17 => visitor.visit_i32_atomic_store(self.read_memarg(2)?),
-            0x18 => visitor.visit_i64_atomic_store(self.read_memarg(3)?),
-            0x19 => visitor.visit_i32_atomic_store8(self.read_memarg(0)?),
-            0x1a => visitor.visit_i32_atomic_store16(self.read_memarg(1)?),
-            0x1b => visitor.visit_i64_atomic_store8(self.read_memarg(0)?),
-            0x1c => visitor.visit_i64_atomic_store16(self.read_memarg(1)?),
-            0x1d => visitor.visit_i64_atomic_store32(self.read_memarg(2)?),
-            0x1e => visitor.visit_i32_atomic_rmw_add(self.read_memarg(2)?),
-            0x1f => visitor.visit_i64_atomic_rmw_add(self.read_memarg(3)?),
-            0x20 => visitor.visit_i32_atomic_rmw8_add_u(self.read_memarg(0)?),
-            0x21 => visitor.visit_i32_atomic_rmw16_add_u(self.read_memarg(1)?),
-            0x22 => visitor.visit_i64_atomic_rmw8_add_u(self.read_memarg(0)?),
-            0x23 => visitor.visit_i64_atomic_rmw16_add_u(self.read_memarg(1)?),
-            0x24 => visitor.visit_i64_atomic_rmw32_add_u(self.read_memarg(2)?),
-            0x25 => visitor.visit_i32_atomic_rmw_sub(self.read_memarg(2)?),
-            0x26 => visitor.visit_i64_atomic_rmw_sub(self.read_memarg(3)?),
-            0x27 => visitor.visit_i32_atomic_rmw8_sub_u(self.read_memarg(0)?),
-            0x28 => visitor.visit_i32_atomic_rmw16_sub_u(self.read_memarg(1)?),
-            0x29 => visitor.visit_i64_atomic_rmw8_sub_u(self.read_memarg(0)?),
-            0x2a => visitor.visit_i64_atomic_rmw16_sub_u(self.read_memarg(1)?),
-            0x2b => visitor.visit_i64_atomic_rmw32_sub_u(self.read_memarg(2)?),
-            0x2c => visitor.visit_i32_atomic_rmw_and(self.read_memarg(2)?),
-            0x2d => visitor.visit_i64_atomic_rmw_and(self.read_memarg(3)?),
-            0x2e => visitor.visit_i32_atomic_rmw8_and_u(self.read_memarg(0)?),
-            0x2f => visitor.visit_i32_atomic_rmw16_and_u(self.read_memarg(1)?),
-            0x30 => visitor.visit_i64_atomic_rmw8_and_u(self.read_memarg(0)?),
-            0x31 => visitor.visit_i64_atomic_rmw16_and_u(self.read_memarg(1)?),
-            0x32 => visitor.visit_i64_atomic_rmw32_and_u(self.read_memarg(2)?),
-            0x33 => visitor.visit_i32_atomic_rmw_or(self.read_memarg(2)?),
-            0x34 => visitor.visit_i64_atomic_rmw_or(self.read_memarg(3)?),
-            0x35 => visitor.visit_i32_atomic_rmw8_or_u(self.read_memarg(0)?),
-            0x36 => visitor.visit_i32_atomic_rmw16_or_u(self.read_memarg(1)?),
-            0x37 => visitor.visit_i64_atomic_rmw8_or_u(self.read_memarg(0)?),
-            0x38 => visitor.visit_i64_atomic_rmw16_or_u(self.read_memarg(1)?),
-            0x39 => visitor.visit_i64_atomic_rmw32_or_u(self.read_memarg(2)?),
-            0x3a => visitor.visit_i32_atomic_rmw_xor(self.read_memarg(2)?),
-            0x3b => visitor.visit_i64_atomic_rmw_xor(self.read_memarg(3)?),
-            0x3c => visitor.visit_i32_atomic_rmw8_xor_u(self.read_memarg(0)?),
-            0x3d => visitor.visit_i32_atomic_rmw16_xor_u(self.read_memarg(1)?),
-            0x3e => visitor.visit_i64_atomic_rmw8_xor_u(self.read_memarg(0)?),
-            0x3f => visitor.visit_i64_atomic_rmw16_xor_u(self.read_memarg(1)?),
-            0x40 => visitor.visit_i64_atomic_rmw32_xor_u(self.read_memarg(2)?),
-            0x41 => visitor.visit_i32_atomic_rmw_xchg(self.read_memarg(2)?),
-            0x42 => visitor.visit_i64_atomic_rmw_xchg(self.read_memarg(3)?),
-            0x43 => visitor.visit_i32_atomic_rmw8_xchg_u(self.read_memarg(0)?),
-            0x44 => visitor.visit_i32_atomic_rmw16_xchg_u(self.read_memarg(1)?),
-            0x45 => visitor.visit_i64_atomic_rmw8_xchg_u(self.read_memarg(0)?),
-            0x46 => visitor.visit_i64_atomic_rmw16_xchg_u(self.read_memarg(1)?),
-            0x47 => visitor.visit_i64_atomic_rmw32_xchg_u(self.read_memarg(2)?),
-            0x48 => visitor.visit_i32_atomic_rmw_cmpxchg(self.read_memarg(2)?),
-            0x49 => visitor.visit_i64_atomic_rmw_cmpxchg(self.read_memarg(3)?),
-            0x4a => visitor.visit_i32_atomic_rmw8_cmpxchg_u(self.read_memarg(0)?),
-            0x4b => visitor.visit_i32_atomic_rmw16_cmpxchg_u(self.read_memarg(1)?),
-            0x4c => visitor.visit_i64_atomic_rmw8_cmpxchg_u(self.read_memarg(0)?),
-            0x4d => visitor.visit_i64_atomic_rmw16_cmpxchg_u(self.read_memarg(1)?),
-            0x4e => visitor.visit_i64_atomic_rmw32_cmpxchg_u(self.read_memarg(2)?),
-
-            // Decode shared-everything-threads proposal.
-            0x4f => visitor.visit_global_atomic_get(self.read_ordering()?, self.read_var_u32()?),
-            0x50 => visitor.visit_global_atomic_set(self.read_ordering()?, self.read_var_u32()?),
-            0x51 => {
-                visitor.visit_global_atomic_rmw_add(self.read_ordering()?, self.read_var_u32()?)
-            }
-            0x52 => {
-                visitor.visit_global_atomic_rmw_sub(self.read_ordering()?, self.read_var_u32()?)
-            }
-            0x53 => {
-                visitor.visit_global_atomic_rmw_and(self.read_ordering()?, self.read_var_u32()?)
-            }
-            0x54 => visitor.visit_global_atomic_rmw_or(self.read_ordering()?, self.read_var_u32()?),
-            0x55 => {
-                visitor.visit_global_atomic_rmw_xor(self.read_ordering()?, self.read_var_u32()?)
-            }
-            0x56 => {
-                visitor.visit_global_atomic_rmw_xchg(self.read_ordering()?, self.read_var_u32()?)
-            }
-            0x57 => {
-                visitor.visit_global_atomic_rmw_cmpxchg(self.read_ordering()?, self.read_var_u32()?)
-            }
-            0x58 => visitor.visit_table_atomic_get(self.read_ordering()?, self.read_var_u32()?),
-            0x59 => visitor.visit_table_atomic_set(self.read_ordering()?, self.read_var_u32()?),
-            0x5a => {
-                visitor.visit_table_atomic_rmw_xchg(self.read_ordering()?, self.read_var_u32()?)
-            }
-            0x5b => {
-                visitor.visit_table_atomic_rmw_cmpxchg(self.read_ordering()?, self.read_var_u32()?)
-            }
-            0x5c => visitor.visit_struct_atomic_get(
-                self.read_ordering()?,
-                self.read_var_u32()?,
-                self.read_var_u32()?,
-            ),
-            0x5d => visitor.visit_struct_atomic_get_s(
-                self.read_ordering()?,
-                self.read_var_u32()?,
-                self.read_var_u32()?,
-            ),
-            0x5e => visitor.visit_struct_atomic_get_u(
-                self.read_ordering()?,
-                self.read_var_u32()?,
-                self.read_var_u32()?,
-            ),
-            0x5f => visitor.visit_struct_atomic_set(
-                self.read_ordering()?,
-                self.read_var_u32()?,
-                self.read_var_u32()?,
-            ),
-            0x60 => visitor.visit_struct_atomic_rmw_add(
-                self.read_ordering()?,
-                self.read_var_u32()?,
-                self.read_var_u32()?,
-            ),
-            0x61 => visitor.visit_struct_atomic_rmw_sub(
-                self.read_ordering()?,
-                self.read_var_u32()?,
-                self.read_var_u32()?,
-            ),
-            0x62 => visitor.visit_struct_atomic_rmw_and(
-                self.read_ordering()?,
-                self.read_var_u32()?,
-                self.read_var_u32()?,
-            ),
-            0x63 => visitor.visit_struct_atomic_rmw_or(
-                self.read_ordering()?,
-                self.read_var_u32()?,
-                self.read_var_u32()?,
-            ),
-            0x64 => visitor.visit_struct_atomic_rmw_xor(
-                self.read_ordering()?,
-                self.read_var_u32()?,
-                self.read_var_u32()?,
-            ),
-            0x65 => visitor.visit_struct_atomic_rmw_xchg(
-                self.read_ordering()?,
-                self.read_var_u32()?,
-                self.read_var_u32()?,
-            ),
-            0x66 => visitor.visit_struct_atomic_rmw_cmpxchg(
-                self.read_ordering()?,
-                self.read_var_u32()?,
-                self.read_var_u32()?,
-            ),
-            0x67 => visitor.visit_array_atomic_get(self.read_ordering()?, self.read_var_u32()?),
-            0x68 => visitor.visit_array_atomic_get_s(self.read_ordering()?, self.read_var_u32()?),
-            0x69 => visitor.visit_array_atomic_get_u(self.read_ordering()?, self.read_var_u32()?),
-            0x6a => visitor.visit_array_atomic_set(self.read_ordering()?, self.read_var_u32()?),
-            0x6b => visitor.visit_array_atomic_rmw_add(self.read_ordering()?, self.read_var_u32()?),
-            0x6c => visitor.visit_array_atomic_rmw_sub(self.read_ordering()?, self.read_var_u32()?),
-            0x6d => visitor.visit_array_atomic_rmw_and(self.read_ordering()?, self.read_var_u32()?),
-            0x6e => visitor.visit_array_atomic_rmw_or(self.read_ordering()?, self.read_var_u32()?),
-            0x6f => visitor.visit_array_atomic_rmw_xor(self.read_ordering()?, self.read_var_u32()?),
-            0x70 => {
-                visitor.visit_array_atomic_rmw_xchg(self.read_ordering()?, self.read_var_u32()?)
-            }
-            0x71 => {
-                visitor.visit_array_atomic_rmw_cmpxchg(self.read_ordering()?, self.read_var_u32()?)
-            }
-            0x72 => visitor.visit_ref_i31_shared(),
-
-            _ => bail!(pos, "unknown 0xfe subopcode: 0x{code:x}"),
-        })
-    }
-
-    /// Reads the next available `Operator`.
-    ///
-    /// # Errors
-    ///
-    /// If `BinaryReader` has less bytes remaining than required to parse
-    /// the `Operator`.
-    pub fn read_operator(&mut self) -> Result<Operator<'a>> {
-        self.visit_operator(&mut OperatorFactory::new())
-    }
-
-    /// Returns whether there is an `end` opcode followed by eof remaining in
-    /// this reader.
-    pub fn is_end_then_eof(&self) -> bool {
-        self.remaining_buffer() == &[0x0b]
-    }
-
-    #[cfg(feature = "simd")]
-    fn read_lane_index(&mut self, max: u8) -> Result<u8> {
+    fn read_lane_index(&mut self, max: u32) -> Result<SIMDLaneIndex> {
         let index = self.read_u8()?;
         if index >= max {
             return Err(BinaryReaderError::new(
@@ -1592,90 +1494,425 @@ impl<'a> BinaryReader<'a> {
                 self.original_position() - 1,
             ));
         }
-        Ok(index)
+        Ok(index as SIMDLaneIndex)
     }
 
-    #[cfg(feature = "simd")]
     fn read_v128(&mut self) -> Result<V128> {
         let mut bytes = [0; 16];
         bytes.clone_from_slice(self.read_bytes(16)?);
         Ok(V128(bytes))
     }
 
-    pub(crate) fn read_header_version(&mut self) -> Result<u32> {
+    fn read_0xfd_operator(&mut self) -> Result<Operator<'a>> {
+        let code = self.read_var_u32()?;
+        Ok(match code {
+            0x00 => Operator::V128Load {
+                memarg: self.read_memarg()?,
+            },
+            0x01 => Operator::V128Load8x8S {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x02 => Operator::V128Load8x8U {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x03 => Operator::V128Load16x4S {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x04 => Operator::V128Load16x4U {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x05 => Operator::V128Load32x2S {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x06 => Operator::V128Load32x2U {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x07 => Operator::V128Load8Splat {
+                memarg: self.read_memarg_of_align(0)?,
+            },
+            0x08 => Operator::V128Load16Splat {
+                memarg: self.read_memarg_of_align(1)?,
+            },
+            0x09 => Operator::V128Load32Splat {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0x0a => Operator::V128Load64Splat {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x0b => Operator::V128Store {
+                memarg: self.read_memarg()?,
+            },
+            0x0c => Operator::V128Const {
+                value: self.read_v128()?,
+            },
+            0x0d => {
+                let mut lanes = [0 as SIMDLaneIndex; 16];
+                for lane in &mut lanes {
+                    *lane = self.read_lane_index(32)?
+                }
+                Operator::I8x16Shuffle { lanes }
+            }
+            0x0e => Operator::I8x16Swizzle,
+            0x0f => Operator::I8x16Splat,
+            0x10 => Operator::I16x8Splat,
+            0x11 => Operator::I32x4Splat,
+            0x12 => Operator::I64x2Splat,
+            0x13 => Operator::F32x4Splat,
+            0x14 => Operator::F64x2Splat,
+            0x15 => Operator::I8x16ExtractLaneS {
+                lane: self.read_lane_index(16)?,
+            },
+            0x16 => Operator::I8x16ExtractLaneU {
+                lane: self.read_lane_index(16)?,
+            },
+            0x17 => Operator::I8x16ReplaceLane {
+                lane: self.read_lane_index(16)?,
+            },
+            0x18 => Operator::I16x8ExtractLaneS {
+                lane: self.read_lane_index(8)?,
+            },
+            0x19 => Operator::I16x8ExtractLaneU {
+                lane: self.read_lane_index(8)?,
+            },
+            0x1a => Operator::I16x8ReplaceLane {
+                lane: self.read_lane_index(8)?,
+            },
+            0x1b => Operator::I32x4ExtractLane {
+                lane: self.read_lane_index(4)?,
+            },
+            0x1c => Operator::I32x4ReplaceLane {
+                lane: self.read_lane_index(4)?,
+            },
+            0x1d => Operator::I64x2ExtractLane {
+                lane: self.read_lane_index(2)?,
+            },
+            0x1e => Operator::I64x2ReplaceLane {
+                lane: self.read_lane_index(2)?,
+            },
+            0x1f => Operator::F32x4ExtractLane {
+                lane: self.read_lane_index(4)?,
+            },
+            0x20 => Operator::F32x4ReplaceLane {
+                lane: self.read_lane_index(4)?,
+            },
+            0x21 => Operator::F64x2ExtractLane {
+                lane: self.read_lane_index(2)?,
+            },
+            0x22 => Operator::F64x2ReplaceLane {
+                lane: self.read_lane_index(2)?,
+            },
+            0x23 => Operator::I8x16Eq,
+            0x24 => Operator::I8x16Ne,
+            0x25 => Operator::I8x16LtS,
+            0x26 => Operator::I8x16LtU,
+            0x27 => Operator::I8x16GtS,
+            0x28 => Operator::I8x16GtU,
+            0x29 => Operator::I8x16LeS,
+            0x2a => Operator::I8x16LeU,
+            0x2b => Operator::I8x16GeS,
+            0x2c => Operator::I8x16GeU,
+            0x2d => Operator::I16x8Eq,
+            0x2e => Operator::I16x8Ne,
+            0x2f => Operator::I16x8LtS,
+            0x30 => Operator::I16x8LtU,
+            0x31 => Operator::I16x8GtS,
+            0x32 => Operator::I16x8GtU,
+            0x33 => Operator::I16x8LeS,
+            0x34 => Operator::I16x8LeU,
+            0x35 => Operator::I16x8GeS,
+            0x36 => Operator::I16x8GeU,
+            0x37 => Operator::I32x4Eq,
+            0x38 => Operator::I32x4Ne,
+            0x39 => Operator::I32x4LtS,
+            0x3a => Operator::I32x4LtU,
+            0x3b => Operator::I32x4GtS,
+            0x3c => Operator::I32x4GtU,
+            0x3d => Operator::I32x4LeS,
+            0x3e => Operator::I32x4LeU,
+            0x3f => Operator::I32x4GeS,
+            0x40 => Operator::I32x4GeU,
+            0x41 => Operator::F32x4Eq,
+            0x42 => Operator::F32x4Ne,
+            0x43 => Operator::F32x4Lt,
+            0x44 => Operator::F32x4Gt,
+            0x45 => Operator::F32x4Le,
+            0x46 => Operator::F32x4Ge,
+            0x47 => Operator::F64x2Eq,
+            0x48 => Operator::F64x2Ne,
+            0x49 => Operator::F64x2Lt,
+            0x4a => Operator::F64x2Gt,
+            0x4b => Operator::F64x2Le,
+            0x4c => Operator::F64x2Ge,
+            0x4d => Operator::V128Not,
+            0x4e => Operator::V128And,
+            0x4f => Operator::V128AndNot,
+            0x50 => Operator::V128Or,
+            0x51 => Operator::V128Xor,
+            0x52 => Operator::V128Bitselect,
+            0x53 => Operator::V128AnyTrue,
+            0x54 => Operator::V128Load8Lane {
+                memarg: self.read_memarg()?,
+                lane: self.read_lane_index(16)?,
+            },
+            0x55 => Operator::V128Load16Lane {
+                memarg: self.read_memarg()?,
+                lane: self.read_lane_index(8)?,
+            },
+            0x56 => Operator::V128Load32Lane {
+                memarg: self.read_memarg()?,
+                lane: self.read_lane_index(4)?,
+            },
+            0x57 => Operator::V128Load64Lane {
+                memarg: self.read_memarg()?,
+                lane: self.read_lane_index(2)?,
+            },
+            0x58 => Operator::V128Store8Lane {
+                memarg: self.read_memarg()?,
+                lane: self.read_lane_index(16)?,
+            },
+            0x59 => Operator::V128Store16Lane {
+                memarg: self.read_memarg()?,
+                lane: self.read_lane_index(8)?,
+            },
+            0x5a => Operator::V128Store32Lane {
+                memarg: self.read_memarg()?,
+                lane: self.read_lane_index(4)?,
+            },
+            0x5b => Operator::V128Store64Lane {
+                memarg: self.read_memarg()?,
+                lane: self.read_lane_index(2)?,
+            },
+            0x5c => Operator::V128Load32Zero {
+                memarg: self.read_memarg_of_align(2)?,
+            },
+            0x5d => Operator::V128Load64Zero {
+                memarg: self.read_memarg_of_align(3)?,
+            },
+            0x5e => Operator::F32x4DemoteF64x2Zero,
+            0x5f => Operator::F64x2PromoteLowF32x4,
+            0x60 => Operator::I8x16Abs,
+            0x61 => Operator::I8x16Neg,
+            0x62 => Operator::I8x16Popcnt,
+            0x63 => Operator::I8x16AllTrue,
+            0x64 => Operator::I8x16Bitmask,
+            0x65 => Operator::I8x16NarrowI16x8S,
+            0x66 => Operator::I8x16NarrowI16x8U,
+            0x67 => Operator::F32x4Ceil,
+            0x68 => Operator::F32x4Floor,
+            0x69 => Operator::F32x4Trunc,
+            0x6a => Operator::F32x4Nearest,
+            0x6b => Operator::I8x16Shl,
+            0x6c => Operator::I8x16ShrS,
+            0x6d => Operator::I8x16ShrU,
+            0x6e => Operator::I8x16Add,
+            0x6f => Operator::I8x16AddSatS,
+            0x70 => Operator::I8x16AddSatU,
+            0x71 => Operator::I8x16Sub,
+            0x72 => Operator::I8x16SubSatS,
+            0x73 => Operator::I8x16SubSatU,
+            0x74 => Operator::F64x2Ceil,
+            0x75 => Operator::F64x2Floor,
+            0x76 => Operator::I8x16MinS,
+            0x77 => Operator::I8x16MinU,
+            0x78 => Operator::I8x16MaxS,
+            0x79 => Operator::I8x16MaxU,
+            0x7a => Operator::F64x2Trunc,
+            0x7b => Operator::I8x16RoundingAverageU,
+            0x7c => Operator::I16x8ExtAddPairwiseI8x16S,
+            0x7d => Operator::I16x8ExtAddPairwiseI8x16U,
+            0x7e => Operator::I32x4ExtAddPairwiseI16x8S,
+            0x7f => Operator::I32x4ExtAddPairwiseI16x8U,
+            0x80 => Operator::I16x8Abs,
+            0x81 => Operator::I16x8Neg,
+            0x82 => Operator::I16x8Q15MulrSatS,
+            0x83 => Operator::I16x8AllTrue,
+            0x84 => Operator::I16x8Bitmask,
+            0x85 => Operator::I16x8NarrowI32x4S,
+            0x86 => Operator::I16x8NarrowI32x4U,
+            0x87 => Operator::I16x8ExtendLowI8x16S,
+            0x88 => Operator::I16x8ExtendHighI8x16S,
+            0x89 => Operator::I16x8ExtendLowI8x16U,
+            0x8a => Operator::I16x8ExtendHighI8x16U,
+            0x8b => Operator::I16x8Shl,
+            0x8c => Operator::I16x8ShrS,
+            0x8d => Operator::I16x8ShrU,
+            0x8e => Operator::I16x8Add,
+            0x8f => Operator::I16x8AddSatS,
+            0x90 => Operator::I16x8AddSatU,
+            0x91 => Operator::I16x8Sub,
+            0x92 => Operator::I16x8SubSatS,
+            0x93 => Operator::I16x8SubSatU,
+            0x94 => Operator::F64x2Nearest,
+            0x95 => Operator::I16x8Mul,
+            0x96 => Operator::I16x8MinS,
+            0x97 => Operator::I16x8MinU,
+            0x98 => Operator::I16x8MaxS,
+            0x99 => Operator::I16x8MaxU,
+            0x9b => Operator::I16x8RoundingAverageU,
+            0x9c => Operator::I16x8ExtMulLowI8x16S,
+            0x9d => Operator::I16x8ExtMulHighI8x16S,
+            0x9e => Operator::I16x8ExtMulLowI8x16U,
+            0x9f => Operator::I16x8ExtMulHighI8x16U,
+            0xa0 => Operator::I32x4Abs,
+            0xa1 => Operator::I32x4Neg,
+            0xa3 => Operator::I32x4AllTrue,
+            0xa4 => Operator::I32x4Bitmask,
+            0xa7 => Operator::I32x4ExtendLowI16x8S,
+            0xa8 => Operator::I32x4ExtendHighI16x8S,
+            0xa9 => Operator::I32x4ExtendLowI16x8U,
+            0xaa => Operator::I32x4ExtendHighI16x8U,
+            0xab => Operator::I32x4Shl,
+            0xac => Operator::I32x4ShrS,
+            0xad => Operator::I32x4ShrU,
+            0xae => Operator::I32x4Add,
+            0xb1 => Operator::I32x4Sub,
+            0xb5 => Operator::I32x4Mul,
+            0xb6 => Operator::I32x4MinS,
+            0xb7 => Operator::I32x4MinU,
+            0xb8 => Operator::I32x4MaxS,
+            0xb9 => Operator::I32x4MaxU,
+            0xba => Operator::I32x4DotI16x8S,
+            0xbc => Operator::I32x4ExtMulLowI16x8S,
+            0xbd => Operator::I32x4ExtMulHighI16x8S,
+            0xbe => Operator::I32x4ExtMulLowI16x8U,
+            0xbf => Operator::I32x4ExtMulHighI16x8U,
+            0xc0 => Operator::I64x2Abs,
+            0xc1 => Operator::I64x2Neg,
+            0xc3 => Operator::I64x2AllTrue,
+            0xc4 => Operator::I64x2Bitmask,
+            0xc7 => Operator::I64x2ExtendLowI32x4S,
+            0xc8 => Operator::I64x2ExtendHighI32x4S,
+            0xc9 => Operator::I64x2ExtendLowI32x4U,
+            0xca => Operator::I64x2ExtendHighI32x4U,
+            0xcb => Operator::I64x2Shl,
+            0xcc => Operator::I64x2ShrS,
+            0xcd => Operator::I64x2ShrU,
+            0xce => Operator::I64x2Add,
+            0xd1 => Operator::I64x2Sub,
+            0xd5 => Operator::I64x2Mul,
+            0xd6 => Operator::I64x2Eq,
+            0xd7 => Operator::I64x2Ne,
+            0xd8 => Operator::I64x2LtS,
+            0xd9 => Operator::I64x2GtS,
+            0xda => Operator::I64x2LeS,
+            0xdb => Operator::I64x2GeS,
+            0xdc => Operator::I64x2ExtMulLowI32x4S,
+            0xdd => Operator::I64x2ExtMulHighI32x4S,
+            0xde => Operator::I64x2ExtMulLowI32x4U,
+            0xdf => Operator::I64x2ExtMulHighI32x4U,
+            0xe0 => Operator::F32x4Abs,
+            0xe1 => Operator::F32x4Neg,
+            0xe3 => Operator::F32x4Sqrt,
+            0xe4 => Operator::F32x4Add,
+            0xe5 => Operator::F32x4Sub,
+            0xe6 => Operator::F32x4Mul,
+            0xe7 => Operator::F32x4Div,
+            0xe8 => Operator::F32x4Min,
+            0xe9 => Operator::F32x4Max,
+            0xea => Operator::F32x4PMin,
+            0xeb => Operator::F32x4PMax,
+            0xec => Operator::F64x2Abs,
+            0xed => Operator::F64x2Neg,
+            0xef => Operator::F64x2Sqrt,
+            0xf0 => Operator::F64x2Add,
+            0xf1 => Operator::F64x2Sub,
+            0xf2 => Operator::F64x2Mul,
+            0xf3 => Operator::F64x2Div,
+            0xf4 => Operator::F64x2Min,
+            0xf5 => Operator::F64x2Max,
+            0xf6 => Operator::F64x2PMin,
+            0xf7 => Operator::F64x2PMax,
+            0xf8 => Operator::I32x4TruncSatF32x4S,
+            0xf9 => Operator::I32x4TruncSatF32x4U,
+            0xfa => Operator::F32x4ConvertI32x4S,
+            0xfb => Operator::F32x4ConvertI32x4U,
+            0xfc => Operator::I32x4TruncSatF64x2SZero,
+            0xfd => Operator::I32x4TruncSatF64x2UZero,
+            0xfe => Operator::F64x2ConvertLowI32x4S,
+            0xff => Operator::F64x2ConvertLowI32x4U,
+
+            _ => {
+                return Err(BinaryReaderError::new(
+                    format!("Unknown 0xfd subopcode: 0x{:x}", code),
+                    self.original_position() - 1,
+                ));
+            }
+        })
+    }
+
+    pub(crate) fn read_file_header(&mut self) -> Result<u32> {
         let magic_number = self.read_bytes(4)?;
         if magic_number != WASM_MAGIC_NUMBER {
             return Err(BinaryReaderError::new(
-                format!("magic header not detected: bad magic number - expected={WASM_MAGIC_NUMBER:#x?} actual={magic_number:#x?}"),
+                "Bad magic number",
                 self.original_position() - 4,
             ));
         }
-        self.read_u32()
+        let version = self.read_u32()?;
+        if version != WASM_SUPPORTED_VERSION && version != WASM_EXPERIMENTAL_VERSION {
+            return Err(BinaryReaderError::new(
+                "Bad version number",
+                self.original_position() - 4,
+            ));
+        }
+        Ok(version)
     }
 
-    pub(crate) fn skip_const_expr(&mut self) -> Result<()> {
-        // TODO add skip_operator() method and/or validate ConstExpr operators.
+    pub(crate) fn read_name_type(&mut self) -> Result<NameType> {
+        let code = self.read_var_u7()?;
+        match code {
+            0 => Ok(NameType::Module),
+            1 => Ok(NameType::Function),
+            2 => Ok(NameType::Local),
+            _ => Ok(NameType::Unknown(code)),
+        }
+    }
+
+    pub(crate) fn read_linking_type(&mut self) -> Result<LinkingType> {
+        let ty = self.read_var_u32()?;
+        Ok(match ty {
+            1 => LinkingType::StackPointer(self.read_var_u32()?),
+            _ => {
+                return Err(BinaryReaderError::new(
+                    "Invalid linking type",
+                    self.original_position() - 1,
+                ));
+            }
+        })
+    }
+
+    pub(crate) fn read_reloc_type(&mut self) -> Result<RelocType> {
+        let code = self.read_var_u7()?;
+        match code {
+            0 => Ok(RelocType::FunctionIndexLEB),
+            1 => Ok(RelocType::TableIndexSLEB),
+            2 => Ok(RelocType::TableIndexI32),
+            3 => Ok(RelocType::GlobalAddrLEB),
+            4 => Ok(RelocType::GlobalAddrSLEB),
+            5 => Ok(RelocType::GlobalAddrI32),
+            6 => Ok(RelocType::TypeIndexLEB),
+            7 => Ok(RelocType::GlobalIndexLEB),
+            _ => Err(BinaryReaderError::new(
+                "Invalid reloc type",
+                self.original_position() - 1,
+            )),
+        }
+    }
+
+    pub(crate) fn skip_init_expr(&mut self) -> Result<()> {
+        // TODO add skip_operator() method and/or validate init_expr operators.
         loop {
             if let Operator::End = self.read_operator()? {
                 return Ok(());
             }
         }
     }
-
-    fn read_memory_index_or_zero_if_not_multi_memory(&mut self) -> Result<u32> {
-        if self.multi_memory() {
-            self.read_var_u32()
-        } else {
-            // Before bulk memory this byte was required to be a single zero
-            // byte, not a LEB-encoded zero, so require a precise zero byte.
-            match self.read_u8()? {
-                0 => Ok(0),
-                _ => bail!(self.original_position() - 1, "zero byte expected"),
-            }
-        }
-    }
-
-    fn read_table_index_or_zero_if_not_reference_types(&mut self) -> Result<u32> {
-        if self.reference_types() {
-            self.read_var_u32()
-        } else {
-            // Before reference types this byte was required to be a single zero
-            // byte, not a LEB-encoded zero, so require a precise zero byte.
-            match self.read_u8()? {
-                0 => Ok(0),
-                _ => bail!(self.original_position() - 1, "zero byte expected"),
-            }
-        }
-    }
 }
-
-// See documentation on `BinaryReader::features` for more on what's going on
-// here.
-macro_rules! define_feature_accessor {
-    ($feature:ident = $default:expr) => {
-        impl BinaryReader<'_> {
-            #[inline]
-            #[allow(dead_code)]
-            pub(crate) fn $feature(&self) -> bool {
-                #[cfg(feature = "features")]
-                {
-                    self.features.$feature()
-                }
-                #[cfg(not(feature = "features"))]
-                {
-                    true
-                }
-            }
-        }
-    };
-}
-
-super::features::foreach_wasm_feature!(define_feature_accessor);
 
 impl<'a> BrTable<'a> {
     /// Returns the number of `br_table` entries, not including the default
     /// label
-    pub fn len(&self) -> u32 {
+    pub fn len(&self) -> usize {
         self.cnt
     }
 
@@ -1684,73 +1921,42 @@ impl<'a> BrTable<'a> {
         self.len() == 0
     }
 
-    /// Returns the default target of this `br_table` instruction.
-    pub fn default(&self) -> u32 {
-        self.default
-    }
-
     /// Returns the list of targets that this `br_table` instruction will be
     /// jumping to.
     ///
     /// This method will return an iterator which parses each target of this
-    /// `br_table` except the default target. The returned iterator will
-    /// yield `self.len()` elements.
+    /// `br_table` as well as the default target. The returned iterator will
+    /// yield `self.len() + 1` elements.
     ///
-    /// # Examples
+    /// Each iterator item is a tuple of `(u32, bool)`, where the first item is
+    /// the relative depth of the jump and the second item is `true` if the item
+    /// is the default label. You're guaranteed that `true` will only show up
+    /// for the final element of the iterator.
+    ///
+    /// #Examples
     ///
     /// ```rust
-    /// use wasmparser::{BinaryReader, Operator};
-    ///
     /// let buf = [0x0e, 0x02, 0x01, 0x02, 0x00];
-    /// let mut reader = BinaryReader::new(&buf, 0);
+    /// let mut reader = wasmparser::BinaryReader::new(&buf);
     /// let op = reader.read_operator().unwrap();
-    /// if let Operator::BrTable { targets } = op {
-    ///     let targets = targets.targets().collect::<Result<Vec<_>, _>>().unwrap();
-    ///     assert_eq!(targets, [1, 2]);
+    /// if let wasmparser::Operator::BrTable { table } = op {
+    ///     let targets = table.targets().collect::<Result<Vec<_>, _>>().unwrap();
+    ///     assert_eq!(targets, [(1, false), (2, false), (0, true)]);
     /// }
     /// ```
-    pub fn targets(&self) -> BrTableTargets {
-        BrTableTargets {
-            reader: self.reader.clone(),
-            remaining: self.cnt,
-        }
-    }
-}
-
-/// An iterator over the targets of a [`BrTable`].
-///
-/// # Note
-///
-/// This iterator parses each target of the underlying `br_table`
-/// except for the default target.
-/// The iterator will yield exactly as many targets as the `br_table` has.
-pub struct BrTableTargets<'a> {
-    reader: crate::BinaryReader<'a>,
-    remaining: u32,
-}
-
-impl<'a> Iterator for BrTableTargets<'a> {
-    type Item = Result<u32>;
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let remaining = usize::try_from(self.remaining).unwrap_or_else(|error| {
-            panic!("could not convert remaining `u32` into `usize`: {}", error)
-        });
-        (remaining, Some(remaining))
-    }
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.remaining == 0 {
-            if !self.reader.eof() {
-                return Some(Err(BinaryReaderError::new(
+    pub fn targets<'b>(&'b self) -> impl Iterator<Item = Result<(u32, bool)>> + 'b {
+        let mut reader = self.reader.clone();
+        (0..self.cnt + 1).map(move |i| {
+            let label = reader.read_var_u32()?;
+            let ret = (label, i == self.cnt);
+            if ret.1 && !reader.eof() {
+                return Err(BinaryReaderError::new(
                     "trailing data in br_table",
-                    self.reader.original_position(),
-                )));
+                    reader.original_position(),
+                ));
             }
-            return None;
-        }
-        self.remaining -= 1;
-        Some(self.reader.read_var_u32())
+            Ok(ret)
+        })
     }
 }
 
@@ -1758,7 +1964,6 @@ impl fmt::Debug for BrTable<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut f = f.debug_struct("BrTable");
         f.field("count", &self.cnt);
-        f.field("default", &self.default);
         match self.targets().collect::<Result<Vec<_>>>() {
             Ok(targets) => {
                 f.field("targets", &targets);
@@ -1768,88 +1973,5 @@ impl fmt::Debug for BrTable<'_> {
             }
         }
         f.finish()
-    }
-}
-
-/// A factory to construct [`Operator`] instances via the [`VisitOperator`] trait.
-struct OperatorFactory<'a> {
-    marker: core::marker::PhantomData<fn() -> &'a ()>,
-}
-
-impl<'a> OperatorFactory<'a> {
-    /// Creates a new [`OperatorFactory`].
-    fn new() -> Self {
-        Self {
-            marker: core::marker::PhantomData,
-        }
-    }
-}
-
-macro_rules! define_visit_operator {
-    ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
-        $(
-            fn $visit(&mut self $($(,$arg: $argty)*)?) -> Operator<'a> {
-                Operator::$op $({ $($arg),* })?
-            }
-        )*
-    }
-}
-
-impl<'a> VisitOperator<'a> for OperatorFactory<'a> {
-    type Output = Operator<'a>;
-
-    #[cfg(feature = "simd")]
-    fn simd_visitor(&mut self) -> Option<&mut dyn VisitSimdOperator<'a, Output = Self::Output>> {
-        Some(self)
-    }
-
-    crate::for_each_visit_operator!(define_visit_operator);
-}
-
-#[cfg(feature = "simd")]
-impl<'a> VisitSimdOperator<'a> for OperatorFactory<'a> {
-    crate::for_each_visit_simd_operator!(define_visit_operator);
-}
-
-/// Iterator returned from [`BinaryReader::read_iter`].
-pub struct BinaryReaderIter<'a, 'me, T: FromReader<'a>> {
-    remaining: usize,
-    pub(crate) reader: &'me mut BinaryReader<'a>,
-    _marker: marker::PhantomData<T>,
-}
-
-impl<'a, T> Iterator for BinaryReaderIter<'a, '_, T>
-where
-    T: FromReader<'a>,
-{
-    type Item = Result<T>;
-
-    fn next(&mut self) -> Option<Result<T>> {
-        if self.remaining == 0 {
-            None
-        } else {
-            let ret = self.reader.read::<T>();
-            if ret.is_err() {
-                self.remaining = 0;
-            } else {
-                self.remaining -= 1;
-            }
-            Some(ret)
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.remaining, Some(self.remaining))
-    }
-}
-
-impl<'a, T> Drop for BinaryReaderIter<'a, '_, T>
-where
-    T: FromReader<'a>,
-{
-    fn drop(&mut self) {
-        while self.next().is_some() {
-            // ...
-        }
     }
 }

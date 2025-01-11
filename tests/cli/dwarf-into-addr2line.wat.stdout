@@ -1,4 +1,0 @@
-0x18: dwarf(name) tests/cli/dwarf-into-addr2line.wat:5:10
-0x1a: dwarf(name) tests/cli/dwarf-into-addr2line.wat:6:10
-0x1e: another-function tests/cli/dwarf-into-addr2line.wat:10:10
-0x20: another-function tests/cli/dwarf-into-addr2line.wat:11:10

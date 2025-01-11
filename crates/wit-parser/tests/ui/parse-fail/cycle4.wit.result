@@ -1,5 +1,0 @@
-type `bar` depends on itself
-     --> tests/ui/parse-fail/cycle4.wit:5:14
-      |
-    5 |   type foo = bar;
-      |              ^--

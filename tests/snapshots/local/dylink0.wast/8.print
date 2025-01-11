@@ -1,7 +1,0 @@
-(module
-  (@dylink.0
-    (export-info "a" binding-weak binding-local visibility-hidden undefined exported explicit-name no-strip tls absolute 0xfffffc08)
-    (export-info "a" binding-local)
-    (export-info "a" binding-weak binding-local undefined)
-  )
-)
