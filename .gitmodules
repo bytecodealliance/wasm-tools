@@ -3,4 +3,4 @@
 	url = https://github.com/WebAssembly/wabt
 [submodule "tests/testsuite"]
 	path = tests/testsuite
-	url = https://github.com/WebAssembly/testsuite
+	url = https://github.com/WebAssembly/testsuite.git
