@@ -796,6 +796,13 @@ impl Config {
             self.shared_everything_threads_enabled = false;
         }
 
+        // shared-everything-threads depends on GC, so if gc is disabled then
+        // also disable shared-everything-threads.
+        // capped at 1 and disable gc as well.
+        if !self.gc_enabled {
+            self.shared_everything_threads_enabled = false;
+        }
+
         // If simd is disabled then disable all relaxed simd instructions as
         // well.
         if !self.simd_enabled {
