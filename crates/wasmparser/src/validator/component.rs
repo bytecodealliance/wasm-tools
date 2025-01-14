@@ -2045,6 +2045,13 @@ impl ComponentState {
             bail!(offset, "cannot specify callback without lifting async")
         }
 
+        if post_return.is_some() && async_ {
+            bail!(
+                offset,
+                "cannot specify post-return function when lifting async"
+            )
+        }
+
         if info.requires_memory && memory.is_none() {
             return Err(BinaryReaderError::new(
                 "canonical option `memory` is required",
