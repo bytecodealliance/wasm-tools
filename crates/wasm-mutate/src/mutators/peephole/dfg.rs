@@ -1076,6 +1076,35 @@ impl<'a> DFGBuilder {
                 Operator::F32x4DemoteF64x2Zero => self.unop(idx, Lang::F32x4DemoteF64x2Zero),
                 Operator::F64x2PromoteLowF32x4 => self.unop(idx, Lang::F64x2PromoteLowF32x4),
 
+                Operator::I8x16RelaxedSwizzle => self.binop(idx, Lang::I8x16RelaxedSwizzle),
+                Operator::I32x4RelaxedTruncF32x4S => self.unop(idx, Lang::I32x4RelaxedTruncF32x4S),
+                Operator::I32x4RelaxedTruncF32x4U => self.unop(idx, Lang::I32x4RelaxedTruncF32x4U),
+                Operator::I32x4RelaxedTruncF64x2SZero => {
+                    self.unop(idx, Lang::I32x4RelaxedTruncF64x2SZero)
+                }
+                Operator::I32x4RelaxedTruncF64x2UZero => {
+                    self.unop(idx, Lang::I32x4RelaxedTruncF64x2UZero)
+                }
+                Operator::F32x4RelaxedMadd => self.ternop(idx, Lang::F32x4RelaxedMadd),
+                Operator::F32x4RelaxedNmadd => self.ternop(idx, Lang::F32x4RelaxedNmadd),
+                Operator::F64x2RelaxedMadd => self.ternop(idx, Lang::F64x2RelaxedMadd),
+                Operator::F64x2RelaxedNmadd => self.ternop(idx, Lang::F64x2RelaxedNmadd),
+                Operator::I8x16RelaxedLaneselect => self.ternop(idx, Lang::I8x16RelaxedLaneselect),
+                Operator::I16x8RelaxedLaneselect => self.ternop(idx, Lang::I16x8RelaxedLaneselect),
+                Operator::I32x4RelaxedLaneselect => self.ternop(idx, Lang::I32x4RelaxedLaneselect),
+                Operator::I64x2RelaxedLaneselect => self.ternop(idx, Lang::I64x2RelaxedLaneselect),
+                Operator::F32x4RelaxedMin => self.binop(idx, Lang::F32x4RelaxedMin),
+                Operator::F32x4RelaxedMax => self.binop(idx, Lang::F32x4RelaxedMax),
+                Operator::F64x2RelaxedMin => self.binop(idx, Lang::F64x2RelaxedMin),
+                Operator::F64x2RelaxedMax => self.binop(idx, Lang::F64x2RelaxedMax),
+                Operator::I16x8RelaxedQ15mulrS => self.binop(idx, Lang::I16x8RelaxedQ15mulrS),
+                Operator::I16x8RelaxedDotI8x16I7x16S => {
+                    self.binop(idx, Lang::I16x8RelaxedDotI8x16I7x16S)
+                }
+                Operator::I32x4RelaxedDotI8x16I7x16AddS => {
+                    self.ternop(idx, Lang::I32x4RelaxedDotI8x16I7x16AddS)
+                }
+
                 op => {
                     // If the operator is not implemented, warn and bail out. We
                     // can't use `undef` for these because if we try to rewrite

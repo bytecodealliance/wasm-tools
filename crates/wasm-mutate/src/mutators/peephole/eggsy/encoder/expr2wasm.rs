@@ -733,6 +733,35 @@ pub fn expr2wasm(
                     Lang::F64x2ConvertLowI32x4U(_) => insn(Instruction::F64x2ConvertLowI32x4U),
                     Lang::F32x4DemoteF64x2Zero(_) => insn(Instruction::F32x4DemoteF64x2Zero),
                     Lang::F64x2PromoteLowF32x4(_) => insn(Instruction::F64x2PromoteLowF32x4),
+
+                    Lang::I8x16RelaxedSwizzle(_) => insn(Instruction::I8x16RelaxedSwizzle),
+                    Lang::I32x4RelaxedTruncF32x4S(_) => insn(Instruction::I32x4RelaxedTruncF32x4S),
+                    Lang::I32x4RelaxedTruncF32x4U(_) => insn(Instruction::I32x4RelaxedTruncF32x4U),
+                    Lang::I32x4RelaxedTruncF64x2SZero(_) => {
+                        insn(Instruction::I32x4RelaxedTruncF64x2SZero)
+                    }
+                    Lang::I32x4RelaxedTruncF64x2UZero(_) => {
+                        insn(Instruction::I32x4RelaxedTruncF64x2UZero)
+                    }
+                    Lang::F32x4RelaxedMadd(_) => insn(Instruction::F32x4RelaxedMadd),
+                    Lang::F32x4RelaxedNmadd(_) => insn(Instruction::F32x4RelaxedNmadd),
+                    Lang::F64x2RelaxedMadd(_) => insn(Instruction::F64x2RelaxedMadd),
+                    Lang::F64x2RelaxedNmadd(_) => insn(Instruction::F64x2RelaxedNmadd),
+                    Lang::I8x16RelaxedLaneselect(_) => insn(Instruction::I8x16RelaxedLaneselect),
+                    Lang::I16x8RelaxedLaneselect(_) => insn(Instruction::I16x8RelaxedLaneselect),
+                    Lang::I32x4RelaxedLaneselect(_) => insn(Instruction::I32x4RelaxedLaneselect),
+                    Lang::I64x2RelaxedLaneselect(_) => insn(Instruction::I64x2RelaxedLaneselect),
+                    Lang::F32x4RelaxedMin(_) => insn(Instruction::F32x4RelaxedMin),
+                    Lang::F32x4RelaxedMax(_) => insn(Instruction::F32x4RelaxedMax),
+                    Lang::F64x2RelaxedMin(_) => insn(Instruction::F64x2RelaxedMin),
+                    Lang::F64x2RelaxedMax(_) => insn(Instruction::F64x2RelaxedMax),
+                    Lang::I16x8RelaxedQ15mulrS(_) => insn(Instruction::I16x8RelaxedQ15mulrS),
+                    Lang::I16x8RelaxedDotI8x16I7x16S(_) => {
+                        insn(Instruction::I16x8RelaxedDotI8x16I7x16S)
+                    }
+                    Lang::I32x4RelaxedDotI8x16I7x16AddS(_) => {
+                        insn(Instruction::I32x4RelaxedDotI8x16I7x16AddS)
+                    }
                 }
             }
         }

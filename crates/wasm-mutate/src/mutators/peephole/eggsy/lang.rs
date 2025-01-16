@@ -919,6 +919,29 @@ lang! {
         F32x4DemoteF64x2Zero([Id; 1]) = "f32x4.demote_f64x2_zero",
         F64x2PromoteLowF32x4([Id; 1]) = "f64x2.promote_low_f32x4",
 
+        // relaxed-simd instructions
+
+        I8x16RelaxedSwizzle([Id; 2]) = "i8x16.relaxed_swizzle",
+        I32x4RelaxedTruncF32x4S([Id; 1]) = "i32x4.relaxed_trunc_f32x4_s",
+        I32x4RelaxedTruncF32x4U([Id; 1]) = "i32x4.relaxed_trunc_f32x4_u",
+        I32x4RelaxedTruncF64x2SZero([Id; 1]) = "i32x4.relaxed_trunc_f64x2_s_zero",
+        I32x4RelaxedTruncF64x2UZero([Id; 1]) = "i32x4.relaxed_trunc_f64x2_u_zero",
+        F32x4RelaxedMadd([Id; 3]) = "f32x4.relaxed_madd",
+        F32x4RelaxedNmadd([Id; 3]) = "f32x4.relaxed_nmadd",
+        F64x2RelaxedMadd([Id; 3]) = "f64x2.relaxed_madd",
+        F64x2RelaxedNmadd([Id; 3]) = "f64x2.relaxed_nmadd",
+        I8x16RelaxedLaneselect([Id; 3]) = "i8x16.relaxed_laneselect",
+        I16x8RelaxedLaneselect([Id; 3]) = "i16x8.relaxed_laneselect",
+        I32x4RelaxedLaneselect([Id; 3]) = "i32x4.relaxed_laneselect",
+        I64x2RelaxedLaneselect([Id; 3]) = "i64x2.relaxed_laneselect",
+        F32x4RelaxedMin([Id; 2]) = "f32x4.relaxed_min",
+        F32x4RelaxedMax([Id; 2]) = "f32x4.relaxed_max",
+        F64x2RelaxedMin([Id; 2]) = "f64x2.relaxed_min",
+        F64x2RelaxedMax([Id; 2]) = "f64x2.relaxed_max",
+        I16x8RelaxedQ15mulrS([Id; 2]) = "i16x8.relaxed_q15_mulr_s",
+        I16x8RelaxedDotI8x16I7x16S([Id; 2]) = "i16x8.relaxed_dot_i8x16_i7x16_s",
+        I32x4RelaxedDotI8x16I7x16AddS([Id; 3]) = "i32x4.relaxed_dot_i8x16_i7x16_add_s",
+
         /// Add custom or others operator nodes below
 
         /// Custom mutation operations and instructions
