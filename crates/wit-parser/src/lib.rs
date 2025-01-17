@@ -570,7 +570,7 @@ pub enum TypeDefKind {
     Result(Result_),
     List(Type),
     Future(Option<Type>),
-    Stream(Type),
+    Stream(Option<Type>),
     ErrorContext,
     Type(Type),
 
@@ -1140,7 +1140,9 @@ fn find_futures_and_streams(resolve: &Resolve, ty: Type, results: &mut Vec<TypeI
             results.push(id);
         }
         TypeDefKind::Stream(ty) => {
-            find_futures_and_streams(resolve, *ty, results);
+            if let Some(ty) = ty {
+                find_futures_and_streams(resolve, *ty, results);
+            }
             results.push(id);
         }
         TypeDefKind::Unknown => unreachable!(),
@@ -1246,7 +1248,7 @@ mod test {
         });
         let t2 = resolve.types.alloc(TypeDef {
             name: None,
-            kind: TypeDefKind::Stream(Type::U32),
+            kind: TypeDefKind::Stream(Some(Type::U32)),
             owner: TypeOwner::None,
             docs: Docs::default(),
             stability: Stability::Unknown,

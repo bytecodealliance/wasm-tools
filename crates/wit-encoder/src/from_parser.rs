@@ -232,7 +232,7 @@ impl<'a> Converter<'a> {
                         TypeDefKind::Type(Type::future(self.convert_option_type(ty)))
                     }
                     wit_parser::TypeDefKind::Stream(ty) => {
-                        TypeDefKind::Type(Type::stream(self.convert_type(ty)))
+                        TypeDefKind::Type(Type::stream(self.convert_option_type(ty)))
                     }
                     wit_parser::TypeDefKind::ErrorContext => TypeDefKind::Type(Type::ErrorContext),
                     // all the following are just `type` declarations
@@ -309,7 +309,7 @@ impl<'a> Converter<'a> {
                             Type::future(self.convert_option_type(type_))
                         }
                         wit_parser::TypeDefKind::Stream(type_) => {
-                            Type::stream(self.convert_type(type_))
+                            Type::stream(self.convert_option_type(type_))
                         }
                         wit_parser::TypeDefKind::ErrorContext => Type::ErrorContext,
                         wit_parser::TypeDefKind::Record(_)

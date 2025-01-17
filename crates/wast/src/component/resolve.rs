@@ -553,7 +553,9 @@ impl<'a> Resolver<'a> {
                 self.resolve_ns(t, Ns::Type)?;
             }
             ComponentDefinedType::Stream(s) => {
-                self.component_val_type(&mut s.element)?;
+                if let Some(ty) = &mut s.element {
+                    self.component_val_type(ty)?;
+                }
             }
             ComponentDefinedType::Future(f) => {
                 if let Some(ty) = &mut f.element {

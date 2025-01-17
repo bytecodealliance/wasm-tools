@@ -1062,7 +1062,7 @@ pub enum ComponentDefinedType {
     /// A future type with the specified payload type.
     Future(Option<ComponentValType>),
     /// A stream type with the specified payload type.
-    Stream(ComponentValType),
+    Stream(Option<ComponentValType>),
     /// The error-context type.
     ErrorContext,
 }
@@ -1950,9 +1950,7 @@ impl TypeAlloc {
                     }
                 }
             }
-            ComponentDefinedType::List(ty)
-            | ComponentDefinedType::Option(ty)
-            | ComponentDefinedType::Stream(ty) => {
+            ComponentDefinedType::List(ty) | ComponentDefinedType::Option(ty) => {
                 self.free_variables_valtype(ty, set);
             }
             ComponentDefinedType::Result { ok, err } => {
@@ -1967,6 +1965,11 @@ impl TypeAlloc {
                 set.insert(id.resource());
             }
             ComponentDefinedType::Future(ty) => {
+                if let Some(ty) = ty {
+                    self.free_variables_valtype(ty, set);
+                }
+            }
+            ComponentDefinedType::Stream(ty) => {
                 if let Some(ty) = ty {
                     self.free_variables_valtype(ty, set);
                 }
@@ -2094,9 +2097,9 @@ impl TypeAlloc {
                         .map(|t| self.type_named_valtype(t, set))
                         .unwrap_or(true)
             }
-            ComponentDefinedType::List(ty)
-            | ComponentDefinedType::Option(ty)
-            | ComponentDefinedType::Stream(ty) => self.type_named_valtype(ty, set),
+            ComponentDefinedType::List(ty) | ComponentDefinedType::Option(ty) => {
+                self.type_named_valtype(ty, set)
+            }
 
             // own/borrow themselves don't have to be named, but the resource
             // they refer to must be named.
@@ -2105,6 +2108,11 @@ impl TypeAlloc {
             }
 
             ComponentDefinedType::Future(ty) => ty
+                .as_ref()
+                .map(|ty| self.type_named_valtype(ty, set))
+                .unwrap_or(true),
+
+            ComponentDefinedType::Stream(ty) => ty
                 .as_ref()
                 .map(|ty| self.type_named_valtype(ty, set))
                 .unwrap_or(true),
@@ -2277,9 +2285,7 @@ where
                     }
                 }
             }
-            ComponentDefinedType::List(ty)
-            | ComponentDefinedType::Option(ty)
-            | ComponentDefinedType::Stream(ty) => {
+            ComponentDefinedType::List(ty) | ComponentDefinedType::Option(ty) => {
                 any_changed |= self.remap_valtype(ty, map);
             }
             ComponentDefinedType::Result { ok, err } => {
@@ -2293,7 +2299,7 @@ where
             ComponentDefinedType::Own(id) | ComponentDefinedType::Borrow(id) => {
                 any_changed |= self.remap_resource_id(id, map);
             }
-            ComponentDefinedType::Future(ty) => {
+            ComponentDefinedType::Future(ty) | ComponentDefinedType::Stream(ty) => {
                 if let Some(ty) = ty {
                     any_changed |= self.remap_valtype(ty, map);
                 }
@@ -3234,9 +3240,14 @@ impl<'a> SubtypeCx<'a> {
                 (Some(_), None) => bail!(offset, "expected future type to not be present"),
             },
             (Future(_), b) => bail!(offset, "expected {}, found future", b.desc()),
-            (Stream(a), Stream(b)) => self
-                .component_val_type(a, b, offset)
-                .with_context(|| "type mismatch in stream"),
+            (Stream(a), Stream(b)) => match (a, b) {
+                (None, None) => Ok(()),
+                (Some(a), Some(b)) => self
+                    .component_val_type(a, b, offset)
+                    .with_context(|| "type mismatch in stream"),
+                (None, Some(_)) => bail!(offset, "expected stream type, but found none"),
+                (Some(_), None) => bail!(offset, "expected stream type to not be present"),
+            },
             (Stream(_), b) => bail!(offset, "expected {}, found stream", b.desc()),
             (ErrorContext, ErrorContext) => Ok(()),
             (ErrorContext, b) => bail!(offset, "expected {}, found error-context", b.desc()),

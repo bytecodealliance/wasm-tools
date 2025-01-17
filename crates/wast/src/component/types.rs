@@ -694,14 +694,14 @@ impl<'a> Parse<'a> for ResultType<'a> {
 #[derive(Debug)]
 pub struct Stream<'a> {
     /// The element type of the stream.
-    pub element: Box<ComponentValType<'a>>,
+    pub element: Option<Box<ComponentValType<'a>>>,
 }
 
 impl<'a> Parse<'a> for Stream<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::stream>()?;
         Ok(Self {
-            element: Box::new(parser.parse()?),
+            element: parser.parse::<Option<ComponentValType>>()?.map(Box::new),
         })
     }
 }

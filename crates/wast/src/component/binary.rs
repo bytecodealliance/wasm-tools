@@ -133,7 +133,7 @@ fn encode_defined_type(encoder: ComponentDefinedTypeEncoder, ty: &ComponentDefin
         }
         ComponentDefinedType::Own(i) => encoder.own((*i).into()),
         ComponentDefinedType::Borrow(i) => encoder.borrow((*i).into()),
-        ComponentDefinedType::Stream(s) => encoder.stream(s.element.as_ref().into()),
+        ComponentDefinedType::Stream(s) => encoder.stream(s.element.as_deref().map(Into::into)),
         ComponentDefinedType::Future(f) => encoder.future(f.element.as_deref().map(Into::into)),
     }
 }

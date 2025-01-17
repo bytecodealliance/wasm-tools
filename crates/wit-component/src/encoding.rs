@@ -1368,7 +1368,15 @@ impl<'a> EncodingState<'a> {
                             else {
                                 unreachable!()
                             };
-                            let options = options(self, vec![*payload_type], vec![])?;
+                            let options = options(
+                                self,
+                                if let Some(payload_type) = payload_type {
+                                    vec![*payload_type]
+                                } else {
+                                    vec![]
+                                },
+                                vec![],
+                            )?;
                             self.component.stream_write(type_index, options)
                         }
                         PayloadFuncKind::StreamRead => {
@@ -1376,7 +1384,15 @@ impl<'a> EncodingState<'a> {
                             else {
                                 unreachable!()
                             };
-                            let options = options(self, vec![], vec![*payload_type])?;
+                            let options = options(
+                                self,
+                                vec![],
+                                if let Some(payload_type) = payload_type {
+                                    vec![*payload_type]
+                                } else {
+                                    vec![]
+                                },
+                            )?;
                             self.component.stream_read(type_index, options)
                         }
                     }
@@ -1443,8 +1459,8 @@ impl<'a> EncodingState<'a> {
         fn owner(resolve: &Resolve, ty: TypeId) -> Option<InterfaceId> {
             let def = &resolve.types[ty];
             match &def.kind {
-                TypeDefKind::Future(Some(Type::Id(ty))) => owner(resolve, *ty),
-                TypeDefKind::Stream(Type::Id(ty)) => owner(resolve, *ty),
+                TypeDefKind::Future(Some(Type::Id(ty)))
+                | TypeDefKind::Stream(Some(Type::Id(ty))) => owner(resolve, *ty),
                 _ => match &def.owner {
                     TypeOwner::World(_) | TypeOwner::None => None,
                     TypeOwner::Interface(id) => Some(*id),

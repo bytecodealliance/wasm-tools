@@ -322,8 +322,12 @@ pub trait ValtypeEncoder<'a> {
         Ok(ComponentValType::Type(index))
     }
 
-    fn encode_stream(&mut self, resolve: &'a Resolve, payload: &Type) -> Result<ComponentValType> {
-        let ty = self.encode_valtype(resolve, payload)?;
+    fn encode_stream(
+        &mut self,
+        resolve: &'a Resolve,
+        payload: &Option<Type>,
+    ) -> Result<ComponentValType> {
+        let ty = self.encode_optional_valtype(resolve, payload.as_ref())?;
         let (index, encoder) = self.defined_type();
         encoder.stream(ty);
         Ok(ComponentValType::Type(index))

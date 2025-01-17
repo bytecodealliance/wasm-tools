@@ -898,7 +898,7 @@ struct Result_<'a> {
 
 struct Stream<'a> {
     span: Span,
-    ty: Box<Type<'a>>,
+    ty: Option<Box<Type<'a>>>,
 }
 
 struct NamedFunc<'a> {
@@ -1404,14 +1404,15 @@ impl<'a> Type<'a> {
             }
 
             // stream<T>
+            // stream
             Some((span, Token::Stream)) => {
-                tokens.expect(Token::LessThan)?;
-                let ty = Type::parse(tokens)?;
-                tokens.expect(Token::GreaterThan)?;
-                Ok(Type::Stream(Stream {
-                    span,
-                    ty: Box::new(ty),
-                }))
+                let mut ty = None;
+
+                if tokens.eat(Token::LessThan)? {
+                    ty = Some(Box::new(Type::parse(tokens)?));
+                    tokens.expect(Token::GreaterThan)?;
+                };
+                Ok(Type::Stream(Stream { span, ty }))
             }
 
             // error-context
