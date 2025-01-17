@@ -680,7 +680,7 @@ impl ComponentDefinedTypeEncoder<'_> {
     }
 
     /// Define a `stream` type with the specified payload.
-    pub fn stream(self, payload: ComponentValType) {
+    pub fn stream(self, payload: Option<ComponentValType>) {
         self.0.push(0x66);
         payload.encode(self.0);
     }

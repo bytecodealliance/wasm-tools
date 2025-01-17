@@ -9,6 +9,7 @@ interface streams-and-futures {
   resource r1;
   type t6 = stream<r1>;
   type t7 = future<result<r1>>;
+  type t8 = stream;
 
   foo: func(x: stream<u32>, y: t6) -> future<result<list<string>, string>>;
 }

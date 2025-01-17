@@ -759,7 +759,10 @@ impl ComponentState {
                 .as_ref()
                 .map(|ty| types.type_named_valtype(ty, set))
                 .unwrap_or(true),
-            ComponentDefinedType::Stream(ty) => types.type_named_valtype(ty, set),
+            ComponentDefinedType::Stream(ty) => ty
+                .as_ref()
+                .map(|ty| types.type_named_valtype(ty, set))
+                .unwrap_or(true),
         }
     }
 
@@ -1255,7 +1258,9 @@ impl ComponentState {
 
         let mut info = LoweringInfo::default();
         info.requires_memory = true;
-        info.requires_realloc = payload_type.contains_ptr(types);
+        info.requires_realloc = payload_type
+            .map(|ty| ty.contains_ptr(types))
+            .unwrap_or_default();
         self.check_options(None, &info, &options, types, offset, features, true)?;
 
         self.core_funcs
@@ -1439,7 +1444,7 @@ impl ComponentState {
         info.requires_memory = true;
         info.requires_realloc = payload_type
             .map(|ty| ty.contains_ptr(types))
-            .unwrap_or(false);
+            .unwrap_or_default();
         self.check_options(None, &info, &options, types, offset, features, true)?;
 
         self.core_funcs
@@ -3291,7 +3296,8 @@ impl ComponentState {
                     .transpose()?,
             )),
             crate::ComponentDefinedType::Stream(ty) => Ok(ComponentDefinedType::Stream(
-                self.create_component_val_type(ty, offset)?,
+                ty.map(|ty| self.create_component_val_type(ty, offset))
+                    .transpose()?,
             )),
             crate::ComponentDefinedType::ErrorContext => Ok(ComponentDefinedType::ErrorContext),
         }

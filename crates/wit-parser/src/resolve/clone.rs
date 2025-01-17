@@ -110,7 +110,7 @@ impl<'a> Cloner<'a> {
             TypeDefKind::Handle(Handle::Own(ty) | Handle::Borrow(ty)) => {
                 self.type_id(ty);
             }
-            TypeDefKind::Option(ty) | TypeDefKind::List(ty) | TypeDefKind::Stream(ty) => {
+            TypeDefKind::Option(ty) | TypeDefKind::List(ty) => {
                 self.ty(ty);
             }
             TypeDefKind::Tuple(list) => {
@@ -138,8 +138,8 @@ impl<'a> Cloner<'a> {
                     self.ty(err);
                 }
             }
-            TypeDefKind::Future(f) => {
-                if let Some(ty) = f {
+            TypeDefKind::Future(ty) | TypeDefKind::Stream(ty) => {
+                if let Some(ty) = ty {
                     self.ty(ty);
                 }
             }

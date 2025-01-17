@@ -508,7 +508,7 @@ pub enum ComponentDefinedType<'a> {
     /// A future type with the specified payload type.
     Future(Option<ComponentValType>),
     /// A stream type with the specified payload type.
-    Stream(ComponentValType),
+    Stream(Option<ComponentValType>),
     /// The error-context type.
     ErrorContext,
 }

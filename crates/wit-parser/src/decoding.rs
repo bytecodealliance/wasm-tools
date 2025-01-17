@@ -1401,7 +1401,9 @@ impl WitPackageDecoder<'_> {
                 ty.as_ref().map(|ty| self.convert_valtype(ty)).transpose()?,
             )),
 
-            ComponentDefinedType::Stream(ty) => Ok(TypeDefKind::Stream(self.convert_valtype(ty)?)),
+            ComponentDefinedType::Stream(ty) => Ok(TypeDefKind::Stream(
+                ty.as_ref().map(|ty| self.convert_valtype(ty)).transpose()?,
+            )),
 
             ComponentDefinedType::ErrorContext => Ok(TypeDefKind::ErrorContext),
         }
@@ -1693,7 +1695,11 @@ impl Registrar<'_> {
                     TypeDefKind::Type(Type::Id(_)) => return Ok(()),
                     _ => bail!("expected a stream"),
                 };
-                self.valtype(payload, ty)
+                match (payload, ty) {
+                    (Some(a), Some(b)) => self.valtype(a, b),
+                    (None, None) => Ok(()),
+                    _ => bail!("disagreement on stream payload"),
+                }
             }
 
             // These have no recursive structure so they can bail out.

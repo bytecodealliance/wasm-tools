@@ -804,7 +804,7 @@ pub mod component_utils {
                 defined.future(t.map(|t| reencoder.component_val_type(t)));
             }
             wasmparser::ComponentDefinedType::Stream(t) => {
-                defined.stream(reencoder.component_val_type(t));
+                defined.stream(t.map(|t| reencoder.component_val_type(t)));
             }
             wasmparser::ComponentDefinedType::ErrorContext => defined.error_context(),
         }

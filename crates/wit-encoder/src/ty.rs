@@ -28,7 +28,7 @@ pub enum Type {
     List(Box<Type>),
     Tuple(Tuple),
     Future(Option<Box<Type>>),
-    Stream(Box<Type>),
+    Stream(Option<Box<Type>>),
     ErrorContext,
     Named(Ident),
 }
@@ -66,8 +66,8 @@ impl Type {
     pub fn future(type_: Option<Type>) -> Self {
         Type::Future(type_.map(Box::new))
     }
-    pub fn stream(type_: Type) -> Self {
-        Type::Stream(Box::new(type_))
+    pub fn stream(type_: Option<Type>) -> Self {
+        Type::Stream(type_.map(Box::new))
     }
     pub fn named(name: impl Into<Ident>) -> Self {
         Type::Named(name.into())
@@ -123,7 +123,10 @@ impl Display for Type {
             Type::Future(Some(type_)) => {
                 write!(f, "future<{type_}>")
             }
-            Type::Stream(type_) => {
+            Type::Stream(None) => {
+                write!(f, "stream")
+            }
+            Type::Stream(Some(type_)) => {
                 write!(f, "stream<{type_}>")
             }
             Type::ErrorContext => write!(f, "error-context"),

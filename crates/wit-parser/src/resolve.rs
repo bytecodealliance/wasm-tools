@@ -3019,7 +3019,9 @@ impl Remap {
                     }
                 }
             }
-            Option(t) | List(t) | Stream(t) => self.update_ty(resolve, t, span)?,
+            Option(t) | List(t) | Future(Some(t)) | Stream(Some(t)) => {
+                self.update_ty(resolve, t, span)?
+            }
             Result(r) => {
                 if let Some(ty) = &mut r.ok {
                     self.update_ty(resolve, ty, span)?;
@@ -3028,7 +3030,6 @@ impl Remap {
                     self.update_ty(resolve, ty, span)?;
                 }
             }
-            Future(Some(t)) => self.update_ty(resolve, t, span)?,
             ErrorContext => {}
 
             // Note that `update_ty` is specifically not used here as typedefs
@@ -3039,7 +3040,7 @@ impl Remap {
             Type(_) => {}
 
             // nothing to do for these as they're just names or empty
-            Flags(_) | Enum(_) | Future(None) => {}
+            Flags(_) | Enum(_) | Future(None) | Stream(None) => {}
 
             Unknown => unreachable!(),
         }
@@ -3422,13 +3423,15 @@ impl Remap {
             TypeDefKind::Enum(_) => false,
             TypeDefKind::List(ty)
             | TypeDefKind::Future(Some(ty))
-            | TypeDefKind::Stream(ty)
+            | TypeDefKind::Stream(Some(ty))
             | TypeDefKind::Option(ty) => self.type_has_borrow(resolve, ty),
             TypeDefKind::Result(r) => [&r.ok, &r.err]
                 .iter()
                 .filter_map(|t| t.as_ref())
                 .any(|t| self.type_has_borrow(resolve, t)),
-            TypeDefKind::Future(None) | TypeDefKind::ErrorContext => false,
+            TypeDefKind::Future(None) | TypeDefKind::Stream(None) | TypeDefKind::ErrorContext => {
+                false
+            }
             TypeDefKind::Unknown => unreachable!(),
         }
     }

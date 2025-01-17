@@ -762,7 +762,9 @@ impl<'a> Expander<'a> {
             }
             ComponentDefinedType::Own(_) | ComponentDefinedType::Borrow(_) => {}
             ComponentDefinedType::Stream(t) => {
-                self.expand_component_val_ty(&mut t.element);
+                if let Some(ty) = &mut t.element {
+                    self.expand_component_val_ty(ty);
+                }
             }
             ComponentDefinedType::Future(t) => {
                 if let Some(ty) = &mut t.element {
