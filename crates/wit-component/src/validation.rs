@@ -621,10 +621,6 @@ impl ImportMap {
                 });
             }
 
-            if let Some(import) = async_import_for_export(None)? {
-                return Ok(import);
-            }
-
             let key = WorldKey::Name(name.to_string());
             if let Some(WorldItem::Function(func)) = world.imports.get(&key) {
                 validate_func(resolve, ty, func, abi)?;
@@ -643,6 +639,15 @@ impl ImportMap {
             match world.imports.get(&key) {
                 Some(_) => bail!("expected world top-level import `{name}` to be a function"),
                 None => bail!("no top-level imported function `{name}` specified"),
+            }
+        }
+
+        if matches!(
+            module.strip_prefix(names.import_exported_intrinsic_prefix()),
+            Some(module) if module == names.import_root()
+        ) {
+            if let Some(import) = async_import_for_export(None)? {
+                return Ok(import);
             }
         }
 
