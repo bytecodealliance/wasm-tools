@@ -130,7 +130,7 @@ pub trait TypeIdVisitor {
             | TypeDefKind::List(t)
             | TypeDefKind::Option(t)
             | TypeDefKind::Future(Some(t))
-            | TypeDefKind::Stream(t) => self.visit_type(resolve, t),
+            | TypeDefKind::Stream(Some(t)) => self.visit_type(resolve, t),
             TypeDefKind::Handle(handle) => match handle {
                 crate::Handle::Own(ty) => self.visit_type_id(resolve, *ty),
                 crate::Handle::Borrow(ty) => self.visit_type_id(resolve, *ty),
@@ -164,7 +164,8 @@ pub trait TypeIdVisitor {
             TypeDefKind::ErrorContext
             | TypeDefKind::Flags(_)
             | TypeDefKind::Enum(_)
-            | TypeDefKind::Future(None) => {}
+            | TypeDefKind::Future(None)
+            | TypeDefKind::Stream(None) => {}
             TypeDefKind::Unknown => unreachable!(),
         }
     }

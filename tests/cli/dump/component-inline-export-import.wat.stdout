@@ -18,4 +18,4 @@
  0x25 | 00 00 04 00 | export ComponentExport { name: ComponentExportName(""), kind: Component, index: 0, ty: None }
       | 00         
  0x2a | 00 01 61 00 | export ComponentExport { name: ComponentExportName("a"), kind: Module, index: 0, ty: None }
-      | 11 00 00   
+      | 11 00 00

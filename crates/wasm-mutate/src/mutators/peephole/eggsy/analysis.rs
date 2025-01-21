@@ -545,6 +545,27 @@ impl PeepholeMutationAnalysis {
             Lang::F64x2ConvertLowI32x4U(_) => Ok(PrimitiveTypeInfo::V128),
             Lang::F32x4DemoteF64x2Zero(_) => Ok(PrimitiveTypeInfo::V128),
             Lang::F64x2PromoteLowF32x4(_) => Ok(PrimitiveTypeInfo::V128),
+
+            Lang::I8x16RelaxedSwizzle(_) => Ok(PrimitiveTypeInfo::V128),
+            Lang::I32x4RelaxedTruncF32x4S(_) => Ok(PrimitiveTypeInfo::V128),
+            Lang::I32x4RelaxedTruncF32x4U(_) => Ok(PrimitiveTypeInfo::V128),
+            Lang::I32x4RelaxedTruncF64x2SZero(_) => Ok(PrimitiveTypeInfo::V128),
+            Lang::I32x4RelaxedTruncF64x2UZero(_) => Ok(PrimitiveTypeInfo::V128),
+            Lang::F32x4RelaxedMadd(_) => Ok(PrimitiveTypeInfo::V128),
+            Lang::F32x4RelaxedNmadd(_) => Ok(PrimitiveTypeInfo::V128),
+            Lang::F64x2RelaxedMadd(_) => Ok(PrimitiveTypeInfo::V128),
+            Lang::F64x2RelaxedNmadd(_) => Ok(PrimitiveTypeInfo::V128),
+            Lang::I8x16RelaxedLaneselect(_) => Ok(PrimitiveTypeInfo::V128),
+            Lang::I16x8RelaxedLaneselect(_) => Ok(PrimitiveTypeInfo::V128),
+            Lang::I32x4RelaxedLaneselect(_) => Ok(PrimitiveTypeInfo::V128),
+            Lang::I64x2RelaxedLaneselect(_) => Ok(PrimitiveTypeInfo::V128),
+            Lang::F32x4RelaxedMin(_) => Ok(PrimitiveTypeInfo::V128),
+            Lang::F32x4RelaxedMax(_) => Ok(PrimitiveTypeInfo::V128),
+            Lang::F64x2RelaxedMin(_) => Ok(PrimitiveTypeInfo::V128),
+            Lang::F64x2RelaxedMax(_) => Ok(PrimitiveTypeInfo::V128),
+            Lang::I16x8RelaxedQ15mulrS(_) => Ok(PrimitiveTypeInfo::V128),
+            Lang::I16x8RelaxedDotI8x16I7x16S(_) => Ok(PrimitiveTypeInfo::V128),
+            Lang::I32x4RelaxedDotI8x16I7x16AddS(_) => Ok(PrimitiveTypeInfo::V128),
         }
     }
 }

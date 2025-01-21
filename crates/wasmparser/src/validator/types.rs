@@ -995,7 +995,7 @@ impl TypeList {
         let depth = self
             .core_type_to_depth
             .as_ref()
-            .expect("cannot get subtype depth from a committed list")[id.index()];
+            .expect("cannot get subtype depth from a committed list")[&id];
         debug_assert!(usize::from(depth) <= crate::limits::MAX_WASM_SUBTYPING_DEPTH);
         depth
     }

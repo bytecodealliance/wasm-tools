@@ -7,4 +7,4 @@
       | 00 00 01 00
  0x17 | 42 02 01 42 | [type 1] Instance([Type(Instance([])), Export { name: ComponentExportName(""), ty: Instance(0) }])
       | 00 04 00 00
-      | 05 00      
+      | 05 00

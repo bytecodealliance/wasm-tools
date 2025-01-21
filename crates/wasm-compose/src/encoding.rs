@@ -813,8 +813,8 @@ impl<'a> TypeEncoder<'a> {
         index
     }
 
-    fn stream(&self, state: &mut TypeState<'a>, ty: ct::ComponentValType) -> u32 {
-        let ty = self.component_val_type(state, ty);
+    fn stream(&self, state: &mut TypeState<'a>, ty: Option<ct::ComponentValType>) -> u32 {
+        let ty = ty.map(|ty| self.component_val_type(state, ty));
 
         let index = state.cur.encodable.type_count();
         state.cur.encodable.ty().defined_type().stream(ty);
@@ -1255,9 +1255,7 @@ impl DependencyRegistrar<'_, '_> {
             | ComponentDefinedType::Enum(_)
             | ComponentDefinedType::Flags(_)
             | ComponentDefinedType::ErrorContext => {}
-            ComponentDefinedType::List(t)
-            | ComponentDefinedType::Option(t)
-            | ComponentDefinedType::Stream(t) => self.val_type(*t),
+            ComponentDefinedType::List(t) | ComponentDefinedType::Option(t) => self.val_type(*t),
             ComponentDefinedType::Own(r) | ComponentDefinedType::Borrow(r) => {
                 self.ty(ComponentAnyTypeId::Resource(*r))
             }
@@ -1287,6 +1285,11 @@ impl DependencyRegistrar<'_, '_> {
                 }
             }
             ComponentDefinedType::Future(ty) => {
+                if let Some(ty) = ty {
+                    self.val_type(*ty);
+                }
+            }
+            ComponentDefinedType::Stream(ty) => {
                 if let Some(ty) = ty {
                     self.val_type(*ty);
                 }

@@ -95,7 +95,7 @@ enum Key {
     Option(Type),
     Result(Option<Type>, Option<Type>),
     Future(Option<Type>),
-    Stream(Type),
+    Stream(Option<Type>),
     ErrorContext,
 }
 
@@ -1255,7 +1255,9 @@ impl<'a> Resolver<'a> {
             ast::Type::Future(t) => {
                 TypeDefKind::Future(self.resolve_optional_type(t.ty.as_deref(), stability)?)
             }
-            ast::Type::Stream(s) => TypeDefKind::Stream(self.resolve_type(&s.ty, stability)?),
+            ast::Type::Stream(s) => {
+                TypeDefKind::Stream(self.resolve_optional_type(s.ty.as_deref(), stability)?)
+            }
             ast::Type::ErrorContext(_) => TypeDefKind::ErrorContext,
         })
     }
@@ -1325,10 +1327,10 @@ impl<'a> Resolver<'a> {
                     find_in_type(types, Type::Id(*id))
                 }
                 TypeDefKind::Tuple(t) => t.types.iter().find_map(|ty| find_in_type(types, *ty)),
-                TypeDefKind::List(ty) | TypeDefKind::Stream(ty) | TypeDefKind::Option(ty) => {
-                    find_in_type(types, *ty)
+                TypeDefKind::List(ty) | TypeDefKind::Option(ty) => find_in_type(types, *ty),
+                TypeDefKind::Future(ty) | TypeDefKind::Stream(ty) => {
+                    ty.as_ref().and_then(|ty| find_in_type(types, *ty))
                 }
-                TypeDefKind::Future(ty) => ty.as_ref().and_then(|ty| find_in_type(types, *ty)),
                 TypeDefKind::Result(r) => {
                     r.ok.as_ref()
                         .and_then(|ty| find_in_type(types, *ty))
@@ -1434,13 +1436,34 @@ impl<'a> Resolver<'a> {
 
     fn docs(&mut self, doc: &super::Docs<'_>) -> Docs {
         let mut docs = vec![];
+
         for doc in doc.docs.iter() {
-            if let Some(doc) = doc.strip_prefix("/**") {
-                docs.push(doc.strip_suffix("*/").unwrap().trim());
-            } else {
-                docs.push(doc.trim_start_matches('/').trim());
-            }
+            let contents = match doc.strip_prefix("/**") {
+                Some(doc) => doc.strip_suffix("*/").unwrap(),
+                None => doc.trim_start_matches('/'),
+            };
+
+            docs.push(contents.trim_end());
         }
+
+        // Scan the (non-empty) doc lines to find the minimum amount of leading whitespace.
+        // This amount of whitespace will be removed from the start of all doc lines,
+        // normalizing the output while retaining intentional spacing added by the original authors.
+        let min_leading_ws = docs
+            .iter()
+            .filter(|doc| !doc.is_empty())
+            .map(|doc| doc.bytes().take_while(|c| c.is_ascii_whitespace()).count())
+            .min()
+            .unwrap_or(0);
+
+        if min_leading_ws > 0 {
+            let leading_ws_pattern = " ".repeat(min_leading_ws);
+            docs = docs
+                .iter()
+                .map(|doc| doc.strip_prefix(&leading_ws_pattern).unwrap_or(doc))
+                .collect();
+        }
+
         let contents = if docs.is_empty() {
             None
         } else {
@@ -1636,9 +1659,9 @@ fn collect_deps<'a>(ty: &ast::Type<'a>, deps: &mut Vec<ast::Id<'a>>) {
                 }
             }
         }
-        ast::Type::Option(ast::Option_ { ty, .. })
-        | ast::Type::List(ast::List { ty, .. })
-        | ast::Type::Stream(ast::Stream { ty, .. }) => collect_deps(ty, deps),
+        ast::Type::Option(ast::Option_ { ty, .. }) | ast::Type::List(ast::List { ty, .. }) => {
+            collect_deps(ty, deps)
+        }
         ast::Type::Result(r) => {
             if let Some(ty) = &r.ok {
                 collect_deps(ty, deps);
@@ -1649,6 +1672,11 @@ fn collect_deps<'a>(ty: &ast::Type<'a>, deps: &mut Vec<ast::Id<'a>>) {
         }
         ast::Type::Future(t) => {
             if let Some(t) = &t.ty {
+                collect_deps(t, deps)
+            }
+        }
+        ast::Type::Stream(s) => {
+            if let Some(t) = &s.ty {
                 collect_deps(t, deps)
             }
         }

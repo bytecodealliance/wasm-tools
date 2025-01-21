@@ -240,10 +240,14 @@ impl Printer<'_, '_> {
         Ok(())
     }
 
-    fn print_stream_type(&mut self, state: &State, ty: ComponentValType) -> Result<()> {
+    fn print_stream_type(&mut self, state: &State, ty: Option<ComponentValType>) -> Result<()> {
         self.start_group("stream")?;
-        self.result.write_str(" ")?;
-        self.print_component_val_type(state, &ty)?;
+
+        if let Some(ty) = ty {
+            self.result.write_str(" ")?;
+            self.print_component_val_type(state, &ty)?;
+        }
+
         self.end_group()?;
 
         Ok(())

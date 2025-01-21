@@ -584,9 +584,13 @@ impl<O: Output> WitPrinter<O> {
                         }
                     }
                     TypeDefKind::Stream(ty) => {
-                        self.output.push_str("stream<");
-                        self.print_type_name(resolve, ty)?;
-                        self.output.push_str(">");
+                        if let Some(ty) = ty {
+                            self.output.push_str("stream<");
+                            self.print_type_name(resolve, ty)?;
+                            self.output.push_str(">");
+                        } else {
+                            self.output.push_str("stream");
+                        }
                     }
                     TypeDefKind::ErrorContext => self.output.push_str("error-context"),
                     TypeDefKind::Unknown => unreachable!(),
@@ -758,7 +762,7 @@ impl<O: Output> WitPrinter<O> {
                         self.declare_future(resolve, ty.name.as_deref(), inner.as_ref())?
                     }
                     TypeDefKind::Stream(inner) => {
-                        self.declare_stream(resolve, ty.name.as_deref(), inner)?
+                        self.declare_stream(resolve, ty.name.as_deref(), inner.as_ref())?
                     }
                     TypeDefKind::ErrorContext => self.declare_error_context(ty.name.as_deref())?,
                     TypeDefKind::Unknown => unreachable!(),
@@ -957,16 +961,23 @@ impl<O: Output> WitPrinter<O> {
         Ok(())
     }
 
-    fn declare_stream(&mut self, resolve: &Resolve, name: Option<&str>, ty: &Type) -> Result<()> {
+    fn declare_stream(
+        &mut self,
+        resolve: &Resolve,
+        name: Option<&str>,
+        ty: Option<&Type>,
+    ) -> Result<()> {
         if let Some(name) = name {
             self.output.keyword("type");
             self.output.str(" ");
             self.print_name_type(name, TypeKind::Stream);
             self.output.str(" = ");
             self.output.ty("stream", TypeKind::BuiltIn);
-            self.output.str("<");
-            self.print_type_name(resolve, ty)?;
-            self.output.str(">");
+            if let Some(ty) = ty {
+                self.output.str("<");
+                self.print_type_name(resolve, ty)?;
+                self.output.str(">");
+            }
             self.output.semicolon();
         }
 

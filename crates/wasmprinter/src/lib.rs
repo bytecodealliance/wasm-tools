@@ -50,12 +50,25 @@ pub fn print_bytes(wasm: impl AsRef<[u8]>) -> Result<String> {
 ///
 /// This structure is used to control the overal structure of how wasm binaries
 /// are printed and tweaks various ways that configures the output.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Config {
     print_offsets: bool,
     print_skeleton: bool,
     name_unnamed: bool,
     fold_instructions: bool,
+    indent_text: String,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            print_offsets: false,
+            print_skeleton: false,
+            name_unnamed: false,
+            fold_instructions: false,
+            indent_text: "  ".to_string(),
+        }
+    }
 }
 
 /// This structure is the actual structure that prints WebAssembly binaries.
@@ -223,6 +236,17 @@ impl Config {
     /// ```
     pub fn fold_instructions(&mut self, enable: bool) -> &mut Self {
         self.fold_instructions = enable;
+        self
+    }
+
+    /// Select the string to use when indenting.
+    ///
+    /// The indent allowed here are arbitrary and unchecked. You should enter
+    /// blank text like `" "` or `"\t"`, rather than something like `"(;;)"`.
+    ///
+    /// The default setting is double spaces `" "`
+    pub fn indent_text(&mut self, text: impl Into<String>) -> &mut Self {
+        self.indent_text = text.into();
         self
     }
 
@@ -1413,7 +1437,7 @@ impl Printer<'_, '_> {
         // reasonable to avoid generating hundreds of megabytes of whitespace
         // for small-ish modules that have deep-ish nesting.
         for _ in 0..self.nesting.min(MAX_NESTING_TO_PRINT) {
-            self.result.write_str("  ")?;
+            self.result.write_str(&self.config.indent_text)?;
         }
         Ok(())
     }

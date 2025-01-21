@@ -11,7 +11,8 @@
         "t5": 8,
         "r1": 9,
         "t6": 11,
-        "t7": 13
+        "t7": 13,
+        "t8": 14
       },
       "functions": {
         "foo": {
@@ -20,7 +21,7 @@
           "params": [
             {
               "name": "x",
-              "type": 14
+              "type": 15
             },
             {
               "name": "y",
@@ -29,7 +30,7 @@
           ],
           "results": [
             {
-              "type": 17
+              "type": 18
             }
           ]
         }
@@ -156,6 +157,15 @@
       }
     },
     {
+      "name": "t8",
+      "kind": {
+        "stream": null
+      },
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
       "name": null,
       "kind": {
         "stream": "u32"
@@ -173,7 +183,7 @@
       "name": null,
       "kind": {
         "result": {
-          "ok": 15,
+          "ok": 16,
           "err": "string"
         }
       },
@@ -182,7 +192,7 @@
     {
       "name": null,
       "kind": {
-        "future": 16
+        "future": 17
       },
       "owner": null
     }

@@ -759,7 +759,10 @@ impl ComponentState {
                 .as_ref()
                 .map(|ty| types.type_named_valtype(ty, set))
                 .unwrap_or(true),
-            ComponentDefinedType::Stream(ty) => types.type_named_valtype(ty, set),
+            ComponentDefinedType::Stream(ty) => ty
+                .as_ref()
+                .map(|ty| types.type_named_valtype(ty, set))
+                .unwrap_or(true),
         }
     }
 
@@ -1255,7 +1258,9 @@ impl ComponentState {
 
         let mut info = LoweringInfo::default();
         info.requires_memory = true;
-        info.requires_realloc = payload_type.contains_ptr(types);
+        info.requires_realloc = payload_type
+            .map(|ty| ty.contains_ptr(types))
+            .unwrap_or_default();
         self.check_options(None, &info, &options, types, offset, features, true)?;
 
         self.core_funcs
@@ -1439,7 +1444,7 @@ impl ComponentState {
         info.requires_memory = true;
         info.requires_realloc = payload_type
             .map(|ty| ty.contains_ptr(types))
-            .unwrap_or(false);
+            .unwrap_or_default();
         self.check_options(None, &info, &options, types, offset, features, true)?;
 
         self.core_funcs
@@ -2043,6 +2048,13 @@ impl ComponentState {
 
         if callback.is_some() && !async_ {
             bail!(offset, "cannot specify callback without lifting async")
+        }
+
+        if post_return.is_some() && async_ {
+            bail!(
+                offset,
+                "cannot specify post-return function when lifting async"
+            )
         }
 
         if info.requires_memory && memory.is_none() {
@@ -2970,7 +2982,6 @@ impl ComponentState {
                 match self.core_instance_export(instance_index, name, types, offset)? {
                     $expected(ty) => {
                         self.$collection.push(*ty);
-                        Ok(())
                     }
                     _ => {
                         bail!(
@@ -2992,7 +3003,7 @@ impl ComponentState {
                     "functions",
                     offset,
                 )?;
-                push_module_export!(EntityType::Func, core_funcs, "function")
+                push_module_export!(EntityType::Func, core_funcs, "function");
             }
             ExternalKind::Table => {
                 check_max(
@@ -3002,7 +3013,21 @@ impl ComponentState {
                     "tables",
                     offset,
                 )?;
-                push_module_export!(EntityType::Table, core_tables, "table")
+                push_module_export!(EntityType::Table, core_tables, "table");
+
+                let ty = self.core_tables.last().unwrap();
+                if ty.table64 {
+                    bail!(
+                        offset,
+                        "64-bit tables are not compatible with components yet"
+                    );
+                }
+                if ty.shared {
+                    bail!(
+                        offset,
+                        "shared tables are not compatible with components yet"
+                    );
+                }
             }
             ExternalKind::Memory => {
                 check_max(
@@ -3012,7 +3037,21 @@ impl ComponentState {
                     "memories",
                     offset,
                 )?;
-                push_module_export!(EntityType::Memory, core_memories, "memory")
+                push_module_export!(EntityType::Memory, core_memories, "memory");
+
+                let ty = self.core_memories.last().unwrap();
+                if ty.memory64 {
+                    bail!(
+                        offset,
+                        "64-bit linear memories are not compatible with components yet"
+                    );
+                }
+                if ty.shared {
+                    bail!(
+                        offset,
+                        "shared linear memories are not compatible with components yet"
+                    );
+                }
             }
             ExternalKind::Global => {
                 check_max(
@@ -3022,7 +3061,7 @@ impl ComponentState {
                     "globals",
                     offset,
                 )?;
-                push_module_export!(EntityType::Global, core_globals, "global")
+                push_module_export!(EntityType::Global, core_globals, "global");
             }
             ExternalKind::Tag => {
                 check_max(
@@ -3032,9 +3071,11 @@ impl ComponentState {
                     "tags",
                     offset,
                 )?;
-                push_module_export!(EntityType::Tag, core_tags, "tag")
+                push_module_export!(EntityType::Tag, core_tags, "tag");
             }
         }
+
+        Ok(())
     }
 
     fn alias_instance_export(
@@ -3255,7 +3296,8 @@ impl ComponentState {
                     .transpose()?,
             )),
             crate::ComponentDefinedType::Stream(ty) => Ok(ComponentDefinedType::Stream(
-                self.create_component_val_type(ty, offset)?,
+                ty.map(|ty| self.create_component_val_type(ty, offset))
+                    .transpose()?,
             )),
             crate::ComponentDefinedType::ErrorContext => Ok(ComponentDefinedType::ErrorContext),
         }

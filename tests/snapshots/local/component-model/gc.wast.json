@@ -78,6 +78,12 @@
       "filename": "gc.11.wasm",
       "module_type": "binary",
       "text": "sub type cannot have a final super type"
+    },
+    {
+      "type": "module",
+      "line": 128,
+      "filename": "gc.12.wasm",
+      "module_type": "binary"
     }
   ]
 }
