@@ -1084,6 +1084,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "884e2677b40cc8c339eaefcb701c32ef1fd2493d71118dc0ca4b6a736c93bd67"
 
 [[package]]
+name = "leb128fmt"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09edd9e8b54e49e587e4f6295a7d29c3ea94d469cb40ab8ca70b288248a81db2"
+
+[[package]]
 name = "libc"
 version = "0.2.159"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1895,7 +1901,7 @@ name = "wasm-encoder"
 version = "0.224.0"
 dependencies = [
  "anyhow",
- "leb128",
+ "leb128fmt",
  "tempfile",
  "wasmparser 0.224.0",
  "wasmprinter 0.224.0",
@@ -1993,8 +1999,6 @@ dependencies = [
  "clap",
  "criterion",
  "flagset",
- "indexmap 2.7.0",
- "leb128",
  "libfuzzer-sys",
  "rand",
  "serde",
@@ -2371,7 +2375,7 @@ dependencies = [
  "anyhow",
  "bumpalo",
  "gimli 0.30.0",
- "leb128",
+ "leb128fmt",
  "libtest-mimic",
  "memchr",
  "rand",
