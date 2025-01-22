@@ -259,6 +259,8 @@ jobs:
       - run: cargo check --no-default-features -p wat --features component-model
       - run: cargo check --no-default-features -p wat --features dwarf
       - run: cargo check --no-default-features -p wasm-encoder
+      - run: cargo check --no-default-features -p wasm-encoder --target x86_64-unknown-none
+      - run: cargo check --no-default-features -p wasm-encoder --target x86_64-unknown-none --features wasmparser,component-model
       - run: cargo check --no-default-features -p wasm-encoder --features component-model
       - run: cargo check --no-default-features -p wasm-encoder --features wasmparser
       - run: cargo check --no-default-features -p wasm-smith
