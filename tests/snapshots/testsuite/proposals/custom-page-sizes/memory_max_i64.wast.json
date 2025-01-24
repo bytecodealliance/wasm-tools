@@ -1,31 +1,31 @@
 {
-  "source_filename": "tests/testsuite/proposals/custom-page-sizes/memory_max.wast",
+  "source_filename": "tests/testsuite/proposals/custom-page-sizes/memory_max_i64.wast",
   "commands": [
     {
       "type": "assert_unlinkable",
       "line": 13,
-      "filename": "memory_max.0.wasm",
+      "filename": "memory_max_i64.0.wasm",
       "module_type": "binary",
       "text": "unknown import"
     },
     {
       "type": "assert_unlinkable",
       "line": 20,
-      "filename": "memory_max.1.wasm",
+      "filename": "memory_max_i64.1.wasm",
       "module_type": "binary",
       "text": "unknown import"
     },
     {
       "type": "assert_malformed",
       "line": 32,
-      "filename": "memory_max.2.wat",
+      "filename": "memory_max_i64.2.wat",
       "module_type": "text",
       "text": "constant out of range"
     },
     {
       "type": "assert_invalid",
       "line": 37,
-      "filename": "memory_max.3.wasm",
+      "filename": "memory_max_i64.3.wasm",
       "module_type": "binary",
       "text": "memory size must be at most"
     }
