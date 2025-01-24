@@ -613,7 +613,7 @@
           }
         ]
       },
-      "text": "out of bounds"
+      "text": "out of bounds memory access"
     },
     {
       "type": "assert_return",

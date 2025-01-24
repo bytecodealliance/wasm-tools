@@ -32,41 +32,26 @@
       "module_type": "binary"
     },
     {
-      "type": "module",
+      "type": "module_definition",
       "line": 8,
       "filename": "memory.5.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 10,
+      "line": 9,
       "filename": "memory.6.wasm",
       "module_type": "binary"
     },
     {
-      "type": "assert_return",
-      "line": 11,
-      "action": {
-        "type": "invoke",
-        "field": "memsize",
-        "args": []
-      },
-      "expected": [
-        {
-          "type": "i32",
-          "value": "0"
-        }
-      ]
-    },
-    {
       "type": "module",
-      "line": 12,
+      "line": 11,
       "filename": "memory.7.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_return",
-      "line": 13,
+      "line": 12,
       "action": {
         "type": "invoke",
         "field": "memsize",
@@ -81,13 +66,34 @@
     },
     {
       "type": "module",
-      "line": 14,
+      "line": 13,
       "filename": "memory.8.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_return",
+      "line": 14,
+      "action": {
+        "type": "invoke",
+        "field": "memsize",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "type": "module",
       "line": 15,
+      "filename": "memory.9.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 16,
       "action": {
         "type": "invoke",
         "field": "memsize",
@@ -99,13 +105,6 @@
           "value": "1"
         }
       ]
-    },
-    {
-      "type": "assert_invalid",
-      "line": 17,
-      "filename": "memory.9.wasm",
-      "module_type": "binary",
-      "text": "unknown memory"
     },
     {
       "type": "assert_invalid",
@@ -123,146 +122,153 @@
     },
     {
       "type": "assert_invalid",
-      "line": 22,
+      "line": 20,
       "filename": "memory.12.wasm",
       "module_type": "binary",
       "text": "unknown memory"
     },
     {
       "type": "assert_invalid",
-      "line": 26,
+      "line": 23,
       "filename": "memory.13.wasm",
       "module_type": "binary",
       "text": "unknown memory"
     },
     {
       "type": "assert_invalid",
-      "line": 30,
+      "line": 27,
       "filename": "memory.14.wasm",
       "module_type": "binary",
       "text": "unknown memory"
     },
     {
       "type": "assert_invalid",
-      "line": 34,
+      "line": 31,
       "filename": "memory.15.wasm",
       "module_type": "binary",
       "text": "unknown memory"
     },
     {
       "type": "assert_invalid",
-      "line": 38,
+      "line": 35,
       "filename": "memory.16.wasm",
       "module_type": "binary",
       "text": "unknown memory"
     },
     {
       "type": "assert_invalid",
-      "line": 42,
+      "line": 39,
       "filename": "memory.17.wasm",
       "module_type": "binary",
       "text": "unknown memory"
     },
     {
       "type": "assert_invalid",
-      "line": 48,
+      "line": 43,
       "filename": "memory.18.wasm",
+      "module_type": "binary",
+      "text": "unknown memory"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 49,
+      "filename": "memory.19.wasm",
       "module_type": "binary",
       "text": "size minimum must not be greater than maximum"
     },
     {
       "type": "assert_invalid",
-      "line": 52,
-      "filename": "memory.19.wasm",
-      "module_type": "binary",
-      "text": "memory size"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 56,
+      "line": 53,
       "filename": "memory.20.wasm",
       "module_type": "binary",
       "text": "memory size"
     },
     {
       "type": "assert_invalid",
-      "line": 60,
+      "line": 57,
       "filename": "memory.21.wasm",
       "module_type": "binary",
       "text": "memory size"
     },
     {
       "type": "assert_invalid",
-      "line": 64,
+      "line": 61,
       "filename": "memory.22.wasm",
       "module_type": "binary",
       "text": "memory size"
     },
     {
       "type": "assert_invalid",
-      "line": 68,
+      "line": 65,
       "filename": "memory.23.wasm",
       "module_type": "binary",
       "text": "memory size"
     },
     {
       "type": "assert_invalid",
-      "line": 72,
+      "line": 69,
       "filename": "memory.24.wasm",
       "module_type": "binary",
       "text": "memory size"
     },
     {
       "type": "assert_invalid",
-      "line": 77,
+      "line": 73,
       "filename": "memory.25.wasm",
       "module_type": "binary",
       "text": "memory size"
     },
     {
       "type": "assert_invalid",
-      "line": 81,
+      "line": 78,
       "filename": "memory.26.wasm",
       "module_type": "binary",
       "text": "memory size"
     },
     {
       "type": "assert_invalid",
-      "line": 85,
+      "line": 82,
       "filename": "memory.27.wasm",
       "module_type": "binary",
       "text": "memory size"
     },
     {
       "type": "assert_invalid",
-      "line": 90,
+      "line": 86,
       "filename": "memory.28.wasm",
       "module_type": "binary",
       "text": "memory size"
     },
     {
       "type": "assert_invalid",
-      "line": 94,
+      "line": 91,
       "filename": "memory.29.wasm",
       "module_type": "binary",
       "text": "memory size"
     },
     {
       "type": "assert_invalid",
-      "line": 98,
+      "line": 95,
       "filename": "memory.30.wasm",
       "module_type": "binary",
       "text": "memory size"
     },
     {
-      "type": "module",
-      "line": 102,
+      "type": "assert_invalid",
+      "line": 99,
       "filename": "memory.31.wasm",
+      "module_type": "binary",
+      "text": "memory size"
+    },
+    {
+      "type": "module",
+      "line": 103,
+      "filename": "memory.32.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_return",
-      "line": 190,
+      "line": 191,
       "action": {
         "type": "invoke",
         "field": "data",
@@ -277,7 +283,7 @@
     },
     {
       "type": "assert_return",
-      "line": 191,
+      "line": 192,
       "action": {
         "type": "invoke",
         "field": "cast",
@@ -292,7 +298,7 @@
     },
     {
       "type": "assert_return",
-      "line": 193,
+      "line": 194,
       "action": {
         "type": "invoke",
         "field": "i32_load8_s",
@@ -312,7 +318,7 @@
     },
     {
       "type": "assert_return",
-      "line": 194,
+      "line": 195,
       "action": {
         "type": "invoke",
         "field": "i32_load8_u",
@@ -332,7 +338,7 @@
     },
     {
       "type": "assert_return",
-      "line": 195,
+      "line": 196,
       "action": {
         "type": "invoke",
         "field": "i32_load16_s",
@@ -352,7 +358,7 @@
     },
     {
       "type": "assert_return",
-      "line": 196,
+      "line": 197,
       "action": {
         "type": "invoke",
         "field": "i32_load16_u",
@@ -372,7 +378,7 @@
     },
     {
       "type": "assert_return",
-      "line": 198,
+      "line": 199,
       "action": {
         "type": "invoke",
         "field": "i32_load8_s",
@@ -392,7 +398,7 @@
     },
     {
       "type": "assert_return",
-      "line": 199,
+      "line": 200,
       "action": {
         "type": "invoke",
         "field": "i32_load8_u",
@@ -412,7 +418,7 @@
     },
     {
       "type": "assert_return",
-      "line": 200,
+      "line": 201,
       "action": {
         "type": "invoke",
         "field": "i32_load16_s",
@@ -432,7 +438,7 @@
     },
     {
       "type": "assert_return",
-      "line": 201,
+      "line": 202,
       "action": {
         "type": "invoke",
         "field": "i32_load16_u",
@@ -452,7 +458,7 @@
     },
     {
       "type": "assert_return",
-      "line": 203,
+      "line": 204,
       "action": {
         "type": "invoke",
         "field": "i32_load8_s",
@@ -472,7 +478,7 @@
     },
     {
       "type": "assert_return",
-      "line": 204,
+      "line": 205,
       "action": {
         "type": "invoke",
         "field": "i32_load8_s",
@@ -492,7 +498,7 @@
     },
     {
       "type": "assert_return",
-      "line": 205,
+      "line": 206,
       "action": {
         "type": "invoke",
         "field": "i32_load8_u",
@@ -512,7 +518,7 @@
     },
     {
       "type": "assert_return",
-      "line": 206,
+      "line": 207,
       "action": {
         "type": "invoke",
         "field": "i32_load8_u",
@@ -532,7 +538,7 @@
     },
     {
       "type": "assert_return",
-      "line": 207,
+      "line": 208,
       "action": {
         "type": "invoke",
         "field": "i32_load16_s",
@@ -552,7 +558,7 @@
     },
     {
       "type": "assert_return",
-      "line": 208,
+      "line": 209,
       "action": {
         "type": "invoke",
         "field": "i32_load16_s",
@@ -572,7 +578,7 @@
     },
     {
       "type": "assert_return",
-      "line": 209,
+      "line": 210,
       "action": {
         "type": "invoke",
         "field": "i32_load16_u",
@@ -592,7 +598,7 @@
     },
     {
       "type": "assert_return",
-      "line": 210,
+      "line": 211,
       "action": {
         "type": "invoke",
         "field": "i32_load16_u",
@@ -612,7 +618,7 @@
     },
     {
       "type": "assert_return",
-      "line": 212,
+      "line": 213,
       "action": {
         "type": "invoke",
         "field": "i64_load8_s",
@@ -632,7 +638,7 @@
     },
     {
       "type": "assert_return",
-      "line": 213,
+      "line": 214,
       "action": {
         "type": "invoke",
         "field": "i64_load8_u",
@@ -652,7 +658,7 @@
     },
     {
       "type": "assert_return",
-      "line": 214,
+      "line": 215,
       "action": {
         "type": "invoke",
         "field": "i64_load16_s",
@@ -672,7 +678,7 @@
     },
     {
       "type": "assert_return",
-      "line": 215,
+      "line": 216,
       "action": {
         "type": "invoke",
         "field": "i64_load16_u",
@@ -692,7 +698,7 @@
     },
     {
       "type": "assert_return",
-      "line": 216,
+      "line": 217,
       "action": {
         "type": "invoke",
         "field": "i64_load32_s",
@@ -712,7 +718,7 @@
     },
     {
       "type": "assert_return",
-      "line": 217,
+      "line": 218,
       "action": {
         "type": "invoke",
         "field": "i64_load32_u",
@@ -732,7 +738,7 @@
     },
     {
       "type": "assert_return",
-      "line": 219,
+      "line": 220,
       "action": {
         "type": "invoke",
         "field": "i64_load8_s",
@@ -752,7 +758,7 @@
     },
     {
       "type": "assert_return",
-      "line": 220,
+      "line": 221,
       "action": {
         "type": "invoke",
         "field": "i64_load8_u",
@@ -772,7 +778,7 @@
     },
     {
       "type": "assert_return",
-      "line": 221,
+      "line": 222,
       "action": {
         "type": "invoke",
         "field": "i64_load16_s",
@@ -792,7 +798,7 @@
     },
     {
       "type": "assert_return",
-      "line": 222,
+      "line": 223,
       "action": {
         "type": "invoke",
         "field": "i64_load16_u",
@@ -812,7 +818,7 @@
     },
     {
       "type": "assert_return",
-      "line": 223,
+      "line": 224,
       "action": {
         "type": "invoke",
         "field": "i64_load32_s",
@@ -832,7 +838,7 @@
     },
     {
       "type": "assert_return",
-      "line": 224,
+      "line": 225,
       "action": {
         "type": "invoke",
         "field": "i64_load32_u",
@@ -852,7 +858,7 @@
     },
     {
       "type": "assert_return",
-      "line": 226,
+      "line": 227,
       "action": {
         "type": "invoke",
         "field": "i64_load8_s",
@@ -872,7 +878,7 @@
     },
     {
       "type": "assert_return",
-      "line": 227,
+      "line": 228,
       "action": {
         "type": "invoke",
         "field": "i64_load8_s",
@@ -892,7 +898,7 @@
     },
     {
       "type": "assert_return",
-      "line": 228,
+      "line": 229,
       "action": {
         "type": "invoke",
         "field": "i64_load8_u",
@@ -912,7 +918,7 @@
     },
     {
       "type": "assert_return",
-      "line": 229,
+      "line": 230,
       "action": {
         "type": "invoke",
         "field": "i64_load8_u",
@@ -932,7 +938,7 @@
     },
     {
       "type": "assert_return",
-      "line": 230,
+      "line": 231,
       "action": {
         "type": "invoke",
         "field": "i64_load16_s",
@@ -952,7 +958,7 @@
     },
     {
       "type": "assert_return",
-      "line": 231,
+      "line": 232,
       "action": {
         "type": "invoke",
         "field": "i64_load16_s",
@@ -972,7 +978,7 @@
     },
     {
       "type": "assert_return",
-      "line": 232,
+      "line": 233,
       "action": {
         "type": "invoke",
         "field": "i64_load16_u",
@@ -992,7 +998,7 @@
     },
     {
       "type": "assert_return",
-      "line": 233,
+      "line": 234,
       "action": {
         "type": "invoke",
         "field": "i64_load16_u",
@@ -1012,7 +1018,7 @@
     },
     {
       "type": "assert_return",
-      "line": 234,
+      "line": 235,
       "action": {
         "type": "invoke",
         "field": "i64_load32_s",
@@ -1032,7 +1038,7 @@
     },
     {
       "type": "assert_return",
-      "line": 235,
+      "line": 236,
       "action": {
         "type": "invoke",
         "field": "i64_load32_s",
@@ -1052,7 +1058,7 @@
     },
     {
       "type": "assert_return",
-      "line": 236,
+      "line": 237,
       "action": {
         "type": "invoke",
         "field": "i64_load32_u",
@@ -1072,7 +1078,7 @@
     },
     {
       "type": "assert_return",
-      "line": 237,
+      "line": 238,
       "action": {
         "type": "invoke",
         "field": "i64_load32_u",
@@ -1092,34 +1098,34 @@
     },
     {
       "type": "assert_malformed",
-      "line": 241,
-      "filename": "memory.32.wat",
-      "module_type": "text",
-      "text": "duplicate memory"
-    },
-    {
-      "type": "assert_malformed",
-      "line": 245,
+      "line": 242,
       "filename": "memory.33.wat",
       "module_type": "text",
       "text": "duplicate memory"
     },
     {
       "type": "assert_malformed",
-      "line": 249,
+      "line": 246,
       "filename": "memory.34.wat",
       "module_type": "text",
       "text": "duplicate memory"
     },
     {
+      "type": "assert_malformed",
+      "line": 250,
+      "filename": "memory.35.wat",
+      "module_type": "text",
+      "text": "duplicate memory"
+    },
+    {
       "type": "module",
-      "line": 256,
-      "filename": "memory.35.wasm",
+      "line": 257,
+      "filename": "memory.36.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_return",
-      "line": 270,
+      "line": 271,
       "action": {
         "type": "invoke",
         "field": "load",
@@ -1139,7 +1145,7 @@
     },
     {
       "type": "assert_return",
-      "line": 271,
+      "line": 272,
       "action": {
         "type": "invoke",
         "field": "load",
@@ -1159,7 +1165,7 @@
     },
     {
       "type": "assert_return",
-      "line": 272,
+      "line": 273,
       "action": {
         "type": "invoke",
         "field": "load",
@@ -1179,7 +1185,7 @@
     },
     {
       "type": "assert_return",
-      "line": 273,
+      "line": 274,
       "action": {
         "type": "invoke",
         "field": "load",
@@ -1199,7 +1205,7 @@
     },
     {
       "type": "assert_return",
-      "line": 274,
+      "line": 275,
       "action": {
         "type": "invoke",
         "field": "load",
@@ -1219,7 +1225,7 @@
     },
     {
       "type": "assert_return",
-      "line": 275,
+      "line": 276,
       "action": {
         "type": "invoke",
         "field": "load",
@@ -1239,7 +1245,7 @@
     },
     {
       "type": "assert_return",
-      "line": 276,
+      "line": 277,
       "action": {
         "type": "invoke",
         "field": "load",
@@ -1259,7 +1265,7 @@
     },
     {
       "type": "assert_return",
-      "line": 277,
+      "line": 278,
       "action": {
         "type": "invoke",
         "field": "load",
