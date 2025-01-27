@@ -8,8 +8,9 @@ use std::{
     mem,
     ops::Deref,
 };
-use wasm_encoder::reencode::Reencode;
-use wasm_encoder::{Encode, EntityType, Instruction, RawCustomSection};
+use wasm_encoder::{
+    reencode::Reencode, Encode, EntityType, FuncIdx, GlobalIdx, LocalIdx, MemIdx, RawCustomSection,
+};
 use wasmparser::*;
 
 const PAGE_SIZE: i32 = 64 * 1024;
@@ -53,51 +54,49 @@ pub fn run(
 /// This function generates a Wasm function body which implements `cabi_realloc` in terms of `memory.grow`.  It
 /// only accepts new, page-sized allocations.
 fn realloc_via_memory_grow() -> wasm_encoder::Function {
-    use wasm_encoder::Instruction::*;
-
     let mut func = wasm_encoder::Function::new([(1, wasm_encoder::ValType::I32)]);
 
     // Assert `old_ptr` is null.
-    func.instruction(&I32Const(0));
-    func.instruction(&LocalGet(0));
-    func.instruction(&I32Ne);
-    func.instruction(&If(wasm_encoder::BlockType::Empty));
-    func.instruction(&Unreachable);
-    func.instruction(&End);
+    func.instructions().i32_const(0);
+    func.instructions().local_get(LocalIdx(0));
+    func.instructions().i32_ne();
+    func.instructions().if_(wasm_encoder::BlockType::Empty);
+    func.instructions().unreachable();
+    func.instructions().end();
 
     // Assert `old_len` is zero.
-    func.instruction(&I32Const(0));
-    func.instruction(&LocalGet(1));
-    func.instruction(&I32Ne);
-    func.instruction(&If(wasm_encoder::BlockType::Empty));
-    func.instruction(&Unreachable);
-    func.instruction(&End);
+    func.instructions().i32_const(0);
+    func.instructions().local_get(LocalIdx(1));
+    func.instructions().i32_ne();
+    func.instructions().if_(wasm_encoder::BlockType::Empty);
+    func.instructions().unreachable();
+    func.instructions().end();
 
     // Assert `new_len` is equal to the page size (which is the only value we currently support)
     // Note: we could easily support arbitrary multiples of PAGE_SIZE here if the need arises.
-    func.instruction(&I32Const(PAGE_SIZE));
-    func.instruction(&LocalGet(3));
-    func.instruction(&I32Ne);
-    func.instruction(&If(wasm_encoder::BlockType::Empty));
-    func.instruction(&Unreachable);
-    func.instruction(&End);
+    func.instructions().i32_const(PAGE_SIZE);
+    func.instructions().local_get(LocalIdx(3));
+    func.instructions().i32_ne();
+    func.instructions().if_(wasm_encoder::BlockType::Empty);
+    func.instructions().unreachable();
+    func.instructions().end();
 
     // Grow the memory by 1 page.
-    func.instruction(&I32Const(1));
-    func.instruction(&MemoryGrow(0));
-    func.instruction(&LocalTee(4));
+    func.instructions().i32_const(1);
+    func.instructions().memory_grow(MemIdx(0));
+    func.instructions().local_tee(LocalIdx(4));
 
     // Test if the return value of the growth was -1 and, if so, trap due to a failed allocation.
-    func.instruction(&I32Const(-1));
-    func.instruction(&I32Eq);
-    func.instruction(&If(wasm_encoder::BlockType::Empty));
-    func.instruction(&Unreachable);
-    func.instruction(&End);
+    func.instructions().i32_const(-1);
+    func.instructions().i32_eq();
+    func.instructions().if_(wasm_encoder::BlockType::Empty);
+    func.instructions().unreachable();
+    func.instructions().end();
 
-    func.instruction(&LocalGet(4));
-    func.instruction(&I32Const(16));
-    func.instruction(&I32Shl);
-    func.instruction(&End);
+    func.instructions().local_get(LocalIdx(4));
+    func.instructions().i32_const(16);
+    func.instructions().i32_shl();
+    func.instructions().end();
 
     func
 }
@@ -111,42 +110,43 @@ enum StackAllocationState {
 }
 
 fn allocate_stack_via_realloc(
-    realloc_index: u32,
-    sp: u32,
-    allocation_state: Option<u32>,
+    realloc_index: FuncIdx,
+    sp: GlobalIdx,
+    allocation_state: Option<GlobalIdx>,
 ) -> wasm_encoder::Function {
-    use wasm_encoder::Instruction::*;
-
     let mut func = wasm_encoder::Function::new([]);
 
     if let Some(allocation_state) = allocation_state {
         // This means we're lazily allocating the stack, keeping track of state via `$allocation_state`
-        func.instruction(&GlobalGet(allocation_state));
-        func.instruction(&I32Const(StackAllocationState::Unallocated as _));
-        func.instruction(&I32Eq);
-        func.instruction(&If(wasm_encoder::BlockType::Empty));
-        func.instruction(&I32Const(StackAllocationState::Allocating as _));
-        func.instruction(&GlobalSet(allocation_state));
+        func.instructions().global_get(allocation_state);
+        func.instructions()
+            .i32_const(StackAllocationState::Unallocated as _);
+        func.instructions().i32_eq();
+        func.instructions().if_(wasm_encoder::BlockType::Empty);
+        func.instructions()
+            .i32_const(StackAllocationState::Allocating as _);
+        func.instructions().global_set(allocation_state);
         // We could also set `sp` to zero here to ensure the yet-to-be-allocated stack is empty.  However, we
         // assume it defaults to zero anyway, in which case setting it would be redundant.
     }
 
-    func.instruction(&I32Const(0));
-    func.instruction(&I32Const(0));
-    func.instruction(&I32Const(8));
-    func.instruction(&I32Const(PAGE_SIZE));
-    func.instruction(&Call(realloc_index));
-    func.instruction(&I32Const(PAGE_SIZE));
-    func.instruction(&I32Add);
-    func.instruction(&GlobalSet(sp));
+    func.instructions().i32_const(0);
+    func.instructions().i32_const(0);
+    func.instructions().i32_const(8);
+    func.instructions().i32_const(PAGE_SIZE);
+    func.instructions().call(realloc_index);
+    func.instructions().i32_const(PAGE_SIZE);
+    func.instructions().i32_add();
+    func.instructions().global_set(sp);
 
     if let Some(allocation_state) = allocation_state {
-        func.instruction(&I32Const(StackAllocationState::Allocated as _));
-        func.instruction(&GlobalSet(allocation_state));
-        func.instruction(&End);
+        func.instructions()
+            .i32_const(StackAllocationState::Allocated as _);
+        func.instructions().global_set(allocation_state);
+        func.instructions().end();
     }
 
-    func.instruction(&End);
+    func.instructions().end();
 
     func
 }
@@ -596,7 +596,7 @@ impl<'a> Module<'a> {
                         // The adapter is importing `cabi_realloc` from the main module, and the main module
                         // exports that function, but possibly using a different name
                         // (e.g. `canonical_abi_realloc`).  Update the name to match if necessary.
-                        realloc_index = Some(num_func_imports);
+                        realloc_index = Some(FuncIdx(num_func_imports));
                         main_module_realloc.unwrap_or(n)
                     } else {
                         n
@@ -628,8 +628,8 @@ impl<'a> Module<'a> {
             type_index
         };
 
-        let sp = self.find_mut_i32_global("__stack_pointer")?;
-        let allocation_state = self.find_mut_i32_global("allocation_state")?;
+        let sp = self.find_mut_i32_global("__stack_pointer")?.map(GlobalIdx);
+        let allocation_state = self.find_mut_i32_global("allocation_state")?.map(GlobalIdx);
 
         let mut func_names = Vec::new();
 
@@ -640,7 +640,7 @@ impl<'a> Module<'a> {
             // Tell the function remapper we're reserving a slot for our extra import:
             map.funcs.next += 1;
 
-            realloc_index = Some(num_func_imports);
+            realloc_index = Some(FuncIdx(num_func_imports));
             imports.import(
                 "__main_module__",
                 realloc,
@@ -657,7 +657,7 @@ impl<'a> Module<'a> {
                 Definition::Import(_, _) => {
                     // The adapter is importing `cabi_realloc` from the main module, but the main module isn't
                     // exporting it.  In this case, we need to define a local function it can call instead.
-                    realloc_index = Some(num_func_imports + funcs.len());
+                    realloc_index = Some(FuncIdx(num_func_imports + funcs.len()));
                     funcs.function(ty);
                     code.function(&realloc_via_memory_grow());
                 }
@@ -672,7 +672,7 @@ impl<'a> Module<'a> {
                 // We have a stack pointer, a `cabi_realloc` function from the main module, and a global variable for
                 // keeping track of (and short-circuiting) reentrance.  That means we can (and should) do lazy stack
                 // allocation.
-                let index = num_func_imports + funcs.len();
+                let index = FuncIdx(num_func_imports + funcs.len());
 
                 // Tell the function remapper we're reserving a slot for our extra function:
                 map.funcs.next += 1;
@@ -704,7 +704,7 @@ impl<'a> Module<'a> {
                 // lazily allocating the stack.
                 (Some(lazy_stack_init_index), true) => {
                     let mut func = map.new_function_with_parsed_locals(&body)?;
-                    func.instruction(&Instruction::Call(lazy_stack_init_index));
+                    func.instructions().call(lazy_stack_init_index);
                     let mut reader = body.get_operators_reader()?;
                     while !reader.eof() {
                         func.instruction(&map.parse_instruction(&mut reader)?);
@@ -728,7 +728,7 @@ impl<'a> Module<'a> {
         if sp.is_some() && (realloc_index.is_none() || allocation_state.is_none()) {
             // Either the main module does _not_ export a realloc function, or it is not safe to use for stack
             // allocation because we have no way to short-circuit reentrance, so we'll use `memory.grow` instead.
-            realloc_index = Some(num_func_imports + funcs.len());
+            realloc_index = Some(FuncIdx(num_func_imports + funcs.len()));
             funcs.function(add_realloc_type(&mut types));
             code.function(&realloc_via_memory_grow());
         }
@@ -746,7 +746,7 @@ impl<'a> Module<'a> {
                     bail!("adapter modules don't support multi-memory");
                 }
 
-                let sp = map.globals.remap(sp);
+                let sp = GlobalIdx(map.globals.remap(sp.0));
 
                 let function_index = num_func_imports + funcs.len();
 
@@ -877,10 +877,10 @@ impl<'a> Module<'a> {
             realloc_index,
             main_module_realloc.is_none() || allocation_state.is_none(),
         ) {
-            func_names.push((realloc_index, "realloc_via_memory_grow"));
+            func_names.push((realloc_index.0, "realloc_via_memory_grow"));
         }
         if let Some(lazy_stack_init_index) = lazy_stack_init_index {
-            func_names.push((lazy_stack_init_index, "allocate_stack"));
+            func_names.push((lazy_stack_init_index.0, "allocate_stack"));
         }
         encode_subsection(0x01, &func_names);
         encode_subsection(0x07, &global_names);

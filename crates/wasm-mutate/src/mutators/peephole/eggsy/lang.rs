@@ -256,9 +256,10 @@ lang! {
     ///   the `expr2wasm` function somehow as follow
     ///   ```ignore
     ///   Lang::ThreeNops => {
-    ///     newfunc.instruction(&Instruction::Nop);
-    ///     newfunc.instruction(&Instruction::Nop);
-    ///     newfunc.instruction(&Instruction::Nop);
+    ///     newfunc.instructions()
+    ///       .nop()
+    ///       .nop()
+    ///       .nop();
     ///   }
     ///   ```
     /// * The final step is to use this node in a rewriting rule. Inside the

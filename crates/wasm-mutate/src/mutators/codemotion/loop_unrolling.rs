@@ -3,7 +3,7 @@
 use std::{collections::HashMap, slice::Iter};
 
 use rand::prelude::SliceRandom;
-use wasm_encoder::{Function, Instruction, ValType};
+use wasm_encoder::{Function, Instruction, LabelIdx, ValType};
 use wasmparser::{BlockType, Operator};
 
 use crate::{
@@ -67,7 +67,7 @@ impl LoopUnrollWriter {
         match &nodes[nodeidx] {
             Node::Loop { body: _, ty, range } => {
                 let chunk = &operators[range.start + 1 /* skip the loop instruction */..range.end];
-                newfunc.instruction(&Instruction::Block(map_block_type(*ty)?));
+                newfunc.instructions().block(map_block_type(*ty)?);
                 for (idx, (op, _)) in chunk.iter().enumerate() {
                     match op {
                         Operator::Block { .. }
@@ -123,7 +123,7 @@ impl LoopUnrollWriter {
                 }
 
                 // Write the unroll
-                newfunc.instruction(&Instruction::Block(map_block_type(*ty)?));
+                newfunc.instructions().block(map_block_type(*ty)?);
                 // Write A' br B'
                 let including_chunk =
                     operators[range.start + 1 /* skip the loop instruction */..range.end + 1]
@@ -131,10 +131,10 @@ impl LoopUnrollWriter {
                 self.write_and_fix_loop_body(including_chunk, &to_fix, newfunc, input_wasm)?;
 
                 // Write A' br B'
-                newfunc.instruction(&Instruction::Br(1));
-                newfunc.instruction(&Instruction::End);
+                newfunc.instructions().br(LabelIdx(1));
+                newfunc.instructions().end();
                 // Write the Loop
-                newfunc.instruction(&Instruction::Loop(map_block_type(*ty)?));
+                newfunc.instructions().loop_(map_block_type(*ty)?);
 
                 // Write A' br B'
                 let including_chunk =
@@ -143,10 +143,10 @@ impl LoopUnrollWriter {
                 self.write_and_fix_loop_body(including_chunk, &to_fix, newfunc, input_wasm)?;
 
                 // Closing loop
-                newfunc.instruction(&Instruction::End);
+                newfunc.instructions().end();
 
                 // Closing end
-                newfunc.instruction(&Instruction::End);
+                newfunc.instructions().end();
             }
             _ => unreachable!("Invalid node passed as a loop to unroll"),
         }

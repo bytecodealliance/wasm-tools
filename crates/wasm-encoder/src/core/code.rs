@@ -13,7 +13,7 @@ use alloc::vec::Vec;
 ///
 /// ```
 /// use wasm_encoder::{
-///     CodeSection, Function, FunctionSection, Instruction, Module,
+///     CodeSection, Function, FunctionSection, Module,
 ///     TypeSection, ValType
 /// };
 ///
@@ -26,7 +26,7 @@ use alloc::vec::Vec;
 ///
 /// let locals = vec![];
 /// let mut func = Function::new(locals);
-/// func.instruction(&Instruction::I32Const(42));
+/// func.instructions().i32_const(42);
 /// let mut code = CodeSection::new();
 /// code.function(&func);
 ///
@@ -126,7 +126,7 @@ impl Section for CodeSection {
 /// # Example
 ///
 /// ```
-/// use wasm_encoder::{CodeSection, Function, Instruction};
+/// use wasm_encoder::{CodeSection, Function, LocalIdx};
 ///
 /// // Define the function body for:
 /// //
@@ -136,9 +136,10 @@ impl Section for CodeSection {
 /// //       i32.add)
 /// let locals = vec![];
 /// let mut func = Function::new(locals);
-/// func.instruction(&Instruction::LocalGet(0));
-/// func.instruction(&Instruction::LocalGet(1));
-/// func.instruction(&Instruction::I32Add);
+/// func.instructions()
+///     .local_get(LocalIdx(0))
+///     .local_get(LocalIdx(1))
+///     .i32_add();
 ///
 /// // Add our function to the code section.
 /// let mut code = CodeSection::new();
@@ -271,9 +272,9 @@ impl Function {
     /// For example:
     ///
     /// ```
-    /// # use wasm_encoder::{CodeSection, Function, Instruction};
+    /// # use wasm_encoder::{CodeSection, Function};
     /// let mut f = Function::new([]);
-    /// f.instruction(&Instruction::End);
+    /// f.instructions().end();
     /// let bytes = f.into_raw_body();
     /// // (save `bytes` somewhere for later use)
     /// let mut code = CodeSection::new();
@@ -2320,125 +2321,169 @@ impl ConstExpr {
         Self { bytes }
     }
 
-    fn new_insn(insn: Instruction) -> Self {
+    fn new(f: impl FnOnce(&mut InstructionSink)) -> Self {
         let mut bytes = vec![];
-        insn.encode(&mut bytes);
+        f(&mut InstructionSink::new(&mut bytes));
         Self { bytes }
     }
 
-    fn with_insn(mut self, insn: Instruction) -> Self {
-        insn.encode(&mut self.bytes);
+    fn with(mut self, f: impl FnOnce(&mut InstructionSink)) -> Self {
+        f(&mut InstructionSink::new(&mut self.bytes));
         self
     }
 
     /// Create a constant expression containing a single `global.get` instruction.
     pub fn global_get(index: u32) -> Self {
-        Self::new_insn(Instruction::GlobalGet(index))
+        Self::new(|insn| {
+            insn.global_get(GlobalIdx(index));
+        })
     }
 
     /// Create a constant expression containing a single `ref.null` instruction.
     pub fn ref_null(ty: HeapType) -> Self {
-        Self::new_insn(Instruction::RefNull(ty))
+        Self::new(|insn| {
+            insn.ref_null(ty);
+        })
     }
 
     /// Create a constant expression containing a single `ref.func` instruction.
     pub fn ref_func(func: u32) -> Self {
-        Self::new_insn(Instruction::RefFunc(func))
+        Self::new(|insn| {
+            insn.ref_func(FuncIdx(func));
+        })
     }
 
     /// Create a constant expression containing a single `i32.const` instruction.
     pub fn i32_const(value: i32) -> Self {
-        Self::new_insn(Instruction::I32Const(value))
+        Self::new(|insn| {
+            insn.i32_const(value);
+        })
     }
 
     /// Create a constant expression containing a single `i64.const` instruction.
     pub fn i64_const(value: i64) -> Self {
-        Self::new_insn(Instruction::I64Const(value))
+        Self::new(|insn| {
+            insn.i64_const(value);
+        })
     }
 
     /// Create a constant expression containing a single `f32.const` instruction.
     pub fn f32_const(value: f32) -> Self {
-        Self::new_insn(Instruction::F32Const(value))
+        Self::new(|insn| {
+            insn.f32_const(value);
+        })
     }
 
     /// Create a constant expression containing a single `f64.const` instruction.
     pub fn f64_const(value: f64) -> Self {
-        Self::new_insn(Instruction::F64Const(value))
+        Self::new(|insn| {
+            insn.f64_const(value);
+        })
     }
 
     /// Create a constant expression containing a single `v128.const` instruction.
     pub fn v128_const(value: i128) -> Self {
-        Self::new_insn(Instruction::V128Const(value))
+        Self::new(|insn| {
+            insn.v128_const(value);
+        })
     }
 
     /// Add a `global.get` instruction to this constant expression.
     pub fn with_global_get(self, index: u32) -> Self {
-        self.with_insn(Instruction::GlobalGet(index))
+        self.with(|insn| {
+            insn.global_get(GlobalIdx(index));
+        })
     }
 
     /// Add a `ref.null` instruction to this constant expression.
     pub fn with_ref_null(self, ty: HeapType) -> Self {
-        self.with_insn(Instruction::RefNull(ty))
+        self.with(|insn| {
+            insn.ref_null(ty);
+        })
     }
 
     /// Add a `ref.func` instruction to this constant expression.
     pub fn with_ref_func(self, func: u32) -> Self {
-        self.with_insn(Instruction::RefFunc(func))
+        self.with(|insn| {
+            insn.ref_func(FuncIdx(func));
+        })
     }
 
     /// Add an `i32.const` instruction to this constant expression.
     pub fn with_i32_const(self, value: i32) -> Self {
-        self.with_insn(Instruction::I32Const(value))
+        self.with(|insn| {
+            insn.i32_const(value);
+        })
     }
 
     /// Add an `i64.const` instruction to this constant expression.
     pub fn with_i64_const(self, value: i64) -> Self {
-        self.with_insn(Instruction::I64Const(value))
+        self.with(|insn| {
+            insn.i64_const(value);
+        })
     }
 
     /// Add a `f32.const` instruction to this constant expression.
     pub fn with_f32_const(self, value: f32) -> Self {
-        self.with_insn(Instruction::F32Const(value))
+        self.with(|insn| {
+            insn.f32_const(value);
+        })
     }
 
     /// Add a `f64.const` instruction to this constant expression.
     pub fn with_f64_const(self, value: f64) -> Self {
-        self.with_insn(Instruction::F64Const(value))
+        self.with(|insn| {
+            insn.f64_const(value);
+        })
     }
 
     /// Add a `v128.const` instruction to this constant expression.
     pub fn with_v128_const(self, value: i128) -> Self {
-        self.with_insn(Instruction::V128Const(value))
+        self.with(|insn| {
+            insn.v128_const(value);
+        })
     }
 
     /// Add an `i32.add` instruction to this constant expression.
     pub fn with_i32_add(self) -> Self {
-        self.with_insn(Instruction::I32Add)
+        self.with(|insn| {
+            insn.i32_add();
+        })
     }
 
     /// Add an `i32.sub` instruction to this constant expression.
     pub fn with_i32_sub(self) -> Self {
-        self.with_insn(Instruction::I32Sub)
+        self.with(|insn| {
+            insn.i32_sub();
+        })
     }
 
     /// Add an `i32.mul` instruction to this constant expression.
     pub fn with_i32_mul(self) -> Self {
-        self.with_insn(Instruction::I32Mul)
+        self.with(|insn| {
+            insn.i32_mul();
+        })
     }
 
     /// Add an `i64.add` instruction to this constant expression.
     pub fn with_i64_add(self) -> Self {
-        self.with_insn(Instruction::I64Add)
+        self.with(|insn| {
+            insn.i64_add();
+        })
     }
 
     /// Add an `i64.sub` instruction to this constant expression.
     pub fn with_i64_sub(self) -> Self {
-        self.with_insn(Instruction::I64Sub)
+        self.with(|insn| {
+            insn.i64_sub();
+        })
     }
 
     /// Add an `i64.mul` instruction to this constant expression.
     pub fn with_i64_mul(self) -> Self {
-        self.with_insn(Instruction::I64Mul)
+        self.with(|insn| {
+            insn.i64_mul();
+        })
     }
 
     /// Returns the function, if any, referenced by this global.
@@ -2456,7 +2501,7 @@ impl ConstExpr {
 impl Encode for ConstExpr {
     fn encode(&self, sink: &mut Vec<u8>) {
         sink.extend(&self.bytes);
-        Instruction::End.encode(sink);
+        InstructionSink::new(sink).end();
     }
 }
 
@@ -2494,7 +2539,7 @@ mod tests {
         use super::*;
 
         let mut f = Function::new([(1, ValType::I32), (1, ValType::F32)]);
-        f.instruction(&Instruction::End);
+        f.instructions().end();
         let mut code_from_func = CodeSection::new();
         code_from_func.function(&f);
         let bytes = f.into_raw_body();
