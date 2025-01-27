@@ -177,7 +177,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
         self.validator.with_resources(&self.resources, offset)
     }
 
-    /// Same as [`FuncValidator::visit`] except that the returned type
+    /// Same as [`FuncValidator::visitor`] except that the returned type
     /// implements the [`VisitSimdOperator`](crate::VisitSimdOperator) trait as
     /// well.
     #[cfg(feature = "simd")]

@@ -1613,6 +1613,8 @@ fn eat_id(tokens: &mut Tokenizer<'_>, expected: &str) -> Result<Span> {
 
 /// A listing of source files which are used to get parsed into an
 /// [`UnresolvedPackage`].
+///
+/// [`UnresolvedPackage`]: crate::UnresolvedPackage
 #[derive(Clone, Default)]
 pub struct SourceMap {
     sources: Vec<Source>,
