@@ -62,7 +62,7 @@ impl std::fmt::Display for WasmTypeKind {
 
 /// The WasmType trait may be implemented to represent types to be
 /// (de)serialized with WAVE, notably [`value::Type`](crate::value::Type).
-/// The [`wasmtime`] crate provides an impl for [`wasmtime::component::Type`].
+/// The `wasmtime` crate provides an impl for `wasmtime::component::Type`.
 ///
 /// The `Self`-returning methods should be called only for corresponding
 /// [`WasmTypeKind`]s.
