@@ -263,6 +263,9 @@ define_config! {
         /// `allowed_instruction()` does not include vector instructions, the
         /// generated programs will not include these instructions but could
         /// contain vector types.
+        ///
+        /// [`InstructionKind::Numeric`]: crate::InstructionKind::Numeric
+        /// [`InstructionKind::NumericInt`]: crate::InstructionKind::NumericInt
         pub allowed_instructions: InstructionKinds = InstructionKinds::all(),
 
         /// Determines whether we generate floating point instructions and types.
