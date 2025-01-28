@@ -2,6 +2,7 @@ use crate::component::*;
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Id, Index, LParen, NameAnnotation, Span};
+use wasm_types::ComponentTypeIdx;
 
 /// An `import` statement and entry in a WebAssembly component.
 #[derive(Debug)]
@@ -134,7 +135,7 @@ pub enum ItemSigKind<'a> {
 #[derive(Debug)]
 pub enum TypeBounds<'a> {
     /// The equality type bounds.
-    Eq(Index<'a>),
+    Eq(Index<'a, ComponentTypeIdx>),
     /// A resource type is imported/exported,
     SubResource,
 }

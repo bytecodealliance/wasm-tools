@@ -13,26 +13,31 @@
  * limitations under the License.
  */
 
+use wasm_types::{
+    AbsoluteLabelIdx, DataIdx, ElemIdx, FieldIdx, FuncIdx, GlobalIdx, LocalIdx, MemIdx, TableIdx,
+    TagIdx, TypeIdx,
+};
+
 use crate::{
     BinaryReader, BinaryReaderError, FromReader, Result, SectionLimited, Subsection, Subsections,
 };
 use core::ops::Range;
 
 /// Represents a name map from the names custom section.
-pub type NameMap<'a> = SectionLimited<'a, Naming<'a>>;
+pub type NameMap<'a, I> = SectionLimited<'a, Naming<'a, I>>;
 
 /// Represents a name for an index from the names section.
 #[derive(Debug, Copy, Clone)]
-pub struct Naming<'a> {
+pub struct Naming<'a, I> {
     /// The index being named.
-    pub index: u32,
+    pub index: I,
     /// The name for the index.
     pub name: &'a str,
 }
 
-impl<'a> FromReader<'a> for Naming<'a> {
+impl<'a, I: FromReader<'a>> FromReader<'a> for Naming<'a, I> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        let index = reader.read_var_u32()?;
+        let index = reader.read()?;
         // This seems to match what browsers do where they don't limit the
         // length of names in the `name` section while they do limit the names
         // in the import and export section for example.
@@ -42,20 +47,20 @@ impl<'a> FromReader<'a> for Naming<'a> {
 }
 
 /// Represents a reader for indirect names from the names custom section.
-pub type IndirectNameMap<'a> = SectionLimited<'a, IndirectNaming<'a>>;
+pub type IndirectNameMap<'a, I, J> = SectionLimited<'a, IndirectNaming<'a, I, J>>;
 
 /// Represents an indirect name in the names custom section.
 #[derive(Debug, Clone)]
-pub struct IndirectNaming<'a> {
+pub struct IndirectNaming<'a, I, J> {
     /// The indirect index of the name.
-    pub index: u32,
+    pub index: I,
     /// The map of names within the `index` prior.
-    pub names: NameMap<'a>,
+    pub names: NameMap<'a, J>,
 }
 
-impl<'a> FromReader<'a> for IndirectNaming<'a> {
+impl<'a, I: FromReader<'a>, J: FromReader<'a>> FromReader<'a> for IndirectNaming<'a, I, J> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        let index = reader.read_var_u32()?;
+        let index = reader.read()?;
 
         // Skip the `NameMap` manually here.
         //
@@ -87,27 +92,27 @@ pub enum Name<'a> {
         name_range: Range<usize>,
     },
     /// The name is for the functions.
-    Function(NameMap<'a>),
+    Function(NameMap<'a, FuncIdx>),
     /// The name is for the function locals.
-    Local(IndirectNameMap<'a>),
+    Local(IndirectNameMap<'a, FuncIdx, LocalIdx>),
     /// The name is for the function labels.
-    Label(IndirectNameMap<'a>),
+    Label(IndirectNameMap<'a, FuncIdx, AbsoluteLabelIdx>),
     /// The name is for the types.
-    Type(NameMap<'a>),
+    Type(NameMap<'a, TypeIdx>),
     /// The name is for the tables.
-    Table(NameMap<'a>),
+    Table(NameMap<'a, TableIdx>),
     /// The name is for the memories.
-    Memory(NameMap<'a>),
+    Memory(NameMap<'a, MemIdx>),
     /// The name is for the globals.
-    Global(NameMap<'a>),
+    Global(NameMap<'a, GlobalIdx>),
     /// The name is for the element segments.
-    Element(NameMap<'a>),
+    Element(NameMap<'a, ElemIdx>),
     /// The name is for the data segments.
-    Data(NameMap<'a>),
+    Data(NameMap<'a, DataIdx>),
     /// The name is for fields.
-    Field(IndirectNameMap<'a>),
+    Field(IndirectNameMap<'a, TypeIdx, FieldIdx>),
     /// The name is for tags.
-    Tag(NameMap<'a>),
+    Tag(NameMap<'a, TagIdx>),
     /// An unknown [name subsection](https://webassembly.github.io/spec/core/appendix/custom.html#subsections).
     Unknown {
         /// The identifier for this subsection.

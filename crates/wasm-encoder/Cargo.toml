@@ -20,7 +20,9 @@ all-features = true
 workspace = true
 
 [dependencies]
+index_vec.workspace = true
 leb128fmt.workspace = true
+wasm-types.workspace = true
 
 # Enable this dependency to get a bunch of `From<wasmparser::Foo> for
 # wasm_encoder::Foo` impls.

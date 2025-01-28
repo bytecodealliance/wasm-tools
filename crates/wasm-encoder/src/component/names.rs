@@ -1,5 +1,10 @@
 use alloc::borrow::Cow;
 use alloc::vec::Vec;
+use index_vec::Idx;
+use wasm_types::{
+    ComponentFuncIdx, ComponentIdx, ComponentInstanceIdx, ComponentTypeIdx, ComponentValueIdx,
+    CoreInstanceIdx, CoreModuleIdx, FuncIdx, GlobalIdx, MemIdx, TableIdx, TypeIdx,
+};
 
 use super::*;
 use crate::{encoding_size, ExportKind, NameMap, SectionId};
@@ -35,73 +40,73 @@ impl ComponentNameSection {
 
     /// Appends a decls name subsection to name core functions within the
     /// component.
-    pub fn core_funcs(&mut self, names: &NameMap) {
+    pub fn core_funcs(&mut self, names: &NameMap<FuncIdx>) {
         self.core_decls(ExportKind::Func as u8, names)
     }
 
     /// Appends a decls name subsection to name core tables within the
     /// component.
-    pub fn core_tables(&mut self, names: &NameMap) {
+    pub fn core_tables(&mut self, names: &NameMap<TableIdx>) {
         self.core_decls(ExportKind::Table as u8, names)
     }
 
     /// Appends a decls name subsection to name core memories within the
     /// component.
-    pub fn core_memories(&mut self, names: &NameMap) {
+    pub fn core_memories(&mut self, names: &NameMap<MemIdx>) {
         self.core_decls(ExportKind::Memory as u8, names)
     }
 
     /// Appends a decls name subsection to name core globals within the
     /// component.
-    pub fn core_globals(&mut self, names: &NameMap) {
+    pub fn core_globals(&mut self, names: &NameMap<GlobalIdx>) {
         self.core_decls(ExportKind::Global as u8, names)
     }
 
     /// Appends a decls name subsection to name core types within the
     /// component.
-    pub fn core_types(&mut self, names: &NameMap) {
+    pub fn core_types(&mut self, names: &NameMap<TypeIdx>) {
         self.core_decls(CORE_TYPE_SORT, names)
     }
 
     /// Appends a decls name subsection to name core modules within the
     /// component.
-    pub fn core_modules(&mut self, names: &NameMap) {
+    pub fn core_modules(&mut self, names: &NameMap<CoreModuleIdx>) {
         self.core_decls(CORE_MODULE_SORT, names)
     }
 
     /// Appends a decls name subsection to name core instances within the
     /// component.
-    pub fn core_instances(&mut self, names: &NameMap) {
+    pub fn core_instances(&mut self, names: &NameMap<CoreInstanceIdx>) {
         self.core_decls(CORE_INSTANCE_SORT, names)
     }
 
     /// Appends a decls name subsection to name component functions within the
     /// component.
-    pub fn funcs(&mut self, names: &NameMap) {
+    pub fn funcs(&mut self, names: &NameMap<ComponentFuncIdx>) {
         self.component_decls(FUNCTION_SORT, names)
     }
 
     /// Appends a decls name subsection to name component values within the
     /// component.
-    pub fn values(&mut self, names: &NameMap) {
+    pub fn values(&mut self, names: &NameMap<ComponentValueIdx>) {
         self.component_decls(VALUE_SORT, names)
     }
 
     /// Appends a decls name subsection to name component type within the
     /// component.
-    pub fn types(&mut self, names: &NameMap) {
+    pub fn types(&mut self, names: &NameMap<ComponentTypeIdx>) {
         self.component_decls(TYPE_SORT, names)
     }
 
     /// Appends a decls name subsection to name components within the
     /// component.
-    pub fn components(&mut self, names: &NameMap) {
+    pub fn components(&mut self, names: &NameMap<ComponentIdx>) {
         self.component_decls(COMPONENT_SORT, names)
     }
 
     /// Appends a decls name subsection to name component instances within the
     /// component.
-    pub fn instances(&mut self, names: &NameMap) {
+    pub fn instances(&mut self, names: &NameMap<ComponentInstanceIdx>) {
         self.component_decls(INSTANCE_SORT, names)
     }
 
@@ -111,13 +116,13 @@ impl ComponentNameSection {
         data.encode(&mut self.bytes);
     }
 
-    fn component_decls(&mut self, kind: u8, names: &NameMap) {
+    fn component_decls<I: Idx + Encode>(&mut self, kind: u8, names: &NameMap<I>) {
         self.subsection_header(Subsection::Decls, 1 + names.size());
         self.bytes.push(kind);
         names.encode(&mut self.bytes);
     }
 
-    fn core_decls(&mut self, kind: u8, names: &NameMap) {
+    fn core_decls<I: Idx + Encode>(&mut self, kind: u8, names: &NameMap<I>) {
         self.subsection_header(Subsection::Decls, 2 + names.size());
         self.bytes.push(CORE_SORT);
         self.bytes.push(kind);

@@ -15,6 +15,7 @@ use core::{
     hash::{Hash, Hasher},
     mem,
 };
+use wasm_types::TypeIdx;
 
 /// The maximum number of parameters in the canonical ABI that can be passed by value.
 ///
@@ -1259,10 +1260,10 @@ impl<'a> TypesRef<'a> {
     /// # Panics
     ///
     /// This will panic if the `index` provided is out of bounds.
-    pub fn core_type_at_in_component(&self, index: u32) -> ComponentCoreTypeId {
+    pub fn core_type_at_in_component(&self, index: TypeIdx) -> ComponentCoreTypeId {
         match &self.kind {
             TypesRefKind::Module(_) => panic!("use `component_type_at_in_module` instead"),
-            TypesRefKind::Component(component) => component.core_types[index as usize],
+            TypesRefKind::Component(component) => component.core_types[index],
         }
     }
 

@@ -1,6 +1,7 @@
 use crate::{CustomSection, Encode, Section, SectionId};
 use alloc::borrow::Cow;
 use alloc::vec::Vec;
+use wasm_types::FuncIdx;
 
 /// Helper structure to encode the `metadata.code.branch_hint` custom section.
 ///
@@ -11,6 +12,7 @@ use alloc::vec::Vec;
 ///
 /// ```
 /// use wasm_encoder::*;
+/// use wasm_types::*;
 ///
 /// let mut module = Module::new();
 ///
@@ -19,7 +21,7 @@ use alloc::vec::Vec;
 /// module.section(&types);
 ///
 /// let mut funcs = FunctionSection::new();
-/// funcs.function(0);
+/// funcs.function(TypeIdx(0));
 /// module.section(&funcs);
 ///
 /// let mut code = CodeSection::new();
@@ -33,7 +35,7 @@ use alloc::vec::Vec;
 /// code.function(&body);
 ///
 /// let mut hints = BranchHints::new();
-/// hints.function_hints(0, [BranchHint {
+/// hints.function_hints(FuncIdx(0), [BranchHint {
 ///     branch_func_offset: if_offset as u32,
 ///     branch_hint_value: 1, // taken
 /// }]);
@@ -77,7 +79,7 @@ impl BranchHints {
     }
 
     /// Adds a new set of function hints for the `func` specified.
-    pub fn function_hints<I>(&mut self, func: u32, hints: I)
+    pub fn function_hints<I>(&mut self, func: FuncIdx, hints: I)
     where
         I: IntoIterator<Item = BranchHint>,
         I::IntoIter: ExactSizeIterator,

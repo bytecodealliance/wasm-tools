@@ -22,10 +22,12 @@ workspace = true
 [dependencies]
 bumpalo = "3.14.0"
 gimli = { workspace = true, optional = true }
+index_vec = { workspace = true}
 leb128fmt = { workspace = true }
 memchr = "2.4.1"
 unicode-width = "0.2.0"
 wasm-encoder = { workspace = true, features = ['std'] }
+wasm-types = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

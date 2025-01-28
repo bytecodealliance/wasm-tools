@@ -15,6 +15,7 @@
 
 use crate::{BinaryReader, BinaryReaderError, ConstExpr, FromReader, Result, SectionLimited};
 use core::ops::Range;
+use wasm_types::MemIdx;
 
 /// Represents a data segment in a core WebAssembly module.
 #[derive(Debug, Clone)]
@@ -35,7 +36,7 @@ pub enum DataKind<'a> {
     /// The data segment is active.
     Active {
         /// The memory index for the data segment.
-        memory_index: u32,
+        memory_index: MemIdx,
         /// The initialization expression for the data segment.
         offset_expr: ConstExpr<'a>,
     },
@@ -65,11 +66,11 @@ impl<'a> FromReader<'a> for Data<'a> {
         let kind = match flags {
             1 => DataKind::Passive,
             0 | 2 => {
-                let memory_index = if flags == 0 {
+                let memory_index = MemIdx(if flags == 0 {
                     0
                 } else {
                     reader.read_var_u32()?
-                };
+                });
                 let offset_expr = reader.read()?;
                 DataKind::Active {
                     memory_index,

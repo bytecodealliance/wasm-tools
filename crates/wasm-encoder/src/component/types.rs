@@ -4,6 +4,7 @@ use crate::{
     ComponentSectionId, ComponentTypeRef, CoreTypeEncoder, Encode, EntityType, ValType,
 };
 use alloc::vec::Vec;
+use wasm_types::{ComponentTypeIdx, FuncIdx, TypeIdx};
 
 /// Represents the type of a core module.
 #[derive(Debug, Clone, Default)]
@@ -44,7 +45,7 @@ impl ModuleType {
     }
 
     /// Defines an outer core type alias in this module type.
-    pub fn alias_outer_core_type(&mut self, count: u32, index: u32) -> &mut Self {
+    pub fn alias_outer_core_type(&mut self, count: u32, index: TypeIdx) -> &mut Self {
         self.bytes.push(0x02);
         self.bytes.push(CORE_TYPE_SORT);
         self.bytes.push(0x01); // outer
@@ -467,7 +468,7 @@ impl<'a> ComponentTypeEncoder<'a> {
     }
 
     /// Define a resource type.
-    pub fn resource(self, rep: ValType, dtor: Option<u32>) {
+    pub fn resource(self, rep: ValType, dtor: Option<FuncIdx>) {
         self.0.push(0x3f);
         rep.encode(self.0);
         match dtor {
@@ -539,14 +540,14 @@ pub enum ComponentValType {
     /// The value is to a defined value type.
     ///
     /// The type index must be to a value type.
-    Type(u32),
+    Type(ComponentTypeIdx),
 }
 
 impl Encode for ComponentValType {
     fn encode(&self, sink: &mut Vec<u8>) {
         match self {
             Self::Primitive(ty) => ty.encode(sink),
-            Self::Type(index) => (*index as i64).encode(sink),
+            Self::Type(index) => (index.0 as i64).encode(sink),
         }
     }
 }
@@ -662,13 +663,13 @@ impl ComponentDefinedTypeEncoder<'_> {
     }
 
     /// Define a `own` handle type
-    pub fn own(self, idx: u32) {
+    pub fn own(self, idx: ComponentTypeIdx) {
         self.0.push(0x69);
         idx.encode(self.0);
     }
 
     /// Define a `borrow` handle type
-    pub fn borrow(self, idx: u32) {
+    pub fn borrow(self, idx: ComponentTypeIdx) {
         self.0.push(0x68);
         idx.encode(self.0);
     }
@@ -773,7 +774,7 @@ impl ComponentTypeSection {
     }
 
     /// Defines a new resource type.
-    pub fn resource(&mut self, rep: ValType, dtor: Option<u32>) -> &mut Self {
+    pub fn resource(&mut self, rep: ValType, dtor: Option<FuncIdx>) -> &mut Self {
         self.ty().resource(rep, dtor);
         self
     }

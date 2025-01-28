@@ -8,6 +8,11 @@ use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str;
+use wasm_types::{
+    AbsoluteLabelIdx, ComponentFuncIdx, ComponentIdx, ComponentInstanceIdx, ComponentTypeIdx,
+    ComponentValueIdx, CoreInstanceIdx, CoreModuleIdx, DataIdx, ElemIdx, FieldIdx, FuncIdx,
+    GlobalIdx, LabelIdx, LocalIdx, MemIdx, TableIdx, TagIdx, TypeIdx,
+};
 
 /// A position in the original source stream, used to render errors.
 #[derive(Copy, Clone, Debug, PartialOrd, Ord, PartialEq, Eq, Hash)]
@@ -161,16 +166,16 @@ impl Peek for Id<'_> {
 /// The emission phase of a module will ensure that `Index::Id` is never used
 /// and switch them all to `Index::Num`.
 #[derive(Copy, Clone, Debug)]
-pub enum Index<'a> {
+pub enum Index<'a, I> {
     /// A numerical index that this references. The index space this is
     /// referencing is implicit based on where this [`Index`] is stored.
-    Num(u32, Span),
+    Num(I, Span),
     /// A human-readable identifier this references. Like `Num`, the namespace
     /// this references is based on where this is stored.
     Id(Id<'a>),
 }
 
-impl Index<'_> {
+impl<I> Index<'_, I> {
     /// Returns the source location where this `Index` was defined.
     pub fn span(&self) -> Span {
         match self {
@@ -185,7 +190,10 @@ impl Index<'_> {
     }
 }
 
-impl<'a> Parse<'a> for Index<'a> {
+impl<'a, I> Parse<'a> for Index<'a, I>
+where
+    (I, Span): Parse<'a>,
+{
     fn parse(parser: Parser<'a>) -> Result<Self> {
         if parser.peek::<Id>()? {
             Ok(Index::Id(parser.parse()?))
@@ -200,7 +208,7 @@ impl<'a> Parse<'a> for Index<'a> {
     }
 }
 
-impl Peek for Index<'_> {
+impl<I> Peek for Index<'_, I> {
     fn peek(cursor: Cursor<'_>) -> Result<bool> {
         Ok(u32::peek(cursor)? || Id::peek(cursor)?)
     }
@@ -210,14 +218,14 @@ impl Peek for Index<'_> {
     }
 }
 
-impl<'a> From<Id<'a>> for Index<'a> {
-    fn from(id: Id<'a>) -> Index<'a> {
+impl<'a, I> From<Id<'a>> for Index<'a, I> {
+    fn from(id: Id<'a>) -> Index<'a, I> {
         Index::Id(id)
     }
 }
 
-impl PartialEq for Index<'_> {
-    fn eq(&self, other: &Index<'_>) -> bool {
+impl<I: PartialEq> PartialEq for Index<'_, I> {
+    fn eq(&self, other: &Index<'_, I>) -> bool {
         match (self, other) {
             (Index::Num(a, _), Index::Num(b, _)) => a == b,
             (Index::Id(a), Index::Id(b)) => a == b,
@@ -226,9 +234,9 @@ impl PartialEq for Index<'_> {
     }
 }
 
-impl Eq for Index<'_> {}
+impl<I: Eq> Eq for Index<'_, I> {}
 
-impl Hash for Index<'_> {
+impl<I: Hash> Hash for Index<'_, I> {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         match self {
             Index::Num(a, _) => {
@@ -246,12 +254,15 @@ impl Hash for Index<'_> {
 /// Parses `(func $foo)`
 #[derive(Clone, Debug)]
 #[allow(missing_docs)]
-pub struct ItemRef<'a, K> {
+pub struct ItemRef<'a, K, I> {
     pub kind: K,
-    pub idx: Index<'a>,
+    pub idx: Index<'a, I>,
 }
 
-impl<'a, K: Parse<'a>> Parse<'a> for ItemRef<'a, K> {
+impl<'a, K: Parse<'a>, I> Parse<'a> for ItemRef<'a, K, I>
+where
+    (I, Span): Parse<'a>,
+{
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parens(|parser| {
             let kind = parser.parse::<K>()?;
@@ -261,7 +272,7 @@ impl<'a, K: Parse<'a>> Parse<'a> for ItemRef<'a, K> {
     }
 }
 
-impl<'a, K: Peek> Peek for ItemRef<'a, K> {
+impl<'a, K: Peek, I> Peek for ItemRef<'a, K, I> {
     fn peek(cursor: Cursor<'_>) -> Result<bool> {
         match cursor.lparen()? {
             Some(remaining) => K::peek(remaining),
@@ -345,6 +356,39 @@ macro_rules! integers {
 integers! {
     u8(u8) u16(u16) u32(u32) u64(u64)
     i8(u8) i16(u16) i32(u32) i64(u64)
+}
+
+macro_rules! indices {
+    ($($i:ident)*) => ($(
+        impl<'a> Parse<'a> for $i {
+            fn parse(parser: Parser<'a>) -> Result<Self> {
+                u32::parse(parser).map($i)
+            }
+        }
+
+        impl<'a> Parse<'a> for ($i, Span) {
+            fn parse(parser: Parser<'a>) -> Result<Self> {
+                <(u32, Span)>::parse(parser).map(|(i, span)| ($i(i), span))
+            }
+        }
+
+        impl Peek for $i {
+            fn peek(cursor: Cursor<'_>) -> Result<bool> {
+                cursor.peek_integer()
+            }
+
+            fn display() -> &'static str {
+                stringify!($i)
+            }
+        }
+    )*)
+}
+
+indices! {
+    TypeIdx FuncIdx TableIdx MemIdx TagIdx GlobalIdx ElemIdx DataIdx LocalIdx LabelIdx FieldIdx
+    AbsoluteLabelIdx
+    CoreModuleIdx CoreInstanceIdx
+    ComponentTypeIdx ComponentFuncIdx ComponentIdx ComponentInstanceIdx ComponentValueIdx
 }
 
 impl<'a> Parse<'a> for &'a [u8] {

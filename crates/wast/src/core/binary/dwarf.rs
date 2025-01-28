@@ -18,14 +18,16 @@ use gimli::write::{
     Sections, UnitEntryId, Writer,
 };
 use gimli::{Encoding, Format, LineEncoding, LittleEndian};
+use index_vec::Idx;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::path::Path;
+use wasm_types::{FuncIdx, TypeIdx};
 
 pub struct Dwarf<'a> {
     // Metadata configured at `Dwarf` creation time
-    func_names: HashMap<u32, &'a str>,
-    func_imports: u32,
+    func_names: HashMap<FuncIdx, &'a str>,
+    func_imports: FuncIdx,
     contents: &'a str,
     file_id: FileId,
     style: GenerateDwarf,
@@ -34,7 +36,7 @@ pub struct Dwarf<'a> {
     dwarf: DwarfUnit,
 
     // Next function index when `start_func` is called
-    next_func: u32,
+    next_func: FuncIdx,
 
     // Current `DW_TAG_subprogram` that's being built as part of `start_func`.
     cur_subprogram: Option<UnitEntryId>,
@@ -66,7 +68,7 @@ impl<'a> Dwarf<'a> {
     /// * `names` - the `name` custom section for this module, used to name
     ///   functions in DWARF.
     pub fn new(
-        func_imports: u32,
+        func_imports: FuncIdx,
         opts: &EncodeOptions<'a>,
         names: &Names<'a>,
         types: &'a [RecOrType<'a>],
@@ -168,10 +170,10 @@ impl<'a> Dwarf<'a> {
     ///
     /// This will start a new line program for this function and additionally
     /// configure a new `DW_TAG_subprogram` for this new function.
-    pub fn start_func(&mut self, span: Span, ty: u32, locals: &[Local<'_>]) {
+    pub fn start_func(&mut self, span: Span, ty: TypeIdx, locals: &[Local<'_>]) {
         self.change_linecol(span);
         let addr = Address::Symbol {
-            symbol: (self.next_func - self.func_imports) as usize,
+            symbol: (self.next_func.0 - self.func_imports.0) as usize,
             addend: 0,
         };
         self.dwarf.unit.line_program.begin_sequence(Some(addr));
@@ -201,7 +203,7 @@ impl<'a> Dwarf<'a> {
 
         self.cur_subprogram = Some(subprogram);
         self.cur_subprogram_instrs = 0;
-        self.next_func += 1;
+        self.next_func.0 += 1;
     }
 
     /// Adds `DW_TAG_formal_parameter` and `DW_TAG_variable` for all locals
@@ -213,7 +215,7 @@ impl<'a> Dwarf<'a> {
     fn add_func_params_and_locals(
         &mut self,
         subprogram: UnitEntryId,
-        ty: u32,
+        ty: TypeIdx,
         locals: &[Local<'_>],
     ) {
         // Iterate through `self.types` which is what was encoded into the
@@ -226,7 +228,7 @@ impl<'a> Dwarf<'a> {
                 RecOrType::Type(t) => std::slice::from_ref(*t),
                 RecOrType::Rec(r) => &r.types,
             })
-            .nth(ty as usize);
+            .nth(ty.index());
         let ty = match ty.map(|t| &t.def.kind) {
             Some(InnerTypeKind::Func(ty)) => ty,
             _ => return,

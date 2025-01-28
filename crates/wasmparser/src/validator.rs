@@ -22,6 +22,7 @@ use ::core::mem;
 use ::core::ops::Range;
 use ::core::sync::atomic::{AtomicUsize, Ordering};
 use alloc::sync::Arc;
+use wasm_types::FuncIdx;
 
 /// Test whether the given buffer contains a valid WebAssembly module or component,
 /// analogous to [`WebAssembly.validate`][js] in the JS API.
@@ -924,7 +925,7 @@ impl Validator {
     /// Validates [`Payload::StartSection`](crate::Payload).
     ///
     /// This method should only be called when parsing a module.
-    pub fn start_section(&mut self, func: u32, range: &Range<usize>) -> Result<()> {
+    pub fn start_section(&mut self, func: FuncIdx, range: &Range<usize>) -> Result<()> {
         let offset = range.start;
         self.state.ensure_module("start", offset)?;
         let state = self.module.as_mut().unwrap();

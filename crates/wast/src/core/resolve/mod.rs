@@ -1,6 +1,7 @@
 use crate::core::*;
 use crate::token::Index;
 use crate::{gensym, Error};
+use wasm_types::{FuncIdx, GlobalIdx, MemIdx, TableIdx};
 
 mod deinline_import_export;
 mod names;
@@ -75,8 +76,8 @@ impl<'a> Names<'a> {
     /// If `idx` is a `Num`, it is ignored, but if it's an `Id` then it will be
     /// looked up in the function namespace and converted to a `Num`. If the
     /// `Id` is not defined then an error will be returned.
-    pub fn resolve_func(&self, idx: &mut Index<'a>) -> Result<(), Error> {
-        self.resolver.resolve(idx, Ns::Func)?;
+    pub fn resolve_func(&self, idx: &mut Index<'a, FuncIdx>) -> Result<(), Error> {
+        self.resolver.resolve_funcidx(idx)?;
         Ok(())
     }
 
@@ -85,8 +86,8 @@ impl<'a> Names<'a> {
     /// If `idx` is a `Num`, it is ignored, but if it's an `Id` then it will be
     /// looked up in the memory namespace and converted to a `Num`. If the
     /// `Id` is not defined then an error will be returned.
-    pub fn resolve_memory(&self, idx: &mut Index<'a>) -> Result<(), Error> {
-        self.resolver.resolve(idx, Ns::Memory)?;
+    pub fn resolve_memory(&self, idx: &mut Index<'a, MemIdx>) -> Result<(), Error> {
+        self.resolver.resolve_memidx(idx)?;
         Ok(())
     }
 
@@ -95,8 +96,8 @@ impl<'a> Names<'a> {
     /// If `idx` is a `Num`, it is ignored, but if it's an `Id` then it will be
     /// looked up in the table namespace and converted to a `Num`. If the
     /// `Id` is not defined then an error will be returned.
-    pub fn resolve_table(&self, idx: &mut Index<'a>) -> Result<(), Error> {
-        self.resolver.resolve(idx, Ns::Table)?;
+    pub fn resolve_table(&self, idx: &mut Index<'a, TableIdx>) -> Result<(), Error> {
+        self.resolver.resolve_tableidx(idx)?;
         Ok(())
     }
 
@@ -105,8 +106,8 @@ impl<'a> Names<'a> {
     /// If `idx` is a `Num`, it is ignored, but if it's an `Id` then it will be
     /// looked up in the global namespace and converted to a `Num`. If the
     /// `Id` is not defined then an error will be returned.
-    pub fn resolve_global(&self, idx: &mut Index<'a>) -> Result<(), Error> {
-        self.resolver.resolve(idx, Ns::Global)?;
+    pub fn resolve_global(&self, idx: &mut Index<'a, GlobalIdx>) -> Result<(), Error> {
+        self.resolver.resolve_globalidx(idx)?;
         Ok(())
     }
 }

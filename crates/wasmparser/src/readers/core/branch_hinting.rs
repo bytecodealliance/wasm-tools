@@ -1,4 +1,5 @@
 use crate::{BinaryReader, FromReader, Result, SectionLimited};
+use wasm_types::FuncIdx;
 
 /// A reader for the `metadata.code.branch_hint` custom section.
 pub type BranchHintSectionReader<'a> = SectionLimited<'a, BranchHintFunction<'a>>;
@@ -9,14 +10,14 @@ pub type BranchHintSectionReader<'a> = SectionLimited<'a, BranchHintFunction<'a>
 #[derive(Debug, Clone)]
 pub struct BranchHintFunction<'a> {
     /// The function that these branch hints apply to.
-    pub func: u32,
+    pub func: FuncIdx,
     /// The branch hints available for this function.
     pub hints: SectionLimited<'a, BranchHint>,
 }
 
 impl<'a> FromReader<'a> for BranchHintFunction<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        let func = reader.read_var_u32()?;
+        let func = reader.read_funcidx()?;
         // FIXME(#188) ideally wouldn't have to do skips here
         let hints = reader.skip(|reader| {
             let items_count = reader.read_var_u32()?;

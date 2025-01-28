@@ -3,6 +3,7 @@ use crate::prelude::*;
 use crate::{
     BinaryReader, BinaryReaderError, ComponentValType, FromReader, Result, SectionLimited,
 };
+use wasm_types::{ComponentFuncIdx, ComponentTypeIdx, FuncIdx, MemIdx, TypeIdx};
 
 /// Represents options for component functions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -16,20 +17,20 @@ pub enum CanonicalOption {
     /// The memory to use if the lifting or lowering of a function requires memory access.
     ///
     /// The value is an index to a core memory.
-    Memory(u32),
+    Memory(MemIdx),
     /// The realloc function to use if the lifting or lowering of a function requires memory
     /// allocation.
     ///
     /// The value is an index to a core function of type `(func (param i32 i32 i32 i32) (result i32))`.
-    Realloc(u32),
+    Realloc(FuncIdx),
     /// The post-return function to use if the lifting of a function requires
     /// cleanup after the function returns.
-    PostReturn(u32),
+    PostReturn(FuncIdx),
     /// Indicates that specified function should be lifted or lowered using the `async` ABI.
     Async,
     /// The function to use if the async lifting of a function should receive task/stream/future progress events
     /// using a callback.
-    Callback(u32),
+    Callback(FuncIdx),
 }
 
 /// Represents a canonical function in a WebAssembly component.
@@ -38,39 +39,39 @@ pub enum CanonicalFunction {
     /// The function lifts a core WebAssembly function to the canonical ABI.
     Lift {
         /// The index of the core WebAssembly function to lift.
-        core_func_index: u32,
+        core_func_index: FuncIdx,
         /// The index of the lifted function's type.
-        type_index: u32,
+        type_index: ComponentTypeIdx,
         /// The canonical options for the function.
         options: Box<[CanonicalOption]>,
     },
     /// The function lowers a canonical ABI function to a core WebAssembly function.
     Lower {
         /// The index of the function to lower.
-        func_index: u32,
+        func_index: ComponentFuncIdx,
         /// The canonical options for the function.
         options: Box<[CanonicalOption]>,
     },
     /// A function which creates a new owned handle to a resource.
     ResourceNew {
         /// The type index of the resource that's being created.
-        resource: u32,
+        resource: ComponentTypeIdx,
     },
     /// A function which is used to drop resource handles of the specified type.
     ResourceDrop {
         /// The type index of the resource that's being dropped.
-        resource: u32,
+        resource: ComponentTypeIdx,
     },
     /// A function which returns the underlying i32-based representation of the
     /// specified resource.
     ResourceRep {
         /// The type index of the resource that's being accessed.
-        resource: u32,
+        resource: ComponentTypeIdx,
     },
     /// A function which spawns a new thread by invoking the shared function.
     ThreadSpawn {
         /// The index of the function to spawn.
-        func_ty_index: u32,
+        func_ty_index: TypeIdx,
     },
     /// A function which returns the number of threads that can be expected to
     /// execute concurrently
@@ -91,7 +92,7 @@ pub enum CanonicalFunction {
         /// If `true`, indicates the caller instance maybe reentered.
         async_: bool,
         /// Memory to use when storing the event.
-        memory: u32,
+        memory: MemIdx,
     },
     /// A function which checks whether any outstanding async task/stream/future
     /// has made progress.  Unlike `task.wait`, this does not block and may
@@ -100,7 +101,7 @@ pub enum CanonicalFunction {
         /// If `true`, indicates the caller instance maybe reentered.
         async_: bool,
         /// Memory to use when storing the event, if any.
-        memory: u32,
+        memory: MemIdx,
     },
     /// A function which yields control to the host so that other tasks are able
     /// to make progress, if any.
@@ -113,12 +114,12 @@ pub enum CanonicalFunction {
     /// A function to create a new `stream` handle of the specified type.
     StreamNew {
         /// The `stream` type to instantiate.
-        ty: u32,
+        ty: ComponentTypeIdx,
     },
     /// A function to read from a `stream` of the specified type.
     StreamRead {
         /// The `stream` type to expect.
-        ty: u32,
+        ty: ComponentTypeIdx,
         /// Any options (e.g. string encoding) to use when storing values to
         /// memory.
         options: Box<[CanonicalOption]>,
@@ -126,7 +127,7 @@ pub enum CanonicalFunction {
     /// A function to write to a `stream` of the specified type.
     StreamWrite {
         /// The `stream` type to expect.
-        ty: u32,
+        ty: ComponentTypeIdx,
         /// Any options (e.g. string encoding) to use when loading values from
         /// memory.
         options: Box<[CanonicalOption]>,
@@ -135,7 +136,7 @@ pub enum CanonicalFunction {
     /// specified type.
     StreamCancelRead {
         /// The `stream` type to expect.
-        ty: u32,
+        ty: ComponentTypeIdx,
         /// If `false`, block until cancellation completes rather than return
         /// `BLOCKED`.
         async_: bool,
@@ -144,7 +145,7 @@ pub enum CanonicalFunction {
     /// type.
     StreamCancelWrite {
         /// The `stream` type to expect.
-        ty: u32,
+        ty: ComponentTypeIdx,
         /// If `false`, block until cancellation completes rather than return
         /// `BLOCKED`.
         async_: bool,
@@ -153,23 +154,23 @@ pub enum CanonicalFunction {
     /// type.
     StreamCloseReadable {
         /// The `stream` type to expect.
-        ty: u32,
+        ty: ComponentTypeIdx,
     },
     /// A function to close the writable end of a `stream` of the specified
     /// type.
     StreamCloseWritable {
         /// The `stream` type to expect.
-        ty: u32,
+        ty: ComponentTypeIdx,
     },
     /// A function to create a new `future` handle of the specified type.
     FutureNew {
         /// The `future` type to instantiate.
-        ty: u32,
+        ty: ComponentTypeIdx,
     },
     /// A function to read from a `future` of the specified type.
     FutureRead {
         /// The `future` type to expect.
-        ty: u32,
+        ty: ComponentTypeIdx,
         /// Any options (e.g. string encoding) to use when storing values to
         /// memory.
         options: Box<[CanonicalOption]>,
@@ -177,7 +178,7 @@ pub enum CanonicalFunction {
     /// A function to write to a `future` of the specified type.
     FutureWrite {
         /// The `future` type to expect.
-        ty: u32,
+        ty: ComponentTypeIdx,
         /// Any options (e.g. string encoding) to use when loading values from
         /// memory.
         options: Box<[CanonicalOption]>,
@@ -186,7 +187,7 @@ pub enum CanonicalFunction {
     /// specified type.
     FutureCancelRead {
         /// The `future` type to expect.
-        ty: u32,
+        ty: ComponentTypeIdx,
         /// If `false`, block until cancellation completes rather than return
         /// `BLOCKED`.
         async_: bool,
@@ -195,7 +196,7 @@ pub enum CanonicalFunction {
     /// type.
     FutureCancelWrite {
         /// The `future` type to expect.
-        ty: u32,
+        ty: ComponentTypeIdx,
         /// If `false`, block until cancellation completes rather than return
         /// `BLOCKED`.
         async_: bool,
@@ -204,13 +205,13 @@ pub enum CanonicalFunction {
     /// type.
     FutureCloseReadable {
         /// The `future` type to expect.
-        ty: u32,
+        ty: ComponentTypeIdx,
     },
     /// A function to close the writable end of a `future` of the specified
     /// type.
     FutureCloseWritable {
         /// The `future` type to expect.
-        ty: u32,
+        ty: ComponentTypeIdx,
     },
     /// A function to create a new `error-context` with a specified debug
     /// message.
@@ -238,11 +239,11 @@ impl<'a> FromReader<'a> for CanonicalFunction {
         Ok(match reader.read_u8()? {
             0x00 => match reader.read_u8()? {
                 0x00 => {
-                    let core_func_index = reader.read_var_u32()?;
+                    let core_func_index = reader.read_funcidx()?;
                     let options = reader
                         .read_iter(MAX_WASM_CANONICAL_OPTIONS, "canonical options")?
                         .collect::<Result<_>>()?;
-                    let type_index = reader.read_var_u32()?;
+                    let type_index = reader.read_component_type_idx()?;
                     CanonicalFunction::Lift {
                         core_func_index,
                         options,
@@ -253,7 +254,7 @@ impl<'a> FromReader<'a> for CanonicalFunction {
             },
             0x01 => match reader.read_u8()? {
                 0x00 => CanonicalFunction::Lower {
-                    func_index: reader.read_var_u32()?,
+                    func_index: reader.read_component_func_idx()?,
                     options: reader
                         .read_iter(MAX_WASM_CANONICAL_OPTIONS, "canonical options")?
                         .collect::<Result<_>>()?,
@@ -370,11 +371,11 @@ impl<'a> FromReader<'a> for CanonicalOption {
             0x00 => CanonicalOption::UTF8,
             0x01 => CanonicalOption::UTF16,
             0x02 => CanonicalOption::CompactUTF16,
-            0x03 => CanonicalOption::Memory(reader.read_var_u32()?),
-            0x04 => CanonicalOption::Realloc(reader.read_var_u32()?),
-            0x05 => CanonicalOption::PostReturn(reader.read_var_u32()?),
+            0x03 => CanonicalOption::Memory(reader.read_memidx()?),
+            0x04 => CanonicalOption::Realloc(reader.read_funcidx()?),
+            0x05 => CanonicalOption::PostReturn(reader.read_funcidx()?),
             0x06 => CanonicalOption::Async,
-            0x07 => CanonicalOption::Callback(reader.read_var_u32()?),
+            0x07 => CanonicalOption::Callback(reader.read_funcidx()?),
             x => return reader.invalid_leading_byte(x, "canonical option"),
         })
     }

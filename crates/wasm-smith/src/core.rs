@@ -8,6 +8,7 @@ use crate::{arbitrary_loop, limited_string, unique_string, Config};
 use arbitrary::{Arbitrary, Result, Unstructured};
 use code_builder::CodeBuilderAllocations;
 use flagset::{flags, FlagSet};
+use index_vec::IndexVec;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::mem;
@@ -19,6 +20,7 @@ use wasm_encoder::{
     StorageType, StructType, ValType,
 };
 pub(crate) use wasm_encoder::{GlobalType, MemoryType, TableType};
+use wasm_types::TypeIdx;
 
 // NB: these constants are used to control the rate at which various events
 // occur. For more information see where these constants are used. Their values
@@ -50,7 +52,7 @@ pub struct Module {
 
     /// All types locally defined in this module (available in the type index
     /// space).
-    types: Vec<SubType>,
+    types: IndexVec<TypeIdx, SubType>,
 
     /// Non-overlapping ranges within `types` that belong to the same rec
     /// group. All of `types` is covered by these ranges. When GC is not
@@ -2637,7 +2639,7 @@ impl Module {
     fn is_shared_ref_type(&self, ty: RefType) -> bool {
         match ty.heap_type {
             HeapType::Abstract { shared, .. } => shared,
-            HeapType::Concrete(i) => self.types[i as usize].composite_type.shared,
+            HeapType::Concrete(i) => self.types[i].composite_type.shared,
         }
     }
 

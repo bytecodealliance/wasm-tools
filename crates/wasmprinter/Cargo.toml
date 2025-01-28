@@ -18,7 +18,9 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+index_vec = { workspace = true }
 termcolor = { workspace = true }
+wasm-types = { workspace = true }
 wasmparser = { workspace = true, features = ['std', 'simd'] }
 
 [dev-dependencies]

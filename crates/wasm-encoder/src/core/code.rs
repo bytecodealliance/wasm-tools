@@ -2,6 +2,10 @@ use crate::{encode_section, Encode, HeapType, RefType, Section, SectionId, ValTy
 use alloc::borrow::Cow;
 use alloc::vec;
 use alloc::vec::Vec;
+use wasm_types::{
+    DataIdx, ElemIdx, FieldIdx, FuncIdx, GlobalIdx, LabelIdx, LocalIdx, MemIdx, TableIdx, TagIdx,
+    TypeIdx,
+};
 
 /// An encoder for the code section.
 ///
@@ -14,12 +18,13 @@ use alloc::vec::Vec;
 ///     CodeSection, Function, FunctionSection, Instruction, Module,
 ///     TypeSection, ValType
 /// };
+/// use wasm_types::TypeIdx;
 ///
 /// let mut types = TypeSection::new();
 /// types.ty().function(vec![], vec![ValType::I32]);
 ///
 /// let mut functions = FunctionSection::new();
-/// let type_index = 0;
+/// let type_index = TypeIdx(0);
 /// functions.function(type_index);
 ///
 /// let locals = vec![];
@@ -125,6 +130,7 @@ impl Section for CodeSection {
 ///
 /// ```
 /// use wasm_encoder::{CodeSection, Function, Instruction};
+/// use wasm_types::LocalIdx;
 ///
 /// // Define the function body for:
 /// //
@@ -134,8 +140,8 @@ impl Section for CodeSection {
 /// //       i32.add)
 /// let locals = vec![];
 /// let mut func = Function::new(locals);
-/// func.instruction(&Instruction::LocalGet(0));
-/// func.instruction(&Instruction::LocalGet(1));
+/// func.instruction(&Instruction::LocalGet(LocalIdx(0)));
+/// func.instruction(&Instruction::LocalGet(LocalIdx(1)));
 /// func.instruction(&Instruction::I32Add);
 ///
 /// // Add our function to the code section.
@@ -301,12 +307,12 @@ pub struct MemArg {
     /// (expressed the exponent of a power of two).
     pub align: u32,
     /// The index of the memory this instruction is operating upon.
-    pub memory_index: u32,
+    pub memory_index: MemIdx,
 }
 
 impl Encode for MemArg {
     fn encode(&self, sink: &mut Vec<u8>) {
-        if self.memory_index == 0 {
+        if self.memory_index == MemIdx(0) {
             self.align.encode(sink);
             self.offset.encode(sink);
         } else {
@@ -356,7 +362,7 @@ pub enum BlockType {
     /// `[] -> [t]`
     Result(ValType),
     /// The `n`th function type.
-    FunctionType(u32),
+    FunctionType(TypeIdx),
 }
 
 impl Encode for BlockType {
@@ -364,7 +370,7 @@ impl Encode for BlockType {
         match *self {
             Self::Empty => sink.push(0x40),
             Self::Result(ty) => ty.encode(sink),
-            Self::FunctionType(f) => (f as i64).encode(sink),
+            Self::FunctionType(f) => (f.0 as i64).encode(sink),
         }
     }
 }
@@ -382,45 +388,45 @@ pub enum Instruction<'a> {
     If(BlockType),
     Else,
     End,
-    Br(u32),
-    BrIf(u32),
-    BrTable(Cow<'a, [u32]>, u32),
-    BrOnNull(u32),
-    BrOnNonNull(u32),
+    Br(LabelIdx),
+    BrIf(LabelIdx),
+    BrTable(Cow<'a, [LabelIdx]>, LabelIdx),
+    BrOnNull(LabelIdx),
+    BrOnNonNull(LabelIdx),
     Return,
-    Call(u32),
-    CallRef(u32),
+    Call(FuncIdx),
+    CallRef(TypeIdx),
     CallIndirect {
-        type_index: u32,
-        table_index: u32,
+        type_index: TypeIdx,
+        table_index: TableIdx,
     },
-    ReturnCallRef(u32),
-    ReturnCall(u32),
+    ReturnCallRef(TypeIdx),
+    ReturnCall(FuncIdx),
     ReturnCallIndirect {
-        type_index: u32,
-        table_index: u32,
+        type_index: TypeIdx,
+        table_index: TableIdx,
     },
     TryTable(BlockType, Cow<'a, [Catch]>),
-    Throw(u32),
+    Throw(TagIdx),
     ThrowRef,
 
     // Deprecated exception-handling instructions
     Try(BlockType),
-    Delegate(u32),
-    Catch(u32),
+    Delegate(LabelIdx),
+    Catch(TagIdx),
     CatchAll,
-    Rethrow(u32),
+    Rethrow(LabelIdx),
 
     // Parametric instructions.
     Drop,
     Select,
 
     // Variable instructions.
-    LocalGet(u32),
-    LocalSet(u32),
-    LocalTee(u32),
-    GlobalGet(u32),
-    GlobalSet(u32),
+    LocalGet(LocalIdx),
+    LocalSet(LocalIdx),
+    LocalTee(LocalIdx),
+    GlobalGet(GlobalIdx),
+    GlobalSet(GlobalIdx),
 
     // Memory instructions.
     I32Load(MemArg),
@@ -446,19 +452,19 @@ pub enum Instruction<'a> {
     I64Store8(MemArg),
     I64Store16(MemArg),
     I64Store32(MemArg),
-    MemorySize(u32),
-    MemoryGrow(u32),
+    MemorySize(MemIdx),
+    MemoryGrow(MemIdx),
     MemoryInit {
-        mem: u32,
-        data_index: u32,
+        mem: MemIdx,
+        data_index: DataIdx,
     },
-    DataDrop(u32),
+    DataDrop(DataIdx),
     MemoryCopy {
-        src_mem: u32,
-        dst_mem: u32,
+        src_mem: MemIdx,
+        dst_mem: MemIdx,
     },
-    MemoryFill(u32),
-    MemoryDiscard(u32),
+    MemoryFill(MemIdx),
+    MemoryDiscard(MemIdx),
 
     // Numeric instructions.
     I32Const(i32),
@@ -606,73 +612,73 @@ pub enum Instruction<'a> {
     TypedSelect(ValType),
     RefNull(HeapType),
     RefIsNull,
-    RefFunc(u32),
+    RefFunc(FuncIdx),
     RefEq,
     RefAsNonNull,
 
     // GC types instructions.
-    StructNew(u32),
-    StructNewDefault(u32),
+    StructNew(TypeIdx),
+    StructNewDefault(TypeIdx),
     StructGet {
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     },
     StructGetS {
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     },
     StructGetU {
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     },
     StructSet {
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     },
 
-    ArrayNew(u32),
-    ArrayNewDefault(u32),
+    ArrayNew(TypeIdx),
+    ArrayNewDefault(TypeIdx),
     ArrayNewFixed {
-        array_type_index: u32,
+        array_type_index: TypeIdx,
         array_size: u32,
     },
     ArrayNewData {
-        array_type_index: u32,
-        array_data_index: u32,
+        array_type_index: TypeIdx,
+        array_data_index: DataIdx,
     },
     ArrayNewElem {
-        array_type_index: u32,
-        array_elem_index: u32,
+        array_type_index: TypeIdx,
+        array_elem_index: ElemIdx,
     },
-    ArrayGet(u32),
-    ArrayGetS(u32),
-    ArrayGetU(u32),
-    ArraySet(u32),
+    ArrayGet(TypeIdx),
+    ArrayGetS(TypeIdx),
+    ArrayGetU(TypeIdx),
+    ArraySet(TypeIdx),
     ArrayLen,
-    ArrayFill(u32),
+    ArrayFill(TypeIdx),
     ArrayCopy {
-        array_type_index_dst: u32,
-        array_type_index_src: u32,
+        array_type_index_dst: TypeIdx,
+        array_type_index_src: TypeIdx,
     },
     ArrayInitData {
-        array_type_index: u32,
-        array_data_index: u32,
+        array_type_index: TypeIdx,
+        array_data_index: DataIdx,
     },
     ArrayInitElem {
-        array_type_index: u32,
-        array_elem_index: u32,
+        array_type_index: TypeIdx,
+        array_elem_index: ElemIdx,
     },
     RefTestNonNull(HeapType),
     RefTestNullable(HeapType),
     RefCastNonNull(HeapType),
     RefCastNullable(HeapType),
     BrOnCast {
-        relative_depth: u32,
+        relative_depth: LabelIdx,
         from_ref_type: RefType,
         to_ref_type: RefType,
     },
     BrOnCastFail {
-        relative_depth: u32,
+        relative_depth: LabelIdx,
         from_ref_type: RefType,
         to_ref_type: RefType,
     },
@@ -685,18 +691,18 @@ pub enum Instruction<'a> {
 
     // Bulk memory instructions.
     TableInit {
-        elem_index: u32,
-        table: u32,
+        elem_index: ElemIdx,
+        table: TableIdx,
     },
-    ElemDrop(u32),
-    TableFill(u32),
-    TableSet(u32),
-    TableGet(u32),
-    TableGrow(u32),
-    TableSize(u32),
+    ElemDrop(ElemIdx),
+    TableFill(TableIdx),
+    TableSet(TableIdx),
+    TableGet(TableIdx),
+    TableGrow(TableIdx),
+    TableSize(TableIdx),
     TableCopy {
-        src_table: u32,
-        dst_table: u32,
+        src_table: TableIdx,
+        dst_table: TableIdx,
     },
 
     // SIMD instructions.
@@ -1055,175 +1061,175 @@ pub enum Instruction<'a> {
     // More atomic instructions (the shared-everything-threads proposal)
     GlobalAtomicGet {
         ordering: Ordering,
-        global_index: u32,
+        global_index: GlobalIdx,
     },
     GlobalAtomicSet {
         ordering: Ordering,
-        global_index: u32,
+        global_index: GlobalIdx,
     },
     GlobalAtomicRmwAdd {
         ordering: Ordering,
-        global_index: u32,
+        global_index: GlobalIdx,
     },
     GlobalAtomicRmwSub {
         ordering: Ordering,
-        global_index: u32,
+        global_index: GlobalIdx,
     },
     GlobalAtomicRmwAnd {
         ordering: Ordering,
-        global_index: u32,
+        global_index: GlobalIdx,
     },
     GlobalAtomicRmwOr {
         ordering: Ordering,
-        global_index: u32,
+        global_index: GlobalIdx,
     },
     GlobalAtomicRmwXor {
         ordering: Ordering,
-        global_index: u32,
+        global_index: GlobalIdx,
     },
     GlobalAtomicRmwXchg {
         ordering: Ordering,
-        global_index: u32,
+        global_index: GlobalIdx,
     },
     GlobalAtomicRmwCmpxchg {
         ordering: Ordering,
-        global_index: u32,
+        global_index: GlobalIdx,
     },
     TableAtomicGet {
         ordering: Ordering,
-        table_index: u32,
+        table_index: TableIdx,
     },
     TableAtomicSet {
         ordering: Ordering,
-        table_index: u32,
+        table_index: TableIdx,
     },
     TableAtomicRmwXchg {
         ordering: Ordering,
-        table_index: u32,
+        table_index: TableIdx,
     },
     TableAtomicRmwCmpxchg {
         ordering: Ordering,
-        table_index: u32,
+        table_index: TableIdx,
     },
     StructAtomicGet {
         ordering: Ordering,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     },
     StructAtomicGetS {
         ordering: Ordering,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     },
     StructAtomicGetU {
         ordering: Ordering,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     },
     StructAtomicSet {
         ordering: Ordering,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     },
     StructAtomicRmwAdd {
         ordering: Ordering,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     },
     StructAtomicRmwSub {
         ordering: Ordering,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     },
     StructAtomicRmwAnd {
         ordering: Ordering,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     },
     StructAtomicRmwOr {
         ordering: Ordering,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     },
     StructAtomicRmwXor {
         ordering: Ordering,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     },
     StructAtomicRmwXchg {
         ordering: Ordering,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     },
     StructAtomicRmwCmpxchg {
         ordering: Ordering,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     },
     ArrayAtomicGet {
         ordering: Ordering,
-        array_type_index: u32,
+        array_type_index: TypeIdx,
     },
     ArrayAtomicGetS {
         ordering: Ordering,
-        array_type_index: u32,
+        array_type_index: TypeIdx,
     },
     ArrayAtomicGetU {
         ordering: Ordering,
-        array_type_index: u32,
+        array_type_index: TypeIdx,
     },
     ArrayAtomicSet {
         ordering: Ordering,
-        array_type_index: u32,
+        array_type_index: TypeIdx,
     },
     ArrayAtomicRmwAdd {
         ordering: Ordering,
-        array_type_index: u32,
+        array_type_index: TypeIdx,
     },
     ArrayAtomicRmwSub {
         ordering: Ordering,
-        array_type_index: u32,
+        array_type_index: TypeIdx,
     },
     ArrayAtomicRmwAnd {
         ordering: Ordering,
-        array_type_index: u32,
+        array_type_index: TypeIdx,
     },
     ArrayAtomicRmwOr {
         ordering: Ordering,
-        array_type_index: u32,
+        array_type_index: TypeIdx,
     },
     ArrayAtomicRmwXor {
         ordering: Ordering,
-        array_type_index: u32,
+        array_type_index: TypeIdx,
     },
     ArrayAtomicRmwXchg {
         ordering: Ordering,
-        array_type_index: u32,
+        array_type_index: TypeIdx,
     },
     ArrayAtomicRmwCmpxchg {
         ordering: Ordering,
-        array_type_index: u32,
+        array_type_index: TypeIdx,
     },
     RefI31Shared,
     // Stack switching
-    ContNew(u32),
+    ContNew(TypeIdx),
     ContBind {
-        argument_index: u32,
-        result_index: u32,
+        argument_index: TypeIdx,
+        result_index: TypeIdx,
     },
-    Suspend(u32),
+    Suspend(TagIdx),
     Resume {
-        cont_type_index: u32,
+        cont_type_index: TypeIdx,
         resume_table: Cow<'a, [Handle]>,
     },
     ResumeThrow {
-        cont_type_index: u32,
-        tag_index: u32,
+        cont_type_index: TypeIdx,
+        tag_index: TagIdx,
         resume_table: Cow<'a, [Handle]>,
     },
     Switch {
-        cont_type_index: u32,
-        tag_index: u32,
+        cont_type_index: TypeIdx,
+        tag_index: TagIdx,
     },
 
     // Wide Arithmetic
@@ -3788,10 +3794,10 @@ impl Encode for Instruction<'_> {
 #[derive(Clone, Debug)]
 #[allow(missing_docs)]
 pub enum Catch {
-    One { tag: u32, label: u32 },
-    OneRef { tag: u32, label: u32 },
-    All { label: u32 },
-    AllRef { label: u32 },
+    One { tag: TagIdx, label: LabelIdx },
+    OneRef { tag: TagIdx, label: LabelIdx },
+    All { label: LabelIdx },
+    AllRef { label: LabelIdx },
 }
 
 impl Encode for Catch {
@@ -3822,8 +3828,8 @@ impl Encode for Catch {
 #[derive(Clone, Debug)]
 #[allow(missing_docs)]
 pub enum Handle {
-    OnLabel { tag: u32, label: u32 },
-    OnSwitch { tag: u32 },
+    OnLabel { tag: TagIdx, label: LabelIdx },
+    OnSwitch { tag: TagIdx },
 }
 
 impl Encode for Handle {
@@ -3884,7 +3890,7 @@ impl ConstExpr {
     }
 
     /// Create a constant expression containing a single `global.get` instruction.
-    pub fn global_get(index: u32) -> Self {
+    pub fn global_get(index: GlobalIdx) -> Self {
         Self::new_insn(Instruction::GlobalGet(index))
     }
 
@@ -3894,7 +3900,7 @@ impl ConstExpr {
     }
 
     /// Create a constant expression containing a single `ref.func` instruction.
-    pub fn ref_func(func: u32) -> Self {
+    pub fn ref_func(func: FuncIdx) -> Self {
         Self::new_insn(Instruction::RefFunc(func))
     }
 
@@ -3924,7 +3930,7 @@ impl ConstExpr {
     }
 
     /// Add a `global.get` instruction to this constant expression.
-    pub fn with_global_get(self, index: u32) -> Self {
+    pub fn with_global_get(self, index: GlobalIdx) -> Self {
         self.with_insn(Instruction::GlobalGet(index))
     }
 
@@ -3934,7 +3940,7 @@ impl ConstExpr {
     }
 
     /// Add a `ref.func` instruction to this constant expression.
-    pub fn with_ref_func(self, func: u32) -> Self {
+    pub fn with_ref_func(self, func: FuncIdx) -> Self {
         self.with_insn(Instruction::RefFunc(func))
     }
 
@@ -3994,14 +4000,16 @@ impl ConstExpr {
     }
 
     /// Returns the function, if any, referenced by this global.
-    pub fn get_ref_func(&self) -> Option<u32> {
+    pub fn get_ref_func(&self) -> Option<FuncIdx> {
         let prefix = *self.bytes.get(0)?;
         // 0xd2 == `ref.func` opcode, and if that's found then load the leb
         // corresponding to the function index.
         if prefix != 0xd2 {
             return None;
         }
-        leb128fmt::decode_uint_slice::<u32, 32>(&self.bytes[1..], &mut 0).ok()
+        leb128fmt::decode_uint_slice::<u32, 32>(&self.bytes[1..], &mut 0)
+            .ok()
+            .map(FuncIdx)
     }
 }
 

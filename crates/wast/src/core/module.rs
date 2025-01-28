@@ -3,6 +3,7 @@ use crate::core::*;
 use crate::parser::{Parse, Parser, Result};
 use crate::token::{Id, Index, NameAnnotation, Span};
 use crate::{annotation, kw};
+use wasm_types::FuncIdx;
 
 pub use crate::core::resolve::Names;
 
@@ -151,7 +152,7 @@ pub enum ModuleField<'a> {
     Memory(Memory<'a>),
     Global(Global<'a>),
     Export(Export<'a>),
-    Start(Index<'a>),
+    Start(Index<'a, FuncIdx>),
     Elem(Elem<'a>),
     Data(Data<'a>),
     Tag(Tag<'a>),

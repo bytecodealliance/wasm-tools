@@ -24,6 +24,11 @@ use crate::{
     TypeBounds, ValType, WasmFeatures,
 };
 use core::mem;
+use index_vec::IndexVec;
+use wasm_types::{
+    ComponentFuncIdx, ComponentIdx, ComponentInstanceIdx, ComponentTypeIdx, CoreInstanceIdx,
+    CoreModuleIdx, FuncIdx, GlobalIdx, MemIdx, TableIdx, TagIdx, TypeIdx, ComponentValueIdx,
+};
 
 fn to_kebab_str<'a>(s: &'a str, desc: &str, offset: usize) -> Result<&'a KebabStr> {
     match KebabStr::new(s) {
@@ -44,21 +49,21 @@ pub(crate) struct ComponentState {
     kind: ComponentKind,
 
     // Core index spaces
-    pub core_types: Vec<ComponentCoreTypeId>,
-    pub core_funcs: Vec<CoreTypeId>,
-    pub core_tags: Vec<CoreTypeId>,
-    pub core_modules: Vec<ComponentCoreModuleTypeId>,
-    pub core_instances: Vec<ComponentCoreInstanceTypeId>,
-    pub core_memories: Vec<MemoryType>,
-    pub core_tables: Vec<TableType>,
-    pub core_globals: Vec<GlobalType>,
+    pub core_types: IndexVec<TypeIdx, ComponentCoreTypeId>,
+    pub core_funcs: IndexVec<FuncIdx, CoreTypeId>,
+    pub core_tags: IndexVec<TagIdx, CoreTypeId>,
+    pub core_modules: IndexVec<CoreModuleIdx, ComponentCoreModuleTypeId>,
+    pub core_instances: IndexVec<CoreInstanceIdx, ComponentCoreInstanceTypeId>,
+    pub core_memories: IndexVec<MemIdx, MemoryType>,
+    pub core_tables: IndexVec<TableIdx, TableType>,
+    pub core_globals: IndexVec<GlobalIdx, GlobalType>,
 
     // Component index spaces
-    pub types: Vec<ComponentAnyTypeId>,
-    pub funcs: Vec<ComponentFuncTypeId>,
-    pub values: Vec<(ComponentValType, bool)>,
-    pub instances: Vec<ComponentInstanceTypeId>,
-    pub components: Vec<ComponentTypeId>,
+    pub types: IndexVec<ComponentTypeIdx, ComponentAnyTypeId>,
+    pub funcs: IndexVec<ComponentFuncIdx, ComponentFuncTypeId>,
+    pub values: IndexVec<ComponentValueIdx, (ComponentValType, bool)>,
+    pub instances: IndexVec<ComponentInstanceIdx, ComponentInstanceTypeId>,
+    pub components: IndexVec<ComponentIdx, ComponentTypeId>,
 
     pub imports: IndexMap<String, ComponentEntityType>,
     pub import_names: IndexSet<ComponentName>,
@@ -954,8 +959,8 @@ impl ComponentState {
 
     pub fn lift_function(
         &mut self,
-        core_func_index: u32,
-        type_index: u32,
+        core_func_index: FuncIdx,
+        type_index: ComponentTypeIdx,
         options: Vec<CanonicalOption>,
         types: &TypeList,
         offset: usize,
@@ -1011,15 +1016,14 @@ impl ComponentState {
             );
         }
 
-        self.funcs
-            .push(self.types[type_index as usize].unwrap_func());
+        self.funcs.push(self.types[type_index].unwrap_func());
 
         Ok(())
     }
 
     pub fn lower_function(
         &mut self,
-        func_index: u32,
+        func_index: ComponentFuncIdx,
         options: Vec<CanonicalOption>,
         types: &mut TypeAlloc,
         offset: usize,
@@ -1048,7 +1052,7 @@ impl ComponentState {
 
     pub fn resource_new(
         &mut self,
-        resource: u32,
+        resource: ComponentTypeIdx,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
@@ -1060,7 +1064,7 @@ impl ComponentState {
 
     pub fn resource_drop(
         &mut self,
-        resource: u32,
+        resource: ComponentTypeIdx,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
@@ -1072,7 +1076,7 @@ impl ComponentState {
 
     pub fn resource_rep(
         &mut self,
-        resource: u32,
+        resource: ComponentTypeIdx,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
@@ -1146,7 +1150,7 @@ impl ComponentState {
     pub fn task_wait(
         &mut self,
         _async_: bool,
-        memory: u32,
+        memory: MemIdx,
         types: &mut TypeAlloc,
         offset: usize,
         features: &WasmFeatures,
@@ -1168,7 +1172,7 @@ impl ComponentState {
     pub fn task_poll(
         &mut self,
         _async_: bool,
-        memory: u32,
+        memory: MemIdx,
         types: &mut TypeAlloc,
         offset: usize,
         features: &WasmFeatures,
@@ -1226,7 +1230,7 @@ impl ComponentState {
 
     pub fn stream_new(
         &mut self,
-        ty: u32,
+        ty: ComponentTypeIdx,
         types: &mut TypeAlloc,
         offset: usize,
         features: &WasmFeatures,
@@ -1250,7 +1254,7 @@ impl ComponentState {
 
     pub fn stream_read(
         &mut self,
-        ty: u32,
+        ty: ComponentTypeIdx,
         options: Vec<CanonicalOption>,
         types: &mut TypeAlloc,
         offset: usize,
@@ -1282,7 +1286,7 @@ impl ComponentState {
 
     pub fn stream_write(
         &mut self,
-        ty: u32,
+        ty: ComponentTypeIdx,
         options: Vec<CanonicalOption>,
         types: &mut TypeAlloc,
         offset: usize,
@@ -1312,7 +1316,7 @@ impl ComponentState {
 
     pub fn stream_cancel_read(
         &mut self,
-        ty: u32,
+        ty: ComponentTypeIdx,
         _async_: bool,
         types: &mut TypeAlloc,
         offset: usize,
@@ -1337,7 +1341,7 @@ impl ComponentState {
 
     pub fn stream_cancel_write(
         &mut self,
-        ty: u32,
+        ty: ComponentTypeIdx,
         _async_: bool,
         types: &mut TypeAlloc,
         offset: usize,
@@ -1362,7 +1366,7 @@ impl ComponentState {
 
     pub fn stream_close_readable(
         &mut self,
-        ty: u32,
+        ty: ComponentTypeIdx,
         types: &mut TypeAlloc,
         offset: usize,
         features: &WasmFeatures,
@@ -1386,7 +1390,7 @@ impl ComponentState {
 
     pub fn stream_close_writable(
         &mut self,
-        ty: u32,
+        ty: ComponentTypeIdx,
         types: &mut TypeAlloc,
         offset: usize,
         features: &WasmFeatures,
@@ -1410,7 +1414,7 @@ impl ComponentState {
 
     pub fn future_new(
         &mut self,
-        ty: u32,
+        ty: ComponentTypeIdx,
         types: &mut TypeAlloc,
         offset: usize,
         features: &WasmFeatures,
@@ -1434,7 +1438,7 @@ impl ComponentState {
 
     pub fn future_read(
         &mut self,
-        ty: u32,
+        ty: ComponentTypeIdx,
         options: Vec<CanonicalOption>,
         types: &mut TypeAlloc,
         offset: usize,
@@ -1466,7 +1470,7 @@ impl ComponentState {
 
     pub fn future_write(
         &mut self,
-        ty: u32,
+        ty: ComponentTypeIdx,
         options: Vec<CanonicalOption>,
         types: &mut TypeAlloc,
         offset: usize,
@@ -1496,7 +1500,7 @@ impl ComponentState {
 
     pub fn future_cancel_read(
         &mut self,
-        ty: u32,
+        ty: ComponentTypeIdx,
         _async_: bool,
         types: &mut TypeAlloc,
         offset: usize,
@@ -1521,7 +1525,7 @@ impl ComponentState {
 
     pub fn future_cancel_write(
         &mut self,
-        ty: u32,
+        ty: ComponentTypeIdx,
         _async_: bool,
         types: &mut TypeAlloc,
         offset: usize,
@@ -1546,7 +1550,7 @@ impl ComponentState {
 
     pub fn future_close_readable(
         &mut self,
-        ty: u32,
+        ty: ComponentTypeIdx,
         types: &mut TypeAlloc,
         offset: usize,
         features: &WasmFeatures,
@@ -1570,7 +1574,7 @@ impl ComponentState {
 
     pub fn future_close_writable(
         &mut self,
-        ty: u32,
+        ty: ComponentTypeIdx,
         types: &mut TypeAlloc,
         offset: usize,
         features: &WasmFeatures,
@@ -1658,7 +1662,12 @@ impl ComponentState {
         Ok(())
     }
 
-    fn check_local_resource(&self, idx: u32, types: &TypeList, offset: usize) -> Result<ValType> {
+    fn check_local_resource(
+        &self,
+        idx: ComponentTypeIdx,
+        types: &TypeList,
+        offset: usize,
+    ) -> Result<ValType> {
         let resource = self.resource_at(idx, types, offset)?;
         match self
             .defined_resources
@@ -1672,7 +1681,7 @@ impl ComponentState {
 
     fn resource_at<'a>(
         &self,
-        idx: u32,
+        idx: ComponentTypeIdx,
         _types: &'a TypeList,
         offset: usize,
     ) -> Result<AliasableResourceId> {
@@ -1684,7 +1693,7 @@ impl ComponentState {
 
     pub fn thread_spawn(
         &mut self,
-        func_ty_index: u32,
+        func_ty_index: TypeIdx,
         types: &mut TypeAlloc,
         offset: usize,
         features: &WasmFeatures,
@@ -1821,16 +1830,16 @@ impl ComponentState {
             ),
             crate::ComponentAlias::Outer { kind, count, index } => match kind {
                 ComponentOuterAliasKind::CoreModule => {
-                    Self::alias_module(components, count, index, offset)
+                    Self::alias_module(components, count, CoreModuleIdx(index), offset)
                 }
                 ComponentOuterAliasKind::CoreType => {
-                    Self::alias_core_type(components, count, index, offset)
+                    Self::alias_core_type(components, count, TypeIdx(index), offset)
                 }
                 ComponentOuterAliasKind::Type => {
-                    Self::alias_type(components, count, index, types, offset)
+                    Self::alias_type(components, count, ComponentTypeIdx(index), types, offset)
                 }
                 ComponentOuterAliasKind::Component => {
-                    Self::alias_component(components, count, index, offset)
+                    Self::alias_component(components, count, ComponentIdx(index), offset)
                 }
             },
         }
@@ -1838,8 +1847,8 @@ impl ComponentState {
 
     pub fn add_start(
         &mut self,
-        func_index: u32,
-        args: &[u32],
+        func_index: ComponentFuncIdx,
+        args: &[ComponentValueIdx],
         results: u32,
         features: &WasmFeatures,
         types: &mut TypeList,
@@ -2161,29 +2170,29 @@ impl ComponentState {
     ) -> Result<ComponentEntityType> {
         let actual = match export.kind {
             ComponentExternalKind::Module => {
-                ComponentEntityType::Module(self.module_at(export.index, offset)?)
+                ComponentEntityType::Module(self.module_at(CoreModuleIdx(export.index), offset)?)
             }
             ComponentExternalKind::Func => {
-                ComponentEntityType::Func(self.function_at(export.index, offset)?)
+                ComponentEntityType::Func(self.function_at(ComponentFuncIdx(export.index), offset)?)
             }
             ComponentExternalKind::Value => {
                 self.check_value_support(features, offset)?;
-                ComponentEntityType::Value(*self.value_at(export.index, offset)?)
+                ComponentEntityType::Value(*self.value_at(ComponentValueIdx(export.index), offset)?)
             }
             ComponentExternalKind::Type => {
-                let referenced = self.component_type_at(export.index, offset)?;
+                let referenced = self.component_type_at(ComponentTypeIdx(export.index), offset)?;
                 let created = types.with_unique(referenced);
                 ComponentEntityType::Type {
                     referenced,
                     created,
                 }
             }
-            ComponentExternalKind::Instance => {
-                ComponentEntityType::Instance(self.instance_at(export.index, offset)?)
-            }
-            ComponentExternalKind::Component => {
-                ComponentEntityType::Component(self.component_at(export.index, offset)?)
-            }
+            ComponentExternalKind::Instance => ComponentEntityType::Instance(
+                self.instance_at(ComponentInstanceIdx(export.index), offset)?,
+            ),
+            ComponentExternalKind::Component => ComponentEntityType::Component(
+                self.component_at(ComponentIdx(export.index), offset)?,
+            ),
         };
 
         let ascribed = match &export.ty {
@@ -2221,18 +2230,20 @@ impl ComponentState {
                         crate::OuterAliasKind::Type => {
                             let ty = if count == 0 {
                                 // Local alias, check the local module state
-                                ComponentCoreTypeId::Sub(state.type_id_at(index, offset)?)
+                                ComponentCoreTypeId::Sub(state.type_id_at(TypeIdx(index), offset)?)
                             } else {
                                 // Otherwise, check the enclosing component state
                                 let component =
                                     Self::check_alias_count(components, count - 1, offset)?;
-                                component.core_type_at(index, offset)?
+                                component.core_type_at(TypeIdx(index), offset)?
                             };
 
                             check_max(state.types.len(), 1, MAX_WASM_TYPES, "types", offset)?;
 
                             match ty {
-                                ComponentCoreTypeId::Sub(ty) => state.types.push(ty),
+                                ComponentCoreTypeId::Sub(ty) => {
+                                    state.types.push(ty);
+                                }
                                 // TODO https://github.com/WebAssembly/component-model/issues/265
                                 ComponentCoreTypeId::Module(_) => bail!(
                                     offset,
@@ -2434,7 +2445,7 @@ impl ComponentState {
 
     fn instantiate_core_module(
         &self,
-        module_index: u32,
+        module_index: CoreModuleIdx,
         module_args: Vec<crate::InstantiationArg>,
         types: &mut TypeAlloc,
         offset: usize,
@@ -2462,7 +2473,8 @@ impl ComponentState {
         for module_arg in module_args {
             match module_arg.kind {
                 InstantiationArgKind::Instance => {
-                    let instance_type = &types[self.core_instance_at(module_arg.index, offset)?];
+                    let instance_type =
+                        &types[self.core_instance_at(CoreInstanceIdx(module_arg.index), offset)?];
                     insert_arg(module_arg.name, instance_type, &mut args, offset)?;
                 }
             }
@@ -2511,7 +2523,7 @@ impl ComponentState {
 
     fn instantiate_component(
         &mut self,
-        component_index: u32,
+        component_index: ComponentIdx,
         component_args: Vec<crate::ComponentInstantiationArg>,
         features: &WasmFeatures,
         types: &mut TypeAlloc,
@@ -2523,24 +2535,27 @@ impl ComponentState {
         // Populate the arguments
         for component_arg in component_args {
             let ty = match component_arg.kind {
-                ComponentExternalKind::Module => {
-                    ComponentEntityType::Module(self.module_at(component_arg.index, offset)?)
-                }
-                ComponentExternalKind::Component => {
-                    ComponentEntityType::Component(self.component_at(component_arg.index, offset)?)
-                }
-                ComponentExternalKind::Instance => {
-                    ComponentEntityType::Instance(self.instance_at(component_arg.index, offset)?)
-                }
-                ComponentExternalKind::Func => {
-                    ComponentEntityType::Func(self.function_at(component_arg.index, offset)?)
-                }
+                ComponentExternalKind::Module => ComponentEntityType::Module(
+                    self.module_at(CoreModuleIdx(component_arg.index), offset)?,
+                ),
+                ComponentExternalKind::Component => ComponentEntityType::Component(
+                    self.component_at(ComponentIdx(component_arg.index), offset)?,
+                ),
+                ComponentExternalKind::Instance => ComponentEntityType::Instance(
+                    self.instance_at(ComponentInstanceIdx(component_arg.index), offset)?,
+                ),
+                ComponentExternalKind::Func => ComponentEntityType::Func(
+                    self.function_at(ComponentFuncIdx(component_arg.index), offset)?,
+                ),
                 ComponentExternalKind::Value => {
                     self.check_value_support(features, offset)?;
-                    ComponentEntityType::Value(*self.value_at(component_arg.index, offset)?)
+                    ComponentEntityType::Value(
+                        *self.value_at(ComponentValueIdx(component_arg.index), offset)?,
+                    )
                 }
                 ComponentExternalKind::Type => {
-                    let ty = self.component_type_at(component_arg.index, offset)?;
+                    let ty =
+                        self.component_type_at(ComponentTypeIdx(component_arg.index), offset)?;
                     ComponentEntityType::Type {
                         referenced: ty,
                         created: ty,
@@ -2798,14 +2813,14 @@ impl ComponentState {
         for export in exports {
             assert!(export.ty.is_none());
             let ty = match export.kind {
-                ComponentExternalKind::Module => {
-                    ComponentEntityType::Module(self.module_at(export.index, offset)?)
-                }
-                ComponentExternalKind::Component => {
-                    ComponentEntityType::Component(self.component_at(export.index, offset)?)
-                }
+                ComponentExternalKind::Module => ComponentEntityType::Module(
+                    self.module_at(CoreModuleIdx(export.index), offset)?,
+                ),
+                ComponentExternalKind::Component => ComponentEntityType::Component(
+                    self.component_at(ComponentIdx(export.index), offset)?,
+                ),
                 ComponentExternalKind::Instance => {
-                    let ty = self.instance_at(export.index, offset)?;
+                    let ty = self.instance_at(ComponentInstanceIdx(export.index), offset)?;
 
                     // When an instance is exported from an instance then
                     // all explicitly exported resources on the sub-instance are
@@ -2820,15 +2835,15 @@ impl ComponentState {
                     ));
                     ComponentEntityType::Instance(ty)
                 }
-                ComponentExternalKind::Func => {
-                    ComponentEntityType::Func(self.function_at(export.index, offset)?)
-                }
+                ComponentExternalKind::Func => ComponentEntityType::Func(
+                    self.function_at(ComponentFuncIdx(export.index), offset)?,
+                ),
                 ComponentExternalKind::Value => {
                     self.check_value_support(features, offset)?;
-                    ComponentEntityType::Value(*self.value_at(export.index, offset)?)
+                    ComponentEntityType::Value(*self.value_at(ComponentValueIdx(export.index), offset)?)
                 }
                 ComponentExternalKind::Type => {
-                    let ty = self.component_type_at(export.index, offset)?;
+                    let ty = self.component_type_at(ComponentTypeIdx(export.index), offset)?;
                     // If this is an export of a resource type be sure to
                     // record that in the explicit list with the appropriate
                     // path because if this instance ends up getting used
@@ -2932,7 +2947,7 @@ impl ComponentState {
                     insert_export(
                         types,
                         export.name,
-                        EntityType::Func(self.core_function_at(export.index, offset)?),
+                        EntityType::Func(self.core_function_at(FuncIdx(export.index), offset)?),
                         &mut inst_exports,
                         &mut info,
                         offset,
@@ -2941,7 +2956,7 @@ impl ComponentState {
                 ExternalKind::Table => insert_export(
                     types,
                     export.name,
-                    EntityType::Table(*self.table_at(export.index, offset)?),
+                    EntityType::Table(*self.table_at(TableIdx(export.index), offset)?),
                     &mut inst_exports,
                     &mut info,
                     offset,
@@ -2949,7 +2964,7 @@ impl ComponentState {
                 ExternalKind::Memory => insert_export(
                     types,
                     export.name,
-                    EntityType::Memory(*self.memory_at(export.index, offset)?),
+                    EntityType::Memory(*self.memory_at(MemIdx(export.index), offset)?),
                     &mut inst_exports,
                     &mut info,
                     offset,
@@ -2958,7 +2973,7 @@ impl ComponentState {
                     insert_export(
                         types,
                         export.name,
-                        EntityType::Global(*self.global_at(export.index, offset)?),
+                        EntityType::Global(*self.global_at(GlobalIdx(export.index), offset)?),
                         &mut inst_exports,
                         &mut info,
                         offset,
@@ -2967,7 +2982,7 @@ impl ComponentState {
                 ExternalKind::Tag => insert_export(
                     types,
                     export.name,
-                    EntityType::Tag(self.core_function_at(export.index, offset)?),
+                    EntityType::Tag(self.core_function_at(FuncIdx(export.index), offset)?),
                     &mut inst_exports,
                     &mut info,
                     offset,
@@ -2983,7 +2998,7 @@ impl ComponentState {
 
     fn alias_core_instance_export(
         &mut self,
-        instance_index: u32,
+        instance_index: CoreInstanceIdx,
         kind: ExternalKind,
         name: &str,
         types: &TypeList,
@@ -3092,7 +3107,7 @@ impl ComponentState {
 
     fn alias_instance_export(
         &mut self,
-        instance_index: u32,
+        instance_index: ComponentInstanceIdx,
         kind: ComponentExternalKind,
         name: &str,
         features: &WasmFeatures,
@@ -3139,7 +3154,12 @@ impl ComponentState {
         Ok(())
     }
 
-    fn alias_module(components: &mut [Self], count: u32, index: u32, offset: usize) -> Result<()> {
+    fn alias_module(
+        components: &mut [Self],
+        count: u32,
+        index: CoreModuleIdx,
+        offset: usize,
+    ) -> Result<()> {
         let component = Self::check_alias_count(components, count, offset)?;
         let ty = component.module_at(index, offset)?;
 
@@ -3159,7 +3179,7 @@ impl ComponentState {
     fn alias_component(
         components: &mut [Self],
         count: u32,
-        index: u32,
+        index: ComponentIdx,
         offset: usize,
     ) -> Result<()> {
         let component = Self::check_alias_count(components, count, offset)?;
@@ -3181,7 +3201,7 @@ impl ComponentState {
     fn alias_core_type(
         components: &mut [Self],
         count: u32,
-        index: u32,
+        index: TypeIdx,
         offset: usize,
     ) -> Result<()> {
         let component = Self::check_alias_count(components, count, offset)?;
@@ -3198,7 +3218,7 @@ impl ComponentState {
     fn alias_type(
         components: &mut [Self],
         count: u32,
-        index: u32,
+        index: ComponentTypeIdx,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
@@ -3521,23 +3541,27 @@ impl ComponentState {
         })
     }
 
-    pub fn core_type_at(&self, idx: u32, offset: usize) -> Result<ComponentCoreTypeId> {
+    pub fn core_type_at(&self, idx: TypeIdx, offset: usize) -> Result<ComponentCoreTypeId> {
         self.core_types
-            .get(idx as usize)
+            .get(idx)
             .copied()
             .ok_or_else(|| format_err!(offset, "unknown type {idx}: type index out of bounds"))
     }
 
-    pub fn component_type_at(&self, idx: u32, offset: usize) -> Result<ComponentAnyTypeId> {
+    pub fn component_type_at(
+        &self,
+        idx: ComponentTypeIdx,
+        offset: usize,
+    ) -> Result<ComponentAnyTypeId> {
         self.types
-            .get(idx as usize)
+            .get(idx)
             .copied()
             .ok_or_else(|| format_err!(offset, "unknown type {idx}: type index out of bounds"))
     }
 
     fn function_type_at<'a>(
         &self,
-        idx: u32,
+        idx: ComponentTypeIdx,
         types: &'a TypeList,
         offset: usize,
     ) -> Result<&'a ComponentFuncType> {
@@ -3548,8 +3572,8 @@ impl ComponentState {
         }
     }
 
-    fn function_at(&self, idx: u32, offset: usize) -> Result<ComponentFuncTypeId> {
-        self.funcs.get(idx as usize).copied().ok_or_else(|| {
+    fn function_at(&self, idx: ComponentFuncIdx, offset: usize) -> Result<ComponentFuncTypeId> {
+        self.funcs.get(idx).copied().ok_or_else(|| {
             format_err!(
                 offset,
                 "unknown function {idx}: function index out of bounds"
@@ -3557,8 +3581,8 @@ impl ComponentState {
         })
     }
 
-    fn component_at(&self, idx: u32, offset: usize) -> Result<ComponentTypeId> {
-        self.components.get(idx as usize).copied().ok_or_else(|| {
+    fn component_at(&self, idx: ComponentIdx, offset: usize) -> Result<ComponentTypeId> {
+        self.components.get(idx).copied().ok_or_else(|| {
             format_err!(
                 offset,
                 "unknown component {idx}: component index out of bounds"
@@ -3566,8 +3590,12 @@ impl ComponentState {
         })
     }
 
-    fn instance_at(&self, idx: u32, offset: usize) -> Result<ComponentInstanceTypeId> {
-        self.instances.get(idx as usize).copied().ok_or_else(|| {
+    fn instance_at(
+        &self,
+        idx: ComponentInstanceIdx,
+        offset: usize,
+    ) -> Result<ComponentInstanceTypeId> {
+        self.instances.get(idx).copied().ok_or_else(|| {
             format_err!(
                 offset,
                 "unknown instance {idx}: instance index out of bounds"
@@ -3575,8 +3603,8 @@ impl ComponentState {
         })
     }
 
-    fn value_at(&mut self, idx: u32, offset: usize) -> Result<&ComponentValType> {
-        match self.values.get_mut(idx as usize) {
+    fn value_at(&mut self, idx: ComponentValueIdx, offset: usize) -> Result<&ComponentValType> {
+        match self.values.get_mut(idx) {
             Some((ty, used)) if !*used => {
                 *used = true;
                 Ok(ty)
@@ -3586,15 +3614,19 @@ impl ComponentState {
         }
     }
 
-    fn defined_type_at(&self, idx: u32, offset: usize) -> Result<ComponentDefinedTypeId> {
+    fn defined_type_at(
+        &self,
+        idx: ComponentTypeIdx,
+        offset: usize,
+    ) -> Result<ComponentDefinedTypeId> {
         match self.component_type_at(idx, offset)? {
             ComponentAnyTypeId::Defined(id) => Ok(id),
             _ => bail!(offset, "type index {idx} is not a defined type"),
         }
     }
 
-    fn core_function_at(&self, idx: u32, offset: usize) -> Result<CoreTypeId> {
-        match self.core_funcs.get(idx as usize) {
+    fn core_function_at(&self, idx: FuncIdx, offset: usize) -> Result<CoreTypeId> {
+        match self.core_funcs.get(idx) {
             Some(id) => Ok(*id),
             None => bail!(
                 offset,
@@ -3603,15 +3635,19 @@ impl ComponentState {
         }
     }
 
-    fn module_at(&self, idx: u32, offset: usize) -> Result<ComponentCoreModuleTypeId> {
-        match self.core_modules.get(idx as usize) {
+    fn module_at(&self, idx: CoreModuleIdx, offset: usize) -> Result<ComponentCoreModuleTypeId> {
+        match self.core_modules.get(idx) {
             Some(id) => Ok(*id),
             None => bail!(offset, "unknown module {idx}: module index out of bounds"),
         }
     }
 
-    fn core_instance_at(&self, idx: u32, offset: usize) -> Result<ComponentCoreInstanceTypeId> {
-        match self.core_instances.get(idx as usize) {
+    fn core_instance_at(
+        &self,
+        idx: CoreInstanceIdx,
+        offset: usize,
+    ) -> Result<ComponentCoreInstanceTypeId> {
+        match self.core_instances.get(idx) {
             Some(id) => Ok(*id),
             None => bail!(
                 offset,
@@ -3622,7 +3658,7 @@ impl ComponentState {
 
     fn core_instance_export<'a>(
         &self,
-        instance_index: u32,
+        instance_index: CoreInstanceIdx,
         name: &str,
         types: &'a TypeList,
         offset: usize,
@@ -3639,22 +3675,22 @@ impl ComponentState {
         }
     }
 
-    fn global_at(&self, idx: u32, offset: usize) -> Result<&GlobalType> {
-        match self.core_globals.get(idx as usize) {
+    fn global_at(&self, idx: GlobalIdx, offset: usize) -> Result<&GlobalType> {
+        match self.core_globals.get(idx) {
             Some(t) => Ok(t),
             None => bail!(offset, "unknown global {idx}: global index out of bounds"),
         }
     }
 
-    fn table_at(&self, idx: u32, offset: usize) -> Result<&TableType> {
-        match self.core_tables.get(idx as usize) {
+    fn table_at(&self, idx: TableIdx, offset: usize) -> Result<&TableType> {
+        match self.core_tables.get(idx) {
             Some(t) => Ok(t),
             None => bail!(offset, "unknown table {idx}: table index out of bounds"),
         }
     }
 
-    fn memory_at(&self, idx: u32, offset: usize) -> Result<&MemoryType> {
-        match self.core_memories.get(idx as usize) {
+    fn memory_at(&self, idx: MemIdx, offset: usize) -> Result<&MemoryType> {
+        match self.core_memories.get(idx) {
             Some(t) => Ok(t),
             None => bail!(offset, "unknown memory {idx}: memory index out of bounds"),
         }
@@ -3776,7 +3812,7 @@ impl InternRecGroup for ComponentState {
         self.core_types.push(ComponentCoreTypeId::Sub(id));
     }
 
-    fn type_id_at(&self, idx: u32, offset: usize) -> Result<CoreTypeId> {
+    fn type_id_at(&self, idx: TypeIdx, offset: usize) -> Result<CoreTypeId> {
         match self.core_type_at(idx, offset)? {
             ComponentCoreTypeId::Sub(id) => Ok(id),
             ComponentCoreTypeId::Module(_) => {

@@ -970,6 +970,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "index_vec"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44faf5bb8861a9c72e20d3fb0fdbd59233e43056e2b80475ab0aacdc2e781355"
+
+[[package]]
 name = "indexmap"
 version = "1.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1904,8 +1910,10 @@ name = "wasm-encoder"
 version = "0.225.0"
 dependencies = [
  "anyhow",
+ "index_vec",
  "leb128fmt",
  "tempfile",
+ "wasm-types",
  "wasmparser 0.225.0",
  "wasmprinter 0.225.0",
 ]
@@ -1932,6 +1940,7 @@ version = "0.225.0"
 dependencies = [
  "anyhow",
  "clap",
+ "index_vec",
  "indexmap 2.7.1",
  "serde",
  "serde_derive",
@@ -1950,10 +1959,12 @@ dependencies = [
  "clap",
  "egg",
  "env_logger",
+ "index_vec",
  "log",
  "rand",
  "thiserror",
  "wasm-encoder 0.225.0",
+ "wasm-types",
  "wasmparser 0.225.0",
  "wasmprinter 0.225.0",
  "wat",
@@ -2002,11 +2013,13 @@ dependencies = [
  "clap",
  "criterion",
  "flagset",
+ "index_vec",
  "libfuzzer-sys",
  "rand",
  "serde",
  "serde_derive",
  "wasm-encoder 0.225.0",
+ "wasm-types",
  "wasmparser 0.225.0",
  "wasmprinter 0.225.0",
  "wat",
@@ -2095,6 +2108,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "wasm-types"
+version = "0.225.0"
+dependencies = [
+ "index_vec",
+]
+
+[[package]]
 name = "wasm-wave"
 version = "0.225.0"
 dependencies = [
@@ -2140,6 +2160,7 @@ dependencies = [
  "criterion",
  "env_logger",
  "hashbrown 0.15.2",
+ "index_vec",
  "indexmap 2.7.1",
  "log",
  "once_cell",
@@ -2147,6 +2168,7 @@ dependencies = [
  "semver",
  "serde",
  "wasm-encoder 0.225.0",
+ "wasm-types",
  "wast",
  "wat",
 ]
@@ -2167,7 +2189,9 @@ name = "wasmprinter"
 version = "0.225.0"
 dependencies = [
  "anyhow",
+ "index_vec",
  "termcolor",
+ "wasm-types",
  "wasmparser 0.225.0",
  "wat",
 ]
@@ -2387,12 +2411,14 @@ dependencies = [
  "anyhow",
  "bumpalo",
  "gimli",
+ "index_vec",
  "leb128fmt",
  "libtest-mimic",
  "memchr",
  "rand",
  "unicode-width",
  "wasm-encoder 0.225.0",
+ "wasm-types",
  "wasmparser 0.225.0",
  "wat",
 ]

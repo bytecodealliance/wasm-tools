@@ -25,6 +25,8 @@ use crate::{BinaryReader, BinaryReaderError, FromReader, Result, SectionLimited}
 use core::cmp::Ordering;
 use core::fmt::{self, Debug};
 use core::hash::{Hash, Hasher};
+use index_vec::IndexBox;
+use wasm_types::{FieldIdx, TypeIdx};
 
 #[cfg(feature = "validate")]
 mod matches;
@@ -121,9 +123,9 @@ impl PackedIndex {
 
     /// Construct a `PackedIndex` from an index into a module's types space.
     #[inline]
-    pub fn from_module_index(index: u32) -> Option<Self> {
-        if PackedIndex::can_represent_index(index) {
-            Some(PackedIndex(PackedIndex::MODULE_KIND | index))
+    pub fn from_module_index(index: TypeIdx) -> Option<Self> {
+        if PackedIndex::can_represent_index(index.0) {
+            Some(PackedIndex(PackedIndex::MODULE_KIND | index.0))
         } else {
             None
         }
@@ -168,7 +170,7 @@ impl PackedIndex {
     #[inline]
     pub fn unpack(&self) -> UnpackedIndex {
         match self.kind() {
-            Self::MODULE_KIND => UnpackedIndex::Module(self.index()),
+            Self::MODULE_KIND => UnpackedIndex::Module(TypeIdx(self.index())),
             Self::REC_GROUP_KIND => UnpackedIndex::RecGroup(self.index()),
             #[cfg(feature = "validate")]
             Self::ID_KIND => UnpackedIndex::Id(
@@ -180,9 +182,9 @@ impl PackedIndex {
 
     /// Get the underlying index into a module's types space, if any.
     #[inline]
-    pub fn as_module_index(&self) -> Option<u32> {
+    pub fn as_module_index(&self) -> Option<TypeIdx> {
         if self.kind() == Self::MODULE_KIND {
-            Some(self.index())
+            Some(TypeIdx(self.index()))
         } else {
             None
         }
@@ -242,7 +244,7 @@ impl fmt::Display for PackedIndex {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub enum UnpackedIndex {
     /// An index into a Wasm module's types space.
-    Module(u32),
+    Module(TypeIdx),
 
     /// An index into the containing recursion group's elements.
     RecGroup(u32),
@@ -274,7 +276,7 @@ impl UnpackedIndex {
 
     /// Get the underlying index into a module's types space, if any.
     #[inline]
-    pub fn as_module_index(&self) -> Option<u32> {
+    pub fn as_module_index(&self) -> Option<TypeIdx> {
         if let Self::Module(i) = *self {
             Some(i)
         } else {
@@ -795,7 +797,7 @@ impl StorageType {
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct StructType {
     /// Struct fields.
-    pub fields: Box<[FieldType]>,
+    pub fields: IndexBox<FieldIdx, [FieldType]>,
 }
 
 /// Represents a type of a continuation in a WebAssembly module.
@@ -1769,7 +1771,7 @@ impl<'a> FromReader<'a> for HeapType {
                 // Be sure to update `reader` with the state after the s33 was
                 // read.
                 *reader = clone;
-                let idx = PackedIndex::from_module_index(idx).ok_or_else(|| {
+                let idx = PackedIndex::from_module_index(TypeIdx(idx)).ok_or_else(|| {
                     BinaryReaderError::new(
                         "type index greater than implementation limits",
                         reader.original_position(),
@@ -1939,7 +1941,7 @@ pub struct TagType {
     /// The kind of tag
     pub kind: TagKind,
     /// The function type this tag uses.
-    pub func_type_idx: u32,
+    pub func_type_idx: TypeIdx,
 }
 
 /// A reader for the type section of a WebAssembly module.
@@ -2032,7 +2034,7 @@ impl<'a> FromReader<'a> for SubType {
         Ok(match reader.read_u8()? {
             opcode @ (0x4f | 0x50) => {
                 let idx_iter = reader.read_iter(MAX_WASM_SUPERTYPES, "supertype idxs")?;
-                let idxs = idx_iter.collect::<Result<Vec<u32>>>()?;
+                let idxs = idx_iter.collect::<Result<Vec<TypeIdx>>>()?;
                 if idxs.len() > 1 {
                     return Err(BinaryReaderError::new(
                         "multiple supertypes not supported",
@@ -2117,7 +2119,7 @@ impl<'a> FromReader<'a> for StructType {
 impl<'a> FromReader<'a> for ContType {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let idx = match u32::try_from(reader.read_var_s33()?) {
-            Ok(idx) => idx,
+            Ok(idx) => TypeIdx(idx),
             Err(_) => {
                 bail!(reader.original_position(), "invalid continuation type");
             }

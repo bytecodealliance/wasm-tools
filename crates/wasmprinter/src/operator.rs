@@ -1,6 +1,11 @@
 use super::{Config, Print, PrintTermcolor, Printer, State};
 use anyhow::{anyhow, bail, Result};
+use index_vec::Idx;
 use termcolor::{Ansi, NoColor};
+use wasm_types::{
+    AbsoluteLabelIdx, DataIdx, ElemIdx, FuncIdx, GlobalIdx, LabelIdx, LocalIdx, MemIdx, TableIdx,
+    TagIdx, TypeIdx,
+};
 use wasmparser::VisitSimdOperator;
 use wasmparser::{
     BinaryReader, BlockType, BrTable, Catch, CompositeInnerType, ContType, FrameKind, FuncType,
@@ -11,8 +16,8 @@ use wasmparser::{
 pub struct OperatorState {
     op_offset: usize,
     nesting_start: u32,
-    label: u32,
-    label_indices: Vec<u32>,
+    label: AbsoluteLabelIdx,
+    label_indices: Vec<AbsoluteLabelIdx>,
     sep: OperatorSeparator,
 }
 
@@ -21,7 +26,7 @@ impl OperatorState {
         OperatorState {
             op_offset: 0,
             nesting_start: printer.nesting,
-            label: 0,
+            label: AbsoluteLabelIdx(0),
             label_indices: Vec::new(),
             sep,
         }
@@ -136,7 +141,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
     }
 
     fn blockty_without_label_comment(&mut self, ty: BlockType) -> Result<bool> {
-        let key = (self.state.core.funcs, self.operator_state.label);
+        let key = (self.state.core.funcidx, self.operator_state.label);
         let has_name = match self.state.core.label_names.index_to_name.get(&key) {
             Some(name) => {
                 write!(self.printer.result, " ")?;
@@ -179,7 +184,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
             self.result().reset_color()?;
         }
 
-        self.operator_state.label += 1;
+        self.operator_state.label.0 += 1;
         Ok(())
     }
 
@@ -187,15 +192,15 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
         self.printer.nesting - self.operator_state.nesting_start
     }
 
-    fn tag_index(&mut self, index: u32) -> Result<()> {
+    fn tag_index(&mut self, index: TagIdx) -> Result<()> {
         self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.tag_names, index)?;
         Ok(())
     }
 
-    fn relative_depth(&mut self, depth: u32) -> Result<()> {
+    fn relative_depth(&mut self, depth: LabelIdx) -> Result<()> {
         self.push_str(" ")?;
-        match self.cur_depth().checked_sub(depth) {
+        match self.cur_depth().checked_sub(depth.0) {
             // If this relative depth is in-range relative to the current depth,
             // then try to print a name for this label. Label names are tracked
             // as a stack where the depth matches `cur_depth` roughly, but label
@@ -206,7 +211,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
                     .checked_sub(1)
                     .and_then(|idx| self.operator_state.label_indices.get(idx as usize).copied())
                     .and_then(|label_idx| {
-                        let key = (self.state.core.funcs, label_idx);
+                        let key = (self.state.core.funcidx, label_idx);
                         self.state.core.label_names.index_to_name.get(&key)
                     });
 
@@ -220,7 +225,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
                     && self.operator_state.label_indices[i as usize..]
                         .iter()
                         .any(|other_label| {
-                            let key = (self.state.core.funcs, *other_label);
+                            let key = (self.state.core.funcidx, *other_label);
                             if let Some(other) = self.state.core.label_names.index_to_name.get(&key)
                             {
                                 if name.unwrap().name == other.name {
@@ -283,65 +288,65 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
         Ok(())
     }
 
-    fn function_index(&mut self, idx: u32) -> Result<()> {
+    fn function_index(&mut self, idx: FuncIdx) -> Result<()> {
         self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.func_names, idx)
     }
 
-    fn local_index(&mut self, idx: u32) -> Result<()> {
+    fn local_index(&mut self, idx: LocalIdx) -> Result<()> {
         self.push_str(" ")?;
         self.printer
-            .print_local_idx(self.state, self.state.core.funcs as u32, idx)
+            .print_local_idx(self.state, self.state.core.funcidx, idx)
     }
 
-    fn global_index(&mut self, idx: u32) -> Result<()> {
+    fn global_index(&mut self, idx: GlobalIdx) -> Result<()> {
         self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.global_names, idx)
     }
 
-    fn table_index(&mut self, idx: u32) -> Result<()> {
+    fn table_index(&mut self, idx: TableIdx) -> Result<()> {
         self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.table_names, idx)
     }
 
-    fn table(&mut self, idx: u32) -> Result<()> {
+    fn table(&mut self, idx: TableIdx) -> Result<()> {
         self.table_index(idx)
     }
 
-    fn memory_index(&mut self, idx: u32) -> Result<()> {
+    fn memory_index(&mut self, idx: MemIdx) -> Result<()> {
         self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.memory_names, idx)
     }
 
-    fn type_index(&mut self, idx: u32) -> Result<()> {
+    fn type_index(&mut self, idx: TypeIdx) -> Result<()> {
         self.push_str(" ")?;
         self.printer.print_core_type_ref(self.state, idx)
     }
 
-    fn cont_type_index(&mut self, idx: u32) -> Result<()> {
+    fn cont_type_index(&mut self, idx: TypeIdx) -> Result<()> {
         self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.type_names, idx)
     }
 
-    fn argument_index(&mut self, idx: u32) -> Result<()> {
+    fn argument_index(&mut self, idx: TypeIdx) -> Result<()> {
         self.cont_type_index(idx)
     }
 
-    fn result_index(&mut self, idx: u32) -> Result<()> {
+    fn result_index(&mut self, idx: TypeIdx) -> Result<()> {
         self.cont_type_index(idx)
     }
 
-    fn array_type_index(&mut self, idx: u32) -> Result<()> {
+    fn array_type_index(&mut self, idx: TypeIdx) -> Result<()> {
         self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.type_names, idx)
     }
 
-    fn array_type_index_dst(&mut self, idx: u32) -> Result<()> {
+    fn array_type_index_dst(&mut self, idx: TypeIdx) -> Result<()> {
         self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.type_names, idx)
     }
 
-    fn array_type_index_src(&mut self, idx: u32) -> Result<()> {
+    fn array_type_index_src(&mut self, idx: TypeIdx) -> Result<()> {
         self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.type_names, idx)
     }
@@ -351,7 +356,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
         Ok(())
     }
 
-    fn struct_type_index(&mut self, idx: u32) -> Result<()> {
+    fn struct_type_index(&mut self, idx: TypeIdx) -> Result<()> {
         self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.type_names, idx)
     }
@@ -366,22 +371,22 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
         self.printer.print_reftype(self.state, ref_ty)
     }
 
-    fn data_index(&mut self, idx: u32) -> Result<()> {
+    fn data_index(&mut self, idx: DataIdx) -> Result<()> {
         self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.data_names, idx)
     }
 
-    fn array_data_index(&mut self, idx: u32) -> Result<()> {
+    fn array_data_index(&mut self, idx: DataIdx) -> Result<()> {
         self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.data_names, idx)
     }
 
-    fn elem_index(&mut self, idx: u32) -> Result<()> {
+    fn elem_index(&mut self, idx: ElemIdx) -> Result<()> {
         self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.element_names, idx)
     }
 
-    fn array_elem_index(&mut self, idx: u32) -> Result<()> {
+    fn array_elem_index(&mut self, idx: ElemIdx) -> Result<()> {
         self.push_str(" ")?;
         self.printer.print_idx(&self.state.core.element_names, idx)
     }
@@ -399,7 +404,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
     }
 
     fn memarg(&mut self, memarg: MemArg) -> Result<()> {
-        if memarg.memory != 0 {
+        if memarg.memory != MemIdx(0) {
             self.memory_index(memarg.memory)?;
         }
         if memarg.offset != 0 {
@@ -541,13 +546,13 @@ macro_rules! define_visit {
     // catch-all which prints each payload individually based on the name of the
     // payload field.
     (payload $self:ident CallIndirect $ty:ident $table:ident) => (
-        if $table != 0 {
+        if $table != TableIdx(0) {
             $self.table_index($table)?;
         }
         $self.type_index($ty)?;
     );
     (payload $self:ident ReturnCallIndirect $ty:ident $table:ident) => (
-        if $table != 0 {
+        if $table != TableIdx(0) {
             $self.table_index($table)?;
         }
         $self.type_index($ty)?;
@@ -571,46 +576,46 @@ macro_rules! define_visit {
         $self.printer.print_heaptype($self.state, $hty)?;
     );
     (payload $self:ident TableInit $segment:ident $table:ident) => (
-        if $table != 0 {
+        if $table != TableIdx(0) {
             $self.table_index($table)?;
         }
         $self.elem_index($segment)?;
     );
     (payload $self:ident TableCopy $dst:ident $src:ident) => (
-        if $src != 0 || $dst != 0 {
+        if $src != TableIdx(0) || $dst != TableIdx(0) {
             $self.table_index($dst)?;
             $self.table_index($src)?;
         }
     );
     (payload $self:ident MemoryGrow $mem:ident) => (
-        if $mem != 0 {
+        if $mem != MemIdx(0) {
             $self.memory_index($mem)?;
         }
     );
     (payload $self:ident MemorySize $mem:ident) => (
-        if $mem != 0 {
+        if $mem != MemIdx(0) {
             $self.memory_index($mem)?;
         }
     );
     (payload $self:ident MemoryInit $segment:ident $mem:ident) => (
-        if $mem != 0 {
+        if $mem != MemIdx(0) {
             $self.memory_index($mem)?;
         }
         $self.data_index($segment)?;
     );
     (payload $self:ident MemoryCopy $dst:ident $src:ident) => (
-        if $src != 0 || $dst != 0 {
+        if $src != MemIdx(0) || $dst != MemIdx(0) {
             $self.memory_index($dst)?;
             $self.memory_index($src)?;
         }
     );
     (payload $self:ident MemoryFill $mem:ident) => (
-        if $mem != 0 {
+        if $mem != MemIdx(0) {
             $self.memory_index($mem)?;
         }
     );
     (payload $self:ident MemoryDiscard $mem:ident) => (
-        if $mem != 0 {
+        if $mem != MemIdx(0) {
             $self.memory_index($mem)?;
         }
     );
@@ -1505,25 +1510,16 @@ impl OpPrinter for PrintOperatorFolded<'_, '_, '_, '_> {
 }
 
 impl ModuleArity for PrintOperatorFolded<'_, '_, '_, '_> {
-    fn tag_type_arity(&self, tag_idx: u32) -> Option<(u32, u32)> {
-        self.sub_type_arity(
-            self.sub_type_at(
-                *self
-                    .state
-                    .core
-                    .tag_to_type
-                    .get(tag_idx as usize)?
-                    .as_ref()?,
-            )?,
-        )
+    fn tag_type_arity(&self, tag_idx: TagIdx) -> Option<(u32, u32)> {
+        self.sub_type_arity(self.sub_type_at(*self.state.core.tag_to_type.get(tag_idx)?.as_ref()?)?)
     }
 
-    fn type_index_of_function(&self, func_idx: u32) -> Option<u32> {
-        *self.state.core.func_to_type.get(func_idx as usize)?
+    fn type_index_of_function(&self, func_idx: FuncIdx) -> Option<TypeIdx> {
+        *self.state.core.func_to_type.get(func_idx)?
     }
 
-    fn sub_type_at(&self, type_idx: u32) -> Option<&SubType> {
-        self.state.core.types.get(type_idx as usize)?.as_ref()
+    fn sub_type_at(&self, type_idx: TypeIdx) -> Option<&SubType> {
+        self.state.core.types.get(type_idx)?.as_ref()
     }
 
     fn func_type_of_cont_type(&self, c: &ContType) -> Option<&FuncType> {
@@ -1543,12 +1539,12 @@ impl ModuleArity for PrintOperatorFolded<'_, '_, '_, '_> {
         self.control.len() as u32
     }
 
-    fn label_block(&self, depth: u32) -> Option<(BlockType, FrameKind)> {
+    fn label_block(&self, depth: LabelIdx) -> Option<(BlockType, FrameKind)> {
         let cur_depth = self.printer.nesting - self.operator_state.nesting_start;
         if self.control.len() != cur_depth as usize + 1 {
             return None;
         }
-        match (self.control.len() - 1).checked_sub(depth as usize) {
+        match (self.control.len() - 1).checked_sub(depth.index()) {
             Some(i) => Some((self.control[i].ty, self.control[i].kind)),
             None => None,
         }
@@ -1575,8 +1571,8 @@ impl<'printer, 'state, 'a, 'b> PrintOperatorFolded<'printer, 'state, 'a, 'b> {
     }
 
     // Set up the outermost block, representing the unnamed function label.
-    pub fn begin_function(&mut self, func_idx: u32) -> Result<()> {
-        match self.state.core.func_to_type.get(func_idx as usize) {
+    pub fn begin_function(&mut self, func_idx: FuncIdx) -> Result<()> {
+        match self.state.core.func_to_type.get(func_idx) {
             Some(Some(type_idx)) => self.control.push(Block {
                 ty: BlockType::FuncType(*type_idx),
                 kind: FrameKind::Block,

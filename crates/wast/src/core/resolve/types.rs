@@ -2,6 +2,7 @@ use crate::core::*;
 use crate::gensym;
 use crate::token::{Index, Span};
 use std::collections::HashMap;
+use wasm_types::TypeIdx;
 
 pub fn expand<'a>(fields: &mut Vec<ModuleField<'a>>) {
     let mut expander = Expander::default();
@@ -13,7 +14,7 @@ pub(crate) struct Expander<'a> {
     // Maps used to "intern" types. These maps are populated as type annotations
     // are seen and inline type annotations use previously defined ones if
     // there's a match.
-    func_type_to_idx: HashMap<FuncKey<'a>, Index<'a>>,
+    func_type_to_idx: HashMap<FuncKey<'a>, Index<'a, TypeIdx>>,
 
     /// Fields, during processing, which should be prepended to the
     /// currently-being-processed field. This should always be empty after
@@ -181,7 +182,7 @@ impl<'a> Expander<'a> {
         }
     }
 
-    fn expand_type_use<T>(&mut self, item: &mut TypeUse<'a, T>) -> Index<'a>
+    fn expand_type_use<T>(&mut self, item: &mut TypeUse<'a, T>) -> Index<'a, TypeIdx>
     where
         T: TypeReference<'a>,
     {
@@ -201,7 +202,7 @@ impl<'a> Expander<'a> {
         idx
     }
 
-    fn key_to_idx(&mut self, span: Span, key: impl TypeKey<'a>) -> Index<'a> {
+    fn key_to_idx(&mut self, span: Span, key: impl TypeKey<'a>) -> Index<'a, TypeIdx> {
         // First see if this `key` already exists in the type definitions we've
         // seen so far...
         if let Some(idx) = key.lookup(self) {
@@ -232,9 +233,9 @@ pub(crate) trait TypeReference<'a>: Default {
 }
 
 pub(crate) trait TypeKey<'a> {
-    fn lookup(&self, cx: &Expander<'a>) -> Option<Index<'a>>;
+    fn lookup(&self, cx: &Expander<'a>) -> Option<Index<'a, TypeIdx>>;
     fn to_def(&self, span: Span, shared: bool) -> TypeDef<'a>;
-    fn insert(&self, cx: &mut Expander<'a>, id: Index<'a>);
+    fn insert(&self, cx: &mut Expander<'a>, id: Index<'a, TypeIdx>);
 }
 
 pub(crate) type FuncKey<'a> = (Box<[ValType<'a>]>, Box<[ValType<'a>]>);
@@ -252,7 +253,7 @@ impl<'a> TypeReference<'a> for FunctionType<'a> {
 }
 
 impl<'a> TypeKey<'a> for FuncKey<'a> {
-    fn lookup(&self, cx: &Expander<'a>) -> Option<Index<'a>> {
+    fn lookup(&self, cx: &Expander<'a>) -> Option<Index<'a, TypeIdx>> {
         cx.func_type_to_idx.get(self).cloned()
     }
 
@@ -268,7 +269,7 @@ impl<'a> TypeKey<'a> for FuncKey<'a> {
         }
     }
 
-    fn insert(&self, cx: &mut Expander<'a>, idx: Index<'a>) {
+    fn insert(&self, cx: &mut Expander<'a>, idx: Index<'a, TypeIdx>) {
         cx.func_type_to_idx.entry(self.clone()).or_insert(idx);
     }
 }

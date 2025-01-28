@@ -4,6 +4,7 @@
 use crate::core::binary::{EncodeOptions, Encoder, Names, RecOrType};
 use crate::core::Local;
 use crate::token::Span;
+use wasm_types::{FuncIdx, TypeIdx};
 
 pub struct Dwarf<'a> {
     uninhabited: &'a std::convert::Infallible,
@@ -11,7 +12,7 @@ pub struct Dwarf<'a> {
 
 impl<'a> Dwarf<'a> {
     pub fn new(
-        _func_imports: u32,
+        _func_imports: FuncIdx,
         _opts: &EncodeOptions<'a>,
         _names: &Names<'a>,
         _types: &'a [RecOrType<'a>],
@@ -19,7 +20,7 @@ impl<'a> Dwarf<'a> {
         None
     }
 
-    pub fn start_func(&mut self, _span: Span, _ty: u32, _locals: &[Local<'_>]) {
+    pub fn start_func(&mut self, _span: Span, _ty: TypeIdx, _locals: &[Local<'_>]) {
         match *self.uninhabited {}
     }
 

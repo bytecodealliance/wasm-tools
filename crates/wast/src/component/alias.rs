@@ -1,3 +1,5 @@
+use wasm_types::{ComponentInstanceIdx, CoreInstanceIdx};
+
 use crate::core::ExportKind;
 use crate::kw;
 use crate::parser::{Parse, Parser, Result};
@@ -9,7 +11,7 @@ use crate::token::{Id, Index, NameAnnotation, Span};
 #[derive(Debug)]
 pub struct InlineExportAlias<'a, const CORE: bool> {
     /// The instance to alias the export from.
-    pub instance: Index<'a>,
+    pub instance: Index<'a, u32>,
     /// The name of the export to alias.
     pub name: &'a str,
 }
@@ -231,7 +233,7 @@ pub enum AliasTarget<'a> {
     /// The alias is to an export of a component instance.
     Export {
         /// The component instance exporting the item.
-        instance: Index<'a>,
+        instance: Index<'a, ComponentInstanceIdx>,
         /// The name of the exported item to alias.
         name: &'a str,
         /// The export kind of the alias.
@@ -240,7 +242,7 @@ pub enum AliasTarget<'a> {
     /// The alias is to an export of a module instance.
     CoreExport {
         /// The module instance exporting the item.
-        instance: Index<'a>,
+        instance: Index<'a, CoreInstanceIdx>,
         /// The name of the exported item to alias.
         name: &'a str,
         /// The export kind of the alias.
@@ -249,9 +251,9 @@ pub enum AliasTarget<'a> {
     /// The alias is to an item from an outer component.
     Outer {
         /// The number of enclosing components to skip.
-        outer: Index<'a>,
+        outer: Index<'a, u32>,
         /// The index of the item being aliased.
-        index: Index<'a>,
+        index: Index<'a, u32>,
         /// The outer alias kind.
         kind: ComponentOuterAliasKind,
     },

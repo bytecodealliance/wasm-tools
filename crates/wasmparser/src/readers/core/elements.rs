@@ -18,6 +18,7 @@ use crate::{
     SectionLimited,
 };
 use core::ops::Range;
+use wasm_types::{FuncIdx, TableIdx};
 
 /// Represents a core WebAssembly element segment.
 #[derive(Clone)]
@@ -38,7 +39,7 @@ pub enum ElementKind<'a> {
     /// The element segment is active.
     Active {
         /// The index of the table being initialized.
-        table_index: Option<u32>,
+        table_index: Option<TableIdx>,
         /// The initial expression of the element segment.
         offset_expr: ConstExpr<'a>,
     },
@@ -50,7 +51,7 @@ pub enum ElementKind<'a> {
 #[derive(Clone)]
 pub enum ElementItems<'a> {
     /// This element contains function indices.
-    Functions(SectionLimited<'a, u32>),
+    Functions(SectionLimited<'a, FuncIdx>),
     /// This element contains constant expressions used to initialize the table.
     Expressions(RefType, SectionLimited<'a, ConstExpr<'a>>),
 }
@@ -91,7 +92,7 @@ impl<'a> FromReader<'a> for Element<'a> {
             let table_index = if flags & 0b010 == 0 {
                 None
             } else {
-                Some(reader.read_var_u32()?)
+                Some(reader.read_tableidx()?)
             };
             let offset_expr = reader.read()?;
             ElementKind::Active {

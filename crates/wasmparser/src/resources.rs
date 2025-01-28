@@ -17,6 +17,7 @@ use crate::{
     types::CoreTypeId, BinaryReaderError, FuncType, GlobalType, HeapType, MemoryType, RefType,
     SubType, TableType, ValType, WasmFeatures,
 };
+use wasm_types::{ElemIdx, FuncIdx, GlobalIdx, MemIdx, TableIdx, TagIdx, TypeIdx};
 
 /// Types that qualify as Wasm validation database.
 ///
@@ -30,39 +31,39 @@ pub trait WasmModuleResources {
     /// Returns the table at given index if any.
     ///
     /// The table element type must be canonicalized.
-    fn table_at(&self, at: u32) -> Option<TableType>;
+    fn table_at(&self, at: TableIdx) -> Option<TableType>;
 
     /// Returns the linear memory at given index.
-    fn memory_at(&self, at: u32) -> Option<MemoryType>;
+    fn memory_at(&self, at: MemIdx) -> Option<MemoryType>;
 
     /// Returns the tag at given index.
     ///
     /// The tag's function type must be canonicalized.
-    fn tag_at(&self, at: u32) -> Option<&FuncType>;
+    fn tag_at(&self, at: TagIdx) -> Option<&FuncType>;
 
     /// Returns the global variable at given index.
     ///
     /// The global's value type must be canonicalized.
-    fn global_at(&self, at: u32) -> Option<GlobalType>;
+    fn global_at(&self, at: GlobalIdx) -> Option<GlobalType>;
 
     /// Returns the `SubType` associated with the given type index.
     ///
     /// The sub type must be canonicalized.
-    fn sub_type_at(&self, type_index: u32) -> Option<&SubType>;
+    fn sub_type_at(&self, type_index: TypeIdx) -> Option<&SubType>;
 
     /// Returns the `SubType` associated with the given core type id.
     fn sub_type_at_id(&self, id: CoreTypeId) -> &SubType;
 
     /// Returns the type ID associated with the given function index.
-    fn type_id_of_function(&self, func_idx: u32) -> Option<CoreTypeId>;
+    fn type_id_of_function(&self, func_idx: FuncIdx) -> Option<CoreTypeId>;
 
     /// Returns the type index associated with the given function index.
-    fn type_index_of_function(&self, func_index: u32) -> Option<u32>;
+    fn type_index_of_function(&self, func_index: FuncIdx) -> Option<TypeIdx>;
 
     /// Returns the element type at the given index.
     ///
     /// The `RefType` must be canonicalized.
-    fn element_type_at(&self, at: u32) -> Option<RefType>;
+    fn element_type_at(&self, at: ElemIdx) -> Option<RefType>;
 
     /// Is `a` a subtype of `b`?
     fn is_subtype(&self, a: ValType, b: ValType) -> bool;
@@ -128,35 +129,35 @@ pub trait WasmModuleResources {
 
     /// Returns whether the function index is referenced in the module anywhere
     /// outside of the start/function sections.
-    fn is_function_referenced(&self, idx: u32) -> bool;
+    fn is_function_referenced(&self, idx: FuncIdx) -> bool;
 }
 
 impl<T> WasmModuleResources for &'_ T
 where
     T: ?Sized + WasmModuleResources,
 {
-    fn table_at(&self, at: u32) -> Option<TableType> {
+    fn table_at(&self, at: TableIdx) -> Option<TableType> {
         T::table_at(self, at)
     }
-    fn memory_at(&self, at: u32) -> Option<MemoryType> {
+    fn memory_at(&self, at: MemIdx) -> Option<MemoryType> {
         T::memory_at(self, at)
     }
-    fn tag_at(&self, at: u32) -> Option<&FuncType> {
+    fn tag_at(&self, at: TagIdx) -> Option<&FuncType> {
         T::tag_at(self, at)
     }
-    fn global_at(&self, at: u32) -> Option<GlobalType> {
+    fn global_at(&self, at: GlobalIdx) -> Option<GlobalType> {
         T::global_at(self, at)
     }
-    fn sub_type_at(&self, at: u32) -> Option<&SubType> {
+    fn sub_type_at(&self, at: TypeIdx) -> Option<&SubType> {
         T::sub_type_at(self, at)
     }
     fn sub_type_at_id(&self, at: CoreTypeId) -> &SubType {
         T::sub_type_at_id(self, at)
     }
-    fn type_id_of_function(&self, func_idx: u32) -> Option<CoreTypeId> {
+    fn type_id_of_function(&self, func_idx: FuncIdx) -> Option<CoreTypeId> {
         T::type_id_of_function(self, func_idx)
     }
-    fn type_index_of_function(&self, func_idx: u32) -> Option<u32> {
+    fn type_index_of_function(&self, func_idx: FuncIdx) -> Option<TypeIdx> {
         T::type_index_of_function(self, func_idx)
     }
     fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<(), BinaryReaderError> {
@@ -165,7 +166,7 @@ where
     fn top_type(&self, heap_type: &HeapType) -> HeapType {
         T::top_type(self, heap_type)
     }
-    fn element_type_at(&self, at: u32) -> Option<RefType> {
+    fn element_type_at(&self, at: ElemIdx) -> Option<RefType> {
         T::element_type_at(self, at)
     }
     fn is_subtype(&self, a: ValType, b: ValType) -> bool {
@@ -180,7 +181,7 @@ where
     fn data_count(&self) -> Option<u32> {
         T::data_count(self)
     }
-    fn is_function_referenced(&self, idx: u32) -> bool {
+    fn is_function_referenced(&self, idx: FuncIdx) -> bool {
         T::is_function_referenced(self, idx)
     }
 }
@@ -189,23 +190,23 @@ impl<T> WasmModuleResources for alloc::sync::Arc<T>
 where
     T: WasmModuleResources,
 {
-    fn table_at(&self, at: u32) -> Option<TableType> {
+    fn table_at(&self, at: TableIdx) -> Option<TableType> {
         T::table_at(self, at)
     }
 
-    fn memory_at(&self, at: u32) -> Option<MemoryType> {
+    fn memory_at(&self, at: MemIdx) -> Option<MemoryType> {
         T::memory_at(self, at)
     }
 
-    fn tag_at(&self, at: u32) -> Option<&FuncType> {
+    fn tag_at(&self, at: TagIdx) -> Option<&FuncType> {
         T::tag_at(self, at)
     }
 
-    fn global_at(&self, at: u32) -> Option<GlobalType> {
+    fn global_at(&self, at: GlobalIdx) -> Option<GlobalType> {
         T::global_at(self, at)
     }
 
-    fn sub_type_at(&self, type_idx: u32) -> Option<&SubType> {
+    fn sub_type_at(&self, type_idx: TypeIdx) -> Option<&SubType> {
         T::sub_type_at(self, type_idx)
     }
 
@@ -213,11 +214,11 @@ where
         T::sub_type_at_id(self, id)
     }
 
-    fn type_id_of_function(&self, func_idx: u32) -> Option<CoreTypeId> {
+    fn type_id_of_function(&self, func_idx: FuncIdx) -> Option<CoreTypeId> {
         T::type_id_of_function(self, func_idx)
     }
 
-    fn type_index_of_function(&self, func_idx: u32) -> Option<u32> {
+    fn type_index_of_function(&self, func_idx: FuncIdx) -> Option<TypeIdx> {
         T::type_index_of_function(self, func_idx)
     }
 
@@ -229,7 +230,7 @@ where
         T::top_type(self, heap_type)
     }
 
-    fn element_type_at(&self, at: u32) -> Option<RefType> {
+    fn element_type_at(&self, at: ElemIdx) -> Option<RefType> {
         T::element_type_at(self, at)
     }
 
@@ -249,7 +250,7 @@ where
         T::data_count(self)
     }
 
-    fn is_function_referenced(&self, idx: u32) -> bool {
+    fn is_function_referenced(&self, idx: FuncIdx) -> bool {
         T::is_function_referenced(self, idx)
     }
 }

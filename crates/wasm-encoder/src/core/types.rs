@@ -1,6 +1,7 @@
 use crate::{encode_section, Encode, Section, SectionId};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
+use wasm_types::TypeIdx;
 
 /// Represents a subtype of possible other types in a WebAssembly module.
 #[derive(Debug, Clone)]
@@ -9,7 +10,7 @@ pub struct SubType {
     pub is_final: bool,
     /// The list of supertype indexes. As of GC MVP, there can be at most one
     /// supertype.
-    pub supertype_idx: Option<u32>,
+    pub supertype_idx: Option<TypeIdx>,
     /// The composite type of the subtype.
     pub composite_type: CompositeType,
 }
@@ -94,7 +95,7 @@ impl StorageType {
 
 /// Represents a type of a continuation in a WebAssembly module.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
-pub struct ContType(pub u32);
+pub struct ContType(pub TypeIdx);
 
 /// The type of a core WebAssembly value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Ord, PartialOrd)]
@@ -361,7 +362,7 @@ pub enum HeapType {
     },
 
     /// A concrete Wasm-defined type at the given index.
-    Concrete(u32),
+    Concrete(TypeIdx),
 }
 
 impl HeapType {
@@ -401,7 +402,7 @@ impl Encode for HeapType {
             }
             // Note that this is encoded as a signed type rather than unsigned
             // as it's decoded as an s33
-            HeapType::Concrete(i) => i64::from(*i).encode(sink),
+            HeapType::Concrete(i) => i64::from(i.0).encode(sink),
         }
     }
 }
@@ -637,7 +638,7 @@ impl<'a> CoreTypeEncoder<'a> {
 
     fn encode_cont(&mut self, ty: &ContType) {
         self.bytes.push(0x5d);
-        i64::from(ty.0).encode(self.bytes);
+        i64::from(ty.0 .0).encode(self.bytes);
     }
 
     /// Define an explicit subtype in this type section.

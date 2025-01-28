@@ -27,9 +27,11 @@ anyhow = { workspace = true }
 arbitrary = { workspace = true, features = ["derive"] }
 clap = { workspace = true, optional = true }
 flagset = "0.4"
+index_vec = { workspace = true }
 serde = { workspace = true, optional = true }
 serde_derive = { workspace = true, optional = true }
 wasm-encoder = { workspace = true, features = ['std'] }
+wasm-types = { workspace = true }
 wasmparser = { workspace = true, optional = true, features = ['std', 'validate', 'features', 'simd'] }
 wat = { workspace = true, optional = true }
 

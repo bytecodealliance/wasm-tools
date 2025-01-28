@@ -5,6 +5,10 @@ use crate::names::Namespace;
 use crate::token::Span;
 use crate::token::{Id, Index};
 use crate::Error;
+use wasm_types::{
+    ComponentFuncIdx, ComponentIdx, ComponentInstanceIdx, ComponentTypeIdx, ComponentValueIdx,
+    CoreInstanceIdx, CoreModuleIdx, FuncIdx, GlobalIdx, MemIdx, TableIdx, TagIdx, TypeIdx,
+};
 
 /// Resolve the fields of a component and everything nested within it, changing
 /// `Index::Id` to `Index::Num` and expanding alias syntax sugar.
@@ -60,20 +64,20 @@ struct ComponentState<'a> {
     // with it information about the signature of the item in that namespace.
     // The signature is later used to synthesize the type of a component and
     // inject type annotations if necessary.
-    core_funcs: Namespace<'a>,
-    core_globals: Namespace<'a>,
-    core_tables: Namespace<'a>,
-    core_memories: Namespace<'a>,
-    core_types: Namespace<'a>,
-    core_tags: Namespace<'a>,
-    core_instances: Namespace<'a>,
-    core_modules: Namespace<'a>,
+    core_funcs: Namespace<'a, FuncIdx>,
+    core_globals: Namespace<'a, GlobalIdx>,
+    core_tables: Namespace<'a, TableIdx>,
+    core_memories: Namespace<'a, MemIdx>,
+    core_types: Namespace<'a, TypeIdx>,
+    core_tags: Namespace<'a, TagIdx>,
+    core_instances: Namespace<'a, CoreInstanceIdx>,
+    core_modules: Namespace<'a, CoreModuleIdx>,
 
-    funcs: Namespace<'a>,
-    types: Namespace<'a>,
-    instances: Namespace<'a>,
-    components: Namespace<'a>,
-    values: Namespace<'a>,
+    funcs: Namespace<'a, ComponentFuncIdx>,
+    types: Namespace<'a, ComponentTypeIdx>,
+    instances: Namespace<'a, ComponentInstanceIdx>,
+    components: Namespace<'a, ComponentIdx>,
+    values: Namespace<'a, ComponentValueIdx>,
 }
 
 impl<'a> ComponentState<'a> {
@@ -944,21 +948,35 @@ impl<'a> ComponentState<'a> {
     /// Assign an index to the given field.
     fn register(&mut self, item: &ComponentField<'a>) -> Result<(), Error> {
         match item {
-            ComponentField::CoreModule(m) => self.core_modules.register(m.id, "core module")?,
+            ComponentField::CoreModule(m) => {
+                self.core_modules.register(m.id, "core module")?;
+            }
             ComponentField::CoreInstance(i) => {
-                self.core_instances.register(i.id, "core instance")?
+                self.core_instances.register(i.id, "core instance")?;
             }
             ComponentField::CoreType(ty) => match &ty.def {
-                CoreTypeDef::Def(_) => 0, // done above in `core_rec`
-                CoreTypeDef::Module(_) => self.core_types.register(ty.id, "core type")?,
+                CoreTypeDef::Def(_) => {} // done above in `core_rec`
+                CoreTypeDef::Module(_) => {
+                    self.core_types.register(ty.id, "core type")?;
+                }
             },
-            ComponentField::CoreRec(_) => 0, // done above in `core_rec`
-            ComponentField::Component(c) => self.components.register(c.id, "component")?,
-            ComponentField::Instance(i) => self.instances.register(i.id, "instance")?,
-            ComponentField::Alias(a) => self.register_alias(a)?,
-            ComponentField::Type(t) => self.types.register(t.id, "type")?,
+            ComponentField::CoreRec(_) => {} // done above in `core_rec`
+            ComponentField::Component(c) => {
+                self.components.register(c.id, "component")?;
+            }
+            ComponentField::Instance(i) => {
+                self.instances.register(i.id, "instance")?;
+            }
+            ComponentField::Alias(a) => {
+                self.register_alias(a)?;
+            }
+            ComponentField::Type(t) => {
+                self.types.register(t.id, "type")?;
+            }
             ComponentField::CanonicalFunc(f) => match &f.kind {
-                CanonicalFuncKind::Lift { .. } => self.funcs.register(f.id, "func")?,
+                CanonicalFuncKind::Lift { .. } => {
+                    self.funcs.register(f.id, "func")?;
+                }
                 CanonicalFuncKind::Lower(_)
                 | CanonicalFuncKind::ResourceNew(_)
                 | CanonicalFuncKind::ResourceRep(_)
@@ -988,7 +1006,7 @@ impl<'a> ComponentState<'a> {
                 | CanonicalFuncKind::ErrorContextNew(_)
                 | CanonicalFuncKind::ErrorContextDebugMessage(_)
                 | CanonicalFuncKind::ErrorContextDrop => {
-                    self.core_funcs.register(f.id, "core func")?
+                    self.core_funcs.register(f.id, "core func")?;
                 }
             },
             ComponentField::CoreFunc(_) | ComponentField::Func(_) => {
@@ -1000,19 +1018,31 @@ impl<'a> ComponentState<'a> {
                 }
                 return Ok(());
             }
-            ComponentField::Import(i) => self.register_item_sig(&i.item)?,
+            ComponentField::Import(i) => {
+                self.register_item_sig(&i.item)?;
+            }
             ComponentField::Export(e) => match &e.kind {
                 ComponentExportKind::CoreModule(_) => {
-                    self.core_modules.register(e.id, "core module")?
+                    self.core_modules.register(e.id, "core module")?;
                 }
-                ComponentExportKind::Func(_) => self.funcs.register(e.id, "func")?,
-                ComponentExportKind::Instance(_) => self.instances.register(e.id, "instance")?,
-                ComponentExportKind::Value(_) => self.values.register(e.id, "value")?,
-                ComponentExportKind::Component(_) => self.components.register(e.id, "component")?,
-                ComponentExportKind::Type(_) => self.types.register(e.id, "type")?,
+                ComponentExportKind::Func(_) => {
+                    self.funcs.register(e.id, "func")?;
+                }
+                ComponentExportKind::Instance(_) => {
+                    self.instances.register(e.id, "instance")?;
+                }
+                ComponentExportKind::Value(_) => {
+                    self.values.register(e.id, "value")?;
+                }
+                ComponentExportKind::Component(_) => {
+                    self.components.register(e.id, "component")?;
+                }
+                ComponentExportKind::Type(_) => {
+                    self.types.register(e.id, "type")?;
+                }
             },
             ComponentField::Custom(_) | ComponentField::Producers(_) => return Ok(()),
-        };
+        }
 
         Ok(())
     }

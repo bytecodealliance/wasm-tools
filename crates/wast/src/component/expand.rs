@@ -303,7 +303,7 @@ impl<'a> Expander<'a> {
                 id: func.id,
                 name: func.name,
                 target: AliasTarget::CoreExport {
-                    instance: a.instance,
+                    instance: a.instance.into(),
                     name: a.name,
                     kind: core::ExportKind::Func,
                 },
@@ -541,7 +541,7 @@ impl<'a> Expander<'a> {
                 id: func.id,
                 name: func.name,
                 target: AliasTarget::Export {
-                    instance: a.instance,
+                    instance: a.instance.into(),
                     name: a.name,
                     kind: ComponentExportAliasKind::Func,
                 },

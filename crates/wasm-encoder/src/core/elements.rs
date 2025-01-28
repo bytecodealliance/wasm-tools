@@ -1,6 +1,7 @@
 use crate::{encode_section, ConstExpr, Encode, RefType, Section, SectionId};
 use alloc::borrow::Cow;
 use alloc::vec::Vec;
+use wasm_types::{FuncIdx, TableIdx};
 
 /// An encoder for the element section.
 ///
@@ -14,6 +15,7 @@ use alloc::vec::Vec;
 ///     Elements, ElementSection, Module, TableSection, TableType,
 ///     RefType, ConstExpr
 /// };
+/// use wasm_types::TableIdx;
 ///
 /// let mut tables = TableSection::new();
 /// tables.table(TableType {
@@ -25,7 +27,7 @@ use alloc::vec::Vec;
 /// });
 ///
 /// let mut elements = ElementSection::new();
-/// let table_index = 0;
+/// let table_index = TableIdx(0);
 /// let offset = ConstExpr::i32_const(42);
 /// let functions = Elements::Functions(Cow::Borrowed(&[
 ///     // Function indices...
@@ -49,7 +51,7 @@ pub struct ElementSection {
 #[derive(Clone, Debug)]
 pub enum Elements<'a> {
     /// A sequences of references to functions by their indices.
-    Functions(Cow<'a, [u32]>),
+    Functions(Cow<'a, [FuncIdx]>),
     /// A sequence of reference expressions.
     Expressions(RefType, Cow<'a, [ConstExpr]>),
 }
@@ -72,7 +74,7 @@ pub enum ElementMode<'a> {
         /// `Active` element specifying a `None` table forces the MVP encoding and refers to the
         /// 0th table holding `funcref`s. Non-`None` tables use the encoding introduced with the
         /// bulk memory proposal and can refer to tables with any valid reference type.
-        table: Option<u32>,
+        table: Option<TableIdx>,
         /// The offset within the table to place this segment.
         offset: &'a ConstExpr,
     },
@@ -129,7 +131,7 @@ impl ElementSection {
                     // encoding.
                     (None, Elements::Expressions(..)) | (Some(_), _) => {
                         (0x02 | expr_bit).encode(&mut self.bytes);
-                        table.unwrap_or(0).encode(&mut self.bytes);
+                        table.unwrap_or(TableIdx(0)).encode(&mut self.bytes);
                         encode_type = true;
                     }
                 }
@@ -171,7 +173,7 @@ impl ElementSection {
     /// memory proposal and can refer to tables with any valid reference type.
     pub fn active(
         &mut self,
-        table_index: Option<u32>,
+        table_index: Option<TableIdx>,
         offset: &ConstExpr,
         elements: Elements<'_>,
     ) -> &mut Self {

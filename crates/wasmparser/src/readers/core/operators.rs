@@ -16,6 +16,7 @@
 use crate::limits::{MAX_WASM_CATCHES, MAX_WASM_HANDLERS};
 use crate::prelude::*;
 use crate::{BinaryReader, BinaryReaderError, FromReader, Result, ValType};
+use wasm_types::{LabelIdx, MemIdx, TagIdx, TypeIdx};
 
 /// Represents a block type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -27,7 +28,7 @@ pub enum BlockType {
     /// The block is described by a function type.
     ///
     /// The index is to a function type in the types section.
-    FuncType(u32),
+    FuncType(TypeIdx),
 }
 
 /// The kind of a control flow `Frame`.
@@ -90,7 +91,7 @@ pub struct MemArg {
     /// Note that this points within the module's own memory index space, and
     /// is always zero unless the multi-memory proposal of WebAssembly is
     /// enabled.
-    pub memory: u32,
+    pub memory: MemIdx,
 }
 
 /// A br_table entries representation.
@@ -98,7 +99,7 @@ pub struct MemArg {
 pub struct BrTable<'a> {
     pub(crate) reader: crate::BinaryReader<'a>,
     pub(crate) cnt: u32,
-    pub(crate) default: u32,
+    pub(crate) default: LabelIdx,
 }
 
 impl PartialEq<Self> for BrTable<'_> {
@@ -558,13 +559,13 @@ pub struct TryTable {
 #[allow(missing_docs)]
 pub enum Catch {
     /// Equivalent of `catch`
-    One { tag: u32, label: u32 },
+    One { tag: TagIdx, label: LabelIdx },
     /// Equivalent of `catch_ref`
-    OneRef { tag: u32, label: u32 },
+    OneRef { tag: TagIdx, label: LabelIdx },
     /// Equivalent of `catch_all`
-    All { label: u32 },
+    All { label: LabelIdx },
     /// Equivalent of `catch_all_ref`
-    AllRef { label: u32 },
+    AllRef { label: LabelIdx },
 }
 
 impl<'a> FromReader<'a> for TryTable {
@@ -581,18 +582,18 @@ impl<'a> FromReader<'a> for Catch {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         Ok(match reader.read_u8()? {
             0x00 => Catch::One {
-                tag: reader.read_var_u32()?,
-                label: reader.read_var_u32()?,
+                tag: reader.read_tagidx()?,
+                label: reader.read_labelidx()?,
             },
             0x01 => Catch::OneRef {
-                tag: reader.read_var_u32()?,
-                label: reader.read_var_u32()?,
+                tag: reader.read_tagidx()?,
+                label: reader.read_labelidx()?,
             },
             0x02 => Catch::All {
-                label: reader.read_var_u32()?,
+                label: reader.read_labelidx()?,
             },
             0x03 => Catch::AllRef {
-                label: reader.read_var_u32()?,
+                label: reader.read_labelidx()?,
             },
 
             x => return reader.invalid_leading_byte(x, "catch"),
@@ -614,9 +615,9 @@ pub struct ResumeTable {
 #[allow(missing_docs)]
 pub enum Handle {
     /// Equivalent of `(on $tag $lbl)`.
-    OnLabel { tag: u32, label: u32 },
+    OnLabel { tag: TagIdx, label: LabelIdx },
     /// Equivalent of `(on $tag switch)`.
-    OnSwitch { tag: u32 },
+    OnSwitch { tag: TagIdx },
 }
 
 impl ResumeTable {
@@ -640,11 +641,11 @@ impl<'a> FromReader<'a> for Handle {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         Ok(match reader.read_u8()? {
             0x00 => Handle::OnLabel {
-                tag: reader.read_var_u32()?,
-                label: reader.read_var_u32()?,
+                tag: reader.read_tagidx()?,
+                label: reader.read_labelidx()?,
             },
             0x01 => Handle::OnSwitch {
-                tag: reader.read_var_u32()?,
+                tag: reader.read_tagidx()?,
             },
             x => return reader.invalid_leading_byte(x, "on clause"),
         })

@@ -1,5 +1,10 @@
-use crate::{name_map, Naming, Printer, State};
+use crate::{
+    name_map, ComponentFuncIdx, ComponentIdx, ComponentInstanceIdx, ComponentTypeIdx,
+    ComponentValueIdx, CoreModuleIdx, Naming, Printer, State,
+};
 use anyhow::{bail, Result};
+use index_vec::Idx;
+use wasm_types::{CoreInstanceIdx, TypeIdx};
 use wasmparser::*;
 
 impl Printer<'_, '_> {
@@ -73,7 +78,7 @@ impl Printer<'_, '_> {
                 self.start_group("core type ")?;
                 self.print_name(
                     &states.last().unwrap().core.type_names,
-                    states.last().unwrap().core.types.len() as u32,
+                    TypeIdx::from_usize(states.last().unwrap().core.types.len()),
                 )?;
                 self.print_module_type(states, decls.into_vec())?;
                 self.end_group()?; // `core type` itself
@@ -83,7 +88,11 @@ impl Printer<'_, '_> {
         Ok(())
     }
 
-    pub(crate) fn print_component_type_ref(&mut self, state: &State, idx: u32) -> Result<()> {
+    pub(crate) fn print_component_type_ref(
+        &mut self,
+        state: &State,
+        idx: ComponentTypeIdx,
+    ) -> Result<()> {
         self.start_group("type ")?;
         self.print_idx(&state.component.type_names, idx)?;
         self.end_group()?;
@@ -425,10 +434,13 @@ impl Printer<'_, '_> {
         self.result.write_str(" ")?;
         match kind {
             OuterAliasKind::Type => {
-                self.print_idx(&outer.core.type_names, index)?;
+                self.print_idx(&outer.core.type_names, TypeIdx(index))?;
                 self.result.write_str(" ")?;
                 self.start_group("type ")?;
-                self.print_name(&state.core.type_names, state.core.types.len() as u32)?;
+                self.print_name(
+                    &state.core.type_names,
+                    TypeIdx::from_usize(state.core.types.len()),
+                )?;
             }
         }
         self.end_group()?; // kind
@@ -436,7 +448,9 @@ impl Printer<'_, '_> {
 
         let state = states.last_mut().unwrap();
         match kind {
-            OuterAliasKind::Type => state.core.types.push(None),
+            OuterAliasKind::Type => {
+                state.core.types.push(None);
+            }
         }
 
         Ok(())
@@ -481,7 +495,7 @@ impl Printer<'_, '_> {
         self.start_group("type ")?;
         {
             let state = states.last_mut().unwrap();
-            self.print_name(&state.component.type_names, state.component.types)?;
+            self.print_name(&state.component.type_names, state.component.type_idx)?;
         }
         match ty {
             ComponentType::Defined(ty) => {
@@ -517,7 +531,7 @@ impl Printer<'_, '_> {
         }
         self.end_group()?;
 
-        states.last_mut().unwrap().component.types += 1;
+        states.last_mut().unwrap().component.type_idx.0 += 1;
 
         Ok(())
     }
@@ -574,9 +588,9 @@ impl Printer<'_, '_> {
             ComponentTypeRef::Module(idx) => {
                 self.start_group("core module ")?;
                 if index {
-                    self.print_name(&state.core.module_names, state.core.modules as u32)?;
+                    self.print_name(&state.core.module_names, state.core.module_idx)?;
                     self.result.write_str(" ")?;
-                    state.core.modules += 1;
+                    state.core.module_idx.0 += 1;
                 }
                 self.print_core_type_ref(state, *idx)?;
                 self.end_group()?;
@@ -584,9 +598,9 @@ impl Printer<'_, '_> {
             ComponentTypeRef::Func(idx) => {
                 self.start_group("func ")?;
                 if index {
-                    self.print_name(&state.component.func_names, state.component.funcs)?;
+                    self.print_name(&state.component.func_names, state.component.func_idx)?;
                     self.result.write_str(" ")?;
-                    state.component.funcs += 1;
+                    state.component.func_idx.0 += 1;
                 }
                 self.print_component_type_ref(state, *idx)?;
                 self.end_group()?;
@@ -594,9 +608,9 @@ impl Printer<'_, '_> {
             ComponentTypeRef::Value(ty) => {
                 self.start_group("value ")?;
                 if index {
-                    self.print_name(&state.component.value_names, state.component.values)?;
+                    self.print_name(&state.component.value_names, state.component.value_idx)?;
                     self.result.write_str(" ")?;
-                    state.component.values += 1;
+                    state.component.value_idx.0 += 1;
                 }
                 match ty {
                     ComponentValType::Primitive(ty) => self.print_primitive_val_type(ty)?,
@@ -607,9 +621,9 @@ impl Printer<'_, '_> {
             ComponentTypeRef::Type(bounds) => {
                 self.start_group("type ")?;
                 if index {
-                    self.print_name(&state.component.type_names, state.component.types)?;
+                    self.print_name(&state.component.type_names, state.component.type_idx)?;
                     self.result.write_str(" ")?;
-                    state.component.types += 1;
+                    state.component.type_idx.0 += 1;
                 }
                 match bounds {
                     TypeBounds::Eq(idx) => {
@@ -628,9 +642,12 @@ impl Printer<'_, '_> {
             ComponentTypeRef::Instance(idx) => {
                 self.start_group("instance ")?;
                 if index {
-                    self.print_name(&state.component.instance_names, state.component.instances)?;
+                    self.print_name(
+                        &state.component.instance_names,
+                        state.component.instance_idx,
+                    )?;
                     self.result.write_str(" ")?;
-                    state.component.instances += 1;
+                    state.component.instance_idx.0 += 1;
                 }
                 self.print_component_type_ref(state, *idx)?;
                 self.end_group()?;
@@ -638,9 +655,12 @@ impl Printer<'_, '_> {
             ComponentTypeRef::Component(idx) => {
                 self.start_group("component ")?;
                 if index {
-                    self.print_name(&state.component.component_names, state.component.components)?;
+                    self.print_name(
+                        &state.component.component_names,
+                        state.component.component_idx,
+                    )?;
                     self.result.write_str(" ")?;
-                    state.component.components += 1;
+                    state.component.component_idx.0 += 1;
                 }
                 self.print_component_type_ref(state, *idx)?;
                 self.end_group()?;
@@ -691,28 +711,34 @@ impl Printer<'_, '_> {
     ) -> Result<()> {
         match kind {
             ComponentExternalKind::Func => {
-                self.print_name(&state.component.func_names, state.component.funcs)?;
-                state.component.funcs += 1;
+                self.print_name(&state.component.func_names, state.component.func_idx)?;
+                state.component.func_idx.0 += 1;
             }
             ComponentExternalKind::Module => {
-                self.print_name(&state.core.module_names, state.core.modules)?;
-                state.core.modules += 1;
+                self.print_name(&state.core.module_names, state.core.module_idx)?;
+                state.core.module_idx.0 += 1;
             }
             ComponentExternalKind::Value => {
-                self.print_name(&state.component.value_names, state.component.values)?;
-                state.component.values += 1;
+                self.print_name(&state.component.value_names, state.component.value_idx)?;
+                state.component.value_idx.0 += 1;
             }
             ComponentExternalKind::Type => {
-                self.print_name(&state.component.type_names, state.component.types)?;
-                state.component.types += 1;
+                self.print_name(&state.component.type_names, state.component.type_idx)?;
+                state.component.type_idx.0 += 1;
             }
             ComponentExternalKind::Instance => {
-                self.print_name(&state.component.instance_names, state.component.instances)?;
-                state.component.instances += 1;
+                self.print_name(
+                    &state.component.instance_names,
+                    state.component.instance_idx,
+                )?;
+                state.component.instance_idx.0 += 1;
             }
             ComponentExternalKind::Component => {
-                self.print_name(&state.component.component_names, state.component.components)?;
-                state.component.components += 1;
+                self.print_name(
+                    &state.component.component_names,
+                    state.component.component_idx,
+                )?;
+                state.component.component_idx.0 += 1;
             }
         }
         Ok(())
@@ -754,22 +780,22 @@ impl Printer<'_, '_> {
         self.start_component_external_kind_group(kind)?;
         match kind {
             ComponentExternalKind::Module => {
-                self.print_idx(&state.core.module_names, index)?;
+                self.print_idx(&state.core.module_names, CoreModuleIdx(index))?;
             }
             ComponentExternalKind::Component => {
-                self.print_idx(&state.component.component_names, index)?;
+                self.print_idx(&state.component.component_names, ComponentIdx(index))?;
             }
             ComponentExternalKind::Instance => {
-                self.print_idx(&state.component.instance_names, index)?;
+                self.print_idx(&state.component.instance_names, ComponentInstanceIdx(index))?;
             }
             ComponentExternalKind::Func => {
-                self.print_idx(&state.component.func_names, index)?;
+                self.print_idx(&state.component.func_names, ComponentFuncIdx(index))?;
             }
             ComponentExternalKind::Value => {
-                self.print_idx(&state.component.value_names, index)?;
+                self.print_idx(&state.component.value_names, ComponentValueIdx(index))?;
             }
             ComponentExternalKind::Type => {
-                self.print_idx(&state.component.type_names, index)?;
+                self.print_idx(&state.component.type_names, ComponentTypeIdx(index))?;
             }
         }
         self.end_group()?;
@@ -822,14 +848,14 @@ impl Printer<'_, '_> {
         body: &dyn Fn(&mut Self, &mut State) -> Result<()>,
     ) -> Result<()> {
         self.start_group("core func ")?;
-        self.print_name(&state.core.func_names, state.core.funcs)?;
+        self.print_name(&state.core.func_names, state.core.funcidx)?;
         self.result.write_str(" ")?;
         self.start_group(group)?;
         body(self, state)?;
         self.end_group()?;
         self.end_group()?;
-        debug_assert_eq!(state.core.func_to_type.len(), state.core.funcs as usize);
-        state.core.funcs += 1;
+        debug_assert_eq!(state.core.func_to_type.len(), state.core.funcidx.index());
+        state.core.funcidx.0 += 1;
         state.core.func_to_type.push(None);
         Ok(())
     }
@@ -849,7 +875,7 @@ impl Printer<'_, '_> {
                     options,
                 } => {
                     self.start_group("func ")?;
-                    self.print_name(&state.component.func_names, state.component.funcs)?;
+                    self.print_name(&state.component.func_names, state.component.func_idx)?;
                     self.result.write_str(" ")?;
                     self.start_group("type ")?;
                     self.print_idx(&state.component.type_names, type_index)?;
@@ -862,7 +888,7 @@ impl Printer<'_, '_> {
                     self.print_canonical_options(state, &options)?;
                     self.end_group()?;
                     self.end_group()?;
-                    state.component.funcs += 1;
+                    state.component.func_idx.0 += 1;
                 }
                 CanonicalFunction::Lower {
                     func_index,
@@ -894,22 +920,22 @@ impl Printer<'_, '_> {
                     func_ty_index: func_index,
                 } => {
                     self.start_group("core func ")?;
-                    self.print_name(&state.core.func_names, state.core.funcs)?;
+                    self.print_name(&state.core.func_names, state.core.funcidx)?;
                     self.result.write_str(" ")?;
                     self.start_group("canon thread.spawn ")?;
                     self.print_idx(&state.core.type_names, func_index)?;
                     self.end_group()?;
                     self.end_group()?;
-                    state.core.funcs += 1;
+                    state.core.funcidx.0 += 1;
                 }
                 CanonicalFunction::ThreadAvailableParallelism => {
                     self.start_group("core func ")?;
-                    self.print_name(&state.core.func_names, state.core.funcs)?;
+                    self.print_name(&state.core.func_names, state.core.funcidx)?;
                     self.result.write_str(" ")?;
                     self.start_group("canon thread.available_parallelism")?;
                     self.end_group()?;
                     self.end_group()?;
-                    state.core.funcs += 1;
+                    state.core.funcidx.0 += 1;
                 }
                 CanonicalFunction::TaskBackpressure => {
                     self.print_intrinsic(state, "canon task.backpressure", &|_, _| Ok(()))?;
@@ -1076,7 +1102,7 @@ impl Printer<'_, '_> {
             let (offset, instance) = instance?;
             self.newline(offset)?;
             self.start_group("core instance ")?;
-            self.print_name(&state.core.instance_names, state.core.instances)?;
+            self.print_name(&state.core.instance_names, state.core.instance_idx)?;
             match instance {
                 Instance::Instantiate { module_index, args } => {
                     self.result.write_str(" ")?;
@@ -1087,14 +1113,14 @@ impl Printer<'_, '_> {
                         self.print_instantiation_arg(state, arg)?;
                     }
                     self.end_group()?;
-                    state.core.instances += 1;
+                    state.core.instance_idx.0 += 1;
                 }
                 Instance::FromExports(exports) => {
                     for export in exports.iter() {
                         self.newline(offset)?;
                         self.print_export(state, export)?;
                     }
-                    state.core.instances += 1;
+                    state.core.instance_idx.0 += 1;
                 }
             }
             self.end_group()?;
@@ -1111,8 +1137,11 @@ impl Printer<'_, '_> {
             let (offset, instance) = instance?;
             self.newline(offset)?;
             self.start_group("instance ")?;
-            self.print_name(&state.component.instance_names, state.component.instances)?;
-            state.component.instances += 1;
+            self.print_name(
+                &state.component.instance_names,
+                state.component.instance_idx,
+            )?;
+            state.component.instance_idx.0 += 1;
             match instance {
                 ComponentInstance::Instantiate {
                     component_index,
@@ -1150,7 +1179,7 @@ impl Printer<'_, '_> {
         match arg.kind {
             InstantiationArgKind::Instance => {
                 self.start_group("instance ")?;
-                self.print_idx(&state.core.instance_names, arg.index)?;
+                self.print_idx(&state.core.instance_names, CoreInstanceIdx(arg.index))?;
                 self.end_group()?;
             }
         }
@@ -1192,10 +1221,10 @@ impl Printer<'_, '_> {
             self.result.write_str(" ")?;
             self.start_group("result ")?;
             self.start_group("value ")?;
-            self.print_name(&state.component.value_names, state.component.values)?;
+            self.print_name(&state.component.value_names, state.component.value_idx)?;
             self.end_group()?;
             self.end_group()?;
-            state.component.values += 1;
+            state.component.value_idx.0 += 1;
         }
 
         self.end_group()?; // start
@@ -1253,37 +1282,37 @@ impl Printer<'_, '_> {
                 match kind {
                     ExternalKind::Func => {
                         self.start_group("core func ")?;
-                        self.print_name(&state.core.func_names, state.core.funcs)?;
+                        self.print_name(&state.core.func_names, state.core.funcidx)?;
                         self.end_group()?;
-                        debug_assert_eq!(state.core.func_to_type.len(), state.core.funcs as usize);
-                        state.core.funcs += 1;
-                        state.core.func_to_type.push(None)
+                        debug_assert_eq!(state.core.func_to_type.len(), state.core.funcidx.index());
+                        state.core.funcidx.0 += 1;
+                        state.core.func_to_type.push(None);
                     }
                     ExternalKind::Table => {
                         self.start_group("core table ")?;
-                        self.print_name(&state.core.table_names, state.core.tables)?;
+                        self.print_name(&state.core.table_names, state.core.tableidx)?;
                         self.end_group()?;
-                        state.core.tables += 1;
+                        state.core.tableidx.0 += 1;
                     }
                     ExternalKind::Memory => {
                         self.start_group("core memory ")?;
-                        self.print_name(&state.core.memory_names, state.core.memories)?;
+                        self.print_name(&state.core.memory_names, state.core.memidx)?;
                         self.end_group()?;
-                        state.core.memories += 1;
+                        state.core.memidx.0 += 1;
                     }
                     ExternalKind::Global => {
                         self.start_group("core global ")?;
-                        self.print_name(&state.core.global_names, state.core.globals)?;
+                        self.print_name(&state.core.global_names, state.core.globalidx)?;
                         self.end_group()?;
-                        state.core.globals += 1;
+                        state.core.globalidx.0 += 1;
                     }
                     ExternalKind::Tag => {
                         self.start_group("core tag ")?;
-                        self.print_name(&state.core.tag_names, state.core.tags as u32)?;
+                        self.print_name(&state.core.tag_names, state.core.tagidx)?;
                         self.end_group()?;
-                        debug_assert_eq!(state.core.tag_to_type.len(), state.core.tags as usize);
-                        state.core.tags += 1;
-                        state.core.tag_to_type.push(None)
+                        debug_assert_eq!(state.core.tag_to_type.len(), state.core.tagidx.index());
+                        state.core.tagidx.0 += 1;
+                        state.core.tag_to_type.push(None);
                     }
                 }
                 self.end_group()?; // alias export
@@ -1301,30 +1330,33 @@ impl Printer<'_, '_> {
                 self.result.write_str(" ")?;
                 match kind {
                     ComponentOuterAliasKind::CoreModule => {
-                        self.print_idx(&outer.core.module_names, index)?;
+                        self.print_idx(&outer.core.module_names, CoreModuleIdx(index))?;
                         self.result.write_str(" ")?;
                         self.start_group("core module ")?;
-                        self.print_name(&state.core.module_names, state.core.modules)?;
+                        self.print_name(&state.core.module_names, state.core.module_idx)?;
                     }
                     ComponentOuterAliasKind::CoreType => {
-                        self.print_idx(&outer.core.type_names, index)?;
+                        self.print_idx(&outer.core.type_names, TypeIdx(index))?;
                         self.result.write_str(" ")?;
                         self.start_group("core type ")?;
-                        self.print_name(&state.core.type_names, state.core.types.len() as u32)?;
+                        self.print_name(
+                            &state.core.type_names,
+                            TypeIdx::from_usize(state.core.types.len()),
+                        )?;
                     }
                     ComponentOuterAliasKind::Type => {
-                        self.print_idx(&outer.component.type_names, index)?;
+                        self.print_idx(&outer.component.type_names, ComponentTypeIdx(index))?;
                         self.result.write_str(" ")?;
                         self.start_group("type ")?;
-                        self.print_name(&state.component.type_names, state.component.types)?;
+                        self.print_name(&state.component.type_names, state.component.type_idx)?;
                     }
                     ComponentOuterAliasKind::Component => {
-                        self.print_idx(&outer.component.component_names, index)?;
+                        self.print_idx(&outer.component.component_names, ComponentIdx(index))?;
                         self.result.write_str(" ")?;
                         self.start_group("component ")?;
                         self.print_name(
                             &state.component.component_names,
-                            state.component.components,
+                            state.component.component_idx,
                         )?;
                     }
                 }
@@ -1333,10 +1365,12 @@ impl Printer<'_, '_> {
 
                 let state = states.last_mut().unwrap();
                 match kind {
-                    ComponentOuterAliasKind::CoreModule => state.core.modules += 1,
-                    ComponentOuterAliasKind::CoreType => state.core.types.push(None),
-                    ComponentOuterAliasKind::Type => state.component.types += 1,
-                    ComponentOuterAliasKind::Component => state.component.components += 1,
+                    ComponentOuterAliasKind::CoreModule => state.core.module_idx.0 += 1,
+                    ComponentOuterAliasKind::CoreType => {
+                        state.core.types.push(None);
+                    }
+                    ComponentOuterAliasKind::Type => state.component.type_idx.0 += 1,
+                    ComponentOuterAliasKind::Component => state.component.component_idx.0 += 1,
                 }
             }
         }

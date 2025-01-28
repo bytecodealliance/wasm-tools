@@ -1,5 +1,6 @@
 use crate::prelude::*;
 use crate::{BinaryReader, FromReader, Result};
+use wasm_types::{FuncIdx, GlobalIdx, MemIdx};
 
 /// The data portion of a custom section representing a core dump. Per the
 /// tool-conventions repo, this section just specifies the executable name that
@@ -113,11 +114,11 @@ pub struct CoreDumpInstance {
 
     /// Which of the coredump's memories are this instance's memories, via
     /// indexing into the memory index space.
-    pub memories: Vec<u32>,
+    pub memories: Vec<MemIdx>,
 
     /// Which of the coredump's globals are this instance's globals, via
     /// indexing into the global index space.
-    pub globals: Vec<u32>,
+    pub globals: Vec<GlobalIdx>,
 }
 
 impl<'a> FromReader<'a> for CoreDumpInstance {
@@ -129,12 +130,12 @@ impl<'a> FromReader<'a> for CoreDumpInstance {
         let module_index = reader.read_var_u32()?;
         let mut memories = vec![];
         for _ in 0..reader.read_var_u32()? {
-            memories.push(reader.read_var_u32()?);
+            memories.push(reader.read_memidx()?);
         }
         let mut globals = vec![];
 
         for _ in 0..reader.read_var_u32()? {
-            globals.push(reader.read_var_u32()?);
+            globals.push(reader.read_globalidx()?);
         }
 
         Ok(CoreDumpInstance {
@@ -205,7 +206,7 @@ pub struct CoreDumpStackFrame {
     /// The instance that this stack frame belongs to.
     pub instanceidx: u32,
     /// The function index in the module
-    pub funcidx: u32,
+    pub funcidx: FuncIdx,
     /// The instruction's offset relative to the function's start
     pub codeoffset: u32,
     /// The locals for this stack frame (including function parameters)
@@ -221,7 +222,7 @@ impl<'a> FromReader<'a> for CoreDumpStackFrame {
             bail!(pos, "invalid start byte for core dump stack frame");
         }
         let instanceidx = reader.read_var_u32()?;
-        let funcidx = reader.read_var_u32()?;
+        let funcidx = reader.read_funcidx()?;
         let codeoffset = reader.read_var_u32()?;
         let mut locals = vec![];
         for _ in 0..reader.read_var_u32()? {

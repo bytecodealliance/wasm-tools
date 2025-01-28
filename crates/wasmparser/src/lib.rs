@@ -78,19 +78,19 @@ macro_rules! _for_each_operator_group {
                 If { blockty: $crate::BlockType } => visit_if (arity 1 block -> ~block)
                 Else => visit_else (arity ~end -> ~end)
                 End => visit_end (arity implicit_else ~end -> implicit_else end)
-                Br { relative_depth: u32 } => visit_br (arity br -> 0)
-                BrIf { relative_depth: u32 } => visit_br_if (arity 1 br -> br)
+                Br { relative_depth: ::wasm_types::LabelIdx } => visit_br (arity br -> 0)
+                BrIf { relative_depth: ::wasm_types::LabelIdx } => visit_br_if (arity 1 br -> br)
                 BrTable { targets: $crate::BrTable<'a> } => visit_br_table (arity 1 br_table -> 0)
                 Return => visit_return (arity ~ret -> 0)
-                Call { function_index: u32 } => visit_call (arity func -> func)
-                CallIndirect { type_index: u32, table_index: u32 } => visit_call_indirect (arity 1 type -> type)
+                Call { function_index: ::wasm_types::FuncIdx } => visit_call (arity func -> func)
+                CallIndirect { type_index: ::wasm_types::TypeIdx, table_index: ::wasm_types::TableIdx } => visit_call_indirect (arity 1 type -> type)
                 Drop => visit_drop (arity 1 -> 0)
                 Select => visit_select (arity 3 -> 1)
-                LocalGet { local_index: u32 } => visit_local_get (arity 0 -> 1)
-                LocalSet { local_index: u32 } => visit_local_set (arity 1 -> 0)
-                LocalTee { local_index: u32 } => visit_local_tee (arity 1 -> 1)
-                GlobalGet { global_index: u32 } => visit_global_get (arity 0 -> 1)
-                GlobalSet { global_index: u32 } => visit_global_set (arity 1 -> 0)
+                LocalGet { local_index: ::wasm_types::LocalIdx } => visit_local_get (arity 0 -> 1)
+                LocalSet { local_index: ::wasm_types::LocalIdx } => visit_local_set (arity 1 -> 0)
+                LocalTee { local_index: ::wasm_types::LocalIdx } => visit_local_tee (arity 1 -> 1)
+                GlobalGet { global_index: ::wasm_types::GlobalIdx } => visit_global_get (arity 0 -> 1)
+                GlobalSet { global_index: ::wasm_types::GlobalIdx } => visit_global_set (arity 1 -> 0)
                 I32Load { memarg: $crate::MemArg } => visit_i32_load (load i32)
                 I64Load { memarg: $crate::MemArg } => visit_i64_load (load i64)
                 F32Load { memarg: $crate::MemArg } => visit_f32_load (load f32)
@@ -114,8 +114,8 @@ macro_rules! _for_each_operator_group {
                 I64Store8 { memarg: $crate::MemArg } => visit_i64_store8 (store i64)
                 I64Store16 { memarg: $crate::MemArg } => visit_i64_store16 (store i64)
                 I64Store32 { memarg: $crate::MemArg } => visit_i64_store32 (store i64)
-                MemorySize { mem: u32 } => visit_memory_size (arity 0 -> 1)
-                MemoryGrow { mem: u32 } => visit_memory_grow (arity 1 -> 1)
+                MemorySize { mem: ::wasm_types::MemIdx } => visit_memory_size (arity 0 -> 1)
+                MemoryGrow { mem: ::wasm_types::MemIdx } => visit_memory_grow (arity 1 -> 1)
                 I32Const { value: i32 } => visit_i32_const (push i32)
                 I64Const { value: i64 } => visit_i64_const (push i64)
                 F32Const { value: $crate::Ieee32 } => visit_f32_const (push f32)
@@ -258,37 +258,37 @@ macro_rules! _for_each_operator_group {
             // http://github.com/WebAssembly/gc
             @gc {
                 RefEq => visit_ref_eq (arity 2 -> 1)
-                StructNew { struct_type_index: u32 } => visit_struct_new (arity type -> 1)
-                StructNewDefault { struct_type_index: u32 } => visit_struct_new_default (arity 0 -> 1)
-                StructGet { struct_type_index: u32, field_index: u32 } => visit_struct_get (arity 1 -> 1)
-                StructGetS { struct_type_index: u32, field_index: u32 } => visit_struct_get_s (arity 1 -> 1)
-                StructGetU { struct_type_index: u32, field_index: u32 } => visit_struct_get_u (arity 1 -> 1)
-                StructSet { struct_type_index: u32, field_index: u32 } => visit_struct_set (arity 2 -> 0)
-                ArrayNew { array_type_index: u32 } => visit_array_new (arity 2 -> 1)
-                ArrayNewDefault { array_type_index: u32 } => visit_array_new_default (arity 1 -> 1)
-                ArrayNewFixed { array_type_index: u32, array_size: u32 } => visit_array_new_fixed (arity size -> 1)
-                ArrayNewData { array_type_index: u32, array_data_index: u32 } => visit_array_new_data (arity 2 -> 1)
-                ArrayNewElem { array_type_index: u32, array_elem_index: u32 } => visit_array_new_elem (arity 2 -> 1)
-                ArrayGet { array_type_index: u32 } => visit_array_get (arity 2 -> 1)
-                ArrayGetS { array_type_index: u32 } => visit_array_get_s (arity 2 -> 1)
-                ArrayGetU { array_type_index: u32 } => visit_array_get_u (arity 2 -> 1)
-                ArraySet { array_type_index: u32 } => visit_array_set (arity 3 -> 0)
+                StructNew { struct_type_index: ::wasm_types::TypeIdx } => visit_struct_new (arity type -> 1)
+                StructNewDefault { struct_type_index: ::wasm_types::TypeIdx } => visit_struct_new_default (arity 0 -> 1)
+                StructGet { struct_type_index: ::wasm_types::TypeIdx, field_index: ::wasm_types::FieldIdx } => visit_struct_get (arity 1 -> 1)
+                StructGetS { struct_type_index: ::wasm_types::TypeIdx, field_index: ::wasm_types::FieldIdx } => visit_struct_get_s (arity 1 -> 1)
+                StructGetU { struct_type_index: ::wasm_types::TypeIdx, field_index: ::wasm_types::FieldIdx } => visit_struct_get_u (arity 1 -> 1)
+                StructSet { struct_type_index: ::wasm_types::TypeIdx, field_index: ::wasm_types::FieldIdx } => visit_struct_set (arity 2 -> 0)
+                ArrayNew { array_type_index: ::wasm_types::TypeIdx } => visit_array_new (arity 2 -> 1)
+                ArrayNewDefault { array_type_index: ::wasm_types::TypeIdx } => visit_array_new_default (arity 1 -> 1)
+                ArrayNewFixed { array_type_index: ::wasm_types::TypeIdx, array_size: u32 } => visit_array_new_fixed (arity size -> 1)
+                ArrayNewData { array_type_index: ::wasm_types::TypeIdx, array_data_index: ::wasm_types::DataIdx } => visit_array_new_data (arity 2 -> 1)
+                ArrayNewElem { array_type_index: ::wasm_types::TypeIdx, array_elem_index: ::wasm_types::ElemIdx } => visit_array_new_elem (arity 2 -> 1)
+                ArrayGet { array_type_index: ::wasm_types::TypeIdx } => visit_array_get (arity 2 -> 1)
+                ArrayGetS { array_type_index: ::wasm_types::TypeIdx } => visit_array_get_s (arity 2 -> 1)
+                ArrayGetU { array_type_index: ::wasm_types::TypeIdx } => visit_array_get_u (arity 2 -> 1)
+                ArraySet { array_type_index: ::wasm_types::TypeIdx } => visit_array_set (arity 3 -> 0)
                 ArrayLen => visit_array_len (arity 1 -> 1)
-                ArrayFill { array_type_index: u32 } => visit_array_fill (arity 4 -> 0)
-                ArrayCopy { array_type_index_dst: u32, array_type_index_src: u32 } => visit_array_copy (arity 5 -> 0)
-                ArrayInitData { array_type_index: u32, array_data_index: u32 } => visit_array_init_data (arity 4 -> 0)
-                ArrayInitElem { array_type_index: u32, array_elem_index: u32 } => visit_array_init_elem (arity 4 -> 0)
+                ArrayFill { array_type_index: ::wasm_types::TypeIdx } => visit_array_fill (arity 4 -> 0)
+                ArrayCopy { array_type_index_dst: ::wasm_types::TypeIdx, array_type_index_src: ::wasm_types::TypeIdx } => visit_array_copy (arity 5 -> 0)
+                ArrayInitData { array_type_index: ::wasm_types::TypeIdx, array_data_index: ::wasm_types::DataIdx } => visit_array_init_data (arity 4 -> 0)
+                ArrayInitElem { array_type_index: ::wasm_types::TypeIdx, array_elem_index: ::wasm_types::ElemIdx } => visit_array_init_elem (arity 4 -> 0)
                 RefTestNonNull { hty: $crate::HeapType } => visit_ref_test_non_null (arity 1 -> 1)
                 RefTestNullable { hty: $crate::HeapType } => visit_ref_test_nullable (arity 1 -> 1)
                 RefCastNonNull { hty: $crate::HeapType } => visit_ref_cast_non_null (arity 1 -> 1)
                 RefCastNullable { hty: $crate::HeapType } => visit_ref_cast_nullable (arity 1 -> 1)
                 BrOnCast {
-                    relative_depth: u32,
+                    relative_depth: ::wasm_types::LabelIdx,
                     from_ref_type: $crate::RefType,
                     to_ref_type: $crate::RefType
                 } => visit_br_on_cast (arity br -> br)
                 BrOnCastFail {
-                    relative_depth: u32,
+                    relative_depth: ::wasm_types::LabelIdx,
                     from_ref_type: $crate::RefType,
                     to_ref_type: $crate::RefType
                 } => visit_br_on_cast_fail (arity br -> br)
@@ -317,13 +317,13 @@ macro_rules! _for_each_operator_group {
             // bulk memory operations
             // https://github.com/WebAssembly/bulk-memory-operations
             @bulk_memory {
-                MemoryInit { data_index: u32, mem: u32 } => visit_memory_init (arity 3 -> 0)
-                DataDrop { data_index: u32 } => visit_data_drop (arity 0 -> 0)
-                MemoryCopy { dst_mem: u32, src_mem: u32 } => visit_memory_copy (arity 3 -> 0)
-                MemoryFill { mem: u32 } => visit_memory_fill (arity 3 -> 0)
-                TableInit { elem_index: u32, table: u32 } => visit_table_init (arity 3 -> 0)
-                ElemDrop { elem_index: u32 } => visit_elem_drop (arity 0 -> 0)
-                TableCopy { dst_table: u32, src_table: u32 } => visit_table_copy (arity 3 -> 0)
+                MemoryInit { data_index: ::wasm_types::DataIdx, mem: ::wasm_types::MemIdx } => visit_memory_init (arity 3 -> 0)
+                DataDrop { data_index: ::wasm_types::DataIdx } => visit_data_drop (arity 0 -> 0)
+                MemoryCopy { dst_mem: ::wasm_types::MemIdx, src_mem: ::wasm_types::MemIdx } => visit_memory_copy (arity 3 -> 0)
+                MemoryFill { mem: ::wasm_types::MemIdx } => visit_memory_fill (arity 3 -> 0)
+                TableInit { elem_index: ::wasm_types::ElemIdx, table: ::wasm_types::TableIdx } => visit_table_init (arity 3 -> 0)
+                ElemDrop { elem_index: ::wasm_types::ElemIdx } => visit_elem_drop (arity 0 -> 0)
+                TableCopy { dst_table: ::wasm_types::TableIdx, src_table: ::wasm_types::TableIdx } => visit_table_copy (arity 3 -> 0)
             }
 
             // 0xFC prefixed operators
@@ -333,26 +333,26 @@ macro_rules! _for_each_operator_group {
                 TypedSelect { ty: $crate::ValType } => visit_typed_select (arity 3 -> 1)
                 RefNull { hty: $crate::HeapType } => visit_ref_null (arity 0 -> 1)
                 RefIsNull => visit_ref_is_null (arity 1 -> 1)
-                RefFunc { function_index: u32 } => visit_ref_func (arity 0 -> 1)
-                TableFill { table: u32 } => visit_table_fill (arity 3 -> 0)
-                TableGet { table: u32 } => visit_table_get (arity 1 -> 1)
-                TableSet { table: u32 } => visit_table_set (arity 2 -> 0)
-                TableGrow { table: u32 } => visit_table_grow (arity 2 -> 1)
-                TableSize { table: u32 } => visit_table_size (arity 0 -> 1)
+                RefFunc { function_index: ::wasm_types::FuncIdx } => visit_ref_func (arity 0 -> 1)
+                TableFill { table: ::wasm_types::TableIdx } => visit_table_fill (arity 3 -> 0)
+                TableGet { table: ::wasm_types::TableIdx } => visit_table_get (arity 1 -> 1)
+                TableSet { table: ::wasm_types::TableIdx } => visit_table_set (arity 2 -> 0)
+                TableGrow { table: ::wasm_types::TableIdx } => visit_table_grow (arity 2 -> 1)
+                TableSize { table: ::wasm_types::TableIdx } => visit_table_size (arity 0 -> 1)
             }
 
             // Wasm tail-call proposal
             // https://github.com/WebAssembly/tail-call
             @tail_call {
-                ReturnCall { function_index: u32 } => visit_return_call (arity func -> 0)
-                ReturnCallIndirect { type_index: u32, table_index: u32 } => visit_return_call_indirect (arity 1 type -> 0)
+                ReturnCall { function_index: ::wasm_types::FuncIdx } => visit_return_call (arity func -> 0)
+                ReturnCallIndirect { type_index: ::wasm_types::TypeIdx, table_index: ::wasm_types::TableIdx } => visit_return_call_indirect (arity 1 type -> 0)
             }
 
             // OxFC prefixed operators
             // memory control (experimental)
             // https://github.com/WebAssembly/design/issues/1439
             @memory_control {
-                MemoryDiscard { mem: u32 } => visit_memory_discard (arity 2 -> 0)
+                MemoryDiscard { mem: ::wasm_types::MemIdx } => visit_memory_discard (arity 2 -> 0)
             }
 
             // 0xFE prefixed operators
@@ -698,15 +698,15 @@ macro_rules! _for_each_operator_group {
 
             @exceptions {
                 TryTable { try_table: $crate::TryTable } => visit_try_table (arity try_table -> ~try_table)
-                Throw { tag_index: u32 } => visit_throw (arity tag -> 0)
+                Throw { tag_index: ::wasm_types::TagIdx } => visit_throw (arity tag -> 0)
                 ThrowRef => visit_throw_ref (arity 1 -> 0)
             }
             // Deprecated old instructions from the exceptions proposal
             @legacy_exceptions {
                 Try { blockty: $crate::BlockType } => visit_try (arity block -> ~block)
-                Catch { tag_index: u32 } => visit_catch (arity ~end -> ~tag)
-                Rethrow { relative_depth: u32 } => visit_rethrow (arity 0 -> 0)
-                Delegate { relative_depth: u32 } => visit_delegate (arity ~end -> end)
+                Catch { tag_index: ::wasm_types::TagIdx } => visit_catch (arity ~end -> ~tag)
+                Rethrow { relative_depth: ::wasm_types::LabelIdx } => visit_rethrow (arity 0 -> 0)
+                Delegate { relative_depth: ::wasm_types::LabelIdx } => visit_delegate (arity ~end -> end)
                 CatchAll => visit_catch_all (arity ~end -> 0)
             }
 
@@ -714,61 +714,61 @@ macro_rules! _for_each_operator_group {
             // shared-everything threads
             // https://github.com/WebAssembly/shared-everything-threads
             @shared_everything_threads {
-                GlobalAtomicGet { ordering: $crate::Ordering, global_index: u32 } => visit_global_atomic_get (arity 0 -> 1)
-                GlobalAtomicSet { ordering: $crate::Ordering, global_index: u32 } => visit_global_atomic_set (arity 1 -> 0)
-                GlobalAtomicRmwAdd { ordering: $crate::Ordering, global_index: u32 } => visit_global_atomic_rmw_add (unary atomic global)
-                GlobalAtomicRmwSub { ordering: $crate::Ordering, global_index: u32 } => visit_global_atomic_rmw_sub (unary atomic global)
-                GlobalAtomicRmwAnd { ordering: $crate::Ordering, global_index: u32 } => visit_global_atomic_rmw_and (unary atomic global)
-                GlobalAtomicRmwOr { ordering: $crate::Ordering, global_index: u32 } => visit_global_atomic_rmw_or (unary atomic global)
-                GlobalAtomicRmwXor { ordering: $crate::Ordering, global_index: u32 } => visit_global_atomic_rmw_xor (unary atomic global)
-                GlobalAtomicRmwXchg { ordering: $crate::Ordering, global_index: u32 } => visit_global_atomic_rmw_xchg (arity 1 -> 1)
-                GlobalAtomicRmwCmpxchg { ordering: $crate::Ordering, global_index: u32 } => visit_global_atomic_rmw_cmpxchg (arity 2 -> 1)
-                TableAtomicGet { ordering: $crate::Ordering, table_index: u32 } => visit_table_atomic_get (arity 1 -> 1)
-                TableAtomicSet { ordering: $crate::Ordering, table_index: u32 } => visit_table_atomic_set (arity 2 -> 0)
-                TableAtomicRmwXchg { ordering: $crate::Ordering, table_index: u32 } => visit_table_atomic_rmw_xchg (arity 2 -> 1)
-                TableAtomicRmwCmpxchg { ordering: $crate::Ordering, table_index: u32 } => visit_table_atomic_rmw_cmpxchg (arity 3 -> 1)
-                StructAtomicGet { ordering: $crate::Ordering, struct_type_index: u32, field_index: u32  } => visit_struct_atomic_get (arity 1 -> 1)
-                StructAtomicGetS { ordering: $crate::Ordering, struct_type_index: u32, field_index: u32  } => visit_struct_atomic_get_s (arity 1 -> 1)
-                StructAtomicGetU { ordering: $crate::Ordering, struct_type_index: u32, field_index: u32  } => visit_struct_atomic_get_u (arity 1 -> 1)
-                StructAtomicSet { ordering: $crate::Ordering, struct_type_index: u32, field_index: u32  } => visit_struct_atomic_set (arity 2 -> 0)
-                StructAtomicRmwAdd { ordering: $crate::Ordering, struct_type_index: u32, field_index: u32  } => visit_struct_atomic_rmw_add (atomic rmw struct add)
-                StructAtomicRmwSub { ordering: $crate::Ordering, struct_type_index: u32, field_index: u32  } => visit_struct_atomic_rmw_sub (atomic rmw struct sub)
-                StructAtomicRmwAnd { ordering: $crate::Ordering, struct_type_index: u32, field_index: u32  } => visit_struct_atomic_rmw_and (atomic rmw struct and)
-                StructAtomicRmwOr { ordering: $crate::Ordering, struct_type_index: u32, field_index: u32  } => visit_struct_atomic_rmw_or (atomic rmw struct or)
-                StructAtomicRmwXor { ordering: $crate::Ordering, struct_type_index: u32, field_index: u32  } => visit_struct_atomic_rmw_xor (atomic rmw struct xor)
-                StructAtomicRmwXchg { ordering: $crate::Ordering, struct_type_index: u32, field_index: u32  } => visit_struct_atomic_rmw_xchg (arity 2 -> 1)
-                StructAtomicRmwCmpxchg { ordering: $crate::Ordering, struct_type_index: u32, field_index: u32  } => visit_struct_atomic_rmw_cmpxchg (arity 3 -> 1)
-                ArrayAtomicGet { ordering: $crate::Ordering, array_type_index: u32 } => visit_array_atomic_get (arity 2 -> 1)
-                ArrayAtomicGetS { ordering: $crate::Ordering, array_type_index: u32 } => visit_array_atomic_get_s (arity 2 -> 1)
-                ArrayAtomicGetU { ordering: $crate::Ordering, array_type_index: u32 } => visit_array_atomic_get_u (arity 2 -> 1)
-                ArrayAtomicSet { ordering: $crate::Ordering, array_type_index: u32 } => visit_array_atomic_set (arity 3 -> 0)
-                ArrayAtomicRmwAdd { ordering: $crate::Ordering, array_type_index: u32 } => visit_array_atomic_rmw_add (atomic rmw array add)
-                ArrayAtomicRmwSub { ordering: $crate::Ordering, array_type_index: u32 } => visit_array_atomic_rmw_sub (atomic rmw array sub)
-                ArrayAtomicRmwAnd { ordering: $crate::Ordering, array_type_index: u32 } => visit_array_atomic_rmw_and (atomic rmw array and)
-                ArrayAtomicRmwOr { ordering: $crate::Ordering, array_type_index: u32 } => visit_array_atomic_rmw_or (atomic rmw array or)
-                ArrayAtomicRmwXor { ordering: $crate::Ordering, array_type_index: u32 } => visit_array_atomic_rmw_xor (atomic rmw array xor)
-                ArrayAtomicRmwXchg { ordering: $crate::Ordering, array_type_index: u32 } => visit_array_atomic_rmw_xchg (arity 3 -> 1)
-                ArrayAtomicRmwCmpxchg { ordering: $crate::Ordering, array_type_index: u32 } => visit_array_atomic_rmw_cmpxchg (arity 4 -> 1)
+                GlobalAtomicGet { ordering: $crate::Ordering, global_index: ::wasm_types::GlobalIdx } => visit_global_atomic_get (arity 0 -> 1)
+                GlobalAtomicSet { ordering: $crate::Ordering, global_index: ::wasm_types::GlobalIdx } => visit_global_atomic_set (arity 1 -> 0)
+                GlobalAtomicRmwAdd { ordering: $crate::Ordering, global_index: ::wasm_types::GlobalIdx } => visit_global_atomic_rmw_add (unary atomic global)
+                GlobalAtomicRmwSub { ordering: $crate::Ordering, global_index: ::wasm_types::GlobalIdx } => visit_global_atomic_rmw_sub (unary atomic global)
+                GlobalAtomicRmwAnd { ordering: $crate::Ordering, global_index: ::wasm_types::GlobalIdx } => visit_global_atomic_rmw_and (unary atomic global)
+                GlobalAtomicRmwOr { ordering: $crate::Ordering, global_index: ::wasm_types::GlobalIdx } => visit_global_atomic_rmw_or (unary atomic global)
+                GlobalAtomicRmwXor { ordering: $crate::Ordering, global_index: ::wasm_types::GlobalIdx } => visit_global_atomic_rmw_xor (unary atomic global)
+                GlobalAtomicRmwXchg { ordering: $crate::Ordering, global_index: ::wasm_types::GlobalIdx } => visit_global_atomic_rmw_xchg (arity 1 -> 1)
+                GlobalAtomicRmwCmpxchg { ordering: $crate::Ordering, global_index: ::wasm_types::GlobalIdx } => visit_global_atomic_rmw_cmpxchg (arity 2 -> 1)
+                TableAtomicGet { ordering: $crate::Ordering, table_index: ::wasm_types::TableIdx } => visit_table_atomic_get (arity 1 -> 1)
+                TableAtomicSet { ordering: $crate::Ordering, table_index: ::wasm_types::TableIdx } => visit_table_atomic_set (arity 2 -> 0)
+                TableAtomicRmwXchg { ordering: $crate::Ordering, table_index: ::wasm_types::TableIdx } => visit_table_atomic_rmw_xchg (arity 2 -> 1)
+                TableAtomicRmwCmpxchg { ordering: $crate::Ordering, table_index: ::wasm_types::TableIdx } => visit_table_atomic_rmw_cmpxchg (arity 3 -> 1)
+                StructAtomicGet { ordering: $crate::Ordering, struct_type_index: ::wasm_types::TypeIdx, field_index: ::wasm_types::FieldIdx  } => visit_struct_atomic_get (arity 1 -> 1)
+                StructAtomicGetS { ordering: $crate::Ordering, struct_type_index: ::wasm_types::TypeIdx, field_index: ::wasm_types::FieldIdx  } => visit_struct_atomic_get_s (arity 1 -> 1)
+                StructAtomicGetU { ordering: $crate::Ordering, struct_type_index: ::wasm_types::TypeIdx, field_index: ::wasm_types::FieldIdx  } => visit_struct_atomic_get_u (arity 1 -> 1)
+                StructAtomicSet { ordering: $crate::Ordering, struct_type_index: ::wasm_types::TypeIdx, field_index: ::wasm_types::FieldIdx  } => visit_struct_atomic_set (arity 2 -> 0)
+                StructAtomicRmwAdd { ordering: $crate::Ordering, struct_type_index: ::wasm_types::TypeIdx, field_index: ::wasm_types::FieldIdx  } => visit_struct_atomic_rmw_add (atomic rmw struct add)
+                StructAtomicRmwSub { ordering: $crate::Ordering, struct_type_index: ::wasm_types::TypeIdx, field_index: ::wasm_types::FieldIdx  } => visit_struct_atomic_rmw_sub (atomic rmw struct sub)
+                StructAtomicRmwAnd { ordering: $crate::Ordering, struct_type_index: ::wasm_types::TypeIdx, field_index: ::wasm_types::FieldIdx  } => visit_struct_atomic_rmw_and (atomic rmw struct and)
+                StructAtomicRmwOr { ordering: $crate::Ordering, struct_type_index: ::wasm_types::TypeIdx, field_index: ::wasm_types::FieldIdx  } => visit_struct_atomic_rmw_or (atomic rmw struct or)
+                StructAtomicRmwXor { ordering: $crate::Ordering, struct_type_index: ::wasm_types::TypeIdx, field_index: ::wasm_types::FieldIdx  } => visit_struct_atomic_rmw_xor (atomic rmw struct xor)
+                StructAtomicRmwXchg { ordering: $crate::Ordering, struct_type_index: ::wasm_types::TypeIdx, field_index: ::wasm_types::FieldIdx  } => visit_struct_atomic_rmw_xchg (arity 2 -> 1)
+                StructAtomicRmwCmpxchg { ordering: $crate::Ordering, struct_type_index: ::wasm_types::TypeIdx, field_index: ::wasm_types::FieldIdx  } => visit_struct_atomic_rmw_cmpxchg (arity 3 -> 1)
+                ArrayAtomicGet { ordering: $crate::Ordering, array_type_index: ::wasm_types::TypeIdx } => visit_array_atomic_get (arity 2 -> 1)
+                ArrayAtomicGetS { ordering: $crate::Ordering, array_type_index: ::wasm_types::TypeIdx } => visit_array_atomic_get_s (arity 2 -> 1)
+                ArrayAtomicGetU { ordering: $crate::Ordering, array_type_index: ::wasm_types::TypeIdx } => visit_array_atomic_get_u (arity 2 -> 1)
+                ArrayAtomicSet { ordering: $crate::Ordering, array_type_index: ::wasm_types::TypeIdx } => visit_array_atomic_set (arity 3 -> 0)
+                ArrayAtomicRmwAdd { ordering: $crate::Ordering, array_type_index: ::wasm_types::TypeIdx } => visit_array_atomic_rmw_add (atomic rmw array add)
+                ArrayAtomicRmwSub { ordering: $crate::Ordering, array_type_index: ::wasm_types::TypeIdx } => visit_array_atomic_rmw_sub (atomic rmw array sub)
+                ArrayAtomicRmwAnd { ordering: $crate::Ordering, array_type_index: ::wasm_types::TypeIdx } => visit_array_atomic_rmw_and (atomic rmw array and)
+                ArrayAtomicRmwOr { ordering: $crate::Ordering, array_type_index: ::wasm_types::TypeIdx } => visit_array_atomic_rmw_or (atomic rmw array or)
+                ArrayAtomicRmwXor { ordering: $crate::Ordering, array_type_index: ::wasm_types::TypeIdx } => visit_array_atomic_rmw_xor (atomic rmw array xor)
+                ArrayAtomicRmwXchg { ordering: $crate::Ordering, array_type_index: ::wasm_types::TypeIdx } => visit_array_atomic_rmw_xchg (arity 3 -> 1)
+                ArrayAtomicRmwCmpxchg { ordering: $crate::Ordering, array_type_index: ::wasm_types::TypeIdx } => visit_array_atomic_rmw_cmpxchg (arity 4 -> 1)
                 RefI31Shared => visit_ref_i31_shared (arity 1 -> 1)
             }
 
             // Typed Function references
             @function_references {
-                CallRef { type_index: u32 } => visit_call_ref (arity 1 type -> type)
-                ReturnCallRef { type_index: u32 } => visit_return_call_ref (arity 1 type -> 0)
+                CallRef { type_index: ::wasm_types::TypeIdx } => visit_call_ref (arity 1 type -> type)
+                ReturnCallRef { type_index: ::wasm_types::TypeIdx } => visit_return_call_ref (arity 1 type -> 0)
                 RefAsNonNull => visit_ref_as_non_null (arity 1 -> 1)
-                BrOnNull { relative_depth: u32 } => visit_br_on_null (arity 1 br -> 1 br)
-                BrOnNonNull { relative_depth: u32 } => visit_br_on_non_null (arity br -> br -1)
+                BrOnNull { relative_depth: ::wasm_types::LabelIdx } => visit_br_on_null (arity 1 br -> 1 br)
+                BrOnNonNull { relative_depth: ::wasm_types::LabelIdx } => visit_br_on_non_null (arity br -> br -1)
             }
 
             // Stack switching
             @stack_switching {
-                ContNew { cont_type_index: u32 } => visit_cont_new (arity 1 -> 1)
-                ContBind { argument_index: u32, result_index: u32 } => visit_cont_bind (arity type_diff 1 -> 1)
-                Suspend { tag_index: u32 } => visit_suspend (arity tag -> tag)
-                Resume { cont_type_index: u32, resume_table: $crate::ResumeTable } => visit_resume (arity 1 type -> type)
-                ResumeThrow { cont_type_index: u32, tag_index: u32, resume_table: $crate::ResumeTable } => visit_resume_throw (arity 1 tag -> type)
-                Switch { cont_type_index: u32, tag_index: u32 } => visit_switch (arity type -> ~switch)
+                ContNew { cont_type_index: ::wasm_types::TypeIdx } => visit_cont_new (arity 1 -> 1)
+                ContBind { argument_index: ::wasm_types::TypeIdx, result_index: ::wasm_types::TypeIdx } => visit_cont_bind (arity type_diff 1 -> 1)
+                Suspend { tag_index: ::wasm_types::TagIdx } => visit_suspend (arity tag -> tag)
+                Resume { cont_type_index: ::wasm_types::TypeIdx, resume_table: $crate::ResumeTable } => visit_resume (arity 1 type -> type)
+                ResumeThrow { cont_type_index: ::wasm_types::TypeIdx, tag_index: ::wasm_types::TagIdx, resume_table: $crate::ResumeTable } => visit_resume_throw (arity 1 tag -> type)
+                Switch { cont_type_index: ::wasm_types::TypeIdx, tag_index: ::wasm_types::TagIdx } => visit_switch (arity type -> ~switch)
             }
 
             @wide_arithmetic {

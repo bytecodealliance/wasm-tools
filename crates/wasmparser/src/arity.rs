@@ -17,6 +17,7 @@ use crate::{
     BinaryReader, BinaryReaderError, BlockType, CompositeInnerType, ContType, FrameKind, FuncType,
     Operator, RefType, Result, SubType,
 };
+use wasm_types::{FuncIdx, LabelIdx, TagIdx, TypeIdx};
 
 /// To compute the arity (param and result counts) of "variable-arity"
 /// operators, the operator_arity macro needs information about the
@@ -24,13 +25,13 @@ use crate::{
 /// trait exposes this information.
 pub trait ModuleArity {
     /// Type with given index
-    fn sub_type_at(&self, type_idx: u32) -> Option<&SubType>;
+    fn sub_type_at(&self, type_idx: TypeIdx) -> Option<&SubType>;
 
     /// Arity (param and result counts) of tag with given index
-    fn tag_type_arity(&self, at: u32) -> Option<(u32, u32)>;
+    fn tag_type_arity(&self, at: TagIdx) -> Option<(u32, u32)>;
 
     /// Type index of function with given index
-    fn type_index_of_function(&self, function_idx: u32) -> Option<u32>;
+    fn type_index_of_function(&self, function_idx: FuncIdx) -> Option<TypeIdx>;
 
     /// Function type for a given continuation type
     fn func_type_of_cont_type(&self, c: &ContType) -> Option<&FuncType>;
@@ -42,7 +43,7 @@ pub trait ModuleArity {
     fn control_stack_height(&self) -> u32;
 
     /// BlockType and FrameKind of label with given index
-    fn label_block(&self, depth: u32) -> Option<(BlockType, FrameKind)>;
+    fn label_block(&self, depth: LabelIdx) -> Option<(BlockType, FrameKind)>;
 
     /// Computes arity of given SubType
     fn sub_type_arity(&self, t: &SubType) -> Option<(u32, u32)> {
@@ -169,7 +170,7 @@ macro_rules! operator_arity {
 
     (count $self:ident { $($_:ident: $__:ty),* } ret) => {{
 	let (ty, _) = $self.control_stack_height().checked_sub(1)
-	    .and_then(|x| $self.label_block(x))?;
+	    .and_then(|x| $self.label_block(LabelIdx(x)))?;
 	$self.block_type_arity(ty)
     }};
 
@@ -179,7 +180,7 @@ macro_rules! operator_arity {
     }};
 
     (count $self:ident {} implicit_else) => {{
-	let (ty, kind) = $self.label_block(0)?;
+	let (ty, kind) = $self.label_block(LabelIdx(0))?;
 	let (params, results) = $self.block_type_arity(ty)?;
 	Some(match kind {
 	    FrameKind::If => (results, params),
@@ -188,7 +189,7 @@ macro_rules! operator_arity {
     }};
 
     (count $self:ident { $($_: ident: $__:ty),* } end) => {{
-	let (ty, _) = $self.label_block(0)?;
+	let (ty, _) = $self.label_block(LabelIdx(0))?;
 	$self.block_type_arity(ty)
     }};
 
@@ -199,8 +200,8 @@ macro_rules! operator_arity {
 
     (count $self:ident { $br_table:ident: $($_:tt)* } br_table) => {{
         operator_arity!(br_table $br_table);
-	let relative_depth: u32 = $br_table.default();
-	operator_arity!(count $self { relative_depth: u32 } br)
+	let relative_depth: LabelIdx = $br_table.default();
+	operator_arity!(count $self { relative_depth: LabelIdx } br)
     }};
 
     (tag_index tag_index $($_:tt)*) => {};

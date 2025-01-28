@@ -17,6 +17,7 @@ use crate::{
 use core::fmt;
 use core::iter;
 use core::ops::Range;
+use wasm_types::FuncIdx;
 
 pub(crate) const WASM_MODULE_VERSION: u16 = 0x1;
 
@@ -151,7 +152,7 @@ pub enum Payload<'a> {
     /// A module start section was received.
     StartSection {
         /// The start function index
-        func: u32,
+        func: FuncIdx,
         /// The range of bytes that specify the `func` field, specified in
         /// offsets relative to the start of the byte stream.
         range: Range<usize>,

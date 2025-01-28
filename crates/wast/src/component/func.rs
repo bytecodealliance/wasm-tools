@@ -2,6 +2,7 @@ use crate::component::*;
 use crate::kw;
 use crate::parser::{Parse, Parser, Result};
 use crate::token::{Id, Index, LParen, NameAnnotation, Span};
+use wasm_types::{ComponentFuncIdx, ComponentTypeIdx, FuncIdx, MemIdx, TypeIdx};
 
 /// A declared core function.
 ///
@@ -372,7 +373,7 @@ pub enum CanonicalFuncKind<'a> {
 #[derive(Debug)]
 pub struct CanonLift<'a> {
     /// The core function being lifted.
-    pub func: CoreItemRef<'a, kw::func>,
+    pub func: CoreItemRef<'a, kw::func, FuncIdx>,
     /// The canonical options for the lifting.
     pub opts: Vec<CanonOpt<'a>>,
 }
@@ -397,7 +398,7 @@ impl Default for CanonLift<'_> {
         Self {
             func: CoreItemRef {
                 kind: kw::func(span),
-                idx: Index::Num(0, span),
+                idx: Index::Num(FuncIdx(0), span),
                 export_name: None,
             },
             opts: Vec::new(),
@@ -409,7 +410,7 @@ impl Default for CanonLift<'_> {
 #[derive(Debug)]
 pub struct CanonLower<'a> {
     /// The function being lowered.
-    pub func: ItemRef<'a, kw::func>,
+    pub func: ItemRef<'a, kw::func, ComponentFuncIdx>,
     /// The canonical options for the lowering.
     pub opts: Vec<CanonOpt<'a>>,
 }
@@ -431,7 +432,7 @@ impl Default for CanonLower<'_> {
         Self {
             func: ItemRef {
                 kind: kw::func(span),
-                idx: Index::Num(0, span),
+                idx: Index::Num(ComponentFuncIdx(0), span),
                 export_names: Vec::new(),
             },
             opts: Vec::new(),
@@ -443,7 +444,7 @@ impl Default for CanonLower<'_> {
 #[derive(Debug)]
 pub struct CanonResourceNew<'a> {
     /// The resource type that this intrinsic creates an owned reference to.
-    pub ty: Index<'a>,
+    pub ty: Index<'a, ComponentTypeIdx>,
 }
 
 impl<'a> Parse<'a> for CanonResourceNew<'a> {
@@ -460,7 +461,7 @@ impl<'a> Parse<'a> for CanonResourceNew<'a> {
 #[derive(Debug)]
 pub struct CanonResourceDrop<'a> {
     /// The resource type that this intrinsic is dropping.
-    pub ty: Index<'a>,
+    pub ty: Index<'a, ComponentTypeIdx>,
 }
 
 impl<'a> Parse<'a> for CanonResourceDrop<'a> {
@@ -477,7 +478,7 @@ impl<'a> Parse<'a> for CanonResourceDrop<'a> {
 #[derive(Debug)]
 pub struct CanonResourceRep<'a> {
     /// The resource type that this intrinsic is accessing.
-    pub ty: Index<'a>,
+    pub ty: Index<'a, ComponentTypeIdx>,
 }
 
 impl<'a> Parse<'a> for CanonResourceRep<'a> {
@@ -494,7 +495,7 @@ impl<'a> Parse<'a> for CanonResourceRep<'a> {
 #[derive(Debug)]
 pub struct CanonThreadSpawn<'a> {
     /// The function type that is being spawned.
-    pub ty: Index<'a>,
+    pub ty: Index<'a, TypeIdx>,
 }
 
 impl<'a> Parse<'a> for CanonThreadSpawn<'a> {
@@ -549,7 +550,7 @@ pub struct CanonTaskWait<'a> {
     /// intrinsic.
     pub async_: bool,
     /// The memory to use when returning an event to the caller.
-    pub memory: CoreItemRef<'a, kw::memory>,
+    pub memory: CoreItemRef<'a, kw::memory, MemIdx>,
 }
 
 impl<'a> Parse<'a> for CanonTaskWait<'a> {
@@ -572,7 +573,7 @@ pub struct CanonTaskPoll<'a> {
     /// intrinsic.
     pub async_: bool,
     /// The memory to use when returning an event to the caller.
-    pub memory: CoreItemRef<'a, kw::memory>,
+    pub memory: CoreItemRef<'a, kw::memory, MemIdx>,
 }
 
 impl<'a> Parse<'a> for CanonTaskPoll<'a> {
@@ -609,7 +610,7 @@ impl<'a> Parse<'a> for CanonTaskYield {
 #[derive(Debug)]
 pub struct CanonStreamNew<'a> {
     /// The stream type to instantiate.
-    pub ty: Index<'a>,
+    pub ty: Index<'a, ComponentTypeIdx>,
 }
 
 impl<'a> Parse<'a> for CanonStreamNew<'a> {
@@ -626,7 +627,7 @@ impl<'a> Parse<'a> for CanonStreamNew<'a> {
 #[derive(Debug)]
 pub struct CanonStreamRead<'a> {
     /// The stream type to instantiate.
-    pub ty: Index<'a>,
+    pub ty: Index<'a, ComponentTypeIdx>,
     /// The canonical options for storing values.
     pub opts: Vec<CanonOpt<'a>>,
 }
@@ -646,7 +647,7 @@ impl<'a> Parse<'a> for CanonStreamRead<'a> {
 #[derive(Debug)]
 pub struct CanonStreamWrite<'a> {
     /// The stream type to instantiate.
-    pub ty: Index<'a>,
+    pub ty: Index<'a, ComponentTypeIdx>,
     /// The canonical options for loading values.
     pub opts: Vec<CanonOpt<'a>>,
 }
@@ -666,7 +667,7 @@ impl<'a> Parse<'a> for CanonStreamWrite<'a> {
 #[derive(Debug)]
 pub struct CanonStreamCancelRead<'a> {
     /// The stream type to instantiate.
-    pub ty: Index<'a>,
+    pub ty: Index<'a, ComponentTypeIdx>,
     /// If false, block until cancel is finished; otherwise return BLOCKED if
     /// necessary.
     pub async_: bool,
@@ -687,7 +688,7 @@ impl<'a> Parse<'a> for CanonStreamCancelRead<'a> {
 #[derive(Debug)]
 pub struct CanonStreamCancelWrite<'a> {
     /// The stream type to instantiate.
-    pub ty: Index<'a>,
+    pub ty: Index<'a, ComponentTypeIdx>,
     /// If false, block until cancel is finished; otherwise return BLOCKED if
     /// necessary.
     pub async_: bool,
@@ -708,7 +709,7 @@ impl<'a> Parse<'a> for CanonStreamCancelWrite<'a> {
 #[derive(Debug)]
 pub struct CanonStreamCloseReadable<'a> {
     /// The stream type to close.
-    pub ty: Index<'a>,
+    pub ty: Index<'a, ComponentTypeIdx>,
 }
 
 impl<'a> Parse<'a> for CanonStreamCloseReadable<'a> {
@@ -725,7 +726,7 @@ impl<'a> Parse<'a> for CanonStreamCloseReadable<'a> {
 #[derive(Debug)]
 pub struct CanonStreamCloseWritable<'a> {
     /// The stream type to close.
-    pub ty: Index<'a>,
+    pub ty: Index<'a, ComponentTypeIdx>,
 }
 
 impl<'a> Parse<'a> for CanonStreamCloseWritable<'a> {
@@ -742,7 +743,7 @@ impl<'a> Parse<'a> for CanonStreamCloseWritable<'a> {
 #[derive(Debug)]
 pub struct CanonFutureNew<'a> {
     /// The future type to instantiate.
-    pub ty: Index<'a>,
+    pub ty: Index<'a, ComponentTypeIdx>,
 }
 
 impl<'a> Parse<'a> for CanonFutureNew<'a> {
@@ -759,7 +760,7 @@ impl<'a> Parse<'a> for CanonFutureNew<'a> {
 #[derive(Debug)]
 pub struct CanonFutureRead<'a> {
     /// The future type to instantiate.
-    pub ty: Index<'a>,
+    pub ty: Index<'a, ComponentTypeIdx>,
     /// The canonical options for storing values.
     pub opts: Vec<CanonOpt<'a>>,
 }
@@ -779,7 +780,7 @@ impl<'a> Parse<'a> for CanonFutureRead<'a> {
 #[derive(Debug)]
 pub struct CanonFutureWrite<'a> {
     /// The future type to instantiate.
-    pub ty: Index<'a>,
+    pub ty: Index<'a, ComponentTypeIdx>,
     /// The canonical options for loading values.
     pub opts: Vec<CanonOpt<'a>>,
 }
@@ -799,7 +800,7 @@ impl<'a> Parse<'a> for CanonFutureWrite<'a> {
 #[derive(Debug)]
 pub struct CanonFutureCancelRead<'a> {
     /// The future type to instantiate.
-    pub ty: Index<'a>,
+    pub ty: Index<'a, ComponentTypeIdx>,
     /// If false, block until cancel is finished; otherwise return BLOCKED if
     /// necessary.
     pub async_: bool,
@@ -820,7 +821,7 @@ impl<'a> Parse<'a> for CanonFutureCancelRead<'a> {
 #[derive(Debug)]
 pub struct CanonFutureCancelWrite<'a> {
     /// The future type to instantiate.
-    pub ty: Index<'a>,
+    pub ty: Index<'a, ComponentTypeIdx>,
     /// If false, block until cancel is finished; otherwise return BLOCKED if
     /// necessary.
     pub async_: bool,
@@ -841,7 +842,7 @@ impl<'a> Parse<'a> for CanonFutureCancelWrite<'a> {
 #[derive(Debug)]
 pub struct CanonFutureCloseReadable<'a> {
     /// The future type to close.
-    pub ty: Index<'a>,
+    pub ty: Index<'a, ComponentTypeIdx>,
 }
 
 impl<'a> Parse<'a> for CanonFutureCloseReadable<'a> {
@@ -858,7 +859,7 @@ impl<'a> Parse<'a> for CanonFutureCloseReadable<'a> {
 #[derive(Debug)]
 pub struct CanonFutureCloseWritable<'a> {
     /// The future type to close.
-    pub ty: Index<'a>,
+    pub ty: Index<'a, ComponentTypeIdx>,
 }
 
 impl<'a> Parse<'a> for CanonFutureCloseWritable<'a> {
@@ -915,15 +916,15 @@ pub enum CanonOpt<'a> {
     /// Encode strings as "compact UTF-16".
     StringLatin1Utf16,
     /// Use the specified memory for canonical ABI memory access.
-    Memory(CoreItemRef<'a, kw::memory>),
+    Memory(CoreItemRef<'a, kw::memory, MemIdx>),
     /// Use the specified reallocation function for memory allocations.
-    Realloc(CoreItemRef<'a, kw::func>),
+    Realloc(CoreItemRef<'a, kw::func, FuncIdx>),
     /// Call the specified function after the lifted function has returned.
-    PostReturn(CoreItemRef<'a, kw::func>),
+    PostReturn(CoreItemRef<'a, kw::func, FuncIdx>),
     /// Use the async ABI for lifting or lowering.
     Async,
     /// Use the specified function to deliver async events to stackless coroutines.
-    Callback(CoreItemRef<'a, kw::func>),
+    Callback(CoreItemRef<'a, kw::func, FuncIdx>),
 }
 
 impl<'a> Parse<'a> for CanonOpt<'a> {
@@ -953,17 +954,17 @@ impl<'a> Parse<'a> for CanonOpt<'a> {
                 } else if l.peek::<kw::realloc>()? {
                     parser.parse::<kw::realloc>()?;
                     Ok(CanonOpt::Realloc(
-                        parser.parse::<IndexOrCoreRef<'_, _>>()?.0,
+                        parser.parse::<IndexOrCoreRef<'_, _, FuncIdx>>()?.0,
                     ))
                 } else if l.peek::<kw::post_return>()? {
                     parser.parse::<kw::post_return>()?;
                     Ok(CanonOpt::PostReturn(
-                        parser.parse::<IndexOrCoreRef<'_, _>>()?.0,
+                        parser.parse::<IndexOrCoreRef<'_, _, FuncIdx>>()?.0,
                     ))
                 } else if l.peek::<kw::callback>()? {
                     parser.parse::<kw::callback>()?;
                     Ok(CanonOpt::Callback(
-                        parser.parse::<IndexOrCoreRef<'_, _>>()?.0,
+                        parser.parse::<IndexOrCoreRef<'_, _, FuncIdx>>()?.0,
                     ))
                 } else {
                     Err(l.error())
@@ -975,7 +976,10 @@ impl<'a> Parse<'a> for CanonOpt<'a> {
     }
 }
 
-fn parse_trailing_item_ref<T>(kind: T, parser: Parser) -> Result<CoreItemRef<T>> {
+fn parse_trailing_item_ref<'a, T, I>(kind: T, parser: Parser<'a>) -> Result<CoreItemRef<'a, T, I>>
+where
+    (I, Span): Parse<'a>,
+{
     Ok(CoreItemRef {
         kind,
         idx: parser.parse()?,

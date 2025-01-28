@@ -1,5 +1,6 @@
 use crate::{encode_section, ComponentSection, ComponentSectionId, ComponentValType, Encode};
 use alloc::vec::Vec;
+use wasm_types::{ComponentFuncIdx, ComponentTypeIdx, FuncIdx, MemIdx, TypeIdx};
 
 /// Represents options for canonical function definitions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -13,20 +14,20 @@ pub enum CanonicalOption {
     /// The memory to use if the lifting or lowering of a function requires memory access.
     ///
     /// The value is an index to a core memory.
-    Memory(u32),
+    Memory(MemIdx),
     /// The realloc function to use if the lifting or lowering of a function requires memory
     /// allocation.
     ///
     /// The value is an index to a core function of type `(func (param i32 i32 i32 i32) (result i32))`.
-    Realloc(u32),
+    Realloc(FuncIdx),
     /// The post-return function to use if the lifting of a function requires
     /// cleanup after the function returns.
-    PostReturn(u32),
+    PostReturn(FuncIdx),
     /// Indicates that specified function should be lifted or lowered using the `async` ABI.
     Async,
     /// The function to use if the async lifting of a function should receive task/stream/future progress events
     /// using a callback.
-    Callback(u32),
+    Callback(FuncIdx),
 }
 
 impl Encode for CanonicalOption {
@@ -64,9 +65,10 @@ impl Encode for CanonicalOption {
 ///
 /// ```
 /// use wasm_encoder::{Component, CanonicalFunctionSection, CanonicalOption};
+/// use wasm_types::{ComponentTypeIdx, FuncIdx};
 ///
 /// let mut functions = CanonicalFunctionSection::new();
-/// functions.lift(0, 0, [CanonicalOption::UTF8]);
+/// functions.lift(FuncIdx(0), ComponentTypeIdx(0), [CanonicalOption::UTF8]);
 ///
 /// let mut component = Component::new();
 /// component.section(&functions);
@@ -96,7 +98,12 @@ impl CanonicalFunctionSection {
     }
 
     /// Define a function that will lift a core WebAssembly function to the canonical ABI.
-    pub fn lift<O>(&mut self, core_func_index: u32, type_index: u32, options: O) -> &mut Self
+    pub fn lift<O>(
+        &mut self,
+        core_func_index: FuncIdx,
+        type_index: ComponentTypeIdx,
+        options: O,
+    ) -> &mut Self
     where
         O: IntoIterator<Item = CanonicalOption>,
         O::IntoIter: ExactSizeIterator,
@@ -115,7 +122,7 @@ impl CanonicalFunctionSection {
     }
 
     /// Define a function that will lower a canonical ABI function to a core WebAssembly function.
-    pub fn lower<O>(&mut self, func_index: u32, options: O) -> &mut Self
+    pub fn lower<O>(&mut self, func_index: ComponentFuncIdx, options: O) -> &mut Self
     where
         O: IntoIterator<Item = CanonicalOption>,
         O::IntoIter: ExactSizeIterator,
@@ -134,7 +141,7 @@ impl CanonicalFunctionSection {
 
     /// Defines a function which will create an owned handle to the resource
     /// specified by `ty_index`.
-    pub fn resource_new(&mut self, ty_index: u32) -> &mut Self {
+    pub fn resource_new(&mut self, ty_index: ComponentTypeIdx) -> &mut Self {
         self.bytes.push(0x02);
         ty_index.encode(&mut self.bytes);
         self.num_added += 1;
@@ -142,7 +149,7 @@ impl CanonicalFunctionSection {
     }
 
     /// Defines a function which will drop the specified type of handle.
-    pub fn resource_drop(&mut self, ty_index: u32) -> &mut Self {
+    pub fn resource_drop(&mut self, ty_index: ComponentTypeIdx) -> &mut Self {
         self.bytes.push(0x03);
         ty_index.encode(&mut self.bytes);
         self.num_added += 1;
@@ -151,7 +158,7 @@ impl CanonicalFunctionSection {
 
     /// Defines a function which will return the representation of the specified
     /// resource type.
-    pub fn resource_rep(&mut self, ty_index: u32) -> &mut Self {
+    pub fn resource_rep(&mut self, ty_index: ComponentTypeIdx) -> &mut Self {
         self.bytes.push(0x04);
         ty_index.encode(&mut self.bytes);
         self.num_added += 1;
@@ -160,7 +167,7 @@ impl CanonicalFunctionSection {
 
     /// Defines a function which will spawns a new thread by invoking a shared
     /// function of type `ty_index`.
-    pub fn thread_spawn(&mut self, ty_index: u32) -> &mut Self {
+    pub fn thread_spawn(&mut self, ty_index: TypeIdx) -> &mut Self {
         self.bytes.push(0x05);
         ty_index.encode(&mut self.bytes);
         self.num_added += 1;
@@ -205,7 +212,7 @@ impl CanonicalFunctionSection {
     /// task/stream/future to make progress, returning the first such event.
     ///
     /// If `async_` is true, the caller instance may be reentered.
-    pub fn task_wait(&mut self, async_: bool, memory: u32) -> &mut Self {
+    pub fn task_wait(&mut self, async_: bool, memory: MemIdx) -> &mut Self {
         self.bytes.push(0x0a);
         self.bytes.push(if async_ { 1 } else { 0 });
         memory.encode(&mut self.bytes);
@@ -218,7 +225,7 @@ impl CanonicalFunctionSection {
     /// block and may return nothing if no such event has occurred.
     ///
     /// If `async_` is true, the caller instance may be reentered.
-    pub fn task_poll(&mut self, async_: bool, memory: u32) -> &mut Self {
+    pub fn task_poll(&mut self, async_: bool, memory: MemIdx) -> &mut Self {
         self.bytes.push(0x0b);
         self.bytes.push(if async_ { 1 } else { 0 });
         memory.encode(&mut self.bytes);
@@ -246,7 +253,7 @@ impl CanonicalFunctionSection {
 
     /// Defines a function to create a new `stream` handle of the specified
     /// type.
-    pub fn stream_new(&mut self, ty: u32) -> &mut Self {
+    pub fn stream_new(&mut self, ty: ComponentTypeIdx) -> &mut Self {
         self.bytes.push(0x0e);
         ty.encode(&mut self.bytes);
         self.num_added += 1;
@@ -254,7 +261,7 @@ impl CanonicalFunctionSection {
     }
 
     /// Defines a function to read from a `stream` of the specified type.
-    pub fn stream_read<O>(&mut self, ty: u32, options: O) -> &mut Self
+    pub fn stream_read<O>(&mut self, ty: ComponentTypeIdx, options: O) -> &mut Self
     where
         O: IntoIterator<Item = CanonicalOption>,
         O::IntoIter: ExactSizeIterator,
@@ -271,7 +278,7 @@ impl CanonicalFunctionSection {
     }
 
     /// Defines a function to write to a `stream` of the specified type.
-    pub fn stream_write<O>(&mut self, ty: u32, options: O) -> &mut Self
+    pub fn stream_write<O>(&mut self, ty: ComponentTypeIdx, options: O) -> &mut Self
     where
         O: IntoIterator<Item = CanonicalOption>,
         O::IntoIter: ExactSizeIterator,
@@ -289,7 +296,7 @@ impl CanonicalFunctionSection {
 
     /// Defines a function to cancel an in-progress read from a `stream` of the
     /// specified type.
-    pub fn stream_cancel_read(&mut self, ty: u32, async_: bool) -> &mut Self {
+    pub fn stream_cancel_read(&mut self, ty: ComponentTypeIdx, async_: bool) -> &mut Self {
         self.bytes.push(0x11);
         ty.encode(&mut self.bytes);
         self.bytes.push(if async_ { 1 } else { 0 });
@@ -299,7 +306,7 @@ impl CanonicalFunctionSection {
 
     /// Defines a function to cancel an in-progress write to a `stream` of the
     /// specified type.
-    pub fn stream_cancel_write(&mut self, ty: u32, async_: bool) -> &mut Self {
+    pub fn stream_cancel_write(&mut self, ty: ComponentTypeIdx, async_: bool) -> &mut Self {
         self.bytes.push(0x12);
         ty.encode(&mut self.bytes);
         self.bytes.push(if async_ { 1 } else { 0 });
@@ -309,7 +316,7 @@ impl CanonicalFunctionSection {
 
     /// Defines a function to close the readable end of a `stream` of the
     /// specified type.
-    pub fn stream_close_readable(&mut self, ty: u32) -> &mut Self {
+    pub fn stream_close_readable(&mut self, ty: ComponentTypeIdx) -> &mut Self {
         self.bytes.push(0x13);
         ty.encode(&mut self.bytes);
         self.num_added += 1;
@@ -318,7 +325,7 @@ impl CanonicalFunctionSection {
 
     /// Defines a function to close the writable end of a `stream` of the
     /// specified type.
-    pub fn stream_close_writable(&mut self, ty: u32) -> &mut Self {
+    pub fn stream_close_writable(&mut self, ty: ComponentTypeIdx) -> &mut Self {
         self.bytes.push(0x14);
         ty.encode(&mut self.bytes);
         self.num_added += 1;
@@ -327,7 +334,7 @@ impl CanonicalFunctionSection {
 
     /// Defines a function to create a new `future` handle of the specified
     /// type.
-    pub fn future_new(&mut self, ty: u32) -> &mut Self {
+    pub fn future_new(&mut self, ty: ComponentTypeIdx) -> &mut Self {
         self.bytes.push(0x15);
         ty.encode(&mut self.bytes);
         self.num_added += 1;
@@ -335,7 +342,7 @@ impl CanonicalFunctionSection {
     }
 
     /// Defines a function to read from a `future` of the specified type.
-    pub fn future_read<O>(&mut self, ty: u32, options: O) -> &mut Self
+    pub fn future_read<O>(&mut self, ty: ComponentTypeIdx, options: O) -> &mut Self
     where
         O: IntoIterator<Item = CanonicalOption>,
         O::IntoIter: ExactSizeIterator,
@@ -352,7 +359,7 @@ impl CanonicalFunctionSection {
     }
 
     /// Defines a function to write to a `future` of the specified type.
-    pub fn future_write<O>(&mut self, ty: u32, options: O) -> &mut Self
+    pub fn future_write<O>(&mut self, ty: ComponentTypeIdx, options: O) -> &mut Self
     where
         O: IntoIterator<Item = CanonicalOption>,
         O::IntoIter: ExactSizeIterator,
@@ -370,7 +377,7 @@ impl CanonicalFunctionSection {
 
     /// Defines a function to cancel an in-progress read from a `future` of the
     /// specified type.
-    pub fn future_cancel_read(&mut self, ty: u32, async_: bool) -> &mut Self {
+    pub fn future_cancel_read(&mut self, ty: ComponentTypeIdx, async_: bool) -> &mut Self {
         self.bytes.push(0x18);
         ty.encode(&mut self.bytes);
         self.bytes.push(if async_ { 1 } else { 0 });
@@ -380,7 +387,7 @@ impl CanonicalFunctionSection {
 
     /// Defines a function to cancel an in-progress write to a `future` of the
     /// specified type.
-    pub fn future_cancel_write(&mut self, ty: u32, async_: bool) -> &mut Self {
+    pub fn future_cancel_write(&mut self, ty: ComponentTypeIdx, async_: bool) -> &mut Self {
         self.bytes.push(0x19);
         ty.encode(&mut self.bytes);
         self.bytes.push(if async_ { 1 } else { 0 });
@@ -390,7 +397,7 @@ impl CanonicalFunctionSection {
 
     /// Defines a function to close the readable end of a `future` of the
     /// specified type.
-    pub fn future_close_readable(&mut self, ty: u32) -> &mut Self {
+    pub fn future_close_readable(&mut self, ty: ComponentTypeIdx) -> &mut Self {
         self.bytes.push(0x1a);
         ty.encode(&mut self.bytes);
         self.num_added += 1;
@@ -399,7 +406,7 @@ impl CanonicalFunctionSection {
 
     /// Defines a function to close the writable end of a `future` of the
     /// specified type.
-    pub fn future_close_writable(&mut self, ty: u32) -> &mut Self {
+    pub fn future_close_writable(&mut self, ty: ComponentTypeIdx) -> &mut Self {
         self.bytes.push(0x1b);
         ty.encode(&mut self.bytes);
         self.num_added += 1;

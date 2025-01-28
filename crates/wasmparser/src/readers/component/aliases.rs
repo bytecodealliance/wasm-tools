@@ -1,3 +1,5 @@
+use wasm_types::{ComponentInstanceIdx, CoreInstanceIdx};
+
 use crate::{BinaryReader, ComponentExternalKind, ExternalKind, FromReader, Result};
 
 /// Represents the kind of an outer alias in a WebAssembly component.
@@ -21,7 +23,7 @@ pub enum ComponentAlias<'a> {
         /// The alias kind.
         kind: ComponentExternalKind,
         /// The instance index.
-        instance_index: u32,
+        instance_index: ComponentInstanceIdx,
         /// The export name.
         name: &'a str,
     },
@@ -30,7 +32,7 @@ pub enum ComponentAlias<'a> {
         /// The alias kind.
         kind: ExternalKind,
         /// The instance index.
-        instance_index: u32,
+        instance_index: CoreInstanceIdx,
         /// The export name.
         name: &'a str,
     },
@@ -62,7 +64,7 @@ impl<'a> FromReader<'a> for ComponentAlias<'a> {
         Ok(match reader.read_u8()? {
             0x00 => ComponentAlias::InstanceExport {
                 kind: ComponentExternalKind::from_bytes(byte1, byte2, offset)?,
-                instance_index: reader.read_var_u32()?,
+                instance_index: reader.read_component_instance_idx()?,
                 name: reader.read_string()?,
             },
             0x01 => ComponentAlias::CoreInstanceExport {
@@ -76,7 +78,7 @@ impl<'a> FromReader<'a> for ComponentAlias<'a> {
                     })?,
                     offset,
                 )?,
-                instance_index: reader.read_var_u32()?,
+                instance_index: reader.read_core_instance_idx()?,
                 name: reader.read_string()?,
             },
             0x02 => ComponentAlias::Outer {

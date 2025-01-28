@@ -5,6 +5,10 @@ use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Result};
 use crate::token::*;
 use std::mem;
+use wasm_types::{
+    DataIdx, ElemIdx, FieldIdx, FuncIdx, GlobalIdx, LabelIdx, LocalIdx, MemIdx, TableIdx, TagIdx,
+    TypeIdx,
+};
 
 /// An expression, or a list of instructions, in the WebAssembly text format.
 ///
@@ -511,28 +515,28 @@ instructions! {
 
         Unreachable : [0x00] : "unreachable",
         Nop : [0x01] : "nop",
-        Br(Index<'a>) : [0x0c] : "br",
-        BrIf(Index<'a>) : [0x0d] : "br_if",
+        Br(Index<'a, LabelIdx>) : [0x0c] : "br",
+        BrIf(Index<'a, LabelIdx>) : [0x0d] : "br_if",
         BrTable(BrTableIndices<'a>) : [0x0e] : "br_table",
         Return : [0x0f] : "return",
-        Call(Index<'a>) : [0x10] : "call",
+        Call(Index<'a, FuncIdx>) : [0x10] : "call",
         CallIndirect(Box<CallIndirect<'a>>) : [0x11] : "call_indirect",
 
         // tail-call proposal
-        ReturnCall(Index<'a>) : [0x12] : "return_call",
+        ReturnCall(Index<'a, FuncIdx>) : [0x12] : "return_call",
         ReturnCallIndirect(Box<CallIndirect<'a>>) : [0x13] : "return_call_indirect",
 
         // function-references proposal
-        CallRef(Index<'a>) : [0x14] : "call_ref",
-        ReturnCallRef(Index<'a>) : [0x15] : "return_call_ref",
+        CallRef(Index<'a, TypeIdx>) : [0x14] : "call_ref",
+        ReturnCallRef(Index<'a, TypeIdx>) : [0x15] : "return_call_ref",
 
         Drop : [0x1a] : "drop",
         Select(SelectTypes<'a>) : [] : "select",
-        LocalGet(Index<'a>) : [0x20] : "local.get",
-        LocalSet(Index<'a>) : [0x21] : "local.set",
-        LocalTee(Index<'a>) : [0x22] : "local.tee",
-        GlobalGet(Index<'a>) : [0x23] : "global.get",
-        GlobalSet(Index<'a>) : [0x24] : "global.set",
+        LocalGet(Index<'a, LocalIdx>) : [0x20] : "local.get",
+        LocalSet(Index<'a, LocalIdx>) : [0x21] : "local.set",
+        LocalTee(Index<'a, LocalIdx>) : [0x22] : "local.tee",
+        GlobalGet(Index<'a, GlobalIdx>) : [0x23] : "global.get",
+        GlobalSet(Index<'a, GlobalIdx>) : [0x24] : "global.set",
 
         TableGet(TableArg<'a>) : [0x25] : "table.get",
         TableSet(TableArg<'a>) : [0x26] : "table.set",
@@ -568,8 +572,8 @@ instructions! {
         MemoryCopy(MemoryCopy<'a>) : [0xfc, 0x0a] : "memory.copy",
         MemoryFill(MemoryArg<'a>) : [0xfc, 0x0b] : "memory.fill",
         MemoryDiscard(MemoryArg<'a>) : [0xfc, 0x12] : "memory.discard",
-        DataDrop(Index<'a>) : [0xfc, 0x09] : "data.drop",
-        ElemDrop(Index<'a>) : [0xfc, 0x0d] : "elem.drop",
+        DataDrop(Index<'a, DataIdx>) : [0xfc, 0x09] : "data.drop",
+        ElemDrop(Index<'a, ElemIdx>) : [0xfc, 0x0d] : "elem.drop",
         TableInit(TableInit<'a>) : [0xfc, 0x0c] : "table.init",
         TableCopy(TableCopy<'a>) : [0xfc, 0x0e] : "table.copy",
         TableFill(TableArg<'a>) : [0xfc, 0x11] : "table.fill",
@@ -578,39 +582,39 @@ instructions! {
 
         RefNull(HeapType<'a>) : [0xd0] : "ref.null",
         RefIsNull : [0xd1] : "ref.is_null",
-        RefFunc(Index<'a>) : [0xd2] : "ref.func",
+        RefFunc(Index<'a, FuncIdx>) : [0xd2] : "ref.func",
 
         // function-references proposal
         RefAsNonNull : [0xd4] : "ref.as_non_null",
-        BrOnNull(Index<'a>) : [0xd5] : "br_on_null",
-        BrOnNonNull(Index<'a>) : [0xd6] : "br_on_non_null",
+        BrOnNull(Index<'a, LabelIdx>) : [0xd5] : "br_on_null",
+        BrOnNonNull(Index<'a, LabelIdx>) : [0xd6] : "br_on_non_null",
 
         // gc proposal: eqref
         RefEq : [0xd3] : "ref.eq",
 
         // gc proposal: struct
-        StructNew(Index<'a>) : [0xfb, 0x00] : "struct.new",
-        StructNewDefault(Index<'a>) : [0xfb, 0x01] : "struct.new_default",
+        StructNew(Index<'a, TypeIdx>) : [0xfb, 0x00] : "struct.new",
+        StructNewDefault(Index<'a, TypeIdx>) : [0xfb, 0x01] : "struct.new_default",
         StructGet(StructAccess<'a>) : [0xfb, 0x02] : "struct.get",
         StructGetS(StructAccess<'a>) : [0xfb, 0x03] : "struct.get_s",
         StructGetU(StructAccess<'a>) : [0xfb, 0x04] : "struct.get_u",
         StructSet(StructAccess<'a>) : [0xfb, 0x05] : "struct.set",
 
         // gc proposal: array
-        ArrayNew(Index<'a>) : [0xfb, 0x06] : "array.new",
-        ArrayNewDefault(Index<'a>) : [0xfb, 0x07] : "array.new_default",
+        ArrayNew(Index<'a, TypeIdx>) : [0xfb, 0x06] : "array.new",
+        ArrayNewDefault(Index<'a, TypeIdx>) : [0xfb, 0x07] : "array.new_default",
         ArrayNewFixed(ArrayNewFixed<'a>) : [0xfb, 0x08] : "array.new_fixed",
         ArrayNewData(ArrayNewData<'a>) : [0xfb, 0x09] : "array.new_data",
         ArrayNewElem(ArrayNewElem<'a>) : [0xfb, 0x0a] : "array.new_elem",
-        ArrayGet(Index<'a>) : [0xfb, 0x0b] : "array.get",
-        ArrayGetS(Index<'a>) : [0xfb, 0x0c] : "array.get_s",
-        ArrayGetU(Index<'a>) : [0xfb, 0x0d] : "array.get_u",
-        ArraySet(Index<'a>) : [0xfb, 0x0e] : "array.set",
+        ArrayGet(Index<'a, TypeIdx>) : [0xfb, 0x0b] : "array.get",
+        ArrayGetS(Index<'a, TypeIdx>) : [0xfb, 0x0c] : "array.get_s",
+        ArrayGetU(Index<'a, TypeIdx>) : [0xfb, 0x0d] : "array.get_u",
+        ArraySet(Index<'a, TypeIdx>) : [0xfb, 0x0e] : "array.set",
         ArrayLen : [0xfb, 0x0f] : "array.len",
         ArrayFill(ArrayFill<'a>) : [0xfb, 0x10] : "array.fill",
         ArrayCopy(ArrayCopy<'a>) : [0xfb, 0x11] : "array.copy",
-        ArrayInitData(ArrayInit<'a>) : [0xfb, 0x12] : "array.init_data",
-        ArrayInitElem(ArrayInit<'a>) : [0xfb, 0x13] : "array.init_elem",
+        ArrayInitData(ArrayInit<'a, DataIdx>) : [0xfb, 0x12] : "array.init_data",
+        ArrayInitElem(ArrayInit<'a, ElemIdx>) : [0xfb, 0x13] : "array.init_elem",
 
         // gc proposal, i31
         RefI31 : [0xfb, 0x1c] : "ref.i31",
@@ -859,15 +863,15 @@ instructions! {
         I64AtomicRmw32CmpxchgU(MemArg<4>) : [0xfe, 0x4e] : "i64.atomic.rmw32.cmpxchg_u",
 
         // proposal: shared-everything-threads
-        GlobalAtomicGet(Ordered<Index<'a>>) : [0xfe, 0x4f] : "global.atomic.get",
-        GlobalAtomicSet(Ordered<Index<'a>>) : [0xfe, 0x50] : "global.atomic.set",
-        GlobalAtomicRmwAdd(Ordered<Index<'a>>) : [0xfe, 0x51] : "global.atomic.rmw.add",
-        GlobalAtomicRmwSub(Ordered<Index<'a>>) : [0xfe, 0x52] : "global.atomic.rmw.sub",
-        GlobalAtomicRmwAnd(Ordered<Index<'a>>) : [0xfe, 0x53] : "global.atomic.rmw.and",
-        GlobalAtomicRmwOr(Ordered<Index<'a>>) : [0xfe, 0x54] : "global.atomic.rmw.or",
-        GlobalAtomicRmwXor(Ordered<Index<'a>>) : [0xfe, 0x55] : "global.atomic.rmw.xor",
-        GlobalAtomicRmwXchg(Ordered<Index<'a>>) : [0xfe, 0x56] : "global.atomic.rmw.xchg",
-        GlobalAtomicRmwCmpxchg(Ordered<Index<'a>>) : [0xfe, 0x57] : "global.atomic.rmw.cmpxchg",
+        GlobalAtomicGet(Ordered<Index<'a, GlobalIdx>>) : [0xfe, 0x4f] : "global.atomic.get",
+        GlobalAtomicSet(Ordered<Index<'a, GlobalIdx>>) : [0xfe, 0x50] : "global.atomic.set",
+        GlobalAtomicRmwAdd(Ordered<Index<'a, GlobalIdx>>) : [0xfe, 0x51] : "global.atomic.rmw.add",
+        GlobalAtomicRmwSub(Ordered<Index<'a, GlobalIdx>>) : [0xfe, 0x52] : "global.atomic.rmw.sub",
+        GlobalAtomicRmwAnd(Ordered<Index<'a, GlobalIdx>>) : [0xfe, 0x53] : "global.atomic.rmw.and",
+        GlobalAtomicRmwOr(Ordered<Index<'a, GlobalIdx>>) : [0xfe, 0x54] : "global.atomic.rmw.or",
+        GlobalAtomicRmwXor(Ordered<Index<'a, GlobalIdx>>) : [0xfe, 0x55] : "global.atomic.rmw.xor",
+        GlobalAtomicRmwXchg(Ordered<Index<'a, GlobalIdx>>) : [0xfe, 0x56] : "global.atomic.rmw.xchg",
+        GlobalAtomicRmwCmpxchg(Ordered<Index<'a, GlobalIdx>>) : [0xfe, 0x57] : "global.atomic.rmw.cmpxchg",
         TableAtomicGet(Ordered<TableArg<'a>>) : [0xfe, 0x58] : "table.atomic.get",
         TableAtomicSet(Ordered<TableArg<'a>>) : [0xfe, 0x59] : "table.atomic.set",
         TableAtomicRmwXchg(Ordered<TableArg<'a>>) : [0xfe, 0x5a] : "table.atomic.rmw.xchg",
@@ -883,17 +887,17 @@ instructions! {
         StructAtomicRmwXor(Ordered<StructAccess<'a>>) : [0xfe, 0x64] : "struct.atomic.rmw.xor",
         StructAtomicRmwXchg(Ordered<StructAccess<'a>>) : [0xfe, 0x65] : "struct.atomic.rmw.xchg",
         StructAtomicRmwCmpxchg(Ordered<StructAccess<'a>>) : [0xfe, 0x66] : "struct.atomic.rmw.cmpxchg",
-        ArrayAtomicGet(Ordered<Index<'a>>) : [0xfe, 0x67] : "array.atomic.get",
-        ArrayAtomicGetS(Ordered<Index<'a>>) : [0xfe, 0x68] : "array.atomic.get_s",
-        ArrayAtomicGetU(Ordered<Index<'a>>) : [0xfe, 0x69] : "array.atomic.get_u",
-        ArrayAtomicSet(Ordered<Index<'a>>) : [0xfe, 0x6a] : "array.atomic.set",
-        ArrayAtomicRmwAdd(Ordered<Index<'a>>) : [0xfe, 0x6b] : "array.atomic.rmw.add",
-        ArrayAtomicRmwSub(Ordered<Index<'a>>) : [0xfe, 0x6c] : "array.atomic.rmw.sub",
-        ArrayAtomicRmwAnd(Ordered<Index<'a>>) : [0xfe, 0x6d] : "array.atomic.rmw.and",
-        ArrayAtomicRmwOr(Ordered<Index<'a>>) : [0xfe, 0x6e] : "array.atomic.rmw.or",
-        ArrayAtomicRmwXor(Ordered<Index<'a>>) : [0xfe, 0x6f] : "array.atomic.rmw.xor",
-        ArrayAtomicRmwXchg(Ordered<Index<'a>>) : [0xfe, 0x70] : "array.atomic.rmw.xchg",
-        ArrayAtomicRmwCmpxchg(Ordered<Index<'a>>) : [0xfe, 0x71] : "array.atomic.rmw.cmpxchg",
+        ArrayAtomicGet(Ordered<Index<'a, TypeIdx>>) : [0xfe, 0x67] : "array.atomic.get",
+        ArrayAtomicGetS(Ordered<Index<'a, TypeIdx>>) : [0xfe, 0x68] : "array.atomic.get_s",
+        ArrayAtomicGetU(Ordered<Index<'a, TypeIdx>>) : [0xfe, 0x69] : "array.atomic.get_u",
+        ArrayAtomicSet(Ordered<Index<'a, TypeIdx>>) : [0xfe, 0x6a] : "array.atomic.set",
+        ArrayAtomicRmwAdd(Ordered<Index<'a, TypeIdx>>) : [0xfe, 0x6b] : "array.atomic.rmw.add",
+        ArrayAtomicRmwSub(Ordered<Index<'a, TypeIdx>>) : [0xfe, 0x6c] : "array.atomic.rmw.sub",
+        ArrayAtomicRmwAnd(Ordered<Index<'a, TypeIdx>>) : [0xfe, 0x6d] : "array.atomic.rmw.and",
+        ArrayAtomicRmwOr(Ordered<Index<'a, TypeIdx>>) : [0xfe, 0x6e] : "array.atomic.rmw.or",
+        ArrayAtomicRmwXor(Ordered<Index<'a, TypeIdx>>) : [0xfe, 0x6f] : "array.atomic.rmw.xor",
+        ArrayAtomicRmwXchg(Ordered<Index<'a, TypeIdx>>) : [0xfe, 0x70] : "array.atomic.rmw.xchg",
+        ArrayAtomicRmwCmpxchg(Ordered<Index<'a, TypeIdx>>) : [0xfe, 0x71] : "array.atomic.rmw.cmpxchg",
         RefI31Shared : [0xfe, 0x72] : "ref.i31_shared",
 
         // proposal: simd
@@ -1157,13 +1161,13 @@ instructions! {
         // Exception handling proposal
         ThrowRef : [0x0a] : "throw_ref",
         TryTable(TryTable<'a>) : [0x1f] : "try_table",
-        Throw(Index<'a>) : [0x08] : "throw",
+        Throw(Index<'a, TagIdx>) : [0x08] : "throw",
 
         // Deprecated exception handling opcodes
         Try(Box<BlockType<'a>>) : [0x06] : "try",
-        Catch(Index<'a>) : [0x07] : "catch",
-        Rethrow(Index<'a>) : [0x09] : "rethrow",
-        Delegate(Index<'a>) : [0x18] : "delegate",
+        Catch(Index<'a, TagIdx>) : [0x07] : "catch",
+        Rethrow(Index<'a, LabelIdx>) : [0x09] : "rethrow",
+        Delegate(Index<'a, LabelIdx>) : [0x18] : "delegate",
         CatchAll : [0x19] : "catch_all",
 
         // Relaxed SIMD proposal
@@ -1189,9 +1193,9 @@ instructions! {
         I32x4RelaxedDotI8x16I7x16AddS: [0xfd, 0x113]: "i32x4.relaxed_dot_i8x16_i7x16_add_s",
 
         // Stack switching proposal
-        ContNew(Index<'a>)             : [0xe0] : "cont.new",
+        ContNew(Index<'a, TypeIdx>)             : [0xe0] : "cont.new",
         ContBind(ContBind<'a>)         : [0xe1] : "cont.bind",
-        Suspend(Index<'a>)             : [0xe2] : "suspend",
+        Suspend(Index<'a, TagIdx>)             : [0xe2] : "suspend",
         Resume(Resume<'a>)             : [0xe3] : "resume",
         ResumeThrow(ResumeThrow<'a>)   : [0xe4] : "resume_throw",
         Switch(Switch<'a>)             : [0xe5] : "switch",
@@ -1255,8 +1259,8 @@ impl<'a> Parse<'a> for BlockType<'a> {
 #[derive(Debug, Clone)]
 #[allow(missing_docs)]
 pub struct ContBind<'a> {
-    pub argument_index: Index<'a>,
-    pub result_index: Index<'a>,
+    pub argument_index: Index<'a, TypeIdx>,
+    pub result_index: Index<'a, TypeIdx>,
 }
 
 impl<'a> Parse<'a> for ContBind<'a> {
@@ -1272,7 +1276,7 @@ impl<'a> Parse<'a> for ContBind<'a> {
 #[derive(Debug, Clone)]
 #[allow(missing_docs)]
 pub struct Resume<'a> {
-    pub type_index: Index<'a>,
+    pub type_index: Index<'a, TypeIdx>,
     pub table: ResumeTable<'a>,
 }
 
@@ -1289,8 +1293,8 @@ impl<'a> Parse<'a> for Resume<'a> {
 #[derive(Debug, Clone)]
 #[allow(missing_docs)]
 pub struct ResumeThrow<'a> {
-    pub type_index: Index<'a>,
-    pub tag_index: Index<'a>,
+    pub type_index: Index<'a, TypeIdx>,
+    pub tag_index: Index<'a, TagIdx>,
     pub table: ResumeTable<'a>,
 }
 
@@ -1308,8 +1312,8 @@ impl<'a> Parse<'a> for ResumeThrow<'a> {
 #[derive(Debug, Clone)]
 #[allow(missing_docs)]
 pub struct Switch<'a> {
-    pub type_index: Index<'a>,
-    pub tag_index: Index<'a>,
+    pub type_index: Index<'a, TypeIdx>,
+    pub tag_index: Index<'a, TagIdx>,
 }
 
 impl<'a> Parse<'a> for Switch<'a> {
@@ -1332,8 +1336,13 @@ pub struct ResumeTable<'a> {
 #[derive(Debug, Clone)]
 #[allow(missing_docs)]
 pub enum Handle<'a> {
-    OnLabel { tag: Index<'a>, label: Index<'a> },
-    OnSwitch { tag: Index<'a> },
+    OnLabel {
+        tag: Index<'a, TagIdx>,
+        label: Index<'a, LabelIdx>,
+    },
+    OnSwitch {
+        tag: Index<'a, TagIdx>,
+    },
 }
 
 impl<'a> Parse<'a> for ResumeTable<'a> {
@@ -1342,7 +1351,7 @@ impl<'a> Parse<'a> for ResumeTable<'a> {
         while parser.peek::<LParen>()? && parser.peek2::<kw::on>()? {
             handlers.push(parser.parens(|p| {
                 p.parse::<kw::on>()?;
-                let tag: Index<'a> = p.parse()?;
+                let tag: Index<'a, TagIdx> = p.parse()?;
                 if p.peek::<kw::switch>()? {
                     p.parse::<kw::switch>()?;
                     Ok(Handle::OnSwitch { tag })
@@ -1406,9 +1415,9 @@ impl<'a> Parse<'a> for TryTable<'a> {
 #[allow(missing_docs)]
 pub enum TryTableCatchKind<'a> {
     // Catch a tagged exception, do not capture an exnref.
-    Catch(Index<'a>),
+    Catch(Index<'a, TagIdx>),
     // Catch a tagged exception, and capture the exnref.
-    CatchRef(Index<'a>),
+    CatchRef(Index<'a, TagIdx>),
     // Catch any exception, do not capture an exnref.
     CatchAll,
     // Catch any exception, and capture the exnref.
@@ -1417,7 +1426,7 @@ pub enum TryTableCatchKind<'a> {
 
 impl<'a> TryTableCatchKind<'a> {
     #[allow(missing_docs)]
-    pub fn tag_index_mut(&mut self) -> Option<&mut Index<'a>> {
+    pub fn tag_index_mut(&mut self) -> Option<&mut Index<'a, TagIdx>> {
         match self {
             TryTableCatchKind::Catch(tag) | TryTableCatchKind::CatchRef(tag) => Some(tag),
             TryTableCatchKind::CatchAll | TryTableCatchKind::CatchAllRef => None,
@@ -1429,21 +1438,21 @@ impl<'a> TryTableCatchKind<'a> {
 #[allow(missing_docs)]
 pub struct TryTableCatch<'a> {
     pub kind: TryTableCatchKind<'a>,
-    pub label: Index<'a>,
+    pub label: Index<'a, LabelIdx>,
 }
 
 /// Extra information associated with the `br_table` instruction.
 #[allow(missing_docs)]
 #[derive(Debug, Clone)]
 pub struct BrTableIndices<'a> {
-    pub labels: Vec<Index<'a>>,
-    pub default: Index<'a>,
+    pub labels: Vec<Index<'a, LabelIdx>>,
+    pub default: Index<'a, LabelIdx>,
 }
 
 impl<'a> Parse<'a> for BrTableIndices<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let mut labels = vec![parser.parse()?];
-        while parser.peek::<Index>()? {
+        while parser.peek::<Index<'a, LabelIdx>>()? {
             labels.push(parser.parse()?);
         }
         let default = labels.pop().unwrap();
@@ -1490,7 +1499,7 @@ pub struct MemArg<'a> {
     /// The offset, in bytes of this access.
     pub offset: u64,
     /// The memory index we're accessing
-    pub memory: Index<'a>,
+    pub memory: Index<'a, MemIdx>,
 }
 
 impl<'a> MemArg<'a> {
@@ -1537,7 +1546,7 @@ impl<'a> MemArg<'a> {
 
         let memory = parser
             .parse::<Option<_>>()?
-            .unwrap_or_else(|| Index::Num(0, parser.prev_span()));
+            .unwrap_or_else(|| Index::Num(MemIdx(0), parser.prev_span()));
         let offset = parse_u64("offset", parser)?.unwrap_or(0);
         let align = match parse_u32("align", parser)? {
             Some(n) if !n.is_power_of_two() => {
@@ -1600,7 +1609,7 @@ impl<'a> LoadOrStoreLane<'a> {
                 MemArg {
                     align: default_align,
                     offset: 0,
-                    memory: Index::Num(0, parser.prev_span()),
+                    memory: Index::Num(MemIdx(0), parser.prev_span()),
                 }
             },
             lane: LaneArg::parse(parser)?,
@@ -1612,7 +1621,7 @@ impl<'a> LoadOrStoreLane<'a> {
 #[derive(Debug, Clone)]
 pub struct CallIndirect<'a> {
     /// The table that this call is going to be indexing.
-    pub table: Index<'a>,
+    pub table: Index<'a, TableIdx>,
     /// Type type signature that this `call_indirect` instruction is using.
     pub ty: TypeUse<'a, FunctionType<'a>>,
 }
@@ -1623,7 +1632,7 @@ impl<'a> Parse<'a> for CallIndirect<'a> {
         let table: Option<_> = parser.parse()?;
         let ty = parser.parse::<TypeUse<'a, FunctionTypeNoNames<'a>>>()?;
         Ok(CallIndirect {
-            table: table.unwrap_or(Index::Num(0, prev_span)),
+            table: table.unwrap_or(Index::Num(TableIdx(0), prev_span)),
             ty: ty.into(),
         })
     }
@@ -1633,19 +1642,19 @@ impl<'a> Parse<'a> for CallIndirect<'a> {
 #[derive(Debug, Clone)]
 pub struct TableInit<'a> {
     /// The index of the table we're copying into.
-    pub table: Index<'a>,
+    pub table: Index<'a, TableIdx>,
     /// The index of the element segment we're copying into a table.
-    pub elem: Index<'a>,
+    pub elem: Index<'a, ElemIdx>,
 }
 
 impl<'a> Parse<'a> for TableInit<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let prev_span = parser.prev_span();
-        let (elem, table) = if parser.peek2::<Index>()? {
+        let (elem, table) = if parser.peek2::<Index<ElemIdx>>()? {
             let table = parser.parse()?;
             (parser.parse()?, table)
         } else {
-            (parser.parse()?, Index::Num(0, prev_span))
+            (parser.parse()?, Index::Num(TableIdx(0), prev_span))
         };
         Ok(TableInit { table, elem })
     }
@@ -1655,9 +1664,9 @@ impl<'a> Parse<'a> for TableInit<'a> {
 #[derive(Debug, Clone)]
 pub struct TableCopy<'a> {
     /// The index of the destination table to copy into.
-    pub dst: Index<'a>,
+    pub dst: Index<'a, TableIdx>,
     /// The index of the source table to copy from.
-    pub src: Index<'a>,
+    pub src: Index<'a, TableIdx>,
 }
 
 impl<'a> Parse<'a> for TableCopy<'a> {
@@ -1665,8 +1674,8 @@ impl<'a> Parse<'a> for TableCopy<'a> {
         let (dst, src) = match parser.parse::<Option<_>>()? {
             Some(dst) => (dst, parser.parse()?),
             None => (
-                Index::Num(0, parser.prev_span()),
-                Index::Num(0, parser.prev_span()),
+                Index::Num(TableIdx(0), parser.prev_span()),
+                Index::Num(TableIdx(0), parser.prev_span()),
             ),
         };
         Ok(TableCopy { dst, src })
@@ -1677,7 +1686,7 @@ impl<'a> Parse<'a> for TableCopy<'a> {
 #[derive(Debug, Clone)]
 pub struct TableArg<'a> {
     /// The index of the table argument.
-    pub dst: Index<'a>,
+    pub dst: Index<'a, TableIdx>,
 }
 
 // `TableArg` could be an unwrapped as an `Index` if not for this custom parse
@@ -1687,7 +1696,7 @@ impl<'a> Parse<'a> for TableArg<'a> {
         let dst = if let Some(dst) = parser.parse()? {
             dst
         } else {
-            Index::Num(0, parser.prev_span())
+            Index::Num(TableIdx(0), parser.prev_span())
         };
         Ok(TableArg { dst })
     }
@@ -1697,7 +1706,7 @@ impl<'a> Parse<'a> for TableArg<'a> {
 #[derive(Debug, Clone)]
 pub struct MemoryArg<'a> {
     /// The index of the memory space.
-    pub mem: Index<'a>,
+    pub mem: Index<'a, MemIdx>,
 }
 
 impl<'a> Parse<'a> for MemoryArg<'a> {
@@ -1705,7 +1714,7 @@ impl<'a> Parse<'a> for MemoryArg<'a> {
         let mem = if let Some(mem) = parser.parse()? {
             mem
         } else {
-            Index::Num(0, parser.prev_span())
+            Index::Num(MemIdx(0), parser.prev_span())
         };
         Ok(MemoryArg { mem })
     }
@@ -1715,19 +1724,19 @@ impl<'a> Parse<'a> for MemoryArg<'a> {
 #[derive(Debug, Clone)]
 pub struct MemoryInit<'a> {
     /// The index of the data segment we're copying into memory.
-    pub data: Index<'a>,
+    pub data: Index<'a, DataIdx>,
     /// The index of the memory we're copying into,
-    pub mem: Index<'a>,
+    pub mem: Index<'a, MemIdx>,
 }
 
 impl<'a> Parse<'a> for MemoryInit<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let prev_span = parser.prev_span();
-        let (data, mem) = if parser.peek2::<Index>()? {
+        let (data, mem) = if parser.peek2::<Index<DataIdx>>()? {
             let memory = parser.parse()?;
             (parser.parse()?, memory)
         } else {
-            (parser.parse()?, Index::Num(0, prev_span))
+            (parser.parse()?, Index::Num(MemIdx(0), prev_span))
         };
         Ok(MemoryInit { data, mem })
     }
@@ -1737,9 +1746,9 @@ impl<'a> Parse<'a> for MemoryInit<'a> {
 #[derive(Debug, Clone)]
 pub struct MemoryCopy<'a> {
     /// The index of the memory we're copying from.
-    pub src: Index<'a>,
+    pub src: Index<'a, MemIdx>,
     /// The index of the memory we're copying to.
-    pub dst: Index<'a>,
+    pub dst: Index<'a, MemIdx>,
 }
 
 impl<'a> Parse<'a> for MemoryCopy<'a> {
@@ -1747,8 +1756,8 @@ impl<'a> Parse<'a> for MemoryCopy<'a> {
         let (src, dst) = match parser.parse()? {
             Some(dst) => (parser.parse()?, dst),
             None => (
-                Index::Num(0, parser.prev_span()),
-                Index::Num(0, parser.prev_span()),
+                Index::Num(MemIdx(0), parser.prev_span()),
+                Index::Num(MemIdx(0), parser.prev_span()),
             ),
         };
         Ok(MemoryCopy { src, dst })
@@ -1759,9 +1768,9 @@ impl<'a> Parse<'a> for MemoryCopy<'a> {
 #[derive(Debug, Clone)]
 pub struct StructAccess<'a> {
     /// The index of the struct type we're accessing.
-    pub r#struct: Index<'a>,
+    pub r#struct: Index<'a, TypeIdx>,
     /// The index of the field of the struct we're accessing
-    pub field: Index<'a>,
+    pub field: Index<'a, FieldIdx>,
 }
 
 impl<'a> Parse<'a> for StructAccess<'a> {
@@ -1777,7 +1786,7 @@ impl<'a> Parse<'a> for StructAccess<'a> {
 #[derive(Debug, Clone)]
 pub struct ArrayFill<'a> {
     /// The index of the array type we're filling.
-    pub array: Index<'a>,
+    pub array: Index<'a, TypeIdx>,
 }
 
 impl<'a> Parse<'a> for ArrayFill<'a> {
@@ -1792,9 +1801,9 @@ impl<'a> Parse<'a> for ArrayFill<'a> {
 #[derive(Debug, Clone)]
 pub struct ArrayCopy<'a> {
     /// The index of the array type we're copying to.
-    pub dest_array: Index<'a>,
+    pub dest_array: Index<'a, TypeIdx>,
     /// The index of the array type we're copying from.
-    pub src_array: Index<'a>,
+    pub src_array: Index<'a, TypeIdx>,
 }
 
 impl<'a> Parse<'a> for ArrayCopy<'a> {
@@ -1808,14 +1817,17 @@ impl<'a> Parse<'a> for ArrayCopy<'a> {
 
 /// Extra data associated with the `array.init_[data/elem]` instruction
 #[derive(Debug, Clone)]
-pub struct ArrayInit<'a> {
+pub struct ArrayInit<'a, I> {
     /// The index of the array type we're initializing.
-    pub array: Index<'a>,
+    pub array: Index<'a, TypeIdx>,
     /// The index of the data or elem segment we're reading from.
-    pub segment: Index<'a>,
+    pub segment: Index<'a, I>,
 }
 
-impl<'a> Parse<'a> for ArrayInit<'a> {
+impl<'a, I> Parse<'a> for ArrayInit<'a, I>
+where
+    (I, Span): Parse<'a>,
+{
     fn parse(parser: Parser<'a>) -> Result<Self> {
         Ok(ArrayInit {
             array: parser.parse()?,
@@ -1828,7 +1840,7 @@ impl<'a> Parse<'a> for ArrayInit<'a> {
 #[derive(Debug, Clone)]
 pub struct ArrayNewFixed<'a> {
     /// The index of the array type we're accessing.
-    pub array: Index<'a>,
+    pub array: Index<'a, TypeIdx>,
     /// The amount of values to initialize the array with.
     pub length: u32,
 }
@@ -1846,9 +1858,9 @@ impl<'a> Parse<'a> for ArrayNewFixed<'a> {
 #[derive(Debug, Clone)]
 pub struct ArrayNewData<'a> {
     /// The index of the array type we're accessing.
-    pub array: Index<'a>,
+    pub array: Index<'a, TypeIdx>,
     /// The data segment to initialize from.
-    pub data_idx: Index<'a>,
+    pub data_idx: Index<'a, DataIdx>,
 }
 
 impl<'a> Parse<'a> for ArrayNewData<'a> {
@@ -1864,9 +1876,9 @@ impl<'a> Parse<'a> for ArrayNewData<'a> {
 #[derive(Debug, Clone)]
 pub struct ArrayNewElem<'a> {
     /// The index of the array type we're accessing.
-    pub array: Index<'a>,
+    pub array: Index<'a, TypeIdx>,
     /// The elem segment to initialize from.
-    pub elem_idx: Index<'a>,
+    pub elem_idx: Index<'a, ElemIdx>,
 }
 
 impl<'a> Parse<'a> for ArrayNewElem<'a> {
@@ -1912,7 +1924,7 @@ impl<'a> Parse<'a> for RefTest<'a> {
 #[derive(Debug, Clone)]
 pub struct BrOnCast<'a> {
     /// The label to branch to.
-    pub label: Index<'a>,
+    pub label: Index<'a, LabelIdx>,
     /// The type we're casting from.
     pub from_type: RefType<'a>,
     /// The type we're casting to.
@@ -1933,7 +1945,7 @@ impl<'a> Parse<'a> for BrOnCast<'a> {
 #[derive(Debug, Clone)]
 pub struct BrOnCastFail<'a> {
     /// The label to branch to.
-    pub label: Index<'a>,
+    pub label: Index<'a, LabelIdx>,
     /// The type we're casting from.
     pub from_type: RefType<'a>,
     /// The type we're casting to.

@@ -22,6 +22,11 @@ use core::fmt;
 use core::marker;
 use core::ops::Range;
 use core::str;
+use wasm_types::{
+    AbsoluteLabelIdx, ComponentFuncIdx, ComponentIdx, ComponentInstanceIdx, ComponentTypeIdx,
+    ComponentValueIdx, CoreInstanceIdx, CoreModuleIdx, DataIdx, ElemIdx, FieldIdx, FuncIdx,
+    GlobalIdx, LabelIdx, LocalIdx, MemIdx, TableIdx, TagIdx, TypeIdx,
+};
 
 pub(crate) const WASM_MAGIC_NUMBER: &[u8; 4] = b"\0asm";
 
@@ -352,12 +357,12 @@ impl<'a> BinaryReader<'a> {
         let flags_pos = self.original_position();
         let mut flags = self.read_var_u32()?;
 
-        let memory = if self.multi_memory() && flags & (1 << 6) != 0 {
+        let memory = MemIdx(if self.multi_memory() && flags & (1 << 6) != 0 {
             flags ^= 1 << 6;
             self.read_var_u32()?
         } else {
             0
-        };
+        });
         let align = if flags >= (1 << 6) {
             return Err(BinaryReaderError::new(
                 "malformed memop alignment: alignment too large",
@@ -399,7 +404,7 @@ impl<'a> BinaryReader<'a> {
             }
             Ok(())
         })?;
-        let default = self.read_var_u32()?;
+        let default = self.read_labelidx()?;
         Ok(BrTable {
             reader,
             cnt: cnt as u32,
@@ -511,6 +516,229 @@ impl<'a> BinaryReader<'a> {
         } else {
             self.read_var_u32_big(byte)
         }
+    }
+
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a _typeidx_.
+    ///
+    /// # Errors
+    ///
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    /// the integer is larger than 32 bits.
+    #[inline]
+    pub fn read_typeidx(&mut self) -> Result<TypeIdx> {
+        Ok(TypeIdx(self.read_var_u32()?))
+    }
+
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a _funcidx_.
+    ///
+    /// # Errors
+    ///
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    /// the integer is larger than 32 bits.
+    #[inline]
+    pub fn read_funcidx(&mut self) -> Result<FuncIdx> {
+        Ok(FuncIdx(self.read_var_u32()?))
+    }
+
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a _tableidx_.
+    ///
+    /// # Errors
+    ///
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    /// the integer is larger than 32 bits.
+    #[inline]
+    pub fn read_tableidx(&mut self) -> Result<TableIdx> {
+        Ok(TableIdx(self.read_var_u32()?))
+    }
+
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a _memidx_.
+    ///
+    /// # Errors
+    ///
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    /// the integer is larger than 32 bits.
+    #[inline]
+    pub fn read_memidx(&mut self) -> Result<MemIdx> {
+        Ok(MemIdx(self.read_var_u32()?))
+    }
+
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a _tagidx_.
+    ///
+    /// # Errors
+    ///
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    /// the integer is larger than 32 bits.
+    #[inline]
+    pub fn read_tagidx(&mut self) -> Result<TagIdx> {
+        Ok(TagIdx(self.read_var_u32()?))
+    }
+
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a _globalidx_.
+    ///
+    /// # Errors
+    ///
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    /// the integer is larger than 32 bits.
+    #[inline]
+    pub fn read_globalidx(&mut self) -> Result<GlobalIdx> {
+        Ok(GlobalIdx(self.read_var_u32()?))
+    }
+
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a _elemidx_.
+    ///
+    /// # Errors
+    ///
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    /// the integer is larger than 32 bits.
+    #[inline]
+    pub fn read_elemidx(&mut self) -> Result<ElemIdx> {
+        Ok(ElemIdx(self.read_var_u32()?))
+    }
+
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a _dataidx_.
+    ///
+    /// # Errors
+    ///
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    /// the integer is larger than 32 bits.
+    #[inline]
+    pub fn read_dataidx(&mut self) -> Result<DataIdx> {
+        Ok(DataIdx(self.read_var_u32()?))
+    }
+
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a _localidx_.
+    ///
+    /// # Errors
+    ///
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    /// the integer is larger than 32 bits.
+    #[inline]
+    pub fn read_localidx(&mut self) -> Result<LocalIdx> {
+        Ok(LocalIdx(self.read_var_u32()?))
+    }
+
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a _labelidx_.
+    ///
+    /// # Errors
+    ///
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    /// the integer is larger than 32 bits.
+    #[inline]
+    pub fn read_labelidx(&mut self) -> Result<LabelIdx> {
+        Ok(LabelIdx(self.read_var_u32()?))
+    }
+
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a _fieldidx_.
+    ///
+    /// # Errors
+    ///
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    /// the integer is larger than 32 bits.
+    #[inline]
+    pub fn read_fieldidx(&mut self) -> Result<FieldIdx> {
+        Ok(FieldIdx(self.read_var_u32()?))
+    }
+
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as an absolute label index.
+    ///
+    /// # Errors
+    ///
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    /// the integer is larger than 32 bits.
+    #[inline]
+    pub fn read_absolute_label_idx(&mut self) -> Result<AbsoluteLabelIdx> {
+        Ok(AbsoluteLabelIdx(self.read_var_u32()?))
+    }
+
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a core module index.
+    ///
+    /// # Errors
+    ///
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    /// the integer is larger than 32 bits.
+    #[inline]
+    pub fn read_core_module_idx(&mut self) -> Result<CoreModuleIdx> {
+        Ok(CoreModuleIdx(self.read_var_u32()?))
+    }
+
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a core instance index.
+    ///
+    /// # Errors
+    ///
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    /// the integer is larger than 32 bits.
+    #[inline]
+    pub fn read_core_instance_idx(&mut self) -> Result<CoreInstanceIdx> {
+        Ok(CoreInstanceIdx(self.read_var_u32()?))
+    }
+
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a component type index.
+    ///
+    /// # Errors
+    ///
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    #[inline]
+    pub fn read_component_type_idx(&mut self) -> Result<ComponentTypeIdx> {
+        Ok(ComponentTypeIdx(self.read_var_u32()?))
+    }
+
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a component function index.
+    ///
+    /// # Errors
+    ///
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    #[inline]
+    pub fn read_component_func_idx(&mut self) -> Result<ComponentFuncIdx> {
+        Ok(ComponentFuncIdx(self.read_var_u32()?))
+    }
+
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a component index.
+    ///
+    /// # Errors
+    ///
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    #[inline]
+    pub fn read_component_idx(&mut self) -> Result<ComponentIdx> {
+        Ok(ComponentIdx(self.read_var_u32()?))
+    }
+
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a component instance index.
+    ///
+    /// # Errors
+    ///
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    #[inline]
+    pub fn read_component_instance_idx(&mut self) -> Result<ComponentInstanceIdx> {
+        Ok(ComponentInstanceIdx(self.read_var_u32()?))
+    }
+
+    /// Advances the `BinaryReader` up to four bytes to parse a variable
+    /// length integer as a component value index.
+    ///
+    /// # Errors
+    ///
+    /// If `BinaryReader` has less than one or up to four bytes remaining, or
+    #[inline]
+    pub fn read_component_value_idx(&mut self) -> Result<ComponentValueIdx> {
+        Ok(ComponentValueIdx(self.read_var_u32()?))
     }
 
     fn read_var_u32_big(&mut self, byte: u8) -> Result<u32> {
@@ -828,7 +1056,7 @@ impl<'a> BinaryReader<'a> {
         // Not empty or a singular type, so read the function type index
         let idx = self.read_var_s33()?;
         match u32::try_from(idx) {
-            Ok(idx) => Ok(BlockType::FuncType(idx)),
+            Ok(idx) => Ok(BlockType::FuncType(TypeIdx(idx))),
             Err(_) => {
                 return Err(BinaryReaderError::new(
                     "invalid function type",
@@ -897,26 +1125,26 @@ impl<'a> BinaryReader<'a> {
             0x04 => visitor.visit_if(self.read_block_type()?),
             0x05 => visitor.visit_else(),
             0x06 => visitor.visit_try(self.read_block_type()?),
-            0x07 => visitor.visit_catch(self.read_var_u32()?),
-            0x08 => visitor.visit_throw(self.read_var_u32()?),
-            0x09 => visitor.visit_rethrow(self.read_var_u32()?),
+            0x07 => visitor.visit_catch(self.read_tagidx()?),
+            0x08 => visitor.visit_throw(self.read_tagidx()?),
+            0x09 => visitor.visit_rethrow(self.read_labelidx()?),
             0x0a => visitor.visit_throw_ref(),
             0x0b => visitor.visit_end(),
-            0x0c => visitor.visit_br(self.read_var_u32()?),
-            0x0d => visitor.visit_br_if(self.read_var_u32()?),
+            0x0c => visitor.visit_br(self.read_labelidx()?),
+            0x0d => visitor.visit_br_if(self.read_labelidx()?),
             0x0e => visitor.visit_br_table(self.read_br_table()?),
             0x0f => visitor.visit_return(),
-            0x10 => visitor.visit_call(self.read_var_u32()?),
+            0x10 => visitor.visit_call(self.read_funcidx()?),
             0x11 => {
-                let index = self.read_var_u32()?;
+                let index = self.read_typeidx()?;
                 let table = self.read_table_index_or_zero_if_not_reference_types()?;
                 visitor.visit_call_indirect(index, table)
             }
-            0x12 => visitor.visit_return_call(self.read_var_u32()?),
-            0x13 => visitor.visit_return_call_indirect(self.read_var_u32()?, self.read_var_u32()?),
+            0x12 => visitor.visit_return_call(self.read_funcidx()?),
+            0x13 => visitor.visit_return_call_indirect(self.read_typeidx()?, self.read_tableidx()?),
             0x14 => visitor.visit_call_ref(self.read()?),
             0x15 => visitor.visit_return_call_ref(self.read()?),
-            0x18 => visitor.visit_delegate(self.read_var_u32()?),
+            0x18 => visitor.visit_delegate(self.read_labelidx()?),
             0x19 => visitor.visit_catch_all(),
             0x1a => visitor.visit_drop(),
             0x1b => visitor.visit_select(),
@@ -932,13 +1160,13 @@ impl<'a> BinaryReader<'a> {
             }
             0x1f => visitor.visit_try_table(self.read()?),
 
-            0x20 => visitor.visit_local_get(self.read_var_u32()?),
-            0x21 => visitor.visit_local_set(self.read_var_u32()?),
-            0x22 => visitor.visit_local_tee(self.read_var_u32()?),
-            0x23 => visitor.visit_global_get(self.read_var_u32()?),
-            0x24 => visitor.visit_global_set(self.read_var_u32()?),
-            0x25 => visitor.visit_table_get(self.read_var_u32()?),
-            0x26 => visitor.visit_table_set(self.read_var_u32()?),
+            0x20 => visitor.visit_local_get(self.read_localidx()?),
+            0x21 => visitor.visit_local_set(self.read_localidx()?),
+            0x22 => visitor.visit_local_tee(self.read_localidx()?),
+            0x23 => visitor.visit_global_get(self.read_globalidx()?),
+            0x24 => visitor.visit_global_set(self.read_globalidx()?),
+            0x25 => visitor.visit_table_get(self.read_tableidx()?),
+            0x26 => visitor.visit_table_set(self.read_tableidx()?),
 
             0x28 => visitor.visit_i32_load(self.read_memarg(2)?),
             0x29 => visitor.visit_i64_load(self.read_memarg(3)?),
@@ -1109,20 +1337,20 @@ impl<'a> BinaryReader<'a> {
 
             0xd0 => visitor.visit_ref_null(self.read()?),
             0xd1 => visitor.visit_ref_is_null(),
-            0xd2 => visitor.visit_ref_func(self.read_var_u32()?),
+            0xd2 => visitor.visit_ref_func(self.read_funcidx()?),
             0xd3 => visitor.visit_ref_eq(),
             0xd4 => visitor.visit_ref_as_non_null(),
-            0xd5 => visitor.visit_br_on_null(self.read_var_u32()?),
-            0xd6 => visitor.visit_br_on_non_null(self.read_var_u32()?),
+            0xd5 => visitor.visit_br_on_null(self.read_labelidx()?),
+            0xd6 => visitor.visit_br_on_non_null(self.read_labelidx()?),
 
-            0xe0 => visitor.visit_cont_new(self.read_var_u32()?),
-            0xe1 => visitor.visit_cont_bind(self.read_var_u32()?, self.read_var_u32()?),
-            0xe2 => visitor.visit_suspend(self.read_var_u32()?),
-            0xe3 => visitor.visit_resume(self.read_var_u32()?, self.read()?),
+            0xe0 => visitor.visit_cont_new(self.read_typeidx()?),
+            0xe1 => visitor.visit_cont_bind(self.read_typeidx()?, self.read_typeidx()?),
+            0xe2 => visitor.visit_suspend(self.read_tagidx()?),
+            0xe3 => visitor.visit_resume(self.read_typeidx()?, self.read()?),
             0xe4 => {
-                visitor.visit_resume_throw(self.read_var_u32()?, self.read_var_u32()?, self.read()?)
+                visitor.visit_resume_throw(self.read_typeidx()?, self.read_tagidx()?, self.read()?)
             }
-            0xe5 => visitor.visit_switch(self.read_var_u32()?, self.read_var_u32()?),
+            0xe5 => visitor.visit_switch(self.read_typeidx()?, self.read_tagidx()?),
 
             0xfb => self.visit_0xfb_operator(pos, visitor)?,
             0xfc => self.visit_0xfc_operator(pos, visitor)?,
@@ -1150,90 +1378,90 @@ impl<'a> BinaryReader<'a> {
         let code = self.read_var_u32()?;
         Ok(match code {
             0x0 => {
-                let type_index = self.read_var_u32()?;
+                let type_index = self.read_typeidx()?;
                 visitor.visit_struct_new(type_index)
             }
             0x01 => {
-                let type_index = self.read_var_u32()?;
+                let type_index = self.read_typeidx()?;
                 visitor.visit_struct_new_default(type_index)
             }
             0x02 => {
-                let type_index = self.read_var_u32()?;
-                let field_index = self.read_var_u32()?;
+                let type_index = self.read_typeidx()?;
+                let field_index = self.read_fieldidx()?;
                 visitor.visit_struct_get(type_index, field_index)
             }
             0x03 => {
-                let type_index = self.read_var_u32()?;
-                let field_index = self.read_var_u32()?;
+                let type_index = self.read_typeidx()?;
+                let field_index = self.read_fieldidx()?;
                 visitor.visit_struct_get_s(type_index, field_index)
             }
             0x04 => {
-                let type_index = self.read_var_u32()?;
-                let field_index = self.read_var_u32()?;
+                let type_index = self.read_typeidx()?;
+                let field_index = self.read_fieldidx()?;
                 visitor.visit_struct_get_u(type_index, field_index)
             }
             0x05 => {
-                let type_index = self.read_var_u32()?;
-                let field_index = self.read_var_u32()?;
+                let type_index = self.read_typeidx()?;
+                let field_index = self.read_fieldidx()?;
                 visitor.visit_struct_set(type_index, field_index)
             }
             0x06 => {
-                let type_index = self.read_var_u32()?;
+                let type_index = self.read_typeidx()?;
                 visitor.visit_array_new(type_index)
             }
             0x07 => {
-                let type_index = self.read_var_u32()?;
+                let type_index = self.read_typeidx()?;
                 visitor.visit_array_new_default(type_index)
             }
             0x08 => {
-                let type_index = self.read_var_u32()?;
+                let type_index = self.read_typeidx()?;
                 let n = self.read_var_u32()?;
                 visitor.visit_array_new_fixed(type_index, n)
             }
             0x09 => {
-                let type_index = self.read_var_u32()?;
-                let data_index = self.read_var_u32()?;
+                let type_index = self.read_typeidx()?;
+                let data_index = self.read_dataidx()?;
                 visitor.visit_array_new_data(type_index, data_index)
             }
             0x0a => {
-                let type_index = self.read_var_u32()?;
-                let elem_index = self.read_var_u32()?;
+                let type_index = self.read_typeidx()?;
+                let elem_index = self.read_elemidx()?;
                 visitor.visit_array_new_elem(type_index, elem_index)
             }
             0x0b => {
-                let type_index = self.read_var_u32()?;
+                let type_index = self.read_typeidx()?;
                 visitor.visit_array_get(type_index)
             }
             0x0c => {
-                let type_index = self.read_var_u32()?;
+                let type_index = self.read_typeidx()?;
                 visitor.visit_array_get_s(type_index)
             }
             0x0d => {
-                let type_index = self.read_var_u32()?;
+                let type_index = self.read_typeidx()?;
                 visitor.visit_array_get_u(type_index)
             }
             0x0e => {
-                let type_index = self.read_var_u32()?;
+                let type_index = self.read_typeidx()?;
                 visitor.visit_array_set(type_index)
             }
             0x0f => visitor.visit_array_len(),
             0x10 => {
-                let type_index = self.read_var_u32()?;
+                let type_index = self.read_typeidx()?;
                 visitor.visit_array_fill(type_index)
             }
             0x11 => {
-                let type_index_dst = self.read_var_u32()?;
-                let type_index_src = self.read_var_u32()?;
+                let type_index_dst = self.read_typeidx()?;
+                let type_index_src = self.read_typeidx()?;
                 visitor.visit_array_copy(type_index_dst, type_index_src)
             }
             0x12 => {
-                let type_index = self.read_var_u32()?;
-                let data_index = self.read_var_u32()?;
+                let type_index = self.read_typeidx()?;
+                let data_index = self.read_dataidx()?;
                 visitor.visit_array_init_data(type_index, data_index)
             }
             0x13 => {
-                let type_index = self.read_var_u32()?;
-                let elem_index = self.read_var_u32()?;
+                let type_index = self.read_typeidx()?;
+                let elem_index = self.read_elemidx()?;
                 visitor.visit_array_init_elem(type_index, elem_index)
             }
             0x14 => visitor.visit_ref_test_non_null(self.read()?),
@@ -1243,7 +1471,7 @@ impl<'a> BinaryReader<'a> {
             0x18 => {
                 let pos = self.original_position();
                 let cast_flags = self.read_u8()?;
-                let relative_depth = self.read_var_u32()?;
+                let relative_depth = self.read_labelidx()?;
                 let (from_type_nullable, to_type_nullable) = match cast_flags {
                     0b00 => (false, false),
                     0b01 => (true, false),
@@ -1266,7 +1494,7 @@ impl<'a> BinaryReader<'a> {
             0x19 => {
                 let pos = self.original_position();
                 let cast_flags = self.read_u8()?;
-                let relative_depth = self.read_var_u32()?;
+                let relative_depth = self.read_labelidx()?;
                 let (from_type_nullable, to_type_nullable) = match cast_flags {
                     0 => (false, false),
                     1 => (true, false),
@@ -1318,54 +1546,54 @@ impl<'a> BinaryReader<'a> {
             0x07 => visitor.visit_i64_trunc_sat_f64_u(),
 
             0x08 => {
-                let segment = self.read_var_u32()?;
-                let mem = self.read_var_u32()?;
+                let segment = self.read_dataidx()?;
+                let mem = self.read_memidx()?;
                 visitor.visit_memory_init(segment, mem)
             }
             0x09 => {
-                let segment = self.read_var_u32()?;
+                let segment = self.read_dataidx()?;
                 visitor.visit_data_drop(segment)
             }
             0x0a => {
-                let dst = self.read_var_u32()?;
-                let src = self.read_var_u32()?;
+                let dst = self.read_memidx()?;
+                let src = self.read_memidx()?;
                 visitor.visit_memory_copy(dst, src)
             }
             0x0b => {
-                let mem = self.read_var_u32()?;
+                let mem = self.read_memidx()?;
                 visitor.visit_memory_fill(mem)
             }
             0x0c => {
-                let segment = self.read_var_u32()?;
-                let table = self.read_var_u32()?;
+                let segment = self.read_elemidx()?;
+                let table = self.read_tableidx()?;
                 visitor.visit_table_init(segment, table)
             }
             0x0d => {
-                let segment = self.read_var_u32()?;
+                let segment = self.read_elemidx()?;
                 visitor.visit_elem_drop(segment)
             }
             0x0e => {
-                let dst_table = self.read_var_u32()?;
-                let src_table = self.read_var_u32()?;
+                let dst_table = self.read_tableidx()?;
+                let src_table = self.read_tableidx()?;
                 visitor.visit_table_copy(dst_table, src_table)
             }
 
             0x0f => {
-                let table = self.read_var_u32()?;
+                let table = self.read_tableidx()?;
                 visitor.visit_table_grow(table)
             }
             0x10 => {
-                let table = self.read_var_u32()?;
+                let table = self.read_tableidx()?;
                 visitor.visit_table_size(table)
             }
 
             0x11 => {
-                let table = self.read_var_u32()?;
+                let table = self.read_tableidx()?;
                 visitor.visit_table_fill(table)
             }
 
             0x12 => {
-                let mem = self.read_var_u32()?;
+                let mem = self.read_memidx()?;
                 visitor.visit_memory_discard(mem)
             }
 
@@ -1462,104 +1690,105 @@ impl<'a> BinaryReader<'a> {
             0x4e => visitor.visit_i64_atomic_rmw32_cmpxchg_u(self.read_memarg(2)?),
 
             // Decode shared-everything-threads proposal.
-            0x4f => visitor.visit_global_atomic_get(self.read_ordering()?, self.read_var_u32()?),
-            0x50 => visitor.visit_global_atomic_set(self.read_ordering()?, self.read_var_u32()?),
+            0x4f => visitor.visit_global_atomic_get(self.read_ordering()?, self.read_globalidx()?),
+            0x50 => visitor.visit_global_atomic_set(self.read_ordering()?, self.read_globalidx()?),
             0x51 => {
-                visitor.visit_global_atomic_rmw_add(self.read_ordering()?, self.read_var_u32()?)
+                visitor.visit_global_atomic_rmw_add(self.read_ordering()?, self.read_globalidx()?)
             }
             0x52 => {
-                visitor.visit_global_atomic_rmw_sub(self.read_ordering()?, self.read_var_u32()?)
+                visitor.visit_global_atomic_rmw_sub(self.read_ordering()?, self.read_globalidx()?)
             }
             0x53 => {
-                visitor.visit_global_atomic_rmw_and(self.read_ordering()?, self.read_var_u32()?)
+                visitor.visit_global_atomic_rmw_and(self.read_ordering()?, self.read_globalidx()?)
             }
-            0x54 => visitor.visit_global_atomic_rmw_or(self.read_ordering()?, self.read_var_u32()?),
+            0x54 => {
+                visitor.visit_global_atomic_rmw_or(self.read_ordering()?, self.read_globalidx()?)
+            }
             0x55 => {
-                visitor.visit_global_atomic_rmw_xor(self.read_ordering()?, self.read_var_u32()?)
+                visitor.visit_global_atomic_rmw_xor(self.read_ordering()?, self.read_globalidx()?)
             }
             0x56 => {
-                visitor.visit_global_atomic_rmw_xchg(self.read_ordering()?, self.read_var_u32()?)
+                visitor.visit_global_atomic_rmw_xchg(self.read_ordering()?, self.read_globalidx()?)
             }
-            0x57 => {
-                visitor.visit_global_atomic_rmw_cmpxchg(self.read_ordering()?, self.read_var_u32()?)
-            }
-            0x58 => visitor.visit_table_atomic_get(self.read_ordering()?, self.read_var_u32()?),
-            0x59 => visitor.visit_table_atomic_set(self.read_ordering()?, self.read_var_u32()?),
+            0x57 => visitor
+                .visit_global_atomic_rmw_cmpxchg(self.read_ordering()?, self.read_globalidx()?),
+            0x58 => visitor.visit_table_atomic_get(self.read_ordering()?, self.read_tableidx()?),
+            0x59 => visitor.visit_table_atomic_set(self.read_ordering()?, self.read_tableidx()?),
             0x5a => {
-                visitor.visit_table_atomic_rmw_xchg(self.read_ordering()?, self.read_var_u32()?)
+                visitor.visit_table_atomic_rmw_xchg(self.read_ordering()?, self.read_tableidx()?)
             }
             0x5b => {
-                visitor.visit_table_atomic_rmw_cmpxchg(self.read_ordering()?, self.read_var_u32()?)
+                visitor.visit_table_atomic_rmw_cmpxchg(self.read_ordering()?, self.read_tableidx()?)
             }
             0x5c => visitor.visit_struct_atomic_get(
                 self.read_ordering()?,
-                self.read_var_u32()?,
-                self.read_var_u32()?,
+                self.read_typeidx()?,
+                self.read_fieldidx()?,
             ),
             0x5d => visitor.visit_struct_atomic_get_s(
                 self.read_ordering()?,
-                self.read_var_u32()?,
-                self.read_var_u32()?,
+                self.read_typeidx()?,
+                self.read_fieldidx()?,
             ),
             0x5e => visitor.visit_struct_atomic_get_u(
                 self.read_ordering()?,
-                self.read_var_u32()?,
-                self.read_var_u32()?,
+                self.read_typeidx()?,
+                self.read_fieldidx()?,
             ),
             0x5f => visitor.visit_struct_atomic_set(
                 self.read_ordering()?,
-                self.read_var_u32()?,
-                self.read_var_u32()?,
+                self.read_typeidx()?,
+                self.read_fieldidx()?,
             ),
             0x60 => visitor.visit_struct_atomic_rmw_add(
                 self.read_ordering()?,
-                self.read_var_u32()?,
-                self.read_var_u32()?,
+                self.read_typeidx()?,
+                self.read_fieldidx()?,
             ),
             0x61 => visitor.visit_struct_atomic_rmw_sub(
                 self.read_ordering()?,
-                self.read_var_u32()?,
-                self.read_var_u32()?,
+                self.read_typeidx()?,
+                self.read_fieldidx()?,
             ),
             0x62 => visitor.visit_struct_atomic_rmw_and(
                 self.read_ordering()?,
-                self.read_var_u32()?,
-                self.read_var_u32()?,
+                self.read_typeidx()?,
+                self.read_fieldidx()?,
             ),
             0x63 => visitor.visit_struct_atomic_rmw_or(
                 self.read_ordering()?,
-                self.read_var_u32()?,
-                self.read_var_u32()?,
+                self.read_typeidx()?,
+                self.read_fieldidx()?,
             ),
             0x64 => visitor.visit_struct_atomic_rmw_xor(
                 self.read_ordering()?,
-                self.read_var_u32()?,
-                self.read_var_u32()?,
+                self.read_typeidx()?,
+                self.read_fieldidx()?,
             ),
             0x65 => visitor.visit_struct_atomic_rmw_xchg(
                 self.read_ordering()?,
-                self.read_var_u32()?,
-                self.read_var_u32()?,
+                self.read_typeidx()?,
+                self.read_fieldidx()?,
             ),
             0x66 => visitor.visit_struct_atomic_rmw_cmpxchg(
                 self.read_ordering()?,
-                self.read_var_u32()?,
-                self.read_var_u32()?,
+                self.read_typeidx()?,
+                self.read_fieldidx()?,
             ),
-            0x67 => visitor.visit_array_atomic_get(self.read_ordering()?, self.read_var_u32()?),
-            0x68 => visitor.visit_array_atomic_get_s(self.read_ordering()?, self.read_var_u32()?),
-            0x69 => visitor.visit_array_atomic_get_u(self.read_ordering()?, self.read_var_u32()?),
-            0x6a => visitor.visit_array_atomic_set(self.read_ordering()?, self.read_var_u32()?),
-            0x6b => visitor.visit_array_atomic_rmw_add(self.read_ordering()?, self.read_var_u32()?),
-            0x6c => visitor.visit_array_atomic_rmw_sub(self.read_ordering()?, self.read_var_u32()?),
-            0x6d => visitor.visit_array_atomic_rmw_and(self.read_ordering()?, self.read_var_u32()?),
-            0x6e => visitor.visit_array_atomic_rmw_or(self.read_ordering()?, self.read_var_u32()?),
-            0x6f => visitor.visit_array_atomic_rmw_xor(self.read_ordering()?, self.read_var_u32()?),
+            0x67 => visitor.visit_array_atomic_get(self.read_ordering()?, self.read_typeidx()?),
+            0x68 => visitor.visit_array_atomic_get_s(self.read_ordering()?, self.read_typeidx()?),
+            0x69 => visitor.visit_array_atomic_get_u(self.read_ordering()?, self.read_typeidx()?),
+            0x6a => visitor.visit_array_atomic_set(self.read_ordering()?, self.read_typeidx()?),
+            0x6b => visitor.visit_array_atomic_rmw_add(self.read_ordering()?, self.read_typeidx()?),
+            0x6c => visitor.visit_array_atomic_rmw_sub(self.read_ordering()?, self.read_typeidx()?),
+            0x6d => visitor.visit_array_atomic_rmw_and(self.read_ordering()?, self.read_typeidx()?),
+            0x6e => visitor.visit_array_atomic_rmw_or(self.read_ordering()?, self.read_typeidx()?),
+            0x6f => visitor.visit_array_atomic_rmw_xor(self.read_ordering()?, self.read_typeidx()?),
             0x70 => {
-                visitor.visit_array_atomic_rmw_xchg(self.read_ordering()?, self.read_var_u32()?)
+                visitor.visit_array_atomic_rmw_xchg(self.read_ordering()?, self.read_typeidx()?)
             }
             0x71 => {
-                visitor.visit_array_atomic_rmw_cmpxchg(self.read_ordering()?, self.read_var_u32()?)
+                visitor.visit_array_atomic_rmw_cmpxchg(self.read_ordering()?, self.read_typeidx()?)
             }
             0x72 => visitor.visit_ref_i31_shared(),
 
@@ -1622,27 +1851,27 @@ impl<'a> BinaryReader<'a> {
         }
     }
 
-    fn read_memory_index_or_zero_if_not_multi_memory(&mut self) -> Result<u32> {
+    fn read_memory_index_or_zero_if_not_multi_memory(&mut self) -> Result<MemIdx> {
         if self.multi_memory() {
-            self.read_var_u32()
+            self.read_memidx()
         } else {
             // Before bulk memory this byte was required to be a single zero
             // byte, not a LEB-encoded zero, so require a precise zero byte.
             match self.read_u8()? {
-                0 => Ok(0),
+                0 => Ok(MemIdx(0)),
                 _ => bail!(self.original_position() - 1, "zero byte expected"),
             }
         }
     }
 
-    fn read_table_index_or_zero_if_not_reference_types(&mut self) -> Result<u32> {
+    fn read_table_index_or_zero_if_not_reference_types(&mut self) -> Result<TableIdx> {
         if self.reference_types() {
-            self.read_var_u32()
+            self.read_tableidx()
         } else {
             // Before reference types this byte was required to be a single zero
             // byte, not a LEB-encoded zero, so require a precise zero byte.
             match self.read_u8()? {
-                0 => Ok(0),
+                0 => Ok(TableIdx(0)),
                 _ => bail!(self.original_position() - 1, "zero byte expected"),
             }
         }
@@ -1685,7 +1914,7 @@ impl<'a> BrTable<'a> {
     }
 
     /// Returns the default target of this `br_table` instruction.
-    pub fn default(&self) -> u32 {
+    pub fn default(&self) -> LabelIdx {
         self.default
     }
 
@@ -1730,7 +1959,7 @@ pub struct BrTableTargets<'a> {
 }
 
 impl<'a> Iterator for BrTableTargets<'a> {
-    type Item = Result<u32>;
+    type Item = Result<LabelIdx>;
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         let remaining = usize::try_from(self.remaining).unwrap_or_else(|error| {
@@ -1750,7 +1979,7 @@ impl<'a> Iterator for BrTableTargets<'a> {
             return None;
         }
         self.remaining -= 1;
-        Some(self.reader.read_var_u32())
+        Some(self.reader.read_labelidx())
     }
 }
 

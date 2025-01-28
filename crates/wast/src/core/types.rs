@@ -5,6 +5,7 @@ use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Id, Index, LParen, NameAnnotation, Span};
 use crate::Error;
 use std::mem;
+use wasm_types::TypeIdx;
 
 /// The value types for a wasm module.
 #[allow(missing_docs)]
@@ -67,13 +68,13 @@ pub enum HeapType<'a> {
     Abstract { shared: bool, ty: AbstractHeapType },
     /// A reference to a concrete function, struct, or array type defined by
     /// Wasm: `ref T`. This is part of the function references and GC proposals.
-    Concrete(Index<'a>),
+    Concrete(Index<'a, TypeIdx>),
 }
 
 impl<'a> Parse<'a> for HeapType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let mut l = parser.lookahead1();
-        if l.peek::<Index>()? {
+        if l.peek::<Index<TypeIdx>>()? {
             Ok(HeapType::Concrete(parser.parse()?))
         } else if l.peek::<LParen>()? {
             parser.parens(|p| {
@@ -886,7 +887,7 @@ impl<'a> Parse<'a> for ArrayType<'a> {
 
 /// A continuation type.
 #[derive(Clone, Debug)]
-pub struct ContType<'a>(pub Index<'a>);
+pub struct ContType<'a>(pub Index<'a, TypeIdx>);
 
 impl<'a> Parse<'a> for ContType<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
@@ -956,7 +957,7 @@ pub struct TypeDef<'a> {
     /// Whether the type is shared or not.
     pub shared: bool,
     /// The declared parent type of this definition.
-    pub parent: Option<Index<'a>>,
+    pub parent: Option<Index<'a, TypeIdx>>,
     /// Whether this type is final or not. By default types are final.
     pub final_type: Option<bool>,
 }
@@ -985,7 +986,7 @@ impl<'a> Parse<'a> for TypeDef<'a> {
                 Some(false)
             };
 
-            let parent = if parser.peek::<Index<'a>>()? {
+            let parent = if parser.peek::<Index<'a, TypeIdx>>()? {
                 parser.parse()?
             } else {
                 None
@@ -1068,7 +1069,7 @@ impl<'a> Parse<'a> for Rec<'a> {
 #[derive(Clone, Debug)]
 pub struct TypeUse<'a, T> {
     /// The type that we're referencing, if it was present.
-    pub index: Option<Index<'a>>,
+    pub index: Option<Index<'a, TypeIdx>>,
     /// The inline type, if present.
     pub inline: Option<T>,
 }
@@ -1076,7 +1077,7 @@ pub struct TypeUse<'a, T> {
 impl<'a, T> TypeUse<'a, T> {
     /// Constructs a new instance of `TypeUse` without an inline definition but
     /// with an index specified.
-    pub fn new_with_index(idx: Index<'a>) -> TypeUse<'a, T> {
+    pub fn new_with_index(idx: Index<'a, TypeIdx>) -> TypeUse<'a, T> {
         TypeUse {
             index: Some(idx),
             inline: None,

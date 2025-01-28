@@ -2,6 +2,7 @@ use crate::core::{HeapType, V128Const};
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Index, F32, F64};
+use wasm_types::FuncIdx;
 
 /// Expression that can be used inside of `invoke` expressions for core wasm
 /// functions.
@@ -79,7 +80,7 @@ pub enum WastRetCore<'a> {
     /// A non-null anyref is expected which should contain the specified host value.
     RefHost(u32),
     /// A non-null funcref is expected.
-    RefFunc(Option<Index<'a>>),
+    RefFunc(Option<Index<'a, FuncIdx>>),
     /// A non-null anyref is expected.
     RefAny,
     /// A non-null eqref is expected.
