@@ -1,6 +1,8 @@
 use crate::limits::MAX_WASM_CANONICAL_OPTIONS;
 use crate::prelude::*;
-use crate::{BinaryReader, ComponentFuncResult, FromReader, Result, SectionLimited};
+use crate::{
+    BinaryReader, BinaryReaderError, ComponentValType, FromReader, Result, SectionLimited,
+};
 
 /// Represents options for component functions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -32,7 +34,7 @@ pub enum CanonicalOption {
 
 /// Represents a canonical function in a WebAssembly component.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub enum CanonicalFunction<'a> {
+pub enum CanonicalFunction {
     /// The function lifts a core WebAssembly function to the canonical ABI.
     Lift {
         /// The index of the core WebAssembly function to lift.
@@ -80,8 +82,8 @@ pub enum CanonicalFunction<'a> {
     /// function.  This allows the callee to continue executing after returning
     /// a result.
     TaskReturn {
-        /// The result type(s).
-        results: ComponentFuncResult<'a>,
+        /// The result type, if any.
+        result: Option<ComponentValType>,
     },
     /// A function which waits for at least one outstanding async
     /// task/stream/future to make progress, returning the first such event.
@@ -229,10 +231,10 @@ pub enum CanonicalFunction<'a> {
 }
 
 /// A reader for the canonical section of a WebAssembly component.
-pub type ComponentCanonicalSectionReader<'a> = SectionLimited<'a, CanonicalFunction<'a>>;
+pub type ComponentCanonicalSectionReader<'a> = SectionLimited<'a, CanonicalFunction>;
 
-impl<'a> FromReader<'a> for CanonicalFunction<'a> {
-    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<CanonicalFunction<'a>> {
+impl<'a> FromReader<'a> for CanonicalFunction {
+    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<CanonicalFunction> {
         Ok(match reader.read_u8()? {
             0x00 => match reader.read_u8()? {
                 0x00 => {
@@ -273,7 +275,20 @@ impl<'a> FromReader<'a> for CanonicalFunction<'a> {
             0x06 => CanonicalFunction::ThreadHwConcurrency,
             0x08 => CanonicalFunction::TaskBackpressure,
             0x09 => CanonicalFunction::TaskReturn {
-                results: reader.read()?,
+                result: match reader.read_u8()? {
+                    0x00 => Some(reader.read()?),
+                    0x01 => {
+                        if reader.read_u8()? == 0 {
+                            None
+                        } else {
+                            return Err(BinaryReaderError::new(
+                                "named results not allowed for `task.return` intrinsic",
+                                reader.original_position() - 2,
+                            ));
+                        }
+                    }
+                    x => return reader.invalid_leading_byte(x, "`task.return` result"),
+                },
             },
             0x0a => CanonicalFunction::TaskWait {
                 async_: reader.read()?,

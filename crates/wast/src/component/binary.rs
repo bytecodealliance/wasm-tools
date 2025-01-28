@@ -363,30 +363,11 @@ impl<'a> Encoder<'a> {
             }
             CanonicalFuncKind::TaskReturn(info) => {
                 self.core_func_names.push(name);
-                match &info.results[..] {
-                    [ComponentFunctionResult { name: None, ty }] => {
-                        self.funcs.task_return_anon(ty);
-                    }
-                    results => {
-                        // Note that we synthesize names for any unnamed results
-                        // we encounter.
-                        let results = results
-                            .iter()
-                            .enumerate()
-                            .map(|(index, result)| {
-                                (
-                                    result
-                                        .name
-                                        .map(|s| s.to_string())
-                                        .unwrap_or_else(|| format!("v{index}")),
-                                    &result.ty,
-                                )
-                            })
-                            .collect::<Vec<_>>();
-                        self.funcs
-                            .task_return_named(results.iter().map(|(n, v)| (n.as_str(), *v)));
-                    }
-                }
+                self.funcs.task_return(
+                    info.result
+                        .as_ref()
+                        .map(|ty| wasm_encoder::ComponentValType::from(ty)),
+                );
             }
             CanonicalFuncKind::TaskWait(info) => {
                 self.core_func_names.push(name);

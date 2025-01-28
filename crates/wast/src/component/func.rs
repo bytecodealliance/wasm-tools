@@ -521,23 +521,24 @@ impl<'a> Parse<'a> for CanonThreadHwConcurrency {
 /// Information relating to the `task.return` intrinsic.
 #[derive(Debug)]
 pub struct CanonTaskReturn<'a> {
-    /// The types (and optionally, names) of the results which may be returned
-    /// with this intrinsic.
-    pub results: Box<[ComponentFunctionResult<'a>]>,
+    /// The type of the result which may be returned with this intrinsic.
+    pub result: Option<ComponentValType<'a>>,
 }
 
 impl<'a> Parse<'a> for CanonTaskReturn<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::task_return>()?;
 
-        let mut results: Vec<ComponentFunctionResult> = Vec::new();
-        while parser.peek2::<kw::result>()? {
-            results.push(parser.parens(|p| p.parse())?);
-        }
+        let result = if parser.peek2::<kw::result>()? {
+            Some(parser.parens(|p| {
+                p.parse::<kw::result>()?.0;
+                p.parse()
+            })?)
+        } else {
+            None
+        };
 
-        Ok(Self {
-            results: results.into(),
-        })
+        Ok(Self { result })
     }
 }
 

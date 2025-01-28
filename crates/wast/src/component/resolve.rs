@@ -392,8 +392,8 @@ impl<'a> Resolver<'a> {
             | CanonicalFuncKind::SubtaskDrop
             | CanonicalFuncKind::ErrorContextDrop => {}
             CanonicalFuncKind::TaskReturn(info) => {
-                for result in info.results.iter_mut() {
-                    self.component_val_type(&mut result.ty)?;
+                if let Some(ty) = &mut info.result {
+                    self.component_val_type(ty)?;
                 }
             }
             CanonicalFuncKind::TaskWait(info) => {

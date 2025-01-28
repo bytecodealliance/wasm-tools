@@ -391,20 +391,9 @@ impl ComponentBuilder {
         inc(&mut self.core_funcs)
     }
 
-    /// Declares a new `task.return` intrinsic using named results.
-    pub fn task_return_named<'a, R, T>(&mut self, results: R) -> u32
-    where
-        R: IntoIterator<Item = (&'a str, T)>,
-        R::IntoIter: ExactSizeIterator,
-        T: Into<ComponentValType>,
-    {
-        self.canonical_functions().task_return_named(results);
-        inc(&mut self.core_funcs)
-    }
-
-    /// Declares a new `task.return` intrinsic using an anonymous result.
-    pub fn task_return_anon(&mut self, ty: impl Into<ComponentValType>) -> u32 {
-        self.canonical_functions().task_return_anon(ty);
+    /// Declares a new `task.return` intrinsic.
+    pub fn task_return(&mut self, ty: Option<impl Into<ComponentValType>>) -> u32 {
+        self.canonical_functions().task_return(ty);
         inc(&mut self.core_funcs)
     }
 

@@ -19,9 +19,9 @@ use crate::prelude::*;
 use crate::validator::names::{ComponentName, ComponentNameKind, KebabStr, KebabString};
 use crate::{
     BinaryReaderError, CanonicalOption, ComponentExportName, ComponentExternalKind,
-    ComponentFuncResult, ComponentOuterAliasKind, ComponentTypeRef, CompositeInnerType,
-    ExternalKind, FuncType, GlobalType, InstantiationArgKind, MemoryType, PackedIndex, RefType,
-    Result, SubType, TableType, TypeBounds, ValType, WasmFeatures,
+    ComponentOuterAliasKind, ComponentTypeRef, CompositeInnerType, ExternalKind, FuncType,
+    GlobalType, InstantiationArgKind, MemoryType, PackedIndex, RefType, Result, SubType, TableType,
+    TypeBounds, ValType, WasmFeatures,
 };
 use core::mem;
 
@@ -1102,7 +1102,7 @@ impl ComponentState {
 
     pub fn task_return(
         &mut self,
-        result: &ComponentFuncResult,
+        result: &Option<crate::ComponentValType>,
         types: &mut TypeAlloc,
         offset: usize,
         features: &WasmFeatures,
@@ -1118,19 +1118,18 @@ impl ComponentState {
             info: TypeInfo::new(),
             params: result
                 .iter()
-                .map(|(name, ty)| {
-                    let ty = match ty {
-                        crate::ComponentValType::Primitive(ty) => ComponentValType::Primitive(*ty),
-                        crate::ComponentValType::Type(index) => {
-                            ComponentValType::Type(self.defined_type_at(*index, offset)?)
-                        }
-                    };
-
-                    let Some(name) = KebabString::new(name.unwrap_or("v")) else {
-                        bail!(offset, "non-kebab name found in `task.return` result list")
-                    };
-
-                    Ok((name, ty))
+                .map(|ty| {
+                    Ok((
+                        KebabString::new("v").unwrap(),
+                        match ty {
+                            crate::ComponentValType::Primitive(ty) => {
+                                ComponentValType::Primitive(*ty)
+                            }
+                            crate::ComponentValType::Type(index) => {
+                                ComponentValType::Type(self.defined_type_at(*index, offset)?)
+                            }
+                        },
+                    ))
                 })
                 .collect::<Result<_>>()?,
             results: Box::new([]),

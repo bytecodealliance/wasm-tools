@@ -1721,22 +1721,18 @@ impl<'a> EncodingState<'a> {
             Import::ExportedTaskReturn(interface, function) => {
                 let mut encoder = self.root_export_type_encoder(*interface);
 
-                enum EncodedResults<'a> {
-                    Named(Vec<(&'a str, ComponentValType)>),
-                    Anon(ComponentValType),
-                }
-
-                let results = match &function.results {
+                let result = match &function.results {
                     Results::Named(rs) => {
-                        EncodedResults::Named(encoder.encode_params(resolve, rs)?)
+                        if rs.is_empty() {
+                            None
+                        } else {
+                            bail!("named results not supported for `task.return` intrinsic")
+                        }
                     }
-                    Results::Anon(ty) => EncodedResults::Anon(encoder.encode_valtype(resolve, ty)?),
+                    Results::Anon(ty) => Some(encoder.encode_valtype(resolve, ty)?),
                 };
 
-                let index = match results {
-                    EncodedResults::Named(rs) => self.component.task_return_named(rs),
-                    EncodedResults::Anon(ty) => self.component.task_return_anon(ty),
-                };
+                let index = self.component.task_return(result);
                 return Ok((ExportKind::Func, index));
             }
             Import::TaskBackpressure => {

@@ -914,16 +914,12 @@ impl Printer<'_, '_> {
                 CanonicalFunction::TaskBackpressure => {
                     self.print_intrinsic(state, "canon task.backpressure", &|_, _| Ok(()))?;
                 }
-                CanonicalFunction::TaskReturn { results } => {
+                CanonicalFunction::TaskReturn { result } => {
                     self.print_intrinsic(state, "canon task.return", &|me, state| {
-                        for (name, ty) in results.iter() {
+                        if let Some(ty) = result {
                             me.result.write_str(" ")?;
                             me.start_group("result ")?;
-                            if let Some(name) = name {
-                                me.print_str(name)?;
-                                me.result.write_str(" ")?;
-                            }
-                            me.print_component_val_type(state, ty)?;
+                            me.print_component_val_type(state, &ty)?;
                             me.end_group()?;
                         }
                         Ok(())
