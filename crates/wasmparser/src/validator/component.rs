@@ -1136,6 +1136,8 @@ impl ComponentState {
         }
         .lower(types, Abi::LiftSync);
 
+        assert!(info.results.iter().next().is_none());
+
         self.core_funcs
             .push(types.intern_func_type(FuncType::new(info.params.iter(), []), offset));
         Ok(())
