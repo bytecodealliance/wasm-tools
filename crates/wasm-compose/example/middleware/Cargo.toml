@@ -6,8 +6,8 @@ publish = false
 rust-version.workspace = true
 
 [dependencies]
-flate2 = "1.0.24"
 cargo-component-bindings = "0.6.0"
+flate2 = "1.0.24"
 
 [lib]
 crate-type = ["cdylib"]

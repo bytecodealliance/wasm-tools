@@ -11,13 +11,13 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-clap = { workspace = true, optional = true }
 anyhow = { workspace = true }
-wasmparser = { workspace = true, features = ['std', 'component-model', 'hash-collections'] }
-wasm-encoder = { workspace = true, features = ['std', 'component-model'] }
+clap = { workspace = true, optional = true }
 indexmap = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 serde_json = { workspace = true }
 spdx = { workspace = true }
 url = { workspace = true }
+wasm-encoder = { workspace = true, features = ['std', 'component-model'] }
+wasmparser = { workspace = true, features = ['std', 'component-model', 'hash-collections'] }
