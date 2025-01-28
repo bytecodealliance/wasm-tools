@@ -1,4 +1,4 @@
-use crate::{encode_section, ComponentSection, ComponentSectionId, Encode};
+use crate::{encode_section, ComponentSection, ComponentSectionId, ComponentValType, Encode};
 use alloc::vec::Vec;
 
 /// Represents options for canonical function definitions.
@@ -188,9 +188,39 @@ impl CanonicalFunctionSection {
     /// Defines a function which returns a result to the caller of a lifted
     /// export function.  This allows the callee to continue executing after
     /// returning a result.
-    pub fn task_return(&mut self, ty: u32) -> &mut Self {
+    ///
+    /// This version accepts a list of named result types.  See
+    /// [Self::task_return_anon] for a version that accepts a single, anonymous result
+    /// type.
+    pub fn task_return_named<'a, R, T>(&mut self, results: R) -> &mut Self
+    where
+        R: IntoIterator<Item = (&'a str, T)>,
+        R::IntoIter: ExactSizeIterator,
+        T: Into<ComponentValType>,
+    {
         self.bytes.push(0x09);
-        ty.encode(&mut self.bytes);
+        self.bytes.push(0x01);
+        let results = results.into_iter();
+        results.len().encode(&mut self.bytes);
+        for (name, ty) in results {
+            name.encode(&mut self.bytes);
+            ty.into().encode(&mut self.bytes);
+        }
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function which returns a result to the caller of a lifted
+    /// export function.  This allows the callee to continue executing after
+    /// returning a result.
+    ///
+    /// This version accepts a single, anonymous result type.  See
+    /// [Self::task_return_named] for a version that accepts a list of named result
+    /// types.
+    pub fn task_return_anon(&mut self, ty: impl Into<ComponentValType>) -> &mut Self {
+        self.bytes.push(0x09);
+        self.bytes.push(0x00);
+        ty.into().encode(&mut self.bytes);
         self.num_added += 1;
         self
     }

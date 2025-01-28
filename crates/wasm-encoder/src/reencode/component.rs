@@ -970,8 +970,17 @@ pub mod component_utils {
             wasmparser::CanonicalFunction::TaskBackpressure => {
                 section.task_backpressure();
             }
-            wasmparser::CanonicalFunction::TaskReturn { type_index } => {
-                section.task_return(reencoder.type_index(type_index));
+            wasmparser::CanonicalFunction::TaskReturn { results } => {
+                match results {
+                    wasmparser::ComponentFuncResult::Unnamed(ty) => {
+                        section.task_return_anon(reencoder.component_val_type(ty))
+                    }
+                    wasmparser::ComponentFuncResult::Named(results) => section.task_return_named(
+                        results
+                            .iter()
+                            .map(|(name, ty)| (*name, reencoder.component_val_type(*ty))),
+                    ),
+                };
             }
             wasmparser::CanonicalFunction::TaskWait { async_, memory } => {
                 section.task_wait(async_, reencoder.memory_index(memory));

@@ -363,7 +363,30 @@ impl<'a> Encoder<'a> {
             }
             CanonicalFuncKind::TaskReturn(info) => {
                 self.core_func_names.push(name);
-                self.funcs.task_return(info.ty.into());
+                match &info.results[..] {
+                    [ComponentFunctionResult { name: None, ty }] => {
+                        self.funcs.task_return_anon(ty);
+                    }
+                    results => {
+                        // Note that we synthesize names for any unnamed results
+                        // we encounter.
+                        let results = results
+                            .iter()
+                            .enumerate()
+                            .map(|(index, result)| {
+                                (
+                                    result
+                                        .name
+                                        .map(|s| s.to_string())
+                                        .unwrap_or_else(|| format!("v{index}")),
+                                    &result.ty,
+                                )
+                            })
+                            .collect::<Vec<_>>();
+                        self.funcs
+                            .task_return_named(results.iter().map(|(n, v)| (n.as_str(), *v)));
+                    }
+                }
             }
             CanonicalFuncKind::TaskWait(info) => {
                 self.core_func_names.push(name);

@@ -392,7 +392,9 @@ impl<'a> Resolver<'a> {
             | CanonicalFuncKind::SubtaskDrop
             | CanonicalFuncKind::ErrorContextDrop => {}
             CanonicalFuncKind::TaskReturn(info) => {
-                self.resolve_ns(&mut info.ty, Ns::CoreType)?;
+                for result in info.results.iter_mut() {
+                    self.component_val_type(&mut result.ty)?;
+                }
             }
             CanonicalFuncKind::TaskWait(info) => {
                 self.core_item_ref(&mut info.memory)?;
