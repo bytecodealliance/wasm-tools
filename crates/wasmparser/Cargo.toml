@@ -21,21 +21,21 @@ all-features = true
 
 [dependencies]
 bitflags = "2.4.1"
+hashbrown = { workspace = true, optional = true }
 indexmap = { workspace = true, optional = true }
 semver = { workspace = true, optional = true }
-hashbrown = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
 criterion = { workspace = true }
-wat = { path = "../wat" }
-wast = { path = "../wast" }
-rayon = { workspace = true }
-once_cell = "1.13.0"
-wasm-encoder = { path = "../wasm-encoder" }
 env_logger.workspace = true
 log.workspace = true
+once_cell = "1.13.0"
+rayon = { workspace = true }
+wasm-encoder = { path = "../wasm-encoder" }
+wast = { path = "../wast" }
+wat = { path = "../wat" }
 
 [[bench]]
 name = "benchmark"
@@ -57,7 +57,7 @@ hash-collections = [
   'dep:hashbrown',
   'dep:indexmap',
 ]
-# Tells the `wasmparser` crate to prefer using its built-in btree-based collections 
+# Tells the `wasmparser` crate to prefer using its built-in btree-based collections
 # even if `hash-collections` is enabled.
 prefer-btree-collections = []
 
