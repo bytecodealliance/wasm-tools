@@ -521,17 +521,24 @@ impl<'a> Parse<'a> for CanonThreadHwConcurrency {
 /// Information relating to the `task.return` intrinsic.
 #[derive(Debug)]
 pub struct CanonTaskReturn<'a> {
-    /// The core function type representing the signature of this intrinsic.
-    pub ty: Index<'a>,
+    /// The type of the result which may be returned with this intrinsic.
+    pub result: Option<ComponentValType<'a>>,
 }
 
 impl<'a> Parse<'a> for CanonTaskReturn<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::task_return>()?;
 
-        Ok(Self {
-            ty: parser.parse()?,
-        })
+        let result = if parser.peek2::<kw::result>()? {
+            Some(parser.parens(|p| {
+                p.parse::<kw::result>()?.0;
+                p.parse()
+            })?)
+        } else {
+            None
+        };
+
+        Ok(Self { result })
     }
 }
 

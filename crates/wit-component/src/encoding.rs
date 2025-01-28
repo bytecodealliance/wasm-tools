@@ -84,8 +84,8 @@ use wasm_encoder::*;
 use wasmparser::Validator;
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
-    Docs, Function, FunctionKind, InterfaceId, LiveTypes, Resolve, Results, Stability, Type,
-    TypeDefKind, TypeId, TypeOwner, WorldItem, WorldKey,
+    Function, FunctionKind, InterfaceId, LiveTypes, Resolve, Results, Stability, Type, TypeDefKind,
+    TypeId, TypeOwner, WorldItem, WorldKey,
 };
 
 const INDIRECT_TABLE_NAME: &str = "$imports";
@@ -1718,38 +1718,22 @@ impl<'a> EncodingState<'a> {
                     AbiVariant::GuestImport,
                 )
             }
-            Import::ExportedTaskReturn(function) => {
-                let signature = resolve.wasm_signature(
-                    AbiVariant::GuestImport,
-                    &Function {
-                        name: String::new(),
-                        kind: FunctionKind::Freestanding,
-                        params: match &function.results {
-                            Results::Named(params) => params.clone(),
-                            Results::Anon(ty) => vec![("v".to_string(), *ty)],
-                        },
-                        results: Results::Named(Vec::new()),
-                        docs: Docs::default(),
-                        stability: Stability::Unknown,
-                    },
-                );
-                let (type_index, encoder) = self.component.core_type();
-                encoder.core().function(
-                    signature.params.into_iter().map(into_val_type),
-                    signature.results.into_iter().map(into_val_type),
-                );
+            Import::ExportedTaskReturn(interface, function) => {
+                let mut encoder = self.root_export_type_encoder(*interface);
 
-                let index = self.component.task_return(type_index);
-                return Ok((ExportKind::Func, index));
-
-                fn into_val_type(ty: WasmType) -> ValType {
-                    match ty {
-                        WasmType::I32 | WasmType::Pointer | WasmType::Length => ValType::I32,
-                        WasmType::I64 | WasmType::PointerOrI64 => ValType::I64,
-                        WasmType::F32 => ValType::F32,
-                        WasmType::F64 => ValType::F64,
+                let result = match &function.results {
+                    Results::Named(rs) => {
+                        if rs.is_empty() {
+                            None
+                        } else {
+                            bail!("named results not supported for `task.return` intrinsic")
+                        }
                     }
-                }
+                    Results::Anon(ty) => Some(encoder.encode_valtype(resolve, ty)?),
+                };
+
+                let index = self.component.task_return(result);
+                return Ok((ExportKind::Func, index));
             }
             Import::TaskBackpressure => {
                 let index = self.component.task_backpressure();

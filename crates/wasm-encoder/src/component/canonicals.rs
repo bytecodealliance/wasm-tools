@@ -1,4 +1,4 @@
-use crate::{encode_section, ComponentSection, ComponentSectionId, Encode};
+use crate::{encode_section, ComponentSection, ComponentSectionId, ComponentValType, Encode};
 use alloc::vec::Vec;
 
 /// Represents options for canonical function definitions.
@@ -188,9 +188,15 @@ impl CanonicalFunctionSection {
     /// Defines a function which returns a result to the caller of a lifted
     /// export function.  This allows the callee to continue executing after
     /// returning a result.
-    pub fn task_return(&mut self, ty: u32) -> &mut Self {
+    pub fn task_return(&mut self, ty: Option<impl Into<ComponentValType>>) -> &mut Self {
         self.bytes.push(0x09);
-        ty.encode(&mut self.bytes);
+        if let Some(ty) = ty {
+            self.bytes.push(0x00);
+            ty.into().encode(&mut self.bytes);
+        } else {
+            self.bytes.push(0x01);
+            0_usize.encode(&mut self.bytes);
+        }
         self.num_added += 1;
         self
     }

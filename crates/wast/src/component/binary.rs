@@ -363,7 +363,11 @@ impl<'a> Encoder<'a> {
             }
             CanonicalFuncKind::TaskReturn(info) => {
                 self.core_func_names.push(name);
-                self.funcs.task_return(info.ty.into());
+                self.funcs.task_return(
+                    info.result
+                        .as_ref()
+                        .map(|ty| wasm_encoder::ComponentValType::from(ty)),
+                );
             }
             CanonicalFuncKind::TaskWait(info) => {
                 self.core_func_names.push(name);

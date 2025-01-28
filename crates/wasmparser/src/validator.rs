@@ -1313,8 +1313,8 @@ impl Validator {
                     crate::CanonicalFunction::TaskBackpressure => {
                         current.task_backpressure(types, offset, features)
                     }
-                    crate::CanonicalFunction::TaskReturn { type_index } => {
-                        current.task_return(type_index, types, offset, features)
+                    crate::CanonicalFunction::TaskReturn { result } => {
+                        current.task_return(&result, types, offset, features)
                     }
                     crate::CanonicalFunction::TaskWait { async_, memory } => {
                         current.task_wait(async_, memory, types, offset, features)

@@ -392,7 +392,7 @@ impl ComponentBuilder {
     }
 
     /// Declares a new `task.return` intrinsic.
-    pub fn task_return(&mut self, ty: u32) -> u32 {
+    pub fn task_return(&mut self, ty: Option<impl Into<ComponentValType>>) -> u32 {
         self.canonical_functions().task_return(ty);
         inc(&mut self.core_funcs)
     }

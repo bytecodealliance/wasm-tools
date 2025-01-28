@@ -46,8 +46,7 @@
     (core module $m
       (import "" "task.return" (func $task-return (param i32)))
     )
-    (core type $task-return-type (func (param i32)))
-    (core func $task-return (canon task.return $task-return-type))
+    (core func $task-return (canon task.return (result u32)))
     (core instance $i (instantiate $m (with "" (instance (export "task.return" (func $task-return))))))
   )
   "`task.return` requires the component model async feature"

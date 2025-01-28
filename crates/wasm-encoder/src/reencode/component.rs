@@ -970,8 +970,8 @@ pub mod component_utils {
             wasmparser::CanonicalFunction::TaskBackpressure => {
                 section.task_backpressure();
             }
-            wasmparser::CanonicalFunction::TaskReturn { type_index } => {
-                section.task_return(reencoder.type_index(type_index));
+            wasmparser::CanonicalFunction::TaskReturn { result } => {
+                section.task_return(result.map(|ty| reencoder.component_val_type(ty)));
             }
             wasmparser::CanonicalFunction::TaskWait { async_, memory } => {
                 section.task_wait(async_, reencoder.memory_index(memory));
