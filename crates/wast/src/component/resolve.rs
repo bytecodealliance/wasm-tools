@@ -390,6 +390,13 @@ impl<'a> Resolver<'a> {
                 CoreFuncKind::ThreadSpawn(info) => {
                     self.resolve_ns(&mut info.ty, Ns::CoreType)?;
                 }
+                CoreFuncKind::ThreadSpawnIndirect(info) => {
+                    self.core_item_ref(&mut info.table)?;
+                    // Eventually this should resolve the specific type associated
+                    // with this canonical function, e.g.,
+                    // `self.resolve_type_use(&mut info.ty)?;` (TODO: spawn indirect
+                    // types).
+                }
                 CoreFuncKind::ThreadAvailableParallelism(_)
                 | CoreFuncKind::BackpressureSet
                 | CoreFuncKind::Yield(_)
@@ -1094,6 +1101,7 @@ component_item!(kw::module, CoreModule);
 
 core_item!(kw::func, CoreFunc);
 core_item!(kw::memory, CoreMemory);
+core_item!(kw::table, CoreTable);
 core_item!(kw::r#type, CoreType);
 core_item!(kw::r#instance, CoreInstance);
 

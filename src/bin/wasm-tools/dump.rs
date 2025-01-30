@@ -420,6 +420,7 @@ impl<'a> Dump<'a> {
                             | CanonicalFunction::ResourceDropAsync { .. }
                             | CanonicalFunction::ResourceRep { .. }
                             | CanonicalFunction::ThreadSpawn { .. }
+                            | CanonicalFunction::ThreadSpawnIndirect { .. }
                             | CanonicalFunction::ThreadAvailableParallelism
                             | CanonicalFunction::BackpressureSet
                             | CanonicalFunction::TaskReturn { .. }

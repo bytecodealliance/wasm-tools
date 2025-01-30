@@ -13,6 +13,13 @@
       "line": 12,
       "filename": "shared-everything-threads-builtins.1.wasm",
       "module_type": "binary",
+      "text": "`thread.spawn_indirect` requires the shared-everything-threads proposal"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 20,
+      "filename": "shared-everything-threads-builtins.2.wasm",
+      "module_type": "binary",
       "text": "`thread.available_parallelism` requires the shared-everything-threads proposal"
     }
   ]

@@ -895,23 +895,21 @@ impl Printer<'_, '_> {
                 CanonicalFunction::ThreadSpawn {
                     func_ty_index: func_index,
                 } => {
-                    self.start_group("core func ")?;
-                    self.print_name(&state.core.func_names, state.core.funcs)?;
-                    self.result.write_str(" ")?;
-                    self.start_group("canon thread.spawn ")?;
-                    self.print_idx(&state.core.type_names, func_index)?;
-                    self.end_group()?;
-                    self.end_group()?;
-                    state.core.funcs += 1;
+                    self.print_intrinsic(state, "canon thread.spawn ", &|me, state| {
+                        me.print_idx(&state.core.type_names, func_index)
+                    })?;
+                }
+                CanonicalFunction::ThreadSpawnIndirect { table_index } => {
+                    self.print_intrinsic(state, "canon thread.spawn_indirect ", &|me, state| {
+                        me.start_group("table ")?;
+                        me.print_idx(&state.core.table_names, table_index)?;
+                        me.end_group()
+                    })?;
                 }
                 CanonicalFunction::ThreadAvailableParallelism => {
-                    self.start_group("core func ")?;
-                    self.print_name(&state.core.func_names, state.core.funcs)?;
-                    self.result.write_str(" ")?;
-                    self.start_group("canon thread.available_parallelism")?;
-                    self.end_group()?;
-                    self.end_group()?;
-                    state.core.funcs += 1;
+                    self.print_intrinsic(state, "canon thread.available_parallelism", &|_, _| {
+                        Ok(())
+                    })?;
                 }
                 CanonicalFunction::BackpressureSet => {
                     self.print_intrinsic(state, "canon backpressure.set", &|_, _| Ok(()))?;

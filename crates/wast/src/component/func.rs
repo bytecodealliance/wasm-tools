@@ -52,6 +52,7 @@ pub enum CoreFuncKind<'a> {
     ResourceDrop(CanonResourceDrop<'a>),
     ResourceRep(CanonResourceRep<'a>),
     ThreadSpawn(CanonThreadSpawn<'a>),
+    ThreadSpawnIndirect(CanonThreadSpawnIndirect<'a>),
     ThreadAvailableParallelism(CanonThreadAvailableParallelism),
     BackpressureSet,
     TaskReturn(CanonTaskReturn<'a>),
@@ -111,6 +112,8 @@ impl<'a> CoreFuncKind<'a> {
             Ok(CoreFuncKind::ResourceRep(parser.parse()?))
         } else if l.peek::<kw::thread_spawn>()? {
             Ok(CoreFuncKind::ThreadSpawn(parser.parse()?))
+        } else if l.peek::<kw::thread_spawn_indirect>()? {
+            Ok(CoreFuncKind::ThreadSpawnIndirect(parser.parse()?))
         } else if l.peek::<kw::thread_available_parallelism>()? {
             Ok(CoreFuncKind::ThreadAvailableParallelism(parser.parse()?))
         } else if l.peek::<kw::backpressure_set>()? {
@@ -485,6 +488,30 @@ impl<'a> Parse<'a> for CanonThreadSpawn<'a> {
         Ok(Self {
             ty: parser.parse()?,
         })
+    }
+}
+
+/// Information relating to the `thread.spawn_indirect` intrinsic.
+///
+/// This should look identical to that of `CallIndirect`. The only difference is
+/// that, temporarily, the `ty` field (`pub ty: TypeUse<'a, FunctionType<'a>>`)
+/// is fixed to a shared `funcref`, instead of allowing programs to specify the
+/// type. This is due to `wasm-tools` limitations making it difficult to pass
+/// core type indexes downstream (TODO: spawn indirect types).
+#[derive(Debug)]
+pub struct CanonThreadSpawnIndirect<'a> {
+    /// The table that this spawn is going to be indexing.
+    pub table: CoreItemRef<'a, kw::table>,
+}
+
+impl<'a> Parse<'a> for CanonThreadSpawnIndirect<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.parse::<kw::thread_spawn_indirect>()?;
+        let table = parser.parens(|parser| {
+            let span = parser.parse::<kw::table>()?.0;
+            parse_trailing_item_ref(kw::table(span), parser)
+        })?;
+        Ok(Self { table })
     }
 }
 

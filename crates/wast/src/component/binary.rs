@@ -357,6 +357,10 @@ impl<'a> Encoder<'a> {
                     self.core_func_names.push(name);
                     self.funcs.thread_spawn(info.ty.into());
                 }
+                CoreFuncKind::ThreadSpawnIndirect(info) => {
+                    self.core_func_names.push(name);
+                    self.funcs.thread_spawn_indirect(info.table.idx.into());
+                }
                 CoreFuncKind::ThreadAvailableParallelism(_info) => {
                     self.core_func_names.push(name);
                     self.funcs.thread_available_parallelism();
