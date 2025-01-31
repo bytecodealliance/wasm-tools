@@ -2,3 +2,7 @@ error: failed to process feature gate for function [b] in package [test:invalid@
 
 Caused by:
     0: feature gate cannot reference unreleased version 0.1.1 of package [test:invalid@0.1.0] (current version 0.1.0)
+            --> tests/cli/since-on-future-package.wit:9:3
+             |
+           9 |   b: func(s: string) -> string;
+             |   ^
