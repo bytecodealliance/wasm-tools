@@ -1,0 +1,4 @@
+error: failed to process imported world item type [d:e/f-g-h@0.2.3] in package [a:b]
+
+Caused by:
+    0: package [a:b] contains a feature gate with a version specifier, so it must have a version

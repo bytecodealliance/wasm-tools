@@ -3214,6 +3214,7 @@ impl Remap {
             if let WorldItem::Type(id) = &mut item {
                 *id = self.map_type(*id, Some(*span))?;
             }
+            self.update_world_key(&mut name, Some(*span))?;
             let stability = item.stability(resolve);
             if !resolve
                 .include_stability(stability, pkg_id)
@@ -3227,7 +3228,6 @@ impl Remap {
             {
                 continue;
             }
-            self.update_world_key(&mut name, Some(*span))?;
             match &mut item {
                 WorldItem::Interface { id, .. } => {
                     *id = self.map_interface(*id, Some(*span))?;
