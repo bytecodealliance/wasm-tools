@@ -1781,18 +1781,29 @@ package {name} is defined in two different locations:\n\
     fn include_stability(&self, stability: &Stability, pkg_id: &PackageId) -> Result<bool> {
         Ok(match stability {
             Stability::Unknown => true,
-            // NOTE: deprecations are intentionally omitted -- an existing `@since` takes precedence over `@deprecated`
+            // NOTE: deprecations are intentionally omitted -- an existing
+            // `@since` takes precedence over `@deprecated`
             Stability::Stable { since, .. } => {
                 let Some(p) = self.packages.get(*pkg_id) else {
-                    // We can't check much without a package (possibly dealing with an item in an `UnresolvedPackage`),
-                    // @since version & deprecations can't be checked because there's no package version to compare to.
+                    // We can't check much without a package (possibly dealing
+                    // with an item in an `UnresolvedPackage`), @since version &
+                    // deprecations can't be checked because there's no package
+                    // version to compare to.
                     //
-                    // Feature requirements on stabilized features are ignored in resolved packages, so we do the same here.
+                    // Feature requirements on stabilized features are ignored
+                    // in resolved packages, so we do the same here.
                     return Ok(true);
                 };
 
-                // Use of feature gating with version specifiers inside a package that is not versioned is not allowed
-                let package_version = p.name.version.as_ref().with_context(|| format!("package [{}] contains a feature gate with a version specifier, so it must have a version", p.name))?;
+                // Use of feature gating with version specifiers inside a
+                // package that is not versioned is not allowed
+                let package_version = p.name.version.as_ref().with_context(|| {
+                    format!(
+                        "package [{}] contains a feature gate with a version \
+                         specifier, so it must have a version",
+                        p.name
+                    )
+                })?;
 
                 // If the version on the feature gate is:
                 // - released, then we can include it
