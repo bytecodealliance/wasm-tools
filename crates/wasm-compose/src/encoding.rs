@@ -648,7 +648,7 @@ impl<'a> TypeEncoder<'a> {
             }
             ComponentDefinedType::Record(r) => self.record(state, r),
             ComponentDefinedType::Variant(v) => self.variant(state, v),
-            ComponentDefinedType::List(ty) => self.list(state, *ty),
+            ComponentDefinedType::List(ty, ..) => self.list(state, *ty),
             ComponentDefinedType::Tuple(t) => self.tuple(state, t),
             ComponentDefinedType::Flags(names) => Self::flags(&mut state.cur.encodable, names),
             ComponentDefinedType::Enum(cases) => Self::enum_type(&mut state.cur.encodable, cases),

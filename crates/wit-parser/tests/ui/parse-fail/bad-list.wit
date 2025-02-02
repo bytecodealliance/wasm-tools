@@ -2,6 +2,9 @@
 
 interface foo {
   type x = list<u32
+  type z = list<u32,
+  type a = list<u32,>
+  type b = list<u32, u32>
 
   type y = u32
 }
