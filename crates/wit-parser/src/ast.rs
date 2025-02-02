@@ -1363,13 +1363,19 @@ impl<'a> Type<'a> {
             Some((span, Token::Bool)) => Ok(Type::Bool(span)),
             Some((span, Token::String_)) => Ok(Type::String(span)),
 
-            // list<T> or list<T, N>
+            // list<T>
+            // list<T, N>
             Some((span, Token::List)) => {
                 tokens.expect(Token::LessThan)?;
                 let ty = Type::parse(tokens)?;
                 let size = if tokens.eat(Token::Comma)? {
-                    tokens.expect(Token::Integer)?;
-                    Some(1)
+                    let number = tokens.next()?;
+                    if let Some((span, Token::Integer)) = number {
+                        let size: usize = tokens.get_span(span).parse()?;
+                        Some(size)
+                    } else {
+                        return Err(err_expected(tokens, "fixed size", number).into());
+                    }
                 } else {
                     None
                 };
