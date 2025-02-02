@@ -3135,7 +3135,7 @@ impl Remap {
                     }
                 }
             }
-            Option(t) | List(t) | Future(Some(t)) | Stream(Some(t)) => {
+            Option(t) | List(t, ..) | Future(Some(t)) | Stream(Some(t)) => {
                 self.update_ty(resolve, t, span)?
             }
             Result(r) => {

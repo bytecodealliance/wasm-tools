@@ -903,6 +903,7 @@ struct Option_<'a> {
 struct List<'a> {
     span: Span,
     ty: Box<Type<'a>>,
+    fixed_size: Option<usize>,
 }
 
 struct Future<'a> {
@@ -1362,14 +1363,21 @@ impl<'a> Type<'a> {
             Some((span, Token::Bool)) => Ok(Type::Bool(span)),
             Some((span, Token::String_)) => Ok(Type::String(span)),
 
-            // list<T>
+            // list<T> or list<T, N>
             Some((span, Token::List)) => {
                 tokens.expect(Token::LessThan)?;
                 let ty = Type::parse(tokens)?;
+                let size = if tokens.eat(Token::Comma)? {
+                    tokens.expect(Token::Integer)?;
+                    Some(1)
+                } else {
+                    None
+                };
                 tokens.expect(Token::GreaterThan)?;
                 Ok(Type::List(List {
                     span,
                     ty: Box::new(ty),
+                    fixed_size: size,
                 }))
             }
 
