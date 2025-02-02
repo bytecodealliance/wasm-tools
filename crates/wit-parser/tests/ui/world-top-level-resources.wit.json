@@ -163,7 +163,10 @@
     {
       "name": null,
       "kind": {
-        "list": "u32"
+        "list": [
+          "u32",
+          null
+        ]
       },
       "owner": null
     },
