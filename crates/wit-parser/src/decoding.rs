@@ -1295,9 +1295,9 @@ impl WitPackageDecoder<'_> {
         match ty {
             ComponentDefinedType::Primitive(t) => Ok(TypeDefKind::Type(self.convert_primitive(*t))),
 
-            ComponentDefinedType::List(t, ..) => {
+            ComponentDefinedType::List(t, size) => {
                 let t = self.convert_valtype(t)?;
-                Ok(TypeDefKind::List(t))
+                Ok(TypeDefKind::List(t, *size))
             }
 
             ComponentDefinedType::Tuple(t) => {
