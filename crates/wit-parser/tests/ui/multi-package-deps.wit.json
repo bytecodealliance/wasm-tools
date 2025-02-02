@@ -79,7 +79,10 @@
     {
       "name": "l",
       "kind": {
-        "list": 3
+        "list": [
+          3,
+          null
+        ]
       },
       "owner": {
         "interface": 2

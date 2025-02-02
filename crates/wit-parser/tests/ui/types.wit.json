@@ -53,8 +53,10 @@
         "t48": 49,
         "t49": 50,
         "t50": 51,
-        "bar": 52,
-        "foo": 53
+        "t51a": 52,
+        "t51b": 54,
+        "bar": 55,
+        "foo": 56
       },
       "functions": {},
       "package": 0
@@ -181,7 +183,10 @@
     {
       "name": "t12",
       "kind": {
-        "list": "char"
+        "list": [
+          "char",
+          null
+        ]
       },
       "owner": {
         "interface": 0
@@ -633,21 +638,30 @@
     {
       "name": null,
       "kind": {
-        "list": 33
+        "list": [
+          33,
+          null
+        ]
       },
       "owner": null
     },
     {
       "name": null,
       "kind": {
-        "list": 44
+        "list": [
+          44,
+          null
+        ]
       },
       "owner": null
     },
     {
       "name": "t45",
       "kind": {
-        "list": 45
+        "list": [
+          45,
+          null
+        ]
       },
       "owner": {
         "interface": 0
@@ -699,6 +713,40 @@
       }
     },
     {
+      "name": "t51a",
+      "kind": {
+        "list": [
+          "u32",
+          4
+        ]
+      },
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
+      "name": null,
+      "kind": {
+        "list": [
+          "u32",
+          4
+        ]
+      },
+      "owner": null
+    },
+    {
+      "name": "t51b",
+      "kind": {
+        "list": [
+          53,
+          2
+        ]
+      },
+      "owner": {
+        "interface": 0
+      }
+    },
+    {
       "name": "bar",
       "kind": {
         "type": "u32"
@@ -710,7 +758,7 @@
     {
       "name": "foo",
       "kind": {
-        "type": 52
+        "type": 55
       },
       "owner": {
         "interface": 0
