@@ -1258,7 +1258,7 @@ impl WitPackageDecoder<'_> {
         let kind = self.convert_defined(def)?;
         match &kind {
             TypeDefKind::Type(_)
-            | TypeDefKind::List(_)
+            | TypeDefKind::List(..)
             | TypeDefKind::Tuple(_)
             | TypeDefKind::Option(_)
             | TypeDefKind::Result(_)
@@ -1295,7 +1295,7 @@ impl WitPackageDecoder<'_> {
         match ty {
             ComponentDefinedType::Primitive(t) => Ok(TypeDefKind::Type(self.convert_primitive(*t))),
 
-            ComponentDefinedType::List(t) => {
+            ComponentDefinedType::List(t, ..) => {
                 let t = self.convert_valtype(t)?;
                 Ok(TypeDefKind::List(t))
             }
@@ -1577,9 +1577,9 @@ impl Registrar<'_> {
         match def {
             ComponentDefinedType::Primitive(_) => Ok(()),
 
-            ComponentDefinedType::List(t) => {
+            ComponentDefinedType::List(t, ..) => {
                 let ty = match &self.resolve.types[id].kind {
-                    TypeDefKind::List(r) => r,
+                    TypeDefKind::List(r, ..) => r,
                     // Note that all cases below have this match and the general
                     // idea is that once a type is named or otherwise identified
                     // here there's no need to recurse. The purpose of this

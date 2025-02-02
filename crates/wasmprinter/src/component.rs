@@ -262,7 +262,7 @@ impl Printer<'_, '_> {
             ComponentDefinedType::Primitive(ty) => self.print_primitive_val_type(ty)?,
             ComponentDefinedType::Record(fields) => self.print_record_type(state, fields)?,
             ComponentDefinedType::Variant(cases) => self.print_variant_type(state, cases)?,
-            ComponentDefinedType::List(ty) => self.print_list_type(state, ty)?,
+            ComponentDefinedType::List(ty, _size) => self.print_list_type(state, ty)?,
             ComponentDefinedType::Tuple(tys) => self.print_tuple_type(state, tys)?,
             ComponentDefinedType::Flags(names) => self.print_flag_or_enum_type("flags", names)?,
             ComponentDefinedType::Enum(cases) => self.print_flag_or_enum_type("enum", cases)?,

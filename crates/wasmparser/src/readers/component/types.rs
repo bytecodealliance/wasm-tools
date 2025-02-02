@@ -485,7 +485,7 @@ pub enum ComponentDefinedType<'a> {
     /// The type is a variant with the given cases.
     Variant(Box<[VariantCase<'a>]>),
     /// The type is a list of the given value type.
-    List(ComponentValType),
+    List(ComponentValType, Option<usize>),
     /// The type is a tuple of the given value types.
     Tuple(Box<[ComponentValType]>),
     /// The type is flags with the given names.
@@ -526,7 +526,7 @@ impl<'a> ComponentDefinedType<'a> {
                     .read_iter(MAX_WASM_VARIANT_CASES, "variant cases")?
                     .collect::<Result<_>>()?,
             ),
-            0x70 => ComponentDefinedType::List(reader.read()?),
+            0x70 => ComponentDefinedType::List(reader.read()?, None),
             0x6f => ComponentDefinedType::Tuple(
                 reader
                     .read_iter(MAX_WASM_TUPLE_TYPES, "tuple types")?
