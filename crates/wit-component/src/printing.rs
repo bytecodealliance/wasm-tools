@@ -567,10 +567,13 @@ impl<O: Output> WitPrinter<O> {
                     TypeDefKind::Variant(_) => {
                         bail!("resolve has unnamed variant type")
                     }
-                    TypeDefKind::List(ty) => {
+                    TypeDefKind::List(ty, size) => {
                         self.output.ty("list", TypeKind::BuiltIn);
                         self.output.generic_args_start();
                         self.print_type_name(resolve, ty)?;
+                        if let Some(size) = size {
+                            self.output.push_str(&format!(", {}", *size));
+                        }
                         self.output.generic_args_end();
                     }
                     TypeDefKind::Type(ty) => self.print_type_name(resolve, ty)?,
@@ -744,7 +747,7 @@ impl<O: Output> WitPrinter<O> {
                         self.declare_result(resolve, ty.name.as_deref(), r)?
                     }
                     TypeDefKind::Enum(e) => self.declare_enum(ty.name.as_deref(), e)?,
-                    TypeDefKind::List(inner) => {
+                    TypeDefKind::List(inner, _size) => {
                         self.declare_list(resolve, ty.name.as_deref(), inner)?
                     }
                     TypeDefKind::Type(inner) => match ty.name.as_deref() {

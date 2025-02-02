@@ -139,7 +139,7 @@ fn types() {
         interface.type_def(TypeDef::type_("t10a", Type::F64));
         interface.type_def(TypeDef::type_("t10b", Type::F64));
         interface.type_def(TypeDef::type_("t11", Type::Char));
-        interface.type_def(TypeDef::type_("t12", Type::list(Type::Char)));
+        interface.type_def(TypeDef::type_("t12", Type::list(Type::Char, None)));
         interface.type_def(TypeDef::type_("t13", Type::String));
         interface.type_def(TypeDef::type_("t14", Type::option(Type::U32)));
         interface.type_def(TypeDef::type_(
@@ -206,7 +206,7 @@ fn types() {
         interface.type_def(TypeDef::type_("t44", Type::String));
         interface.type_def(TypeDef::type_(
             "t45",
-            Type::list(Type::list(Type::list(Type::named("t32")))),
+            Type::list(Type::list(Type::list(Type::named("t32"), None), None), None),
         ));
         interface.type_def(TypeDef::type_("t46", Type::named("t44")));
         interface.type_def(TypeDef::type_("foo", Type::named("bar")));

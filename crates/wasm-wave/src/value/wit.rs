@@ -69,7 +69,7 @@ impl<'a> TypeResolver<'a> {
             TypeDefKind::Enum(enum_) => self.resolve_enum(enum_),
             TypeDefKind::Option(some_type) => self.resolve_option(some_type),
             TypeDefKind::Result(result) => self.resolve_result(result),
-            TypeDefKind::List(element_type) => self.resolve_list(element_type),
+            TypeDefKind::List(element_type, _size) => self.resolve_list(element_type),
             TypeDefKind::Type(Type::Bool) => Ok(value::Type::BOOL),
             TypeDefKind::Type(Type::U8) => Ok(value::Type::U8),
             TypeDefKind::Type(Type::U16) => Ok(value::Type::U16),
