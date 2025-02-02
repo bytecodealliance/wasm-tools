@@ -1039,7 +1039,7 @@ pub enum ComponentDefinedType {
     /// The type is a variant.
     Variant(VariantType),
     /// The type is a list.
-    List(ComponentValType),
+    List(ComponentValType, Option<usize>),
     /// The type is a tuple.
     Tuple(TupleType),
     /// The type is a set of flags.
@@ -1083,7 +1083,7 @@ impl TypeData for ComponentDefinedType {
             Self::Record(r) => r.info,
             Self::Variant(v) => v.info,
             Self::Tuple(t) => t.info,
-            Self::List(ty) | Self::Option(ty) => ty.info(types),
+            Self::List(ty, ..) | Self::Option(ty) => ty.info(types),
             Self::Result { ok, err } => {
                 let default = TypeInfo::new();
                 let mut info = ok.map(|ty| ty.type_info(types)).unwrap_or(default);
@@ -1104,7 +1104,7 @@ impl ComponentDefinedType {
                 .cases
                 .values()
                 .any(|case| case.ty.map(|ty| ty.contains_ptr(types)).unwrap_or(false)),
-            Self::List(_) => true,
+            Self::List(..) => true,
             Self::Tuple(t) => t.types.iter().any(|ty| ty.contains_ptr(types)),
             Self::Flags(_)
             | Self::Enum(_)
@@ -1133,7 +1133,12 @@ impl ComponentDefinedType {
                 types,
                 lowered_types,
             ),
-            Self::List(_) => lowered_types.push(ValType::I32) && lowered_types.push(ValType::I32),
+            Self::List(_, None) => {
+                lowered_types.push(ValType::I32) && lowered_types.push(ValType::I32)
+            }
+            Self::List(ty, Some(length)) => {
+                (0..*length).all(|_n| ty.push_wasm_types(types, lowered_types))
+            }
             Self::Tuple(t) => t
                 .types
                 .iter()
@@ -1210,7 +1215,7 @@ impl ComponentDefinedType {
             ComponentDefinedType::Enum(_) => "enum",
             ComponentDefinedType::Flags(_) => "flags",
             ComponentDefinedType::Option(_) => "option",
-            ComponentDefinedType::List(_) => "list",
+            ComponentDefinedType::List(..) => "list",
             ComponentDefinedType::Result { .. } => "result",
             ComponentDefinedType::Own(_) => "own",
             ComponentDefinedType::Borrow(_) => "borrow",
@@ -1950,7 +1955,7 @@ impl TypeAlloc {
                     }
                 }
             }
-            ComponentDefinedType::List(ty) | ComponentDefinedType::Option(ty) => {
+            ComponentDefinedType::List(ty, ..) | ComponentDefinedType::Option(ty) => {
                 self.free_variables_valtype(ty, set);
             }
             ComponentDefinedType::Result { ok, err } => {
@@ -2097,7 +2102,7 @@ impl TypeAlloc {
                         .map(|t| self.type_named_valtype(t, set))
                         .unwrap_or(true)
             }
-            ComponentDefinedType::List(ty) | ComponentDefinedType::Option(ty) => {
+            ComponentDefinedType::List(ty, ..) | ComponentDefinedType::Option(ty) => {
                 self.type_named_valtype(ty, set)
             }
 
@@ -2285,7 +2290,7 @@ where
                     }
                 }
             }
-            ComponentDefinedType::List(ty) | ComponentDefinedType::Option(ty) => {
+            ComponentDefinedType::List(ty, ..) | ComponentDefinedType::Option(ty) => {
                 any_changed |= self.remap_valtype(ty, map);
             }
             ComponentDefinedType::Result { ok, err } => {
@@ -3170,8 +3175,10 @@ impl<'a> SubtypeCx<'a> {
                 Ok(())
             }
             (Variant(_), b) => bail!(offset, "expected {}, found variant", b.desc()),
-            (List(a), List(b)) | (Option(a), Option(b)) => self.component_val_type(a, b, offset),
-            (List(_), b) => bail!(offset, "expected {}, found list", b.desc()),
+            (List(a, ..), List(b, ..)) | (Option(a), Option(b)) => {
+                self.component_val_type(a, b, offset)
+            }
+            (List(_, ..), b) => bail!(offset, "expected {}, found list", b.desc()),
             (Option(_), b) => bail!(offset, "expected {}, found option", b.desc()),
             (Tuple(a), Tuple(b)) => {
                 if a.types.len() != b.types.len() {

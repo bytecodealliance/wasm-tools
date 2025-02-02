@@ -55,7 +55,10 @@
     {
       "name": null,
       "kind": {
-        "list": "u32"
+        "list": [
+          "u32",
+          null
+        ]
       },
       "owner": null
     },
@@ -69,7 +72,10 @@
     {
       "name": null,
       "kind": {
-        "list": 1
+        "list": [
+          1,
+          null
+        ]
       },
       "owner": null
     }

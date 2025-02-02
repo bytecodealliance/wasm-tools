@@ -746,7 +746,7 @@ impl ComponentState {
                         .map(|t| types.type_named_valtype(t, set))
                         .unwrap_or(true)
             }
-            ComponentDefinedType::List(ty) | ComponentDefinedType::Option(ty) => {
+            ComponentDefinedType::List(ty, ..) | ComponentDefinedType::Option(ty) => {
                 types.type_named_valtype(ty, set)
             }
 
@@ -3274,8 +3274,9 @@ impl ComponentState {
             crate::ComponentDefinedType::Variant(cases) => {
                 self.create_variant_type(cases.as_ref(), types, offset)
             }
-            crate::ComponentDefinedType::List(ty) => Ok(ComponentDefinedType::List(
+            crate::ComponentDefinedType::List(ty, size) => Ok(ComponentDefinedType::List(
                 self.create_component_val_type(ty, offset)?,
+                size,
             )),
             crate::ComponentDefinedType::Tuple(tys) => {
                 self.create_tuple_type(tys.as_ref(), types, offset)

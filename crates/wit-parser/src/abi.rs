@@ -282,9 +282,15 @@ impl Resolve {
                     }
                 }
 
-                TypeDefKind::List(_) => {
-                    result.push(WasmType::Pointer);
-                    result.push(WasmType::Length);
+                TypeDefKind::List(ty, size) => {
+                    if let Some(size) = size {
+                        for _ in 0..*size {
+                            self.push_flat(ty, result);
+                        }
+                    } else {
+                        result.push(WasmType::Pointer);
+                        result.push(WasmType::Length);
+                    }
                 }
 
                 TypeDefKind::Variant(v) => {

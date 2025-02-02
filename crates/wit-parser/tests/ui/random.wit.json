@@ -47,7 +47,10 @@
     {
       "name": null,
       "kind": {
-        "list": "u8"
+        "list": [
+          "u8",
+          null
+        ]
       },
       "owner": null
     }

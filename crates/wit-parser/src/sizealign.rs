@@ -235,8 +235,17 @@ impl SizeAlign {
     fn calculate(&self, ty: &TypeDef) -> ElementInfo {
         match &ty.kind {
             TypeDefKind::Type(t) => ElementInfo::new(self.size(t), self.align(t)),
-            TypeDefKind::List(_) => {
-                ElementInfo::new(ArchitectureSize::new(0, 2), Alignment::Pointer)
+            TypeDefKind::List(t, size) => {
+                if let Some(size) = size {
+                    let field_align = self.align(t);
+                    let field_size = self.size(t);
+                    ElementInfo::new(
+                        ArchitectureSize::new(field_size.bytes * size, field_size.pointers * size),
+                        field_align,
+                    )
+                } else {
+                    ElementInfo::new(ArchitectureSize::new(0, 2), Alignment::Pointer)
+                }
             }
             TypeDefKind::Record(r) => self.record(r.fields.iter().map(|f| &f.ty)),
             TypeDefKind::Tuple(t) => self.record(t.types.iter()),

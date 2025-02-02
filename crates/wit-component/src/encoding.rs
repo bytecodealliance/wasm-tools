@@ -319,7 +319,7 @@ impl TypeContents {
                     Self::for_optional_types(resolve, v.cases.iter().map(|c| c.ty.as_ref()))
                 }
                 TypeDefKind::Enum(_) => Self::empty(),
-                TypeDefKind::List(t) => Self::for_type(resolve, t) | Self::LIST,
+                TypeDefKind::List(t, ..) => Self::for_type(resolve, t) | Self::LIST,
                 TypeDefKind::Type(t) => Self::for_type(resolve, t),
                 TypeDefKind::Future(_) => Self::empty(),
                 TypeDefKind::Stream(_) => Self::empty(),
