@@ -3,7 +3,7 @@
 use crate::{Result, WasmMutate};
 
 use rand::Rng;
-use wasm_encoder::{CodeSection, Function, Instruction, Module};
+use wasm_encoder::{CodeSection, Function, Module};
 use wasmparser::CodeSectionReader;
 
 use super::Mutator;
@@ -34,8 +34,8 @@ impl Mutator for FunctionBodyUnreachable {
                 log::trace!("Mutating function {}", i);
                 let locals = vec![];
                 let mut f = Function::new(locals);
-                f.instruction(&Instruction::Unreachable);
-                f.instruction(&Instruction::End);
+                f.instructions().unreachable();
+                f.instructions().end();
 
                 codes.function(&f);
             } else {

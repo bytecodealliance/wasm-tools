@@ -5,7 +5,7 @@ use crate::{
     Error,
 };
 use std::ops::Range;
-use wasm_encoder::{Function, Instruction};
+use wasm_encoder::Function;
 use wasmparser::{BlockType, Operator};
 
 use self::parse_context::{Ast, Node, State};
@@ -49,11 +49,11 @@ pub trait AstWriter {
         input_wasm: &'a [u8],
         ty: &BlockType,
     ) -> crate::Result<()> {
-        newfunc.instruction(&Instruction::Loop(map_block_type(*ty)?));
+        newfunc.instructions().loop_(map_block_type(*ty)?);
         for ch in body {
             self.write(ast, *ch, newfunc, operators, input_wasm)?;
         }
-        newfunc.instruction(&Instruction::End);
+        newfunc.instructions().end();
         Ok(())
     }
 
@@ -71,11 +71,11 @@ pub trait AstWriter {
         input_wasm: &'a [u8],
         ty: &BlockType,
     ) -> crate::Result<()> {
-        newfunc.instruction(&Instruction::Block(map_block_type(*ty)?));
+        newfunc.instructions().block(map_block_type(*ty)?);
         for ch in body {
             self.write(ast, *ch, newfunc, operators, input_wasm)?;
         }
-        newfunc.instruction(&Instruction::End);
+        newfunc.instructions().end();
         Ok(())
     }
 
@@ -144,20 +144,20 @@ pub trait AstWriter {
         input_wasm: &'a [u8],
         ty: &BlockType,
     ) -> crate::Result<()> {
-        newfunc.instruction(&Instruction::If(map_block_type(*ty)?));
+        newfunc.instructions().if_(map_block_type(*ty)?);
 
         for ch in then {
             self.write(ast, *ch, newfunc, operators, input_wasm)?;
         }
 
         if let Some(alternative) = alternative {
-            newfunc.instruction(&Instruction::Else);
+            newfunc.instructions().else_();
 
             for ch in alternative {
                 self.write(ast, *ch, newfunc, operators, input_wasm)?;
             }
         }
-        newfunc.instruction(&Instruction::End);
+        newfunc.instructions().end();
         Ok(())
     }
 
@@ -230,7 +230,7 @@ pub trait AstWriter {
                     self.write(ast, *ch, newfunc, operators, input_wasm)?;
                 }
                 // Closing end
-                newfunc.instruction(&Instruction::End);
+                newfunc.instructions().end();
             }
         }
         Ok(())

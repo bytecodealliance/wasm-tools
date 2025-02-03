@@ -795,7 +795,7 @@ impl Expression<'_> {
             instr.encode(&mut tmp);
         }
         func.raw(tmp.iter().copied());
-        func.instruction(&wasm_encoder::Instruction::End);
+        func.instructions().end();
 
         hints
     }

@@ -8,7 +8,7 @@ use crate::{
 use egg::{Id, Language, RecExpr};
 use rand::Rng;
 use std::num::Wrapping;
-use wasm_encoder::{Function, Instruction};
+use wasm_encoder::{DataIdx, ElemIdx, FuncIdx, Function, GlobalIdx, LocalIdx, MemIdx, TableIdx};
 
 /// Some custom nodes might need special resource allocation outside the
 /// function. Fore xample, if a new global is needed is should be added outside
@@ -74,7 +74,7 @@ pub fn expr2wasm(
     // example, the creation of new globals
     let mut resources = vec![];
     // Next global idx
-    let mut global_idx = config.info().get_global_count() as u32;
+    let mut global_idx = GlobalIdx(config.info().get_global_count() as u32);
 
     // Enqueue the coding back nodes and infer types
     while let Some(context) = worklist.pop() {
@@ -90,45 +90,38 @@ pub fn expr2wasm(
                 }
             },
             TraversalEvent::Exit => {
-                let mut insn = |i: Instruction| {
-                    newfunc.instruction(&i);
-                };
+                let insn = &mut newfunc.instructions();
                 match rootlang {
-                    Lang::LocalGet(idx) => insn(Instruction::LocalGet(*idx as u32)),
-                    Lang::GlobalGet(idx) => insn(Instruction::GlobalGet(*idx as u32)),
-                    Lang::LocalSet(idx, _val) => insn(Instruction::LocalSet(*idx as u32)),
-                    Lang::GlobalSet(idx, _val) => insn(Instruction::GlobalSet(*idx as u32)),
-                    Lang::LocalTee(idx, _) => insn(Instruction::LocalTee(*idx as u32)),
-                    Lang::Wrap(_) => insn(Instruction::I32WrapI64),
-                    Lang::Call(idx, _) => insn(Instruction::Call(*idx as u32)),
-                    Lang::Drop(_) => insn(Instruction::Drop),
-                    Lang::I32Load(memarg, _) => insn(Instruction::I32Load(memarg.into())),
-                    Lang::I64Load(memarg, _) => insn(Instruction::I64Load(memarg.into())),
-                    Lang::F32Load(memarg, _) => insn(Instruction::F32Load(memarg.into())),
-                    Lang::F64Load(memarg, _) => insn(Instruction::F64Load(memarg.into())),
-                    Lang::I32Load8U(memarg, _) => insn(Instruction::I32Load8U(memarg.into())),
-                    Lang::I32Load8S(memarg, _) => insn(Instruction::I32Load8S(memarg.into())),
-                    Lang::I32Load16U(memarg, _) => insn(Instruction::I32Load16U(memarg.into())),
-                    Lang::I32Load16S(memarg, _) => insn(Instruction::I32Load16S(memarg.into())),
-                    Lang::I64Load8U(memarg, _) => insn(Instruction::I64Load8U(memarg.into())),
-                    Lang::I64Load8S(memarg, _) => insn(Instruction::I64Load8S(memarg.into())),
-                    Lang::I64Load16U(memarg, _) => insn(Instruction::I64Load16U(memarg.into())),
-                    Lang::I64Load16S(memarg, _) => insn(Instruction::I64Load16S(memarg.into())),
-                    Lang::I64Load32U(memarg, _) => insn(Instruction::I64Load32U(memarg.into())),
-                    Lang::I64Load32S(memarg, _) => insn(Instruction::I64Load32S(memarg.into())),
-                    Lang::RandI32 => insn(Instruction::I32Const(config.rng().r#gen())),
-                    Lang::RandI64 => insn(Instruction::I64Const(config.rng().r#gen())),
-                    Lang::RandF32 => {
-                        newfunc.instruction(&Instruction::F32Const(f32::from_bits(
-                            config.rng().r#gen(),
-                        )));
+                    Lang::LocalGet(idx) => insn.local_get(LocalIdx(*idx)),
+                    Lang::GlobalGet(idx) => insn.global_get(GlobalIdx(*idx)),
+                    Lang::LocalSet(idx, _val) => insn.local_set(LocalIdx(*idx)),
+                    Lang::GlobalSet(idx, _val) => insn.global_set(GlobalIdx(*idx)),
+                    Lang::LocalTee(idx, _) => insn.local_tee(LocalIdx(*idx)),
+                    Lang::Wrap(_) => insn.i32_wrap_i64(),
+                    Lang::Call(idx, _) => insn.call(FuncIdx(*idx)),
+                    Lang::Drop(_) => insn.drop(),
+                    Lang::I32Load(memarg, _) => insn.i32_load(memarg.into()),
+                    Lang::I64Load(memarg, _) => insn.i64_load(memarg.into()),
+                    Lang::F32Load(memarg, _) => insn.f32_load(memarg.into()),
+                    Lang::F64Load(memarg, _) => insn.f64_load(memarg.into()),
+                    Lang::I32Load8U(memarg, _) => insn.i32_load8_u(memarg.into()),
+                    Lang::I32Load8S(memarg, _) => insn.i32_load8_s(memarg.into()),
+                    Lang::I32Load16U(memarg, _) => insn.i32_load16_u(memarg.into()),
+                    Lang::I32Load16S(memarg, _) => insn.i32_load16_s(memarg.into()),
+                    Lang::I64Load8U(memarg, _) => insn.i64_load8_u(memarg.into()),
+                    Lang::I64Load8S(memarg, _) => insn.i64_load8_s(memarg.into()),
+                    Lang::I64Load16U(memarg, _) => insn.i64_load16_u(memarg.into()),
+                    Lang::I64Load16S(memarg, _) => insn.i64_load16_s(memarg.into()),
+                    Lang::I64Load32U(memarg, _) => insn.i64_load32_u(memarg.into()),
+                    Lang::I64Load32S(memarg, _) => insn.i64_load32_s(memarg.into()),
+                    Lang::RandI32 => insn.i32_const(config.rng().r#gen()),
+                    Lang::RandI64 => insn.i64_const(config.rng().r#gen()),
+                    Lang::RandF32 => insn.f32_const(f32::from_bits(config.rng().r#gen())),
+                    Lang::RandF64 => insn.f64_const(f64::from_bits(config.rng().r#gen())),
+                    Lang::Undef => {
+                        // Do nothing
+                        insn
                     }
-                    Lang::RandF64 => {
-                        newfunc.instruction(&Instruction::F64Const(f64::from_bits(
-                            config.rng().r#gen(),
-                        )));
-                    }
-                    Lang::Undef => { /* Do nothig */ }
                     Lang::UnfoldI32(value) => {
                         let child = &nodes[usize::from(*value)];
                         match child {
@@ -136,11 +129,9 @@ pub fn expr2wasm(
                                 // Getting type from eclass.
 
                                 let r: i32 = config.rng().r#gen();
-                                insn(Instruction::I32Const(r));
-                                insn(Instruction::I32Const(
-                                    (Wrapping(*value as i32) - Wrapping(r)).0,
-                                ));
-                                insn(Instruction::I32Add);
+                                insn.i32_const(r);
+                                insn.i32_const((Wrapping(*value as i32) - Wrapping(r)).0);
+                                insn.i32_add();
                             }
                             _ => {
                                 return Err(Error::other(format!(
@@ -149,6 +140,7 @@ pub fn expr2wasm(
                                 )));
                             }
                         }
+                        insn
                     }
                     Lang::UnfoldI64(value) => {
                         let child = &nodes[usize::from(*value)];
@@ -157,9 +149,9 @@ pub fn expr2wasm(
                                 // Getting type from eclass.
 
                                 let r: i64 = config.rng().r#gen();
-                                insn(Instruction::I64Const(r));
-                                insn(Instruction::I64Const((Wrapping(*value) - Wrapping(r)).0));
-                                insn(Instruction::I64Add);
+                                insn.i64_const(r);
+                                insn.i64_const((Wrapping(*value) - Wrapping(r)).0);
+                                insn.i64_add();
                             }
                             _ => {
                                 return Err(Error::other(format!(
@@ -168,195 +160,181 @@ pub fn expr2wasm(
                                 )))
                             }
                         }
+                        insn
                     }
-                    Lang::I32(v) => insn(Instruction::I32Const(*v)),
-                    Lang::I64(v) => insn(Instruction::I64Const(*v)),
-                    Lang::F32(v) => insn(Instruction::F32Const(v.to_f32())),
-                    Lang::F64(v) => insn(Instruction::F64Const(v.to_f64())),
-                    Lang::V128(v) => insn(Instruction::V128Const(*v)),
-                    Lang::I32Add(_) => insn(Instruction::I32Add),
-                    Lang::I64Add(_) => insn(Instruction::I64Add),
-                    Lang::I32Sub(_) => insn(Instruction::I32Sub),
-                    Lang::I64Sub(_) => insn(Instruction::I64Sub),
-                    Lang::I32Mul(_) => insn(Instruction::I32Mul),
-                    Lang::I64Mul(_) => insn(Instruction::I64Mul),
-                    Lang::I32And(_) => insn(Instruction::I32And),
-                    Lang::I64And(_) => insn(Instruction::I64And),
-                    Lang::I32Or(_) => insn(Instruction::I32Or),
-                    Lang::I64Or(_) => insn(Instruction::I64Or),
-                    Lang::I32Xor(_) => insn(Instruction::I32Xor),
-                    Lang::I64Xor(_) => insn(Instruction::I64Xor),
-                    Lang::I32Shl(_) => insn(Instruction::I32Shl),
-                    Lang::I64Shl(_) => insn(Instruction::I64Shl),
-                    Lang::I32ShrU(_) => insn(Instruction::I32ShrU),
-                    Lang::I64ShrU(_) => insn(Instruction::I64ShrU),
-                    Lang::I32DivU(_) => insn(Instruction::I32DivU),
-                    Lang::I64DivU(_) => insn(Instruction::I64DivU),
-                    Lang::I32DivS(_) => insn(Instruction::I32DivS),
-                    Lang::I64DivS(_) => insn(Instruction::I64DivS),
-                    Lang::I32ShrS(_) => insn(Instruction::I32ShrS),
-                    Lang::I64ShrS(_) => insn(Instruction::I64ShrS),
-                    Lang::I32RotR(_) => insn(Instruction::I32Rotr),
-                    Lang::I64RotR(_) => insn(Instruction::I64Rotr),
-                    Lang::I32RotL(_) => insn(Instruction::I32Rotl),
-                    Lang::I64RotL(_) => insn(Instruction::I64Rotl),
-                    Lang::I32RemS(_) => insn(Instruction::I32RemS),
-                    Lang::I64RemS(_) => insn(Instruction::I64RemS),
-                    Lang::I32RemU(_) => insn(Instruction::I32RemU),
-                    Lang::I64RemU(_) => insn(Instruction::I64RemU),
-                    Lang::I32Eqz(_) => insn(Instruction::I32Eqz),
-                    Lang::I64Eqz(_) => insn(Instruction::I64Eqz),
-                    Lang::I32Eq(_) => insn(Instruction::I32Eq),
-                    Lang::I64Eq(_) => insn(Instruction::I64Eq),
-                    Lang::I32Ne(_) => insn(Instruction::I32Ne),
-                    Lang::I64Ne(_) => insn(Instruction::I64Ne),
-                    Lang::I32LtS(_) => insn(Instruction::I32LtS),
-                    Lang::I64LtS(_) => insn(Instruction::I64LtS),
-                    Lang::I32LtU(_) => insn(Instruction::I32LtU),
-                    Lang::I64LtU(_) => insn(Instruction::I64LtU),
-                    Lang::I32GtS(_) => insn(Instruction::I32GtS),
-                    Lang::I64GtS(_) => insn(Instruction::I64GtS),
-                    Lang::I32GtU(_) => insn(Instruction::I32GtU),
-                    Lang::I64GtU(_) => insn(Instruction::I64GtU),
-                    Lang::I32LeS(_) => insn(Instruction::I32LeS),
-                    Lang::I64LeS(_) => insn(Instruction::I64LeS),
-                    Lang::I32LeU(_) => insn(Instruction::I32LeU),
-                    Lang::I64LeU(_) => insn(Instruction::I64LeU),
-                    Lang::I32GeS(_) => insn(Instruction::I32GeS),
-                    Lang::I64GeS(_) => insn(Instruction::I64GeS),
-                    Lang::I32GeU(_) => insn(Instruction::I32GeU),
-                    Lang::I64GeU(_) => insn(Instruction::I64GeU),
-                    Lang::I32Clz(_) => insn(Instruction::I32Clz),
-                    Lang::I32Ctz(_) => insn(Instruction::I32Ctz),
-                    Lang::I64Ctz(_) => insn(Instruction::I64Ctz),
-                    Lang::I64Clz(_) => insn(Instruction::I64Clz),
-                    Lang::F32Abs(_) => insn(Instruction::F32Abs),
-                    Lang::F64Abs(_) => insn(Instruction::F64Abs),
-                    Lang::F32Neg(_) => insn(Instruction::F32Neg),
-                    Lang::F64Neg(_) => insn(Instruction::F64Neg),
-                    Lang::F32Sqrt(_) => insn(Instruction::F32Sqrt),
-                    Lang::F64Sqrt(_) => insn(Instruction::F64Sqrt),
-                    Lang::F32Ceil(_) => insn(Instruction::F32Ceil),
-                    Lang::F64Ceil(_) => insn(Instruction::F64Ceil),
-                    Lang::F32Floor(_) => insn(Instruction::F32Floor),
-                    Lang::F64Floor(_) => insn(Instruction::F64Floor),
-                    Lang::F32Trunc(_) => insn(Instruction::F32Trunc),
-                    Lang::F64Trunc(_) => insn(Instruction::F64Trunc),
-                    Lang::F32Nearest(_) => insn(Instruction::F32Nearest),
-                    Lang::F64Nearest(_) => insn(Instruction::F64Nearest),
-                    Lang::I32TruncF32S(_) => insn(Instruction::I32TruncF32S),
-                    Lang::I32TruncF32U(_) => insn(Instruction::I32TruncF32U),
-                    Lang::I32TruncF64S(_) => insn(Instruction::I32TruncF64S),
-                    Lang::I32TruncF64U(_) => insn(Instruction::I32TruncF64U),
-                    Lang::I64TruncF32S(_) => insn(Instruction::I64TruncF32S),
-                    Lang::I64TruncF32U(_) => insn(Instruction::I64TruncF32U),
-                    Lang::I64TruncF64S(_) => insn(Instruction::I64TruncF64S),
-                    Lang::I64TruncF64U(_) => insn(Instruction::I64TruncF64U),
-                    Lang::F32ConvertI32S(_) => insn(Instruction::F32ConvertI32S),
-                    Lang::F32ConvertI32U(_) => insn(Instruction::F32ConvertI32U),
-                    Lang::F32ConvertI64S(_) => insn(Instruction::F32ConvertI64S),
-                    Lang::F32ConvertI64U(_) => insn(Instruction::F32ConvertI64U),
-                    Lang::F32DemoteF64(_) => insn(Instruction::F32DemoteF64),
-                    Lang::F64ConvertI32S(_) => insn(Instruction::F64ConvertI32S),
-                    Lang::F64ConvertI32U(_) => insn(Instruction::F64ConvertI32U),
-                    Lang::F64ConvertI64S(_) => insn(Instruction::F64ConvertI64S),
-                    Lang::F64ConvertI64U(_) => insn(Instruction::F64ConvertI64U),
-                    Lang::F64PromoteF32(_) => insn(Instruction::F64PromoteF32),
-                    Lang::I32ReinterpretF32(_) => insn(Instruction::I32ReinterpretF32),
-                    Lang::I64ReinterpretF64(_) => insn(Instruction::I64ReinterpretF64),
-                    Lang::F32ReinterpretI32(_) => insn(Instruction::F32ReinterpretI32),
-                    Lang::F64ReinterpretI64(_) => insn(Instruction::F64ReinterpretI64),
-                    Lang::I32TruncSatF32S(_) => insn(Instruction::I32TruncSatF32S),
-                    Lang::I32TruncSatF32U(_) => insn(Instruction::I32TruncSatF32U),
-                    Lang::I32TruncSatF64S(_) => insn(Instruction::I32TruncSatF64S),
-                    Lang::I32TruncSatF64U(_) => insn(Instruction::I32TruncSatF64U),
-                    Lang::I64TruncSatF32S(_) => insn(Instruction::I64TruncSatF32S),
-                    Lang::I64TruncSatF32U(_) => insn(Instruction::I64TruncSatF32U),
-                    Lang::I64TruncSatF64S(_) => insn(Instruction::I64TruncSatF64S),
-                    Lang::I64TruncSatF64U(_) => insn(Instruction::I64TruncSatF64U),
-                    Lang::I32Popcnt(_) => insn(Instruction::I32Popcnt),
-                    Lang::I64Popcnt(_) => insn(Instruction::I64Popcnt),
-                    Lang::I32Extend8S(_) => insn(Instruction::I32Extend8S),
-                    Lang::I64Extend8S(_) => insn(Instruction::I64Extend8S),
-                    Lang::I32Extend16S(_) => insn(Instruction::I32Extend16S),
-                    Lang::I64Extend16S(_) => insn(Instruction::I64Extend16S),
-                    Lang::I64Extend32S(_) => insn(Instruction::I64Extend32S),
-                    Lang::I64ExtendI32S(_) => insn(Instruction::I64ExtendI32S),
-                    Lang::I64ExtendI32U(_) => insn(Instruction::I64ExtendI32U),
-                    Lang::F32Add(_) => insn(Instruction::F32Add),
-                    Lang::F64Add(_) => insn(Instruction::F64Add),
-                    Lang::F32Sub(_) => insn(Instruction::F32Sub),
-                    Lang::F64Sub(_) => insn(Instruction::F64Sub),
-                    Lang::F32Mul(_) => insn(Instruction::F32Mul),
-                    Lang::F64Mul(_) => insn(Instruction::F64Mul),
-                    Lang::F32Div(_) => insn(Instruction::F32Div),
-                    Lang::F64Div(_) => insn(Instruction::F64Div),
-                    Lang::F32Min(_) => insn(Instruction::F32Min),
-                    Lang::F64Min(_) => insn(Instruction::F64Min),
-                    Lang::F32Max(_) => insn(Instruction::F32Max),
-                    Lang::F64Max(_) => insn(Instruction::F64Max),
-                    Lang::F32Copysign(_) => insn(Instruction::F32Copysign),
-                    Lang::F64Copysign(_) => insn(Instruction::F64Copysign),
-                    Lang::F32Eq(_) => insn(Instruction::F32Eq),
-                    Lang::F64Eq(_) => insn(Instruction::F64Eq),
-                    Lang::F32Ne(_) => insn(Instruction::F32Ne),
-                    Lang::F64Ne(_) => insn(Instruction::F64Ne),
-                    Lang::F32Lt(_) => insn(Instruction::F32Lt),
-                    Lang::F64Lt(_) => insn(Instruction::F64Lt),
-                    Lang::F32Gt(_) => insn(Instruction::F32Gt),
-                    Lang::F64Gt(_) => insn(Instruction::F64Gt),
-                    Lang::F32Le(_) => insn(Instruction::F32Le),
-                    Lang::F64Le(_) => insn(Instruction::F64Le),
-                    Lang::F32Ge(_) => insn(Instruction::F32Ge),
-                    Lang::F64Ge(_) => insn(Instruction::F64Ge),
-                    Lang::I32Store(memarg, _) => insn(Instruction::I32Store(memarg.into())),
-                    Lang::I64Store(memarg, _) => insn(Instruction::I64Store(memarg.into())),
-                    Lang::F32Store(memarg, _) => insn(Instruction::F32Store(memarg.into())),
-                    Lang::F64Store(memarg, _) => insn(Instruction::F64Store(memarg.into())),
-                    Lang::I32Store8(memarg, _) => insn(Instruction::I32Store8(memarg.into())),
-                    Lang::I32Store16(memarg, _) => insn(Instruction::I32Store16(memarg.into())),
-                    Lang::I64Store8(memarg, _) => insn(Instruction::I64Store8(memarg.into())),
-                    Lang::I64Store16(memarg, _) => insn(Instruction::I64Store16(memarg.into())),
-                    Lang::I64Store32(memarg, _) => insn(Instruction::I64Store32(memarg.into())),
-                    Lang::Nop => insn(Instruction::Nop),
+                    Lang::I32(v) => insn.i32_const(*v),
+                    Lang::I64(v) => insn.i64_const(*v),
+                    Lang::F32(v) => insn.f32_const(v.to_f32()),
+                    Lang::F64(v) => insn.f64_const(v.to_f64()),
+                    Lang::V128(v) => insn.v128_const(*v),
+                    Lang::I32Add(_) => insn.i32_add(),
+                    Lang::I64Add(_) => insn.i64_add(),
+                    Lang::I32Sub(_) => insn.i32_sub(),
+                    Lang::I64Sub(_) => insn.i64_sub(),
+                    Lang::I32Mul(_) => insn.i32_mul(),
+                    Lang::I64Mul(_) => insn.i64_mul(),
+                    Lang::I32And(_) => insn.i32_and(),
+                    Lang::I64And(_) => insn.i64_and(),
+                    Lang::I32Or(_) => insn.i32_or(),
+                    Lang::I64Or(_) => insn.i64_or(),
+                    Lang::I32Xor(_) => insn.i32_xor(),
+                    Lang::I64Xor(_) => insn.i64_xor(),
+                    Lang::I32Shl(_) => insn.i32_shl(),
+                    Lang::I64Shl(_) => insn.i64_shl(),
+                    Lang::I32ShrU(_) => insn.i32_shr_u(),
+                    Lang::I64ShrU(_) => insn.i64_shr_u(),
+                    Lang::I32DivU(_) => insn.i32_div_u(),
+                    Lang::I64DivU(_) => insn.i64_div_u(),
+                    Lang::I32DivS(_) => insn.i32_div_s(),
+                    Lang::I64DivS(_) => insn.i64_div_s(),
+                    Lang::I32ShrS(_) => insn.i32_shr_s(),
+                    Lang::I64ShrS(_) => insn.i64_shr_s(),
+                    Lang::I32RotR(_) => insn.i32_rotr(),
+                    Lang::I64RotR(_) => insn.i64_rotr(),
+                    Lang::I32RotL(_) => insn.i32_rotl(),
+                    Lang::I64RotL(_) => insn.i64_rotl(),
+                    Lang::I32RemS(_) => insn.i32_rem_s(),
+                    Lang::I64RemS(_) => insn.i64_rem_s(),
+                    Lang::I32RemU(_) => insn.i32_rem_u(),
+                    Lang::I64RemU(_) => insn.i64_rem_u(),
+                    Lang::I32Eqz(_) => insn.i32_eqz(),
+                    Lang::I64Eqz(_) => insn.i64_eqz(),
+                    Lang::I32Eq(_) => insn.i32_eq(),
+                    Lang::I64Eq(_) => insn.i64_eq(),
+                    Lang::I32Ne(_) => insn.i32_ne(),
+                    Lang::I64Ne(_) => insn.i64_ne(),
+                    Lang::I32LtS(_) => insn.i32_lt_s(),
+                    Lang::I64LtS(_) => insn.i64_lt_s(),
+                    Lang::I32LtU(_) => insn.i32_lt_u(),
+                    Lang::I64LtU(_) => insn.i64_lt_u(),
+                    Lang::I32GtS(_) => insn.i32_gt_s(),
+                    Lang::I64GtS(_) => insn.i64_gt_s(),
+                    Lang::I32GtU(_) => insn.i32_gt_u(),
+                    Lang::I64GtU(_) => insn.i64_gt_u(),
+                    Lang::I32LeS(_) => insn.i32_le_s(),
+                    Lang::I64LeS(_) => insn.i64_le_s(),
+                    Lang::I32LeU(_) => insn.i32_le_u(),
+                    Lang::I64LeU(_) => insn.i64_le_u(),
+                    Lang::I32GeS(_) => insn.i32_ge_s(),
+                    Lang::I64GeS(_) => insn.i64_ge_s(),
+                    Lang::I32GeU(_) => insn.i32_ge_u(),
+                    Lang::I64GeU(_) => insn.i64_ge_u(),
+                    Lang::I32Clz(_) => insn.i32_clz(),
+                    Lang::I32Ctz(_) => insn.i32_ctz(),
+                    Lang::I64Ctz(_) => insn.i64_ctz(),
+                    Lang::I64Clz(_) => insn.i64_clz(),
+                    Lang::F32Abs(_) => insn.f32_abs(),
+                    Lang::F64Abs(_) => insn.f64_abs(),
+                    Lang::F32Neg(_) => insn.f32_neg(),
+                    Lang::F64Neg(_) => insn.f64_neg(),
+                    Lang::F32Sqrt(_) => insn.f32_sqrt(),
+                    Lang::F64Sqrt(_) => insn.f64_sqrt(),
+                    Lang::F32Ceil(_) => insn.f32_ceil(),
+                    Lang::F64Ceil(_) => insn.f64_ceil(),
+                    Lang::F32Floor(_) => insn.f32_floor(),
+                    Lang::F64Floor(_) => insn.f64_floor(),
+                    Lang::F32Trunc(_) => insn.f32_trunc(),
+                    Lang::F64Trunc(_) => insn.f64_trunc(),
+                    Lang::F32Nearest(_) => insn.f32_nearest(),
+                    Lang::F64Nearest(_) => insn.f64_nearest(),
+                    Lang::I32TruncF32S(_) => insn.i32_trunc_f32_s(),
+                    Lang::I32TruncF32U(_) => insn.i32_trunc_f32_u(),
+                    Lang::I32TruncF64S(_) => insn.i32_trunc_f64_s(),
+                    Lang::I32TruncF64U(_) => insn.i32_trunc_f64_u(),
+                    Lang::I64TruncF32S(_) => insn.i64_trunc_f32_s(),
+                    Lang::I64TruncF32U(_) => insn.i64_trunc_f32_u(),
+                    Lang::I64TruncF64S(_) => insn.i64_trunc_f64_s(),
+                    Lang::I64TruncF64U(_) => insn.i64_trunc_f64_u(),
+                    Lang::F32ConvertI32S(_) => insn.f32_convert_i32_s(),
+                    Lang::F32ConvertI32U(_) => insn.f32_convert_i32_u(),
+                    Lang::F32ConvertI64S(_) => insn.f32_convert_i64_s(),
+                    Lang::F32ConvertI64U(_) => insn.f32_convert_i64_u(),
+                    Lang::F32DemoteF64(_) => insn.f32_demote_f64(),
+                    Lang::F64ConvertI32S(_) => insn.f64_convert_i32_s(),
+                    Lang::F64ConvertI32U(_) => insn.f64_convert_i32_u(),
+                    Lang::F64ConvertI64S(_) => insn.f64_convert_i64_s(),
+                    Lang::F64ConvertI64U(_) => insn.f64_convert_i64_u(),
+                    Lang::F64PromoteF32(_) => insn.f64_promote_f32(),
+                    Lang::I32ReinterpretF32(_) => insn.i32_reinterpret_f32(),
+                    Lang::I64ReinterpretF64(_) => insn.i64_reinterpret_f64(),
+                    Lang::F32ReinterpretI32(_) => insn.f32_reinterpret_i32(),
+                    Lang::F64ReinterpretI64(_) => insn.f64_reinterpret_i64(),
+                    Lang::I32TruncSatF32S(_) => insn.i32_trunc_sat_f32_s(),
+                    Lang::I32TruncSatF32U(_) => insn.i32_trunc_sat_f32_u(),
+                    Lang::I32TruncSatF64S(_) => insn.i32_trunc_sat_f64_s(),
+                    Lang::I32TruncSatF64U(_) => insn.i32_trunc_sat_f64_u(),
+                    Lang::I64TruncSatF32S(_) => insn.i64_trunc_sat_f32_s(),
+                    Lang::I64TruncSatF32U(_) => insn.i64_trunc_sat_f32_u(),
+                    Lang::I64TruncSatF64S(_) => insn.i64_trunc_sat_f64_s(),
+                    Lang::I64TruncSatF64U(_) => insn.i64_trunc_sat_f64_u(),
+                    Lang::I32Popcnt(_) => insn.i32_popcnt(),
+                    Lang::I64Popcnt(_) => insn.i64_popcnt(),
+                    Lang::I32Extend8S(_) => insn.i32_extend8_s(),
+                    Lang::I64Extend8S(_) => insn.i64_extend8_s(),
+                    Lang::I32Extend16S(_) => insn.i32_extend16_s(),
+                    Lang::I64Extend16S(_) => insn.i64_extend16_s(),
+                    Lang::I64Extend32S(_) => insn.i64_extend32_s(),
+                    Lang::I64ExtendI32S(_) => insn.i64_extend_i32_s(),
+                    Lang::I64ExtendI32U(_) => insn.i64_extend_i32_u(),
+                    Lang::F32Add(_) => insn.f32_add(),
+                    Lang::F64Add(_) => insn.f64_add(),
+                    Lang::F32Sub(_) => insn.f32_sub(),
+                    Lang::F64Sub(_) => insn.f64_sub(),
+                    Lang::F32Mul(_) => insn.f32_mul(),
+                    Lang::F64Mul(_) => insn.f64_mul(),
+                    Lang::F32Div(_) => insn.f32_div(),
+                    Lang::F64Div(_) => insn.f64_div(),
+                    Lang::F32Min(_) => insn.f32_min(),
+                    Lang::F64Min(_) => insn.f64_min(),
+                    Lang::F32Max(_) => insn.f32_max(),
+                    Lang::F64Max(_) => insn.f64_max(),
+                    Lang::F32Copysign(_) => insn.f32_copysign(),
+                    Lang::F64Copysign(_) => insn.f64_copysign(),
+                    Lang::F32Eq(_) => insn.f32_eq(),
+                    Lang::F64Eq(_) => insn.f64_eq(),
+                    Lang::F32Ne(_) => insn.f32_ne(),
+                    Lang::F64Ne(_) => insn.f64_ne(),
+                    Lang::F32Lt(_) => insn.f32_lt(),
+                    Lang::F64Lt(_) => insn.f64_lt(),
+                    Lang::F32Gt(_) => insn.f32_gt(),
+                    Lang::F64Gt(_) => insn.f64_gt(),
+                    Lang::F32Le(_) => insn.f32_le(),
+                    Lang::F64Le(_) => insn.f64_le(),
+                    Lang::F32Ge(_) => insn.f32_ge(),
+                    Lang::F64Ge(_) => insn.f64_ge(),
+                    Lang::I32Store(memarg, _) => insn.i32_store(memarg.into()),
+                    Lang::I64Store(memarg, _) => insn.i64_store(memarg.into()),
+                    Lang::F32Store(memarg, _) => insn.f32_store(memarg.into()),
+                    Lang::F64Store(memarg, _) => insn.f64_store(memarg.into()),
+                    Lang::I32Store8(memarg, _) => insn.i32_store8(memarg.into()),
+                    Lang::I32Store16(memarg, _) => insn.i32_store16(memarg.into()),
+                    Lang::I64Store8(memarg, _) => insn.i64_store8(memarg.into()),
+                    Lang::I64Store16(memarg, _) => insn.i64_store16(memarg.into()),
+                    Lang::I64Store32(memarg, _) => insn.i64_store32(memarg.into()),
+                    Lang::Nop => insn.nop(),
                     Lang::Container(_) => {
                         // Do nothing
+                        insn
                     }
-                    Lang::Select(_) => insn(Instruction::Select),
-                    Lang::MemoryGrow(mem, _) => insn(Instruction::MemoryGrow(*mem)),
-                    Lang::MemorySize(mem) => insn(Instruction::MemorySize(*mem)),
+                    Lang::Select(_) => insn.select(),
+                    Lang::MemoryGrow(mem, _) => insn.memory_grow(MemIdx(*mem)),
+                    Lang::MemorySize(mem) => insn.memory_size(MemIdx(*mem)),
                     Lang::MemoryInit(init, _) => {
-                        newfunc.instruction(&Instruction::MemoryInit {
-                            mem: init.memory,
-                            data_index: init.segment,
-                        });
+                        insn.memory_init(MemIdx(init.memory), DataIdx(init.segment))
                     }
-                    Lang::MemoryCopy(cp, _) => {
-                        newfunc.instruction(&Instruction::MemoryCopy {
-                            src_mem: cp.src,
-                            dst_mem: cp.dst,
-                        });
-                    }
-                    Lang::MemoryFill(mem, _) => insn(Instruction::MemoryFill(*mem)),
-                    Lang::DataDrop(idx) => insn(Instruction::DataDrop(*idx)),
+                    Lang::MemoryCopy(cp, _) => insn.memory_copy(MemIdx(cp.dst), MemIdx(cp.src)),
+                    Lang::MemoryFill(mem, _) => insn.memory_fill(MemIdx(*mem)),
+                    Lang::DataDrop(idx) => insn.data_drop(DataIdx(*idx)),
                     Lang::TableInit(init, _) => {
-                        newfunc.instruction(&Instruction::TableInit {
-                            table: init.table,
-                            elem_index: init.segment,
-                        });
+                        insn.table_init(TableIdx(init.table), ElemIdx(init.segment))
                     }
-                    Lang::TableCopy(cp, _) => {
-                        newfunc.instruction(&Instruction::TableCopy {
-                            src_table: cp.src,
-                            dst_table: cp.dst,
-                        });
-                    }
-                    Lang::TableFill(table, _) => insn(Instruction::TableFill(*table)),
-                    Lang::ElemDrop(idx) => insn(Instruction::ElemDrop(*idx)),
-                    Lang::TableGrow(table, _) => insn(Instruction::TableGrow(*table)),
-                    Lang::TableSize(table) => insn(Instruction::TableSize(*table)),
-                    Lang::TableGet(table, _) => insn(Instruction::TableGet(*table)),
-                    Lang::TableSet(table, _) => insn(Instruction::TableSet(*table)),
+                    Lang::TableCopy(cp, _) => insn.table_copy(TableIdx(cp.dst), TableIdx(cp.src)),
+                    Lang::TableFill(table, _) => insn.table_fill(TableIdx(*table)),
+                    Lang::ElemDrop(idx) => insn.elem_drop(ElemIdx(*idx)),
+                    Lang::TableGrow(table, _) => insn.table_grow(TableIdx(*table)),
+                    Lang::TableSize(table) => insn.table_size(TableIdx(*table)),
+                    Lang::TableGet(table, _) => insn.table_get(TableIdx(*table)),
+                    Lang::TableSet(table, _) => insn.table_set(TableIdx(*table)),
                     Lang::I32UseGlobal(_) => {
                         // Request a new global
                         let request = ResourceRequest::Global {
@@ -366,9 +344,10 @@ pub fn expr2wasm(
                         };
                         resources.push(request);
 
-                        insn(Instruction::GlobalSet(global_idx));
-                        insn(Instruction::GlobalGet(global_idx));
-                        global_idx += 1;
+                        insn.global_set(global_idx);
+                        insn.global_get(global_idx);
+                        global_idx.0 += 1;
+                        insn
                     }
                     Lang::I64UseGlobal(_) => {
                         let request = ResourceRequest::Global {
@@ -378,9 +357,10 @@ pub fn expr2wasm(
                         };
                         resources.push(request);
 
-                        insn(Instruction::GlobalSet(global_idx));
-                        insn(Instruction::GlobalGet(global_idx));
-                        global_idx += 1;
+                        insn.global_set(global_idx);
+                        insn.global_get(global_idx);
+                        global_idx.0 += 1;
+                        insn
                     }
                     Lang::F32UseGlobal(_) => {
                         let request = ResourceRequest::Global {
@@ -390,9 +370,10 @@ pub fn expr2wasm(
                         };
                         resources.push(request);
 
-                        insn(Instruction::GlobalSet(global_idx));
-                        insn(Instruction::GlobalGet(global_idx));
-                        global_idx += 1;
+                        insn.global_set(global_idx);
+                        insn.global_get(global_idx);
+                        global_idx.0 += 1;
+                        insn
                     }
                     Lang::F64UseGlobal(_) => {
                         let request = ResourceRequest::Global {
@@ -402,367 +383,300 @@ pub fn expr2wasm(
                         };
                         resources.push(request);
 
-                        insn(Instruction::GlobalSet(global_idx));
-                        insn(Instruction::GlobalGet(global_idx));
-                        global_idx += 1;
+                        insn.global_set(global_idx);
+                        insn.global_get(global_idx);
+                        global_idx.0 += 1;
+                        insn
                     }
-                    Lang::RefNull(valtype) => insn(Instruction::RefNull((*valtype).into())),
-                    Lang::RefFunc(idx) => insn(Instruction::RefFunc(*idx)),
-                    Lang::RefIsNull(_) => insn(Instruction::RefIsNull),
+                    Lang::RefNull(valtype) => insn.ref_null((*valtype).into()),
+                    Lang::RefFunc(idx) => insn.ref_func(FuncIdx(*idx)),
+                    Lang::RefIsNull(_) => insn.ref_is_null(),
 
-                    Lang::V128Not(_) => insn(Instruction::V128Not),
-                    Lang::V128And(_) => insn(Instruction::V128And),
-                    Lang::V128AndNot(_) => insn(Instruction::V128AndNot),
-                    Lang::V128Or(_) => insn(Instruction::V128Or),
-                    Lang::V128Xor(_) => insn(Instruction::V128Xor),
-                    Lang::V128AnyTrue(_) => insn(Instruction::V128AnyTrue),
-                    Lang::V128Bitselect(_) => insn(Instruction::V128Bitselect),
+                    Lang::V128Not(_) => insn.v128_not(),
+                    Lang::V128And(_) => insn.v128_and(),
+                    Lang::V128AndNot(_) => insn.v128_andnot(),
+                    Lang::V128Or(_) => insn.v128_or(),
+                    Lang::V128Xor(_) => insn.v128_xor(),
+                    Lang::V128AnyTrue(_) => insn.v128_any_true(),
+                    Lang::V128Bitselect(_) => insn.v128_bitselect(),
 
-                    Lang::V128Load(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load(memarg.into()));
-                    }
-                    Lang::V128Load8x8S(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load8x8S(memarg.into()));
-                    }
-                    Lang::V128Load8x8U(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load8x8U(memarg.into()));
-                    }
-                    Lang::V128Load16x4S(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load16x4S(memarg.into()));
-                    }
-                    Lang::V128Load16x4U(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load16x4U(memarg.into()));
-                    }
-                    Lang::V128Load32x2S(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load32x2S(memarg.into()));
-                    }
-                    Lang::V128Load32x2U(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load32x2U(memarg.into()));
-                    }
-                    Lang::V128Load8Splat(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load8Splat(memarg.into()));
-                    }
-                    Lang::V128Load16Splat(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load16Splat(memarg.into()));
-                    }
-                    Lang::V128Load32Splat(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load32Splat(memarg.into()));
-                    }
-                    Lang::V128Load64Splat(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load64Splat(memarg.into()));
-                    }
-                    Lang::V128Load32Zero(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load32Zero(memarg.into()));
-                    }
-                    Lang::V128Load64Zero(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load64Zero(memarg.into()));
-                    }
-                    Lang::V128Store(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Store(memarg.into()));
-                    }
+                    Lang::V128Load(memarg, _) => insn.v128_load(memarg.into()),
+                    Lang::V128Load8x8S(memarg, _) => insn.v128_load8x8_s(memarg.into()),
+                    Lang::V128Load8x8U(memarg, _) => insn.v128_load8x8_u(memarg.into()),
+                    Lang::V128Load16x4S(memarg, _) => insn.v128_load16x4_s(memarg.into()),
+                    Lang::V128Load16x4U(memarg, _) => insn.v128_load16x4_u(memarg.into()),
+                    Lang::V128Load32x2S(memarg, _) => insn.v128_load32x2_s(memarg.into()),
+                    Lang::V128Load32x2U(memarg, _) => insn.v128_load32x2_u(memarg.into()),
+                    Lang::V128Load8Splat(memarg, _) => insn.v128_load8_splat(memarg.into()),
+                    Lang::V128Load16Splat(memarg, _) => insn.v128_load16_splat(memarg.into()),
+                    Lang::V128Load32Splat(memarg, _) => insn.v128_load32_splat(memarg.into()),
+                    Lang::V128Load64Splat(memarg, _) => insn.v128_load64_splat(memarg.into()),
+                    Lang::V128Load32Zero(memarg, _) => insn.v128_load32_zero(memarg.into()),
+                    Lang::V128Load64Zero(memarg, _) => insn.v128_load64_zero(memarg.into()),
+                    Lang::V128Store(memarg, _) => insn.v128_store(memarg.into()),
                     Lang::V128Load8Lane(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load8Lane {
-                            memarg: (&memarg.memarg).into(),
-                            lane: memarg.lane,
-                        });
+                        insn.v128_load8_lane((&memarg.memarg).into(), memarg.lane)
                     }
                     Lang::V128Load16Lane(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load16Lane {
-                            memarg: (&memarg.memarg).into(),
-                            lane: memarg.lane,
-                        });
+                        insn.v128_load16_lane((&memarg.memarg).into(), memarg.lane)
                     }
                     Lang::V128Load32Lane(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load32Lane {
-                            memarg: (&memarg.memarg).into(),
-                            lane: memarg.lane,
-                        });
+                        insn.v128_load32_lane((&memarg.memarg).into(), memarg.lane)
                     }
                     Lang::V128Load64Lane(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Load64Lane {
-                            memarg: (&memarg.memarg).into(),
-                            lane: memarg.lane,
-                        });
+                        insn.v128_load64_lane((&memarg.memarg).into(), memarg.lane)
                     }
                     Lang::V128Store8Lane(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Store8Lane {
-                            memarg: (&memarg.memarg).into(),
-                            lane: memarg.lane,
-                        });
+                        insn.v128_store8_lane((&memarg.memarg).into(), memarg.lane)
                     }
                     Lang::V128Store16Lane(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Store16Lane {
-                            memarg: (&memarg.memarg).into(),
-                            lane: memarg.lane,
-                        });
+                        insn.v128_store16_lane((&memarg.memarg).into(), memarg.lane)
                     }
                     Lang::V128Store32Lane(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Store32Lane {
-                            memarg: (&memarg.memarg).into(),
-                            lane: memarg.lane,
-                        });
+                        insn.v128_store32_lane((&memarg.memarg).into(), memarg.lane)
                     }
                     Lang::V128Store64Lane(memarg, _) => {
-                        newfunc.instruction(&Instruction::V128Store64Lane {
-                            memarg: (&memarg.memarg).into(),
-                            lane: memarg.lane,
-                        });
+                        insn.v128_store64_lane((&memarg.memarg).into(), memarg.lane)
                     }
 
-                    Lang::I8x16ExtractLaneS(lane, _) => insn(Instruction::I8x16ExtractLaneS(*lane)),
-                    Lang::I8x16ExtractLaneU(lane, _) => insn(Instruction::I8x16ExtractLaneU(*lane)),
-                    Lang::I8x16ReplaceLane(lane, _) => insn(Instruction::I8x16ReplaceLane(*lane)),
-                    Lang::I16x8ExtractLaneS(lane, _) => insn(Instruction::I16x8ExtractLaneS(*lane)),
-                    Lang::I16x8ExtractLaneU(lane, _) => insn(Instruction::I16x8ExtractLaneU(*lane)),
-                    Lang::I16x8ReplaceLane(lane, _) => insn(Instruction::I16x8ReplaceLane(*lane)),
-                    Lang::I32x4ExtractLane(lane, _) => insn(Instruction::I32x4ExtractLane(*lane)),
-                    Lang::I32x4ReplaceLane(lane, _) => insn(Instruction::I32x4ReplaceLane(*lane)),
-                    Lang::I64x2ExtractLane(lane, _) => insn(Instruction::I64x2ExtractLane(*lane)),
-                    Lang::I64x2ReplaceLane(lane, _) => insn(Instruction::I64x2ReplaceLane(*lane)),
-                    Lang::F32x4ExtractLane(lane, _) => insn(Instruction::F32x4ExtractLane(*lane)),
-                    Lang::F32x4ReplaceLane(lane, _) => insn(Instruction::F32x4ReplaceLane(*lane)),
-                    Lang::F64x2ExtractLane(lane, _) => insn(Instruction::F64x2ExtractLane(*lane)),
-                    Lang::F64x2ReplaceLane(lane, _) => insn(Instruction::F64x2ReplaceLane(*lane)),
+                    Lang::I8x16ExtractLaneS(lane, _) => insn.i8x16_extract_lane_s(*lane),
+                    Lang::I8x16ExtractLaneU(lane, _) => insn.i8x16_extract_lane_u(*lane),
+                    Lang::I8x16ReplaceLane(lane, _) => insn.i8x16_replace_lane(*lane),
+                    Lang::I16x8ExtractLaneS(lane, _) => insn.i16x8_extract_lane_s(*lane),
+                    Lang::I16x8ExtractLaneU(lane, _) => insn.i16x8_extract_lane_u(*lane),
+                    Lang::I16x8ReplaceLane(lane, _) => insn.i16x8_replace_lane(*lane),
+                    Lang::I32x4ExtractLane(lane, _) => insn.i32x4_extract_lane(*lane),
+                    Lang::I32x4ReplaceLane(lane, _) => insn.i32x4_replace_lane(*lane),
+                    Lang::I64x2ExtractLane(lane, _) => insn.i64x2_extract_lane(*lane),
+                    Lang::I64x2ReplaceLane(lane, _) => insn.i64x2_replace_lane(*lane),
+                    Lang::F32x4ExtractLane(lane, _) => insn.f32x4_extract_lane(*lane),
+                    Lang::F32x4ReplaceLane(lane, _) => insn.f32x4_replace_lane(*lane),
+                    Lang::F64x2ExtractLane(lane, _) => insn.f64x2_extract_lane(*lane),
+                    Lang::F64x2ReplaceLane(lane, _) => insn.f64x2_replace_lane(*lane),
 
-                    Lang::I8x16Swizzle(_) => insn(Instruction::I8x16Swizzle),
-                    Lang::I8x16Shuffle(indices, _) => {
-                        insn(Instruction::I8x16Shuffle(indices.indices))
-                    }
-                    Lang::I8x16Splat(_) => insn(Instruction::I8x16Splat),
-                    Lang::I16x8Splat(_) => insn(Instruction::I16x8Splat),
-                    Lang::I32x4Splat(_) => insn(Instruction::I32x4Splat),
-                    Lang::I64x2Splat(_) => insn(Instruction::I64x2Splat),
-                    Lang::F32x4Splat(_) => insn(Instruction::F32x4Splat),
-                    Lang::F64x2Splat(_) => insn(Instruction::F64x2Splat),
+                    Lang::I8x16Swizzle(_) => insn.i8x16_swizzle(),
+                    Lang::I8x16Shuffle(indices, _) => insn.i8x16_shuffle(indices.indices),
+                    Lang::I8x16Splat(_) => insn.i8x16_splat(),
+                    Lang::I16x8Splat(_) => insn.i16x8_splat(),
+                    Lang::I32x4Splat(_) => insn.i32x4_splat(),
+                    Lang::I64x2Splat(_) => insn.i64x2_splat(),
+                    Lang::F32x4Splat(_) => insn.f32x4_splat(),
+                    Lang::F64x2Splat(_) => insn.f64x2_splat(),
 
-                    Lang::I8x16Eq(_) => insn(Instruction::I8x16Eq),
-                    Lang::I8x16Ne(_) => insn(Instruction::I8x16Ne),
-                    Lang::I8x16LtS(_) => insn(Instruction::I8x16LtS),
-                    Lang::I8x16LtU(_) => insn(Instruction::I8x16LtU),
-                    Lang::I8x16GtS(_) => insn(Instruction::I8x16GtS),
-                    Lang::I8x16GtU(_) => insn(Instruction::I8x16GtU),
-                    Lang::I8x16LeS(_) => insn(Instruction::I8x16LeS),
-                    Lang::I8x16LeU(_) => insn(Instruction::I8x16LeU),
-                    Lang::I8x16GeS(_) => insn(Instruction::I8x16GeS),
-                    Lang::I8x16GeU(_) => insn(Instruction::I8x16GeU),
-                    Lang::I16x8Eq(_) => insn(Instruction::I16x8Eq),
-                    Lang::I16x8Ne(_) => insn(Instruction::I16x8Ne),
-                    Lang::I16x8LtS(_) => insn(Instruction::I16x8LtS),
-                    Lang::I16x8LtU(_) => insn(Instruction::I16x8LtU),
-                    Lang::I16x8GtS(_) => insn(Instruction::I16x8GtS),
-                    Lang::I16x8GtU(_) => insn(Instruction::I16x8GtU),
-                    Lang::I16x8LeS(_) => insn(Instruction::I16x8LeS),
-                    Lang::I16x8LeU(_) => insn(Instruction::I16x8LeU),
-                    Lang::I16x8GeS(_) => insn(Instruction::I16x8GeS),
-                    Lang::I16x8GeU(_) => insn(Instruction::I16x8GeU),
-                    Lang::I32x4Eq(_) => insn(Instruction::I32x4Eq),
-                    Lang::I32x4Ne(_) => insn(Instruction::I32x4Ne),
-                    Lang::I32x4LtS(_) => insn(Instruction::I32x4LtS),
-                    Lang::I32x4LtU(_) => insn(Instruction::I32x4LtU),
-                    Lang::I32x4GtS(_) => insn(Instruction::I32x4GtS),
-                    Lang::I32x4GtU(_) => insn(Instruction::I32x4GtU),
-                    Lang::I32x4LeS(_) => insn(Instruction::I32x4LeS),
-                    Lang::I32x4LeU(_) => insn(Instruction::I32x4LeU),
-                    Lang::I32x4GeS(_) => insn(Instruction::I32x4GeS),
-                    Lang::I32x4GeU(_) => insn(Instruction::I32x4GeU),
-                    Lang::I64x2Eq(_) => insn(Instruction::I64x2Eq),
-                    Lang::I64x2Ne(_) => insn(Instruction::I64x2Ne),
-                    Lang::I64x2LtS(_) => insn(Instruction::I64x2LtS),
-                    Lang::I64x2GtS(_) => insn(Instruction::I64x2GtS),
-                    Lang::I64x2LeS(_) => insn(Instruction::I64x2LeS),
-                    Lang::I64x2GeS(_) => insn(Instruction::I64x2GeS),
-                    Lang::F32x4Eq(_) => insn(Instruction::F32x4Eq),
-                    Lang::F32x4Ne(_) => insn(Instruction::F32x4Ne),
-                    Lang::F32x4Lt(_) => insn(Instruction::F32x4Lt),
-                    Lang::F32x4Gt(_) => insn(Instruction::F32x4Gt),
-                    Lang::F32x4Le(_) => insn(Instruction::F32x4Le),
-                    Lang::F32x4Ge(_) => insn(Instruction::F32x4Ge),
-                    Lang::F64x2Eq(_) => insn(Instruction::F64x2Eq),
-                    Lang::F64x2Ne(_) => insn(Instruction::F64x2Ne),
-                    Lang::F64x2Lt(_) => insn(Instruction::F64x2Lt),
-                    Lang::F64x2Gt(_) => insn(Instruction::F64x2Gt),
-                    Lang::F64x2Le(_) => insn(Instruction::F64x2Le),
-                    Lang::F64x2Ge(_) => insn(Instruction::F64x2Ge),
+                    Lang::I8x16Eq(_) => insn.i8x16_eq(),
+                    Lang::I8x16Ne(_) => insn.i8x16_ne(),
+                    Lang::I8x16LtS(_) => insn.i8x16_lt_s(),
+                    Lang::I8x16LtU(_) => insn.i8x16_lt_u(),
+                    Lang::I8x16GtS(_) => insn.i8x16_gt_s(),
+                    Lang::I8x16GtU(_) => insn.i8x16_gt_u(),
+                    Lang::I8x16LeS(_) => insn.i8x16_le_s(),
+                    Lang::I8x16LeU(_) => insn.i8x16_le_u(),
+                    Lang::I8x16GeS(_) => insn.i8x16_ge_s(),
+                    Lang::I8x16GeU(_) => insn.i8x16_ge_u(),
+                    Lang::I16x8Eq(_) => insn.i16x8_eq(),
+                    Lang::I16x8Ne(_) => insn.i16x8_ne(),
+                    Lang::I16x8LtS(_) => insn.i16x8_lt_s(),
+                    Lang::I16x8LtU(_) => insn.i16x8_lt_u(),
+                    Lang::I16x8GtS(_) => insn.i16x8_gt_s(),
+                    Lang::I16x8GtU(_) => insn.i16x8_gt_u(),
+                    Lang::I16x8LeS(_) => insn.i16x8_le_s(),
+                    Lang::I16x8LeU(_) => insn.i16x8_le_u(),
+                    Lang::I16x8GeS(_) => insn.i16x8_ge_s(),
+                    Lang::I16x8GeU(_) => insn.i16x8_ge_u(),
+                    Lang::I32x4Eq(_) => insn.i32x4_eq(),
+                    Lang::I32x4Ne(_) => insn.i32x4_ne(),
+                    Lang::I32x4LtS(_) => insn.i32x4_lt_s(),
+                    Lang::I32x4LtU(_) => insn.i32x4_lt_u(),
+                    Lang::I32x4GtS(_) => insn.i32x4_gt_s(),
+                    Lang::I32x4GtU(_) => insn.i32x4_gt_u(),
+                    Lang::I32x4LeS(_) => insn.i32x4_le_s(),
+                    Lang::I32x4LeU(_) => insn.i32x4_le_u(),
+                    Lang::I32x4GeS(_) => insn.i32x4_ge_s(),
+                    Lang::I32x4GeU(_) => insn.i32x4_ge_u(),
+                    Lang::I64x2Eq(_) => insn.i64x2_eq(),
+                    Lang::I64x2Ne(_) => insn.i64x2_ne(),
+                    Lang::I64x2LtS(_) => insn.i64x2_lt_s(),
+                    Lang::I64x2GtS(_) => insn.i64x2_gt_s(),
+                    Lang::I64x2LeS(_) => insn.i64x2_le_s(),
+                    Lang::I64x2GeS(_) => insn.i64x2_ge_s(),
+                    Lang::F32x4Eq(_) => insn.f32x4_eq(),
+                    Lang::F32x4Ne(_) => insn.f32x4_ne(),
+                    Lang::F32x4Lt(_) => insn.f32x4_lt(),
+                    Lang::F32x4Gt(_) => insn.f32x4_gt(),
+                    Lang::F32x4Le(_) => insn.f32x4_le(),
+                    Lang::F32x4Ge(_) => insn.f32x4_ge(),
+                    Lang::F64x2Eq(_) => insn.f64x2_eq(),
+                    Lang::F64x2Ne(_) => insn.f64x2_ne(),
+                    Lang::F64x2Lt(_) => insn.f64x2_lt(),
+                    Lang::F64x2Gt(_) => insn.f64x2_gt(),
+                    Lang::F64x2Le(_) => insn.f64x2_le(),
+                    Lang::F64x2Ge(_) => insn.f64x2_ge(),
 
-                    Lang::I8x16Abs(_) => insn(Instruction::I8x16Abs),
-                    Lang::I8x16Neg(_) => insn(Instruction::I8x16Neg),
-                    Lang::I8x16Popcnt(_) => insn(Instruction::I8x16Popcnt),
-                    Lang::I8x16AllTrue(_) => insn(Instruction::I8x16AllTrue),
-                    Lang::I8x16Bitmask(_) => insn(Instruction::I8x16Bitmask),
-                    Lang::I8x16NarrowI16x8S(_) => insn(Instruction::I8x16NarrowI16x8S),
-                    Lang::I8x16NarrowI16x8U(_) => insn(Instruction::I8x16NarrowI16x8U),
-                    Lang::I8x16Shl(_) => insn(Instruction::I8x16Shl),
-                    Lang::I8x16ShrS(_) => insn(Instruction::I8x16ShrS),
-                    Lang::I8x16ShrU(_) => insn(Instruction::I8x16ShrU),
-                    Lang::I8x16Add(_) => insn(Instruction::I8x16Add),
-                    Lang::I8x16AddSatS(_) => insn(Instruction::I8x16AddSatS),
-                    Lang::I8x16AddSatU(_) => insn(Instruction::I8x16AddSatU),
-                    Lang::I8x16Sub(_) => insn(Instruction::I8x16Sub),
-                    Lang::I8x16SubSatS(_) => insn(Instruction::I8x16SubSatS),
-                    Lang::I8x16SubSatU(_) => insn(Instruction::I8x16SubSatU),
-                    Lang::I8x16MinS(_) => insn(Instruction::I8x16MinS),
-                    Lang::I8x16MinU(_) => insn(Instruction::I8x16MinU),
-                    Lang::I8x16MaxS(_) => insn(Instruction::I8x16MaxS),
-                    Lang::I8x16MaxU(_) => insn(Instruction::I8x16MaxU),
-                    Lang::I8x16AvgrU(_) => insn(Instruction::I8x16AvgrU),
+                    Lang::I8x16Abs(_) => insn.i8x16_abs(),
+                    Lang::I8x16Neg(_) => insn.i8x16_neg(),
+                    Lang::I8x16Popcnt(_) => insn.i8x16_popcnt(),
+                    Lang::I8x16AllTrue(_) => insn.i8x16_all_true(),
+                    Lang::I8x16Bitmask(_) => insn.i8x16_bitmask(),
+                    Lang::I8x16NarrowI16x8S(_) => insn.i8x16_narrow_i16x8_s(),
+                    Lang::I8x16NarrowI16x8U(_) => insn.i8x16_narrow_i16x8_u(),
+                    Lang::I8x16Shl(_) => insn.i8x16_shl(),
+                    Lang::I8x16ShrS(_) => insn.i8x16_shr_s(),
+                    Lang::I8x16ShrU(_) => insn.i8x16_shr_u(),
+                    Lang::I8x16Add(_) => insn.i8x16_add(),
+                    Lang::I8x16AddSatS(_) => insn.i8x16_add_sat_s(),
+                    Lang::I8x16AddSatU(_) => insn.i8x16_add_sat_u(),
+                    Lang::I8x16Sub(_) => insn.i8x16_sub(),
+                    Lang::I8x16SubSatS(_) => insn.i8x16_sub_sat_s(),
+                    Lang::I8x16SubSatU(_) => insn.i8x16_sub_sat_u(),
+                    Lang::I8x16MinS(_) => insn.i8x16_min_s(),
+                    Lang::I8x16MinU(_) => insn.i8x16_min_u(),
+                    Lang::I8x16MaxS(_) => insn.i8x16_max_s(),
+                    Lang::I8x16MaxU(_) => insn.i8x16_max_u(),
+                    Lang::I8x16AvgrU(_) => insn.i8x16_avgr_u(),
 
-                    Lang::I16x8ExtAddPairwiseI8x16S(_) => {
-                        insn(Instruction::I16x8ExtAddPairwiseI8x16S)
-                    }
-                    Lang::I16x8ExtAddPairwiseI8x16U(_) => {
-                        insn(Instruction::I16x8ExtAddPairwiseI8x16U)
-                    }
-                    Lang::I16x8Abs(_) => insn(Instruction::I16x8Abs),
-                    Lang::I16x8Neg(_) => insn(Instruction::I16x8Neg),
-                    Lang::I16x8Q15MulrSatS(_) => insn(Instruction::I16x8Q15MulrSatS),
-                    Lang::I16x8AllTrue(_) => insn(Instruction::I16x8AllTrue),
-                    Lang::I16x8Bitmask(_) => insn(Instruction::I16x8Bitmask),
-                    Lang::I16x8NarrowI32x4S(_) => insn(Instruction::I16x8NarrowI32x4S),
-                    Lang::I16x8NarrowI32x4U(_) => insn(Instruction::I16x8NarrowI32x4U),
-                    Lang::I16x8ExtendLowI8x16S(_) => insn(Instruction::I16x8ExtendLowI8x16S),
-                    Lang::I16x8ExtendHighI8x16S(_) => insn(Instruction::I16x8ExtendHighI8x16S),
-                    Lang::I16x8ExtendLowI8x16U(_) => insn(Instruction::I16x8ExtendLowI8x16U),
-                    Lang::I16x8ExtendHighI8x16U(_) => insn(Instruction::I16x8ExtendHighI8x16U),
-                    Lang::I16x8Shl(_) => insn(Instruction::I16x8Shl),
-                    Lang::I16x8ShrS(_) => insn(Instruction::I16x8ShrS),
-                    Lang::I16x8ShrU(_) => insn(Instruction::I16x8ShrU),
-                    Lang::I16x8Add(_) => insn(Instruction::I16x8Add),
-                    Lang::I16x8AddSatS(_) => insn(Instruction::I16x8AddSatS),
-                    Lang::I16x8AddSatU(_) => insn(Instruction::I16x8AddSatU),
-                    Lang::I16x8Sub(_) => insn(Instruction::I16x8Sub),
-                    Lang::I16x8SubSatS(_) => insn(Instruction::I16x8SubSatS),
-                    Lang::I16x8SubSatU(_) => insn(Instruction::I16x8SubSatU),
-                    Lang::I16x8Mul(_) => insn(Instruction::I16x8Mul),
-                    Lang::I16x8MinS(_) => insn(Instruction::I16x8MinS),
-                    Lang::I16x8MinU(_) => insn(Instruction::I16x8MinU),
-                    Lang::I16x8MaxS(_) => insn(Instruction::I16x8MaxS),
-                    Lang::I16x8MaxU(_) => insn(Instruction::I16x8MaxU),
-                    Lang::I16x8AvgrU(_) => insn(Instruction::I16x8AvgrU),
-                    Lang::I16x8ExtMulLowI8x16S(_) => insn(Instruction::I16x8ExtMulLowI8x16S),
-                    Lang::I16x8ExtMulHighI8x16S(_) => insn(Instruction::I16x8ExtMulHighI8x16S),
-                    Lang::I16x8ExtMulLowI8x16U(_) => insn(Instruction::I16x8ExtMulLowI8x16U),
-                    Lang::I16x8ExtMulHighI8x16U(_) => insn(Instruction::I16x8ExtMulHighI8x16U),
+                    Lang::I16x8ExtAddPairwiseI8x16S(_) => insn.i16x8_extadd_pairwise_i8x16_s(),
+                    Lang::I16x8ExtAddPairwiseI8x16U(_) => insn.i16x8_extadd_pairwise_i8x16_u(),
+                    Lang::I16x8Abs(_) => insn.i16x8_abs(),
+                    Lang::I16x8Neg(_) => insn.i16x8_neg(),
+                    Lang::I16x8Q15MulrSatS(_) => insn.i16x8_q15mulr_sat_s(),
+                    Lang::I16x8AllTrue(_) => insn.i16x8_all_true(),
+                    Lang::I16x8Bitmask(_) => insn.i16x8_bitmask(),
+                    Lang::I16x8NarrowI32x4S(_) => insn.i16x8_narrow_i32x4_s(),
+                    Lang::I16x8NarrowI32x4U(_) => insn.i16x8_narrow_i32x4_u(),
+                    Lang::I16x8ExtendLowI8x16S(_) => insn.i16x8_extend_low_i8x16_s(),
+                    Lang::I16x8ExtendHighI8x16S(_) => insn.i16x8_extend_high_i8x16_s(),
+                    Lang::I16x8ExtendLowI8x16U(_) => insn.i16x8_extend_low_i8x16_u(),
+                    Lang::I16x8ExtendHighI8x16U(_) => insn.i16x8_extend_high_i8x16_u(),
+                    Lang::I16x8Shl(_) => insn.i16x8_shl(),
+                    Lang::I16x8ShrS(_) => insn.i16x8_shr_s(),
+                    Lang::I16x8ShrU(_) => insn.i16x8_shr_u(),
+                    Lang::I16x8Add(_) => insn.i16x8_add(),
+                    Lang::I16x8AddSatS(_) => insn.i16x8_add_sat_s(),
+                    Lang::I16x8AddSatU(_) => insn.i16x8_add_sat_u(),
+                    Lang::I16x8Sub(_) => insn.i16x8_sub(),
+                    Lang::I16x8SubSatS(_) => insn.i16x8_sub_sat_s(),
+                    Lang::I16x8SubSatU(_) => insn.i16x8_sub_sat_u(),
+                    Lang::I16x8Mul(_) => insn.i16x8_mul(),
+                    Lang::I16x8MinS(_) => insn.i16x8_min_s(),
+                    Lang::I16x8MinU(_) => insn.i16x8_min_u(),
+                    Lang::I16x8MaxS(_) => insn.i16x8_max_s(),
+                    Lang::I16x8MaxU(_) => insn.i16x8_max_u(),
+                    Lang::I16x8AvgrU(_) => insn.i16x8_avgr_u(),
+                    Lang::I16x8ExtMulLowI8x16S(_) => insn.i16x8_extmul_low_i8x16_s(),
+                    Lang::I16x8ExtMulHighI8x16S(_) => insn.i16x8_extmul_high_i8x16_s(),
+                    Lang::I16x8ExtMulLowI8x16U(_) => insn.i16x8_extmul_low_i8x16_u(),
+                    Lang::I16x8ExtMulHighI8x16U(_) => insn.i16x8_extmul_high_i8x16_u(),
 
-                    Lang::I32x4ExtAddPairwiseI16x8S(_) => {
-                        insn(Instruction::I32x4ExtAddPairwiseI16x8S)
-                    }
-                    Lang::I32x4ExtAddPairwiseI16x8U(_) => {
-                        insn(Instruction::I32x4ExtAddPairwiseI16x8U)
-                    }
-                    Lang::I32x4Abs(_) => insn(Instruction::I32x4Abs),
-                    Lang::I32x4Neg(_) => insn(Instruction::I32x4Neg),
-                    Lang::I32x4AllTrue(_) => insn(Instruction::I32x4AllTrue),
-                    Lang::I32x4Bitmask(_) => insn(Instruction::I32x4Bitmask),
-                    Lang::I32x4ExtendLowI16x8S(_) => insn(Instruction::I32x4ExtendLowI16x8S),
-                    Lang::I32x4ExtendHighI16x8S(_) => insn(Instruction::I32x4ExtendHighI16x8S),
-                    Lang::I32x4ExtendLowI16x8U(_) => insn(Instruction::I32x4ExtendLowI16x8U),
-                    Lang::I32x4ExtendHighI16x8U(_) => insn(Instruction::I32x4ExtendHighI16x8U),
-                    Lang::I32x4Shl(_) => insn(Instruction::I32x4Shl),
-                    Lang::I32x4ShrS(_) => insn(Instruction::I32x4ShrS),
-                    Lang::I32x4ShrU(_) => insn(Instruction::I32x4ShrU),
-                    Lang::I32x4Add(_) => insn(Instruction::I32x4Add),
-                    Lang::I32x4Sub(_) => insn(Instruction::I32x4Sub),
-                    Lang::I32x4Mul(_) => insn(Instruction::I32x4Mul),
-                    Lang::I32x4MinS(_) => insn(Instruction::I32x4MinS),
-                    Lang::I32x4MinU(_) => insn(Instruction::I32x4MinU),
-                    Lang::I32x4MaxS(_) => insn(Instruction::I32x4MaxS),
-                    Lang::I32x4MaxU(_) => insn(Instruction::I32x4MaxU),
-                    Lang::I32x4DotI16x8S(_) => insn(Instruction::I32x4DotI16x8S),
-                    Lang::I32x4ExtMulLowI16x8S(_) => insn(Instruction::I32x4ExtMulLowI16x8S),
-                    Lang::I32x4ExtMulHighI16x8S(_) => insn(Instruction::I32x4ExtMulHighI16x8S),
-                    Lang::I32x4ExtMulLowI16x8U(_) => insn(Instruction::I32x4ExtMulLowI16x8U),
-                    Lang::I32x4ExtMulHighI16x8U(_) => insn(Instruction::I32x4ExtMulHighI16x8U),
+                    Lang::I32x4ExtAddPairwiseI16x8S(_) => insn.i32x4_extadd_pairwise_i16x8_s(),
+                    Lang::I32x4ExtAddPairwiseI16x8U(_) => insn.i32x4_extadd_pairwise_i16x8_u(),
+                    Lang::I32x4Abs(_) => insn.i32x4_abs(),
+                    Lang::I32x4Neg(_) => insn.i32x4_neg(),
+                    Lang::I32x4AllTrue(_) => insn.i32x4_all_true(),
+                    Lang::I32x4Bitmask(_) => insn.i32x4_bitmask(),
+                    Lang::I32x4ExtendLowI16x8S(_) => insn.i32x4_extend_low_i16x8_s(),
+                    Lang::I32x4ExtendHighI16x8S(_) => insn.i32x4_extend_high_i16x8_s(),
+                    Lang::I32x4ExtendLowI16x8U(_) => insn.i32x4_extend_low_i16x8_u(),
+                    Lang::I32x4ExtendHighI16x8U(_) => insn.i32x4_extend_high_i16x8_u(),
+                    Lang::I32x4Shl(_) => insn.i32x4_shl(),
+                    Lang::I32x4ShrS(_) => insn.i32x4_shr_s(),
+                    Lang::I32x4ShrU(_) => insn.i32x4_shr_u(),
+                    Lang::I32x4Add(_) => insn.i32x4_add(),
+                    Lang::I32x4Sub(_) => insn.i32x4_sub(),
+                    Lang::I32x4Mul(_) => insn.i32x4_mul(),
+                    Lang::I32x4MinS(_) => insn.i32x4_min_s(),
+                    Lang::I32x4MinU(_) => insn.i32x4_min_u(),
+                    Lang::I32x4MaxS(_) => insn.i32x4_max_s(),
+                    Lang::I32x4MaxU(_) => insn.i32x4_max_u(),
+                    Lang::I32x4DotI16x8S(_) => insn.i32x4_dot_i16x8_s(),
+                    Lang::I32x4ExtMulLowI16x8S(_) => insn.i32x4_extmul_low_i16x8_s(),
+                    Lang::I32x4ExtMulHighI16x8S(_) => insn.i32x4_extmul_high_i16x8_s(),
+                    Lang::I32x4ExtMulLowI16x8U(_) => insn.i32x4_extmul_low_i16x8_u(),
+                    Lang::I32x4ExtMulHighI16x8U(_) => insn.i32x4_extmul_high_i16x8_u(),
 
-                    Lang::I64x2Abs(_) => insn(Instruction::I64x2Abs),
-                    Lang::I64x2Neg(_) => insn(Instruction::I64x2Neg),
-                    Lang::I64x2AllTrue(_) => insn(Instruction::I64x2AllTrue),
-                    Lang::I64x2Bitmask(_) => insn(Instruction::I64x2Bitmask),
-                    Lang::I64x2ExtendLowI32x4S(_) => insn(Instruction::I64x2ExtendLowI32x4S),
-                    Lang::I64x2ExtendHighI32x4S(_) => insn(Instruction::I64x2ExtendHighI32x4S),
-                    Lang::I64x2ExtendLowI32x4U(_) => insn(Instruction::I64x2ExtendLowI32x4U),
-                    Lang::I64x2ExtendHighI32x4U(_) => insn(Instruction::I64x2ExtendHighI32x4U),
-                    Lang::I64x2Shl(_) => insn(Instruction::I64x2Shl),
-                    Lang::I64x2ShrS(_) => insn(Instruction::I64x2ShrS),
-                    Lang::I64x2ShrU(_) => insn(Instruction::I64x2ShrU),
-                    Lang::I64x2Add(_) => insn(Instruction::I64x2Add),
-                    Lang::I64x2Sub(_) => insn(Instruction::I64x2Sub),
-                    Lang::I64x2Mul(_) => insn(Instruction::I64x2Mul),
-                    Lang::I64x2ExtMulLowI32x4S(_) => insn(Instruction::I64x2ExtMulLowI32x4S),
-                    Lang::I64x2ExtMulHighI32x4S(_) => insn(Instruction::I64x2ExtMulHighI32x4S),
-                    Lang::I64x2ExtMulLowI32x4U(_) => insn(Instruction::I64x2ExtMulLowI32x4U),
-                    Lang::I64x2ExtMulHighI32x4U(_) => insn(Instruction::I64x2ExtMulHighI32x4U),
+                    Lang::I64x2Abs(_) => insn.i64x2_abs(),
+                    Lang::I64x2Neg(_) => insn.i64x2_neg(),
+                    Lang::I64x2AllTrue(_) => insn.i64x2_all_true(),
+                    Lang::I64x2Bitmask(_) => insn.i64x2_bitmask(),
+                    Lang::I64x2ExtendLowI32x4S(_) => insn.i64x2_extend_low_i32x4_s(),
+                    Lang::I64x2ExtendHighI32x4S(_) => insn.i64x2_extend_high_i32x4_s(),
+                    Lang::I64x2ExtendLowI32x4U(_) => insn.i64x2_extend_low_i32x4_u(),
+                    Lang::I64x2ExtendHighI32x4U(_) => insn.i64x2_extend_high_i32x4_u(),
+                    Lang::I64x2Shl(_) => insn.i64x2_shl(),
+                    Lang::I64x2ShrS(_) => insn.i64x2_shr_s(),
+                    Lang::I64x2ShrU(_) => insn.i64x2_shr_u(),
+                    Lang::I64x2Add(_) => insn.i64x2_add(),
+                    Lang::I64x2Sub(_) => insn.i64x2_sub(),
+                    Lang::I64x2Mul(_) => insn.i64x2_mul(),
+                    Lang::I64x2ExtMulLowI32x4S(_) => insn.i64x2_extmul_low_i32x4_s(),
+                    Lang::I64x2ExtMulHighI32x4S(_) => insn.i64x2_extmul_high_i32x4_s(),
+                    Lang::I64x2ExtMulLowI32x4U(_) => insn.i64x2_extmul_low_i32x4_u(),
+                    Lang::I64x2ExtMulHighI32x4U(_) => insn.i64x2_extmul_high_i32x4_u(),
 
-                    Lang::F32x4Ceil(_) => insn(Instruction::F32x4Ceil),
-                    Lang::F32x4Floor(_) => insn(Instruction::F32x4Floor),
-                    Lang::F32x4Trunc(_) => insn(Instruction::F32x4Trunc),
-                    Lang::F32x4Nearest(_) => insn(Instruction::F32x4Nearest),
-                    Lang::F32x4Abs(_) => insn(Instruction::F32x4Abs),
-                    Lang::F32x4Neg(_) => insn(Instruction::F32x4Neg),
-                    Lang::F32x4Sqrt(_) => insn(Instruction::F32x4Sqrt),
-                    Lang::F32x4Add(_) => insn(Instruction::F32x4Add),
-                    Lang::F32x4Sub(_) => insn(Instruction::F32x4Sub),
-                    Lang::F32x4Mul(_) => insn(Instruction::F32x4Mul),
-                    Lang::F32x4Div(_) => insn(Instruction::F32x4Div),
-                    Lang::F32x4Min(_) => insn(Instruction::F32x4Min),
-                    Lang::F32x4Max(_) => insn(Instruction::F32x4Max),
-                    Lang::F32x4PMin(_) => insn(Instruction::F32x4PMin),
-                    Lang::F32x4PMax(_) => insn(Instruction::F32x4PMax),
-                    Lang::F64x2Ceil(_) => insn(Instruction::F64x2Ceil),
-                    Lang::F64x2Floor(_) => insn(Instruction::F64x2Floor),
-                    Lang::F64x2Trunc(_) => insn(Instruction::F64x2Trunc),
-                    Lang::F64x2Nearest(_) => insn(Instruction::F64x2Nearest),
-                    Lang::F64x2Abs(_) => insn(Instruction::F64x2Abs),
-                    Lang::F64x2Neg(_) => insn(Instruction::F64x2Neg),
-                    Lang::F64x2Sqrt(_) => insn(Instruction::F64x2Sqrt),
-                    Lang::F64x2Add(_) => insn(Instruction::F64x2Add),
-                    Lang::F64x2Sub(_) => insn(Instruction::F64x2Sub),
-                    Lang::F64x2Mul(_) => insn(Instruction::F64x2Mul),
-                    Lang::F64x2Div(_) => insn(Instruction::F64x2Div),
-                    Lang::F64x2Min(_) => insn(Instruction::F64x2Min),
-                    Lang::F64x2Max(_) => insn(Instruction::F64x2Max),
-                    Lang::F64x2PMin(_) => insn(Instruction::F64x2PMin),
-                    Lang::F64x2PMax(_) => insn(Instruction::F64x2PMax),
+                    Lang::F32x4Ceil(_) => insn.f32x4_ceil(),
+                    Lang::F32x4Floor(_) => insn.f32x4_floor(),
+                    Lang::F32x4Trunc(_) => insn.f32x4_trunc(),
+                    Lang::F32x4Nearest(_) => insn.f32x4_nearest(),
+                    Lang::F32x4Abs(_) => insn.f32x4_abs(),
+                    Lang::F32x4Neg(_) => insn.f32x4_neg(),
+                    Lang::F32x4Sqrt(_) => insn.f32x4_sqrt(),
+                    Lang::F32x4Add(_) => insn.f32x4_add(),
+                    Lang::F32x4Sub(_) => insn.f32x4_sub(),
+                    Lang::F32x4Mul(_) => insn.f32x4_mul(),
+                    Lang::F32x4Div(_) => insn.f32x4_div(),
+                    Lang::F32x4Min(_) => insn.f32x4_min(),
+                    Lang::F32x4Max(_) => insn.f32x4_max(),
+                    Lang::F32x4PMin(_) => insn.f32x4_pmin(),
+                    Lang::F32x4PMax(_) => insn.f32x4_pmax(),
+                    Lang::F64x2Ceil(_) => insn.f64x2_ceil(),
+                    Lang::F64x2Floor(_) => insn.f64x2_floor(),
+                    Lang::F64x2Trunc(_) => insn.f64x2_trunc(),
+                    Lang::F64x2Nearest(_) => insn.f64x2_nearest(),
+                    Lang::F64x2Abs(_) => insn.f64x2_abs(),
+                    Lang::F64x2Neg(_) => insn.f64x2_neg(),
+                    Lang::F64x2Sqrt(_) => insn.f64x2_sqrt(),
+                    Lang::F64x2Add(_) => insn.f64x2_add(),
+                    Lang::F64x2Sub(_) => insn.f64x2_sub(),
+                    Lang::F64x2Mul(_) => insn.f64x2_mul(),
+                    Lang::F64x2Div(_) => insn.f64x2_div(),
+                    Lang::F64x2Min(_) => insn.f64x2_min(),
+                    Lang::F64x2Max(_) => insn.f64x2_max(),
+                    Lang::F64x2PMin(_) => insn.f64x2_pmin(),
+                    Lang::F64x2PMax(_) => insn.f64x2_pmax(),
 
-                    Lang::I32x4TruncSatF32x4S(_) => insn(Instruction::I32x4TruncSatF32x4S),
-                    Lang::I32x4TruncSatF32x4U(_) => insn(Instruction::I32x4TruncSatF32x4U),
-                    Lang::F32x4ConvertI32x4S(_) => insn(Instruction::F32x4ConvertI32x4S),
-                    Lang::F32x4ConvertI32x4U(_) => insn(Instruction::F32x4ConvertI32x4U),
-                    Lang::I32x4TruncSatF64x2SZero(_) => insn(Instruction::I32x4TruncSatF64x2SZero),
-                    Lang::I32x4TruncSatF64x2UZero(_) => insn(Instruction::I32x4TruncSatF64x2UZero),
-                    Lang::F64x2ConvertLowI32x4S(_) => insn(Instruction::F64x2ConvertLowI32x4S),
-                    Lang::F64x2ConvertLowI32x4U(_) => insn(Instruction::F64x2ConvertLowI32x4U),
-                    Lang::F32x4DemoteF64x2Zero(_) => insn(Instruction::F32x4DemoteF64x2Zero),
-                    Lang::F64x2PromoteLowF32x4(_) => insn(Instruction::F64x2PromoteLowF32x4),
+                    Lang::I32x4TruncSatF32x4S(_) => insn.i32x4_trunc_sat_f32x4_s(),
+                    Lang::I32x4TruncSatF32x4U(_) => insn.i32x4_trunc_sat_f32x4_u(),
+                    Lang::F32x4ConvertI32x4S(_) => insn.f32x4_convert_i32x4_s(),
+                    Lang::F32x4ConvertI32x4U(_) => insn.f32x4_convert_i32x4_u(),
+                    Lang::I32x4TruncSatF64x2SZero(_) => insn.i32x4_trunc_sat_f64x2_s_zero(),
+                    Lang::I32x4TruncSatF64x2UZero(_) => insn.i32x4_trunc_sat_f64x2_u_zero(),
+                    Lang::F64x2ConvertLowI32x4S(_) => insn.f64x2_convert_low_i32x4_s(),
+                    Lang::F64x2ConvertLowI32x4U(_) => insn.f64x2_convert_low_i32x4_u(),
+                    Lang::F32x4DemoteF64x2Zero(_) => insn.f32x4_demote_f64x2_zero(),
+                    Lang::F64x2PromoteLowF32x4(_) => insn.f64x2_promote_low_f32x4(),
 
-                    Lang::I8x16RelaxedSwizzle(_) => insn(Instruction::I8x16RelaxedSwizzle),
-                    Lang::I32x4RelaxedTruncF32x4S(_) => insn(Instruction::I32x4RelaxedTruncF32x4S),
-                    Lang::I32x4RelaxedTruncF32x4U(_) => insn(Instruction::I32x4RelaxedTruncF32x4U),
-                    Lang::I32x4RelaxedTruncF64x2SZero(_) => {
-                        insn(Instruction::I32x4RelaxedTruncF64x2SZero)
-                    }
-                    Lang::I32x4RelaxedTruncF64x2UZero(_) => {
-                        insn(Instruction::I32x4RelaxedTruncF64x2UZero)
-                    }
-                    Lang::F32x4RelaxedMadd(_) => insn(Instruction::F32x4RelaxedMadd),
-                    Lang::F32x4RelaxedNmadd(_) => insn(Instruction::F32x4RelaxedNmadd),
-                    Lang::F64x2RelaxedMadd(_) => insn(Instruction::F64x2RelaxedMadd),
-                    Lang::F64x2RelaxedNmadd(_) => insn(Instruction::F64x2RelaxedNmadd),
-                    Lang::I8x16RelaxedLaneselect(_) => insn(Instruction::I8x16RelaxedLaneselect),
-                    Lang::I16x8RelaxedLaneselect(_) => insn(Instruction::I16x8RelaxedLaneselect),
-                    Lang::I32x4RelaxedLaneselect(_) => insn(Instruction::I32x4RelaxedLaneselect),
-                    Lang::I64x2RelaxedLaneselect(_) => insn(Instruction::I64x2RelaxedLaneselect),
-                    Lang::F32x4RelaxedMin(_) => insn(Instruction::F32x4RelaxedMin),
-                    Lang::F32x4RelaxedMax(_) => insn(Instruction::F32x4RelaxedMax),
-                    Lang::F64x2RelaxedMin(_) => insn(Instruction::F64x2RelaxedMin),
-                    Lang::F64x2RelaxedMax(_) => insn(Instruction::F64x2RelaxedMax),
-                    Lang::I16x8RelaxedQ15mulrS(_) => insn(Instruction::I16x8RelaxedQ15mulrS),
-                    Lang::I16x8RelaxedDotI8x16I7x16S(_) => {
-                        insn(Instruction::I16x8RelaxedDotI8x16I7x16S)
-                    }
+                    Lang::I8x16RelaxedSwizzle(_) => insn.i8x16_relaxed_swizzle(),
+                    Lang::I32x4RelaxedTruncF32x4S(_) => insn.i32x4_relaxed_trunc_f32x4_s(),
+                    Lang::I32x4RelaxedTruncF32x4U(_) => insn.i32x4_relaxed_trunc_f32x4_u(),
+                    Lang::I32x4RelaxedTruncF64x2SZero(_) => insn.i32x4_relaxed_trunc_f64x2_s_zero(),
+                    Lang::I32x4RelaxedTruncF64x2UZero(_) => insn.i32x4_relaxed_trunc_f64x2_u_zero(),
+                    Lang::F32x4RelaxedMadd(_) => insn.f32x4_relaxed_madd(),
+                    Lang::F32x4RelaxedNmadd(_) => insn.f32x4_relaxed_nmadd(),
+                    Lang::F64x2RelaxedMadd(_) => insn.f64x2_relaxed_madd(),
+                    Lang::F64x2RelaxedNmadd(_) => insn.f64x2_relaxed_nmadd(),
+                    Lang::I8x16RelaxedLaneselect(_) => insn.i8x16_relaxed_laneselect(),
+                    Lang::I16x8RelaxedLaneselect(_) => insn.i16x8_relaxed_laneselect(),
+                    Lang::I32x4RelaxedLaneselect(_) => insn.i32x4_relaxed_laneselect(),
+                    Lang::I64x2RelaxedLaneselect(_) => insn.i64x2_relaxed_laneselect(),
+                    Lang::F32x4RelaxedMin(_) => insn.f32x4_relaxed_min(),
+                    Lang::F32x4RelaxedMax(_) => insn.f32x4_relaxed_max(),
+                    Lang::F64x2RelaxedMin(_) => insn.f64x2_relaxed_min(),
+                    Lang::F64x2RelaxedMax(_) => insn.f64x2_relaxed_max(),
+                    Lang::I16x8RelaxedQ15mulrS(_) => insn.i16x8_relaxed_q15mulr_s(),
+                    Lang::I16x8RelaxedDotI8x16I7x16S(_) => insn.i16x8_relaxed_dot_i8x16_i7x16_s(),
                     Lang::I32x4RelaxedDotI8x16I7x16AddS(_) => {
-                        insn(Instruction::I32x4RelaxedDotI8x16I7x16AddS)
+                        insn.i32x4_relaxed_dot_i8x16_i7x16_add_s()
                     }
-                }
+                };
             }
         }
     }

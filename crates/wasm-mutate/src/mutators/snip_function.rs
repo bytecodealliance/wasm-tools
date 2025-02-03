@@ -4,7 +4,7 @@ use super::Mutator;
 use crate::module::{PrimitiveTypeInfo, TypeInfo};
 use crate::{Result, WasmMutate};
 use rand::Rng;
-use wasm_encoder::{CodeSection, Function, HeapType, Instruction, Module};
+use wasm_encoder::{CodeSection, Function, HeapType, Module};
 use wasmparser::CodeSectionReader;
 
 /// Mutator that replaces the body of a function with an empty body
@@ -46,25 +46,25 @@ impl Mutator for SnipMutator {
                     for primitive in t.returns.iter() {
                         match primitive {
                             PrimitiveTypeInfo::I32 => {
-                                f.instruction(&Instruction::I32Const(0));
+                                f.instructions().i32_const(0);
                             }
                             PrimitiveTypeInfo::I64 => {
-                                f.instruction(&Instruction::I64Const(0));
+                                f.instructions().i64_const(0);
                             }
                             PrimitiveTypeInfo::F32 => {
-                                f.instruction(&Instruction::F32Const(0.0));
+                                f.instructions().f32_const(0.0);
                             }
                             PrimitiveTypeInfo::F64 => {
-                                f.instruction(&Instruction::F64Const(0.0));
+                                f.instructions().f64_const(0.0);
                             }
                             PrimitiveTypeInfo::V128 => {
-                                f.instruction(&Instruction::V128Const(0));
+                                f.instructions().v128_const(0);
                             }
                             PrimitiveTypeInfo::FuncRef => {
-                                f.instruction(&Instruction::RefNull(HeapType::FUNC));
+                                f.instructions().ref_null(HeapType::FUNC);
                             }
                             PrimitiveTypeInfo::ExternRef => {
-                                f.instruction(&Instruction::RefNull(HeapType::EXTERN));
+                                f.instructions().ref_null(HeapType::EXTERN);
                             }
                             PrimitiveTypeInfo::Empty => {
                                 unreachable!()
@@ -74,7 +74,7 @@ impl Mutator for SnipMutator {
                 }
             }
 
-            f.instruction(&Instruction::End);
+            f.instructions().end();
             codes.function(&f);
         }
 

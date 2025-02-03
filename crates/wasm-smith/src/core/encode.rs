@@ -218,7 +218,7 @@ impl Module {
                     for instr in instrs {
                         func.instruction(instr);
                     }
-                    func.instruction(&wasm_encoder::Instruction::End);
+                    func.instructions().end();
                 }
                 Instructions::Arbitrary(body) => {
                     func.raw(body.iter().copied());

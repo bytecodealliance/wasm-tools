@@ -4,7 +4,7 @@ use super::Mutator;
 use crate::module::{PrimitiveTypeInfo, TypeInfo};
 use crate::{Result, WasmMutate};
 use rand::Rng;
-use wasm_encoder::{AbstractHeapType, HeapType, Instruction, Module};
+use wasm_encoder::{AbstractHeapType, HeapType, Module};
 
 /// Mutator that adds new, empty functions to a Wasm module.
 #[derive(Clone, Copy)]
@@ -47,36 +47,36 @@ impl Mutator for AddFunctionMutator {
         for ty in &func_ty.returns {
             match ty {
                 PrimitiveTypeInfo::I32 => {
-                    func.instruction(&Instruction::I32Const(0));
+                    func.instructions().i32_const(0);
                 }
                 PrimitiveTypeInfo::I64 => {
-                    func.instruction(&Instruction::I64Const(0));
+                    func.instructions().i64_const(0);
                 }
                 PrimitiveTypeInfo::F32 => {
-                    func.instruction(&Instruction::F32Const(0.0));
+                    func.instructions().f32_const(0.0);
                 }
                 PrimitiveTypeInfo::F64 => {
-                    func.instruction(&Instruction::F64Const(0.0));
+                    func.instructions().f64_const(0.0);
                 }
                 PrimitiveTypeInfo::V128 => {
-                    func.instruction(&Instruction::V128Const(0));
+                    func.instructions().v128_const(0);
                 }
                 PrimitiveTypeInfo::FuncRef => {
-                    func.instruction(&Instruction::RefNull(HeapType::Abstract {
+                    func.instructions().ref_null(HeapType::Abstract {
                         shared: false,
                         ty: AbstractHeapType::Func,
-                    }));
+                    });
                 }
                 PrimitiveTypeInfo::ExternRef => {
-                    func.instruction(&Instruction::RefNull(HeapType::Abstract {
+                    func.instructions().ref_null(HeapType::Abstract {
                         shared: false,
                         ty: AbstractHeapType::Extern,
-                    }));
+                    });
                 }
                 PrimitiveTypeInfo::Empty => unreachable!(),
             }
         }
-        func.instruction(&Instruction::End);
+        func.instructions().end();
         code_sec_enc.function(&func);
 
         let module = if config.info().functions.is_some() {
