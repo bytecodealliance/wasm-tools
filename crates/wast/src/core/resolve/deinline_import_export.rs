@@ -54,7 +54,11 @@ pub fn run(fields: &mut Vec<ModuleField>) {
                         page_size_log2,
                     } => {
                         let len = data.iter().map(|l| l.len()).sum::<usize>() as u64;
-                        let pages = (len + default_page_size() - 1) / default_page_size();
+                        let page_size = match page_size_log2 {
+                            Some(page_size_log2) => 2_u64.pow(page_size_log2),
+                            None => default_page_size(),
+                        };
+                        let pages = (len + page_size - 1) / page_size;
                         let kind = MemoryKind::Normal(MemoryType {
                             limits: Limits {
                                 is64,
