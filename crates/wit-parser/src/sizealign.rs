@@ -1,4 +1,5 @@
 use std::{
+    cmp::Ordering,
     num::NonZeroUsize,
     ops::{Add, AddAssign},
 };
@@ -6,7 +7,7 @@ use std::{
 use crate::{FlagsRepr, Int, Resolve, Type, TypeDef, TypeDefKind};
 
 /// Architecture specific alignment
-#[derive(Eq, PartialEq, PartialOrd, Clone, Copy)]
+#[derive(Eq, PartialEq, Clone, Copy)]
 pub enum Alignment {
     /// This represents 4 byte alignment on 32bit and 8 byte alignment on 64bit architectures
     Pointer,
@@ -29,11 +30,17 @@ impl std::fmt::Debug for Alignment {
     }
 }
 
+impl PartialOrd for Alignment {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl Ord for Alignment {
     /// Needed for determining the max alignment of an object from its parts.
     /// The ordering is: Bytes(1) < Bytes(2) < Bytes(4) < Pointer < Bytes(8)
     /// as a Pointer is either four or eight byte aligned, depending on the architecture
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
             (Alignment::Pointer, Alignment::Pointer) => std::cmp::Ordering::Equal,
             (Alignment::Pointer, Alignment::Bytes(b)) => {
