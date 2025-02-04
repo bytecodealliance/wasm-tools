@@ -5,7 +5,7 @@ use std::fmt;
 use std::mem;
 use std::path::{Path, PathBuf};
 
-use anyhow::{anyhow, bail, ensure, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use id_arena::{Arena, Id};
 use indexmap::{IndexMap, IndexSet};
 use semver::Version;
@@ -1778,30 +1778,67 @@ package {name} is defined in two different locations:\n\
         }
     }
 
-    fn include_stability(&self, stability: &Stability, pkg_id: &PackageId) -> Result<bool> {
+    /// Returns whether the `stability` annotation contained within `pkg_id`
+    /// should be included or not.
+    ///
+    /// The `span` provided here is an optional span pointing to the item that
+    /// is annotated with `stability`.
+    ///
+    /// Returns `Ok(true)` if the item is included, or `Ok(false)` if the item
+    /// is not.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the `pkg_id` isn't annotated with sufficient version
+    /// information to have a `stability` annotation. For example if `pkg_id`
+    /// has no version listed then an error will be returned if `stability`
+    /// mentions a version.
+    fn include_stability(
+        &self,
+        stability: &Stability,
+        pkg_id: &PackageId,
+        span: Option<Span>,
+    ) -> Result<bool> {
+        let err = |msg: String| match span {
+            Some(span) => Error::new(span, msg).into(),
+            None => anyhow::Error::msg(msg),
+        };
         Ok(match stability {
             Stability::Unknown => true,
-            // NOTE: deprecations are intentionally omitted -- an existing `@since` takes precedence over `@deprecated`
+            // NOTE: deprecations are intentionally omitted -- an existing
+            // `@since` takes precedence over `@deprecated`
             Stability::Stable { since, .. } => {
                 let Some(p) = self.packages.get(*pkg_id) else {
-                    // We can't check much without a package (possibly dealing with an item in an `UnresolvedPackage`),
-                    // @since version & deprecations can't be checked because there's no package version to compare to.
+                    // We can't check much without a package (possibly dealing
+                    // with an item in an `UnresolvedPackage`), @since version &
+                    // deprecations can't be checked because there's no package
+                    // version to compare to.
                     //
-                    // Feature requirements on stabilized features are ignored in resolved packages, so we do the same here.
+                    // Feature requirements on stabilized features are ignored
+                    // in resolved packages, so we do the same here.
                     return Ok(true);
                 };
 
-                // Use of feature gating with version specifiers inside a package that is not versioned is not allowed
-                let package_version = p.name.version.as_ref().with_context(|| format!("package [{}] contains a feature gate with a version specifier, so it must have a version", p.name))?;
+                // Use of feature gating with version specifiers inside a
+                // package that is not versioned is not allowed
+                let package_version = p.name.version.as_ref().ok_or_else(|| {
+                    err(format!(
+                        "package [{}] contains a feature gate with a version \
+                         specifier, so it must have a version",
+                        p.name
+                    ))
+                })?;
 
                 // If the version on the feature gate is:
                 // - released, then we can include it
                 // - unreleased, then we must check the feature (if present)
-                ensure!(
-                    since <= package_version,
-                    "feature gate cannot reference unreleased version {since} of package [{}] (current version {package_version})",
-                    p.name
-                );
+                if since > package_version {
+                    return Err(err(format!(
+                        "feature gate cannot reference unreleased version \
+                        {since} of package [{}] (current version {package_version})",
+                        p.name
+                    )));
+                }
 
                 true
             }
@@ -2616,7 +2653,7 @@ impl Remap {
             .skip(foreign_types)
         {
             if !resolve
-                .include_stability(&ty.stability, &pkgid)
+                .include_stability(&ty.stability, &pkgid, Some(*span))
                 .with_context(|| {
                     format!(
                         "failed to process feature gate for type [{}] in package [{}]",
@@ -2666,7 +2703,7 @@ impl Remap {
             .skip(foreign_interfaces)
         {
             if !resolve
-                .include_stability(&iface.stability, &pkgid)
+                .include_stability(&iface.stability, &pkgid, Some(span.span))
                 .with_context(|| {
                     format!(
                         "failed to process feature gate for interface [{}] in package [{}]",
@@ -2724,7 +2761,7 @@ impl Remap {
             .skip(foreign_worlds)
         {
             if !resolve
-                .include_stability(&world.stability, &pkgid)
+                .include_stability(&world.stability, &pkgid, Some(span.span))
                 .with_context(|| {
                     format!(
                         "failed to process feature gate for world [{}] in package [{}]",
@@ -3119,8 +3156,9 @@ impl Remap {
             assert_eq!(iface.functions.len(), spans.funcs.len());
         }
         for (i, (func_name, func)) in iface.functions.iter_mut().enumerate() {
+            let span = spans.map(|s| s.funcs[i]);
             if !resolve
-                .include_stability(&func.stability, iface_pkg_id)
+                .include_stability(&func.stability, iface_pkg_id, span)
                 .with_context(|| {
                     format!(
                         "failed to process feature gate for function [{func_name}] in package [{}]",
@@ -3130,7 +3168,6 @@ impl Remap {
             {
                 continue;
             }
-            let span = spans.map(|s| s.funcs[i]);
             self.update_function(resolve, func, span)
                 .with_context(|| format!("failed to update function `{}`", func.name))?;
         }
@@ -3138,7 +3175,7 @@ impl Remap {
         // Filter out all of the existing functions in interface which fail the
         // `include_stability()` check, as they shouldn't be available.
         for (name, func) in mem::take(&mut iface.functions) {
-            if resolve.include_stability(&func.stability, iface_pkg_id)? {
+            if resolve.include_stability(&func.stability, iface_pkg_id, None)? {
                 iface.functions.insert(name, func);
             }
         }
@@ -3216,14 +3253,8 @@ impl Remap {
             }
             let stability = item.stability(resolve);
             if !resolve
-                .include_stability(stability, pkg_id)
-                .with_context(|| {
-                    format!(
-                        "failed to process imported world item type [{}] in package [{}]",
-                        resolve.name_world_key(&name),
-                        resolve.packages[*pkg_id].name,
-                    )
-                })?
+                .include_stability(stability, pkg_id, Some(*span))
+                .with_context(|| format!("failed to process world item in `{}`", world.name))?
             {
                 continue;
             }
@@ -3260,7 +3291,7 @@ impl Remap {
             .zip(&include_names)
         {
             if !resolve
-                .include_stability(&stability, pkg_id)
+                .include_stability(&stability, pkg_id, Some(*span))
                 .with_context(|| {
                     format!(
                         "failed to process feature gate for included world [{}] in package [{}]",
