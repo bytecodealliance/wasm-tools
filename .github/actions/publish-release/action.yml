@@ -1,0 +1,84 @@
+name: 'Maybe perform a release'
+description: 'Steps to perform a conditional release of this repository'
+
+inputs:
+  cargo_token:
+    description: 'token used to publish crates'
+    required: false
+
+runs:
+  using: composite
+  steps:
+    # If this commit log has an indicator saying that a tag should be made. If
+    # so create one and push it.
+    - name: Test if tag is needed
+      run: |
+        git log ${{ github.event.before }}...${{ github.event.after }} | tee main.log
+        version=$(./ci/print-current-version.sh)
+        echo "version: $version"
+        echo "version=$version" >> $GITHUB_OUTPUT
+        echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+        if grep -q "automatically-tag-and-release-this-commit" main.log; then
+          echo push-tag
+          echo "push_tag=yes" >> $GITHUB_OUTPUT
+        else
+          echo no-push-tag
+          echo "push_tag=no" >> $GITHUB_OUTPUT
+        fi
+      shell: bash
+      id: tag
+
+    - name: Push the tag
+      run: |
+        git_refs_url=$(jq .repository.git_refs_url $GITHUB_EVENT_PATH | tr -d '"' | sed 's/{\/sha}//g')
+        curl -iX POST $git_refs_url \
+          -H "Authorization: token ${{ github.token }}" \
+          -d @- << EOF
+        {
+          "ref": "refs/tags/v${{ steps.tag.outputs.version }}",
+          "sha": "${{ steps.tag.outputs.sha }}"
+        }
+        EOF
+      shell: bash
+      if: steps.tag.outputs.push_tag == 'yes'
+
+    # Download all github actions artifact for this commit. We're either running
+    # on `main` after the merge queue or on a release branch after the rest of
+    # CI, so use the github API to find the artifacts for consistency.
+    - run: |
+        sha=${{ github.sha }}
+        run_id=$(
+          gh api -H 'Accept: application/vnd.github+json' \
+              /repos/${{ github.repository }}/actions/workflows/main.yml/runs\?exclude_pull_requests=true \
+              | jq '.workflow_runs' \
+              | jq "map(select(.head_commit.id == \"$sha\"))[0].id" \
+        )
+        gh run download $run_id
+        ls
+        find bins-*
+        mkdir dist
+        mv bins-*/* dist
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+
+    # Conditionally make a release if a tag was made.
+    - uses: softprops/action-gh-release@v1
+      if: steps.tag.outputs.push_tag == 'yes'
+      with:
+        files: "dist/*"
+        generate_release_notes: true
+        tag_name: v${{ steps.tag.outputs.version }}
+
+    # Conditionally run crate publishes if the token is present.
+    - run: rustup update stable && rustup default stable
+      shell: bash
+
+    - run: |
+        rm -rf dist main.log
+        rustc ci/publish.rs
+        ./publish publish
+      shell: bash
+      env:
+        CARGO_REGISTRY_TOKEN: ${{ inputs.cargo_token }}
+      if: steps.tag.outputs.push_tag == 'yes' && github.repository_owner == 'bytecodealliance'
