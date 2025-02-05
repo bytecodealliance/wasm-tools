@@ -4,6 +4,7 @@
 //!
 //! For more information, see the [README](https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-wave#readme).
 #![deny(missing_docs)]
+#![allow(clippy::needless_lifetimes)]
 
 pub mod ast;
 pub mod lex;
