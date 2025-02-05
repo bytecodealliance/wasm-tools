@@ -56,7 +56,7 @@ jobs:
           git push origin HEAD:ci/release-$cur
           echo "PR_HEAD=ci/release-$cur" >> $GITHUB_ENV
           echo "PR_TITLE=Release ${{ github.event.repository.name }} $cur" >> $GITHUB_ENV
-          echo "PR_BASE=main" >> $GITHUB_ENV
+          echo "PR_BASE=${{ github.ref_name }}" >> $GITHUB_ENV
           cat > pr-body <<-EOF
           This is an automated pull request from CI to release
           ${{ github.event.repository.name }} $cur when merged. The commit
