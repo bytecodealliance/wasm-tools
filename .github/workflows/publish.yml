@@ -6,7 +6,7 @@
 name: Publish Artifacts
 on:
   push:
-    branches: [main]
+    branches: [main, 'release-*']
 
 permissions:
   contents: write
