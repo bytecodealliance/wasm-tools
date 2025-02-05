@@ -32,7 +32,7 @@ impl Eq for ConstExpr<'_> {}
 
 impl<'a> ConstExpr<'a> {
     /// Constructs a new `ConstExpr` from the given data and offset.
-    pub fn new(reader: BinaryReader<'a>) -> ConstExpr {
+    pub fn new(reader: BinaryReader<'a>) -> ConstExpr<'a> {
         ConstExpr { reader }
     }
 

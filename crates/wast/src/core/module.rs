@@ -156,7 +156,7 @@ pub enum ModuleField<'a> {
 }
 
 impl<'a> ModuleField<'a> {
-    pub(crate) fn parse_remaining(parser: Parser<'a>) -> Result<Vec<ModuleField>> {
+    pub(crate) fn parse_remaining(parser: Parser<'a>) -> Result<Vec<ModuleField<'a>>> {
         let mut fields = Vec::new();
         while !parser.is_empty() {
             fields.push(parser.parens(ModuleField::parse)?);
