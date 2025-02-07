@@ -387,7 +387,7 @@ impl<'a> Resolver<'a> {
                 CoreFuncKind::ResourceDrop(info) => {
                     self.resolve_ns(&mut info.ty, Ns::Type)?;
                 }
-                CoreFuncKind::ThreadSpawn(info) => {
+                CoreFuncKind::ThreadSpawnRef(info) => {
                     self.resolve_ns(&mut info.ty, Ns::CoreType)?;
                 }
                 CoreFuncKind::ThreadSpawnIndirect(info) => {

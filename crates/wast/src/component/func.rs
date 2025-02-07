@@ -51,7 +51,7 @@ pub enum CoreFuncKind<'a> {
     ResourceNew(CanonResourceNew<'a>),
     ResourceDrop(CanonResourceDrop<'a>),
     ResourceRep(CanonResourceRep<'a>),
-    ThreadSpawn(CanonThreadSpawn<'a>),
+    ThreadSpawnRef(CanonThreadSpawnRef<'a>),
     ThreadSpawnIndirect(CanonThreadSpawnIndirect<'a>),
     ThreadAvailableParallelism(CanonThreadAvailableParallelism),
     BackpressureSet,
@@ -110,8 +110,8 @@ impl<'a> CoreFuncKind<'a> {
             Ok(CoreFuncKind::ResourceDrop(parser.parse()?))
         } else if l.peek::<kw::resource_rep>()? {
             Ok(CoreFuncKind::ResourceRep(parser.parse()?))
-        } else if l.peek::<kw::thread_spawn>()? {
-            Ok(CoreFuncKind::ThreadSpawn(parser.parse()?))
+        } else if l.peek::<kw::thread_spawn_ref>()? {
+            Ok(CoreFuncKind::ThreadSpawnRef(parser.parse()?))
         } else if l.peek::<kw::thread_spawn_indirect>()? {
             Ok(CoreFuncKind::ThreadSpawnIndirect(parser.parse()?))
         } else if l.peek::<kw::thread_available_parallelism>()? {
@@ -474,16 +474,16 @@ impl<'a> Parse<'a> for CanonResourceRep<'a> {
     }
 }
 
-/// Information relating to the `thread.spawn` intrinsic.
+/// Information relating to the `thread.spawn_ref` intrinsic.
 #[derive(Debug)]
-pub struct CanonThreadSpawn<'a> {
+pub struct CanonThreadSpawnRef<'a> {
     /// The function type that is being spawned.
     pub ty: Index<'a>,
 }
 
-impl<'a> Parse<'a> for CanonThreadSpawn<'a> {
+impl<'a> Parse<'a> for CanonThreadSpawnRef<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::thread_spawn>()?;
+        parser.parse::<kw::thread_spawn_ref>()?;
 
         Ok(Self {
             ty: parser.parse()?,

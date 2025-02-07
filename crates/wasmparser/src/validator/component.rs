@@ -987,8 +987,8 @@ impl ComponentState {
             CanonicalFunction::ResourceRep { resource } => {
                 self.resource_rep(resource, types, offset)
             }
-            CanonicalFunction::ThreadSpawn { func_ty_index } => {
-                self.thread_spawn(func_ty_index, types, offset, features)
+            CanonicalFunction::ThreadSpawnRef { func_ty_index } => {
+                self.thread_spawn_ref(func_ty_index, types, offset, features)
             }
             CanonicalFunction::ThreadSpawnIndirect { table_index } => {
                 self.thread_spawn_indirect(table_index, types, offset, features)
@@ -1927,7 +1927,7 @@ impl ComponentState {
         bail!(offset, "type index {} is not a resource type", idx)
     }
 
-    fn thread_spawn(
+    fn thread_spawn_ref(
         &mut self,
         func_ty_index: u32,
         types: &mut TypeAlloc,
@@ -1937,11 +1937,11 @@ impl ComponentState {
         if !features.shared_everything_threads() {
             bail!(
                 offset,
-                "`thread.spawn` requires the shared-everything-threads proposal"
+                "`thread.spawn_ref` requires the shared-everything-threads proposal"
             )
         }
 
-        // Validate the type accepted by `thread.spawn`.
+        // Validate the type accepted by `thread.spawn_ref`.
         let core_type_id = match self.core_type_at(func_ty_index, offset)? {
             ComponentCoreTypeId::Sub(c) => c,
             ComponentCoreTypeId::Module(_) => bail!(offset, "expected a core function type"),

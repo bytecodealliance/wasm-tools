@@ -160,7 +160,7 @@ impl CanonicalFunctionSection {
 
     /// Defines a function which will spawn a new thread by invoking a shared
     /// function of type `ty_index`.
-    pub fn thread_spawn(&mut self, ty_index: u32) -> &mut Self {
+    pub fn thread_spawn_ref(&mut self, ty_index: u32) -> &mut Self {
         self.bytes.push(0x05);
         ty_index.encode(&mut self.bytes);
         self.num_added += 1;

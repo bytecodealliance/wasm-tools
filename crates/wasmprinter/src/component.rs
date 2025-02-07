@@ -892,10 +892,10 @@ impl Printer<'_, '_> {
                         me.print_idx(&state.component.type_names, resource)
                     })?;
                 }
-                CanonicalFunction::ThreadSpawn {
+                CanonicalFunction::ThreadSpawnRef {
                     func_ty_index: func_index,
                 } => {
-                    self.print_intrinsic(state, "canon thread.spawn ", &|me, state| {
+                    self.print_intrinsic(state, "canon thread.spawn_ref ", &|me, state| {
                         me.print_idx(&state.core.type_names, func_index)
                     })?;
                 }

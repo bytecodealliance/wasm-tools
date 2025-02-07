@@ -953,9 +953,9 @@ pub mod component_utils {
                 let resource = reencoder.component_type_index(resource);
                 section.resource_rep(resource);
             }
-            wasmparser::CanonicalFunction::ThreadSpawn { func_ty_index } => {
+            wasmparser::CanonicalFunction::ThreadSpawnRef { func_ty_index } => {
                 let func_ty = reencoder.type_index(func_ty_index);
-                section.thread_spawn(func_ty);
+                section.thread_spawn_ref(func_ty);
             }
             wasmparser::CanonicalFunction::ThreadSpawnIndirect { table_index } => {
                 let table_index = reencoder.table_index(table_index);

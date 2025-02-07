@@ -71,7 +71,7 @@ pub enum CanonicalFunction {
         resource: u32,
     },
     /// A function which spawns a new thread by invoking the shared function.
-    ThreadSpawn {
+    ThreadSpawnRef {
         /// The index of the function to spawn.
         func_ty_index: u32,
     },
@@ -290,7 +290,7 @@ impl<'a> FromReader<'a> for CanonicalFunction {
             0x04 => CanonicalFunction::ResourceRep {
                 resource: reader.read()?,
             },
-            0x05 => CanonicalFunction::ThreadSpawn {
+            0x05 => CanonicalFunction::ThreadSpawnRef {
                 func_ty_index: reader.read()?,
             },
             0x06 => CanonicalFunction::ThreadAvailableParallelism,
