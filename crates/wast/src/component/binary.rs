@@ -349,9 +349,13 @@ impl<'a> Encoder<'a> {
                 self.core_func_names.push(name);
                 self.funcs.resource_rep(info.ty.into());
             }
-            CanonicalFuncKind::ThreadSpawn(info) => {
+            CanonicalFuncKind::ThreadSpawnRef(info) => {
                 self.core_func_names.push(name);
-                self.funcs.thread_spawn(info.ty.into());
+                self.funcs.thread_spawn_ref(info.ty.into());
+            }
+            CanonicalFuncKind::ThreadSpawnIndirect(info) => {
+                self.core_func_names.push(name);
+                self.funcs.thread_spawn_indirect(info.table.idx.into());
             }
             CanonicalFuncKind::ThreadHwConcurrency(_info) => {
                 self.core_func_names.push(name);

@@ -1682,7 +1682,7 @@ impl ComponentState {
         bail!(offset, "type index {} is not a resource type", idx)
     }
 
-    pub fn thread_spawn(
+    pub fn thread_spawn_ref(
         &mut self,
         func_ty_index: u32,
         types: &mut TypeAlloc,
@@ -1692,11 +1692,11 @@ impl ComponentState {
         if !features.shared_everything_threads() {
             bail!(
                 offset,
-                "`thread.spawn` requires the shared-everything-threads proposal"
+                "`thread.spawn_ref` requires the shared-everything-threads proposal"
             )
         }
 
-        // Validate the type accepted by `thread.spawn`.
+        // Validate the type accepted by `thread.spawn_ref`.
         let core_type_id = match self.core_type_at(func_ty_index, offset)? {
             ComponentCoreTypeId::Sub(c) => c,
             ComponentCoreTypeId::Module(_) => bail!(offset, "expected a core function type"),
@@ -1726,6 +1726,42 @@ impl ComponentState {
         })?;
         let start_func_ref = RefType::concrete(true, packed_index);
         let func_ty = FuncType::new([ValType::Ref(start_func_ref), ValType::I32], [ValType::I32]);
+        let core_ty = SubType::func(func_ty, true);
+        let id = types.intern_sub_type(core_ty, offset);
+        self.core_funcs.push(id);
+
+        Ok(())
+    }
+
+    pub fn thread_spawn_indirect(
+        &mut self,
+        table_index: u32,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.shared_everything_threads() {
+            bail!(
+                offset,
+                "`thread.spawn_indirect` requires the shared-everything-threads proposal"
+            )
+        }
+
+        // Check this much like `call_indirect` (see
+        // `OperatorValidatorTemp::check_call_indirect_ty`), but loosen the
+        // table type restrictions for now to just a `funcref`. Once the
+        // `spawn_indirect` gains a type immediate, this should look that type
+        // up and verify that it is (a) shared and (b) matches the table type
+        // (TODO: spawn indirect types).
+        let table = self.table_at(table_index, offset)?;
+        let expected_ty = RefType::FUNCREF
+            .shared()
+            .expect("a funcref can always be shared");
+        if table.element_type != expected_ty {
+            bail!(offset, "expected a table of shared `funcref`");
+        }
+
+        let func_ty = FuncType::new([ValType::I32, ValType::I32], [ValType::I32]);
         let core_ty = SubType::func(func_ty, true);
         let id = types.intern_sub_type(core_ty, offset);
         self.core_funcs.push(id);
