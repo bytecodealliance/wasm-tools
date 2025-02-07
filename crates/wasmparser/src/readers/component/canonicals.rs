@@ -74,7 +74,7 @@ pub enum CanonicalFunction {
     },
     /// A function which returns the number of threads that can be expected to
     /// execute concurrently
-    ThreadHwConcurrency,
+    ThreadAvailableParallelism,
     /// A function which tells the host to enable or disable backpressure for
     /// the caller's instance.
     TaskBackpressure,
@@ -272,7 +272,7 @@ impl<'a> FromReader<'a> for CanonicalFunction {
             0x05 => CanonicalFunction::ThreadSpawn {
                 func_ty_index: reader.read()?,
             },
-            0x06 => CanonicalFunction::ThreadHwConcurrency,
+            0x06 => CanonicalFunction::ThreadAvailableParallelism,
             0x08 => CanonicalFunction::TaskBackpressure,
             0x09 => CanonicalFunction::TaskReturn {
                 result: match reader.read_u8()? {

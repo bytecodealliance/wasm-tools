@@ -169,7 +169,7 @@ impl CanonicalFunctionSection {
 
     /// Defines a function which will return the number of threads that can be
     /// expected to execute concurrently.
-    pub fn thread_hw_concurrency(&mut self) -> &mut Self {
+    pub fn thread_available_parallelism(&mut self) -> &mut Self {
         self.bytes.push(0x06);
         self.num_added += 1;
         self

@@ -1733,7 +1733,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn thread_hw_concurrency(
+    pub fn thread_available_parallelism(
         &mut self,
         types: &mut TypeAlloc,
         offset: usize,
@@ -1742,7 +1742,7 @@ impl ComponentState {
         if !features.shared_everything_threads() {
             bail!(
                 offset,
-                "`thread.hw_concurrency` requires the shared-everything-threads proposal"
+                "`thread.available_parallelism` requires the shared-everything-threads proposal"
             )
         }
 

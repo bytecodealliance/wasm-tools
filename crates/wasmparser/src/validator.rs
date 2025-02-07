@@ -1307,8 +1307,8 @@ impl Validator {
                     crate::CanonicalFunction::ThreadSpawn { func_ty_index } => {
                         current.thread_spawn(func_ty_index, types, offset, features)
                     }
-                    crate::CanonicalFunction::ThreadHwConcurrency => {
-                        current.thread_hw_concurrency(types, offset, features)
+                    crate::CanonicalFunction::ThreadAvailableParallelism => {
+                        current.thread_available_parallelism(types, offset, features)
                     }
                     crate::CanonicalFunction::TaskBackpressure => {
                         current.task_backpressure(types, offset, features)
