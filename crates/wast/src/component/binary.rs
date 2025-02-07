@@ -353,9 +353,9 @@ impl<'a> Encoder<'a> {
                 self.core_func_names.push(name);
                 self.funcs.thread_spawn(info.ty.into());
             }
-            CanonicalFuncKind::ThreadHwConcurrency(_info) => {
+            CanonicalFuncKind::ThreadAvailableParallelism(_info) => {
                 self.core_func_names.push(name);
-                self.funcs.thread_hw_concurrency();
+                self.funcs.thread_available_parallelism();
             }
             CanonicalFuncKind::TaskBackpressure => {
                 self.core_func_names.push(name);

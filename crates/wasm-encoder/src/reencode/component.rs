@@ -964,8 +964,8 @@ pub mod component_utils {
                 let func_ty = reencoder.type_index(func_ty_index);
                 section.thread_spawn(func_ty);
             }
-            wasmparser::CanonicalFunction::ThreadHwConcurrency => {
-                section.thread_hw_concurrency();
+            wasmparser::CanonicalFunction::ThreadAvailableParallelism => {
+                section.thread_available_parallelism();
             }
             wasmparser::CanonicalFunction::TaskBackpressure => {
                 section.task_backpressure();

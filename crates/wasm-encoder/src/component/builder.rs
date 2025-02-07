@@ -379,9 +379,9 @@ impl ComponentBuilder {
         inc(&mut self.core_funcs)
     }
 
-    /// Declares a new `thread.hw_concurrency` intrinsic.
-    pub fn thread_hw_concurrency(&mut self) -> u32 {
-        self.canonical_functions().thread_hw_concurrency();
+    /// Declares a new `thread.available_parallelism` intrinsic.
+    pub fn thread_available_parallelism(&mut self) -> u32 {
+        self.canonical_functions().thread_available_parallelism();
         inc(&mut self.core_funcs)
     }
 

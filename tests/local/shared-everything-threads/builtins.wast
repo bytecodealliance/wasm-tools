@@ -3,24 +3,24 @@
 (component
   (core type $start (shared (func (param $context i32))))
   (core func $spawn (canon thread.spawn $start))
-  (core func $concurrency (canon thread.hw_concurrency))
+  (core func $parallelism (canon thread.available_parallelism))
 )
 
 (component
   (core type $start (shared (func (param $context i32))))
   (core func $spawn (canon thread.spawn $start))
-  (core func $concurrency (canon thread.hw_concurrency))
+  (core func $parallelism (canon thread.available_parallelism))
 
   (core module $m
     (type $st (shared (func (param $context i32))))
     (import "" "spawn" (func (param (ref null $st)) (param i32) (result i32)))
-    (import "" "concurrency" (func (result i32)))
+    (import "" "parallelism" (func (result i32)))
   )
 
   (core instance (instantiate $m
     (with "" (instance
       (export "spawn" (func $spawn))
-      (export "concurrency" (func $concurrency))
+      (export "parallelism" (func $parallelism))
     ))
   ))
 )

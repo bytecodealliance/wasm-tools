@@ -13,7 +13,7 @@
       "line": 10,
       "filename": "shared-everything-threads-builtins.1.wasm",
       "module_type": "binary",
-      "text": "`thread.hw_concurrency` requires the shared-everything-threads proposal"
+      "text": "`thread.available_parallelism` requires the shared-everything-threads proposal"
     }
   ]
 }
