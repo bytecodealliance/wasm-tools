@@ -183,10 +183,7 @@
     {
       "name": "t12",
       "kind": {
-        "list": [
-          "char",
-          null
-        ]
+        "list": "char"
       },
       "owner": {
         "interface": 0
@@ -638,30 +635,21 @@
     {
       "name": null,
       "kind": {
-        "list": [
-          33,
-          null
-        ]
+        "list": 33
       },
       "owner": null
     },
     {
       "name": null,
       "kind": {
-        "list": [
-          44,
-          null
-        ]
+        "list": 44
       },
       "owner": null
     },
     {
       "name": "t45",
       "kind": {
-        "list": [
-          45,
-          null
-        ]
+        "list": 45
       },
       "owner": {
         "interface": 0
@@ -715,7 +703,7 @@
     {
       "name": "t51a",
       "kind": {
-        "list": [
+        "fixed-size-list": [
           "u32",
           4
         ]
@@ -727,7 +715,7 @@
     {
       "name": null,
       "kind": {
-        "list": [
+        "fixed-size-list": [
           "u32",
           4
         ]
@@ -737,7 +725,7 @@
     {
       "name": "t51b",
       "kind": {
-        "list": [
+        "fixed-size-list": [
           53,
           2
         ]
