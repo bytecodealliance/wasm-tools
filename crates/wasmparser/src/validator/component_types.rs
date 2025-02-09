@@ -1039,7 +1039,9 @@ pub enum ComponentDefinedType {
     /// The type is a variant.
     Variant(VariantType),
     /// The type is a list.
-    List(ComponentValType, Option<usize>),
+    List(ComponentValType),
+    /// The type is a fixed size list.
+    FixedSizeList(ComponentValType, usize),
     /// The type is a tuple.
     Tuple(TupleType),
     /// The type is a set of flags.
@@ -1083,7 +1085,7 @@ impl TypeData for ComponentDefinedType {
             Self::Record(r) => r.info,
             Self::Variant(v) => v.info,
             Self::Tuple(t) => t.info,
-            Self::List(ty, ..) | Self::Option(ty) => ty.info(types),
+            Self::List(ty) | Self::FixedSizeList(ty, _) | Self::Option(ty) => ty.info(types),
             Self::Result { ok, err } => {
                 let default = TypeInfo::new();
                 let mut info = ok.map(|ty| ty.type_info(types)).unwrap_or(default);
@@ -1104,7 +1106,7 @@ impl ComponentDefinedType {
                 .cases
                 .values()
                 .any(|case| case.ty.map(|ty| ty.contains_ptr(types)).unwrap_or(false)),
-            Self::List(..) => true,
+            Self::List(_) => true,
             Self::Tuple(t) => t.types.iter().any(|ty| ty.contains_ptr(types)),
             Self::Flags(_)
             | Self::Enum(_)
@@ -1113,7 +1115,7 @@ impl ComponentDefinedType {
             | Self::Future(_)
             | Self::Stream(_)
             | Self::ErrorContext => false,
-            Self::Option(ty) => ty.contains_ptr(types),
+            Self::Option(ty) | Self::FixedSizeList(ty, _) => ty.contains_ptr(types),
             Self::Result { ok, err } => {
                 ok.map(|ty| ty.contains_ptr(types)).unwrap_or(false)
                     || err.map(|ty| ty.contains_ptr(types)).unwrap_or(false)
@@ -1133,10 +1135,8 @@ impl ComponentDefinedType {
                 types,
                 lowered_types,
             ),
-            Self::List(_, None) => {
-                lowered_types.push(ValType::I32) && lowered_types.push(ValType::I32)
-            }
-            Self::List(ty, Some(length)) => {
+            Self::List(_) => lowered_types.push(ValType::I32) && lowered_types.push(ValType::I32),
+            Self::FixedSizeList(ty, length) => {
                 (0..*length).all(|_n| ty.push_wasm_types(types, lowered_types))
             }
             Self::Tuple(t) => t
@@ -1215,7 +1215,7 @@ impl ComponentDefinedType {
             ComponentDefinedType::Enum(_) => "enum",
             ComponentDefinedType::Flags(_) => "flags",
             ComponentDefinedType::Option(_) => "option",
-            ComponentDefinedType::List(..) => "list",
+            ComponentDefinedType::List(_) | ComponentDefinedType::FixedSizeList(_, _) => "list",
             ComponentDefinedType::Result { .. } => "result",
             ComponentDefinedType::Own(_) => "own",
             ComponentDefinedType::Borrow(_) => "borrow",
@@ -1955,7 +1955,9 @@ impl TypeAlloc {
                     }
                 }
             }
-            ComponentDefinedType::List(ty, ..) | ComponentDefinedType::Option(ty) => {
+            ComponentDefinedType::List(ty)
+            | ComponentDefinedType::FixedSizeList(ty, _)
+            | ComponentDefinedType::Option(ty) => {
                 self.free_variables_valtype(ty, set);
             }
             ComponentDefinedType::Result { ok, err } => {
@@ -2102,9 +2104,9 @@ impl TypeAlloc {
                         .map(|t| self.type_named_valtype(t, set))
                         .unwrap_or(true)
             }
-            ComponentDefinedType::List(ty, ..) | ComponentDefinedType::Option(ty) => {
-                self.type_named_valtype(ty, set)
-            }
+            ComponentDefinedType::List(ty)
+            | ComponentDefinedType::FixedSizeList(ty, _)
+            | ComponentDefinedType::Option(ty) => self.type_named_valtype(ty, set),
 
             // own/borrow themselves don't have to be named, but the resource
             // they refer to must be named.
@@ -2290,7 +2292,9 @@ where
                     }
                 }
             }
-            ComponentDefinedType::List(ty, ..) | ComponentDefinedType::Option(ty) => {
+            ComponentDefinedType::List(ty)
+            | ComponentDefinedType::FixedSizeList(ty, _)
+            | ComponentDefinedType::Option(ty) => {
                 any_changed |= self.remap_valtype(ty, map);
             }
             ComponentDefinedType::Result { ok, err } => {
@@ -3175,10 +3179,16 @@ impl<'a> SubtypeCx<'a> {
                 Ok(())
             }
             (Variant(_), b) => bail!(offset, "expected {}, found variant", b.desc()),
-            (List(a, ..), List(b, ..)) | (Option(a), Option(b)) => {
-                self.component_val_type(a, b, offset)
+            (List(a), List(b)) | (Option(a), Option(b)) => self.component_val_type(a, b, offset),
+            (List(_), b) => bail!(offset, "expected {}, found list", b.desc()),
+            (FixedSizeList(a, asize), FixedSizeList(b, bsize)) => {
+                if asize != bsize {
+                    bail!(offset, "expected fixed size {bsize}, found size {asize}")
+                } else {
+                    self.component_val_type(a, b, offset)
+                }
             }
-            (List(_, ..), b) => bail!(offset, "expected {}, found list", b.desc()),
+            (FixedSizeList(_, _), b) => bail!(offset, "expected {}, found list", b.desc()),
             (Option(_), b) => bail!(offset, "expected {}, found option", b.desc()),
             (Tuple(a), Tuple(b)) => {
                 if a.types.len() != b.types.len() {
