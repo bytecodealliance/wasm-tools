@@ -107,7 +107,11 @@ fn encode_defined_type(encoder: ComponentDefinedTypeEncoder, ty: &ComponentDefin
             }));
         }
         ComponentDefinedType::List(l) => {
-            encoder.list(l.element.as_ref());
+            if let Some(elements) = l.elements {
+                encoder.fixed_size_list(l.element.as_ref(), elements);
+            } else {
+                encoder.list(l.element.as_ref());
+            }
         }
         ComponentDefinedType::Tuple(t) => {
             encoder.tuple(t.fields.iter());
