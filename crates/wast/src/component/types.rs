@@ -584,13 +584,22 @@ impl<'a> Parse<'a> for Refinement<'a> {
 pub struct List<'a> {
     /// The element type of the array.
     pub element: Box<ComponentValType<'a>>,
+    /// Optional fixed size
+    pub elements: Option<usize>,
 }
 
 impl<'a> Parse<'a> for List<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::list>()?;
+        let tp = parser.parse()?;
+        let elements = if !parser.is_empty() {
+            Some(parser.parse::<u32>()? as usize)
+        } else { 
+            None 
+        };
         Ok(Self {
-            element: Box::new(parser.parse()?),
+            element: Box::new(tp),
+            elements,
         })
     }
 }
