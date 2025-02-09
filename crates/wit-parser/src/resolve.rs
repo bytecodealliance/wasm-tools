@@ -566,15 +566,14 @@ package {name} is defined in two different locations:\n\
             Type::Bool | Type::Char | Type::String | Type::ErrorContext => false,
 
             Type::Id(id) => match &self.types[*id].kind {
-                TypeDefKind::List(t, Some(_)) => self.all_bits_valid(t),
-                TypeDefKind::List(_, None)
+                TypeDefKind::List(_)
                 | TypeDefKind::Variant(_)
                 | TypeDefKind::Enum(_)
                 | TypeDefKind::Option(_)
                 | TypeDefKind::Result(_)
                 | TypeDefKind::Future(_)
                 | TypeDefKind::Stream(_) => false,
-                TypeDefKind::Type(t) => self.all_bits_valid(t),
+                TypeDefKind::Type(t) | TypeDefKind::FixedSizeList(t, ..) => self.all_bits_valid(t),
 
                 TypeDefKind::Handle(h) => match h {
                     crate::Handle::Own(_) => true,
@@ -3136,7 +3135,7 @@ impl Remap {
                     }
                 }
             }
-            Option(t) | List(t, ..) | Future(Some(t)) | Stream(Some(t)) => {
+            Option(t) | List(t, ..) | FixedSizeList(t, ..) | Future(Some(t)) | Stream(Some(t)) => {
                 self.update_ty(resolve, t, span)?
             }
             Result(r) => {
@@ -3522,7 +3521,8 @@ impl Remap {
             TypeDefKind::Flags(_) => false,
             TypeDefKind::Tuple(t) => t.types.iter().any(|t| self.type_has_borrow(resolve, t)),
             TypeDefKind::Enum(_) => false,
-            TypeDefKind::List(ty, ..)
+            TypeDefKind::List(ty)
+            | TypeDefKind::FixedSizeList(ty, ..)
             | TypeDefKind::Future(Some(ty))
             | TypeDefKind::Stream(Some(ty))
             | TypeDefKind::Option(ty) => self.type_has_borrow(resolve, ty),

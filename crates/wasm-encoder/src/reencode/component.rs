@@ -764,8 +764,11 @@ pub mod component_utils {
                     )
                 }));
             }
-            wasmparser::ComponentDefinedType::List(t, ..) => {
+            wasmparser::ComponentDefinedType::List(t) => {
                 defined.list(reencoder.component_val_type(t));
+            }
+            wasmparser::ComponentDefinedType::FixedSizeList(t, elements) => {
+                defined.fixed_size_list(reencoder.component_val_type(t), elements);
             }
             wasmparser::ComponentDefinedType::Tuple(t) => {
                 defined.tuple(t.iter().map(|t| reencoder.component_val_type(*t)));

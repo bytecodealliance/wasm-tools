@@ -283,14 +283,14 @@ impl Resolve {
                     }
                 }
 
-                TypeDefKind::List(ty, size) => {
-                    if let Some(size) = size {
-                        for _ in 0..*size {
-                            self.push_flat(ty, result);
-                        }
-                    } else {
-                        result.push(WasmType::Pointer);
-                        result.push(WasmType::Length);
+                TypeDefKind::List(_) => {
+                    result.push(WasmType::Pointer);
+                    result.push(WasmType::Length);
+                }
+
+                TypeDefKind::FixedSizeList(ty, size) => {
+                    for _ in 0..*size {
+                        self.push_flat(ty, result);
                     }
                 }
 

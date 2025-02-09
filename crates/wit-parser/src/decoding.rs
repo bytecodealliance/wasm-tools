@@ -1253,7 +1253,8 @@ impl WitPackageDecoder<'_> {
         let kind = self.convert_defined(def)?;
         match &kind {
             TypeDefKind::Type(_)
-            | TypeDefKind::List(..)
+            | TypeDefKind::List(_)
+            | TypeDefKind::FixedSizeList(..)
             | TypeDefKind::Tuple(_)
             | TypeDefKind::Option(_)
             | TypeDefKind::Result(_)
@@ -1289,9 +1290,14 @@ impl WitPackageDecoder<'_> {
         match ty {
             ComponentDefinedType::Primitive(t) => Ok(TypeDefKind::Type(self.convert_primitive(*t))),
 
-            ComponentDefinedType::List(t, size) => {
+            ComponentDefinedType::List(t) => {
                 let t = self.convert_valtype(t)?;
-                Ok(TypeDefKind::List(t, *size))
+                Ok(TypeDefKind::List(t))
+            }
+
+            ComponentDefinedType::FixedSizeList(t, size) => {
+                let t = self.convert_valtype(t)?;
+                Ok(TypeDefKind::FixedSizeList(t, *size))
             }
 
             ComponentDefinedType::Tuple(t) => {
@@ -1570,9 +1576,9 @@ impl Registrar<'_> {
         match def {
             ComponentDefinedType::Primitive(_) => Ok(()),
 
-            ComponentDefinedType::List(t, ..) => {
+            ComponentDefinedType::List(t) => {
                 let ty = match &self.resolve.types[id].kind {
-                    TypeDefKind::List(r, ..) => r,
+                    TypeDefKind::List(r) => r,
                     // Note that all cases below have this match and the general
                     // idea is that once a type is named or otherwise identified
                     // here there's no need to recurse. The purpose of this
@@ -1582,6 +1588,22 @@ impl Registrar<'_> {
                     // that reason once something is named we can bail out.
                     TypeDefKind::Type(Type::Id(_)) => return Ok(()),
                     _ => bail!("expected a list"),
+                };
+                self.valtype(t, ty)
+            }
+
+            ComponentDefinedType::FixedSizeList(t, elements) => {
+                let ty = match &self.resolve.types[id].kind {
+                    TypeDefKind::FixedSizeList(r, elements2) if elements2 == elements => r,
+                    // Note that all cases below have this match and the general
+                    // idea is that once a type is named or otherwise identified
+                    // here there's no need to recurse. The purpose of this
+                    // registrar is to build connections for anonymous types
+                    // that don't otherwise have a name to ensure that they're
+                    // decoded to reuse the same constructs consistently. For
+                    // that reason once something is named we can bail out.
+                    TypeDefKind::Type(Type::Id(_)) => return Ok(()),
+                    _ => bail!("expected a fixed size {elements} list"),
                 };
                 self.valtype(t, ty)
             }

@@ -138,10 +138,16 @@ pub trait ValtypeEncoder<'a> {
                     TypeDefKind::Option(t) => self.encode_option(resolve, t)?,
                     TypeDefKind::Result(r) => self.encode_result(resolve, r)?,
                     TypeDefKind::Enum(e) => self.encode_enum(e)?,
-                    TypeDefKind::List(ty, ..) => {
+                    TypeDefKind::List(ty) => {
                         let ty = self.encode_valtype(resolve, ty)?;
                         let (index, encoder) = self.defined_type();
                         encoder.list(ty);
+                        ComponentValType::Type(index)
+                    }
+                    TypeDefKind::FixedSizeList(ty, elements) => {
+                        let ty = self.encode_valtype(resolve, ty)?;
+                        let (index, encoder) = self.defined_type();
+                        encoder.fixed_size_list(ty, *elements);
                         ComponentValType::Type(index)
                     }
                     TypeDefKind::Type(ty) => self.encode_valtype(resolve, ty)?,
