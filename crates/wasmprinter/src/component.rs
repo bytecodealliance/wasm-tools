@@ -169,6 +169,19 @@ impl Printer<'_, '_> {
         Ok(())
     }
 
+    pub(crate) fn print_fixed_size_list_type(
+        &mut self,
+        state: &State,
+        element_ty: &ComponentValType,
+        elements: usize,
+    ) -> Result<()> {
+        self.start_group("list ")?;
+        self.print_component_val_type(state, element_ty)?;
+        self.result.write_str(&format!(" {elements}"))?;
+        self.end_group()?;
+        Ok(())
+    }
+
     pub(crate) fn print_tuple_type(
         &mut self,
         state: &State,
@@ -264,7 +277,10 @@ impl Printer<'_, '_> {
             ComponentDefinedType::Primitive(ty) => self.print_primitive_val_type(ty)?,
             ComponentDefinedType::Record(fields) => self.print_record_type(state, fields)?,
             ComponentDefinedType::Variant(cases) => self.print_variant_type(state, cases)?,
-            ComponentDefinedType::List(ty, _size) => self.print_list_type(state, ty)?,
+            ComponentDefinedType::List(ty) => self.print_list_type(state, ty)?,
+            ComponentDefinedType::FixedSizeList(ty, elements) => {
+                self.print_fixed_size_list_type(state, ty, *elements)?
+            }
             ComponentDefinedType::Tuple(tys) => self.print_tuple_type(state, tys)?,
             ComponentDefinedType::Flags(names) => self.print_flag_or_enum_type("flags", names)?,
             ComponentDefinedType::Enum(cases) => self.print_flag_or_enum_type("enum", cases)?,

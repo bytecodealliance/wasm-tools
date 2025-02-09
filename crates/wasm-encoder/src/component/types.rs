@@ -593,6 +593,13 @@ impl ComponentDefinedTypeEncoder<'_> {
         ty.into().encode(self.0);
     }
 
+    /// Define a fixed size list type.
+    pub fn fixed_size_list(self, ty: impl Into<ComponentValType>, elements: usize) {
+        self.0.push(0x67);
+        ty.into().encode(self.0);
+        (elements as u32).encode(self.0);
+    }
+
     /// Define a tuple type.
     pub fn tuple<I, T>(self, types: I)
     where

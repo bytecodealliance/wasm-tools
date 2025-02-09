@@ -10,6 +10,7 @@ pub struct Type(pub(super) TypeEnum);
 pub(super) enum TypeEnum {
     Simple(SimpleType),
     List(Arc<ListType>),
+    FixedSizeList(Arc<ListType>, usize),
     Record(Arc<RecordType>),
     Tuple(Arc<TupleType>),
     Variant(Arc<VariantType>),
@@ -53,6 +54,15 @@ impl Type {
     pub fn list(element_type: impl Into<Self>) -> Self {
         let element = element_type.into();
         Self(TypeEnum::List(Arc::new(ListType { element })))
+    }
+
+    /// Returns a list type with the given element type.
+    pub fn fixed_size_list(element_type: impl Into<Self>, elements: usize) -> Self {
+        let element = element_type.into();
+        Self(TypeEnum::FixedSizeList(
+            Arc::new(ListType { element }),
+            elements,
+        ))
     }
 
     /// Returns a record type with the given field types. Returns None if
@@ -189,6 +199,7 @@ impl WasmType for Type {
         match self.0 {
             TypeEnum::Simple(simple) => simple.0,
             TypeEnum::List(_) => WasmTypeKind::List,
+            TypeEnum::FixedSizeList(_, _) => WasmTypeKind::FixedSizeList,
             TypeEnum::Record(_) => WasmTypeKind::Record,
             TypeEnum::Tuple(_) => WasmTypeKind::Tuple,
             TypeEnum::Variant(_) => WasmTypeKind::Variant,

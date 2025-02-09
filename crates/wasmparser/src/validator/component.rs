@@ -724,9 +724,9 @@ impl ComponentState {
                         .map(|t| types.type_named_valtype(t, set))
                         .unwrap_or(true)
             }
-            ComponentDefinedType::List(ty, ..) | ComponentDefinedType::Option(ty) => {
-                types.type_named_valtype(ty, set)
-            }
+            ComponentDefinedType::List(ty)
+            | ComponentDefinedType::FixedSizeList(ty, _)
+            | ComponentDefinedType::Option(ty) => types.type_named_valtype(ty, set),
 
             // The resource referred to by own/borrow must be named.
             ComponentDefinedType::Own(id) | ComponentDefinedType::Borrow(id) => {
@@ -3436,10 +3436,15 @@ impl ComponentState {
             crate::ComponentDefinedType::Variant(cases) => {
                 self.create_variant_type(cases.as_ref(), types, offset)
             }
-            crate::ComponentDefinedType::List(ty, size) => Ok(ComponentDefinedType::List(
+            crate::ComponentDefinedType::List(ty) => Ok(ComponentDefinedType::List(
                 self.create_component_val_type(ty, offset)?,
-                size,
             )),
+            crate::ComponentDefinedType::FixedSizeList(ty, elements) => {
+                Ok(ComponentDefinedType::FixedSizeList(
+                    self.create_component_val_type(ty, offset)?,
+                    elements,
+                ))
+            }
             crate::ComponentDefinedType::Tuple(tys) => {
                 self.create_tuple_type(tys.as_ref(), types, offset)
             }

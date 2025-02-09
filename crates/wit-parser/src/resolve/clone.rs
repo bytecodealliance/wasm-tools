@@ -109,7 +109,9 @@ impl<'a> Cloner<'a> {
             TypeDefKind::Handle(Handle::Own(ty) | Handle::Borrow(ty)) => {
                 self.type_id(ty);
             }
-            TypeDefKind::Option(ty) | TypeDefKind::List(ty, ..) => {
+            TypeDefKind::Option(ty)
+            | TypeDefKind::List(ty)
+            | TypeDefKind::FixedSizeList(ty, ..) => {
                 self.ty(ty);
             }
             TypeDefKind::Tuple(list) => {

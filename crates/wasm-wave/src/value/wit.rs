@@ -69,7 +69,10 @@ impl<'a> TypeResolver<'a> {
             TypeDefKind::Enum(enum_) => self.resolve_enum(enum_),
             TypeDefKind::Option(some_type) => self.resolve_option(some_type),
             TypeDefKind::Result(result) => self.resolve_result(result),
-            TypeDefKind::List(element_type, _size) => self.resolve_list(element_type),
+            TypeDefKind::List(element_type) => self.resolve_list(element_type),
+            TypeDefKind::FixedSizeList(element_type, elements) => {
+                self.resolve_fixed_size_list(element_type, *elements)
+            }
             TypeDefKind::Type(Type::Bool) => Ok(value::Type::BOOL),
             TypeDefKind::Type(Type::U8) => Ok(value::Type::U8),
             TypeDefKind::Type(Type::U16) => Ok(value::Type::U16),
@@ -144,6 +147,11 @@ impl<'a> TypeResolver<'a> {
     fn resolve_list(&self, element_type: &Type) -> ValueResult {
         let element_type = self.resolve_type(*element_type)?;
         Ok(value::Type::list(element_type))
+    }
+
+    fn resolve_fixed_size_list(&self, element_type: &Type, elements: usize) -> ValueResult {
+        let element_type = self.resolve_type(*element_type)?;
+        Ok(value::Type::fixed_size_list(element_type, elements))
     }
 }
 
