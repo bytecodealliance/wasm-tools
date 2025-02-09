@@ -594,8 +594,8 @@ impl<'a> Parse<'a> for List<'a> {
         let tp = parser.parse()?;
         let elements = if !parser.is_empty() {
             Some(parser.parse::<u32>()? as usize)
-        } else { 
-            None 
+        } else {
+            None
         };
         Ok(Self {
             element: Box::new(tp),
