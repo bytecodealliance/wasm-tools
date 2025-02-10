@@ -675,7 +675,7 @@ impl ComponentDefinedTypeEncoder<'_> {
 
     /// Define a `future` type with the specified payload.
     pub fn future(self, payload: Option<ComponentValType>) {
-        self.0.push(0x67);
+        self.0.push(0x65);
         payload.encode(self.0);
     }
 
@@ -687,7 +687,7 @@ impl ComponentDefinedTypeEncoder<'_> {
 
     /// Define the `error-context` type.
     pub fn error_context(self) {
-        self.0.push(0x65);
+        self.0.push(0x64);
     }
 }
 
