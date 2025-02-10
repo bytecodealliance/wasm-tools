@@ -1848,6 +1848,19 @@ package {name} is defined in two different locations:\n\
         })
     }
 
+    /// Convenience wrapper around `include_stability` specialized for types
+    /// with a more targeted error message.
+    fn include_type(&self, ty: &TypeDef, pkgid: PackageId, span: Span) -> Result<bool> {
+        self.include_stability(&ty.stability, &pkgid, Some(span))
+            .with_context(|| {
+                format!(
+                    "failed to process feature gate for type [{}] in package [{}]",
+                    ty.name.as_ref().map(String::as_str).unwrap_or("<unknown>"),
+                    self.packages[pkgid].name,
+                )
+            })
+    }
+
     /// Performs the "elaboration process" necessary for the `world_id`
     /// specified to ensure that all of its transitive imports are listed.
     ///
@@ -2625,12 +2638,6 @@ impl Remap {
         resolve: &mut Resolve,
         unresolved: UnresolvedPackage,
     ) -> Result<PackageId> {
-        self.process_foreign_deps(resolve, &unresolved)?;
-
-        let foreign_types = self.types.len();
-        let foreign_interfaces = self.interfaces.len();
-        let foreign_worlds = self.worlds.len();
-
         let pkgid = resolve.packages.alloc(Package {
             name: unresolved.name.clone(),
             docs: unresolved.docs.clone(),
@@ -2639,6 +2646,12 @@ impl Remap {
         });
         let prev = resolve.package_names.insert(unresolved.name.clone(), pkgid);
         assert!(prev.is_none());
+
+        self.process_foreign_deps(resolve, pkgid, &unresolved)?;
+
+        let foreign_types = self.types.len();
+        let foreign_interfaces = self.interfaces.len();
+        let foreign_worlds = self.worlds.len();
 
         // Copy over all types first, updating any intra-type references. Note
         // that types are sorted topologically which means this iteration
@@ -2652,16 +2665,7 @@ impl Remap {
             .zip(&unresolved.type_spans)
             .skip(foreign_types)
         {
-            if !resolve
-                .include_stability(&ty.stability, &pkgid, Some(*span))
-                .with_context(|| {
-                    format!(
-                        "failed to process feature gate for type [{}] in package [{}]",
-                        ty.name.as_ref().map(String::as_str).unwrap_or("<unknown>"),
-                        resolve.packages[pkgid].name,
-                    )
-                })?
-            {
+            if !resolve.include_type(&ty, pkgid, *span)? {
                 self.types.push(None);
                 continue;
             }
@@ -2838,6 +2842,7 @@ impl Remap {
     fn process_foreign_deps(
         &mut self,
         resolve: &mut Resolve,
+        pkgid: PackageId,
         unresolved: &UnresolvedPackage,
     ) -> Result<()> {
         // Invert the `foreign_deps` map to be keyed by world id to get
@@ -2877,7 +2882,7 @@ impl Remap {
 
         // Finally, iterate over all foreign-defined types and determine
         // what they map to.
-        self.process_foreign_types(unresolved, resolve)?;
+        self.process_foreign_types(unresolved, pkgid, resolve)?;
 
         for (id, span) in unresolved.required_resource_types.iter() {
             let mut id = self.map_type(*id, Some(*span))?;
@@ -2988,9 +2993,12 @@ impl Remap {
     fn process_foreign_types(
         &mut self,
         unresolved: &UnresolvedPackage,
+        pkgid: PackageId,
         resolve: &mut Resolve,
     ) -> Result<(), anyhow::Error> {
-        for (unresolved_type_id, unresolved_ty) in unresolved.types.iter() {
+        for ((unresolved_type_id, unresolved_ty), span) in
+            unresolved.types.iter().zip(&unresolved.type_spans)
+        {
             // All "Unknown" types should appear first so once we're no longer
             // in unknown territory it's package-defined types so break out of
             // this loop.
@@ -2998,6 +3006,12 @@ impl Remap {
                 TypeDefKind::Unknown => {}
                 _ => break,
             }
+
+            if !resolve.include_type(unresolved_ty, pkgid, *span)? {
+                self.types.push(None);
+                continue;
+            }
+
             let unresolved_iface_id = match unresolved_ty.owner {
                 TypeOwner::Interface(id) => id,
                 _ => unreachable!(),
