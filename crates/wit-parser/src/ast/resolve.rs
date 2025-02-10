@@ -257,7 +257,7 @@ impl<'a> Resolver<'a> {
         let mut foreign_worlds = mem::take(&mut self.foreign_worlds);
         for decl_list in decl_lists {
             decl_list
-                .for_each_path(&mut |_, path, _names, world_or_iface| {
+                .for_each_path(&mut |_, _attrs, path, _names, world_or_iface| {
                     let (id, name) = match path {
                         ast::UsePath::Package { id, name } => (id, name),
                         _ => return Ok(()),
@@ -433,7 +433,7 @@ impl<'a> Resolver<'a> {
 
             // With this file's namespace information look at all `use` paths
             // and record dependencies between interfaces.
-            decl_list.for_each_path(&mut |iface, path, _names, _| {
+            decl_list.for_each_path(&mut |iface, _attrs, path, _names, _| {
                 // If this import isn't contained within an interface then it's
                 // in a world and it doesn't need to participate in our
                 // topo-sort.
@@ -561,11 +561,12 @@ impl<'a> Resolver<'a> {
     fn populate_foreign_types(&mut self, decl_lists: &[ast::DeclList<'a>]) -> Result<()> {
         for (i, decl_list) in decl_lists.iter().enumerate() {
             self.cur_ast_index = i;
-            decl_list.for_each_path(&mut |_, path, names, _| {
+            decl_list.for_each_path(&mut |_, attrs, path, names, _| {
                 let names = match names {
                     Some(names) => names,
                     None => return Ok(()),
                 };
+                let stability = self.stability(attrs)?;
                 let (item, name, span) = self.resolve_ast_item_path(path)?;
                 let iface = self.extract_iface_from_item(&item, &name, span)?;
                 if !self.foreign_interfaces.contains(&iface) {
@@ -582,7 +583,7 @@ impl<'a> Resolver<'a> {
                     }
                     let id = self.types.alloc(TypeDef {
                         docs: Docs::default(),
-                        stability: Default::default(),
+                        stability: stability.clone(),
                         kind: TypeDefKind::Unknown,
                         name: Some(name.name.name.to_string()),
                         owner: TypeOwner::Interface(iface),
