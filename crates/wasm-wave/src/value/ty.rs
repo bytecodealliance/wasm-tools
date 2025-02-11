@@ -10,7 +10,7 @@ pub struct Type(pub(super) TypeEnum);
 pub(super) enum TypeEnum {
     Simple(SimpleType),
     List(Arc<ListType>),
-    FixedSizeList(Arc<ListType>, usize),
+    FixedSizeList(Arc<ListType>, u32),
     Record(Arc<RecordType>),
     Tuple(Arc<TupleType>),
     Variant(Arc<VariantType>),
@@ -57,7 +57,7 @@ impl Type {
     }
 
     /// Returns a list type with the given element type.
-    pub fn fixed_size_list(element_type: impl Into<Self>, elements: usize) -> Self {
+    pub fn fixed_size_list(element_type: impl Into<Self>, elements: u32) -> Self {
         let element = element_type.into();
         Self(TypeEnum::FixedSizeList(
             Arc::new(ListType { element }),

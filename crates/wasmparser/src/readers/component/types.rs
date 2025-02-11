@@ -442,7 +442,7 @@ pub enum ComponentDefinedType<'a> {
     /// The type is a list of the given value type.
     List(ComponentValType),
     /// The type is a fixed size list of the given value type.
-    FixedSizeList(ComponentValType, usize),
+    FixedSizeList(ComponentValType, u32),
     /// The type is a tuple of the given value types.
     Tuple(Box<[ComponentValType]>),
     /// The type is flags with the given names.
@@ -482,9 +482,6 @@ impl<'a> ComponentDefinedType<'a> {
                     .collect::<Result<_>>()?,
             ),
             0x70 => ComponentDefinedType::List(reader.read()?),
-            0x67 => {
-                ComponentDefinedType::FixedSizeList(reader.read()?, reader.read_var_u32()? as usize)
-            }
             0x6f => ComponentDefinedType::Tuple(
                 reader
                     .read_iter(MAX_WASM_TUPLE_TYPES, "tuple types")?
@@ -508,8 +505,9 @@ impl<'a> ComponentDefinedType<'a> {
             },
             0x69 => ComponentDefinedType::Own(reader.read()?),
             0x68 => ComponentDefinedType::Borrow(reader.read()?),
-            0x65 => ComponentDefinedType::Future(reader.read()?),
+            0x67 => ComponentDefinedType::FixedSizeList(reader.read()?, reader.read_var_u32()?),
             0x66 => ComponentDefinedType::Stream(reader.read()?),
+            0x65 => ComponentDefinedType::Future(reader.read()?),
             x => return reader.invalid_leading_byte(x, "component defined type"),
         })
     }

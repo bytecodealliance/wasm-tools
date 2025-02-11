@@ -903,7 +903,7 @@ struct Option_<'a> {
 struct List<'a> {
     span: Span,
     ty: Box<Type<'a>>,
-    fixed_size: Option<usize>,
+    fixed_size: Option<u32>,
 }
 
 struct Future<'a> {
@@ -1371,7 +1371,7 @@ impl<'a> Type<'a> {
                 let size = if tokens.eat(Token::Comma)? {
                     let number = tokens.next()?;
                     if let Some((span, Token::Integer)) = number {
-                        let size: usize = tokens.get_span(span).parse()?;
+                        let size: u32 = tokens.get_span(span).parse()?;
                         Some(size)
                     } else {
                         return Err(err_expected(tokens, "fixed size", number).into());

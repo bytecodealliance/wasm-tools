@@ -803,7 +803,7 @@ impl<'a> InterfaceGenerator<'a> {
                         Some(fuel) => fuel,
                         None => continue,
                     };
-                    let elements = u.int_in_range(1..=self.config.max_type_parts)?;
+                    let elements = u.int_in_range(1..=self.config.max_type_parts as u32)?;
                     dst.push_str("list<");
                     self.gen_type(u, fuel, dst)?;
                     dst.push_str(&format!(", {elements}>"));

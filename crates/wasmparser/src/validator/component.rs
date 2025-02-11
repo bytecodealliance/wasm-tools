@@ -3419,6 +3419,12 @@ impl ComponentState {
                 self.create_component_val_type(ty, offset)?,
             )),
             crate::ComponentDefinedType::FixedSizeList(ty, elements) => {
+                if !features.component_model_fixed_size_list() {
+                    bail!(
+                        offset,
+                        "Fixed size lists require the component model fixed size list feature"
+                    )
+                }
                 Ok(ComponentDefinedType::FixedSizeList(
                     self.create_component_val_type(ty, offset)?,
                     elements,
