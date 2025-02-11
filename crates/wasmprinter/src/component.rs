@@ -173,7 +173,7 @@ impl Printer<'_, '_> {
         &mut self,
         state: &State,
         element_ty: &ComponentValType,
-        elements: usize,
+        elements: u32,
     ) -> Result<()> {
         self.start_group("list ")?;
         self.print_component_val_type(state, element_ty)?;

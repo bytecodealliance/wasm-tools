@@ -975,7 +975,7 @@ impl<O: Output> WitPrinter<O> {
         resolve: &Resolve,
         name: Option<&str>,
         ty: &Type,
-        elements: usize,
+        elements: u32,
     ) -> Result<()> {
         if let Some(name) = name {
             self.output.keyword("type");

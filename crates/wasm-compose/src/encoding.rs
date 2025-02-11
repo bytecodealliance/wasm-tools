@@ -716,7 +716,7 @@ impl<'a> TypeEncoder<'a> {
         &self,
         state: &mut TypeState<'a>,
         ty: ct::ComponentValType,
-        elements: usize,
+        elements: u32,
     ) -> u32 {
         let ty = self.component_val_type(state, ty);
         let index = state.cur.encodable.type_count();

@@ -91,7 +91,7 @@ enum Key {
     Flags(Vec<String>),
     Tuple(Vec<Type>),
     Enum(Vec<String>),
-    List(Type, Option<usize>),
+    List(Type, Option<u32>),
     Option(Type),
     Result(Option<Type>, Option<Type>),
     Future(Option<Type>),

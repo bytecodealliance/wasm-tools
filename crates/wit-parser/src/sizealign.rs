@@ -264,7 +264,10 @@ impl SizeAlign {
                 let field_align = self.align(t);
                 let field_size = self.size(t);
                 ElementInfo::new(
-                    ArchitectureSize::new(field_size.bytes * size, field_size.pointers * size),
+                    ArchitectureSize::new(
+                        field_size.bytes.checked_mul(*size as usize).unwrap(),
+                        field_size.pointers.checked_mul(*size as usize).unwrap(),
+                    ),
                     field_align,
                 )
             }

@@ -149,7 +149,7 @@ impl<'a> TypeResolver<'a> {
         Ok(value::Type::list(element_type))
     }
 
-    fn resolve_fixed_size_list(&self, element_type: &Type, elements: usize) -> ValueResult {
+    fn resolve_fixed_size_list(&self, element_type: &Type, elements: u32) -> ValueResult {
         let element_type = self.resolve_type(*element_type)?;
         Ok(value::Type::fixed_size_list(element_type, elements))
     }

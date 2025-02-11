@@ -1595,13 +1595,6 @@ impl Registrar<'_> {
             ComponentDefinedType::FixedSizeList(t, elements) => {
                 let ty = match &self.resolve.types[id].kind {
                     TypeDefKind::FixedSizeList(r, elements2) if elements2 == elements => r,
-                    // Note that all cases below have this match and the general
-                    // idea is that once a type is named or otherwise identified
-                    // here there's no need to recurse. The purpose of this
-                    // registrar is to build connections for anonymous types
-                    // that don't otherwise have a name to ensure that they're
-                    // decoded to reuse the same constructs consistently. For
-                    // that reason once something is named we can bail out.
                     TypeDefKind::Type(Type::Id(_)) => return Ok(()),
                     _ => bail!("expected a fixed size {elements} list"),
                 };
