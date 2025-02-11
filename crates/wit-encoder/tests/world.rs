@@ -40,7 +40,7 @@ fn worlds() {
         });
         world.function_export({
             let mut func = StandaloneFunc::new("scan");
-            func.set_results(Type::list(Type::U8));
+            func.set_results(Type::list(Type::U8, None));
             func.set_docs(Some("scan stuff"));
             func
         });

@@ -287,6 +287,12 @@ impl Resolve {
                     result.push(WasmType::Length);
                 }
 
+                TypeDefKind::FixedSizeList(ty, size) => {
+                    for _ in 0..*size {
+                        self.push_flat(ty, result);
+                    }
+                }
+
                 TypeDefKind::Variant(v) => {
                     result.push(v.tag().into());
                     self.push_flat_variants(v.cases.iter().map(|c| c.ty.as_ref()), result);
