@@ -180,20 +180,38 @@ impl ArchitectureSize {
 
     // create a suitable expression in bytes from a pointer size argument
     pub fn format(&self, ptrsize_expr: &str) -> String {
+        self.format_term(ptrsize_expr, false)
+    }
+
+    // create a suitable expression in bytes from a pointer size argument,
+    // extended API with optional brackets around the sum
+    pub fn format_term(&self, ptrsize_expr: &str, suppress_brackets: bool) -> String {
         if self.pointers != 0 {
             if self.bytes > 0 {
                 // both
-                format!(
-                    "({}+{}*{ptrsize_expr})",
-                    self.constant_bytes(),
-                    self.pointers_to_add()
-                )
+                if suppress_brackets {
+                    format!(
+                        "{}+{}*{ptrsize_expr}",
+                        self.constant_bytes(),
+                        self.pointers_to_add()
+                    )
+                } else {
+                    format!(
+                        "({}+{}*{ptrsize_expr})",
+                        self.constant_bytes(),
+                        self.pointers_to_add()
+                    )
+                }
             } else if self.pointers == 1 {
                 // one pointer
                 ptrsize_expr.into()
             } else {
                 // only pointer
-                format!("({}*{ptrsize_expr})", self.pointers_to_add())
+                if suppress_brackets {
+                    format!("{}*{ptrsize_expr}", self.pointers_to_add())
+                } else {
+                    format!("({}*{ptrsize_expr})", self.pointers_to_add())
+                }
             }
         } else {
             // only bytes
