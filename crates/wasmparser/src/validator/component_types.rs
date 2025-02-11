@@ -1041,7 +1041,7 @@ pub enum ComponentDefinedType {
     /// The type is a list.
     List(ComponentValType),
     /// The type is a fixed size list.
-    FixedSizeList(ComponentValType, usize),
+    FixedSizeList(ComponentValType, u32),
     /// The type is a tuple.
     Tuple(TupleType),
     /// The type is a set of flags.
@@ -1215,7 +1215,8 @@ impl ComponentDefinedType {
             ComponentDefinedType::Enum(_) => "enum",
             ComponentDefinedType::Flags(_) => "flags",
             ComponentDefinedType::Option(_) => "option",
-            ComponentDefinedType::List(_) | ComponentDefinedType::FixedSizeList(_, _) => "list",
+            ComponentDefinedType::List(_) => "list",
+            ComponentDefinedType::FixedSizeList(_, _) => "fixed size list",
             ComponentDefinedType::Result { .. } => "result",
             ComponentDefinedType::Own(_) => "own",
             ComponentDefinedType::Borrow(_) => "borrow",
