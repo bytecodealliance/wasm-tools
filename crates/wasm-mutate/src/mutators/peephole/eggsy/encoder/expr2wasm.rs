@@ -8,7 +8,7 @@ use crate::{
 use egg::{Id, Language, RecExpr};
 use rand::Rng;
 use std::num::Wrapping;
-use wasm_encoder::{DataIdx, ElemIdx, FuncIdx, Function, GlobalIdx, LocalIdx, MemIdx, TableIdx};
+use wasm_encoder::Function;
 
 /// Some custom nodes might need special resource allocation outside the
 /// function. Fore xample, if a new global is needed is should be added outside
@@ -74,7 +74,7 @@ pub fn expr2wasm(
     // example, the creation of new globals
     let mut resources = vec![];
     // Next global idx
-    let mut global_idx = GlobalIdx(config.info().get_global_count() as u32);
+    let mut global_idx = config.info().get_global_count() as u32;
 
     // Enqueue the coding back nodes and infer types
     while let Some(context) = worklist.pop() {
@@ -92,13 +92,13 @@ pub fn expr2wasm(
             TraversalEvent::Exit => {
                 let insn = &mut newfunc.instructions();
                 match rootlang {
-                    Lang::LocalGet(idx) => insn.local_get(LocalIdx(*idx)),
-                    Lang::GlobalGet(idx) => insn.global_get(GlobalIdx(*idx)),
-                    Lang::LocalSet(idx, _val) => insn.local_set(LocalIdx(*idx)),
-                    Lang::GlobalSet(idx, _val) => insn.global_set(GlobalIdx(*idx)),
-                    Lang::LocalTee(idx, _) => insn.local_tee(LocalIdx(*idx)),
+                    Lang::LocalGet(idx) => insn.local_get(*idx),
+                    Lang::GlobalGet(idx) => insn.global_get(*idx),
+                    Lang::LocalSet(idx, _val) => insn.local_set(*idx),
+                    Lang::GlobalSet(idx, _val) => insn.global_set(*idx),
+                    Lang::LocalTee(idx, _) => insn.local_tee(*idx),
                     Lang::Wrap(_) => insn.i32_wrap_i64(),
-                    Lang::Call(idx, _) => insn.call(FuncIdx(*idx)),
+                    Lang::Call(idx, _) => insn.call(*idx),
                     Lang::Drop(_) => insn.drop(),
                     Lang::I32Load(memarg, _) => insn.i32_load(memarg.into()),
                     Lang::I64Load(memarg, _) => insn.i64_load(memarg.into()),
@@ -317,24 +317,20 @@ pub fn expr2wasm(
                         insn
                     }
                     Lang::Select(_) => insn.select(),
-                    Lang::MemoryGrow(mem, _) => insn.memory_grow(MemIdx(*mem)),
-                    Lang::MemorySize(mem) => insn.memory_size(MemIdx(*mem)),
-                    Lang::MemoryInit(init, _) => {
-                        insn.memory_init(MemIdx(init.memory), DataIdx(init.segment))
-                    }
-                    Lang::MemoryCopy(cp, _) => insn.memory_copy(MemIdx(cp.dst), MemIdx(cp.src)),
-                    Lang::MemoryFill(mem, _) => insn.memory_fill(MemIdx(*mem)),
-                    Lang::DataDrop(idx) => insn.data_drop(DataIdx(*idx)),
-                    Lang::TableInit(init, _) => {
-                        insn.table_init(TableIdx(init.table), ElemIdx(init.segment))
-                    }
-                    Lang::TableCopy(cp, _) => insn.table_copy(TableIdx(cp.dst), TableIdx(cp.src)),
-                    Lang::TableFill(table, _) => insn.table_fill(TableIdx(*table)),
-                    Lang::ElemDrop(idx) => insn.elem_drop(ElemIdx(*idx)),
-                    Lang::TableGrow(table, _) => insn.table_grow(TableIdx(*table)),
-                    Lang::TableSize(table) => insn.table_size(TableIdx(*table)),
-                    Lang::TableGet(table, _) => insn.table_get(TableIdx(*table)),
-                    Lang::TableSet(table, _) => insn.table_set(TableIdx(*table)),
+                    Lang::MemoryGrow(mem, _) => insn.memory_grow(*mem),
+                    Lang::MemorySize(mem) => insn.memory_size(*mem),
+                    Lang::MemoryInit(init, _) => insn.memory_init(init.memory, init.segment),
+                    Lang::MemoryCopy(cp, _) => insn.memory_copy(cp.dst, cp.src),
+                    Lang::MemoryFill(mem, _) => insn.memory_fill(*mem),
+                    Lang::DataDrop(idx) => insn.data_drop(*idx),
+                    Lang::TableInit(init, _) => insn.table_init(init.table, init.segment),
+                    Lang::TableCopy(cp, _) => insn.table_copy(cp.dst, cp.src),
+                    Lang::TableFill(table, _) => insn.table_fill(*table),
+                    Lang::ElemDrop(idx) => insn.elem_drop(*idx),
+                    Lang::TableGrow(table, _) => insn.table_grow(*table),
+                    Lang::TableSize(table) => insn.table_size(*table),
+                    Lang::TableGet(table, _) => insn.table_get(*table),
+                    Lang::TableSet(table, _) => insn.table_set(*table),
                     Lang::I32UseGlobal(_) => {
                         // Request a new global
                         let request = ResourceRequest::Global {
@@ -346,7 +342,7 @@ pub fn expr2wasm(
 
                         insn.global_set(global_idx);
                         insn.global_get(global_idx);
-                        global_idx.0 += 1;
+                        global_idx += 1;
                         insn
                     }
                     Lang::I64UseGlobal(_) => {
@@ -359,7 +355,7 @@ pub fn expr2wasm(
 
                         insn.global_set(global_idx);
                         insn.global_get(global_idx);
-                        global_idx.0 += 1;
+                        global_idx += 1;
                         insn
                     }
                     Lang::F32UseGlobal(_) => {
@@ -372,7 +368,7 @@ pub fn expr2wasm(
 
                         insn.global_set(global_idx);
                         insn.global_get(global_idx);
-                        global_idx.0 += 1;
+                        global_idx += 1;
                         insn
                     }
                     Lang::F64UseGlobal(_) => {
@@ -385,11 +381,11 @@ pub fn expr2wasm(
 
                         insn.global_set(global_idx);
                         insn.global_get(global_idx);
-                        global_idx.0 += 1;
+                        global_idx += 1;
                         insn
                     }
                     Lang::RefNull(valtype) => insn.ref_null((*valtype).into()),
-                    Lang::RefFunc(idx) => insn.ref_func(FuncIdx(*idx)),
+                    Lang::RefFunc(idx) => insn.ref_func(*idx),
                     Lang::RefIsNull(_) => insn.ref_is_null(),
 
                     Lang::V128Not(_) => insn.v128_not(),

@@ -1183,11 +1183,10 @@ impl<'a> EncodingState<'a> {
     ) {
         let mut func = wasm_encoder::Function::new(std::iter::empty());
         for i in 0..param_count {
-            func.instructions().local_get(LocalIdx(i));
+            func.instructions().local_get(i);
         }
         func.instructions().i32_const(func_index as i32);
-        func.instructions()
-            .call_indirect(TableIdx(0), TypeIdx(type_index));
+        func.instructions().call_indirect(0, type_index);
         func.instructions().end();
         code.function(&func);
     }

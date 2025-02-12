@@ -3,7 +3,7 @@
 use std::{collections::HashMap, slice::Iter};
 
 use rand::prelude::SliceRandom;
-use wasm_encoder::{Function, Instruction, LabelIdx, ValType};
+use wasm_encoder::{Function, Instruction, ValType};
 use wasmparser::{BlockType, Operator};
 
 use crate::{
@@ -131,7 +131,7 @@ impl LoopUnrollWriter {
                 self.write_and_fix_loop_body(including_chunk, &to_fix, newfunc, input_wasm)?;
 
                 // Write A' br B'
-                newfunc.instructions().br(LabelIdx(1));
+                newfunc.instructions().br(1);
                 newfunc.instructions().end();
                 // Write the Loop
                 newfunc.instructions().loop_(map_block_type(*ty)?);

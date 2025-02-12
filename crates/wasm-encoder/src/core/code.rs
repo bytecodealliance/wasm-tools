@@ -126,7 +126,7 @@ impl Section for CodeSection {
 /// # Example
 ///
 /// ```
-/// use wasm_encoder::{CodeSection, Function, LocalIdx};
+/// use wasm_encoder::{CodeSection, Function};
 ///
 /// // Define the function body for:
 /// //
@@ -137,8 +137,8 @@ impl Section for CodeSection {
 /// let locals = vec![];
 /// let mut func = Function::new(locals);
 /// func.instructions()
-///     .local_get(LocalIdx(0))
-///     .local_get(LocalIdx(1))
+///     .local_get(0)
+///     .local_get(1)
 ///     .i32_add();
 ///
 /// // Add our function to the code section.
@@ -291,116 +291,6 @@ impl Function {
 impl Encode for Function {
     fn encode(&self, sink: &mut Vec<u8>) {
         self.bytes.encode(sink);
-    }
-}
-
-/// A Wasm _typeidx_.
-#[derive(Clone, Copy, Debug)]
-pub struct TypeIdx(pub u32);
-
-/// A Wasm _funcidx_.
-#[derive(Clone, Copy, Debug)]
-pub struct FuncIdx(pub u32);
-
-/// A Wasm _tableidx_.
-#[derive(Clone, Copy, Debug)]
-pub struct TableIdx(pub u32);
-
-/// A Wasm _memidx_.
-#[derive(Clone, Copy, Debug)]
-pub struct MemIdx(pub u32);
-
-/// A Wasm _tagidx_.
-#[derive(Clone, Copy, Debug)]
-pub struct TagIdx(pub u32);
-
-/// A Wasm _globalidx_.
-#[derive(Clone, Copy, Debug)]
-pub struct GlobalIdx(pub u32);
-
-/// A Wasm _elemidx_.
-#[derive(Clone, Copy, Debug)]
-pub struct ElemIdx(pub u32);
-
-/// A Wasm _dataidx_.
-#[derive(Clone, Copy, Debug)]
-pub struct DataIdx(pub u32);
-
-/// A Wasm _localidx_.
-#[derive(Clone, Copy, Debug)]
-pub struct LocalIdx(pub u32);
-
-/// A Wasm _labelidx_.
-#[derive(Clone, Copy, Debug)]
-pub struct LabelIdx(pub u32);
-
-/// A Wasm _fieldidx_.
-#[derive(Clone, Copy, Debug)]
-pub struct FieldIdx(pub u32);
-
-impl Encode for TypeIdx {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        self.0.encode(sink);
-    }
-}
-
-impl Encode for FuncIdx {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        self.0.encode(sink);
-    }
-}
-
-impl Encode for TableIdx {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        self.0.encode(sink);
-    }
-}
-
-impl Encode for MemIdx {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        self.0.encode(sink);
-    }
-}
-
-impl Encode for TagIdx {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        self.0.encode(sink);
-    }
-}
-
-impl Encode for GlobalIdx {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        self.0.encode(sink);
-    }
-}
-
-impl Encode for ElemIdx {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        self.0.encode(sink);
-    }
-}
-
-impl Encode for DataIdx {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        self.0.encode(sink);
-    }
-}
-
-impl Encode for LocalIdx {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        self.0.encode(sink);
-    }
-}
-
-impl Encode for LabelIdx {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        self.0.encode(sink);
-    }
-}
-
-impl Encode for FieldIdx {
-    fn encode(&self, sink: &mut Vec<u8>) {
-        self.0.encode(sink);
     }
 }
 
@@ -1363,33 +1253,31 @@ impl Encode for Instruction<'_> {
             Instruction::If(bt) => sink.if_(bt),
             Instruction::Else => sink.else_(),
             Instruction::Try(bt) => sink.try_(bt),
-            Instruction::Catch(t) => sink.catch(TagIdx(t)),
-            Instruction::Throw(t) => sink.throw(TagIdx(t)),
-            Instruction::Rethrow(l) => sink.rethrow(LabelIdx(l)),
+            Instruction::Catch(t) => sink.catch(t),
+            Instruction::Throw(t) => sink.throw(t),
+            Instruction::Rethrow(l) => sink.rethrow(l),
             Instruction::ThrowRef => sink.throw_ref(),
             Instruction::End => sink.end(),
-            Instruction::Br(l) => sink.br(LabelIdx(l)),
-            Instruction::BrIf(l) => sink.br_if(LabelIdx(l)),
-            Instruction::BrTable(ref ls, l) => {
-                sink.br_table(ls.iter().copied().map(LabelIdx), LabelIdx(l))
-            }
-            Instruction::BrOnNull(l) => sink.br_on_null(LabelIdx(l)),
-            Instruction::BrOnNonNull(l) => sink.br_on_non_null(LabelIdx(l)),
+            Instruction::Br(l) => sink.br(l),
+            Instruction::BrIf(l) => sink.br_if(l),
+            Instruction::BrTable(ref ls, l) => sink.br_table(ls.iter().copied(), l),
+            Instruction::BrOnNull(l) => sink.br_on_null(l),
+            Instruction::BrOnNonNull(l) => sink.br_on_non_null(l),
             Instruction::Return => sink.return_(),
-            Instruction::Call(f) => sink.call(FuncIdx(f)),
-            Instruction::CallRef(ty) => sink.call_ref(TypeIdx(ty)),
+            Instruction::Call(f) => sink.call(f),
+            Instruction::CallRef(ty) => sink.call_ref(ty),
             Instruction::CallIndirect {
                 type_index,
                 table_index,
-            } => sink.call_indirect(TableIdx(table_index), TypeIdx(type_index)),
-            Instruction::ReturnCallRef(ty) => sink.return_call_ref(TypeIdx(ty)),
+            } => sink.call_indirect(table_index, type_index),
+            Instruction::ReturnCallRef(ty) => sink.return_call_ref(ty),
 
-            Instruction::ReturnCall(f) => sink.return_call(FuncIdx(f)),
+            Instruction::ReturnCall(f) => sink.return_call(f),
             Instruction::ReturnCallIndirect {
                 type_index,
                 table_index,
-            } => sink.return_call_indirect(TableIdx(table_index), TypeIdx(type_index)),
-            Instruction::Delegate(l) => sink.delegate(LabelIdx(l)),
+            } => sink.return_call_indirect(table_index, type_index),
+            Instruction::Delegate(l) => sink.delegate(l),
             Instruction::CatchAll => sink.catch_all(),
 
             // Parametric instructions.
@@ -1400,13 +1288,13 @@ impl Encode for Instruction<'_> {
             Instruction::TryTable(ty, ref catches) => sink.try_table(ty, catches.iter().cloned()),
 
             // Variable instructions.
-            Instruction::LocalGet(l) => sink.local_get(LocalIdx(l)),
-            Instruction::LocalSet(l) => sink.local_set(LocalIdx(l)),
-            Instruction::LocalTee(l) => sink.local_tee(LocalIdx(l)),
-            Instruction::GlobalGet(g) => sink.global_get(GlobalIdx(g)),
-            Instruction::GlobalSet(g) => sink.global_set(GlobalIdx(g)),
-            Instruction::TableGet(table) => sink.table_get(TableIdx(table)),
-            Instruction::TableSet(table) => sink.table_set(TableIdx(table)),
+            Instruction::LocalGet(l) => sink.local_get(l),
+            Instruction::LocalSet(l) => sink.local_set(l),
+            Instruction::LocalTee(l) => sink.local_tee(l),
+            Instruction::GlobalGet(g) => sink.global_get(g),
+            Instruction::GlobalSet(g) => sink.global_set(g),
+            Instruction::TableGet(table) => sink.table_get(table),
+            Instruction::TableSet(table) => sink.table_set(table),
 
             // Memory instructions.
             Instruction::I32Load(m) => sink.i32_load(m),
@@ -1432,17 +1320,13 @@ impl Encode for Instruction<'_> {
             Instruction::I64Store8(m) => sink.i64_store8(m),
             Instruction::I64Store16(m) => sink.i64_store16(m),
             Instruction::I64Store32(m) => sink.i64_store32(m),
-            Instruction::MemorySize(i) => sink.memory_size(MemIdx(i)),
-            Instruction::MemoryGrow(i) => sink.memory_grow(MemIdx(i)),
-            Instruction::MemoryInit { mem, data_index } => {
-                sink.memory_init(MemIdx(mem), DataIdx(data_index))
-            }
-            Instruction::DataDrop(data) => sink.data_drop(DataIdx(data)),
-            Instruction::MemoryCopy { src_mem, dst_mem } => {
-                sink.memory_copy(MemIdx(dst_mem), MemIdx(src_mem))
-            }
-            Instruction::MemoryFill(mem) => sink.memory_fill(MemIdx(mem)),
-            Instruction::MemoryDiscard(mem) => sink.memory_discard(MemIdx(mem)),
+            Instruction::MemorySize(i) => sink.memory_size(i),
+            Instruction::MemoryGrow(i) => sink.memory_grow(i),
+            Instruction::MemoryInit { mem, data_index } => sink.memory_init(mem, data_index),
+            Instruction::DataDrop(data) => sink.data_drop(data),
+            Instruction::MemoryCopy { src_mem, dst_mem } => sink.memory_copy(dst_mem, src_mem),
+            Instruction::MemoryFill(mem) => sink.memory_fill(mem),
+            Instruction::MemoryDiscard(mem) => sink.memory_discard(mem),
 
             // Numeric instructions.
             Instruction::I32Const(x) => sink.i32_const(x),
@@ -1590,63 +1474,61 @@ impl Encode for Instruction<'_> {
             // Reference types instructions.
             Instruction::RefNull(ty) => sink.ref_null(ty),
             Instruction::RefIsNull => sink.ref_is_null(),
-            Instruction::RefFunc(f) => sink.ref_func(FuncIdx(f)),
+            Instruction::RefFunc(f) => sink.ref_func(f),
             Instruction::RefEq => sink.ref_eq(),
             Instruction::RefAsNonNull => sink.ref_as_non_null(),
 
             // GC instructions.
-            Instruction::StructNew(type_index) => sink.struct_new(TypeIdx(type_index)),
-            Instruction::StructNewDefault(type_index) => {
-                sink.struct_new_default(TypeIdx(type_index))
-            }
+            Instruction::StructNew(type_index) => sink.struct_new(type_index),
+            Instruction::StructNewDefault(type_index) => sink.struct_new_default(type_index),
             Instruction::StructGet {
                 struct_type_index,
                 field_index,
-            } => sink.struct_get(TypeIdx(struct_type_index), FieldIdx(field_index)),
+            } => sink.struct_get(struct_type_index, field_index),
             Instruction::StructGetS {
                 struct_type_index,
                 field_index,
-            } => sink.struct_get_s(TypeIdx(struct_type_index), FieldIdx(field_index)),
+            } => sink.struct_get_s(struct_type_index, field_index),
             Instruction::StructGetU {
                 struct_type_index,
                 field_index,
-            } => sink.struct_get_u(TypeIdx(struct_type_index), FieldIdx(field_index)),
+            } => sink.struct_get_u(struct_type_index, field_index),
             Instruction::StructSet {
                 struct_type_index,
                 field_index,
-            } => sink.struct_set(TypeIdx(struct_type_index), FieldIdx(field_index)),
-            Instruction::ArrayNew(type_index) => sink.array_new(TypeIdx(type_index)),
-            Instruction::ArrayNewDefault(type_index) => sink.array_new_default(TypeIdx(type_index)),
+            } => sink.struct_set(struct_type_index, field_index),
+            Instruction::ArrayNew(type_index) => sink.array_new(type_index),
+            Instruction::ArrayNewDefault(type_index) => sink.array_new_default(type_index),
             Instruction::ArrayNewFixed {
                 array_type_index,
                 array_size,
-            } => sink.array_new_fixed(TypeIdx(array_type_index), array_size),
+            } => sink.array_new_fixed(array_type_index, array_size),
             Instruction::ArrayNewData {
                 array_type_index,
                 array_data_index,
-            } => sink.array_new_data(TypeIdx(array_type_index), DataIdx(array_data_index)),
+            } => sink.array_new_data(array_type_index, array_data_index),
             Instruction::ArrayNewElem {
                 array_type_index,
                 array_elem_index,
-            } => sink.array_new_elem(TypeIdx(array_type_index), ElemIdx(array_elem_index)),
-            Instruction::ArrayGet(type_index) => sink.array_get(TypeIdx(type_index)),
-            Instruction::ArrayGetS(type_index) => sink.array_get_s(TypeIdx(type_index)),
-            Instruction::ArrayGetU(type_index) => sink.array_get_u(TypeIdx(type_index)),
-            Instruction::ArraySet(type_index) => sink.array_set(TypeIdx(type_index)),
+            } => sink.array_new_elem(array_type_index, array_elem_index),
+            Instruction::ArrayGet(type_index) => sink.array_get(type_index),
+            Instruction::ArrayGetS(type_index) => sink.array_get_s(type_index),
+            Instruction::ArrayGetU(type_index) => sink.array_get_u(type_index),
+            Instruction::ArraySet(type_index) => sink.array_set(type_index),
             Instruction::ArrayLen => sink.array_len(),
-            Instruction::ArrayFill(type_index) => sink.array_fill(TypeIdx(type_index)),
+            Instruction::ArrayFill(type_index) => sink.array_fill(type_index),
             Instruction::ArrayCopy {
                 array_type_index_dst,
                 array_type_index_src,
-            } => sink.array_copy(TypeIdx(array_type_index_dst), TypeIdx(array_type_index_src)),
+            } => sink.array_copy(array_type_index_dst, array_type_index_src),
             Instruction::ArrayInitData {
                 array_type_index,
                 array_data_index,
-            } => sink.array_init_data(TypeIdx(array_type_index), DataIdx(array_data_index)),
+            } => sink.array_init_data(array_type_index, array_data_index),
             Instruction::ArrayInitElem {
                 array_type_index,
                 array_elem_index,
-            } => sink.array_init_elem(TypeIdx(array_type_index), ElemIdx(array_elem_index)),
+            } => sink.array_init_elem(array_type_index, array_elem_index),
             Instruction::RefTestNonNull(heap_type) => sink.ref_test_non_null(heap_type),
             Instruction::RefTestNullable(heap_type) => sink.ref_test_nullable(heap_type),
             Instruction::RefCastNonNull(heap_type) => sink.ref_cast_non_null(heap_type),
@@ -1655,12 +1537,12 @@ impl Encode for Instruction<'_> {
                 relative_depth,
                 from_ref_type,
                 to_ref_type,
-            } => sink.br_on_cast(LabelIdx(relative_depth), from_ref_type, to_ref_type),
+            } => sink.br_on_cast(relative_depth, from_ref_type, to_ref_type),
             Instruction::BrOnCastFail {
                 relative_depth,
                 from_ref_type,
                 to_ref_type,
-            } => sink.br_on_cast_fail(LabelIdx(relative_depth), from_ref_type, to_ref_type),
+            } => sink.br_on_cast_fail(relative_depth, from_ref_type, to_ref_type),
             Instruction::AnyConvertExtern => sink.any_convert_extern(),
             Instruction::ExternConvertAny => sink.extern_convert_any(),
             Instruction::RefI31 => sink.ref_i31(),
@@ -1668,17 +1550,15 @@ impl Encode for Instruction<'_> {
             Instruction::I31GetU => sink.i31_get_u(),
 
             // Bulk memory instructions.
-            Instruction::TableInit { elem_index, table } => {
-                sink.table_init(TableIdx(table), ElemIdx(elem_index))
-            }
-            Instruction::ElemDrop(segment) => sink.elem_drop(ElemIdx(segment)),
+            Instruction::TableInit { elem_index, table } => sink.table_init(table, elem_index),
+            Instruction::ElemDrop(segment) => sink.elem_drop(segment),
             Instruction::TableCopy {
                 src_table,
                 dst_table,
-            } => sink.table_copy(TableIdx(dst_table), TableIdx(src_table)),
-            Instruction::TableGrow(table) => sink.table_grow(TableIdx(table)),
-            Instruction::TableSize(table) => sink.table_size(TableIdx(table)),
-            Instruction::TableFill(table) => sink.table_fill(TableIdx(table)),
+            } => sink.table_copy(dst_table, src_table),
+            Instruction::TableGrow(table) => sink.table_grow(table),
+            Instruction::TableSize(table) => sink.table_size(table),
+            Instruction::TableFill(table) => sink.table_fill(table),
 
             // SIMD instructions.
             Instruction::V128Load(memarg) => sink.v128_load(memarg),
@@ -2014,218 +1894,174 @@ impl Encode for Instruction<'_> {
             Instruction::GlobalAtomicGet {
                 ordering,
                 global_index,
-            } => sink.global_atomic_get(ordering, GlobalIdx(global_index)),
+            } => sink.global_atomic_get(ordering, global_index),
             Instruction::GlobalAtomicSet {
                 ordering,
                 global_index,
-            } => sink.global_atomic_set(ordering, GlobalIdx(global_index)),
+            } => sink.global_atomic_set(ordering, global_index),
             Instruction::GlobalAtomicRmwAdd {
                 ordering,
                 global_index,
-            } => sink.global_atomic_rmw_add(ordering, GlobalIdx(global_index)),
+            } => sink.global_atomic_rmw_add(ordering, global_index),
             Instruction::GlobalAtomicRmwSub {
                 ordering,
                 global_index,
-            } => sink.global_atomic_rmw_sub(ordering, GlobalIdx(global_index)),
+            } => sink.global_atomic_rmw_sub(ordering, global_index),
             Instruction::GlobalAtomicRmwAnd {
                 ordering,
                 global_index,
-            } => sink.global_atomic_rmw_and(ordering, GlobalIdx(global_index)),
+            } => sink.global_atomic_rmw_and(ordering, global_index),
             Instruction::GlobalAtomicRmwOr {
                 ordering,
                 global_index,
-            } => sink.global_atomic_rmw_or(ordering, GlobalIdx(global_index)),
+            } => sink.global_atomic_rmw_or(ordering, global_index),
             Instruction::GlobalAtomicRmwXor {
                 ordering,
                 global_index,
-            } => sink.global_atomic_rmw_xor(ordering, GlobalIdx(global_index)),
+            } => sink.global_atomic_rmw_xor(ordering, global_index),
             Instruction::GlobalAtomicRmwXchg {
                 ordering,
                 global_index,
-            } => sink.global_atomic_rmw_xchg(ordering, GlobalIdx(global_index)),
+            } => sink.global_atomic_rmw_xchg(ordering, global_index),
             Instruction::GlobalAtomicRmwCmpxchg {
                 ordering,
                 global_index,
-            } => sink.global_atomic_rmw_cmpxchg(ordering, GlobalIdx(global_index)),
+            } => sink.global_atomic_rmw_cmpxchg(ordering, global_index),
             Instruction::TableAtomicGet {
                 ordering,
                 table_index,
-            } => sink.table_atomic_get(ordering, TableIdx(table_index)),
+            } => sink.table_atomic_get(ordering, table_index),
             Instruction::TableAtomicSet {
                 ordering,
                 table_index,
-            } => sink.table_atomic_set(ordering, TableIdx(table_index)),
+            } => sink.table_atomic_set(ordering, table_index),
             Instruction::TableAtomicRmwXchg {
                 ordering,
                 table_index,
-            } => sink.table_atomic_rmw_xchg(ordering, TableIdx(table_index)),
+            } => sink.table_atomic_rmw_xchg(ordering, table_index),
             Instruction::TableAtomicRmwCmpxchg {
                 ordering,
                 table_index,
-            } => sink.table_atomic_rmw_cmpxchg(ordering, TableIdx(table_index)),
+            } => sink.table_atomic_rmw_cmpxchg(ordering, table_index),
             Instruction::StructAtomicGet {
                 ordering,
                 struct_type_index,
                 field_index,
-            } => {
-                sink.struct_atomic_get(ordering, TypeIdx(struct_type_index), FieldIdx(field_index))
-            }
+            } => sink.struct_atomic_get(ordering, struct_type_index, field_index),
             Instruction::StructAtomicGetS {
                 ordering,
                 struct_type_index,
                 field_index,
-            } => sink.struct_atomic_get_s(
-                ordering,
-                TypeIdx(struct_type_index),
-                FieldIdx(field_index),
-            ),
+            } => sink.struct_atomic_get_s(ordering, struct_type_index, field_index),
             Instruction::StructAtomicGetU {
                 ordering,
                 struct_type_index,
                 field_index,
-            } => sink.struct_atomic_get_u(
-                ordering,
-                TypeIdx(struct_type_index),
-                FieldIdx(field_index),
-            ),
+            } => sink.struct_atomic_get_u(ordering, struct_type_index, field_index),
             Instruction::StructAtomicSet {
                 ordering,
                 struct_type_index,
                 field_index,
-            } => {
-                sink.struct_atomic_set(ordering, TypeIdx(struct_type_index), FieldIdx(field_index))
-            }
+            } => sink.struct_atomic_set(ordering, struct_type_index, field_index),
             Instruction::StructAtomicRmwAdd {
                 ordering,
                 struct_type_index,
                 field_index,
-            } => sink.struct_atomic_rmw_add(
-                ordering,
-                TypeIdx(struct_type_index),
-                FieldIdx(field_index),
-            ),
+            } => sink.struct_atomic_rmw_add(ordering, struct_type_index, field_index),
             Instruction::StructAtomicRmwSub {
                 ordering,
                 struct_type_index,
                 field_index,
-            } => sink.struct_atomic_rmw_sub(
-                ordering,
-                TypeIdx(struct_type_index),
-                FieldIdx(field_index),
-            ),
+            } => sink.struct_atomic_rmw_sub(ordering, struct_type_index, field_index),
             Instruction::StructAtomicRmwAnd {
                 ordering,
                 struct_type_index,
                 field_index,
-            } => sink.struct_atomic_rmw_and(
-                ordering,
-                TypeIdx(struct_type_index),
-                FieldIdx(field_index),
-            ),
+            } => sink.struct_atomic_rmw_and(ordering, struct_type_index, field_index),
             Instruction::StructAtomicRmwOr {
                 ordering,
                 struct_type_index,
                 field_index,
-            } => sink.struct_atomic_rmw_or(
-                ordering,
-                TypeIdx(struct_type_index),
-                FieldIdx(field_index),
-            ),
+            } => sink.struct_atomic_rmw_or(ordering, struct_type_index, field_index),
             Instruction::StructAtomicRmwXor {
                 ordering,
                 struct_type_index,
                 field_index,
-            } => sink.struct_atomic_rmw_xor(
-                ordering,
-                TypeIdx(struct_type_index),
-                FieldIdx(field_index),
-            ),
+            } => sink.struct_atomic_rmw_xor(ordering, struct_type_index, field_index),
             Instruction::StructAtomicRmwXchg {
                 ordering,
                 struct_type_index,
                 field_index,
-            } => sink.struct_atomic_rmw_xchg(
-                ordering,
-                TypeIdx(struct_type_index),
-                FieldIdx(field_index),
-            ),
+            } => sink.struct_atomic_rmw_xchg(ordering, struct_type_index, field_index),
             Instruction::StructAtomicRmwCmpxchg {
                 ordering,
                 struct_type_index,
                 field_index,
-            } => sink.struct_atomic_rmw_cmpxchg(
-                ordering,
-                TypeIdx(struct_type_index),
-                FieldIdx(field_index),
-            ),
+            } => sink.struct_atomic_rmw_cmpxchg(ordering, struct_type_index, field_index),
             Instruction::ArrayAtomicGet {
                 ordering,
                 array_type_index,
-            } => sink.array_atomic_get(ordering, TypeIdx(array_type_index)),
+            } => sink.array_atomic_get(ordering, array_type_index),
             Instruction::ArrayAtomicGetS {
                 ordering,
                 array_type_index,
-            } => sink.array_atomic_get_s(ordering, TypeIdx(array_type_index)),
+            } => sink.array_atomic_get_s(ordering, array_type_index),
             Instruction::ArrayAtomicGetU {
                 ordering,
                 array_type_index,
-            } => sink.array_atomic_get_u(ordering, TypeIdx(array_type_index)),
+            } => sink.array_atomic_get_u(ordering, array_type_index),
             Instruction::ArrayAtomicSet {
                 ordering,
                 array_type_index,
-            } => sink.array_atomic_set(ordering, TypeIdx(array_type_index)),
+            } => sink.array_atomic_set(ordering, array_type_index),
             Instruction::ArrayAtomicRmwAdd {
                 ordering,
                 array_type_index,
-            } => sink.array_atomic_rmw_add(ordering, TypeIdx(array_type_index)),
+            } => sink.array_atomic_rmw_add(ordering, array_type_index),
             Instruction::ArrayAtomicRmwSub {
                 ordering,
                 array_type_index,
-            } => sink.array_atomic_rmw_sub(ordering, TypeIdx(array_type_index)),
+            } => sink.array_atomic_rmw_sub(ordering, array_type_index),
             Instruction::ArrayAtomicRmwAnd {
                 ordering,
                 array_type_index,
-            } => sink.array_atomic_rmw_and(ordering, TypeIdx(array_type_index)),
+            } => sink.array_atomic_rmw_and(ordering, array_type_index),
             Instruction::ArrayAtomicRmwOr {
                 ordering,
                 array_type_index,
-            } => sink.array_atomic_rmw_or(ordering, TypeIdx(array_type_index)),
+            } => sink.array_atomic_rmw_or(ordering, array_type_index),
             Instruction::ArrayAtomicRmwXor {
                 ordering,
                 array_type_index,
-            } => sink.array_atomic_rmw_xor(ordering, TypeIdx(array_type_index)),
+            } => sink.array_atomic_rmw_xor(ordering, array_type_index),
             Instruction::ArrayAtomicRmwXchg {
                 ordering,
                 array_type_index,
-            } => sink.array_atomic_rmw_xchg(ordering, TypeIdx(array_type_index)),
+            } => sink.array_atomic_rmw_xchg(ordering, array_type_index),
             Instruction::ArrayAtomicRmwCmpxchg {
                 ordering,
                 array_type_index,
-            } => sink.array_atomic_rmw_cmpxchg(ordering, TypeIdx(array_type_index)),
+            } => sink.array_atomic_rmw_cmpxchg(ordering, array_type_index),
             Instruction::RefI31Shared => sink.ref_i31_shared(),
-            Instruction::ContNew(type_index) => sink.cont_new(TypeIdx(type_index)),
+            Instruction::ContNew(type_index) => sink.cont_new(type_index),
             Instruction::ContBind {
                 argument_index,
                 result_index,
-            } => sink.cont_bind(TypeIdx(argument_index), TypeIdx(result_index)),
-            Instruction::Suspend(tag_index) => sink.suspend(TagIdx(tag_index)),
+            } => sink.cont_bind(argument_index, result_index),
+            Instruction::Suspend(tag_index) => sink.suspend(tag_index),
             Instruction::Resume {
                 cont_type_index,
                 ref resume_table,
-            } => sink.resume(TypeIdx(cont_type_index), resume_table.iter().cloned()),
+            } => sink.resume(cont_type_index, resume_table.iter().cloned()),
             Instruction::ResumeThrow {
                 cont_type_index,
                 tag_index,
                 ref resume_table,
-            } => sink.resume_throw(
-                TypeIdx(cont_type_index),
-                TagIdx(tag_index),
-                resume_table.iter().cloned(),
-            ),
+            } => sink.resume_throw(cont_type_index, tag_index, resume_table.iter().cloned()),
             Instruction::Switch {
                 cont_type_index,
                 tag_index,
-            } => sink.switch(TypeIdx(cont_type_index), TagIdx(tag_index)),
+            } => sink.switch(cont_type_index, tag_index),
             Instruction::I64Add128 => sink.i64_add128(),
             Instruction::I64Sub128 => sink.i64_sub128(),
             Instruction::I64MulWideS => sink.i64_mul_wide_s(),
@@ -2335,7 +2171,7 @@ impl ConstExpr {
     /// Create a constant expression containing a single `global.get` instruction.
     pub fn global_get(index: u32) -> Self {
         Self::new(|insn| {
-            insn.global_get(GlobalIdx(index));
+            insn.global_get(index);
         })
     }
 
@@ -2349,7 +2185,7 @@ impl ConstExpr {
     /// Create a constant expression containing a single `ref.func` instruction.
     pub fn ref_func(func: u32) -> Self {
         Self::new(|insn| {
-            insn.ref_func(FuncIdx(func));
+            insn.ref_func(func);
         })
     }
 
@@ -2391,7 +2227,7 @@ impl ConstExpr {
     /// Add a `global.get` instruction to this constant expression.
     pub fn with_global_get(self, index: u32) -> Self {
         self.with(|insn| {
-            insn.global_get(GlobalIdx(index));
+            insn.global_get(index);
         })
     }
 
@@ -2405,7 +2241,7 @@ impl ConstExpr {
     /// Add a `ref.func` instruction to this constant expression.
     pub fn with_ref_func(self, func: u32) -> Self {
         self.with(|insn| {
-            insn.ref_func(FuncIdx(func));
+            insn.ref_func(func);
         })
     }
 
