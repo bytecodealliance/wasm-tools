@@ -10,16 +10,16 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 arbitrary = { workspace = true }
+clap = { workspace = true }
+env_logger = { workspace = true }
+itertools = "0.14.0"
+log = { workspace = true }
 num_cpus = { workspace = true }
 rand = { workspace = true }
 wasm-mutate = { workspace = true }
-wasmprinter = { workspace = true }
 wasmparser = { workspace = true, features = ['std', 'validate'] }
+wasmprinter = { workspace = true }
 wasmtime = { workspace = true }
-env_logger = { workspace = true }
-itertools = "0.13.0"
-clap = { workspace = true }
-log = { workspace = true }
 
 [lib]
 doctest = false

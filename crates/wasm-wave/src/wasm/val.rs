@@ -4,7 +4,7 @@ use crate::wasm::{WasmType, WasmTypeKind, WasmValueError};
 
 /// The WasmValue trait may be implemented to represent values to be
 /// (de)serialized with WAVE, notably [`value::Value`](crate::value::Value).
-/// The `wasmtime` crate provides an impl for [`wasmtime::component::Val`].
+/// The `wasmtime` crate provides an impl for `wasmtime::component::Val`.
 ///
 /// The `make_*` and `unwrap_*` methods should be called only for corresponding
 /// [`WasmTypeKind`](crate::wasm::WasmTypeKind)s.

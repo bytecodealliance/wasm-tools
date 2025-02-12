@@ -46,7 +46,7 @@ jobs:
 
   deploy:
     name: Deploy playground
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && github.repository_owner == 'bytecodealliance'
     needs: build
     permissions:
       pages: write

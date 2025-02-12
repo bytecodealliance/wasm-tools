@@ -17,17 +17,17 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-id-arena = { workspace = true }
 anyhow = { workspace = true }
+id-arena = { workspace = true }
 indexmap = { workspace = true, features = ['std'] }
-unicode-xid = "0.2.2"
 log = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true, optional = true }
 serde_derive = { workspace = true, optional = true }
-wasmparser = { workspace = true, optional = true, features = ['std', 'validate', 'component-model', 'features'] }
 serde_json = { workspace = true, optional = true }
-wat = { workspace = true, optional = true }
+unicode-xid = "0.2.2"
+wasmparser = { workspace = true, optional = true, features = ['std', 'validate', 'component-model', 'features'] }
+wat = { workspace = true, optional = true, features = ['component-model'] }
 
 [features]
 default = ['serde', 'decoding']
@@ -46,10 +46,10 @@ wat = ['decoding', 'dep:wat']
 
 [dev-dependencies]
 env_logger = { workspace = true }
+libtest-mimic = { workspace = true }
 pretty_assertions = { workspace = true }
 serde_json = { workspace = true }
 wit-parser = { path = '.', features = ['serde', 'wat'] }
-libtest-mimic = { workspace = true }
 
 [[test]]
 name = "all"

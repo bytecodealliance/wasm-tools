@@ -550,9 +550,9 @@ impl<'a> ComponentDefinedType<'a> {
             },
             0x69 => ComponentDefinedType::Own(reader.read()?),
             0x68 => ComponentDefinedType::Borrow(reader.read()?),
-            0x67 => ComponentDefinedType::Future(reader.read()?),
+            0x65 => ComponentDefinedType::Future(reader.read()?),
             0x66 => ComponentDefinedType::Stream(reader.read()?),
-            0x65 => ComponentDefinedType::ErrorContext,
+            0x64 => ComponentDefinedType::ErrorContext,
             x => return reader.invalid_leading_byte(x, "component defined type"),
         })
     }

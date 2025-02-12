@@ -142,6 +142,7 @@ impl<'a> DeclList<'a> {
         &'b self,
         f: &mut dyn FnMut(
             Option<&'b Id<'a>>,
+            &'b [Attribute<'a>],
             &'b UsePath<'a>,
             Option<&'b [UseName<'a>]>,
             WorldOrInterface,
@@ -158,42 +159,58 @@ impl<'a> DeclList<'a> {
                     let mut exports = Vec::new();
                     for item in world.items.iter() {
                         match item {
-                            WorldItem::Use(u) => {
-                                f(None, &u.from, Some(&u.names), WorldOrInterface::Interface)?
-                            }
-                            WorldItem::Include(i) => {
-                                f(Some(&world.name), &i.from, None, WorldOrInterface::World)?
-                            }
+                            WorldItem::Use(u) => f(
+                                None,
+                                &u.attributes,
+                                &u.from,
+                                Some(&u.names),
+                                WorldOrInterface::Interface,
+                            )?,
+                            WorldItem::Include(i) => f(
+                                Some(&world.name),
+                                &i.attributes,
+                                &i.from,
+                                None,
+                                WorldOrInterface::World,
+                            )?,
                             WorldItem::Type(_) => {}
-                            WorldItem::Import(Import { kind, .. }) => imports.push(kind),
-                            WorldItem::Export(Export { kind, .. }) => exports.push(kind),
+                            WorldItem::Import(Import {
+                                kind, attributes, ..
+                            }) => imports.push((kind, attributes)),
+                            WorldItem::Export(Export {
+                                kind, attributes, ..
+                            }) => exports.push((kind, attributes)),
                         }
                     }
 
-                    let mut visit_kind = |kind: &'b ExternKind<'a>| match kind {
-                        ExternKind::Interface(_, items) => {
-                            for item in items {
-                                match item {
-                                    InterfaceItem::Use(u) => f(
-                                        None,
-                                        &u.from,
-                                        Some(&u.names),
-                                        WorldOrInterface::Interface,
-                                    )?,
-                                    _ => {}
+                    let mut visit_kind =
+                        |kind: &'b ExternKind<'a>, attrs: &'b [Attribute<'a>]| match kind {
+                            ExternKind::Interface(_, items) => {
+                                for item in items {
+                                    match item {
+                                        InterfaceItem::Use(u) => f(
+                                            None,
+                                            &u.attributes,
+                                            &u.from,
+                                            Some(&u.names),
+                                            WorldOrInterface::Interface,
+                                        )?,
+                                        _ => {}
+                                    }
                                 }
+                                Ok(())
                             }
-                            Ok(())
-                        }
-                        ExternKind::Path(path) => f(None, path, None, WorldOrInterface::Interface),
-                        ExternKind::Func(..) => Ok(()),
-                    };
+                            ExternKind::Path(path) => {
+                                f(None, attrs, path, None, WorldOrInterface::Interface)
+                            }
+                            ExternKind::Func(..) => Ok(()),
+                        };
 
-                    for kind in imports {
-                        visit_kind(kind)?;
+                    for (kind, attrs) in imports {
+                        visit_kind(kind, attrs)?;
                     }
-                    for kind in exports {
-                        visit_kind(kind)?;
+                    for (kind, attrs) in exports {
+                        visit_kind(kind, attrs)?;
                     }
                 }
                 AstItem::Interface(i) => {
@@ -201,6 +218,7 @@ impl<'a> DeclList<'a> {
                         match item {
                             InterfaceItem::Use(u) => f(
                                 Some(&i.name),
+                                &u.attributes,
                                 &u.from,
                                 Some(&u.names),
                                 WorldOrInterface::Interface,
@@ -212,7 +230,13 @@ impl<'a> DeclList<'a> {
                 AstItem::Use(u) => {
                     // At the top-level, we don't know if this is a world or an interface
                     // It is up to the resolver to decides how to handle this ambiguity.
-                    f(None, &u.item, None, WorldOrInterface::Unknown)?;
+                    f(
+                        None,
+                        &u.attributes,
+                        &u.item,
+                        None,
+                        WorldOrInterface::Unknown,
+                    )?;
                 }
 
                 AstItem::Package(pkg) => pkg.decl_list.for_each_path(f)?,
@@ -1613,6 +1637,8 @@ fn eat_id(tokens: &mut Tokenizer<'_>, expected: &str) -> Result<Span> {
 
 /// A listing of source files which are used to get parsed into an
 /// [`UnresolvedPackage`].
+///
+/// [`UnresolvedPackage`]: crate::UnresolvedPackage
 #[derive(Clone, Default)]
 pub struct SourceMap {
     sources: Vec<Source>,

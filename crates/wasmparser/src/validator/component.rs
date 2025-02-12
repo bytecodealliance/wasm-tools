@@ -19,9 +19,9 @@ use crate::prelude::*;
 use crate::validator::names::{ComponentName, ComponentNameKind, KebabStr, KebabString};
 use crate::{
     BinaryReaderError, CanonicalOption, ComponentExportName, ComponentExternalKind,
-    ComponentOuterAliasKind, ComponentTypeRef, CompositeInnerType, CompositeType, ExternalKind,
-    FuncType, GlobalType, InstantiationArgKind, MemoryType, PackedIndex, RefType, Result, SubType,
-    TableType, TypeBounds, ValType, WasmFeatures,
+    ComponentOuterAliasKind, ComponentTypeRef, CompositeInnerType, ExternalKind, FuncType,
+    GlobalType, InstantiationArgKind, MemoryType, PackedIndex, RefType, Result, SubType, TableType,
+    TypeBounds, ValType, WasmFeatures,
 };
 use core::mem;
 
@@ -1102,7 +1102,7 @@ impl ComponentState {
 
     pub fn task_return(
         &mut self,
-        type_index: u32,
+        result: &Option<crate::ComponentValType>,
         types: &mut TypeAlloc,
         offset: usize,
         features: &WasmFeatures,
@@ -1114,20 +1114,32 @@ impl ComponentState {
             )
         }
 
-        let id = self.type_id_at(type_index, offset)?;
-        let Some(SubType {
-            composite_type:
-                CompositeType {
-                    inner: CompositeInnerType::Func(_),
-                    ..
-                },
-            ..
-        }) = types.get(id)
-        else {
-            bail!(offset, "invalid `task.return` type index");
-        };
+        let info = ComponentFuncType {
+            info: TypeInfo::new(),
+            params: result
+                .iter()
+                .map(|ty| {
+                    Ok((
+                        KebabString::new("v").unwrap(),
+                        match ty {
+                            crate::ComponentValType::Primitive(ty) => {
+                                ComponentValType::Primitive(*ty)
+                            }
+                            crate::ComponentValType::Type(index) => {
+                                ComponentValType::Type(self.defined_type_at(*index, offset)?)
+                            }
+                        },
+                    ))
+                })
+                .collect::<Result<_>>()?,
+            results: Box::new([]),
+        }
+        .lower(types, Abi::LiftSync);
 
-        self.core_funcs.push(id);
+        assert!(info.results.iter().next().is_none());
+
+        self.core_funcs
+            .push(types.intern_func_type(FuncType::new(info.params.iter(), []), offset));
         Ok(())
     }
 
@@ -1721,7 +1733,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn thread_hw_concurrency(
+    pub fn thread_available_parallelism(
         &mut self,
         types: &mut TypeAlloc,
         offset: usize,
@@ -1730,7 +1742,7 @@ impl ComponentState {
         if !features.shared_everything_threads() {
             bail!(
                 offset,
-                "`thread.hw_concurrency` requires the shared-everything-threads proposal"
+                "`thread.available_parallelism` requires the shared-everything-threads proposal"
             )
         }
 

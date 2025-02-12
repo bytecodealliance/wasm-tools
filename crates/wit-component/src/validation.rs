@@ -243,7 +243,7 @@ pub enum Import {
     /// As of this writing, only async-lifted exports use `task.return`, but the
     /// plan is to also support it for sync-lifted exports in the future as
     /// well.
-    ExportedTaskReturn(Function),
+    ExportedTaskReturn(Option<InterfaceId>, Function),
 
     /// A `canon task.backpressure` intrinsic.
     ///
@@ -551,7 +551,7 @@ impl ImportMap {
                 // it's associated with in general.  Instead, the host will
                 // compare it with the expected type at runtime and trap if
                 // necessary.
-                Some(Import::ExportedTaskReturn(func))
+                Some(Import::ExportedTaskReturn(interface_id, func))
             } else {
                 None
             })

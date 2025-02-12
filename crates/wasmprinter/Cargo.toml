@@ -18,8 +18,8 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-wasmparser = { workspace = true, features = ['std', 'simd'] }
 termcolor = { workspace = true }
+wasmparser = { workspace = true, features = ['std', 'simd'] }
 
 [dev-dependencies]
 wat = { path = "../wat" }

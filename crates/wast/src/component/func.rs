@@ -52,7 +52,7 @@ pub enum CoreFuncKind<'a> {
     ResourceDrop(CanonResourceDrop<'a>),
     ResourceRep(CanonResourceRep<'a>),
     ThreadSpawn(CanonThreadSpawn<'a>),
-    ThreadHwConcurrency(CanonThreadHwConcurrency),
+    ThreadAvailableParallelism(CanonThreadAvailableParallelism),
     TaskBackpressure,
     TaskReturn(CanonTaskReturn<'a>),
     TaskWait(CanonTaskWait<'a>),
@@ -100,8 +100,8 @@ impl<'a> Parse<'a> for CoreFuncKind<'a> {
                 Ok(CoreFuncKind::ResourceRep(parser.parse()?))
             } else if l.peek::<kw::thread_spawn>()? {
                 Ok(CoreFuncKind::ThreadSpawn(parser.parse()?))
-            } else if l.peek::<kw::thread_hw_concurrency>()? {
-                Ok(CoreFuncKind::ThreadHwConcurrency(parser.parse()?))
+            } else if l.peek::<kw::thread_available_parallelism>()? {
+                Ok(CoreFuncKind::ThreadAvailableParallelism(parser.parse()?))
             } else if l.peek::<kw::task_backpressure>()? {
                 parser.parse::<kw::task_backpressure>()?;
                 Ok(CoreFuncKind::TaskBackpressure)
@@ -341,7 +341,7 @@ pub enum CanonicalFuncKind<'a> {
     ResourceRep(CanonResourceRep<'a>),
 
     ThreadSpawn(CanonThreadSpawn<'a>),
-    ThreadHwConcurrency(CanonThreadHwConcurrency),
+    ThreadAvailableParallelism(CanonThreadAvailableParallelism),
 
     TaskBackpressure,
     TaskReturn(CanonTaskReturn<'a>),
@@ -509,11 +509,11 @@ impl<'a> Parse<'a> for CanonThreadSpawn<'a> {
 
 /// Information relating to the `thread.spawn` intrinsic.
 #[derive(Debug)]
-pub struct CanonThreadHwConcurrency;
+pub struct CanonThreadAvailableParallelism;
 
-impl<'a> Parse<'a> for CanonThreadHwConcurrency {
+impl<'a> Parse<'a> for CanonThreadAvailableParallelism {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::thread_hw_concurrency>()?;
+        parser.parse::<kw::thread_available_parallelism>()?;
         Ok(Self)
     }
 }
@@ -521,17 +521,24 @@ impl<'a> Parse<'a> for CanonThreadHwConcurrency {
 /// Information relating to the `task.return` intrinsic.
 #[derive(Debug)]
 pub struct CanonTaskReturn<'a> {
-    /// The core function type representing the signature of this intrinsic.
-    pub ty: Index<'a>,
+    /// The type of the result which may be returned with this intrinsic.
+    pub result: Option<ComponentValType<'a>>,
 }
 
 impl<'a> Parse<'a> for CanonTaskReturn<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::task_return>()?;
 
-        Ok(Self {
-            ty: parser.parse()?,
-        })
+        let result = if parser.peek2::<kw::result>()? {
+            Some(parser.parens(|p| {
+                p.parse::<kw::result>()?.0;
+                p.parse()
+            })?)
+        } else {
+            None
+        };
+
+        Ok(Self { result })
     }
 }
 

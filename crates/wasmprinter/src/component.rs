@@ -902,11 +902,11 @@ impl Printer<'_, '_> {
                     self.end_group()?;
                     state.core.funcs += 1;
                 }
-                CanonicalFunction::ThreadHwConcurrency => {
+                CanonicalFunction::ThreadAvailableParallelism => {
                     self.start_group("core func ")?;
                     self.print_name(&state.core.func_names, state.core.funcs)?;
                     self.result.write_str(" ")?;
-                    self.start_group("canon thread.hw_concurrency")?;
+                    self.start_group("canon thread.available_parallelism")?;
                     self.end_group()?;
                     self.end_group()?;
                     state.core.funcs += 1;
@@ -914,9 +914,15 @@ impl Printer<'_, '_> {
                 CanonicalFunction::TaskBackpressure => {
                     self.print_intrinsic(state, "canon task.backpressure", &|_, _| Ok(()))?;
                 }
-                CanonicalFunction::TaskReturn { type_index } => {
-                    self.print_intrinsic(state, "canon task.return ", &|me, state| {
-                        me.print_idx(&state.component.type_names, type_index)
+                CanonicalFunction::TaskReturn { result } => {
+                    self.print_intrinsic(state, "canon task.return", &|me, state| {
+                        if let Some(ty) = result {
+                            me.result.write_str(" ")?;
+                            me.start_group("result ")?;
+                            me.print_component_val_type(state, &ty)?;
+                            me.end_group()?;
+                        }
+                        Ok(())
                     })?;
                 }
                 CanonicalFunction::TaskWait { async_, memory } => {

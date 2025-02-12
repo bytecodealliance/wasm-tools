@@ -252,7 +252,7 @@ impl Function {
     ///
     /// This encoding doesn't include the variable-width size field
     /// that `encode` will write before the added bytes. As such, its
-    /// length will match the return value of [`byte_len`].
+    /// length will match the return value of [`Function::byte_len`].
     ///
     /// # Use Case
     ///

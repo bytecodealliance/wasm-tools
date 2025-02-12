@@ -879,7 +879,8 @@ impl Module {
         &self,
         offset: usize,
     ) -> Result<IndexMap<(String, String), EntityType>> {
-        // Ensure imports are unique, which is a requirement of the component model
+        // Ensure imports are unique, which is a requirement of the component model:
+        // https://github.com/WebAssembly/component-model/blob/d09f907/design/mvp/Explainer.md#import-and-export-definitions
         self.imports
             .iter()
             .map(|((module, name), types)| {

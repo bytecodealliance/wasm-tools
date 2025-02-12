@@ -8,6 +8,6 @@
 
 (assert_invalid
   (component
-    (core func $concurrency (canon thread.hw_concurrency))
+    (core func $parallelism (canon thread.available_parallelism))
   )
-  "`thread.hw_concurrency` requires the shared-everything-threads proposal")
+  "`thread.available_parallelism` requires the shared-everything-threads proposal")

@@ -17,6 +17,7 @@ env_logger = { workspace = true }
 libfuzzer-sys = { workspace = true }
 log = { workspace = true }
 tempfile = "3.0"
+wasm-encoder = { workspace = true }
 wasm-mutate = { workspace = true }
 wasm-smith = { workspace = true, features = ['component-model', 'wasmparser'] }
 wasmparser = { workspace = true, features = ['std', 'features'] }
@@ -24,10 +25,9 @@ wasmprinter = { workspace = true, features = ['component-model'] }
 wasmtime = { workspace = true, optional = true }
 wast = { workspace = true }
 wat = { workspace = true }
+wit-component = { workspace = true, features = ['dummy-module'] }
 wit-parser = { workspace = true }
 wit-smith = { workspace = true }
-wit-component = { workspace = true, features = ['dummy-module'] }
-wasm-encoder = { workspace = true }
 
 [dependencies.wit-parser-old]
 package = 'wit-parser'

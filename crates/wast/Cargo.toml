@@ -1,6 +1,6 @@
 [package]
 name = "wast"
-version = "224.0.0"
+version = "225.0.0"
 authors = ["Alex Crichton <alex@alexcrichton.com>"]
 edition.workspace = true
 license.workspace = true
@@ -20,19 +20,19 @@ all-features = true
 workspace = true
 
 [dependencies]
-leb128fmt = { workspace = true }
-unicode-width = "0.2.0"
-memchr = "2.4.1"
-wasm-encoder = { workspace = true, features = ['std'] }
 bumpalo = "3.14.0"
 gimli = { workspace = true, optional = true }
+leb128fmt = { workspace = true }
+memchr = "2.4.1"
+unicode-width = "0.2.0"
+wasm-encoder = { workspace = true, features = ['std'] }
 
 [dev-dependencies]
 anyhow = { workspace = true }
 libtest-mimic = { workspace = true }
+rand = { workspace = true }
 wasmparser = { path = "../wasmparser" }
 wat = { path = "../wat" }
-rand = { workspace = true }
 
 [features]
 default = ['wasm-module', 'component-model']

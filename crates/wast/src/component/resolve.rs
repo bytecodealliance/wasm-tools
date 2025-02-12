@@ -386,13 +386,15 @@ impl<'a> Resolver<'a> {
             CanonicalFuncKind::ThreadSpawn(info) => {
                 self.resolve_ns(&mut info.ty, Ns::CoreType)?;
             }
-            CanonicalFuncKind::ThreadHwConcurrency(_)
+            CanonicalFuncKind::ThreadAvailableParallelism(_)
             | CanonicalFuncKind::TaskBackpressure
             | CanonicalFuncKind::TaskYield(_)
             | CanonicalFuncKind::SubtaskDrop
             | CanonicalFuncKind::ErrorContextDrop => {}
             CanonicalFuncKind::TaskReturn(info) => {
-                self.resolve_ns(&mut info.ty, Ns::CoreType)?;
+                if let Some(ty) = &mut info.result {
+                    self.component_val_type(ty)?;
+                }
             }
             CanonicalFuncKind::TaskWait(info) => {
                 self.core_item_ref(&mut info.memory)?;
@@ -962,7 +964,7 @@ impl<'a> ComponentState<'a> {
                 | CanonicalFuncKind::ResourceRep(_)
                 | CanonicalFuncKind::ResourceDrop(_)
                 | CanonicalFuncKind::ThreadSpawn(_)
-                | CanonicalFuncKind::ThreadHwConcurrency(_)
+                | CanonicalFuncKind::ThreadAvailableParallelism(_)
                 | CanonicalFuncKind::TaskBackpressure
                 | CanonicalFuncKind::TaskReturn(_)
                 | CanonicalFuncKind::TaskWait(_)

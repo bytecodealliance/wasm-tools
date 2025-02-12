@@ -1,7 +1,14 @@
 name: CI
 on:
+  # Run CI for PRs to `main` and to release branches.
   pull_request:
+  # This is the CI that runs for PRs-to-merge.
   merge_group:
+  # Run full CI on pushes to release branches since the merge queue can't be
+  # used with for all release branches (wildcard pattern turns that off)
+  push:
+    branches:
+    - 'release-*'
 
 # Cancel any in-flight jobs for the same PR/branch so there's only one active
 # at a time
@@ -277,7 +284,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: cargo doc --all
+      - run: RUSTDOCFLAGS="-Dwarnings" cargo doc --all
 
   clippy:
     runs-on: ubuntu-latest
@@ -331,3 +338,22 @@ jobs:
     - name: Report failure on cancellation
       if: ${{ contains(needs.*.result, 'cancelled') || cancelled() }}
       run: exit 1
+
+  # Once CI has finished on `release-*` branches test to see if a release needs
+  # to be made based on the commits of this push.
+  maybe-trigger-tag:
+    runs-on: ubuntu-latest
+    needs: ci-status
+    if: |
+      always()
+      && needs.ci-status.result == 'success'
+      && github.event_name == 'push'
+      && startsWith(github.ref, 'refs/heads/release-')
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+        fetch-depth: 0
+    - uses: ./.github/actions/publish-release
+      with:
+        cargo_token: ${{ secrets.CARGO_REGISTRY_TOKEN }}

@@ -269,7 +269,7 @@ impl<'a> Expander<'a> {
             | CanonicalFuncKind::ResourceRep(_)
             | CanonicalFuncKind::ResourceDrop(_)
             | CanonicalFuncKind::ThreadSpawn(_)
-            | CanonicalFuncKind::ThreadHwConcurrency(_)
+            | CanonicalFuncKind::ThreadAvailableParallelism(_)
             | CanonicalFuncKind::TaskBackpressure
             | CanonicalFuncKind::TaskReturn(_)
             | CanonicalFuncKind::TaskWait(_)
@@ -338,12 +338,12 @@ impl<'a> Expander<'a> {
                 name: func.name,
                 kind: CanonicalFuncKind::ThreadSpawn(info),
             }),
-            CoreFuncKind::ThreadHwConcurrency(info) => {
+            CoreFuncKind::ThreadAvailableParallelism(info) => {
                 ComponentField::CanonicalFunc(CanonicalFunc {
                     span: func.span,
                     id: func.id,
                     name: func.name,
-                    kind: CanonicalFuncKind::ThreadHwConcurrency(info),
+                    kind: CanonicalFuncKind::ThreadAvailableParallelism(info),
                 })
             }
             CoreFuncKind::TaskBackpressure => ComponentField::CanonicalFunc(CanonicalFunc {

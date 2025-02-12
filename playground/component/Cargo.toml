@@ -4,9 +4,9 @@ publish = false
 edition.workspace = true
 
 [dependencies]
-wit-bindgen-rt = { version = "0.26.0", features = ["bitflags"] }
-wat = { workspace = true }
 wasmprinter = { workspace = true }
+wat = { workspace = true }
+wit-bindgen-rt = { version = "0.26.0", features = ["bitflags"] }
 
 [lib]
 crate-type = ["cdylib"]

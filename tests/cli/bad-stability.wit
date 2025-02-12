@@ -1,0 +1,12 @@
+// FAIL: component wit %
+
+package a:b;
+
+world c {
+  @since(version = 0.2.0)
+  import d:e/f-g-h@0.2.3;
+}
+
+package d:e@0.2.3 {
+  interface f-g-h {}
+}
