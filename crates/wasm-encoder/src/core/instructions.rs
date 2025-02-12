@@ -80,11 +80,10 @@ impl<'a> InstructionSink<'a> {
     }
 
     /// Encode [`Instruction::BrTable`].
-    pub fn br_table(
-        &mut self,
-        ls: impl IntoIterator<Item = u32, IntoIter: ExactSizeIterator>,
-        l: u32,
-    ) -> &mut Self {
+    pub fn br_table<V: IntoIterator<Item = u32>>(&mut self, ls: V, l: u32) -> &mut Self
+    where
+        V::IntoIter: ExactSizeIterator,
+    {
         self.sink.push(0x0E);
         encode_vec(ls, self.sink);
         l.encode(self.sink);
@@ -156,11 +155,14 @@ impl<'a> InstructionSink<'a> {
     }
 
     /// Encode [`Instruction::TryTable`].
-    pub fn try_table(
+    pub fn try_table<V: IntoIterator<Item = Catch>>(
         &mut self,
         ty: BlockType,
-        catches: impl IntoIterator<Item = Catch, IntoIter: ExactSizeIterator>,
-    ) -> &mut Self {
+        catches: V,
+    ) -> &mut Self
+    where
+        V::IntoIter: ExactSizeIterator,
+    {
         self.sink.push(0x1f);
         ty.encode(self.sink);
         encode_vec(catches, self.sink);
@@ -4555,11 +4557,14 @@ impl<'a> InstructionSink<'a> {
     }
 
     /// Encode [`Instruction::Resume`].
-    pub fn resume(
+    pub fn resume<V: IntoIterator<Item = Handle>>(
         &mut self,
         cont_type_index: u32,
-        resume_table: impl IntoIterator<Item = Handle, IntoIter: ExactSizeIterator>,
-    ) -> &mut Self {
+        resume_table: V,
+    ) -> &mut Self
+    where
+        V::IntoIter: ExactSizeIterator,
+    {
         self.sink.push(0xE3);
         cont_type_index.encode(self.sink);
         encode_vec(resume_table, self.sink);
@@ -4567,12 +4572,15 @@ impl<'a> InstructionSink<'a> {
     }
 
     /// Encode [`Instruction::ResumeThrow`].
-    pub fn resume_throw(
+    pub fn resume_throw<V: IntoIterator<Item = Handle>>(
         &mut self,
         cont_type_index: u32,
         tag_index: u32,
-        resume_table: impl IntoIterator<Item = Handle, IntoIter: ExactSizeIterator>,
-    ) -> &mut Self {
+        resume_table: V,
+    ) -> &mut Self
+    where
+        V::IntoIter: ExactSizeIterator,
+    {
         self.sink.push(0xE4);
         cont_type_index.encode(self.sink);
         tag_index.encode(self.sink);
