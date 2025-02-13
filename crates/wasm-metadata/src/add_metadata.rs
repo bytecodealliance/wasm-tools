@@ -1,5 +1,5 @@
 use crate::{
-    rewrite_wasm, Author, Description, Homepage, Licenses, Producers, Revision, Source, Version,
+    rewrite_wasm, Authors, Description, Homepage, Licenses, Producers, Revision, Source, Version,
 };
 
 use anyhow::Result;
@@ -30,7 +30,7 @@ pub struct AddMetadata {
     /// Contact details of the people or organization responsible,
     /// encoded as a freeform string.
     #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
-    pub author: Option<Author>,
+    pub author: Option<Authors>,
 
     /// A human-readable description of the binary
     #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]

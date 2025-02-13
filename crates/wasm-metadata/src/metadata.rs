@@ -1,7 +1,7 @@
 use serde_derive::Serialize;
 use std::ops::Range;
 
-use crate::{Author, Description, Homepage, Licenses, Producers, Revision, Source, Version};
+use crate::{Authors, Description, Homepage, Licenses, Producers, Revision, Source, Version};
 
 /// Metadata associated with a Wasm Component or Module
 #[derive(Debug, Serialize, Default)]
@@ -12,7 +12,7 @@ pub struct Metadata {
     /// The component's producers section, if any.
     pub producers: Option<Producers>,
     /// The component's author section, if any.
-    pub author: Option<Author>,
+    pub author: Option<Authors>,
     /// Human-readable description of the binary
     pub description: Option<Description>,
     /// License(s) under which contained software is distributed as an SPDX License Expression.

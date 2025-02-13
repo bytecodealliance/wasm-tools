@@ -11,7 +11,7 @@ fn add_to_empty_module() {
         language: vec![("bar".to_owned(), "1.0".to_owned())],
         processed_by: vec![("baz".to_owned(), "1.0".to_owned())],
         sdk: vec![],
-        author: Some(Author::new("Chashu Cat")),
+        author: Some(Authors::new("Chashu Cat")),
         description: Some(Description::new("Chashu likes tuna")),
         licenses: Some(
             Licenses::new("Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT").unwrap(),
@@ -47,7 +47,7 @@ fn add_to_empty_module() {
                 "1.0"
             );
 
-            assert_eq!(author.unwrap(), Author::new("Chashu Cat"));
+            assert_eq!(author.unwrap(), Authors::new("Chashu Cat"));
             assert_eq!(description.unwrap(), Description::new("Chashu likes tuna"));
             assert_eq!(
                 licenses.unwrap(),
