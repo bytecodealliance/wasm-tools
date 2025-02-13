@@ -15,8 +15,7 @@
           "function": {
             "name": "foo",
             "kind": "freestanding",
-            "params": [],
-            "results": []
+            "params": []
           }
         }
       },

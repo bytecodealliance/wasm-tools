@@ -735,18 +735,8 @@ pub mod component_utils {
                 .into_iter()
                 .map(|(name, ty)| (name, reencoder.component_val_type(ty))),
         );
-        match ty.results {
-            wasmparser::ComponentFuncResult::Unnamed(ty) => {
-                func.result(reencoder.component_val_type(ty));
-            }
-            wasmparser::ComponentFuncResult::Named(list) => {
-                func.results(
-                    Vec::from(list)
-                        .into_iter()
-                        .map(|(name, ty)| (name, reencoder.component_val_type(ty))),
-                );
-            }
-        }
+        let result = ty.result.map(|ty| reencoder.component_val_type(ty));
+        func.result(result);
         Ok(())
     }
 

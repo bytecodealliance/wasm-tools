@@ -20,9 +20,9 @@ pub fn resolve_wit_func_type(
 ) -> Result<value::FuncType, WasmValueError> {
     let resolver = TypeResolver { resolve };
     let params = resolver.resolve_params(&function.params)?;
-    let results = match &function.results {
-        wit_parser::Results::Named(results) => resolver.resolve_params(results)?,
-        wit_parser::Results::Anon(ty) => vec![("".into(), resolver.resolve_type(*ty)?)],
+    let results = match &function.result {
+        Some(ty) => vec![("".into(), resolver.resolve_type(*ty)?)],
+        None => Vec::new(),
     };
     value::FuncType::new(params, results)
 }
@@ -184,7 +184,7 @@ interface types {
     type uint8 = u8;
     no-results: func(a: uint8, b: string);
     one-result: func(c: uint8, d: string) -> uint8;
-    named-results: func(e: uint8, f: string) -> (x: u8, y: string);
+    named-results: func(e: uint8, f: string) -> tuple<u8, string>;
 }
                 "#,
             )
@@ -195,7 +195,7 @@ interface types {
             ("one-result", "func(c: u8, d: string) -> u8"),
             (
                 "named-results",
-                "func(e: u8, f: string) -> (x: u8, y: string)",
+                "func(e: u8, f: string) -> tuple<u8, string>",
             ),
         ] {
             let function = resolve

@@ -112,7 +112,7 @@ pub trait TypeIdVisitor {
         for (_, ty) in func.params.iter() {
             self.visit_type(resolve, ty);
         }
-        for ty in func.results.iter_types() {
+        if let Some(ty) = &func.result {
             self.visit_type(resolve, ty);
         }
     }

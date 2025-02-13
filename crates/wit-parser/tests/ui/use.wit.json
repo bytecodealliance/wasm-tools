@@ -54,11 +54,7 @@
               "type": 4
             }
           ],
-          "results": [
-            {
-              "type": 5
-            }
-          ]
+          "result": 5
         }
       },
       "package": 0

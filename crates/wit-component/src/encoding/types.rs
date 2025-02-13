@@ -3,15 +3,15 @@ use anyhow::Result;
 use std::collections::HashMap;
 use wasm_encoder::*;
 use wit_parser::{
-    Enum, Flags, Function, Handle, InterfaceId, Params, Record, Resolve, Result_, Results, Tuple,
-    Type, TypeDefKind, TypeId, TypeOwner, Variant,
+    Enum, Flags, Function, Handle, InterfaceId, Record, Resolve, Result_, Tuple, Type, TypeDefKind,
+    TypeId, TypeOwner, Variant,
 };
 
 /// Represents a key type for interface function definitions.
 #[derive(Hash, PartialEq, Eq)]
 pub struct FunctionKey<'a> {
-    params: &'a Params,
-    results: &'a Results,
+    params: &'a [(String, Type)],
+    result: &'a Option<Type>,
 }
 
 /// Support for encoding a wit-parser type into a component.
@@ -59,7 +59,7 @@ pub trait ValtypeEncoder<'a> {
     fn encode_func_type(&mut self, resolve: &'a Resolve, func: &'a Function) -> Result<u32> {
         let key = FunctionKey {
             params: &func.params,
-            results: &func.results,
+            result: &func.result,
         };
         if let Some(index) = self.func_type_map().get(&key) {
             return Ok(*index);
@@ -68,23 +68,14 @@ pub trait ValtypeEncoder<'a> {
         // Encode all referenced parameter types from this function.
         let params: Vec<_> = self.encode_params(resolve, &func.params)?;
 
-        enum EncodedResults<'a> {
-            Named(Vec<(&'a str, ComponentValType)>),
-            Anon(ComponentValType),
-        }
-
-        let results = match &func.results {
-            Results::Named(rs) => EncodedResults::Named(self.encode_params(resolve, rs)?),
-            Results::Anon(ty) => EncodedResults::Anon(self.encode_valtype(resolve, ty)?),
-        };
+        let result = func
+            .result
+            .map(|ty| self.encode_valtype(resolve, &ty))
+            .transpose()?;
 
         // Encode the function type
         let (index, mut f) = self.define_function_type();
-        f.params(params);
-        match results {
-            EncodedResults::Named(rs) => f.results(rs),
-            EncodedResults::Anon(ty) => f.result(ty),
-        };
+        f.params(params).result(result);
         let prev = self.func_type_map().insert(key, index);
         assert!(prev.is_none());
         Ok(index)
@@ -93,7 +84,7 @@ pub trait ValtypeEncoder<'a> {
     fn encode_params(
         &mut self,
         resolve: &'a Resolve,
-        params: &'a Params,
+        params: &'a [(String, Type)],
     ) -> Result<Vec<(&'a str, ComponentValType)>> {
         params
             .iter()

@@ -599,8 +599,8 @@ impl<'a> Expander<'a> {
             self.expand_component_val_ty(&mut param.ty);
         }
 
-        for result in ty.results.iter_mut() {
-            self.expand_component_val_ty(&mut result.ty);
+        if let Some(result) = &mut ty.result {
+            self.expand_component_val_ty(result);
         }
     }
 

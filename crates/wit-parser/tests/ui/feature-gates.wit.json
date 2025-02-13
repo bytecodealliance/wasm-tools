@@ -71,7 +71,6 @@
           "name": "ungated",
           "kind": "freestanding",
           "params": [],
-          "results": [],
           "stability": {
             "unstable": {
               "feature": "active"
@@ -149,11 +148,7 @@
             "constructor": 4
           },
           "params": [],
-          "results": [
-            {
-              "type": 6
-            }
-          ],
+          "result": 6,
           "stability": {
             "unstable": {
               "feature": "active"
@@ -166,7 +161,6 @@
             "static": 4
           },
           "params": [],
-          "results": [],
           "stability": {
             "unstable": {
               "feature": "active"
@@ -184,7 +178,6 @@
               "type": 5
             }
           ],
-          "results": [],
           "stability": {
             "unstable": {
               "feature": "active"

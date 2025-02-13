@@ -22,8 +22,7 @@
           "function": {
             "name": "a",
             "kind": "freestanding",
-            "params": [],
-            "results": []
+            "params": []
           }
         }
       },
@@ -50,11 +49,7 @@
           "name": "a",
           "kind": "freestanding",
           "params": [],
-          "results": [
-            {
-              "type": 1
-            }
-          ]
+          "result": 1
         }
       },
       "package": 0
@@ -69,11 +64,7 @@
           "name": "a",
           "kind": "freestanding",
           "params": [],
-          "results": [
-            {
-              "type": 2
-            }
-          ]
+          "result": 2
         }
       },
       "package": 0

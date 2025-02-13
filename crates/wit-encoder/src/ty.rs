@@ -402,17 +402,17 @@ impl Render for TypeDef {
                         docs.render(f, &opts)?;
                     }
                     match &func.kind {
-                        crate::ResourceFuncKind::Method(name, results) => {
+                        crate::ResourceFuncKind::Method(name, result) => {
                             write!(f, "{}{}: func({})", opts.spaces(), name, func.params)?;
-                            if !results.is_empty() {
-                                write!(f, " -> {}", results)?;
+                            if let Some(ty) = result {
+                                write!(f, " -> {ty}")?;
                             }
                             write!(f, ";\n")?;
                         }
-                        crate::ResourceFuncKind::Static(name, results) => {
+                        crate::ResourceFuncKind::Static(name, result) => {
                             write!(f, "{}{}: static func({})", opts.spaces(), name, func.params)?;
-                            if !results.is_empty() {
-                                write!(f, " -> {}", results)?;
+                            if let Some(ty) = result {
+                                write!(f, " -> {ty}")?;
                             }
                             write!(f, ";\n")?;
                         }

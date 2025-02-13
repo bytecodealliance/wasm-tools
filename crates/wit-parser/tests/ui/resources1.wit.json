@@ -15,8 +15,7 @@
               "name": "a",
               "type": 1
             }
-          ],
-          "results": []
+          ]
         },
         "t2": {
           "name": "t2",
@@ -26,8 +25,7 @@
               "name": "a",
               "type": 2
             }
-          ],
-          "results": []
+          ]
         },
         "t3": {
           "name": "t3",
@@ -37,8 +35,7 @@
               "name": "a",
               "type": 2
             }
-          ],
-          "results": []
+          ]
         },
         "[method]r1.f1": {
           "name": "[method]r1.f1",
@@ -50,8 +47,7 @@
               "name": "self",
               "type": 1
             }
-          ],
-          "results": []
+          ]
         }
       },
       "package": 0

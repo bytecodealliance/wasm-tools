@@ -457,13 +457,9 @@ impl Printer<'_, '_> {
             self.end_group()?;
         }
 
-        for (name, ty) in ty.results.iter() {
+        if let Some(ty) = &ty.result {
             self.result.write_str(" ")?;
             self.start_group("result ")?;
-            if let Some(name) = name {
-                self.print_str(name)?;
-                self.result.write_str(" ")?;
-            }
             self.print_component_val_type(state, ty)?;
             self.end_group()?;
         }

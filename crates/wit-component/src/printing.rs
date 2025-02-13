@@ -360,26 +360,9 @@ impl<O: Output> WitPrinter<O> {
             return Ok(());
         }
 
-        match &func.results {
-            Results::Named(rs) => match rs.len() {
-                0 => (),
-                _ => {
-                    self.output.str(" -> (");
-                    for (i, (name, ty)) in rs.iter().enumerate() {
-                        if i > 0 {
-                            self.output.str(", ");
-                        }
-                        self.print_name_param(name);
-                        self.output.str(": ");
-                        self.print_type_name(resolve, ty)?;
-                    }
-                    self.output.str(")");
-                }
-            },
-            Results::Anon(ty) => {
-                self.output.str(" -> ");
-                self.print_type_name(resolve, ty)?;
-            }
+        if let Some(ty) = &func.result {
+            self.output.str(" -> ");
+            self.print_type_name(resolve, ty)?;
         }
         Ok(())
     }

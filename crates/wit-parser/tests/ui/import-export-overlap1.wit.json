@@ -7,8 +7,7 @@
           "function": {
             "name": "a",
             "kind": "freestanding",
-            "params": [],
-            "results": []
+            "params": []
           }
         }
       },
@@ -17,8 +16,7 @@
           "function": {
             "name": "a",
             "kind": "freestanding",
-            "params": [],
-            "results": []
+            "params": []
           }
         }
       },

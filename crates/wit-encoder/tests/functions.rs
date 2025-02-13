@@ -1,7 +1,5 @@
 use pretty_assertions::assert_eq;
-use wit_encoder::{
-    Interface, Package, PackageName, Params, Result_, Results, StandaloneFunc, Type,
-};
+use wit_encoder::{Interface, Package, PackageName, Params, Result_, StandaloneFunc, Type};
 
 const PACKAGE: &str = indoc::indoc! {"
     package foo:functions;
@@ -13,8 +11,6 @@ const PACKAGE: &str = indoc::indoc! {"
       f6: func() -> tuple<u32, u32>;
       f7: func(a: f32, b: f32) -> tuple<u32, u32>;
       f8: func(a: option<u32>) -> result<u32, f32>;
-      f9: func() -> (u: u32, f: f32);
-      f10: func() -> (u: u32);
       f11: func() -> result<f32>;
       f12: func() -> result<_, f32>;
       f13: func() -> result;
@@ -36,49 +32,39 @@ fn concrete_types() {
         });
         interface.function({
             let mut func = StandaloneFunc::new("f4");
-            func.set_results(Results::anon(Type::U32));
+            func.set_result(Some(Type::U32));
             func
         });
         interface.function({
             let mut func = StandaloneFunc::new("f6");
-            func.set_results(Results::anon(Type::tuple(vec![Type::U32, Type::U32])));
+            func.set_result(Some(Type::tuple(vec![Type::U32, Type::U32])));
             func
         });
         interface.function({
             let mut func = StandaloneFunc::new("f7");
             func.set_params(Params::from_iter([("a", Type::F32), ("b", Type::F32)]));
-            func.set_results(Type::tuple(vec![Type::U32, Type::U32]));
+            func.set_result(Some(Type::tuple(vec![Type::U32, Type::U32])));
             func
         });
         interface.function({
             let mut func = StandaloneFunc::new("f8");
             func.set_params(Params::from_iter([("a", Type::option(Type::U32))]));
-            func.set_results(Type::result(Result_::both(Type::U32, Type::F32)));
-            func
-        });
-        interface.function({
-            let mut func = StandaloneFunc::new("f9");
-            func.set_results(Results::named(vec![("u", Type::U32), ("f", Type::F32)]));
-            func
-        });
-        interface.function({
-            let mut func = StandaloneFunc::new("f10");
-            func.set_results(Results::named(vec![("u", Type::U32)]));
+            func.set_result(Some(Type::result(Result_::both(Type::U32, Type::F32))));
             func
         });
         interface.function({
             let mut func = StandaloneFunc::new("f11");
-            func.set_results(Type::result(Result_::ok(Type::F32)));
+            func.set_result(Some(Result_::ok(Type::F32).into()));
             func
         });
         interface.function({
             let mut func = StandaloneFunc::new("f12");
-            func.set_results(Type::result(Result_::err(Type::F32)));
+            func.set_result(Some(Result_::err(Type::F32).into()));
             func
         });
         interface.function({
             let mut func = StandaloneFunc::new("f13");
-            func.set_results(Type::result(Result_::empty()));
+            func.set_result(Some(Result_::empty().into()));
             func
         });
         interface

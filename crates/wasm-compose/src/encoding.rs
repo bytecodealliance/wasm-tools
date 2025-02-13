@@ -476,26 +476,12 @@ impl<'a> TypeEncoder<'a> {
             .map(|(name, ty)| (name.as_str(), self.component_val_type(state, *ty)))
             .collect::<Vec<_>>();
 
-        let results = ty
-            .results
-            .iter()
-            .map(|(name, ty)| (name.as_deref(), self.component_val_type(state, *ty)))
-            .collect::<Vec<_>>();
+        let result = ty.result.map(|ty| self.component_val_type(state, ty));
 
         let index = state.cur.encodable.type_count();
         let mut f = state.cur.encodable.ty().function();
 
-        f.params(params);
-
-        if results.len() == 1 && results[0].0.is_none() {
-            f.result(results[0].1);
-        } else {
-            f.results(
-                results
-                    .into_iter()
-                    .map(|(name, ty)| (name.unwrap().as_str(), ty)),
-            );
-        }
+        f.params(params).result(result);
 
         index
     }
@@ -1239,12 +1225,7 @@ impl DependencyRegistrar<'_, '_> {
 
     fn func(&mut self, ty: ComponentFuncTypeId) {
         let ty = &self.types[ty];
-        for ty in ty
-            .params
-            .iter()
-            .map(|p| p.1)
-            .chain(ty.results.iter().map(|p| p.1))
-        {
+        for ty in ty.params.iter().map(|p| p.1).chain(ty.result) {
             self.val_type(ty);
         }
     }

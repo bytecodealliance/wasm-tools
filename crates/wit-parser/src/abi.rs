@@ -202,7 +202,7 @@ impl Resolve {
         }
 
         let mut results = Vec::new();
-        for ty in func.results.iter_types() {
+        if let Some(ty) = &func.result {
             self.push_flat(ty, &mut results)
         }
 

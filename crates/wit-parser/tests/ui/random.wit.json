@@ -14,11 +14,7 @@
               "type": "u64"
             }
           ],
-          "results": [
-            {
-              "type": 0
-            }
-          ],
+          "result": 0,
           "docs": {
             "contents": "Return `len` cryptographically-secure random or pseudo-random bytes.\n\nThis function must produce data at least as cryptographically secure and\nfast as an adequately seeded cryptographically-secure pseudo-random\nnumber generator (CSPRNG). It must not block, from the perspective of\nthe calling program, under any circumstances, including on the first\nrequest and on requests for numbers of bytes. The returned data must\nalways be unpredictable.\n\nThis function must always return fresh data. Deterministic environments\nmust omit this function, rather than implementing it with deterministic\ndata."
           }
@@ -27,11 +23,7 @@
           "name": "get-random-u64",
           "kind": "freestanding",
           "params": [],
-          "results": [
-            {
-              "type": "u64"
-            }
-          ],
+          "result": "u64",
           "docs": {
             "contents": "Return a cryptographically-secure random or pseudo-random `u64` value.\n\nThis function returns the same type of data as `get-random-bytes`,\nrepresented as a `u64`."
           }

@@ -7,8 +7,7 @@
           "function": {
             "name": "foo",
             "kind": "freestanding",
-            "params": [],
-            "results": []
+            "params": []
           }
         },
         "bar": {
@@ -20,8 +19,7 @@
                 "name": "arg",
                 "type": 0
               }
-            ],
-            "results": []
+            ]
           }
         }
       },
@@ -30,8 +28,7 @@
           "function": {
             "name": "foo2",
             "kind": "freestanding",
-            "params": [],
-            "results": []
+            "params": []
           }
         },
         "some-name": {
@@ -39,11 +36,7 @@
             "name": "some-name",
             "kind": "freestanding",
             "params": [],
-            "results": [
-              {
-                "type": 2
-              }
-            ]
+            "result": 2
           }
         }
       },

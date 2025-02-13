@@ -16,11 +16,7 @@
             "name": "foo",
             "kind": "freestanding",
             "params": [],
-            "results": [
-              {
-                "type": 1
-              }
-            ]
+            "result": 1
           }
         }
       },

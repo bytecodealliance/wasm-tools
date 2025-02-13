@@ -1,7 +1,7 @@
 use crate::{
     Enum, Flags, Ident, Interface, InterfaceItem, Package, PackageName, Params, Record, Resource,
-    ResourceFunc, Result_, Results, StandaloneFunc, Tuple, Type, TypeDef, TypeDefKind, Variant,
-    World, WorldItem,
+    ResourceFunc, Result_, StandaloneFunc, Tuple, Type, TypeDef, TypeDefKind, Variant, World,
+    WorldItem,
 };
 use id_arena::Id;
 use wit_parser::PackageId;
@@ -425,7 +425,7 @@ impl<'a> Converter<'a> {
         }
 
         if with_returns {
-            method.set_results(self.convert_results(&func.results));
+            method.set_result(func.result.as_ref().map(|ty| self.convert_type(ty)));
         }
 
         Some(method)
@@ -440,14 +440,14 @@ impl<'a> Converter<'a> {
                 let mut output = StandaloneFunc::new(func.name.clone());
 
                 output.set_params(self.convert_params(&func.params));
-                output.set_results(self.convert_results(&func.results));
+                output.set_result(func.result.map(|ty| self.convert_type(&ty)));
 
                 Some(output)
             }
         }
     }
 
-    fn convert_params(&self, params: &wit_parser::Params) -> Params {
+    fn convert_params(&self, params: &[(String, wit_parser::Type)]) -> Params {
         let mut output = Params::empty();
         for (name, ty) in params.iter() {
             let name = name.to_string();
@@ -455,16 +455,6 @@ impl<'a> Converter<'a> {
             output.push(name, ty);
         }
         output
-    }
-
-    fn convert_results(&self, results: &wit_parser::Results) -> Results {
-        match results {
-            wit_parser::Results::Named(named) => Results::named(named.iter().map(|(name, ty)| {
-                let ty = self.convert_type(ty);
-                (name.to_owned(), ty)
-            })),
-            wit_parser::Results::Anon(ty) => Results::Anon(self.convert_type(ty)),
-        }
     }
 
     fn handle_to_type(&self, handle: &wit_parser::Handle) -> Type {

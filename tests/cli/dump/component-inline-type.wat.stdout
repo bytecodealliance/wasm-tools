@@ -23,7 +23,7 @@
       | 01         
  0x30 | 07 05       | component type section
  0x32 | 01          | 1 count
- 0x33 | 40 00 01 00 | [type 2] Func(ComponentFuncType { params: [], results: Named([]) })
+ 0x33 | 40 00 01 00 | [type 2] Func(ComponentFuncType { params: [], result: None })
  0x37 | 0a 06       | component import section
  0x39 | 01          | 1 count
  0x3a | 00 01 64 01 | [func 0] ComponentImport { name: ComponentImportName("d"), ty: Func(2) }

@@ -28,11 +28,7 @@
               "type": 11
             }
           ],
-          "results": [
-            {
-              "type": 18
-            }
-          ]
+          "result": 18
         }
       },
       "package": 0

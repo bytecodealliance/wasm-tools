@@ -126,8 +126,8 @@ impl Render for InterfaceItems {
                         docs.render(f, opts)?;
                     }
                     write!(f, "{}{}: func({})", opts.spaces(), func.name, func.params,)?;
-                    if !func.results.is_empty() {
-                        write!(f, " -> {}", func.results)?;
+                    if let Some(ty) = &func.result {
+                        write!(f, " -> {ty}")?;
                     }
                     write!(f, ";\n")?;
                 }

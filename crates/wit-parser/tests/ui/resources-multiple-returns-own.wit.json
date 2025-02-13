@@ -15,8 +15,7 @@
               "name": "a",
               "type": 2
             }
-          ],
-          "results": []
+          ]
         },
         "[method]r1.f1": {
           "name": "[method]r1.f1",
@@ -29,16 +28,7 @@
               "type": 1
             }
           ],
-          "results": [
-            {
-              "name": "a",
-              "type": "s32"
-            },
-            {
-              "name": "handle",
-              "type": 2
-            }
-          ]
+          "result": 3
         }
       },
       "package": 0
@@ -66,6 +56,18 @@
       "kind": {
         "handle": {
           "own": 0
+        }
+      },
+      "owner": null
+    },
+    {
+      "name": null,
+      "kind": {
+        "tuple": {
+          "types": [
+            "s32",
+            2
+          ]
         }
       },
       "owner": null

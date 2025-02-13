@@ -795,85 +795,15 @@ impl Docs {
     }
 }
 
-pub type Params = Vec<(String, Type)>;
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "serde", serde(untagged))]
-pub enum Results {
-    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_params"))]
-    Named(Params),
-    #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_anon_result"))]
-    Anon(Type),
-}
-
-pub enum ResultsTypeIter<'a> {
-    Named(std::slice::Iter<'a, (String, Type)>),
-    Anon(std::iter::Once<&'a Type>),
-}
-
-impl<'a> Iterator for ResultsTypeIter<'a> {
-    type Item = &'a Type;
-
-    fn next(&mut self) -> Option<&'a Type> {
-        match self {
-            ResultsTypeIter::Named(ps) => ps.next().map(|p| &p.1),
-            ResultsTypeIter::Anon(ty) => ty.next(),
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        match self {
-            ResultsTypeIter::Named(ps) => ps.size_hint(),
-            ResultsTypeIter::Anon(ty) => ty.size_hint(),
-        }
-    }
-}
-
-impl<'a> ExactSizeIterator for ResultsTypeIter<'a> {}
-
-impl Results {
-    // For the common case of an empty results list.
-    pub fn empty() -> Results {
-        Results::Named(Vec::new())
-    }
-
-    pub fn len(&self) -> usize {
-        match self {
-            Results::Named(params) => params.len(),
-            Results::Anon(_) => 1,
-        }
-    }
-
-    pub fn throws<'a>(&self, resolve: &'a Resolve) -> Option<(Option<&'a Type>, Option<&'a Type>)> {
-        if self.len() != 1 {
-            return None;
-        }
-        match self.iter_types().next().unwrap() {
-            Type::Id(id) => match &resolve.types[*id].kind {
-                TypeDefKind::Result(r) => Some((r.ok.as_ref(), r.err.as_ref())),
-                _ => None,
-            },
-            _ => None,
-        }
-    }
-
-    pub fn iter_types(&self) -> ResultsTypeIter {
-        match self {
-            Results::Named(ps) => ResultsTypeIter::Named(ps.iter()),
-            Results::Anon(ty) => ResultsTypeIter::Anon(std::iter::once(ty)),
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Function {
     pub name: String,
     pub kind: FunctionKind,
     #[cfg_attr(feature = "serde", serde(serialize_with = "serialize_params"))]
-    pub params: Params,
-    pub results: Results,
+    pub params: Vec<(String, Type)>,
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub result: Option<Type>,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Docs::is_empty"))]
     pub docs: Docs,
     /// Stability attribute for this function.
@@ -1036,10 +966,7 @@ impl Function {
     /// Note that this iterator is not transitive, it only iterates over the
     /// direct references to types that this function has.
     pub fn parameter_and_result_types(&self) -> impl Iterator<Item = Type> + '_ {
-        self.params
-            .iter()
-            .map(|(_, t)| *t)
-            .chain(self.results.iter_types().copied())
+        self.params.iter().map(|(_, t)| *t).chain(self.result)
     }
 
     /// Gets the core export name for this function.
@@ -1087,8 +1014,8 @@ impl Function {
         for (_, ty) in self.params.iter() {
             find_futures_and_streams(resolve, *ty, &mut results);
         }
-        for ty in self.results.iter_types() {
-            find_futures_and_streams(resolve, *ty, &mut results);
+        if let Some(ty) = self.result {
+            find_futures_and_streams(resolve, ty, &mut results);
         }
         results
     }
@@ -1257,7 +1184,7 @@ mod test {
             name: "foo".into(),
             kind: FunctionKind::Freestanding,
             params: vec![("p1".into(), Type::Id(t1)), ("p2".into(), Type::U32)],
-            results: Results::Anon(Type::Id(t2)),
+            result: Some(Type::Id(t2)),
             docs: Docs::default(),
             stability: Stability::Unknown,
         }

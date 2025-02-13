@@ -127,8 +127,8 @@ impl Render for World {
             func: &StandaloneFunc,
         ) -> fmt::Result {
             write!(f, "{}: func({})", func.name, func.params)?;
-            if !func.results.is_empty() {
-                write!(f, " -> {}", func.results)?;
+            if let Some(ty) = &func.result {
+                write!(f, " -> {ty}")?;
             }
             write!(f, ";\n")?;
             Ok(())

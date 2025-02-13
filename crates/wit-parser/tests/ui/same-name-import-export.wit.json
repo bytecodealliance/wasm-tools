@@ -8,11 +8,7 @@
             "name": "greet",
             "kind": "freestanding",
             "params": [],
-            "results": [
-              {
-                "type": "string"
-              }
-            ]
+            "result": "string"
           }
         }
       },
@@ -22,11 +18,7 @@
             "name": "greet",
             "kind": "freestanding",
             "params": [],
-            "results": [
-              {
-                "type": "string"
-              }
-            ]
+            "result": "string"
           }
         }
       },

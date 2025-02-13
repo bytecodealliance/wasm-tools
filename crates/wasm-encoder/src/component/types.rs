@@ -401,38 +401,19 @@ impl<'a> ComponentFuncTypeEncoder<'a> {
     ///
     /// This method will panic if the function is called twice, called before
     /// the `params` method, or called in addition to the `results` method.
-    pub fn result(&mut self, ty: impl Into<ComponentValType>) -> &mut Self {
+    pub fn result(&mut self, ty: Option<ComponentValType>) -> &mut Self {
         assert!(self.params_encoded);
         assert!(!self.results_encoded);
         self.results_encoded = true;
-        self.sink.push(0x00);
-        ty.into().encode(self.sink);
-        self
-    }
-
-    /// Defines named results.
-    ///
-    /// This method cannot be used with `result`.
-    ///
-    /// # Panics
-    ///
-    /// This method will panic if the function is called twice, called before
-    /// the `params` method, or called in addition to the `result` method.
-    pub fn results<'b, R, T>(&mut self, results: R) -> &mut Self
-    where
-        R: IntoIterator<Item = (&'b str, T)>,
-        R::IntoIter: ExactSizeIterator,
-        T: Into<ComponentValType>,
-    {
-        assert!(self.params_encoded);
-        assert!(!self.results_encoded);
-        self.results_encoded = true;
-        self.sink.push(0x01);
-        let results = results.into_iter();
-        results.len().encode(self.sink);
-        for (name, ty) in results {
-            name.encode(self.sink);
-            ty.into().encode(self.sink);
+        match ty {
+            Some(ty) => {
+                self.sink.push(0x00);
+                ty.encode(self.sink);
+            }
+            None => {
+                self.sink.push(0x01);
+                self.sink.push(0x00);
+            }
         }
         self
     }
@@ -709,7 +690,7 @@ impl ComponentDefinedTypeEncoder<'_> {
 ///       ("b", PrimitiveValType::String)
 ///     ]
 ///   )
-///   .result(PrimitiveValType::String);
+///   .result(Some(PrimitiveValType::String.into()));
 ///
 /// let mut component = Component::new();
 /// component.section(&types);

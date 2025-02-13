@@ -96,7 +96,7 @@ impl Encode for ComponentTypeRef {
 ///       ("b", PrimitiveValType::String)
 ///     ]
 ///   )
-///   .result(PrimitiveValType::String);
+///   .result(Some(PrimitiveValType::String.into()));
 ///
 /// // This imports a function named `f` with the type defined above
 /// let mut imports = ComponentImportSection::new();

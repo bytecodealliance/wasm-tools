@@ -84,8 +84,8 @@ use wasm_encoder::*;
 use wasmparser::Validator;
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
-    Function, FunctionKind, InterfaceId, LiveTypes, Resolve, Results, Stability, Type, TypeDefKind,
-    TypeId, TypeOwner, WorldItem, WorldKey,
+    Function, FunctionKind, InterfaceId, LiveTypes, Resolve, Stability, Type, TypeDefKind, TypeId,
+    TypeOwner, WorldItem, WorldKey,
 };
 
 const INDIRECT_TABLE_NAME: &str = "$imports";
@@ -137,7 +137,7 @@ impl RequiredOptions {
             resolve,
             func.params.iter().map(|(_, t)| t),
         ));
-        ret.add_lower(TypeContents::for_types(resolve, func.results.iter_types()));
+        ret.add_lower(TypeContents::for_types(resolve, &func.result));
 
         // If anything is indirect then `memory` will be required to read the
         // indirect values.
@@ -158,7 +158,7 @@ impl RequiredOptions {
             resolve,
             func.params.iter().map(|(_, t)| t),
         ));
-        ret.add_lift(TypeContents::for_types(resolve, func.results.iter_types()));
+        ret.add_lift(TypeContents::for_types(resolve, &func.result));
 
         // If anything is indirect then `memory` will be required to read the
         // indirect values, but if the arguments are indirect then `realloc` is
@@ -277,7 +277,7 @@ bitflags::bitflags! {
 }
 
 impl TypeContents {
-    fn for_types<'a>(resolve: &Resolve, types: impl Iterator<Item = &'a Type>) -> Self {
+    fn for_types<'a>(resolve: &Resolve, types: impl IntoIterator<Item = &'a Type>) -> Self {
         let mut cur = TypeContents::empty();
         for ty in types {
             cur |= Self::for_type(resolve, ty);
@@ -1310,9 +1310,9 @@ impl<'a> EncodingState<'a> {
                                         .enumerate()
                                         .map(|(i, v)| (format!("a{i}"), v))
                                         .collect(),
-                                    results: match &results[..] {
-                                        [] => Results::Named(Vec::new()),
-                                        [ty] => Results::Anon(*ty),
+                                    result: match &results[..] {
+                                        [] => None,
+                                        [ty] => Some(*ty),
                                         _ => unreachable!(),
                                     },
                                     docs: Default::default(),
@@ -1721,15 +1721,9 @@ impl<'a> EncodingState<'a> {
             Import::ExportedTaskReturn(interface, function) => {
                 let mut encoder = self.root_export_type_encoder(*interface);
 
-                let result = match &function.results {
-                    Results::Named(rs) => {
-                        if rs.is_empty() {
-                            None
-                        } else {
-                            bail!("named results not supported for `task.return` intrinsic")
-                        }
-                    }
-                    Results::Anon(ty) => Some(encoder.encode_valtype(resolve, ty)?),
+                let result = match &function.result {
+                    Some(ty) => Some(encoder.encode_valtype(resolve, ty)?),
+                    None => None,
                 };
 
                 let index = self.component.task_return(result);

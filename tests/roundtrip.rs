@@ -621,8 +621,6 @@ impl TestState {
             & !WasmFeatures::SHARED_EVERYTHING_THREADS
             & !WasmFeatures::COMPONENT_MODEL
             & !WasmFeatures::COMPONENT_MODEL_NESTED_NAMES
-            & !WasmFeatures::COMPONENT_MODEL_MORE_FLAGS
-            & !WasmFeatures::COMPONENT_MODEL_MULTIPLE_RETURNS
             & !WasmFeatures::LEGACY_EXCEPTIONS;
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
@@ -668,12 +666,6 @@ impl TestState {
                 }
                 "import-extended.wast" => {
                     features.insert(WasmFeatures::COMPONENT_MODEL_NESTED_NAMES);
-                }
-                "more-flags.wast" => {
-                    features.insert(WasmFeatures::COMPONENT_MODEL_MORE_FLAGS);
-                }
-                "multiple-returns.wast" => {
-                    features.insert(WasmFeatures::COMPONENT_MODEL_MULTIPLE_RETURNS);
                 }
                 "stack-switching" => {
                     features.insert(WasmFeatures::STACK_SWITCHING);

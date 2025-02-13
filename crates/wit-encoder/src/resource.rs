@@ -1,4 +1,4 @@
-use crate::{ident::Ident, Docs, Params, Results};
+use crate::{ident::Ident, Docs, Params, Type};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -38,15 +38,15 @@ pub struct ResourceFunc {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub enum ResourceFuncKind {
-    Method(Ident, Results),
-    Static(Ident, Results),
+    Method(Ident, Option<Type>),
+    Static(Ident, Option<Type>),
     Constructor,
 }
 
 impl ResourceFunc {
     pub fn method(name: impl Into<Ident>) -> Self {
         Self {
-            kind: ResourceFuncKind::Method(name.into(), Results::empty()),
+            kind: ResourceFuncKind::Method(name.into(), None),
             params: Params::empty(),
             docs: None,
         }
@@ -54,7 +54,7 @@ impl ResourceFunc {
 
     pub fn static_(name: impl Into<Ident>) -> Self {
         Self {
-            kind: ResourceFuncKind::Static(name.into(), Results::empty()),
+            kind: ResourceFuncKind::Static(name.into(), None),
             params: Params::empty(),
             docs: None,
         }
@@ -96,30 +96,30 @@ impl ResourceFunc {
         &mut self.params
     }
 
-    pub fn set_results(&mut self, results: impl Into<Results>) {
+    pub fn set_result(&mut self, results: Option<Type>) {
         match &self.kind {
             ResourceFuncKind::Method(name, _) => {
-                self.kind = ResourceFuncKind::Method(name.clone(), results.into())
+                self.kind = ResourceFuncKind::Method(name.clone(), results)
             }
             ResourceFuncKind::Static(name, _) => {
-                self.kind = ResourceFuncKind::Static(name.clone(), results.into())
+                self.kind = ResourceFuncKind::Static(name.clone(), results)
             }
             ResourceFuncKind::Constructor => panic!("constructors cannot have results"),
         }
     }
 
-    pub fn results(&self) -> Option<&Results> {
+    pub fn result(&self) -> Option<&Option<Type>> {
         match &self.kind {
-            ResourceFuncKind::Method(_, results) => Some(results),
-            ResourceFuncKind::Static(_, results) => Some(results),
+            ResourceFuncKind::Method(_, result) => Some(result),
+            ResourceFuncKind::Static(_, result) => Some(result),
             ResourceFuncKind::Constructor => None,
         }
     }
 
-    pub fn results_mut(&mut self) -> Option<&mut Results> {
+    pub fn result_mut(&mut self) -> Option<&mut Option<Type>> {
         match &mut self.kind {
-            ResourceFuncKind::Method(_, results) => Some(results),
-            ResourceFuncKind::Static(_, results) => Some(results),
+            ResourceFuncKind::Method(_, result) => Some(result),
+            ResourceFuncKind::Static(_, result) => Some(result),
             ResourceFuncKind::Constructor => None,
         }
     }
