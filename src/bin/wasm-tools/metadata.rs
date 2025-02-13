@@ -99,7 +99,7 @@ fn fmt_payload(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result<()> {
         .set_header(vec!["KIND", "VALUE"]);
     let Metadata {
         name,
-        authors: author,
+        authors,
         description,
         producers,
         licenses,
@@ -130,8 +130,8 @@ fn fmt_payload(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result<()> {
     if let Some(licenses) = licenses {
         table.add_row(vec!["licenses", &licenses.to_string()]);
     }
-    if let Some(author) = author {
-        table.add_row(vec!["author", &author.to_string()]);
+    if let Some(authors) = authors {
+        table.add_row(vec!["authors", &authors.to_string()]);
     }
     if let Some(source) = source {
         table.add_row(vec!["source", &source.to_string()]);
