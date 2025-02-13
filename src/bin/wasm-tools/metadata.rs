@@ -99,7 +99,7 @@ fn fmt_payload(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result<()> {
         .set_header(vec!["KIND", "VALUE"]);
     let Metadata {
         name,
-        author,
+        authors: author,
         description,
         producers,
         licenses,

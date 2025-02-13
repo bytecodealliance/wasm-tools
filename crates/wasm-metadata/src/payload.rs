@@ -93,9 +93,11 @@ impl Payload {
                             .metadata_mut()
                             .producers = Some(producers);
                     }
-                    KnownCustom::Unknown if c.name() == "author" => {
+                    KnownCustom::Unknown if c.name() == "authors" => {
                         let a = Authors::parse_custom_section(&c)?;
-                        let Metadata { author, .. } = output
+                        let Metadata {
+                            authors: author, ..
+                        } = output
                             .last_mut()
                             .expect("non-empty metadata stack")
                             .metadata_mut();

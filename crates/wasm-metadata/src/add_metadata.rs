@@ -30,7 +30,7 @@ pub struct AddMetadata {
     /// Contact details of the people or organization responsible,
     /// encoded as a freeform string.
     #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
-    pub author: Option<Authors>,
+    pub authors: Option<Authors>,
 
     /// A human-readable description of the binary
     #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
@@ -72,7 +72,7 @@ impl AddMetadata {
         rewrite_wasm(
             &self.name,
             &Producers::from_meta(self),
-            &self.author,
+            &self.authors,
             &self.description,
             &self.licenses,
             &self.source,

@@ -11,7 +11,7 @@ fn add_to_empty_component() {
         language: vec![("bar".to_owned(), "1.0".to_owned())],
         processed_by: vec![("baz".to_owned(), "1.0".to_owned())],
         sdk: vec![],
-        author: Some(Authors::new("Chashu Cat")),
+        authors: Some(Authors::new("Chashu Cat")),
         description: Some(Description::new("Chashu likes tuna")),
         licenses: Some(
             Licenses::new("Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT").unwrap(),
@@ -30,7 +30,7 @@ fn add_to_empty_component() {
                 Metadata {
                     name,
                     producers,
-                    author,
+                    authors: author,
                     description,
                     licenses,
                     source,
@@ -73,7 +73,7 @@ fn add_to_empty_component() {
             assert_eq!(version.unwrap(), Version::new("1.0.0"));
 
             assert_eq!(range.start, 0);
-            assert_eq!(range.end, 374);
+            assert_eq!(range.end, 375);
         }
         _ => panic!("metadata should be component"),
     }
@@ -88,7 +88,7 @@ fn add_to_nested_component() {
         language: vec![("bar".to_owned(), "1.0".to_owned())],
         processed_by: vec![("baz".to_owned(), "1.0".to_owned())],
         sdk: vec![],
-        author: Some(Authors::new("Chashu Cat")),
+        authors: Some(Authors::new("Chashu Cat")),
         description: Some(Description::new("Chashu likes tuna")),
         licenses: Some(
             Licenses::new("Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT").unwrap(),
@@ -137,7 +137,7 @@ fn add_to_nested_component() {
                 Payload::Module(Metadata {
                     name,
                     producers,
-                    author,
+                    authors: author,
                     licenses,
                     source,
                     range,
@@ -186,7 +186,7 @@ fn add_to_nested_component() {
                     assert_eq!(version, &Some(Version::new("1.0.0")));
 
                     assert_eq!(range.start, 11);
-                    assert_eq!(range.end, 375);
+                    assert_eq!(range.end, 376);
                 }
                 _ => panic!("child is a module"),
             }

@@ -11,8 +11,8 @@ pub struct Metadata {
     pub name: Option<String>,
     /// The component's producers section, if any.
     pub producers: Option<Producers>,
-    /// The component's author section, if any.
-    pub author: Option<Authors>,
+    /// The component's authors section, if any.
+    pub authors: Option<Authors>,
     /// Human-readable description of the binary
     pub description: Option<Description>,
     /// License(s) under which contained software is distributed as an SPDX License Expression.
