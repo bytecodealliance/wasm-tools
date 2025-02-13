@@ -1,5 +1,5 @@
 use crate::{
-    Author, ComponentNames, Description, Homepage, Licenses, ModuleNames, Producers, Revision,
+    Authors, ComponentNames, Description, Homepage, Licenses, ModuleNames, Producers, Revision,
     Source,
 };
 use anyhow::Result;
@@ -11,7 +11,7 @@ use wasmparser::{KnownCustom, Parser, Payload::*};
 pub(crate) fn rewrite_wasm(
     add_name: &Option<String>,
     add_producers: &Producers,
-    add_author: &Option<Author>,
+    add_author: &Option<Authors>,
     add_description: &Option<Description>,
     add_licenses: &Option<Licenses>,
     add_source: &Option<Source>,
@@ -86,7 +86,7 @@ pub(crate) fn rewrite_wasm(
                     }
                     KnownCustom::Unknown if c.name() == "author" => {
                         if add_author.is_none() {
-                            let author = Author::parse_custom_section(c)?;
+                            let author = Authors::parse_custom_section(c)?;
                             author.append_to(&mut output);
                             continue;
                         }

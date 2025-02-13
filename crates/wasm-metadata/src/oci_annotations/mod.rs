@@ -15,7 +15,7 @@
 //!
 //! [OCI Annotations Spec]: https://specs.opencontainers.org/image-spec/annotations/
 
-pub use author::Author;
+pub use authors::Authors;
 pub use description::Description;
 pub use homepage::Homepage;
 pub use licenses::Licenses;
@@ -23,7 +23,7 @@ pub use revision::Revision;
 pub use source::Source;
 pub use version::Version;
 
-mod author;
+mod authors;
 mod description;
 mod homepage;
 mod licenses;

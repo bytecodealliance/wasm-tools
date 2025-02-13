@@ -5,7 +5,7 @@ use serde_derive::Serialize;
 use wasmparser::{KnownCustom, Parser, Payload::*};
 
 use crate::{
-    Author, ComponentNames, Description, Homepage, Licenses, Metadata, ModuleNames, Producers,
+    Authors, ComponentNames, Description, Homepage, Licenses, Metadata, ModuleNames, Producers,
     Revision, Source,
 };
 
@@ -93,9 +93,11 @@ impl Payload {
                             .metadata_mut()
                             .producers = Some(producers);
                     }
-                    KnownCustom::Unknown if c.name() == "author" => {
-                        let a = Author::parse_custom_section(&c)?;
-                        let Metadata { author, .. } = output
+                    KnownCustom::Unknown if c.name() == "authors" => {
+                        let a = Authors::parse_custom_section(&c)?;
+                        let Metadata {
+                            authors: author, ..
+                        } = output
                             .last_mut()
                             .expect("non-empty metadata stack")
                             .metadata_mut();
