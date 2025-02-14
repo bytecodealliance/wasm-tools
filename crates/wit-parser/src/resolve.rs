@@ -2885,7 +2885,13 @@ impl Remap {
         self.process_foreign_types(unresolved, pkgid, resolve)?;
 
         for (id, span) in unresolved.required_resource_types.iter() {
-            let mut id = self.map_type(*id, Some(*span))?;
+            // Note that errors are ignored here because an error represents a
+            // type that has been configured away. If a type is configured away
+            // then any future use of it will generate an error so there's no
+            // need to validate that it's a resource here.
+            let Ok(mut id) = self.map_type(*id, Some(*span)) else {
+                continue;
+            };
             loop {
                 match resolve.types[id].kind {
                     TypeDefKind::Type(Type::Id(i)) => id = i,
