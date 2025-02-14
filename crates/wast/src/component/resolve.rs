@@ -620,8 +620,8 @@ impl<'a> Resolver<'a> {
                     self.component_val_type(&mut param.ty)?;
                 }
 
-                for result in f.results.iter_mut() {
-                    self.component_val_type(&mut result.ty)?;
+                if let Some(result) = &mut f.result {
+                    self.component_val_type(result)?;
                 }
             }
             TypeDef::Component(c) => {

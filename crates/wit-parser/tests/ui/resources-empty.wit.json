@@ -15,8 +15,7 @@
               "name": "a",
               "type": 2
             }
-          ],
-          "results": []
+          ]
         },
         "t2": {
           "name": "t2",
@@ -26,8 +25,7 @@
               "name": "a",
               "type": 1
             }
-          ],
-          "results": []
+          ]
         }
       },
       "package": 0

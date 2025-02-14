@@ -58,13 +58,6 @@
 
 (assert_invalid
   (component
-    (type (func (result "uP" string)))
-  )
-  "name `uP` is not in kebab case"
-)
-
-(assert_invalid
-  (component
     (type (component (export "NevEr" (func))))
   )
   "`NevEr` is not in kebab case"

@@ -819,7 +819,7 @@ impl<'a> ResourceFunc<'a> {
                     func: Func {
                         span,
                         params,
-                        results: ResultList::Named(Vec::new()),
+                        result: None,
                     },
                 }))
             }
@@ -934,15 +934,10 @@ struct NamedFunc<'a> {
 
 type ParamList<'a> = Vec<(Id<'a>, Type<'a>)>;
 
-enum ResultList<'a> {
-    Named(ParamList<'a>),
-    Anon(Type<'a>),
-}
-
 struct Func<'a> {
     span: Span,
     params: ParamList<'a>,
-    results: ResultList<'a>,
+    result: Option<Type<'a>>,
 }
 
 impl<'a> Func<'a> {
@@ -961,23 +956,16 @@ impl<'a> Func<'a> {
 
         let span = tokens.expect(Token::Func)?;
         let params = parse_params(tokens, true)?;
-        let results = if tokens.eat(Token::RArrow)? {
-            // If we eat a '(', parse the remainder of the named
-            // result types. Otherwise parse a single anonymous type.
-            if tokens.eat(Token::LeftParen)? {
-                let results = parse_params(tokens, false)?;
-                ResultList::Named(results)
-            } else {
-                let ty = Type::parse(tokens)?;
-                ResultList::Anon(ty)
-            }
+        let result = if tokens.eat(Token::RArrow)? {
+            let ty = Type::parse(tokens)?;
+            Some(ty)
         } else {
-            ResultList::Named(Vec::new())
+            None
         };
         Ok(Func {
             span,
             params,
-            results,
+            result,
         })
     }
 }

@@ -282,8 +282,15 @@ impl<'a> FromReader<'a> for ComponentType<'a> {
                 let params = reader
                     .read_iter(MAX_WASM_FUNCTION_PARAMS, "component function parameters")?
                     .collect::<Result<_>>()?;
-                let results = reader.read()?;
-                ComponentType::Func(ComponentFuncType { params, results })
+                let result = match reader.read_u8()? {
+                    0x00 => Some(reader.read()?),
+                    0x01 => match reader.read_u8()? {
+                        0x00 => None,
+                        x => return reader.invalid_leading_byte(x, "number of results"),
+                    },
+                    x => return reader.invalid_leading_byte(x, "component function results"),
+                };
+                ComponentType::Func(ComponentFuncType { params, result })
             }
             0x41 => ComponentType::Component(
                 reader
@@ -380,74 +387,13 @@ impl<'a> FromReader<'a> for InstanceTypeDeclaration<'a> {
     }
 }
 
-/// Represents the result type of a component function.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub enum ComponentFuncResult<'a> {
-    /// The function returns a singular, unnamed type.
-    Unnamed(ComponentValType),
-    /// The function returns zero or more named types.
-    Named(Box<[(&'a str, ComponentValType)]>),
-}
-
-impl<'a> FromReader<'a> for ComponentFuncResult<'a> {
-    fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
-        Ok(match reader.read_u8()? {
-            0x00 => ComponentFuncResult::Unnamed(reader.read()?),
-            0x01 => ComponentFuncResult::Named(
-                reader
-                    .read_iter(MAX_WASM_FUNCTION_RETURNS, "component function results")?
-                    .collect::<Result<_>>()?,
-            ),
-            x => return reader.invalid_leading_byte(x, "component function results"),
-        })
-    }
-}
-
-impl ComponentFuncResult<'_> {
-    /// Gets the count of types returned by the function.
-    pub fn type_count(&self) -> usize {
-        match self {
-            Self::Unnamed(_) => 1,
-            Self::Named(vec) => vec.len(),
-        }
-    }
-
-    /// Iterates over the types returned by the function.
-    pub fn iter(&self) -> impl Iterator<Item = (Option<&str>, &ComponentValType)> {
-        enum Either<L, R> {
-            Left(L),
-            Right(R),
-        }
-
-        impl<L, R> Iterator for Either<L, R>
-        where
-            L: Iterator,
-            R: Iterator<Item = L::Item>,
-        {
-            type Item = L::Item;
-
-            fn next(&mut self) -> Option<Self::Item> {
-                match self {
-                    Either::Left(l) => l.next(),
-                    Either::Right(r) => r.next(),
-                }
-            }
-        }
-
-        match self {
-            Self::Unnamed(ty) => Either::Left(core::iter::once(ty).map(|ty| (None, ty))),
-            Self::Named(vec) => Either::Right(vec.iter().map(|(n, ty)| (Some(*n), ty))),
-        }
-    }
-}
-
 /// Represents a type of a function in a WebAssembly component.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ComponentFuncType<'a> {
     /// The function parameters.
     pub params: Box<[(&'a str, ComponentValType)]>,
     /// The function result.
-    pub results: ComponentFuncResult<'a>,
+    pub result: Option<ComponentValType>,
 }
 
 /// Represents a case in a variant type.

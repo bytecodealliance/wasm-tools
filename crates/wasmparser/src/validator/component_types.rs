@@ -879,8 +879,8 @@ pub struct ComponentFuncType {
     pub(crate) info: TypeInfo,
     /// The function parameters.
     pub params: Box<[(KebabString, ComponentValType)]>,
-    /// The function's results.
-    pub results: Box<[(Option<KebabString>, ComponentValType)]>,
+    /// The function's result.
+    pub result: Option<ComponentValType>,
 }
 
 impl TypeData for ComponentFuncType {
@@ -913,7 +913,10 @@ impl ComponentFuncType {
                 }
                 info.results.push(ValType::I32);
                 info.requires_memory = true;
-                info.requires_realloc = self.results.iter().any(|(_, ty)| ty.contains_ptr(types));
+                info.requires_realloc = self
+                    .result
+                    .map(|ty| ty.contains_ptr(types))
+                    .unwrap_or(false);
                 return info;
             }
             Abi::LowerSync => true,
@@ -956,7 +959,7 @@ impl ComponentFuncType {
         match abi {
             Abi::LowerAsync => unreachable!(),
             Abi::LowerSync | Abi::LiftSync => {
-                for (_, ty) in self.results.iter() {
+                if let Some(ty) = &self.result {
                     // Results of lowered functions that contains pointers must be
                     // allocated by the callee meaning that realloc is required.
                     // Results of lifted function are allocated by the guest which
@@ -976,7 +979,6 @@ impl ComponentFuncType {
                             assert!(info.results.push(ValType::I32));
                         }
                         info.requires_memory = true;
-                        break;
                     }
                 }
             }
@@ -2024,12 +2026,7 @@ impl TypeAlloc {
         set: &mut IndexSet<ResourceId>,
     ) {
         let i = &self[id];
-        for ty in i
-            .params
-            .iter()
-            .map(|(_, ty)| ty)
-            .chain(i.results.iter().map(|(_, ty)| ty))
-        {
+        for ty in i.params.iter().map(|(_, ty)| ty).chain(&i.result) {
             self.free_variables_valtype(ty, set);
         }
     }
@@ -2353,7 +2350,7 @@ where
             .params
             .iter_mut()
             .map(|(_, ty)| ty)
-            .chain(tmp.results.iter_mut().map(|(_, ty)| ty))
+            .chain(&mut tmp.result)
         {
             any_changed |= self.remap_valtype(ty, map);
         }
@@ -2710,14 +2707,6 @@ impl<'a> SubtypeCx<'a> {
                 a.params.len(),
             );
         }
-        if a.results.len() != b.results.len() {
-            bail!(
-                offset,
-                "expected {} results, found {}",
-                b.results.len(),
-                a.results.len(),
-            );
-        }
         for ((an, a), (bn, b)) in a.params.iter().zip(b.params.iter()) {
             if an != bn {
                 bail!(offset, "expected parameter named `{bn}`, found `{an}`");
@@ -2725,12 +2714,15 @@ impl<'a> SubtypeCx<'a> {
             self.component_val_type(a, b, offset)
                 .with_context(|| format!("type mismatch in function parameter `{an}`"))?;
         }
-        for ((an, a), (bn, b)) in a.results.iter().zip(b.results.iter()) {
-            if an != bn {
-                bail!(offset, "mismatched result names");
-            }
-            self.component_val_type(a, b, offset)
-                .with_context(|| "type mismatch with result type")?;
+
+        match (&a.result, &b.result) {
+            (Some(a), Some(b)) => self
+                .component_val_type(a, b, offset)
+                .with_context(|| "type mismatch with result type")?,
+            (None, None) => {}
+
+            (Some(_), None) => bail!(offset, "expected a result, found none"),
+            (None, Some(_)) => bail!(offset, "expected no result, found one"),
         }
         Ok(())
     }

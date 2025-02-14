@@ -15,8 +15,7 @@
               "name": "a",
               "type": 2
             }
-          ],
-          "results": []
+          ]
         },
         "[method]r1.f1": {
           "name": "[method]r1.f1",
@@ -29,11 +28,7 @@
               "type": 1
             }
           ],
-          "results": [
-            {
-              "type": 2
-            }
-          ]
+          "result": 2
         }
       },
       "package": 0

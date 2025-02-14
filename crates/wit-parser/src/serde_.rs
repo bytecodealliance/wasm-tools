@@ -1,4 +1,4 @@
-use crate::{Params, Type};
+use crate::Type;
 use id_arena::{Arena, Id};
 use indexmap::IndexMap;
 use semver::Version;
@@ -77,15 +77,7 @@ impl Serialize for Type {
     }
 }
 
-pub fn serialize_anon_result<S>(typ: &Type, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let params: Params = vec![(String::default(), *typ)];
-    serialize_params(&params, serializer)
-}
-
-pub fn serialize_params<S>(params: &Params, serializer: S) -> Result<S::Ok, S::Error>
+pub fn serialize_params<S>(params: &[(String, Type)], serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {

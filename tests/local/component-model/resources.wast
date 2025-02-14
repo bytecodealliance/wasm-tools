@@ -179,10 +179,10 @@
   (type (component
     (import "x" (instance $i
       (export $t "t" (type (sub resource)))
-      (export "f" (func (result "x" (own $t))))
+      (export "f" (func (result (own $t))))
     ))
     (alias export $i "t" (type $t))
-    (export "f" (func (result "x" (own $t))))
+    (export "f" (func (result (own $t))))
   ))
 )
 

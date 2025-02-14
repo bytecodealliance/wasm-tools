@@ -2,10 +2,11 @@
   "source_filename": "tests/local/component-model/more-flags.wast",
   "commands": [
     {
-      "type": "module",
-      "line": 1,
+      "type": "assert_invalid",
+      "line": 2,
       "filename": "more-flags.0.wasm",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "cannot have more than 32 flags"
     }
   ]
 }

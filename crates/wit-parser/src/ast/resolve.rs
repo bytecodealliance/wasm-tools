@@ -1,4 +1,4 @@
-use super::{ParamList, ResultList, WorldOrInterface};
+use super::{ParamList, WorldOrInterface};
 use crate::ast::toposort::toposort;
 use crate::*;
 use anyhow::bail;
@@ -1047,14 +1047,14 @@ impl<'a> Resolver<'a> {
         let docs = self.docs(docs);
         let stability = self.stability(attrs)?;
         let params = self.resolve_params(&func.params, &kind, func.span)?;
-        let results = self.resolve_results(&func.results, &kind, func.span)?;
+        let result = self.resolve_result(&func.result, &kind, func.span)?;
         Ok(Function {
             docs,
             stability,
             name: name.to_string(),
             kind,
             params,
-            results,
+            result,
         })
     }
 
@@ -1542,7 +1542,7 @@ impl<'a> Resolver<'a> {
         params: &ParamList<'_>,
         kind: &FunctionKind,
         span: Span,
-    ) -> Result<Params> {
+    ) -> Result<Vec<(String, Type)>> {
         let mut ret = IndexMap::new();
         match *kind {
             // These kinds of methods don't have any adjustments to the
@@ -1583,25 +1583,19 @@ impl<'a> Resolver<'a> {
         Ok(ret.into_iter().collect())
     }
 
-    fn resolve_results(
+    fn resolve_result(
         &mut self,
-        results: &ResultList<'_>,
+        result: &Option<ast::Type<'_>>,
         kind: &FunctionKind,
-        span: Span,
-    ) -> Result<Results> {
+        _span: Span,
+    ) -> Result<Option<Type>> {
         match *kind {
             // These kinds of methods don't have any adjustments to the return
             // values, so plumb them through as-is.
             FunctionKind::Freestanding | FunctionKind::Method(_) | FunctionKind::Static(_) => {
-                match results {
-                    ResultList::Named(rs) => Ok(Results::Named(self.resolve_params(
-                        rs,
-                        &FunctionKind::Freestanding,
-                        span,
-                    )?)),
-                    ResultList::Anon(ty) => {
-                        Ok(Results::Anon(self.resolve_type(ty, &Stability::Unknown)?))
-                    }
+                match result {
+                    Some(ty) => Ok(Some(self.resolve_type(ty, &Stability::Unknown)?)),
+                    None => Ok(None),
                 }
             }
 
@@ -1609,11 +1603,8 @@ impl<'a> Resolver<'a> {
             // automatically translated as a single return type of the type that
             // it's a constructor for.
             FunctionKind::Constructor(id) => {
-                match results {
-                    ResultList::Named(rs) => assert!(rs.is_empty()),
-                    ResultList::Anon(_) => unreachable!(),
-                }
-                Ok(Results::Anon(Type::Id(id)))
+                assert!(result.is_none());
+                Ok(Some(Type::Id(id)))
             }
         }
     }

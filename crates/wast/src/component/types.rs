@@ -728,9 +728,8 @@ pub struct ComponentFunctionType<'a> {
     /// The parameters of a function, optionally each having an identifier for
     /// name resolution and a name for the custom `name` section.
     pub params: Box<[ComponentFunctionParam<'a>]>,
-    /// The result of a function, optionally each having an identifier for
-    /// name resolution and a name for the custom `name` section.
-    pub results: Box<[ComponentFunctionResult<'a>]>,
+    /// The result of a function.
+    pub result: Option<ComponentValType<'a>>,
 }
 
 impl<'a> Parse<'a> for ComponentFunctionType<'a> {
@@ -740,14 +739,18 @@ impl<'a> Parse<'a> for ComponentFunctionType<'a> {
             params.push(parser.parens(|p| p.parse())?);
         }
 
-        let mut results: Vec<ComponentFunctionResult> = Vec::new();
-        while parser.peek2::<kw::result>()? {
-            results.push(parser.parens(|p| p.parse())?);
-        }
+        let result = if parser.peek2::<kw::result>()? {
+            Some(parser.parens(|p| {
+                p.parse::<kw::result>()?;
+                p.parse()
+            })?)
+        } else {
+            None
+        };
 
         Ok(Self {
             params: params.into(),
-            results: results.into(),
+            result,
         })
     }
 }

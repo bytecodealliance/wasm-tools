@@ -69,92 +69,10 @@ impl Params {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
-pub enum Results {
-    Named(Params),
-    Anon(Type),
-}
-
-impl Display for Results {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Results::Anon(type_) => type_.fmt(f)?,
-            Results::Named(vals) => {
-                if !vals.items.is_empty() {
-                    write!(f, "(")?;
-                    let mut peekable = vals.items.iter().peekable();
-                    while let Some((name, type_)) = peekable.next() {
-                        write!(f, "{}: {}", name, type_)?;
-                        if peekable.peek().is_some() {
-                            write!(f, ", ")?;
-                        }
-                    }
-                    write!(f, ")")?;
-                }
-            }
-        };
-        Ok(())
-    }
-}
-
-impl Default for Results {
-    fn default() -> Self {
-        Results::empty()
-    }
-}
-
-impl From<Type> for Results {
-    fn from(value: Type) -> Self {
-        Results::Anon(value)
-    }
-}
-
-impl<N> FromIterator<(N, Type)> for Results
-where
-    N: Into<Ident>,
-{
-    fn from_iter<T: IntoIterator<Item = (N, Type)>>(iter: T) -> Self {
-        Results::Named(Params::from_iter(iter))
-    }
-}
-
-impl Results {
-    // For the common case of an empty results list.
-    pub fn empty() -> Results {
-        Results::Named(Params::empty())
-    }
-
-    pub fn anon(type_: Type) -> Results {
-        Results::Anon(type_)
-    }
-
-    pub fn named(types: impl IntoIterator<Item = (impl Into<Ident>, Type)>) -> Results {
-        Results::Named(
-            types
-                .into_iter()
-                .map(|(name, ty)| (name.into(), ty))
-                .collect(),
-        )
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    pub fn len(&self) -> usize {
-        match self {
-            Results::Named(params) => params.items().len(),
-            Results::Anon(_) => 1,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 pub struct StandaloneFunc {
     pub(crate) name: Ident,
     pub(crate) params: Params,
-    pub(crate) results: Results,
+    pub(crate) result: Option<Type>,
     pub(crate) docs: Option<Docs>,
 }
 
@@ -163,7 +81,7 @@ impl StandaloneFunc {
         Self {
             name: name.into(),
             params: Params::empty(),
-            results: Results::empty(),
+            result: None,
             docs: None,
         }
     }
@@ -192,16 +110,16 @@ impl StandaloneFunc {
         &mut self.params
     }
 
-    pub fn results(&self) -> &Results {
-        &self.results
+    pub fn result(&self) -> &Option<Type> {
+        &self.result
     }
 
-    pub fn set_results(&mut self, results: impl Into<Results>) {
-        self.results = results.into();
+    pub fn set_result(&mut self, result: Option<Type>) {
+        self.result = result;
     }
 
-    pub fn results_mut(&mut self) -> &mut Results {
-        &mut self.results
+    pub fn result_mut(&mut self) -> &mut Option<Type> {
+        &mut self.result
     }
 
     pub fn set_docs(&mut self, docs: Option<impl Into<Docs>>) {
@@ -210,16 +128,5 @@ impl StandaloneFunc {
 
     pub fn docs(&self) -> &Option<Docs> {
         &self.docs
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::Results;
-
-    #[test]
-    fn is_empty() {
-        let res = Results::empty();
-        assert!(res.is_empty());
     }
 }

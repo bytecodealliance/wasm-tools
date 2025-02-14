@@ -1187,24 +1187,12 @@ impl WitPackageDecoder<'_> {
             .map(|(name, ty)| Ok((name.to_string(), self.convert_valtype(ty)?)))
             .collect::<Result<Vec<_>>>()
             .context("failed to convert params")?;
-        let results = if ty.results.len() == 1 && ty.results[0].0.is_none() {
-            Results::Anon(
-                self.convert_valtype(&ty.results[0].1)
+        let result = match &ty.result {
+            Some(ty) => Some(
+                self.convert_valtype(ty)
                     .context("failed to convert anonymous result type")?,
-            )
-        } else {
-            Results::Named(
-                ty.results
-                    .iter()
-                    .map(|(name, ty)| {
-                        Ok((
-                            name.as_ref().unwrap().to_string(),
-                            self.convert_valtype(ty)?,
-                        ))
-                    })
-                    .collect::<Result<Vec<_>>>()
-                    .context("failed to convert named result types")?,
-            )
+            ),
+            None => None,
         };
         Ok(Function {
             docs: Default::default(),
@@ -1234,7 +1222,7 @@ impl WitPackageDecoder<'_> {
             // name.
             name: name.to_string(),
             params,
-            results,
+            result,
         })
     }
 

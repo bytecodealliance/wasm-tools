@@ -120,7 +120,7 @@
       "line": 181,
       "filename": "instantiate.18.wasm",
       "module_type": "binary",
-      "text": "expected 0 results, found 1"
+      "text": "expected a result, found none"
     },
     {
       "type": "assert_invalid",
@@ -482,166 +482,159 @@
       "line": 710,
       "filename": "instantiate.71.wasm",
       "module_type": "binary",
-      "text": "mismatched result names"
-    },
-    {
-      "type": "assert_invalid",
-      "line": 720,
-      "filename": "instantiate.72.wasm",
-      "module_type": "binary",
       "text": "type mismatch with result type"
     },
     {
       "type": "assert_invalid",
-      "line": 731,
-      "filename": "instantiate.73.wasm",
+      "line": 721,
+      "filename": "instantiate.72.wasm",
       "module_type": "binary",
       "text": "type mismatch in instance export `a`"
     },
     {
       "type": "assert_invalid",
-      "line": 742,
-      "filename": "instantiate.74.wasm",
+      "line": 732,
+      "filename": "instantiate.73.wasm",
       "module_type": "binary",
       "text": "expected primitive, found record"
     },
     {
       "type": "assert_invalid",
-      "line": 754,
-      "filename": "instantiate.75.wasm",
+      "line": 744,
+      "filename": "instantiate.74.wasm",
       "module_type": "binary",
       "text": "expected record, found u32"
     },
     {
       "type": "assert_invalid",
-      "line": 766,
-      "filename": "instantiate.76.wasm",
+      "line": 756,
+      "filename": "instantiate.75.wasm",
       "module_type": "binary",
       "text": "expected u32, found tuple"
     },
     {
       "type": "assert_invalid",
-      "line": 779,
-      "filename": "instantiate.77.wasm",
+      "line": 769,
+      "filename": "instantiate.76.wasm",
       "module_type": "binary",
       "text": "type mismatch in record field `x`"
     },
     {
       "type": "assert_invalid",
-      "line": 792,
-      "filename": "instantiate.78.wasm",
+      "line": 782,
+      "filename": "instantiate.77.wasm",
       "module_type": "binary",
       "text": "expected 1 fields, found 2"
     },
     {
       "type": "assert_invalid",
-      "line": 804,
-      "filename": "instantiate.79.wasm",
+      "line": 794,
+      "filename": "instantiate.78.wasm",
       "module_type": "binary",
       "text": "expected field name `a`, found `b`"
     },
     {
       "type": "assert_invalid",
-      "line": 816,
-      "filename": "instantiate.80.wasm",
+      "line": 806,
+      "filename": "instantiate.79.wasm",
       "module_type": "binary",
       "text": "expected 1 cases, found 2"
     },
     {
       "type": "assert_invalid",
-      "line": 828,
-      "filename": "instantiate.81.wasm",
+      "line": 818,
+      "filename": "instantiate.80.wasm",
       "module_type": "binary",
       "text": "expected case named `x`, found `y`"
     },
     {
       "type": "assert_invalid",
-      "line": 840,
-      "filename": "instantiate.82.wasm",
+      "line": 830,
+      "filename": "instantiate.81.wasm",
       "module_type": "binary",
       "text": "expected case `x` to have a type, found none"
     },
     {
       "type": "assert_invalid",
-      "line": 852,
-      "filename": "instantiate.83.wasm",
+      "line": 842,
+      "filename": "instantiate.82.wasm",
       "module_type": "binary",
       "text": "expected case `x` to have no type"
     },
     {
       "type": "assert_invalid",
-      "line": 864,
-      "filename": "instantiate.84.wasm",
+      "line": 854,
+      "filename": "instantiate.83.wasm",
       "module_type": "binary",
       "text": "type mismatch in variant case `x`"
     },
     {
       "type": "assert_invalid",
-      "line": 876,
-      "filename": "instantiate.85.wasm",
+      "line": 866,
+      "filename": "instantiate.84.wasm",
       "module_type": "binary",
       "text": "expected 1 types, found 2"
     },
     {
       "type": "assert_invalid",
-      "line": 888,
-      "filename": "instantiate.86.wasm",
+      "line": 878,
+      "filename": "instantiate.85.wasm",
       "module_type": "binary",
       "text": "type mismatch in tuple field 0"
     },
     {
       "type": "assert_invalid",
-      "line": 900,
-      "filename": "instantiate.87.wasm",
+      "line": 890,
+      "filename": "instantiate.86.wasm",
       "module_type": "binary",
       "text": "mismatch in flags elements"
     },
     {
       "type": "assert_invalid",
-      "line": 912,
-      "filename": "instantiate.88.wasm",
+      "line": 902,
+      "filename": "instantiate.87.wasm",
       "module_type": "binary",
       "text": "mismatch in enum elements"
     },
     {
       "type": "assert_invalid",
-      "line": 924,
-      "filename": "instantiate.89.wasm",
+      "line": 914,
+      "filename": "instantiate.88.wasm",
       "module_type": "binary",
       "text": "type mismatch in ok variant"
     },
     {
       "type": "assert_invalid",
-      "line": 936,
-      "filename": "instantiate.90.wasm",
+      "line": 926,
+      "filename": "instantiate.89.wasm",
       "module_type": "binary",
       "text": "type mismatch in err variant"
     },
     {
       "type": "assert_invalid",
-      "line": 948,
-      "filename": "instantiate.91.wasm",
+      "line": 938,
+      "filename": "instantiate.90.wasm",
       "module_type": "binary",
       "text": "expected ok type to not be present"
     },
     {
       "type": "assert_invalid",
-      "line": 960,
-      "filename": "instantiate.92.wasm",
+      "line": 950,
+      "filename": "instantiate.91.wasm",
       "module_type": "binary",
       "text": "expected ok type, but found none"
     },
     {
       "type": "assert_invalid",
-      "line": 972,
-      "filename": "instantiate.93.wasm",
+      "line": 962,
+      "filename": "instantiate.92.wasm",
       "module_type": "binary",
       "text": "expected err type to not be present"
     },
     {
       "type": "assert_invalid",
-      "line": 984,
-      "filename": "instantiate.94.wasm",
+      "line": 974,
+      "filename": "instantiate.93.wasm",
       "module_type": "binary",
       "text": "expected err type, but found none"
     }

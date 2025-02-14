@@ -2,7 +2,7 @@
        | 0d 00 01 00
    0x8 | 07 30       | component type section
    0xa | 01          | 1 count
-   0xb | 42 06 01 70 | [type 0] Instance([Type(Defined(List(Primitive(U8)))), Type(Func(ComponentFuncType { params: [("len", Primitive(U32))], results: Unnamed(Type(0)) })), Export { name: ComponentExportName("read"), ty: Func(1) }, Type(Defined(List(Primitive(U8)))), Type(Func(ComponentFuncType { params: [("buf", Type(2))], results: Unnamed(Primitive(U32)) })), Export { name: ComponentExportName("write"), ty: Func(3) }])
+   0xb | 42 06 01 70 | [type 0] Instance([Type(Defined(List(Primitive(U8)))), Type(Func(ComponentFuncType { params: [("len", Primitive(U32))], result: Some(Type(0)) })), Export { name: ComponentExportName("read"), ty: Func(1) }, Type(Defined(List(Primitive(U8)))), Type(Func(ComponentFuncType { params: [("buf", Type(2))], result: Some(Primitive(U32)) })), Export { name: ComponentExportName("write"), ty: Func(3) }])
        | 7d 01 40 01
        | 03 6c 65 6e
        | 79 00 00 04
@@ -176,7 +176,7 @@
        | 65 12 02   
  0x1ad | 07 05       | component type section
  0x1af | 01          | 1 count
- 0x1b0 | 40 00 01 00 | [type 1] Func(ComponentFuncType { params: [], results: Named([]) })
+ 0x1b0 | 40 00 01 00 | [type 1] Func(ComponentFuncType { params: [], result: None })
  0x1b4 | 06 1e       | component alias section
  0x1b6 | 03          | 3 count
  0x1b7 | 00 00 01 03 | alias [core func 2] CoreInstanceExport { kind: Func, instance_index: 3, name: "play" }

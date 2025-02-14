@@ -1,9 +1,0 @@
-(component
-  (type (;0;) (func (param "a" string) (param "b" string) (result "c" s32) (result "d" s32)))
-  (import "a" (func $f (;0;) (type 0)))
-  (import "b" (value $v (;0;) string))
-  (import "c" (value $v2 (;1;) string))
-  (start $f (value $v) (value $v2) (result (value (;2;))) (result (value (;3;))))
-  (export (;4;) "d" (value 2))
-  (export (;5;) "e" (value 3))
-)

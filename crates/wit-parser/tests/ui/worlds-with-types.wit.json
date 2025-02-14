@@ -21,11 +21,7 @@
                 "type": 1
               }
             ],
-            "results": [
-              {
-                "type": 2
-              }
-            ]
+            "result": 2
           }
         }
       },
@@ -49,11 +45,7 @@
             "name": "foo",
             "kind": "freestanding",
             "params": [],
-            "results": [
-              {
-                "type": 3
-              }
-            ]
+            "result": 3
           }
         }
       },
@@ -78,11 +70,7 @@
                 "type": 4
               }
             ],
-            "results": [
-              {
-                "type": 5
-              }
-            ]
+            "result": 5
           }
         }
       },
@@ -97,11 +85,7 @@
                 "type": 4
               }
             ],
-            "results": [
-              {
-                "type": 5
-              }
-            ]
+            "result": 5
           }
         }
       },

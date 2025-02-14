@@ -164,13 +164,8 @@ impl<'a> Cloner<'a> {
         for (_, ty) in func.params.iter_mut() {
             self.ty(ty);
         }
-        match &mut func.results {
-            Results::Named(named) => {
-                for (_, ty) in named {
-                    self.ty(ty);
-                }
-            }
-            Results::Anon(ty) => self.ty(ty),
+        if let Some(ty) = &mut func.result {
+            self.ty(ty);
         }
     }
 

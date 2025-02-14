@@ -15,8 +15,7 @@
               "name": "a",
               "type": 1
             }
-          ],
-          "results": []
+          ]
         },
         "t2": {
           "name": "t2",
@@ -26,8 +25,7 @@
               "name": "a",
               "type": 5
             }
-          ],
-          "results": []
+          ]
         },
         "[method]r1.f1": {
           "name": "[method]r1.f1",
@@ -39,8 +37,7 @@
               "name": "self",
               "type": 1
             }
-          ],
-          "results": []
+          ]
         },
         "[method]r1.f2": {
           "name": "[method]r1.f2",
@@ -56,8 +53,7 @@
               "name": "a",
               "type": "u32"
             }
-          ],
-          "results": []
+          ]
         },
         "[method]r1.f3": {
           "name": "[method]r1.f3",
@@ -73,8 +69,7 @@
               "name": "a",
               "type": "u32"
             }
-          ],
-          "results": []
+          ]
         },
         "[method]r1.f4": {
           "name": "[method]r1.f4",
@@ -87,11 +82,7 @@
               "type": 1
             }
           ],
-          "results": [
-            {
-              "type": "u32"
-            }
-          ]
+          "result": "u32"
         },
         "[method]r1.f6": {
           "name": "[method]r1.f6",
@@ -104,11 +95,7 @@
               "type": 1
             }
           ],
-          "results": [
-            {
-              "type": 2
-            }
-          ]
+          "result": 2
         },
         "[method]r1.f7": {
           "name": "[method]r1.f7",
@@ -129,11 +116,7 @@
               "type": "f32"
             }
           ],
-          "results": [
-            {
-              "type": 2
-            }
-          ]
+          "result": 2
         },
         "[method]r1.f8": {
           "name": "[method]r1.f8",
@@ -150,64 +133,7 @@
               "type": 3
             }
           ],
-          "results": [
-            {
-              "type": 4
-            }
-          ]
-        },
-        "[method]r1.f9": {
-          "name": "[method]r1.f9",
-          "kind": {
-            "method": 0
-          },
-          "params": [
-            {
-              "name": "self",
-              "type": 1
-            }
-          ],
-          "results": [
-            {
-              "name": "u",
-              "type": "u32"
-            },
-            {
-              "name": "f",
-              "type": "f32"
-            }
-          ]
-        },
-        "[method]r1.f10": {
-          "name": "[method]r1.f10",
-          "kind": {
-            "method": 0
-          },
-          "params": [
-            {
-              "name": "self",
-              "type": 1
-            }
-          ],
-          "results": [
-            {
-              "name": "u",
-              "type": "u32"
-            }
-          ]
-        },
-        "[method]r1.f11": {
-          "name": "[method]r1.f11",
-          "kind": {
-            "method": 0
-          },
-          "params": [
-            {
-              "name": "self",
-              "type": 1
-            }
-          ],
-          "results": []
+          "result": 4
         }
       },
       "package": 0

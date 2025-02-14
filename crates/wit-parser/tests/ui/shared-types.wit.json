@@ -28,11 +28,7 @@
           "name": "a",
           "kind": "freestanding",
           "params": [],
-          "results": [
-            {
-              "type": 0
-            }
-          ]
+          "result": 0
         }
       },
       "package": 0
@@ -45,11 +41,7 @@
           "name": "a",
           "kind": "freestanding",
           "params": [],
-          "results": [
-            {
-              "type": 1
-            }
-          ]
+          "result": 1
         }
       },
       "package": 0

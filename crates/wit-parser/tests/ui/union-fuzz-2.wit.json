@@ -9,12 +9,7 @@
             "name": "foo",
             "kind": "freestanding",
             "params": [],
-            "results": [
-              {
-                "name": "name2",
-                "type": "f32"
-              }
-            ]
+            "result": "f32"
           }
         }
       },
@@ -33,12 +28,7 @@
             "name": "foo",
             "kind": "freestanding",
             "params": [],
-            "results": [
-              {
-                "name": "name2",
-                "type": "f32"
-              }
-            ]
+            "result": "f32"
           }
         }
       },

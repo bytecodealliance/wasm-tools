@@ -346,7 +346,7 @@ impl ComponentState {
                 types.push(ty).into()
             }
             crate::ComponentType::Func(ty) => {
-                let ty = current(components).create_function_type(ty, types, features, offset)?;
+                let ty = current(components).create_function_type(ty, types, offset)?;
                 types.push(ty).into()
             }
             crate::ComponentType::Component(decls) => {
@@ -777,7 +777,7 @@ impl ComponentState {
         ty.params
             .iter()
             .map(|(_, ty)| ty)
-            .chain(ty.results.iter().map(|(_, ty)| ty))
+            .chain(&ty.result)
             .all(|ty| types.type_named_valtype(ty, set))
     }
 
@@ -1132,7 +1132,7 @@ impl ComponentState {
                     ))
                 })
                 .collect::<Result<_>>()?,
-            results: Box::new([]),
+            result: None,
         }
         .lower(types, Abi::LiftSync);
 
@@ -1869,12 +1869,12 @@ impl ComponentState {
             );
         }
 
-        if ft.results.len() as u32 != results {
+        if u32::from(ft.result.is_some()) != results {
             bail!(
                 offset,
                 "component start function has a result count of {results} \
                  but the function type has a result count of {type_results}",
-                type_results = ft.results.len(),
+                type_results = u32::from(ft.result.is_some()),
             );
         }
 
@@ -1887,8 +1887,8 @@ impl ComponentState {
                 })?;
         }
 
-        for (_, ty) in ft.results.iter() {
-            self.values.push((*ty, false));
+        if let Some(ty) = ft.result {
+            self.values.push((ty, false));
         }
 
         self.has_start = true;
@@ -2359,21 +2359,15 @@ impl ComponentState {
         &self,
         ty: crate::ComponentFuncType,
         types: &TypeList,
-        features: &WasmFeatures,
         offset: usize,
     ) -> Result<ComponentFuncType> {
         let mut info = TypeInfo::new();
 
-        if ty.results.type_count() > 1 && !features.component_model_multiple_returns() {
-            bail!(
-                offset,
-                "multiple returns on a function is now a gated feature \
-                 -- https://github.com/WebAssembly/component-model/pull/368"
-            );
-        }
-
         let mut set = Set::default();
-        set.reserve(core::cmp::max(ty.params.len(), ty.results.type_count()));
+        set.reserve(core::cmp::max(
+            ty.params.len(),
+            usize::from(ty.result.is_some()),
+        ));
 
         let params = ty
             .params
@@ -2396,39 +2390,23 @@ impl ComponentState {
 
         set.clear();
 
-        let results = ty
-            .results
-            .iter()
-            .map(|(name, ty)| {
-                let name = name
-                    .map(|name| {
-                        let name = to_kebab_str(name, "function result", offset)?;
-                        if !set.insert(name) {
-                            bail!(
-                                offset,
-                                "function result name `{name}` conflicts with previous result name `{prev}`",
-                                prev = set.get(name).unwrap(),
-                            );
-                        }
-
-                        Ok(name.to_owned())
-                    })
-                    .transpose()?;
-
-                let ty = self.create_component_val_type(*ty, offset)?;
+        let result = ty
+            .result
+            .map(|ty| {
+                let ty = self.create_component_val_type(ty, offset)?;
                 let ty_info = ty.info(types);
                 if ty_info.contains_borrow() {
                     bail!(offset, "function result cannot contain a `borrow` type");
                 }
                 info.combine(ty.info(types), offset)?;
-                Ok((name, ty))
+                Ok(ty)
             })
-            .collect::<Result<_>>()?;
+            .transpose()?;
 
         Ok(ComponentFuncType {
             info,
             params,
-            results,
+            result,
         })
     }
 
@@ -3266,6 +3244,9 @@ impl ComponentState {
         features: &WasmFeatures,
         offset: usize,
     ) -> Result<ComponentDefinedType> {
+        // Not currently used but it's convenient to have for future features,
+        // so suppress the unused variable warning.
+        let _ = features;
         match ty {
             crate::ComponentDefinedType::Primitive(ty) => Ok(ComponentDefinedType::Primitive(ty)),
             crate::ComponentDefinedType::Record(fields) => {
@@ -3281,7 +3262,7 @@ impl ComponentState {
                 self.create_tuple_type(tys.as_ref(), types, offset)
             }
             crate::ComponentDefinedType::Flags(names) => {
-                self.create_flags_type(names.as_ref(), features, offset)
+                self.create_flags_type(names.as_ref(), offset)
             }
             crate::ComponentDefinedType::Enum(cases) => {
                 self.create_enum_type(cases.as_ref(), offset)
@@ -3442,12 +3423,7 @@ impl ComponentState {
         Ok(ComponentDefinedType::Tuple(TupleType { info, types }))
     }
 
-    fn create_flags_type(
-        &self,
-        names: &[&str],
-        features: &WasmFeatures,
-        offset: usize,
-    ) -> Result<ComponentDefinedType> {
+    fn create_flags_type(&self, names: &[&str], offset: usize) -> Result<ComponentDefinedType> {
         let mut names_set = IndexSet::default();
         names_set.reserve(names.len());
 
@@ -3455,14 +3431,8 @@ impl ComponentState {
             bail!(offset, "flags must have at least one entry");
         }
 
-        if names.len() > 32 && !features.component_model_more_flags() {
-            bail!(
-                offset,
-                "cannot have more than 32 flags; this was previously \
-                 accepted and if this is required for your project please \
-                 leave a comment on \
-                 https://github.com/WebAssembly/component-model/issues/370"
-            );
+        if names.len() > 32 {
+            bail!(offset, "cannot have more than 32 flags");
         }
 
         for name in names {
@@ -3898,10 +3868,10 @@ impl ComponentNameContext {
             // must be named within this context to match `rname`
             ComponentNameKind::Constructor(rname) => {
                 let ty = func()?;
-                if ty.results.len() != 1 {
-                    bail!(offset, "function should return one value");
-                }
-                let ty = ty.results[0].1;
+                let ty = match ty.result {
+                    Some(result) => result,
+                    None => bail!(offset, "function should return one value"),
+                };
                 let resource = match ty {
                     ComponentValType::Primitive(_) => None,
                     ComponentValType::Type(ty) => match &types[ty] {

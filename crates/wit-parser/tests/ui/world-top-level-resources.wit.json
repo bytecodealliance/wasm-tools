@@ -42,8 +42,7 @@
               "name": "self",
               "type": 2
             }
-          ],
-          "results": []
+          ]
         },
         "[method]request.bar": {
           "name": "[method]request.bar",
@@ -59,8 +58,7 @@
               "name": "arg",
               "type": 3
             }
-          ],
-          "results": []
+          ]
         },
         "[method]response.foo": {
           "name": "[method]response.foo",
@@ -72,8 +70,7 @@
               "name": "self",
               "type": 4
             }
-          ],
-          "results": []
+          ]
         },
         "[method]response.bar": {
           "name": "[method]response.bar",
@@ -89,8 +86,7 @@
               "name": "arg",
               "type": 3
             }
-          ],
-          "results": []
+          ]
         }
       },
       "package": 0
@@ -111,11 +107,7 @@
               "type": 7
             }
           ],
-          "results": [
-            {
-              "type": 8
-            }
-          ]
+          "result": 8
         },
         "handle-owned": {
           "name": "handle-owned",
@@ -126,11 +118,7 @@
               "type": 9
             }
           ],
-          "results": [
-            {
-              "type": 8
-            }
-          ]
+          "result": 8
         }
       },
       "package": 0

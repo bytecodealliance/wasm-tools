@@ -1,6 +1,6 @@
 use pretty_assertions::assert_eq;
 use wit_encoder::{
-    Field, Flag, Params, ResourceFunc, Result_, Results, Type, TypeDef, TypeDefKind, VariantCase,
+    Field, Flag, Params, ResourceFunc, Result_, Type, TypeDef, TypeDefKind, VariantCase,
 };
 
 const PACKAGE: &str = indoc::indoc! {"
@@ -232,7 +232,7 @@ fn types() {
                 },
                 {
                     let mut func = ResourceFunc::method("get-a");
-                    func.set_results(Results::anon(Type::U32));
+                    func.set_result(Some(Type::U32));
                     func.set_docs(Some("get a"));
                     func
                 },

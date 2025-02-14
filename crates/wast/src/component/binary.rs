@@ -76,11 +76,7 @@ fn encode_type(encoder: ComponentTypeEncoder, ty: &TypeDef) {
             let mut encoder = encoder.function();
             encoder.params(f.params.iter().map(|p| (p.name, &p.ty)));
 
-            if f.results.len() == 1 && f.results[0].name.is_none() {
-                encoder.result(&f.results[0].ty);
-            } else {
-                encoder.results(f.results.iter().map(|r| (r.name.unwrap_or(""), &r.ty)));
-            }
+            encoder.result(f.result.as_ref().map(|ty| ty.into()));
         }
         TypeDef::Component(c) => {
             encoder.component(&c.into());

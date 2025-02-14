@@ -18,9 +18,9 @@ use crate::ast::{parse_use_path, ParsedUsePath};
 use crate::serde_::{serialize_arena, serialize_id_map};
 use crate::{
     AstItem, Docs, Error, Function, FunctionKind, Handle, IncludeName, Interface, InterfaceId,
-    InterfaceSpan, LiftLowerAbi, ManglingAndAbi, PackageName, PackageNotFoundError, Results,
-    SourceMap, Stability, Type, TypeDef, TypeDefKind, TypeId, TypeIdVisitor, TypeOwner,
-    UnresolvedPackage, UnresolvedPackageGroup, World, WorldId, WorldItem, WorldKey, WorldSpan,
+    InterfaceSpan, LiftLowerAbi, ManglingAndAbi, PackageName, PackageNotFoundError, SourceMap,
+    Stability, Type, TypeDef, TypeDefKind, TypeId, TypeIdVisitor, TypeOwner, UnresolvedPackage,
+    UnresolvedPackageGroup, World, WorldId, WorldItem, WorldKey, WorldSpan,
 };
 
 mod clone;
@@ -3212,30 +3212,24 @@ impl Remap {
         for (_, ty) in func.params.iter_mut() {
             self.update_ty(resolve, ty, span)?;
         }
-        match &mut func.results {
-            Results::Named(named) => {
-                for (_, ty) in named.iter_mut() {
-                    self.update_ty(resolve, ty, span)?;
-                }
-            }
-            Results::Anon(ty) => self.update_ty(resolve, ty, span)?,
+        if let Some(ty) = &mut func.result {
+            self.update_ty(resolve, ty, span)?;
         }
 
-        for ty in func.results.iter_types() {
-            if !self.type_has_borrow(resolve, ty) {
-                continue;
-            }
-            match span {
-                Some(span) => {
-                    bail!(Error::new(
-                        span,
-                        format!(
-                            "function returns a type which contains \
-                             a `borrow<T>` which is not supported"
-                        )
-                    ))
+        if let Some(ty) = &func.result {
+            if self.type_has_borrow(resolve, ty) {
+                match span {
+                    Some(span) => {
+                        bail!(Error::new(
+                            span,
+                            format!(
+                                "function returns a type which contains \
+                                 a `borrow<T>` which is not supported"
+                            )
+                        ))
+                    }
+                    None => unreachable!(),
                 }
-                None => unreachable!(),
             }
         }
 
@@ -3699,16 +3693,13 @@ impl<'a> MergeMap<'a> {
             self.build_type(from_ty, into_ty)
                 .with_context(|| format!("different function parameter types for `{from_name}`"))?;
         }
-        if from_func.results.len() != into_func.results.len() {
-            bail!("different number of function results");
-        }
-        for (from_ty, into_ty) in from_func
-            .results
-            .iter_types()
-            .zip(into_func.results.iter_types())
-        {
-            self.build_type(from_ty, into_ty)
-                .context("different function result types")?;
+        match (&from_func.result, &into_func.result) {
+            (Some(from_ty), Some(into_ty)) => {
+                self.build_type(from_ty, into_ty)
+                    .context("different function result types")?;
+            }
+            (None, None) => {}
+            (Some(_), None) | (None, Some(_)) => bail!("different number of function results"),
         }
         Ok(())
     }

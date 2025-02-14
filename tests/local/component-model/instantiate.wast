@@ -185,7 +185,7 @@
     (import "b" (func $f (result string)))
     (instance $i (instantiate $m (with "a" (func $f))))
   )
-  "expected 0 results, found 1")
+  "expected a result, found none")
 
 (assert_invalid
   (component
@@ -708,19 +708,9 @@
   "type mismatch in function parameter `x`")
 (assert_invalid
   (component
-    (import "x" (func $x (result "x" u32)))
+    (import "x" (func $x (result u32)))
     (import "y" (component $c
-      (import "x" (func (result "y" u32)))
-    ))
-
-    (instance (instantiate $c (with "x" (func $x))))
-  )
-  "mismatched result names")
-(assert_invalid
-  (component
-    (import "x" (func $x (result "x" u32)))
-    (import "y" (component $c
-      (import "x" (func (result "x" s32)))
+      (import "x" (func (result s32)))
     ))
 
     (instance (instantiate $c (with "x" (func $x))))
