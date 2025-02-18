@@ -1,5 +1,6 @@
 use crate::{ComponentSection, ComponentSectionId, Encode};
 use alloc::vec::Vec;
+use wasm_types::{ComponentFuncIdx, ComponentValueIdx};
 
 /// An encoder for the start section of WebAssembly components.
 ///
@@ -7,8 +8,13 @@ use alloc::vec::Vec;
 ///
 /// ```
 /// use wasm_encoder::{Component, ComponentStartSection};
+/// use wasm_types::{ComponentFuncIdx, ComponentValueIdx};
 ///
-/// let start = ComponentStartSection { function_index: 0, args: [0, 1], results: 1 };
+/// let start = ComponentStartSection {
+///     function_index: ComponentFuncIdx(0),
+///     args: [0, 1].map(ComponentValueIdx),
+///     results: 1,
+/// };
 ///
 /// let mut component = Component::new();
 /// component.section(&start);
@@ -18,7 +24,7 @@ use alloc::vec::Vec;
 #[derive(Clone, Debug)]
 pub struct ComponentStartSection<A> {
     /// The index to the start function.
-    pub function_index: u32,
+    pub function_index: ComponentFuncIdx,
     /// The arguments to pass to the start function.
     ///
     /// An argument is an index to a value.
@@ -32,7 +38,7 @@ pub struct ComponentStartSection<A> {
 
 impl<A> Encode for ComponentStartSection<A>
 where
-    A: AsRef<[u32]>,
+    A: AsRef<[ComponentValueIdx]>,
 {
     fn encode(&self, sink: &mut Vec<u8>) {
         let mut bytes = Vec::new();
@@ -45,7 +51,7 @@ where
 
 impl<A> ComponentSection for ComponentStartSection<A>
 where
-    A: AsRef<[u32]>,
+    A: AsRef<[ComponentValueIdx]>,
 {
     fn id(&self) -> u8 {
         ComponentSectionId::Start.into()

@@ -3,12 +3,13 @@ use crate::{
     encode_section, ComponentExportKind, ComponentSection, ComponentSectionId, Encode, ExportKind,
 };
 use alloc::vec::Vec;
+use wasm_types::{ComponentIdx, CoreInstanceIdx, CoreModuleIdx};
 
 /// Represents an argument to a module instantiation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ModuleArg {
     /// The argument is an instance.
-    Instance(u32),
+    Instance(CoreInstanceIdx),
 }
 
 impl Encode for ModuleArg {
@@ -27,10 +28,11 @@ impl Encode for ModuleArg {
 ///
 /// ```rust
 /// use wasm_encoder::{Component, InstanceSection, ExportKind, ModuleArg};
+/// use wasm_types::{CoreInstanceIdx, CoreModuleIdx};
 ///
 /// let mut instances = InstanceSection::new();
 /// instances.export_items([("foo", ExportKind::Func, 0)]);
-/// instances.instantiate(1, [("foo", ModuleArg::Instance(0))]);
+/// instances.instantiate(CoreModuleIdx(1), [("foo", ModuleArg::Instance(CoreInstanceIdx(0)))]);
 ///
 /// let mut component = Component::new();
 /// component.section(&instances);
@@ -60,7 +62,7 @@ impl InstanceSection {
     }
 
     /// Define an instance by instantiating a core module.
-    pub fn instantiate<A, S>(&mut self, module_index: u32, args: A) -> &mut Self
+    pub fn instantiate<A, S>(&mut self, module_index: CoreModuleIdx, args: A) -> &mut Self
     where
         A: IntoIterator<Item = (S, ModuleArg)>,
         A::IntoIter: ExactSizeIterator,
@@ -116,10 +118,11 @@ impl ComponentSection for InstanceSection {
 ///
 /// ```rust
 /// use wasm_encoder::{Component, ComponentInstanceSection, ComponentExportKind};
+/// use wasm_types::ComponentIdx;
 ///
 /// let mut instances = ComponentInstanceSection::new();
 /// instances.export_items([("foo", ComponentExportKind::Func, 0)]);
-/// instances.instantiate(1, [("foo", ComponentExportKind::Instance, 0)]);
+/// instances.instantiate(ComponentIdx(1), [("foo", ComponentExportKind::Instance, 0)]);
 ///
 /// let mut component = Component::new();
 /// component.section(&instances);
@@ -149,7 +152,7 @@ impl ComponentInstanceSection {
     }
 
     /// Define an instance by instantiating a component.
-    pub fn instantiate<A, S>(&mut self, component_index: u32, args: A) -> &mut Self
+    pub fn instantiate<A, S>(&mut self, component_index: ComponentIdx, args: A) -> &mut Self
     where
         A: IntoIterator<Item = (S, ComponentExportKind, u32)>,
         A::IntoIter: ExactSizeIterator,

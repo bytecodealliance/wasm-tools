@@ -29,6 +29,7 @@
 //!     CodeSection, ExportKind, ExportSection, Function, FunctionSection, Instruction,
 //!     Module, TypeSection, ValType,
 //! };
+//! use wasm_types::{LocalIdx, TypeIdx};
 //!
 //! let mut module = Module::new();
 //!
@@ -41,7 +42,7 @@
 //!
 //! // Encode the function section.
 //! let mut functions = FunctionSection::new();
-//! let type_index = 0;
+//! let type_index = TypeIdx(0);
 //! functions.function(type_index);
 //! module.section(&functions);
 //!
@@ -54,8 +55,8 @@
 //! let mut codes = CodeSection::new();
 //! let locals = vec![];
 //! let mut f = Function::new(locals);
-//! f.instruction(&Instruction::LocalGet(0));
-//! f.instruction(&Instruction::LocalGet(1));
+//! f.instruction(&Instruction::LocalGet(LocalIdx(0)));
+//! f.instruction(&Instruction::LocalGet(LocalIdx(1)));
 //! f.instruction(&Instruction::I32Add);
 //! f.instruction(&Instruction::End);
 //! codes.function(&f);
@@ -90,6 +91,11 @@ pub use self::core::*;
 pub use self::raw::*;
 
 use alloc::vec::Vec;
+use wasm_types::{
+    AbsoluteLabelIdx, ComponentFuncIdx, ComponentIdx, ComponentInstanceIdx, ComponentTypeIdx,
+    ComponentValueIdx, CoreInstanceIdx, CoreModuleIdx, DataIdx, ElemIdx, FieldIdx, FuncIdx,
+    GlobalIdx, LabelIdx, LocalIdx, MemIdx, TableIdx, TagIdx, TypeIdx,
+};
 
 /// Implemented by types that can be encoded into a byte sink.
 pub trait Encode {
@@ -137,6 +143,120 @@ impl Encode for u32 {
     fn encode(&self, sink: &mut Vec<u8>) {
         let (value, pos) = leb128fmt::encode_u32(*self).unwrap();
         sink.extend_from_slice(&value[..pos]);
+    }
+}
+
+impl Encode for TypeIdx {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.0.encode(sink);
+    }
+}
+
+impl Encode for FuncIdx {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.0.encode(sink);
+    }
+}
+
+impl Encode for TableIdx {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.0.encode(sink);
+    }
+}
+
+impl Encode for MemIdx {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.0.encode(sink);
+    }
+}
+
+impl Encode for TagIdx {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.0.encode(sink);
+    }
+}
+
+impl Encode for GlobalIdx {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.0.encode(sink);
+    }
+}
+
+impl Encode for ElemIdx {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.0.encode(sink);
+    }
+}
+
+impl Encode for DataIdx {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.0.encode(sink);
+    }
+}
+
+impl Encode for LocalIdx {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.0.encode(sink);
+    }
+}
+
+impl Encode for LabelIdx {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.0.encode(sink);
+    }
+}
+
+impl Encode for FieldIdx {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.0.encode(sink);
+    }
+}
+
+impl Encode for AbsoluteLabelIdx {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.0.encode(sink);
+    }
+}
+
+impl Encode for CoreModuleIdx {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.0.encode(sink);
+    }
+}
+
+impl Encode for CoreInstanceIdx {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.0.encode(sink);
+    }
+}
+
+impl Encode for ComponentTypeIdx {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.0.encode(sink);
+    }
+}
+
+impl Encode for ComponentFuncIdx {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.0.encode(sink);
+    }
+}
+
+impl Encode for ComponentIdx {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.0.encode(sink);
+    }
+}
+
+impl Encode for ComponentInstanceIdx {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.0.encode(sink);
+    }
+}
+
+impl Encode for ComponentValueIdx {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        self.0.encode(sink);
     }
 }
 

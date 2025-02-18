@@ -1,52 +1,56 @@
 use crate::reencode::{Error, Reencode, RoundtripReencoder};
 use alloc::boxed::Box;
+use wasm_types::{
+    ComponentFuncIdx, ComponentIdx, ComponentInstanceIdx, ComponentTypeIdx, ComponentValueIdx,
+    CoreInstanceIdx, CoreModuleIdx, TypeIdx,
+};
 
 #[allow(missing_docs)] // FIXME
 pub trait ReencodeComponent: Reencode {
-    fn component_type_index(&mut self, ty: u32) -> u32 {
+    fn component_type_index(&mut self, ty: ComponentTypeIdx) -> ComponentTypeIdx {
         ty
     }
 
-    fn component_instance_index(&mut self, ty: u32) -> u32 {
+    fn component_instance_index(&mut self, ty: ComponentInstanceIdx) -> ComponentInstanceIdx {
         ty
     }
 
-    fn component_func_index(&mut self, ty: u32) -> u32 {
+    fn component_func_index(&mut self, ty: ComponentFuncIdx) -> ComponentFuncIdx {
         ty
     }
 
-    fn component_index(&mut self, ty: u32) -> u32 {
+    fn component_index(&mut self, ty: ComponentIdx) -> ComponentIdx {
         ty
     }
 
-    fn module_index(&mut self, ty: u32) -> u32 {
+    fn module_index(&mut self, ty: CoreModuleIdx) -> CoreModuleIdx {
         ty
     }
 
-    fn instance_index(&mut self, ty: u32) -> u32 {
+    fn instance_index(&mut self, ty: CoreInstanceIdx) -> CoreInstanceIdx {
         ty
     }
 
-    fn component_value_index(&mut self, ty: u32) -> u32 {
+    fn component_value_index(&mut self, ty: ComponentValueIdx) -> ComponentValueIdx {
         ty
     }
 
-    fn outer_type_index(&mut self, count: u32, ty: u32) -> u32 {
+    fn outer_type_index(&mut self, count: u32, ty: TypeIdx) -> TypeIdx {
         let _ = count;
         self.type_index(ty)
     }
 
-    fn outer_component_type_index(&mut self, count: u32, ty: u32) -> u32 {
+    fn outer_component_type_index(&mut self, count: u32, ty: ComponentTypeIdx) -> ComponentTypeIdx {
         let _ = count;
         self.component_type_index(ty)
     }
 
-    fn outer_component_index(&mut self, count: u32, component: u32) -> u32 {
+    fn outer_component_index(&mut self, count: u32, component: ComponentIdx) -> ComponentIdx {
         let _ = count;
         self.component_index(component)
     }
 
-    fn outer_module_index(&mut self, count: u32, module: u32) -> u32 {
+    fn outer_module_index(&mut self, count: u32, module: CoreModuleIdx) -> CoreModuleIdx {
         let _ = count;
         self.module_index(module)
     }
@@ -61,12 +65,22 @@ pub trait ReencodeComponent: Reencode {
         index: u32,
     ) -> u32 {
         match kind {
-            wasmparser::ComponentExternalKind::Func => self.component_func_index(index),
-            wasmparser::ComponentExternalKind::Module => self.module_index(index),
-            wasmparser::ComponentExternalKind::Component => self.component_index(index),
-            wasmparser::ComponentExternalKind::Type => self.component_type_index(index),
-            wasmparser::ComponentExternalKind::Instance => self.component_instance_index(index),
-            wasmparser::ComponentExternalKind::Value => self.component_value_index(index),
+            wasmparser::ComponentExternalKind::Func => {
+                self.component_func_index(ComponentFuncIdx(index)).0
+            }
+            wasmparser::ComponentExternalKind::Module => self.module_index(CoreModuleIdx(index)).0,
+            wasmparser::ComponentExternalKind::Component => {
+                self.component_index(ComponentIdx(index)).0
+            }
+            wasmparser::ComponentExternalKind::Type => {
+                self.component_type_index(ComponentTypeIdx(index)).0
+            }
+            wasmparser::ComponentExternalKind::Instance => {
+                self.component_instance_index(ComponentInstanceIdx(index)).0
+            }
+            wasmparser::ComponentExternalKind::Value => {
+                self.component_value_index(ComponentValueIdx(index)).0
+            }
         }
     }
 
@@ -389,6 +403,7 @@ pub mod component_utils {
     use crate::reencode::Error;
     use alloc::boxed::Box;
     use alloc::vec::Vec;
+    use wasm_types::{ComponentIdx, ComponentTypeIdx, CoreInstanceIdx, CoreModuleIdx, TypeIdx};
 
     pub fn parse_component<T: ?Sized + ReencodeComponent>(
         reencoder: &mut T,
@@ -831,7 +846,7 @@ pub mod component_utils {
                 count,
                 index,
             } => {
-                let index = reencoder.outer_type_index(count, index);
+                let index = reencoder.outer_type_index(count, TypeIdx(index));
                 module.alias_outer_core_type(count, index);
             }
             wasmparser::ModuleTypeDeclaration::Import(import) => {
@@ -873,16 +888,20 @@ pub mod component_utils {
                 count,
                 index: match kind {
                     wasmparser::ComponentOuterAliasKind::CoreModule => {
-                        reencoder.outer_module_index(count, index)
+                        reencoder.outer_module_index(count, CoreModuleIdx(index)).0
                     }
                     wasmparser::ComponentOuterAliasKind::CoreType => {
-                        reencoder.outer_type_index(count, index)
+                        reencoder.outer_type_index(count, TypeIdx(index)).0
                     }
                     wasmparser::ComponentOuterAliasKind::Type => {
-                        reencoder.outer_component_type_index(count, index)
+                        reencoder
+                            .outer_component_type_index(count, ComponentTypeIdx(index))
+                            .0
                     }
                     wasmparser::ComponentOuterAliasKind::Component => {
-                        reencoder.outer_component_index(count, index)
+                        reencoder
+                            .outer_component_index(count, ComponentIdx(index))
+                            .0
                     }
                 },
             }),
@@ -1123,7 +1142,9 @@ pub mod component_utils {
                     args.iter().map(|arg| match arg.kind {
                         wasmparser::InstantiationArgKind::Instance => (
                             arg.name,
-                            crate::ModuleArg::Instance(reencoder.instance_index(arg.index)),
+                            crate::ModuleArg::Instance(
+                                reencoder.instance_index(CoreInstanceIdx(arg.index)),
+                            ),
                         ),
                     }),
                 );

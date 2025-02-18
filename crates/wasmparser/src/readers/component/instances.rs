@@ -1,3 +1,5 @@
+use wasm_types::{ComponentIdx, CoreModuleIdx};
+
 use crate::limits::{MAX_WASM_INSTANTIATION_ARGS, MAX_WASM_INSTANTIATION_EXPORTS};
 use crate::prelude::*;
 use crate::{
@@ -29,7 +31,7 @@ pub enum Instance<'a> {
     /// The instance is from instantiating a WebAssembly module.
     Instantiate {
         /// The module index.
-        module_index: u32,
+        module_index: CoreModuleIdx,
         /// The module's instantiation arguments.
         args: Box<[InstantiationArg<'a>]>,
     },
@@ -56,7 +58,7 @@ impl<'a> FromReader<'a> for Instance<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         Ok(match reader.read_u8()? {
             0x00 => Instance::Instantiate {
-                module_index: reader.read_var_u32()?,
+                module_index: reader.read_core_module_idx()?,
                 args: reader
                     .read_iter(MAX_WASM_INSTANTIATION_ARGS, "core instantiation arguments")?
                     .collect::<Result<_>>()?,
@@ -107,7 +109,7 @@ pub enum ComponentInstance<'a> {
     /// The instance is from instantiating a WebAssembly component.
     Instantiate {
         /// The component index.
-        component_index: u32,
+        component_index: ComponentIdx,
         /// The component's instantiation arguments.
         args: Box<[ComponentInstantiationArg<'a>]>,
     },
@@ -134,7 +136,7 @@ impl<'a> FromReader<'a> for ComponentInstance<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         Ok(match reader.read_u8()? {
             0x00 => ComponentInstance::Instantiate {
-                component_index: reader.read_var_u32()?,
+                component_index: reader.read_component_idx()?,
                 args: reader
                     .read_iter(MAX_WASM_INSTANTIATION_ARGS, "instantiation arguments")?
                     .collect::<Result<_>>()?,

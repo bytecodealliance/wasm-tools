@@ -3,14 +3,14 @@ use crate::{
     CORE_FUNCTION_SORT, CORE_GLOBAL_SORT, CORE_MEMORY_SORT, CORE_TABLE_SORT, CORE_TAG_SORT,
 };
 use alloc::vec::Vec;
-
+use wasm_types::TypeIdx;
 /// The type of an entity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EntityType {
     /// A function type.
     ///
     /// The value is an index into the types section.
-    Function(u32),
+    Function(TypeIdx),
     /// A table type.
     Table(TableType),
     /// A memory type.

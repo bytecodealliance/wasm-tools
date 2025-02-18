@@ -1,15 +1,16 @@
 use crate::token::{Id, Index};
 use crate::Error;
+use index_vec::Idx;
 use std::collections::HashMap;
 
 #[derive(Default)]
-pub struct Namespace<'a> {
-    names: HashMap<Id<'a>, u32>,
-    count: u32,
+pub struct Namespace<'a, I> {
+    names: HashMap<Id<'a>, I>,
+    count: I,
 }
 
-impl<'a> Namespace<'a> {
-    pub fn register(&mut self, name: Option<Id<'a>>, desc: &str) -> Result<u32, Error> {
+impl<'a, I: Idx> Namespace<'a, I> {
+    pub fn register(&mut self, name: Option<Id<'a>>, desc: &str) -> Result<I, Error> {
         let index = self.alloc();
         if let Some(name) = name {
             if let Some(_prev) = self.names.insert(name, index) {
@@ -22,13 +23,13 @@ impl<'a> Namespace<'a> {
         Ok(index)
     }
 
-    pub fn alloc(&mut self) -> u32 {
+    pub fn alloc(&mut self) -> I {
         let index = self.count;
-        self.count += 1;
+        self.count = I::from_usize(self.count.index() + 1);
         index
     }
 
-    pub fn register_specific(&mut self, name: Id<'a>, index: u32, desc: &str) -> Result<(), Error> {
+    pub fn register_specific(&mut self, name: Id<'a>, index: I, desc: &str) -> Result<(), Error> {
         if let Some(_prev) = self.names.insert(name, index) {
             return Err(Error::new(
                 name.span(),
@@ -41,7 +42,7 @@ impl<'a> Namespace<'a> {
         Ok(())
     }
 
-    pub fn resolve(&self, idx: &mut Index<'a>, desc: &str) -> Result<u32, Error> {
+    pub fn resolve(&self, idx: &mut Index<'a, I>, desc: &str) -> Result<I, Error> {
         let id = match idx {
             Index::Num(n, _) => return Ok(*n),
             Index::Id(id) => id,

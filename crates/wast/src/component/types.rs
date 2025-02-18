@@ -7,6 +7,7 @@ use crate::parser::{Parse, Parser, Result};
 use crate::token::Index;
 use crate::token::LParen;
 use crate::token::{Id, NameAnnotation, Span};
+use wasm_types::ComponentTypeIdx;
 
 /// A core type declaration.
 #[derive(Debug)]
@@ -1017,7 +1018,7 @@ impl<T> Default for CoreTypeUse<'_, T> {
 #[derive(Debug, Clone)]
 pub enum ComponentTypeUse<'a, T> {
     /// The type that we're referencing.
-    Ref(ItemRef<'a, kw::r#type>),
+    Ref(ItemRef<'a, kw::r#type, ComponentTypeIdx>),
     /// The inline type.
     Inline(T),
 }

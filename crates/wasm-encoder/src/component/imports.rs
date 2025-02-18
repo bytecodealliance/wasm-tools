@@ -3,12 +3,13 @@ use crate::{
     Encode,
 };
 use alloc::vec::Vec;
+use wasm_types::{ComponentTypeIdx, TypeIdx};
 
 /// Represents the possible type bounds for type references.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub enum TypeBounds {
     /// The type is bounded by equality to the type index specified.
-    Eq(u32),
+    Eq(ComponentTypeIdx),
     /// This type is a fresh resource type,
     SubResource,
 }
@@ -31,11 +32,11 @@ pub enum ComponentTypeRef {
     /// The reference is to a core module type.
     ///
     /// The index is expected to be core type index to a core module type.
-    Module(u32),
+    Module(TypeIdx),
     /// The reference is to a function type.
     ///
     /// The index is expected to be a type index to a function type.
-    Func(u32),
+    Func(ComponentTypeIdx),
     /// The reference is to a value type.
     Value(ComponentValType),
     /// The reference is to a bounded type.
@@ -43,11 +44,11 @@ pub enum ComponentTypeRef {
     /// The reference is to an instance type.
     ///
     /// The index is expected to be a type index to an instance type.
-    Instance(u32),
+    Instance(ComponentTypeIdx),
     /// The reference is to a component type.
     ///
     /// The index is expected to be a type index to a component type.
-    Component(u32),
+    Component(ComponentTypeIdx),
 }
 
 impl ComponentTypeRef {
@@ -69,9 +70,10 @@ impl Encode for ComponentTypeRef {
         self.kind().encode(sink);
 
         match self {
-            Self::Module(idx) | Self::Func(idx) | Self::Instance(idx) | Self::Component(idx) => {
-                idx.encode(sink);
-            }
+            Self::Module(idx) => idx.encode(sink),
+            Self::Func(idx) => idx.encode(sink),
+            Self::Instance(idx) => idx.encode(sink),
+            Self::Component(idx) => idx.encode(sink),
             Self::Value(ty) => ty.encode(sink),
             Self::Type(bounds) => bounds.encode(sink),
         }
@@ -84,6 +86,7 @@ impl Encode for ComponentTypeRef {
 ///
 /// ```rust
 /// use wasm_encoder::{Component, ComponentTypeSection, PrimitiveValType, ComponentImportSection, ComponentTypeRef};
+/// use wasm_types::ComponentTypeIdx;
 ///
 /// let mut types = ComponentTypeSection::new();
 ///
@@ -100,7 +103,7 @@ impl Encode for ComponentTypeRef {
 ///
 /// // This imports a function named `f` with the type defined above
 /// let mut imports = ComponentImportSection::new();
-/// imports.import("f", ComponentTypeRef::Func(0));
+/// imports.import("f", ComponentTypeRef::Func(ComponentTypeIdx(0)));
 ///
 /// let mut component = Component::new();
 /// component.section(&types);

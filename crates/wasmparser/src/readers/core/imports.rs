@@ -17,6 +17,7 @@ use crate::{
     BinaryReader, ExternalKind, FromReader, GlobalType, MemoryType, Result, SectionLimited,
     TableType, TagType,
 };
+use wasm_types::TypeIdx;
 
 /// Represents a reference to a type definition in a WebAssembly module.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -24,7 +25,7 @@ pub enum TypeRef {
     /// The type is a function.
     ///
     /// The value is an index into the type section.
-    Func(u32),
+    Func(TypeIdx),
     /// The type is a table.
     Table(TableType),
     /// The type is a memory.
@@ -66,7 +67,7 @@ impl<'a> FromReader<'a> for Import<'a> {
 impl<'a> FromReader<'a> for TypeRef {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         Ok(match reader.read()? {
-            ExternalKind::Func => TypeRef::Func(reader.read_var_u32()?),
+            ExternalKind::Func => TypeRef::Func(reader.read_typeidx()?),
             ExternalKind::Table => TypeRef::Table(reader.read()?),
             ExternalKind::Memory => TypeRef::Memory(reader.read()?),
             ExternalKind::Global => TypeRef::Global(reader.read()?),

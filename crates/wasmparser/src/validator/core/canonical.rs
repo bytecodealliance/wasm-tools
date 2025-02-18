@@ -73,10 +73,12 @@ use crate::{
     BinaryReaderError, CompositeInnerType, CompositeType, PackedIndex, RecGroup, Result,
     StorageType, UnpackedIndex, ValType, WasmFeatures,
 };
+use index_vec::Idx;
+use wasm_types::TypeIdx;
 
 pub(crate) trait InternRecGroup {
     fn add_type_id(&mut self, id: CoreTypeId);
-    fn type_id_at(&self, idx: u32, offset: usize) -> Result<CoreTypeId>;
+    fn type_id_at(&self, idx: TypeIdx, offset: usize) -> Result<CoreTypeId>;
     fn types_len(&self) -> u32;
 
     /// Canonicalize the rec group and return its id and whether it is a new group
@@ -306,7 +308,7 @@ enum CanonicalizationMode {
 pub(crate) struct TypeCanonicalizer<'a> {
     module: &'a dyn InternRecGroup,
     features: Option<&'a WasmFeatures>,
-    rec_group_start: u32,
+    rec_group_start: TypeIdx,
     rec_group_len: u32,
     offset: usize,
     mode: CanonicalizationMode,
@@ -318,7 +320,7 @@ impl<'a> TypeCanonicalizer<'a> {
         // These defaults will work for when we are canonicalizing types from
         // outside of a rec group definition, forcing all `PackedIndex`es to be
         // canonicalized to `CoreTypeId`s.
-        let rec_group_start = u32::MAX;
+        let rec_group_start = TypeIdx(u32::MAX);
         let rec_group_len = 0;
 
         Self {
@@ -346,12 +348,12 @@ impl<'a> TypeCanonicalizer<'a> {
         // Re-initialize these fields so that we properly canonicalize
         // intra-rec-group type references into indices into the rec group
         // rather than as `CoreTypeId`s.
-        self.rec_group_start = self.module.types_len();
+        self.rec_group_start = TypeIdx(self.module.types_len());
         self.rec_group_len = u32::try_from(rec_group.types().len()).unwrap();
 
         for (rec_group_local_index, ty) in rec_group.types_mut().enumerate() {
             let rec_group_local_index = u32::try_from(rec_group_local_index).unwrap();
-            let type_index = self.rec_group_start + rec_group_local_index;
+            let type_index = TypeIdx(self.rec_group_start.0 + rec_group_local_index);
 
             if let Some(sup) = ty.supertype_idx.as_mut() {
                 if sup.as_module_index().map_or(false, |i| i >= type_index) {
@@ -387,7 +389,7 @@ impl<'a> TypeCanonicalizer<'a> {
                 // type recursion, including self references, is not allowed in the
                 // typed function references proposal, only the GC proposal.
                 debug_assert!(self.allow_gc() || self.rec_group_len == 1);
-                let local = index - self.rec_group_start;
+                let local = index.0 - self.rec_group_start.0;
                 if self.allow_gc() && local < self.rec_group_len {
                     if let Some(id) = PackedIndex::from_rec_group_index(local) {
                         *ty = id;
@@ -417,9 +419,9 @@ impl<'a> TypeCanonicalizer<'a> {
                     let rec_group_len = u32::try_from(rec_group_len).unwrap();
                     assert!(local_index < rec_group_len);
 
-                    let rec_group_start = u32::try_from(rec_group_elems.start.index()).unwrap();
+                    let rec_group_start = TypeIdx::from_usize(rec_group_elems.start.index());
 
-                    let id = CoreTypeId::from_index(rec_group_start + local_index);
+                    let id = CoreTypeId::from_index(rec_group_start.0 + local_index);
                     *ty = PackedIndex::from_id(id).expect(
                         "should fit in impl limits since we already have the end of the rec group \
                          constructed successfully",

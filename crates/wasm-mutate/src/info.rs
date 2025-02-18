@@ -2,9 +2,11 @@ use crate::{
     module::{PrimitiveTypeInfo, TypeInfo},
     Error, Result,
 };
+use index_vec::IndexVec;
 use std::collections::HashSet;
 use std::ops::Range;
 use wasm_encoder::{RawSection, SectionId};
+use wasm_types::{FuncIdx, TypeIdx};
 use wasmparser::{BinaryReader, Chunk, Parser, Payload};
 
 /// Provides module information for future usage during mutation
@@ -32,7 +34,7 @@ pub struct ModuleInfo<'a> {
     pub exports_count: u32,
     elements_count: u32,
     data_segments_count: u32,
-    start_function: Option<u32>,
+    start_function: Option<FuncIdx>,
     memory_count: u32,
     table_count: u32,
     tag_count: u32,
@@ -44,10 +46,10 @@ pub struct ModuleInfo<'a> {
     imported_tags_count: u32,
 
     // types for inner functions
-    pub types_map: Vec<TypeInfo>,
+    pub types_map: IndexVec<TypeIdx, TypeInfo>,
 
     // function idx to type idx
-    pub function_map: Vec<u32>,
+    pub function_map: IndexVec<FuncIdx, TypeIdx>,
     pub global_types: Vec<PrimitiveTypeInfo>,
     pub table_types: Vec<wasmparser::TableType>,
     pub memory_types: Vec<wasmparser::MemoryType>,
@@ -262,8 +264,8 @@ impl<'a> ModuleInfo<'a> {
 
     /// Returns the function type based on the index of the function type
     /// `types[functions[idx]]`
-    pub fn get_functype_idx(&self, idx: u32) -> &TypeInfo {
-        let functpeindex = self.function_map[idx as usize] as usize;
+    pub fn get_functype_idx(&self, idx: FuncIdx) -> &TypeInfo {
+        let functpeindex = self.function_map[idx];
         &self.types_map[functpeindex]
     }
 

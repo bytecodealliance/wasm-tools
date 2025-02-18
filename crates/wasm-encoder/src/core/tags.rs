@@ -1,17 +1,18 @@
 use crate::{encode_section, Encode, Section, SectionId};
 use alloc::vec::Vec;
-
+use wasm_types::TypeIdx;
 /// An encoder for the tag section.
 ///
 /// # Example
 ///
 /// ```
 /// use wasm_encoder::{Module, TagSection, TagType, TagKind};
+/// use wasm_types::TypeIdx;
 ///
 /// let mut tags = TagSection::new();
 /// tags.tag(TagType {
 ///     kind: TagKind::Exception,
-///     func_type_idx: 0,
+///     func_type_idx: TypeIdx(0),
 /// });
 ///
 /// let mut module = Module::new();
@@ -75,7 +76,7 @@ pub struct TagType {
     /// The kind of tag
     pub kind: TagKind,
     /// The function type this tag uses
-    pub func_type_idx: u32,
+    pub func_type_idx: TypeIdx,
 }
 
 impl Encode for TagType {

@@ -13,10 +13,12 @@ workspace = true
 [dependencies]
 clap = { workspace = true, optional = true }
 egg = "0.6.0"
+index_vec = { workspace = true }
 log = { workspace = true }
 rand = { workspace = true }
 thiserror = "1.0.28"
 wasm-encoder = { workspace = true, features = ['std', 'wasmparser'] }
+wasm-types = { workspace = true }
 wasmparser = { workspace = true, features = ['std', 'simd'] }
 
 [dev-dependencies]

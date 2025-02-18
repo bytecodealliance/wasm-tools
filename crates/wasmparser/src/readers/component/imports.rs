@@ -1,12 +1,13 @@
 use crate::{
     BinaryReader, ComponentExternalKind, ComponentValType, FromReader, Result, SectionLimited,
 };
+use wasm_types::{ComponentTypeIdx, TypeIdx};
 
 /// Represents the type bounds for imports and exports.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TypeBounds {
     /// The type is bounded by equality.
-    Eq(u32),
+    Eq(ComponentTypeIdx),
     /// A fresh resource type,
     SubResource,
 }
@@ -27,11 +28,11 @@ pub enum ComponentTypeRef {
     /// The reference is to a core module type.
     ///
     /// The index is expected to be core type index to a core module type.
-    Module(u32),
+    Module(TypeIdx),
     /// The reference is to a function type.
     ///
     /// The index is expected to be a type index to a function type.
-    Func(u32),
+    Func(ComponentTypeIdx),
     /// The reference is to a value type.
     Value(ComponentValType),
     /// The reference is to a bounded type.
@@ -41,11 +42,11 @@ pub enum ComponentTypeRef {
     /// The reference is to an instance type.
     ///
     /// The index is a type index to an instance type.
-    Instance(u32),
+    Instance(ComponentTypeIdx),
     /// The reference is to a component type.
     ///
     /// The index is a type index to a component type.
-    Component(u32),
+    Component(ComponentTypeIdx),
 }
 
 impl ComponentTypeRef {

@@ -1,5 +1,5 @@
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
-use crate::token::Index;
+use crate::token::{Index, Span};
 
 fn peek<K: Peek>(cursor: Cursor) -> Result<bool> {
     // This is a little fancy because when parsing something like:
@@ -39,16 +39,19 @@ fn peek<K: Peek>(cursor: Cursor) -> Result<bool> {
 
 /// Parses core item references.
 #[derive(Clone, Debug)]
-pub struct CoreItemRef<'a, K> {
+pub struct CoreItemRef<'a, K, I> {
     /// The item kind being parsed.
     pub kind: K,
     /// The item or instance reference.
-    pub idx: Index<'a>,
+    pub idx: Index<'a, I>,
     /// Export name to resolve the item from.
     pub export_name: Option<&'a str>,
 }
 
-impl<'a, K: Parse<'a>> Parse<'a> for CoreItemRef<'a, K> {
+impl<'a, K: Parse<'a>, I> Parse<'a> for CoreItemRef<'a, K, I>
+where
+    (I, Span): Parse<'a>,
+{
     fn parse(parser: Parser<'a>) -> Result<Self> {
         // This does not parse the surrounding `(` and `)` because
         // core prefix is context dependent and only the caller knows if it should be
@@ -64,7 +67,7 @@ impl<'a, K: Parse<'a>> Parse<'a> for CoreItemRef<'a, K> {
     }
 }
 
-impl<'a, K: Peek> Peek for CoreItemRef<'a, K> {
+impl<'a, K: Peek, I> Peek for CoreItemRef<'a, K, I> {
     fn peek(cursor: Cursor<'_>) -> Result<bool> {
         peek::<K>(cursor)
     }
@@ -76,16 +79,19 @@ impl<'a, K: Peek> Peek for CoreItemRef<'a, K> {
 
 /// Parses component item references.
 #[derive(Clone, Debug)]
-pub struct ItemRef<'a, K> {
+pub struct ItemRef<'a, K, I> {
     /// The item kind being parsed.
     pub kind: K,
     /// The item or instance reference.
-    pub idx: Index<'a>,
+    pub idx: Index<'a, I>,
     /// Export names to resolve the item from.
     pub export_names: Vec<&'a str>,
 }
 
-impl<'a, K: Parse<'a>> Parse<'a> for ItemRef<'a, K> {
+impl<'a, K: Parse<'a>, I> Parse<'a> for ItemRef<'a, K, I>
+where
+    (I, Span): Parse<'a>,
+{
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let kind = parser.parse::<K>()?;
         let idx = parser.parse()?;
@@ -101,7 +107,7 @@ impl<'a, K: Parse<'a>> Parse<'a> for ItemRef<'a, K> {
     }
 }
 
-impl<'a, K: Peek> Peek for ItemRef<'a, K> {
+impl<'a, K: Peek, I> Peek for ItemRef<'a, K, I> {
     fn peek(cursor: Cursor<'_>) -> Result<bool> {
         peek::<K>(cursor)
     }
@@ -113,14 +119,15 @@ impl<'a, K: Peek> Peek for ItemRef<'a, K> {
 
 /// Convenience structure to parse `$f` or `(item $f)`.
 #[derive(Clone, Debug)]
-pub struct IndexOrRef<'a, K>(pub ItemRef<'a, K>);
+pub struct IndexOrRef<'a, K, I>(pub ItemRef<'a, K, I>);
 
-impl<'a, K> Parse<'a> for IndexOrRef<'a, K>
+impl<'a, K, I> Parse<'a> for IndexOrRef<'a, K, I>
 where
     K: Parse<'a> + Default,
+    (I, Span): Parse<'a>,
 {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek::<Index<'_>>()? {
+        if parser.peek::<Index<'_, I>>()? {
             Ok(IndexOrRef(ItemRef {
                 kind: K::default(),
                 idx: parser.parse()?,
@@ -134,14 +141,15 @@ where
 
 /// Convenience structure to parse `$f` or `(item $f)`.
 #[derive(Clone, Debug)]
-pub struct IndexOrCoreRef<'a, K>(pub CoreItemRef<'a, K>);
+pub struct IndexOrCoreRef<'a, K, I>(pub CoreItemRef<'a, K, I>);
 
-impl<'a, K> Parse<'a> for IndexOrCoreRef<'a, K>
+impl<'a, K, I> Parse<'a> for IndexOrCoreRef<'a, K, I>
 where
     K: Parse<'a> + Default,
+    (I, Span): Parse<'a>,
 {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        if parser.peek::<Index<'_>>()? {
+        if parser.peek::<Index<'_, I>>()? {
             Ok(IndexOrCoreRef(CoreItemRef {
                 kind: K::default(),
                 idx: parser.parse()?,

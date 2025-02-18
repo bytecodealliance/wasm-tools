@@ -2,6 +2,8 @@ use crate::{encoding_size, CustomSection, Encode, Section, SectionId};
 use alloc::borrow::Cow;
 use alloc::vec;
 use alloc::vec::Vec;
+use index_vec::Idx;
+use wasm_types::{DataIdx, ElemIdx, FuncIdx, GlobalIdx, MemIdx, TableIdx, TagIdx, TypeIdx};
 
 /// An encoder for the custom `name` section.
 ///
@@ -9,14 +11,15 @@ use alloc::vec::Vec;
 ///
 /// ```
 /// use wasm_encoder::{Module, NameSection, NameMap};
+/// use wasm_types::FuncIdx;
 ///
 /// let mut names = NameSection::new();
 /// names.module("the module name");
 ///
 /// let mut function_names = NameMap::new();
-/// function_names.append(0, "name of function 0");
-/// function_names.append(1, "a better function");
-/// function_names.append(3, "the best function");
+/// function_names.append(FuncIdx(0), "name of function 0");
+/// function_names.append(FuncIdx(1), "a better function");
+/// function_names.append(FuncIdx(3), "the best function");
 /// names.functions(&function_names);
 ///
 /// let mut module = Module::new();
@@ -76,7 +79,7 @@ impl NameSection {
     /// in the map corresponds to the wasm index of the function. This section
     /// should come after the module name subsection (if present) and before the
     /// locals subsection (if present).
-    pub fn functions(&mut self, names: &NameMap) {
+    pub fn functions(&mut self, names: &NameMap<FuncIdx>) {
         self.subsection_header(Subsection::Function, names.size());
         names.encode(&mut self.bytes);
     }
@@ -86,7 +89,7 @@ impl NameSection {
     ///
     /// This section should come after the function name subsection (if present)
     /// and before the labels subsection (if present).
-    pub fn locals(&mut self, names: &IndirectNameMap) {
+    pub fn locals(&mut self, names: &IndirectNameMap<FuncIdx>) {
         self.subsection_header(Subsection::Local, names.size());
         names.encode(&mut self.bytes);
     }
@@ -96,7 +99,7 @@ impl NameSection {
     ///
     /// This section should come after the local name subsection (if present)
     /// and before the type subsection (if present).
-    pub fn labels(&mut self, names: &IndirectNameMap) {
+    pub fn labels(&mut self, names: &IndirectNameMap<FuncIdx>) {
         self.subsection_header(Subsection::Label, names.size());
         names.encode(&mut self.bytes);
     }
@@ -105,7 +108,7 @@ impl NameSection {
     ///
     /// This section should come after the label name subsection (if present)
     /// and before the table subsection (if present).
-    pub fn types(&mut self, names: &NameMap) {
+    pub fn types(&mut self, names: &NameMap<TypeIdx>) {
         self.subsection_header(Subsection::Type, names.size());
         names.encode(&mut self.bytes);
     }
@@ -114,7 +117,7 @@ impl NameSection {
     ///
     /// This section should come after the type name subsection (if present)
     /// and before the memory subsection (if present).
-    pub fn tables(&mut self, names: &NameMap) {
+    pub fn tables(&mut self, names: &NameMap<TableIdx>) {
         self.subsection_header(Subsection::Table, names.size());
         names.encode(&mut self.bytes);
     }
@@ -123,7 +126,7 @@ impl NameSection {
     ///
     /// This section should come after the table name subsection (if present)
     /// and before the global subsection (if present).
-    pub fn memories(&mut self, names: &NameMap) {
+    pub fn memories(&mut self, names: &NameMap<MemIdx>) {
         self.subsection_header(Subsection::Memory, names.size());
         names.encode(&mut self.bytes);
     }
@@ -132,7 +135,7 @@ impl NameSection {
     ///
     /// This section should come after the memory name subsection (if present)
     /// and before the element subsection (if present).
-    pub fn globals(&mut self, names: &NameMap) {
+    pub fn globals(&mut self, names: &NameMap<GlobalIdx>) {
         self.subsection_header(Subsection::Global, names.size());
         names.encode(&mut self.bytes);
     }
@@ -141,7 +144,7 @@ impl NameSection {
     ///
     /// This section should come after the global name subsection (if present)
     /// and before the data subsection (if present).
-    pub fn elements(&mut self, names: &NameMap) {
+    pub fn elements(&mut self, names: &NameMap<ElemIdx>) {
         self.subsection_header(Subsection::Element, names.size());
         names.encode(&mut self.bytes);
     }
@@ -150,7 +153,7 @@ impl NameSection {
     ///
     /// This section should come after the element name subsection (if present)
     /// and before the field subsection (if present).
-    pub fn data(&mut self, names: &NameMap) {
+    pub fn data(&mut self, names: &NameMap<DataIdx>) {
         self.subsection_header(Subsection::Data, names.size());
         names.encode(&mut self.bytes);
     }
@@ -158,7 +161,7 @@ impl NameSection {
     /// Appends a subsection for the names of all tags in this wasm module.
     ///
     /// This section should come after the data name subsection (if present).
-    pub fn tag(&mut self, names: &NameMap) {
+    pub fn tag(&mut self, names: &NameMap<TagIdx>) {
         self.subsection_header(Subsection::Tag, names.size());
         names.encode(&mut self.bytes);
     }
@@ -168,7 +171,7 @@ impl NameSection {
     ///
     /// This section should come after the data name subsection (if present)
     /// and before the tag subsection (if present).
-    pub fn fields(&mut self, names: &IndirectNameMap) {
+    pub fn fields(&mut self, names: &IndirectNameMap<TypeIdx>) {
         self.subsection_header(Subsection::Field, names.size());
         names.encode(&mut self.bytes);
     }
@@ -176,7 +179,7 @@ impl NameSection {
     /// Appends a subsection for the names of all tags in this wasm module.
     ///
     /// This section should come after the field name subsection (if present).
-    pub fn tags(&mut self, names: &NameMap) {
+    pub fn tags(&mut self, names: &NameMap<TagIdx>) {
         self.subsection_header(Subsection::Tag, names.size());
         names.encode(&mut self.bytes);
     }
@@ -219,17 +222,17 @@ impl Section for NameSection {
 /// This is used in conjunction with [`NameSection::functions`] and simlar
 /// methods.
 #[derive(Clone, Debug, Default)]
-pub struct NameMap {
+pub struct NameMap<I> {
     bytes: Vec<u8>,
-    count: u32,
+    count: I,
 }
 
-impl NameMap {
+impl<I: Idx + Encode> NameMap<I> {
     /// Creates a new empty `NameMap`.
-    pub fn new() -> NameMap {
+    pub fn new() -> NameMap<I> {
         NameMap {
             bytes: vec![],
-            count: 0,
+            count: I::from_usize(0),
         }
     }
 
@@ -239,23 +242,23 @@ impl NameMap {
     /// value. Each index may only be named once, but not all indices must be
     /// named (e.g. `0 foo; 1 bar; 7 qux` is valid but `0 foo; 0 bar` is not).
     /// Names do not have to be unique (e.g. `0 foo; 1 foo; 2 foo` is valid).
-    pub fn append(&mut self, idx: u32, name: &str) {
+    pub fn append(&mut self, idx: I, name: &str) {
         idx.encode(&mut self.bytes);
         name.encode(&mut self.bytes);
-        self.count += 1;
+        self.count = I::from_usize(self.count.index() + 1);
     }
 
     pub(crate) fn size(&self) -> usize {
-        encoding_size(self.count) + self.bytes.len()
+        encoding_size(self.count.index() as u32) + self.bytes.len()
     }
 
     /// Returns whether no names have been added to this map.
     pub fn is_empty(&self) -> bool {
-        self.count == 0
+        self.count.index() == 0
     }
 }
 
-impl Encode for NameMap {
+impl<I: Encode> Encode for NameMap<I> {
     fn encode(&self, sink: &mut Vec<u8>) {
         self.count.encode(sink);
         sink.extend(&self.bytes);
@@ -267,17 +270,17 @@ impl Encode for NameMap {
 ///
 /// This naming map is used with [`NameSection::locals`], for example.
 #[derive(Clone, Debug, Default)]
-pub struct IndirectNameMap {
+pub struct IndirectNameMap<I> {
     bytes: Vec<u8>,
-    count: u32,
+    count: I,
 }
 
-impl IndirectNameMap {
+impl<I: Idx + Encode> IndirectNameMap<I> {
     /// Creates a new empty name map.
-    pub fn new() -> IndirectNameMap {
+    pub fn new() -> IndirectNameMap<I> {
         IndirectNameMap {
             bytes: vec![],
-            count: 0,
+            count: I::from_usize(0),
         }
     }
 
@@ -286,18 +289,18 @@ impl IndirectNameMap {
     ///
     /// For example if this is describing local names then `idx` is a function
     /// index where the indexes within `names` are local indices.
-    pub fn append(&mut self, idx: u32, names: &NameMap) {
+    pub fn append<J: Encode>(&mut self, idx: I, names: &NameMap<J>) {
         idx.encode(&mut self.bytes);
         names.encode(&mut self.bytes);
-        self.count += 1;
+        self.count = I::from_usize(self.count.index() + 1);
     }
 
     fn size(&self) -> usize {
-        encoding_size(self.count) + self.bytes.len()
+        encoding_size(self.count.index() as u32) + self.bytes.len()
     }
 }
 
-impl Encode for IndirectNameMap {
+impl<I: Encode> Encode for IndirectNameMap<I> {
     fn encode(&self, sink: &mut Vec<u8>) {
         self.count.encode(sink);
         sink.extend(&self.bytes);

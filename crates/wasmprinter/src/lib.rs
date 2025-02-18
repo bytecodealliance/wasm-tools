@@ -9,6 +9,7 @@
 #![deny(missing_docs)]
 
 use anyhow::{anyhow, bail, Context, Result};
+use index_vec::{Idx, IndexVec};
 use operator::{OpPrinter, OperatorSeparator, OperatorState, PrintOperator, PrintOperatorFolded};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -16,7 +17,17 @@ use std::io;
 use std::marker;
 use std::mem;
 use std::path::Path;
+use wasm_types::{
+    AbsoluteLabelIdx, DataIdx, ElemIdx, FieldIdx, FuncIdx, GlobalIdx, LocalIdx, MemIdx, TableIdx,
+    TagIdx, TypeIdx,
+};
 use wasmparser::*;
+
+#[cfg(feature = "component-model")]
+use wasm_types::{
+    ComponentFuncIdx, ComponentIdx, ComponentInstanceIdx, ComponentTypeIdx, ComponentValueIdx,
+    CoreInstanceIdx, CoreModuleIdx,
+};
 
 const MAX_LOCALS: u32 = 50000;
 const MAX_NESTING_TO_PRINT: u32 = 50;
@@ -78,38 +89,38 @@ struct Printer<'cfg, 'env> {
     nesting: u32,
     line: usize,
     group_lines: Vec<usize>,
-    code_section_hints: Vec<(u32, Vec<(usize, BranchHint)>)>,
+    code_section_hints: Vec<(FuncIdx, Vec<(usize, BranchHint)>)>,
 }
 
 #[derive(Default)]
 struct CoreState {
-    types: Vec<Option<SubType>>,
-    funcs: u32,
-    func_to_type: Vec<Option<u32>>,
-    memories: u32,
-    tags: u32,
-    tag_to_type: Vec<Option<u32>>,
-    globals: u32,
-    tables: u32,
+    types: IndexVec<TypeIdx, Option<SubType>>,
+    funcidx: FuncIdx,
+    func_to_type: IndexVec<FuncIdx, Option<TypeIdx>>,
+    memidx: MemIdx,
+    tagidx: TagIdx,
+    tag_to_type: IndexVec<TagIdx, Option<TypeIdx>>,
+    globalidx: GlobalIdx,
+    tableidx: TableIdx,
     #[cfg(feature = "component-model")]
-    modules: u32,
+    module_idx: CoreModuleIdx,
     #[cfg(feature = "component-model")]
-    instances: u32,
-    func_names: NamingMap<u32, NameFunc>,
-    local_names: NamingMap<(u32, u32), NameLocal>,
-    label_names: NamingMap<(u32, u32), NameLabel>,
-    type_names: NamingMap<u32, NameType>,
-    field_names: NamingMap<(u32, u32), NameField>,
-    tag_names: NamingMap<u32, NameTag>,
-    table_names: NamingMap<u32, NameTable>,
-    memory_names: NamingMap<u32, NameMemory>,
-    global_names: NamingMap<u32, NameGlobal>,
-    element_names: NamingMap<u32, NameElem>,
-    data_names: NamingMap<u32, NameData>,
+    instance_idx: CoreInstanceIdx,
+    func_names: NamingMap<FuncIdx, NameFunc>,
+    local_names: NamingMap<(FuncIdx, LocalIdx), NameLocal>,
+    label_names: NamingMap<(FuncIdx, AbsoluteLabelIdx), NameLabel>,
+    type_names: NamingMap<TypeIdx, NameType>,
+    field_names: NamingMap<(TypeIdx, FieldIdx), NameField>,
+    tag_names: NamingMap<TagIdx, NameTag>,
+    table_names: NamingMap<TableIdx, NameTable>,
+    memory_names: NamingMap<MemIdx, NameMemory>,
+    global_names: NamingMap<GlobalIdx, NameGlobal>,
+    element_names: NamingMap<ElemIdx, NameElem>,
+    data_names: NamingMap<DataIdx, NameData>,
     #[cfg(feature = "component-model")]
-    module_names: NamingMap<u32, NameModule>,
+    module_names: NamingMap<CoreModuleIdx, NameModule>,
     #[cfg(feature = "component-model")]
-    instance_names: NamingMap<u32, NameInstance>,
+    instance_names: NamingMap<CoreInstanceIdx, NameInstance>,
 }
 
 /// A map of index-to-name for tracking what are the contents of the name
@@ -138,16 +149,16 @@ impl<T, K> Default for NamingMap<T, K> {
 #[derive(Default)]
 #[cfg(feature = "component-model")]
 struct ComponentState {
-    types: u32,
-    funcs: u32,
-    instances: u32,
-    components: u32,
-    values: u32,
-    type_names: NamingMap<u32, NameType>,
-    func_names: NamingMap<u32, NameFunc>,
-    component_names: NamingMap<u32, NameComponent>,
-    instance_names: NamingMap<u32, NameInstance>,
-    value_names: NamingMap<u32, NameValue>,
+    type_idx: ComponentTypeIdx,
+    func_idx: ComponentFuncIdx,
+    instance_idx: ComponentInstanceIdx,
+    component_idx: ComponentIdx,
+    value_idx: ComponentValueIdx,
+    type_names: NamingMap<ComponentTypeIdx, NameType>,
+    func_names: NamingMap<ComponentFuncIdx, NameFunc>,
+    component_names: NamingMap<ComponentIdx, NameComponent>,
+    instance_names: NamingMap<ComponentInstanceIdx, NameInstance>,
+    value_names: NamingMap<ComponentValueIdx, NameValue>,
 }
 
 struct State {
@@ -441,7 +452,7 @@ impl Printer<'_, '_> {
                             if states.len() > 1 {
                                 let parent = &states[states.len() - 2];
                                 self.result.write_str(" ")?;
-                                self.print_name(&parent.core.module_names, parent.core.modules)?;
+                                self.print_name(&parent.core.module_names, parent.core.module_idx)?;
                             }
                         }
                         Encoding::Component => {
@@ -455,7 +466,7 @@ impl Printer<'_, '_> {
                                     self.result.write_str(" ")?;
                                     self.print_name(
                                         &parent.component.component_names,
-                                        parent.component.components,
+                                        parent.component.component_idx,
                                     )?;
                                 }
                             }
@@ -541,7 +552,7 @@ impl Printer<'_, '_> {
                         );
                     }
                     for ty in reader {
-                        states.last_mut().unwrap().core.func_to_type.push(Some(ty?))
+                        states.last_mut().unwrap().core.func_to_type.push(Some(ty?));
                     }
                 }
                 Payload::TableSection(s) => {
@@ -673,10 +684,10 @@ impl Printer<'_, '_> {
                         if let Some(parent) = states.last_mut() {
                             match state.encoding {
                                 Encoding::Module => {
-                                    parent.core.modules += 1;
+                                    parent.core.module_idx.0 += 1;
                                 }
                                 Encoding::Component => {
-                                    parent.component.components += 1;
+                                    parent.component.component_idx.0 += 1;
                                 }
                             }
                             parser = parsers.pop().unwrap();
@@ -730,11 +741,15 @@ impl Printer<'_, '_> {
     }
 
     fn register_names(&mut self, state: &mut State, names: NameSectionReader<'_>) -> Result<()> {
-        fn indirect_name_map<K>(
-            into: &mut NamingMap<(u32, u32), K>,
-            names: IndirectNameMap<'_>,
+        fn indirect_name_map<'a, I, J, K>(
+            into: &mut NamingMap<(I, J), K>,
+            names: IndirectNameMap<'a, I, J>,
             name: &str,
-        ) -> Result<()> {
+        ) -> Result<()>
+        where
+            I: Idx + FromReader<'a>,
+            J: fmt::Display + Idx + FromReader<'a>,
+        {
             for indirect in names {
                 let indirect = indirect?;
                 let mut used = match name {
@@ -812,7 +827,7 @@ impl Printer<'_, '_> {
         } else {
             self.start_group("type ")?;
         }
-        let ty_idx = state.core.types.len() as u32;
+        let ty_idx = TypeIdx::from_usize(state.core.types.len());
         self.print_name(&state.core.type_names, ty_idx)?;
         self.result.write_str(" ")?;
         self.print_sub(state, &ty, ty_idx)?;
@@ -821,7 +836,7 @@ impl Printer<'_, '_> {
         Ok(())
     }
 
-    fn print_sub(&mut self, state: &State, ty: &SubType, ty_idx: u32) -> Result<u32> {
+    fn print_sub(&mut self, state: &State, ty: &SubType, ty_idx: TypeIdx) -> Result<u32> {
         let r = if !ty.is_final || !ty.supertype_idx.is_none() {
             self.start_group("sub")?;
             self.print_sub_type(state, ty)?;
@@ -834,7 +849,12 @@ impl Printer<'_, '_> {
         Ok(r)
     }
 
-    fn print_composite(&mut self, state: &State, ty: &CompositeType, ty_idx: u32) -> Result<u32> {
+    fn print_composite(
+        &mut self,
+        state: &State,
+        ty: &CompositeType,
+        ty_idx: TypeIdx,
+    ) -> Result<u32> {
         if ty.shared {
             self.start_group("shared")?;
             self.result.write_str(" ")?;
@@ -883,12 +903,12 @@ impl Printer<'_, '_> {
     fn print_core_functype_idx(
         &mut self,
         state: &State,
-        idx: u32,
-        names_for: Option<u32>,
+        idx: TypeIdx,
+        names_for: Option<FuncIdx>,
     ) -> Result<Option<u32>> {
         self.print_core_type_ref(state, idx)?;
 
-        match state.core.types.get(idx as usize) {
+        match state.core.types.get(idx) {
             Some(Some(SubType {
                 composite_type:
                     CompositeType {
@@ -907,7 +927,7 @@ impl Printer<'_, '_> {
         &mut self,
         state: &State,
         ty: &FuncType,
-        names_for: Option<u32>,
+        names_for: Option<FuncIdx>,
     ) -> Result<u32> {
         if !ty.params().is_empty() {
             self.result.write_str(" ")?;
@@ -918,7 +938,7 @@ impl Printer<'_, '_> {
         // we need to be careful to terminate previous param blocks and open
         // a new one if that's the case with a named parameter.
         for (i, param) in ty.params().iter().enumerate() {
-            params.start_local(names_for, i as u32, self, state)?;
+            params.start_local(names_for, LocalIdx::from_usize(i), self, state)?;
             self.print_valtype(state, *param)?;
             params.end_local(self)?;
         }
@@ -939,7 +959,7 @@ impl Printer<'_, '_> {
         &mut self,
         state: &State,
         ty: &FieldType,
-        ty_field_idx: Option<(u32, u32)>,
+        ty_field_idx: Option<(TypeIdx, FieldIdx)>,
     ) -> Result<u32> {
         self.result.write_str(" ")?;
         if let Some(idxs @ (_, field_idx)) = ty_field_idx {
@@ -966,10 +986,19 @@ impl Printer<'_, '_> {
         self.print_field_type(state, &ty.0, None)
     }
 
-    fn print_struct_type(&mut self, state: &State, ty: &StructType, ty_idx: u32) -> Result<u32> {
+    fn print_struct_type(
+        &mut self,
+        state: &State,
+        ty: &StructType,
+        ty_idx: TypeIdx,
+    ) -> Result<u32> {
         for (field_index, field) in ty.fields.iter().enumerate() {
             self.result.write_str(" (field")?;
-            self.print_field_type(state, field, Some((ty_idx, field_index as u32)))?;
+            self.print_field_type(
+                state,
+                field,
+                Some((ty_idx, FieldIdx::from_usize(field_index))),
+            )?;
             self.result.write_str(")")?;
         }
         Ok(0)
@@ -1092,21 +1121,21 @@ impl Printer<'_, '_> {
             self.print_import(state, &import, true)?;
             match import.ty {
                 TypeRef::Func(idx) => {
-                    debug_assert!(state.core.func_to_type.len() == state.core.funcs as usize);
-                    state.core.funcs += 1;
-                    state.core.func_to_type.push(Some(idx))
+                    debug_assert!(state.core.func_to_type.len() == state.core.funcidx.index());
+                    state.core.funcidx.0 += 1;
+                    state.core.func_to_type.push(Some(idx));
                 }
-                TypeRef::Table(_) => state.core.tables += 1,
-                TypeRef::Memory(_) => state.core.memories += 1,
+                TypeRef::Table(_) => state.core.tableidx.0 += 1,
+                TypeRef::Memory(_) => state.core.memidx.0 += 1,
                 TypeRef::Tag(TagType {
                     kind: _,
                     func_type_idx: idx,
                 }) => {
-                    debug_assert!(state.core.tag_to_type.len() == state.core.tags as usize);
-                    state.core.tags += 1;
-                    state.core.tag_to_type.push(Some(idx))
+                    debug_assert!(state.core.tag_to_type.len() == state.core.tagidx.index());
+                    state.core.tagidx.0 += 1;
+                    state.core.tag_to_type.push(Some(idx));
                 }
-                TypeRef::Global(_) => state.core.globals += 1,
+                TypeRef::Global(_) => state.core.globalidx.0 += 1,
             }
         }
         Ok(())
@@ -1128,7 +1157,7 @@ impl Printer<'_, '_> {
             TypeRef::Func(f) => {
                 self.start_group("func ")?;
                 if index {
-                    self.print_name(&state.core.func_names, state.core.funcs)?;
+                    self.print_name(&state.core.func_names, state.core.funcidx)?;
                     self.result.write_str(" ")?;
                 }
                 self.print_core_type_ref(state, *f)?;
@@ -1145,7 +1174,7 @@ impl Printer<'_, '_> {
     fn print_table_type(&mut self, state: &State, ty: &TableType, index: bool) -> Result<()> {
         self.start_group("table ")?;
         if index {
-            self.print_name(&state.core.table_names, state.core.tables)?;
+            self.print_name(&state.core.table_names, state.core.tableidx)?;
             self.result.write_str(" ")?;
         }
         if ty.shared {
@@ -1163,7 +1192,7 @@ impl Printer<'_, '_> {
     fn print_memory_type(&mut self, state: &State, ty: &MemoryType, index: bool) -> Result<()> {
         self.start_group("memory ")?;
         if index {
-            self.print_name(&state.core.memory_names, state.core.memories)?;
+            self.print_name(&state.core.memory_names, state.core.memidx)?;
             self.result.write_str(" ")?;
         }
         if ty.memory64 {
@@ -1189,7 +1218,7 @@ impl Printer<'_, '_> {
     fn print_tag_type(&mut self, state: &State, ty: &TagType, index: bool) -> Result<()> {
         self.start_group("tag ")?;
         if index {
-            self.print_name(&state.core.tag_names, state.core.tags)?;
+            self.print_name(&state.core.tag_names, state.core.tagidx)?;
             self.result.write_str(" ")?;
         }
         self.print_core_functype_idx(state, ty.func_type_idx, None)?;
@@ -1212,7 +1241,7 @@ impl Printer<'_, '_> {
     fn print_global_type(&mut self, state: &State, ty: &GlobalType, index: bool) -> Result<()> {
         self.start_group("global ")?;
         if index {
-            self.print_name(&state.core.global_names, state.core.globals)?;
+            self.print_name(&state.core.global_names, state.core.globalidx)?;
             self.result.write_str(" ")?;
         }
         if ty.shared || ty.mutable {
@@ -1244,7 +1273,7 @@ impl Printer<'_, '_> {
                 }
             }
             self.end_group()?;
-            state.core.tables += 1;
+            state.core.tableidx.0 += 1;
         }
         Ok(())
     }
@@ -1255,7 +1284,7 @@ impl Printer<'_, '_> {
             self.newline(offset)?;
             self.print_memory_type(state, &memory, true)?;
             self.end_group()?;
-            state.core.memories += 1;
+            state.core.memidx.0 += 1;
         }
         Ok(())
     }
@@ -1266,8 +1295,8 @@ impl Printer<'_, '_> {
             self.newline(offset)?;
             self.print_tag_type(state, &tag, true)?;
             self.end_group()?;
-            debug_assert!(state.core.tag_to_type.len() == state.core.tags as usize);
-            state.core.tags += 1;
+            debug_assert!(state.core.tag_to_type.len() == state.core.tagidx.index());
+            state.core.tagidx.0 += 1;
             state.core.tag_to_type.push(Some(tag.func_type_idx));
         }
         Ok(())
@@ -1281,7 +1310,7 @@ impl Printer<'_, '_> {
             self.result.write_str(" ")?;
             self.print_const_expr(state, &global.init_expr, self.config.fold_instructions)?;
             self.end_group()?;
-            state.core.globals += 1;
+            state.core.globalidx.0 += 1;
         }
         Ok(())
     }
@@ -1295,10 +1324,10 @@ impl Printer<'_, '_> {
         let offset = body.original_position();
         self.newline(offset)?;
         self.start_group("func ")?;
-        let func_idx = state.core.funcs;
+        let func_idx = state.core.funcidx;
         self.print_name(&state.core.func_names, func_idx)?;
         self.result.write_str(" ")?;
-        let ty = match state.core.func_to_type.get(func_idx as usize) {
+        let ty = match state.core.func_to_type.get(func_idx) {
             Some(Some(x)) => *x,
             _ => panic!("invalid function type"),
         };
@@ -1323,14 +1352,14 @@ impl Printer<'_, '_> {
         }
 
         self.end_group()?;
-        state.core.funcs += 1;
+        state.core.funcidx.0 += 1;
         Ok(())
     }
 
     fn print_func_body(
         &mut self,
         state: &mut State,
-        func_idx: u32,
+        func_idx: FuncIdx,
         params: u32,
         body: &mut BinaryReader<'_>,
         branch_hints: &[(usize, BranchHint)],
@@ -1355,7 +1384,7 @@ impl Printer<'_, '_> {
                     self.newline(offset)?;
                     first = false;
                 }
-                locals.start_local(Some(func_idx), params + local_idx, self, state)?;
+                locals.start_local(Some(func_idx), LocalIdx(params + local_idx), self, state)?;
                 self.print_valtype(state, ty)?;
                 locals.end_local(self)?;
                 local_idx += 1;
@@ -1464,19 +1493,19 @@ impl Printer<'_, '_> {
         match kind {
             ExternalKind::Func => {
                 self.start_group("func ")?;
-                self.print_idx(&state.core.func_names, index)?;
+                self.print_idx(&state.core.func_names, FuncIdx(index))?;
             }
             ExternalKind::Table => {
                 self.start_group("table ")?;
-                self.print_idx(&state.core.table_names, index)?;
+                self.print_idx(&state.core.table_names, TableIdx(index))?;
             }
             ExternalKind::Global => {
                 self.start_group("global ")?;
-                self.print_idx(&state.core.global_names, index)?;
+                self.print_idx(&state.core.global_names, GlobalIdx(index))?;
             }
             ExternalKind::Memory => {
                 self.start_group("memory ")?;
-                self.print_idx(&state.core.memory_names, index)?;
+                self.print_idx(&state.core.memory_names, MemIdx(index))?;
             }
             ExternalKind::Tag => {
                 self.start_group("tag ")?;
@@ -1487,21 +1516,25 @@ impl Printer<'_, '_> {
         Ok(())
     }
 
-    fn print_core_type_ref(&mut self, state: &State, idx: u32) -> Result<()> {
+    fn print_core_type_ref(&mut self, state: &State, idx: TypeIdx) -> Result<()> {
         self.start_group("type ")?;
         self.print_idx(&state.core.type_names, idx)?;
         self.end_group()?;
         Ok(())
     }
 
-    fn print_idx<K>(&mut self, names: &NamingMap<u32, K>, idx: u32) -> Result<()>
+    fn print_idx<I, K>(&mut self, names: &NamingMap<I, K>, idx: I) -> Result<()>
     where
+        I: fmt::Display + Idx,
         K: NamingNamespace,
     {
         self._print_idx(&names.index_to_name, idx, K::desc())
     }
 
-    fn _print_idx(&mut self, names: &HashMap<u32, Naming>, idx: u32, desc: &str) -> Result<()> {
+    fn _print_idx<I>(&mut self, names: &HashMap<I, Naming>, idx: I, desc: &str) -> Result<()>
+    where
+        I: fmt::Display + Idx,
+    {
         self.result.start_name()?;
         match names.get(&idx) {
             Some(name) => name.write_identifier(self)?,
@@ -1512,7 +1545,7 @@ impl Printer<'_, '_> {
         Ok(())
     }
 
-    fn print_local_idx(&mut self, state: &State, func: u32, idx: u32) -> Result<()> {
+    fn print_local_idx(&mut self, state: &State, func: FuncIdx, idx: LocalIdx) -> Result<()> {
         self.result.start_name()?;
         match state.core.local_names.index_to_name.get(&(func, idx)) {
             Some(name) => name.write_identifier(self)?,
@@ -1523,7 +1556,7 @@ impl Printer<'_, '_> {
         Ok(())
     }
 
-    fn print_field_idx(&mut self, state: &State, ty: u32, idx: u32) -> Result<()> {
+    fn print_field_idx(&mut self, state: &State, ty: TypeIdx, idx: FieldIdx) -> Result<()> {
         self.result.start_name()?;
         match state.core.field_names.index_to_name.get(&(ty, idx)) {
             Some(name) => name.write_identifier(self)?,
@@ -1534,19 +1567,18 @@ impl Printer<'_, '_> {
         Ok(())
     }
 
-    fn print_name<K>(&mut self, names: &NamingMap<u32, K>, cur_idx: u32) -> Result<()>
+    fn print_name<I, K>(&mut self, names: &NamingMap<I, K>, cur_idx: I) -> Result<()>
     where
+        I: fmt::Display + Idx,
         K: NamingNamespace,
     {
         self._print_name(&names.index_to_name, cur_idx, K::desc())
     }
 
-    fn _print_name(
-        &mut self,
-        names: &HashMap<u32, Naming>,
-        cur_idx: u32,
-        desc: &str,
-    ) -> Result<()> {
+    fn _print_name<I>(&mut self, names: &HashMap<I, Naming>, cur_idx: I, desc: &str) -> Result<()>
+    where
+        I: fmt::Display + Idx,
+    {
         self.result.start_name()?;
         match names.get(&cur_idx) {
             Some(name) => {
@@ -1568,7 +1600,7 @@ impl Printer<'_, '_> {
             let (offset, mut elem) = elem?;
             self.newline(offset)?;
             self.start_group("elem ")?;
-            self.print_name(&state.core.element_names, i as u32)?;
+            self.print_name(&state.core.element_names, ElemIdx::from_usize(i))?;
             match &mut elem.kind {
                 ElementKind::Passive => {}
                 ElementKind::Declared => self.result.write_str(" declare")?,
@@ -1618,7 +1650,7 @@ impl Printer<'_, '_> {
             let (offset, data) = data?;
             self.newline(offset)?;
             self.start_group("data ")?;
-            self.print_name(&state.core.data_names, i as u32)?;
+            self.print_name(&state.core.data_names, DataIdx::from_usize(i))?;
             self.result.write_str(" ")?;
             match &data.kind {
                 DataKind::Passive => {}
@@ -1626,7 +1658,7 @@ impl Printer<'_, '_> {
                     memory_index,
                     offset_expr,
                 } => {
-                    if *memory_index != 0 {
+                    if *memory_index != MemIdx(0) {
                         self.start_group("memory ")?;
                         self.print_idx(&state.core.memory_names, *memory_index)?;
                         self.end_group()?;
@@ -1932,8 +1964,8 @@ impl NamedLocalPrinter {
 
     fn start_local(
         &mut self,
-        func: Option<u32>,
-        local: u32,
+        func: Option<FuncIdx>,
+        local: LocalIdx,
         dst: &mut Printer,
         state: &State,
     ) -> Result<()> {
@@ -1941,7 +1973,7 @@ impl NamedLocalPrinter {
             .core
             .local_names
             .index_to_name
-            .get(&(func.unwrap_or(u32::MAX), local));
+            .get(&(func.unwrap_or(FuncIdx(u32::MAX)), local));
 
         // Named locals must be in their own group, so if we have a name we need
         // to terminate the previous group.
@@ -2101,9 +2133,9 @@ impl Printer<'_, '_> {
 }
 
 impl Naming {
-    fn new<'a>(
+    fn new<'a, I: fmt::Display>(
         name: &'a str,
-        index: u32,
+        index: I,
         group: &str,
         used: Option<&mut HashSet<&'a str>>,
     ) -> Naming {
@@ -2251,7 +2283,10 @@ naming_namespaces! {
     struct NameComponent => "component"
 }
 
-fn name_map<K>(into: &mut NamingMap<u32, K>, names: NameMap<'_>, name: &str) -> Result<()> {
+fn name_map<'a, I, K>(into: &mut NamingMap<I, K>, names: NameMap<'a, I>, name: &str) -> Result<()>
+where
+    I: fmt::Display + Idx + FromReader<'a>,
+{
     let mut used = HashSet::new();
     for naming in names {
         let naming = naming?;

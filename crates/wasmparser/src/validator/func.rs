@@ -1,6 +1,7 @@
 use super::operators::{Frame, OperatorValidator, OperatorValidatorAllocations};
 use crate::{BinaryReader, Result, ValType, VisitOperator};
 use crate::{FunctionBody, ModuleArity, Operator, WasmFeatures, WasmModuleResources};
+use wasm_types::{FuncIdx, LocalIdx, TypeIdx};
 
 /// Resources necessary to perform validation of a function.
 ///
@@ -14,10 +15,10 @@ pub struct FuncToValidate<T> {
     /// Reusable, heap allocated resources to drive the Wasm validation.
     pub resources: T,
     /// The core Wasm function index being validated.
-    pub index: u32,
+    pub index: FuncIdx,
     /// The core Wasm type index of the function being validated,
     /// defining the results and parameters to the function.
-    pub ty: u32,
+    pub ty: TypeIdx,
     /// The Wasm features enabled to validate the function.
     pub features: WasmFeatures,
 }
@@ -60,7 +61,7 @@ impl<T: WasmModuleResources> FuncToValidate<T> {
 pub struct FuncValidator<T> {
     validator: OperatorValidator,
     resources: T,
-    index: u32,
+    index: FuncIdx,
 }
 
 /// External handle to the internal allocations used during function validation.
@@ -212,7 +213,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
 
     /// The index of the function within the module's function index space that
     /// is being validated.
-    pub fn index(&self) -> u32 {
+    pub fn index(&self) -> FuncIdx {
         self.index
     }
 
@@ -222,7 +223,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     }
 
     /// Returns the type of the local variable at the given `index` if any.
-    pub fn get_local_type(&self, index: u32) -> Option<ValType> {
+    pub fn get_local_type(&self, index: LocalIdx) -> Option<ValType> {
         self.validator.locals.get(index)
     }
 
@@ -301,28 +302,28 @@ mod tests {
     }
 
     impl WasmModuleResources for EmptyResources {
-        fn table_at(&self, _at: u32) -> Option<crate::TableType> {
+        fn table_at(&self, _at: TableIdx) -> Option<crate::TableType> {
             todo!()
         }
-        fn memory_at(&self, _at: u32) -> Option<crate::MemoryType> {
+        fn memory_at(&self, _at: MemIdx) -> Option<crate::MemoryType> {
             todo!()
         }
-        fn tag_at(&self, _at: u32) -> Option<&crate::FuncType> {
+        fn tag_at(&self, _at: TagIdx) -> Option<&crate::FuncType> {
             todo!()
         }
-        fn global_at(&self, _at: u32) -> Option<crate::GlobalType> {
+        fn global_at(&self, _at: GlobalIdx) -> Option<crate::GlobalType> {
             todo!()
         }
-        fn sub_type_at(&self, _type_idx: u32) -> Option<&crate::SubType> {
+        fn sub_type_at(&self, _type_idx: CoreTypeId) -> Option<&crate::SubType> {
             Some(&self.0)
         }
         fn sub_type_at_id(&self, _id: CoreTypeId) -> &crate::SubType {
             todo!()
         }
-        fn type_id_of_function(&self, _at: u32) -> Option<CoreTypeId> {
+        fn type_id_of_function(&self, _at: FuncIdx) -> Option<CoreTypeId> {
             todo!()
         }
-        fn type_index_of_function(&self, _at: u32) -> Option<u32> {
+        fn type_index_of_function(&self, _at: FuncIdx) -> Option<TypeIdx> {
             todo!()
         }
         fn check_heap_type(&self, _t: &mut HeapType, _offset: usize) -> Result<()> {
@@ -331,7 +332,7 @@ mod tests {
         fn top_type(&self, _heap_type: &HeapType) -> HeapType {
             todo!()
         }
-        fn element_type_at(&self, _at: u32) -> Option<crate::RefType> {
+        fn element_type_at(&self, _at: ElemIdx) -> Option<crate::RefType> {
             todo!()
         }
         fn is_subtype(&self, _t1: ValType, _t2: ValType) -> bool {
@@ -346,7 +347,7 @@ mod tests {
         fn data_count(&self) -> Option<u32> {
             todo!()
         }
-        fn is_function_referenced(&self, _idx: u32) -> bool {
+        fn is_function_referenced(&self, _idx: FuncIdx) -> bool {
             todo!()
         }
     }

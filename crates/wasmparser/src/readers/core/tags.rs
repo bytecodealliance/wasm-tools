@@ -26,7 +26,7 @@ impl<'a> FromReader<'a> for TagType {
         }
         Ok(TagType {
             kind: TagKind::Exception,
-            func_type_idx: reader.read_var_u32()?,
+            func_type_idx: reader.read_typeidx()?,
         })
     }
 }

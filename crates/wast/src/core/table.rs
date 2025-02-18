@@ -2,6 +2,7 @@ use crate::core::*;
 use crate::kw;
 use crate::parser::{Parse, Parser, Peek, Result};
 use crate::token::{Id, Index, LParen, NameAnnotation, Span};
+use wasm_types::{FuncIdx, TableIdx};
 
 /// A WebAssembly `table` directive in a module.
 #[derive(Debug)]
@@ -149,7 +150,7 @@ pub enum ElemKind<'a> {
     /// An active segment associated with a table.
     Active {
         /// The table this `elem` is initializing.
-        table: Option<Index<'a>>,
+        table: Option<Index<'a, TableIdx>>,
         /// The offset within `table` that we'll initialize at.
         offset: Expression<'a>,
     },
@@ -159,7 +160,7 @@ pub enum ElemKind<'a> {
 #[derive(Debug)]
 pub enum ElemPayload<'a> {
     /// This element segment has a contiguous list of function indices
-    Indices(Vec<Index<'a>>),
+    Indices(Vec<Index<'a, FuncIdx>>),
 
     /// This element segment has a list of optional function indices,
     /// represented as expressions using `ref.func` and `ref.null`.

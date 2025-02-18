@@ -1,9 +1,13 @@
-use crate::core::resolve::Ns;
 use crate::core::*;
 use crate::names::{resolve_error, Namespace};
 use crate::token::{Id, Index};
 use crate::Error;
+use index_vec::{Idx, IndexVec};
 use std::collections::HashMap;
+use wasm_types::{
+    DataIdx, ElemIdx, FieldIdx, FuncIdx, GlobalIdx, LabelIdx, LocalIdx, MemIdx, TableIdx, TagIdx,
+    TypeIdx,
+};
 
 pub fn resolve<'a>(fields: &mut Vec<ModuleField<'a>>) -> Result<Resolver<'a>, Error> {
     let mut resolver = Resolver::default();
@@ -18,16 +22,16 @@ pub struct Resolver<'a> {
     // information about the signature of the item in that namespace. The
     // signature is later used to synthesize the type of a module and inject
     // type annotations if necessary.
-    funcs: Namespace<'a>,
-    globals: Namespace<'a>,
-    tables: Namespace<'a>,
-    memories: Namespace<'a>,
-    types: Namespace<'a>,
-    tags: Namespace<'a>,
-    datas: Namespace<'a>,
-    elems: Namespace<'a>,
-    fields: HashMap<u32, Namespace<'a>>,
-    type_info: Vec<TypeInfo<'a>>,
+    funcs: Namespace<'a, FuncIdx>,
+    globals: Namespace<'a, GlobalIdx>,
+    tables: Namespace<'a, TableIdx>,
+    memories: Namespace<'a, MemIdx>,
+    types: Namespace<'a, TypeIdx>,
+    tags: Namespace<'a, TagIdx>,
+    datas: Namespace<'a, DataIdx>,
+    elems: Namespace<'a, ElemIdx>,
+    fields: HashMap<TypeIdx, Namespace<'a, FieldIdx>>,
+    type_info: IndexVec<TypeIdx, TypeInfo<'a>>,
 }
 
 impl<'a> Resolver<'a> {
@@ -60,7 +64,7 @@ impl<'a> Resolver<'a> {
                         self.fields
                             .entry(type_index)
                             .or_insert(Namespace::default())
-                            .register_specific(id, i as u32, "field")?;
+                            .register_specific(id, FieldIdx::from_usize(i), "field")?;
                     }
                 }
             }
@@ -77,7 +81,9 @@ impl<'a> Resolver<'a> {
                 let results = f.results.clone();
                 self.type_info.push(TypeInfo::Func { params, results });
             }
-            _ => self.type_info.push(TypeInfo::Other),
+            _ => {
+                self.type_info.push(TypeInfo::Other);
+            }
         }
 
         Ok(())
@@ -86,16 +92,34 @@ impl<'a> Resolver<'a> {
     fn register(&mut self, item: &ModuleField<'a>) -> Result<(), Error> {
         match item {
             ModuleField::Import(i) => match &i.item.kind {
-                ItemKind::Func(_) => self.funcs.register(i.item.id, "func")?,
-                ItemKind::Memory(_) => self.memories.register(i.item.id, "memory")?,
-                ItemKind::Table(_) => self.tables.register(i.item.id, "table")?,
-                ItemKind::Global(_) => self.globals.register(i.item.id, "global")?,
-                ItemKind::Tag(_) => self.tags.register(i.item.id, "tag")?,
+                ItemKind::Func(_) => {
+                    self.funcs.register(i.item.id, "func")?;
+                }
+                ItemKind::Memory(_) => {
+                    self.memories.register(i.item.id, "memory")?;
+                }
+                ItemKind::Table(_) => {
+                    self.tables.register(i.item.id, "table")?;
+                }
+                ItemKind::Global(_) => {
+                    self.globals.register(i.item.id, "global")?;
+                }
+                ItemKind::Tag(_) => {
+                    self.tags.register(i.item.id, "tag")?;
+                }
             },
-            ModuleField::Global(i) => self.globals.register(i.id, "global")?,
-            ModuleField::Memory(i) => self.memories.register(i.id, "memory")?,
-            ModuleField::Func(i) => self.funcs.register(i.id, "func")?,
-            ModuleField::Table(i) => self.tables.register(i.id, "table")?,
+            ModuleField::Global(i) => {
+                self.globals.register(i.id, "global")?;
+            }
+            ModuleField::Memory(i) => {
+                self.memories.register(i.id, "memory")?;
+            }
+            ModuleField::Func(i) => {
+                self.funcs.register(i.id, "func")?;
+            }
+            ModuleField::Table(i) => {
+                self.tables.register(i.id, "table")?;
+            }
 
             ModuleField::Type(i) => {
                 return self.register_type(i);
@@ -106,9 +130,15 @@ impl<'a> Resolver<'a> {
                 }
                 return Ok(());
             }
-            ModuleField::Elem(e) => self.elems.register(e.id, "elem")?,
-            ModuleField::Data(d) => self.datas.register(d.id, "data")?,
-            ModuleField::Tag(t) => self.tags.register(t.id, "tag")?,
+            ModuleField::Elem(e) => {
+                self.elems.register(e.id, "elem")?;
+            }
+            ModuleField::Data(d) => {
+                self.datas.register(d.id, "data")?;
+            }
+            ModuleField::Tag(t) => {
+                self.tags.register(t.id, "tag")?;
+            }
 
             // These fields don't define any items in any index space.
             ModuleField::Export(_) | ModuleField::Start(_) | ModuleField::Custom(_) => {
@@ -156,7 +186,7 @@ impl<'a> Resolver<'a> {
                             scope.register(*id, "local")?;
                         }
                     } else if let Some(TypeInfo::Func { params, .. }) =
-                        self.type_info.get(n as usize)
+                        self.type_info.get(n.index())
                     {
                         for _ in 0..params.len() {
                             scope.register(None, "local")?;
@@ -185,7 +215,7 @@ impl<'a> Resolver<'a> {
                 match &mut e.kind {
                     ElemKind::Active { table, offset } => {
                         if let Some(table) = table {
-                            self.resolve(table, Ns::Table)?;
+                            self.resolve_tableidx(table)?;
                         }
                         self.resolve_expr(offset)?;
                     }
@@ -194,7 +224,7 @@ impl<'a> Resolver<'a> {
                 match &mut e.payload {
                     ElemPayload::Indices(elems) => {
                         for idx in elems {
-                            self.resolve(idx, Ns::Func)?;
+                            self.resolve_funcidx(idx)?;
                         }
                     }
                     ElemPayload::Exprs { exprs, ty } => {
@@ -209,28 +239,45 @@ impl<'a> Resolver<'a> {
 
             ModuleField::Data(d) => {
                 if let DataKind::Active { memory, offset } = &mut d.kind {
-                    self.resolve(memory, Ns::Memory)?;
+                    self.resolve_memidx(memory)?;
                     self.resolve_expr(offset)?;
                 }
                 Ok(())
             }
 
             ModuleField::Start(i) => {
-                self.resolve(i, Ns::Func)?;
+                self.resolve_funcidx(i)?;
                 Ok(())
             }
 
             ModuleField::Export(e) => {
-                self.resolve(
-                    &mut e.item,
-                    match e.kind {
-                        ExportKind::Func => Ns::Func,
-                        ExportKind::Table => Ns::Table,
-                        ExportKind::Memory => Ns::Memory,
-                        ExportKind::Global => Ns::Global,
-                        ExportKind::Tag => Ns::Tag,
-                    },
-                )?;
+                match e.kind {
+                    ExportKind::Func => {
+                        let mut i = e.item.into();
+                        self.resolve_funcidx(&mut i)?;
+                        e.item = i.into();
+                    }
+                    ExportKind::Table => {
+                        let mut i = e.item.into();
+                        self.resolve_tableidx(&mut i)?;
+                        e.item = i.into();
+                    }
+                    ExportKind::Memory => {
+                        let mut i = e.item.into();
+                        self.resolve_memidx(&mut i)?;
+                        e.item = i.into();
+                    }
+                    ExportKind::Global => {
+                        let mut i = e.item.into();
+                        self.resolve_globalidx(&mut i)?;
+                        e.item = i.into();
+                    }
+                    ExportKind::Tag => {
+                        let mut i = e.item.into();
+                        self.resolve_tagidx(&mut i)?;
+                        e.item = i.into();
+                    }
+                }
                 Ok(())
             }
 
@@ -282,12 +329,12 @@ impl<'a> Resolver<'a> {
     fn resolve_type_use<'b, T>(
         &self,
         ty: &'b mut TypeUse<'a, T>,
-    ) -> Result<(&'b Index<'a>, Option<T>), Error>
+    ) -> Result<(&'b Index<'a, TypeIdx>, Option<T>), Error>
     where
         T: TypeReference<'a>,
     {
         let idx = ty.index.as_mut().unwrap();
-        self.resolve(idx, Ns::Type)?;
+        self.resolve_typeidx(idx)?;
 
         // If the type was listed inline *and* it was specified via a type index
         // we need to assert they're the same.
@@ -306,15 +353,28 @@ impl<'a> Resolver<'a> {
         ExprResolver::new(self, Namespace::default()).resolve(expr)
     }
 
-    pub fn resolve(&self, idx: &mut Index<'a>, ns: Ns) -> Result<u32, Error> {
-        match ns {
-            Ns::Func => self.funcs.resolve(idx, "func"),
-            Ns::Table => self.tables.resolve(idx, "table"),
-            Ns::Global => self.globals.resolve(idx, "global"),
-            Ns::Memory => self.memories.resolve(idx, "memory"),
-            Ns::Tag => self.tags.resolve(idx, "tag"),
-            Ns::Type => self.types.resolve(idx, "type"),
-        }
+    pub fn resolve_funcidx(&self, idx: &mut Index<'a, FuncIdx>) -> Result<FuncIdx, Error> {
+        self.funcs.resolve(idx, "func")
+    }
+
+    pub fn resolve_tableidx(&self, idx: &mut Index<'a, TableIdx>) -> Result<TableIdx, Error> {
+        self.tables.resolve(idx, "table")
+    }
+
+    pub fn resolve_globalidx(&self, idx: &mut Index<'a, GlobalIdx>) -> Result<GlobalIdx, Error> {
+        self.globals.resolve(idx, "global")
+    }
+
+    pub fn resolve_memidx(&self, idx: &mut Index<'a, MemIdx>) -> Result<MemIdx, Error> {
+        self.memories.resolve(idx, "memory")
+    }
+
+    pub fn resolve_tagidx(&self, idx: &mut Index<'a, TagIdx>) -> Result<TagIdx, Error> {
+        self.tags.resolve(idx, "tag")
+    }
+
+    pub fn resolve_typeidx(&self, idx: &mut Index<'a, TypeIdx>) -> Result<TypeIdx, Error> {
+        self.types.resolve(idx, "type")
     }
 
     fn resolve_type(&self, ty: &mut Type<'a>) -> Result<(), Error> {
@@ -342,12 +402,15 @@ struct ExprResolver<'a, 'b> {
     resolver: &'b Resolver<'a>,
     // Scopes tracks the local namespace and dynamically grows as we enter/exit
     // `let` blocks
-    scopes: Vec<Namespace<'a>>,
+    scopes: Vec<Namespace<'a, LocalIdx>>,
     blocks: Vec<ExprBlock<'a>>,
 }
 
 impl<'a, 'b> ExprResolver<'a, 'b> {
-    fn new(resolver: &'b Resolver<'a>, initial_scope: Namespace<'a>) -> ExprResolver<'a, 'b> {
+    fn new(
+        resolver: &'b Resolver<'a>,
+        initial_scope: Namespace<'a, LocalIdx>,
+    ) -> ExprResolver<'a, 'b> {
         ExprResolver {
             resolver,
             scopes: vec![initial_scope],
@@ -385,20 +448,20 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
         use Instruction::*;
 
         if let Some(m) = instr.memarg_mut() {
-            self.resolver.resolve(&mut m.memory, Ns::Memory)?;
+            self.resolver.resolve_memidx(&mut m.memory)?;
         }
 
         match instr {
             MemorySize(i) | MemoryGrow(i) | MemoryFill(i) | MemoryDiscard(i) => {
-                self.resolver.resolve(&mut i.mem, Ns::Memory)?;
+                self.resolver.resolve_memidx(&mut i.mem)?;
             }
             MemoryInit(i) => {
                 self.resolver.datas.resolve(&mut i.data, "data")?;
-                self.resolver.resolve(&mut i.mem, Ns::Memory)?;
+                self.resolver.resolve_memidx(&mut i.mem)?;
             }
             MemoryCopy(i) => {
-                self.resolver.resolve(&mut i.src, Ns::Memory)?;
-                self.resolver.resolve(&mut i.dst, Ns::Memory)?;
+                self.resolver.resolve_memidx(&mut i.src)?;
+                self.resolver.resolve_memidx(&mut i.dst)?;
             }
             DataDrop(i) => {
                 self.resolver.datas.resolve(i, "data")?;
@@ -406,30 +469,30 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
 
             TableInit(i) => {
                 self.resolver.elems.resolve(&mut i.elem, "elem")?;
-                self.resolver.resolve(&mut i.table, Ns::Table)?;
+                self.resolver.resolve_tableidx(&mut i.table)?;
             }
             ElemDrop(i) => {
                 self.resolver.elems.resolve(i, "elem")?;
             }
 
             TableCopy(i) => {
-                self.resolver.resolve(&mut i.dst, Ns::Table)?;
-                self.resolver.resolve(&mut i.src, Ns::Table)?;
+                self.resolver.resolve_tableidx(&mut i.dst)?;
+                self.resolver.resolve_tableidx(&mut i.src)?;
             }
 
             TableFill(i) | TableSet(i) | TableGet(i) | TableSize(i) | TableGrow(i) => {
-                self.resolver.resolve(&mut i.dst, Ns::Table)?;
+                self.resolver.resolve_tableidx(&mut i.dst)?;
             }
 
             TableAtomicGet(i)
             | TableAtomicSet(i)
             | TableAtomicRmwXchg(i)
             | TableAtomicRmwCmpxchg(i) => {
-                self.resolver.resolve(&mut i.inner.dst, Ns::Table)?;
+                self.resolver.resolve_tableidx(&mut i.inner.dst)?;
             }
 
             GlobalSet(i) | GlobalGet(i) => {
-                self.resolver.resolve(i, Ns::Global)?;
+                self.resolver.resolve_globalidx(i)?;
             }
 
             GlobalAtomicSet(i)
@@ -441,7 +504,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             | GlobalAtomicRmwXor(i)
             | GlobalAtomicRmwXchg(i)
             | GlobalAtomicRmwCmpxchg(i) => {
-                self.resolver.resolve(&mut i.inner, Ns::Global)?;
+                self.resolver.resolve_globalidx(&mut i.inner)?;
             }
 
             LocalSet(i) | LocalGet(i) | LocalTee(i) => {
@@ -465,16 +528,16 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             }
 
             Call(i) | RefFunc(i) | ReturnCall(i) => {
-                self.resolver.resolve(i, Ns::Func)?;
+                self.resolver.resolve_funcidx(i)?;
             }
 
             CallIndirect(c) | ReturnCallIndirect(c) => {
-                self.resolver.resolve(&mut c.table, Ns::Table)?;
+                self.resolver.resolve_tableidx(&mut c.table)?;
                 self.resolver.resolve_type_use(&mut c.ty)?;
             }
 
             CallRef(i) | ReturnCallRef(i) => {
-                self.resolver.resolve(i, Ns::Type)?;
+                self.resolver.resolve_typeidx(i)?;
             }
 
             Block(bt) | If(bt) | Loop(bt) | Try(bt) => {
@@ -488,7 +551,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
                 self.resolve_block_type(&mut try_table.block)?;
                 for catch in &mut try_table.catches {
                     if let Some(tag) = catch.kind.tag_index_mut() {
-                        self.resolver.resolve(tag, Ns::Tag)?;
+                        self.resolver.resolve_tagidx(tag)?;
                     }
                     self.resolve_label(&mut catch.label)?;
                 }
@@ -544,7 +607,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             }
 
             Throw(i) | Catch(i) => {
-                self.resolver.resolve(i, Ns::Tag)?;
+                self.resolver.resolve_tagidx(i)?;
             }
 
             Rethrow(i) => {
@@ -585,7 +648,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
 
             StructNew(i) | StructNewDefault(i) | ArrayNew(i) | ArrayNewDefault(i) | ArrayGet(i)
             | ArrayGetS(i) | ArrayGetU(i) | ArraySet(i) => {
-                self.resolver.resolve(i, Ns::Type)?;
+                self.resolver.resolve_typeidx(i)?;
             }
 
             StructSet(s) | StructGet(s) | StructGetS(s) | StructGetU(s) => {
@@ -607,29 +670,29 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             }
 
             ArrayNewFixed(a) => {
-                self.resolver.resolve(&mut a.array, Ns::Type)?;
+                self.resolver.resolve_typeidx(&mut a.array)?;
             }
             ArrayNewData(a) => {
-                self.resolver.resolve(&mut a.array, Ns::Type)?;
+                self.resolver.resolve_typeidx(&mut a.array)?;
                 self.resolver.datas.resolve(&mut a.data_idx, "data")?;
             }
             ArrayNewElem(a) => {
-                self.resolver.resolve(&mut a.array, Ns::Type)?;
+                self.resolver.resolve_typeidx(&mut a.array)?;
                 self.resolver.elems.resolve(&mut a.elem_idx, "elem")?;
             }
             ArrayFill(a) => {
-                self.resolver.resolve(&mut a.array, Ns::Type)?;
+                self.resolver.resolve_typeidx(&mut a.array)?;
             }
             ArrayCopy(a) => {
-                self.resolver.resolve(&mut a.dest_array, Ns::Type)?;
-                self.resolver.resolve(&mut a.src_array, Ns::Type)?;
+                self.resolver.resolve_typeidx(&mut a.dest_array)?;
+                self.resolver.resolve_typeidx(&mut a.src_array)?;
             }
             ArrayInitData(a) => {
-                self.resolver.resolve(&mut a.array, Ns::Type)?;
+                self.resolver.resolve_typeidx(&mut a.array)?;
                 self.resolver.datas.resolve(&mut a.segment, "data")?;
             }
             ArrayInitElem(a) => {
-                self.resolver.resolve(&mut a.array, Ns::Type)?;
+                self.resolver.resolve_typeidx(&mut a.array)?;
                 self.resolver.elems.resolve(&mut a.segment, "elem")?;
             }
 
@@ -644,33 +707,33 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             | ArrayAtomicRmwXor(i)
             | ArrayAtomicRmwXchg(i)
             | ArrayAtomicRmwCmpxchg(i) => {
-                self.resolver.resolve(&mut i.inner, Ns::Type)?;
+                self.resolver.resolve_typeidx(&mut i.inner)?;
             }
 
             RefNull(ty) => self.resolver.resolve_heaptype(ty)?,
 
             ContNew(ty) => {
-                self.resolver.resolve(ty, Ns::Type)?;
+                self.resolver.resolve_typeidx(ty)?;
             }
             ContBind(cb) => {
-                self.resolver.resolve(&mut cb.argument_index, Ns::Type)?;
-                self.resolver.resolve(&mut cb.result_index, Ns::Type)?;
+                self.resolver.resolve_typeidx(&mut cb.argument_index)?;
+                self.resolver.resolve_typeidx(&mut cb.result_index)?;
             }
             Suspend(ty) => {
-                self.resolver.resolve(ty, Ns::Tag)?;
+                self.resolver.resolve_tagidx(ty)?;
             }
             Resume(r) => {
-                self.resolver.resolve(&mut r.type_index, Ns::Type)?;
+                self.resolver.resolve_typeidx(&mut r.type_index)?;
                 self.resolve_resume_table(&mut r.table)?;
             }
             ResumeThrow(rt) => {
-                self.resolver.resolve(&mut rt.type_index, Ns::Type)?;
-                self.resolver.resolve(&mut rt.tag_index, Ns::Tag)?;
+                self.resolver.resolve_typeidx(&mut rt.type_index)?;
+                self.resolver.resolve_tagidx(&mut rt.tag_index)?;
                 self.resolve_resume_table(&mut rt.table)?;
             }
             Switch(s) => {
-                self.resolver.resolve(&mut s.type_index, Ns::Type)?;
-                self.resolver.resolve(&mut s.tag_index, Ns::Tag)?;
+                self.resolver.resolve_typeidx(&mut s.type_index)?;
+                self.resolver.resolve_tagidx(&mut s.tag_index)?;
             }
 
             _ => {}
@@ -682,18 +745,18 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
         for handle in &mut table.handlers {
             match handle {
                 Handle::OnLabel { tag, label } => {
-                    self.resolver.resolve(tag, Ns::Tag)?;
+                    self.resolver.resolve_tagidx(tag)?;
                     self.resolve_label(label)?;
                 }
                 Handle::OnSwitch { tag } => {
-                    self.resolver.resolve(tag, Ns::Tag)?;
+                    self.resolver.resolve_tagidx(tag)?;
                 }
             }
         }
         Ok(())
     }
 
-    fn resolve_label(&self, label: &mut Index<'a>) -> Result<(), Error> {
+    fn resolve_label(&self, label: &mut Index<'a, LabelIdx>) -> Result<(), Error> {
         let id = match label {
             Index::Num(..) => return Ok(()),
             Index::Id(id) => *id,
@@ -707,7 +770,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
             .find(|(_, l)| *l == id);
         match idx {
             Some((idx, _)) => {
-                *label = Index::Num(idx as u32, id.span());
+                *label = Index::Num(LabelIdx::from_usize(idx), id.span());
                 Ok(())
             }
             None => Err(resolve_error(id, "label")),
@@ -715,7 +778,7 @@ impl<'a, 'b> ExprResolver<'a, 'b> {
     }
 
     fn resolve_field(&self, s: &mut StructAccess<'a>) -> Result<(), Error> {
-        let type_index = self.resolver.resolve(&mut s.r#struct, Ns::Type)?;
+        let type_index = self.resolver.resolve_typeidx(&mut s.r#struct)?;
         if let Index::Id(field_id) = s.field {
             self.resolver
                         .fields
@@ -736,17 +799,17 @@ enum TypeInfo<'a> {
 }
 
 trait TypeReference<'a> {
-    fn check_matches(&mut self, idx: &Index<'a>, cx: &Resolver<'a>) -> Result<(), Error>;
+    fn check_matches(&mut self, idx: &Index<'a, TypeIdx>, cx: &Resolver<'a>) -> Result<(), Error>;
     fn resolve(&mut self, cx: &Resolver<'a>) -> Result<(), Error>;
 }
 
 impl<'a> TypeReference<'a> for FunctionType<'a> {
-    fn check_matches(&mut self, idx: &Index<'a>, cx: &Resolver<'a>) -> Result<(), Error> {
+    fn check_matches(&mut self, idx: &Index<'a, TypeIdx>, cx: &Resolver<'a>) -> Result<(), Error> {
         let n = match idx {
             Index::Num(n, _) => *n,
             Index::Id(_) => panic!("expected `Num`"),
         };
-        let (params, results) = match cx.type_info.get(n as usize) {
+        let (params, results) = match cx.type_info.get(n) {
             Some(TypeInfo::Func { params, results }) => (params, results),
             _ => return Ok(()),
         };
@@ -791,7 +854,7 @@ impl<'a> TypeReference<'a> for FunctionType<'a> {
 }
 
 pub(crate) trait ResolveCoreType<'a> {
-    fn resolve_type_name(&mut self, name: &mut Index<'a>) -> Result<u32, Error>;
+    fn resolve_type_name(&mut self, name: &mut Index<'a, TypeIdx>) -> Result<TypeIdx, Error>;
 
     fn resolve_type(&mut self, ty: &mut Type<'a>) -> Result<(), Error> {
         self.resolve_type_def(&mut ty.def)?;
@@ -859,7 +922,7 @@ pub(crate) trait ResolveCoreType<'a> {
 }
 
 impl<'a> ResolveCoreType<'a> for &Resolver<'a> {
-    fn resolve_type_name(&mut self, name: &mut Index<'a>) -> Result<u32, Error> {
-        self.resolve(name, Ns::Type)
+    fn resolve_type_name(&mut self, name: &mut Index<'a, TypeIdx>) -> Result<TypeIdx, Error> {
+        self.resolve_typeidx(name)
     }
 }

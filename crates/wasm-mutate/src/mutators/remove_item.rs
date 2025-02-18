@@ -14,6 +14,7 @@ use rand::Rng;
 use std::collections::HashSet;
 use wasm_encoder::reencode::Reencode;
 use wasm_encoder::*;
+use wasm_types::FuncIdx;
 
 /// Mutator that removes a random item in a wasm module (function, global,
 /// table, etc).
@@ -100,7 +101,7 @@ struct RemoveItem<'a> {
     item: Item,
     idx: u32,
     function_reference_action: Funcref,
-    referenced_functions: HashSet<u32>,
+    referenced_functions: HashSet<FuncIdx>,
     used_index_that_was_removed: bool,
 }
 

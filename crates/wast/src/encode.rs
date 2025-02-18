@@ -1,3 +1,9 @@
+use wasm_types::{
+    AbsoluteLabelIdx, ComponentFuncIdx, ComponentIdx, ComponentInstanceIdx, ComponentTypeIdx,
+    ComponentValueIdx, CoreInstanceIdx, CoreModuleIdx, DataIdx, ElemIdx, FieldIdx, FuncIdx,
+    GlobalIdx, LabelIdx, LocalIdx, MemIdx, TableIdx, TagIdx, TypeIdx,
+};
+
 pub(crate) trait Encode {
     fn encode(&self, e: &mut Vec<u8>);
 }
@@ -53,6 +59,120 @@ impl Encode for u32 {
     fn encode(&self, e: &mut Vec<u8>) {
         let (value, pos) = leb128fmt::encode_u32(*self).unwrap();
         e.extend_from_slice(&value[..pos]);
+    }
+}
+
+impl Encode for TypeIdx {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.0.encode(e);
+    }
+}
+
+impl Encode for FuncIdx {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.0.encode(e);
+    }
+}
+
+impl Encode for TableIdx {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.0.encode(e);
+    }
+}
+
+impl Encode for MemIdx {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.0.encode(e);
+    }
+}
+
+impl Encode for TagIdx {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.0.encode(e);
+    }
+}
+
+impl Encode for GlobalIdx {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.0.encode(e);
+    }
+}
+
+impl Encode for ElemIdx {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.0.encode(e);
+    }
+}
+
+impl Encode for DataIdx {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.0.encode(e);
+    }
+}
+
+impl Encode for LocalIdx {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.0.encode(e);
+    }
+}
+
+impl Encode for LabelIdx {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.0.encode(e);
+    }
+}
+
+impl Encode for FieldIdx {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.0.encode(e);
+    }
+}
+
+impl Encode for AbsoluteLabelIdx {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.0.encode(e);
+    }
+}
+
+impl Encode for CoreModuleIdx {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.0.encode(e);
+    }
+}
+
+impl Encode for CoreInstanceIdx {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.0.encode(e);
+    }
+}
+
+impl Encode for ComponentTypeIdx {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.0.encode(e);
+    }
+}
+
+impl Encode for ComponentFuncIdx {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.0.encode(e);
+    }
+}
+
+impl Encode for ComponentIdx {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.0.encode(e);
+    }
+}
+
+impl Encode for ComponentInstanceIdx {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.0.encode(e);
+    }
+}
+
+impl Encode for ComponentValueIdx {
+    fn encode(&self, e: &mut Vec<u8>) {
+        self.0.encode(e);
     }
 }
 

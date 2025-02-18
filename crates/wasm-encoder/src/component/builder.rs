@@ -2,6 +2,10 @@ use crate::component::*;
 use crate::{ExportKind, Module, RawSection, ValType};
 use alloc::vec::Vec;
 use core::mem;
+use wasm_types::{
+    ComponentFuncIdx, ComponentIdx, ComponentInstanceIdx, ComponentTypeIdx, CoreInstanceIdx,
+    CoreModuleIdx, FuncIdx, MemIdx, TypeIdx,
+};
 
 /// Convenience type to build a component incrementally and automatically keep
 /// track of index spaces.
@@ -135,7 +139,7 @@ impl ComponentBuilder {
     /// provided.
     ///
     /// Returns the index of the core wasm instance crated.
-    pub fn core_instantiate<'a, A>(&mut self, module_index: u32, args: A) -> u32
+    pub fn core_instantiate<'a, A>(&mut self, module_index: CoreModuleIdx, args: A) -> u32
     where
         A: IntoIterator<Item = (&'a str, ModuleArg)>,
         A::IntoIter: ExactSizeIterator,
@@ -160,7 +164,12 @@ impl ComponentBuilder {
     /// export `name` aliased out with the `kind` specified.
     ///
     /// Returns the index of the item crated.
-    pub fn core_alias_export(&mut self, instance: u32, name: &str, kind: ExportKind) -> u32 {
+    pub fn core_alias_export(
+        &mut self,
+        instance: CoreInstanceIdx,
+        name: &str,
+        kind: ExportKind,
+    ) -> u32 {
         self.alias(Alias::CoreInstanceExport {
             instance,
             kind,
@@ -199,7 +208,12 @@ impl ComponentBuilder {
     /// item to access.
     ///
     /// Returns the index of the new item defined.
-    pub fn alias_export(&mut self, instance: u32, name: &str, kind: ComponentExportKind) -> u32 {
+    pub fn alias_export(
+        &mut self,
+        instance: ComponentInstanceIdx,
+        name: &str,
+        kind: ComponentExportKind,
+    ) -> u32 {
         self.alias(Alias::InstanceExport {
             instance,
             kind,
@@ -232,7 +246,7 @@ impl ComponentBuilder {
     /// using the `options` provided.
     ///
     /// Returns the index of the core wasm function created.
-    pub fn lower_func<O>(&mut self, func_index: u32, options: O) -> u32
+    pub fn lower_func<O>(&mut self, func_index: ComponentFuncIdx, options: O) -> u32
     where
         O: IntoIterator<Item = CanonicalOption>,
         O::IntoIter: ExactSizeIterator,
@@ -245,7 +259,12 @@ impl ComponentBuilder {
     /// function type `type_index` and `options`.
     ///
     /// Returns the index of the component function created.
-    pub fn lift_func<O>(&mut self, core_func_index: u32, type_index: u32, options: O) -> u32
+    pub fn lift_func<O>(
+        &mut self,
+        core_func_index: FuncIdx,
+        type_index: ComponentTypeIdx,
+        options: O,
+    ) -> u32
     where
         O: IntoIterator<Item = CanonicalOption>,
         O::IntoIter: ExactSizeIterator,
@@ -318,7 +337,7 @@ impl ComponentBuilder {
     }
 
     /// Declares a new resource type within this component.
-    pub fn type_resource(&mut self, rep: ValType, dtor: Option<u32>) -> u32 {
+    pub fn type_resource(&mut self, rep: ValType, dtor: Option<FuncIdx>) -> u32 {
         self.types().resource(rep, dtor);
         inc(&mut self.types)
     }
@@ -344,7 +363,7 @@ impl ComponentBuilder {
     }
 
     /// Instantiates the `component_index` specified with the `args` specified.
-    pub fn instantiate<A, S>(&mut self, component_index: u32, args: A) -> u32
+    pub fn instantiate<A, S>(&mut self, component_index: ComponentIdx, args: A) -> u32
     where
         A: IntoIterator<Item = (S, ComponentExportKind, u32)>,
         A::IntoIter: ExactSizeIterator,
@@ -356,25 +375,25 @@ impl ComponentBuilder {
     }
 
     /// Declares a new `resource.drop` intrinsic.
-    pub fn resource_drop(&mut self, ty: u32) -> u32 {
+    pub fn resource_drop(&mut self, ty: ComponentTypeIdx) -> u32 {
         self.canonical_functions().resource_drop(ty);
         inc(&mut self.core_funcs)
     }
 
     /// Declares a new `resource.new` intrinsic.
-    pub fn resource_new(&mut self, ty: u32) -> u32 {
+    pub fn resource_new(&mut self, ty: ComponentTypeIdx) -> u32 {
         self.canonical_functions().resource_new(ty);
         inc(&mut self.core_funcs)
     }
 
     /// Declares a new `resource.rep` intrinsic.
-    pub fn resource_rep(&mut self, ty: u32) -> u32 {
+    pub fn resource_rep(&mut self, ty: ComponentTypeIdx) -> u32 {
         self.canonical_functions().resource_rep(ty);
         inc(&mut self.core_funcs)
     }
 
     /// Declares a new `thread.spawn` intrinsic.
-    pub fn thread_spawn(&mut self, ty: u32) -> u32 {
+    pub fn thread_spawn(&mut self, ty: TypeIdx) -> u32 {
         self.canonical_functions().thread_spawn(ty);
         inc(&mut self.core_funcs)
     }
@@ -398,13 +417,13 @@ impl ComponentBuilder {
     }
 
     /// Declares a new `task.wait` intrinsic.
-    pub fn task_wait(&mut self, async_: bool, memory: u32) -> u32 {
+    pub fn task_wait(&mut self, async_: bool, memory: MemIdx) -> u32 {
         self.canonical_functions().task_wait(async_, memory);
         inc(&mut self.core_funcs)
     }
 
     /// Declares a new `task.poll` intrinsic.
-    pub fn task_poll(&mut self, async_: bool, memory: u32) -> u32 {
+    pub fn task_poll(&mut self, async_: bool, memory: MemIdx) -> u32 {
         self.canonical_functions().task_poll(async_, memory);
         inc(&mut self.core_funcs)
     }
@@ -422,13 +441,13 @@ impl ComponentBuilder {
     }
 
     /// Declares a new `stream.new` intrinsic.
-    pub fn stream_new(&mut self, ty: u32) -> u32 {
+    pub fn stream_new(&mut self, ty: ComponentTypeIdx) -> u32 {
         self.canonical_functions().stream_new(ty);
         inc(&mut self.core_funcs)
     }
 
     /// Declares a new `stream.read` intrinsic.
-    pub fn stream_read<O>(&mut self, ty: u32, options: O) -> u32
+    pub fn stream_read<O>(&mut self, ty: ComponentTypeIdx, options: O) -> u32
     where
         O: IntoIterator<Item = CanonicalOption>,
         O::IntoIter: ExactSizeIterator,
@@ -438,7 +457,7 @@ impl ComponentBuilder {
     }
 
     /// Declares a new `stream.write` intrinsic.
-    pub fn stream_write<O>(&mut self, ty: u32, options: O) -> u32
+    pub fn stream_write<O>(&mut self, ty: ComponentTypeIdx, options: O) -> u32
     where
         O: IntoIterator<Item = CanonicalOption>,
         O::IntoIter: ExactSizeIterator,
@@ -448,37 +467,37 @@ impl ComponentBuilder {
     }
 
     /// Declares a new `stream.cancel-read` intrinsic.
-    pub fn stream_cancel_read(&mut self, ty: u32, async_: bool) -> u32 {
+    pub fn stream_cancel_read(&mut self, ty: ComponentTypeIdx, async_: bool) -> u32 {
         self.canonical_functions().stream_cancel_read(ty, async_);
         inc(&mut self.core_funcs)
     }
 
     /// Declares a new `stream.cancel-write` intrinsic.
-    pub fn stream_cancel_write(&mut self, ty: u32, async_: bool) -> u32 {
+    pub fn stream_cancel_write(&mut self, ty: ComponentTypeIdx, async_: bool) -> u32 {
         self.canonical_functions().stream_cancel_write(ty, async_);
         inc(&mut self.core_funcs)
     }
 
     /// Declares a new `stream.close-readable` intrinsic.
-    pub fn stream_close_readable(&mut self, ty: u32) -> u32 {
+    pub fn stream_close_readable(&mut self, ty: ComponentTypeIdx) -> u32 {
         self.canonical_functions().stream_close_readable(ty);
         inc(&mut self.core_funcs)
     }
 
     /// Declares a new `stream.close-writable` intrinsic.
-    pub fn stream_close_writable(&mut self, ty: u32) -> u32 {
+    pub fn stream_close_writable(&mut self, ty: ComponentTypeIdx) -> u32 {
         self.canonical_functions().stream_close_writable(ty);
         inc(&mut self.core_funcs)
     }
 
     /// Declares a new `future.new` intrinsic.
-    pub fn future_new(&mut self, ty: u32) -> u32 {
+    pub fn future_new(&mut self, ty: ComponentTypeIdx) -> u32 {
         self.canonical_functions().future_new(ty);
         inc(&mut self.core_funcs)
     }
 
     /// Declares a new `future.read` intrinsic.
-    pub fn future_read<O>(&mut self, ty: u32, options: O) -> u32
+    pub fn future_read<O>(&mut self, ty: ComponentTypeIdx, options: O) -> u32
     where
         O: IntoIterator<Item = CanonicalOption>,
         O::IntoIter: ExactSizeIterator,
@@ -488,7 +507,7 @@ impl ComponentBuilder {
     }
 
     /// Declares a new `future.write` intrinsic.
-    pub fn future_write<O>(&mut self, ty: u32, options: O) -> u32
+    pub fn future_write<O>(&mut self, ty: ComponentTypeIdx, options: O) -> u32
     where
         O: IntoIterator<Item = CanonicalOption>,
         O::IntoIter: ExactSizeIterator,
@@ -498,25 +517,25 @@ impl ComponentBuilder {
     }
 
     /// Declares a new `future.cancel-read` intrinsic.
-    pub fn future_cancel_read(&mut self, ty: u32, async_: bool) -> u32 {
+    pub fn future_cancel_read(&mut self, ty: ComponentTypeIdx, async_: bool) -> u32 {
         self.canonical_functions().future_cancel_read(ty, async_);
         inc(&mut self.core_funcs)
     }
 
     /// Declares a new `future.cancel-write` intrinsic.
-    pub fn future_cancel_write(&mut self, ty: u32, async_: bool) -> u32 {
+    pub fn future_cancel_write(&mut self, ty: ComponentTypeIdx, async_: bool) -> u32 {
         self.canonical_functions().future_cancel_write(ty, async_);
         inc(&mut self.core_funcs)
     }
 
     /// Declares a new `future.close-readable` intrinsic.
-    pub fn future_close_readable(&mut self, ty: u32) -> u32 {
+    pub fn future_close_readable(&mut self, ty: ComponentTypeIdx) -> u32 {
         self.canonical_functions().future_close_readable(ty);
         inc(&mut self.core_funcs)
     }
 
     /// Declares a new `future.close-writable` intrinsic.
-    pub fn future_close_writable(&mut self, ty: u32) -> u32 {
+    pub fn future_close_writable(&mut self, ty: ComponentTypeIdx) -> u32 {
         self.canonical_functions().future_close_writable(ty);
         inc(&mut self.core_funcs)
     }

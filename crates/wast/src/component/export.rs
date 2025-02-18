@@ -2,6 +2,10 @@ use super::{ComponentExternName, ItemRef, ItemSigNoName};
 use crate::kw;
 use crate::parser::{Cursor, Parse, Parser, Peek, Result};
 use crate::token::{Id, Index, NameAnnotation, Span};
+use wasm_types::{
+    ComponentFuncIdx, ComponentIdx, ComponentInstanceIdx, ComponentTypeIdx, ComponentValueIdx,
+    CoreModuleIdx,
+};
 
 /// An entry in a WebAssembly component's export section.
 #[derive(Debug)]
@@ -60,17 +64,17 @@ pub enum ComponentExportKind<'a> {
     ///
     /// Note this isn't a core item ref as currently only
     /// components can export core modules.
-    CoreModule(ItemRef<'a, kw::module>),
+    CoreModule(ItemRef<'a, kw::module, CoreModuleIdx>),
     /// The export is a function.
-    Func(ItemRef<'a, kw::func>),
+    Func(ItemRef<'a, kw::func, ComponentFuncIdx>),
     /// The export is a value.
-    Value(ItemRef<'a, kw::value>),
+    Value(ItemRef<'a, kw::value, ComponentValueIdx>),
     /// The export is a type.
-    Type(ItemRef<'a, kw::r#type>),
+    Type(ItemRef<'a, kw::r#type, ComponentTypeIdx>),
     /// The export is a component.
-    Component(ItemRef<'a, kw::component>),
+    Component(ItemRef<'a, kw::component, ComponentIdx>),
     /// The export is an instance.
-    Instance(ItemRef<'a, kw::instance>),
+    Instance(ItemRef<'a, kw::instance, ComponentInstanceIdx>),
 }
 
 impl<'a> ComponentExportKind<'a> {
@@ -160,7 +164,7 @@ impl Peek for ComponentExportKind<'_> {
             _ => return Ok(false),
         };
 
-        Index::peek(cursor)
+        Index::<u32>::peek(cursor)
     }
 
     fn display() -> &'static str {

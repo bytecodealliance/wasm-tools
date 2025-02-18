@@ -32,6 +32,11 @@ use crate::{
 };
 use crate::{prelude::*, CompositeInnerType, Ordering};
 use core::ops::{Deref, DerefMut};
+use index_vec::{Idx, IndexVec};
+use wasm_types::{
+    DataIdx, ElemIdx, FieldIdx, FuncIdx, GlobalIdx, LabelIdx, LocalIdx, MemIdx, TableIdx, TagIdx,
+    TypeIdx,
+};
 
 #[cfg(feature = "simd")]
 mod simd;
@@ -66,25 +71,25 @@ pub(crate) struct OperatorValidator {
 /// Captures the initialization of non-defaultable locals.
 struct LocalInits {
     /// Records if a local is already initialized.
-    local_inits: Vec<bool>,
+    local_inits: IndexVec<LocalIdx, bool>,
     /// When `local_inits` is modified, the relevant `index` is recorded
     /// here to be undone when control pops.
-    inits: Vec<u32>,
+    inits: Vec<LocalIdx>,
     /// The index of the first non-defaultable local.
     ///
     /// # Note
     ///
     /// This is an optimization so that we only have to perform expensive
     /// look-ups for locals that have a local index equal to or higher than this.
-    first_non_default_local: u32,
+    first_non_default_local: LocalIdx,
 }
 
 impl Default for LocalInits {
     fn default() -> Self {
         Self {
-            local_inits: Vec::default(),
+            local_inits: IndexVec::default(),
             inits: Vec::default(),
-            first_non_default_local: u32::MAX,
+            first_non_default_local: LocalIdx(u32::MAX),
         }
     }
 }
@@ -108,26 +113,26 @@ impl LocalInits {
             panic!("tried to define too many function locals: {count}");
         };
         let is_defaultable = ty.is_defaultable();
-        if !is_defaultable && self.first_non_default_local == u32::MAX {
-            self.first_non_default_local = len as u32;
+        if !is_defaultable && self.first_non_default_local == LocalIdx(u32::MAX) {
+            self.first_non_default_local = LocalIdx::from_usize(len);
         }
         self.local_inits.resize(new_len, is_defaultable);
     }
 
     /// Returns `true` if the local at `local_index` has already been initialized.
     #[inline]
-    pub fn is_uninit(&self, local_index: u32) -> bool {
+    pub fn is_uninit(&self, local_index: LocalIdx) -> bool {
         if local_index < self.first_non_default_local {
             return false;
         }
-        !self.local_inits[local_index as usize]
+        !self.local_inits[local_index]
     }
 
     /// Marks the local at `local_index` as initialized.
     #[inline]
-    pub fn set_init(&mut self, local_index: u32) {
+    pub fn set_init(&mut self, local_index: LocalIdx) {
         if self.is_uninit(local_index) {
-            self.local_inits[local_index as usize] = true;
+            self.local_inits[local_index] = true;
             self.inits.push(local_index);
         }
     }
@@ -142,7 +147,7 @@ impl LocalInits {
     /// This uninitializes all locals that have been initialized within it.
     pub fn pop_ctrl(&mut self, height: usize) {
         for local_index in self.inits.split_off(height) {
-            self.local_inits[local_index as usize] = false;
+            self.local_inits[local_index] = false;
         }
     }
 
@@ -152,7 +157,7 @@ impl LocalInits {
     pub fn clear(&mut self) {
         self.local_inits.clear();
         self.inits.clear();
-        self.first_non_default_local = u32::MAX;
+        self.first_non_default_local = LocalIdx(u32::MAX);
     }
 
     /// Returns `true` if `self` is empty.
@@ -173,7 +178,7 @@ pub(super) struct Locals {
     // optimize the theoretically common case where most functions don't have
     // many locals and don't need a full binary search in the entire local space
     // below.
-    first: Vec<ValType>,
+    first: IndexVec<LocalIdx, ValType>,
 
     // This is a "compressed" list of locals for this function. The list of
     // locals are represented as a list of tuples. The second element is the
@@ -185,7 +190,7 @@ pub(super) struct Locals {
     // `local.{get,set,tee}`. We do a binary search for the index desired, and
     // it either lies in a "hole" where the maximum index is specified later,
     // or it's at the end of the list meaning it's out of bounds.
-    all: Vec<(u32, ValType)>,
+    all: Vec<(LocalIdx, ValType)>,
 }
 
 /// A Wasm control flow block on the control flow stack during Wasm validation.
@@ -221,8 +226,8 @@ pub struct OperatorValidatorAllocations {
     control: Vec<Frame>,
     operands: Vec<MaybeType>,
     local_inits: LocalInits,
-    locals_first: Vec<ValType>,
-    locals_all: Vec<(u32, ValType)>,
+    locals_first: IndexVec<LocalIdx, ValType>,
+    locals_all: Vec<(LocalIdx, ValType)>,
 }
 
 /// Type storage within the validator.
@@ -360,7 +365,7 @@ impl OperatorValidator {
     /// The `resources` are used to learn about the function type underlying
     /// `ty`.
     pub fn new_func<T>(
-        ty: u32,
+        ty: TypeIdx,
         offset: usize,
         features: &WasmFeatures,
         resources: &T,
@@ -547,7 +552,10 @@ impl OperatorValidator {
                 self.local_inits.clear();
                 self.local_inits
             },
-            locals_first: clear(self.locals.first),
+            locals_first: {
+                self.locals.first.clear();
+                self.locals.first
+            },
             locals_all: clear(self.locals.all),
         }
     }
@@ -616,7 +624,7 @@ where
         Ok(())
     }
 
-    fn push_concrete_ref(&mut self, nullable: bool, type_index: u32) -> Result<()> {
+    fn push_concrete_ref(&mut self, nullable: bool, type_index: TypeIdx) -> Result<()> {
         let mut heap_ty = HeapType::Concrete(UnpackedIndex::Module(type_index));
 
         // Canonicalize the module index into an id.
@@ -630,7 +638,7 @@ where
         self.push_operand(ref_ty)
     }
 
-    fn pop_concrete_ref(&mut self, nullable: bool, type_index: u32) -> Result<MaybeType> {
+    fn pop_concrete_ref(&mut self, nullable: bool, type_index: TypeIdx) -> Result<MaybeType> {
         let mut heap_ty = HeapType::Concrete(UnpackedIndex::Module(type_index));
 
         // Canonicalize the module index into an id.
@@ -900,7 +908,7 @@ where
 
     /// Fetches the type for the local at `idx`, returning an error if it's out
     /// of bounds.
-    fn local(&self, idx: u32) -> Result<ValType> {
+    fn local(&self, idx: LocalIdx) -> Result<ValType> {
         match self.locals.get(idx) {
             Some(ty) => Ok(ty),
             None => bail!(
@@ -991,11 +999,11 @@ where
     ///
     /// Returns the type signature of the block that we're jumping to as well
     /// as the kind of block if the jump is valid. Otherwise returns an error.
-    fn jump(&self, depth: u32) -> Result<(BlockType, FrameKind)> {
+    fn jump(&self, depth: LabelIdx) -> Result<(BlockType, FrameKind)> {
         if self.control.is_empty() {
             return Err(self.err_beyond_end(self.offset));
         }
-        match (self.control.len() - 1).checked_sub(depth as usize) {
+        match (self.control.len() - 1).checked_sub(depth.0 as usize) {
             Some(i) => {
                 let frame = &self.control[i];
                 Ok((frame.block_type, frame.kind))
@@ -1006,7 +1014,7 @@ where
 
     /// Validates that `memory_index` is valid in this module, and returns the
     /// type of address used to index the memory specified.
-    fn check_memory_index(&self, memory_index: u32) -> Result<ValType> {
+    fn check_memory_index(&self, memory_index: MemIdx) -> Result<ValType> {
         match self.resources.memory_at(memory_index) {
             Some(mem) => Ok(mem.index_type()),
             None => bail!(self.offset, "unknown memory {}", memory_index),
@@ -1069,7 +1077,7 @@ where
 
     /// Returns the corresponding function type for the `func` item located at
     /// `function_index`.
-    fn type_of_function(&self, function_index: u32) -> Result<&'resources FuncType> {
+    fn type_of_function(&self, function_index: FuncIdx) -> Result<&'resources FuncType> {
         if let Some(type_index) = self.resources.type_index_of_function(function_index) {
             self.func_type_at(type_index)
         } else {
@@ -1128,7 +1136,7 @@ where
     /// or a subtype. This will then return the corresponding function type used
     /// for this call (to be used with `check_call_ty` or
     /// `check_return_call_ty`).
-    fn check_call_ref_ty(&mut self, type_index: u32) -> Result<&'resources FuncType> {
+    fn check_call_ref_ty(&mut self, type_index: TypeIdx) -> Result<&'resources FuncType> {
         let unpacked_index = UnpackedIndex::Module(type_index);
         let mut hty = HeapType::Concrete(unpacked_index);
         self.resources.check_heap_type(&mut hty, self.offset)?;
@@ -1148,8 +1156,8 @@ where
     /// `type_index` which must then be passed to `check_{call,return_call}_ty`.
     fn check_call_indirect_ty(
         &mut self,
-        type_index: u32,
-        table_index: u32,
+        type_index: TypeIdx,
+        table_index: TableIdx,
     ) -> Result<&'resources FuncType> {
         let tab = self.table_type_at(table_index)?;
         if !self
@@ -1335,7 +1343,7 @@ where
 
     /// Common helper for checking the types of globals accessed with atomic RMW
     /// instructions, which only allow `i32` and `i64`.
-    fn check_atomic_global_rmw_ty(&self, global_index: u32) -> Result<ValType> {
+    fn check_atomic_global_rmw_ty(&self, global_index: GlobalIdx) -> Result<ValType> {
         let ty = self.global_type_at(global_index)?.content_type;
         if !(ty == ValType::I32 || ty == ValType::I64) {
             bail!(
@@ -1351,8 +1359,8 @@ where
     fn check_struct_atomic_rmw(
         &mut self,
         op: &'static str,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     ) -> Result<()> {
         let field = self.mutable_struct_field_at(struct_type_index, field_index)?;
         let field_ty = match field.element_type {
@@ -1372,7 +1380,7 @@ where
 
     /// Common helper for checking the types of arrays accessed with atomic RMW
     /// instructions, which only allow `i32` and `i64`.
-    fn check_array_atomic_rmw(&mut self, op: &'static str, type_index: u32) -> Result<()> {
+    fn check_array_atomic_rmw(&mut self, op: &'static str, type_index: TypeIdx) -> Result<()> {
         let field = self.mutable_array_type_at(type_index)?;
         let elem_ty = match field.element_type {
             StorageType::Val(ValType::I32) => ValType::I32,
@@ -1390,7 +1398,7 @@ where
         Ok(())
     }
 
-    fn element_type_at(&self, elem_index: u32) -> Result<RefType> {
+    fn element_type_at(&self, elem_index: ElemIdx) -> Result<RefType> {
         match self.resources.element_type_at(elem_index) {
             Some(ty) => Ok(ty),
             None => bail!(
@@ -1401,13 +1409,13 @@ where
         }
     }
 
-    fn sub_type_at(&self, at: u32) -> Result<&'resources SubType> {
+    fn sub_type_at(&self, at: TypeIdx) -> Result<&'resources SubType> {
         self.resources
             .sub_type_at(at)
             .ok_or_else(|| format_err!(self.offset, "unknown type: type index out of bounds"))
     }
 
-    fn struct_type_at(&self, at: u32) -> Result<&'resources StructType> {
+    fn struct_type_at(&self, at: TypeIdx) -> Result<&'resources StructType> {
         let sub_ty = self.sub_type_at(at)?;
         if let CompositeInnerType::Struct(struct_ty) = &sub_ty.composite_type.inner {
             if self.inner.shared && !sub_ty.composite_type.shared {
@@ -1425,10 +1433,11 @@ where
         }
     }
 
-    fn struct_field_at(&self, struct_type_index: u32, field_index: u32) -> Result<FieldType> {
-        let field_index = usize::try_from(field_index).map_err(|_| {
-            BinaryReaderError::new("unknown field: field index out of bounds", self.offset)
-        })?;
+    fn struct_field_at(
+        &self,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
+    ) -> Result<FieldType> {
         self.struct_type_at(struct_type_index)?
             .fields
             .get(field_index)
@@ -1440,8 +1449,8 @@ where
 
     fn mutable_struct_field_at(
         &self,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     ) -> Result<FieldType> {
         let field = self.struct_field_at(struct_type_index, field_index)?;
         if !field.mutable {
@@ -1453,7 +1462,7 @@ where
         Ok(field)
     }
 
-    fn array_type_at(&self, at: u32) -> Result<FieldType> {
+    fn array_type_at(&self, at: TypeIdx) -> Result<FieldType> {
         let sub_ty = self.sub_type_at(at)?;
         if let CompositeInnerType::Array(array_ty) = &sub_ty.composite_type.inner {
             if self.inner.shared && !sub_ty.composite_type.shared {
@@ -1471,7 +1480,7 @@ where
         }
     }
 
-    fn mutable_array_type_at(&self, at: u32) -> Result<FieldType> {
+    fn mutable_array_type_at(&self, at: TypeIdx) -> Result<FieldType> {
         let field = self.array_type_at(at)?;
         if !field.mutable {
             bail!(
@@ -1482,7 +1491,7 @@ where
         Ok(field)
     }
 
-    fn func_type_at(&self, at: u32) -> Result<&'resources FuncType> {
+    fn func_type_at(&self, at: TypeIdx) -> Result<&'resources FuncType> {
         let sub_ty = self.sub_type_at(at)?;
         if let CompositeInnerType::Func(func_ty) = &sub_ty.composite_type.inner {
             if self.inner.shared && !sub_ty.composite_type.shared {
@@ -1500,7 +1509,7 @@ where
         }
     }
 
-    fn cont_type_at(&self, at: u32) -> Result<&ContType> {
+    fn cont_type_at(&self, at: TypeIdx) -> Result<&ContType> {
         let sub_ty = self.sub_type_at(at)?;
         if let CompositeInnerType::Cont(cont_ty) = &sub_ty.composite_type.inner {
             if self.inner.shared && !sub_ty.composite_type.shared {
@@ -1520,7 +1529,7 @@ where
         self.resources.sub_type_at_id(func_id).unwrap_func()
     }
 
-    fn tag_at(&self, at: u32) -> Result<&'resources FuncType> {
+    fn tag_at(&self, at: TagIdx) -> Result<&'resources FuncType> {
         self.resources
             .tag_at(at)
             .ok_or_else(|| format_err!(self.offset, "unknown tag {}: tag index out of bounds", at))
@@ -1529,7 +1538,7 @@ where
     // Similar to `tag_at`, but checks that the result type is
     // empty. This is necessary when enabling the stack switching
     // feature as it allows non-empty result types on tags.
-    fn exception_tag_at(&self, at: u32) -> Result<&'resources FuncType> {
+    fn exception_tag_at(&self, at: TagIdx) -> Result<&'resources FuncType> {
         let func_ty = self.tag_at(at)?;
         if func_ty.results().len() != 0 {
             bail!(
@@ -1540,7 +1549,7 @@ where
         Ok(func_ty)
     }
 
-    fn global_type_at(&self, at: u32) -> Result<GlobalType> {
+    fn global_type_at(&self, at: GlobalIdx) -> Result<GlobalType> {
         if let Some(ty) = self.resources.global_at(at) {
             if self.inner.shared && !ty.shared {
                 bail!(
@@ -1555,7 +1564,7 @@ where
     }
 
     /// Validates that the `table` is valid and returns the type it points to.
-    fn table_type_at(&self, table: u32) -> Result<TableType> {
+    fn table_type_at(&self, table: TableIdx) -> Result<TableType> {
         match self.resources.table_at(table) {
             Some(ty) => {
                 if self.inner.shared && !ty.shared {
@@ -1599,10 +1608,10 @@ where
         })
     }
 
-    fn check_data_segment(&self, data_index: u32) -> Result<()> {
+    fn check_data_segment(&self, data_index: DataIdx) -> Result<()> {
         match self.resources.data_count() {
             None => bail!(self.offset, "data count section required"),
-            Some(count) if data_index < count => Ok(()),
+            Some(count) if data_index.0 < count => Ok(()),
             Some(_) => bail!(self.offset, "unknown data segment {data_index}"),
         }
     }
@@ -1610,7 +1619,7 @@ where
     fn check_resume_table(
         &mut self,
         table: ResumeTable,
-        type_index: u32, // The type index annotation on the `resume` instruction, which `table` appears on.
+        type_index: TypeIdx, // The type index annotation on the `resume` instruction, which `table` appears on.
     ) -> Result<&'resources FuncType> {
         let cont_ty = self.cont_type_at(type_index)?;
         // ts1 -> ts2
@@ -1934,7 +1943,7 @@ where
         self.push_ctrl(FrameKind::TryTable, ty.ty)?;
         Ok(())
     }
-    fn visit_throw(&mut self, index: u32) -> Self::Output {
+    fn visit_throw(&mut self, index: TagIdx) -> Self::Output {
         // Check values associated with the exception.
         let ty = self.exception_tag_at(index)?;
         for ty in ty.clone().params().iter().rev() {
@@ -1971,7 +1980,7 @@ where
         }
         Ok(())
     }
-    fn visit_br(&mut self, relative_depth: u32) -> Self::Output {
+    fn visit_br(&mut self, relative_depth: LabelIdx) -> Self::Output {
         let (ty, kind) = self.jump(relative_depth)?;
         for ty in self.label_types(ty, kind)?.rev() {
             self.pop_operand(Some(ty))?;
@@ -1979,7 +1988,7 @@ where
         self.unreachable()?;
         Ok(())
     }
-    fn visit_br_if(&mut self, relative_depth: u32) -> Self::Output {
+    fn visit_br_if(&mut self, relative_depth: LabelIdx) -> Self::Output {
         self.pop_operand(Some(ValType::I32))?;
         let (ty, kind) = self.jump(relative_depth)?;
         let label_types = self.label_types(ty, kind)?;
@@ -2012,32 +2021,36 @@ where
         self.check_return()?;
         Ok(())
     }
-    fn visit_call(&mut self, function_index: u32) -> Self::Output {
+    fn visit_call(&mut self, function_index: FuncIdx) -> Self::Output {
         let ty = self.type_of_function(function_index)?;
         self.check_call_ty(ty)?;
         Ok(())
     }
-    fn visit_return_call(&mut self, function_index: u32) -> Self::Output {
+    fn visit_return_call(&mut self, function_index: FuncIdx) -> Self::Output {
         let ty = self.type_of_function(function_index)?;
         self.check_return_call_ty(ty)?;
         Ok(())
     }
-    fn visit_call_ref(&mut self, type_index: u32) -> Self::Output {
+    fn visit_call_ref(&mut self, type_index: TypeIdx) -> Self::Output {
         let ty = self.check_call_ref_ty(type_index)?;
         self.check_call_ty(ty)?;
         Ok(())
     }
-    fn visit_return_call_ref(&mut self, type_index: u32) -> Self::Output {
+    fn visit_return_call_ref(&mut self, type_index: TypeIdx) -> Self::Output {
         let ty = self.check_call_ref_ty(type_index)?;
         self.check_return_call_ty(ty)?;
         Ok(())
     }
-    fn visit_call_indirect(&mut self, type_index: u32, table_index: u32) -> Self::Output {
+    fn visit_call_indirect(&mut self, type_index: TypeIdx, table_index: TableIdx) -> Self::Output {
         let ty = self.check_call_indirect_ty(type_index, table_index)?;
         self.check_call_ty(ty)?;
         Ok(())
     }
-    fn visit_return_call_indirect(&mut self, type_index: u32, table_index: u32) -> Self::Output {
+    fn visit_return_call_indirect(
+        &mut self,
+        type_index: TypeIdx,
+        table_index: TableIdx,
+    ) -> Self::Output {
         let ty = self.check_call_indirect_ty(type_index, table_index)?;
         self.check_return_call_ty(ty)?;
         Ok(())
@@ -2092,7 +2105,7 @@ where
         self.push_operand(ty)?;
         Ok(())
     }
-    fn visit_local_get(&mut self, local_index: u32) -> Self::Output {
+    fn visit_local_get(&mut self, local_index: LocalIdx) -> Self::Output {
         let ty = self.local(local_index)?;
         debug_assert_type_indices_are_ids(ty);
         if self.local_inits.is_uninit(local_index) {
@@ -2101,26 +2114,30 @@ where
         self.push_operand(ty)?;
         Ok(())
     }
-    fn visit_local_set(&mut self, local_index: u32) -> Self::Output {
+    fn visit_local_set(&mut self, local_index: LocalIdx) -> Self::Output {
         let ty = self.local(local_index)?;
         self.pop_operand(Some(ty))?;
         self.local_inits.set_init(local_index);
         Ok(())
     }
-    fn visit_local_tee(&mut self, local_index: u32) -> Self::Output {
+    fn visit_local_tee(&mut self, local_index: LocalIdx) -> Self::Output {
         let expected_ty = self.local(local_index)?;
         self.pop_operand(Some(expected_ty))?;
         self.local_inits.set_init(local_index);
         self.push_operand(expected_ty)?;
         Ok(())
     }
-    fn visit_global_get(&mut self, global_index: u32) -> Self::Output {
+    fn visit_global_get(&mut self, global_index: GlobalIdx) -> Self::Output {
         let ty = self.global_type_at(global_index)?.content_type;
         debug_assert_type_indices_are_ids(ty);
         self.push_operand(ty)?;
         Ok(())
     }
-    fn visit_global_atomic_get(&mut self, _ordering: Ordering, global_index: u32) -> Self::Output {
+    fn visit_global_atomic_get(
+        &mut self,
+        _ordering: Ordering,
+        global_index: GlobalIdx,
+    ) -> Self::Output {
         self.visit_global_get(global_index)?;
         // No validation of `ordering` is needed because `global.atomic.get` can
         // be used on both shared and unshared globals. But we do need to limit
@@ -2132,7 +2149,7 @@ where
         }
         Ok(())
     }
-    fn visit_global_set(&mut self, global_index: u32) -> Self::Output {
+    fn visit_global_set(&mut self, global_index: GlobalIdx) -> Self::Output {
         let ty = self.global_type_at(global_index)?;
         if !ty.mutable {
             bail!(
@@ -2143,7 +2160,11 @@ where
         self.pop_operand(Some(ty.content_type))?;
         Ok(())
     }
-    fn visit_global_atomic_set(&mut self, _ordering: Ordering, global_index: u32) -> Self::Output {
+    fn visit_global_atomic_set(
+        &mut self,
+        _ordering: Ordering,
+        global_index: GlobalIdx,
+    ) -> Self::Output {
         self.visit_global_set(global_index)?;
         // No validation of `ordering` is needed because `global.atomic.get` can
         // be used on both shared and unshared globals.
@@ -2157,7 +2178,7 @@ where
     fn visit_global_atomic_rmw_add(
         &mut self,
         _ordering: crate::Ordering,
-        global_index: u32,
+        global_index: GlobalIdx,
     ) -> Self::Output {
         let ty = self.check_atomic_global_rmw_ty(global_index)?;
         self.check_unary_op(ty)
@@ -2165,7 +2186,7 @@ where
     fn visit_global_atomic_rmw_sub(
         &mut self,
         _ordering: crate::Ordering,
-        global_index: u32,
+        global_index: GlobalIdx,
     ) -> Self::Output {
         let ty = self.check_atomic_global_rmw_ty(global_index)?;
         self.check_unary_op(ty)
@@ -2173,7 +2194,7 @@ where
     fn visit_global_atomic_rmw_and(
         &mut self,
         _ordering: crate::Ordering,
-        global_index: u32,
+        global_index: GlobalIdx,
     ) -> Self::Output {
         let ty = self.check_atomic_global_rmw_ty(global_index)?;
         self.check_unary_op(ty)
@@ -2181,7 +2202,7 @@ where
     fn visit_global_atomic_rmw_or(
         &mut self,
         _ordering: crate::Ordering,
-        global_index: u32,
+        global_index: GlobalIdx,
     ) -> Self::Output {
         let ty = self.check_atomic_global_rmw_ty(global_index)?;
         self.check_unary_op(ty)
@@ -2189,7 +2210,7 @@ where
     fn visit_global_atomic_rmw_xor(
         &mut self,
         _ordering: crate::Ordering,
-        global_index: u32,
+        global_index: GlobalIdx,
     ) -> Self::Output {
         let ty = self.check_atomic_global_rmw_ty(global_index)?;
         self.check_unary_op(ty)
@@ -2197,7 +2218,7 @@ where
     fn visit_global_atomic_rmw_xchg(
         &mut self,
         _ordering: crate::Ordering,
-        global_index: u32,
+        global_index: GlobalIdx,
     ) -> Self::Output {
         let ty = self.global_type_at(global_index)?.content_type;
         if !(ty == ValType::I32
@@ -2211,7 +2232,7 @@ where
     fn visit_global_atomic_rmw_cmpxchg(
         &mut self,
         _ordering: crate::Ordering,
-        global_index: u32,
+        global_index: GlobalIdx,
     ) -> Self::Output {
         let ty = self.global_type_at(global_index)?.content_type;
         if !(ty == ValType::I32
@@ -2350,12 +2371,12 @@ where
         self.pop_operand(Some(ty))?;
         Ok(())
     }
-    fn visit_memory_size(&mut self, mem: u32) -> Self::Output {
+    fn visit_memory_size(&mut self, mem: MemIdx) -> Self::Output {
         let index_ty = self.check_memory_index(mem)?;
         self.push_operand(index_ty)?;
         Ok(())
     }
-    fn visit_memory_grow(&mut self, mem: u32) -> Self::Output {
+    fn visit_memory_grow(&mut self, mem: MemIdx) -> Self::Output {
         let index_ty = self.check_memory_index(mem)?;
         self.pop_operand(Some(index_ty))?;
         self.push_operand(index_ty)?;
@@ -3022,7 +3043,7 @@ where
         self.push_operand(ty)?;
         Ok(())
     }
-    fn visit_br_on_null(&mut self, relative_depth: u32) -> Self::Output {
+    fn visit_br_on_null(&mut self, relative_depth: LabelIdx) -> Self::Output {
         let ref_ty = self.pop_ref(None)?.as_non_null();
         let (ft, kind) = self.jump(relative_depth)?;
         let label_types = self.label_types(ft, kind)?;
@@ -3030,7 +3051,7 @@ where
         self.push_operand(ref_ty)?;
         Ok(())
     }
-    fn visit_br_on_non_null(&mut self, relative_depth: u32) -> Self::Output {
+    fn visit_br_on_non_null(&mut self, relative_depth: LabelIdx) -> Self::Output {
         let (ft, kind) = self.jump(relative_depth)?;
 
         let mut label_types = self.label_types(ft, kind)?;
@@ -3055,7 +3076,7 @@ where
         self.push_operand(ValType::I32)?;
         Ok(())
     }
-    fn visit_ref_func(&mut self, function_index: u32) -> Self::Output {
+    fn visit_ref_func(&mut self, function_index: FuncIdx) -> Self::Output {
         let type_id = match self.resources.type_id_of_function(function_index) {
             Some(id) => id,
             None => bail!(
@@ -3098,7 +3119,7 @@ where
         }
         self.push_operand(ValType::I32)
     }
-    fn visit_memory_init(&mut self, segment: u32, mem: u32) -> Self::Output {
+    fn visit_memory_init(&mut self, segment: DataIdx, mem: MemIdx) -> Self::Output {
         let ty = self.check_memory_index(mem)?;
         self.check_data_segment(segment)?;
         self.pop_operand(Some(ValType::I32))?;
@@ -3106,11 +3127,11 @@ where
         self.pop_operand(Some(ty))?;
         Ok(())
     }
-    fn visit_data_drop(&mut self, segment: u32) -> Self::Output {
+    fn visit_data_drop(&mut self, segment: DataIdx) -> Self::Output {
         self.check_data_segment(segment)?;
         Ok(())
     }
-    fn visit_memory_copy(&mut self, dst: u32, src: u32) -> Self::Output {
+    fn visit_memory_copy(&mut self, dst: MemIdx, src: MemIdx) -> Self::Output {
         let dst_ty = self.check_memory_index(dst)?;
         let src_ty = self.check_memory_index(src)?;
 
@@ -3127,20 +3148,20 @@ where
         self.pop_operand(Some(dst_ty))?;
         Ok(())
     }
-    fn visit_memory_fill(&mut self, mem: u32) -> Self::Output {
+    fn visit_memory_fill(&mut self, mem: MemIdx) -> Self::Output {
         let ty = self.check_memory_index(mem)?;
         self.pop_operand(Some(ty))?;
         self.pop_operand(Some(ValType::I32))?;
         self.pop_operand(Some(ty))?;
         Ok(())
     }
-    fn visit_memory_discard(&mut self, mem: u32) -> Self::Output {
+    fn visit_memory_discard(&mut self, mem: MemIdx) -> Self::Output {
         let ty = self.check_memory_index(mem)?;
         self.pop_operand(Some(ty))?;
         self.pop_operand(Some(ty))?;
         Ok(())
     }
-    fn visit_table_init(&mut self, segment: u32, table: u32) -> Self::Output {
+    fn visit_table_init(&mut self, segment: ElemIdx, table: TableIdx) -> Self::Output {
         let table = self.table_type_at(table)?;
         let segment_ty = self.element_type_at(segment)?;
         if !self
@@ -3154,11 +3175,11 @@ where
         self.pop_operand(Some(table.index_type()))?;
         Ok(())
     }
-    fn visit_elem_drop(&mut self, segment: u32) -> Self::Output {
+    fn visit_elem_drop(&mut self, segment: ElemIdx) -> Self::Output {
         self.element_type_at(segment)?;
         Ok(())
     }
-    fn visit_table_copy(&mut self, dst_table: u32, src_table: u32) -> Self::Output {
+    fn visit_table_copy(&mut self, dst_table: TableIdx, src_table: TableIdx) -> Self::Output {
         let src = self.table_type_at(src_table)?;
         let dst = self.table_type_at(dst_table)?;
         if !self.resources.is_subtype(
@@ -3181,14 +3202,14 @@ where
         self.pop_operand(Some(dst.index_type()))?;
         Ok(())
     }
-    fn visit_table_get(&mut self, table: u32) -> Self::Output {
+    fn visit_table_get(&mut self, table: TableIdx) -> Self::Output {
         let table = self.table_type_at(table)?;
         debug_assert_type_indices_are_ids(table.element_type.into());
         self.pop_operand(Some(table.index_type()))?;
         self.push_operand(table.element_type)?;
         Ok(())
     }
-    fn visit_table_atomic_get(&mut self, _ordering: Ordering, table: u32) -> Self::Output {
+    fn visit_table_atomic_get(&mut self, _ordering: Ordering, table: TableIdx) -> Self::Output {
         self.visit_table_get(table)?;
         // No validation of `ordering` is needed because `table.atomic.get` can
         // be used on both shared and unshared tables. But we do need to limit
@@ -3203,14 +3224,14 @@ where
         }
         Ok(())
     }
-    fn visit_table_set(&mut self, table: u32) -> Self::Output {
+    fn visit_table_set(&mut self, table: TableIdx) -> Self::Output {
         let table = self.table_type_at(table)?;
         debug_assert_type_indices_are_ids(table.element_type.into());
         self.pop_operand(Some(table.element_type.into()))?;
         self.pop_operand(Some(table.index_type()))?;
         Ok(())
     }
-    fn visit_table_atomic_set(&mut self, _ordering: Ordering, table: u32) -> Self::Output {
+    fn visit_table_atomic_set(&mut self, _ordering: Ordering, table: TableIdx) -> Self::Output {
         self.visit_table_set(table)?;
         // No validation of `ordering` is needed because `table.atomic.set` can
         // be used on both shared and unshared tables. But we do need to limit
@@ -3225,7 +3246,7 @@ where
         }
         Ok(())
     }
-    fn visit_table_grow(&mut self, table: u32) -> Self::Output {
+    fn visit_table_grow(&mut self, table: TableIdx) -> Self::Output {
         let table = self.table_type_at(table)?;
         debug_assert_type_indices_are_ids(table.element_type.into());
         self.pop_operand(Some(table.index_type()))?;
@@ -3233,12 +3254,12 @@ where
         self.push_operand(table.index_type())?;
         Ok(())
     }
-    fn visit_table_size(&mut self, table: u32) -> Self::Output {
+    fn visit_table_size(&mut self, table: TableIdx) -> Self::Output {
         let table = self.table_type_at(table)?;
         self.push_operand(table.index_type())?;
         Ok(())
     }
-    fn visit_table_fill(&mut self, table: u32) -> Self::Output {
+    fn visit_table_fill(&mut self, table: TableIdx) -> Self::Output {
         let table = self.table_type_at(table)?;
         debug_assert_type_indices_are_ids(table.element_type.into());
         self.pop_operand(Some(table.index_type()))?;
@@ -3246,7 +3267,11 @@ where
         self.pop_operand(Some(table.index_type()))?;
         Ok(())
     }
-    fn visit_table_atomic_rmw_xchg(&mut self, _ordering: Ordering, table: u32) -> Self::Output {
+    fn visit_table_atomic_rmw_xchg(
+        &mut self,
+        _ordering: Ordering,
+        table: TableIdx,
+    ) -> Self::Output {
         let table = self.table_type_at(table)?;
         let elem_ty = table.element_type.into();
         debug_assert_type_indices_are_ids(elem_ty);
@@ -3262,7 +3287,11 @@ where
         self.push_operand(elem_ty)?;
         Ok(())
     }
-    fn visit_table_atomic_rmw_cmpxchg(&mut self, _ordering: Ordering, table: u32) -> Self::Output {
+    fn visit_table_atomic_rmw_cmpxchg(
+        &mut self,
+        _ordering: Ordering,
+        table: TableIdx,
+    ) -> Self::Output {
         let table = self.table_type_at(table)?;
         let elem_ty = table.element_type.into();
         debug_assert_type_indices_are_ids(elem_ty);
@@ -3279,7 +3308,7 @@ where
         self.push_operand(elem_ty)?;
         Ok(())
     }
-    fn visit_struct_new(&mut self, struct_type_index: u32) -> Self::Output {
+    fn visit_struct_new(&mut self, struct_type_index: TypeIdx) -> Self::Output {
         let struct_ty = self.struct_type_at(struct_type_index)?;
         for ty in struct_ty.fields.iter().rev() {
             self.pop_operand(Some(ty.element_type.unpack()))?;
@@ -3287,7 +3316,7 @@ where
         self.push_concrete_ref(false, struct_type_index)?;
         Ok(())
     }
-    fn visit_struct_new_default(&mut self, type_index: u32) -> Self::Output {
+    fn visit_struct_new_default(&mut self, type_index: TypeIdx) -> Self::Output {
         let ty = self.struct_type_at(type_index)?;
         for field in ty.fields.iter() {
             let val_ty = field.element_type.unpack();
@@ -3301,7 +3330,11 @@ where
         self.push_concrete_ref(false, type_index)?;
         Ok(())
     }
-    fn visit_struct_get(&mut self, struct_type_index: u32, field_index: u32) -> Self::Output {
+    fn visit_struct_get(
+        &mut self,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
+    ) -> Self::Output {
         let field_ty = self.struct_field_at(struct_type_index, field_index)?;
         if field_ty.element_type.is_packed() {
             bail!(
@@ -3315,8 +3348,8 @@ where
     fn visit_struct_atomic_get(
         &mut self,
         _ordering: Ordering,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     ) -> Self::Output {
         self.visit_struct_get(struct_type_index, field_index)?;
         // The `atomic` version has some additional type restrictions.
@@ -3338,7 +3371,11 @@ where
         }
         Ok(())
     }
-    fn visit_struct_get_s(&mut self, struct_type_index: u32, field_index: u32) -> Self::Output {
+    fn visit_struct_get_s(
+        &mut self,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
+    ) -> Self::Output {
         let field_ty = self.struct_field_at(struct_type_index, field_index)?;
         if !field_ty.element_type.is_packed() {
             bail!(
@@ -3352,8 +3389,8 @@ where
     fn visit_struct_atomic_get_s(
         &mut self,
         _ordering: Ordering,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     ) -> Self::Output {
         self.visit_struct_get_s(struct_type_index, field_index)?;
         // This instruction has the same type restrictions as the non-`atomic` version.
@@ -3364,7 +3401,11 @@ where
         ));
         Ok(())
     }
-    fn visit_struct_get_u(&mut self, struct_type_index: u32, field_index: u32) -> Self::Output {
+    fn visit_struct_get_u(
+        &mut self,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
+    ) -> Self::Output {
         let field_ty = self.struct_field_at(struct_type_index, field_index)?;
         if !field_ty.element_type.is_packed() {
             bail!(
@@ -3378,8 +3419,8 @@ where
     fn visit_struct_atomic_get_u(
         &mut self,
         _ordering: Ordering,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     ) -> Self::Output {
         self.visit_struct_get_s(struct_type_index, field_index)?;
         // This instruction has the same type restrictions as the non-`atomic` version.
@@ -3390,7 +3431,11 @@ where
         ));
         Ok(())
     }
-    fn visit_struct_set(&mut self, struct_type_index: u32, field_index: u32) -> Self::Output {
+    fn visit_struct_set(
+        &mut self,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
+    ) -> Self::Output {
         let field_ty = self.mutable_struct_field_at(struct_type_index, field_index)?;
         self.pop_operand(Some(field_ty.element_type.unpack()))?;
         self.pop_concrete_ref(true, struct_type_index)?;
@@ -3399,8 +3444,8 @@ where
     fn visit_struct_atomic_set(
         &mut self,
         _ordering: Ordering,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     ) -> Self::Output {
         self.visit_struct_set(struct_type_index, field_index)?;
         // The `atomic` version has some additional type restrictions.
@@ -3425,48 +3470,48 @@ where
     fn visit_struct_atomic_rmw_add(
         &mut self,
         _ordering: Ordering,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     ) -> Self::Output {
         self.check_struct_atomic_rmw("add", struct_type_index, field_index)
     }
     fn visit_struct_atomic_rmw_sub(
         &mut self,
         _ordering: Ordering,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     ) -> Self::Output {
         self.check_struct_atomic_rmw("sub", struct_type_index, field_index)
     }
     fn visit_struct_atomic_rmw_and(
         &mut self,
         _ordering: Ordering,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     ) -> Self::Output {
         self.check_struct_atomic_rmw("and", struct_type_index, field_index)
     }
     fn visit_struct_atomic_rmw_or(
         &mut self,
         _ordering: Ordering,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     ) -> Self::Output {
         self.check_struct_atomic_rmw("or", struct_type_index, field_index)
     }
     fn visit_struct_atomic_rmw_xor(
         &mut self,
         _ordering: Ordering,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     ) -> Self::Output {
         self.check_struct_atomic_rmw("xor", struct_type_index, field_index)
     }
     fn visit_struct_atomic_rmw_xchg(
         &mut self,
         _ordering: Ordering,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     ) -> Self::Output {
         let field = self.mutable_struct_field_at(struct_type_index, field_index)?;
         let is_valid_type = match field.element_type {
@@ -3491,8 +3536,8 @@ where
     fn visit_struct_atomic_rmw_cmpxchg(
         &mut self,
         _ordering: Ordering,
-        struct_type_index: u32,
-        field_index: u32,
+        struct_type_index: TypeIdx,
+        field_index: FieldIdx,
     ) -> Self::Output {
         let field = self.mutable_struct_field_at(struct_type_index, field_index)?;
         let is_valid_type = match field.element_type {
@@ -3515,13 +3560,13 @@ where
         self.push_operand(field_ty)?;
         Ok(())
     }
-    fn visit_array_new(&mut self, type_index: u32) -> Self::Output {
+    fn visit_array_new(&mut self, type_index: TypeIdx) -> Self::Output {
         let array_ty = self.array_type_at(type_index)?;
         self.pop_operand(Some(ValType::I32))?;
         self.pop_operand(Some(array_ty.element_type.unpack()))?;
         self.push_concrete_ref(false, type_index)
     }
-    fn visit_array_new_default(&mut self, type_index: u32) -> Self::Output {
+    fn visit_array_new_default(&mut self, type_index: TypeIdx) -> Self::Output {
         let ty = self.array_type_at(type_index)?;
         let val_ty = ty.element_type.unpack();
         if !val_ty.is_defaultable() {
@@ -3533,7 +3578,7 @@ where
         self.pop_operand(Some(ValType::I32))?;
         self.push_concrete_ref(false, type_index)
     }
-    fn visit_array_new_fixed(&mut self, type_index: u32, n: u32) -> Self::Output {
+    fn visit_array_new_fixed(&mut self, type_index: TypeIdx, n: u32) -> Self::Output {
         let array_ty = self.array_type_at(type_index)?;
         let elem_ty = array_ty.element_type.unpack();
         for _ in 0..n {
@@ -3541,7 +3586,7 @@ where
         }
         self.push_concrete_ref(false, type_index)
     }
-    fn visit_array_new_data(&mut self, type_index: u32, data_index: u32) -> Self::Output {
+    fn visit_array_new_data(&mut self, type_index: TypeIdx, data_index: DataIdx) -> Self::Output {
         let array_ty = self.array_type_at(type_index)?;
         let elem_ty = array_ty.element_type.unpack();
         match elem_ty {
@@ -3556,7 +3601,7 @@ where
         self.pop_operand(Some(ValType::I32))?;
         self.push_concrete_ref(false, type_index)
     }
-    fn visit_array_new_elem(&mut self, type_index: u32, elem_index: u32) -> Self::Output {
+    fn visit_array_new_elem(&mut self, type_index: TypeIdx, elem_index: ElemIdx) -> Self::Output {
         let array_ty = self.array_type_at(type_index)?;
         let array_ref_ty = match array_ty.element_type.unpack() {
             ValType::Ref(rt) => rt,
@@ -3580,7 +3625,7 @@ where
         self.pop_operand(Some(ValType::I32))?;
         self.push_concrete_ref(false, type_index)
     }
-    fn visit_array_get(&mut self, type_index: u32) -> Self::Output {
+    fn visit_array_get(&mut self, type_index: TypeIdx) -> Self::Output {
         let array_ty = self.array_type_at(type_index)?;
         let elem_ty = array_ty.element_type;
         if elem_ty.is_packed() {
@@ -3593,7 +3638,7 @@ where
         self.pop_concrete_ref(true, type_index)?;
         self.push_operand(elem_ty.unpack())
     }
-    fn visit_array_atomic_get(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
+    fn visit_array_atomic_get(&mut self, _ordering: Ordering, type_index: TypeIdx) -> Self::Output {
         self.visit_array_get(type_index)?;
         // The `atomic` version has some additional type restrictions.
         let elem_ty = self.array_type_at(type_index)?.element_type;
@@ -3612,7 +3657,7 @@ where
         }
         Ok(())
     }
-    fn visit_array_get_s(&mut self, type_index: u32) -> Self::Output {
+    fn visit_array_get_s(&mut self, type_index: TypeIdx) -> Self::Output {
         let array_ty = self.array_type_at(type_index)?;
         let elem_ty = array_ty.element_type;
         if !elem_ty.is_packed() {
@@ -3625,7 +3670,11 @@ where
         self.pop_concrete_ref(true, type_index)?;
         self.push_operand(elem_ty.unpack())
     }
-    fn visit_array_atomic_get_s(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
+    fn visit_array_atomic_get_s(
+        &mut self,
+        _ordering: Ordering,
+        type_index: TypeIdx,
+    ) -> Self::Output {
         self.visit_array_get_s(type_index)?;
         // This instruction has the same type restrictions as the non-`atomic` version.
         debug_assert!(matches!(
@@ -3634,7 +3683,7 @@ where
         ));
         Ok(())
     }
-    fn visit_array_get_u(&mut self, type_index: u32) -> Self::Output {
+    fn visit_array_get_u(&mut self, type_index: TypeIdx) -> Self::Output {
         let array_ty = self.array_type_at(type_index)?;
         let elem_ty = array_ty.element_type;
         if !elem_ty.is_packed() {
@@ -3647,7 +3696,11 @@ where
         self.pop_concrete_ref(true, type_index)?;
         self.push_operand(elem_ty.unpack())
     }
-    fn visit_array_atomic_get_u(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
+    fn visit_array_atomic_get_u(
+        &mut self,
+        _ordering: Ordering,
+        type_index: TypeIdx,
+    ) -> Self::Output {
         self.visit_array_get_u(type_index)?;
         // This instruction has the same type restrictions as the non-`atomic` version.
         debug_assert!(matches!(
@@ -3656,14 +3709,14 @@ where
         ));
         Ok(())
     }
-    fn visit_array_set(&mut self, type_index: u32) -> Self::Output {
+    fn visit_array_set(&mut self, type_index: TypeIdx) -> Self::Output {
         let array_ty = self.mutable_array_type_at(type_index)?;
         self.pop_operand(Some(array_ty.element_type.unpack()))?;
         self.pop_operand(Some(ValType::I32))?;
         self.pop_concrete_ref(true, type_index)?;
         Ok(())
     }
-    fn visit_array_atomic_set(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
+    fn visit_array_atomic_set(&mut self, _ordering: Ordering, type_index: TypeIdx) -> Self::Output {
         self.visit_array_set(type_index)?;
         // The `atomic` version has some additional type restrictions.
         let elem_ty = self.array_type_at(type_index)?.element_type;
@@ -3686,7 +3739,7 @@ where
         self.pop_maybe_shared_ref(AbstractHeapType::Array)?;
         self.push_operand(ValType::I32)
     }
-    fn visit_array_fill(&mut self, array_type_index: u32) -> Self::Output {
+    fn visit_array_fill(&mut self, array_type_index: TypeIdx) -> Self::Output {
         let array_ty = self.mutable_array_type_at(array_type_index)?;
         self.pop_operand(Some(ValType::I32))?;
         self.pop_operand(Some(array_ty.element_type.unpack()))?;
@@ -3694,7 +3747,11 @@ where
         self.pop_concrete_ref(true, array_type_index)?;
         Ok(())
     }
-    fn visit_array_copy(&mut self, type_index_dst: u32, type_index_src: u32) -> Self::Output {
+    fn visit_array_copy(
+        &mut self,
+        type_index_dst: TypeIdx,
+        type_index_src: TypeIdx,
+    ) -> Self::Output {
         let array_ty_dst = self.mutable_array_type_at(type_index_dst)?;
         let array_ty_src = self.array_type_at(type_index_src)?;
         match (array_ty_dst.element_type, array_ty_src.element_type) {
@@ -3732,8 +3789,8 @@ where
     }
     fn visit_array_init_data(
         &mut self,
-        array_type_index: u32,
-        array_data_index: u32,
+        array_type_index: TypeIdx,
+        array_data_index: DataIdx,
     ) -> Self::Output {
         let array_ty = self.mutable_array_type_at(array_type_index)?;
         let val_ty = array_ty.element_type.unpack();
@@ -3751,7 +3808,7 @@ where
         self.pop_concrete_ref(true, array_type_index)?;
         Ok(())
     }
-    fn visit_array_init_elem(&mut self, type_index: u32, elem_index: u32) -> Self::Output {
+    fn visit_array_init_elem(&mut self, type_index: TypeIdx, elem_index: ElemIdx) -> Self::Output {
         let array_ty = self.mutable_array_type_at(type_index)?;
         let array_ref_ty = match array_ty.element_type.unpack() {
             ValType::Ref(rt) => rt,
@@ -3777,25 +3834,45 @@ where
         self.pop_concrete_ref(true, type_index)?;
         Ok(())
     }
-    fn visit_array_atomic_rmw_add(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
+    fn visit_array_atomic_rmw_add(
+        &mut self,
+        _ordering: Ordering,
+        type_index: TypeIdx,
+    ) -> Self::Output {
         self.check_array_atomic_rmw("add", type_index)
     }
-    fn visit_array_atomic_rmw_sub(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
+    fn visit_array_atomic_rmw_sub(
+        &mut self,
+        _ordering: Ordering,
+        type_index: TypeIdx,
+    ) -> Self::Output {
         self.check_array_atomic_rmw("sub", type_index)
     }
-    fn visit_array_atomic_rmw_and(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
+    fn visit_array_atomic_rmw_and(
+        &mut self,
+        _ordering: Ordering,
+        type_index: TypeIdx,
+    ) -> Self::Output {
         self.check_array_atomic_rmw("and", type_index)
     }
-    fn visit_array_atomic_rmw_or(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
+    fn visit_array_atomic_rmw_or(
+        &mut self,
+        _ordering: Ordering,
+        type_index: TypeIdx,
+    ) -> Self::Output {
         self.check_array_atomic_rmw("or", type_index)
     }
-    fn visit_array_atomic_rmw_xor(&mut self, _ordering: Ordering, type_index: u32) -> Self::Output {
+    fn visit_array_atomic_rmw_xor(
+        &mut self,
+        _ordering: Ordering,
+        type_index: TypeIdx,
+    ) -> Self::Output {
         self.check_array_atomic_rmw("xor", type_index)
     }
     fn visit_array_atomic_rmw_xchg(
         &mut self,
         _ordering: Ordering,
-        type_index: u32,
+        type_index: TypeIdx,
     ) -> Self::Output {
         let field = self.mutable_array_type_at(type_index)?;
         let is_valid_type = match field.element_type {
@@ -3821,7 +3898,7 @@ where
     fn visit_array_atomic_rmw_cmpxchg(
         &mut self,
         _ordering: Ordering,
-        type_index: u32,
+        type_index: TypeIdx,
     ) -> Self::Output {
         let field = self.mutable_array_type_at(type_index)?;
         let is_valid_type = match field.element_type {
@@ -3893,7 +3970,7 @@ where
     }
     fn visit_br_on_cast(
         &mut self,
-        relative_depth: u32,
+        relative_depth: LabelIdx,
         mut from_ref_type: RefType,
         mut to_ref_type: RefType,
     ) -> Self::Output {
@@ -3937,7 +4014,7 @@ where
     }
     fn visit_br_on_cast_fail(
         &mut self,
-        relative_depth: u32,
+        relative_depth: LabelIdx,
         mut from_ref_type: RefType,
         mut to_ref_type: RefType,
     ) -> Self::Output {
@@ -4004,7 +4081,7 @@ where
         self.push_ctrl(FrameKind::LegacyTry, ty)?;
         Ok(())
     }
-    fn visit_catch(&mut self, index: u32) -> Self::Output {
+    fn visit_catch(&mut self, index: TagIdx) -> Self::Output {
         let frame = self.pop_ctrl()?;
         if frame.kind != FrameKind::LegacyTry && frame.kind != FrameKind::LegacyCatch {
             bail!(self.offset, "catch found outside of an `try` block");
@@ -4026,7 +4103,7 @@ where
         }
         Ok(())
     }
-    fn visit_rethrow(&mut self, relative_depth: u32) -> Self::Output {
+    fn visit_rethrow(&mut self, relative_depth: LabelIdx) -> Self::Output {
         // This is not a jump, but we need to check that the `rethrow`
         // targets an actual `catch` to get the exception.
         let (_, kind) = self.jump(relative_depth)?;
@@ -4039,7 +4116,7 @@ where
         self.unreachable()?;
         Ok(())
     }
-    fn visit_delegate(&mut self, relative_depth: u32) -> Self::Output {
+    fn visit_delegate(&mut self, relative_depth: LabelIdx) -> Self::Output {
         let frame = self.pop_ctrl()?;
         if frame.kind != FrameKind::LegacyTry {
             bail!(self.offset, "delegate found outside of an `try` block");
@@ -4070,14 +4147,14 @@ where
         });
         Ok(())
     }
-    fn visit_cont_new(&mut self, type_index: u32) -> Self::Output {
+    fn visit_cont_new(&mut self, type_index: TypeIdx) -> Self::Output {
         let cont_ty = self.cont_type_at(type_index)?;
         let rt = RefType::concrete(true, cont_ty.0);
         self.pop_ref(Some(rt))?;
         self.push_concrete_ref(false, type_index)?;
         Ok(())
     }
-    fn visit_cont_bind(&mut self, argument_index: u32, result_index: u32) -> Self::Output {
+    fn visit_cont_bind(&mut self, argument_index: TypeIdx, result_index: TypeIdx) -> Self::Output {
         // [ts1 ts1'] -> [ts2]
         let arg_cont = self.cont_type_at(argument_index)?;
         let arg_func = self.func_type_of_cont_type(arg_cont);
@@ -4114,7 +4191,7 @@ where
 
         Ok(())
     }
-    fn visit_suspend(&mut self, tag_index: u32) -> Self::Output {
+    fn visit_suspend(&mut self, tag_index: TagIdx) -> Self::Output {
         let ft = &self.tag_at(tag_index)?;
         for &ty in ft.params().iter().rev() {
             self.pop_operand(Some(ty))?;
@@ -4124,7 +4201,7 @@ where
         }
         Ok(())
     }
-    fn visit_resume(&mut self, type_index: u32, table: ResumeTable) -> Self::Output {
+    fn visit_resume(&mut self, type_index: TypeIdx, table: ResumeTable) -> Self::Output {
         // [ts1] -> [ts2]
         let ft = self.check_resume_table(table, type_index)?;
         self.pop_concrete_ref(true, type_index)?;
@@ -4141,8 +4218,8 @@ where
     }
     fn visit_resume_throw(
         &mut self,
-        type_index: u32,
-        tag_index: u32,
+        type_index: TypeIdx,
+        tag_index: TagIdx,
         table: ResumeTable,
     ) -> Self::Output {
         // [ts1] -> [ts2]
@@ -4164,7 +4241,7 @@ where
         }
         Ok(())
     }
-    fn visit_switch(&mut self, type_index: u32, tag_index: u32) -> Self::Output {
+    fn visit_switch(&mut self, type_index: TypeIdx, tag_index: TagIdx) -> Self::Output {
         // [t1* (ref null $ct2)] -> [te1*]
         let cont_ty = self.cont_type_at(type_index)?;
         let func_ty = self.func_type_of_cont_type(cont_ty);
@@ -4307,7 +4384,7 @@ impl Locals {
             }
             self.first.push(ty);
         }
-        self.all.push((self.num_locals - 1, ty));
+        self.all.push((LocalIdx(self.num_locals - 1), ty));
         true
     }
 
@@ -4318,14 +4395,14 @@ impl Locals {
 
     /// Returns the type of the local variable at the given index if any.
     #[inline]
-    pub(super) fn get(&self, idx: u32) -> Option<ValType> {
-        match self.first.get(idx as usize) {
+    pub(super) fn get(&self, idx: LocalIdx) -> Option<ValType> {
+        match self.first.get(idx) {
             Some(ty) => Some(*ty),
             None => self.get_bsearch(idx),
         }
     }
 
-    fn get_bsearch(&self, idx: u32) -> Option<ValType> {
+    fn get_bsearch(&self, idx: LocalIdx) -> Option<ValType> {
         match self.all.binary_search_by_key(&idx, |(idx, _)| *idx) {
             // If this index would be inserted at the end of the list, then the
             // index is out of bounds and we return an error.
@@ -4345,18 +4422,18 @@ impl<R> ModuleArity for WasmProposalValidator<'_, '_, R>
 where
     R: WasmModuleResources,
 {
-    fn tag_type_arity(&self, at: u32) -> Option<(u32, u32)> {
+    fn tag_type_arity(&self, at: TagIdx) -> Option<(u32, u32)> {
         self.0
             .resources
             .tag_at(at)
             .map(|x| (x.params().len() as u32, x.results().len() as u32))
     }
 
-    fn type_index_of_function(&self, function_idx: u32) -> Option<u32> {
+    fn type_index_of_function(&self, function_idx: FuncIdx) -> Option<TypeIdx> {
         self.0.resources.type_index_of_function(function_idx)
     }
 
-    fn sub_type_at(&self, type_idx: u32) -> Option<&SubType> {
+    fn sub_type_at(&self, type_idx: TypeIdx) -> Option<&SubType> {
         Some(self.0.sub_type_at(type_idx).ok()?)
     }
 
@@ -4373,7 +4450,7 @@ where
         self.0.control.len() as u32
     }
 
-    fn label_block(&self, depth: u32) -> Option<(BlockType, FrameKind)> {
+    fn label_block(&self, depth: LabelIdx) -> Option<(BlockType, FrameKind)> {
         self.0.jump(depth).ok()
     }
 }

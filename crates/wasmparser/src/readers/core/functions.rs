@@ -13,5 +13,7 @@
  * limitations under the License.
  */
 
+use wasm_types::TypeIdx;
+
 /// A reader for the function section of a WebAssembly module.
-pub type FunctionSectionReader<'a> = crate::SectionLimited<'a, u32>;
+pub type FunctionSectionReader<'a> = crate::SectionLimited<'a, TypeIdx>;

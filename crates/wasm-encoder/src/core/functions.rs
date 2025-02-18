@@ -1,5 +1,6 @@
 use crate::{encode_section, Encode, Section, SectionId};
 use alloc::vec::Vec;
+use wasm_types::TypeIdx;
 
 /// An encoder for the function section of WebAssembly modules.
 ///
@@ -7,9 +8,10 @@ use alloc::vec::Vec;
 ///
 /// ```
 /// use wasm_encoder::{Module, FunctionSection, ValType};
+/// use wasm_types::TypeIdx;
 ///
 /// let mut functions = FunctionSection::new();
-/// let type_index = 0;
+/// let type_index = TypeIdx(0);
 /// functions.function(type_index);
 ///
 /// let mut module = Module::new();
@@ -44,7 +46,7 @@ impl FunctionSection {
     }
 
     /// Define a function in a module's function section.
-    pub fn function(&mut self, type_index: u32) -> &mut Self {
+    pub fn function(&mut self, type_index: TypeIdx) -> &mut Self {
         type_index.encode(&mut self.bytes);
         self.num_added += 1;
         self

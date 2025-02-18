@@ -21,6 +21,8 @@ use crate::{
 use crate::{prelude::*, CompositeInnerType};
 use alloc::sync::Arc;
 use core::mem;
+use index_vec::{Idx, IndexVec};
+use wasm_types::{ElemIdx, FuncIdx, GlobalIdx, MemIdx, TableIdx, TagIdx, TypeIdx};
 
 // Section order for WebAssembly modules.
 //
@@ -108,7 +110,7 @@ impl ModuleState {
         Ok(())
     }
 
-    pub fn next_code_index_and_type(&mut self, offset: usize) -> Result<(u32, u32)> {
+    pub fn next_code_index_and_type(&mut self, offset: usize) -> Result<(FuncIdx, TypeIdx)> {
         let index = self
             .code_section_index
             .get_or_insert(self.module.num_imported_functions as usize);
@@ -123,7 +125,7 @@ impl ModuleState {
         let ty = self.module.functions[*index];
         *index += 1;
 
-        Ok(((*index - 1) as u32, ty))
+        Ok((FuncIdx::from_usize(*index - 1), ty))
     }
 
     pub fn add_global(
@@ -212,7 +214,9 @@ impl ModuleState {
                 table_index,
                 offset_expr,
             } => {
-                let table = self.module.table_at(table_index.unwrap_or(0), offset)?;
+                let table = self
+                    .module
+                    .table_at(table_index.unwrap_or(TableIdx(0)), offset)?;
                 if !types.reftype_is_subtype(element_ty, table.element_type) {
                     return Err(BinaryReaderError::new(
                         format!(
@@ -360,11 +364,11 @@ impl ModuleState {
                 }
             }
 
-            fn validate_global(&mut self, index: u32) -> Result<()> {
+            fn validate_global(&mut self, index: GlobalIdx) -> Result<()> {
                 let module = &self.resources.module;
                 let global = module.global_at(index, self.offset)?;
 
-                if index >= module.num_imported_globals && !self.features.gc() {
+                if index.0 >= module.num_imported_globals && !self.features.gc() {
                     return Err(BinaryReaderError::new(
                         "constant expression required: global.get of locally defined global",
                         self.offset,
@@ -396,7 +400,7 @@ impl ModuleState {
             // boolean here is used to track this and will cause a panic
             // (aka a fuzz bug) if we somehow forget to emit an error somewhere
             // else.
-            fn insert_ref_func(&mut self, index: u32) {
+            fn insert_ref_func(&mut self, index: FuncIdx) {
                 if self.order == Order::Data {
                     self.uninserted_funcref = true;
                 } else {
@@ -552,16 +556,16 @@ pub(crate) struct Module {
     // enable parallel validation of functions.
     pub snapshot: Option<Arc<TypeList>>,
     // Stores indexes into the validator's types list.
-    pub types: Vec<CoreTypeId>,
-    pub tables: Vec<TableType>,
-    pub memories: Vec<MemoryType>,
-    pub globals: Vec<GlobalType>,
-    pub element_types: Vec<RefType>,
+    pub types: IndexVec<TypeIdx, CoreTypeId>,
+    pub tables: IndexVec<TableIdx, TableType>,
+    pub memories: IndexVec<MemIdx, MemoryType>,
+    pub globals: IndexVec<GlobalIdx, GlobalType>,
+    pub element_types: IndexVec<ElemIdx, RefType>,
     pub data_count: Option<u32>,
     // Stores indexes into `types`.
-    pub functions: Vec<u32>,
-    pub tags: Vec<CoreTypeId>,
-    pub function_references: Set<u32>,
+    pub functions: IndexVec<FuncIdx, TypeIdx>,
+    pub tags: IndexVec<TagIdx, CoreTypeId>,
+    pub function_references: Set<FuncIdx>,
     pub imports: IndexMap<(String, String), Vec<EntityType>>,
     pub exports: IndexMap<String, EntityType>,
     pub type_size: u32,
@@ -614,7 +618,7 @@ impl Module {
                 (self.memories.len(), self.max_memories(features), "memories")
             }
             TypeRef::Tag(ty) => {
-                self.tags.push(self.types[ty.func_type_idx as usize]);
+                self.tags.push(self.types[ty.func_type_idx]);
                 (self.tags.len(), MAX_WASM_TAGS, "tags")
             }
             TypeRef::Global(ty) => {
@@ -677,7 +681,12 @@ impl Module {
         }
     }
 
-    pub fn add_function(&mut self, type_index: u32, types: &TypeList, offset: usize) -> Result<()> {
+    pub fn add_function(
+        &mut self,
+        type_index: TypeIdx,
+        types: &TypeList,
+        offset: usize,
+    ) -> Result<()> {
         self.func_type_at(type_index, types, offset)?;
         self.functions.push(type_index);
         Ok(())
@@ -702,18 +711,23 @@ impl Module {
         offset: usize,
     ) -> Result<()> {
         self.check_tag_type(&ty, features, types, offset)?;
-        self.tags.push(self.types[ty.func_type_idx as usize]);
+        self.tags.push(self.types[ty.func_type_idx]);
         Ok(())
     }
 
-    fn sub_type_at<'a>(&self, types: &'a TypeList, idx: u32, offset: usize) -> Result<&'a SubType> {
+    fn sub_type_at<'a>(
+        &self,
+        types: &'a TypeList,
+        idx: TypeIdx,
+        offset: usize,
+    ) -> Result<&'a SubType> {
         let id = self.type_id_at(idx, offset)?;
         Ok(&types[id])
     }
 
     fn func_type_at<'a>(
         &self,
-        type_index: u32,
+        type_index: TypeIdx,
         types: &'a TypeList,
         offset: usize,
     ) -> Result<&'a FuncType> {
@@ -737,7 +751,7 @@ impl Module {
         Ok(match type_ref {
             TypeRef::Func(type_index) => {
                 self.func_type_at(*type_index, types, offset)?;
-                EntityType::Func(self.types[*type_index as usize])
+                EntityType::Func(self.types[*type_index])
             }
             TypeRef::Table(t) => {
                 self.check_table_type(t, features, types, offset)?;
@@ -749,7 +763,7 @@ impl Module {
             }
             TypeRef::Tag(t) => {
                 self.check_tag_type(t, features, types, offset)?;
-                EntityType::Tag(self.types[t.func_type_idx as usize])
+                EntityType::Tag(self.types[t.func_type_idx])
             }
             TypeRef::Global(t) => {
                 self.check_global_type(t, features, types, offset)?;
@@ -1044,35 +1058,36 @@ impl Module {
         Ok(match export.kind {
             ExternalKind::Func => {
                 check("function", export.index, self.functions.len())?;
-                self.function_references.insert(export.index);
-                EntityType::Func(self.types[self.functions[export.index as usize] as usize])
+                let idx = FuncIdx(export.index);
+                self.function_references.insert(idx);
+                EntityType::Func(self.types[self.functions[idx]])
             }
             ExternalKind::Table => {
                 check("table", export.index, self.tables.len())?;
-                EntityType::Table(self.tables[export.index as usize])
+                EntityType::Table(self.tables[TableIdx(export.index)])
             }
             ExternalKind::Memory => {
                 check("memory", export.index, self.memories.len())?;
-                EntityType::Memory(self.memories[export.index as usize])
+                EntityType::Memory(self.memories[MemIdx(export.index)])
             }
             ExternalKind::Global => {
                 check("global", export.index, self.globals.len())?;
-                EntityType::Global(self.globals[export.index as usize])
+                EntityType::Global(self.globals[GlobalIdx(export.index)])
             }
             ExternalKind::Tag => {
                 check("tag", export.index, self.tags.len())?;
-                EntityType::Tag(self.tags[export.index as usize])
+                EntityType::Tag(self.tags[TagIdx(export.index)])
             }
         })
     }
 
     pub fn get_func_type<'a>(
         &self,
-        func_idx: u32,
+        func_idx: FuncIdx,
         types: &'a TypeList,
         offset: usize,
     ) -> Result<&'a FuncType> {
-        match self.functions.get(func_idx as usize) {
+        match self.functions.get(func_idx) {
             Some(idx) => self.func_type_at(*idx, types, offset),
             None => Err(format_err!(
                 offset,
@@ -1081,8 +1096,8 @@ impl Module {
         }
     }
 
-    fn global_at(&self, idx: u32, offset: usize) -> Result<&GlobalType> {
-        match self.globals.get(idx as usize) {
+    fn global_at(&self, idx: GlobalIdx, offset: usize) -> Result<&GlobalType> {
+        match self.globals.get(idx) {
             Some(t) => Ok(t),
             None => Err(format_err!(
                 offset,
@@ -1091,8 +1106,8 @@ impl Module {
         }
     }
 
-    fn table_at(&self, idx: u32, offset: usize) -> Result<&TableType> {
-        match self.tables.get(idx as usize) {
+    fn table_at(&self, idx: TableIdx, offset: usize) -> Result<&TableType> {
+        match self.tables.get(idx) {
             Some(t) => Ok(t),
             None => Err(format_err!(
                 offset,
@@ -1101,8 +1116,8 @@ impl Module {
         }
     }
 
-    fn memory_at(&self, idx: u32, offset: usize) -> Result<&MemoryType> {
-        match self.memories.get(idx as usize) {
+    fn memory_at(&self, idx: MemIdx, offset: usize) -> Result<&MemoryType> {
+        match self.memories.get(idx) {
             Some(t) => Ok(t),
             None => Err(format_err!(
                 offset,
@@ -1117,9 +1132,9 @@ impl InternRecGroup for Module {
         self.types.push(id);
     }
 
-    fn type_id_at(&self, idx: u32, offset: usize) -> Result<CoreTypeId> {
+    fn type_id_at(&self, idx: TypeIdx, offset: usize) -> Result<CoreTypeId> {
         self.types
-            .get(idx as usize)
+            .get(idx)
             .copied()
             .ok_or_else(|| format_err!(offset, "unknown type {idx}: type index out of bounds"))
     }
@@ -1157,25 +1172,25 @@ struct OperatorValidatorResources<'a> {
 }
 
 impl WasmModuleResources for OperatorValidatorResources<'_> {
-    fn table_at(&self, at: u32) -> Option<TableType> {
-        self.module.tables.get(at as usize).cloned()
+    fn table_at(&self, at: TableIdx) -> Option<TableType> {
+        self.module.tables.get(at).cloned()
     }
 
-    fn memory_at(&self, at: u32) -> Option<MemoryType> {
-        self.module.memories.get(at as usize).cloned()
+    fn memory_at(&self, at: MemIdx) -> Option<MemoryType> {
+        self.module.memories.get(at).cloned()
     }
 
-    fn tag_at(&self, at: u32) -> Option<&FuncType> {
-        let type_id = *self.module.tags.get(at as usize)?;
+    fn tag_at(&self, at: TagIdx) -> Option<&FuncType> {
+        let type_id = *self.module.tags.get(at)?;
         Some(self.types[type_id].unwrap_func())
     }
 
-    fn global_at(&self, at: u32) -> Option<GlobalType> {
-        self.module.globals.get(at as usize).cloned()
+    fn global_at(&self, at: GlobalIdx) -> Option<GlobalType> {
+        self.module.globals.get(at).cloned()
     }
 
-    fn sub_type_at(&self, at: u32) -> Option<&SubType> {
-        let id = *self.module.types.get(at as usize)?;
+    fn sub_type_at(&self, at: TypeIdx) -> Option<&SubType> {
+        let id = *self.module.types.get(at)?;
         Some(&self.types[id])
     }
 
@@ -1183,13 +1198,13 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
         &self.types[at]
     }
 
-    fn type_id_of_function(&self, at: u32) -> Option<CoreTypeId> {
-        let type_index = self.module.functions.get(at as usize)?;
-        self.module.types.get(*type_index as usize).copied()
+    fn type_id_of_function(&self, at: FuncIdx) -> Option<CoreTypeId> {
+        let type_index = self.module.functions.get(at)?;
+        self.module.types.get(*type_index).copied()
     }
 
-    fn type_index_of_function(&self, at: u32) -> Option<u32> {
-        self.module.functions.get(at as usize).copied()
+    fn type_index_of_function(&self, at: FuncIdx) -> Option<TypeIdx> {
+        self.module.functions.get(at).copied()
     }
 
     fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<()> {
@@ -1200,8 +1215,8 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
         self.types.top_type(heap_type)
     }
 
-    fn element_type_at(&self, at: u32) -> Option<RefType> {
-        self.module.element_types.get(at as usize).cloned()
+    fn element_type_at(&self, at: ElemIdx) -> Option<RefType> {
+        self.module.element_types.get(at).cloned()
     }
 
     fn is_subtype(&self, a: ValType, b: ValType) -> bool {
@@ -1220,7 +1235,7 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
         self.module.data_count
     }
 
-    fn is_function_referenced(&self, idx: u32) -> bool {
+    fn is_function_referenced(&self, idx: FuncIdx) -> bool {
         self.module.function_references.contains(&idx)
     }
 }
@@ -1231,16 +1246,16 @@ impl WasmModuleResources for OperatorValidatorResources<'_> {
 pub struct ValidatorResources(pub(crate) Arc<Module>);
 
 impl WasmModuleResources for ValidatorResources {
-    fn table_at(&self, at: u32) -> Option<TableType> {
-        self.0.tables.get(at as usize).cloned()
+    fn table_at(&self, at: TableIdx) -> Option<TableType> {
+        self.0.tables.get(at).cloned()
     }
 
-    fn memory_at(&self, at: u32) -> Option<MemoryType> {
-        self.0.memories.get(at as usize).cloned()
+    fn memory_at(&self, at: MemIdx) -> Option<MemoryType> {
+        self.0.memories.get(at).cloned()
     }
 
-    fn tag_at(&self, at: u32) -> Option<&FuncType> {
-        let id = *self.0.tags.get(at as usize)?;
+    fn tag_at(&self, at: TagIdx) -> Option<&FuncType> {
+        let id = *self.0.tags.get(at)?;
         let types = self.0.snapshot.as_ref().unwrap();
         match &types[id].composite_type.inner {
             CompositeInnerType::Func(f) => Some(f),
@@ -1248,12 +1263,12 @@ impl WasmModuleResources for ValidatorResources {
         }
     }
 
-    fn global_at(&self, at: u32) -> Option<GlobalType> {
-        self.0.globals.get(at as usize).cloned()
+    fn global_at(&self, at: GlobalIdx) -> Option<GlobalType> {
+        self.0.globals.get(at).cloned()
     }
 
-    fn sub_type_at(&self, at: u32) -> Option<&SubType> {
-        let id = *self.0.types.get(at as usize)?;
+    fn sub_type_at(&self, at: TypeIdx) -> Option<&SubType> {
+        let id = *self.0.types.get(at)?;
         let types = self.0.snapshot.as_ref().unwrap();
         Some(&types[id])
     }
@@ -1263,13 +1278,13 @@ impl WasmModuleResources for ValidatorResources {
         &types[at]
     }
 
-    fn type_id_of_function(&self, at: u32) -> Option<CoreTypeId> {
-        let type_index = *self.0.functions.get(at as usize)?;
-        self.0.types.get(type_index as usize).copied()
+    fn type_id_of_function(&self, at: FuncIdx) -> Option<CoreTypeId> {
+        let type_index = *self.0.functions.get(at)?;
+        self.0.types.get(type_index).copied()
     }
 
-    fn type_index_of_function(&self, at: u32) -> Option<u32> {
-        self.0.functions.get(at as usize).copied()
+    fn type_index_of_function(&self, at: FuncIdx) -> Option<TypeIdx> {
+        self.0.functions.get(at).copied()
     }
 
     fn check_heap_type(&self, t: &mut HeapType, offset: usize) -> Result<()> {
@@ -1280,8 +1295,8 @@ impl WasmModuleResources for ValidatorResources {
         self.0.snapshot.as_ref().unwrap().top_type(heap_type)
     }
 
-    fn element_type_at(&self, at: u32) -> Option<RefType> {
-        self.0.element_types.get(at as usize).cloned()
+    fn element_type_at(&self, at: ElemIdx) -> Option<RefType> {
+        self.0.element_types.get(at).cloned()
     }
 
     fn is_subtype(&self, a: ValType, b: ValType) -> bool {
@@ -1300,7 +1315,7 @@ impl WasmModuleResources for ValidatorResources {
         self.0.data_count
     }
 
-    fn is_function_referenced(&self, idx: u32) -> bool {
+    fn is_function_referenced(&self, idx: FuncIdx) -> bool {
         self.0.function_references.contains(&idx)
     }
 }

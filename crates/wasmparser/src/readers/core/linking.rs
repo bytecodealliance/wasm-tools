@@ -3,6 +3,7 @@ use crate::{
     BinaryReader, BinaryReaderError, FromReader, Result, SectionLimited, Subsection, Subsections,
 };
 use core::ops::Range;
+use wasm_types::{FuncIdx, GlobalIdx, TableIdx};
 
 bitflags::bitflags! {
     /// Flags for WebAssembly symbols.
@@ -229,7 +230,7 @@ pub enum SymbolInfo<'a> {
         /// The flags for the symbol.
         flags: SymbolFlags,
         /// The index of the function corresponding to this symbol.
-        index: u32,
+        index: FuncIdx,
         /// The name for the function, if it is defined or uses an explicit name.
         name: Option<&'a str>,
     },
@@ -247,7 +248,7 @@ pub enum SymbolInfo<'a> {
         /// The flags for the symbol.
         flags: SymbolFlags,
         /// The index of the global corresponding to this symbol.
-        index: u32,
+        index: GlobalIdx,
         /// The name for the global, if it is defined or uses an explicit name.
         name: Option<&'a str>,
     },
@@ -272,7 +273,7 @@ pub enum SymbolInfo<'a> {
         /// The flags for the symbol.
         flags: SymbolFlags,
         /// The index of the table corresponding to this symbol.
-        index: u32,
+        index: TableIdx,
         /// The name for the table, if it is defined or uses an explicit name.
         name: Option<&'a str>,
     },
@@ -303,10 +304,22 @@ impl<'a> FromReader<'a> for SymbolInfo<'a> {
                     false => None,
                 };
                 Ok(match kind {
-                    SYMTAB_FUNCTION => Self::Func { flags, index, name },
-                    SYMTAB_GLOBAL => Self::Global { flags, index, name },
+                    SYMTAB_FUNCTION => Self::Func {
+                        flags,
+                        index: FuncIdx(index),
+                        name,
+                    },
+                    SYMTAB_GLOBAL => Self::Global {
+                        flags,
+                        index: GlobalIdx(index),
+                        name,
+                    },
                     SYMTAB_EVENT => Self::Event { flags, index, name },
-                    SYMTAB_TABLE => Self::Table { flags, index, name },
+                    SYMTAB_TABLE => Self::Table {
+                        flags,
+                        index: TableIdx(index),
+                        name,
+                    },
                     _ => unreachable!(),
                 })
             }

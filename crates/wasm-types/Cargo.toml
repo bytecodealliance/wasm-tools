@@ -1,0 +1,17 @@
+[package]
+name = "wasm-types"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = """
+Basic WebAssembly types.
+"""
+homepage = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-types"
+repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-types"
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+index_vec.workspace = true

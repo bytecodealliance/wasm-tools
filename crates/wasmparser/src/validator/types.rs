@@ -15,6 +15,8 @@ use crate::{FuncType, HeapType, ValidatorId};
 use alloc::sync::Arc;
 use core::ops::{Deref, DerefMut, Index, Range};
 use core::{hash::Hash, mem};
+use index_vec::Idx;
+use wasm_types::{ElemIdx, FuncIdx, GlobalIdx, MemIdx, TableIdx, TagIdx, TypeIdx};
 
 /// A trait shared by all type identifiers.
 ///
@@ -104,7 +106,7 @@ pub(crate) use define_type_id;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(C)]
 pub struct CoreTypeId {
-    index: u32,
+    index: TypeIdx,
 }
 
 #[test]
@@ -116,7 +118,9 @@ impl TypeIdentifier for CoreTypeId {
     type Data = SubType;
 
     fn from_index(index: u32) -> Self {
-        CoreTypeId { index }
+        CoreTypeId {
+            index: TypeIdx(index),
+        }
     }
 
     fn list(types: &TypeList) -> &SnapshotList<Self::Data> {
@@ -128,7 +132,7 @@ impl TypeIdentifier for CoreTypeId {
     }
 
     fn index(&self) -> usize {
-        usize::try_from(self.index).unwrap()
+        self.index.index()
     }
 }
 
@@ -358,7 +362,7 @@ impl<'a> TypesRef<'a> {
     /// Get the types within a rec group.
     pub fn rec_group_elements(&self, id: RecGroupId) -> impl ExactSizeIterator<Item = CoreTypeId> {
         let range = &self.list.rec_group_elements[id];
-        (range.start.index..range.end.index).map(|index| CoreTypeId { index })
+        (range.start.index.0..range.end.index.0).map(|index| CoreTypeId::from_index(index))
     }
 
     /// Get the super type of the given type id, if any.
@@ -376,9 +380,9 @@ impl<'a> TypesRef<'a> {
     /// # Panics
     ///
     /// This will panic if the `index` provided is out of bounds.
-    pub fn core_type_at_in_module(&self, index: u32) -> CoreTypeId {
+    pub fn core_type_at_in_module(&self, index: TypeIdx) -> CoreTypeId {
         match &self.kind {
-            TypesRefKind::Module(module) => module.types[index as usize].into(),
+            TypesRefKind::Module(module) => module.types[index].into(),
             #[cfg(feature = "component-model")]
             TypesRefKind::Component(_) => panic!("use `core_type_at_in_component` instead"),
         }
@@ -401,13 +405,13 @@ impl<'a> TypesRef<'a> {
     /// # Panics
     ///
     /// This will panic if the `index` provided is out of bounds.
-    pub fn table_at(&self, index: u32) -> TableType {
+    pub fn table_at(&self, index: TableIdx) -> TableType {
         let tables = match &self.kind {
             TypesRefKind::Module(module) => &module.tables,
             #[cfg(feature = "component-model")]
             TypesRefKind::Component(component) => &component.core_tables,
         };
-        tables[index as usize]
+        tables[index]
     }
 
     /// Returns the number of tables defined so far.
@@ -424,14 +428,14 @@ impl<'a> TypesRef<'a> {
     /// # Panics
     ///
     /// This will panic if the `index` provided is out of bounds.
-    pub fn memory_at(&self, index: u32) -> MemoryType {
+    pub fn memory_at(&self, index: MemIdx) -> MemoryType {
         let memories = match &self.kind {
             TypesRefKind::Module(module) => &module.memories,
             #[cfg(feature = "component-model")]
             TypesRefKind::Component(component) => &component.core_memories,
         };
 
-        memories[index as usize]
+        memories[index]
     }
 
     /// Returns the number of memories defined so far.
@@ -448,14 +452,14 @@ impl<'a> TypesRef<'a> {
     /// # Panics
     ///
     /// This will panic if the `index` provided is out of bounds.
-    pub fn global_at(&self, index: u32) -> GlobalType {
+    pub fn global_at(&self, index: GlobalIdx) -> GlobalType {
         let globals = match &self.kind {
             TypesRefKind::Module(module) => &module.globals,
             #[cfg(feature = "component-model")]
             TypesRefKind::Component(component) => &component.core_globals,
         };
 
-        globals[index as usize]
+        globals[index]
     }
 
     /// Returns the number of globals defined so far.
@@ -472,13 +476,13 @@ impl<'a> TypesRef<'a> {
     /// # Panics
     ///
     /// This will panic if the `index` provided is out of bounds.
-    pub fn tag_at(&self, index: u32) -> CoreTypeId {
+    pub fn tag_at(&self, index: TagIdx) -> CoreTypeId {
         let tags = match &self.kind {
             TypesRefKind::Module(module) => &module.tags,
             #[cfg(feature = "component-model")]
             TypesRefKind::Component(component) => &component.core_tags,
         };
-        tags[index as usize]
+        tags[index]
     }
 
     /// Returns the number of tags defined so far.
@@ -495,11 +499,11 @@ impl<'a> TypesRef<'a> {
     /// # Panics
     ///
     /// This will panic if the `index` provided is out of bounds.
-    pub fn core_function_at(&self, index: u32) -> CoreTypeId {
+    pub fn core_function_at(&self, index: FuncIdx) -> CoreTypeId {
         match &self.kind {
-            TypesRefKind::Module(module) => module.types[module.functions[index as usize] as usize],
+            TypesRefKind::Module(module) => module.types[module.functions[index]],
             #[cfg(feature = "component-model")]
-            TypesRefKind::Component(component) => component.core_funcs[index as usize],
+            TypesRefKind::Component(component) => component.core_funcs[index],
         }
     }
 
@@ -520,9 +524,9 @@ impl<'a> TypesRef<'a> {
     /// # Panics
     ///
     /// This will panic if the `index` provided is out of bounds.
-    pub fn element_at(&self, index: u32) -> RefType {
+    pub fn element_at(&self, index: ElemIdx) -> RefType {
         match &self.kind {
-            TypesRefKind::Module(module) => module.element_types[index as usize],
+            TypesRefKind::Module(module) => module.element_types[index],
             #[cfg(feature = "component-model")]
             TypesRefKind::Component(_) => {
                 panic!("no elements on a component")
@@ -543,11 +547,11 @@ impl<'a> TypesRef<'a> {
     pub fn entity_type_from_import(&self, import: &Import) -> Option<EntityType> {
         match &self.kind {
             TypesRefKind::Module(module) => Some(match import.ty {
-                TypeRef::Func(idx) => EntityType::Func(*module.types.get(idx as usize)?),
+                TypeRef::Func(idx) => EntityType::Func(*module.types.get(idx)?),
                 TypeRef::Table(ty) => EntityType::Table(ty),
                 TypeRef::Memory(ty) => EntityType::Memory(ty),
                 TypeRef::Global(ty) => EntityType::Global(ty),
-                TypeRef::Tag(ty) => EntityType::Tag(*module.types.get(ty.func_type_idx as usize)?),
+                TypeRef::Tag(ty) => EntityType::Tag(*module.types.get(ty.func_type_idx)?),
             }),
             #[cfg(feature = "component-model")]
             TypesRefKind::Component(_) => None,
@@ -558,21 +562,21 @@ impl<'a> TypesRef<'a> {
     pub fn entity_type_from_export(&self, export: &Export) -> Option<EntityType> {
         match &self.kind {
             TypesRefKind::Module(module) => Some(match export.kind {
-                ExternalKind::Func => EntityType::Func(
-                    module.types[*module.functions.get(export.index as usize)? as usize],
-                ),
+                ExternalKind::Func => {
+                    EntityType::Func(module.types[*module.functions.get(FuncIdx(export.index))?])
+                }
                 ExternalKind::Table => {
-                    EntityType::Table(*module.tables.get(export.index as usize)?)
+                    EntityType::Table(*module.tables.get(TableIdx(export.index))?)
                 }
                 ExternalKind::Memory => {
-                    EntityType::Memory(*module.memories.get(export.index as usize)?)
+                    EntityType::Memory(*module.memories.get(MemIdx(export.index))?)
                 }
                 ExternalKind::Global => {
-                    EntityType::Global(*module.globals.get(export.index as usize)?)
+                    EntityType::Global(*module.globals.get(GlobalIdx(export.index))?)
                 }
-                ExternalKind::Tag => EntityType::Tag(
-                    module.types[*module.functions.get(export.index as usize)? as usize],
-                ),
+                ExternalKind::Tag => {
+                    EntityType::Tag(module.types[*module.functions.get(FuncIdx(export.index))?])
+                }
             }),
             #[cfg(feature = "component-model")]
             TypesRefKind::Component(_) => None,
@@ -909,7 +913,7 @@ impl TypeList {
             self.core_type_to_supertype
                 .push(ty.supertype_idx.and_then(|idx| match idx.unpack() {
                     UnpackedIndex::RecGroup(offset) => {
-                        Some(CoreTypeId::from_index(start.index + offset))
+                        Some(CoreTypeId::from_index(start.index.0 + offset))
                     }
                     UnpackedIndex::Id(id) => Some(id),
                     // Only invalid wasm has this, at this point, so defer the
@@ -921,7 +925,7 @@ impl TypeList {
                 // `UnpackedIndex::Module` means that this is invalid wasm which
                 // will get an error returned later.
                 if let UnpackedIndex::RecGroup(offset) = index.unpack() {
-                    *index = UnpackedIndex::Id(CoreTypeId::from_index(start.index + offset))
+                    *index = UnpackedIndex::Id(CoreTypeId::from_index(start.index.0 + offset))
                         .pack()
                         .unwrap();
                 }

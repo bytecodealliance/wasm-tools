@@ -3,6 +3,7 @@ use crate::{
     encode_section, ComponentExportKind, ComponentSection, ComponentSectionId, Encode, ExportKind,
 };
 use alloc::vec::Vec;
+use wasm_types::{ComponentInstanceIdx, CoreInstanceIdx};
 
 /// Represents the kinds of outer aliasable items in a component.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -40,10 +41,19 @@ impl Encode for ComponentOuterAliasKind {
 ///
 /// ```rust
 /// use wasm_encoder::{Component, Alias, ComponentAliasSection, ComponentExportKind, ComponentOuterAliasKind};
+/// use wasm_types::ComponentInstanceIdx;
 ///
 /// let mut aliases = ComponentAliasSection::new();
-/// aliases.alias(Alias::InstanceExport { instance: 0, kind: ComponentExportKind::Func, name: "f" });
-/// aliases.alias(Alias::Outer { count: 0, kind: ComponentOuterAliasKind::Type, index: 1 });
+/// aliases.alias(Alias::InstanceExport {
+///     instance: ComponentInstanceIdx(0),
+///     kind: ComponentExportKind::Func,
+///     name: "f",
+/// });
+/// aliases.alias(Alias::Outer {
+///     count: 0,
+///     kind: ComponentOuterAliasKind::Type,
+///     index: 1,
+/// });
 ///
 /// let mut component = Component::new();
 /// component.section(&aliases);
@@ -63,7 +73,7 @@ pub enum Alias<'a> {
     /// An alias of a component instance export.
     InstanceExport {
         /// The index of the component instance that's being aliased from.
-        instance: u32,
+        instance: ComponentInstanceIdx,
         /// The kind of item that's being extracted from the component
         /// instance.
         kind: ComponentExportKind,
@@ -73,7 +83,7 @@ pub enum Alias<'a> {
     /// Same as `InstanceExport`, but for core instances.
     #[allow(missing_docs)]
     CoreInstanceExport {
-        instance: u32,
+        instance: CoreInstanceIdx,
         kind: ExportKind,
         name: &'a str,
     },

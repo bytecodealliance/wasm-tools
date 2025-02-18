@@ -6,6 +6,7 @@ use crate::{
     FromReader, Import, Result, SectionLimited, TypeRef, ValType,
 };
 use core::fmt;
+use wasm_types::{ComponentTypeIdx, FuncIdx};
 
 /// Represents the kind of an outer core alias in a WebAssembly component.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -132,7 +133,7 @@ pub enum ComponentValType {
     /// The value type is a primitive type.
     Primitive(PrimitiveValType),
     /// The value type is a reference to a defined type.
-    Type(u32),
+    Type(ComponentTypeIdx),
 }
 
 impl<'a> FromReader<'a> for ComponentValType {
@@ -142,7 +143,9 @@ impl<'a> FromReader<'a> for ComponentValType {
             return Ok(ComponentValType::Primitive(ty));
         }
 
-        Ok(ComponentValType::Type(reader.read_var_s33()? as u32))
+        Ok(ComponentValType::Type(ComponentTypeIdx(
+            reader.read_var_s33()? as u32,
+        )))
     }
 }
 
@@ -263,7 +266,7 @@ pub enum ComponentType<'a> {
         rep: ValType,
         /// An optionally-specified destructor to use for when this resource is
         /// no longer needed.
-        dtor: Option<u32>,
+        dtor: Option<FuncIdx>,
     },
 }
 
@@ -448,9 +451,9 @@ pub enum ComponentDefinedType<'a> {
         err: Option<ComponentValType>,
     },
     /// An owned handle to a resource.
-    Own(u32),
+    Own(ComponentTypeIdx),
     /// A borrowed handle to a resource.
-    Borrow(u32),
+    Borrow(ComponentTypeIdx),
     /// A future type with the specified payload type.
     Future(Option<ComponentValType>),
     /// A stream type with the specified payload type.

@@ -12,7 +12,7 @@ pub struct Export<'a> {
     /// The kind of item being exported.
     pub kind: ExportKind,
     /// What's being exported from the module.
-    pub item: Index<'a>,
+    pub item: Index<'a, u32>,
 }
 
 /// Different kinds of elements that can be exported from a WebAssembly module,

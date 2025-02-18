@@ -338,6 +338,7 @@ impl Encode for CoreDumpValue {
 mod tests {
     use super::*;
     use crate::Module;
+    use wasm_types::FuncIdx;
     use wasmparser::{KnownCustom, Parser, Payload};
 
     // Create new core dump section and test whether it is properly encoded and
@@ -488,7 +489,7 @@ mod tests {
                     .first()
                     .expect("frame is encoded in corestack");
                 assert_eq!(frame.instanceidx, 0);
-                assert_eq!(frame.funcidx, 12);
+                assert_eq!(frame.funcidx, FuncIdx(12));
                 assert_eq!(frame.codeoffset, 0);
                 assert_eq!(frame.locals.len(), 1);
                 match frame.locals.first().expect("frame contains a local") {
