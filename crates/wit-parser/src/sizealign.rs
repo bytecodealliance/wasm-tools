@@ -349,7 +349,7 @@ impl SizeAlign {
         align_to_arch(tag_size, max_align)
     }
 
-    pub fn record<'a>(&self, types: impl Iterator<Item = &'a Type>) -> ElementInfo {
+    pub fn record<'a>(&self, types: impl IntoIterator<Item = &'a Type>) -> ElementInfo {
         let mut size = ArchitectureSize::default();
         let mut align = Alignment::default();
         for ty in types {
