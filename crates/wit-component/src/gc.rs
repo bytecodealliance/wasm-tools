@@ -8,8 +8,7 @@ use std::{
     mem,
     ops::Deref,
 };
-use wasm_encoder::reencode::Reencode;
-use wasm_encoder::{Encode, EntityType, Instruction, RawCustomSection};
+use wasm_encoder::{reencode::Reencode, Encode, EntityType, RawCustomSection};
 use wasmparser::*;
 
 const PAGE_SIZE: i32 = 64 * 1024;
@@ -53,51 +52,49 @@ pub fn run(
 /// This function generates a Wasm function body which implements `cabi_realloc` in terms of `memory.grow`.  It
 /// only accepts new, page-sized allocations.
 fn realloc_via_memory_grow() -> wasm_encoder::Function {
-    use wasm_encoder::Instruction::*;
-
     let mut func = wasm_encoder::Function::new([(1, wasm_encoder::ValType::I32)]);
 
     // Assert `old_ptr` is null.
-    func.instruction(&I32Const(0));
-    func.instruction(&LocalGet(0));
-    func.instruction(&I32Ne);
-    func.instruction(&If(wasm_encoder::BlockType::Empty));
-    func.instruction(&Unreachable);
-    func.instruction(&End);
+    func.instructions().i32_const(0);
+    func.instructions().local_get(0);
+    func.instructions().i32_ne();
+    func.instructions().if_(wasm_encoder::BlockType::Empty);
+    func.instructions().unreachable();
+    func.instructions().end();
 
     // Assert `old_len` is zero.
-    func.instruction(&I32Const(0));
-    func.instruction(&LocalGet(1));
-    func.instruction(&I32Ne);
-    func.instruction(&If(wasm_encoder::BlockType::Empty));
-    func.instruction(&Unreachable);
-    func.instruction(&End);
+    func.instructions().i32_const(0);
+    func.instructions().local_get(1);
+    func.instructions().i32_ne();
+    func.instructions().if_(wasm_encoder::BlockType::Empty);
+    func.instructions().unreachable();
+    func.instructions().end();
 
     // Assert `new_len` is equal to the page size (which is the only value we currently support)
     // Note: we could easily support arbitrary multiples of PAGE_SIZE here if the need arises.
-    func.instruction(&I32Const(PAGE_SIZE));
-    func.instruction(&LocalGet(3));
-    func.instruction(&I32Ne);
-    func.instruction(&If(wasm_encoder::BlockType::Empty));
-    func.instruction(&Unreachable);
-    func.instruction(&End);
+    func.instructions().i32_const(PAGE_SIZE);
+    func.instructions().local_get(3);
+    func.instructions().i32_ne();
+    func.instructions().if_(wasm_encoder::BlockType::Empty);
+    func.instructions().unreachable();
+    func.instructions().end();
 
     // Grow the memory by 1 page.
-    func.instruction(&I32Const(1));
-    func.instruction(&MemoryGrow(0));
-    func.instruction(&LocalTee(4));
+    func.instructions().i32_const(1);
+    func.instructions().memory_grow(0);
+    func.instructions().local_tee(4);
 
     // Test if the return value of the growth was -1 and, if so, trap due to a failed allocation.
-    func.instruction(&I32Const(-1));
-    func.instruction(&I32Eq);
-    func.instruction(&If(wasm_encoder::BlockType::Empty));
-    func.instruction(&Unreachable);
-    func.instruction(&End);
+    func.instructions().i32_const(-1);
+    func.instructions().i32_eq();
+    func.instructions().if_(wasm_encoder::BlockType::Empty);
+    func.instructions().unreachable();
+    func.instructions().end();
 
-    func.instruction(&LocalGet(4));
-    func.instruction(&I32Const(16));
-    func.instruction(&I32Shl);
-    func.instruction(&End);
+    func.instructions().local_get(4);
+    func.instructions().i32_const(16);
+    func.instructions().i32_shl();
+    func.instructions().end();
 
     func
 }
@@ -115,38 +112,39 @@ fn allocate_stack_via_realloc(
     sp: u32,
     allocation_state: Option<u32>,
 ) -> wasm_encoder::Function {
-    use wasm_encoder::Instruction::*;
-
     let mut func = wasm_encoder::Function::new([]);
 
     if let Some(allocation_state) = allocation_state {
         // This means we're lazily allocating the stack, keeping track of state via `$allocation_state`
-        func.instruction(&GlobalGet(allocation_state));
-        func.instruction(&I32Const(StackAllocationState::Unallocated as _));
-        func.instruction(&I32Eq);
-        func.instruction(&If(wasm_encoder::BlockType::Empty));
-        func.instruction(&I32Const(StackAllocationState::Allocating as _));
-        func.instruction(&GlobalSet(allocation_state));
+        func.instructions().global_get(allocation_state);
+        func.instructions()
+            .i32_const(StackAllocationState::Unallocated as _);
+        func.instructions().i32_eq();
+        func.instructions().if_(wasm_encoder::BlockType::Empty);
+        func.instructions()
+            .i32_const(StackAllocationState::Allocating as _);
+        func.instructions().global_set(allocation_state);
         // We could also set `sp` to zero here to ensure the yet-to-be-allocated stack is empty.  However, we
         // assume it defaults to zero anyway, in which case setting it would be redundant.
     }
 
-    func.instruction(&I32Const(0));
-    func.instruction(&I32Const(0));
-    func.instruction(&I32Const(8));
-    func.instruction(&I32Const(PAGE_SIZE));
-    func.instruction(&Call(realloc_index));
-    func.instruction(&I32Const(PAGE_SIZE));
-    func.instruction(&I32Add);
-    func.instruction(&GlobalSet(sp));
+    func.instructions().i32_const(0);
+    func.instructions().i32_const(0);
+    func.instructions().i32_const(8);
+    func.instructions().i32_const(PAGE_SIZE);
+    func.instructions().call(realloc_index);
+    func.instructions().i32_const(PAGE_SIZE);
+    func.instructions().i32_add();
+    func.instructions().global_set(sp);
 
     if let Some(allocation_state) = allocation_state {
-        func.instruction(&I32Const(StackAllocationState::Allocated as _));
-        func.instruction(&GlobalSet(allocation_state));
-        func.instruction(&End);
+        func.instructions()
+            .i32_const(StackAllocationState::Allocated as _);
+        func.instructions().global_set(allocation_state);
+        func.instructions().end();
     }
 
-    func.instruction(&End);
+    func.instructions().end();
 
     func
 }
@@ -704,7 +702,7 @@ impl<'a> Module<'a> {
                 // lazily allocating the stack.
                 (Some(lazy_stack_init_index), true) => {
                     let mut func = map.new_function_with_parsed_locals(&body)?;
-                    func.instruction(&Instruction::Call(lazy_stack_init_index));
+                    func.instructions().call(lazy_stack_init_index);
                     let mut reader = body.get_operators_reader()?;
                     while !reader.eof() {
                         func.instruction(&map.parse_instruction(&mut reader)?);

@@ -20,9 +20,9 @@ fn big_type_indices() {
 
     let mut code = CodeSection::new();
     let mut body = Function::new([]);
-    body.instruction(&Instruction::RefFunc(0));
-    body.instruction(&Instruction::Drop);
-    body.instruction(&Instruction::End);
+    body.instructions().ref_func(0);
+    body.instructions().drop();
+    body.instructions().end();
     code.function(&body);
     module.section(&code);
 

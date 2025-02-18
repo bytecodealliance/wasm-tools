@@ -3,7 +3,7 @@
 //! before the mutated if structure is encoded, a "negation" of the previous operand
 //! in the stack is written. The "negation" is encoded with a `i32.eqz` operator.
 use rand::prelude::SliceRandom;
-use wasm_encoder::{Function, Instruction, ValType};
+use wasm_encoder::{Function, ValType};
 
 use crate::{
     module::map_block_type,
@@ -42,8 +42,8 @@ impl IfComplementWriter {
         ty: &wasmparser::BlockType,
     ) -> crate::Result<()> {
         // negate the value on the stack
-        newfunc.instruction(&Instruction::I32Eqz);
-        newfunc.instruction(&Instruction::If(map_block_type(*ty)?));
+        newfunc.instructions().i32_eqz();
+        newfunc.instructions().if_(map_block_type(*ty)?);
 
         // Swap, write alternative first
         if let Some(alternative) = alternative {
@@ -52,13 +52,13 @@ impl IfComplementWriter {
             }
         } else {
             // Write an unreachable instruction
-            newfunc.instruction(&Instruction::Nop);
+            newfunc.instructions().nop();
         }
-        newfunc.instruction(&Instruction::Else);
+        newfunc.instructions().else_();
         for ch in then {
             self.write(ast, *ch, newfunc, operators, input_wasm)?;
         }
-        newfunc.instruction(&Instruction::End);
+        newfunc.instructions().end();
 
         Ok(())
     }

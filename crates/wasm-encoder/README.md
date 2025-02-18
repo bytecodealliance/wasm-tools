@@ -26,7 +26,7 @@ And then you can encode WebAssembly binaries via:
 
 ```rust
 use wasm_encoder::{
-    CodeSection, ExportKind, ExportSection, Function, FunctionSection, Instruction,
+    CodeSection, ExportKind, ExportSection, Function, FunctionSection,
     Module, TypeSection, ValType,
 };
 
@@ -54,10 +54,11 @@ module.section(&exports);
 let mut codes = CodeSection::new();
 let locals = vec![];
 let mut f = Function::new(locals);
-f.instruction(&Instruction::LocalGet(0));
-f.instruction(&Instruction::LocalGet(1));
-f.instruction(&Instruction::I32Add);
-f.instruction(&Instruction::End);
+f.instructions()
+    .local_get(0)
+    .local_get(1)
+    .i32_add()
+    .end();
 codes.function(&f);
 module.section(&codes);
 
