@@ -13,14 +13,14 @@
           "params": [
             {
               "name": "x",
-              "type": 1
+              "type": "error-context"
             },
             {
               "name": "y",
               "type": 0
             }
           ],
-          "result": 2
+          "result": 1
         }
       },
       "package": 0
@@ -29,22 +29,19 @@
   "types": [
     {
       "name": "t1",
-      "kind": "error-context",
+      "kind": {
+        "type": "error-context"
+      },
       "owner": {
         "interface": 0
       }
     },
     {
       "name": null,
-      "kind": "error-context",
-      "owner": null
-    },
-    {
-      "name": null,
       "kind": {
         "result": {
           "ok": null,
-          "err": 1
+          "err": "error-context"
         }
       },
       "owner": null

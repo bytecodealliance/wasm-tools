@@ -123,7 +123,8 @@ fn push_primitive_wasm_types(ty: &PrimitiveValType, lowered_types: &mut LoweredT
         | PrimitiveValType::U16
         | PrimitiveValType::S32
         | PrimitiveValType::U32
-        | PrimitiveValType::Char => lowered_types.push(ValType::I32),
+        | PrimitiveValType::Char
+        | PrimitiveValType::ErrorContext => lowered_types.push(ValType::I32),
         PrimitiveValType::S64 | PrimitiveValType::U64 => lowered_types.push(ValType::I64),
         PrimitiveValType::F32 => lowered_types.push(ValType::F32),
         PrimitiveValType::F64 => lowered_types.push(ValType::F64),
@@ -1065,8 +1066,6 @@ pub enum ComponentDefinedType {
     Future(Option<ComponentValType>),
     /// A stream type with the specified payload type.
     Stream(Option<ComponentValType>),
-    /// The error-context type.
-    ErrorContext,
 }
 
 impl TypeData for ComponentDefinedType {
@@ -1079,8 +1078,7 @@ impl TypeData for ComponentDefinedType {
             | Self::Enum(_)
             | Self::Own(_)
             | Self::Future(_)
-            | Self::Stream(_)
-            | Self::ErrorContext => TypeInfo::new(),
+            | Self::Stream(_) => TypeInfo::new(),
             Self::Borrow(_) => TypeInfo::borrow(),
             Self::Record(r) => r.info,
             Self::Variant(v) => v.info,
@@ -1113,8 +1111,7 @@ impl ComponentDefinedType {
             | Self::Own(_)
             | Self::Borrow(_)
             | Self::Future(_)
-            | Self::Stream(_)
-            | Self::ErrorContext => false,
+            | Self::Stream(_) => false,
             Self::Option(ty) => ty.contains_ptr(types),
             Self::Result { ok, err } => {
                 ok.map(|ty| ty.contains_ptr(types)).unwrap_or(false)
@@ -1143,12 +1140,9 @@ impl ComponentDefinedType {
             Self::Flags(names) => {
                 (0..(names.len() + 31) / 32).all(|_| lowered_types.push(ValType::I32))
             }
-            Self::Enum(_)
-            | Self::Own(_)
-            | Self::Borrow(_)
-            | Self::Future(_)
-            | Self::Stream(_)
-            | Self::ErrorContext => lowered_types.push(ValType::I32),
+            Self::Enum(_) | Self::Own(_) | Self::Borrow(_) | Self::Future(_) | Self::Stream(_) => {
+                lowered_types.push(ValType::I32)
+            }
             Self::Option(ty) => {
                 Self::push_variant_wasm_types([ty].into_iter(), types, lowered_types)
             }
@@ -1218,7 +1212,6 @@ impl ComponentDefinedType {
             ComponentDefinedType::Borrow(_) => "borrow",
             ComponentDefinedType::Future(_) => "future",
             ComponentDefinedType::Stream(_) => "stream",
-            ComponentDefinedType::ErrorContext => "error-context",
         }
     }
 }
@@ -1933,8 +1926,7 @@ impl TypeAlloc {
         match &self[id] {
             ComponentDefinedType::Primitive(_)
             | ComponentDefinedType::Flags(_)
-            | ComponentDefinedType::Enum(_)
-            | ComponentDefinedType::ErrorContext => {}
+            | ComponentDefinedType::Enum(_) => {}
             ComponentDefinedType::Record(r) => {
                 for ty in r.fields.values() {
                     self.free_variables_valtype(ty, set);
@@ -2071,7 +2063,7 @@ impl TypeAlloc {
         let ty = &self[id];
         match ty {
             // Primitives are always considered named
-            ComponentDefinedType::Primitive(_) | ComponentDefinedType::ErrorContext => true,
+            ComponentDefinedType::Primitive(_) => true,
 
             // These structures are never allowed to be anonymous, so they
             // themselves must be named.
@@ -2263,8 +2255,7 @@ where
         match &mut tmp {
             ComponentDefinedType::Primitive(_)
             | ComponentDefinedType::Flags(_)
-            | ComponentDefinedType::Enum(_)
-            | ComponentDefinedType::ErrorContext => {}
+            | ComponentDefinedType::Enum(_) => {}
             ComponentDefinedType::Record(r) => {
                 for ty in r.fields.values_mut() {
                     any_changed |= self.remap_valtype(ty, map);
@@ -3241,8 +3232,6 @@ impl<'a> SubtypeCx<'a> {
                 (Some(_), None) => bail!(offset, "expected stream type to not be present"),
             },
             (Stream(_), b) => bail!(offset, "expected {}, found stream", b.desc()),
-            (ErrorContext, ErrorContext) => Ok(()),
-            (ErrorContext, b) => bail!(offset, "expected {}, found error-context", b.desc()),
         }
     }
 

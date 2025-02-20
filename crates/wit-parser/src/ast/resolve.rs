@@ -96,7 +96,6 @@ enum Key {
     Result(Option<Type>, Option<Type>),
     Future(Option<Type>),
     Stream(Option<Type>),
-    ErrorContext,
 }
 
 enum TypeItem<'a, 'b> {
@@ -1142,6 +1141,7 @@ impl<'a> Resolver<'a> {
             ast::Type::F64(_) => TypeDefKind::Type(Type::F64),
             ast::Type::Char(_) => TypeDefKind::Type(Type::Char),
             ast::Type::String(_) => TypeDefKind::Type(Type::String),
+            ast::Type::ErrorContext(_) => TypeDefKind::Type(Type::ErrorContext),
             ast::Type::Name(name) => {
                 let id = self.resolve_type_name(name)?;
                 TypeDefKind::Type(Type::Id(id))
@@ -1259,7 +1259,6 @@ impl<'a> Resolver<'a> {
             ast::Type::Stream(s) => {
                 TypeDefKind::Stream(self.resolve_optional_type(s.ty.as_deref(), stability)?)
             }
-            ast::Type::ErrorContext(_) => TypeDefKind::ErrorContext,
         })
     }
 
@@ -1339,8 +1338,7 @@ impl<'a> Resolver<'a> {
                 }
                 // Assume these are named types which will be annotated with an
                 // explicit stability if applicable:
-                TypeDefKind::ErrorContext
-                | TypeDefKind::Resource
+                TypeDefKind::Resource
                 | TypeDefKind::Variant(_)
                 | TypeDefKind::Record(_)
                 | TypeDefKind::Flags(_)
@@ -1425,7 +1423,6 @@ impl<'a> Resolver<'a> {
             TypeDefKind::Result(r) => Key::Result(r.ok, r.err),
             TypeDefKind::Future(ty) => Key::Future(*ty),
             TypeDefKind::Stream(ty) => Key::Stream(*ty),
-            TypeDefKind::ErrorContext => Key::ErrorContext,
             TypeDefKind::Unknown => unreachable!(),
         };
         let id = self.anon_types.entry(key).or_insert_with(|| {

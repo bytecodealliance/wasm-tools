@@ -563,7 +563,7 @@ package {name} is defined in two different locations:\n\
             | Type::F32
             | Type::F64 => true,
 
-            Type::Bool | Type::Char | Type::String => false,
+            Type::Bool | Type::Char | Type::String | Type::ErrorContext => false,
 
             Type::Id(id) => match &self.types[*id].kind {
                 TypeDefKind::List(_)
@@ -572,8 +572,7 @@ package {name} is defined in two different locations:\n\
                 | TypeDefKind::Option(_)
                 | TypeDefKind::Result(_)
                 | TypeDefKind::Future(_)
-                | TypeDefKind::Stream(_)
-                | TypeDefKind::ErrorContext => false,
+                | TypeDefKind::Stream(_) => false,
                 TypeDefKind::Type(t) => self.all_bits_valid(t),
 
                 TypeDefKind::Handle(h) => match h {
@@ -3087,7 +3086,6 @@ impl Remap {
                     self.update_ty(resolve, ty, span)?;
                 }
             }
-            ErrorContext => {}
 
             // Note that `update_ty` is specifically not used here as typedefs
             // because for the `type a = b` form that doesn't force `a` to be a
@@ -3474,9 +3472,7 @@ impl Remap {
                 .iter()
                 .filter_map(|t| t.as_ref())
                 .any(|t| self.type_has_borrow(resolve, t)),
-            TypeDefKind::Future(None) | TypeDefKind::Stream(None) | TypeDefKind::ErrorContext => {
-                false
-            }
+            TypeDefKind::Future(None) | TypeDefKind::Stream(None) => false,
             TypeDefKind::Unknown => unreachable!(),
         }
     }

@@ -796,7 +796,6 @@ pub mod component_utils {
             wasmparser::ComponentDefinedType::Stream(t) => {
                 defined.stream(t.map(|t| reencoder.component_val_type(t)));
             }
-            wasmparser::ComponentDefinedType::ErrorContext => defined.error_context(),
         }
         Ok(())
     }
@@ -1238,6 +1237,9 @@ pub mod component_utils {
             wasmparser::PrimitiveValType::F64 => crate::component::PrimitiveValType::F64,
             wasmparser::PrimitiveValType::Char => crate::component::PrimitiveValType::Char,
             wasmparser::PrimitiveValType::String => crate::component::PrimitiveValType::String,
+            wasmparser::PrimitiveValType::ErrorContext => {
+                crate::component::PrimitiveValType::ErrorContext
+            }
         }
     }
 

@@ -490,6 +490,8 @@ pub enum PrimitiveValType {
     Char,
     /// The type is a string.
     String,
+    /// Type for `error-context` added with async support in the component model.
+    ErrorContext,
 }
 
 impl Encode for PrimitiveValType {
@@ -508,6 +510,7 @@ impl Encode for PrimitiveValType {
             Self::F64 => 0x75,
             Self::Char => 0x74,
             Self::String => 0x73,
+            Self::ErrorContext => 0x64,
         });
     }
 }
@@ -664,11 +667,6 @@ impl ComponentDefinedTypeEncoder<'_> {
     pub fn stream(self, payload: Option<ComponentValType>) {
         self.0.push(0x66);
         payload.encode(self.0);
-    }
-
-    /// Define the `error-context` type.
-    pub fn error_context(self) {
-        self.0.push(0x64);
     }
 }
 

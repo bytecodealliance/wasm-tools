@@ -668,7 +668,6 @@ impl<'a> TypeEncoder<'a> {
             }
             ComponentDefinedType::Future(ty) => self.future(state, *ty),
             ComponentDefinedType::Stream(ty) => self.stream(state, *ty),
-            ComponentDefinedType::ErrorContext => self.error_context(state),
         }
     }
 
@@ -804,12 +803,6 @@ impl<'a> TypeEncoder<'a> {
 
         let index = state.cur.encodable.type_count();
         state.cur.encodable.ty().defined_type().stream(ty);
-        index
-    }
-
-    fn error_context(&self, state: &mut TypeState<'a>) -> u32 {
-        let index = state.cur.encodable.type_count();
-        state.cur.encodable.ty().defined_type().error_context();
         index
     }
 }
@@ -1234,8 +1227,7 @@ impl DependencyRegistrar<'_, '_> {
         match &self.types[ty] {
             ComponentDefinedType::Primitive(_)
             | ComponentDefinedType::Enum(_)
-            | ComponentDefinedType::Flags(_)
-            | ComponentDefinedType::ErrorContext => {}
+            | ComponentDefinedType::Flags(_) => {}
             ComponentDefinedType::List(t) | ComponentDefinedType::Option(t) => self.val_type(*t),
             ComponentDefinedType::Own(r) | ComponentDefinedType::Borrow(r) => {
                 self.ty(ComponentAnyTypeId::Resource(*r))

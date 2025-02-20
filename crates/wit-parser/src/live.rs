@@ -161,8 +161,7 @@ pub trait TypeIdVisitor {
                     self.visit_type(resolve, ty);
                 }
             }
-            TypeDefKind::ErrorContext
-            | TypeDefKind::Flags(_)
+            TypeDefKind::Flags(_)
             | TypeDefKind::Enum(_)
             | TypeDefKind::Future(None)
             | TypeDefKind::Stream(None) => {}
