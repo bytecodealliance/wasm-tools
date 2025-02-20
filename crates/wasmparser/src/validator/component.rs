@@ -3243,11 +3243,17 @@ impl ComponentState {
         features: &WasmFeatures,
         offset: usize,
     ) -> Result<ComponentDefinedType> {
-        // Not currently used but it's convenient to have for future features,
-        // so suppress the unused variable warning.
-        let _ = features;
         match ty {
-            crate::ComponentDefinedType::Primitive(ty) => Ok(ComponentDefinedType::Primitive(ty)),
+            crate::ComponentDefinedType::Primitive(ty) => {
+                if ty == crate::PrimitiveValType::ErrorContext && !features.component_model_async()
+                {
+                    bail!(
+                        offset,
+                        "`error-context` requires the component model async feature"
+                    )
+                }
+                Ok(ComponentDefinedType::Primitive(ty))
+            }
             crate::ComponentDefinedType::Record(fields) => {
                 self.create_record_type(fields.as_ref(), types, offset)
             }
@@ -3283,14 +3289,30 @@ impl ComponentState {
             crate::ComponentDefinedType::Borrow(idx) => Ok(ComponentDefinedType::Borrow(
                 self.resource_at(idx, types, offset)?,
             )),
-            crate::ComponentDefinedType::Future(ty) => Ok(ComponentDefinedType::Future(
-                ty.map(|ty| self.create_component_val_type(ty, offset))
-                    .transpose()?,
-            )),
-            crate::ComponentDefinedType::Stream(ty) => Ok(ComponentDefinedType::Stream(
-                ty.map(|ty| self.create_component_val_type(ty, offset))
-                    .transpose()?,
-            )),
+            crate::ComponentDefinedType::Future(ty) => {
+                if !features.component_model_async() {
+                    bail!(
+                        offset,
+                        "`future` requires the component model async feature"
+                    )
+                }
+                Ok(ComponentDefinedType::Future(
+                    ty.map(|ty| self.create_component_val_type(ty, offset))
+                        .transpose()?,
+                ))
+            }
+            crate::ComponentDefinedType::Stream(ty) => {
+                if !features.component_model_async() {
+                    bail!(
+                        offset,
+                        "`stream` requires the component model async feature"
+                    )
+                }
+                Ok(ComponentDefinedType::Stream(
+                    ty.map(|ty| self.create_component_val_type(ty, offset))
+                        .transpose()?,
+                ))
+            }
         }
     }
 

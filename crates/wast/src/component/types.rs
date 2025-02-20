@@ -317,6 +317,7 @@ impl Peek for PrimitiveValType {
                 | Some(("float64", _))
                 | Some(("char", _))
                 | Some(("string", _))
+                | Some(("error-context", _))
         ))
     }
 

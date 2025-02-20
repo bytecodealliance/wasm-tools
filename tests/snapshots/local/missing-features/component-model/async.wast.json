@@ -62,98 +62,98 @@
       "line": 109,
       "filename": "async.8.wasm",
       "module_type": "binary",
-      "text": "`stream.new` requires the component model async feature"
+      "text": "requires the component model async feature"
     },
     {
       "type": "assert_invalid",
       "line": 122,
       "filename": "async.9.wasm",
       "module_type": "binary",
-      "text": "`stream.read` requires the component model async feature"
+      "text": "requires the component model async feature"
     },
     {
       "type": "assert_invalid",
       "line": 137,
       "filename": "async.10.wasm",
       "module_type": "binary",
-      "text": "`stream.write` requires the component model async feature"
+      "text": "requires the component model async feature"
     },
     {
       "type": "assert_invalid",
       "line": 152,
       "filename": "async.11.wasm",
       "module_type": "binary",
-      "text": "`stream.cancel-read` requires the component model async feature"
+      "text": "requires the component model async feature"
     },
     {
       "type": "assert_invalid",
       "line": 165,
       "filename": "async.12.wasm",
       "module_type": "binary",
-      "text": "`stream.cancel-write` requires the component model async feature"
+      "text": "requires the component model async feature"
     },
     {
       "type": "assert_invalid",
       "line": 178,
       "filename": "async.13.wasm",
       "module_type": "binary",
-      "text": "`stream.close-readable` requires the component model async feature"
+      "text": "requires the component model async feature"
     },
     {
       "type": "assert_invalid",
       "line": 191,
       "filename": "async.14.wasm",
       "module_type": "binary",
-      "text": "`stream.close-writable` requires the component model async feature"
+      "text": "requires the component model async feature"
     },
     {
       "type": "assert_invalid",
       "line": 204,
       "filename": "async.15.wasm",
       "module_type": "binary",
-      "text": "`future.new` requires the component model async feature"
+      "text": "requires the component model async feature"
     },
     {
       "type": "assert_invalid",
       "line": 217,
       "filename": "async.16.wasm",
       "module_type": "binary",
-      "text": "`future.read` requires the component model async feature"
+      "text": "requires the component model async feature"
     },
     {
       "type": "assert_invalid",
       "line": 232,
       "filename": "async.17.wasm",
       "module_type": "binary",
-      "text": "`future.write` requires the component model async feature"
+      "text": "requires the component model async feature"
     },
     {
       "type": "assert_invalid",
       "line": 247,
       "filename": "async.18.wasm",
       "module_type": "binary",
-      "text": "`future.cancel-read` requires the component model async feature"
+      "text": "requires the component model async feature"
     },
     {
       "type": "assert_invalid",
       "line": 260,
       "filename": "async.19.wasm",
       "module_type": "binary",
-      "text": "`future.cancel-write` requires the component model async feature"
+      "text": "requires the component model async feature"
     },
     {
       "type": "assert_invalid",
       "line": 273,
       "filename": "async.20.wasm",
       "module_type": "binary",
-      "text": "`future.close-readable` requires the component model async feature"
+      "text": "requires the component model async feature"
     },
     {
       "type": "assert_invalid",
       "line": 286,
       "filename": "async.21.wasm",
       "module_type": "binary",
-      "text": "`future.close-writable` requires the component model async feature"
+      "text": "requires the component model async feature"
     },
     {
       "type": "assert_invalid",
@@ -175,6 +175,27 @@
       "filename": "async.24.wasm",
       "module_type": "binary",
       "text": "`error-context.drop` requires the component model async feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 342,
+      "filename": "async.25.wasm",
+      "module_type": "binary",
+      "text": "requires the component model async feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 346,
+      "filename": "async.26.wasm",
+      "module_type": "binary",
+      "text": "requires the component model async feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 350,
+      "filename": "async.27.wasm",
+      "module_type": "binary",
+      "text": "requires the component model async feature"
     }
   ]
 }
