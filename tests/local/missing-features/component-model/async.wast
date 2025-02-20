@@ -114,7 +114,7 @@
     (core func $stream-new (canon stream.new $stream-type))
     (core instance $i (instantiate $m (with "" (instance (export "stream.new" (func $stream-new))))))
   )
-  "`stream.new` requires the component model async feature"
+  "requires the component model async feature"
 )
 
 ;; stream.read
@@ -129,7 +129,7 @@
     (core func $stream-read (canon stream.read $stream-type async (memory $libc "memory")))
     (core instance $i (instantiate $m (with "" (instance (export "stream.read" (func $stream-read))))))
   )
-  "`stream.read` requires the component model async feature"
+  "requires the component model async feature"
 )
 
 ;; stream.write
@@ -144,7 +144,7 @@
     (core func $stream-write (canon stream.write $stream-type async (memory $libc "memory")))
     (core instance $i (instantiate $m (with "" (instance (export "stream.write" (func $stream-write))))))
   )
-  "`stream.write` requires the component model async feature"
+  "requires the component model async feature"
 )
 
 ;; stream.cancel-read
@@ -157,7 +157,7 @@
     (core func $stream-cancel-read (canon stream.cancel-read $stream-type async))
     (core instance $i (instantiate $m (with "" (instance (export "stream.cancel-read" (func $stream-cancel-read))))))
   )
-  "`stream.cancel-read` requires the component model async feature"
+  "requires the component model async feature"
 )
 
 ;; stream.cancel-write
@@ -170,7 +170,7 @@
     (core func $stream-cancel-write (canon stream.cancel-write $stream-type async))
     (core instance $i (instantiate $m (with "" (instance (export "stream.cancel-write" (func $stream-cancel-write))))))
   )
-  "`stream.cancel-write` requires the component model async feature"
+  "requires the component model async feature"
 )
 
 ;; stream.close-readable
@@ -183,7 +183,7 @@
     (core func $stream-close-readable (canon stream.close-readable $stream-type))
     (core instance $i (instantiate $m (with "" (instance (export "stream.close-readable" (func $stream-close-readable))))))
   )
-  "`stream.close-readable` requires the component model async feature"
+  "requires the component model async feature"
 )
 
 ;; stream.close-writable
@@ -196,7 +196,7 @@
     (core func $stream-close-writable (canon stream.close-writable $stream-type))
     (core instance $i (instantiate $m (with "" (instance (export "stream.close-writable" (func $stream-close-writable))))))
   )
-  "`stream.close-writable` requires the component model async feature"
+  "requires the component model async feature"
 )
 
 ;; future.new
@@ -209,7 +209,7 @@
     (core func $future-new (canon future.new $future-type))
     (core instance $i (instantiate $m (with "" (instance (export "future.new" (func $future-new))))))
   )
-  "`future.new` requires the component model async feature"
+  "requires the component model async feature"
 )
 
 ;; future.read
@@ -224,7 +224,7 @@
     (core func $future-read (canon future.read $future-type async (memory $libc "memory")))
     (core instance $i (instantiate $m (with "" (instance (export "future.read" (func $future-read))))))
   )
-  "`future.read` requires the component model async feature"
+  "requires the component model async feature"
 )
 
 ;; future.write
@@ -239,7 +239,7 @@
     (core func $future-write (canon future.write $future-type async (memory $libc "memory")))
     (core instance $i (instantiate $m (with "" (instance (export "future.write" (func $future-write))))))
   )
-  "`future.write` requires the component model async feature"
+  "requires the component model async feature"
 )
 
 ;; future.cancel-read
@@ -252,7 +252,7 @@
     (core func $future-cancel-read (canon future.cancel-read $future-type async))
     (core instance $i (instantiate $m (with "" (instance (export "future.cancel-read" (func $future-cancel-read))))))
   )
-  "`future.cancel-read` requires the component model async feature"
+  "requires the component model async feature"
 )
 
 ;; future.cancel-write
@@ -265,7 +265,7 @@
     (core func $future-cancel-write (canon future.cancel-write $future-type async))
     (core instance $i (instantiate $m (with "" (instance (export "future.cancel-write" (func $future-cancel-write))))))
   )
-  "`future.cancel-write` requires the component model async feature"
+  "requires the component model async feature"
 )
 
 ;; future.close-readable
@@ -278,7 +278,7 @@
     (core func $future-close-readable (canon future.close-readable $future-type))
     (core instance $i (instantiate $m (with "" (instance (export "future.close-readable" (func $future-close-readable))))))
   )
-  "`future.close-readable` requires the component model async feature"
+  "requires the component model async feature"
 )
 
 ;; future.close-writable
@@ -291,7 +291,7 @@
     (core func $future-close-writable (canon future.close-writable $future-type))
     (core instance $i (instantiate $m (with "" (instance (export "future.close-writable" (func $future-close-writable))))))
   )
-  "`future.close-writable` requires the component model async feature"
+  "requires the component model async feature"
 )
 
 ;; error-context.new
@@ -335,4 +335,18 @@
     (core instance $i (instantiate $m (with "" (instance (export "error-context.drop" (func $error-context-drop))))))
   )
   "`error-context.drop` requires the component model async feature"
+)
+
+;; various types
+(assert_invalid
+  (component (type (future)))
+  "requires the component model async feature"
+)
+(assert_invalid
+  (component (type (stream)))
+  "requires the component model async feature"
+)
+(assert_invalid
+  (component (type error-context))
+  "requires the component model async feature"
 )

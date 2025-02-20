@@ -39,6 +39,18 @@
       "filename": "error-context.5.wasm",
       "module_type": "binary",
       "text": "type mismatch for export `error-context.drop` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 79,
+      "filename": "error-context.6.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 80,
+      "filename": "error-context.7.wasm",
+      "module_type": "binary"
     }
   ]
 }

@@ -74,3 +74,7 @@
   )
   "type mismatch for export `error-context.drop` of module instantiation argument ``"
 )
+
+;; can define the `error-context` type
+(component (type error-context))
+(component (type (list error-context)))
