@@ -2157,169 +2157,131 @@ impl ConstExpr {
         Self { bytes }
     }
 
-    fn new(f: impl FnOnce(&mut InstructionSink)) -> Self {
+    fn new<F>(f: F) -> Self
+    where
+        for<'a, 'b> F: FnOnce(&'a mut InstructionSink<'b>) -> &'a mut InstructionSink<'b>,
+    {
         let mut bytes = vec![];
         f(&mut InstructionSink::new(&mut bytes));
         Self { bytes }
     }
 
-    fn with(mut self, f: impl FnOnce(&mut InstructionSink)) -> Self {
+    fn with<F>(mut self, f: F) -> Self
+    where
+        for<'a, 'b> F: FnOnce(&'a mut InstructionSink<'b>) -> &'a mut InstructionSink<'b>,
+    {
         f(&mut InstructionSink::new(&mut self.bytes));
         self
     }
 
     /// Create a constant expression containing a single `global.get` instruction.
     pub fn global_get(index: u32) -> Self {
-        Self::new(|insn| {
-            insn.global_get(index);
-        })
+        Self::new(|insn| insn.global_get(index))
     }
 
     /// Create a constant expression containing a single `ref.null` instruction.
     pub fn ref_null(ty: HeapType) -> Self {
-        Self::new(|insn| {
-            insn.ref_null(ty);
-        })
+        Self::new(|insn| insn.ref_null(ty))
     }
 
     /// Create a constant expression containing a single `ref.func` instruction.
     pub fn ref_func(func: u32) -> Self {
-        Self::new(|insn| {
-            insn.ref_func(func);
-        })
+        Self::new(|insn| insn.ref_func(func))
     }
 
     /// Create a constant expression containing a single `i32.const` instruction.
     pub fn i32_const(value: i32) -> Self {
-        Self::new(|insn| {
-            insn.i32_const(value);
-        })
+        Self::new(|insn| insn.i32_const(value))
     }
 
     /// Create a constant expression containing a single `i64.const` instruction.
     pub fn i64_const(value: i64) -> Self {
-        Self::new(|insn| {
-            insn.i64_const(value);
-        })
+        Self::new(|insn| insn.i64_const(value))
     }
 
     /// Create a constant expression containing a single `f32.const` instruction.
     pub fn f32_const(value: f32) -> Self {
-        Self::new(|insn| {
-            insn.f32_const(value);
-        })
+        Self::new(|insn| insn.f32_const(value))
     }
 
     /// Create a constant expression containing a single `f64.const` instruction.
     pub fn f64_const(value: f64) -> Self {
-        Self::new(|insn| {
-            insn.f64_const(value);
-        })
+        Self::new(|insn| insn.f64_const(value))
     }
 
     /// Create a constant expression containing a single `v128.const` instruction.
     pub fn v128_const(value: i128) -> Self {
-        Self::new(|insn| {
-            insn.v128_const(value);
-        })
+        Self::new(|insn| insn.v128_const(value))
     }
 
     /// Add a `global.get` instruction to this constant expression.
     pub fn with_global_get(self, index: u32) -> Self {
-        self.with(|insn| {
-            insn.global_get(index);
-        })
+        self.with(|insn| insn.global_get(index))
     }
 
     /// Add a `ref.null` instruction to this constant expression.
     pub fn with_ref_null(self, ty: HeapType) -> Self {
-        self.with(|insn| {
-            insn.ref_null(ty);
-        })
+        self.with(|insn| insn.ref_null(ty))
     }
 
     /// Add a `ref.func` instruction to this constant expression.
     pub fn with_ref_func(self, func: u32) -> Self {
-        self.with(|insn| {
-            insn.ref_func(func);
-        })
+        self.with(|insn| insn.ref_func(func))
     }
 
     /// Add an `i32.const` instruction to this constant expression.
     pub fn with_i32_const(self, value: i32) -> Self {
-        self.with(|insn| {
-            insn.i32_const(value);
-        })
+        self.with(|insn| insn.i32_const(value))
     }
 
     /// Add an `i64.const` instruction to this constant expression.
     pub fn with_i64_const(self, value: i64) -> Self {
-        self.with(|insn| {
-            insn.i64_const(value);
-        })
+        self.with(|insn| insn.i64_const(value))
     }
 
     /// Add a `f32.const` instruction to this constant expression.
     pub fn with_f32_const(self, value: f32) -> Self {
-        self.with(|insn| {
-            insn.f32_const(value);
-        })
+        self.with(|insn| insn.f32_const(value))
     }
 
     /// Add a `f64.const` instruction to this constant expression.
     pub fn with_f64_const(self, value: f64) -> Self {
-        self.with(|insn| {
-            insn.f64_const(value);
-        })
+        self.with(|insn| insn.f64_const(value))
     }
 
     /// Add a `v128.const` instruction to this constant expression.
     pub fn with_v128_const(self, value: i128) -> Self {
-        self.with(|insn| {
-            insn.v128_const(value);
-        })
+        self.with(|insn| insn.v128_const(value))
     }
 
     /// Add an `i32.add` instruction to this constant expression.
     pub fn with_i32_add(self) -> Self {
-        self.with(|insn| {
-            insn.i32_add();
-        })
+        self.with(|insn| insn.i32_add())
     }
 
     /// Add an `i32.sub` instruction to this constant expression.
     pub fn with_i32_sub(self) -> Self {
-        self.with(|insn| {
-            insn.i32_sub();
-        })
+        self.with(|insn| insn.i32_sub())
     }
 
     /// Add an `i32.mul` instruction to this constant expression.
     pub fn with_i32_mul(self) -> Self {
-        self.with(|insn| {
-            insn.i32_mul();
-        })
+        self.with(|insn| insn.i32_mul())
     }
 
     /// Add an `i64.add` instruction to this constant expression.
     pub fn with_i64_add(self) -> Self {
-        self.with(|insn| {
-            insn.i64_add();
-        })
+        self.with(|insn| insn.i64_add())
     }
 
     /// Add an `i64.sub` instruction to this constant expression.
     pub fn with_i64_sub(self) -> Self {
-        self.with(|insn| {
-            insn.i64_sub();
-        })
+        self.with(|insn| insn.i64_sub())
     }
 
     /// Add an `i64.mul` instruction to this constant expression.
     pub fn with_i64_mul(self) -> Self {
-        self.with(|insn| {
-            insn.i64_mul();
-        })
+        self.with(|insn| insn.i64_mul())
     }
 
     /// Returns the function, if any, referenced by this global.
