@@ -105,6 +105,7 @@ impl Printer<'_, '_> {
             PrimitiveValType::F64 => self.print_type_keyword("f64")?,
             PrimitiveValType::Char => self.print_type_keyword("char")?,
             PrimitiveValType::String => self.print_type_keyword("string")?,
+            PrimitiveValType::ErrorContext => self.print_type_keyword("error-context")?,
         }
         Ok(())
     }
@@ -280,7 +281,6 @@ impl Printer<'_, '_> {
             }
             ComponentDefinedType::Future(ty) => self.print_future_type(state, *ty)?,
             ComponentDefinedType::Stream(ty) => self.print_stream_type(state, *ty)?,
-            ComponentDefinedType::ErrorContext => self.print_type_keyword("error-context")?,
         }
 
         Ok(())

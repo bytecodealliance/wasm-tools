@@ -514,6 +514,7 @@ impl<O: Output> WitPrinter<O> {
             }
             Type::Char => self.output.ty("char", TypeKind::BuiltIn),
             Type::String => self.output.ty("string", TypeKind::BuiltIn),
+            Type::ErrorContext => self.output.ty("error-context", TypeKind::BuiltIn),
 
             Type::Id(id) => {
                 let ty = &resolve.types[*id];
@@ -575,7 +576,6 @@ impl<O: Output> WitPrinter<O> {
                             self.output.push_str("stream");
                         }
                     }
-                    TypeDefKind::ErrorContext => self.output.push_str("error-context"),
                     TypeDefKind::Unknown => unreachable!(),
                 }
             }
@@ -703,7 +703,8 @@ impl<O: Output> WitPrinter<O> {
             | Type::F32
             | Type::F64
             | Type::Char
-            | Type::String => return Ok(()),
+            | Type::String
+            | Type::ErrorContext => return Ok(()),
 
             Type::Id(id) => {
                 let ty = &resolve.types[*id];
@@ -747,7 +748,6 @@ impl<O: Output> WitPrinter<O> {
                     TypeDefKind::Stream(inner) => {
                         self.declare_stream(resolve, ty.name.as_deref(), inner.as_ref())?
                     }
-                    TypeDefKind::ErrorContext => self.declare_error_context(ty.name.as_deref())?,
                     TypeDefKind::Unknown => unreachable!(),
                 }
             }
@@ -984,19 +984,6 @@ impl<O: Output> WitPrinter<O> {
                 self.print_type_name(resolve, ty)?;
                 self.output.str(">");
             }
-            self.output.semicolon();
-        }
-
-        Ok(())
-    }
-
-    fn declare_error_context(&mut self, name: Option<&str>) -> Result<()> {
-        if let Some(name) = name {
-            self.output.keyword("type");
-            self.output.str(" ");
-            self.print_name_type(name, TypeKind::ErrorContext);
-            self.output.str(" = ");
-            self.output.ty("error-context", TypeKind::BuiltIn);
             self.output.semicolon();
         }
 

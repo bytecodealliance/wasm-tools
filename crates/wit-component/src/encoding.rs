@@ -323,7 +323,6 @@ impl TypeContents {
                 TypeDefKind::Type(t) => Self::for_type(resolve, t),
                 TypeDefKind::Future(_) => Self::empty(),
                 TypeDefKind::Stream(_) => Self::empty(),
-                TypeDefKind::ErrorContext => Self::empty(),
                 TypeDefKind::Unknown => unreachable!(),
             },
             Type::String => Self::STRING,

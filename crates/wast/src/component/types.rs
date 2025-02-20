@@ -238,6 +238,7 @@ pub enum PrimitiveValType {
     F64,
     Char,
     String,
+    ErrorContext,
 }
 
 impl<'a> Parse<'a> for PrimitiveValType {
@@ -288,6 +289,9 @@ impl<'a> Parse<'a> for PrimitiveValType {
         } else if l.peek::<kw::string>()? {
             parser.parse::<kw::string>()?;
             Ok(Self::String)
+        } else if l.peek::<kw::error_context>()? {
+            parser.parse::<kw::error_context>()?;
+            Ok(Self::ErrorContext)
         } else {
             Err(l.error())
         }

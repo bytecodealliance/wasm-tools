@@ -245,7 +245,8 @@ impl Resolve {
             | Type::U16
             | Type::S32
             | Type::U32
-            | Type::Char => result.push(WasmType::I32),
+            | Type::Char
+            | Type::ErrorContext => result.push(WasmType::I32),
 
             Type::U64 | Type::S64 => result.push(WasmType::I64),
             Type::F32 => result.push(WasmType::F32),
@@ -309,10 +310,6 @@ impl Resolve {
                 }
 
                 TypeDefKind::Stream(_) => {
-                    result.push(WasmType::I32);
-                }
-
-                TypeDefKind::ErrorContext => {
                     result.push(WasmType::I32);
                 }
 

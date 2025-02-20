@@ -740,6 +740,7 @@ impl From<PrimitiveValType> for wasm_encoder::PrimitiveValType {
             PrimitiveValType::F64 => Self::F64,
             PrimitiveValType::Char => Self::Char,
             PrimitiveValType::String => Self::String,
+            PrimitiveValType::ErrorContext => Self::ErrorContext,
         }
     }
 }

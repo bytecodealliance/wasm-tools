@@ -721,8 +721,7 @@ impl ComponentState {
             // named.
             ComponentDefinedType::Primitive(_)
             | ComponentDefinedType::Flags(_)
-            | ComponentDefinedType::Enum(_)
-            | ComponentDefinedType::ErrorContext => true,
+            | ComponentDefinedType::Enum(_) => true,
 
             // Referenced types of all these aggregates must all be
             // named.
@@ -3292,7 +3291,6 @@ impl ComponentState {
                 ty.map(|ty| self.create_component_val_type(ty, offset))
                     .transpose()?,
             )),
-            crate::ComponentDefinedType::ErrorContext => Ok(ComponentDefinedType::ErrorContext),
         }
     }
 

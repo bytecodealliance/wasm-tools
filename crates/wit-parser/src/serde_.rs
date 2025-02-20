@@ -72,6 +72,7 @@ impl Serialize for Type {
             Type::F64 => serializer.serialize_str("f64"),
             Type::Char => serializer.serialize_str("char"),
             Type::String => serializer.serialize_str("string"),
+            Type::ErrorContext => serializer.serialize_str("error-context"),
             Type::Id(type_id) => serializer.serialize_u64(type_id.index() as u64),
         }
     }

@@ -585,6 +585,7 @@ pub mod kw {
     custom_keyword!(callback);
     custom_keyword!(stream);
     custom_keyword!(future);
+    custom_keyword!(error_context = "error-context");
 }
 
 /// Common annotations used to parse WebAssembly text files.

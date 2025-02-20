@@ -1784,7 +1784,7 @@ fn canonical_abi_for(func_ty: &FuncType) -> Rc<crate::core::FuncType> {
             PrimitiveValType::S64 | PrimitiveValType::U64 => ValType::I64,
             PrimitiveValType::F32 => ValType::F32,
             PrimitiveValType::F64 => ValType::F64,
-            PrimitiveValType::String => {
+            PrimitiveValType::String | PrimitiveValType::ErrorContext => {
                 unimplemented!("non-scalar types are not supported yet")
             }
         },
@@ -2067,7 +2067,7 @@ fn is_scalar(ty: &ComponentValType) -> bool {
             | PrimitiveValType::F32
             | PrimitiveValType::F64
             | PrimitiveValType::Char => true,
-            PrimitiveValType::String => false,
+            PrimitiveValType::String | PrimitiveValType::ErrorContext => false,
         },
         ComponentValType::Type(_) => false,
     }

@@ -234,7 +234,6 @@ impl<'a> Converter<'a> {
                     wit_parser::TypeDefKind::Stream(ty) => {
                         TypeDefKind::Type(Type::stream(self.convert_option_type(ty)))
                     }
-                    wit_parser::TypeDefKind::ErrorContext => TypeDefKind::Type(Type::ErrorContext),
                     // all the following are just `type` declarations
                     wit_parser::TypeDefKind::Option(ty) => {
                         let output = Type::option(self.convert_type(ty));
@@ -287,6 +286,7 @@ impl<'a> Converter<'a> {
             wit_parser::Type::F64 => Type::F64,
             wit_parser::Type::Char => Type::Char,
             wit_parser::Type::String => Type::String,
+            wit_parser::Type::ErrorContext => Type::ErrorContext,
             wit_parser::Type::Id(id) => {
                 let type_def = self.resolve.types.get(*id).expect("Type not found");
                 match &type_def.name {
@@ -311,7 +311,6 @@ impl<'a> Converter<'a> {
                         wit_parser::TypeDefKind::Stream(type_) => {
                             Type::stream(self.convert_option_type(type_))
                         }
-                        wit_parser::TypeDefKind::ErrorContext => Type::ErrorContext,
                         wit_parser::TypeDefKind::Record(_)
                         | wit_parser::TypeDefKind::Resource
                         | wit_parser::TypeDefKind::Flags(_)

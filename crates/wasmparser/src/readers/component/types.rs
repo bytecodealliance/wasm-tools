@@ -185,6 +185,9 @@ pub enum PrimitiveValType {
     Char,
     /// The type is a string.
     String,
+    /// The error-context type. (added with the async proposal for the component
+    /// model)
+    ErrorContext,
 }
 
 impl PrimitiveValType {
@@ -203,6 +206,7 @@ impl PrimitiveValType {
             0x75 => PrimitiveValType::F64,
             0x74 => PrimitiveValType::Char,
             0x73 => PrimitiveValType::String,
+            0x64 => PrimitiveValType::ErrorContext,
             _ => return None,
         })
     }
@@ -241,6 +245,7 @@ impl fmt::Display for PrimitiveValType {
             F64 => "f64",
             Char => "char",
             String => "string",
+            ErrorContext => "error-context",
         };
         s.fmt(f)
     }
@@ -455,8 +460,6 @@ pub enum ComponentDefinedType<'a> {
     Future(Option<ComponentValType>),
     /// A stream type with the specified payload type.
     Stream(Option<ComponentValType>),
-    /// The error-context type.
-    ErrorContext,
 }
 
 impl<'a> ComponentDefinedType<'a> {
@@ -498,7 +501,6 @@ impl<'a> ComponentDefinedType<'a> {
             0x68 => ComponentDefinedType::Borrow(reader.read()?),
             0x65 => ComponentDefinedType::Future(reader.read()?),
             0x66 => ComponentDefinedType::Stream(reader.read()?),
-            0x64 => ComponentDefinedType::ErrorContext,
             x => return reader.invalid_leading_byte(x, "component defined type"),
         })
     }

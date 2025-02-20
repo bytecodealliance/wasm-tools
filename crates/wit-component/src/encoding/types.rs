@@ -112,6 +112,7 @@ pub trait ValtypeEncoder<'a> {
             Type::F64 => ComponentValType::Primitive(PrimitiveValType::F64),
             Type::Char => ComponentValType::Primitive(PrimitiveValType::Char),
             Type::String => ComponentValType::Primitive(PrimitiveValType::String),
+            Type::ErrorContext => ComponentValType::Primitive(PrimitiveValType::ErrorContext),
             Type::Id(id) => {
                 // If this id has already been prior defined into this section
                 // refer to that definition.
@@ -146,7 +147,6 @@ pub trait ValtypeEncoder<'a> {
                     TypeDefKind::Type(ty) => self.encode_valtype(resolve, ty)?,
                     TypeDefKind::Future(ty) => self.encode_future(resolve, ty)?,
                     TypeDefKind::Stream(ty) => self.encode_stream(resolve, ty)?,
-                    TypeDefKind::ErrorContext => self.encode_error_context()?,
                     TypeDefKind::Unknown => unreachable!(),
                     TypeDefKind::Resource => {
                         let name = ty.name.as_ref().expect("resources must be named");
@@ -321,12 +321,6 @@ pub trait ValtypeEncoder<'a> {
         let ty = self.encode_optional_valtype(resolve, payload.as_ref())?;
         let (index, encoder) = self.defined_type();
         encoder.stream(ty);
-        Ok(ComponentValType::Type(index))
-    }
-
-    fn encode_error_context(&mut self) -> Result<ComponentValType> {
-        let (index, encoder) = self.defined_type();
-        encoder.error_context();
         Ok(ComponentValType::Type(index))
     }
 }
