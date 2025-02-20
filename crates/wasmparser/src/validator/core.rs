@@ -135,7 +135,13 @@ impl ModuleState {
     ) -> Result<()> {
         self.module
             .check_global_type(&mut global.ty, features, types, offset)?;
-        self.check_const_expr(&global.init_expr, global.ty.content_type, features, types)?;
+        self.check_const_expr(
+            &global.init_expr,
+            global.ty.content_type,
+            global.ty.shared,
+            features,
+            types,
+        )?;
         self.module.assert_mut().globals.push(global.ty);
         Ok(())
     }
@@ -164,7 +170,13 @@ impl ModuleState {
                          the function-references proposal"
                     );
                 }
-                self.check_const_expr(expr, table.ty.element_type.into(), features, types)?;
+                self.check_const_expr(
+                    expr,
+                    table.ty.element_type.into(),
+                    table.ty.shared,
+                    features,
+                    types,
+                )?;
             }
         }
         self.module.assert_mut().tables.push(table.ty);
@@ -184,8 +196,8 @@ impl ModuleState {
                 memory_index,
                 offset_expr,
             } => {
-                let ty = self.module.memory_at(memory_index, offset)?.index_type();
-                self.check_const_expr(&offset_expr, ty, features, types)
+                let ty = self.module.memory_at(memory_index, offset)?;
+                self.check_const_expr(&offset_expr, ty.index_type(), ty.shared, features, types)
             }
         }
     }
@@ -197,8 +209,8 @@ impl ModuleState {
         types: &TypeList,
         offset: usize,
     ) -> Result<()> {
-        // the `funcref` value type is allowed all the way back to the MVP, so
-        // don't check it here
+        // The `funcref` value type is allowed all the way back to the MVP, so
+        // don't check it here.
         let element_ty = match &mut e.items {
             crate::ElementItems::Functions(_) => RefType::FUNC,
             crate::ElementItems::Expressions(ty, _) => {
@@ -223,8 +235,13 @@ impl ModuleState {
                         offset,
                     ));
                 }
-
-                self.check_const_expr(&offset_expr, table.index_type(), features, types)?;
+                self.check_const_expr(
+                    &offset_expr,
+                    table.index_type(),
+                    table.shared,
+                    features,
+                    types,
+                )?;
             }
             ElementKind::Passive | ElementKind::Declared => {
                 if !features.bulk_memory() {
@@ -258,8 +275,18 @@ impl ModuleState {
             }
             crate::ElementItems::Expressions(ty, reader) => {
                 validate_count(reader.count())?;
+                let shared = match ty.heap_type() {
+                    HeapType::Abstract { shared, .. } => shared,
+                    HeapType::Concrete(unpacked_index) => {
+                        if let Some(id) = unpacked_index.as_core_type_id() {
+                            types[id].composite_type.shared
+                        } else {
+                            todo!()
+                        }
+                    }
+                };
                 for expr in reader {
-                    self.check_const_expr(&expr?, ValType::Ref(ty), features, types)?;
+                    self.check_const_expr(&expr?, ValType::Ref(ty), shared, features, types)?;
                 }
             }
         }
@@ -271,6 +298,7 @@ impl ModuleState {
         &mut self,
         expr: &ConstExpr<'_>,
         expected_ty: ValType,
+        shared: bool,
         features: &WasmFeatures,
         types: &TypeList,
     ) -> Result<()> {
@@ -288,6 +316,7 @@ impl ModuleState {
                 module: &mut self.module,
             },
             features,
+            shared,
         };
 
         let mut ops = expr.get_operators_reader();
@@ -311,6 +340,7 @@ impl ModuleState {
             resources: OperatorValidatorResources<'a>,
             order: Order,
             features: &'a WasmFeatures,
+            shared: bool,
         }
 
         impl VisitConstOperator<'_> {
@@ -373,6 +403,12 @@ impl ModuleState {
                 if global.mutable {
                     return Err(BinaryReaderError::new(
                         "constant expression required: global.get of mutable global",
+                        self.offset,
+                    ));
+                }
+                if self.shared && !global.shared {
+                    return Err(BinaryReaderError::new(
+                        "invalid type: constant expression must be shared",
                         self.offset,
                     ));
                 }
