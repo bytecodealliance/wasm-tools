@@ -339,7 +339,11 @@ impl<'a> Encoder<'a> {
             }
             CanonicalFuncKind::ResourceDrop(info) => {
                 self.core_func_names.push(name);
-                self.funcs.resource_drop(info.ty.into());
+                if info.async_ {
+                    self.funcs.resource_drop_async(info.ty.into());
+                } else {
+                    self.funcs.resource_drop(info.ty.into());
+                }
             }
             CanonicalFuncKind::ResourceRep(info) => {
                 self.core_func_names.push(name);
@@ -353,9 +357,9 @@ impl<'a> Encoder<'a> {
                 self.core_func_names.push(name);
                 self.funcs.thread_available_parallelism();
             }
-            CanonicalFuncKind::TaskBackpressure => {
+            CanonicalFuncKind::BackpressureSet => {
                 self.core_func_names.push(name);
-                self.funcs.task_backpressure();
+                self.funcs.backpressure_set();
             }
             CanonicalFuncKind::TaskReturn(info) => {
                 self.core_func_names.push(name);
@@ -363,6 +367,7 @@ impl<'a> Encoder<'a> {
                     info.result
                         .as_ref()
                         .map(|ty| wasm_encoder::ComponentValType::from(ty)),
+                    info.opts.iter().map(Into::into),
                 );
             }
             CanonicalFuncKind::TaskWait(info) => {

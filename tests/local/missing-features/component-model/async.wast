@@ -28,16 +28,16 @@
   "canonical option `async` requires the component model async feature"
 )
 
-;; task.backpressure
+;; backpressure.set
 (assert_invalid
   (component
     (core module $m
-      (import "" "task.backpressure" (func $task-backpressure (param i32)))
+      (import "" "backpressure.set" (func $backpressure-set (param i32)))
     )
-    (core func $task-backpressure (canon task.backpressure))
-    (core instance $i (instantiate $m (with "" (instance (export "task.backpressure" (func $task-backpressure))))))
+    (core func $backpressure.set (canon backpressure.set))
+    (core instance $i (instantiate $m (with "" (instance (export "backpressure.set" (func $backpressure.set))))))
   )
-  "`task.backpressure` requires the component model async feature"
+  "`backpressure.set` requires the component model async feature"
 )
 
 ;; task.return
@@ -348,5 +348,12 @@
 )
 (assert_invalid
   (component (type error-context))
+  "requires the component model async feature"
+)
+(assert_invalid
+  (component
+    (type $t (resource (rep i32)))
+    (core func $f (canon resource.drop $t async))
+  )
   "requires the component model async feature"
 )

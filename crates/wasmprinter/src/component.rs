@@ -881,6 +881,12 @@ impl Printer<'_, '_> {
                         me.print_idx(&state.component.type_names, resource)
                     })?;
                 }
+                CanonicalFunction::ResourceDropAsync { resource } => {
+                    self.print_intrinsic(state, "canon resource.drop ", &|me, state| {
+                        me.print_idx(&state.component.type_names, resource)?;
+                        me.print_type_keyword(" async")
+                    })?;
+                }
                 CanonicalFunction::ResourceRep { resource } => {
                     self.print_intrinsic(state, "canon resource.rep ", &|me, state| {
                         me.print_idx(&state.component.type_names, resource)
@@ -907,10 +913,10 @@ impl Printer<'_, '_> {
                     self.end_group()?;
                     state.core.funcs += 1;
                 }
-                CanonicalFunction::TaskBackpressure => {
-                    self.print_intrinsic(state, "canon task.backpressure", &|_, _| Ok(()))?;
+                CanonicalFunction::BackpressureSet => {
+                    self.print_intrinsic(state, "canon backpressure.set", &|_, _| Ok(()))?;
                 }
-                CanonicalFunction::TaskReturn { result } => {
+                CanonicalFunction::TaskReturn { result, options } => {
                     self.print_intrinsic(state, "canon task.return", &|me, state| {
                         if let Some(ty) = result {
                             me.result.write_str(" ")?;
@@ -918,6 +924,7 @@ impl Printer<'_, '_> {
                             me.print_component_val_type(state, &ty)?;
                             me.end_group()?;
                         }
+                        me.print_canonical_options(state, &options)?;
                         Ok(())
                     })?;
                 }

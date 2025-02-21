@@ -945,6 +945,10 @@ pub mod component_utils {
                 let resource = reencoder.component_type_index(resource);
                 section.resource_drop(resource);
             }
+            wasmparser::CanonicalFunction::ResourceDropAsync { resource } => {
+                let resource = reencoder.component_type_index(resource);
+                section.resource_drop_async(resource);
+            }
             wasmparser::CanonicalFunction::ResourceRep { resource } => {
                 let resource = reencoder.component_type_index(resource);
                 section.resource_rep(resource);
@@ -956,11 +960,14 @@ pub mod component_utils {
             wasmparser::CanonicalFunction::ThreadAvailableParallelism => {
                 section.thread_available_parallelism();
             }
-            wasmparser::CanonicalFunction::TaskBackpressure => {
-                section.task_backpressure();
+            wasmparser::CanonicalFunction::BackpressureSet => {
+                section.backpressure_set();
             }
-            wasmparser::CanonicalFunction::TaskReturn { result } => {
-                section.task_return(result.map(|ty| reencoder.component_val_type(ty)));
+            wasmparser::CanonicalFunction::TaskReturn { result, options } => {
+                section.task_return(
+                    result.map(|ty| reencoder.component_val_type(ty)),
+                    options.iter().map(|o| reencoder.canonical_option(*o)),
+                );
             }
             wasmparser::CanonicalFunction::TaskWait { async_, memory } => {
                 section.task_wait(async_, reencoder.memory_index(memory));

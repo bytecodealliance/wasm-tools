@@ -955,7 +955,7 @@ impl ComponentState {
         &mut self,
         core_func_index: u32,
         type_index: u32,
-        options: Vec<CanonicalOption>,
+        options: &[CanonicalOption],
         types: &TypeList,
         offset: usize,
         features: &WasmFeatures,
@@ -965,30 +965,8 @@ impl ComponentState {
 
         // Lifting a function is for an export, so match the expected canonical ABI
         // export signature
-        let info = ty.lower(
-            types,
-            if options.contains(&CanonicalOption::Async) {
-                if options
-                    .iter()
-                    .any(|v| matches!(v, CanonicalOption::Callback(_)))
-                {
-                    Abi::LiftAsync
-                } else {
-                    Abi::LiftAsyncStackful
-                }
-            } else {
-                Abi::LiftSync
-            },
-        );
-        self.check_options(
-            Some(core_ty),
-            &info,
-            &options,
-            types,
-            offset,
-            features,
-            true,
-        )?;
+        let info = ty.lower(types, Abi::for_lift(options));
+        self.check_options(Some(core_ty), &info, options, types, offset, features, true)?;
 
         if core_ty.params() != info.params.as_slice() {
             bail!(
@@ -1019,7 +997,7 @@ impl ComponentState {
     pub fn lower_function(
         &mut self,
         func_index: u32,
-        options: Vec<CanonicalOption>,
+        options: &[CanonicalOption],
         types: &mut TypeAlloc,
         offset: usize,
         features: &WasmFeatures,
@@ -1037,7 +1015,7 @@ impl ComponentState {
             },
         );
 
-        self.check_options(None, &info, &options, types, offset, features, true)?;
+        self.check_options(None, &info, options, types, offset, features, true)?;
 
         let id = types.intern_func_type(info.into_func_type(), offset);
         self.core_funcs.push(id);
@@ -1069,6 +1047,25 @@ impl ComponentState {
         Ok(())
     }
 
+    pub fn resource_drop_async(
+        &mut self,
+        resource: u32,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`resource.drop` as `async` requires the component model async feature"
+            )
+        }
+        self.resource_at(resource, types, offset)?;
+        let id = types.intern_func_type(FuncType::new([ValType::I32], []), offset);
+        self.core_funcs.push(id);
+        Ok(())
+    }
+
     pub fn resource_rep(
         &mut self,
         resource: u32,
@@ -1081,7 +1078,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn task_backpressure(
+    pub fn backpressure_set(
         &mut self,
         types: &mut TypeAlloc,
         offset: usize,
@@ -1090,7 +1087,7 @@ impl ComponentState {
         if !features.component_model_async() {
             bail!(
                 offset,
-                "`task.backpressure` requires the component model async feature"
+                "`backpressure.set` requires the component model async feature"
             )
         }
 
@@ -1102,6 +1099,7 @@ impl ComponentState {
     pub fn task_return(
         &mut self,
         result: &Option<crate::ComponentValType>,
+        options: &[CanonicalOption],
         types: &mut TypeAlloc,
         offset: usize,
         features: &WasmFeatures,
@@ -1111,6 +1109,21 @@ impl ComponentState {
                 offset,
                 "`task.return` requires the component model async feature"
             )
+        }
+
+        for option in options {
+            let invalid = match option {
+                CanonicalOption::UTF8
+                | CanonicalOption::UTF16
+                | CanonicalOption::CompactUTF16
+                | CanonicalOption::Memory(_)
+                | CanonicalOption::Realloc(_) => continue,
+
+                CanonicalOption::PostReturn(_) => "post-return",
+                CanonicalOption::Async => "async",
+                CanonicalOption::Callback(_) => "callback",
+            };
+            bail!(offset, "cannot specify `{invalid}` option on `task.return`")
         }
 
         let info = ComponentFuncType {
@@ -1133,7 +1146,9 @@ impl ComponentState {
                 .collect::<Result<_>>()?,
             result: None,
         }
-        .lower(types, Abi::LiftSync);
+        .lower(types, Abi::LowerSync);
+
+        self.check_options(None, &info, options, types, offset, features, true)?;
 
         assert!(info.results.iter().next().is_none());
 
@@ -1250,7 +1265,7 @@ impl ComponentState {
     pub fn stream_read(
         &mut self,
         ty: u32,
-        options: Vec<CanonicalOption>,
+        options: &[CanonicalOption],
         types: &mut TypeAlloc,
         offset: usize,
         features: &WasmFeatures,
@@ -1272,7 +1287,7 @@ impl ComponentState {
         info.requires_realloc = payload_type
             .map(|ty| ty.contains_ptr(types))
             .unwrap_or_default();
-        self.check_options(None, &info, &options, types, offset, features, true)?;
+        self.check_options(None, &info, options, types, offset, features, true)?;
 
         self.core_funcs
             .push(types.intern_func_type(FuncType::new([ValType::I32; 3], [ValType::I32]), offset));
@@ -1282,7 +1297,7 @@ impl ComponentState {
     pub fn stream_write(
         &mut self,
         ty: u32,
-        options: Vec<CanonicalOption>,
+        options: &[CanonicalOption],
         types: &mut TypeAlloc,
         offset: usize,
         features: &WasmFeatures,
@@ -1302,7 +1317,7 @@ impl ComponentState {
         let mut info = LoweringInfo::default();
         info.requires_memory = true;
         info.requires_realloc = false;
-        self.check_options(None, &info, &options, types, offset, features, true)?;
+        self.check_options(None, &info, options, types, offset, features, true)?;
 
         self.core_funcs
             .push(types.intern_func_type(FuncType::new([ValType::I32; 3], [ValType::I32]), offset));
@@ -1434,7 +1449,7 @@ impl ComponentState {
     pub fn future_read(
         &mut self,
         ty: u32,
-        options: Vec<CanonicalOption>,
+        options: &[CanonicalOption],
         types: &mut TypeAlloc,
         offset: usize,
         features: &WasmFeatures,
@@ -1456,7 +1471,7 @@ impl ComponentState {
         info.requires_realloc = payload_type
             .map(|ty| ty.contains_ptr(types))
             .unwrap_or_default();
-        self.check_options(None, &info, &options, types, offset, features, true)?;
+        self.check_options(None, &info, options, types, offset, features, true)?;
 
         self.core_funcs
             .push(types.intern_func_type(FuncType::new([ValType::I32; 2], [ValType::I32]), offset));

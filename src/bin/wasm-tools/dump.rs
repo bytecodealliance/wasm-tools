@@ -417,12 +417,11 @@ impl<'a> Dump<'a> {
                             CanonicalFunction::Lower { .. }
                             | CanonicalFunction::ResourceNew { .. }
                             | CanonicalFunction::ResourceDrop { .. }
+                            | CanonicalFunction::ResourceDropAsync { .. }
                             | CanonicalFunction::ResourceRep { .. }
                             | CanonicalFunction::ThreadSpawn { .. }
-                            | CanonicalFunction::ThreadAvailableParallelism => {
-                                ("core func", &mut i.core_funcs)
-                            }
-                            CanonicalFunction::TaskBackpressure
+                            | CanonicalFunction::ThreadAvailableParallelism
+                            | CanonicalFunction::BackpressureSet
                             | CanonicalFunction::TaskReturn { .. }
                             | CanonicalFunction::TaskWait { .. }
                             | CanonicalFunction::TaskPoll { .. }

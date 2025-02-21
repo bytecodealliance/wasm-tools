@@ -1,7 +1,7 @@
 (module
-  (import "$root" "[task-backpressure]" (func (param i32)))
+  (import "$root" "[backpressure-set]" (func (param i32)))
   (import "[export]$root" "[task-return]foo" (func (param i32 i32)))
-  (import "[export]foo:foo/bar" "[task-return]foo" (func (param i32 i32)))  
+  (import "[export]foo:foo/bar" "[task-return]foo" (func (param i32 i32)))
   (import "$root" "[task-wait]" (func (param i32) (result i32)))
   (import "$root" "[task-poll]" (func (param i32) (result i32)))
   (import "$root" "[task-yield]" (func))

@@ -1,0 +1,4 @@
+(component
+  (type $t (;0;) (resource (rep i32)))
+  (core func $f (;0;) (canon resource.drop $t async))
+)

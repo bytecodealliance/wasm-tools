@@ -387,7 +387,7 @@ impl<'a> Resolver<'a> {
                 self.resolve_ns(&mut info.ty, Ns::CoreType)?;
             }
             CanonicalFuncKind::ThreadAvailableParallelism(_)
-            | CanonicalFuncKind::TaskBackpressure
+            | CanonicalFuncKind::BackpressureSet
             | CanonicalFuncKind::TaskYield(_)
             | CanonicalFuncKind::SubtaskDrop
             | CanonicalFuncKind::ErrorContextDrop => {}
@@ -395,6 +395,7 @@ impl<'a> Resolver<'a> {
                 if let Some(ty) = &mut info.result {
                     self.component_val_type(ty)?;
                 }
+                self.canon_opts(&mut info.opts)?;
             }
             CanonicalFuncKind::TaskWait(info) => {
                 self.core_item_ref(&mut info.memory)?;
@@ -965,7 +966,7 @@ impl<'a> ComponentState<'a> {
                 | CanonicalFuncKind::ResourceDrop(_)
                 | CanonicalFuncKind::ThreadSpawn(_)
                 | CanonicalFuncKind::ThreadAvailableParallelism(_)
-                | CanonicalFuncKind::TaskBackpressure
+                | CanonicalFuncKind::BackpressureSet
                 | CanonicalFuncKind::TaskReturn(_)
                 | CanonicalFuncKind::TaskWait(_)
                 | CanonicalFuncKind::TaskPoll(_)

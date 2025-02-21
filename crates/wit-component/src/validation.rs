@@ -253,13 +253,13 @@ pub enum Import {
     /// As of this writing, only async-lifted exports use `task.return`, but the
     /// plan is to also support it for sync-lifted exports in the future as
     /// well.
-    ExportedTaskReturn(Option<InterfaceId>, String, Option<Type>),
+    ExportedTaskReturn(WorldKey, Option<InterfaceId>, String, Option<Type>),
 
-    /// A `canon task.backpressure` intrinsic.
+    /// A `canon backpressure.set` intrinsic.
     ///
     /// This allows the guest to dynamically indicate whether it's ready for
     /// additional concurrent calls.
-    TaskBackpressure,
+    BackpressureSet,
 
     /// A `canon task.wait` intrinsic.
     ///
@@ -550,10 +550,10 @@ impl ImportMap {
                 return Ok(Import::ErrorContextDrop);
             }
 
-            if Some(name) == names.task_backpressure() {
+            if Some(name) == names.backpressure_set() {
                 let expected = FuncType::new([ValType::I32], []);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::TaskBackpressure);
+                return Ok(Import::BackpressureSet);
             }
 
             if Some(name) == names.task_wait() {
@@ -776,9 +776,11 @@ impl ImportMap {
             }
             if let Some(name) = names.task_return_name(name) {
                 let func = get_function(resolve, world, name, id, import)?;
+                let key = key.unwrap_or_else(|| WorldKey::Name(name.to_string()));
                 // TODO: should call `validate_func_sig` but would require
                 // calculating the expected signature based of `func.result`.
                 return Ok(Some(Import::ExportedTaskReturn(
+                    key,
                     None,
                     func.name.clone(),
                     func.result,
@@ -1364,7 +1366,7 @@ trait NameMangling {
     fn resource_new_name<'a>(&self, s: &'a str) -> Option<&'a str>;
     fn resource_rep_name<'a>(&self, s: &'a str) -> Option<&'a str>;
     fn task_return_name<'a>(&self, s: &'a str) -> Option<&'a str>;
-    fn task_backpressure(&self) -> Option<&str>;
+    fn backpressure_set(&self) -> Option<&str>;
     fn task_wait(&self) -> Option<&str>;
     fn task_poll(&self) -> Option<&str>;
     fn task_yield(&self) -> Option<&str>;
@@ -1436,7 +1438,7 @@ impl NameMangling for Standard {
         _ = s;
         None
     }
-    fn task_backpressure(&self) -> Option<&str> {
+    fn backpressure_set(&self) -> Option<&str> {
         None
     }
     fn task_wait(&self) -> Option<&str> {
@@ -1612,8 +1614,8 @@ impl NameMangling for Legacy {
     fn task_return_name<'a>(&self, s: &'a str) -> Option<&'a str> {
         s.strip_prefix("[task-return]")
     }
-    fn task_backpressure(&self) -> Option<&str> {
-        Some("[task-backpressure]")
+    fn backpressure_set(&self) -> Option<&str> {
+        Some("[backpressure-set]")
     }
     fn task_wait(&self) -> Option<&str> {
         Some("[task-wait]")
