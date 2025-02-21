@@ -532,33 +532,15 @@ impl ImportMap {
         let world_id = encoder.metadata.world;
         let world = &resolve.worlds[world_id];
 
-        if let Some(import) = names.payload_import(module, name, resolve, world, ty)? {
-            return Ok(import);
-        }
-
-        let async_import_for_export = |interface: Option<(WorldKey, InterfaceId)>| {
-            Ok::<_, anyhow::Error>(if let Some(function_name) = names.task_return_name(name) {
-                let interface_id = interface.as_ref().map(|(_, id)| *id);
-                let func = get_function(resolve, world, function_name, interface_id, false)?;
-                // Note that we can't statically validate the type signature of
-                // a `task.return` built-in since we can't know which export
-                // it's associated with in general.  Instead, the host will
-                // compare it with the expected type at runtime and trap if
-                // necessary.
-                Some(Import::ExportedTaskReturn(
-                    interface_id,
-                    func.name.clone(),
-                    func.result,
-                ))
-            } else {
-                None
-            })
-        };
-
-        let (abi, name) = if let Some(name) = names.async_name(name) {
-            (AbiVariant::GuestImportAsync, name)
+        let (async_, name) = if let Some(name) = names.async_name(name) {
+            (true, name)
         } else {
-            (AbiVariant::GuestImport, name)
+            (false, name)
+        };
+        let abi = if async_ {
+            AbiVariant::GuestImportAsync
+        } else {
+            AbiVariant::GuestImport
         };
 
         if module == names.import_root() {
@@ -625,13 +607,10 @@ impl ImportMap {
                 return Ok(Import::WorldFunc(key, func.name.clone(), abi));
             }
 
-            let get_resource = resource_test_for_world(resolve, world_id);
-            if let Some(resource) = names.resource_drop_name(name) {
-                if let Some(id) = get_resource(resource) {
-                    let expected = FuncType::new([ValType::I32], []);
-                    validate_func_sig(name, &expected, ty)?;
-                    return Ok(Import::ImportedResourceDrop(key, None, id));
-                }
+            if let Some(import) =
+                self.maybe_classify_wit_intrinsic(name, None, encoder, ty, async_, true, names)?
+            {
+                return Ok(import);
             }
 
             match world.imports.get(&key) {
@@ -640,11 +619,14 @@ impl ImportMap {
             }
         }
 
+        // Check for `[export]$root::[task-return]foo` or similar
         if matches!(
             module.strip_prefix(names.import_exported_intrinsic_prefix()),
             Some(module) if module == names.import_root()
         ) {
-            if let Some(import) = async_import_for_export(None)? {
+            if let Some(import) =
+                self.maybe_classify_wit_intrinsic(name, None, encoder, ty, async_, false, names)?
+            {
                 return Ok(import);
             }
         }
@@ -655,61 +637,255 @@ impl ImportMap {
         };
 
         if let Some(interface) = interface.strip_prefix(names.import_exported_intrinsic_prefix()) {
-            if let Some(import) = async_import_for_export(Some(names.module_to_interface(
-                interface,
-                resolve,
-                &world.exports,
-            )?))? {
-                return Ok(import);
-            }
-
             let (key, id) = names.module_to_interface(interface, resolve, &world.exports)?;
 
-            let get_resource = resource_test_for_interface(resolve, id);
-            if let Some(name) = names.resource_drop_name(name) {
-                if let Some(id) = get_resource(name) {
-                    let expected = FuncType::new([ValType::I32], []);
-                    validate_func_sig(name, &expected, ty)?;
-                    return Ok(Import::ExportedResourceDrop(key, id));
-                }
-            }
-            if let Some(name) = names.resource_new_name(name) {
-                if let Some(id) = get_resource(name) {
-                    let expected = FuncType::new([ValType::I32], [ValType::I32]);
-                    validate_func_sig(name, &expected, ty)?;
-                    return Ok(Import::ExportedResourceNew(key, id));
-                }
-            }
-            if let Some(name) = names.resource_rep_name(name) {
-                if let Some(id) = get_resource(name) {
-                    let expected = FuncType::new([ValType::I32], [ValType::I32]);
-                    validate_func_sig(name, &expected, ty)?;
-                    return Ok(Import::ExportedResourceRep(key, id));
-                }
+            if let Some(import) = self.maybe_classify_wit_intrinsic(
+                name,
+                Some((key, id)),
+                encoder,
+                ty,
+                async_,
+                false,
+                names,
+            )? {
+                return Ok(import);
             }
             bail!("unknown function `{name}`")
         }
 
         let (key, id) = names.module_to_interface(interface, resolve, &world.imports)?;
         let interface = &resolve.interfaces[id];
-        let get_resource = resource_test_for_interface(resolve, id);
         if let Some(f) = interface.functions.get(name) {
             validate_func(resolve, ty, f, abi).with_context(|| {
                 let name = resolve.name_world_key(&key);
                 format!("failed to validate import interface `{name}`")
             })?;
             return Ok(Import::InterfaceFunc(key, id, f.name.clone(), abi));
-        } else if let Some(resource) = names.resource_drop_name(name) {
-            if let Some(resource) = get_resource(resource) {
-                let expected = FuncType::new([ValType::I32], []);
-                validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::ImportedResourceDrop(key, Some(id), resource));
-            }
+        }
+
+        if let Some(import) = self.maybe_classify_wit_intrinsic(
+            name,
+            Some((key, id)),
+            encoder,
+            ty,
+            async_,
+            true,
+            names,
+        )? {
+            return Ok(import);
         }
         bail!(
             "import interface `{module}` is missing function \
              `{name}` that is required by the module",
         )
+    }
+
+    /// Attempts to detect and classify `name` as a WIT intrinsic.
+    ///
+    /// This function is a bit of a sprawling sequence of matches used to
+    /// detect whether `name` corresponds to a WIT intrinsic, so specifically
+    /// not a WIT function itself. This is only used for functions imported
+    /// into a module but the import could be for an imported item in a world
+    /// or an exported item.
+    ///
+    /// ## Parameters
+    ///
+    /// * `name` - the core module name which is being pattern-matched. This
+    ///   should be the "field" of the import. This should have the "[async]"
+    ///   prefix stripped out already.
+    /// * `key_and_id` - this is the inferred "container" for the function
+    ///   being described which is inferred from the module portion of the core
+    ///   wasm import field. This is `None` for root-level function/type
+    ///   imports, such as when referring to `import x: func();`. This is `Some`
+    ///   when an interface is used (either `import x: interface { .. }` or a
+    ///   standalone `interface`) where the world key is specified for the
+    ///   interface in addition to the interface that was identified.
+    /// * `encoder` - this is the encoder state that contains
+    ///   `Resolve`/metadata information.
+    /// * `ty` - the core wasm type of this import.
+    /// * `async_` - whether or not this import had the `[async]` import. Note
+    ///   that such prefix is not present in `name`.
+    /// * `import` - whether or not this core wasm import is operating on a WIT
+    ///   level import or export. An example of this being an export is when a
+    ///   core module imports a destructor for an exported resourceV
+    /// * `names` - the name mangling scheme that's configured to be used.
+    fn maybe_classify_wit_intrinsic(
+        &self,
+        name: &str,
+        key_and_id: Option<(WorldKey, InterfaceId)>,
+        encoder: &ComponentEncoder,
+        ty: &FuncType,
+        async_: bool,
+        import: bool,
+        names: &dyn NameMangling,
+    ) -> Result<Option<Import>> {
+        let resolve = &encoder.metadata.resolve;
+        let world_id = encoder.metadata.world;
+        let world = &resolve.worlds[world_id];
+
+        // Separate out `Option<WorldKey>` and `Option<InterfaceId>`. If an
+        // interface is NOT specified then the `WorldKey` which is attached to
+        // imports is going to be calculated based on the name of the item
+        // extracted, such as the resource or function referenced.
+        let (key, id) = match key_and_id {
+            Some((key, id)) => (Some(key), Some(id)),
+            None => (None, None),
+        };
+
+        // Tests whether `name` is a resource within `id` (or `world_id`).
+        let resource_test = |name: &str| match id {
+            Some(id) => resource_test_for_interface(resolve, id)(name),
+            None => resource_test_for_world(resolve, world_id)(name),
+        };
+
+        // Test whether this is a `resource.drop` intrinsic.
+        if let Some(resource) = names.resource_drop_name(name) {
+            if async_ {
+                bail!("async `resource.drop` calls not supported");
+            }
+            if let Some(resource_id) = resource_test(resource) {
+                let key = key.unwrap_or_else(|| WorldKey::Name(resource.to_string()));
+                let expected = FuncType::new([ValType::I32], []);
+                validate_func_sig(name, &expected, ty)?;
+                return Ok(Some(if import {
+                    Import::ImportedResourceDrop(key, id, resource_id)
+                } else {
+                    Import::ExportedResourceDrop(key, resource_id)
+                }));
+            }
+        }
+
+        // There are some intrinsics which are only applicable to exported
+        // functions/resources, so check those use cases here.
+        if !import {
+            if let Some(name) = names.resource_new_name(name) {
+                if let Some(id) = resource_test(name) {
+                    let key = key.unwrap_or_else(|| WorldKey::Name(name.to_string()));
+                    let expected = FuncType::new([ValType::I32], [ValType::I32]);
+                    validate_func_sig(name, &expected, ty)?;
+                    return Ok(Some(Import::ExportedResourceNew(key, id)));
+                }
+            }
+            if let Some(name) = names.resource_rep_name(name) {
+                if let Some(id) = resource_test(name) {
+                    let key = key.unwrap_or_else(|| WorldKey::Name(name.to_string()));
+                    let expected = FuncType::new([ValType::I32], [ValType::I32]);
+                    validate_func_sig(name, &expected, ty)?;
+                    return Ok(Some(Import::ExportedResourceRep(key, id)));
+                }
+            }
+            if let Some(name) = names.task_return_name(name) {
+                let func = get_function(resolve, world, name, id, import)?;
+                // TODO: should call `validate_func_sig` but would require
+                // calculating the expected signature based of `func.result`.
+                return Ok(Some(Import::ExportedTaskReturn(
+                    None,
+                    func.name.clone(),
+                    func.result,
+                )));
+            }
+        }
+
+        // Looks for `[$prefix-N]foo` within `name`. If found then `foo` is
+        // used to find a function within `id` and `world` above. Once found
+        // then `N` is used to index within that function to extract a
+        // future/stream type. If that's all found then a `PayloadInfo` is
+        // returned to get attached to an intrinsic.
+        let prefixed_payload = |prefix: &str| {
+            // parse the `prefix` into `func_name` and `type_index`, bailing out
+            // with `None` if anything doesn't match.
+            let suffix = name.strip_prefix(prefix)?;
+            let index = suffix.find(']')?;
+            let func_name = &suffix[index + 1..];
+            let type_index: usize = suffix[..index].parse().ok()?;
+
+            // Double-check that `func_name` is indeed a function name within
+            // this interface/world. Then additionally double-check that
+            // `type_index` is indeed a valid index for this function's type
+            // signature.
+            let function = get_function(resolve, world, func_name, id, import).ok()?;
+            let ty = *function.find_futures_and_streams(resolve).get(type_index)?;
+
+            // And if all that passes wrap up everything in a `PayloadInfo`.
+            Some(PayloadInfo {
+                name: name.to_string(),
+                ty,
+                function: function.name.clone(),
+                key: key
+                    .clone()
+                    .unwrap_or_else(|| WorldKey::Name(name.to_string())),
+                interface: id,
+                imported: import,
+            })
+        };
+
+        // Test for a number of async-related intrinsics. All intrinsics are
+        // prefixed with `[...-N]` where `...` is the name of the intrinsic and
+        // the `N` is the indexed future/stream that is being referred to.
+        let import = if let Some(info) = prefixed_payload("[future-new-") {
+            if async_ {
+                bail!("async `future.new` calls not supported");
+            }
+            validate_func_sig(name, &FuncType::new([], [ValType::I32]), ty)?;
+            Import::FutureNew(info)
+        } else if let Some(info) = prefixed_payload("[future-write-") {
+            validate_func_sig(name, &FuncType::new([ValType::I32; 2], [ValType::I32]), ty)?;
+            Import::FutureWrite { async_, info }
+        } else if let Some(info) = prefixed_payload("[future-read-") {
+            validate_func_sig(name, &FuncType::new([ValType::I32; 2], [ValType::I32]), ty)?;
+            Import::FutureRead { async_, info }
+        } else if let Some(info) = prefixed_payload("[future-cancel-write-") {
+            validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
+            Import::FutureCancelWrite { async_, info }
+        } else if let Some(info) = prefixed_payload("[future-cancel-read-") {
+            validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
+            Import::FutureCancelRead { async_, info }
+        } else if let Some(info) = prefixed_payload("[future-close-writable-") {
+            if async_ {
+                bail!("async `future.close-writable` calls not supported");
+            }
+            validate_func_sig(name, &FuncType::new([ValType::I32; 2], []), ty)?;
+            Import::FutureCloseWritable(info)
+        } else if let Some(info) = prefixed_payload("[future-close-readable-") {
+            if async_ {
+                bail!("async `future.close-readable` calls not supported");
+            }
+            validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
+            Import::FutureCloseReadable(info)
+        } else if let Some(info) = prefixed_payload("[stream-new-") {
+            if async_ {
+                bail!("async `stream.new` calls not supported");
+            }
+            validate_func_sig(name, &FuncType::new([], [ValType::I32]), ty)?;
+            Import::StreamNew(info)
+        } else if let Some(info) = prefixed_payload("[stream-write-") {
+            validate_func_sig(name, &FuncType::new([ValType::I32; 3], [ValType::I32]), ty)?;
+            Import::StreamWrite { async_, info }
+        } else if let Some(info) = prefixed_payload("[stream-read-") {
+            validate_func_sig(name, &FuncType::new([ValType::I32; 3], [ValType::I32]), ty)?;
+            Import::StreamRead { async_, info }
+        } else if let Some(info) = prefixed_payload("[stream-cancel-write-") {
+            validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
+            Import::StreamCancelWrite { async_, info }
+        } else if let Some(info) = prefixed_payload("[stream-cancel-read-") {
+            validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
+            Import::StreamCancelRead { async_, info }
+        } else if let Some(info) = prefixed_payload("[stream-close-writable-") {
+            if async_ {
+                bail!("async `stream.close-writable` calls not supported");
+            }
+            validate_func_sig(name, &FuncType::new([ValType::I32; 2], []), ty)?;
+            Import::StreamCloseWritable(info)
+        } else if let Some(info) = prefixed_payload("[stream-close-readable-") {
+            if async_ {
+                bail!("async `stream.close-readable` calls not supported");
+            }
+            validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
+            Import::StreamCloseReadable(info)
+        } else {
+            return Ok(None);
+        };
+        Ok(Some(import))
     }
 
     fn classify_import_with_library(
@@ -1199,14 +1375,6 @@ trait NameMangling {
     fn error_context_new(&self, s: &str) -> Option<StringEncoding>;
     fn error_context_debug_message<'a>(&self, s: &'a str) -> Option<(StringEncoding, &'a str)>;
     fn error_context_drop(&self) -> Option<&str>;
-    fn payload_import(
-        &self,
-        module: &str,
-        name: &str,
-        resolve: &Resolve,
-        world: &World,
-        ty: &FuncType,
-    ) -> Result<Option<Import>>;
     fn module_to_interface(
         &self,
         module: &str,
@@ -1305,17 +1473,6 @@ impl NameMangling for Standard {
     }
     fn error_context_drop(&self) -> Option<&str> {
         None
-    }
-    fn payload_import(
-        &self,
-        module: &str,
-        name: &str,
-        resolve: &Resolve,
-        world: &World,
-        ty: &FuncType,
-    ) -> Result<Option<Import>> {
-        _ = (module, name, resolve, world, ty);
-        Ok(None)
     }
     fn module_to_interface(
         &self,
@@ -1513,142 +1670,6 @@ impl NameMangling for Legacy {
     }
     fn error_context_drop(&self) -> Option<&str> {
         Some("[error-context-drop]")
-    }
-    fn payload_import(
-        &self,
-        module: &str,
-        name: &str,
-        resolve: &Resolve,
-        world: &World,
-        ty: &FuncType,
-    ) -> Result<Option<Import>> {
-        let Some((suffix, imported)) = module
-            .strip_prefix("[import-payload]")
-            .map(|v| (v, true))
-            .or_else(|| module.strip_prefix("[export-payload]").map(|v| (v, false)))
-        else {
-            return Ok(None);
-        };
-        let (key, interface) = if suffix == self.import_root() {
-            (WorldKey::Name(name.to_string()), None)
-        } else {
-            let (key, id) = self.module_to_interface(
-                suffix,
-                resolve,
-                if imported {
-                    &world.imports
-                } else {
-                    &world.exports
-                },
-            )?;
-            (key, Some(id))
-        };
-
-        let orig_name = name;
-
-        let (name, async_) = if let Some(name) = self.async_name(name) {
-            (name, true)
-        } else {
-            (name, false)
-        };
-
-        let info = |payload_key| {
-            let (function, ty) =
-                get_future_or_stream_type(resolve, world, &payload_key, interface, imported)?;
-            Ok::<_, anyhow::Error>(PayloadInfo {
-                name: orig_name.to_string(),
-                ty,
-                function: function.name.clone(),
-                key: key.clone(),
-                interface,
-                imported,
-            })
-        };
-
-        let import = if let Some(key) = match_payload_prefix(name, "[future-new-") {
-            if async_ {
-                bail!("async `future.new` calls not supported");
-            }
-            validate_func_sig(name, &FuncType::new([], [ValType::I32]), ty)?;
-            Import::FutureNew(info(key)?)
-        } else if let Some(key) = match_payload_prefix(name, "[future-write-") {
-            validate_func_sig(name, &FuncType::new([ValType::I32; 2], [ValType::I32]), ty)?;
-            Import::FutureWrite {
-                async_,
-                info: info(key)?,
-            }
-        } else if let Some(key) = match_payload_prefix(name, "[future-read-") {
-            validate_func_sig(name, &FuncType::new([ValType::I32; 2], [ValType::I32]), ty)?;
-            Import::FutureRead {
-                async_,
-                info: info(key)?,
-            }
-        } else if let Some(key) = match_payload_prefix(name, "[future-cancel-write-") {
-            validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
-            let info = info(key)?;
-            Import::FutureCancelWrite { async_, info }
-        } else if let Some(key) = match_payload_prefix(name, "[future-cancel-read-") {
-            validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
-            let info = info(key)?;
-            Import::FutureCancelRead { async_, info }
-        } else if let Some(key) = match_payload_prefix(name, "[future-close-writable-") {
-            if async_ {
-                bail!("async `future.close-writable` calls not supported");
-            }
-            validate_func_sig(name, &FuncType::new([ValType::I32; 2], []), ty)?;
-            let info = info(key)?;
-            Import::FutureCloseWritable(info)
-        } else if let Some(key) = match_payload_prefix(name, "[future-close-readable-") {
-            if async_ {
-                bail!("async `future.close-readable` calls not supported");
-            }
-            validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
-            let info = info(key)?;
-            Import::FutureCloseReadable(info)
-        } else if let Some(key) = match_payload_prefix(name, "[stream-new-") {
-            if async_ {
-                bail!("async `stream.new` calls not supported");
-            }
-            validate_func_sig(name, &FuncType::new([], [ValType::I32]), ty)?;
-            Import::StreamNew(info(key)?)
-        } else if let Some(key) = match_payload_prefix(name, "[stream-write-") {
-            validate_func_sig(name, &FuncType::new([ValType::I32; 3], [ValType::I32]), ty)?;
-            Import::StreamWrite {
-                async_,
-                info: info(key)?,
-            }
-        } else if let Some(key) = match_payload_prefix(name, "[stream-read-") {
-            validate_func_sig(name, &FuncType::new([ValType::I32; 3], [ValType::I32]), ty)?;
-            Import::StreamRead {
-                async_,
-                info: info(key)?,
-            }
-        } else if let Some(key) = match_payload_prefix(name, "[stream-cancel-write-") {
-            validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
-            let info = info(key)?;
-            Import::StreamCancelWrite { async_, info }
-        } else if let Some(key) = match_payload_prefix(name, "[stream-cancel-read-") {
-            validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
-            let info = info(key)?;
-            Import::StreamCancelRead { async_, info }
-        } else if let Some(key) = match_payload_prefix(name, "[stream-close-writable-") {
-            if async_ {
-                bail!("async `stream.close-writable` calls not supported");
-            }
-            validate_func_sig(name, &FuncType::new([ValType::I32; 2], []), ty)?;
-            let info = info(key)?;
-            Import::StreamCloseWritable(info)
-        } else if let Some(key) = match_payload_prefix(name, "[stream-close-readable-") {
-            if async_ {
-                bail!("async `stream.close-readable` calls not supported");
-            }
-            validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
-            let info = info(key)?;
-            Import::StreamCloseReadable(info)
-        } else {
-            bail!("unrecognized payload import: {name}");
-        };
-        Ok(Some(import))
     }
     fn module_to_interface(
         &self,
@@ -1933,32 +1954,6 @@ fn validate_func_sig(name: &str, expected: &FuncType, ty: &wasmparser::FuncType)
     }
 
     Ok(())
-}
-
-fn match_payload_prefix(name: &str, prefix: &str) -> Option<(String, usize)> {
-    let suffix = name.strip_prefix(prefix)?;
-    let index = suffix.find(']')?;
-    Some((
-        suffix[index + 1..].to_owned(),
-        suffix[..index].parse().ok()?,
-    ))
-}
-
-/// Retrieve the specified function from the specified world or interface, along
-/// with the future or stream type at the specified index.
-///
-/// The index refers to the entry in the list returned by
-/// `Function::find_futures_and_streams`.
-fn get_future_or_stream_type<'a>(
-    resolve: &'a Resolve,
-    world: &'a World,
-    (name, index): &(String, usize),
-    interface: Option<InterfaceId>,
-    imported: bool,
-) -> Result<(&'a Function, TypeId)> {
-    let function = get_function(resolve, world, name, interface, imported)?;
-    let ty = function.find_futures_and_streams(resolve)[*index];
-    Ok((function, ty))
 }
 
 fn get_function<'a>(
