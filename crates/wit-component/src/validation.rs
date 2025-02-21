@@ -1,6 +1,6 @@
 use crate::encoding::{Instance, Item, LibraryInfo, MainOrAdapter};
 use crate::{ComponentEncoder, StringEncoding};
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use indexmap::{map::Entry, IndexMap, IndexSet};
 use std::hash::{Hash, Hasher};
 use std::mem;
@@ -142,7 +142,7 @@ pub struct PayloadInfo {
     pub ty: TypeId,
     /// The component-level function import or export where the type appeared as
     /// a parameter or result type.
-    pub function: Function,
+    pub function: String,
     /// The world key representing the import or export context of `function`.
     pub key: WorldKey,
     /// The interface that `function` was imported from or exported in, if any.
@@ -253,7 +253,7 @@ pub enum Import {
     /// As of this writing, only async-lifted exports use `task.return`, but the
     /// plan is to also support it for sync-lifted exports in the future as
     /// well.
-    ExportedTaskReturn(Option<InterfaceId>, Function),
+    ExportedTaskReturn(Option<InterfaceId>, String, Option<Type>),
 
     /// A `canon task.backpressure` intrinsic.
     ///
@@ -545,7 +545,11 @@ impl ImportMap {
                 // it's associated with in general.  Instead, the host will
                 // compare it with the expected type at runtime and trap if
                 // necessary.
-                Some(Import::ExportedTaskReturn(interface_id, func))
+                Some(Import::ExportedTaskReturn(
+                    interface_id,
+                    func.name.clone(),
+                    func.result,
+                ))
             } else {
                 None
             })
@@ -1027,7 +1031,7 @@ impl ExportMap {
 
     /// Returns the realloc that the exported function `interface` and `func`
     /// are using.
-    pub fn export_realloc_for(&self, key: &WorldKey, func: &Function) -> Option<&str> {
+    pub fn export_realloc_for(&self, key: &WorldKey, func: &str) -> Option<&str> {
         // TODO: This realloc detection should probably be improved with
         // some sort of scheme to have per-function reallocs like
         // `cabi_realloc_{name}` or something like that.
@@ -1558,7 +1562,7 @@ impl NameMangling for Legacy {
                     Ok::<_, anyhow::Error>(PayloadInfo {
                         name: orig_name.to_string(),
                         ty,
-                        function,
+                        function: function.name.clone(),
                         key: key.clone(),
                         interface,
                         imported,
@@ -1990,41 +1994,34 @@ fn match_payload_prefix(name: &str, prefix: &str) -> Option<(String, usize)> {
 ///
 /// The index refers to the entry in the list returned by
 /// `Function::find_futures_and_streams`.
-fn get_future_or_stream_type(
-    resolve: &Resolve,
-    world: &World,
+fn get_future_or_stream_type<'a>(
+    resolve: &'a Resolve,
+    world: &'a World,
     (name, index): &(String, usize),
     interface: Option<InterfaceId>,
     imported: bool,
-) -> Result<(Function, TypeId)> {
+) -> Result<(&'a Function, TypeId)> {
     let function = get_function(resolve, world, name, interface, imported)?;
     let ty = function.find_futures_and_streams(resolve)[*index];
     Ok((function, ty))
 }
 
-fn get_function(
-    resolve: &Resolve,
-    world: &World,
+fn get_function<'a>(
+    resolve: &'a Resolve,
+    world: &'a World,
     name: &str,
     interface: Option<InterfaceId>,
     imported: bool,
-) -> Result<Function> {
+) -> Result<&'a Function> {
     let function = if let Some(id) = interface {
-        resolve.interfaces[id]
+        return resolve.interfaces[id]
             .functions
             .get(name)
-            .cloned()
-            .map(WorldItem::Function)
+            .ok_or_else(|| anyhow!("no export `{name}` found"));
     } else if imported {
-        world
-            .imports
-            .get(&WorldKey::Name(name.to_string()))
-            .cloned()
+        world.imports.get(&WorldKey::Name(name.to_string()))
     } else {
-        world
-            .exports
-            .get(&WorldKey::Name(name.to_string()))
-            .cloned()
+        world.exports.get(&WorldKey::Name(name.to_string()))
     };
     let Some(WorldItem::Function(function)) = function else {
         bail!("no export `{name}` found");

@@ -1042,7 +1042,7 @@ impl<'a> EncodingState<'a> {
             .unwrap();
         let exports = self.info.exports_for(module);
         let realloc_index = exports
-            .export_realloc_for(key, func)
+            .export_realloc_for(key, &func.name)
             .map(|name| self.core_alias_export(instance_index, name, ExportKind::Func));
         let mut options = options
             .into_iter(encoding, self.memory_index, realloc_index)?
@@ -1271,7 +1271,6 @@ impl<'a> EncodingState<'a> {
                     for_module,
                     info,
                     kind,
-                    async_: _,
                 } => {
                     let metadata = self.info.module_metadata_for(*for_module);
                     let exports = self.info.exports_for(*for_module);
@@ -1280,14 +1279,14 @@ impl<'a> EncodingState<'a> {
                         (
                             metadata
                                 .import_encodings
-                                .get(resolve, &info.key, &info.function.name),
-                            exports.import_realloc_for(info.interface, &info.function.name),
+                                .get(resolve, &info.key, &info.function),
+                            exports.import_realloc_for(info.interface, &info.function),
                         )
                     } else {
                         (
                             metadata
                                 .export_encodings
-                                .get(resolve, &info.key, &info.function.name),
+                                .get(resolve, &info.key, &info.function),
                             exports.export_realloc_for(&info.key, &info.function),
                         )
                     };
@@ -1591,10 +1590,10 @@ impl<'a> EncodingState<'a> {
                     AbiVariant::GuestImport,
                 )
             }
-            Import::ExportedTaskReturn(interface, function) => {
+            Import::ExportedTaskReturn(interface, _function, result) => {
                 let mut encoder = self.root_export_type_encoder(*interface);
 
-                let result = match &function.result {
+                let result = match result {
                     Some(ty) => Some(encoder.encode_valtype(resolve, ty)?),
                     None => None,
                 };
@@ -1625,17 +1624,15 @@ impl<'a> EncodingState<'a> {
                 let index = self.component.stream_new(ty);
                 Ok((ExportKind::Func, index))
             }
-            Import::StreamRead { async_, info } => Ok(self.materialize_payload_import(
+            Import::StreamRead { info, .. } => Ok(self.materialize_payload_import(
                 shims,
                 for_module,
-                *async_,
                 info,
                 PayloadFuncKind::StreamRead,
             )),
-            Import::StreamWrite { async_, info } => Ok(self.materialize_payload_import(
+            Import::StreamWrite { info, .. } => Ok(self.materialize_payload_import(
                 shims,
                 for_module,
-                *async_,
                 info,
                 PayloadFuncKind::StreamWrite,
             )),
@@ -1664,17 +1661,15 @@ impl<'a> EncodingState<'a> {
                 let index = self.component.future_new(ty);
                 Ok((ExportKind::Func, index))
             }
-            Import::FutureRead { async_, info } => Ok(self.materialize_payload_import(
+            Import::FutureRead { info, .. } => Ok(self.materialize_payload_import(
                 shims,
                 for_module,
-                *async_,
                 info,
                 PayloadFuncKind::FutureRead,
             )),
-            Import::FutureWrite { async_, info } => Ok(self.materialize_payload_import(
+            Import::FutureWrite { info, .. } => Ok(self.materialize_payload_import(
                 shims,
                 for_module,
-                *async_,
                 info,
                 PayloadFuncKind::FutureWrite,
             )),
@@ -1749,7 +1744,6 @@ impl<'a> EncodingState<'a> {
         &mut self,
         shims: &Shims<'_>,
         for_module: CustomModule<'_>,
-        async_: bool,
         info: &PayloadInfo,
         kind: PayloadFuncKind,
     ) -> (ExportKind, u32) {
@@ -1757,7 +1751,6 @@ impl<'a> EncodingState<'a> {
             shims,
             &ShimKind::PayloadFunc {
                 for_module,
-                async_,
                 info,
                 kind,
             },
@@ -1999,8 +1992,6 @@ enum ShimKind<'a> {
         /// Which instance to pull the `realloc` function and string encoding
         /// from, if necessary.
         for_module: CustomModule<'a>,
-        /// Whether this read/write call is using the `async` option.
-        async_: bool,
         /// Additional information regarding the function where this `stream` or
         /// `future` type appeared, which we use in combination with
         /// `for_module` to determine which `realloc` and string encoding to
@@ -2353,7 +2344,6 @@ impl<'a> Shims<'a> {
                 ),
             kind: ShimKind::PayloadFunc {
                 for_module,
-                async_,
                 info,
                 kind,
             },
