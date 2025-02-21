@@ -12,8 +12,8 @@ use wasmparser::{
 };
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
-    Function, InterfaceId, PackageName, Resolve, TypeDefKind, TypeId, World, WorldId, WorldItem,
-    WorldKey,
+    Function, InterfaceId, PackageName, Resolve, Type, TypeDefKind, TypeId, World, WorldId,
+    WorldItem, WorldKey,
 };
 
 fn wasm_sig_to_func_type(signature: WasmSignature) -> FuncType {
@@ -152,6 +152,16 @@ pub struct PayloadInfo {
     /// This may affect how we emit the declaration of the built-in, e.g. if the
     /// payload type is an exported resource.
     pub imported: bool,
+}
+
+impl PayloadInfo {
+    /// Returns the payload type that this future/stream type is using.
+    pub fn payload(&self, resolve: &Resolve) -> Option<Type> {
+        match resolve.types[self.ty].kind {
+            TypeDefKind::Future(payload) | TypeDefKind::Stream(payload) => payload,
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl Hash for PayloadInfo {

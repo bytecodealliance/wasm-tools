@@ -1269,9 +1269,9 @@ impl<'a> EncodingState<'a> {
 
                 ShimKind::PayloadFunc {
                     for_module,
-                    async_,
                     info,
                     kind,
+                    async_: _,
                 } => {
                     let metadata = self.info.module_metadata_for(*for_module);
                     let exports = self.info.exports_for(*for_module);
@@ -1294,101 +1294,22 @@ impl<'a> EncodingState<'a> {
                     let encoding = encoding.unwrap_or(StringEncoding::UTF8);
                     let realloc_index = realloc
                         .map(|name| self.core_alias_export(instance_index, name, ExportKind::Func));
-                    let options = |me: &mut Self, params: Vec<Type>, results: Vec<Type>| {
-                        Ok::<_, anyhow::Error>(
-                            (RequiredOptions::for_import(
-                                resolve,
-                                &Function {
-                                    name: String::new(),
-                                    kind: FunctionKind::Freestanding,
-                                    params: params
-                                        .into_iter()
-                                        .enumerate()
-                                        .map(|(i, v)| (format!("a{i}"), v))
-                                        .collect(),
-                                    result: match &results[..] {
-                                        [] => None,
-                                        [ty] => Some(*ty),
-                                        _ => unreachable!(),
-                                    },
-                                    docs: Default::default(),
-                                    stability: Stability::Unknown,
-                                },
-                                if *async_ {
-                                    AbiVariant::GuestImportAsync
-                                } else {
-                                    AbiVariant::GuestImport
-                                },
-                            ) | RequiredOptions::MEMORY)
-                                .into_iter(encoding, me.memory_index, realloc_index)?
-                                .collect::<Vec<_>>(),
-                        )
-                    };
                     let type_index = self.payload_type_index(info.ty, info.imported)?;
+                    let options =
+                        shim.options
+                            .into_iter(encoding, self.memory_index, realloc_index)?;
 
                     match kind {
                         PayloadFuncKind::FutureWrite => {
-                            let TypeDefKind::Future(payload_type) = &resolve.types[info.ty].kind
-                            else {
-                                unreachable!()
-                            };
-                            let options = options(
-                                self,
-                                if let Some(payload_type) = payload_type {
-                                    vec![*payload_type]
-                                } else {
-                                    vec![]
-                                },
-                                vec![],
-                            )?;
                             self.component.future_write(type_index, options)
                         }
                         PayloadFuncKind::FutureRead => {
-                            let TypeDefKind::Future(payload_type) = &resolve.types[info.ty].kind
-                            else {
-                                unreachable!()
-                            };
-                            let options = options(
-                                self,
-                                vec![],
-                                if let Some(payload_type) = payload_type {
-                                    vec![*payload_type]
-                                } else {
-                                    vec![]
-                                },
-                            )?;
                             self.component.future_read(type_index, options)
                         }
                         PayloadFuncKind::StreamWrite => {
-                            let TypeDefKind::Stream(payload_type) = &resolve.types[info.ty].kind
-                            else {
-                                unreachable!()
-                            };
-                            let options = options(
-                                self,
-                                if let Some(payload_type) = payload_type {
-                                    vec![*payload_type]
-                                } else {
-                                    vec![]
-                                },
-                                vec![],
-                            )?;
                             self.component.stream_write(type_index, options)
                         }
                         PayloadFuncKind::StreamRead => {
-                            let TypeDefKind::Stream(payload_type) = &resolve.types[info.ty].kind
-                            else {
-                                unreachable!()
-                            };
-                            let options = options(
-                                self,
-                                vec![],
-                                if let Some(payload_type) = payload_type {
-                                    vec![*payload_type]
-                                } else {
-                                    vec![]
-                                },
-                            )?;
                             self.component.stream_read(type_index, options)
                         }
                     }
@@ -2211,6 +2132,7 @@ impl<'a> Shims<'a> {
 
                 Import::FutureWrite { async_, info } => {
                     self.append_indirect_payload_push(
+                        resolve,
                         for_module,
                         module,
                         *async_,
@@ -2222,6 +2144,7 @@ impl<'a> Shims<'a> {
                 }
                 Import::FutureRead { async_, info } => {
                     self.append_indirect_payload_push(
+                        resolve,
                         for_module,
                         module,
                         *async_,
@@ -2233,6 +2156,7 @@ impl<'a> Shims<'a> {
                 }
                 Import::StreamWrite { async_, info } => {
                     self.append_indirect_payload_push(
+                        resolve,
                         for_module,
                         module,
                         *async_,
@@ -2244,6 +2168,7 @@ impl<'a> Shims<'a> {
                 }
                 Import::StreamRead { async_, info } => {
                     self.append_indirect_payload_push(
+                        resolve,
                         for_module,
                         module,
                         *async_,
@@ -2420,6 +2345,7 @@ impl<'a> Shims<'a> {
     /// futures/streams read/write intrinsics.
     fn append_indirect_payload_push(
         &mut self,
+        resolve: &Resolve,
         for_module: CustomModule<'a>,
         module: &str,
         async_: bool,
@@ -2430,10 +2356,35 @@ impl<'a> Shims<'a> {
     ) {
         let debug_name = format!("{module}-{}", info.name);
         let name = self.shims.len().to_string();
+
+        let payload = info.payload(resolve);
+        let (wit_param, wit_result) = match kind {
+            PayloadFuncKind::StreamRead | PayloadFuncKind::FutureRead => (None, payload),
+            PayloadFuncKind::StreamWrite | PayloadFuncKind::FutureWrite => (payload, None),
+        };
         self.push(Shim {
             name,
             debug_name,
-            options: RequiredOptions::empty(),
+            options: RequiredOptions::MEMORY
+                | RequiredOptions::for_import(
+                    resolve,
+                    &Function {
+                        name: String::new(),
+                        kind: FunctionKind::Freestanding,
+                        params: match wit_param {
+                            Some(ty) => vec![("a".to_string(), ty)],
+                            None => Vec::new(),
+                        },
+                        result: wit_result,
+                        docs: Default::default(),
+                        stability: Stability::Unknown,
+                    },
+                    if async_ {
+                        AbiVariant::GuestImportAsync
+                    } else {
+                        AbiVariant::GuestImport
+                    },
+                ),
             kind: ShimKind::PayloadFunc {
                 for_module,
                 async_,
