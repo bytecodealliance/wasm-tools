@@ -2175,34 +2175,10 @@ impl<'a> Shims<'a> {
     ) -> Result<()> {
         let module_imports = world.imports_for(for_module);
         let module_exports = world.exports_for(for_module);
-        let metadata = world.module_metadata_for(for_module);
         let resolve = &world.encoder.metadata.resolve;
 
-        let payload_push =
-            |me: &mut Self, module, async_, info: &'a PayloadInfo, kind, params, results| {
-                let debug_name = format!("{module}-{}", info.name);
-                let name = me.shims.len().to_string();
-                me.push(Shim {
-                    name,
-                    debug_name,
-                    options: RequiredOptions::empty(),
-                    kind: ShimKind::PayloadFunc {
-                        for_module,
-                        async_,
-                        info,
-                        kind,
-                    },
-                    sig: WasmSignature {
-                        params,
-                        results,
-                        indirect_params: false,
-                        retptr: false,
-                    },
-                });
-            };
-
         for (module, field, import) in module_imports.imports() {
-            let (key, name, interface_key, abi) = match import {
+            match import {
                 // These imports don't require shims, they can be satisfied
                 // as-needed when required.
                 Import::ImportedResourceDrop(..)
@@ -2226,11 +2202,11 @@ impl<'a> Shims<'a> {
                 | Import::StreamCancelRead { .. }
                 | Import::StreamCancelWrite { .. }
                 | Import::StreamCloseWritable { .. }
-                | Import::StreamCloseReadable { .. } => continue,
+                | Import::StreamCloseReadable { .. } => {}
 
                 Import::FutureWrite { async_, info } => {
-                    payload_push(
-                        self,
+                    self.append_indirect_payload_push(
+                        for_module,
                         module,
                         *async_,
                         info,
@@ -2238,11 +2214,10 @@ impl<'a> Shims<'a> {
                         vec![WasmType::I32; 2],
                         vec![WasmType::I32],
                     );
-                    continue;
                 }
                 Import::FutureRead { async_, info } => {
-                    payload_push(
-                        self,
+                    self.append_indirect_payload_push(
+                        for_module,
                         module,
                         *async_,
                         info,
@@ -2250,11 +2225,10 @@ impl<'a> Shims<'a> {
                         vec![WasmType::I32; 2],
                         vec![WasmType::I32],
                     );
-                    continue;
                 }
                 Import::StreamWrite { async_, info } => {
-                    payload_push(
-                        self,
+                    self.append_indirect_payload_push(
+                        for_module,
                         module,
                         *async_,
                         info,
@@ -2262,11 +2236,10 @@ impl<'a> Shims<'a> {
                         vec![WasmType::I32; 3],
                         vec![WasmType::I32],
                     );
-                    continue;
                 }
                 Import::StreamRead { async_, info } => {
-                    payload_push(
-                        self,
+                    self.append_indirect_payload_push(
+                        for_module,
                         module,
                         *async_,
                         info,
@@ -2274,7 +2247,6 @@ impl<'a> Shims<'a> {
                         vec![WasmType::I32; 3],
                         vec![WasmType::I32],
                     );
-                    continue;
                 }
 
                 Import::TaskWait { async_ } => {
@@ -2291,7 +2263,6 @@ impl<'a> Shims<'a> {
                             retptr: false,
                         },
                     });
-                    continue;
                 }
 
                 Import::TaskPoll { async_ } => {
@@ -2308,7 +2279,6 @@ impl<'a> Shims<'a> {
                             retptr: false,
                         },
                     });
-                    continue;
                 }
 
                 Import::ErrorContextNew { encoding } => {
@@ -2327,7 +2297,6 @@ impl<'a> Shims<'a> {
                             retptr: false,
                         },
                     });
-                    continue;
                 }
 
                 Import::ErrorContextDebugMessage { encoding, realloc } => {
@@ -2348,7 +2317,6 @@ impl<'a> Shims<'a> {
                             retptr: false,
                         },
                     });
-                    continue;
                 }
 
                 // Adapter imports into the main module must got through an
@@ -2374,7 +2342,6 @@ impl<'a> Shims<'a> {
                             retptr: false,
                         },
                     });
-                    continue;
 
                     fn to_wasm_type(ty: &wasmparser::ValType) -> WasmType {
                         match ty {
@@ -2391,41 +2358,21 @@ impl<'a> Shims<'a> {
                 // metadata out of this `match` to the loop below to figure that
                 // out.
                 Import::InterfaceFunc(key, _, name, abi) => {
-                    (key, name, Some(resolve.name_world_key(key)), *abi)
+                    self.append_indirect_wit_func(
+                        world,
+                        for_module,
+                        module,
+                        field,
+                        key,
+                        name,
+                        Some(resolve.name_world_key(key)),
+                        *abi,
+                    )?;
                 }
-                Import::WorldFunc(key, name, abi) => (key, name, None, *abi),
-            };
-            let interface = &world.import_map[&interface_key];
-            let (index, _, lowering) = interface.lowerings.get_full(&(name.clone(), abi)).unwrap();
-            let shim_name = self.shims.len().to_string();
-            match lowering {
-                Lowering::Direct | Lowering::ResourceDrop(_) => {}
-
-                Lowering::Indirect { sig, options } => {
-                    log::debug!(
-                        "shim {shim_name} is import `{module}::{field}` lowering {index} `{name}`",
-                    );
-                    let encoding = metadata
-                        .import_encodings
-                        .get(resolve, key, name)
-                        .ok_or_else(|| {
-                            anyhow::anyhow!(
-                                "missing component metadata for import of \
-                                `{module}::{field}`"
-                            )
-                        })?;
-                    self.push(Shim {
-                        name: shim_name,
-                        debug_name: format!("indirect-{module}-{field}"),
-                        options: *options,
-                        kind: ShimKind::IndirectLowering {
-                            interface: interface_key,
-                            index,
-                            realloc: for_module,
-                            encoding,
-                        },
-                        sig: sig.clone(),
-                    });
+                Import::WorldFunc(key, name, abi) => {
+                    self.append_indirect_wit_func(
+                        world, for_module, module, field, key, name, None, *abi,
+                    )?;
                 }
             }
         }
@@ -2457,6 +2404,91 @@ impl<'a> Shims<'a> {
                     retptr: false,
                 },
             });
+        }
+
+        Ok(())
+    }
+
+    /// Helper of `append_indirect` above which pushes information for
+    /// futures/streams read/write intrinsics.
+    fn append_indirect_payload_push(
+        &mut self,
+        for_module: CustomModule<'a>,
+        module: &str,
+        async_: bool,
+        info: &'a PayloadInfo,
+        kind: PayloadFuncKind,
+        params: Vec<WasmType>,
+        results: Vec<WasmType>,
+    ) {
+        let debug_name = format!("{module}-{}", info.name);
+        let name = self.shims.len().to_string();
+        self.push(Shim {
+            name,
+            debug_name,
+            options: RequiredOptions::empty(),
+            kind: ShimKind::PayloadFunc {
+                for_module,
+                async_,
+                info,
+                kind,
+            },
+            sig: WasmSignature {
+                params,
+                results,
+                indirect_params: false,
+                retptr: false,
+            },
+        });
+    }
+
+    /// Helper for `append_indirect` above which will conditionally push a shim
+    /// for the WIT function specified by `interface_key`, `name`, and `abi`.
+    fn append_indirect_wit_func(
+        &mut self,
+        world: &'a ComponentWorld<'a>,
+        for_module: CustomModule<'a>,
+        module: &str,
+        field: &str,
+        key: &WorldKey,
+        name: &String,
+        interface_key: Option<String>,
+        abi: AbiVariant,
+    ) -> Result<()> {
+        let resolve = &world.encoder.metadata.resolve;
+        let metadata = world.module_metadata_for(for_module);
+        let interface = &world.import_map[&interface_key];
+        let (index, _, lowering) = interface.lowerings.get_full(&(name.clone(), abi)).unwrap();
+        let shim_name = self.shims.len().to_string();
+        match lowering {
+            Lowering::Direct | Lowering::ResourceDrop(_) => {}
+
+            Lowering::Indirect { sig, options } => {
+                log::debug!(
+                    "shim {shim_name} is import `{module}::{field}` lowering {index} `{name}`",
+                );
+                let encoding = metadata
+                    .import_encodings
+                    .get(resolve, key, name)
+                    .ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "missing component metadata for import of \
+                                `{module}::{field}`"
+                        )
+                    })?;
+                self.push(Shim {
+                    name: shim_name,
+                    debug_name: format!("indirect-{module}-{field}"),
+                    options: *options,
+                    kind: ShimKind::IndirectLowering {
+                        interface: interface_key,
+                        index,
+                        realloc: for_module,
+                        encoding,
+                    },
+                    sig: sig.clone(),
+                });
+            }
         }
 
         Ok(())
