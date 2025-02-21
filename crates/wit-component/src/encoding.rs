@@ -1400,32 +1400,25 @@ impl<'a> EncodingState<'a> {
                 ShimKind::TaskPoll { async_ } => self
                     .component
                     .task_poll(*async_, self.memory_index.unwrap()),
-                ShimKind::ErrorContextNew { encoding }
-                | ShimKind::ErrorContextDebugMessage { encoding, .. } => match &shim.kind {
-                    ShimKind::ErrorContextNew { .. } => self.component.error_context_new(
-                        (RequiredOptions::MEMORY | RequiredOptions::STRING_ENCODING)
-                            .into_iter(*encoding, self.memory_index, None)?
-                            .collect::<Vec<_>>(),
-                    ),
-                    ShimKind::ErrorContextDebugMessage {
-                        for_module,
-                        realloc,
-                        ..
-                    } => {
-                        let instance_index = self.instance_for(*for_module);
-                        let realloc_index =
-                            Some(self.core_alias_export(instance_index, realloc, ExportKind::Func));
+                ShimKind::ErrorContextNew { encoding } => self.component.error_context_new(
+                    shim.options.into_iter(*encoding, self.memory_index, None)?,
+                ),
+                ShimKind::ErrorContextDebugMessage {
+                    encoding,
+                    for_module,
+                    realloc,
+                } => {
+                    let instance_index = self.instance_for(*for_module);
+                    let realloc_index =
+                        Some(self.core_alias_export(instance_index, realloc, ExportKind::Func));
 
-                        self.component.error_context_debug_message(
-                            (RequiredOptions::MEMORY
-                                | RequiredOptions::STRING_ENCODING
-                                | RequiredOptions::REALLOC)
-                                .into_iter(*encoding, self.memory_index, realloc_index)?
-                                .collect::<Vec<_>>(),
-                        )
-                    }
-                    _ => unreachable!(),
-                },
+                    self.component
+                        .error_context_debug_message(shim.options.into_iter(
+                            *encoding,
+                            self.memory_index,
+                            realloc_index,
+                        )?)
+                }
             };
 
             exports.push((shim.name.as_str(), ExportKind::Func, core_func_index));
@@ -2286,7 +2279,7 @@ impl<'a> Shims<'a> {
                     self.push(Shim {
                         name,
                         debug_name: "error-new".to_string(),
-                        options: RequiredOptions::empty(),
+                        options: RequiredOptions::MEMORY | RequiredOptions::STRING_ENCODING,
                         kind: ShimKind::ErrorContextNew {
                             encoding: *encoding,
                         },
@@ -2304,7 +2297,9 @@ impl<'a> Shims<'a> {
                     self.push(Shim {
                         name,
                         debug_name: "error-debug-message".to_string(),
-                        options: RequiredOptions::empty(),
+                        options: RequiredOptions::MEMORY
+                            | RequiredOptions::STRING_ENCODING
+                            | RequiredOptions::REALLOC,
                         kind: ShimKind::ErrorContextDebugMessage {
                             for_module,
                             encoding: *encoding,
