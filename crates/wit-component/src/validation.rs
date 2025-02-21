@@ -1522,178 +1522,133 @@ impl NameMangling for Legacy {
         world: &World,
         ty: &FuncType,
     ) -> Result<Option<Import>> {
-        Ok(
-            if let Some((suffix, imported)) = module
-                .strip_prefix("[import-payload]")
-                .map(|v| (v, true))
-                .or_else(|| module.strip_prefix("[export-payload]").map(|v| (v, false)))
-            {
-                let (key, interface) = if suffix == self.import_root() {
-                    (WorldKey::Name(name.to_string()), None)
+        let Some((suffix, imported)) = module
+            .strip_prefix("[import-payload]")
+            .map(|v| (v, true))
+            .or_else(|| module.strip_prefix("[export-payload]").map(|v| (v, false)))
+        else {
+            return Ok(None);
+        };
+        let (key, interface) = if suffix == self.import_root() {
+            (WorldKey::Name(name.to_string()), None)
+        } else {
+            let (key, id) = self.module_to_interface(
+                suffix,
+                resolve,
+                if imported {
+                    &world.imports
                 } else {
-                    let (key, id) = self.module_to_interface(
-                        suffix,
-                        resolve,
-                        if imported {
-                            &world.imports
-                        } else {
-                            &world.exports
-                        },
-                    )?;
-                    (key, Some(id))
-                };
+                    &world.exports
+                },
+            )?;
+            (key, Some(id))
+        };
 
-                let orig_name = name;
+        let orig_name = name;
 
-                let (name, async_) = if let Some(name) = self.async_name(name) {
-                    (name, true)
-                } else {
-                    (name, false)
-                };
+        let (name, async_) = if let Some(name) = self.async_name(name) {
+            (name, true)
+        } else {
+            (name, false)
+        };
 
-                let info = |payload_key| {
-                    let (function, ty) = get_future_or_stream_type(
-                        resolve,
-                        world,
-                        &payload_key,
-                        interface,
-                        imported,
-                    )?;
-                    Ok::<_, anyhow::Error>(PayloadInfo {
-                        name: orig_name.to_string(),
-                        ty,
-                        function: function.name.clone(),
-                        key: key.clone(),
-                        interface,
-                        imported,
-                    })
-                };
+        let info = |payload_key| {
+            let (function, ty) =
+                get_future_or_stream_type(resolve, world, &payload_key, interface, imported)?;
+            Ok::<_, anyhow::Error>(PayloadInfo {
+                name: orig_name.to_string(),
+                ty,
+                function: function.name.clone(),
+                key: key.clone(),
+                interface,
+                imported,
+            })
+        };
 
-                Some(
-                    if let Some(key) = match_payload_prefix(name, "[future-new-") {
-                        if async_ {
-                            bail!("async `future.new` calls not supported");
-                        }
-                        validate_func_sig(name, &FuncType::new([], [ValType::I32]), ty)?;
-                        Import::FutureNew(info(key)?)
-                    } else if let Some(key) = match_payload_prefix(name, "[future-write-") {
-                        validate_func_sig(
-                            name,
-                            &FuncType::new([ValType::I32; 2], [ValType::I32]),
-                            ty,
-                        )?;
-                        Import::FutureWrite {
-                            async_,
-                            info: info(key)?,
-                        }
-                    } else if let Some(key) = match_payload_prefix(name, "[future-read-") {
-                        validate_func_sig(
-                            name,
-                            &FuncType::new([ValType::I32; 2], [ValType::I32]),
-                            ty,
-                        )?;
-                        Import::FutureRead {
-                            async_,
-                            info: info(key)?,
-                        }
-                    } else if let Some(key) = match_payload_prefix(name, "[future-cancel-write-") {
-                        validate_func_sig(
-                            name,
-                            &FuncType::new([ValType::I32], [ValType::I32]),
-                            ty,
-                        )?;
-                        let info = info(key)?;
-                        Import::FutureCancelWrite { async_, info }
-                    } else if let Some(key) = match_payload_prefix(name, "[future-cancel-read-") {
-                        validate_func_sig(
-                            name,
-                            &FuncType::new([ValType::I32], [ValType::I32]),
-                            ty,
-                        )?;
-                        let info = info(key)?;
-                        Import::FutureCancelRead { async_, info }
-                    } else if let Some(key) = match_payload_prefix(name, "[future-close-writable-")
-                    {
-                        if async_ {
-                            bail!("async `future.close-writable` calls not supported");
-                        }
-                        validate_func_sig(name, &FuncType::new([ValType::I32; 2], []), ty)?;
-                        let info = info(key)?;
-                        Import::FutureCloseWritable(info)
-                    } else if let Some(key) = match_payload_prefix(name, "[future-close-readable-")
-                    {
-                        if async_ {
-                            bail!("async `future.close-readable` calls not supported");
-                        }
-                        validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
-                        let info = info(key)?;
-                        Import::FutureCloseReadable(info)
-                    } else if let Some(key) = match_payload_prefix(name, "[stream-new-") {
-                        if async_ {
-                            bail!("async `stream.new` calls not supported");
-                        }
-                        validate_func_sig(name, &FuncType::new([], [ValType::I32]), ty)?;
-                        Import::StreamNew(info(key)?)
-                    } else if let Some(key) = match_payload_prefix(name, "[stream-write-") {
-                        validate_func_sig(
-                            name,
-                            &FuncType::new([ValType::I32; 3], [ValType::I32]),
-                            ty,
-                        )?;
-                        Import::StreamWrite {
-                            async_,
-                            info: info(key)?,
-                        }
-                    } else if let Some(key) = match_payload_prefix(name, "[stream-read-") {
-                        validate_func_sig(
-                            name,
-                            &FuncType::new([ValType::I32; 3], [ValType::I32]),
-                            ty,
-                        )?;
-                        Import::StreamRead {
-                            async_,
-                            info: info(key)?,
-                        }
-                    } else if let Some(key) = match_payload_prefix(name, "[stream-cancel-write-") {
-                        validate_func_sig(
-                            name,
-                            &FuncType::new([ValType::I32], [ValType::I32]),
-                            ty,
-                        )?;
-                        let info = info(key)?;
-                        Import::StreamCancelWrite { async_, info }
-                    } else if let Some(key) = match_payload_prefix(name, "[stream-cancel-read-") {
-                        validate_func_sig(
-                            name,
-                            &FuncType::new([ValType::I32], [ValType::I32]),
-                            ty,
-                        )?;
-                        let info = info(key)?;
-                        Import::StreamCancelRead { async_, info }
-                    } else if let Some(key) = match_payload_prefix(name, "[stream-close-writable-")
-                    {
-                        if async_ {
-                            bail!("async `stream.close-writable` calls not supported");
-                        }
-                        validate_func_sig(name, &FuncType::new([ValType::I32; 2], []), ty)?;
-                        let info = info(key)?;
-                        Import::StreamCloseWritable(info)
-                    } else if let Some(key) = match_payload_prefix(name, "[stream-close-readable-")
-                    {
-                        if async_ {
-                            bail!("async `stream.close-readable` calls not supported");
-                        }
-                        validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
-                        let info = info(key)?;
-                        Import::StreamCloseReadable(info)
-                    } else {
-                        bail!("unrecognized payload import: {name}");
-                    },
-                )
-            } else {
-                None
-            },
-        )
+        let import = if let Some(key) = match_payload_prefix(name, "[future-new-") {
+            if async_ {
+                bail!("async `future.new` calls not supported");
+            }
+            validate_func_sig(name, &FuncType::new([], [ValType::I32]), ty)?;
+            Import::FutureNew(info(key)?)
+        } else if let Some(key) = match_payload_prefix(name, "[future-write-") {
+            validate_func_sig(name, &FuncType::new([ValType::I32; 2], [ValType::I32]), ty)?;
+            Import::FutureWrite {
+                async_,
+                info: info(key)?,
+            }
+        } else if let Some(key) = match_payload_prefix(name, "[future-read-") {
+            validate_func_sig(name, &FuncType::new([ValType::I32; 2], [ValType::I32]), ty)?;
+            Import::FutureRead {
+                async_,
+                info: info(key)?,
+            }
+        } else if let Some(key) = match_payload_prefix(name, "[future-cancel-write-") {
+            validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
+            let info = info(key)?;
+            Import::FutureCancelWrite { async_, info }
+        } else if let Some(key) = match_payload_prefix(name, "[future-cancel-read-") {
+            validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
+            let info = info(key)?;
+            Import::FutureCancelRead { async_, info }
+        } else if let Some(key) = match_payload_prefix(name, "[future-close-writable-") {
+            if async_ {
+                bail!("async `future.close-writable` calls not supported");
+            }
+            validate_func_sig(name, &FuncType::new([ValType::I32; 2], []), ty)?;
+            let info = info(key)?;
+            Import::FutureCloseWritable(info)
+        } else if let Some(key) = match_payload_prefix(name, "[future-close-readable-") {
+            if async_ {
+                bail!("async `future.close-readable` calls not supported");
+            }
+            validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
+            let info = info(key)?;
+            Import::FutureCloseReadable(info)
+        } else if let Some(key) = match_payload_prefix(name, "[stream-new-") {
+            if async_ {
+                bail!("async `stream.new` calls not supported");
+            }
+            validate_func_sig(name, &FuncType::new([], [ValType::I32]), ty)?;
+            Import::StreamNew(info(key)?)
+        } else if let Some(key) = match_payload_prefix(name, "[stream-write-") {
+            validate_func_sig(name, &FuncType::new([ValType::I32; 3], [ValType::I32]), ty)?;
+            Import::StreamWrite {
+                async_,
+                info: info(key)?,
+            }
+        } else if let Some(key) = match_payload_prefix(name, "[stream-read-") {
+            validate_func_sig(name, &FuncType::new([ValType::I32; 3], [ValType::I32]), ty)?;
+            Import::StreamRead {
+                async_,
+                info: info(key)?,
+            }
+        } else if let Some(key) = match_payload_prefix(name, "[stream-cancel-write-") {
+            validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
+            let info = info(key)?;
+            Import::StreamCancelWrite { async_, info }
+        } else if let Some(key) = match_payload_prefix(name, "[stream-cancel-read-") {
+            validate_func_sig(name, &FuncType::new([ValType::I32], [ValType::I32]), ty)?;
+            let info = info(key)?;
+            Import::StreamCancelRead { async_, info }
+        } else if let Some(key) = match_payload_prefix(name, "[stream-close-writable-") {
+            if async_ {
+                bail!("async `stream.close-writable` calls not supported");
+            }
+            validate_func_sig(name, &FuncType::new([ValType::I32; 2], []), ty)?;
+            let info = info(key)?;
+            Import::StreamCloseWritable(info)
+        } else if let Some(key) = match_payload_prefix(name, "[stream-close-readable-") {
+            if async_ {
+                bail!("async `stream.close-readable` calls not supported");
+            }
+            validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
+            let info = info(key)?;
+            Import::StreamCloseReadable(info)
+        } else {
+            bail!("unrecognized payload import: {name}");
+        };
+        Ok(Some(import))
     }
     fn module_to_interface(
         &self,
