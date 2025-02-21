@@ -1615,38 +1615,18 @@ impl<'a> EncodingState<'a> {
     ) -> Result<(ExportKind, u32)> {
         log::trace!("attempting to materialize import of `{module}::{field}` for {for_module:?}");
         let resolve = &self.info.encoder.metadata.resolve;
-        let payload_indirect = |me: &mut Self, async_, info, kind| {
-            me.component.core_alias_export(
-                me.shim_instance_index.expect("shim should be instantiated"),
-                &shims.shims[&ShimKind::PayloadFunc {
-                    for_module,
-                    async_,
-                    info,
-                    kind,
-                }]
-                    .name,
-                ExportKind::Func,
-            )
-        };
-        let name_tmp;
-        let (key, name, interface_key, abi) = match import {
+        match import {
             // Main module dependencies on an adapter in use are done with an
             // indirection here, so load the shim function and use that.
             Import::AdapterExport(_) => {
                 assert!(self.info.encoder.adapters.contains_key(module));
-                let shim_instance = self
-                    .shim_instance_index
-                    .expect("shim should be instantiated");
-                let index = self.core_alias_export(
-                    shim_instance,
-                    &shims.shims[&ShimKind::Adapter {
+                Ok(self.materialize_shim_import(
+                    shims,
+                    &ShimKind::Adapter {
                         adapter: module,
                         func: field,
-                    }]
-                        .name,
-                    ExportKind::Func,
-                );
-                return Ok((ExportKind::Func, index));
+                    },
+                ))
             }
 
             // Adapters might uset he main module's memory, in which case it
@@ -1655,14 +1635,14 @@ impl<'a> EncodingState<'a> {
                 let index = self
                     .memory_index
                     .ok_or_else(|| anyhow!("main module cannot import memory"))?;
-                return Ok((ExportKind::Memory, index));
+                Ok((ExportKind::Memory, index))
             }
 
             // Grab-bag of "this adapter wants this thing from the main module".
             Import::MainModuleExport { name, kind } => {
                 let instance = self.instance_index.unwrap();
                 let index = self.core_alias_export(instance, name, *kind);
-                return Ok((*kind, index));
+                Ok((*kind, index))
             }
 
             // A similar grab-bag to above but with a slightly different
@@ -1671,7 +1651,7 @@ impl<'a> EncodingState<'a> {
             Import::Item(item) => {
                 let instance = self.instance_for(item.which.to_custom_module());
                 let index = self.core_alias_export(instance, &item.name, item.kind);
-                return Ok((item.kind, index));
+                Ok((item.kind, index))
             }
 
             // Resource intrinsics related to exported resources. Despite being
@@ -1681,15 +1661,15 @@ impl<'a> EncodingState<'a> {
             // `declare_exported_resources` above.
             Import::ExportedResourceDrop(_key, id) => {
                 let index = self.component.resource_drop(self.export_type_map[id]);
-                return Ok((ExportKind::Func, index));
+                Ok((ExportKind::Func, index))
             }
             Import::ExportedResourceRep(_key, id) => {
                 let index = self.component.resource_rep(self.export_type_map[id]);
-                return Ok((ExportKind::Func, index));
+                Ok((ExportKind::Func, index))
             }
             Import::ExportedResourceNew(_key, id) => {
                 let index = self.component.resource_new(self.export_type_map[id]);
-                return Ok((ExportKind::Func, index));
+                Ok((ExportKind::Func, index))
             }
 
             // And finally here at the end these cases are going to all fall
@@ -1699,11 +1679,12 @@ impl<'a> EncodingState<'a> {
             Import::ImportedResourceDrop(key, iface, id) => {
                 let ty = &resolve.types[*id];
                 let name = ty.name.as_ref().unwrap();
-                name_tmp = format!("{name}_drop");
-                (
-                    key,
-                    &name_tmp,
+                self.materialize_wit_import(
+                    shims,
+                    for_module,
                     iface.map(|_| resolve.name_world_key(key)),
+                    &format!("{name}_drop"),
+                    key,
                     AbiVariant::GuestImport,
                 )
             }
@@ -1716,55 +1697,45 @@ impl<'a> EncodingState<'a> {
                 };
 
                 let index = self.component.task_return(result);
-                return Ok((ExportKind::Func, index));
+                Ok((ExportKind::Func, index))
             }
             Import::TaskBackpressure => {
                 let index = self.component.task_backpressure();
-                return Ok((ExportKind::Func, index));
+                Ok((ExportKind::Func, index))
             }
             Import::TaskWait { async_ } => {
-                let index = self.component.core_alias_export(
-                    self.shim_instance_index
-                        .expect("shim should be instantiated"),
-                    &shims.shims[&ShimKind::TaskWait { async_: *async_ }].name,
-                    ExportKind::Func,
-                );
-                return Ok((ExportKind::Func, index));
+                Ok(self.materialize_shim_import(shims, &ShimKind::TaskWait { async_: *async_ }))
             }
             Import::TaskPoll { async_ } => {
-                let index = self.component.core_alias_export(
-                    self.shim_instance_index
-                        .expect("shim should be instantiated"),
-                    &shims.shims[&ShimKind::TaskPoll { async_: *async_ }].name,
-                    ExportKind::Func,
-                );
-                return Ok((ExportKind::Func, index));
+                Ok(self.materialize_shim_import(shims, &ShimKind::TaskPoll { async_: *async_ }))
             }
             Import::TaskYield { async_ } => {
                 let index = self.component.task_yield(*async_);
-                return Ok((ExportKind::Func, index));
+                Ok((ExportKind::Func, index))
             }
             Import::SubtaskDrop => {
                 let index = self.component.subtask_drop();
-                return Ok((ExportKind::Func, index));
+                Ok((ExportKind::Func, index))
             }
             Import::StreamNew(info) => {
                 let ty = self.payload_type_index(info.ty, info.imported)?;
                 let index = self.component.stream_new(ty);
-                return Ok((ExportKind::Func, index));
+                Ok((ExportKind::Func, index))
             }
-            Import::StreamRead { async_, info } => {
-                return Ok((
-                    ExportKind::Func,
-                    payload_indirect(self, *async_, info, PayloadFuncKind::StreamRead),
-                ));
-            }
-            Import::StreamWrite { async_, info } => {
-                return Ok((
-                    ExportKind::Func,
-                    payload_indirect(self, *async_, info, PayloadFuncKind::StreamWrite),
-                ));
-            }
+            Import::StreamRead { async_, info } => Ok(self.materialize_payload_import(
+                shims,
+                for_module,
+                *async_,
+                info,
+                PayloadFuncKind::StreamRead,
+            )),
+            Import::StreamWrite { async_, info } => Ok(self.materialize_payload_import(
+                shims,
+                for_module,
+                *async_,
+                info,
+                PayloadFuncKind::StreamWrite,
+            )),
             Import::StreamCancelRead {
                 ty,
                 imported,
@@ -1772,7 +1743,7 @@ impl<'a> EncodingState<'a> {
             } => {
                 let ty = self.payload_type_index(*ty, *imported)?;
                 let index = self.component.stream_cancel_read(ty, *async_);
-                return Ok((ExportKind::Func, index));
+                Ok((ExportKind::Func, index))
             }
             Import::StreamCancelWrite {
                 ty,
@@ -1781,35 +1752,37 @@ impl<'a> EncodingState<'a> {
             } => {
                 let ty = self.payload_type_index(*ty, *imported)?;
                 let index = self.component.stream_cancel_write(ty, *async_);
-                return Ok((ExportKind::Func, index));
+                Ok((ExportKind::Func, index))
             }
             Import::StreamCloseReadable { ty, imported } => {
                 let type_index = self.payload_type_index(*ty, *imported)?;
                 let index = self.component.stream_close_readable(type_index);
-                return Ok((ExportKind::Func, index));
+                Ok((ExportKind::Func, index))
             }
             Import::StreamCloseWritable { ty, imported } => {
                 let type_index = self.payload_type_index(*ty, *imported)?;
                 let index = self.component.stream_close_writable(type_index);
-                return Ok((ExportKind::Func, index));
+                Ok((ExportKind::Func, index))
             }
             Import::FutureNew(info) => {
                 let ty = self.payload_type_index(info.ty, info.imported)?;
                 let index = self.component.future_new(ty);
-                return Ok((ExportKind::Func, index));
+                Ok((ExportKind::Func, index))
             }
-            Import::FutureRead { async_, info } => {
-                return Ok((
-                    ExportKind::Func,
-                    payload_indirect(self, *async_, info, PayloadFuncKind::FutureRead),
-                ));
-            }
-            Import::FutureWrite { async_, info } => {
-                return Ok((
-                    ExportKind::Func,
-                    payload_indirect(self, *async_, info, PayloadFuncKind::FutureWrite),
-                ));
-            }
+            Import::FutureRead { async_, info } => Ok(self.materialize_payload_import(
+                shims,
+                for_module,
+                *async_,
+                info,
+                PayloadFuncKind::FutureRead,
+            )),
+            Import::FutureWrite { async_, info } => Ok(self.materialize_payload_import(
+                shims,
+                for_module,
+                *async_,
+                info,
+                PayloadFuncKind::FutureWrite,
+            )),
             Import::FutureCancelRead {
                 ty,
                 imported,
@@ -1817,7 +1790,7 @@ impl<'a> EncodingState<'a> {
             } => {
                 let ty = self.payload_type_index(*ty, *imported)?;
                 let index = self.component.future_cancel_read(ty, *async_);
-                return Ok((ExportKind::Func, index));
+                Ok((ExportKind::Func, index))
             }
             Import::FutureCancelWrite {
                 ty,
@@ -1826,54 +1799,96 @@ impl<'a> EncodingState<'a> {
             } => {
                 let ty = self.payload_type_index(*ty, *imported)?;
                 let index = self.component.future_cancel_write(ty, *async_);
-                return Ok((ExportKind::Func, index));
+                Ok((ExportKind::Func, index))
             }
             Import::FutureCloseReadable { ty, imported } => {
                 let type_index = self.payload_type_index(*ty, *imported)?;
                 let index = self.component.future_close_readable(type_index);
-                return Ok((ExportKind::Func, index));
+                Ok((ExportKind::Func, index))
             }
             Import::FutureCloseWritable { ty, imported } => {
                 let type_index = self.payload_type_index(*ty, *imported)?;
                 let index = self.component.future_close_writable(type_index);
-                return Ok((ExportKind::Func, index));
+                Ok((ExportKind::Func, index))
             }
-            Import::ErrorContextNew { encoding } => {
-                let index = self.component.core_alias_export(
-                    self.shim_instance_index
-                        .expect("shim should be instantiated"),
-                    &shims.shims[&ShimKind::ErrorContextNew {
-                        encoding: *encoding,
-                    }]
-                        .name,
-                    ExportKind::Func,
-                );
-                return Ok((ExportKind::Func, index));
-            }
-            Import::ErrorContextDebugMessage { encoding, realloc } => {
-                let index = self.component.core_alias_export(
-                    self.shim_instance_index
-                        .expect("shim should be instantiated"),
-                    &shims.shims[&ShimKind::ErrorContextDebugMessage {
+            Import::ErrorContextNew { encoding } => Ok(self.materialize_shim_import(
+                shims,
+                &ShimKind::ErrorContextNew {
+                    encoding: *encoding,
+                },
+            )),
+            Import::ErrorContextDebugMessage { encoding, realloc } => Ok(self
+                .materialize_shim_import(
+                    shims,
+                    &ShimKind::ErrorContextDebugMessage {
                         for_module,
                         encoding: *encoding,
                         realloc,
-                    }]
-                        .name,
-                    ExportKind::Func,
-                );
-                return Ok((ExportKind::Func, index));
-            }
+                    },
+                )),
             Import::ErrorContextDrop => {
                 let index = self.component.error_context_drop();
-                return Ok((ExportKind::Func, index));
+                Ok((ExportKind::Func, index))
             }
-            Import::WorldFunc(key, name, abi) => (key, name, None, *abi),
-            Import::InterfaceFunc(key, _, name, abi) => {
-                (key, name, Some(resolve.name_world_key(key)), *abi)
+            Import::WorldFunc(key, name, abi) => {
+                self.materialize_wit_import(shims, for_module, None, name, key, *abi)
             }
-        };
+            Import::InterfaceFunc(key, _, name, abi) => self.materialize_wit_import(
+                shims,
+                for_module,
+                Some(resolve.name_world_key(key)),
+                name,
+                key,
+                *abi,
+            ),
+        }
+    }
 
+    /// Helper for `materialize_import` above for materializing functions that
+    /// are part of the "shim module" generated.
+    fn materialize_shim_import(&mut self, shims: &Shims<'_>, kind: &ShimKind) -> (ExportKind, u32) {
+        let index = self.core_alias_export(
+            self.shim_instance_index
+                .expect("shim should be instantiated"),
+            &shims.shims[kind].name,
+            ExportKind::Func,
+        );
+        (ExportKind::Func, index)
+    }
+
+    /// Helper for `materialize_import` above for generating imports for
+    /// future/stream read/write intrinsics.
+    fn materialize_payload_import(
+        &mut self,
+        shims: &Shims<'_>,
+        for_module: CustomModule<'_>,
+        async_: bool,
+        info: &PayloadInfo,
+        kind: PayloadFuncKind,
+    ) -> (ExportKind, u32) {
+        self.materialize_shim_import(
+            shims,
+            &ShimKind::PayloadFunc {
+                for_module,
+                async_,
+                info,
+                kind,
+            },
+        )
+    }
+
+    /// Helper for `materialize_import` above which specifically operates on
+    /// WIT-level functions identified by `interface_key`, `name`, and `abi`.
+    fn materialize_wit_import(
+        &mut self,
+        shims: &Shims<'_>,
+        for_module: CustomModule<'_>,
+        interface_key: Option<String>,
+        name: &String,
+        key: &WorldKey,
+        abi: AbiVariant,
+    ) -> Result<(ExportKind, u32)> {
+        let resolve = &self.info.encoder.metadata.resolve;
         let import = &self.info.import_map[&interface_key];
         let (index, _, lowering) = import.lowerings.get_full(&(name.clone(), abi)).unwrap();
         let metadata = self.info.module_metadata_for(for_module);
@@ -1905,18 +1920,15 @@ impl<'a> EncodingState<'a> {
             // import.
             Lowering::Indirect { .. } => {
                 let encoding = metadata.import_encodings.get(resolve, key, name).unwrap();
-                self.core_alias_export(
-                    self.shim_instance_index
-                        .expect("shim should be instantiated"),
-                    &shims.shims[&ShimKind::IndirectLowering {
+                return Ok(self.materialize_shim_import(
+                    shims,
+                    &ShimKind::IndirectLowering {
                         interface: interface_key,
                         index,
                         realloc: for_module,
                         encoding,
-                    }]
-                        .name,
-                    ExportKind::Func,
-                )
+                    },
+                ));
             }
 
             // A "resource drop" intrinsic only needs to find the index of the
