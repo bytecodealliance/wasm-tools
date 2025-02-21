@@ -307,31 +307,23 @@ pub enum Import {
     ///
     /// This allows the guest to cancel a pending read it initiated earlier (but
     /// which may have already partially or entirely completed).
-    StreamCancelRead {
-        ty: TypeId,
-        imported: bool,
-        async_: bool,
-    },
+    StreamCancelRead { info: PayloadInfo, async_: bool },
 
     /// A `canon stream.cancel-write` intrinsic.
     ///
     /// This allows the guest to cancel a pending write it initiated earlier
     /// (but which may have already partially or entirely completed).
-    StreamCancelWrite {
-        ty: TypeId,
-        imported: bool,
-        async_: bool,
-    },
+    StreamCancelWrite { info: PayloadInfo, async_: bool },
 
     /// A `canon stream.close-readable` intrinsic.
     ///
     /// This allows the guest to close the readable end of a `stream`.
-    StreamCloseReadable { ty: TypeId, imported: bool },
+    StreamCloseReadable(PayloadInfo),
 
     /// A `canon stream.close-writable` intrinsic.
     ///
     /// This allows the guest to close the writable end of a `stream`.
-    StreamCloseWritable { ty: TypeId, imported: bool },
+    StreamCloseWritable(PayloadInfo),
 
     /// A `canon future.new` intrinsic.
     ///
@@ -353,31 +345,23 @@ pub enum Import {
     ///
     /// This allows the guest to cancel a pending read it initiated earlier (but
     /// which may have already completed).
-    FutureCancelRead {
-        ty: TypeId,
-        imported: bool,
-        async_: bool,
-    },
+    FutureCancelRead { info: PayloadInfo, async_: bool },
 
     /// A `canon future.cancel-write` intrinsic.
     ///
     /// This allows the guest to cancel a pending write it initiated earlier
     /// (but which may have already completed).
-    FutureCancelWrite {
-        ty: TypeId,
-        imported: bool,
-        async_: bool,
-    },
+    FutureCancelWrite { info: PayloadInfo, async_: bool },
 
     /// A `canon future.close-readable` intrinsic.
     ///
     /// This allows the guest to close the readable end of a `future`.
-    FutureCloseReadable { ty: TypeId, imported: bool },
+    FutureCloseReadable(PayloadInfo),
 
     /// A `canon future.close-writable` intrinsic.
     ///
     /// This allows the guest to close the writable end of a `future`.
-    FutureCloseWritable { ty: TypeId, imported: bool },
+    FutureCloseWritable(PayloadInfo),
 
     /// A `canon error-context.new` intrinsic.
     ///
@@ -1615,11 +1599,7 @@ impl NameMangling for Legacy {
                             ty,
                         )?;
                         let info = info(key)?;
-                        Import::FutureCancelWrite {
-                            async_,
-                            ty: info.ty,
-                            imported: info.imported,
-                        }
+                        Import::FutureCancelWrite { async_, info }
                     } else if let Some(key) = match_payload_prefix(name, "[future-cancel-read-") {
                         validate_func_sig(
                             name,
@@ -1627,11 +1607,7 @@ impl NameMangling for Legacy {
                             ty,
                         )?;
                         let info = info(key)?;
-                        Import::FutureCancelRead {
-                            async_,
-                            ty: info.ty,
-                            imported: info.imported,
-                        }
+                        Import::FutureCancelRead { async_, info }
                     } else if let Some(key) = match_payload_prefix(name, "[future-close-writable-")
                     {
                         if async_ {
@@ -1639,10 +1615,7 @@ impl NameMangling for Legacy {
                         }
                         validate_func_sig(name, &FuncType::new([ValType::I32; 2], []), ty)?;
                         let info = info(key)?;
-                        Import::FutureCloseWritable {
-                            ty: info.ty,
-                            imported: info.imported,
-                        }
+                        Import::FutureCloseWritable(info)
                     } else if let Some(key) = match_payload_prefix(name, "[future-close-readable-")
                     {
                         if async_ {
@@ -1650,10 +1623,7 @@ impl NameMangling for Legacy {
                         }
                         validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
                         let info = info(key)?;
-                        Import::FutureCloseReadable {
-                            ty: info.ty,
-                            imported: info.imported,
-                        }
+                        Import::FutureCloseReadable(info)
                     } else if let Some(key) = match_payload_prefix(name, "[stream-new-") {
                         if async_ {
                             bail!("async `stream.new` calls not supported");
@@ -1687,11 +1657,7 @@ impl NameMangling for Legacy {
                             ty,
                         )?;
                         let info = info(key)?;
-                        Import::StreamCancelWrite {
-                            async_,
-                            ty: info.ty,
-                            imported: info.imported,
-                        }
+                        Import::StreamCancelWrite { async_, info }
                     } else if let Some(key) = match_payload_prefix(name, "[stream-cancel-read-") {
                         validate_func_sig(
                             name,
@@ -1699,11 +1665,7 @@ impl NameMangling for Legacy {
                             ty,
                         )?;
                         let info = info(key)?;
-                        Import::StreamCancelRead {
-                            async_,
-                            ty: info.ty,
-                            imported: info.imported,
-                        }
+                        Import::StreamCancelRead { async_, info }
                     } else if let Some(key) = match_payload_prefix(name, "[stream-close-writable-")
                     {
                         if async_ {
@@ -1711,10 +1673,7 @@ impl NameMangling for Legacy {
                         }
                         validate_func_sig(name, &FuncType::new([ValType::I32; 2], []), ty)?;
                         let info = info(key)?;
-                        Import::StreamCloseWritable {
-                            ty: info.ty,
-                            imported: info.imported,
-                        }
+                        Import::StreamCloseWritable(info)
                     } else if let Some(key) = match_payload_prefix(name, "[stream-close-readable-")
                     {
                         if async_ {
@@ -1722,10 +1681,7 @@ impl NameMangling for Legacy {
                         }
                         validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
                         let info = info(key)?;
-                        Import::StreamCloseReadable {
-                            ty: info.ty,
-                            imported: info.imported,
-                        }
+                        Import::StreamCloseReadable(info)
                     } else {
                         bail!("unrecognized payload import: {name}");
                     },

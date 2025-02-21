@@ -1294,7 +1294,7 @@ impl<'a> EncodingState<'a> {
                     let encoding = encoding.unwrap_or(StringEncoding::UTF8);
                     let realloc_index = realloc
                         .map(|name| self.core_alias_export(instance_index, name, ExportKind::Func));
-                    let type_index = self.payload_type_index(info.ty, info.imported)?;
+                    let type_index = self.payload_type_index(info)?;
                     let options =
                         shim.options
                             .into_iter(encoding, self.memory_index, realloc_index)?;
@@ -1360,32 +1360,14 @@ impl<'a> EncodingState<'a> {
     /// Note that the payload type `T` of `stream<T>` or `future<T>` may be an
     /// imported or exported type, and that determines the appropriate type
     /// encoder to use.
-    fn payload_type_index(&mut self, ty: TypeId, imported: bool) -> Result<u32> {
-        // `stream` and `future` types don't have owners, but their payload
-        // types (or the payload type of the payload type, etc. in the case of
-        // nesting) might have an owner, in which case we need to find that in
-        // order to make the types match up e.g. when we're exporting a resource
-        // that's used as a payload type.
-        fn owner(resolve: &Resolve, ty: TypeId) -> Option<InterfaceId> {
-            let def = &resolve.types[ty];
-            match &def.kind {
-                TypeDefKind::Future(Some(Type::Id(ty)))
-                | TypeDefKind::Stream(Some(Type::Id(ty))) => owner(resolve, *ty),
-                _ => match &def.owner {
-                    TypeOwner::World(_) | TypeOwner::None => None,
-                    TypeOwner::Interface(id) => Some(*id),
-                },
-            }
-        }
-
+    fn payload_type_index(&mut self, info: &PayloadInfo) -> Result<u32> {
         let resolve = &self.info.encoder.metadata.resolve;
-        let ComponentValType::Type(type_index) = if imported {
-            self.root_import_type_encoder(None)
+        let ComponentValType::Type(type_index) = if info.imported {
+            self.root_import_type_encoder(info.interface)
         } else {
-            let owner = owner(resolve, ty);
-            self.root_export_type_encoder(owner)
+            self.root_export_type_encoder(info.interface)
         }
-        .encode_valtype(resolve, &Type::Id(ty))?
+        .encode_valtype(resolve, &Type::Id(info.ty))?
         else {
             unreachable!()
         };
@@ -1639,7 +1621,7 @@ impl<'a> EncodingState<'a> {
                 Ok((ExportKind::Func, index))
             }
             Import::StreamNew(info) => {
-                let ty = self.payload_type_index(info.ty, info.imported)?;
+                let ty = self.payload_type_index(info)?;
                 let index = self.component.stream_new(ty);
                 Ok((ExportKind::Func, index))
             }
@@ -1657,36 +1639,28 @@ impl<'a> EncodingState<'a> {
                 info,
                 PayloadFuncKind::StreamWrite,
             )),
-            Import::StreamCancelRead {
-                ty,
-                imported,
-                async_,
-            } => {
-                let ty = self.payload_type_index(*ty, *imported)?;
+            Import::StreamCancelRead { info, async_ } => {
+                let ty = self.payload_type_index(info)?;
                 let index = self.component.stream_cancel_read(ty, *async_);
                 Ok((ExportKind::Func, index))
             }
-            Import::StreamCancelWrite {
-                ty,
-                imported,
-                async_,
-            } => {
-                let ty = self.payload_type_index(*ty, *imported)?;
+            Import::StreamCancelWrite { info, async_ } => {
+                let ty = self.payload_type_index(info)?;
                 let index = self.component.stream_cancel_write(ty, *async_);
                 Ok((ExportKind::Func, index))
             }
-            Import::StreamCloseReadable { ty, imported } => {
-                let type_index = self.payload_type_index(*ty, *imported)?;
+            Import::StreamCloseReadable(info) => {
+                let type_index = self.payload_type_index(info)?;
                 let index = self.component.stream_close_readable(type_index);
                 Ok((ExportKind::Func, index))
             }
-            Import::StreamCloseWritable { ty, imported } => {
-                let type_index = self.payload_type_index(*ty, *imported)?;
+            Import::StreamCloseWritable(info) => {
+                let type_index = self.payload_type_index(info)?;
                 let index = self.component.stream_close_writable(type_index);
                 Ok((ExportKind::Func, index))
             }
             Import::FutureNew(info) => {
-                let ty = self.payload_type_index(info.ty, info.imported)?;
+                let ty = self.payload_type_index(info)?;
                 let index = self.component.future_new(ty);
                 Ok((ExportKind::Func, index))
             }
@@ -1704,31 +1678,23 @@ impl<'a> EncodingState<'a> {
                 info,
                 PayloadFuncKind::FutureWrite,
             )),
-            Import::FutureCancelRead {
-                ty,
-                imported,
-                async_,
-            } => {
-                let ty = self.payload_type_index(*ty, *imported)?;
+            Import::FutureCancelRead { info, async_ } => {
+                let ty = self.payload_type_index(info)?;
                 let index = self.component.future_cancel_read(ty, *async_);
                 Ok((ExportKind::Func, index))
             }
-            Import::FutureCancelWrite {
-                ty,
-                imported,
-                async_,
-            } => {
-                let ty = self.payload_type_index(*ty, *imported)?;
+            Import::FutureCancelWrite { info, async_ } => {
+                let ty = self.payload_type_index(info)?;
                 let index = self.component.future_cancel_write(ty, *async_);
                 Ok((ExportKind::Func, index))
             }
-            Import::FutureCloseReadable { ty, imported } => {
-                let type_index = self.payload_type_index(*ty, *imported)?;
+            Import::FutureCloseReadable(info) => {
+                let type_index = self.payload_type_index(info)?;
                 let index = self.component.future_close_readable(type_index);
                 Ok((ExportKind::Func, index))
             }
-            Import::FutureCloseWritable { ty, imported } => {
-                let type_index = self.payload_type_index(*ty, *imported)?;
+            Import::FutureCloseWritable(info) => {
+                let type_index = self.payload_type_index(info)?;
                 let index = self.component.future_close_writable(type_index);
                 Ok((ExportKind::Func, index))
             }
