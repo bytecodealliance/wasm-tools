@@ -755,6 +755,12 @@
       "filename": "resources.113.wasm",
       "module_type": "binary",
       "text": "function result cannot contain a `borrow` type"
+    },
+    {
+      "type": "module",
+      "line": 1156,
+      "filename": "resources.114.wasm",
+      "module_type": "binary"
     }
   ]
 }
