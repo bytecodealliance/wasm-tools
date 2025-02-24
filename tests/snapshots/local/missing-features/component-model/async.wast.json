@@ -20,7 +20,7 @@
       "line": 33,
       "filename": "async.2.wasm",
       "module_type": "binary",
-      "text": "`task.backpressure` requires the component model async feature"
+      "text": "`backpressure.set` requires the component model async feature"
     },
     {
       "type": "assert_invalid",
@@ -194,6 +194,13 @@
       "type": "assert_invalid",
       "line": 350,
       "filename": "async.27.wasm",
+      "module_type": "binary",
+      "text": "requires the component model async feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 354,
+      "filename": "async.28.wasm",
       "module_type": "binary",
       "text": "requires the component model async feature"
     }

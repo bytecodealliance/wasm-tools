@@ -361,6 +361,12 @@ impl ComponentBuilder {
         inc(&mut self.core_funcs)
     }
 
+    /// Declares a new `resource.drop` intrinsic.
+    pub fn resource_drop_async(&mut self, ty: u32) -> u32 {
+        self.canonical_functions().resource_drop_async(ty);
+        inc(&mut self.core_funcs)
+    }
+
     /// Declares a new `resource.new` intrinsic.
     pub fn resource_new(&mut self, ty: u32) -> u32 {
         self.canonical_functions().resource_new(ty);
@@ -385,15 +391,19 @@ impl ComponentBuilder {
         inc(&mut self.core_funcs)
     }
 
-    /// Declares a new `task.backpressure` intrinsic.
-    pub fn task_backpressure(&mut self) -> u32 {
-        self.canonical_functions().task_backpressure();
+    /// Declares a new `backpressure.set` intrinsic.
+    pub fn backpressure_set(&mut self) -> u32 {
+        self.canonical_functions().backpressure_set();
         inc(&mut self.core_funcs)
     }
 
     /// Declares a new `task.return` intrinsic.
-    pub fn task_return(&mut self, ty: Option<impl Into<ComponentValType>>) -> u32 {
-        self.canonical_functions().task_return(ty);
+    pub fn task_return<O>(&mut self, ty: Option<ComponentValType>, options: O) -> u32
+    where
+        O: IntoIterator<Item = CanonicalOption>,
+        O::IntoIter: ExactSizeIterator,
+    {
+        self.canonical_functions().task_return(ty, options);
         inc(&mut self.core_funcs)
     }
 

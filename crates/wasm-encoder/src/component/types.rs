@@ -405,17 +405,21 @@ impl<'a> ComponentFuncTypeEncoder<'a> {
         assert!(self.params_encoded);
         assert!(!self.results_encoded);
         self.results_encoded = true;
-        match ty {
-            Some(ty) => {
-                self.sink.push(0x00);
-                ty.encode(self.sink);
-            }
-            None => {
-                self.sink.push(0x01);
-                self.sink.push(0x00);
-            }
-        }
+        encode_resultlist(self.sink, ty);
         self
+    }
+}
+
+pub(crate) fn encode_resultlist(sink: &mut Vec<u8>, ty: Option<ComponentValType>) {
+    match ty {
+        Some(ty) => {
+            sink.push(0x00);
+            ty.encode(sink);
+        }
+        None => {
+            sink.push(0x01);
+            sink.push(0x00);
+        }
     }
 }
 

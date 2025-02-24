@@ -81,7 +81,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::mem;
 use wasm_encoder::*;
-use wasmparser::Validator;
+use wasmparser::{Validator, WasmFeatures};
 use wit_parser::{
     abi::{AbiVariant, WasmSignature, WasmType},
     Function, FunctionKind, InterfaceId, LiveTypes, Resolve, Stability, Type, TypeDefKind, TypeId,
@@ -1339,6 +1339,30 @@ impl<'a> EncodingState<'a> {
                             realloc_index,
                         )?)
                 }
+                ShimKind::TaskReturn {
+                    interface,
+                    func,
+                    result,
+                    encoding,
+                    for_module,
+                } => {
+                    let mut encoder = self.root_export_type_encoder(*interface);
+                    let result = match result {
+                        Some(ty) => Some(encoder.encode_valtype(resolve, ty)?),
+                        None => None,
+                    };
+
+                    let exports = self.info.exports_for(*for_module);
+                    let realloc = exports.import_realloc_for(*interface, func);
+
+                    let instance_index = self.instance_for(*for_module);
+                    let realloc_index = realloc
+                        .map(|r| self.core_alias_export(instance_index, r, ExportKind::Func));
+                    let options =
+                        shim.options
+                            .into_iter(*encoding, self.memory_index, realloc_index)?;
+                    self.component.task_return(result, options)
+                }
             };
 
             exports.push((shim.name.as_str(), ExportKind::Func, core_func_index));
@@ -1590,19 +1614,34 @@ impl<'a> EncodingState<'a> {
                     AbiVariant::GuestImport,
                 )
             }
-            Import::ExportedTaskReturn(interface, _function, result) => {
-                let mut encoder = self.root_export_type_encoder(*interface);
+            Import::ExportedTaskReturn(key, interface, func, result) => {
+                let (options, _sig) = task_return_options_and_type(resolve, *result);
+                if options.is_empty() {
+                    let mut encoder = self.root_export_type_encoder(*interface);
 
-                let result = match result {
-                    Some(ty) => Some(encoder.encode_valtype(resolve, ty)?),
-                    None => None,
-                };
-
-                let index = self.component.task_return(result);
-                Ok((ExportKind::Func, index))
+                    let result = match result {
+                        Some(ty) => Some(encoder.encode_valtype(resolve, ty)?),
+                        None => None,
+                    };
+                    let index = self.component.task_return(result, []);
+                    Ok((ExportKind::Func, index))
+                } else {
+                    let metadata = &self.info.encoder.metadata.metadata;
+                    let encoding = metadata.export_encodings.get(resolve, key, func).unwrap();
+                    Ok(self.materialize_shim_import(
+                        shims,
+                        &ShimKind::TaskReturn {
+                            for_module,
+                            interface: *interface,
+                            func,
+                            result: *result,
+                            encoding,
+                        },
+                    ))
+                }
             }
-            Import::TaskBackpressure => {
-                let index = self.component.task_backpressure();
+            Import::BackpressureSet => {
+                let index = self.component.backpressure_set();
                 Ok((ExportKind::Func, index))
             }
             Import::TaskWait { async_ } => {
@@ -2006,6 +2045,21 @@ enum ShimKind<'a> {
     /// A shim used for the `task.poll` built-in function, which must refer to
     /// the core module instance's memory to which results will be written.
     TaskPoll { async_: bool },
+    /// Shim for `task.return` to handle a reference to a `memory` which may
+    TaskReturn {
+        /// The interface (optional) that owns `func` below. If `None` then it's
+        /// a world export.
+        interface: Option<InterfaceId>,
+        /// The function that this `task.return` is returning for, owned
+        /// within `interface` above.
+        func: &'a str,
+        /// The WIT type that `func` returns.
+        result: Option<Type>,
+        /// Which instance to pull the `realloc` function from, if necessary.
+        for_module: CustomModule<'a>,
+        /// String encoding to use in the ABI options.
+        encoding: StringEncoding,
+    },
     /// A shim used for the `error-context.new` built-in function, which must
     /// refer to the core module instance's memory from which the debug message
     /// will be read.
@@ -2072,10 +2126,9 @@ impl<'a> Shims<'a> {
                 | Import::ExportedResourceRep(..)
                 | Import::ExportedResourceNew(..)
                 | Import::ErrorContextDrop
-                | Import::TaskBackpressure
+                | Import::BackpressureSet
                 | Import::TaskYield { .. }
                 | Import::SubtaskDrop
-                | Import::ExportedTaskReturn(..)
                 | Import::FutureNew(..)
                 | Import::StreamNew(..)
                 | Import::FutureCancelRead { .. }
@@ -2086,6 +2139,40 @@ impl<'a> Shims<'a> {
                 | Import::StreamCancelWrite { .. }
                 | Import::StreamCloseWritable { .. }
                 | Import::StreamCloseReadable { .. } => {}
+
+                // If `task.return` needs to be indirect then generate a shim
+                // for it, otherwise skip the shim and let it get materialized
+                // naturally later.
+                Import::ExportedTaskReturn(key, interface, func, ty) => {
+                    let (options, sig) = task_return_options_and_type(resolve, *ty);
+                    if options.is_empty() {
+                        continue;
+                    }
+                    let name = self.shims.len().to_string();
+                    let encoding = world
+                        .module_metadata_for(for_module)
+                        .export_encodings
+                        .get(resolve, key, func)
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "missing component metadata for export of \
+                                `{module}::{field}`"
+                            )
+                        })?;
+                    self.push(Shim {
+                        name,
+                        debug_name: format!("task-return-{func}"),
+                        options,
+                        kind: ShimKind::TaskReturn {
+                            interface: *interface,
+                            func,
+                            result: *ty,
+                            for_module,
+                            encoding,
+                        },
+                        sig,
+                    });
+                }
 
                 Import::FutureWrite { async_, info } => {
                     self.append_indirect_payload_push(
@@ -2418,6 +2505,27 @@ impl<'a> Shims<'a> {
     }
 }
 
+fn task_return_options_and_type(
+    resolve: &Resolve,
+    ty: Option<Type>,
+) -> (RequiredOptions, WasmSignature) {
+    let func_tmp = Function {
+        name: String::new(),
+        kind: FunctionKind::Freestanding,
+        params: match ty {
+            Some(ty) => vec![("a".to_string(), ty)],
+            None => Vec::new(),
+        },
+        result: None,
+        docs: Default::default(),
+        stability: Stability::Unknown,
+    };
+    let abi = AbiVariant::GuestImport;
+    let options = RequiredOptions::for_import(resolve, &func_tmp, abi);
+    let sig = resolve.wasm_signature(abi, &func_tmp);
+    (options, sig)
+}
+
 /// Alias argument to an instantiation
 #[derive(Clone, Debug)]
 pub struct Item {
@@ -2720,7 +2828,7 @@ impl ComponentEncoder {
         let bytes = state.component.finish();
 
         if self.validate {
-            Validator::new()
+            Validator::new_with_features(WasmFeatures::all())
                 .validate_all(&bytes)
                 .context("failed to validate component output")?;
         }

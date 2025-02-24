@@ -556,7 +556,7 @@ pub mod kw {
     custom_keyword!(thread);
     custom_keyword!(thread_spawn = "thread.spawn");
     custom_keyword!(thread_available_parallelism = "thread.available_parallelism");
-    custom_keyword!(task_backpressure = "task.backpressure");
+    custom_keyword!(backpressure_set = "backpressure.set");
     custom_keyword!(task_return = "task.return");
     custom_keyword!(task_wait = "task.wait");
     custom_keyword!(task_poll = "task.poll");

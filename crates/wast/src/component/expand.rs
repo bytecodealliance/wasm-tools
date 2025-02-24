@@ -270,7 +270,7 @@ impl<'a> Expander<'a> {
             | CanonicalFuncKind::ResourceDrop(_)
             | CanonicalFuncKind::ThreadSpawn(_)
             | CanonicalFuncKind::ThreadAvailableParallelism(_)
-            | CanonicalFuncKind::TaskBackpressure
+            | CanonicalFuncKind::BackpressureSet
             | CanonicalFuncKind::TaskReturn(_)
             | CanonicalFuncKind::TaskWait(_)
             | CanonicalFuncKind::TaskPoll(_)
@@ -346,11 +346,11 @@ impl<'a> Expander<'a> {
                     kind: CanonicalFuncKind::ThreadAvailableParallelism(info),
                 })
             }
-            CoreFuncKind::TaskBackpressure => ComponentField::CanonicalFunc(CanonicalFunc {
+            CoreFuncKind::BackpressureSet => ComponentField::CanonicalFunc(CanonicalFunc {
                 span: func.span,
                 id: func.id,
                 name: func.name,
-                kind: CanonicalFuncKind::TaskBackpressure,
+                kind: CanonicalFuncKind::BackpressureSet,
             }),
             CoreFuncKind::TaskReturn(info) => ComponentField::CanonicalFunc(CanonicalFunc {
                 span: func.span,

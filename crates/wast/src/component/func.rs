@@ -53,7 +53,7 @@ pub enum CoreFuncKind<'a> {
     ResourceRep(CanonResourceRep<'a>),
     ThreadSpawn(CanonThreadSpawn<'a>),
     ThreadAvailableParallelism(CanonThreadAvailableParallelism),
-    TaskBackpressure,
+    BackpressureSet,
     TaskReturn(CanonTaskReturn<'a>),
     TaskWait(CanonTaskWait<'a>),
     TaskPoll(CanonTaskPoll<'a>),
@@ -102,9 +102,9 @@ impl<'a> Parse<'a> for CoreFuncKind<'a> {
                 Ok(CoreFuncKind::ThreadSpawn(parser.parse()?))
             } else if l.peek::<kw::thread_available_parallelism>()? {
                 Ok(CoreFuncKind::ThreadAvailableParallelism(parser.parse()?))
-            } else if l.peek::<kw::task_backpressure>()? {
-                parser.parse::<kw::task_backpressure>()?;
-                Ok(CoreFuncKind::TaskBackpressure)
+            } else if l.peek::<kw::backpressure_set>()? {
+                parser.parse::<kw::backpressure_set>()?;
+                Ok(CoreFuncKind::BackpressureSet)
             } else if l.peek::<kw::task_return>()? {
                 Ok(CoreFuncKind::TaskReturn(parser.parse()?))
             } else if l.peek::<kw::task_wait>()? {
@@ -343,7 +343,7 @@ pub enum CanonicalFuncKind<'a> {
     ThreadSpawn(CanonThreadSpawn<'a>),
     ThreadAvailableParallelism(CanonThreadAvailableParallelism),
 
-    TaskBackpressure,
+    BackpressureSet,
     TaskReturn(CanonTaskReturn<'a>),
     TaskWait(CanonTaskWait<'a>),
     TaskPoll(CanonTaskPoll<'a>),
@@ -461,6 +461,8 @@ impl<'a> Parse<'a> for CanonResourceNew<'a> {
 pub struct CanonResourceDrop<'a> {
     /// The resource type that this intrinsic is dropping.
     pub ty: Index<'a>,
+    /// Whether or not this function is async
+    pub async_: bool,
 }
 
 impl<'a> Parse<'a> for CanonResourceDrop<'a> {
@@ -469,6 +471,7 @@ impl<'a> Parse<'a> for CanonResourceDrop<'a> {
 
         Ok(Self {
             ty: parser.parse()?,
+            async_: parser.parse::<Option<kw::r#async>>()?.is_some(),
         })
     }
 }
@@ -523,22 +526,25 @@ impl<'a> Parse<'a> for CanonThreadAvailableParallelism {
 pub struct CanonTaskReturn<'a> {
     /// The type of the result which may be returned with this intrinsic.
     pub result: Option<ComponentValType<'a>>,
+    /// The canonical options for storing values.
+    pub opts: Vec<CanonOpt<'a>>,
 }
 
 impl<'a> Parse<'a> for CanonTaskReturn<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::task_return>()?;
 
-        let result = if parser.peek2::<kw::result>()? {
-            Some(parser.parens(|p| {
-                p.parse::<kw::result>()?.0;
-                p.parse()
-            })?)
-        } else {
-            None
-        };
-
-        Ok(Self { result })
+        Ok(Self {
+            result: if parser.peek2::<kw::result>()? {
+                Some(parser.parens(|p| {
+                    p.parse::<kw::result>()?.0;
+                    p.parse()
+                })?)
+            } else {
+                None
+            },
+            opts: parser.parse()?,
+        })
     }
 }
 

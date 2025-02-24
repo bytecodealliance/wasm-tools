@@ -7,7 +7,8 @@ use crate::validator::types::{
     CoreTypeId, EntityType, SnapshotList, TypeAlloc, TypeData, TypeIdentifier, TypeInfo, TypeList,
     Types, TypesKind, TypesRef, TypesRefKind,
 };
-use crate::{BinaryReaderError, FuncType, PrimitiveValType, Result, ValType};
+use crate::{BinaryReaderError, CanonicalOption, FuncType, PrimitiveValType, Result, ValType};
+use core::fmt;
 use core::ops::Index;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use core::{
@@ -86,7 +87,14 @@ impl LoweredTypes {
     }
 }
 
+impl fmt::Debug for LoweredTypes {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.as_slice().fmt(f)
+    }
+}
+
 /// Represents information about a component function type lowering.
+#[derive(Debug)]
 pub(crate) struct LoweringInfo {
     pub(crate) params: LoweredTypes,
     pub(crate) results: LoweredTypes,
@@ -894,11 +902,41 @@ impl TypeData for ComponentFuncType {
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum Abi {
+    /// Use to generate the core wasm signature of a component model function
+    /// that is `canon lower`'d with the synchronous ABI option set.
     LowerSync,
+    /// Use to generate the core wasm signature of a component model function
+    /// that is `canon lower`'d with the asynchronous ABI option set.
     LowerAsync,
+    /// Use to generate the core wasm signature that when `canon lift`'d with
+    /// the synchronous ABI option set will generate a component model function
+    /// type.
     LiftSync,
+    /// Use to generate the core wasm signature that when `canon lift`'d with
+    /// the asynchronous + callback ABI options set will generate a component
+    /// model function type.
     LiftAsync,
+    /// Use to generate the core wasm signature that when `canon lift`'d with
+    /// the asynchronou ABI option set will generate a component
+    /// model function type.
     LiftAsyncStackful,
+}
+
+impl Abi {
+    pub(crate) fn for_lift(options: &[CanonicalOption]) -> Abi {
+        if options.contains(&CanonicalOption::Async) {
+            if options
+                .iter()
+                .any(|v| matches!(v, CanonicalOption::Callback(_)))
+            {
+                Abi::LiftAsync
+            } else {
+                Abi::LiftAsyncStackful
+            }
+        } else {
+            Abi::LiftSync
+        }
+    }
 }
 
 impl ComponentFuncType {

@@ -287,14 +287,7 @@ impl<'a> FromReader<'a> for ComponentType<'a> {
                 let params = reader
                     .read_iter(MAX_WASM_FUNCTION_PARAMS, "component function parameters")?
                     .collect::<Result<_>>()?;
-                let result = match reader.read_u8()? {
-                    0x00 => Some(reader.read()?),
-                    0x01 => match reader.read_u8()? {
-                        0x00 => None,
-                        x => return reader.invalid_leading_byte(x, "number of results"),
-                    },
-                    x => return reader.invalid_leading_byte(x, "component function results"),
-                };
+                let result = read_resultlist(reader)?;
                 ComponentType::Func(ComponentFuncType { params, result })
             }
             0x41 => ComponentType::Component(
@@ -399,6 +392,17 @@ pub struct ComponentFuncType<'a> {
     pub params: Box<[(&'a str, ComponentValType)]>,
     /// The function result.
     pub result: Option<ComponentValType>,
+}
+
+pub(crate) fn read_resultlist(reader: &mut BinaryReader<'_>) -> Result<Option<ComponentValType>> {
+    match reader.read_u8()? {
+        0x00 => Ok(Some(reader.read()?)),
+        0x01 => match reader.read_u8()? {
+            0x00 => Ok(None),
+            x => return reader.invalid_leading_byte(x, "number of results"),
+        },
+        x => return reader.invalid_leading_byte(x, "component function results"),
+    }
 }
 
 /// Represents a case in a variant type.

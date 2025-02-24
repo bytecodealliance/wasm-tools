@@ -101,14 +101,10 @@ impl CanonicalFunctionSection {
         O: IntoIterator<Item = CanonicalOption>,
         O::IntoIter: ExactSizeIterator,
     {
-        let options = options.into_iter();
         self.bytes.push(0x00);
         self.bytes.push(0x00);
         core_func_index.encode(&mut self.bytes);
-        options.len().encode(&mut self.bytes);
-        for option in options {
-            option.encode(&mut self.bytes);
-        }
+        self.encode_options(options);
         type_index.encode(&mut self.bytes);
         self.num_added += 1;
         self
@@ -120,14 +116,10 @@ impl CanonicalFunctionSection {
         O: IntoIterator<Item = CanonicalOption>,
         O::IntoIter: ExactSizeIterator,
     {
-        let options = options.into_iter();
         self.bytes.push(0x01);
         self.bytes.push(0x00);
         func_index.encode(&mut self.bytes);
-        options.len().encode(&mut self.bytes);
-        for option in options {
-            option.encode(&mut self.bytes);
-        }
+        self.encode_options(options);
         self.num_added += 1;
         self
     }
@@ -144,6 +136,14 @@ impl CanonicalFunctionSection {
     /// Defines a function which will drop the specified type of handle.
     pub fn resource_drop(&mut self, ty_index: u32) -> &mut Self {
         self.bytes.push(0x03);
+        ty_index.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a function which will drop the specified type of handle.
+    pub fn resource_drop_async(&mut self, ty_index: u32) -> &mut Self {
+        self.bytes.push(0x07);
         ty_index.encode(&mut self.bytes);
         self.num_added += 1;
         self
@@ -179,7 +179,7 @@ impl CanonicalFunctionSection {
     /// backpressure for the caller's instance.  When backpressure is enabled,
     /// the host must not start any new calls to that instance until
     /// backpressure is disabled.
-    pub fn task_backpressure(&mut self) -> &mut Self {
+    pub fn backpressure_set(&mut self) -> &mut Self {
         self.bytes.push(0x08);
         self.num_added += 1;
         self
@@ -188,15 +188,14 @@ impl CanonicalFunctionSection {
     /// Defines a function which returns a result to the caller of a lifted
     /// export function.  This allows the callee to continue executing after
     /// returning a result.
-    pub fn task_return(&mut self, ty: Option<impl Into<ComponentValType>>) -> &mut Self {
+    pub fn task_return<O>(&mut self, ty: Option<ComponentValType>, options: O) -> &mut Self
+    where
+        O: IntoIterator<Item = CanonicalOption>,
+        O::IntoIter: ExactSizeIterator,
+    {
         self.bytes.push(0x09);
-        if let Some(ty) = ty {
-            self.bytes.push(0x00);
-            ty.into().encode(&mut self.bytes);
-        } else {
-            self.bytes.push(0x01);
-            0_usize.encode(&mut self.bytes);
-        }
+        crate::encode_resultlist(&mut self.bytes, ty);
+        self.encode_options(options);
         self.num_added += 1;
         self
     }
@@ -261,11 +260,7 @@ impl CanonicalFunctionSection {
     {
         self.bytes.push(0x0f);
         ty.encode(&mut self.bytes);
-        let options = options.into_iter();
-        options.len().encode(&mut self.bytes);
-        for option in options {
-            option.encode(&mut self.bytes);
-        }
+        self.encode_options(options);
         self.num_added += 1;
         self
     }
@@ -278,11 +273,7 @@ impl CanonicalFunctionSection {
     {
         self.bytes.push(0x10);
         ty.encode(&mut self.bytes);
-        let options = options.into_iter();
-        options.len().encode(&mut self.bytes);
-        for option in options {
-            option.encode(&mut self.bytes);
-        }
+        self.encode_options(options);
         self.num_added += 1;
         self
     }
@@ -342,11 +333,7 @@ impl CanonicalFunctionSection {
     {
         self.bytes.push(0x16);
         ty.encode(&mut self.bytes);
-        let options = options.into_iter();
-        options.len().encode(&mut self.bytes);
-        for option in options {
-            option.encode(&mut self.bytes);
-        }
+        self.encode_options(options);
         self.num_added += 1;
         self
     }
@@ -359,11 +346,7 @@ impl CanonicalFunctionSection {
     {
         self.bytes.push(0x17);
         ty.encode(&mut self.bytes);
-        let options = options.into_iter();
-        options.len().encode(&mut self.bytes);
-        for option in options {
-            option.encode(&mut self.bytes);
-        }
+        self.encode_options(options);
         self.num_added += 1;
         self
     }
@@ -414,11 +397,7 @@ impl CanonicalFunctionSection {
         O::IntoIter: ExactSizeIterator,
     {
         self.bytes.push(0x1c);
-        let options = options.into_iter();
-        options.len().encode(&mut self.bytes);
-        for option in options {
-            option.encode(&mut self.bytes);
-        }
+        self.encode_options(options);
         self.num_added += 1;
         self
     }
@@ -434,11 +413,7 @@ impl CanonicalFunctionSection {
         O::IntoIter: ExactSizeIterator,
     {
         self.bytes.push(0x1d);
-        let options = options.into_iter();
-        options.len().encode(&mut self.bytes);
-        for option in options {
-            option.encode(&mut self.bytes);
-        }
+        self.encode_options(options);
         self.num_added += 1;
         self
     }
@@ -447,6 +422,19 @@ impl CanonicalFunctionSection {
     pub fn error_context_drop(&mut self) -> &mut Self {
         self.bytes.push(0x1e);
         self.num_added += 1;
+        self
+    }
+
+    fn encode_options<O>(&mut self, options: O) -> &mut Self
+    where
+        O: IntoIterator<Item = CanonicalOption>,
+        O::IntoIter: ExactSizeIterator,
+    {
+        let options = options.into_iter();
+        options.len().encode(&mut self.bytes);
+        for option in options {
+            option.encode(&mut self.bytes);
+        }
         self
     }
 }
