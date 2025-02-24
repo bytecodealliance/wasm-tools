@@ -388,7 +388,7 @@ impl<'a> Resolver<'a> {
             }
             CanonicalFuncKind::ThreadAvailableParallelism(_)
             | CanonicalFuncKind::BackpressureSet
-            | CanonicalFuncKind::TaskYield(_)
+            | CanonicalFuncKind::Yield(_)
             | CanonicalFuncKind::SubtaskDrop
             | CanonicalFuncKind::ErrorContextDrop => {}
             CanonicalFuncKind::TaskReturn(info) => {
@@ -971,7 +971,7 @@ impl<'a> ComponentState<'a> {
                 | CanonicalFuncKind::ThreadAvailableParallelism(_)
                 | CanonicalFuncKind::BackpressureSet
                 | CanonicalFuncKind::TaskReturn(_)
-                | CanonicalFuncKind::TaskYield(_)
+                | CanonicalFuncKind::Yield(_)
                 | CanonicalFuncKind::SubtaskDrop
                 | CanonicalFuncKind::StreamNew(_)
                 | CanonicalFuncKind::StreamRead(_)

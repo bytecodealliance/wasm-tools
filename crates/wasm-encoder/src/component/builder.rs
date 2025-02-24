@@ -408,8 +408,8 @@ impl ComponentBuilder {
     }
 
     /// Declares a new `task.yield` intrinsic.
-    pub fn task_yield(&mut self, async_: bool) -> u32 {
-        self.canonical_functions().task_yield(async_);
+    pub fn yield_(&mut self, async_: bool) -> u32 {
+        self.canonical_functions().yield_(async_);
         inc(&mut self.core_funcs)
     }
 

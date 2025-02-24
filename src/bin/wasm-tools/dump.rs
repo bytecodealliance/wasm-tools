@@ -428,7 +428,7 @@ impl<'a> Dump<'a> {
                             | CanonicalFunction::WaitableSetPoll { .. }
                             | CanonicalFunction::WaitableSetDrop
                             | CanonicalFunction::WaitableJoin
-                            | CanonicalFunction::TaskYield { .. }
+                            | CanonicalFunction::Yield { .. }
                             | CanonicalFunction::SubtaskDrop
                             | CanonicalFunction::StreamNew { .. }
                             | CanonicalFunction::StreamRead { .. }

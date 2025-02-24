@@ -800,7 +800,7 @@ impl Printer<'_, '_> {
                     self.print_idx(&state.core.func_names, *idx)?;
                     self.end_group()?;
                 }
-                CanonicalOption::Async => self.result.write_str("async")?,
+                CanonicalOption::Async => self.print_type_keyword("async")?,
                 CanonicalOption::Callback(idx) => {
                     self.start_group("callback ")?;
                     self.print_idx(&state.core.func_names, *idx)?;
@@ -928,10 +928,10 @@ impl Printer<'_, '_> {
                         Ok(())
                     })?;
                 }
-                CanonicalFunction::TaskYield { async_ } => {
-                    self.print_intrinsic(state, "canon task.yield", &|me, _| {
+                CanonicalFunction::Yield { async_ } => {
+                    self.print_intrinsic(state, "canon yield", &|me, _| {
                         if async_ {
-                            me.result.write_str(" async")?;
+                            me.print_type_keyword(" async")?;
                         }
                         Ok(())
                     })?;
@@ -960,7 +960,7 @@ impl Printer<'_, '_> {
                     self.print_intrinsic(state, "canon stream.cancel-read ", &|me, state| {
                         me.print_idx(&state.component.type_names, ty)?;
                         if async_ {
-                            me.result.write_str(" async")?;
+                            me.print_type_keyword(" async")?;
                         }
                         Ok(())
                     })?;
@@ -969,7 +969,7 @@ impl Printer<'_, '_> {
                     self.print_intrinsic(state, "canon stream.cancel-write ", &|me, state| {
                         me.print_idx(&state.component.type_names, ty)?;
                         if async_ {
-                            me.result.write_str(" async")?;
+                            me.print_type_keyword(" async")?;
                         }
                         Ok(())
                     })?;
@@ -1005,7 +1005,7 @@ impl Printer<'_, '_> {
                     self.print_intrinsic(state, "canon future.cancel-read ", &|me, state| {
                         me.print_idx(&state.component.type_names, ty)?;
                         if async_ {
-                            me.result.write_str(" async")?;
+                            me.print_type_keyword(" async")?;
                         }
                         Ok(())
                     })?;
@@ -1014,7 +1014,7 @@ impl Printer<'_, '_> {
                     self.print_intrinsic(state, "canon future.cancel-write ", &|me, state| {
                         me.print_idx(&state.component.type_names, ty)?;
                         if async_ {
-                            me.result.write_str(" async")?;
+                            me.print_type_keyword(" async")?;
                         }
                         Ok(())
                     })?;

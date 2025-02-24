@@ -160,25 +160,25 @@
   "type mismatch for export `waitable.join` of module instantiation argument ``"
 )
 
-;; task.yield
+;; yield
 (component
   (core module $m
-    (import "" "task.yield" (func $task-yield))
+    (import "" "yield" (func $yield))
   )
-  (core func $task-yield (canon task.yield async))
-  (core instance $i (instantiate $m (with "" (instance (export "task.yield" (func $task-yield))))))
+  (core func $yield (canon yield async))
+  (core instance $i (instantiate $m (with "" (instance (export "yield" (func $yield))))))
 )
 
-;; task.yield; incorrect type
+;; yield; incorrect type
 (assert_invalid
   (component
     (core module $m
-      (import "" "task.yield" (func $task-yield (param i32) (result i32)))
+      (import "" "yield" (func $yield (param i32) (result i32)))
     )
-    (core func $task-yield (canon task.yield async))
-    (core instance $i (instantiate $m (with "" (instance (export "task.yield" (func $task-yield))))))
+    (core func $yield (canon yield async))
+    (core instance $i (instantiate $m (with "" (instance (export "yield" (func $yield))))))
   )
-  "type mismatch for export `task.yield` of module instantiation argument ``"
+  "type mismatch for export `yield` of module instantiation argument ``"
 )
 
 ;; subtask.drop

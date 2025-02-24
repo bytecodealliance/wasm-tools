@@ -330,11 +330,11 @@ impl<'a> Expander<'a> {
                 name: func.name,
                 kind: CanonicalFuncKind::TaskReturn(info),
             }),
-            CoreFuncKind::TaskYield(info) => ComponentField::CanonicalFunc(CanonicalFunc {
+            CoreFuncKind::Yield(info) => ComponentField::CanonicalFunc(CanonicalFunc {
                 span: func.span,
                 id: func.id,
                 name: func.name,
-                kind: CanonicalFuncKind::TaskYield(info),
+                kind: CanonicalFuncKind::Yield(info),
             }),
             CoreFuncKind::SubtaskDrop => ComponentField::CanonicalFunc(CanonicalFunc {
                 span: func.span,

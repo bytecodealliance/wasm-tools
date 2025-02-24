@@ -92,7 +92,7 @@ pub enum CanonicalFunction {
     },
     /// A function which yields control to the host so that other tasks are able
     /// to make progress, if any.
-    TaskYield {
+    Yield {
         /// If `true`, indicates the caller instance maybe reentered.
         async_: bool,
     },
@@ -282,7 +282,7 @@ impl<'a> FromReader<'a> for CanonicalFunction {
                 result: crate::read_resultlist(reader)?,
                 options: read_opts(reader)?,
             },
-            0x0c => CanonicalFunction::TaskYield {
+            0x0c => CanonicalFunction::Yield {
                 async_: reader.read()?,
             },
             0x0d => CanonicalFunction::SubtaskDrop,

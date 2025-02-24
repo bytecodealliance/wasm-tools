@@ -1652,8 +1652,8 @@ impl<'a> EncodingState<'a> {
                 Ok(self
                     .materialize_shim_import(shims, &ShimKind::WaitableSetPoll { async_: *async_ }))
             }
-            Import::TaskYield { async_ } => {
-                let index = self.component.task_yield(*async_);
+            Import::Yield { async_ } => {
+                let index = self.component.yield_(*async_);
                 Ok((ExportKind::Func, index))
             }
             Import::SubtaskDrop => {
@@ -2144,7 +2144,7 @@ impl<'a> Shims<'a> {
                 | Import::ExportedResourceNew(..)
                 | Import::ErrorContextDrop
                 | Import::BackpressureSet
-                | Import::TaskYield { .. }
+                | Import::Yield { .. }
                 | Import::SubtaskDrop
                 | Import::FutureNew(..)
                 | Import::StreamNew(..)

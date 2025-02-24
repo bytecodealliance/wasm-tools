@@ -284,11 +284,11 @@ pub enum Import {
     /// A `waitable.join` intrinsic.
     WaitableJoin,
 
-    /// A `canon task.wait` intrinsic.
+    /// A `canon yield` intrinsic.
     ///
     /// This allows the guest to yield (e.g. during an computationally-intensive
     /// operation) and allow other subtasks to make progress.
-    TaskYield { async_: bool },
+    Yield { async_: bool },
 
     /// A `canon subtask.drop` intrinsic.
     ///
@@ -610,10 +610,11 @@ impl ImportMap {
                 return Ok(Import::WaitableJoin);
             }
 
-            if Some(name) == names.task_yield() {
+            if Some(name) == names.yield_() {
+                validate_not_async()?;
                 let expected = FuncType::new([], []);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::TaskYield {
+                return Ok(Import::Yield {
                     async_: abi == AbiVariant::GuestImportAsync,
                 });
             }
@@ -1413,7 +1414,7 @@ trait NameMangling {
     fn waitable_set_poll(&self) -> Option<&str>;
     fn waitable_set_drop(&self) -> Option<&str>;
     fn waitable_join(&self) -> Option<&str>;
-    fn task_yield(&self) -> Option<&str>;
+    fn yield_(&self) -> Option<&str>;
     fn subtask_drop(&self) -> Option<&str>;
     fn callback_name<'a>(&self, s: &'a str) -> Option<&'a str>;
     fn async_name<'a>(&self, s: &'a str) -> Option<&'a str>;
@@ -1500,7 +1501,7 @@ impl NameMangling for Standard {
     fn waitable_join(&self) -> Option<&str> {
         None
     }
-    fn task_yield(&self) -> Option<&str> {
+    fn yield_(&self) -> Option<&str> {
         None
     }
     fn subtask_drop(&self) -> Option<&str> {
@@ -1685,8 +1686,8 @@ impl NameMangling for Legacy {
     fn waitable_join(&self) -> Option<&str> {
         Some("[waitable-join]")
     }
-    fn task_yield(&self) -> Option<&str> {
-        Some("[task-yield]")
+    fn yield_(&self) -> Option<&str> {
+        Some("[yield]")
     }
     fn subtask_drop(&self) -> Option<&str> {
         Some("[subtask-drop]")

@@ -55,7 +55,7 @@ pub enum CoreFuncKind<'a> {
     ThreadAvailableParallelism(CanonThreadAvailableParallelism),
     BackpressureSet,
     TaskReturn(CanonTaskReturn<'a>),
-    TaskYield(CanonTaskYield),
+    Yield(CanonYield),
     SubtaskDrop,
     StreamNew(CanonStreamNew<'a>),
     StreamRead(CanonStreamRead<'a>),
@@ -110,8 +110,8 @@ impl<'a> Parse<'a> for CoreFuncKind<'a> {
                 Ok(CoreFuncKind::BackpressureSet)
             } else if l.peek::<kw::task_return>()? {
                 Ok(CoreFuncKind::TaskReturn(parser.parse()?))
-            } else if l.peek::<kw::task_yield>()? {
-                Ok(CoreFuncKind::TaskYield(parser.parse()?))
+            } else if l.peek::<kw::yield_>()? {
+                Ok(CoreFuncKind::Yield(parser.parse()?))
             } else if l.peek::<kw::subtask_drop>()? {
                 parser.parse::<kw::subtask_drop>()?;
                 Ok(CoreFuncKind::SubtaskDrop)
@@ -357,7 +357,7 @@ pub enum CanonicalFuncKind<'a> {
 
     BackpressureSet,
     TaskReturn(CanonTaskReturn<'a>),
-    TaskYield(CanonTaskYield),
+    Yield(CanonYield),
     SubtaskDrop,
     StreamNew(CanonStreamNew<'a>),
     StreamRead(CanonStreamRead<'a>),
@@ -611,15 +611,15 @@ impl<'a> Parse<'a> for CanonWaitableSetPoll<'a> {
 
 /// Information relating to the `task.yield` intrinsic.
 #[derive(Debug)]
-pub struct CanonTaskYield {
+pub struct CanonYield {
     /// If true, the component instance may be reentered during a call to this
     /// intrinsic.
     pub async_: bool,
 }
 
-impl<'a> Parse<'a> for CanonTaskYield {
+impl<'a> Parse<'a> for CanonYield {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::task_yield>()?;
+        parser.parse::<kw::yield_>()?;
         let async_ = parser.parse::<Option<kw::r#async>>()?.is_some();
 
         Ok(Self { async_ })
