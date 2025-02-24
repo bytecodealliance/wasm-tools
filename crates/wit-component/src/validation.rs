@@ -707,7 +707,7 @@ impl ImportMap {
     ///   that such prefix is not present in `name`.
     /// * `import` - whether or not this core wasm import is operating on a WIT
     ///   level import or export. An example of this being an export is when a
-    ///   core module imports a destructor for an exported resourceV
+    ///   core module imports a destructor for an exported resource.
     /// * `names` - the name mangling scheme that's configured to be used.
     fn maybe_classify_wit_intrinsic(
         &self,
