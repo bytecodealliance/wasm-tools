@@ -55,8 +55,6 @@ pub enum CoreFuncKind<'a> {
     ThreadAvailableParallelism(CanonThreadAvailableParallelism),
     BackpressureSet,
     TaskReturn(CanonTaskReturn<'a>),
-    TaskWait(CanonTaskWait<'a>),
-    TaskPoll(CanonTaskPoll<'a>),
     TaskYield(CanonTaskYield),
     SubtaskDrop,
     StreamNew(CanonStreamNew<'a>),
@@ -76,6 +74,11 @@ pub enum CoreFuncKind<'a> {
     ErrorContextNew(CanonErrorContextNew<'a>),
     ErrorContextDebugMessage(CanonErrorContextDebugMessage<'a>),
     ErrorContextDrop,
+    WaitableSetNew,
+    WaitableSetWait(CanonWaitableSetWait<'a>),
+    WaitableSetPoll(CanonWaitableSetPoll<'a>),
+    WaitableSetDrop,
+    WaitableJoin,
 }
 
 impl<'a> Parse<'a> for CoreFuncKind<'a> {
@@ -107,10 +110,6 @@ impl<'a> Parse<'a> for CoreFuncKind<'a> {
                 Ok(CoreFuncKind::BackpressureSet)
             } else if l.peek::<kw::task_return>()? {
                 Ok(CoreFuncKind::TaskReturn(parser.parse()?))
-            } else if l.peek::<kw::task_wait>()? {
-                Ok(CoreFuncKind::TaskWait(parser.parse()?))
-            } else if l.peek::<kw::task_poll>()? {
-                Ok(CoreFuncKind::TaskPoll(parser.parse()?))
             } else if l.peek::<kw::task_yield>()? {
                 Ok(CoreFuncKind::TaskYield(parser.parse()?))
             } else if l.peek::<kw::subtask_drop>()? {
@@ -151,6 +150,19 @@ impl<'a> Parse<'a> for CoreFuncKind<'a> {
             } else if l.peek::<kw::error_context_drop>()? {
                 parser.parse::<kw::error_context_drop>()?;
                 Ok(CoreFuncKind::ErrorContextDrop)
+            } else if l.peek::<kw::waitable_set_new>()? {
+                parser.parse::<kw::waitable_set_new>()?;
+                Ok(CoreFuncKind::WaitableSetNew)
+            } else if l.peek::<kw::waitable_set_wait>()? {
+                Ok(CoreFuncKind::WaitableSetWait(parser.parse()?))
+            } else if l.peek::<kw::waitable_set_poll>()? {
+                Ok(CoreFuncKind::WaitableSetPoll(parser.parse()?))
+            } else if l.peek::<kw::waitable_set_drop>()? {
+                parser.parse::<kw::waitable_set_drop>()?;
+                Ok(CoreFuncKind::WaitableSetDrop)
+            } else if l.peek::<kw::waitable_join>()? {
+                parser.parse::<kw::waitable_join>()?;
+                Ok(CoreFuncKind::WaitableJoin)
             } else {
                 Err(l.error())
             }
@@ -345,8 +357,6 @@ pub enum CanonicalFuncKind<'a> {
 
     BackpressureSet,
     TaskReturn(CanonTaskReturn<'a>),
-    TaskWait(CanonTaskWait<'a>),
-    TaskPoll(CanonTaskPoll<'a>),
     TaskYield(CanonTaskYield),
     SubtaskDrop,
     StreamNew(CanonStreamNew<'a>),
@@ -366,6 +376,11 @@ pub enum CanonicalFuncKind<'a> {
     ErrorContextNew(CanonErrorContextNew<'a>),
     ErrorContextDebugMessage(CanonErrorContextDebugMessage<'a>),
     ErrorContextDrop,
+    WaitableSetNew,
+    WaitableSetWait(CanonWaitableSetWait<'a>),
+    WaitableSetPoll(CanonWaitableSetPoll<'a>),
+    WaitableSetDrop,
+    WaitableJoin,
 }
 
 /// Information relating to lifting a core function.
@@ -548,9 +563,9 @@ impl<'a> Parse<'a> for CanonTaskReturn<'a> {
     }
 }
 
-/// Information relating to the `task.wait` intrinsic.
+/// Information relating to the `waitable-set.wait` intrinsic.
 #[derive(Debug)]
-pub struct CanonTaskWait<'a> {
+pub struct CanonWaitableSetWait<'a> {
     /// If true, the component instance may be reentered during a call to this
     /// intrinsic.
     pub async_: bool,
@@ -558,9 +573,9 @@ pub struct CanonTaskWait<'a> {
     pub memory: CoreItemRef<'a, kw::memory>,
 }
 
-impl<'a> Parse<'a> for CanonTaskWait<'a> {
+impl<'a> Parse<'a> for CanonWaitableSetWait<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::task_wait>()?;
+        parser.parse::<kw::waitable_set_wait>()?;
         let async_ = parser.parse::<Option<kw::r#async>>()?.is_some();
         let memory = parser.parens(|parser| {
             let span = parser.parse::<kw::memory>()?.0;
@@ -571,9 +586,9 @@ impl<'a> Parse<'a> for CanonTaskWait<'a> {
     }
 }
 
-/// Information relating to the `task.poll` intrinsic.
+/// Information relating to the `waitable-set.poll` intrinsic.
 #[derive(Debug)]
-pub struct CanonTaskPoll<'a> {
+pub struct CanonWaitableSetPoll<'a> {
     /// If true, the component instance may be reentered during a call to this
     /// intrinsic.
     pub async_: bool,
@@ -581,9 +596,9 @@ pub struct CanonTaskPoll<'a> {
     pub memory: CoreItemRef<'a, kw::memory>,
 }
 
-impl<'a> Parse<'a> for CanonTaskPoll<'a> {
+impl<'a> Parse<'a> for CanonWaitableSetPoll<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::task_poll>()?;
+        parser.parse::<kw::waitable_set_poll>()?;
         let async_ = parser.parse::<Option<kw::r#async>>()?.is_some();
         let memory = parser.parens(|parser| {
             let span = parser.parse::<kw::memory>()?.0;

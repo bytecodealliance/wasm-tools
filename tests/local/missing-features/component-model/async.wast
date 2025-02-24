@@ -52,32 +52,50 @@
   "`task.return` requires the component model async feature"
 )
 
-;; task.wait
+;; waitable-set.new
 (assert_invalid
-  (component
-    (core module $libc (memory (export "memory") 1))
-    (core instance $libc (instantiate $libc))
-    (core module $m
-      (import "" "task.wait" (func $task-wait (param i32) (result i32)))
-    )
-    (core func $task-wait (canon task.wait async (memory $libc "memory")))
-    (core instance $i (instantiate $m (with "" (instance (export "task.wait" (func $task-wait))))))
-  )
-  "`task.wait` requires the component model async feature"
+  (component (core func (canon waitable-set.new)))
+  "`waitable-set.new` requires the component model async feature"
 )
 
-;; task.poll
+;; waitable-set.wait
 (assert_invalid
   (component
     (core module $libc (memory (export "memory") 1))
     (core instance $libc (instantiate $libc))
     (core module $m
-      (import "" "task.poll" (func $task-poll (param i32) (result i32)))
+      (import "" "waitable-set.wait" (func $waitable-set-wait (param i32) (result i32)))
     )
-    (core func $task-poll (canon task.poll async (memory $libc "memory")))
-    (core instance $i (instantiate $m (with "" (instance (export "task.poll" (func $task-poll))))))
+    (core func $waitable-set-wait (canon waitable-set.wait async (memory $libc "memory")))
+    (core instance $i (instantiate $m (with "" (instance (export "waitable-set.wait" (func $waitable-set-wait))))))
   )
-  "`task.poll` requires the component model async feature"
+  "`waitable-set.wait` requires the component model async feature"
+)
+
+;; waitable-set.poll
+(assert_invalid
+  (component
+    (core module $libc (memory (export "memory") 1))
+    (core instance $libc (instantiate $libc))
+    (core module $m
+      (import "" "waitable-set.poll" (func $waitable-set-poll (param i32) (result i32)))
+    )
+    (core func $waitable-set-poll (canon waitable-set.poll async (memory $libc "memory")))
+    (core instance $i (instantiate $m (with "" (instance (export "waitable-set.poll" (func $waitable-set-poll))))))
+  )
+  "`waitable-set.poll` requires the component model async feature"
+)
+
+;; waitable-set.drop
+(assert_invalid
+  (component (core func (canon waitable-set.drop)))
+  "`waitable-set.drop` requires the component model async feature"
+)
+
+;; waitable.join
+(assert_invalid
+  (component (core func (canon waitable.join)))
+  "`waitable.join` requires the component model async feature"
 )
 
 ;; task.yield

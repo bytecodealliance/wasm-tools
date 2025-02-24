@@ -90,23 +90,6 @@ pub enum CanonicalFunction {
         /// The canonical options for the function.
         options: Box<[CanonicalOption]>,
     },
-    /// A function which waits for at least one outstanding async
-    /// task/stream/future to make progress, returning the first such event.
-    TaskWait {
-        /// If `true`, indicates the caller instance maybe reentered.
-        async_: bool,
-        /// Memory to use when storing the event.
-        memory: u32,
-    },
-    /// A function which checks whether any outstanding async task/stream/future
-    /// has made progress.  Unlike `task.wait`, this does not block and may
-    /// return nothing if no such event has occurred.
-    TaskPoll {
-        /// If `true`, indicates the caller instance maybe reentered.
-        async_: bool,
-        /// Memory to use when storing the event, if any.
-        memory: u32,
-    },
     /// A function which yields control to the host so that other tasks are able
     /// to make progress, if any.
     TaskYield {
@@ -233,6 +216,28 @@ pub enum CanonicalFunction {
     },
     /// A function to drop a specified `error-context`.
     ErrorContextDrop,
+    /// A function to create a new `waitable-set`.
+    WaitableSetNew,
+    /// A function to block on the next item within a `waitable-set`.
+    WaitableSetWait {
+        /// Whether or not the guest can be reentered while calling this
+        /// function.
+        async_: bool,
+        /// Which memory the results of this operation are stored in.
+        memory: u32,
+    },
+    /// A function to check if any items are ready within a `waitable-set`.
+    WaitableSetPoll {
+        /// Whether or not the guest can be reentered while calling this
+        /// function.
+        async_: bool,
+        /// Which memory the results of this operation are stored in.
+        memory: u32,
+    },
+    /// A function to drop a `waitable-set`.
+    WaitableSetDrop,
+    /// A function to add an item to a `waitable-set`.
+    WaitableJoin,
 }
 
 /// A reader for the canonical section of a WebAssembly component.
@@ -276,14 +281,6 @@ impl<'a> FromReader<'a> for CanonicalFunction {
             0x09 => CanonicalFunction::TaskReturn {
                 result: crate::read_resultlist(reader)?,
                 options: read_opts(reader)?,
-            },
-            0x0a => CanonicalFunction::TaskWait {
-                async_: reader.read()?,
-                memory: reader.read()?,
-            },
-            0x0b => CanonicalFunction::TaskPoll {
-                async_: reader.read()?,
-                memory: reader.read()?,
             },
             0x0c => CanonicalFunction::TaskYield {
                 async_: reader.read()?,
@@ -334,6 +331,18 @@ impl<'a> FromReader<'a> for CanonicalFunction {
                 options: read_opts(reader)?,
             },
             0x1e => CanonicalFunction::ErrorContextDrop,
+
+            0x1f => CanonicalFunction::WaitableSetNew,
+            0x20 => CanonicalFunction::WaitableSetWait {
+                async_: reader.read()?,
+                memory: reader.read()?,
+            },
+            0x21 => CanonicalFunction::WaitableSetPoll {
+                async_: reader.read()?,
+                memory: reader.read()?,
+            },
+            0x22 => CanonicalFunction::WaitableSetDrop,
+            0x23 => CanonicalFunction::WaitableJoin,
             x => return reader.invalid_leading_byte(x, "canonical function"),
         })
     }

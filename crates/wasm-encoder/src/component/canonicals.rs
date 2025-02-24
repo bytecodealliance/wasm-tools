@@ -200,31 +200,6 @@ impl CanonicalFunctionSection {
         self
     }
 
-    /// Defines a function which waits for at least one outstanding async
-    /// task/stream/future to make progress, returning the first such event.
-    ///
-    /// If `async_` is true, the caller instance may be reentered.
-    pub fn task_wait(&mut self, async_: bool, memory: u32) -> &mut Self {
-        self.bytes.push(0x0a);
-        self.bytes.push(if async_ { 1 } else { 0 });
-        memory.encode(&mut self.bytes);
-        self.num_added += 1;
-        self
-    }
-
-    /// Defines a function which checks whether any outstanding async
-    /// task/stream/future has made progress.  Unlike `task.wait`, this does not
-    /// block and may return nothing if no such event has occurred.
-    ///
-    /// If `async_` is true, the caller instance may be reentered.
-    pub fn task_poll(&mut self, async_: bool, memory: u32) -> &mut Self {
-        self.bytes.push(0x0b);
-        self.bytes.push(if async_ { 1 } else { 0 });
-        memory.encode(&mut self.bytes);
-        self.num_added += 1;
-        self
-    }
-
     /// Defines a function which yields control to the host so that other tasks
     /// are able to make progress, if any.
     ///
@@ -421,6 +396,50 @@ impl CanonicalFunctionSection {
     /// Defines a function to drop a specified `error-context`.
     pub fn error_context_drop(&mut self) -> &mut Self {
         self.bytes.push(0x1e);
+        self.num_added += 1;
+        self
+    }
+
+    /// Declare a new `waitable-set.new` intrinsic, used to create a
+    /// `waitable-set` pseudo-resource.
+    pub fn waitable_set_new(&mut self) -> &mut Self {
+        self.bytes.push(0x1f);
+        self.num_added += 1;
+        self
+    }
+
+    /// Declare a new `waitable-set.wait` intrinsic, used to block on a
+    /// `waitable-set`.
+    pub fn waitable_set_wait(&mut self, async_: bool, memory: u32) -> &mut Self {
+        self.bytes.push(0x20);
+        self.bytes.push(if async_ { 1 } else { 0 });
+        memory.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
+    /// Declare a new `waitable-set.wait` intrinsic, used to check, without
+    /// blocking, if anything in a `waitable-set` is ready.
+    pub fn waitable_set_poll(&mut self, async_: bool, memory: u32) -> &mut Self {
+        self.bytes.push(0x21);
+        self.bytes.push(if async_ { 1 } else { 0 });
+        memory.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
+    /// Declare a new `waitable-set.drop` intrinsic, used to dispose a
+    /// `waitable-set` pseudo-resource.
+    pub fn waitable_set_drop(&mut self) -> &mut Self {
+        self.bytes.push(0x22);
+        self.num_added += 1;
+        self
+    }
+
+    /// Declare a new `waitable.join` intrinsic, used to add an item to a
+    /// `waitable-set`.
+    pub fn waitable_join(&mut self) -> &mut Self {
+        self.bytes.push(0x23);
         self.num_added += 1;
         self
     }

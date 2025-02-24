@@ -264,35 +264,7 @@ impl<'a> Expander<'a> {
             CanonicalFuncKind::Lift { ty, .. } => {
                 self.expand_component_type_use(ty);
             }
-            CanonicalFuncKind::Lower(_)
-            | CanonicalFuncKind::ResourceNew(_)
-            | CanonicalFuncKind::ResourceRep(_)
-            | CanonicalFuncKind::ResourceDrop(_)
-            | CanonicalFuncKind::ThreadSpawn(_)
-            | CanonicalFuncKind::ThreadAvailableParallelism(_)
-            | CanonicalFuncKind::BackpressureSet
-            | CanonicalFuncKind::TaskReturn(_)
-            | CanonicalFuncKind::TaskWait(_)
-            | CanonicalFuncKind::TaskPoll(_)
-            | CanonicalFuncKind::TaskYield(_)
-            | CanonicalFuncKind::SubtaskDrop
-            | CanonicalFuncKind::StreamNew(_)
-            | CanonicalFuncKind::StreamRead(_)
-            | CanonicalFuncKind::StreamWrite(_)
-            | CanonicalFuncKind::StreamCancelRead(_)
-            | CanonicalFuncKind::StreamCancelWrite(_)
-            | CanonicalFuncKind::StreamCloseReadable(_)
-            | CanonicalFuncKind::StreamCloseWritable(_)
-            | CanonicalFuncKind::FutureNew(_)
-            | CanonicalFuncKind::FutureRead(_)
-            | CanonicalFuncKind::FutureWrite(_)
-            | CanonicalFuncKind::FutureCancelRead(_)
-            | CanonicalFuncKind::FutureCancelWrite(_)
-            | CanonicalFuncKind::FutureCloseReadable(_)
-            | CanonicalFuncKind::FutureCloseWritable(_)
-            | CanonicalFuncKind::ErrorContextNew(_)
-            | CanonicalFuncKind::ErrorContextDebugMessage(_)
-            | CanonicalFuncKind::ErrorContextDrop => {}
+            _ => {}
         }
     }
 
@@ -357,18 +329,6 @@ impl<'a> Expander<'a> {
                 id: func.id,
                 name: func.name,
                 kind: CanonicalFuncKind::TaskReturn(info),
-            }),
-            CoreFuncKind::TaskWait(info) => ComponentField::CanonicalFunc(CanonicalFunc {
-                span: func.span,
-                id: func.id,
-                name: func.name,
-                kind: CanonicalFuncKind::TaskWait(info),
-            }),
-            CoreFuncKind::TaskPoll(info) => ComponentField::CanonicalFunc(CanonicalFunc {
-                span: func.span,
-                id: func.id,
-                name: func.name,
-                kind: CanonicalFuncKind::TaskPoll(info),
             }),
             CoreFuncKind::TaskYield(info) => ComponentField::CanonicalFunc(CanonicalFunc {
                 span: func.span,
@@ -493,6 +453,36 @@ impl<'a> Expander<'a> {
                 id: func.id,
                 name: func.name,
                 kind: CanonicalFuncKind::ErrorContextDrop,
+            }),
+            CoreFuncKind::WaitableSetNew => ComponentField::CanonicalFunc(CanonicalFunc {
+                span: func.span,
+                id: func.id,
+                name: func.name,
+                kind: CanonicalFuncKind::WaitableSetNew,
+            }),
+            CoreFuncKind::WaitableSetWait(info) => ComponentField::CanonicalFunc(CanonicalFunc {
+                span: func.span,
+                id: func.id,
+                name: func.name,
+                kind: CanonicalFuncKind::WaitableSetWait(info),
+            }),
+            CoreFuncKind::WaitableSetPoll(info) => ComponentField::CanonicalFunc(CanonicalFunc {
+                span: func.span,
+                id: func.id,
+                name: func.name,
+                kind: CanonicalFuncKind::WaitableSetPoll(info),
+            }),
+            CoreFuncKind::WaitableSetDrop => ComponentField::CanonicalFunc(CanonicalFunc {
+                span: func.span,
+                id: func.id,
+                name: func.name,
+                kind: CanonicalFuncKind::WaitableSetDrop,
+            }),
+            CoreFuncKind::WaitableJoin => ComponentField::CanonicalFunc(CanonicalFunc {
+                span: func.span,
+                id: func.id,
+                name: func.name,
+                kind: CanonicalFuncKind::WaitableJoin,
             }),
         }
     }

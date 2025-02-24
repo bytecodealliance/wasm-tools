@@ -18,10 +18,10 @@ use crate::limits::*;
 use crate::prelude::*;
 use crate::validator::names::{ComponentName, ComponentNameKind, KebabStr, KebabString};
 use crate::{
-    BinaryReaderError, CanonicalOption, ComponentExportName, ComponentExternalKind,
-    ComponentOuterAliasKind, ComponentTypeRef, CompositeInnerType, ExternalKind, FuncType,
-    GlobalType, InstantiationArgKind, MemoryType, PackedIndex, RefType, Result, SubType, TableType,
-    TypeBounds, ValType, WasmFeatures,
+    BinaryReaderError, CanonicalFunction, CanonicalOption, ComponentExportName,
+    ComponentExternalKind, ComponentOuterAliasKind, ComponentTypeRef, CompositeInnerType,
+    ExternalKind, FuncType, GlobalType, InstantiationArgKind, MemoryType, PackedIndex, RefType,
+    Result, SubType, TableType, TypeBounds, ValType, WasmFeatures,
 };
 use core::mem;
 
@@ -951,7 +951,114 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn lift_function(
+    pub fn canonical_function(
+        &mut self,
+        func: CanonicalFunction,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        match func {
+            CanonicalFunction::Lift {
+                core_func_index,
+                type_index,
+                options,
+            } => self.lift_function(
+                core_func_index,
+                type_index,
+                &options,
+                types,
+                offset,
+                features,
+            ),
+            CanonicalFunction::Lower {
+                func_index,
+                options,
+            } => self.lower_function(func_index, &options, types, offset, features),
+            CanonicalFunction::ResourceNew { resource } => {
+                self.resource_new(resource, types, offset)
+            }
+            CanonicalFunction::ResourceDrop { resource } => {
+                self.resource_drop(resource, types, offset)
+            }
+            CanonicalFunction::ResourceDropAsync { resource } => {
+                self.resource_drop_async(resource, types, offset, features)
+            }
+            CanonicalFunction::ResourceRep { resource } => {
+                self.resource_rep(resource, types, offset)
+            }
+            CanonicalFunction::ThreadSpawn { func_ty_index } => {
+                self.thread_spawn(func_ty_index, types, offset, features)
+            }
+            CanonicalFunction::ThreadAvailableParallelism => {
+                self.thread_available_parallelism(types, offset, features)
+            }
+            CanonicalFunction::BackpressureSet => self.backpressure_set(types, offset, features),
+            CanonicalFunction::TaskReturn { result, options } => {
+                self.task_return(&result, &options, types, offset, features)
+            }
+            CanonicalFunction::TaskYield { async_ } => {
+                self.task_yield(async_, types, offset, features)
+            }
+            CanonicalFunction::SubtaskDrop => self.subtask_drop(types, offset, features),
+            CanonicalFunction::StreamNew { ty } => self.stream_new(ty, types, offset, features),
+            CanonicalFunction::StreamRead { ty, options } => {
+                self.stream_read(ty, &options, types, offset, features)
+            }
+            CanonicalFunction::StreamWrite { ty, options } => {
+                self.stream_write(ty, &options, types, offset, features)
+            }
+            CanonicalFunction::StreamCancelRead { ty, async_ } => {
+                self.stream_cancel_read(ty, async_, types, offset, features)
+            }
+            CanonicalFunction::StreamCancelWrite { ty, async_ } => {
+                self.stream_cancel_write(ty, async_, types, offset, features)
+            }
+            CanonicalFunction::StreamCloseReadable { ty } => {
+                self.stream_close_readable(ty, types, offset, features)
+            }
+            CanonicalFunction::StreamCloseWritable { ty } => {
+                self.stream_close_writable(ty, types, offset, features)
+            }
+            CanonicalFunction::FutureNew { ty } => self.future_new(ty, types, offset, features),
+            CanonicalFunction::FutureRead { ty, options } => {
+                self.future_read(ty, &options, types, offset, features)
+            }
+            CanonicalFunction::FutureWrite { ty, options } => {
+                self.future_write(ty, options.into_vec(), types, offset, features)
+            }
+            CanonicalFunction::FutureCancelRead { ty, async_ } => {
+                self.future_cancel_read(ty, async_, types, offset, features)
+            }
+            CanonicalFunction::FutureCancelWrite { ty, async_ } => {
+                self.future_cancel_write(ty, async_, types, offset, features)
+            }
+            CanonicalFunction::FutureCloseReadable { ty } => {
+                self.future_close_readable(ty, types, offset, features)
+            }
+            CanonicalFunction::FutureCloseWritable { ty } => {
+                self.future_close_writable(ty, types, offset, features)
+            }
+            CanonicalFunction::ErrorContextNew { options } => {
+                self.error_context_new(options.into_vec(), types, offset, features)
+            }
+            CanonicalFunction::ErrorContextDebugMessage { options } => {
+                self.error_context_debug_message(options.into_vec(), types, offset, features)
+            }
+            CanonicalFunction::ErrorContextDrop => self.error_context_drop(types, offset, features),
+            CanonicalFunction::WaitableSetNew => self.waitable_set_new(types, offset, features),
+            CanonicalFunction::WaitableSetWait { async_, memory } => {
+                self.waitable_set_wait(async_, memory, types, offset, features)
+            }
+            CanonicalFunction::WaitableSetPoll { async_, memory } => {
+                self.waitable_set_poll(async_, memory, types, offset, features)
+            }
+            CanonicalFunction::WaitableSetDrop => self.waitable_set_drop(types, offset, features),
+            CanonicalFunction::WaitableJoin => self.waitable_join(types, offset, features),
+        }
+    }
+
+    fn lift_function(
         &mut self,
         core_func_index: u32,
         type_index: u32,
@@ -994,7 +1101,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn lower_function(
+    fn lower_function(
         &mut self,
         func_index: u32,
         options: &[CanonicalOption],
@@ -1023,31 +1130,21 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn resource_new(
-        &mut self,
-        resource: u32,
-        types: &mut TypeAlloc,
-        offset: usize,
-    ) -> Result<()> {
+    fn resource_new(&mut self, resource: u32, types: &mut TypeAlloc, offset: usize) -> Result<()> {
         let rep = self.check_local_resource(resource, types, offset)?;
         let id = types.intern_func_type(FuncType::new([rep], [ValType::I32]), offset);
         self.core_funcs.push(id);
         Ok(())
     }
 
-    pub fn resource_drop(
-        &mut self,
-        resource: u32,
-        types: &mut TypeAlloc,
-        offset: usize,
-    ) -> Result<()> {
+    fn resource_drop(&mut self, resource: u32, types: &mut TypeAlloc, offset: usize) -> Result<()> {
         self.resource_at(resource, types, offset)?;
         let id = types.intern_func_type(FuncType::new([ValType::I32], []), offset);
         self.core_funcs.push(id);
         Ok(())
     }
 
-    pub fn resource_drop_async(
+    fn resource_drop_async(
         &mut self,
         resource: u32,
         types: &mut TypeAlloc,
@@ -1066,19 +1163,14 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn resource_rep(
-        &mut self,
-        resource: u32,
-        types: &mut TypeAlloc,
-        offset: usize,
-    ) -> Result<()> {
+    fn resource_rep(&mut self, resource: u32, types: &mut TypeAlloc, offset: usize) -> Result<()> {
         let rep = self.check_local_resource(resource, types, offset)?;
         let id = types.intern_func_type(FuncType::new([ValType::I32], [rep]), offset);
         self.core_funcs.push(id);
         Ok(())
     }
 
-    pub fn backpressure_set(
+    fn backpressure_set(
         &mut self,
         types: &mut TypeAlloc,
         offset: usize,
@@ -1096,7 +1188,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn task_return(
+    fn task_return(
         &mut self,
         result: &Option<crate::ComponentValType>,
         options: &[CanonicalOption],
@@ -1157,51 +1249,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn task_wait(
-        &mut self,
-        _async_: bool,
-        memory: u32,
-        types: &mut TypeAlloc,
-        offset: usize,
-        features: &WasmFeatures,
-    ) -> Result<()> {
-        if !features.component_model_async() {
-            bail!(
-                offset,
-                "`task.wait` requires the component model async feature"
-            )
-        }
-
-        self.memory_at(memory, offset)?;
-
-        self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset));
-        Ok(())
-    }
-
-    pub fn task_poll(
-        &mut self,
-        _async_: bool,
-        memory: u32,
-        types: &mut TypeAlloc,
-        offset: usize,
-        features: &WasmFeatures,
-    ) -> Result<()> {
-        if !features.component_model_async() {
-            bail!(
-                offset,
-                "`task.poll` requires the component model async feature"
-            )
-        }
-
-        self.memory_at(memory, offset)?;
-
-        self.core_funcs
-            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset));
-        Ok(())
-    }
-
-    pub fn task_yield(
+    fn task_yield(
         &mut self,
         _async_: bool,
         types: &mut TypeAlloc,
@@ -1220,7 +1268,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn subtask_drop(
+    fn subtask_drop(
         &mut self,
         types: &mut TypeAlloc,
         offset: usize,
@@ -1238,7 +1286,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn stream_new(
+    fn stream_new(
         &mut self,
         ty: u32,
         types: &mut TypeAlloc,
@@ -1262,7 +1310,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn stream_read(
+    fn stream_read(
         &mut self,
         ty: u32,
         options: &[CanonicalOption],
@@ -1294,7 +1342,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn stream_write(
+    fn stream_write(
         &mut self,
         ty: u32,
         options: &[CanonicalOption],
@@ -1324,7 +1372,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn stream_cancel_read(
+    fn stream_cancel_read(
         &mut self,
         ty: u32,
         _async_: bool,
@@ -1349,7 +1397,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn stream_cancel_write(
+    fn stream_cancel_write(
         &mut self,
         ty: u32,
         _async_: bool,
@@ -1374,7 +1422,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn stream_close_readable(
+    fn stream_close_readable(
         &mut self,
         ty: u32,
         types: &mut TypeAlloc,
@@ -1398,7 +1446,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn stream_close_writable(
+    fn stream_close_writable(
         &mut self,
         ty: u32,
         types: &mut TypeAlloc,
@@ -1422,7 +1470,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn future_new(
+    fn future_new(
         &mut self,
         ty: u32,
         types: &mut TypeAlloc,
@@ -1446,7 +1494,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn future_read(
+    fn future_read(
         &mut self,
         ty: u32,
         options: &[CanonicalOption],
@@ -1478,7 +1526,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn future_write(
+    fn future_write(
         &mut self,
         ty: u32,
         options: Vec<CanonicalOption>,
@@ -1508,7 +1556,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn future_cancel_read(
+    fn future_cancel_read(
         &mut self,
         ty: u32,
         _async_: bool,
@@ -1533,7 +1581,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn future_cancel_write(
+    fn future_cancel_write(
         &mut self,
         ty: u32,
         _async_: bool,
@@ -1558,7 +1606,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn future_close_readable(
+    fn future_close_readable(
         &mut self,
         ty: u32,
         types: &mut TypeAlloc,
@@ -1582,7 +1630,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn future_close_writable(
+    fn future_close_writable(
         &mut self,
         ty: u32,
         types: &mut TypeAlloc,
@@ -1606,7 +1654,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn error_context_new(
+    fn error_context_new(
         &mut self,
         options: Vec<CanonicalOption>,
         types: &mut TypeAlloc,
@@ -1630,7 +1678,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn error_context_debug_message(
+    fn error_context_debug_message(
         &mut self,
         options: Vec<CanonicalOption>,
         types: &mut TypeAlloc,
@@ -1654,7 +1702,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn error_context_drop(
+    fn error_context_drop(
         &mut self,
         types: &mut TypeAlloc,
         offset: usize,
@@ -1669,6 +1717,104 @@ impl ComponentState {
 
         self.core_funcs
             .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset));
+        Ok(())
+    }
+
+    fn waitable_set_new(
+        &mut self,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`waitable-set.new` requires the component model async feature"
+            )
+        }
+
+        self.core_funcs
+            .push(types.intern_func_type(FuncType::new([], [ValType::I32]), offset));
+        Ok(())
+    }
+
+    fn waitable_set_wait(
+        &mut self,
+        _async_: bool,
+        memory: u32,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`waitable-set.wait` requires the component model async feature"
+            )
+        }
+
+        self.memory_at(memory, offset)?;
+
+        self.core_funcs
+            .push(types.intern_func_type(FuncType::new([ValType::I32; 2], [ValType::I32]), offset));
+        Ok(())
+    }
+
+    fn waitable_set_poll(
+        &mut self,
+        _async_: bool,
+        memory: u32,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`waitable-set.poll` requires the component model async feature"
+            )
+        }
+
+        self.memory_at(memory, offset)?;
+
+        self.core_funcs
+            .push(types.intern_func_type(FuncType::new([ValType::I32; 2], [ValType::I32]), offset));
+        Ok(())
+    }
+
+    fn waitable_set_drop(
+        &mut self,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`waitable-set.drop` requires the component model async feature"
+            )
+        }
+
+        self.core_funcs
+            .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset));
+        Ok(())
+    }
+
+    fn waitable_join(
+        &mut self,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.component_model_async() {
+            bail!(
+                offset,
+                "`waitable.join` requires the component model async feature"
+            )
+        }
+
+        self.core_funcs
+            .push(types.intern_func_type(FuncType::new([ValType::I32; 2], []), offset));
         Ok(())
     }
 
@@ -1696,7 +1842,7 @@ impl ComponentState {
         bail!(offset, "type index {} is not a resource type", idx)
     }
 
-    pub fn thread_spawn(
+    fn thread_spawn(
         &mut self,
         func_ty_index: u32,
         types: &mut TypeAlloc,
@@ -1747,7 +1893,7 @@ impl ComponentState {
         Ok(())
     }
 
-    pub fn thread_available_parallelism(
+    fn thread_available_parallelism(
         &mut self,
         types: &mut TypeAlloc,
         offset: usize,

@@ -397,12 +397,6 @@ impl<'a> Resolver<'a> {
                 }
                 self.canon_opts(&mut info.opts)?;
             }
-            CanonicalFuncKind::TaskWait(info) => {
-                self.core_item_ref(&mut info.memory)?;
-            }
-            CanonicalFuncKind::TaskPoll(info) => {
-                self.core_item_ref(&mut info.memory)?;
-            }
             CanonicalFuncKind::StreamNew(info) => {
                 self.resolve_ns(&mut info.ty, Ns::Type)?;
             }
@@ -455,6 +449,15 @@ impl<'a> Resolver<'a> {
             CanonicalFuncKind::ErrorContextDebugMessage(info) => {
                 self.canon_opts(&mut info.opts)?;
             }
+            CanonicalFuncKind::WaitableSetNew => {}
+            CanonicalFuncKind::WaitableSetWait(info) => {
+                self.core_item_ref(&mut info.memory)?;
+            }
+            CanonicalFuncKind::WaitableSetPoll(info) => {
+                self.core_item_ref(&mut info.memory)?;
+            }
+            CanonicalFuncKind::WaitableSetDrop => {}
+            CanonicalFuncKind::WaitableJoin => {}
         }
 
         Ok(())
@@ -968,8 +971,6 @@ impl<'a> ComponentState<'a> {
                 | CanonicalFuncKind::ThreadAvailableParallelism(_)
                 | CanonicalFuncKind::BackpressureSet
                 | CanonicalFuncKind::TaskReturn(_)
-                | CanonicalFuncKind::TaskWait(_)
-                | CanonicalFuncKind::TaskPoll(_)
                 | CanonicalFuncKind::TaskYield(_)
                 | CanonicalFuncKind::SubtaskDrop
                 | CanonicalFuncKind::StreamNew(_)
@@ -988,9 +989,12 @@ impl<'a> ComponentState<'a> {
                 | CanonicalFuncKind::FutureCloseWritable(_)
                 | CanonicalFuncKind::ErrorContextNew(_)
                 | CanonicalFuncKind::ErrorContextDebugMessage(_)
-                | CanonicalFuncKind::ErrorContextDrop => {
-                    self.core_funcs.register(f.id, "core func")?
-                }
+                | CanonicalFuncKind::ErrorContextDrop
+                | CanonicalFuncKind::WaitableSetNew
+                | CanonicalFuncKind::WaitableSetWait(_)
+                | CanonicalFuncKind::WaitableSetPoll(_)
+                | CanonicalFuncKind::WaitableSetDrop
+                | CanonicalFuncKind::WaitableJoin => self.core_funcs.register(f.id, "core func")?,
             },
             ComponentField::CoreFunc(_) | ComponentField::Func(_) => {
                 unreachable!("should be expanded already")
