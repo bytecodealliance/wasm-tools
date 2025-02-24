@@ -888,7 +888,7 @@ impl ImportMap {
             if async_ {
                 bail!("async `future.close-readable` calls not supported");
             }
-            validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
+            validate_func_sig(name, &FuncType::new([ValType::I32; 2], []), ty)?;
             Import::FutureCloseReadable(info)
         } else if let Some(info) = prefixed_payload("[stream-new-") {
             if async_ {
@@ -918,7 +918,7 @@ impl ImportMap {
             if async_ {
                 bail!("async `stream.close-readable` calls not supported");
             }
-            validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
+            validate_func_sig(name, &FuncType::new([ValType::I32; 2], []), ty)?;
             Import::StreamCloseReadable(info)
         } else {
             return Ok(None);
