@@ -204,7 +204,7 @@ impl CanonicalFunctionSection {
     /// are able to make progress, if any.
     ///
     /// If `async_` is true, the caller instance may be reentered.
-    pub fn task_yield(&mut self, async_: bool) -> &mut Self {
+    pub fn yield_(&mut self, async_: bool) -> &mut Self {
         self.bytes.push(0x0c);
         self.bytes.push(if async_ { 1 } else { 0 });
         self.num_added += 1;

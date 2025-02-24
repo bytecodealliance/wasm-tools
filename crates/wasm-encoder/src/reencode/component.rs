@@ -969,8 +969,8 @@ pub mod component_utils {
                     options.iter().map(|o| reencoder.canonical_option(*o)),
                 );
             }
-            wasmparser::CanonicalFunction::TaskYield { async_ } => {
-                section.task_yield(async_);
+            wasmparser::CanonicalFunction::Yield { async_ } => {
+                section.yield_(async_);
             }
             wasmparser::CanonicalFunction::SubtaskDrop => {
                 section.subtask_drop();

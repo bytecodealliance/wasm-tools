@@ -997,9 +997,7 @@ impl ComponentState {
             CanonicalFunction::TaskReturn { result, options } => {
                 self.task_return(&result, &options, types, offset, features)
             }
-            CanonicalFunction::TaskYield { async_ } => {
-                self.task_yield(async_, types, offset, features)
-            }
+            CanonicalFunction::Yield { async_ } => self.yield_(async_, types, offset, features),
             CanonicalFunction::SubtaskDrop => self.subtask_drop(types, offset, features),
             CanonicalFunction::StreamNew { ty } => self.stream_new(ty, types, offset, features),
             CanonicalFunction::StreamRead { ty, options } => {
@@ -1249,7 +1247,7 @@ impl ComponentState {
         Ok(())
     }
 
-    fn task_yield(
+    fn yield_(
         &mut self,
         _async_: bool,
         types: &mut TypeAlloc,
@@ -1257,10 +1255,7 @@ impl ComponentState {
         features: &WasmFeatures,
     ) -> Result<()> {
         if !features.component_model_async() {
-            bail!(
-                offset,
-                "`task.yield` requires the component model async feature"
-            )
+            bail!(offset, "`yield` requires the component model async feature")
         }
 
         self.core_funcs

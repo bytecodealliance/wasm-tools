@@ -98,16 +98,16 @@
   "`waitable.join` requires the component model async feature"
 )
 
-;; task.yield
+;; yield
 (assert_invalid
   (component
     (core module $m
-      (import "" "task.yield" (func $task-yield))
+      (import "" "yield" (func $yield))
     )
-    (core func $task-yield (canon task.yield async))
-    (core instance $i (instantiate $m (with "" (instance (export "task.yield" (func $task-yield))))))
+    (core func $yield (canon yield async))
+    (core instance $i (instantiate $m (with "" (instance (export "yield" (func $yield))))))
   )
-  "`task.yield` requires the component model async feature"
+  "`yield` requires the component model async feature"
 )
 
 ;; subtask.drop

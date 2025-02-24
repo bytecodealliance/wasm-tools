@@ -69,7 +69,7 @@
       "line": 103,
       "filename": "async.9.wasm",
       "module_type": "binary",
-      "text": "`task.yield` requires the component model async feature"
+      "text": "`yield` requires the component model async feature"
     },
     {
       "type": "assert_invalid",

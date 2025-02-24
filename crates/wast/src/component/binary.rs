@@ -370,9 +370,9 @@ impl<'a> Encoder<'a> {
                     info.opts.iter().map(Into::into),
                 );
             }
-            CanonicalFuncKind::TaskYield(info) => {
+            CanonicalFuncKind::Yield(info) => {
                 self.core_func_names.push(name);
-                self.funcs.task_yield(info.async_);
+                self.funcs.yield_(info.async_);
             }
             CanonicalFuncKind::SubtaskDrop => {
                 self.core_func_names.push(name);
