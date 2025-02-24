@@ -1615,7 +1615,7 @@ impl<'a> EncodingState<'a> {
                 )
             }
             Import::ExportedTaskReturn(key, interface, func, result) => {
-                let (options, _sig) = task_return_options_and_type(resolve, *result, false);
+                let (options, _sig) = task_return_options_and_type(resolve, *result);
                 if options.is_empty() {
                     let mut encoder = self.root_export_type_encoder(*interface);
 
@@ -2045,13 +2045,15 @@ enum ShimKind<'a> {
     /// A shim used for the `task.poll` built-in function, which must refer to
     /// the core module instance's memory to which results will be written.
     TaskPoll { async_: bool },
-    /// TODO
+    /// Shim for `task.return` to handle a reference to a `memory` which may
     TaskReturn {
-        /// TODO
+        /// The interface (optional) that owns `func` below. If `None` then it's
+        /// a world export.
         interface: Option<InterfaceId>,
-        /// TODO
+        /// The function that this `task.return` is returning for, owned
+        /// within `interface` above.
         func: &'a str,
-        /// TODO
+        /// The WIT type that `func` returns.
         result: Option<Type>,
         /// Which instance to pull the `realloc` function from, if necessary.
         for_module: CustomModule<'a>,
@@ -2142,7 +2144,7 @@ impl<'a> Shims<'a> {
                 // for it, otherwise skip the shim and let it get materialized
                 // naturally later.
                 Import::ExportedTaskReturn(key, interface, func, ty) => {
-                    let (options, sig) = task_return_options_and_type(resolve, *ty, false);
+                    let (options, sig) = task_return_options_and_type(resolve, *ty);
                     if options.is_empty() {
                         continue;
                     }
@@ -2506,7 +2508,6 @@ impl<'a> Shims<'a> {
 fn task_return_options_and_type(
     resolve: &Resolve,
     ty: Option<Type>,
-    async_: bool,
 ) -> (RequiredOptions, WasmSignature) {
     let func_tmp = Function {
         name: String::new(),
@@ -2519,11 +2520,7 @@ fn task_return_options_and_type(
         docs: Default::default(),
         stability: Stability::Unknown,
     };
-    let abi = if async_ {
-        AbiVariant::GuestImportAsync
-    } else {
-        AbiVariant::GuestImport
-    };
+    let abi = AbiVariant::GuestImport;
     let options = RequiredOptions::for_import(resolve, &func_tmp, abi);
     let sig = resolve.wasm_signature(abi, &func_tmp);
     (options, sig)
