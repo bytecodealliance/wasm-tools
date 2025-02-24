@@ -1324,13 +1324,13 @@ impl<'a> EncodingState<'a> {
                     shim.options.into_iter(*encoding, self.memory_index, None)?,
                 ),
                 ShimKind::ErrorContextDebugMessage {
-                    encoding,
                     for_module,
-                    realloc,
+                    encoding,
                 } => {
                     let instance_index = self.instance_for(*for_module);
-                    let realloc_index =
-                        Some(self.core_alias_export(instance_index, realloc, ExportKind::Func));
+                    let realloc = self.info.exports_for(*for_module).import_realloc_fallback();
+                    let realloc_index = realloc
+                        .map(|r| self.core_alias_export(instance_index, r, ExportKind::Func));
 
                     self.component
                         .error_context_debug_message(shim.options.into_iter(
@@ -1740,15 +1740,13 @@ impl<'a> EncodingState<'a> {
                     encoding: *encoding,
                 },
             )),
-            Import::ErrorContextDebugMessage { encoding, realloc } => Ok(self
-                .materialize_shim_import(
-                    shims,
-                    &ShimKind::ErrorContextDebugMessage {
-                        for_module,
-                        encoding: *encoding,
-                        realloc,
-                    },
-                )),
+            Import::ErrorContextDebugMessage { encoding } => Ok(self.materialize_shim_import(
+                shims,
+                &ShimKind::ErrorContextDebugMessage {
+                    for_module,
+                    encoding: *encoding,
+                },
+            )),
             Import::ErrorContextDrop => {
                 let index = self.component.error_context_drop();
                 Ok((ExportKind::Func, index))
@@ -2092,9 +2090,6 @@ enum ShimKind<'a> {
         for_module: CustomModule<'a>,
         /// The string encoding to use when lowering the debug message.
         encoding: StringEncoding,
-        /// The realloc function to use when allocating linear memory for the
-        /// debug message.
-        realloc: &'a str,
     },
 }
 
@@ -2293,7 +2288,7 @@ impl<'a> Shims<'a> {
                     });
                 }
 
-                Import::ErrorContextDebugMessage { encoding, realloc } => {
+                Import::ErrorContextDebugMessage { encoding } => {
                     let name = self.shims.len().to_string();
                     self.push(Shim {
                         name,
@@ -2304,7 +2299,6 @@ impl<'a> Shims<'a> {
                         kind: ShimKind::ErrorContextDebugMessage {
                             for_module,
                             encoding: *encoding,
-                            realloc,
                         },
                         sig: WasmSignature {
                             params: vec![WasmType::I32; 2],

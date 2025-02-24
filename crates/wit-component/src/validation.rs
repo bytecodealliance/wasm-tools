@@ -383,10 +383,7 @@ pub enum Import {
     /// This allows the guest to retrieve the debug message from a
     /// `error-context` instance.  Note that the content of this message might
     /// not be identical to what was passed in to `error-context.new`.
-    ErrorContextDebugMessage {
-        encoding: StringEncoding,
-        realloc: String,
-    },
+    ErrorContextDebugMessage { encoding: StringEncoding },
 
     /// A `canon error-context.drop` intrinsic.
     ///
@@ -633,14 +630,11 @@ impl ImportMap {
                 return Ok(Import::ErrorContextNew { encoding });
             }
 
-            if let Some((encoding, realloc)) = names.error_context_debug_message(name) {
+            if let Some(encoding) = names.error_context_debug_message(name) {
                 validate_not_async()?;
                 let expected = FuncType::new([ValType::I32; 2], []);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::ErrorContextDebugMessage {
-                    encoding,
-                    realloc: realloc.to_owned(),
-                });
+                return Ok(Import::ErrorContextDebugMessage { encoding });
             }
 
             let key = WorldKey::Name(name.to_string());
@@ -1271,6 +1265,13 @@ impl ExportMap {
         // `cabi_realloc_{name}` or something like that.
         let _ = (interface, func);
 
+        self.import_realloc_fallback()
+    }
+
+    /// Returns the general-purpose realloc function to use for imports.
+    ///
+    /// Note that `import_realloc_for` should be used instead where possible.
+    pub fn import_realloc_fallback(&self) -> Option<&str> {
         if let Some(name) = self.find(|m| matches!(m, Export::GeneralPurposeImportRealloc)) {
             return Some(name);
         }
@@ -1420,7 +1421,7 @@ trait NameMangling {
     fn async_name<'a>(&self, s: &'a str) -> Option<&'a str>;
     fn async_stackful_name<'a>(&self, s: &'a str) -> Option<&'a str>;
     fn error_context_new(&self, s: &str) -> Option<StringEncoding>;
-    fn error_context_debug_message<'a>(&self, s: &'a str) -> Option<(StringEncoding, &'a str)>;
+    fn error_context_debug_message(&self, s: &str) -> Option<StringEncoding>;
     fn error_context_drop(&self) -> Option<&str>;
     fn module_to_interface(
         &self,
@@ -1519,12 +1520,10 @@ impl NameMangling for Standard {
         _ = s;
         None
     }
-    fn error_context_new(&self, s: &str) -> Option<StringEncoding> {
-        _ = s;
+    fn error_context_new(&self, _: &str) -> Option<StringEncoding> {
         None
     }
-    fn error_context_debug_message<'a>(&self, s: &'a str) -> Option<(StringEncoding, &'a str)> {
-        _ = s;
+    fn error_context_debug_message(&self, _: &str) -> Option<StringEncoding> {
         None
     }
     fn error_context_drop(&self) -> Option<&str> {
@@ -1701,37 +1700,21 @@ impl NameMangling for Legacy {
     fn async_stackful_name<'a>(&self, s: &'a str) -> Option<&'a str> {
         s.strip_prefix("[async-stackful]")
     }
-    fn error_context_new(&self, s: &str) -> Option<StringEncoding> {
-        parse_encoding(
-            s.strip_prefix("[error-context-new;encoding=")?
-                .strip_suffix("]")?,
-        )
-    }
-    fn error_context_debug_message<'a>(&self, s: &'a str) -> Option<(StringEncoding, &'a str)> {
-        let mut suffix = s.strip_prefix("[error-context-debug-message;")?;
-        let mut encoding = None;
-        let mut realloc = None;
-        loop {
-            if let Some(index) = suffix.find(';').or_else(|| suffix.find(']')) {
-                if let Some(suffix) = suffix[..index].strip_prefix("encoding=") {
-                    if encoding.is_some() {
-                        return None;
-                    }
-                    encoding = parse_encoding(suffix)
-                } else if let Some(suffix) = suffix[..index].strip_prefix("realloc=") {
-                    if realloc.is_some() {
-                        return None;
-                    }
-                    realloc = Some(suffix);
-                } else {
-                    return None;
-                }
-                suffix = &suffix[index + 1..];
-            } else {
-                break;
-            }
+    fn error_context_new(&self, name: &str) -> Option<StringEncoding> {
+        match name {
+            "[error-context-new-utf8]" => Some(StringEncoding::UTF8),
+            "[error-context-new-utf16]" => Some(StringEncoding::UTF16),
+            "[error-context-new-latin1+utf16]" => Some(StringEncoding::CompactUTF16),
+            _ => None,
         }
-        Some((encoding?, realloc?))
+    }
+    fn error_context_debug_message(&self, name: &str) -> Option<StringEncoding> {
+        match name {
+            "[error-context-debug-message-utf8]" => Some(StringEncoding::UTF8),
+            "[error-context-debug-message-utf16]" => Some(StringEncoding::UTF16),
+            "[error-context-debug-message-latin1+utf16]" => Some(StringEncoding::CompactUTF16),
+            _ => None,
+        }
     }
     fn error_context_drop(&self) -> Option<&str> {
         Some("[error-context-drop]")
@@ -2042,13 +2025,4 @@ fn get_function<'a>(
         bail!("no export `{name}` found");
     };
     Ok(function)
-}
-
-fn parse_encoding(s: &str) -> Option<StringEncoding> {
-    match s {
-        "utf8" => Some(StringEncoding::UTF8),
-        "utf16" => Some(StringEncoding::UTF16),
-        "compact-utf16" => Some(StringEncoding::CompactUTF16),
-        _ => None,
-    }
 }
