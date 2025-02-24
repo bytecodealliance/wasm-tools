@@ -261,19 +261,28 @@ pub enum Import {
     /// additional concurrent calls.
     BackpressureSet,
 
-    /// A `canon task.wait` intrinsic.
+    /// A `waitable-set.new` intrinsic.
+    WaitableSetNew,
+
+    /// A `canon waitable-set.wait` intrinsic.
     ///
     /// This allows the guest to wait for any pending calls to async-lowered
     /// imports and/or `stream` and `future` operations to complete without
     /// unwinding the current Wasm stack.
-    TaskWait { async_: bool },
+    WaitableSetWait { async_: bool },
 
-    /// A `canon task.poll` intrinsic.
+    /// A `canon waitable.poll` intrinsic.
     ///
     /// This allows the guest to check whether any pending calls to
     /// async-lowered imports and/or `stream` and `future` operations have
     /// completed without unwinding the current Wasm stack and without blocking.
-    TaskPoll { async_: bool },
+    WaitableSetPoll { async_: bool },
+
+    /// A `waitable-set.drop` intrinsic.
+    WaitableSetDrop,
+
+    /// A `waitable.join` intrinsic.
+    WaitableJoin,
 
     /// A `canon task.wait` intrinsic.
     ///
@@ -542,34 +551,63 @@ impl ImportMap {
         } else {
             AbiVariant::GuestImport
         };
+        let validate_not_async = || {
+            if async_ {
+                bail!("`{name}` cannot be marked `async`")
+            }
+            Ok(())
+        };
 
         if module == names.import_root() {
             if Some(name) == names.error_context_drop() {
+                validate_not_async()?;
                 let expected = FuncType::new([ValType::I32], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ErrorContextDrop);
             }
 
             if Some(name) == names.backpressure_set() {
+                validate_not_async()?;
                 let expected = FuncType::new([ValType::I32], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::BackpressureSet);
             }
 
-            if Some(name) == names.task_wait() {
-                let expected = FuncType::new([ValType::I32], [ValType::I32]);
+            if Some(name) == names.waitable_set_new() {
+                validate_not_async()?;
+                let expected = FuncType::new([], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::TaskWait {
+                return Ok(Import::WaitableSetNew);
+            }
+
+            if Some(name) == names.waitable_set_wait() {
+                let expected = FuncType::new([ValType::I32; 2], [ValType::I32]);
+                validate_func_sig(name, &expected, ty)?;
+                return Ok(Import::WaitableSetWait {
                     async_: abi == AbiVariant::GuestImportAsync,
                 });
             }
 
-            if Some(name) == names.task_poll() {
-                let expected = FuncType::new([ValType::I32], [ValType::I32]);
+            if Some(name) == names.waitable_set_poll() {
+                let expected = FuncType::new([ValType::I32; 2], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::TaskPoll {
+                return Ok(Import::WaitableSetPoll {
                     async_: abi == AbiVariant::GuestImportAsync,
                 });
+            }
+
+            if Some(name) == names.waitable_set_drop() {
+                validate_not_async()?;
+                let expected = FuncType::new([ValType::I32], []);
+                validate_func_sig(name, &expected, ty)?;
+                return Ok(Import::WaitableSetDrop);
+            }
+
+            if Some(name) == names.waitable_join() {
+                validate_not_async()?;
+                let expected = FuncType::new([ValType::I32; 2], []);
+                validate_func_sig(name, &expected, ty)?;
+                return Ok(Import::WaitableJoin);
             }
 
             if Some(name) == names.task_yield() {
@@ -581,18 +619,21 @@ impl ImportMap {
             }
 
             if Some(name) == names.subtask_drop() {
+                validate_not_async()?;
                 let expected = FuncType::new([ValType::I32], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::SubtaskDrop);
             }
 
             if let Some(encoding) = names.error_context_new(name) {
+                validate_not_async()?;
                 let expected = FuncType::new([ValType::I32; 2], [ValType::I32]);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ErrorContextNew { encoding });
             }
 
             if let Some((encoding, realloc)) = names.error_context_debug_message(name) {
+                validate_not_async()?;
                 let expected = FuncType::new([ValType::I32; 2], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::ErrorContextDebugMessage {
@@ -1367,8 +1408,11 @@ trait NameMangling {
     fn resource_rep_name<'a>(&self, s: &'a str) -> Option<&'a str>;
     fn task_return_name<'a>(&self, s: &'a str) -> Option<&'a str>;
     fn backpressure_set(&self) -> Option<&str>;
-    fn task_wait(&self) -> Option<&str>;
-    fn task_poll(&self) -> Option<&str>;
+    fn waitable_set_new(&self) -> Option<&str>;
+    fn waitable_set_wait(&self) -> Option<&str>;
+    fn waitable_set_poll(&self) -> Option<&str>;
+    fn waitable_set_drop(&self) -> Option<&str>;
+    fn waitable_join(&self) -> Option<&str>;
     fn task_yield(&self) -> Option<&str>;
     fn subtask_drop(&self) -> Option<&str>;
     fn callback_name<'a>(&self, s: &'a str) -> Option<&'a str>;
@@ -1441,10 +1485,19 @@ impl NameMangling for Standard {
     fn backpressure_set(&self) -> Option<&str> {
         None
     }
-    fn task_wait(&self) -> Option<&str> {
+    fn waitable_set_new(&self) -> Option<&str> {
         None
     }
-    fn task_poll(&self) -> Option<&str> {
+    fn waitable_set_wait(&self) -> Option<&str> {
+        None
+    }
+    fn waitable_set_poll(&self) -> Option<&str> {
+        None
+    }
+    fn waitable_set_drop(&self) -> Option<&str> {
+        None
+    }
+    fn waitable_join(&self) -> Option<&str> {
         None
     }
     fn task_yield(&self) -> Option<&str> {
@@ -1617,11 +1670,20 @@ impl NameMangling for Legacy {
     fn backpressure_set(&self) -> Option<&str> {
         Some("[backpressure-set]")
     }
-    fn task_wait(&self) -> Option<&str> {
-        Some("[task-wait]")
+    fn waitable_set_new(&self) -> Option<&str> {
+        Some("[waitable-set-new]")
     }
-    fn task_poll(&self) -> Option<&str> {
-        Some("[task-poll]")
+    fn waitable_set_wait(&self) -> Option<&str> {
+        Some("[waitable-set-wait]")
+    }
+    fn waitable_set_poll(&self) -> Option<&str> {
+        Some("[waitable-set-poll]")
+    }
+    fn waitable_set_drop(&self) -> Option<&str> {
+        Some("[waitable-set-drop]")
+    }
+    fn waitable_join(&self) -> Option<&str> {
+        Some("[waitable-join]")
     }
     fn task_yield(&self) -> Option<&str> {
         Some("[task-yield]")

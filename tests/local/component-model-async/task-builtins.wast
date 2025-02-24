@@ -59,54 +59,105 @@
   (core func (canon task.return (result u32) (realloc (func $i "r"))))
 )
 
-;; task.wait
+;; waitable-set.new
+(component
+  (core module $m (import "" "waitable-set.new" (func (result i32))))
+  (core func $waitable-set-new (canon waitable-set.new))
+  (core instance $i (instantiate $m (with "" (instance (export "waitable-set.new" (func $waitable-set-new))))))
+)
+
+;; waitable-set.new; incorrect type
+(assert_invalid
+  (component
+    (core module $m (import "" "waitable-set.new" (func (result i64))))
+    (core func $waitable-set-new (canon waitable-set.new))
+    (core instance $i (instantiate $m (with "" (instance (export "waitable-set.new" (func $waitable-set-new))))))
+  )
+  "type mismatch for export `waitable-set.new` of module instantiation argument ``"
+)
+
+;; waitable-set.wait
 (component
   (core module $libc (memory (export "memory") 1))
   (core instance $libc (instantiate $libc))
   (core module $m
-    (import "" "task.wait" (func $task-wait (param i32) (result i32)))
+    (import "" "waitable-set.wait" (func $waitable-set-wait (param i32 i32) (result i32)))
   )
-  (core func $task-wait (canon task.wait async (memory $libc "memory")))
-  (core instance $i (instantiate $m (with "" (instance (export "task.wait" (func $task-wait))))))
+  (core func $waitable-set-wait (canon waitable-set.wait async (memory $libc "memory")))
+  (core instance $i (instantiate $m (with "" (instance (export "waitable-set.wait" (func $waitable-set-wait))))))
 )
 
-;; task.wait; incorrect type
+;; waitable-set.wait; incorrect type
 (assert_invalid
   (component
     (core module $libc (memory (export "memory") 1))
     (core instance $libc (instantiate $libc))
     (core module $m
-      (import "" "task.wait" (func $task-wait (param i32 i32) (result i32)))
+      (import "" "waitable-set.wait" (func $waitable-set-wait (param i32) (result i32)))
     )
-    (core func $task-wait (canon task.wait async (memory $libc "memory")))
-    (core instance $i (instantiate $m (with "" (instance (export "task.wait" (func $task-wait))))))
+    (core func $waitable-set-wait (canon waitable-set.wait async (memory $libc "memory")))
+    (core instance $i (instantiate $m (with "" (instance (export "waitable-set.wait" (func $waitable-set-wait))))))
   )
-  "type mismatch for export `task.wait` of module instantiation argument ``"
+  "type mismatch for export `waitable-set.wait` of module instantiation argument ``"
 )
 
-;; task.poll
+;; waitable-set.poll
 (component
   (core module $libc (memory (export "memory") 1))
   (core instance $libc (instantiate $libc))
   (core module $m
-    (import "" "task.poll" (func $task-poll (param i32) (result i32)))
+    (import "" "waitable-set.poll" (func $waitable-set-poll (param i32 i32) (result i32)))
   )
-  (core func $task-poll (canon task.poll async (memory $libc "memory")))
-  (core instance $i (instantiate $m (with "" (instance (export "task.poll" (func $task-poll))))))
+  (core func $waitable-set-poll (canon waitable-set.poll async (memory $libc "memory")))
+  (core instance $i (instantiate $m (with "" (instance (export "waitable-set.poll" (func $waitable-set-poll))))))
 )
 
-;; task.poll; incorrect type
+;; waitable-set.poll; incorrect type
 (assert_invalid
   (component
     (core module $libc (memory (export "memory") 1))
     (core instance $libc (instantiate $libc))
     (core module $m
-      (import "" "task.poll" (func $task-poll (param i32 i32) (result i32)))
+      (import "" "waitable-set.poll" (func $waitable-set-poll (param i32) (result i32)))
     )
-    (core func $task-poll (canon task.poll async (memory $libc "memory")))
-    (core instance $i (instantiate $m (with "" (instance (export "task.poll" (func $task-poll))))))
+    (core func $waitable-set-poll (canon waitable-set.poll async (memory $libc "memory")))
+    (core instance $i (instantiate $m (with "" (instance (export "waitable-set.poll" (func $waitable-set-poll))))))
   )
-  "type mismatch for export `task.poll` of module instantiation argument ``"
+  "type mismatch for export `waitable-set.poll` of module instantiation argument ``"
+)
+
+;; waitable-set.drop
+(component
+  (core module $m (import "" "waitable-set.drop" (func (param i32))))
+  (core func $waitable-set-drop (canon waitable-set.drop))
+  (core instance $i (instantiate $m (with "" (instance (export "waitable-set.drop" (func $waitable-set-drop))))))
+)
+
+;; waitable-set.drop; incorrect type
+(assert_invalid
+  (component
+    (core module $m (import "" "waitable-set.drop" (func (param i64))))
+    (core func $waitable-set-drop (canon waitable-set.drop))
+    (core instance $i (instantiate $m (with "" (instance (export "waitable-set.drop" (func $waitable-set-drop))))))
+  )
+  "type mismatch for export `waitable-set.drop` of module instantiation argument ``"
+)
+
+;; waitable.join
+(component
+  (core module $m (import "" "waitable.join" (func (param i32 i32))))
+  (core func $waitable.join (canon waitable.join))
+  (core instance $i (instantiate $m (with "" (instance (export "waitable.join" (func $waitable.join))))))
+)
+
+;; waitable.join; incorrect type
+(assert_invalid
+  (component
+    (core module $m (import "" "waitable.join" (func (param i64))))
+    (core func $waitable.join (canon waitable.join))
+    (core instance $i (instantiate $m (with "" (instance (export "waitable.join" (func $waitable.join))))))
+  )
+  "type mismatch for export `waitable.join` of module instantiation argument ``"
 )
 
 ;; task.yield

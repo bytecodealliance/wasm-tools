@@ -928,26 +928,6 @@ impl Printer<'_, '_> {
                         Ok(())
                     })?;
                 }
-                CanonicalFunction::TaskWait { async_, memory } => {
-                    self.print_intrinsic(state, "canon task.wait ", &|me, state| {
-                        if async_ {
-                            me.result.write_str("async ")?;
-                        }
-                        me.start_group("memory ")?;
-                        me.print_idx(&state.core.memory_names, memory)?;
-                        me.end_group()
-                    })?;
-                }
-                CanonicalFunction::TaskPoll { async_, memory } => {
-                    self.print_intrinsic(state, "canon task.poll ", &|me, state| {
-                        if async_ {
-                            me.result.write_str("async ")?;
-                        }
-                        me.start_group("memory ")?;
-                        me.print_idx(&state.core.memory_names, memory)?;
-                        me.end_group()
-                    })?;
-                }
                 CanonicalFunction::TaskYield { async_ } => {
                     self.print_intrinsic(state, "canon task.yield", &|me, _| {
                         if async_ {
@@ -1063,6 +1043,35 @@ impl Printer<'_, '_> {
                 }
                 CanonicalFunction::ErrorContextDrop => {
                     self.print_intrinsic(state, "canon error-context.drop", &|_, _| Ok(()))?;
+                }
+                CanonicalFunction::WaitableSetNew => {
+                    self.print_intrinsic(state, "canon waitable-set.new", &|_, _| Ok(()))?;
+                }
+                CanonicalFunction::WaitableSetWait { async_, memory } => {
+                    self.print_intrinsic(state, "canon waitable-set.wait ", &|me, state| {
+                        if async_ {
+                            me.result.write_str("async ")?;
+                        }
+                        me.start_group("memory ")?;
+                        me.print_idx(&state.core.memory_names, memory)?;
+                        me.end_group()
+                    })?;
+                }
+                CanonicalFunction::WaitableSetPoll { async_, memory } => {
+                    self.print_intrinsic(state, "canon waitable-set.poll ", &|me, state| {
+                        if async_ {
+                            me.result.write_str("async ")?;
+                        }
+                        me.start_group("memory ")?;
+                        me.print_idx(&state.core.memory_names, memory)?;
+                        me.end_group()
+                    })?;
+                }
+                CanonicalFunction::WaitableSetDrop => {
+                    self.print_intrinsic(state, "canon waitable-set.drop", &|_, _| Ok(()))?;
+                }
+                CanonicalFunction::WaitableJoin => {
+                    self.print_intrinsic(state, "canon waitable.join", &|_, _| Ok(()))?;
                 }
             }
         }

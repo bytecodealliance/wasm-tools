@@ -1314,12 +1314,12 @@ impl<'a> EncodingState<'a> {
                     }
                 }
 
-                ShimKind::TaskWait { async_ } => self
+                ShimKind::WaitableSetWait { async_ } => self
                     .component
-                    .task_wait(*async_, self.memory_index.unwrap()),
-                ShimKind::TaskPoll { async_ } => self
+                    .waitable_set_wait(*async_, self.memory_index.unwrap()),
+                ShimKind::WaitableSetPoll { async_ } => self
                     .component
-                    .task_poll(*async_, self.memory_index.unwrap()),
+                    .waitable_set_poll(*async_, self.memory_index.unwrap()),
                 ShimKind::ErrorContextNew { encoding } => self.component.error_context_new(
                     shim.options.into_iter(*encoding, self.memory_index, None)?,
                 ),
@@ -1644,11 +1644,13 @@ impl<'a> EncodingState<'a> {
                 let index = self.component.backpressure_set();
                 Ok((ExportKind::Func, index))
             }
-            Import::TaskWait { async_ } => {
-                Ok(self.materialize_shim_import(shims, &ShimKind::TaskWait { async_: *async_ }))
+            Import::WaitableSetWait { async_ } => {
+                Ok(self
+                    .materialize_shim_import(shims, &ShimKind::WaitableSetWait { async_: *async_ }))
             }
-            Import::TaskPoll { async_ } => {
-                Ok(self.materialize_shim_import(shims, &ShimKind::TaskPoll { async_: *async_ }))
+            Import::WaitableSetPoll { async_ } => {
+                Ok(self
+                    .materialize_shim_import(shims, &ShimKind::WaitableSetPoll { async_: *async_ }))
             }
             Import::TaskYield { async_ } => {
                 let index = self.component.task_yield(*async_);
@@ -1762,6 +1764,19 @@ impl<'a> EncodingState<'a> {
                 key,
                 *abi,
             ),
+
+            Import::WaitableSetNew => {
+                let index = self.component.waitable_set_new();
+                Ok((ExportKind::Func, index))
+            }
+            Import::WaitableSetDrop => {
+                let index = self.component.waitable_set_drop();
+                Ok((ExportKind::Func, index))
+            }
+            Import::WaitableJoin => {
+                let index = self.component.waitable_join();
+                Ok((ExportKind::Func, index))
+            }
         }
     }
 
@@ -2039,12 +2054,14 @@ enum ShimKind<'a> {
         /// Which variation of `{stream|future}.{read|write}` we're emitting.
         kind: PayloadFuncKind,
     },
-    /// A shim used for the `task.wait` built-in function, which must refer to
-    /// the core module instance's memory to which results will be written.
-    TaskWait { async_: bool },
-    /// A shim used for the `task.poll` built-in function, which must refer to
-    /// the core module instance's memory to which results will be written.
-    TaskPoll { async_: bool },
+    /// A shim used for the `waitable-set.wait` built-in function, which must
+    /// refer to the core module instance's memory to which results will be
+    /// written.
+    WaitableSetWait { async_: bool },
+    /// A shim used for the `waitable-set.poll` built-in function, which must
+    /// refer to the core module instance's memory to which results will be
+    /// written.
+    WaitableSetPoll { async_: bool },
     /// Shim for `task.return` to handle a reference to a `memory` which may
     TaskReturn {
         /// The interface (optional) that owns `func` below. If `None` then it's
@@ -2138,7 +2155,10 @@ impl<'a> Shims<'a> {
                 | Import::StreamCancelRead { .. }
                 | Import::StreamCancelWrite { .. }
                 | Import::StreamCloseWritable { .. }
-                | Import::StreamCloseReadable { .. } => {}
+                | Import::StreamCloseReadable { .. }
+                | Import::WaitableSetNew
+                | Import::WaitableSetDrop
+                | Import::WaitableJoin => {}
 
                 // If `task.return` needs to be indirect then generate a shim
                 // for it, otherwise skip the shim and let it get materialized
@@ -2223,15 +2243,15 @@ impl<'a> Shims<'a> {
                     );
                 }
 
-                Import::TaskWait { async_ } => {
+                Import::WaitableSetWait { async_ } => {
                     let name = self.shims.len().to_string();
                     self.push(Shim {
                         name,
-                        debug_name: "task-wait".to_string(),
+                        debug_name: "waitable-set.wait".to_string(),
                         options: RequiredOptions::empty(),
-                        kind: ShimKind::TaskWait { async_: *async_ },
+                        kind: ShimKind::WaitableSetWait { async_: *async_ },
                         sig: WasmSignature {
-                            params: vec![WasmType::I32],
+                            params: vec![WasmType::I32; 2],
                             results: vec![WasmType::I32],
                             indirect_params: false,
                             retptr: false,
@@ -2239,15 +2259,15 @@ impl<'a> Shims<'a> {
                     });
                 }
 
-                Import::TaskPoll { async_ } => {
+                Import::WaitableSetPoll { async_ } => {
                     let name = self.shims.len().to_string();
                     self.push(Shim {
                         name,
-                        debug_name: "task-poll".to_string(),
+                        debug_name: "waitable-set.poll".to_string(),
                         options: RequiredOptions::empty(),
-                        kind: ShimKind::TaskPoll { async_: *async_ },
+                        kind: ShimKind::WaitableSetPoll { async_: *async_ },
                         sig: WasmSignature {
-                            params: vec![WasmType::I32],
+                            params: vec![WasmType::I32; 2],
                             results: vec![WasmType::I32],
                             indirect_params: false,
                             retptr: false,

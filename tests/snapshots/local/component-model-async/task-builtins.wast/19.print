@@ -1,11 +1,11 @@
 (component
   (core module $m (;0;)
     (type (;0;) (func (param i32)))
-    (import "" "waitable-set.drop" (func (;0;) (type 0)))
+    (import "" "subtask.drop" (func $subtask-drop (;0;) (type 0)))
   )
-  (core func $waitable-set-drop (;0;) (canon waitable-set.drop))
+  (core func $subtask-drop (;0;) (canon subtask.drop))
   (core instance (;0;)
-    (export "waitable-set.drop" (func $waitable-set-drop))
+    (export "subtask.drop" (func $subtask-drop))
   )
   (core instance $i (;1;) (instantiate $m
       (with "" (instance 0))

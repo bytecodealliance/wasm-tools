@@ -423,8 +423,11 @@ impl<'a> Dump<'a> {
                             | CanonicalFunction::ThreadAvailableParallelism
                             | CanonicalFunction::BackpressureSet
                             | CanonicalFunction::TaskReturn { .. }
-                            | CanonicalFunction::TaskWait { .. }
-                            | CanonicalFunction::TaskPoll { .. }
+                            | CanonicalFunction::WaitableSetNew
+                            | CanonicalFunction::WaitableSetWait { .. }
+                            | CanonicalFunction::WaitableSetPoll { .. }
+                            | CanonicalFunction::WaitableSetDrop
+                            | CanonicalFunction::WaitableJoin
                             | CanonicalFunction::TaskYield { .. }
                             | CanonicalFunction::SubtaskDrop
                             | CanonicalFunction::StreamNew { .. }

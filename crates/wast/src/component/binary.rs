@@ -370,14 +370,6 @@ impl<'a> Encoder<'a> {
                     info.opts.iter().map(Into::into),
                 );
             }
-            CanonicalFuncKind::TaskWait(info) => {
-                self.core_func_names.push(name);
-                self.funcs.task_wait(info.async_, info.memory.idx.into());
-            }
-            CanonicalFuncKind::TaskPoll(info) => {
-                self.core_func_names.push(name);
-                self.funcs.task_poll(info.async_, info.memory.idx.into());
-            }
             CanonicalFuncKind::TaskYield(info) => {
                 self.core_func_names.push(name);
                 self.funcs.task_yield(info.async_);
@@ -459,6 +451,28 @@ impl<'a> Encoder<'a> {
             CanonicalFuncKind::ErrorContextDrop => {
                 self.core_func_names.push(name);
                 self.funcs.error_context_drop();
+            }
+            CanonicalFuncKind::WaitableSetNew => {
+                self.core_func_names.push(name);
+                self.funcs.waitable_set_new();
+            }
+            CanonicalFuncKind::WaitableSetWait(info) => {
+                self.core_func_names.push(name);
+                self.funcs
+                    .waitable_set_wait(info.async_, info.memory.idx.into());
+            }
+            CanonicalFuncKind::WaitableSetPoll(info) => {
+                self.core_func_names.push(name);
+                self.funcs
+                    .waitable_set_poll(info.async_, info.memory.idx.into());
+            }
+            CanonicalFuncKind::WaitableSetDrop => {
+                self.core_func_names.push(name);
+                self.funcs.waitable_set_drop();
+            }
+            CanonicalFuncKind::WaitableJoin => {
+                self.core_func_names.push(name);
+                self.funcs.waitable_join();
             }
         }
 

@@ -558,8 +558,6 @@ pub mod kw {
     custom_keyword!(thread_available_parallelism = "thread.available_parallelism");
     custom_keyword!(backpressure_set = "backpressure.set");
     custom_keyword!(task_return = "task.return");
-    custom_keyword!(task_wait = "task.wait");
-    custom_keyword!(task_poll = "task.poll");
     custom_keyword!(task_yield = "task.yield");
     custom_keyword!(subtask_drop = "subtask.drop");
     custom_keyword!(stream_new = "stream.new");
@@ -586,6 +584,11 @@ pub mod kw {
     custom_keyword!(stream);
     custom_keyword!(future);
     custom_keyword!(error_context = "error-context");
+    custom_keyword!(waitable_set_new = "waitable-set.new");
+    custom_keyword!(waitable_set_wait = "waitable-set.wait");
+    custom_keyword!(waitable_set_poll = "waitable-set.poll");
+    custom_keyword!(waitable_set_drop = "waitable-set.drop");
+    custom_keyword!(waitable_join = "waitable.join");
 }
 
 /// Common annotations used to parse WebAssembly text files.

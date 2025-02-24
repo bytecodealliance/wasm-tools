@@ -969,12 +969,6 @@ pub mod component_utils {
                     options.iter().map(|o| reencoder.canonical_option(*o)),
                 );
             }
-            wasmparser::CanonicalFunction::TaskWait { async_, memory } => {
-                section.task_wait(async_, reencoder.memory_index(memory));
-            }
-            wasmparser::CanonicalFunction::TaskPoll { async_, memory } => {
-                section.task_poll(async_, reencoder.memory_index(memory));
-            }
             wasmparser::CanonicalFunction::TaskYield { async_ } => {
                 section.task_yield(async_);
             }
@@ -1045,6 +1039,21 @@ pub mod component_utils {
             }
             wasmparser::CanonicalFunction::ErrorContextDrop => {
                 section.error_context_drop();
+            }
+            wasmparser::CanonicalFunction::WaitableSetNew => {
+                section.waitable_set_new();
+            }
+            wasmparser::CanonicalFunction::WaitableSetWait { async_, memory } => {
+                section.waitable_set_wait(async_, reencoder.memory_index(memory));
+            }
+            wasmparser::CanonicalFunction::WaitableSetPoll { async_, memory } => {
+                section.waitable_set_poll(async_, reencoder.memory_index(memory));
+            }
+            wasmparser::CanonicalFunction::WaitableSetDrop => {
+                section.waitable_set_drop();
+            }
+            wasmparser::CanonicalFunction::WaitableJoin => {
+                section.waitable_join();
             }
         }
         Ok(())

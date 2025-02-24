@@ -407,18 +407,6 @@ impl ComponentBuilder {
         inc(&mut self.core_funcs)
     }
 
-    /// Declares a new `task.wait` intrinsic.
-    pub fn task_wait(&mut self, async_: bool, memory: u32) -> u32 {
-        self.canonical_functions().task_wait(async_, memory);
-        inc(&mut self.core_funcs)
-    }
-
-    /// Declares a new `task.poll` intrinsic.
-    pub fn task_poll(&mut self, async_: bool, memory: u32) -> u32 {
-        self.canonical_functions().task_poll(async_, memory);
-        inc(&mut self.core_funcs)
-    }
-
     /// Declares a new `task.yield` intrinsic.
     pub fn task_yield(&mut self, async_: bool) -> u32 {
         self.canonical_functions().task_yield(async_);
@@ -555,6 +543,36 @@ impl ComponentBuilder {
     /// Declares a new `error-context.drop` intrinsic.
     pub fn error_context_drop(&mut self) -> u32 {
         self.canonical_functions().error_context_drop();
+        inc(&mut self.core_funcs)
+    }
+
+    /// Declares a new `waitable-set.new` intrinsic.
+    pub fn waitable_set_new(&mut self) -> u32 {
+        self.canonical_functions().waitable_set_new();
+        inc(&mut self.core_funcs)
+    }
+
+    /// Declares a new `waitable-set.wait` intrinsic.
+    pub fn waitable_set_wait(&mut self, async_: bool, memory: u32) -> u32 {
+        self.canonical_functions().waitable_set_wait(async_, memory);
+        inc(&mut self.core_funcs)
+    }
+
+    /// Declares a new `waitable-set.poll` intrinsic.
+    pub fn waitable_set_poll(&mut self, async_: bool, memory: u32) -> u32 {
+        self.canonical_functions().waitable_set_poll(async_, memory);
+        inc(&mut self.core_funcs)
+    }
+
+    /// Declares a new `waitable-set.drop` intrinsic.
+    pub fn waitable_set_drop(&mut self) -> u32 {
+        self.canonical_functions().waitable_set_drop();
+        inc(&mut self.core_funcs)
+    }
+
+    /// Declares a new `waitable.join` intrinsic.
+    pub fn waitable_join(&mut self) -> u32 {
+        self.canonical_functions().waitable_join();
         inc(&mut self.core_funcs)
     }
 
