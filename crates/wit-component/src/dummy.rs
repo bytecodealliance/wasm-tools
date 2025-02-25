@@ -78,7 +78,7 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId, mangling: ManglingAndAbi)
             ];
             for (intrinsic, sig) in intrinsics {
                 let (module, name) = resolve.wasm_import_name(
-                    mangling,
+                    mangling.sync(),
                     WasmImport::ResourceIntrinsic {
                         interface: Some(name),
                         resource,

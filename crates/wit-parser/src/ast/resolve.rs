@@ -764,12 +764,18 @@ impl<'a> Resolver<'a> {
                 Ok(WorldItem::Interface { id, stability })
             }
             ast::ExternKind::Func(name, func) => {
+                let prefix = if func.async_ { "[async]" } else { "" };
+                let name = format!("{prefix}{}", name.name);
                 let func = self.resolve_function(
                     docs,
                     attrs,
-                    name.name,
+                    &name,
                     func,
-                    FunctionKind::Freestanding,
+                    if func.async_ {
+                        FunctionKind::AsyncFreestanding
+                    } else {
+                        FunctionKind::Freestanding
+                    },
                 )?;
                 Ok(WorldItem::Function(func))
             }
@@ -815,12 +821,18 @@ impl<'a> Resolver<'a> {
             match field {
                 ast::InterfaceItem::Func(f) => {
                     self.define_interface_name(&f.name, TypeOrItem::Item("function"))?;
+                    let prefix = if f.func.async_ { "[async]" } else { "" };
+                    let name = format!("{prefix}{}", f.name.name);
                     funcs.push(self.resolve_function(
                         &f.docs,
                         &f.attributes,
-                        &f.name.name,
+                        &name,
                         &f.func,
-                        FunctionKind::Freestanding,
+                        if f.func.async_ {
+                            FunctionKind::AsyncFreestanding
+                        } else {
+                            FunctionKind::Freestanding
+                        },
                     )?);
                     self.interface_spans[interface_id.index()]
                         .funcs
@@ -1011,21 +1023,33 @@ impl<'a> Resolver<'a> {
             _ => panic!("type lookup for resource failed"),
         };
         let (name, kind);
+        let named_func = func.named_func();
+        let async_ = named_func.func.async_;
         match func {
             ast::ResourceFunc::Method(f) => {
-                name = format!("[method]{}.{}", resource.name, f.name.name);
-                kind = FunctionKind::Method(resource_id);
+                let prefix = if async_ { "[async method]" } else { "[method]" };
+                name = format!("{prefix}{}.{}", resource.name, f.name.name);
+                kind = if async_ {
+                    FunctionKind::AsyncMethod(resource_id)
+                } else {
+                    FunctionKind::Method(resource_id)
+                };
             }
             ast::ResourceFunc::Static(f) => {
-                name = format!("[static]{}.{}", resource.name, f.name.name);
-                kind = FunctionKind::Static(resource_id);
+                let prefix = if async_ { "[async static]" } else { "[static]" };
+                name = format!("{prefix}{}.{}", resource.name, f.name.name);
+                kind = if async_ {
+                    FunctionKind::AsyncStatic(resource_id)
+                } else {
+                    FunctionKind::Static(resource_id)
+                };
             }
             ast::ResourceFunc::Constructor(_) => {
+                assert!(!async_); // should not be possible to parse
                 name = format!("[constructor]{}", resource.name);
                 kind = FunctionKind::Constructor(resource_id);
             }
         }
-        let named_func = func.named_func();
         self.resolve_function(
             &named_func.docs,
             &named_func.attributes,
@@ -1544,12 +1568,15 @@ impl<'a> Resolver<'a> {
         match *kind {
             // These kinds of methods don't have any adjustments to the
             // parameters, so do nothing here.
-            FunctionKind::Freestanding | FunctionKind::Constructor(_) | FunctionKind::Static(_) => {
-            }
+            FunctionKind::Freestanding
+            | FunctionKind::AsyncFreestanding
+            | FunctionKind::Constructor(_)
+            | FunctionKind::Static(_)
+            | FunctionKind::AsyncStatic(_) => {}
 
             // Methods automatically get a `self` initial argument so insert
             // that here before processing the normal parameters.
-            FunctionKind::Method(id) => {
+            FunctionKind::Method(id) | FunctionKind::AsyncMethod(id) => {
                 let kind = TypeDefKind::Handle(Handle::Borrow(id));
                 let stability = self.find_stability(&kind, &Stability::Unknown);
                 let shared = self.anon_type_def(
@@ -1589,12 +1616,15 @@ impl<'a> Resolver<'a> {
         match *kind {
             // These kinds of methods don't have any adjustments to the return
             // values, so plumb them through as-is.
-            FunctionKind::Freestanding | FunctionKind::Method(_) | FunctionKind::Static(_) => {
-                match result {
-                    Some(ty) => Ok(Some(self.resolve_type(ty, &Stability::Unknown)?)),
-                    None => Ok(None),
-                }
-            }
+            FunctionKind::Freestanding
+            | FunctionKind::AsyncFreestanding
+            | FunctionKind::Method(_)
+            | FunctionKind::AsyncMethod(_)
+            | FunctionKind::Static(_)
+            | FunctionKind::AsyncStatic(_) => match result {
+                Some(ty) => Ok(Some(self.resolve_type(ty, &Stability::Unknown)?)),
+                None => Ok(None),
+            },
 
             // Constructors are alwys parsed as 0 returned types but they're
             // automatically translated as a single return type of the type that

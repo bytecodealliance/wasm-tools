@@ -164,7 +164,7 @@ impl Resolve {
             if matches!(
                 (&func.kind, variant),
                 (
-                    crate::FunctionKind::Method(_),
+                    crate::FunctionKind::Method(_) | crate::FunctionKind::AsyncMethod(_),
                     AbiVariant::GuestExport
                         | AbiVariant::GuestExportAsync
                         | AbiVariant::GuestExportAsyncStackful

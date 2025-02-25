@@ -15,7 +15,7 @@ fn concrete_types() {
     let mut package = Package::new(PackageName::new("foo", "foo", None));
 
     let mut world = World::new("foo");
-    world.function_import(StandaloneFunc::new("a"));
+    world.function_import(StandaloneFunc::new("a", false));
     world.inline_interface_export(Interface::new("a"));
     package.world(world);
 
