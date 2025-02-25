@@ -47,6 +47,7 @@
 #![warn(missing_debug_implementations, missing_docs)]
 
 pub use add_metadata::AddMetadata;
+pub use dependencies::Dependencies;
 pub use metadata::Metadata;
 pub use names::{ComponentNames, ModuleNames};
 pub use oci_annotations::{Authors, Description, Homepage, Licenses, Revision, Source, Version};
@@ -56,6 +57,7 @@ pub use producers::{Producers, ProducersField};
 pub(crate) use rewrite::rewrite_wasm;
 
 mod add_metadata;
+mod dependencies;
 mod metadata;
 mod names;
 mod oci_annotations;

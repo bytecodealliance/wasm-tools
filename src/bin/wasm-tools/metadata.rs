@@ -227,6 +227,7 @@ fn write_details_table(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result
         range,
         revision,
         version,
+        dependencies,
     } = payload.metadata();
 
     // Add the basic information to the table first
