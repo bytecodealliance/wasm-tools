@@ -1,6 +1,6 @@
 use crate::component::*;
 use crate::kw;
-use crate::parser::{Parse, Parser, Result};
+use crate::parser::{Cursor, Lookahead1, Parse, Parser, Peek, Result};
 use crate::token::{Id, Index, LParen, NameAnnotation, Span};
 
 /// A declared core function.
@@ -25,7 +25,7 @@ impl<'a> Parse<'a> for CoreFunc<'a> {
         parser.parse::<kw::func>()?;
         let id = parser.parse()?;
         let name = parser.parse()?;
-        let kind = parser.parse()?;
+        let kind = parser.parens(|p| p.parse())?;
 
         Ok(Self {
             span,
@@ -83,90 +83,95 @@ pub enum CoreFuncKind<'a> {
 
 impl<'a> Parse<'a> for CoreFuncKind<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parens(|parser| {
-            let mut l = parser.lookahead1();
-            if l.peek::<kw::canon>()? {
-                parser.parse::<kw::canon>()?;
-            } else if l.peek::<kw::alias>()? {
-                return Ok(Self::Alias(parser.parse()?));
-            } else {
-                return Err(l.error());
-            }
-            let mut l = parser.lookahead1();
-            if l.peek::<kw::lower>()? {
-                Ok(CoreFuncKind::Lower(parser.parse()?))
-            } else if l.peek::<kw::resource_new>()? {
-                Ok(CoreFuncKind::ResourceNew(parser.parse()?))
-            } else if l.peek::<kw::resource_drop>()? {
-                Ok(CoreFuncKind::ResourceDrop(parser.parse()?))
-            } else if l.peek::<kw::resource_rep>()? {
-                Ok(CoreFuncKind::ResourceRep(parser.parse()?))
-            } else if l.peek::<kw::thread_spawn>()? {
-                Ok(CoreFuncKind::ThreadSpawn(parser.parse()?))
-            } else if l.peek::<kw::thread_available_parallelism>()? {
-                Ok(CoreFuncKind::ThreadAvailableParallelism(parser.parse()?))
-            } else if l.peek::<kw::backpressure_set>()? {
-                parser.parse::<kw::backpressure_set>()?;
-                Ok(CoreFuncKind::BackpressureSet)
-            } else if l.peek::<kw::task_return>()? {
-                Ok(CoreFuncKind::TaskReturn(parser.parse()?))
-            } else if l.peek::<kw::yield_>()? {
-                Ok(CoreFuncKind::Yield(parser.parse()?))
-            } else if l.peek::<kw::subtask_drop>()? {
-                parser.parse::<kw::subtask_drop>()?;
-                Ok(CoreFuncKind::SubtaskDrop)
-            } else if l.peek::<kw::stream_new>()? {
-                Ok(CoreFuncKind::StreamNew(parser.parse()?))
-            } else if l.peek::<kw::stream_read>()? {
-                Ok(CoreFuncKind::StreamRead(parser.parse()?))
-            } else if l.peek::<kw::stream_write>()? {
-                Ok(CoreFuncKind::StreamWrite(parser.parse()?))
-            } else if l.peek::<kw::stream_cancel_read>()? {
-                Ok(CoreFuncKind::StreamCancelRead(parser.parse()?))
-            } else if l.peek::<kw::stream_cancel_write>()? {
-                Ok(CoreFuncKind::StreamCancelWrite(parser.parse()?))
-            } else if l.peek::<kw::stream_close_readable>()? {
-                Ok(CoreFuncKind::StreamCloseReadable(parser.parse()?))
-            } else if l.peek::<kw::stream_close_writable>()? {
-                Ok(CoreFuncKind::StreamCloseWritable(parser.parse()?))
-            } else if l.peek::<kw::future_new>()? {
-                Ok(CoreFuncKind::FutureNew(parser.parse()?))
-            } else if l.peek::<kw::future_read>()? {
-                Ok(CoreFuncKind::FutureRead(parser.parse()?))
-            } else if l.peek::<kw::future_write>()? {
-                Ok(CoreFuncKind::FutureWrite(parser.parse()?))
-            } else if l.peek::<kw::future_cancel_read>()? {
-                Ok(CoreFuncKind::FutureCancelRead(parser.parse()?))
-            } else if l.peek::<kw::future_cancel_write>()? {
-                Ok(CoreFuncKind::FutureCancelWrite(parser.parse()?))
-            } else if l.peek::<kw::future_close_readable>()? {
-                Ok(CoreFuncKind::FutureCloseReadable(parser.parse()?))
-            } else if l.peek::<kw::future_close_writable>()? {
-                Ok(CoreFuncKind::FutureCloseWritable(parser.parse()?))
-            } else if l.peek::<kw::error_context_new>()? {
-                Ok(CoreFuncKind::ErrorContextNew(parser.parse()?))
-            } else if l.peek::<kw::error_context_debug_message>()? {
-                Ok(CoreFuncKind::ErrorContextDebugMessage(parser.parse()?))
-            } else if l.peek::<kw::error_context_drop>()? {
-                parser.parse::<kw::error_context_drop>()?;
-                Ok(CoreFuncKind::ErrorContextDrop)
-            } else if l.peek::<kw::waitable_set_new>()? {
-                parser.parse::<kw::waitable_set_new>()?;
-                Ok(CoreFuncKind::WaitableSetNew)
-            } else if l.peek::<kw::waitable_set_wait>()? {
-                Ok(CoreFuncKind::WaitableSetWait(parser.parse()?))
-            } else if l.peek::<kw::waitable_set_poll>()? {
-                Ok(CoreFuncKind::WaitableSetPoll(parser.parse()?))
-            } else if l.peek::<kw::waitable_set_drop>()? {
-                parser.parse::<kw::waitable_set_drop>()?;
-                Ok(CoreFuncKind::WaitableSetDrop)
-            } else if l.peek::<kw::waitable_join>()? {
-                parser.parse::<kw::waitable_join>()?;
-                Ok(CoreFuncKind::WaitableJoin)
-            } else {
-                Err(l.error())
-            }
-        })
+        let mut l = parser.lookahead1();
+        if l.peek::<kw::canon>()? {
+            parser.parse::<kw::canon>()?;
+        } else if l.peek::<kw::alias>()? {
+            return Ok(Self::Alias(parser.parse()?));
+        } else {
+            return Err(l.error());
+        }
+
+        CoreFuncKind::parse_lookahead(parser.lookahead1())
+    }
+}
+
+impl<'a> CoreFuncKind<'a> {
+    fn parse_lookahead(mut l: Lookahead1<'a>) -> Result<CoreFuncKind<'a>> {
+        let parser = l.parser();
+        if l.peek::<kw::lower>()? {
+            Ok(CoreFuncKind::Lower(parser.parse()?))
+        } else if l.peek::<kw::resource_new>()? {
+            Ok(CoreFuncKind::ResourceNew(parser.parse()?))
+        } else if l.peek::<kw::resource_drop>()? {
+            Ok(CoreFuncKind::ResourceDrop(parser.parse()?))
+        } else if l.peek::<kw::resource_rep>()? {
+            Ok(CoreFuncKind::ResourceRep(parser.parse()?))
+        } else if l.peek::<kw::thread_spawn>()? {
+            Ok(CoreFuncKind::ThreadSpawn(parser.parse()?))
+        } else if l.peek::<kw::thread_available_parallelism>()? {
+            Ok(CoreFuncKind::ThreadAvailableParallelism(parser.parse()?))
+        } else if l.peek::<kw::backpressure_set>()? {
+            parser.parse::<kw::backpressure_set>()?;
+            Ok(CoreFuncKind::BackpressureSet)
+        } else if l.peek::<kw::task_return>()? {
+            Ok(CoreFuncKind::TaskReturn(parser.parse()?))
+        } else if l.peek::<kw::yield_>()? {
+            Ok(CoreFuncKind::Yield(parser.parse()?))
+        } else if l.peek::<kw::subtask_drop>()? {
+            parser.parse::<kw::subtask_drop>()?;
+            Ok(CoreFuncKind::SubtaskDrop)
+        } else if l.peek::<kw::stream_new>()? {
+            Ok(CoreFuncKind::StreamNew(parser.parse()?))
+        } else if l.peek::<kw::stream_read>()? {
+            Ok(CoreFuncKind::StreamRead(parser.parse()?))
+        } else if l.peek::<kw::stream_write>()? {
+            Ok(CoreFuncKind::StreamWrite(parser.parse()?))
+        } else if l.peek::<kw::stream_cancel_read>()? {
+            Ok(CoreFuncKind::StreamCancelRead(parser.parse()?))
+        } else if l.peek::<kw::stream_cancel_write>()? {
+            Ok(CoreFuncKind::StreamCancelWrite(parser.parse()?))
+        } else if l.peek::<kw::stream_close_readable>()? {
+            Ok(CoreFuncKind::StreamCloseReadable(parser.parse()?))
+        } else if l.peek::<kw::stream_close_writable>()? {
+            Ok(CoreFuncKind::StreamCloseWritable(parser.parse()?))
+        } else if l.peek::<kw::future_new>()? {
+            Ok(CoreFuncKind::FutureNew(parser.parse()?))
+        } else if l.peek::<kw::future_read>()? {
+            Ok(CoreFuncKind::FutureRead(parser.parse()?))
+        } else if l.peek::<kw::future_write>()? {
+            Ok(CoreFuncKind::FutureWrite(parser.parse()?))
+        } else if l.peek::<kw::future_cancel_read>()? {
+            Ok(CoreFuncKind::FutureCancelRead(parser.parse()?))
+        } else if l.peek::<kw::future_cancel_write>()? {
+            Ok(CoreFuncKind::FutureCancelWrite(parser.parse()?))
+        } else if l.peek::<kw::future_close_readable>()? {
+            Ok(CoreFuncKind::FutureCloseReadable(parser.parse()?))
+        } else if l.peek::<kw::future_close_writable>()? {
+            Ok(CoreFuncKind::FutureCloseWritable(parser.parse()?))
+        } else if l.peek::<kw::error_context_new>()? {
+            Ok(CoreFuncKind::ErrorContextNew(parser.parse()?))
+        } else if l.peek::<kw::error_context_debug_message>()? {
+            Ok(CoreFuncKind::ErrorContextDebugMessage(parser.parse()?))
+        } else if l.peek::<kw::error_context_drop>()? {
+            parser.parse::<kw::error_context_drop>()?;
+            Ok(CoreFuncKind::ErrorContextDrop)
+        } else if l.peek::<kw::waitable_set_new>()? {
+            parser.parse::<kw::waitable_set_new>()?;
+            Ok(CoreFuncKind::WaitableSetNew)
+        } else if l.peek::<kw::waitable_set_wait>()? {
+            Ok(CoreFuncKind::WaitableSetWait(parser.parse()?))
+        } else if l.peek::<kw::waitable_set_poll>()? {
+            Ok(CoreFuncKind::WaitableSetPoll(parser.parse()?))
+        } else if l.peek::<kw::waitable_set_drop>()? {
+            parser.parse::<kw::waitable_set_drop>()?;
+            Ok(CoreFuncKind::WaitableSetDrop)
+        } else if l.peek::<kw::waitable_join>()? {
+            parser.parse::<kw::waitable_join>()?;
+            Ok(CoreFuncKind::WaitableJoin)
+        } else {
+            Err(l.error())
+        }
     }
 }
 
@@ -276,8 +281,9 @@ pub struct CanonicalFunc<'a> {
 impl<'a> Parse<'a> for CanonicalFunc<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let span = parser.parse::<kw::canon>()?.0;
+        let mut l = parser.lookahead1();
 
-        if parser.peek::<kw::lift>()? {
+        if l.peek::<kw::lift>()? {
             let info = parser.parse()?;
             let (id, name, ty) = parser.parens(|parser| {
                 parser.parse::<kw::func>()?;
@@ -293,44 +299,23 @@ impl<'a> Parse<'a> for CanonicalFunc<'a> {
                 name,
                 kind: CanonicalFuncKind::Lift { info, ty },
             })
-        } else if parser.peek::<kw::lower>()? {
-            Self::parse_core_func(span, parser, CanonicalFuncKind::Lower)
-        } else if parser.peek::<kw::resource_new>()? {
-            Self::parse_core_func(span, parser, CanonicalFuncKind::ResourceNew)
-        } else if parser.peek::<kw::resource_drop>()? {
-            Self::parse_core_func(span, parser, CanonicalFuncKind::ResourceDrop)
-        } else if parser.peek::<kw::resource_rep>()? {
-            Self::parse_core_func(span, parser, CanonicalFuncKind::ResourceRep)
         } else {
-            Err(parser.error("expected `canon lift` or `canon lower`"))
+            let kind = CoreFuncKind::parse_lookahead(l)?;
+            let (id, name) = parser.parens(|parser| {
+                parser.parse::<kw::core>()?;
+                parser.parse::<kw::func>()?;
+                let id = parser.parse()?;
+                let name = parser.parse()?;
+                Ok((id, name))
+            })?;
+
+            Ok(Self {
+                span,
+                id,
+                name,
+                kind: CanonicalFuncKind::Core(kind),
+            })
         }
-    }
-}
-
-impl<'a> CanonicalFunc<'a> {
-    fn parse_core_func<T>(
-        span: Span,
-        parser: Parser<'a>,
-        variant: fn(T) -> CanonicalFuncKind<'a>,
-    ) -> Result<Self>
-    where
-        T: Parse<'a>,
-    {
-        let info = parser.parse()?;
-        let (id, name) = parser.parens(|parser| {
-            parser.parse::<kw::core>()?;
-            parser.parse::<kw::func>()?;
-            let id = parser.parse()?;
-            let name = parser.parse()?;
-            Ok((id, name))
-        })?;
-
-        Ok(Self {
-            span,
-            id,
-            name,
-            kind: variant(info),
-        })
     }
 }
 
@@ -345,42 +330,10 @@ pub enum CanonicalFuncKind<'a> {
         /// Information relating to the lifting of the core function.
         info: CanonLift<'a>,
     },
-    /// A canonical function that is defined in terms of lowering a component function.
-    Lower(CanonLower<'a>),
 
-    ResourceNew(CanonResourceNew<'a>),
-    ResourceDrop(CanonResourceDrop<'a>),
-    ResourceRep(CanonResourceRep<'a>),
-
-    ThreadSpawn(CanonThreadSpawn<'a>),
-    ThreadAvailableParallelism(CanonThreadAvailableParallelism),
-
-    BackpressureSet,
-    TaskReturn(CanonTaskReturn<'a>),
-    Yield(CanonYield),
-    SubtaskDrop,
-    StreamNew(CanonStreamNew<'a>),
-    StreamRead(CanonStreamRead<'a>),
-    StreamWrite(CanonStreamWrite<'a>),
-    StreamCancelRead(CanonStreamCancelRead<'a>),
-    StreamCancelWrite(CanonStreamCancelWrite<'a>),
-    StreamCloseReadable(CanonStreamCloseReadable<'a>),
-    StreamCloseWritable(CanonStreamCloseWritable<'a>),
-    FutureNew(CanonFutureNew<'a>),
-    FutureRead(CanonFutureRead<'a>),
-    FutureWrite(CanonFutureWrite<'a>),
-    FutureCancelRead(CanonFutureCancelRead<'a>),
-    FutureCancelWrite(CanonFutureCancelWrite<'a>),
-    FutureCloseReadable(CanonFutureCloseReadable<'a>),
-    FutureCloseWritable(CanonFutureCloseWritable<'a>),
-    ErrorContextNew(CanonErrorContextNew<'a>),
-    ErrorContextDebugMessage(CanonErrorContextDebugMessage<'a>),
-    ErrorContextDrop,
-    WaitableSetNew,
-    WaitableSetWait(CanonWaitableSetWait<'a>),
-    WaitableSetPoll(CanonWaitableSetPoll<'a>),
-    WaitableSetDrop,
-    WaitableJoin,
+    /// A canonical function that defines a core function, whose variants are
+    /// delegated to `CoreFuncKind`.
+    Core(CoreFuncKind<'a>),
 }
 
 /// Information relating to lifting a core function.
@@ -996,6 +949,28 @@ impl<'a> Parse<'a> for CanonOpt<'a> {
     }
 }
 
+impl Peek for CanonOpt<'_> {
+    fn peek(cursor: Cursor<'_>) -> Result<bool> {
+        Ok(kw::string_utf8::peek(cursor)?
+            || kw::string_utf16::peek(cursor)?
+            || kw::string_latin1_utf16::peek(cursor)?
+            || kw::r#async::peek(cursor)?
+            || match cursor.lparen()? {
+                Some(next) => {
+                    kw::memory::peek(next)?
+                        || kw::realloc::peek(next)?
+                        || kw::post_return::peek(next)?
+                        || kw::callback::peek(next)?
+                }
+                None => false,
+            })
+    }
+
+    fn display() -> &'static str {
+        "canonical option"
+    }
+}
+
 fn parse_trailing_item_ref<T>(kind: T, parser: Parser) -> Result<CoreItemRef<T>> {
     Ok(CoreItemRef {
         kind,
@@ -1007,7 +982,7 @@ fn parse_trailing_item_ref<T>(kind: T, parser: Parser) -> Result<CoreItemRef<T>>
 impl<'a> Parse<'a> for Vec<CanonOpt<'a>> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         let mut funcs = Vec::new();
-        while !parser.is_empty() {
+        while parser.peek::<CanonOpt<'_>>()? {
             funcs.push(parser.parse()?);
         }
         Ok(funcs)

@@ -216,6 +216,9 @@ impl<'a> Parse<'a> for ComponentField<'a> {
             if parser.peek::<kw::start>()? {
                 return Ok(Self::Start(parser.parse()?));
             }
+            if parser.peek::<kw::canon>()? {
+                return Ok(Self::CanonicalFunc(parser.parse()?));
+            }
             if parser.peek::<annotation::custom>()? {
                 return Ok(Self::Custom(parser.parse()?));
             }
