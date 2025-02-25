@@ -1,0 +1,10 @@
+(component
+  (type (;0;) (func))
+  (import "[async]f" (func (;0;) (type 0)))
+  (import "r" (type $r (;1;) (sub resource)))
+  (type (;2;) (borrow $r))
+  (type (;3;) (func (param "self" 2)))
+  (import "[async method]r.f" (func (;1;) (type 3)))
+  (type (;4;) (func))
+  (import "[async static]r.f2" (func (;2;) (type 4)))
+)

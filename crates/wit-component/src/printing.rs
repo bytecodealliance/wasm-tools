@@ -158,11 +158,11 @@ impl<O: Output> WitPrinter<O> {
 
         let mut resource_funcs = HashMap::new();
         let mut freestanding = Vec::new();
-        for (name, func) in interface.functions.iter() {
-            if let Some(id) = resource_func(func) {
+        for (_, func) in interface.functions.iter() {
+            if let Some(id) = func.kind.resource() {
                 resource_funcs.entry(id).or_insert(Vec::new()).push(func);
             } else {
-                freestanding.push((name, func));
+                freestanding.push(func);
             }
         }
 
@@ -176,11 +176,11 @@ impl<O: Output> WitPrinter<O> {
             &resource_funcs,
         )?;
 
-        for (name, func) in freestanding {
+        for func in freestanding {
             self.new_item();
             self.print_docs(&func.docs);
             self.print_stability(&func.stability);
-            self.print_name_type(name, TypeKind::FunctionFreestanding);
+            self.print_name_type(func.item_name(), TypeKind::FunctionFreestanding);
             self.output.str(": ");
             self.print_function(resolve, func)?;
             self.output.semicolon();
@@ -307,17 +307,17 @@ impl<O: Output> WitPrinter<O> {
 
             match &func.kind {
                 FunctionKind::Constructor(_) => {}
-                FunctionKind::Method(_) => {
+                FunctionKind::Method(_) | FunctionKind::AsyncMethod(_) => {
                     self.print_name_type(func.item_name(), TypeKind::FunctionMethod);
                     self.output.str(": ");
                 }
-                FunctionKind::Static(_) => {
+                FunctionKind::Static(_) | FunctionKind::AsyncStatic(_) => {
                     self.print_name_type(func.item_name(), TypeKind::FunctionStatic);
                     self.output.str(": ");
                     self.output.keyword("static");
                     self.output.str(" ");
                 }
-                FunctionKind::Freestanding => unreachable!(),
+                FunctionKind::Freestanding | FunctionKind::AsyncFreestanding => unreachable!(),
             }
             self.print_function(resolve, func)?;
             self.output.semicolon();
@@ -328,13 +328,29 @@ impl<O: Output> WitPrinter<O> {
     }
 
     fn print_function(&mut self, resolve: &Resolve, func: &Function) -> Result<()> {
+        // Handle the `async` prefix if necessary
+        match &func.kind {
+            FunctionKind::AsyncFreestanding
+            | FunctionKind::AsyncMethod(_)
+            | FunctionKind::AsyncStatic(_) => {
+                self.output.keyword("async");
+                self.output.str(" ");
+            }
+            _ => {}
+        }
+
         // Constructors are named slightly differently.
         match &func.kind {
             FunctionKind::Constructor(_) => {
                 self.output.keyword("constructor");
                 self.output.str("(");
             }
-            _ => {
+            FunctionKind::Freestanding
+            | FunctionKind::AsyncFreestanding
+            | FunctionKind::Method(_)
+            | FunctionKind::AsyncMethod(_)
+            | FunctionKind::Static(_)
+            | FunctionKind::AsyncStatic(_) => {
                 self.output.keyword("func");
                 self.output.str("(");
             }
@@ -342,7 +358,7 @@ impl<O: Output> WitPrinter<O> {
 
         // Methods don't print their `self` argument
         let params_to_skip = match &func.kind {
-            FunctionKind::Method(_) => 1,
+            FunctionKind::Method(_) | FunctionKind::AsyncMethod(_) => 1,
             _ => 0,
         };
         for (i, (name, ty)) in func.params.iter().skip(params_to_skip).enumerate() {
@@ -381,7 +397,7 @@ impl<O: Output> WitPrinter<O> {
                 },
                 _ => {
                     if let WorldItem::Function(f) = import {
-                        if let Some(id) = resource_func(f) {
+                        if let Some(id) = f.kind.resource() {
                             resource_funcs.entry(id).or_insert(Vec::new()).push(f);
                             continue;
                         }
@@ -1066,15 +1082,6 @@ impl<O: Output> WitPrinter<O> {
     }
 }
 
-fn resource_func(f: &Function) -> Option<TypeId> {
-    match f.kind {
-        FunctionKind::Freestanding => None,
-        FunctionKind::Method(id) | FunctionKind::Constructor(id) | FunctionKind::Static(id) => {
-            Some(id)
-        }
-    }
-}
-
 fn is_keyword(name: &str) -> bool {
     matches!(
         name,
@@ -1122,6 +1129,7 @@ fn is_keyword(name: &str) -> bool {
             | "include"
             | "constructor"
             | "error-context"
+            | "async"
     )
 }
 

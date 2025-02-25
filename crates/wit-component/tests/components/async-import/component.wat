@@ -12,8 +12,8 @@
     (type (;0;) (func (param i32 i32) (result i32)))
     (type (;1;) (func (param i32 i32 i32)))
     (type (;2;) (func (param i32 i32 i32 i32) (result i32)))
-    (import "$root" "[async]foo" (func (;0;) (type 0)))
-    (import "foo:foo/bar" "[async]foo" (func (;1;) (type 0)))
+    (import "$root" "[async-lower]foo" (func (;0;) (type 0)))
+    (import "foo:foo/bar" "[async-lower]foo" (func (;1;) (type 0)))
     (import "$root" "foo" (func (;2;) (type 1)))
     (import "foo:foo/bar" "foo" (func (;3;) (type 1)))
     (memory (;0;) 1)
@@ -31,12 +31,12 @@
     (type (;0;) (func (param i32 i32) (result i32)))
     (type (;1;) (func (param i32 i32 i32)))
     (table (;0;) 4 4 funcref)
-    (export "0" (func $"indirect-$root-[async]foo"))
+    (export "0" (func $"indirect-$root-[async-lower]foo"))
     (export "1" (func $indirect-$root-foo))
-    (export "2" (func $"indirect-foo:foo/bar-[async]foo"))
+    (export "2" (func $"indirect-foo:foo/bar-[async-lower]foo"))
     (export "3" (func $indirect-foo:foo/bar-foo))
     (export "$imports" (table 0))
-    (func $"indirect-$root-[async]foo" (;0;) (type 0) (param i32 i32) (result i32)
+    (func $"indirect-$root-[async-lower]foo" (;0;) (type 0) (param i32 i32) (result i32)
       local.get 0
       local.get 1
       i32.const 0
@@ -49,7 +49,7 @@
       i32.const 1
       call_indirect (type 1)
     )
-    (func $"indirect-foo:foo/bar-[async]foo" (;2;) (type 0) (param i32 i32) (result i32)
+    (func $"indirect-foo:foo/bar-[async-lower]foo" (;2;) (type 0) (param i32 i32) (result i32)
       local.get 0
       local.get 1
       i32.const 2
@@ -83,13 +83,13 @@
   (alias core export 0 "0" (core func (;0;)))
   (alias core export 0 "1" (core func (;1;)))
   (core instance (;1;)
-    (export "[async]foo" (func 0))
+    (export "[async-lower]foo" (func 0))
     (export "foo" (func 1))
   )
   (alias core export 0 "2" (core func (;2;)))
   (alias core export 0 "3" (core func (;3;)))
   (core instance (;2;)
-    (export "[async]foo" (func 2))
+    (export "[async-lower]foo" (func 2))
     (export "foo" (func 3))
   )
   (core instance (;3;) (instantiate 0

@@ -3968,8 +3968,11 @@ impl ComponentNameContext {
         if let ExternKind::Export = kind {
             match kebab.kind() {
                 ComponentNameKind::Label(_)
+                | ComponentNameKind::AsyncLabel(_)
                 | ComponentNameKind::Method(_)
+                | ComponentNameKind::AsyncMethod(_)
                 | ComponentNameKind::Static(_)
+                | ComponentNameKind::AsyncStatic(_)
                 | ComponentNameKind::Constructor(_)
                 | ComponentNameKind::Interface(_) => {}
 
@@ -3983,7 +3986,7 @@ impl ComponentNameContext {
 
         // Validate that the kebab name, if it has structure such as
         // `[method]a.b`, is indeed valid with respect to known resources.
-        self.validate(&kebab, ty, types, offset)
+        self.validate(&kebab, ty, types, offset, features)
             .with_context(|| format!("{} name `{kebab}` is not valid", kind.desc()))?;
 
         // Top-level kebab-names must all be unique, even between both imports
@@ -4024,6 +4027,7 @@ impl ComponentNameContext {
         ty: &ComponentEntityType,
         types: &TypeAlloc,
         offset: usize,
+        features: &WasmFeatures,
     ) -> Result<()> {
         let func = || {
             let id = match ty {
@@ -4033,8 +4037,23 @@ impl ComponentNameContext {
             Ok(&types[id])
         };
         match name.kind() {
+            ComponentNameKind::AsyncLabel(_)
+            | ComponentNameKind::AsyncMethod(_)
+            | ComponentNameKind::AsyncStatic(_) => {
+                if !features.component_model_async() {
+                    bail!(
+                        offset,
+                        "async kebab-names require the component model async feature"
+                    );
+                }
+            }
+            _ => {}
+        }
+
+        match name.kind() {
             // No validation necessary for these styles of names
             ComponentNameKind::Label(_)
+            | ComponentNameKind::AsyncLabel(_)
             | ComponentNameKind::Interface(_)
             | ComponentNameKind::Url(_)
             | ComponentNameKind::Dependency(_)
@@ -4065,7 +4084,7 @@ impl ComponentNameContext {
             // Methods must take `(param "self" (borrow $resource))` as the
             // first argument where `$resources` matches the name `resource` as
             // named in this context.
-            ComponentNameKind::Method(name) => {
+            ComponentNameKind::Method(name) | ComponentNameKind::AsyncMethod(name) => {
                 let ty = func()?;
                 if ty.params.len() == 0 {
                     bail!(offset, "function should have at least one argument");
@@ -4097,7 +4116,7 @@ impl ComponentNameContext {
             // Static methods don't have much validation beyond that they must
             // be a function and the resource name referred to must already be
             // in this context.
-            ComponentNameKind::Static(name) => {
+            ComponentNameKind::Static(name) | ComponentNameKind::AsyncStatic(name) => {
                 func()?;
                 if !self.all_resource_names.contains(name.resource().as_str()) {
                     bail!(offset, "static resource name is not known in this context");

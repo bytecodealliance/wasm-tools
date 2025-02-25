@@ -402,15 +402,27 @@ impl Render for TypeDef {
                         docs.render(f, &opts)?;
                     }
                     match &func.kind {
-                        crate::ResourceFuncKind::Method(name, result) => {
-                            write!(f, "{}{}: func({})", opts.spaces(), name, func.params)?;
+                        crate::ResourceFuncKind::Method(name, async_, result) => {
+                            let opt_async = if *async_ { "async " } else { "" };
+                            write!(
+                                f,
+                                "{}{name}: {opt_async}func({})",
+                                opts.spaces(),
+                                func.params
+                            )?;
                             if let Some(ty) = result {
                                 write!(f, " -> {ty}")?;
                             }
                             write!(f, ";\n")?;
                         }
-                        crate::ResourceFuncKind::Static(name, result) => {
-                            write!(f, "{}{}: static func({})", opts.spaces(), name, func.params)?;
+                        crate::ResourceFuncKind::Static(name, async_, result) => {
+                            let opt_async = if *async_ { "async " } else { "" };
+                            write!(
+                                f,
+                                "{}{name}: static {opt_async}func({})",
+                                opts.spaces(),
+                                func.params
+                            )?;
                             if let Some(ty) = result {
                                 write!(f, " -> {ty}")?;
                             }

@@ -538,7 +538,7 @@ impl ImportMap {
         let world_id = encoder.metadata.world;
         let world = &resolve.worlds[world_id];
 
-        let (async_, name) = if let Some(name) = names.async_name(name) {
+        let (async_, name) = if let Some(name) = names.async_lower_name(name) {
             (true, name)
         } else {
             (false, name)
@@ -727,8 +727,8 @@ impl ImportMap {
     /// ## Parameters
     ///
     /// * `name` - the core module name which is being pattern-matched. This
-    ///   should be the "field" of the import. This should have the "[async]"
-    ///   prefix stripped out already.
+    ///   should be the "field" of the import. This should have the
+    ///   "[async-lift]" prefix stripped out already.
     /// * `key_and_id` - this is the inferred "container" for the function
     ///   being described which is inferred from the module portion of the core
     ///   wasm import field. This is `None` for root-level function/type
@@ -739,8 +739,8 @@ impl ImportMap {
     /// * `encoder` - this is the encoder state that contains
     ///   `Resolve`/metadata information.
     /// * `ty` - the core wasm type of this import.
-    /// * `async_` - whether or not this import had the `[async]` import. Note
-    ///   that such prefix is not present in `name`.
+    /// * `async_` - whether or not this import had the `[async-lift]` import.
+    ///   Note that such prefix is not present in `name`.
     /// * `import` - whether or not this core wasm import is operating on a WIT
     ///   level import or export. An example of this being an export is when a
     ///   core module imports a destructor for an exported resource.
@@ -1140,9 +1140,9 @@ impl ExportMap {
         }
 
         let full_name = name;
-        let (abi, name) = if let Some(name) = names.async_name(name) {
+        let (abi, name) = if let Some(name) = names.async_lift_name(name) {
             (AbiVariant::GuestExportAsync, name)
-        } else if let Some(name) = names.async_stackful_name(name) {
+        } else if let Some(name) = names.async_lift_stackful_name(name) {
             (AbiVariant::GuestExportAsyncStackful, name)
         } else {
             (AbiVariant::GuestExport, name)
@@ -1190,7 +1190,7 @@ impl ExportMap {
             }
         }
 
-        if let Some(suffix) = names.callback_name(full_name) {
+        if let Some(suffix) = names.async_lift_callback_name(full_name) {
             if let Some((key, id, f)) = names.match_wit_export(suffix, resolve, world, exports) {
                 validate_func_sig(
                     full_name,
@@ -1417,9 +1417,10 @@ trait NameMangling {
     fn waitable_join(&self) -> Option<&str>;
     fn yield_(&self) -> Option<&str>;
     fn subtask_drop(&self) -> Option<&str>;
-    fn callback_name<'a>(&self, s: &'a str) -> Option<&'a str>;
-    fn async_name<'a>(&self, s: &'a str) -> Option<&'a str>;
-    fn async_stackful_name<'a>(&self, s: &'a str) -> Option<&'a str>;
+    fn async_lift_callback_name<'a>(&self, s: &'a str) -> Option<&'a str>;
+    fn async_lower_name<'a>(&self, s: &'a str) -> Option<&'a str>;
+    fn async_lift_name<'a>(&self, s: &'a str) -> Option<&'a str>;
+    fn async_lift_stackful_name<'a>(&self, s: &'a str) -> Option<&'a str>;
     fn error_context_new(&self, s: &str) -> Option<StringEncoding>;
     fn error_context_debug_message(&self, s: &str) -> Option<StringEncoding>;
     fn error_context_drop(&self) -> Option<&str>;
@@ -1508,15 +1509,19 @@ impl NameMangling for Standard {
     fn subtask_drop(&self) -> Option<&str> {
         None
     }
-    fn callback_name<'a>(&self, s: &'a str) -> Option<&'a str> {
+    fn async_lift_callback_name<'a>(&self, s: &'a str) -> Option<&'a str> {
         _ = s;
         None
     }
-    fn async_name<'a>(&self, s: &'a str) -> Option<&'a str> {
+    fn async_lower_name<'a>(&self, s: &'a str) -> Option<&'a str> {
         _ = s;
         None
     }
-    fn async_stackful_name<'a>(&self, s: &'a str) -> Option<&'a str> {
+    fn async_lift_name<'a>(&self, s: &'a str) -> Option<&'a str> {
+        _ = s;
+        None
+    }
+    fn async_lift_stackful_name<'a>(&self, s: &'a str) -> Option<&'a str> {
         _ = s;
         None
     }
@@ -1691,14 +1696,17 @@ impl NameMangling for Legacy {
     fn subtask_drop(&self) -> Option<&str> {
         Some("[subtask-drop]")
     }
-    fn callback_name<'a>(&self, s: &'a str) -> Option<&'a str> {
-        s.strip_prefix("[callback][async]")
+    fn async_lift_callback_name<'a>(&self, s: &'a str) -> Option<&'a str> {
+        s.strip_prefix("[callback][async-lift]")
     }
-    fn async_name<'a>(&self, s: &'a str) -> Option<&'a str> {
-        s.strip_prefix("[async]")
+    fn async_lower_name<'a>(&self, s: &'a str) -> Option<&'a str> {
+        s.strip_prefix("[async-lower]")
     }
-    fn async_stackful_name<'a>(&self, s: &'a str) -> Option<&'a str> {
-        s.strip_prefix("[async-stackful]")
+    fn async_lift_name<'a>(&self, s: &'a str) -> Option<&'a str> {
+        s.strip_prefix("[async-lift]")
+    }
+    fn async_lift_stackful_name<'a>(&self, s: &'a str) -> Option<&'a str> {
+        s.strip_prefix("[async-lift-stackful]")
     }
     fn error_context_new(&self, name: &str) -> Option<StringEncoding> {
         match name {
