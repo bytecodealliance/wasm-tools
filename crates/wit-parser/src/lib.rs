@@ -947,6 +947,15 @@ impl ManglingAndAbi {
             Self::Legacy(abi) => abi.export_variant(),
         }
     }
+
+    /// Switch the ABI to be sync if it's async.
+    pub fn sync(self) -> Self {
+        match self {
+            Self::Standard32 | Self::Legacy(LiftLowerAbi::Sync) => self,
+            Self::Legacy(LiftLowerAbi::AsyncCallback)
+            | Self::Legacy(LiftLowerAbi::AsyncStackful) => Self::Legacy(LiftLowerAbi::Sync),
+        }
+    }
 }
 
 impl Function {
