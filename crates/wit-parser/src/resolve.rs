@@ -2644,7 +2644,13 @@ impl Remap {
             worlds: Default::default(),
         });
         let prev = resolve.package_names.insert(unresolved.name.clone(), pkgid);
-        assert!(prev.is_none());
+        if let Some(prev) = prev {
+            resolve.package_names.insert(unresolved.name.clone(), prev);
+            bail!(
+                "attempting to re-add package `{}` when it's already present in this `Resolve`",
+                unresolved.name,
+            );
+        }
 
         self.process_foreign_deps(resolve, pkgid, &unresolved)?;
 
