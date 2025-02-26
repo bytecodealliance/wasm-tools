@@ -437,10 +437,6 @@ impl Ord for ComponentNameKind<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
         use ComponentNameKind::*;
 
-        match self.kind().cmp(&other.kind()) {
-            Ordering::Equal => (),
-            unequal => return unequal,
-        }
         match (self, other) {
             (Label(lhs) | AsyncLabel(lhs), Label(rhs) | AsyncLabel(rhs)) => lhs.cmp(rhs),
             (Constructor(lhs), Constructor(rhs)) => lhs.cmp(rhs),
@@ -463,7 +459,7 @@ impl Ord for ComponentNameKind<'_> {
             | (Interface(_), _)
             | (Dependency(_), _)
             | (Url(_), _)
-            | (Hash(_), _) => panic!("already compared for different kinds above"),
+            | (Hash(_), _) => self.kind().cmp(&other.kind()),
         }
     }
 }
