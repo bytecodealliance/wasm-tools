@@ -3404,17 +3404,13 @@ impl Remap {
                 let prev = items.entry(key.clone()).or_insert(item.1.clone());
                 match (&item.1, prev) {
                     (
-                        WorldItem::Interface {
-                            id: aid,
-                            stability: astability,
-                        },
-                        WorldItem::Interface {
-                            id: bid,
-                            stability: bstability,
-                        },
+                        WorldItem::Interface { id: aid, .. },
+                        WorldItem::Interface { id: bid, .. },
                     ) => {
+                        // At this point in processing we care that the interfaces are the same
+                        // but don't need to verify stability.  We've already confirmed that the interface should be
+                        // apart of the component and versions/features are enabled so if they are the same it can be used.
                         assert_eq!(*aid, *bid);
-                        update_stability(astability, bstability)?;
                     }
                     (WorldItem::Interface { .. }, _) => unreachable!(),
                     (WorldItem::Function(_), _) => unreachable!(),
@@ -3833,7 +3829,7 @@ fn update_stability(from: &Stability, into: &mut Stability) -> Result<()> {
 
     // Failing all that this means that the two attributes are different so
     // generate an error.
-    bail!("mismatch in stability attributes")
+    bail!("mismatch in stability from '{:?}' to '{:?}'", from, into)
 }
 
 /// An error that can be returned during "world elaboration" during various
