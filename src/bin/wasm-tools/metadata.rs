@@ -54,7 +54,7 @@ impl ShowOpts {
         if self.json {
             write!(output, "{}", serde_json::to_string(&payload)?)?;
         } else {
-            fmt_payload(&payload, &mut output)?;
+            write_table(&payload, &mut output)?;
         }
         Ok(())
     }
@@ -89,7 +89,9 @@ impl AddOpts {
     }
 }
 
-fn fmt_payload(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result<()> {
+/// Write a table containing a wasm binary's metadata to a writer
+fn write_table(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result<()> {
+    // Prepare a table and get the individual metadata
     let mut table = Table::new();
     table
         .load_preset(UTF8_FULL)
@@ -110,28 +112,34 @@ fn fmt_payload(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result<()> {
         version,
     } = payload.metadata();
 
-    // Print the basic information
+    // Add the basic information to the table first
     let kind = match payload {
         Payload::Component { .. } => "component",
         Payload::Module(_) => "module",
     };
     table.add_row(vec!["kind", &kind]);
-    let name = name.as_deref().unwrap_or("<unknown>");
-    table.add_row(vec!["name", &name]);
     table.add_row(vec![
         "range",
         &format!("0x{:x}..0x{:x}", range.start, range.end),
     ]);
+    let name = name.as_deref().unwrap_or("<unknown>");
+    table.add_row(vec!["name", &name]);
 
-    // Print the OCI annotations
+    // Add the OCI annotations to the table
     if let Some(description) = description {
         table.add_row(vec!["description", &description.to_string()]);
     }
-    if let Some(licenses) = licenses {
-        table.add_row(vec!["licenses", &licenses.to_string()]);
-    }
     if let Some(authors) = authors {
         table.add_row(vec!["authors", &authors.to_string()]);
+    }
+    if let Some(version) = version {
+        table.add_row(vec!["version", &version.to_string()]);
+    }
+    if let Some(revision) = revision {
+        table.add_row(vec!["revision", &revision.to_string()]);
+    }
+    if let Some(licenses) = licenses {
+        table.add_row(vec!["licenses", &licenses.to_string()]);
     }
     if let Some(source) = source {
         table.add_row(vec!["source", &source.to_string()]);
@@ -139,14 +147,25 @@ fn fmt_payload(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result<()> {
     if let Some(homepage) = homepage {
         table.add_row(vec!["homepage", &homepage.to_string()]);
     }
-    if let Some(revision) = revision {
-        table.add_row(vec!["revision", &revision.to_string()]);
-    }
-    if let Some(version) = version {
-        table.add_row(vec!["version", &version.to_string()]);
-    }
 
+    // Add the producer section to the table
     if let Some(producers) = producers {
+        // Ensure the "language" fields are listed first
+        let mut producers = producers
+            .iter()
+            .map(|(n, p)| (n.clone(), p))
+            .collect::<Vec<_>>();
+        producers.sort_by(|(a, _), (b, _)| {
+            if a == "language" {
+                std::cmp::Ordering::Less
+            } else if b == "language" {
+                std::cmp::Ordering::Greater
+            } else {
+                a.cmp(b)
+            }
+        });
+
+        // Add the producers to the table
         for (name, pairs) in producers.iter() {
             for (field, version) in pairs.iter() {
                 match version.len() {
@@ -160,9 +179,10 @@ fn fmt_payload(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result<()> {
     // Write the table to the writer
     writeln!(f, "{table}")?;
 
+    // Recursively print any children
     if let Payload::Component { children, .. } = payload {
         for payload in children {
-            fmt_payload(payload, f)?;
+            write_table(payload, f)?;
         }
     }
 
