@@ -157,6 +157,18 @@ fn fmt_payload(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result<()> {
         }
     }
 
+    // Add child relationships to the table
+    if let Payload::Component { children, .. } = &payload {
+        for payload in children {
+            let name = payload.metadata().name.as_deref().unwrap_or("<unknown>");
+            let kind = match payload {
+                Payload::Component { .. } => "component",
+                Payload::Module(_) => "module",
+            };
+            table.add_row(vec!["child", &format!("{name} [{kind}]")]);
+        }
+    }
+
     // Write the table to the writer
     writeln!(f, "{table}")?;
 
