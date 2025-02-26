@@ -1,18 +1,21 @@
 use std::fmt::{self, Display};
+use std::io::{read_to_string, Read};
 use std::str::FromStr;
 
-use anyhow::{ensure, Error, Result};
+use anyhow::{ensure, Result};
 use auditable_serde::VersionInfo;
-// use auditable_serde::Auditable;
-use flate2::read::GzDecoder;
-// use miniz_oxide::inflate::decompress_to_vec_zlib;
+use flate2::read::{ZlibDecoder, ZlibEncoder};
+use flate2::Compression;
 use serde::Serialize;
 use wasm_encoder::{ComponentSection, CustomSection, Encode, Section};
 use wasmparser::CustomSectionReader;
 
 /// Human-readable description of the binary
 #[derive(Debug, Clone, PartialEq)]
-pub struct Dependencies(VersionInfo);
+pub struct Dependencies {
+    version_info: VersionInfo,
+    custom_section: CustomSection<'static>,
+}
 
 impl Dependencies {
     /// Parse an `description` custom section from a wasm binary.
@@ -21,16 +24,32 @@ impl Dependencies {
             reader.name() == ".dep-v0",
             "The `dependencies` custom section should have a name of '.dep-v0'"
         );
-        // let decompressed_data = decompress_to_vec_zlib(reader.data())?;
-        let decompressed_data = GzDecoder::new(reader.data());
-        let decompressed_data = std::io::read_to_string(decompressed_data)?;
+        let decompressed_data = read_to_string(ZlibDecoder::new(reader.data()))?;
         let dependency_tree = auditable_serde::VersionInfo::from_str(&decompressed_data)?;
 
-        Ok(Self::new(dependency_tree))
+        Ok(Self {
+            version_info: dependency_tree,
+            custom_section: CustomSection {
+                name: ".dep-v0".into(),
+                data: reader.data().to_owned().into(),
+            },
+        })
     }
 
     fn new(dependency_tree: auditable_serde::VersionInfo) -> Self {
-        Self(dependency_tree)
+        let data = serde_json::to_string(&dependency_tree).unwrap();
+
+        let mut ret_vec = Vec::new();
+        let mut encoder = ZlibEncoder::new(data.as_bytes(), Compression::fast());
+        encoder.read_to_end(&mut ret_vec).unwrap();
+
+        Self {
+            version_info: dependency_tree,
+            custom_section: CustomSection {
+                name: ".dep-v0".into(),
+                data: ret_vec.into(),
+            },
+        }
     }
 }
 
@@ -62,39 +81,48 @@ impl Display for Dependencies {
 
 impl ComponentSection for Dependencies {
     fn id(&self) -> u8 {
-        ComponentSection::id(&self.0)
+        ComponentSection::id(&self.custom_section)
     }
 }
 
 impl Section for Dependencies {
     fn id(&self) -> u8 {
-        Section::id(&self.0)
+        Section::id(&self.custom_section)
     }
 }
 
 impl Encode for Dependencies {
     fn encode(&self, sink: &mut Vec<u8>) {
-        self.0.encode(sink);
+        self.custom_section.encode(sink);
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use auditable_serde::VersionInfo;
+    use std::str::FromStr;
     use wasm_encoder::Component;
     use wasmparser::Payload;
 
     #[test]
     fn roundtrip() {
+        let json_str = r#"{"packages":[{
+        "name":"adler",
+        "version":"0.2.3",
+        "source":"registry"
+        }]}"#;
+        let info = VersionInfo::from_str(json_str).unwrap();
+        assert_eq!(&info.packages[0].name, "adler");
         let mut component = Component::new();
-        component.section(&Dependencies::new("Nori likes chicken"));
+        component.section(&Dependencies::new(info));
         let component = component.finish();
 
         let mut parsed = false;
         for section in wasmparser::Parser::new(0).parse_all(&component) {
             if let Payload::CustomSection(reader) = section.unwrap() {
-                let description = Dependencies::parse_custom_section(&reader).unwrap();
-                assert_eq!(description.to_string(), "Nori likes chicken");
+                let dependencies = Dependencies::parse_custom_section(&reader).unwrap();
+                assert_eq!(dependencies.to_string(), json_str);
                 parsed = true;
             }
         }
@@ -103,8 +131,14 @@ mod test {
 
     #[test]
     fn serialize() {
-        let description = Dependencies::new("Chashu likes tuna");
-        let json = serde_json::to_string(&description).unwrap();
-        assert_eq!(r#""Chashu likes tuna""#, json);
+        let json_str = r#"{"packages":[{
+        "name":"adler",
+        "version":"0.2.3",
+        "source":"registry"
+        }]}"#;
+        let info = VersionInfo::from_str(json_str).unwrap();
+        let dependencies = Dependencies::new(info);
+        let json = serde_json::to_string(&dependencies).unwrap();
+        assert_eq!(json, json_str);
     }
 }
