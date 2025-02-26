@@ -38,6 +38,7 @@ fn add_to_empty_component() {
                     homepage,
                     revision,
                     version,
+                    dependencies,
                 },
         } => {
             assert!(children.is_empty());
@@ -145,6 +146,7 @@ fn add_to_nested_component() {
                     homepage,
                     revision,
                     version,
+                    dependencies,
                 }) => {
                     assert_eq!(name, &Some("foo".to_owned()));
                     let producers = producers.as_ref().expect("some producers");

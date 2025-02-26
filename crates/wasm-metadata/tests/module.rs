@@ -35,6 +35,7 @@ fn add_to_empty_module() {
             homepage,
             revision,
             version,
+            dependencies,
         }) => {
             assert_eq!(name, Some("foo".to_owned()));
             let producers = producers.expect("some producers");
