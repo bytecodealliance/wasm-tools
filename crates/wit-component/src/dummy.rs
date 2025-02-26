@@ -78,7 +78,7 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId, mangling: ManglingAndAbi)
             ];
             for (intrinsic, sig) in intrinsics {
                 let (module, name) = resolve.wasm_import_name(
-                    mangling,
+                    mangling.sync(),
                     WasmImport::ResourceIntrinsic {
                         interface: Some(name),
                         resource,
@@ -147,7 +147,9 @@ pub fn dummy_module(resolve: &Resolve, world: WorldId, mangling: ManglingAndAbi)
             _ => return,
         }
         let (module, name) = resolve.wasm_import_name(
-            mangling,
+            // Force using a sync ABI here at this time as support for async
+            // resource drop isn't implemented yet.
+            mangling.sync(),
             WasmImport::ResourceIntrinsic {
                 interface,
                 resource,

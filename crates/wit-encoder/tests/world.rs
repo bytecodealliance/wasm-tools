@@ -32,21 +32,21 @@ fn worlds() {
             let mut interface = Interface::new("example");
             interface.set_docs(Some("inline interface"));
             interface.function({
-                let mut func = StandaloneFunc::new("do-nothing");
+                let mut func = StandaloneFunc::new("do-nothing", false);
                 func.set_docs(Some("func docs"));
                 func
             });
             interface
         });
         world.function_export({
-            let mut func = StandaloneFunc::new("scan");
+            let mut func = StandaloneFunc::new("scan", false);
             func.set_result(Some(Type::list(Type::U8)));
             func.set_docs(Some("scan stuff"));
             func
         });
         world.named_interface_import("error-reporter");
         world.function_import({
-            let mut func: StandaloneFunc = StandaloneFunc::new("print");
+            let mut func: StandaloneFunc = StandaloneFunc::new("print", false);
             func.set_params(("s", Type::String));
             func
         });

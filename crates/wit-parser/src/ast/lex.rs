@@ -91,6 +91,7 @@ pub enum Token {
     World,
     Package,
     Constructor,
+    Async,
 
     Id,
     ExplicitId,
@@ -313,6 +314,7 @@ impl<'a> Tokenizer<'a> {
                     "constructor" => Constructor,
                     "include" => Include,
                     "with" => With,
+                    "async" => Async,
                     _ => Id,
                 }
             }
@@ -576,6 +578,7 @@ impl Token {
             Integer => "an integer",
             Include => "keyword `include`",
             With => "keyword `with`",
+            Async => "keyword `async`",
         }
     }
 }

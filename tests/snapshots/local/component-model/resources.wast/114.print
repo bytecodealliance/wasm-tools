@@ -1,0 +1,9 @@
+(component
+  (type $r (;0;) (resource (rep i32)))
+  (core func (;0;) (canon resource.new $r))
+  (core func (;1;) (canon resource.new $r))
+  (core func (;2;) (canon resource.drop $r))
+  (core func (;3;) (canon resource.drop $r))
+  (core func (;4;) (canon resource.rep $r))
+  (core func (;5;) (canon resource.rep $r))
+)

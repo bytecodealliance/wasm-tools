@@ -241,6 +241,9 @@ impl From<KebabString> for String {
 /// * a plain method name : `[method]a-b.c-d`
 /// * a plain static method name : `[static]a-b.c-d`
 /// * a plain constructor: `[constructor]a-b`
+/// * an async plain label: `[async]a-b-c`
+/// * an async plain method name : `[async method]a-b.c-d`
+/// * an async plain static method name : `[async static]a-b.c-d`
 /// * an interface name: `wasi:cli/reactor@0.1.0`
 /// * a dependency name: `locked-dep=foo:bar/baz`
 /// * a URL name: `url=https://..`
@@ -267,6 +270,9 @@ enum ParsedComponentNameKind {
     Dependency,
     Url,
     Hash,
+    AsyncLabel,
+    AsyncMethod,
+    AsyncStatic,
 }
 
 /// Created via [`ComponentName::kind`] and classifies a name.
@@ -294,11 +300,22 @@ pub enum ComponentNameKind<'a> {
     /// `integrity=sha256:...`
     #[allow(missing_docs)]
     Hash(HashName<'a>),
+    /// `[async]a-b-c`
+    AsyncLabel(&'a KebabStr),
+    /// `[async method]a-b.c-d`
+    #[allow(missing_docs)]
+    AsyncMethod(ResourceFunc<'a>),
+    /// `[async static]a-b.c-d`
+    #[allow(missing_docs)]
+    AsyncStatic(ResourceFunc<'a>),
 }
 
 const CONSTRUCTOR: &str = "[constructor]";
 const METHOD: &str = "[method]";
 const STATIC: &str = "[static]";
+const ASYNC: &str = "[async]";
+const ASYNC_METHOD: &str = "[async method]";
+const ASYNC_STATIC: &str = "[async static]";
 
 impl ComponentName {
     /// Attempts to parse `name` as a valid component name, returning `Err` if
@@ -334,9 +351,12 @@ impl ComponentName {
         use ParsedComponentNameKind as PK;
         match self.kind {
             PK::Label => Label(KebabStr::new_unchecked(&self.raw)),
+            PK::AsyncLabel => AsyncLabel(KebabStr::new_unchecked(&self.raw[ASYNC.len()..])),
             PK::Constructor => Constructor(KebabStr::new_unchecked(&self.raw[CONSTRUCTOR.len()..])),
             PK::Method => Method(ResourceFunc(&self.raw[METHOD.len()..])),
+            PK::AsyncMethod => AsyncMethod(ResourceFunc(&self.raw[ASYNC_METHOD.len()..])),
             PK::Static => Static(ResourceFunc(&self.raw[STATIC.len()..])),
+            PK::AsyncStatic => AsyncStatic(ResourceFunc(&self.raw[ASYNC_STATIC.len()..])),
             PK::Interface => Interface(InterfaceName(&self.raw)),
             PK::Dependency => Dependency(DependencyName(&self.raw)),
             PK::Url => Url(UrlName(&self.raw)),
@@ -406,32 +426,40 @@ impl ComponentNameKind<'_> {
             Self::Dependency(_) => ParsedComponentNameKind::Dependency,
             Self::Url(_) => ParsedComponentNameKind::Url,
             Self::Hash(_) => ParsedComponentNameKind::Hash,
+            Self::AsyncLabel(_) => ParsedComponentNameKind::AsyncLabel,
+            Self::AsyncMethod(_) => ParsedComponentNameKind::AsyncMethod,
+            Self::AsyncStatic(_) => ParsedComponentNameKind::AsyncStatic,
         }
     }
 }
 
 impl Ord for ComponentNameKind<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
-        match self.kind().cmp(&other.kind()) {
-            Ordering::Equal => (),
-            unequal => return unequal,
-        }
+        use ComponentNameKind::*;
+
         match (self, other) {
-            (ComponentNameKind::Label(lhs), ComponentNameKind::Label(rhs)) => lhs.cmp(rhs),
-            (ComponentNameKind::Constructor(lhs), ComponentNameKind::Constructor(rhs)) => {
-                lhs.cmp(rhs)
-            }
-            (ComponentNameKind::Method(lhs), ComponentNameKind::Method(rhs)) => lhs.cmp(rhs),
-            (ComponentNameKind::Method(lhs), ComponentNameKind::Static(rhs)) => lhs.cmp(rhs),
-            (ComponentNameKind::Static(lhs), ComponentNameKind::Method(rhs)) => lhs.cmp(rhs),
-            (ComponentNameKind::Static(lhs), ComponentNameKind::Static(rhs)) => lhs.cmp(rhs),
-            (ComponentNameKind::Interface(lhs), ComponentNameKind::Interface(rhs)) => lhs.cmp(rhs),
-            (ComponentNameKind::Dependency(lhs), ComponentNameKind::Dependency(rhs)) => {
-                lhs.cmp(rhs)
-            }
-            (ComponentNameKind::Url(lhs), ComponentNameKind::Url(rhs)) => lhs.cmp(rhs),
-            (ComponentNameKind::Hash(lhs), ComponentNameKind::Hash(rhs)) => lhs.cmp(rhs),
-            _ => unreachable!("already compared for different kinds above"),
+            (Label(lhs) | AsyncLabel(lhs), Label(rhs) | AsyncLabel(rhs)) => lhs.cmp(rhs),
+            (Constructor(lhs), Constructor(rhs)) => lhs.cmp(rhs),
+            (
+                Method(lhs) | AsyncMethod(lhs) | Static(lhs) | AsyncStatic(lhs),
+                Method(rhs) | AsyncMethod(rhs) | Static(rhs) | AsyncStatic(rhs),
+            ) => lhs.cmp(rhs),
+            (Interface(lhs), Interface(rhs)) => lhs.cmp(rhs),
+            (Dependency(lhs), Dependency(rhs)) => lhs.cmp(rhs),
+            (Url(lhs), Url(rhs)) => lhs.cmp(rhs),
+            (Hash(lhs), Hash(rhs)) => lhs.cmp(rhs),
+
+            (Label(_), _)
+            | (AsyncLabel(_), _)
+            | (Constructor(_), _)
+            | (Method(_), _)
+            | (Static(_), _)
+            | (AsyncMethod(_), _)
+            | (AsyncStatic(_), _)
+            | (Interface(_), _)
+            | (Dependency(_), _)
+            | (Url(_), _)
+            | (Hash(_), _) => self.kind().cmp(&other.kind()),
         }
     }
 }
@@ -446,10 +474,12 @@ impl Hash for ComponentNameKind<'_> {
     fn hash<H: Hasher>(&self, hasher: &mut H) {
         use ComponentNameKind::*;
         match self {
-            Label(name) => (0u8, name).hash(hasher),
+            Label(name) | AsyncLabel(name) => (0u8, name).hash(hasher),
             Constructor(name) => (1u8, name).hash(hasher),
             // for hashing method == static
-            Method(name) | Static(name) => (2u8, name).hash(hasher),
+            Method(name) | Static(name) | AsyncMethod(name) | AsyncStatic(name) => {
+                (2u8, name).hash(hasher)
+            }
             Interface(name) => (3u8, name).hash(hasher),
             Dependency(name) => (4u8, name).hash(hasher),
             Url(name) => (5u8, name).hash(hasher),
@@ -462,20 +492,19 @@ impl PartialEq for ComponentNameKind<'_> {
     fn eq(&self, other: &ComponentNameKind<'_>) -> bool {
         use ComponentNameKind::*;
         match (self, other) {
-            (Label(a), Label(b)) => a == b,
-            (Label(_), _) => false,
+            (Label(a) | AsyncLabel(a), Label(b) | AsyncLabel(b)) => a == b,
+            (Label(_) | AsyncLabel(_), _) => false,
             (Constructor(a), Constructor(b)) => a == b,
             (Constructor(_), _) => false,
 
             // method == static for the purposes of hashing so equate them here
             // as well.
-            (Method(a), Method(b))
-            | (Static(a), Static(b))
-            | (Method(a), Static(b))
-            | (Static(a), Method(b)) => a == b,
+            (
+                Method(a) | Static(a) | AsyncMethod(a) | AsyncStatic(a),
+                Method(b) | Static(b) | AsyncMethod(b) | AsyncStatic(b),
+            ) => a == b,
 
-            (Method(_), _) => false,
-            (Static(_), _) => false,
+            (Method(_) | Static(_) | AsyncMethod(_) | AsyncStatic(_), _) => false,
 
             (Interface(a), Interface(b)) => a == b,
             (Interface(_), _) => false,
@@ -599,6 +628,10 @@ struct ComponentNameParser<'a> {
 
 impl<'a> ComponentNameParser<'a> {
     fn parse(&mut self) -> Result<ParsedComponentNameKind> {
+        if self.eat_str(ASYNC) {
+            self.expect_kebab()?;
+            return Ok(ParsedComponentNameKind::AsyncLabel);
+        }
         if self.eat_str(CONSTRUCTOR) {
             self.expect_kebab()?;
             return Ok(ParsedComponentNameKind::Constructor);
@@ -614,6 +647,18 @@ impl<'a> ComponentNameParser<'a> {
             self.kebab(resource)?;
             self.expect_kebab()?;
             return Ok(ParsedComponentNameKind::Static);
+        }
+        if self.eat_str(ASYNC_METHOD) {
+            let resource = self.take_until('.')?;
+            self.kebab(resource)?;
+            self.expect_kebab()?;
+            return Ok(ParsedComponentNameKind::AsyncMethod);
+        }
+        if self.eat_str(ASYNC_STATIC) {
+            let resource = self.take_until('.')?;
+            self.kebab(resource)?;
+            self.expect_kebab()?;
+            return Ok(ParsedComponentNameKind::AsyncStatic);
         }
 
         // 'unlocked-dep=<' <pkgnamequery> '>'

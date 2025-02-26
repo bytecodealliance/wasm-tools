@@ -74,15 +74,17 @@ pub struct StandaloneFunc {
     pub(crate) params: Params,
     pub(crate) result: Option<Type>,
     pub(crate) docs: Option<Docs>,
+    pub(crate) async_: bool,
 }
 
 impl StandaloneFunc {
-    pub fn new(name: impl Into<Ident>) -> Self {
+    pub fn new(name: impl Into<Ident>, async_: bool) -> Self {
         Self {
             name: name.into(),
             params: Params::empty(),
             result: None,
             docs: None,
+            async_,
         }
     }
 
@@ -128,5 +130,17 @@ impl StandaloneFunc {
 
     pub fn docs(&self) -> &Option<Docs> {
         &self.docs
+    }
+
+    pub fn set_async(&mut self, async_: bool) {
+        self.async_ = async_;
+    }
+
+    pub fn async_(&self) -> bool {
+        self.async_
+    }
+
+    pub fn async_mut(&mut self) -> &mut bool {
+        &mut self.async_
     }
 }

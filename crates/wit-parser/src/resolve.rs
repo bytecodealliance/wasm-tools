@@ -3213,11 +3213,8 @@ impl Remap {
         func: &mut Function,
         span: Option<Span>,
     ) -> Result<()> {
-        match &mut func.kind {
-            FunctionKind::Freestanding => {}
-            FunctionKind::Method(id) | FunctionKind::Constructor(id) | FunctionKind::Static(id) => {
-                self.update_type_id(id, span)?;
-            }
+        if let Some(id) = func.kind.resource_mut() {
+            self.update_type_id(id, span)?;
         }
         for (_, ty) in func.params.iter_mut() {
             self.update_ty(resolve, ty, span)?;
@@ -3674,17 +3671,24 @@ impl<'a> MergeMap<'a> {
         }
         match (&from_func.kind, &into_func.kind) {
             (FunctionKind::Freestanding, FunctionKind::Freestanding) => {}
+            (FunctionKind::AsyncFreestanding, FunctionKind::AsyncFreestanding) => {}
 
             (FunctionKind::Method(from), FunctionKind::Method(into))
-            | (FunctionKind::Constructor(from), FunctionKind::Constructor(into))
-            | (FunctionKind::Static(from), FunctionKind::Static(into)) => self
-                .build_type_id(*from, *into)
-                .context("different function kind types")?,
+            | (FunctionKind::Static(from), FunctionKind::Static(into))
+            | (FunctionKind::AsyncMethod(from), FunctionKind::AsyncMethod(into))
+            | (FunctionKind::AsyncStatic(from), FunctionKind::AsyncStatic(into))
+            | (FunctionKind::Constructor(from), FunctionKind::Constructor(into)) => {
+                self.build_type_id(*from, *into)
+                    .context("different function kind types")?;
+            }
 
             (FunctionKind::Method(_), _)
             | (FunctionKind::Constructor(_), _)
             | (FunctionKind::Static(_), _)
-            | (FunctionKind::Freestanding, _) => {
+            | (FunctionKind::Freestanding, _)
+            | (FunctionKind::AsyncFreestanding, _)
+            | (FunctionKind::AsyncMethod(_), _)
+            | (FunctionKind::AsyncStatic(_), _) => {
                 bail!("different function kind types")
             }
         }

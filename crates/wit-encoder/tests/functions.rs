@@ -24,46 +24,46 @@ fn concrete_types() {
 
     package.interface({
         let mut interface = Interface::new("functions");
-        interface.function(StandaloneFunc::new("f1"));
+        interface.function(StandaloneFunc::new("f1", false));
         interface.function({
-            let mut func = StandaloneFunc::new("f2");
+            let mut func = StandaloneFunc::new("f2", false);
             func.set_params(Params::from_iter([("a", Type::U32)]));
             func
         });
         interface.function({
-            let mut func = StandaloneFunc::new("f4");
+            let mut func = StandaloneFunc::new("f4", false);
             func.set_result(Some(Type::U32));
             func
         });
         interface.function({
-            let mut func = StandaloneFunc::new("f6");
+            let mut func = StandaloneFunc::new("f6", false);
             func.set_result(Some(Type::tuple(vec![Type::U32, Type::U32])));
             func
         });
         interface.function({
-            let mut func = StandaloneFunc::new("f7");
+            let mut func = StandaloneFunc::new("f7", false);
             func.set_params(Params::from_iter([("a", Type::F32), ("b", Type::F32)]));
             func.set_result(Some(Type::tuple(vec![Type::U32, Type::U32])));
             func
         });
         interface.function({
-            let mut func = StandaloneFunc::new("f8");
+            let mut func = StandaloneFunc::new("f8", false);
             func.set_params(Params::from_iter([("a", Type::option(Type::U32))]));
             func.set_result(Some(Type::result(Result_::both(Type::U32, Type::F32))));
             func
         });
         interface.function({
-            let mut func = StandaloneFunc::new("f11");
+            let mut func = StandaloneFunc::new("f11", false);
             func.set_result(Some(Result_::ok(Type::F32).into()));
             func
         });
         interface.function({
-            let mut func = StandaloneFunc::new("f12");
+            let mut func = StandaloneFunc::new("f12", false);
             func.set_result(Some(Result_::err(Type::F32).into()));
             func
         });
         interface.function({
-            let mut func = StandaloneFunc::new("f13");
+            let mut func = StandaloneFunc::new("f13", false);
             func.set_result(Some(Result_::empty().into()));
             func
         });

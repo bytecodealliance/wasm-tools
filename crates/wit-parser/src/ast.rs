@@ -490,8 +490,8 @@ impl<'a> ExternKind<'a> {
         let mut clone = tokens.clone();
         let id = parse_id(&mut clone)?;
         if clone.eat(Token::Colon)? {
-            // import foo: func(...)
-            if clone.clone().eat(Token::Func)? {
+            // import foo: async? func(...)
+            if clone.clone().eat(Token::Func)? || clone.clone().eat(Token::Async)? {
                 *tokens = clone;
                 let ret = ExternKind::Func(id, Func::parse(tokens)?);
                 tokens.expect_semicolon()?;
@@ -818,6 +818,7 @@ impl<'a> ResourceFunc<'a> {
                     },
                     func: Func {
                         span,
+                        async_: false,
                         params,
                         result: None,
                     },
@@ -936,6 +937,7 @@ type ParamList<'a> = Vec<(Id<'a>, Type<'a>)>;
 
 struct Func<'a> {
     span: Span,
+    async_: bool,
     params: ParamList<'a>,
     result: Option<Type<'a>>,
 }
@@ -954,6 +956,7 @@ impl<'a> Func<'a> {
             })
         }
 
+        let async_ = tokens.eat(Token::Async)?;
         let span = tokens.expect(Token::Func)?;
         let params = parse_params(tokens, true)?;
         let result = if tokens.eat(Token::RArrow)? {
@@ -964,6 +967,7 @@ impl<'a> Func<'a> {
         };
         Ok(Func {
             span,
+            async_,
             params,
             result,
         })
