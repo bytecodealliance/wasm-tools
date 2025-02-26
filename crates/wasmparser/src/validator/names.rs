@@ -435,26 +435,35 @@ impl ComponentNameKind<'_> {
 
 impl Ord for ComponentNameKind<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
+        use ComponentNameKind::*;
+
         match self.kind().cmp(&other.kind()) {
             Ordering::Equal => (),
             unequal => return unequal,
         }
         match (self, other) {
-            (ComponentNameKind::Label(lhs), ComponentNameKind::Label(rhs)) => lhs.cmp(rhs),
-            (ComponentNameKind::Constructor(lhs), ComponentNameKind::Constructor(rhs)) => {
-                lhs.cmp(rhs)
-            }
-            (ComponentNameKind::Method(lhs), ComponentNameKind::Method(rhs)) => lhs.cmp(rhs),
-            (ComponentNameKind::Method(lhs), ComponentNameKind::Static(rhs)) => lhs.cmp(rhs),
-            (ComponentNameKind::Static(lhs), ComponentNameKind::Method(rhs)) => lhs.cmp(rhs),
-            (ComponentNameKind::Static(lhs), ComponentNameKind::Static(rhs)) => lhs.cmp(rhs),
-            (ComponentNameKind::Interface(lhs), ComponentNameKind::Interface(rhs)) => lhs.cmp(rhs),
-            (ComponentNameKind::Dependency(lhs), ComponentNameKind::Dependency(rhs)) => {
-                lhs.cmp(rhs)
-            }
-            (ComponentNameKind::Url(lhs), ComponentNameKind::Url(rhs)) => lhs.cmp(rhs),
-            (ComponentNameKind::Hash(lhs), ComponentNameKind::Hash(rhs)) => lhs.cmp(rhs),
-            _ => unreachable!("already compared for different kinds above"),
+            (Label(lhs) | AsyncLabel(lhs), Label(rhs) | AsyncLabel(rhs)) => lhs.cmp(rhs),
+            (Constructor(lhs), Constructor(rhs)) => lhs.cmp(rhs),
+            (
+                Method(lhs) | AsyncMethod(lhs) | Static(lhs) | AsyncStatic(lhs),
+                Method(rhs) | AsyncMethod(rhs) | Static(rhs) | AsyncStatic(rhs),
+            ) => lhs.cmp(rhs),
+            (Interface(lhs), Interface(rhs)) => lhs.cmp(rhs),
+            (Dependency(lhs), Dependency(rhs)) => lhs.cmp(rhs),
+            (Url(lhs), Url(rhs)) => lhs.cmp(rhs),
+            (Hash(lhs), Hash(rhs)) => lhs.cmp(rhs),
+
+            (Label(_), _)
+            | (AsyncLabel(_), _)
+            | (Constructor(_), _)
+            | (Method(_), _)
+            | (Static(_), _)
+            | (AsyncMethod(_), _)
+            | (AsyncStatic(_), _)
+            | (Interface(_), _)
+            | (Dependency(_), _)
+            | (Url(_), _)
+            | (Hash(_), _) => panic!("already compared for different kinds above"),
         }
     }
 }
