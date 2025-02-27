@@ -692,9 +692,15 @@ package {name} is defined in two different locations:\n\
         let mut moved_worlds = Vec::new();
         for (id, mut world) in worlds {
             let new_id = match world_map.get(&id).copied() {
-                Some(id) => {
-                    update_stability(&world.stability, &mut self.worlds[id].stability)?;
-                    id
+                Some(world_id) => {
+                    update_stability(&world.stability, &mut self.worlds[world_id].stability)?;
+                    for import in world.imports.iter() {
+                        self.update_world_item_stability(&interface_map, world_id, import)?;
+                    }
+                    for export in world.exports.iter() {
+                        self.update_world_item_stability(&interface_map, world_id, export)?;
+                    }
+                    world_id
                 }
                 None => {
                     log::debug!("moving world {}", world.name);
@@ -798,6 +804,42 @@ package {name} is defined in two different locations:\n\
         Ok(remap)
     }
 
+    fn update_world_item_stability(&mut self, interface_map: &HashMap<Id<Interface>, Id<Interface>>, id: Id<World>, import: (&WorldKey, &WorldItem)) -> Result<()> {
+        match import.0 {
+            WorldKey::Name(_) => {
+                // do we need to update stability here?
+                Ok(())
+            }
+            key @ WorldKey::Interface(_) => {
+                let new_key = MergeMap::map_name(key, interface_map);
+                if let Some(into) = self.worlds[id].exports.get_mut(&new_key)
+                {
+                    match (import.1, into) {
+                        (
+                            WorldItem::Interface {
+                                id: aid,
+                                stability: astability,
+                            },
+                            WorldItem::Interface {
+                                id: bid,
+                                stability: bstability,
+                            },
+                        ) => {
+                            let aid = interface_map.get(aid).copied().unwrap_or(*aid);
+                            assert_eq!(aid, *bid);
+                            update_stability(astability, bstability)?;
+                            Ok(())
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+                else {
+                    unreachable!()
+                }
+            }
+        }
+    }
+    
     /// Merges the world `from` into the world `into`.
     ///
     /// This will attempt to merge one world into another, unioning all of its
@@ -3739,7 +3781,7 @@ impl<'a> MergeMap<'a> {
         }
 
         for (from_name, from) in from_world.imports.iter() {
-            let into_name = self.map_name(from_name);
+            let into_name = MergeMap::map_name(from_name, &self.interface_map);
             let name_str = self.from.name_world_key(from_name);
             let into = into_world
                 .imports
@@ -3750,7 +3792,7 @@ impl<'a> MergeMap<'a> {
         }
 
         for (from_name, from) in from_world.exports.iter() {
-            let into_name = self.map_name(from_name);
+            let into_name = MergeMap::map_name(from_name, &self.interface_map);
             let name_str = self.from.name_world_key(from_name);
             let into = into_world
                 .exports
@@ -3763,11 +3805,11 @@ impl<'a> MergeMap<'a> {
         Ok(())
     }
 
-    fn map_name(&self, from_name: &WorldKey) -> WorldKey {
+    fn map_name(from_name: &WorldKey, interface_map: &HashMap<InterfaceId, InterfaceId>) -> WorldKey {
         match from_name {
             WorldKey::Name(s) => WorldKey::Name(s.clone()),
             WorldKey::Interface(id) => {
-                WorldKey::Interface(self.interface_map.get(id).copied().unwrap_or(*id))
+                WorldKey::Interface(interface_map.get(id).copied().unwrap_or(*id))
             }
         }
     }
