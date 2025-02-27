@@ -991,8 +991,8 @@ impl<'a> EncodingState<'a> {
 
         fn import_func_name(f: &Function) -> String {
             match f.kind {
-                FunctionKind::Freestanding => {
-                    format!("import-func-{}", f.name)
+                FunctionKind::Freestanding | FunctionKind::AsyncFreestanding => {
+                    format!("import-func-{}", f.item_name())
                 }
 
                 // transform `[method]foo.bar` into `import-method-foo-bar` to
@@ -1003,11 +1003,13 @@ impl<'a> EncodingState<'a> {
                 // but quick-and-dirty string manipulation should work well
                 // enough for now hopefully.
                 FunctionKind::Method(_)
+                | FunctionKind::AsyncMethod(_)
                 | FunctionKind::Static(_)
+                | FunctionKind::AsyncStatic(_)
                 | FunctionKind::Constructor(_) => {
                     format!(
                         "import-{}",
-                        f.name.replace('[', "").replace([']', '.'], "-")
+                        f.name.replace('[', "").replace([']', '.', ' '], "-")
                     )
                 }
             }

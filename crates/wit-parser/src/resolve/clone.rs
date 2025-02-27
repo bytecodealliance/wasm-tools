@@ -154,11 +154,8 @@ impl<'a> Cloner<'a> {
     }
 
     fn function(&mut self, func: &mut Function) {
-        match &mut func.kind {
-            FunctionKind::Freestanding => {}
-            FunctionKind::Method(id) | FunctionKind::Static(id) | FunctionKind::Constructor(id) => {
-                self.type_id(id)
-            }
+        if let Some(id) = func.kind.resource_mut() {
+            self.type_id(id);
         }
         for (_, ty) in func.params.iter_mut() {
             self.ty(ty);

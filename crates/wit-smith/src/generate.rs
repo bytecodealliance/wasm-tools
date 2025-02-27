@@ -871,6 +871,9 @@ impl<'a> InterfaceGenerator<'a> {
         dst: &mut String,
         method: bool,
     ) -> Result<()> {
+        if u.arbitrary()? {
+            dst.push_str("async ");
+        }
         dst.push_str("func");
         self.gen_params(u, dst, method)?;
         if u.arbitrary()? {

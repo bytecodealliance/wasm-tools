@@ -393,21 +393,24 @@ impl<'a> Converter<'a> {
         // constructors can't return anything
         let mut with_returns = true;
         let mut method = match func.kind {
-            wit_parser::FunctionKind::Freestanding => return None,
-            wit_parser::FunctionKind::Method(id) => {
+            wit_parser::FunctionKind::Freestanding
+            | wit_parser::FunctionKind::AsyncFreestanding => return None,
+            wit_parser::FunctionKind::Method(id) | wit_parser::FunctionKind::AsyncMethod(id) => {
                 if id != resource_id {
                     return None;
                 }
                 skip_first_param = true;
                 let name = clean_func_name(resource_name, &func.name);
-                ResourceFunc::method(name)
+                let async_ = matches!(func.kind, wit_parser::FunctionKind::AsyncMethod(_));
+                ResourceFunc::method(name, async_)
             }
-            wit_parser::FunctionKind::Static(id) => {
+            wit_parser::FunctionKind::Static(id) | wit_parser::FunctionKind::AsyncStatic(id) => {
                 if id != resource_id {
                     return None;
                 }
                 let name = clean_func_name(resource_name, &func.name);
-                ResourceFunc::static_(name)
+                let async_ = matches!(func.kind, wit_parser::FunctionKind::AsyncStatic(_));
+                ResourceFunc::static_(name, async_)
             }
             wit_parser::FunctionKind::Constructor(id) => {
                 if id != resource_id {
@@ -433,10 +436,14 @@ impl<'a> Converter<'a> {
     fn standalone_func_convert(&self, func: &wit_parser::Function) -> Option<StandaloneFunc> {
         match func.kind {
             wit_parser::FunctionKind::Method(_)
+            | wit_parser::FunctionKind::AsyncMethod(_)
             | wit_parser::FunctionKind::Static(_)
+            | wit_parser::FunctionKind::AsyncStatic(_)
             | wit_parser::FunctionKind::Constructor(_) => None,
-            wit_parser::FunctionKind::Freestanding => {
-                let mut output = StandaloneFunc::new(func.name.clone());
+            wit_parser::FunctionKind::Freestanding
+            | wit_parser::FunctionKind::AsyncFreestanding => {
+                let async_ = matches!(func.kind, wit_parser::FunctionKind::AsyncFreestanding);
+                let mut output = StandaloneFunc::new(func.name.clone(), async_);
 
                 output.set_params(self.convert_params(&func.params));
                 output.set_result(func.result.map(|ty| self.convert_type(&ty)));
