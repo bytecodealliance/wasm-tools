@@ -250,10 +250,10 @@ impl Config {
         self
     }
 
-    /// Prints a WebAssembly binary into a `String`
+    /// Print a WebAssembly binary.
     ///
-    /// This function takes an entire `wasm` binary blob and will print it to
-    /// the WebAssembly Text Format and return the result as a `String`.
+    /// This function takes an entire `wasm` binary blob and prints it to the
+    /// `result` in the WebAssembly Text Format.
     pub fn print(&self, wasm: &[u8], result: &mut impl Print) -> Result<()> {
         Printer {
             config: self,
