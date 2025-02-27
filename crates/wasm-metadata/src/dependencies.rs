@@ -36,7 +36,8 @@ impl Dependencies {
         })
     }
 
-    fn new(dependency_tree: auditable_serde::VersionInfo) -> Self {
+    /// Create a new instance of `Dependencies`.
+    pub fn new(dependency_tree: auditable_serde::VersionInfo) -> Self {
         let data = serde_json::to_string(&dependency_tree).unwrap();
 
         let mut ret_vec = Vec::new();
@@ -50,6 +51,10 @@ impl Dependencies {
                 data: ret_vec.into(),
             },
         }
+    }
+
+    pub fn version_info(&self) -> &VersionInfo {
+        &self.version_info
     }
 }
 
