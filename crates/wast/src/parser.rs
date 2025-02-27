@@ -1388,7 +1388,7 @@ impl<'a> Cursor<'a> {
     }
 }
 
-impl Lookahead1<'_> {
+impl<'a> Lookahead1<'a> {
     /// Attempts to see if `T` is the next token in the [`Parser`] this
     /// [`Lookahead1`] references.
     ///
@@ -1400,6 +1400,11 @@ impl Lookahead1<'_> {
             self.attempts.push(T::display());
             false
         })
+    }
+
+    /// Returns the underlying parser that this lookahead is looking at.
+    pub fn parser(&self) -> Parser<'a> {
+        self.parser
     }
 
     /// Generates an error message saying that one of the tokens passed to

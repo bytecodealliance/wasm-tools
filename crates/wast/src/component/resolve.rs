@@ -370,94 +370,99 @@ impl<'a> Resolver<'a> {
                 self.core_item_ref(&mut info.func)?;
                 self.canon_opts(&mut info.opts)?;
             }
-            CanonicalFuncKind::Lower(info) => {
-                self.component_item_ref(&mut info.func)?;
-                self.canon_opts(&mut info.opts)?;
-            }
-            CanonicalFuncKind::ResourceNew(info) => {
-                self.resolve_ns(&mut info.ty, Ns::Type)?;
-            }
-            CanonicalFuncKind::ResourceRep(info) => {
-                self.resolve_ns(&mut info.ty, Ns::Type)?;
-            }
-            CanonicalFuncKind::ResourceDrop(info) => {
-                self.resolve_ns(&mut info.ty, Ns::Type)?;
-            }
-            CanonicalFuncKind::ThreadSpawn(info) => {
-                self.resolve_ns(&mut info.ty, Ns::CoreType)?;
-            }
-            CanonicalFuncKind::ThreadAvailableParallelism(_)
-            | CanonicalFuncKind::BackpressureSet
-            | CanonicalFuncKind::Yield(_)
-            | CanonicalFuncKind::SubtaskDrop
-            | CanonicalFuncKind::ErrorContextDrop => {}
-            CanonicalFuncKind::TaskReturn(info) => {
-                if let Some(ty) = &mut info.result {
-                    self.component_val_type(ty)?;
+            CanonicalFuncKind::Core(core) => match core {
+                CoreFuncKind::Alias(_) => {
+                    panic!("should have been removed during expansion")
                 }
-                self.canon_opts(&mut info.opts)?;
-            }
-            CanonicalFuncKind::StreamNew(info) => {
-                self.resolve_ns(&mut info.ty, Ns::Type)?;
-            }
-            CanonicalFuncKind::StreamRead(info) => {
-                self.resolve_ns(&mut info.ty, Ns::Type)?;
-                self.canon_opts(&mut info.opts)?;
-            }
-            CanonicalFuncKind::StreamWrite(info) => {
-                self.resolve_ns(&mut info.ty, Ns::Type)?;
-                self.canon_opts(&mut info.opts)?;
-            }
-            CanonicalFuncKind::StreamCancelRead(info) => {
-                self.resolve_ns(&mut info.ty, Ns::Type)?;
-            }
-            CanonicalFuncKind::StreamCancelWrite(info) => {
-                self.resolve_ns(&mut info.ty, Ns::Type)?;
-            }
-            CanonicalFuncKind::StreamCloseReadable(info) => {
-                self.resolve_ns(&mut info.ty, Ns::Type)?;
-            }
-            CanonicalFuncKind::StreamCloseWritable(info) => {
-                self.resolve_ns(&mut info.ty, Ns::Type)?;
-            }
-            CanonicalFuncKind::FutureNew(info) => {
-                self.resolve_ns(&mut info.ty, Ns::Type)?;
-            }
-            CanonicalFuncKind::FutureRead(info) => {
-                self.resolve_ns(&mut info.ty, Ns::Type)?;
-                self.canon_opts(&mut info.opts)?;
-            }
-            CanonicalFuncKind::FutureWrite(info) => {
-                self.resolve_ns(&mut info.ty, Ns::Type)?;
-                self.canon_opts(&mut info.opts)?;
-            }
-            CanonicalFuncKind::FutureCancelRead(info) => {
-                self.resolve_ns(&mut info.ty, Ns::Type)?;
-            }
-            CanonicalFuncKind::FutureCancelWrite(info) => {
-                self.resolve_ns(&mut info.ty, Ns::Type)?;
-            }
-            CanonicalFuncKind::FutureCloseReadable(info) => {
-                self.resolve_ns(&mut info.ty, Ns::Type)?;
-            }
-            CanonicalFuncKind::FutureCloseWritable(info) => {
-                self.resolve_ns(&mut info.ty, Ns::Type)?;
-            }
-            CanonicalFuncKind::ErrorContextNew(info) => {
-                self.canon_opts(&mut info.opts)?;
-            }
-            CanonicalFuncKind::ErrorContextDebugMessage(info) => {
-                self.canon_opts(&mut info.opts)?;
-            }
-            CanonicalFuncKind::WaitableSetNew => {}
-            CanonicalFuncKind::WaitableSetWait(info) => {
-                self.core_item_ref(&mut info.memory)?;
-            }
-            CanonicalFuncKind::WaitableSetPoll(info) => {
-                self.core_item_ref(&mut info.memory)?;
-            }
-            CanonicalFuncKind::WaitableSetDrop => {}
-            CanonicalFuncKind::WaitableJoin => {}
+                CoreFuncKind::Lower(info) => {
+                    self.component_item_ref(&mut info.func)?;
+                    self.canon_opts(&mut info.opts)?;
+                }
+                CoreFuncKind::ResourceNew(info) => {
+                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                }
+                CoreFuncKind::ResourceRep(info) => {
+                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                }
+                CoreFuncKind::ResourceDrop(info) => {
+                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                }
+                CoreFuncKind::ThreadSpawn(info) => {
+                    self.resolve_ns(&mut info.ty, Ns::CoreType)?;
+                }
+                CoreFuncKind::ThreadAvailableParallelism(_)
+                | CoreFuncKind::BackpressureSet
+                | CoreFuncKind::Yield(_)
+                | CoreFuncKind::SubtaskDrop
+                | CoreFuncKind::ErrorContextDrop => {}
+                CoreFuncKind::TaskReturn(info) => {
+                    if let Some(ty) = &mut info.result {
+                        self.component_val_type(ty)?;
+                    }
+                    self.canon_opts(&mut info.opts)?;
+                }
+                CoreFuncKind::StreamNew(info) => {
+                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                }
+                CoreFuncKind::StreamRead(info) => {
+                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                    self.canon_opts(&mut info.opts)?;
+                }
+                CoreFuncKind::StreamWrite(info) => {
+                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                    self.canon_opts(&mut info.opts)?;
+                }
+                CoreFuncKind::StreamCancelRead(info) => {
+                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                }
+                CoreFuncKind::StreamCancelWrite(info) => {
+                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                }
+                CoreFuncKind::StreamCloseReadable(info) => {
+                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                }
+                CoreFuncKind::StreamCloseWritable(info) => {
+                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                }
+                CoreFuncKind::FutureNew(info) => {
+                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                }
+                CoreFuncKind::FutureRead(info) => {
+                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                    self.canon_opts(&mut info.opts)?;
+                }
+                CoreFuncKind::FutureWrite(info) => {
+                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                    self.canon_opts(&mut info.opts)?;
+                }
+                CoreFuncKind::FutureCancelRead(info) => {
+                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                }
+                CoreFuncKind::FutureCancelWrite(info) => {
+                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                }
+                CoreFuncKind::FutureCloseReadable(info) => {
+                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                }
+                CoreFuncKind::FutureCloseWritable(info) => {
+                    self.resolve_ns(&mut info.ty, Ns::Type)?;
+                }
+                CoreFuncKind::ErrorContextNew(info) => {
+                    self.canon_opts(&mut info.opts)?;
+                }
+                CoreFuncKind::ErrorContextDebugMessage(info) => {
+                    self.canon_opts(&mut info.opts)?;
+                }
+                CoreFuncKind::WaitableSetNew => {}
+                CoreFuncKind::WaitableSetWait(info) => {
+                    self.core_item_ref(&mut info.memory)?;
+                }
+                CoreFuncKind::WaitableSetPoll(info) => {
+                    self.core_item_ref(&mut info.memory)?;
+                }
+                CoreFuncKind::WaitableSetDrop => {}
+                CoreFuncKind::WaitableJoin => {}
+            },
         }
 
         Ok(())
@@ -963,38 +968,7 @@ impl<'a> ComponentState<'a> {
             ComponentField::Type(t) => self.types.register(t.id, "type")?,
             ComponentField::CanonicalFunc(f) => match &f.kind {
                 CanonicalFuncKind::Lift { .. } => self.funcs.register(f.id, "func")?,
-                CanonicalFuncKind::Lower(_)
-                | CanonicalFuncKind::ResourceNew(_)
-                | CanonicalFuncKind::ResourceRep(_)
-                | CanonicalFuncKind::ResourceDrop(_)
-                | CanonicalFuncKind::ThreadSpawn(_)
-                | CanonicalFuncKind::ThreadAvailableParallelism(_)
-                | CanonicalFuncKind::BackpressureSet
-                | CanonicalFuncKind::TaskReturn(_)
-                | CanonicalFuncKind::Yield(_)
-                | CanonicalFuncKind::SubtaskDrop
-                | CanonicalFuncKind::StreamNew(_)
-                | CanonicalFuncKind::StreamRead(_)
-                | CanonicalFuncKind::StreamWrite(_)
-                | CanonicalFuncKind::StreamCancelRead(_)
-                | CanonicalFuncKind::StreamCancelWrite(_)
-                | CanonicalFuncKind::StreamCloseReadable(_)
-                | CanonicalFuncKind::StreamCloseWritable(_)
-                | CanonicalFuncKind::FutureNew(_)
-                | CanonicalFuncKind::FutureRead(_)
-                | CanonicalFuncKind::FutureWrite(_)
-                | CanonicalFuncKind::FutureCancelRead(_)
-                | CanonicalFuncKind::FutureCancelWrite(_)
-                | CanonicalFuncKind::FutureCloseReadable(_)
-                | CanonicalFuncKind::FutureCloseWritable(_)
-                | CanonicalFuncKind::ErrorContextNew(_)
-                | CanonicalFuncKind::ErrorContextDebugMessage(_)
-                | CanonicalFuncKind::ErrorContextDrop
-                | CanonicalFuncKind::WaitableSetNew
-                | CanonicalFuncKind::WaitableSetWait(_)
-                | CanonicalFuncKind::WaitableSetPoll(_)
-                | CanonicalFuncKind::WaitableSetDrop
-                | CanonicalFuncKind::WaitableJoin => self.core_funcs.register(f.id, "core func")?,
+                CanonicalFuncKind::Core(_) => self.core_funcs.register(f.id, "core func")?,
             },
             ComponentField::CoreFunc(_) | ComponentField::Func(_) => {
                 unreachable!("should be expanded already")

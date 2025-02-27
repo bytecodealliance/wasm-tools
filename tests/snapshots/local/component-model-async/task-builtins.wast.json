@@ -137,6 +137,12 @@
       "filename": "task-builtins.20.wasm",
       "module_type": "binary",
       "text": "type mismatch for export `subtask.drop` of module instantiation argument ``"
+    },
+    {
+      "type": "module",
+      "line": 207,
+      "filename": "task-builtins.21.wasm",
+      "module_type": "binary"
     }
   ]
 }
