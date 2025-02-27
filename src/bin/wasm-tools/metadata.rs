@@ -113,6 +113,8 @@ fn write_table(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result<()> {
     } = payload.metadata();
 
     // Add the basic information to the table first
+    let name = name.as_deref().unwrap_or("<unknown>");
+    table.add_row(vec!["name", &name]);
     let kind = match payload {
         Payload::Component { .. } => "component",
         Payload::Module(_) => "module",
@@ -122,8 +124,6 @@ fn write_table(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result<()> {
         "range",
         &format!("0x{:x}..0x{:x}", range.start, range.end),
     ]);
-    let name = name.as_deref().unwrap_or("<unknown>");
-    table.add_row(vec!["name", &name]);
 
     // Add the OCI annotations to the table
     if let Some(description) = description {
@@ -173,6 +173,18 @@ fn write_table(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result<()> {
                     _ => table.add_row(vec![name, &format!("{field} [{version}]")]),
                 };
             }
+        }
+    }
+
+    // Add child relationships to the table
+    if let Payload::Component { children, .. } = &payload {
+        for payload in children {
+            let name = payload.metadata().name.as_deref().unwrap_or("<unknown>");
+            let kind = match payload {
+                Payload::Component { .. } => "component",
+                Payload::Module(_) => "module",
+            };
+            table.add_row(vec!["child", &format!("{name} [{kind}]")]);
         }
     }
 
