@@ -1,8 +1,9 @@
 use crate::{
-    rewrite_wasm, Authors, Description, Homepage, Licenses, Producers, Revision, Source, Version,
+    rewrite_wasm, Authors, Dependencies, Description, Homepage, Licenses, Producers, Revision, Source, Version
 };
 
 use anyhow::Result;
+use auditable_serde::{Package, VersionInfo};
 
 /// Add metadata (module name, producers) to a WebAssembly file.
 ///

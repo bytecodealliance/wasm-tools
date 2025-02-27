@@ -1,12 +1,12 @@
-use std::ops::Range;
+use std::{fs::read, ops::Range};
 
 use anyhow::Result;
 use serde_derive::Serialize;
 use wasmparser::{KnownCustom, Parser, Payload::*};
 
 use crate::{
-    Authors, ComponentNames, Description, Homepage, Licenses, Metadata, ModuleNames, Producers,
-    Revision, Source,
+    Authors, ComponentNames, Dependencies, Description, Homepage, Licenses, Metadata, ModuleNames,
+    Producers, Revision, Source,
 };
 
 /// Data representing either a Wasm Component or module
@@ -150,6 +150,14 @@ impl Payload {
                             .expect("non-empty metadata stack")
                             .metadata_mut();
                         *version = Some(a);
+                    }
+                    KnownCustom::Unknown if c.name() == ".dep-v0" => {
+                        let a = crate::Dependencies::parse_custom_section(&c)?;
+                        let Metadata { dependencies, .. } = output
+                            .last_mut()
+                            .expect("non-empty metadata stack")
+                            .metadata_mut();
+                        *dependencies = Some(a);
                     }
                     _ => {}
                 },

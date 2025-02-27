@@ -29,6 +29,6 @@ pub struct Metadata {
     pub version: Option<Version>,
     /// Byte range of the module in the parent binary
     pub range: Range<usize>,
-    // Dependencies of the component
+    /// Dependencies of the component
     pub dependencies: Option<Dependencies>,
 }
