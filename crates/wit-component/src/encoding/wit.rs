@@ -87,7 +87,7 @@ pub fn encode_world(resolve: &Resolve, world_id: WorldId) -> Result<ComponentTyp
     let mut imports = world.imports.iter().collect::<Vec<_>>();
     imports.sort_by_key(|(_name, import)| match import {
         WorldItem::Function(f) => match f.kind {
-            FunctionKind::Freestanding => 0,
+            FunctionKind::Freestanding | FunctionKind::AsyncFreestanding => 0,
             _ => 1,
         },
         _ => 0,
@@ -297,11 +297,9 @@ impl InterfaceEncoder<'_> {
         // Note that this is not actually required for correctness, it's
         // basically here to make fuzzing happy.
         let mut funcs = iface.functions.iter().collect::<Vec<_>>();
-        funcs.sort_by_key(|(_name, func)| match func.kind {
-            FunctionKind::Freestanding => type_order.len(),
-            FunctionKind::Method(id) | FunctionKind::Constructor(id) | FunctionKind::Static(id) => {
-                type_order.get_index_of(&id).unwrap()
-            }
+        funcs.sort_by_key(|(_name, func)| match func.kind.resource() {
+            Some(id) => type_order.get_index_of(&id).unwrap(),
+            None => type_order.len(),
         });
 
         for (name, func) in funcs {
