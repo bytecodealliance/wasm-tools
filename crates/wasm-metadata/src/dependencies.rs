@@ -75,7 +75,8 @@ impl Display for Dependencies {
         // NOTE: this will never panic since we always guarantee the data is
         // encoded as utf8, even if we internally store it as [u8].
         // let data = String::from_utf8(self.0.data.to_vec()).unwrap();
-        write!(f, "")
+        let data = serde_json::to_string(&self.version_info).unwrap();
+        write!(f, "{}", data)
     }
 }
 
@@ -107,11 +108,7 @@ mod test {
 
     #[test]
     fn roundtrip() {
-        let json_str = r#"{"packages":[{
-        "name":"adler",
-        "version":"0.2.3",
-        "source":"registry"
-        }]}"#;
+        let json_str = r#"{"packages":[{"name":"adler","version":"0.2.3","source":"registry"}]}"#;
         let info = VersionInfo::from_str(json_str).unwrap();
         assert_eq!(&info.packages[0].name, "adler");
         let mut component = Component::new();
