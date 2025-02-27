@@ -3414,7 +3414,7 @@ impl Remap {
                         },
                     ) => {
                         assert_eq!(*aid, *bid);
-                        update_stability(astability, bstability)?;
+                        merge_stability(astability, bstability)?;
                     }
                     (WorldItem::Interface { .. }, _) => unreachable!(),
                     (WorldItem::Function(_), _) => unreachable!(),
@@ -3833,7 +3833,28 @@ fn update_stability(from: &Stability, into: &mut Stability) -> Result<()> {
 
     // Failing all that this means that the two attributes are different so
     // generate an error.
-    bail!("mismatch in stability attributes")
+    bail!("mismatch in stability from '{:?}' to '{:?}'", from, into)
+}
+
+/// Compares the two attributes and if the `from` is more stable than the `into` then
+/// it will elevate the `into` to the same stability.  
+/// This should be used after its already been confirmed that the types are the same and
+/// should be apart of the component because versions/features are enabled.
+fn merge_stability(from: &Stability, into: &mut Stability) -> Result<()> {
+    // If the two stability annotations are equal then
+    // there's nothing to do here.
+    if from == into {
+        return Ok(());
+    }
+
+    // if the from is more stable elevate stability of into
+    if from > into {
+        *into = from.clone();
+        return Ok(());
+    }
+
+    // otherwise `into`` already has higher stability
+    return Ok(());
 }
 
 /// An error that can be returned during "world elaboration" during various
