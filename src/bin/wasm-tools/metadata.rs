@@ -54,7 +54,8 @@ impl ShowOpts {
         if self.json {
             write!(output, "{}", serde_json::to_string(&payload)?)?;
         } else {
-            write_table(&payload, &mut output)?;
+            write_summary_table(&payload, &mut output)?;
+            write_details_table(&payload, &mut output)?;
         }
         Ok(())
     }
@@ -89,8 +90,72 @@ impl AddOpts {
     }
 }
 
-/// Write a table containing a wasm binary's metadata to a writer
-fn write_table(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result<()> {
+/// Write a table containing a summarized overview of a wasm binary's metadata to
+/// a writer.
+fn write_summary_table(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result<()> {
+    // Prepare a table and get the individual metadata
+    let mut table = Table::new();
+    table
+        .load_preset(UTF8_FULL)
+        .apply_modifier(UTF8_ROUND_CORNERS)
+        .set_content_arrangement(ContentArrangement::Dynamic)
+        .set_width(80)
+        .set_header(vec!["KIND", "NAME", "SIZE", "LANGUAGE", "PARENT"]);
+
+    fn inner(
+        payload: &Payload,
+        parent: &str,
+        f: &mut Box<dyn WriteColor>,
+        table: &mut Table,
+    ) -> Result<()> {
+        let Metadata {
+            name,
+            range,
+            producers,
+            ..
+        } = payload.metadata();
+        let name = name.as_deref().unwrap_or("<unknown>");
+        let size = (range.end - range.start).to_string();
+        let kind = match payload {
+            Payload::Component { .. } => "component",
+            Payload::Module(_) => "module",
+        };
+        let languages = match producers {
+            Some(producers) => match producers.iter().find(|(name, _)| *name == "language") {
+                Some((_, pairs)) => pairs
+                    .iter()
+                    .map(|(lang, _)| lang.to_owned())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                None => "<unknown>".to_string(),
+            },
+            None => "<unknown>".to_string(),
+        };
+
+        table.add_row(vec![&kind, &name, &*size, &languages, &parent]);
+
+        // Recursively print any children
+        if let Payload::Component { children, .. } = payload {
+            for payload in children {
+                inner(payload, &name, f, table)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    // Recursively add all children to the table
+    inner(&payload, "<root>", f, &mut table)?;
+
+    // Write the table to the writer
+    writeln!(f, "{table}")?;
+
+    Ok(())
+}
+
+/// Write a table containing a detailed overview of a wasm binary's metadata to
+/// a writer.
+fn write_details_table(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result<()> {
     // Prepare a table and get the individual metadata
     let mut table = Table::new();
     table
@@ -194,7 +259,7 @@ fn write_table(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result<()> {
     // Recursively print any children
     if let Payload::Component { children, .. } = payload {
         for payload in children {
-            write_table(payload, f)?;
+            write_details_table(payload, f)?;
         }
     }
 
