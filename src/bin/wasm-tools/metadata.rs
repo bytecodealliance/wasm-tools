@@ -101,7 +101,7 @@ fn write_summary_table(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result
         .apply_modifier(UTF8_ROUND_CORNERS)
         .set_content_arrangement(ContentArrangement::Dynamic)
         .set_width(80)
-        .set_header(vec!["KIND", "NAME", "SIZE", "SIZE%", "LANGUAGE", "PARENT"]);
+        .set_header(vec!["KIND", "NAME", "SIZE", "SIZE%", "LANGUAGES", "PARENT"]);
 
     table
         .column_mut(2)
@@ -115,12 +115,13 @@ fn write_summary_table(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result
 
     // Get the max value of the `range` field. This is the upper memory bound.
     fn find_range_max(max: &mut usize, payload: &Payload) {
+        let range = &payload.metadata().range;
+        if range.end > *max {
+            *max = range.end;
+        }
+
         if let Payload::Component { children, .. } = payload {
             for child in children {
-                let range = &child.metadata().range;
-                if range.end > *max {
-                    *max = range.end;
-                }
                 find_range_max(max, child);
             }
         }
