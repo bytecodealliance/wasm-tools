@@ -168,13 +168,13 @@ fn write_summary_table_inner(
         .si_short()
         .to_string();
 
-    let usep = match ((range.end - range.start) as f64 / range_max as f64 * 100.0).round() {
+    let usep = match ((range.end - range.start) as f64 / range_max as f64 * 100.0).round() as u8 {
         // If the item was truly empty, it wouldn't be part of the binary
-        0.0..=1.0 => "<1%".to_string(),
+        0..=1 => "<1%".to_string(),
         // We're hedging against the low-ends, this hedges against the high-ends.
         // Makes sure we don't see a mix of <1% and 100% in the same table, unless
         // the item is actually 100% of the binary.
-        100.0 if range.end != range_max => ">99%".to_string(),
+        100 if range.end != range_max => ">99%".to_string(),
         usep => format!("{}%", usep),
     };
     let kind = match payload {
