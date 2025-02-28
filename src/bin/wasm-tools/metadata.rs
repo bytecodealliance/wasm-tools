@@ -1,9 +1,10 @@
+use bytesize::ByteSize;
 use std::io::Write;
 
 use anyhow::Result;
 use comfy_table::modifiers::UTF8_ROUND_CORNERS;
 use comfy_table::presets::UTF8_FULL;
-use comfy_table::{ContentArrangement, Table};
+use comfy_table::{CellAlignment, ContentArrangement, Table};
 use termcolor::WriteColor;
 use wasm_metadata::{Metadata, Payload};
 
@@ -100,63 +101,105 @@ fn write_summary_table(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result
         .apply_modifier(UTF8_ROUND_CORNERS)
         .set_content_arrangement(ContentArrangement::Dynamic)
         .set_width(80)
-        .set_header(vec!["KIND", "NAME", "SIZE", "LANGUAGE", "PARENT"]);
+        .set_header(vec!["KIND", "NAME", "SIZE", "SIZE%", "LANGUAGE", "PARENT"]);
 
-    fn inner(
-        payload: &Payload,
-        parent: &str,
-        unknown_id: &mut u16,
-        f: &mut Box<dyn WriteColor>,
-        table: &mut Table,
-    ) -> Result<()> {
-        let Metadata {
-            name,
-            range,
-            producers,
-            ..
-        } = payload.metadata();
-        let name = match name.as_deref() {
-            Some(name) => name.to_owned(),
-            None => {
-                let name = format!("unknown({unknown_id})");
-                *unknown_id += 1;
-                name
-            }
-        };
-        let size = (range.end - range.start).to_string();
-        let kind = match payload {
-            Payload::Component { .. } => "component",
-            Payload::Module(_) => "module",
-        };
-        let languages = match producers {
-            Some(producers) => match producers.iter().find(|(name, _)| *name == "language") {
-                Some((_, pairs)) => pairs
-                    .iter()
-                    .map(|(lang, _)| lang.to_owned())
-                    .collect::<Vec<_>>()
-                    .join(", "),
-                None => "-".to_string(),
-            },
-            None => "-".to_string(),
-        };
+    table
+        .column_mut(2)
+        .expect("This should be the SIZE column")
+        .set_cell_alignment(CellAlignment::Right);
 
-        table.add_row(vec![&kind, &*name, &*size, &languages, &parent]);
+    table
+        .column_mut(3)
+        .expect("This should be the SIZE% column")
+        .set_cell_alignment(CellAlignment::Right);
 
-        // Recursively print any children
+    // Get the max value of the `range` field. This is the upper memory bound.
+    fn find_range_max(max: &mut usize, payload: &Payload) {
         if let Payload::Component { children, .. } = payload {
-            for payload in children {
-                inner(payload, &name, unknown_id, f, table)?;
+            for child in children {
+                let range = &child.metadata().range;
+                if range.end > *max {
+                    *max = range.end;
+                }
+                find_range_max(max, child);
             }
         }
-
-        Ok(())
     }
 
+    let mut range_max = 0;
+    find_range_max(&mut range_max, payload);
+
     // Recursively add all children to the table
-    inner(&payload, "<root>", &mut 0, f, &mut table)?;
+    write_summary_table_inner(&payload, "<root>", &mut 0, range_max, f, &mut table)?;
 
     // Write the table to the writer
     writeln!(f, "{table}")?;
+
+    Ok(())
+}
+
+// The recursing inner function of `write_summary_table`
+fn write_summary_table_inner(
+    payload: &Payload,
+    parent: &str,
+    unknown_id: &mut u16,
+    range_max: usize,
+    f: &mut Box<dyn WriteColor>,
+    table: &mut Table,
+) -> Result<()> {
+    let Metadata {
+        name,
+        range,
+        producers,
+        ..
+    } = payload.metadata();
+
+    let name = match name.as_deref() {
+        Some(name) => name.to_owned(),
+        None => {
+            let name = format!("unknown({unknown_id})");
+            *unknown_id += 1;
+            name
+        }
+    };
+    let size = ByteSize::b((range.end - range.start) as u64)
+        .display()
+        .si_short()
+        .to_string();
+
+    let usep = match ((range.end - range.start) as f64 / range_max as f64 * 100.0).round() {
+        // If the item was truly empty, it wouldn't be part of the binary
+        0.0..=1.0 => "<1%".to_string(),
+        // We're hedging against the low-ends, this hedges against the high-ends.
+        // Makes sure we don't see a mix of <1% and 100% in the same table, unless
+        // the item is actually 100% of the binary.
+        100.0 if range.end != range_max => ">99%".to_string(),
+        usep => format!("{}%", usep),
+    };
+    let kind = match payload {
+        Payload::Component { .. } => "component",
+        Payload::Module(_) => "module",
+    };
+    let languages = match producers {
+        Some(producers) => match producers.iter().find(|(name, _)| *name == "language") {
+            Some((_, pairs)) => pairs
+                .iter()
+                .map(|(lang, _)| lang.to_owned())
+                .collect::<Vec<_>>()
+                .join(", "),
+            None => "-".to_string(),
+        },
+        None => "-".to_string(),
+    };
+
+    table.add_row(vec![&kind, &*name, &*size, &usep, &languages, &parent]);
+
+    // Recursively print any children
+    if let Payload::Component { children, .. } = payload {
+        for payload in children {
+            write_summary_table_inner(payload, &name, unknown_id, range_max, f, table)?;
+        }
+    }
 
     Ok(())
 }
