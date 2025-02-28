@@ -694,11 +694,19 @@ package {name} is defined in two different locations:\n\
             let new_id = match world_map.get(&id).copied() {
                 Some(world_id) => {
                     update_stability(&world.stability, &mut self.worlds[world_id].stability)?;
-                    for import in world.imports.iter() {
-                        self.update_world_item_stability(&interface_map, world_id, import)?;
+                    for from_import in world.imports.iter() {
+                        Resolve::update_world_imports_stability(
+                            from_import,
+                            &mut self.worlds[world_id].imports,
+                            &interface_map,
+                        )?;
                     }
-                    for export in world.exports.iter() {
-                        self.update_world_item_stability(&interface_map, world_id, export)?;
+                    for from_export in world.exports.iter() {
+                        Resolve::update_world_imports_stability(
+                            from_export,
+                            &mut self.worlds[world_id].exports,
+                            &interface_map,
+                        )?;
                     }
                     world_id
                 }
@@ -804,17 +812,20 @@ package {name} is defined in two different locations:\n\
         Ok(remap)
     }
 
-    fn update_world_item_stability(&mut self, interface_map: &HashMap<Id<Interface>, Id<Interface>>, id: Id<World>, import: (&WorldKey, &WorldItem)) -> Result<()> {
-        match import.0 {
+    fn update_world_imports_stability(
+        from_item: (&WorldKey, &WorldItem),
+        into_items: &mut IndexMap<WorldKey, WorldItem>,
+        interface_map: &HashMap<Id<Interface>, Id<Interface>>,
+    ) -> Result<()> {
+        match from_item.0 {
             WorldKey::Name(_) => {
-                // do we need to update stability here?
+                // No stability info to update here, only updating import/include stability
                 Ok(())
             }
             key @ WorldKey::Interface(_) => {
                 let new_key = MergeMap::map_name(key, interface_map);
-                if let Some(into) = self.worlds[id].exports.get_mut(&new_key)
-                {
-                    match (import.1, into) {
+                if let Some(into) = into_items.get_mut(&new_key) {
+                    match (from_item.1, into) {
                         (
                             WorldItem::Interface {
                                 id: aid,
@@ -832,14 +843,15 @@ package {name} is defined in two different locations:\n\
                         }
                         _ => unreachable!(),
                     }
-                }
-                else {
+                } else {
+                    // we've already matched all the imports/exports by the time we are calling this
+                    // so this is unreachable since we should always find the item
                     unreachable!()
                 }
             }
         }
     }
-    
+
     /// Merges the world `from` into the world `into`.
     ///
     /// This will attempt to merge one world into another, unioning all of its
@@ -3805,7 +3817,10 @@ impl<'a> MergeMap<'a> {
         Ok(())
     }
 
-    fn map_name(from_name: &WorldKey, interface_map: &HashMap<InterfaceId, InterfaceId>) -> WorldKey {
+    fn map_name(
+        from_name: &WorldKey,
+        interface_map: &HashMap<InterfaceId, InterfaceId>,
+    ) -> WorldKey {
         match from_name {
             WorldKey::Name(s) => WorldKey::Name(s.clone()),
             WorldKey::Interface(id) => {
