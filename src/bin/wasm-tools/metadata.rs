@@ -105,6 +105,7 @@ fn write_summary_table(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result
     fn inner(
         payload: &Payload,
         parent: &str,
+        unknown_id: &mut u16,
         f: &mut Box<dyn WriteColor>,
         table: &mut Table,
     ) -> Result<()> {
@@ -114,7 +115,14 @@ fn write_summary_table(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result
             producers,
             ..
         } = payload.metadata();
-        let name = name.as_deref().unwrap_or("<unknown>");
+        let name = match name.as_deref() {
+            Some(name) => name.to_owned(),
+            None => {
+                let name = format!("unknown({unknown_id})");
+                *unknown_id += 1;
+                name
+            }
+        };
         let size = (range.end - range.start).to_string();
         let kind = match payload {
             Payload::Component { .. } => "component",
@@ -127,17 +135,17 @@ fn write_summary_table(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result
                     .map(|(lang, _)| lang.to_owned())
                     .collect::<Vec<_>>()
                     .join(", "),
-                None => "<unknown>".to_string(),
+                None => "-".to_string(),
             },
-            None => "<unknown>".to_string(),
+            None => "-".to_string(),
         };
 
-        table.add_row(vec![&kind, &name, &*size, &languages, &parent]);
+        table.add_row(vec![&kind, &*name, &*size, &languages, &parent]);
 
         // Recursively print any children
         if let Payload::Component { children, .. } = payload {
             for payload in children {
-                inner(payload, &name, f, table)?;
+                inner(payload, &name, unknown_id, f, table)?;
             }
         }
 
@@ -145,7 +153,7 @@ fn write_summary_table(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result
     }
 
     // Recursively add all children to the table
-    inner(&payload, "<root>", f, &mut table)?;
+    inner(&payload, "<root>", &mut 0, f, &mut table)?;
 
     // Write the table to the writer
     writeln!(f, "{table}")?;
