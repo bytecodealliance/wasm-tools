@@ -233,8 +233,11 @@ implemented in this repository as well. These libraries are:
   WebAssembly module
 * [**`wit-parser`**](crates/wit-parser) - a crate to parse and manage `*.wit`
   files and interfaces.
+* [**`wit-encoder`**](crates/wit-encoder) - a crate to generate `*.wit` files and
+  interfaces.
 * [**`wit-component`**](crates/wit-component) - a crate to create components
   from core wasm modules.
+* [**`wit-smith`**](crates/wit-smith) - a `*.wit` test case generator.
 * [**`wasm-metadata`**](crates/wasm-metadata) - a crate to read and manipulate
   WebAssembly metadata
 
