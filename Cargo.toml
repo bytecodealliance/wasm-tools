@@ -74,6 +74,7 @@ ahash = { version = "0.8.11", default-features = false }
 anyhow = "1.0.58"
 arbitrary = "1.1.0"
 bitflags = "2.5.0"
+bytesize = "2.0.0"
 clap = { version = "4.0.0", features = ["derive"] }
 clap_complete = "4.4.7"
 comfy-table = { version = "7.1.3", default-features = false }
@@ -168,6 +169,7 @@ wit-parser = { workspace = true, optional = true, features = ['decoding', 'wat',
 
 # Dependencies of `metadata`
 wasm-metadata = { workspace = true, features = ["clap"], optional = true }
+bytesize = { workspace = true }
 
 # Dependencies of `wit-smith`
 wit-smith = { workspace = true, features = ["clap"], optional = true }
