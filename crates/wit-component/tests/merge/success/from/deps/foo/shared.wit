@@ -33,6 +33,10 @@ world shared-world-with-versions {
   @since(version = 1.0.0)
   import shared-version-on-from;
   import shared-version-on-into;
+
+  @since(version = 1.0.0)
+  export shared-version-on-from;
+  export shared-version-on-into;
 }
 
 world shared-world-with-versions-and-include {
