@@ -1,6 +1,6 @@
 use std::{str::FromStr, vec};
 
-use auditable_serde::{Package, VersionInfo};
+use auditable_serde::VersionInfo;
 use wasm_encoder::{Component, Module};
 use wasm_metadata::*;
 
@@ -114,6 +114,12 @@ fn add_to_nested_component() {
         id: wasm_encoder::ComponentSectionId::CoreModule.into(),
         data: &module,
     });
+
+    // Add dependencies to component
+    let json_str = r#"{"packages":[{"name":"adler","version":"0.2.3","source":"registry"}]}"#;
+    let info = VersionInfo::from_str(json_str).unwrap();
+    component.section(&Dependencies::new(info.clone()));
+
     let component = component.finish();
 
     // Add some different metadata to the component.
@@ -127,9 +133,13 @@ fn add_to_nested_component() {
     match Payload::from_binary(&component).unwrap() {
         Payload::Component {
             children,
-            metadata: Metadata {
-                name, producers, ..
-            },
+            metadata:
+                Metadata {
+                    name,
+                    producers,
+                    dependencies,
+                    ..
+                },
         } => {
             // Check that the component metadata is in the component
             assert_eq!(name, Some("gussie".to_owned()));
@@ -138,6 +148,7 @@ fn add_to_nested_component() {
                 producers.get("sdk").unwrap().get("willa").unwrap(),
                 &"sparky".to_owned()
             );
+            assert_eq!(dependencies.unwrap().version_info(), &info);
             // Check that there is a single child with the metadata set for the module
             assert_eq!(children.len(), 1);
 
@@ -153,7 +164,7 @@ fn add_to_nested_component() {
                     homepage,
                     revision,
                     version,
-                    dependencies,
+                    ..
                 }) => {
                     assert_eq!(name, &Some("foo".to_owned()));
                     let producers = producers.as_ref().expect("some producers");
@@ -193,7 +204,7 @@ fn add_to_nested_component() {
                         &Some(Revision::new("de978e17a80c1118f606fce919ba9b7d5a04a5ad"))
                     );
                     assert_eq!(version, &Some(Version::new("1.0.0")));
-
+                    // assert_eq!(dependencies.unwrap().version_info(), &info);
                     assert_eq!(range.start, 11);
                     assert_eq!(range.end, 376);
                 }

@@ -1,5 +1,6 @@
 use crate::{
-    rewrite_wasm, Authors, Dependencies, Description, Homepage, Licenses, Producers, Revision, Source, Version
+    rewrite_wasm, Authors, Dependencies, Description, Homepage, Licenses, Producers, Revision,
+    Source, Version,
 };
 
 use anyhow::Result;

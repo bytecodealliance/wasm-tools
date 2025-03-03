@@ -18,6 +18,23 @@ pub struct Dependencies {
 }
 
 impl Dependencies {
+    /// Create a new instance of `Dependencies`.
+    pub fn new(dependency_tree: auditable_serde::VersionInfo) -> Self {
+        let data = serde_json::to_string(&dependency_tree).unwrap();
+
+        let mut ret_vec = Vec::new();
+        let mut encoder = ZlibEncoder::new(data.as_bytes(), Compression::fast());
+        encoder.read_to_end(&mut ret_vec).unwrap();
+
+        Self {
+            version_info: dependency_tree,
+            custom_section: CustomSection {
+                name: ".dep-v0".into(),
+                data: ret_vec.into(),
+            },
+        }
+    }
+
     /// Parse an `description` custom section from a wasm binary.
     pub(crate) fn parse_custom_section(reader: &CustomSectionReader<'_>) -> Result<Self> {
         ensure!(
@@ -36,35 +53,11 @@ impl Dependencies {
         })
     }
 
-    /// Create a new instance of `Dependencies`.
-    pub fn new(dependency_tree: auditable_serde::VersionInfo) -> Self {
-        let data = serde_json::to_string(&dependency_tree).unwrap();
-
-        let mut ret_vec = Vec::new();
-        let mut encoder = ZlibEncoder::new(data.as_bytes(), Compression::fast());
-        encoder.read_to_end(&mut ret_vec).unwrap();
-
-        Self {
-            version_info: dependency_tree,
-            custom_section: CustomSection {
-                name: ".dep-v0".into(),
-                data: ret_vec.into(),
-            },
-        }
-    }
-
+    /// Returns dependency version info
     pub fn version_info(&self) -> &VersionInfo {
         &self.version_info
     }
 }
-
-// impl FromStr for Dependencies {
-//     type Err = Error;
-
-//     fn from_str(s: &str) -> Result<Self, Self::Err> {
-//         Ok(Self::new(s.to_owned()))
-//     }
-// }
 
 impl Serialize for Dependencies {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>

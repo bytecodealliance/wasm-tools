@@ -21,6 +21,7 @@ fn add_to_empty_module() {
         revision: Some(Revision::new("de978e17a80c1118f606fce919ba9b7d5a04a5ad")),
         version: Some(Version::new("1.0.0")),
     };
+
     let module = add.to_wasm(&module).unwrap();
 
     match Payload::from_binary(&module).unwrap() {
