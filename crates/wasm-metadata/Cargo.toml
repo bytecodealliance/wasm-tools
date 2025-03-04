@@ -20,4 +20,10 @@ serde_json = { workspace = true }
 spdx = { workspace = true }
 url = { workspace = true }
 wasm-encoder = { workspace = true, features = ['std', 'component-model'] }
-wasmparser = { workspace = true, features = ['std', 'component-model', 'hash-collections'] }
+wasmparser = { workspace = true, features = [
+    'std',
+    'component-model',
+    'hash-collections',
+] }
+auditable-serde = "0.8.0"
+flate2 = "1.1.0"

@@ -1,11 +1,11 @@
-use std::vec;
+use std::{str::FromStr, vec};
 
+use auditable_serde::VersionInfo;
 use wasm_encoder::{Component, Module};
 use wasm_metadata::*;
 
 #[test]
 fn add_to_empty_component() {
-    let component = Component::new().finish();
     let add = AddMetadata {
         name: Some("foo".to_owned()),
         language: vec![("bar".to_owned(), "1.0".to_owned())],
@@ -21,6 +21,12 @@ fn add_to_empty_component() {
         revision: Some(Revision::new("de978e17a80c1118f606fce919ba9b7d5a04a5ad")),
         version: Some(Version::new("1.0.0")),
     };
+
+    let json_str = r#"{"packages":[{"name":"adler","version":"0.2.3","source":"registry"}]}"#;
+    let info = VersionInfo::from_str(json_str).unwrap();
+    let mut component = Component::new();
+    component.section(&Dependencies::new(info.clone()));
+    let component = component.finish();
     let component = add.to_wasm(&component).unwrap();
 
     match Payload::from_binary(&component).unwrap() {
@@ -38,6 +44,7 @@ fn add_to_empty_component() {
                     homepage,
                     revision,
                     version,
+                    dependencies,
                 },
         } => {
             assert!(children.is_empty());
@@ -71,9 +78,10 @@ fn add_to_empty_component() {
                 Revision::new("de978e17a80c1118f606fce919ba9b7d5a04a5ad")
             );
             assert_eq!(version.unwrap(), Version::new("1.0.0"));
+            assert_eq!(dependencies.unwrap().version_info(), &info,);
 
             assert_eq!(range.start, 0);
-            assert_eq!(range.end, 375);
+            assert_eq!(range.end, 465);
         }
         _ => panic!("metadata should be component"),
     }
@@ -82,7 +90,6 @@ fn add_to_empty_component() {
 #[test]
 fn add_to_nested_component() {
     // Create the same old module, stick some metadata into it
-    let module = Module::new().finish();
     let add = AddMetadata {
         name: Some("foo".to_owned()),
         language: vec![("bar".to_owned(), "1.0".to_owned())],
@@ -98,6 +105,11 @@ fn add_to_nested_component() {
         revision: Some(Revision::new("de978e17a80c1118f606fce919ba9b7d5a04a5ad")),
         version: Some(Version::new("1.0.0")),
     };
+    let json_str = r#"{"packages":[{"name":"adler","version":"0.2.3","source":"registry"}]}"#;
+    let info = VersionInfo::from_str(json_str).unwrap();
+    let mut component = Module::new();
+    component.section(&Dependencies::new(info.clone()));
+    let module = component.finish();
     let module = add.to_wasm(&module).unwrap();
 
     // Stick that module inside a component.
@@ -106,6 +118,7 @@ fn add_to_nested_component() {
         id: wasm_encoder::ComponentSectionId::CoreModule.into(),
         data: &module,
     });
+
     let component = component.finish();
 
     // Add some different metadata to the component.
@@ -145,6 +158,7 @@ fn add_to_nested_component() {
                     homepage,
                     revision,
                     version,
+                    dependencies,
                 }) => {
                     assert_eq!(name, &Some("foo".to_owned()));
                     let producers = producers.as_ref().expect("some producers");
@@ -184,9 +198,9 @@ fn add_to_nested_component() {
                         &Some(Revision::new("de978e17a80c1118f606fce919ba9b7d5a04a5ad"))
                     );
                     assert_eq!(version, &Some(Version::new("1.0.0")));
-
+                    assert_eq!(dependencies.as_ref().unwrap().version_info(), &info);
                     assert_eq!(range.start, 11);
-                    assert_eq!(range.end, 376);
+                    assert_eq!(range.end, 466);
                 }
                 _ => panic!("child is a module"),
             }
