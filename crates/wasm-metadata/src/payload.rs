@@ -1,12 +1,12 @@
-use std::{fs::read, ops::Range};
+use std::ops::Range;
 
 use anyhow::Result;
 use serde_derive::Serialize;
 use wasmparser::{KnownCustom, Parser, Payload::*};
 
 use crate::{
-    Authors, ComponentNames, Dependencies, Description, Homepage, Licenses, Metadata, ModuleNames,
-    Producers, Revision, Source,
+    Authors, ComponentNames, Description, Homepage, Licenses, Metadata, ModuleNames, Producers,
+    Revision, Source,
 };
 
 /// Data representing either a Wasm Component or module

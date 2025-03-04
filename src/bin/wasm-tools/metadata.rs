@@ -306,6 +306,16 @@ fn write_details_table(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result
         }
     }
 
+    // Add depedency packages to the table
+    if let Some(dependencies) = dependencies {
+        for package in &dependencies.version_info().packages {
+            table.add_row(vec![
+                "dependency",
+                &format!("{} [{}]", package.name, package.version),
+            ]);
+        }
+    }
+
     // Write the table to the writer
     writeln!(f, "{table}")?;
 

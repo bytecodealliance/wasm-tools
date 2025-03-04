@@ -53,18 +53,11 @@ impl Dependencies {
         }
     }
 
+    /// Provides access to the version information stored in the object
     pub fn version_info(&self) -> &VersionInfo {
         &self.version_info
     }
 }
-
-// impl FromStr for Dependencies {
-//     type Err = Error;
-
-//     fn from_str(s: &str) -> Result<Self, Self::Err> {
-//         Ok(Self::new(s.to_owned()))
-//     }
-// }
 
 impl Serialize for Dependencies {
     fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
