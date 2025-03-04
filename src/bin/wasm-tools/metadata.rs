@@ -5,7 +5,7 @@ use comfy_table::modifiers::UTF8_ROUND_CORNERS;
 use comfy_table::presets::UTF8_FULL;
 use comfy_table::{ContentArrangement, Table};
 use termcolor::WriteColor;
-use wasm_metadata::{Dependencies, Metadata, Payload};
+use wasm_metadata::{Metadata, Payload};
 
 /// Manipulate metadata (module name, producers) to a WebAssembly file.
 #[derive(clap::Parser)]
@@ -190,10 +190,10 @@ fn write_table(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result<()> {
     }
 
     if let Some(dependencies) = dependencies {
-        for dependency in &dependencies.version_info().packages {
+        for package in &dependencies.version_info().packages {
             table.add_row(vec![
                 "dependency",
-                &format!("{} [{}]", dependency.name, dependency.version),
+                &format!("{} [{}]", package.name, package.version),
             ]);
         }
     }
