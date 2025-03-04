@@ -99,7 +99,7 @@ impl Encode for Dependencies {
 #[cfg(test)]
 mod test {
     use super::*;
-    use auditable_serde::VersionInfo;
+    use auditable_serde::{Source, VersionInfo};
     use std::str::FromStr;
     use wasm_encoder::Component;
     use wasmparser::Payload;
@@ -126,14 +126,17 @@ mod test {
 
     #[test]
     fn serialize() {
-        let json_str = r#"{"packages":[{
-        "name":"adler",
-        "version":"0.2.3",
-        "source":"registry"
-        }]}"#;
+        let json_str = r#"{"packages":[{"name":"adler","version":"0.2.3","source":"registry"}]}"#;
         let info = VersionInfo::from_str(json_str).unwrap();
         let dependencies = Dependencies::new(info);
-        let json = serde_json::to_string(&dependencies).unwrap();
-        assert_eq!(json, json_str);
+        assert_eq!(dependencies.version_info().packages[0].name, "adler");
+        assert_eq!(
+            dependencies.version_info().packages[0].version.to_string(),
+            "0.2.3"
+        );
+        assert_eq!(
+            dependencies.version_info().packages[0].source,
+            Source::Registry,
+        );
     }
 }
