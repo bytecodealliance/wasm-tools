@@ -227,6 +227,7 @@ fn write_details_table(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result
         range,
         revision,
         version,
+        dependencies,
     } = payload.metadata();
 
     // Add the basic information to the table first
@@ -302,6 +303,16 @@ fn write_details_table(payload: &Payload, f: &mut Box<dyn WriteColor>) -> Result
                 Payload::Module(_) => "module",
             };
             table.add_row(vec!["child", &format!("{name} [{kind}]")]);
+        }
+    }
+
+    // Add depedency packages to the table
+    if let Some(dependencies) = dependencies {
+        for package in &dependencies.version_info().packages {
+            table.add_row(vec![
+                "dependency",
+                &format!("{} [{}]", package.name, package.version),
+            ]);
         }
     }
 

@@ -151,6 +151,14 @@ impl Payload {
                             .metadata_mut();
                         *version = Some(a);
                     }
+                    KnownCustom::Unknown if c.name() == ".dep-v0" => {
+                        let a = crate::Dependencies::parse_custom_section(&c)?;
+                        let Metadata { dependencies, .. } = output
+                            .last_mut()
+                            .expect("non-empty metadata stack")
+                            .metadata_mut();
+                        *dependencies = Some(a);
+                    }
                     _ => {}
                 },
                 _ => {}
