@@ -1042,6 +1042,15 @@ impl ManglingAndAbi {
             | Self::Legacy(LiftLowerAbi::AsyncStackful) => Self::Legacy(LiftLowerAbi::Sync),
         }
     }
+
+    /// Returns whether this is an async ABI
+    pub fn is_async(&self) -> bool {
+        match self {
+            Self::Standard32 | Self::Legacy(LiftLowerAbi::Sync) => false,
+            Self::Legacy(LiftLowerAbi::AsyncCallback)
+            | Self::Legacy(LiftLowerAbi::AsyncStackful) => true,
+        }
+    }
 }
 
 impl Function {

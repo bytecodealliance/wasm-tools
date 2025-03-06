@@ -1,0 +1,11 @@
+package root:component;
+
+world root {
+  enum name {
+    a,
+    b,
+    c,
+  }
+
+  export f: func() -> tuple<string, name>;
+}

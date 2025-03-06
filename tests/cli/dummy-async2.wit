@@ -1,0 +1,5 @@
+// FAIL: component embed --dummy-names standard32 --async-stackful % -t
+
+package a:b;
+
+world foo {}

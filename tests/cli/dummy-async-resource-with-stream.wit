@@ -1,0 +1,13 @@
+// RUN: component embed % --dummy-names legacy --async-callback | \
+//        component new | \
+//        validate -f component-model-async
+
+package a:b;
+
+world c {
+  import i: interface {
+    resource r {
+      f: func(s: stream<r>);
+    }
+  }
+}

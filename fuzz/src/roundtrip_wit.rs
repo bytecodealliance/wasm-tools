@@ -35,7 +35,6 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     // to avoid timing out this fuzzer with asan enabled.
     let mut decoded_bindgens = Vec::new();
     for (id, world) in resolve.worlds.iter().take(20) {
-        log::debug!("embedding world {} as in a dummy module", world.name);
         let mangling = match u.int_in_range(0..=3)? {
             0 => ManglingAndAbi::Legacy(LiftLowerAbi::Sync),
             1 => ManglingAndAbi::Legacy(LiftLowerAbi::AsyncCallback),
@@ -43,6 +42,10 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
             3 => ManglingAndAbi::Standard32,
             _ => unreachable!(),
         };
+        log::debug!(
+            "embedding world {} as in a dummy module with abi {mangling:?}",
+            world.name
+        );
         let mut dummy = wit_component::dummy_module(&resolve, id, mangling);
         wit_component::embed_component_metadata(&mut dummy, &resolve, id, StringEncoding::UTF8)
             .unwrap();

@@ -364,6 +364,9 @@ impl EmbedOpts {
         }
 
         let mut wasm = if self.dummy {
+            if self.async_callback || self.async_stackful {
+                bail!("non-legacy mangling not yet supported when generating async dummy modules");
+            }
             wit_component::dummy_module(&resolve, world, ManglingAndAbi::Standard32)
         } else if let Some(mangling) = self.dummy_names {
             wit_component::dummy_module(
