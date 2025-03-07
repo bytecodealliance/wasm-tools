@@ -42,106 +42,113 @@
       "text": "cannot specify `post-return` option on `task.return`"
     },
     {
-      "type": "module",
-      "line": 49,
+      "type": "assert_invalid",
+      "line": 50,
       "filename": "task-builtins.6.wasm",
-      "module_type": "binary"
+      "module_type": "binary",
+      "text": "cannot specify `realloc` option on `task.return`"
     },
     {
       "type": "module",
-      "line": 63,
+      "line": 59,
       "filename": "task-builtins.7.wasm",
       "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
+      "type": "module",
       "line": 71,
       "filename": "task-builtins.8.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 79,
+      "filename": "task-builtins.9.wasm",
       "module_type": "binary",
       "text": "type mismatch for export `waitable-set.new` of module instantiation argument ``"
     },
     {
       "type": "module",
-      "line": 80,
-      "filename": "task-builtins.9.wasm",
+      "line": 88,
+      "filename": "task-builtins.10.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 92,
-      "filename": "task-builtins.10.wasm",
+      "line": 100,
+      "filename": "task-builtins.11.wasm",
       "module_type": "binary",
       "text": "type mismatch for export `waitable-set.wait` of module instantiation argument ``"
     },
     {
       "type": "module",
-      "line": 105,
-      "filename": "task-builtins.11.wasm",
+      "line": 113,
+      "filename": "task-builtins.12.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 117,
-      "filename": "task-builtins.12.wasm",
+      "line": 125,
+      "filename": "task-builtins.13.wasm",
       "module_type": "binary",
       "text": "type mismatch for export `waitable-set.poll` of module instantiation argument ``"
     },
     {
       "type": "module",
-      "line": 130,
-      "filename": "task-builtins.13.wasm",
+      "line": 138,
+      "filename": "task-builtins.14.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 138,
-      "filename": "task-builtins.14.wasm",
+      "line": 146,
+      "filename": "task-builtins.15.wasm",
       "module_type": "binary",
       "text": "type mismatch for export `waitable-set.drop` of module instantiation argument ``"
     },
     {
       "type": "module",
-      "line": 147,
-      "filename": "task-builtins.15.wasm",
+      "line": 155,
+      "filename": "task-builtins.16.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 155,
-      "filename": "task-builtins.16.wasm",
+      "line": 163,
+      "filename": "task-builtins.17.wasm",
       "module_type": "binary",
       "text": "type mismatch for export `waitable.join` of module instantiation argument ``"
     },
     {
       "type": "module",
-      "line": 164,
-      "filename": "task-builtins.17.wasm",
+      "line": 172,
+      "filename": "task-builtins.18.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 174,
-      "filename": "task-builtins.18.wasm",
+      "line": 182,
+      "filename": "task-builtins.19.wasm",
       "module_type": "binary",
       "text": "type mismatch for export `yield` of module instantiation argument ``"
     },
     {
       "type": "module",
-      "line": 185,
-      "filename": "task-builtins.19.wasm",
+      "line": 193,
+      "filename": "task-builtins.20.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 195,
-      "filename": "task-builtins.20.wasm",
+      "line": 203,
+      "filename": "task-builtins.21.wasm",
       "module_type": "binary",
       "text": "type mismatch for export `subtask.drop` of module instantiation argument ``"
     },
     {
       "type": "module",
-      "line": 207,
-      "filename": "task-builtins.21.wasm",
+      "line": 215,
+      "filename": "task-builtins.22.wasm",
       "module_type": "binary"
     }
   ]

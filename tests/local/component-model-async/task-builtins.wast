@@ -46,17 +46,25 @@
   )
   "cannot specify `post-return` option on `task.return`")
 
+(assert_invalid
+  (component
+    (core module $m
+      (func (export "r") (param i32 i32 i32 i32) (result i32) unreachable)
+    )
+    (core instance $m (instantiate $m))
+    (core func $task-return (canon task.return (result u32) (realloc (func $m "r"))))
+  )
+  "cannot specify `realloc` option on `task.return`")
+
 (component
   (core module $m
     (memory (export "m") 1)
-    (func (export "r") (param i32 i32 i32 i32) (result i32) unreachable)
   )
   (core instance $i (instantiate $m))
   (core func (canon task.return (result u32) string-encoding=utf8))
   (core func (canon task.return (result u32) string-encoding=utf16))
   (core func (canon task.return (result u32) string-encoding=latin1+utf16))
   (core func (canon task.return (result u32) (memory $i "m")))
-  (core func (canon task.return (result u32) (realloc (func $i "r"))))
 )
 
 ;; waitable-set.new
