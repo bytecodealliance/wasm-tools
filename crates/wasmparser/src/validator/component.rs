@@ -1206,9 +1206,8 @@ impl ComponentState {
                 CanonicalOption::UTF8
                 | CanonicalOption::UTF16
                 | CanonicalOption::CompactUTF16
-                | CanonicalOption::Memory(_)
-                | CanonicalOption::Realloc(_) => continue,
-
+                | CanonicalOption::Memory(_) => continue,
+                CanonicalOption::Realloc(_) => "realloc",
                 CanonicalOption::PostReturn(_) => "post-return",
                 CanonicalOption::Async => "async",
                 CanonicalOption::Callback(_) => "callback",
