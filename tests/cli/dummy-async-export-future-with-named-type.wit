@@ -1,0 +1,12 @@
+// RUN: component embed % --dummy-names legacy --async-callback | \
+//        component new | \
+//        validate -f component-model-async
+
+package a:b;
+
+world c {
+  export i: interface {
+    flags name { a, b, c }
+    f: func(p: future<name>);
+  }
+}

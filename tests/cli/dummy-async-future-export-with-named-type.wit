@@ -1,0 +1,11 @@
+// RUN: component embed % --dummy-names legacy --async-callback | \
+//        component new | \
+//        component wit
+
+package a:b;
+
+world c {
+  enum name { a, b, c }
+
+  export f: func(a: future<name>);
+}

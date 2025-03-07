@@ -1348,7 +1348,13 @@ impl<'a> EncodingState<'a> {
                     encoding,
                     for_module,
                 } => {
-                    let mut encoder = self.root_export_type_encoder(*interface);
+                    // See `Import::ExportedTaskReturn` handling for why this
+                    // encoder is treated specially.
+                    let mut encoder = if interface.is_none() {
+                        self.root_import_type_encoder(*interface)
+                    } else {
+                        self.root_export_type_encoder(*interface)
+                    };
                     let result = match result {
                         Some(ty) => Some(encoder.encode_valtype(resolve, ty)?),
                         None => None,
@@ -1387,8 +1393,23 @@ impl<'a> EncodingState<'a> {
     /// encoder to use.
     fn payload_type_index(&mut self, info: &PayloadInfo) -> Result<u32> {
         let resolve = &self.info.encoder.metadata.resolve;
-        let ComponentValType::Type(type_index) = if info.imported {
-            self.root_import_type_encoder(info.interface)
+        // What exactly is selected here as the encoder is a bit unusual here.
+        // If the interface is imported, an import encoder is used. An import
+        // encoder is also used though if `info` is exported and
+        // `info.interface` is `None`, meaning that this is for a function that
+        // is in the top-level of a world. At the top level of a world all
+        // types are imported.
+        //
+        // Additionally for the import encoder the interface passed in is
+        // `None`, not `info.interface`. Notably this means that references to
+        // named types will be aliased from their imported versions, which is
+        // what we want here.
+        //
+        // Finally though exports do use `info.interface`. Honestly I'm not
+        // really entirely sure why. Fuzzing is happy though, and truly
+        // everything must be ok if the fuzzers are happy, right?
+        let ComponentValType::Type(type_index) = if info.imported || info.interface.is_none() {
+            self.root_import_type_encoder(None)
         } else {
             self.root_export_type_encoder(info.interface)
         }
@@ -1619,7 +1640,16 @@ impl<'a> EncodingState<'a> {
             Import::ExportedTaskReturn(key, interface, func, result) => {
                 let (options, _sig) = task_return_options_and_type(resolve, *result);
                 if options.is_empty() {
-                    let mut encoder = self.root_export_type_encoder(*interface);
+                    // Note that an "import type encoder" is used here despite
+                    // this being for an exported function if the `interface`
+                    // is none, meaning that this is for a top-level world
+                    // function. In that situation all types that can be
+                    // referred to are imported, not exported.
+                    let mut encoder = if interface.is_none() {
+                        self.root_import_type_encoder(*interface)
+                    } else {
+                        self.root_export_type_encoder(*interface)
+                    };
 
                     let result = match result {
                         Some(ty) => Some(encoder.encode_valtype(resolve, ty)?),

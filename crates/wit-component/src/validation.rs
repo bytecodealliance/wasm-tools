@@ -608,12 +608,9 @@ impl ImportMap {
             }
 
             if Some(name) == names.yield_() {
-                validate_not_async()?;
                 let expected = FuncType::new([], []);
                 validate_func_sig(name, &expected, ty)?;
-                return Ok(Import::Yield {
-                    async_: abi == AbiVariant::GuestImportAsync,
-                });
+                return Ok(Import::Yield { async_ });
             }
 
             if Some(name) == names.subtask_drop() {
@@ -817,7 +814,7 @@ impl ImportMap {
                 // calculating the expected signature based of `func.result`.
                 return Ok(Some(Import::ExportedTaskReturn(
                     key,
-                    None,
+                    id,
                     func.name.clone(),
                     func.result,
                 )));

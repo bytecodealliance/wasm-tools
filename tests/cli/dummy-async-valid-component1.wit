@@ -1,0 +1,11 @@
+// RUN: component embed % --dummy-names legacy --async-callback | \
+//        component new | \
+//        component wit
+
+package root:root;
+
+world root {
+  type xe = u32;
+
+  export name: func() -> xe;
+}

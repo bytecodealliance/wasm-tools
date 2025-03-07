@@ -3898,7 +3898,7 @@ fn update_stability(from: &Stability, into: &mut Stability) -> Result<()> {
 }
 
 /// Compares the two attributes and if the `from` is more stable than the `into` then
-/// it will elevate the `into` to the same stability.  
+/// it will elevate the `into` to the same stability.
 /// This should be used after its already been confirmed that the types are the same and
 /// should be apart of the component because versions/features are enabled.
 fn merge_stability(from: &Stability, into: &mut Stability) -> Result<()> {

@@ -1,0 +1,11 @@
+// RUN: component embed % --dummy-names legacy --async-callback | \
+//        component new | \
+//        component wit
+
+package x:name;
+
+world name1 {
+  enum name { a, b, c }
+
+  export f: func() -> tuple<string, name>;
+}
