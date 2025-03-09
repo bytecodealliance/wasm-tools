@@ -65,7 +65,7 @@ mod component_limits {
     pub const MAX_WASM_MODULE_SIZE: usize = 1024 * 1024 * 1024; //= 1 GiB
     pub const MAX_WASM_MODULE_TYPE_DECLS: usize = 100_000;
     pub const MAX_WASM_COMPONENT_TYPE_DECLS: usize = 100_000;
-    pub const MAX_WASM_INSTANCE_TYPE_DECLS: usize = 100_000;
+    pub const MAX_WASM_INSTANCE_TYPE_DECLS: usize = 1_000_000;
     pub const MAX_WASM_RECORD_FIELDS: usize = 10_000;
     pub const MAX_WASM_VARIANT_CASES: usize = 10_000;
     pub const MAX_WASM_TUPLE_TYPES: usize = 10_000;
