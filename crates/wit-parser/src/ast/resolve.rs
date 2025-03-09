@@ -92,6 +92,7 @@ enum Key {
     Tuple(Vec<Type>),
     Enum(Vec<String>),
     List(Type),
+    FixedSizeList(Type, u32),
     Option(Type),
     Result(Option<Type>, Option<Type>),
     Future(Option<Type>),
@@ -1172,7 +1173,11 @@ impl<'a> Resolver<'a> {
             }
             ast::Type::List(list) => {
                 let ty = self.resolve_type(&list.ty, stability)?;
-                TypeDefKind::List(ty)
+                if let Some(elements) = list.fixed_size {
+                    TypeDefKind::FixedSizeList(ty, elements)
+                } else {
+                    TypeDefKind::List(ty)
+                }
             }
             ast::Type::Handle(handle) => TypeDefKind::Handle(match handle {
                 ast::Handle::Own { resource } => Handle::Own(self.validate_resource(resource)?),
@@ -1351,7 +1356,9 @@ impl<'a> Resolver<'a> {
                     find_in_type(types, Type::Id(*id))
                 }
                 TypeDefKind::Tuple(t) => t.types.iter().find_map(|ty| find_in_type(types, *ty)),
-                TypeDefKind::List(ty) | TypeDefKind::Option(ty) => find_in_type(types, *ty),
+                TypeDefKind::List(ty)
+                | TypeDefKind::FixedSizeList(ty, _)
+                | TypeDefKind::Option(ty) => find_in_type(types, *ty),
                 TypeDefKind::Future(ty) | TypeDefKind::Stream(ty) => {
                     ty.as_ref().and_then(|ty| find_in_type(types, *ty))
                 }
@@ -1443,6 +1450,7 @@ impl<'a> Resolver<'a> {
                 Key::Enum(r.cases.iter().map(|f| f.name.clone()).collect::<Vec<_>>())
             }
             TypeDefKind::List(ty) => Key::List(*ty),
+            TypeDefKind::FixedSizeList(ty, size) => Key::FixedSizeList(*ty, *size),
             TypeDefKind::Option(t) => Key::Option(*t),
             TypeDefKind::Result(r) => Key::Result(r.ok, r.err),
             TypeDefKind::Future(ty) => Key::Future(*ty),
