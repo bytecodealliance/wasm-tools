@@ -91,7 +91,8 @@ enum Key {
     Flags(Vec<String>),
     Tuple(Vec<Type>),
     Enum(Vec<String>),
-    List(Type, Option<u32>),
+    List(Type),
+    FixedSizeList(Type, u32),
     Option(Type),
     Result(Option<Type>, Option<Type>),
     Future(Option<Type>),
@@ -1448,8 +1449,8 @@ impl<'a> Resolver<'a> {
             TypeDefKind::Enum(r) => {
                 Key::Enum(r.cases.iter().map(|f| f.name.clone()).collect::<Vec<_>>())
             }
-            TypeDefKind::List(ty) => Key::List(*ty, None),
-            TypeDefKind::FixedSizeList(ty, size) => Key::List(*ty, Some(*size)),
+            TypeDefKind::List(ty) => Key::List(*ty),
+            TypeDefKind::FixedSizeList(ty, size) => Key::FixedSizeList(*ty, *size),
             TypeDefKind::Option(t) => Key::Option(*t),
             TypeDefKind::Result(r) => Key::Result(r.ok, r.err),
             TypeDefKind::Future(ty) => Key::Future(*ty),
