@@ -93,6 +93,7 @@ impl Payload {
                             .metadata_mut()
                             .producers = Some(producers);
                     }
+                    #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "authors" => {
                         let a = Authors::parse_custom_section(&c)?;
                         let Metadata {
@@ -103,6 +104,7 @@ impl Payload {
                             .metadata_mut();
                         *author = Some(a);
                     }
+                    #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "description" => {
                         let a = Description::parse_custom_section(&c)?;
                         let Metadata { description, .. } = output
@@ -111,6 +113,7 @@ impl Payload {
                             .metadata_mut();
                         *description = Some(a);
                     }
+                    #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "licenses" => {
                         let a = Licenses::parse_custom_section(&c)?;
                         let Metadata { licenses, .. } = output
@@ -119,6 +122,7 @@ impl Payload {
                             .metadata_mut();
                         *licenses = Some(a);
                     }
+                    #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "source" => {
                         let a = Source::parse_custom_section(&c)?;
                         let Metadata { source, .. } = output
@@ -127,6 +131,7 @@ impl Payload {
                             .metadata_mut();
                         *source = Some(a);
                     }
+                    #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "homepage" => {
                         let a = Homepage::parse_custom_section(&c)?;
                         let Metadata { homepage, .. } = output
@@ -135,6 +140,7 @@ impl Payload {
                             .metadata_mut();
                         *homepage = Some(a);
                     }
+                    #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "revision" => {
                         let a = Revision::parse_custom_section(&c)?;
                         let Metadata { revision, .. } = output
@@ -143,6 +149,7 @@ impl Payload {
                             .metadata_mut();
                         *revision = Some(a);
                     }
+                    #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "version" => {
                         let a = crate::Version::parse_custom_section(&c)?;
                         let Metadata { version, .. } = output
@@ -151,6 +158,7 @@ impl Payload {
                             .metadata_mut();
                         *version = Some(a);
                     }
+                    #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == ".dep-v0" => {
                         let a = crate::Dependencies::parse_custom_section(&c)?;
                         let Metadata { dependencies, .. } = output

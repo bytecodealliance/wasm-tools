@@ -394,14 +394,12 @@ impl<'a> EncodingState<'a> {
         self.module_index = Some(idx);
 
         for (name, adapter) in self.info.adapters.iter() {
-            let add_meta = wasm_metadata::AddMetadata {
-                name: Some(if adapter.library_info.is_some() {
-                    name.to_string()
-                } else {
-                    format!("wit-component:adapter:{name}")
-                }),
-                ..Default::default()
-            };
+            let mut add_meta = wasm_metadata::AddMetadata::default();
+            add_meta.name = Some(if adapter.library_info.is_some() {
+                name.to_string()
+            } else {
+                format!("wit-component:adapter:{name}")
+            });
             let wasm = add_meta
                 .to_wasm(&adapter.wasm)
                 .expect("core wasm can get name added");
