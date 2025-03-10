@@ -1,0 +1,4 @@
+(module
+  (global $a (;0;) (shared i32) i32.const 0)
+  (global $b (;1;) (shared i32) global.get $a)
+)

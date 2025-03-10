@@ -26,6 +26,18 @@
   (global (shared mut v128) (v128.const i64x2 0 0))
 )
 
+;; Check that we can only use shared globals to initialize other shared globals.
+(module
+  (global $a (shared i32) (i32.const 0))
+  (global $b (shared i32) (global.get $a))
+)
+(assert_invalid
+  (module
+    (global $a i32 (i32.const 0))
+    (global $b (shared i32) (global.get $a))
+  )
+  "invalid type")
+
 (assert_malformed
   (module quote "(global (mut shared i64) (i64.const -1))")
   "unexpected token")
