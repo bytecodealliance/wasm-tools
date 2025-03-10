@@ -25,44 +25,53 @@
 //!
 //! let wasm = fs::read("program.wasm")?;
 //!
-//! let metadata = AddMetadata {
-//!     name: Some("program".to_owned()),
-//!     language: vec![("tunalang".to_owned(), "1.0.0".to_owned())],
-//!     processed_by: vec![("chashu-tools".to_owned(), "1.0.1".to_owned())],
-//!     sdk: vec![],
-//!     authors: Some(Authors::new("Chashu Cat")),
-//!     description: Some(Description::new("Chashu likes tuna")),
-//!     licenses: Some(Licenses::new("Apache-2.0 WITH LLVM-exception")?),
-//!     source: Some(Source::new("https://github.com/chashu/chashu-tools")?),
-//!     homepage: Some(Homepage::new("https://github.com/chashu/chashu-tools")?),
-//!     revision: Some(Revision::new("de978e17a80c1118f606fce919ba9b7d5a04a5ad")),
-//!     version: Some(Version::new("1.0.0")),
-//! };
+//! let mut add = AddMetadata ::default();
+//! add.name = Some("program".to_owned());
+//! add.language = vec![("tunalang".to_owned(), "1.0.0".to_owned())];
+//! add.processed_by = vec![("chashu-tools".to_owned(), "1.0.1".to_owned())];
+//! add.sdk = vec![];
+//! add.authors = Some(Authors::new("Chashu Cat"));
+//! add.description = Some(Description::new("Chashu likes tuna"));
+//! add.licenses = Some(Licenses::new("Apache-2.0 WITH LLVM-exception")?);
+//! add.source = Some(Source::new("https://github.com/chashu/chashu-tools")?);
+//! add.homepage = Some(Homepage::new("https://github.com/chashu/chashu-tools")?);
+//! add.revision = Some(Revision::new("de978e17a80c1118f606fce919ba9b7d5a04a5ad"));
+//! add.version = Some(Version::new("1.0.0"));
 //!
-//! let wasm = metadata.to_wasm(&wasm)?;
+//! let wasm = add.to_wasm(&wasm)?;
 //! fs::write("program.wasm", &wasm)?;
 //! # Ok(()) }
 //! ```
 
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![warn(missing_debug_implementations, missing_docs)]
 
 pub use add_metadata::AddMetadata;
-pub use dependencies::Dependencies;
-pub use metadata::Metadata;
 pub use names::{ComponentNames, ModuleNames};
-pub use oci_annotations::{Authors, Description, Homepage, Licenses, Revision, Source, Version};
-pub use payload::Payload;
 pub use producers::{Producers, ProducersField};
 
 pub(crate) use rewrite::rewrite_wasm;
 
 mod add_metadata;
-mod dependencies;
-mod metadata;
 mod names;
-mod oci_annotations;
-mod payload;
 mod producers;
 mod rewrite;
 
 pub(crate) mod utils;
+
+#[cfg(feature = "oci")]
+mod dependencies;
+#[cfg(feature = "oci")]
+pub use dependencies::Dependencies;
+#[cfg(feature = "oci")]
+mod oci_annotations;
+#[cfg(feature = "oci")]
+pub use oci_annotations::{Authors, Description, Homepage, Licenses, Revision, Source, Version};
+#[cfg(feature = "oci")]
+mod metadata;
+#[cfg(feature = "oci")]
+pub use metadata::Metadata;
+#[cfg(feature = "oci")]
+mod payload;
+#[cfg(feature = "oci")]
+pub use payload::Payload;

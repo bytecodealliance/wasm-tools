@@ -274,6 +274,9 @@ jobs:
       - run: cargo check --no-default-features -p wasm-smith --features component-model
       - run: cargo check --no-default-features -p wasm-smith --features wasmparser
       - run: cargo check --no-default-features -p wasm-smith --features wasmparser,component-model
+      - run: cargo check --no-default-features -p wasm-metadata
+      - run: cargo check --no-default-features -p wasm-metadata --features serde
+      - run: cargo check --no-default-features -p wasm-metadata --features oci
       - run: |
           if cargo tree -p wasm-smith --no-default-features -e no-dev | grep wasmparser; then
             echo wasm-smith without default features should not depend on wasmparser

@@ -1,6 +1,5 @@
 use anyhow::Result;
 use indexmap::{map::Entry, IndexMap};
-use serde_derive::Serialize;
 use wasm_encoder::Encode;
 use wasmparser::{BinaryReader, KnownCustom, Parser, ProducersSectionReader};
 
@@ -8,9 +7,13 @@ use crate::{rewrite_wasm, AddMetadata};
 /// A representation of a WebAssembly producers section.
 ///
 /// Spec: <https://github.com/WebAssembly/tool-conventions/blob/main/ProducersSection.md>
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde_derive::Serialize))]
 pub struct Producers(
-    #[serde(serialize_with = "indexmap::map::serde_seq::serialize")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(serialize_with = "indexmap::map::serde_seq::serialize")
+    )]
     IndexMap<String, IndexMap<String, String>>,
 );
 
@@ -147,9 +150,7 @@ impl Producers {
     /// Merge into an existing wasm module. Rewrites the module with this producers section
     /// merged into its existing one, or adds this producers section if none is present.
     pub fn add_to_wasm(&self, input: &[u8]) -> Result<Vec<u8>> {
-        rewrite_wasm(
-            &None, self, &None, &None, &None, &None, &None, &None, &None, input,
-        )
+        rewrite_wasm(&Default::default(), self, input)
     }
 }
 

@@ -1,7 +1,4 @@
-use crate::{
-    rewrite_wasm, Authors, Description, Homepage, Licenses, Producers, Revision, Source, Version,
-};
-
+use crate::{rewrite_wasm, Producers};
 use anyhow::Result;
 
 /// Add metadata (module name, producers) to a WebAssembly file.
@@ -10,6 +7,7 @@ use anyhow::Result;
 /// metadata will be added to the outermost component.
 #[cfg_attr(feature = "clap", derive(clap::Parser))]
 #[derive(Debug, Clone, Default)]
+#[non_exhaustive]
 pub struct AddMetadata {
     /// Add a module or component name to the names section
     #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
@@ -30,31 +28,38 @@ pub struct AddMetadata {
     /// Contact details of the people or organization responsible,
     /// encoded as a freeform string.
     #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
-    pub authors: Option<Authors>,
+    #[cfg(feature = "oci")]
+    pub authors: Option<crate::Authors>,
 
     /// A human-readable description of the binary
     #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
-    pub description: Option<Description>,
+    #[cfg(feature = "oci")]
+    pub description: Option<crate::Description>,
 
     /// License(s) under which contained software is distributed as an SPDX License Expression.
     #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
-    pub licenses: Option<Licenses>,
+    #[cfg(feature = "oci")]
+    pub licenses: Option<crate::Licenses>,
 
     /// URL to get source code for building the image
     #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
-    pub source: Option<Source>,
+    #[cfg(feature = "oci")]
+    pub source: Option<crate::Source>,
 
     /// URL to find more information on the binary
     #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
-    pub homepage: Option<Homepage>,
+    #[cfg(feature = "oci")]
+    pub homepage: Option<crate::Homepage>,
 
     /// Source control revision identifier for the packaged software.
     #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
-    pub revision: Option<Revision>,
+    #[cfg(feature = "oci")]
+    pub revision: Option<crate::Revision>,
 
     /// Version of the packaged software
     #[cfg_attr(feature = "clap", clap(long, value_name = "NAME"))]
-    pub version: Option<Version>,
+    #[cfg(feature = "oci")]
+    pub version: Option<crate::Version>,
 }
 
 #[cfg(feature = "clap")]
@@ -69,17 +74,7 @@ impl AddMetadata {
     /// components. The module and component will have, at very least, an empty name and producers
     /// section created.
     pub fn to_wasm(&self, input: &[u8]) -> Result<Vec<u8>> {
-        rewrite_wasm(
-            &self.name,
-            &Producers::from_meta(self),
-            &self.authors,
-            &self.description,
-            &self.licenses,
-            &self.source,
-            &self.homepage,
-            &self.revision,
-            &self.version,
-            input,
-        )
+        let add_producers = Producers::from_meta(self);
+        rewrite_wasm(self, &add_producers, input)
     }
 }
