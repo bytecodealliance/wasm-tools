@@ -1651,7 +1651,7 @@ impl<'a> EncodingState<'a> {
                     // is none, meaning that this is for a top-level world
                     // function. In that situation all types that can be
                     // referred to are imported, not exported.
-                    let mut encoder = if dbg!(interface.is_none()) {
+                    let mut encoder = if interface.is_none() {
                         self.root_import_type_encoder(*interface)
                     } else {
                         self.root_export_type_encoder(*interface)
