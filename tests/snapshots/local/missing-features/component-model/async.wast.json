@@ -223,7 +223,7 @@
       "line": 372,
       "filename": "async.31.wasm",
       "module_type": "binary",
-      "text": "requires the component model async feature"
+      "text": "requires the component model async builtins feature"
     },
     {
       "type": "assert_invalid",

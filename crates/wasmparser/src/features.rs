@@ -193,17 +193,13 @@ define_wasm_features! {
         /// The WebAssembly [custom-page-sizes
         /// proposal](https://github.com/WebAssembly/custom-page-sizes).
         pub custom_page_sizes: CUSTOM_PAGE_SIZES(1 << 20) = false;
-        /// Support for the `value` type in the component model proposal.
-        pub component_model_values: COMPONENT_MODEL_VALUES(1 << 21) = false;
-        /// Support for the nested namespaces and projects in component model names.
-        pub component_model_nested_names: COMPONENT_MODEL_NESTED_NAMES(1 << 22) = false;
         /// The WebAssembly legacy exception handling proposal (phase 1)
         ///
         /// # Note
         ///
         /// Support this feature as long as all leading browsers also support it
         /// <https://github.com/WebAssembly/exception-handling/blob/main/proposals/exception-handling/legacy/Exceptions.md>
-        pub legacy_exceptions: LEGACY_EXCEPTIONS(1 << 25) = false;
+        pub legacy_exceptions: LEGACY_EXCEPTIONS(1 << 23) = false;
         /// Whether or not gc types are enabled.
         ///
         /// This feature does not correspond to any WebAssembly proposal nor
@@ -220,13 +216,38 @@ define_wasm_features! {
         /// Note that the `funcref` and `exnref` types are not gated by this
         /// feature. Those are expected to not require a full garbage collector
         /// so are not gated by this.
-        pub gc_types: GC_TYPES(1 << 26) = true;
+        pub gc_types: GC_TYPES(1 << 24) = true;
         /// The WebAssembly [stack-switching proposal](https://github.com/WebAssembly/stack-switching).
-        pub stack_switching: STACK_SWITCHING(1 << 27) = false;
+        pub stack_switching: STACK_SWITCHING(1 << 25) = false;
         /// The WebAssembly [wide-arithmetic proposal](https://github.com/WebAssembly/wide-arithmetic).
-        pub wide_arithmetic: WIDE_ARITHMETIC(1 << 28) = false;
+        pub wide_arithmetic: WIDE_ARITHMETIC(1 << 26) = false;
+
+        /// Support for the `value` type in the component model proposal.
+        ///
+        /// Corresponds to the 🪙 character in
+        /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
+        pub cm_values: CM_VALUES(1 << 21) = false;
+        /// Support for the nested namespaces and projects in component model names.
+        ///
+        /// Corresponds to the 🪺 character in
+        /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
+        pub cm_nested_names: CM_NESTED_NAMES(1 << 22) = false;
         /// Support for component model async lift/lower ABI, as well as streams, futures, and errors.
-        pub component_model_async: COMPONENT_MODEL_ASYNC(1 << 29) = false;
+        ///
+        /// Corresponds to the 🔀 character in
+        /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
+        pub cm_async: CM_ASYNC(1 << 27) = false;
+        /// Gates the "stackful ABI" in the component model async proposal.
+        ///
+        /// Corresponds to the 🚟 character in
+        /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
+        pub cm_async_stackful: CM_ASYNC_STACKFUL(1 << 28) = false;
+        /// Gates some intrinsics being marked with `async` in the component
+        /// model async proposal.
+        ///
+        /// Corresponds to the 🚝 character in
+        /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
+        pub cm_async_builtins: CM_ASYNC_BUILTINS(1 << 29) = false;
     }
 }
 
