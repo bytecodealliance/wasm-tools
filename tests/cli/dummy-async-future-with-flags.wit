@@ -1,6 +1,6 @@
 // RUN: component embed % --dummy-names legacy --async-callback | \
 //        component new | \
-//        validate -f component-model-async
+//        validate -f cm-async
 
 package y:name;
 

@@ -1801,7 +1801,7 @@ impl ComponentState {
         if async_ && !features.cm_async_builtins() {
             bail!(
                 offset,
-                "async `yield` requires the component model async builtins feature"
+                "async `waitable-set.poll` requires the component model async builtins feature"
             )
         }
 
@@ -2251,19 +2251,22 @@ impl ComponentState {
             async_,
             allow_async,
             callback.is_some(),
+            core_ty,
             post_return.is_some(),
         ) {
             (true, false, ..) => bail!(offset, "async option not allowed here"),
-            (false, _, true, _) => bail!(offset, "cannot specify callback without lifting async"),
-            (true, true, _, true) => {
+            (false, _, true, _, _) => {
+                bail!(offset, "cannot specify callback without lifting async")
+            }
+            (true, true, _, _, true) => {
                 bail!(
                     offset,
                     "cannot specify post-return function when lifting async"
                 )
             }
 
-            // Async + allowed + stackful ABI
-            (true, true, false, false) => {
+            // Async + allowed + this is a lift (core_ty present) + stackful ABI
+            (true, true, false, Some(_), false) => {
                 if !features.cm_async_stackful() {
                     bail!(
                         offset,
@@ -2272,11 +2275,14 @@ impl ComponentState {
                 }
             }
 
+            // Async + allowed + this is a lower (no core_ty)
+            (true, true, false, None, false) => {}
+
             // Not async, no callback, this is ok
-            (false, _, false, _) => {}
+            (false, _, false, _, _) => {}
 
             // Async + allowed + callback ABI
-            (true, true, true, false) => {}
+            (true, true, true, _, false) => {}
         }
 
         if info.requires_memory && memory.is_none() {
