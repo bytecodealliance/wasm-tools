@@ -1,0 +1,26 @@
+{
+  "source_filename": "tests/cli/stack-switching/cont_new.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "cont_new.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 18,
+      "action": {
+        "type": "invoke",
+        "field": "f",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "0"
+        }
+      ]
+    }
+  ]
+}

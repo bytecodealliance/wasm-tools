@@ -1,0 +1,56 @@
+{
+  "source_filename": "tests/cli/stack-switching/generators.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 6,
+      "name": "generator",
+      "filename": "generators.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 9,
+      "as": "generator"
+    },
+    {
+      "type": "module",
+      "line": 11,
+      "name": "examples",
+      "filename": "generators.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 84,
+      "as": "examples"
+    },
+    {
+      "type": "module",
+      "line": 88,
+      "name": "manager",
+      "filename": "generators.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 115,
+      "as": "manager"
+    },
+    {
+      "type": "module",
+      "line": 117,
+      "filename": "generators.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "action",
+      "line": 168,
+      "action": {
+        "type": "invoke",
+        "field": "main",
+        "args": []
+      }
+    }
+  ]
+}

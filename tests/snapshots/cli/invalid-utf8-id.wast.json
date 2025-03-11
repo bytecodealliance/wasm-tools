@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/cli/invalid-utf8-id.wast",
+  "commands": [
+    {
+      "type": "assert_malformed",
+      "line": 4,
+      "filename": "invalid-utf8-id.0.wat",
+      "module_type": "text",
+      "text": "malformed UTF-8 encoding of string-based id"
+    }
+  ]
+}

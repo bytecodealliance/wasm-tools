@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/cli/component-model/more-flags.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "more-flags.0.wasm",
+      "module_type": "binary",
+      "text": "cannot have more than 32 flags"
+    }
+  ]
+}

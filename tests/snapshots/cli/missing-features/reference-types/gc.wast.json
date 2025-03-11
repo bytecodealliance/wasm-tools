@@ -1,0 +1,103 @@
+{
+  "source_filename": "tests/cli/missing-features/reference-types/gc.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "gc.0.wasm",
+      "module_type": "binary",
+      "text": "heap types not supported without the gc feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 7,
+      "filename": "gc.1.wasm",
+      "module_type": "binary",
+      "text": "heap types not supported without the gc feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 10,
+      "filename": "gc.2.wasm",
+      "module_type": "binary",
+      "text": "heap types not supported without the gc feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 13,
+      "filename": "gc.3.wasm",
+      "module_type": "binary",
+      "text": "heap types not supported without the gc feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 16,
+      "filename": "gc.4.wasm",
+      "module_type": "binary",
+      "text": "heap types not supported without the gc feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 19,
+      "filename": "gc.5.wasm",
+      "module_type": "binary",
+      "text": "heap types not supported without the gc feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 22,
+      "filename": "gc.6.wasm",
+      "module_type": "binary",
+      "text": "heap types not supported without the gc feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 25,
+      "filename": "gc.7.wasm",
+      "module_type": "binary",
+      "text": "heap types not supported without the gc feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 28,
+      "filename": "gc.8.wasm",
+      "module_type": "binary",
+      "text": "heap types not supported without the gc feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 31,
+      "filename": "gc.9.wasm",
+      "module_type": "binary",
+      "text": "heap types not supported without the gc feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 34,
+      "filename": "gc.10.wasm",
+      "module_type": "binary",
+      "text": "heap types not supported without the gc feature"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 38,
+      "filename": "gc.11.wasm",
+      "module_type": "binary",
+      "text": "function references required for index"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 42,
+      "filename": "gc.12.wasm",
+      "module_type": "binary",
+      "text": "gc proposal must be enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 46,
+      "filename": "gc.13.wasm",
+      "module_type": "binary",
+      "text": "gc proposal must be enabled"
+    }
+  ]
+}

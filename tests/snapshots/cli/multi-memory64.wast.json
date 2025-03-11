@@ -1,0 +1,19 @@
+{
+  "source_filename": "tests/cli/multi-memory64.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "name": "copy_between_memories",
+      "filename": "multi-memory64.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 15,
+      "name": "copy_between_memories",
+      "filename": "multi-memory64.1.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

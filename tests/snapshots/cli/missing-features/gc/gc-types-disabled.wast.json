@@ -1,0 +1,45 @@
+{
+  "source_filename": "tests/cli/missing-features/gc/gc-types-disabled.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "gc-types-disabled.0.wasm",
+      "module_type": "binary",
+      "text": "gc types are disallowed"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 10,
+      "filename": "gc-types-disabled.1.wasm",
+      "module_type": "binary",
+      "text": "gc types are disallowed"
+    },
+    {
+      "type": "module",
+      "line": 15,
+      "filename": "gc-types-disabled.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 19,
+      "filename": "gc-types-disabled.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 25,
+      "filename": "gc-types-disabled.4.wasm",
+      "module_type": "binary",
+      "text": "cannot define array types"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 31,
+      "filename": "gc-types-disabled.5.wasm",
+      "module_type": "binary",
+      "text": "cannot define struct types"
+    }
+  ]
+}

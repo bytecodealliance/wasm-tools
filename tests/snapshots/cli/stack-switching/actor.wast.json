@@ -1,0 +1,86 @@
+{
+  "source_filename": "tests/cli/stack-switching/actor.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 6,
+      "name": "actor",
+      "filename": "actor.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 19,
+      "as": "actor"
+    },
+    {
+      "type": "module",
+      "line": 22,
+      "name": "chain",
+      "filename": "actor.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 65,
+      "as": "chain"
+    },
+    {
+      "type": "module",
+      "line": 68,
+      "name": "queue",
+      "filename": "actor.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 182,
+      "as": "queue"
+    },
+    {
+      "type": "module",
+      "line": 184,
+      "name": "mailboxes",
+      "filename": "actor.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 244,
+      "as": "mailboxes"
+    },
+    {
+      "type": "module",
+      "line": 247,
+      "name": "scheduler",
+      "filename": "actor.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 376,
+      "as": "scheduler"
+    },
+    {
+      "type": "module",
+      "line": 378,
+      "filename": "actor.5.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 397,
+      "action": {
+        "type": "invoke",
+        "field": "run-chain",
+        "args": [
+          {
+            "type": "i32",
+            "value": "64"
+          }
+        ]
+      },
+      "expected": []
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "source_filename": "tests/cli/component-model/lower.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "lower.0.wasm",
+      "module_type": "binary",
+      "text": "canonical option `memory` is required"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 12,
+      "filename": "lower.1.wasm",
+      "module_type": "binary",
+      "text": "canonical option `memory` is required"
+    }
+  ]
+}

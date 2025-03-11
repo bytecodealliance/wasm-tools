@@ -1,0 +1,11 @@
+{
+  "source_filename": "tests/cli/ref.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "ref.0.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

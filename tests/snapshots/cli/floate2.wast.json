@@ -1,0 +1,11 @@
+{
+  "source_filename": "tests/cli/floate2.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "floate2.0.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

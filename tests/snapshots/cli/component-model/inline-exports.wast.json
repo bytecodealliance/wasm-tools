@@ -1,0 +1,18 @@
+{
+  "source_filename": "tests/cli/component-model/inline-exports.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "inline-exports.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 8,
+      "filename": "inline-exports.1.wat",
+      "module_type": "text",
+      "text": "unexpected token"
+    }
+  ]
+}

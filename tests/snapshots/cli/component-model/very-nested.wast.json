@@ -1,0 +1,40 @@
+{
+  "source_filename": "tests/cli/component-model/very-nested.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "very-nested.0.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1570,
+      "filename": "very-nested.1.wasm",
+      "module_type": "binary",
+      "text": "effective type size exceeds the limit"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1691,
+      "filename": "very-nested.2.wasm",
+      "module_type": "binary",
+      "text": "effective type size exceeds the limit"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 1781,
+      "filename": "very-nested.3.wasm",
+      "module_type": "binary",
+      "text": "effective type size exceeds the limit"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 1871,
+      "filename": "very-nested.4.wat",
+      "module_type": "text",
+      "text": "nesting too deep"
+    }
+  ]
+}

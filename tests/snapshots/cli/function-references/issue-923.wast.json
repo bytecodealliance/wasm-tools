@@ -1,0 +1,11 @@
+{
+  "source_filename": "tests/cli/function-references/issue-923.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "issue-923.0.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

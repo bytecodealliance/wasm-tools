@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/cli/table-funcref.wast",
+  "commands": [
+    {
+      "type": "assert_malformed",
+      "line": 4,
+      "filename": "table-funcref.0.wasm",
+      "module_type": "binary",
+      "text": "indirect calls must go through a table with type <= funcref"
+    }
+  ]
+}

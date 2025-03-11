@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/cli/invalid/issue139.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "issue139.0.wasm",
+      "module_type": "binary",
+      "text": "function and code section have inconsistent lengths"
+    }
+  ]
+}

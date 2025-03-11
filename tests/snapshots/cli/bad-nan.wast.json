@@ -1,0 +1,26 @@
+{
+  "source_filename": "tests/cli/bad-nan.wast",
+  "commands": [
+    {
+      "type": "assert_malformed",
+      "line": 4,
+      "filename": "bad-nan.0.wat",
+      "module_type": "text",
+      "text": "constant out of range"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 8,
+      "filename": "bad-nan.1.wat",
+      "module_type": "text",
+      "text": "constant out of range"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 12,
+      "filename": "bad-nan.2.wat",
+      "module_type": "text",
+      "text": "constant out of range"
+    }
+  ]
+}

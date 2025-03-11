@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/cli/missing-features/gc/shared-any.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "shared-any.0.wasm",
+      "module_type": "binary",
+      "text": "shared reference types require the shared-everything-threads proposal"
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "source_filename": "tests/cli/stack-switching/async-await.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 4,
+      "name": "async-await",
+      "filename": "async-await.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 23,
+      "as": "async-await"
+    },
+    {
+      "type": "module",
+      "line": 25,
+      "name": "example",
+      "filename": "async-await.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 96,
+      "as": "example"
+    },
+    {
+      "type": "module",
+      "line": 99,
+      "name": "queue",
+      "filename": "async-await.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 155,
+      "as": "queue"
+    },
+    {
+      "type": "module",
+      "line": 158,
+      "name": "promise",
+      "filename": "async-await.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 225,
+      "as": "promise"
+    },
+    {
+      "type": "module",
+      "line": 228,
+      "name": "scheduler",
+      "filename": "async-await.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 318,
+      "as": "scheduler"
+    },
+    {
+      "type": "module",
+      "line": 320,
+      "filename": "async-await.5.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "action",
+      "line": 337,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      }
+    }
+  ]
+}

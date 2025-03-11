@@ -1,0 +1,37 @@
+{
+  "source_filename": "tests/cli/stack-switching/pipes.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 4,
+      "name": "pipes",
+      "filename": "pipes.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 44,
+      "as": "pipes"
+    },
+    {
+      "type": "module",
+      "line": 46,
+      "filename": "pipes.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "action",
+      "line": 97,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": [
+          {
+            "type": "i32",
+            "value": "0"
+          }
+        ]
+      }
+    }
+  ]
+}

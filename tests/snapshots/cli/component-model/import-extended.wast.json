@@ -1,0 +1,23 @@
+{
+  "source_filename": "tests/cli/component-model/import-extended.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 6,
+      "filename": "import-extended.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 11,
+      "filename": "import-extended.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 22,
+      "filename": "import-extended.2.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

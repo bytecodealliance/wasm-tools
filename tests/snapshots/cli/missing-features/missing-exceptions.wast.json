@@ -1,0 +1,19 @@
+{
+  "source_filename": "tests/cli/missing-features/missing-exceptions.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "missing-exceptions.0.wasm",
+      "module_type": "binary",
+      "text": "exceptions proposal not enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 11,
+      "filename": "missing-exceptions.1.wasm",
+      "module_type": "binary",
+      "text": "exceptions proposal not enabled"
+    }
+  ]
+}

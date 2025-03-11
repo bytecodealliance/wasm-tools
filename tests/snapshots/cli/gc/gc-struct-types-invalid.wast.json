@@ -1,0 +1,26 @@
+{
+  "source_filename": "tests/cli/gc/gc-struct-types-invalid.wast",
+  "commands": [
+    {
+      "type": "assert_malformed",
+      "line": 6,
+      "filename": "gc-struct-types-invalid.0.wat",
+      "module_type": "text",
+      "text": "unexpected token"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 12,
+      "filename": "gc-struct-types-invalid.1.wat",
+      "module_type": "text",
+      "text": "expected `)`"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 18,
+      "filename": "gc-struct-types-invalid.2.wat",
+      "module_type": "text",
+      "text": "unexpected token"
+    }
+  ]
+}

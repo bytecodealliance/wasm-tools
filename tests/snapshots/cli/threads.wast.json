@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/cli/threads.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "threads.0.wasm",
+      "module_type": "binary",
+      "text": "must always specify maximum alignment"
+    }
+  ]
+}

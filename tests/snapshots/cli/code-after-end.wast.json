@@ -1,0 +1,54 @@
+{
+  "source_filename": "tests/cli/code-after-end.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "code-after-end.0.wasm",
+      "module_type": "binary",
+      "text": "operators remaining after end of function"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 9,
+      "filename": "code-after-end.1.wasm",
+      "module_type": "binary",
+      "text": "operators remaining after end of function"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 14,
+      "filename": "code-after-end.2.wasm",
+      "module_type": "binary",
+      "text": "operators remaining after end of function"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 19,
+      "filename": "code-after-end.3.wasm",
+      "module_type": "binary",
+      "text": "operators remaining after end of function"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 24,
+      "filename": "code-after-end.4.wasm",
+      "module_type": "binary",
+      "text": "operators remaining after end of function"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 29,
+      "filename": "code-after-end.5.wasm",
+      "module_type": "binary",
+      "text": "operators remaining after end of function"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 34,
+      "filename": "code-after-end.6.wasm",
+      "module_type": "binary",
+      "text": "operators remaining after end of function"
+    }
+  ]
+}

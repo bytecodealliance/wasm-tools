@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/cli/id.wast",
+  "commands": [
+    {
+      "type": "assert_malformed",
+      "line": 4,
+      "filename": "id.0.wat",
+      "module_type": "text",
+      "text": "empty identifier"
+    }
+  ]
+}
