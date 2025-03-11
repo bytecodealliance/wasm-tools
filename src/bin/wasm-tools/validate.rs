@@ -35,6 +35,16 @@ Examples:
     $ wasm-tools validate --features=mvp mvp.wasm
 ")]
 pub struct Opts {
+    #[clap(flatten)]
+    features: CliFeatures,
+
+    #[clap(flatten)]
+    io: wasm_tools::InputOutput,
+}
+
+// Helper structure extracted used to parse the feature flags for `validate`.
+#[derive(clap::Parser)]
+pub struct CliFeatures {
     /// Comma-separated list of WebAssembly features to enable during
     /// validation.
     ///
@@ -55,9 +65,6 @@ pub struct Opts {
     /// <https://github.com/bytecodealliance/wasm-tools/blob/main/crates/wasmparser/src/features.rs>
     #[clap(long, short = 'f', value_parser = parse_features)]
     features: Vec<Vec<FeatureAction>>,
-
-    #[clap(flatten)]
-    io: wasm_tools::InputOutput,
 }
 
 #[derive(Clone)]
@@ -99,26 +106,6 @@ impl Opts {
         }
     }
 
-    fn features(&self) -> Result<WasmFeatures> {
-        let mut ret = WasmFeatures::default();
-
-        for action in self.features.iter().flat_map(|v| v) {
-            match action {
-                FeatureAction::Enable(features) => {
-                    ret |= *features;
-                }
-                FeatureAction::Disable(features) => {
-                    ret &= !*features;
-                }
-                FeatureAction::Reset(features) => {
-                    ret = *features;
-                }
-            }
-        }
-
-        Ok(ret)
-    }
-
     fn validate(&self, wasm: &[u8]) -> Result<()> {
         // Note that here we're copying the contents of
         // `Validator::validate_all`, but the end is followed up with a parallel
@@ -130,7 +117,7 @@ impl Opts {
         // `Validator` we're using as we navigate nested modules (the module
         // linking proposal) and any functions found are deferred to get
         // validated later.
-        let mut validator = Validator::new_with_features(self.features()?);
+        let mut validator = Validator::new_with_features(self.features.features());
         let mut functions_to_validate = Vec::new();
 
         let start = Instant::now();
@@ -216,6 +203,28 @@ impl Opts {
         } else {
             Ok(Some(out))
         }
+    }
+}
+
+impl CliFeatures {
+    pub fn features(&self) -> WasmFeatures {
+        let mut ret = WasmFeatures::default();
+
+        for action in self.features.iter().flat_map(|v| v) {
+            match action {
+                FeatureAction::Enable(features) => {
+                    ret |= *features;
+                }
+                FeatureAction::Disable(features) => {
+                    ret &= !*features;
+                }
+                FeatureAction::Reset(features) => {
+                    ret = *features;
+                }
+            }
+        }
+
+        ret
     }
 }
 
