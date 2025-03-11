@@ -2496,6 +2496,9 @@ impl Module {
             interesting(((1_i64 << 63) >> i) as _);
         }
 
+        // The largest unsigned value that can be stored in an `i31ref`.
+        interesting((u32::MAX >> 1) as _);
+
         // Some repeating bit patterns.
         for pattern in [0b01010101, 0b00010001, 0b00010001, 0b00000001] {
             for b in [pattern, !pattern] {
