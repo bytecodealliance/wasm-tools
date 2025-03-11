@@ -569,10 +569,10 @@ impl<'a> EncodingState<'a> {
         // Encode a shim instantiation if needed
         let shims = self.encode_shim_instantiation()?;
 
-        // Next declare all exported resource types. This populates
-        // `export_type_map` and will additionally be used for imports to
-        // modules instantiated below.
-        self.declare_exported_resources(&shims);
+        // Next declare any types needed for imported intrinsics. This
+        // populates `export_type_map` and will additionally be used for
+        // imports to modules instantiated below.
+        self.declare_types_for_imported_intrinsics(&shims)?;
 
         // Next instantiate the main module. This provides the linear memory to
         // use for all future adapters and enables creating indirect lowerings
@@ -1418,19 +1418,18 @@ impl<'a> EncodingState<'a> {
         Ok(type_index)
     }
 
-    /// This is a helper function that will declare, in the component itself,
-    /// all exported resources.
+    /// This is a helper function that will declare any types necessary for
+    /// declaring intrinsics that are imported into the module or adapter.
     ///
-    /// These resources later on get packaged up into instances and such. The
-    /// main thing that this handles is that it registers the right destructor
-    /// from `shims`, if needed, for each resource.
-    fn declare_exported_resources(&mut self, shims: &Shims<'_>) {
+    /// For example resources must be declared to generate
+    /// destructors/constructors/etc. Additionally types must also be declared
+    /// for `task.return` with the component model async feature.
+    fn declare_types_for_imported_intrinsics(&mut self, shims: &Shims<'_>) -> Result<()> {
         let resolve = &self.info.encoder.metadata.resolve;
         let world = &resolve.worlds[self.info.encoder.metadata.world];
 
         // Iterate over the main module's exports and the exports of all
-        // adapters. Look for exported interfaces that themselves have
-        // resources.
+        // adapters. Look for exported interfaces.
         let main_module_keys = self.info.encoder.main_module_exports.iter();
         let main_module_keys = main_module_keys.map(|key| (CustomModule::Main, key));
         let adapter_keys = self.info.encoder.adapters.iter().flat_map(|(name, info)| {
@@ -1446,32 +1445,39 @@ impl<'a> EncodingState<'a> {
             };
 
             for ty in resolve.interfaces[id].types.values() {
-                match resolve.types[*ty].kind {
-                    TypeDefKind::Resource => {}
-                    _ => continue,
+                match &resolve.types[*ty].kind {
+                    // Declare exported resources specially as they generally
+                    // need special treatment for later handling exports and
+                    // such.
+                    TypeDefKind::Resource => {
+                        // Load the destructor, previously detected in module
+                        // validation, if one is present.
+                        let exports = self.info.exports_for(for_module);
+                        let dtor = exports.resource_dtor(*ty).map(|name| {
+                            let name = &shims.shims[&ShimKind::ResourceDtor {
+                                module: for_module,
+                                export: name,
+                            }]
+                                .name;
+                            let shim = self.shim_instance_index.unwrap();
+                            self.core_alias_export(shim, name, ExportKind::Func)
+                        });
+
+                        // Declare the resource with this destructor and register it in
+                        // our internal map. This should be the first and only time this
+                        // type is inserted into this map.
+                        let resource_idx = self.component.type_resource(ValType::I32, dtor);
+                        let prev = self.export_type_map.insert(*ty, resource_idx);
+                        assert!(prev.is_none());
+                    }
+                    _other => {
+                        self.root_export_type_encoder(Some(id))
+                            .encode_valtype(resolve, &Type::Id(*ty))?;
+                    }
                 }
-
-                // Load the destructor, previously detected in module
-                // validation, if one is present.
-                let exports = self.info.exports_for(for_module);
-                let dtor = exports.resource_dtor(*ty).map(|name| {
-                    let name = &shims.shims[&ShimKind::ResourceDtor {
-                        module: for_module,
-                        export: name,
-                    }]
-                        .name;
-                    let shim = self.shim_instance_index.unwrap();
-                    self.core_alias_export(shim, name, ExportKind::Func)
-                });
-
-                // Declare the resource with this destructor and register it in
-                // our internal map. This should be the first and only time this
-                // type is inserted into this map.
-                let resource_idx = self.component.type_resource(ValType::I32, dtor);
-                let prev = self.export_type_map.insert(*ty, resource_idx);
-                assert!(prev.is_none());
             }
         }
+        Ok(())
     }
 
     /// Helper to instantiate the main module and record various results of its
@@ -1605,7 +1611,7 @@ impl<'a> EncodingState<'a> {
             // an exported resource the component still provides necessary
             // intrinsics for manipulating resource state. These are all
             // handled here using the resource types created during
-            // `declare_exported_resources` above.
+            // `declare_types_for_imported_intrinsics` above.
             Import::ExportedResourceDrop(_key, id) => {
                 let index = self.component.resource_drop(self.export_type_map[id]);
                 Ok((ExportKind::Func, index))
