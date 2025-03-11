@@ -620,7 +620,7 @@ impl TestState {
         let mut features = WasmFeatures::all()
             & !WasmFeatures::SHARED_EVERYTHING_THREADS
             & !WasmFeatures::COMPONENT_MODEL
-            & !WasmFeatures::COMPONENT_MODEL_NESTED_NAMES
+            & !WasmFeatures::CM_NESTED_NAMES
             & !WasmFeatures::LEGACY_EXCEPTIONS;
         for part in test.iter().filter_map(|t| t.to_str()) {
             match part {
@@ -665,7 +665,7 @@ impl TestState {
                     features.insert(WasmFeatures::MULTI_MEMORY);
                 }
                 "import-extended.wast" => {
-                    features.insert(WasmFeatures::COMPONENT_MODEL_NESTED_NAMES);
+                    features.insert(WasmFeatures::CM_NESTED_NAMES);
                 }
                 "stack-switching" => {
                     features.insert(WasmFeatures::STACK_SWITCHING);
@@ -678,7 +678,7 @@ impl TestState {
                 }
                 "component-model-async" => {
                     features.insert(WasmFeatures::COMPONENT_MODEL);
-                    features.insert(WasmFeatures::COMPONENT_MODEL_ASYNC);
+                    features.insert(WasmFeatures::CM_ASYNC);
                 }
                 _ => {}
             }

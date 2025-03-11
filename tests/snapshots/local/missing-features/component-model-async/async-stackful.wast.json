@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/local/missing-features/component-model-async/async-stackful.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 2,
+      "filename": "async-stackful.0.wasm",
+      "module_type": "binary",
+      "text": "requires the async stackful feature"
+    }
+  ]
+}
