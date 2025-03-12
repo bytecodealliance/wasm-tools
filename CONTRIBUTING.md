@@ -47,49 +47,48 @@ and then using Cargo to execute all tests:
 $ cargo test --workspace
 ```
 
-Running the spec test suite can be done with:
+The majority of all tests is located in `tests/cli/*` and can be run with:
 
 ```
-$ cargo test --test roundtrip
+$ cargo test --test cli
+```
+
+Each individual file is a standalone test and documents at the top how to run
+it. Running individual tests can be done through:
+
+```
+$ cargo test --test cli -- test_name_filter
+```
+
+Or you can use `cargo run` plus the test's arguments to run a single test.
+
+```
+$ cargo run wast tests/cli/empty.wast
+```
+
+Running just the spec test suite can be done with:
+
+```
+$ cargo test --test cli -- spec
 ```
 
 and running a single spec test can be done with an argument to this command as a
 string filter on the filename.
 
 ```
-$ cargo test --test roundtrip binary-leb128.wast
+$ cargo test --test cli binary-leb128.wast
+$ cargo run wast tests/testsuite/binary-leb128.wast --ignore-error-messages
 ```
 
-Many tests are also located in the top-level `tests/*` folder. This is organized
-into a few suites:
+The `tests/cli` tests suite is documented as a self-describing test at
+`tests/cli/readme.wat`. Each test describes what subcommand of `wasm-tools` is
+run and the test is itself the input.
 
-* `tests/cli/*` - these files are run by the `tests/cli.rs` test file and are
-  intended to be tests for the CLI itself. They start with `;; RUN: ...` headers
-  to indicate what commands should run and adjacent files indicate the expected
-  output.
-
-* `tests/local/*` - these are handwritten `*.wat` and `*.wast` tests. The
-  `*.wat` files must all validate as valid modules and `*.wast` files run their
-  directives in the same manner as the spec test suite. This folder additional
-  subfolders for specific classes of tests, for example `missing-features` has
-  all optional wasm features disabled to test what happens when a feature is
-  implemented but disabled at runtime. The `component-model` folder contains all
-  tests related to enabling the component model feature.
-
-* `tests/testsuite` - this is a git submodule pointing to the [upstream test
-  suite repository](https://github.com/WebAssembly/testsuite/) and is where spec
-  tests come from.
-
-* `tests/roundtrip.rs` - this is the main driver for the `local` and `testsuite`
-  folders. This will crawl over all files in those folders and execute what
-  tests it can. This means running `*.wast` directives such as `assert_invalid`.
-  Additionally all valid wasm modules are printed with `wasmprinter` and then
-  parsed again with `wat` to ensure that they can be round-tripped through the
-  crates.
-
-* `tests/snapshots` - this contains golden output files which correspond to the
-  `wasmprinter`-printed version of binaries of all tests. These files are used
-  to view the impact of changes to `wasmprinter`.
+The `tests/testsuite` folder is a git submodule pointing to the [upstream test
+suite repository](https://github.com/WebAssembly/testsuite/) and is where spec
+tests come from. The `tests/snapshots` folder contains golden output files
+which correspond to the `wasmprinter`-printed version of binaries of all tests.
+These files are used to view the impact of changes to `wasmprinter`.
 
 Many tests throughout the repository have automatically generated files
 associated with them which reflect the expected output of an operation. This is
