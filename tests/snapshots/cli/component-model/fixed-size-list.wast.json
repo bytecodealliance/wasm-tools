@@ -1,0 +1,17 @@
+{
+  "source_filename": "tests/cli/component-model/fixed-size-list.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "fixed-size-list.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 15,
+      "filename": "fixed-size-list.1.wasm",
+      "module_type": "binary"
+    }
+  ]
+}
