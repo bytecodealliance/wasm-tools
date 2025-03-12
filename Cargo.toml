@@ -196,10 +196,6 @@ wast = { workspace = true }
 name = "cli"
 harness = false
 
-[[test]]
-name = "roundtrip"
-harness = false
-
 [features]
 # By default, all subcommands are built
 default = [
