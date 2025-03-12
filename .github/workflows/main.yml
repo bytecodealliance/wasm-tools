@@ -291,6 +291,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
       - uses: ./.github/actions/install-rust
       - run: rm -rf tests/snapshots
       - run: rustc ci/generate-spec-tests.rs && ./generate-spec-tests
