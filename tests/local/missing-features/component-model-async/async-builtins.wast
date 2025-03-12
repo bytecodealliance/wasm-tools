@@ -1,25 +1,3 @@
-;; waitable-set.poll async
-(assert_invalid
-  (component
-    (core module $libc (memory (export "memory") 1))
-    (core instance $libc (instantiate $libc))
-    (core func (canon waitable-set.poll async (memory $libc "memory")))
-  )
-  "requires the component model async builtins feature")
-
-(component
-  (core module $libc (memory (export "memory") 1))
-  (core instance $libc (instantiate $libc))
-  (core func (canon waitable-set.poll (memory $libc "memory")))
-)
-
-;; yield
-(assert_invalid
-  (component (core func (canon yield async)))
-  "requires the component model async builtins feature")
-
-(component (core func (canon yield)))
-
 ;; {future,stream}.cancel-{read,write}
 (assert_invalid
   (component
@@ -50,3 +28,13 @@
   (core func (canon stream.cancel-read $s))
   (core func (canon stream.cancel-write $s))
 )
+
+;; async resource.drop
+(assert_invalid
+  (component
+    (type $t (resource (rep i32)))
+    (core func (canon resource.drop $t async)))
+  "requires the component model async builtins feature")
+(component
+  (type $t (resource (rep i32)))
+  (core func (canon resource.drop $t)))
