@@ -1256,10 +1256,10 @@ impl ComponentState {
         if !features.cm_async() {
             bail!(offset, "`yield` requires the component model async feature")
         }
-        if async_ && !features.cm_async_builtins() {
+        if async_ && !features.cm_async_stackful() {
             bail!(
                 offset,
-                "async `yield` requires the component model async builtins feature"
+                "async `yield` requires the component model async stackful feature"
             )
         }
 
@@ -1764,7 +1764,7 @@ impl ComponentState {
 
     fn waitable_set_wait(
         &mut self,
-        _async_: bool,
+        async_: bool,
         memory: u32,
         types: &mut TypeAlloc,
         offset: usize,
@@ -1774,6 +1774,12 @@ impl ComponentState {
             bail!(
                 offset,
                 "`waitable-set.wait` requires the component model async feature"
+            )
+        }
+        if async_ && !features.cm_async_stackful() {
+            bail!(
+                offset,
+                "async `waitable-set.wait` requires the component model async stackful feature"
             )
         }
 
@@ -1798,10 +1804,10 @@ impl ComponentState {
                 "`waitable-set.poll` requires the component model async feature"
             )
         }
-        if async_ && !features.cm_async_builtins() {
+        if async_ && !features.cm_async_stackful() {
             bail!(
                 offset,
-                "async `waitable-set.poll` requires the component model async builtins feature"
+                "async `waitable-set.poll` requires the component model async stackful feature"
             )
         }
 
