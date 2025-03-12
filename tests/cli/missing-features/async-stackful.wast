@@ -1,3 +1,6 @@
+;; RUN: wast % --assert default --snapshot tests/snapshots \
+;;        -f=cm-async,-cm-async-builtins
+
 (assert_invalid
   (component
     (core module $m (func (export "foo") (param i32)))

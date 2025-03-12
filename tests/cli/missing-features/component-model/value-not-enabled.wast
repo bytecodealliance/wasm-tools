@@ -1,4 +1,4 @@
-;; RUN: wast --assert default --snapshot tests/snapshots % -f=-component-model-values
+;; RUN: wast --assert default --snapshot tests/snapshots % -f=-cm-values
 
 (assert_invalid
   (component
