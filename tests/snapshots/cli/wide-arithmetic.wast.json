@@ -1,0 +1,67 @@
+{
+  "source_filename": "tests/cli/wide-arithmetic.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "wide-arithmetic.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 27,
+      "filename": "wide-arithmetic.1.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 37,
+      "filename": "wide-arithmetic.2.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 47,
+      "filename": "wide-arithmetic.3.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 57,
+      "filename": "wide-arithmetic.4.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 67,
+      "filename": "wide-arithmetic.5.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 75,
+      "filename": "wide-arithmetic.6.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 83,
+      "filename": "wide-arithmetic.7.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 91,
+      "filename": "wide-arithmetic.8.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    }
+  ]
+}

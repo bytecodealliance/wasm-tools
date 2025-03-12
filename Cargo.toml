@@ -178,6 +178,9 @@ wit-smith = { workspace = true, features = ["clap"], optional = true }
 addr2line = { version = "0.24.0", optional = true }
 gimli = { workspace = true, optional = true }
 
+# Dependencies of `wast`
+pretty_assertions = { workspace = true, optional = true }
+
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 is_executable = { version = "1.0.1", optional = true }
 
@@ -191,10 +194,6 @@ wast = { workspace = true }
 
 [[test]]
 name = "cli"
-harness = false
-
-[[test]]
-name = "roundtrip"
 harness = false
 
 [features]
@@ -217,6 +216,7 @@ default = [
   'addr2line',
   'completion',
   'json-from-wast',
+  'wast',
 ]
 
 # Each subcommand is gated behind a feature and lists the dependencies it needs
@@ -253,3 +253,13 @@ wit-smith = ['dep:wit-smith', 'arbitrary']
 addr2line = ['dep:addr2line', 'dep:gimli', 'dep:wasmparser']
 completion = ['dep:clap_complete']
 json-from-wast = ['dep:serde_derive', 'dep:serde_json', 'dep:wast', 'dep:serde']
+wast = [
+  'dep:wast',
+  'wasm-encoder/wasmparser',
+  'dep:pretty_assertions',
+  'validate',
+  # These subcommands are executed from `wasm-tools wast` so make sure they're
+  # built-in if this is enabled.
+  'dump',
+  'json-from-wast',
+]

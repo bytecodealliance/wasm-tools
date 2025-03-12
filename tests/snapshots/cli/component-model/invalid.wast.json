@@ -1,0 +1,33 @@
+{
+  "source_filename": "tests/cli/component-model/invalid.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "invalid.0.wasm",
+      "module_type": "binary",
+      "text": "type index out of bounds"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 13,
+      "filename": "invalid.1.wat",
+      "module_type": "text",
+      "text": "unknown func"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 19,
+      "filename": "invalid.2.wat",
+      "module_type": "text",
+      "text": "outer count of `100` is too large"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 25,
+      "filename": "invalid.3.wat",
+      "module_type": "text",
+      "text": "outer component `nonexistent` not found"
+    }
+  ]
+}

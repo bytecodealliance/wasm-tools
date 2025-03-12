@@ -1,0 +1,96 @@
+{
+  "source_filename": "tests/cli/gc/type-equivalence.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 10,
+      "filename": "type-equivalence.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 21,
+      "filename": "type-equivalence.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 37,
+      "filename": "type-equivalence.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 42,
+      "filename": "type-equivalence.3.wasm",
+      "module_type": "binary",
+      "text": "unknown type"
+    },
+    {
+      "type": "module",
+      "line": 54,
+      "filename": "type-equivalence.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 67,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": []
+    },
+    {
+      "type": "module",
+      "line": 72,
+      "filename": "type-equivalence.5.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 96,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      },
+      "expected": []
+    },
+    {
+      "type": "module",
+      "line": 103,
+      "filename": "type-equivalence.6.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 107,
+      "as": "M"
+    },
+    {
+      "type": "module",
+      "line": 108,
+      "filename": "type-equivalence.7.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 116,
+      "filename": "type-equivalence.8.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 125,
+      "as": "M"
+    },
+    {
+      "type": "module",
+      "line": 126,
+      "filename": "type-equivalence.9.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

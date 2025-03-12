@@ -1,0 +1,68 @@
+{
+  "source_filename": "tests/cli/stack-switching/control-lwt.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 6,
+      "name": "control",
+      "filename": "control-lwt.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 43,
+      "as": "control"
+    },
+    {
+      "type": "module",
+      "line": 48,
+      "name": "example",
+      "filename": "control-lwt.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 105,
+      "as": "example"
+    },
+    {
+      "type": "module",
+      "line": 107,
+      "name": "queue",
+      "filename": "control-lwt.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 165,
+      "as": "queue"
+    },
+    {
+      "type": "module",
+      "line": 167,
+      "name": "scheduler",
+      "filename": "control-lwt.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "register",
+      "line": 319,
+      "as": "scheduler"
+    },
+    {
+      "type": "module",
+      "line": 321,
+      "filename": "control-lwt.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "action",
+      "line": 358,
+      "action": {
+        "type": "invoke",
+        "field": "run",
+        "args": []
+      }
+    }
+  ]
+}

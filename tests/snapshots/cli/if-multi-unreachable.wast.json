@@ -1,0 +1,11 @@
+{
+  "source_filename": "tests/cli/if-multi-unreachable.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "if-multi-unreachable.0.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

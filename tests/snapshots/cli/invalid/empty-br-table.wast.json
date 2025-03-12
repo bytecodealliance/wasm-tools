@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/cli/invalid/empty-br-table.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "empty-br-table.0.wasm",
+      "module_type": "binary",
+      "text": "integer too large"
+    }
+  ]
+}

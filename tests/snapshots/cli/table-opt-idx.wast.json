@@ -1,0 +1,11 @@
+{
+  "source_filename": "tests/cli/table-opt-idx.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 4,
+      "filename": "table-opt-idx.0.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

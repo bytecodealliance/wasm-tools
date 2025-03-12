@@ -1,0 +1,32 @@
+{
+  "source_filename": "tests/cli/memory64.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "memory64.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 130,
+      "filename": "memory64.1.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 133,
+      "filename": "memory64.2.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "module",
+      "line": 136,
+      "name": "table64",
+      "filename": "memory64.3.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

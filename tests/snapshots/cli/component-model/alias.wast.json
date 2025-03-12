@@ -1,0 +1,196 @@
+{
+  "source_filename": "tests/cli/component-model/alias.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "alias.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 11,
+      "filename": "alias.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 20,
+      "filename": "alias.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 32,
+      "filename": "alias.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 64,
+      "filename": "alias.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 75,
+      "filename": "alias.5.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 103,
+      "filename": "alias.6.wasm",
+      "module_type": "binary",
+      "text": "export `a` for instance 0 is not a module"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 110,
+      "filename": "alias.7.wasm",
+      "module_type": "binary",
+      "text": "export `a` for instance 0 is not a module"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 120,
+      "filename": "alias.8.wasm",
+      "module_type": "binary",
+      "text": "core instance 0 has no export named `a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 128,
+      "filename": "alias.9.wasm",
+      "module_type": "binary",
+      "text": "core instance 0 has no export named `a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 136,
+      "filename": "alias.10.wasm",
+      "module_type": "binary",
+      "text": "instance 0 has no export named `a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 144,
+      "filename": "alias.11.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "module",
+      "line": 155,
+      "name": "PARENT",
+      "filename": "alias.12.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 167,
+      "filename": "alias.13.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 196,
+      "name": "a",
+      "filename": "alias.14.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 215,
+      "filename": "alias.15.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 220,
+      "filename": "alias.16.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 225,
+      "filename": "alias.17.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 230,
+      "name": "C",
+      "filename": "alias.18.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 241,
+      "name": "C",
+      "filename": "alias.19.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 247,
+      "name": "C",
+      "filename": "alias.20.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 254,
+      "filename": "alias.21.wasm",
+      "module_type": "binary",
+      "text": "invalid outer alias count of 100"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 258,
+      "filename": "alias.22.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 262,
+      "filename": "alias.23.wasm",
+      "module_type": "binary",
+      "text": "invalid outer alias count of 100"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 266,
+      "filename": "alias.24.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 270,
+      "filename": "alias.25.wasm",
+      "module_type": "binary",
+      "text": "invalid outer alias count of 100"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 274,
+      "filename": "alias.26.wasm",
+      "module_type": "binary",
+      "text": "index out of bounds"
+    },
+    {
+      "type": "module",
+      "line": 277,
+      "filename": "alias.27.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 285,
+      "filename": "alias.28.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

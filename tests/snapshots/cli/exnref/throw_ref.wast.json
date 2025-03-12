@@ -1,0 +1,11 @@
+{
+  "source_filename": "tests/cli/exnref/throw_ref.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "throw_ref.0.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

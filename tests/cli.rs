@@ -262,7 +262,7 @@ fn find_tests(path: &Path, tests: &mut Vec<PathBuf>) {
             continue;
         }
         match f.path().extension().and_then(|s| s.to_str()) {
-            Some("wat") | Some("wit") => {}
+            Some("wat") | Some("wit") | Some("wast") => {}
             _ => continue,
         }
         tests.push(f.path());

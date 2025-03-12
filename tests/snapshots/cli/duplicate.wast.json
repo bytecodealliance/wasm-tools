@@ -1,0 +1,110 @@
+{
+  "source_filename": "tests/cli/duplicate.wast",
+  "commands": [
+    {
+      "type": "assert_malformed",
+      "line": 3,
+      "filename": "duplicate.0.wat",
+      "module_type": "text",
+      "text": "duplicate func identifier"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 7,
+      "filename": "duplicate.1.wat",
+      "module_type": "text",
+      "text": "duplicate func identifier"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 11,
+      "filename": "duplicate.2.wat",
+      "module_type": "text",
+      "text": "duplicate func identifier"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 16,
+      "filename": "duplicate.3.wat",
+      "module_type": "text",
+      "text": "duplicate global identifier"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 20,
+      "filename": "duplicate.4.wat",
+      "module_type": "text",
+      "text": "duplicate global identifier"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 24,
+      "filename": "duplicate.5.wat",
+      "module_type": "text",
+      "text": "duplicate global identifier"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 29,
+      "filename": "duplicate.6.wat",
+      "module_type": "text",
+      "text": "duplicate memory identifier"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 33,
+      "filename": "duplicate.7.wat",
+      "module_type": "text",
+      "text": "duplicate memory identifier"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 37,
+      "filename": "duplicate.8.wat",
+      "module_type": "text",
+      "text": "duplicate memory identifier"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 42,
+      "filename": "duplicate.9.wat",
+      "module_type": "text",
+      "text": "duplicate table identifier"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 46,
+      "filename": "duplicate.10.wat",
+      "module_type": "text",
+      "text": "duplicate table identifier"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 50,
+      "filename": "duplicate.11.wat",
+      "module_type": "text",
+      "text": "duplicate table identifier"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 55,
+      "filename": "duplicate.12.wat",
+      "module_type": "text",
+      "text": "duplicate local identifier"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 57,
+      "filename": "duplicate.13.wat",
+      "module_type": "text",
+      "text": "duplicate local identifier"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 59,
+      "filename": "duplicate.14.wat",
+      "module_type": "text",
+      "text": "duplicate local identifier"
+    }
+  ]
+}

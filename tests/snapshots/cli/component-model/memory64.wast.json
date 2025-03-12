@@ -1,0 +1,33 @@
+{
+  "source_filename": "tests/cli/component-model/memory64.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "memory64.0.wasm",
+      "module_type": "binary",
+      "text": "mismatch in index type used for memories"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 15,
+      "filename": "memory64.1.wasm",
+      "module_type": "binary",
+      "text": "mismatch in index type used for memories"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 26,
+      "filename": "memory64.2.wasm",
+      "module_type": "binary",
+      "text": "64-bit linear memories are not compatible with components yet"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 35,
+      "filename": "memory64.3.wasm",
+      "module_type": "binary",
+      "text": "64-bit tables are not compatible with components yet"
+    }
+  ]
+}

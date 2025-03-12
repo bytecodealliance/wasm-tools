@@ -1,0 +1,251 @@
+{
+  "source_filename": "tests/cli/shared-everything-threads/structs.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 4,
+      "filename": "structs.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 18,
+      "filename": "structs.1.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 28,
+      "filename": "structs.2.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 39,
+      "filename": "structs.3.wasm",
+      "module_type": "binary",
+      "text": "must match super type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 48,
+      "filename": "structs.4.wasm",
+      "module_type": "binary",
+      "text": "must match super type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 57,
+      "filename": "structs.5.wasm",
+      "module_type": "binary",
+      "text": "must contain shared type"
+    },
+    {
+      "type": "module",
+      "line": 64,
+      "filename": "structs.6.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 69,
+      "filename": "structs.7.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 74,
+      "filename": "structs.8.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 97,
+      "filename": "structs.9.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 106,
+      "filename": "structs.10.wasm",
+      "module_type": "binary",
+      "text": "field is immutable"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 115,
+      "filename": "structs.11.wasm",
+      "module_type": "binary",
+      "text": "field is immutable"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 124,
+      "filename": "structs.12.wasm",
+      "module_type": "binary",
+      "text": "field is immutable"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 133,
+      "filename": "structs.13.wasm",
+      "module_type": "binary",
+      "text": "field is immutable"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 142,
+      "filename": "structs.14.wasm",
+      "module_type": "binary",
+      "text": "field is immutable"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 151,
+      "filename": "structs.15.wasm",
+      "module_type": "binary",
+      "text": "field is immutable"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 160,
+      "filename": "structs.16.wasm",
+      "module_type": "binary",
+      "text": "field is immutable"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 169,
+      "filename": "structs.17.wasm",
+      "module_type": "binary",
+      "text": "field is immutable"
+    },
+    {
+      "type": "module",
+      "line": 179,
+      "filename": "structs.18.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 406,
+      "filename": "structs.19.wasm",
+      "module_type": "binary",
+      "text": "non-packed storage type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 415,
+      "filename": "structs.20.wasm",
+      "module_type": "binary",
+      "text": "non-packed storage types"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 424,
+      "filename": "structs.21.wasm",
+      "module_type": "binary",
+      "text": "non-packed storage types"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 433,
+      "filename": "structs.22.wasm",
+      "module_type": "binary",
+      "text": "non-packed storage types"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 442,
+      "filename": "structs.23.wasm",
+      "module_type": "binary",
+      "text": "non-packed storage types"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 451,
+      "filename": "structs.24.wasm",
+      "module_type": "binary",
+      "text": "invalid type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 461,
+      "filename": "structs.25.wasm",
+      "module_type": "binary",
+      "text": "invalid type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 471,
+      "filename": "structs.26.wasm",
+      "module_type": "binary",
+      "text": "invalid type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 481,
+      "filename": "structs.27.wasm",
+      "module_type": "binary",
+      "text": "invalid type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 491,
+      "filename": "structs.28.wasm",
+      "module_type": "binary",
+      "text": "invalid type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 501,
+      "filename": "structs.29.wasm",
+      "module_type": "binary",
+      "text": "invalid type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 511,
+      "filename": "structs.30.wasm",
+      "module_type": "binary",
+      "text": "invalid type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 522,
+      "filename": "structs.31.wasm",
+      "module_type": "binary",
+      "text": "invalid type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 534,
+      "filename": "structs.32.wasm",
+      "module_type": "binary",
+      "text": "invalid type: `struct.atomic.get` only allows `i32`, `i64` and subtypes of `anyref`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 545,
+      "filename": "structs.33.wasm",
+      "module_type": "binary",
+      "text": "invalid type: `struct.atomic.get` only allows `i32`, `i64` and subtypes of `anyref`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 556,
+      "filename": "structs.34.wasm",
+      "module_type": "binary",
+      "text": "can only use struct `get` with non-packed storage types"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 567,
+      "filename": "structs.35.wasm",
+      "module_type": "binary",
+      "text": "invalid type: `struct.atomic.set` only allows `i8`, `i16`, `i32`, `i64` and subtypes of `anyref`"
+    }
+  ]
+}

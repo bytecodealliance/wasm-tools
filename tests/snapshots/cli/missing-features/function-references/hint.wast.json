@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/cli/missing-features/function-references/hint.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "hint.0.wasm",
+      "module_type": "binary",
+      "text": "unknown type 0: type index out of bounds because the GC proposal is disabled"
+    }
+  ]
+}

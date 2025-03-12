@@ -1,0 +1,21 @@
+{
+  "source_filename": "tests/cli/unreachable-valid.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "unreachable-valid.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_trap",
+      "line": 13,
+      "action": {
+        "type": "invoke",
+        "field": "f",
+        "args": []
+      },
+      "text": "unreachable"
+    }
+  ]
+}

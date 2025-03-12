@@ -1,0 +1,11 @@
+{
+  "source_filename": "tests/cli/folding/fold-block.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 4,
+      "filename": "fold-block.0.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

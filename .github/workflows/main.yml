@@ -237,6 +237,7 @@ jobs:
       - run: cargo check --no-default-features --features addr2line
       - run: cargo check --no-default-features --features json-from-wast
       - run: cargo check --no-default-features --features completion
+      - run: cargo check --no-default-features --features wast
       - run: cargo check --no-default-features -p wit-parser
       - run: cargo check --no-default-features -p wit-parser --features wat
       - run: cargo check --no-default-features -p wit-parser --features serde
@@ -282,6 +283,22 @@ jobs:
             echo wasm-smith without default features should not depend on wasmparser
             exit 1
           fi
+
+  # Double-check that files and such related to the `tests/cli` test suite are
+  # up-to-date.
+  generated_files_up_to_date:
+    name: Check generated files are up-to-date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: ./.github/actions/install-rust
+      - run: rm -rf tests/snapshots
+      - run: rustc ci/generate-spec-tests.rs && ./generate-spec-tests
+      - run: find tests/cli -name '*.stderr' | xargs rm
+      - run: BLESS=1 cargo test --test cli
+      - run: git diff --exit-code
 
   doc:
     runs-on: ubuntu-latest
@@ -329,6 +346,7 @@ jobs:
       - test_extra_features
       - test-prefer-btree-collections
       - clippy
+      - generated_files_up_to_date
     if: always()
 
     steps:
