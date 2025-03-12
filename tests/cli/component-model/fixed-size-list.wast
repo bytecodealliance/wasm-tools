@@ -1,3 +1,5 @@
+;; RUN: wast % --assert default --snapshot tests/snapshots -f cm-fixed-size-list
+
 (component
   (core module $m
     (memory (export "memory") 1)
