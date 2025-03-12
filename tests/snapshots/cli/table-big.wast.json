@@ -1,0 +1,11 @@
+{
+  "source_filename": "tests/cli/table-big.wast",
+  "commands": [
+    {
+      "type": "module_definition",
+      "line": 3,
+      "filename": "table-big.0.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

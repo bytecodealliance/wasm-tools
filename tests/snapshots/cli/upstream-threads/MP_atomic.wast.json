@@ -1,0 +1,103 @@
+{
+  "source_filename": "tests/cli/upstream-threads/MP_atomic.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "name": "Mem",
+      "filename": "MP_atomic.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "thread",
+      "line": 7,
+      "name": "T1",
+      "shared_module": "Mem",
+      "commands": [
+        {
+          "type": "register",
+          "line": 8,
+          "name": "Mem",
+          "as": "mem"
+        },
+        {
+          "type": "module",
+          "line": 9,
+          "filename": "MP_atomic.1.wasm",
+          "module_type": "binary"
+        },
+        {
+          "type": "action",
+          "line": 16,
+          "action": {
+            "type": "invoke",
+            "field": "run",
+            "args": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "thread",
+      "line": 19,
+      "name": "T2",
+      "shared_module": "Mem",
+      "commands": [
+        {
+          "type": "register",
+          "line": 20,
+          "name": "Mem",
+          "as": "mem"
+        },
+        {
+          "type": "module",
+          "line": 21,
+          "filename": "MP_atomic.2.wasm",
+          "module_type": "binary"
+        },
+        {
+          "type": "action",
+          "line": 36,
+          "action": {
+            "type": "invoke",
+            "field": "run",
+            "args": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "wait",
+      "line": 39,
+      "thread": "T1"
+    },
+    {
+      "type": "wait",
+      "line": 40,
+      "thread": "T2"
+    },
+    {
+      "type": "module",
+      "line": 42,
+      "name": "Check",
+      "filename": "MP_atomic.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 63,
+      "action": {
+        "type": "invoke",
+        "module": "Check",
+        "field": "check",
+        "args": []
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "1"
+        }
+      ]
+    }
+  ]
+}

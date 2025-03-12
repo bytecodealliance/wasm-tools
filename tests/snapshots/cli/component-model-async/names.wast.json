@@ -1,0 +1,74 @@
+{
+  "source_filename": "tests/cli/component-model-async/names.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "names.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 14,
+      "filename": "names.1.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 21,
+      "filename": "names.2.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 28,
+      "filename": "names.3.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 35,
+      "filename": "names.4.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 42,
+      "filename": "names.5.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 49,
+      "filename": "names.6.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 56,
+      "filename": "names.7.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 63,
+      "filename": "names.8.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 70,
+      "filename": "names.9.wasm",
+      "module_type": "binary",
+      "text": "conflicts with previous name"
+    }
+  ]
+}

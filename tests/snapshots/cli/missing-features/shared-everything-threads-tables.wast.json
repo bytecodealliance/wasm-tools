@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/cli/missing-features/shared-everything-threads-tables.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "shared-everything-threads-tables.0.wasm",
+      "module_type": "binary",
+      "text": "shared tables require the shared-everything-threads proposal"
+    }
+  ]
+}

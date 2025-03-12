@@ -1,0 +1,115 @@
+{
+  "source_filename": "tests/cli/component-model/naming.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "naming.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 10,
+      "filename": "naming.1.wasm",
+      "module_type": "binary",
+      "text": "`1` is not in kebab case"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 18,
+      "filename": "naming.2.wasm",
+      "module_type": "binary",
+      "text": "instance 0 has no export named `Xml`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 26,
+      "filename": "naming.3.wasm",
+      "module_type": "binary",
+      "text": "flag name `a-1-c` is not in kebab case"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 33,
+      "filename": "naming.4.wasm",
+      "module_type": "binary",
+      "text": "enum tag name `NevEr` is not in kebab case"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 40,
+      "filename": "naming.5.wasm",
+      "module_type": "binary",
+      "text": "record field name `GoNnA` is not in kebab case"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 47,
+      "filename": "naming.6.wasm",
+      "module_type": "binary",
+      "text": "variant case name `GIVe` is not in kebab case"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 55,
+      "filename": "naming.7.wasm",
+      "module_type": "binary",
+      "text": "function parameter name `yOu` is not in kebab case"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 62,
+      "filename": "naming.8.wasm",
+      "module_type": "binary",
+      "text": "`NevEr` is not in kebab case"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 69,
+      "filename": "naming.9.wasm",
+      "module_type": "binary",
+      "text": "`GonnA` is not in kebab case"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 76,
+      "filename": "naming.10.wasm",
+      "module_type": "binary",
+      "text": "`lET` is not in kebab case"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 83,
+      "filename": "naming.11.wasm",
+      "module_type": "binary",
+      "text": "`YoU` is not in kebab case"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 90,
+      "filename": "naming.12.wasm",
+      "module_type": "binary",
+      "text": "`DOWn` is not in kebab case"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 97,
+      "filename": "naming.13.wasm",
+      "module_type": "binary",
+      "text": "character `A` is not lowercase in package name/namespace"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 103,
+      "filename": "naming.14.wasm",
+      "module_type": "binary",
+      "text": "character `B` is not lowercase in package name/namespace"
+    },
+    {
+      "type": "module",
+      "line": 108,
+      "filename": "naming.15.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

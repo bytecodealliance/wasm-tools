@@ -1,0 +1,33 @@
+{
+  "source_filename": "tests/cli/invalid/gc-field-subtyping.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 6,
+      "filename": "gc-field-subtyping.0.wasm",
+      "module_type": "binary",
+      "text": "sub type must match super type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 16,
+      "filename": "gc-field-subtyping.1.wasm",
+      "module_type": "binary",
+      "text": "sub type must match super type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 26,
+      "filename": "gc-field-subtyping.2.wasm",
+      "module_type": "binary",
+      "text": "sub type must match super type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 35,
+      "filename": "gc-field-subtyping.3.wasm",
+      "module_type": "binary",
+      "text": "sub type must match super type"
+    }
+  ]
+}

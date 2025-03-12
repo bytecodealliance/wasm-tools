@@ -1,0 +1,11 @@
+{
+  "source_filename": "tests/cli/param-names.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "param-names.0.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

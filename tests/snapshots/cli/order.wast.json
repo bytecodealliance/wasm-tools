@@ -1,0 +1,19 @@
+{
+  "source_filename": "tests/cli/order.wast",
+  "commands": [
+    {
+      "type": "assert_malformed",
+      "line": 4,
+      "filename": "order.0.wat",
+      "module_type": "text",
+      "text": "import after function"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 10,
+      "filename": "order.1.wat",
+      "module_type": "text",
+      "text": "import after function"
+    }
+  ]
+}

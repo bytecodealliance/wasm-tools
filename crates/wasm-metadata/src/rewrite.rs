@@ -1,7 +1,4 @@
-use crate::{
-    Authors, ComponentNames, Description, Homepage, Licenses, ModuleNames, Producers, Revision,
-    Source,
-};
+use crate::{AddMetadata, ComponentNames, ModuleNames, Producers};
 use anyhow::Result;
 use std::mem;
 use wasm_encoder::ComponentSection as _;
@@ -9,15 +6,8 @@ use wasm_encoder::{ComponentSectionId, Encode, Section};
 use wasmparser::{KnownCustom, Parser, Payload::*};
 
 pub(crate) fn rewrite_wasm(
-    add_name: &Option<String>,
+    metadata: &AddMetadata,
     add_producers: &Producers,
-    add_author: &Option<Authors>,
-    add_description: &Option<Description>,
-    add_licenses: &Option<Licenses>,
-    add_source: &Option<Source>,
-    add_homepage: &Option<Homepage>,
-    add_revision: &Option<Revision>,
-    add_version: &Option<crate::Version>,
     input: &[u8],
 ) -> Result<Vec<u8>> {
     let mut producers_found = false;
@@ -72,7 +62,7 @@ pub(crate) fn rewrite_wasm(
                     KnownCustom::Name(_) => {
                         names_found = true;
                         let mut names = ModuleNames::from_bytes(c.data(), c.data_offset())?;
-                        names.merge(&ModuleNames::from_name(add_name));
+                        names.merge(&ModuleNames::from_name(&metadata.name));
 
                         names.section()?.as_custom().append_to(&mut output);
                         continue;
@@ -80,54 +70,61 @@ pub(crate) fn rewrite_wasm(
                     KnownCustom::ComponentName(_) => {
                         names_found = true;
                         let mut names = ComponentNames::from_bytes(c.data(), c.data_offset())?;
-                        names.merge(&ComponentNames::from_name(add_name));
+                        names.merge(&ComponentNames::from_name(&metadata.name));
                         names.section()?.as_custom().append_to(&mut output);
                         continue;
                     }
+                    #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "author" => {
-                        if add_author.is_none() {
-                            let author = Authors::parse_custom_section(c)?;
+                        if metadata.authors.is_none() {
+                            let author = crate::Authors::parse_custom_section(c)?;
                             author.append_to(&mut output);
                             continue;
                         }
                     }
+                    #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "description" => {
-                        if add_description.is_none() {
-                            let description = Description::parse_custom_section(c)?;
+                        if metadata.description.is_none() {
+                            let description = crate::Description::parse_custom_section(c)?;
                             description.append_to(&mut output);
                             continue;
                         }
                     }
+                    #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "licenses" => {
-                        if add_licenses.is_none() {
-                            let licenses = Licenses::parse_custom_section(c)?;
+                        if metadata.licenses.is_none() {
+                            let licenses = crate::Licenses::parse_custom_section(c)?;
                             licenses.append_to(&mut output);
                             continue;
                         }
                     }
+                    #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "source" => {
-                        if add_source.is_none() {
-                            let source = Source::parse_custom_section(c)?;
+                        if metadata.source.is_none() {
+                            let source = crate::Source::parse_custom_section(c)?;
                             source.append_to(&mut output);
                             continue;
                         }
                     }
+                    #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "homepage" => {
-                        if add_source.is_none() {
-                            let homepage = Homepage::parse_custom_section(c)?;
+                        if metadata.source.is_none() {
+                            let homepage = crate::Homepage::parse_custom_section(c)?;
                             homepage.append_to(&mut output);
                             continue;
                         }
                     }
+                    #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "revision" => {
-                        if add_source.is_none() {
-                            let revision = Revision::parse_custom_section(c)?;
+                        if metadata.source.is_none() {
+                            let revision = crate::Revision::parse_custom_section(c)?;
                             revision.append_to(&mut output);
                             continue;
                         }
                     }
+                    #[cfg(feature = "oci")]
                     KnownCustom::Unknown if c.name() == "version" => {
-                        if add_version.is_none() {
+                        if metadata.version.is_none() {
                             let version = crate::Version::parse_custom_section(c)?;
                             version.append_to(&mut output);
                             continue;
@@ -146,12 +143,12 @@ pub(crate) fn rewrite_wasm(
             .append_to(&mut output);
         }
     }
-    if !names_found && add_name.is_some() {
+    if !names_found && metadata.name.is_some() {
         if output.starts_with(&wasm_encoder::Component::HEADER) {
-            let names = ComponentNames::from_name(add_name);
+            let names = ComponentNames::from_name(&metadata.name);
             names.section()?.append_to_component(&mut output);
         } else {
-            let names = ModuleNames::from_name(add_name);
+            let names = ModuleNames::from_name(&metadata.name);
             names.section()?.append_to(&mut output)
         }
     }
@@ -162,25 +159,32 @@ pub(crate) fn rewrite_wasm(
         // Encode into output:
         producers.section().append_to(&mut output);
     }
-    if let Some(author) = add_author {
+    #[cfg(feature = "oci")]
+    if let Some(author) = &metadata.authors {
         author.append_to(&mut output);
     }
-    if let Some(description) = add_description {
+    #[cfg(feature = "oci")]
+    if let Some(description) = &metadata.description {
         description.append_to(&mut output);
     }
-    if let Some(licenses) = add_licenses {
+    #[cfg(feature = "oci")]
+    if let Some(licenses) = &metadata.licenses {
         licenses.append_to(&mut output);
     }
-    if let Some(source) = add_source {
+    #[cfg(feature = "oci")]
+    if let Some(source) = &metadata.source {
         source.append_to(&mut output);
     }
-    if let Some(homepage) = add_homepage {
+    #[cfg(feature = "oci")]
+    if let Some(homepage) = &metadata.homepage {
         homepage.append_to(&mut output);
     }
-    if let Some(revision) = add_revision {
+    #[cfg(feature = "oci")]
+    if let Some(revision) = &metadata.revision {
         revision.append_to(&mut output);
     }
-    if let Some(version) = add_version {
+    #[cfg(feature = "oci")]
+    if let Some(version) = &metadata.version {
         version.append_to(&mut output);
     }
     Ok(output)

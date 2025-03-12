@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/cli/gc/gc-array-types-invalid.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 6,
+      "filename": "gc-array-types-invalid.0.wasm",
+      "module_type": "binary",
+      "text": "unknown type"
+    }
+  ]
+}

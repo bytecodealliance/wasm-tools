@@ -1,0 +1,9 @@
+(component
+  (core module $libc (;0;)
+    (memory (;0;) 1)
+    (export "memory" (memory 0))
+  )
+  (core instance $libc (;0;) (instantiate $libc))
+  (alias core export $libc "memory" (core memory (;0;)))
+  (core func (;0;) (canon waitable-set.wait (memory 0)))
+)

@@ -1,0 +1,8 @@
+(component
+  (type $f (;0;) (future))
+  (type $s (;1;) (stream))
+  (core func (;0;) (canon future.cancel-read $f))
+  (core func (;1;) (canon future.cancel-write $f))
+  (core func (;2;) (canon stream.cancel-read $s))
+  (core func (;3;) (canon stream.cancel-write $s))
+)

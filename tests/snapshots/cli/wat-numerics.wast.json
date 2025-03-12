@@ -1,0 +1,11 @@
+{
+  "source_filename": "tests/cli/wat-numerics.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 1,
+      "filename": "wat-numerics.0.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

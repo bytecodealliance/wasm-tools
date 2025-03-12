@@ -1,0 +1,19 @@
+{
+  "source_filename": "tests/cli/invalid-funcref-in-data-segment.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "invalid-funcref-in-data-segment.0.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 12,
+      "filename": "invalid-funcref-in-data-segment.1.wasm",
+      "module_type": "binary",
+      "text": "undeclared function reference"
+    }
+  ]
+}

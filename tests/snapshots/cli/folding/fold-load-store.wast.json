@@ -1,0 +1,11 @@
+{
+  "source_filename": "tests/cli/folding/fold-load-store.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 4,
+      "filename": "fold-load-store.0.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

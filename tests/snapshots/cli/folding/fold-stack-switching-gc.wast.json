@@ -1,0 +1,88 @@
+{
+  "source_filename": "tests/cli/folding/fold-stack-switching-gc.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 10,
+      "filename": "fold-stack-switching-gc.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 37,
+      "filename": "fold-stack-switching-gc.1.wasm",
+      "module_type": "binary",
+      "text": "sub type must match super type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 53,
+      "filename": "fold-stack-switching-gc.2.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 78,
+      "filename": "fold-stack-switching-gc.3.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 104,
+      "filename": "fold-stack-switching-gc.4.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    },
+    {
+      "type": "module",
+      "line": 122,
+      "name": "non_final",
+      "filename": "fold-stack-switching-gc.5.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 140,
+      "name": "subtyping0",
+      "filename": "fold-stack-switching-gc.6.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 166,
+      "name": "recursive",
+      "filename": "fold-stack-switching-gc.7.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 195,
+      "name": "recursive_subtyping",
+      "filename": "fold-stack-switching-gc.8.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 233,
+      "name": "subtyping-resume0",
+      "filename": "fold-stack-switching-gc.9.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 265,
+      "name": "subtyping-resume1",
+      "filename": "fold-stack-switching-gc.10.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 288,
+      "filename": "fold-stack-switching-gc.11.wasm",
+      "module_type": "binary",
+      "text": "type mismatch"
+    }
+  ]
+}

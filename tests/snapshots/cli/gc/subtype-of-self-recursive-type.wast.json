@@ -1,0 +1,11 @@
+{
+  "source_filename": "tests/cli/gc/subtype-of-self-recursive-type.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "subtype-of-self-recursive-type.0.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/cli/missing-features/wasmtime905.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "wasmtime905.0.wasm",
+      "module_type": "binary",
+      "text": "reference types support is not enabled"
+    }
+  ]
+}

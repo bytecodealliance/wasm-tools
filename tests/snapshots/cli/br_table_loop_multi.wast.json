@@ -1,0 +1,11 @@
+{
+  "source_filename": "tests/cli/br_table_loop_multi.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 4,
+      "filename": "br_table_loop_multi.0.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

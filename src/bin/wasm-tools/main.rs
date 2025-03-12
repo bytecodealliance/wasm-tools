@@ -77,6 +77,7 @@ subcommands! {
     (completion, "completion")
     #[command(alias = "wast2json")]
     (json_from_wast, "json-from-wast")
+    (wast, "wast")
 }
 
 // when all features are disabled then `WasmTools` is an empty enum so suppress

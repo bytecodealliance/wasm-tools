@@ -1,0 +1,66 @@
+{
+  "source_filename": "tests/cli/component-model/start.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 5,
+      "filename": "start.0.wasm",
+      "module_type": "binary",
+      "text": "start function requires 1 arguments"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 12,
+      "filename": "start.1.wasm",
+      "module_type": "binary",
+      "text": "start function requires 1 arguments"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 20,
+      "filename": "start.2.wasm",
+      "module_type": "binary",
+      "text": "cannot be used more than once"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 28,
+      "filename": "start.3.wasm",
+      "module_type": "binary",
+      "text": "type mismatch for component start function argument 1"
+    },
+    {
+      "type": "module",
+      "line": 36,
+      "filename": "start.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 43,
+      "filename": "start.5.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 50,
+      "filename": "start.6.wasm",
+      "module_type": "binary",
+      "text": "cannot have more than one start"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 58,
+      "filename": "start.7.wasm",
+      "module_type": "binary",
+      "text": "start function results size is out of bounds"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 80,
+      "filename": "start.8.wasm",
+      "module_type": "binary",
+      "text": "unexpected content in the component start section"
+    }
+  ]
+}

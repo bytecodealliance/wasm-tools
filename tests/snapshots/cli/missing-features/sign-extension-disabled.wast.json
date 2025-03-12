@@ -1,0 +1,40 @@
+{
+  "source_filename": "tests/cli/missing-features/sign-extension-disabled.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "sign-extension-disabled.0.wasm",
+      "module_type": "binary",
+      "text": "sign extension operations support is not enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 14,
+      "filename": "sign-extension-disabled.1.wasm",
+      "module_type": "binary",
+      "text": "sign extension operations support is not enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 24,
+      "filename": "sign-extension-disabled.2.wasm",
+      "module_type": "binary",
+      "text": "sign extension operations support is not enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 34,
+      "filename": "sign-extension-disabled.3.wasm",
+      "module_type": "binary",
+      "text": "sign extension operations support is not enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 44,
+      "filename": "sign-extension-disabled.4.wasm",
+      "module_type": "binary",
+      "text": "sign extension operations support is not enabled"
+    }
+  ]
+}

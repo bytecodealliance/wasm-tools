@@ -1,0 +1,26 @@
+{
+  "source_filename": "tests/cli/missing-features/reference-types/function-references.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "function-references.0.wasm",
+      "module_type": "binary",
+      "text": "function references required"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 7,
+      "filename": "function-references.1.wasm",
+      "module_type": "binary",
+      "text": "function references required"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 10,
+      "filename": "function-references.2.wasm",
+      "module_type": "binary",
+      "text": "function references required"
+    }
+  ]
+}

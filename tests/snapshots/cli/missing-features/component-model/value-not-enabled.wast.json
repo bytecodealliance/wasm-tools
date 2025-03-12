@@ -1,0 +1,54 @@
+{
+  "source_filename": "tests/cli/missing-features/component-model/value-not-enabled.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "value-not-enabled.0.wasm",
+      "module_type": "binary",
+      "text": "support for component model `value`s is not enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 11,
+      "filename": "value-not-enabled.1.wasm",
+      "module_type": "binary",
+      "text": "support for component model `value`s is not enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 17,
+      "filename": "value-not-enabled.2.wasm",
+      "module_type": "binary",
+      "text": "support for component model `value`s is not enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 23,
+      "filename": "value-not-enabled.3.wasm",
+      "module_type": "binary",
+      "text": "support for component model `value`s is not enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 28,
+      "filename": "value-not-enabled.4.wasm",
+      "module_type": "binary",
+      "text": "support for component model `value`s is not enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 34,
+      "filename": "value-not-enabled.5.wasm",
+      "module_type": "binary",
+      "text": "support for component model `value`s is not enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 40,
+      "filename": "value-not-enabled.6.wasm",
+      "module_type": "binary",
+      "text": "support for component model `value`s is not enabled"
+    }
+  ]
+}

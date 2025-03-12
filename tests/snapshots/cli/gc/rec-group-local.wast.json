@@ -1,0 +1,11 @@
+{
+  "source_filename": "tests/cli/gc/rec-group-local.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 18,
+      "filename": "rec-group-local.0.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

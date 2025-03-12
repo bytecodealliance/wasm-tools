@@ -1,0 +1,11 @@
+{
+  "source_filename": "tests/cli/br_if-loop-unreachable.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 4,
+      "filename": "br_if-loop-unreachable.0.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

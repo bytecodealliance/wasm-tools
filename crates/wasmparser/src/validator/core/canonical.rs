@@ -388,14 +388,21 @@ impl<'a> TypeCanonicalizer<'a> {
                 // typed function references proposal, only the GC proposal.
                 debug_assert!(self.allow_gc() || self.rec_group_len == 1);
                 let local = index - self.rec_group_start;
-                if self.allow_gc() && local < self.rec_group_len {
-                    if let Some(id) = PackedIndex::from_rec_group_index(local) {
-                        *ty = id;
-                        return Ok(());
+                if local < self.rec_group_len {
+                    if self.allow_gc() {
+                        if let Some(id) = PackedIndex::from_rec_group_index(local) {
+                            *ty = id;
+                            return Ok(());
+                        } else {
+                            bail!(
+                                self.offset,
+                                "implementation limit: too many types in a recursion group"
+                            )
+                        }
                     } else {
                         bail!(
                             self.offset,
-                            "implementation limit: too many types in a recursion group"
+                            "unknown type {index}: type index out of bounds because the GC proposal is disabled"
                         )
                     }
                 }

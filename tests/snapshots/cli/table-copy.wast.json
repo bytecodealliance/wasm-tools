@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/cli/table-copy.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "name": "n",
+      "filename": "table-copy.0.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

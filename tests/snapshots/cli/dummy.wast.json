@@ -1,0 +1,11 @@
+{
+  "source_filename": "tests/cli/dummy.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "dummy.0.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

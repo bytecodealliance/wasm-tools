@@ -1,0 +1,54 @@
+{
+  "source_filename": "tests/cli/missing-features/v128-without-simd-feature.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "v128-without-simd-feature.0.wasm",
+      "module_type": "binary",
+      "text": "SIMD support is not enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 7,
+      "filename": "v128-without-simd-feature.1.wasm",
+      "module_type": "binary",
+      "text": "SIMD support is not enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 10,
+      "filename": "v128-without-simd-feature.2.wasm",
+      "module_type": "binary",
+      "text": "SIMD support is not enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 13,
+      "filename": "v128-without-simd-feature.3.wasm",
+      "module_type": "binary",
+      "text": "SIMD support is not enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 16,
+      "filename": "v128-without-simd-feature.4.wasm",
+      "module_type": "binary",
+      "text": "SIMD support is not enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 19,
+      "filename": "v128-without-simd-feature.5.wasm",
+      "module_type": "binary",
+      "text": "SIMD support is not enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 22,
+      "filename": "v128-without-simd-feature.6.wasm",
+      "module_type": "binary",
+      "text": "SIMD support is not enabled"
+    }
+  ]
+}

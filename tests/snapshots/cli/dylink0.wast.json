@@ -1,0 +1,59 @@
+{
+  "source_filename": "tests/cli/dylink0.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "dylink0.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 7,
+      "filename": "dylink0.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 12,
+      "filename": "dylink0.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 21,
+      "filename": "dylink0.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 29,
+      "filename": "dylink0.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 36,
+      "filename": "dylink0.5.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 43,
+      "filename": "dylink0.6.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 53,
+      "filename": "dylink0.7.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 66,
+      "filename": "dylink0.8.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

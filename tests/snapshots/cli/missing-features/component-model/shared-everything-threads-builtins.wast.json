@@ -1,0 +1,19 @@
+{
+  "source_filename": "tests/cli/missing-features/component-model/shared-everything-threads-builtins.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "shared-everything-threads-builtins.0.wasm",
+      "module_type": "binary",
+      "text": "`thread.spawn` requires the shared-everything-threads proposal"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 12,
+      "filename": "shared-everything-threads-builtins.1.wasm",
+      "module_type": "binary",
+      "text": "`thread.available_parallelism` requires the shared-everything-threads proposal"
+    }
+  ]
+}

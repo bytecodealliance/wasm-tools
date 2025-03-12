@@ -6,21 +6,19 @@ use wasm_metadata::*;
 
 #[test]
 fn add_to_empty_module() {
-    let add = AddMetadata {
-        name: Some("foo".to_owned()),
-        language: vec![("bar".to_owned(), "1.0".to_owned())],
-        processed_by: vec![("baz".to_owned(), "1.0".to_owned())],
-        sdk: vec![],
-        authors: Some(Authors::new("Chashu Cat")),
-        description: Some(Description::new("Chashu likes tuna")),
-        licenses: Some(
-            Licenses::new("Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT").unwrap(),
-        ),
-        source: Some(Source::new("https://github.com/bytecodealliance/wasm-tools").unwrap()),
-        homepage: Some(Homepage::new("https://github.com/bytecodealliance/wasm-tools").unwrap()),
-        revision: Some(Revision::new("de978e17a80c1118f606fce919ba9b7d5a04a5ad")),
-        version: Some(Version::new("1.0.0")),
-    };
+    let mut add = AddMetadata::default();
+    add.name = Some("foo".to_owned());
+    add.language = vec![("bar".to_owned(), "1.0".to_owned())];
+    add.processed_by = vec![("baz".to_owned(), "1.0".to_owned())];
+    add.sdk = vec![];
+    add.authors = Some(Authors::new("Chashu Cat"));
+    add.description = Some(Description::new("Chashu likes tuna"));
+    add.licenses =
+        Some(Licenses::new("Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT").unwrap());
+    add.source = Some(Source::new("https://github.com/bytecodealliance/wasm-tools").unwrap());
+    add.homepage = Some(Homepage::new("https://github.com/bytecodealliance/wasm-tools").unwrap());
+    add.revision = Some(Revision::new("de978e17a80c1118f606fce919ba9b7d5a04a5ad"));
+    add.version = Some(Version::new("1.0.0"));
 
     let json_str = r#"{"packages":[{"name":"adler","version":"0.2.3","source":"registry"}]}"#;
     let info = VersionInfo::from_str(json_str).unwrap();

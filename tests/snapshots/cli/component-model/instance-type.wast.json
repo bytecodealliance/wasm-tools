@@ -1,0 +1,84 @@
+{
+  "source_filename": "tests/cli/component-model/instance-type.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 4,
+      "filename": "instance-type.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 70,
+      "filename": "instance-type.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 75,
+      "filename": "instance-type.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 85,
+      "filename": "instance-type.3.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 109,
+      "filename": "instance-type.4.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 181,
+      "filename": "instance-type.5.wasm",
+      "module_type": "binary",
+      "text": "export name `a` conflicts with previous name `a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 188,
+      "filename": "instance-type.6.wasm",
+      "module_type": "binary",
+      "text": "type index 0 is not an instance type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 196,
+      "filename": "instance-type.7.wasm",
+      "module_type": "binary",
+      "text": "core type index 0 is not a module type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 204,
+      "filename": "instance-type.8.wat",
+      "module_type": "text",
+      "text": "unknown core type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 211,
+      "filename": "instance-type.9.wasm",
+      "module_type": "binary",
+      "text": "type index 0 is not a function type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 219,
+      "filename": "instance-type.10.wasm",
+      "module_type": "binary",
+      "text": "type index 0 is not a function type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 227,
+      "filename": "instance-type.11.wasm",
+      "module_type": "binary",
+      "text": "type index 0 is not a function type"
+    }
+  ]
+}

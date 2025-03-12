@@ -1,0 +1,36 @@
+{
+  "source_filename": "tests/cli/component-model/export-introduces-alias.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "export-introduces-alias.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 10,
+      "filename": "export-introduces-alias.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 18,
+      "filename": "export-introduces-alias.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 32,
+      "filename": "export-introduces-alias.3.wat",
+      "module_type": "text",
+      "text": "duplicate type identifier"
+    },
+    {
+      "type": "module",
+      "line": 40,
+      "filename": "export-introduces-alias.4.wasm",
+      "module_type": "binary"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "source_filename": "tests/cli/gc/gc-subtyping-too-deep.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "gc-subtyping-too-deep.0.wasm",
+      "module_type": "binary",
+      "text": "sub type hierarchy too deep: found depth 64, cannot exceed depth 63"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "source_filename": "tests/cli/empty.wast",
+  "commands": [
+    {
+      "type": "assert_malformed",
+      "line": 3,
+      "filename": "empty.0.wat",
+      "module_type": "text",
+      "text": "x"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 4,
+      "filename": "empty.1.wat",
+      "module_type": "text",
+      "text": "x"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 5,
+      "filename": "empty.2.wat",
+      "module_type": "text",
+      "text": "x"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 6,
+      "filename": "empty.3.wat",
+      "module_type": "text",
+      "text": "x"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 7,
+      "filename": "empty.4.wat",
+      "module_type": "text",
+      "text": "x"
+    }
+  ]
+}

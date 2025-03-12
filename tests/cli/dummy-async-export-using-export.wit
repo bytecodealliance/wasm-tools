@@ -1,0 +1,18 @@
+// RUN: component embed % --dummy-names legacy --async-callback | \
+//        component new | \
+//        validate -f cm-async
+
+package a:b;
+
+interface a {
+  type a = s32;
+}
+
+world w {
+  export a;
+
+  export b: interface {
+    use a.{a};
+    d: func() -> a;
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "source_filename": "tests/cli/missing-features/issue540.wast",
+  "commands": [
+    {
+      "type": "module",
+      "line": 3,
+      "filename": "issue540.0.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 14,
+      "filename": "issue540.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 26,
+      "filename": "issue540.2.wasm",
+      "module_type": "binary"
+    }
+  ]
+}
