@@ -162,7 +162,7 @@ cpp_demangle = { version = "0.4.0", optional = true }
 rustc-demangle = { version = "0.1.21", optional = true }
 
 # Dependencies of `component`
-wast = { workspace = true, optional = true }
+wast = { workspace = true, optional = true, features = ['wasm-module'] }
 wit-component = { workspace = true, optional = true, features = ['dummy-module', 'wat', 'semver-check'] }
 wit-encoder = { workspace = true, optional = true }
 wit-parser = { workspace = true, optional = true, features = ['decoding', 'wat', 'serde'] }
