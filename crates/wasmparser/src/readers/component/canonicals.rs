@@ -288,7 +288,7 @@ impl<'a> FromReader<'a> for CanonicalFunction {
             },
             0x0a => match reader.read_u8()? {
                 0x7f => CanonicalFunction::ContextGet(reader.read_var_u32()?),
-                x => return reader.invalid_leading_byte(x, "context.set intrinsic type"),
+                x => return reader.invalid_leading_byte(x, "context.get intrinsic type"),
             },
             0x0b => match reader.read_u8()? {
                 0x7f => CanonicalFunction::ContextSet(reader.read_var_u32()?),

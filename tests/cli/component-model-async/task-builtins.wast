@@ -266,6 +266,21 @@
     "(core func (canon context.set i64 100))")
   "expected keyword `i32`")
 
+(assert_malformed
+  (component binary
+    "\00asm" "\0d\00\01\00" ;; component header
+    "\08\04"                ;; canonicals section, 4 bytes
+    "\01"                   ;; 1 count
+    "\0a\7e\00")            ;; context.get i64 0
+  "invalid leading byte (0x7e) for context.get")
+(assert_malformed
+  (component binary
+    "\00asm" "\0d\00\01\00" ;; component header
+    "\08\04"                ;; canonicals section, 4 bytes
+    "\01"                   ;; 1 count
+    "\0b\7e\00")            ;; context.set i64 0
+  "invalid leading byte (0x7e) for context.set")
+
 ;; different forms of canonical intrinsics
 
 (component

@@ -194,9 +194,23 @@
       "text": "expected keyword `i32`"
     },
     {
-      "type": "module",
-      "line": 271,
+      "type": "assert_malformed",
+      "line": 270,
       "filename": "task-builtins.29.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x7e) for context.get"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 277,
+      "filename": "task-builtins.30.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x7e) for context.set"
+    },
+    {
+      "type": "module",
+      "line": 286,
+      "filename": "task-builtins.31.wasm",
       "module_type": "binary"
     }
   ]
