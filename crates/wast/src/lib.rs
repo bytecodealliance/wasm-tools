@@ -589,6 +589,8 @@ pub mod kw {
     custom_keyword!(waitable_set_poll = "waitable-set.poll");
     custom_keyword!(waitable_set_drop = "waitable-set.drop");
     custom_keyword!(waitable_join = "waitable.join");
+    custom_keyword!(context_get = "context.get");
+    custom_keyword!(context_set = "context.set");
 }
 
 /// Common annotations used to parse WebAssembly text files.

@@ -374,6 +374,14 @@ impl<'a> Encoder<'a> {
                         info.opts.iter().map(Into::into),
                     );
                 }
+                CoreFuncKind::ContextGet(i) => {
+                    self.core_func_names.push(name);
+                    self.funcs.context_get(*i);
+                }
+                CoreFuncKind::ContextSet(i) => {
+                    self.core_func_names.push(name);
+                    self.funcs.context_set(*i);
+                }
                 CoreFuncKind::Yield(info) => {
                     self.core_func_names.push(name);
                     self.funcs.yield_(info.async_);

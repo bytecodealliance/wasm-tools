@@ -90,6 +90,10 @@ pub enum CanonicalFunction {
         /// The canonical options for the function.
         options: Box<[CanonicalOption]>,
     },
+    /// A `context.get` intrinsic for the `i`th slot of task-local storage.
+    ContextGet(u32),
+    /// A `context.set` intrinsic for the `i`th slot of task-local storage.
+    ContextSet(u32),
     /// A function which yields control to the host so that other tasks are able
     /// to make progress, if any.
     Yield {
@@ -281,6 +285,14 @@ impl<'a> FromReader<'a> for CanonicalFunction {
             0x09 => CanonicalFunction::TaskReturn {
                 result: crate::read_resultlist(reader)?,
                 options: read_opts(reader)?,
+            },
+            0x0a => match reader.read_u8()? {
+                0x7f => CanonicalFunction::ContextGet(reader.read_var_u32()?),
+                x => return reader.invalid_leading_byte(x, "context.set intrinsic type"),
+            },
+            0x0b => match reader.read_u8()? {
+                0x7f => CanonicalFunction::ContextSet(reader.read_var_u32()?),
+                x => return reader.invalid_leading_byte(x, "context.set intrinsic type"),
             },
             0x0c => CanonicalFunction::Yield {
                 async_: reader.read()?,

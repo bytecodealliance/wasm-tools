@@ -928,6 +928,18 @@ impl Printer<'_, '_> {
                         Ok(())
                     })?;
                 }
+                CanonicalFunction::ContextGet(i) => {
+                    self.print_intrinsic(state, "canon context.get", &|me, _state| {
+                        write!(me.result, " i32 {i}")?;
+                        Ok(())
+                    })?;
+                }
+                CanonicalFunction::ContextSet(i) => {
+                    self.print_intrinsic(state, "canon context.set", &|me, _state| {
+                        write!(me.result, " i32 {i}")?;
+                        Ok(())
+                    })?;
+                }
                 CanonicalFunction::Yield { async_ } => {
                     self.print_intrinsic(state, "canon yield", &|me, _| {
                         if async_ {

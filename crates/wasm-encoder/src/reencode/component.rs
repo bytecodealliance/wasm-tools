@@ -969,6 +969,12 @@ pub mod component_utils {
                     options.iter().map(|o| reencoder.canonical_option(*o)),
                 );
             }
+            wasmparser::CanonicalFunction::ContextGet(i) => {
+                section.context_get(i);
+            }
+            wasmparser::CanonicalFunction::ContextSet(i) => {
+                section.context_set(i);
+            }
             wasmparser::CanonicalFunction::Yield { async_ } => {
                 section.yield_(async_);
             }

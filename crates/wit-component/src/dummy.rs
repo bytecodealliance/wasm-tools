@@ -387,6 +387,10 @@ fn push_root_async_intrinsics(dst: &mut String) {
 (import "$root" "[error-context-debug-message-utf16]" (func (param i32 i32)))
 (import "$root" "[error-context-debug-message-latin1+utf16]" (func (param i32 i32)))
 (import "$root" "[error-context-drop]" (func (param i32)))
+(import "$root" "[context-get-0]" (func (result i32)))
+(import "$root" "[context-get-1]" (func (result i32)))
+(import "$root" "[context-set-0]" (func (param i32)))
+(import "$root" "[context-set-1]" (func (param i32)))
 
 ;; deferred behind 🚝 or 🚟 upstream
 ;;(import "$root" "[async-lower][waitable-set-wait]" (func (param i32 i32) (result i32)))

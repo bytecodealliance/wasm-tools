@@ -200,6 +200,24 @@ impl CanonicalFunctionSection {
         self
     }
 
+    /// Defines a new `context.get` intrinsic of the ith slot.
+    pub fn context_get(&mut self, i: u32) -> &mut Self {
+        self.bytes.push(0x0a);
+        self.bytes.push(0x7f);
+        i.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
+    /// Defines a new `context.set` intrinsic of the ith slot.
+    pub fn context_set(&mut self, i: u32) -> &mut Self {
+        self.bytes.push(0x0b);
+        self.bytes.push(0x7f);
+        i.encode(&mut self.bytes);
+        self.num_added += 1;
+        self
+    }
+
     /// Defines a function which yields control to the host so that other tasks
     /// are able to make progress, if any.
     ///

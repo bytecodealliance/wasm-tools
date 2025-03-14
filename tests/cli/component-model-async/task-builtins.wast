@@ -212,6 +212,60 @@
   "type mismatch for export `subtask.drop` of module instantiation argument ``"
 )
 
+;; context.{get,set}
+(component
+  (core func $get0 (canon context.get i32 0))
+  (core func $get1 (canon context.get i32 1))
+  (core func $set0 (canon context.set i32 0))
+  (core func $set1 (canon context.set i32 1))
+
+  (core module $m
+    (import "" "get0" (func (result i32)))
+    (import "" "get1" (func (result i32)))
+    (import "" "set0" (func (param i32)))
+    (import "" "set1" (func (param i32)))
+  )
+  (core instance (instantiate $m
+    (with "" (instance
+      (export "get0" (func $get0))
+      (export "get1" (func $get1))
+      (export "set0" (func $set0))
+      (export "set1" (func $set1))
+    ))
+  ))
+)
+
+(assert_invalid
+  (component
+    (core module $m (import "" "" (func (param i32) (result i32))))
+    (core func $f (canon context.get i32 0))
+    (core instance $i (instantiate $m (with "" (instance (export "" (func $f))))))
+  )
+  "found:    [] -> [i32]")
+(assert_invalid
+  (component
+    (core module $m (import "" "" (func (param i32) (result i32))))
+    (core func $f (canon context.set i32 0))
+    (core instance $i (instantiate $m (with "" (instance (export "" (func $f))))))
+  )
+  "found:    [i32] -> []")
+(assert_invalid
+  (component
+    (core func (canon context.get i32 100)))
+  "immediate larger than two: 100")
+(assert_invalid
+  (component
+    (core func (canon context.set i32 100)))
+  "immediate larger than two: 100")
+(assert_malformed
+  (component quote
+    "(core func (canon context.get i64 100))")
+  "expected keyword `i32`")
+(assert_malformed
+  (component quote
+    "(core func (canon context.set i64 100))")
+  "expected keyword `i32`")
+
 ;; different forms of canonical intrinsics
 
 (component
@@ -271,4 +325,10 @@
   (canon error-context.debug-message (memory $m) (realloc $r) (core func))
   (core func (canon error-context.drop))
   (canon error-context.drop (core func))
+
+  (core func (canon context.get i32 0))
+  (canon context.get i32 1 (core func))
+
+  (core func (canon context.set i32 0))
+  (canon context.set i32 1 (core func))
 )

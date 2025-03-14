@@ -401,6 +401,7 @@ impl<'a> Resolver<'a> {
                     }
                     self.canon_opts(&mut info.opts)?;
                 }
+                CoreFuncKind::ContextGet(_) | CoreFuncKind::ContextSet(_) => {}
                 CoreFuncKind::StreamNew(info) => {
                     self.resolve_ns(&mut info.ty, Ns::Type)?;
                 }
