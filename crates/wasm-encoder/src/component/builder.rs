@@ -407,6 +407,18 @@ impl ComponentBuilder {
         inc(&mut self.core_funcs)
     }
 
+    /// Declares a new `context.get` intrinsic.
+    pub fn context_get(&mut self, i: u32) -> u32 {
+        self.canonical_functions().context_get(i);
+        inc(&mut self.core_funcs)
+    }
+
+    /// Declares a new `context.set` intrinsic.
+    pub fn context_set(&mut self, i: u32) -> u32 {
+        self.canonical_functions().context_set(i);
+        inc(&mut self.core_funcs)
+    }
+
     /// Declares a new `task.yield` intrinsic.
     pub fn yield_(&mut self, async_: bool) -> u32 {
         self.canonical_functions().yield_(async_);

@@ -255,6 +255,11 @@ pub enum Import {
     /// well.
     ExportedTaskReturn(WorldKey, Option<InterfaceId>, String, Option<Type>),
 
+    /// The `context.get` intrinsic for the nth slot of storage.
+    ContextGet(u32),
+    /// The `context.set` intrinsic for the nth slot of storage.
+    ContextSet(u32),
+
     /// A `canon backpressure.set` intrinsic.
     ///
     /// This allows the guest to dynamically indicate whether it's ready for
@@ -634,6 +639,19 @@ impl ImportMap {
                 return Ok(Import::ErrorContextDebugMessage { encoding });
             }
 
+            if let Some(i) = names.context_get(name) {
+                validate_not_async()?;
+                let expected = FuncType::new([], [ValType::I32]);
+                validate_func_sig(name, &expected, ty)?;
+                return Ok(Import::ContextGet(i));
+            }
+            if let Some(i) = names.context_set(name) {
+                validate_not_async()?;
+                let expected = FuncType::new([ValType::I32], []);
+                validate_func_sig(name, &expected, ty)?;
+                return Ok(Import::ContextSet(i));
+            }
+
             let key = WorldKey::Name(name.to_string());
             if let Some(WorldItem::Function(func)) = world.imports.get(&key) {
                 validate_func(resolve, ty, func, abi)?;
@@ -829,10 +847,8 @@ impl ImportMap {
         let prefixed_payload = |prefix: &str| {
             // parse the `prefix` into `func_name` and `type_index`, bailing out
             // with `None` if anything doesn't match.
-            let suffix = name.strip_prefix(prefix)?;
-            let index = suffix.find(']')?;
-            let func_name = &suffix[index + 1..];
-            let type_index: usize = suffix[..index].parse().ok()?;
+            let (type_index, func_name) = prefixed_integer(name, prefix)?;
+            let type_index = type_index as usize;
 
             // Double-check that `func_name` is indeed a function name within
             // this interface/world. Then additionally double-check that
@@ -1421,6 +1437,8 @@ trait NameMangling {
     fn error_context_new(&self, s: &str) -> Option<StringEncoding>;
     fn error_context_debug_message(&self, s: &str) -> Option<StringEncoding>;
     fn error_context_drop(&self) -> Option<&str>;
+    fn context_get(&self, name: &str) -> Option<u32>;
+    fn context_set(&self, name: &str) -> Option<u32>;
     fn module_to_interface(
         &self,
         module: &str,
@@ -1529,6 +1547,12 @@ impl NameMangling for Standard {
         None
     }
     fn error_context_drop(&self) -> Option<&str> {
+        None
+    }
+    fn context_get(&self, _: &str) -> Option<u32> {
+        None
+    }
+    fn context_set(&self, _: &str) -> Option<u32> {
         None
     }
     fn module_to_interface(
@@ -1723,6 +1747,22 @@ impl NameMangling for Legacy {
     }
     fn error_context_drop(&self) -> Option<&str> {
         Some("[error-context-drop]")
+    }
+    fn context_get(&self, name: &str) -> Option<u32> {
+        let (n, rest) = prefixed_integer(name, "[context-get-")?;
+        if rest.is_empty() {
+            Some(n)
+        } else {
+            None
+        }
+    }
+    fn context_set(&self, name: &str) -> Option<u32> {
+        let (n, rest) = prefixed_integer(name, "[context-set-")?;
+        if rest.is_empty() {
+            Some(n)
+        } else {
+            None
+        }
     }
     fn module_to_interface(
         &self,
@@ -2007,6 +2047,17 @@ fn validate_func_sig(name: &str, expected: &FuncType, ty: &wasmparser::FuncType)
     }
 
     Ok(())
+}
+
+/// Matches `name` as `[${prefix}N]...`, and if found returns `(N, "...")`
+fn prefixed_integer<'a>(name: &'a str, prefix: &str) -> Option<(u32, &'a str)> {
+    assert!(prefix.starts_with("["));
+    assert!(prefix.ends_with("-"));
+    let suffix = name.strip_prefix(prefix)?;
+    let index = suffix.find(']')?;
+    let rest = &suffix[index + 1..];
+    let n = suffix[..index].parse().ok()?;
+    Some((n, rest))
 }
 
 fn get_function<'a>(

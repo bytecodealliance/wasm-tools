@@ -1811,6 +1811,14 @@ impl<'a> EncodingState<'a> {
                 let index = self.component.waitable_join();
                 Ok((ExportKind::Func, index))
             }
+            Import::ContextGet(n) => {
+                let index = self.component.context_get(*n);
+                Ok((ExportKind::Func, index))
+            }
+            Import::ContextSet(n) => {
+                let index = self.component.context_set(*n);
+                Ok((ExportKind::Func, index))
+            }
         }
     }
 
@@ -2189,7 +2197,9 @@ impl<'a> Shims<'a> {
                 | Import::StreamCloseReadable { .. }
                 | Import::WaitableSetNew
                 | Import::WaitableSetDrop
-                | Import::WaitableJoin => {}
+                | Import::WaitableJoin
+                | Import::ContextGet(_)
+                | Import::ContextSet(_) => {}
 
                 // If `task.return` needs to be indirect then generate a shim
                 // for it, otherwise skip the shim and let it get materialized

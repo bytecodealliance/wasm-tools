@@ -423,6 +423,8 @@ impl<'a> Dump<'a> {
                             | CanonicalFunction::ThreadAvailableParallelism
                             | CanonicalFunction::BackpressureSet
                             | CanonicalFunction::TaskReturn { .. }
+                            | CanonicalFunction::ContextGet { .. }
+                            | CanonicalFunction::ContextSet { .. }
                             | CanonicalFunction::WaitableSetNew
                             | CanonicalFunction::WaitableSetWait { .. }
                             | CanonicalFunction::WaitableSetPoll { .. }

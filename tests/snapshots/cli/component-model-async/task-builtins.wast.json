@@ -147,8 +147,70 @@
     },
     {
       "type": "module",
-      "line": 217,
+      "line": 216,
       "filename": "task-builtins.22.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 239,
+      "filename": "task-builtins.23.wasm",
+      "module_type": "binary",
+      "text": "found:    [] -> [i32]"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 246,
+      "filename": "task-builtins.24.wasm",
+      "module_type": "binary",
+      "text": "found:    [i32] -> []"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 253,
+      "filename": "task-builtins.25.wasm",
+      "module_type": "binary",
+      "text": "immediate larger than two: 100"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 257,
+      "filename": "task-builtins.26.wasm",
+      "module_type": "binary",
+      "text": "immediate larger than two: 100"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 261,
+      "filename": "task-builtins.27.wat",
+      "module_type": "text",
+      "text": "expected keyword `i32`"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 265,
+      "filename": "task-builtins.28.wat",
+      "module_type": "text",
+      "text": "expected keyword `i32`"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 270,
+      "filename": "task-builtins.29.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x7e) for context.get"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 277,
+      "filename": "task-builtins.30.wasm",
+      "module_type": "binary",
+      "text": "invalid leading byte (0x7e) for context.set"
+    },
+    {
+      "type": "module",
+      "line": 286,
+      "filename": "task-builtins.31.wasm",
       "module_type": "binary"
     }
   ]

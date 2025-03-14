@@ -42,6 +42,7 @@ pretty_assertions = "1.3.0"
 wasmparser = { workspace = true, features = ['std', 'component-model', 'features'] }
 wasmprinter = { workspace = true, features = ['component-model'] }
 wat = { workspace = true, features = ['component-model'] }
+wasm-metadata = { workspace = true, features = ['oci'] }
 
 [target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
 wasmtime = { workspace = true }
