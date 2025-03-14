@@ -248,6 +248,11 @@ define_wasm_features! {
         /// Corresponds to the 🚝 character in
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
         pub cm_async_builtins: CM_ASYNC_BUILTINS(1 << 29) = false;
+        /// Support for fixed size lists
+        ///
+        /// Corresponds to the 🔧 character in
+        /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
+        pub cm_fixed_size_list: CM_FIXED_SIZE_LIST(1 << 30) = false;
     }
 }
 

@@ -569,6 +569,7 @@ pub enum TypeDefKind {
     Option(Type),
     Result(Result_),
     List(Type),
+    FixedSizeList(Type, u32),
     Future(Option<Type>),
     Stream(Option<Type>),
     Type(Type),
@@ -597,6 +598,7 @@ impl TypeDefKind {
             TypeDefKind::Option(_) => "option",
             TypeDefKind::Result(_) => "result",
             TypeDefKind::List(_) => "list",
+            TypeDefKind::FixedSizeList(..) => "fixed size list",
             TypeDefKind::Future(_) => "future",
             TypeDefKind::Stream(_) => "stream",
             TypeDefKind::Type(_) => "type",
@@ -1153,7 +1155,10 @@ fn find_futures_and_streams(resolve: &Resolve, ty: Type, results: &mut Vec<TypeI
                 }
             }
         }
-        TypeDefKind::Option(ty) | TypeDefKind::List(ty) | TypeDefKind::Type(ty) => {
+        TypeDefKind::Option(ty)
+        | TypeDefKind::List(ty)
+        | TypeDefKind::FixedSizeList(ty, ..)
+        | TypeDefKind::Type(ty) => {
             find_futures_and_streams(resolve, *ty, results);
         }
         TypeDefKind::Result(r) => {
