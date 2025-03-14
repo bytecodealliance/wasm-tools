@@ -28,7 +28,7 @@ jobs:
           node-version: 20
       - uses: bytecodealliance/wasmtime/.github/actions/install-rust@v20.0.0
       - uses: cargo-bins/cargo-binstall@v1.6.9
-      - run: cargo binstall cargo-component -y
+      - run: cargo binstall cargo-component@0.20.0 -y
       - run: rustup component add rustfmt # needed for cargo-component, apparently?
       - run: rustup target add wasm32-wasip1
       - run: npm ci
