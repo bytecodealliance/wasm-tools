@@ -635,6 +635,11 @@ impl<'a> CoreTypeEncoder<'a> {
         }
     }
 
+    /// Define a continuation type in this subsection
+    pub fn cont(mut self, ty: &ContType) {
+        self.encode_cont(ty)
+    }
+
     fn encode_cont(&mut self, ty: &ContType) {
         self.bytes.push(0x5d);
         i64::from(ty.0).encode(self.bytes);
