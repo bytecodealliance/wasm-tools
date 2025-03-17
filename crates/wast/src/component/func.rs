@@ -540,10 +540,7 @@ impl<'a> Parse<'a> for CanonWaitableSetWait<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::waitable_set_wait>()?;
         let async_ = parser.parse::<Option<kw::r#async>>()?.is_some();
-        let memory = parser.parens(|parser| {
-            let span = parser.parse::<kw::memory>()?.0;
-            parse_trailing_item_ref(kw::memory(span), parser)
-        })?;
+        let memory = parser.parens(|p| p.parse())?;
 
         Ok(Self { async_, memory })
     }
@@ -563,10 +560,7 @@ impl<'a> Parse<'a> for CanonWaitableSetPoll<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::waitable_set_poll>()?;
         let async_ = parser.parse::<Option<kw::r#async>>()?.is_some();
-        let memory = parser.parens(|parser| {
-            let span = parser.parse::<kw::memory>()?.0;
-            parse_trailing_item_ref(kw::memory(span), parser)
-        })?;
+        let memory = parser.parens(|p| p.parse())?;
 
         Ok(Self { async_, memory })
     }
@@ -929,11 +923,7 @@ impl<'a> Parse<'a> for CanonOpt<'a> {
             parser.parens(|parser| {
                 let mut l = parser.lookahead1();
                 if l.peek::<kw::memory>()? {
-                    let span = parser.parse::<kw::memory>()?.0;
-                    Ok(CanonOpt::Memory(parse_trailing_item_ref(
-                        kw::memory(span),
-                        parser,
-                    )?))
+                    Ok(CanonOpt::Memory(parser.parse()?))
                 } else if l.peek::<kw::realloc>()? {
                     parser.parse::<kw::realloc>()?;
                     Ok(CanonOpt::Realloc(
@@ -979,14 +969,6 @@ impl Peek for CanonOpt<'_> {
     fn display() -> &'static str {
         "canonical option"
     }
-}
-
-fn parse_trailing_item_ref<T>(kind: T, parser: Parser) -> Result<CoreItemRef<T>> {
-    Ok(CoreItemRef {
-        kind,
-        idx: parser.parse()?,
-        export_name: parser.parse()?,
-    })
 }
 
 impl<'a> Parse<'a> for Vec<CanonOpt<'a>> {
