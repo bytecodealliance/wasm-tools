@@ -169,8 +169,9 @@ impl CanonicalFunctionSection {
 
     /// Defines a function which will spawn a new thread by invoking a shared
     /// function indirectly through a `funcref` table.
-    pub fn thread_spawn_indirect(&mut self, table_index: u32) -> &mut Self {
+    pub fn thread_spawn_indirect(&mut self, ty_index: u32, table_index: u32) -> &mut Self {
         self.bytes.push(0x41);
+        ty_index.encode(&mut self.bytes);
         table_index.encode(&mut self.bytes);
         self.num_added += 1;
         self

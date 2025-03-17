@@ -72,19 +72,14 @@ pub enum CanonicalFunction {
     },
     /// A function which spawns a new thread by invoking the shared function.
     ThreadSpawnRef {
-        /// The index of the function to spawn.
+        /// The index of the function type to spawn.
         func_ty_index: u32,
     },
     /// A function which spawns a new thread by invoking the shared function
     /// passed as an index into a `funcref` table.
-    ///
-    /// Eventually, this will include a core `type_index` field to specify what
-    /// type of functions the table will contain. Currently, however,
-    /// `wasm-tools` makes it difficult to pass along the core type information
-    /// downstream, so we fix the type of the table temporarily to `funcref` and
-    /// check at runtime that the entry has type `[i32] -> []`. (TODO: spawn
-    /// indirect types).
     ThreadSpawnIndirect {
+        /// The index of the function type to spawn.
+        func_ty_index: u32,
         /// The index of the table to use for the indirect spawn.
         table_index: u32,
     },
@@ -368,6 +363,7 @@ impl<'a> FromReader<'a> for CanonicalFunction {
                 func_ty_index: reader.read()?,
             },
             0x41 => CanonicalFunction::ThreadSpawnIndirect {
+                func_ty_index: reader.read()?,
                 table_index: reader.read()?,
             },
             0x42 => CanonicalFunction::ThreadAvailableParallelism,

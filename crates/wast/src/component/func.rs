@@ -493,13 +493,11 @@ impl<'a> Parse<'a> for CanonThreadSpawnRef<'a> {
 
 /// Information relating to the `thread.spawn_indirect` intrinsic.
 ///
-/// This should look identical to that of `CallIndirect`. The only difference is
-/// that, temporarily, the `ty` field (`pub ty: TypeUse<'a, FunctionType<'a>>`)
-/// is fixed to a shared `funcref`, instead of allowing programs to specify the
-/// type. This is due to `wasm-tools` limitations making it difficult to pass
-/// core type indexes downstream (TODO: spawn indirect types).
+/// This should look quite similar to parsing of `CallIndirect`.
 #[derive(Debug)]
 pub struct CanonThreadSpawnIndirect<'a> {
+    /// The function type that is being spawned.
+    pub ty: Index<'a>,
     /// The table that this spawn is going to be indexing.
     pub table: CoreItemRef<'a, kw::table>,
 }
@@ -507,11 +505,12 @@ pub struct CanonThreadSpawnIndirect<'a> {
 impl<'a> Parse<'a> for CanonThreadSpawnIndirect<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::thread_spawn_indirect>()?;
+        let ty = parser.parse()?;
         let table = parser.parens(|parser| {
             let span = parser.parse::<kw::table>()?.0;
             parse_trailing_item_ref(kw::table(span), parser)
         })?;
-        Ok(Self { table })
+        Ok(Self { ty, table })
     }
 }
 

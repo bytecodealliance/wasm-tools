@@ -892,15 +892,18 @@ impl Printer<'_, '_> {
                         me.print_idx(&state.component.type_names, resource)
                     })?;
                 }
-                CanonicalFunction::ThreadSpawnRef {
-                    func_ty_index: func_index,
-                } => {
+                CanonicalFunction::ThreadSpawnRef { func_ty_index } => {
                     self.print_intrinsic(state, "canon thread.spawn_ref ", &|me, state| {
-                        me.print_idx(&state.core.type_names, func_index)
+                        me.print_idx(&state.core.type_names, func_ty_index)
                     })?;
                 }
-                CanonicalFunction::ThreadSpawnIndirect { table_index } => {
+                CanonicalFunction::ThreadSpawnIndirect {
+                    func_ty_index,
+                    table_index,
+                } => {
                     self.print_intrinsic(state, "canon thread.spawn_indirect ", &|me, state| {
+                        me.print_idx(&state.core.type_names, func_ty_index)?;
+                        me.result.write_str(" ")?;
                         me.start_group("table ")?;
                         me.print_idx(&state.core.table_names, table_index)?;
                         me.end_group()

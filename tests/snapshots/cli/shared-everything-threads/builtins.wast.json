@@ -25,7 +25,35 @@
       "line": 51,
       "filename": "builtins.3.wasm",
       "module_type": "binary",
+      "text": "spawn type must be shared"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 61,
+      "filename": "builtins.4.wasm",
+      "module_type": "binary",
       "text": "spawn function must take a single `i32` argument (currently)"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 69,
+      "filename": "builtins.5.wasm",
+      "module_type": "binary",
+      "text": "spawn function must take a single `i32` argument (currently)"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 77,
+      "filename": "builtins.6.wasm",
+      "module_type": "binary",
+      "text": "unknown table"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 85,
+      "filename": "builtins.7.wasm",
+      "module_type": "binary",
+      "text": "expected a table of shared `funcref`"
     }
   ]
 }

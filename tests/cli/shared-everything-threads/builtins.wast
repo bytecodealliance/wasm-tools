@@ -8,7 +8,7 @@
 
   (core module $libc (table (export "start-table") 1 (ref null (shared func))))
   (core instance $libc (instantiate $libc))
-  (core func $spawn_indirect (canon thread.spawn_indirect (table $libc "start-table")))
+  (core func $spawn_indirect (canon thread.spawn_indirect $start (table $libc "start-table")))
 
   (core func $parallelism (canon thread.available_parallelism))
 )
@@ -19,7 +19,7 @@
 
   (core module $libc (table (export "start-table") 1 (ref null (shared func))))
   (core instance $libc (instantiate $libc))
-  (core func $spawn_indirect (canon thread.spawn_indirect (table $libc "start-table")))
+  (core func $spawn_indirect (canon thread.spawn_indirect $start (table $libc "start-table")))
 
   (core func $parallelism (canon thread.available_parallelism))
 
@@ -42,7 +42,17 @@
 (assert_invalid
   (component
     (core type $start (func))
-    (core func $spawn (canon thread.spawn_ref $start))
+    (core func $spawn_ref (canon thread.spawn_ref $start))
+  )
+  "spawn type must be shared"
+)
+
+(assert_invalid
+  (component
+    (core type $start (func))
+    ;; Refer to a non-existent table type (i.e., 0); validation
+    ;; for `thread.spawn_indirect` happens first.
+    (core func $spawn_indirect (canon thread.spawn_indirect $start (table 0)))
   )
   "spawn type must be shared"
 )
@@ -54,3 +64,32 @@
   )
   "spawn function must take a single `i32` argument (currently)"
 )
+
+(assert_invalid
+  (component
+    (core type $start (shared (func)))
+    (core func $spawn_indirect (canon thread.spawn_indirect $start (table 0)))
+  )
+  "spawn function must take a single `i32` argument (currently)"
+)
+
+(assert_invalid
+  (component
+    (core type $start (shared (func (param i32))))
+    (core func $spawn_indirect (canon thread.spawn_indirect $start (table 0)))
+  )
+  "unknown table"
+)
+
+(assert_invalid
+  (component
+    (core type $start (shared (func (param i32))))
+    (core module $libc (table (export "start-table") 1 funcref))
+    (core instance $libc (instantiate $libc))
+    (core func $spawn_indirect (canon thread.spawn_indirect $start (table $libc "start-table")))
+  )
+  "expected a table of shared `funcref`"
+)
+
+;; TODO: add a test confirming that an unshared table is invalid once components
+;; allow shared tables; see `not-accepted.wast`.

@@ -391,11 +391,8 @@ impl<'a> Resolver<'a> {
                     self.resolve_ns(&mut info.ty, Ns::CoreType)?;
                 }
                 CoreFuncKind::ThreadSpawnIndirect(info) => {
+                    self.resolve_ns(&mut info.ty, Ns::CoreType)?;
                     self.core_item_ref(&mut info.table)?;
-                    // Eventually this should resolve the specific type associated
-                    // with this canonical function, e.g.,
-                    // `self.resolve_type_use(&mut info.ty)?;` (TODO: spawn indirect
-                    // types).
                 }
                 CoreFuncKind::ThreadAvailableParallelism(_)
                 | CoreFuncKind::BackpressureSet

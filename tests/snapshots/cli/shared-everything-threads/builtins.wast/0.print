@@ -7,6 +7,6 @@
   )
   (core instance $libc (;0;) (instantiate $libc))
   (alias core export $libc "start-table" (core table (;0;)))
-  (core func $spawn_indirect (;1;) (canon thread.spawn_indirect (table 0)))
+  (core func $spawn_indirect (;1;) (canon thread.spawn_indirect $start (table 0)))
   (core func $parallelism (;2;) (canon thread.available_parallelism))
 )

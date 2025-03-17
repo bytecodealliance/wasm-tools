@@ -10,9 +10,9 @@
 
 (assert_invalid
   (component
-    (core module $libc (table (export "start-table") 1 funcref))
-    (core instance $libc (instantiate $libc))
-    (core func $spawn_indirect (canon thread.spawn_indirect (table $libc "start-table")))
+    ;; Refer to a non-existent function and table types (i.e., 0); validation
+    ;; for `thread.spawn_indirect` happens first.
+    (core func $spawn_indirect (canon thread.spawn_indirect 0 (table 0)))
   )
   "`thread.spawn_indirect` requires the shared-everything-threads proposal")
 
