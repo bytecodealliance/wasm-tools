@@ -51,7 +51,8 @@ pub enum CoreFuncKind<'a> {
     ResourceNew(CanonResourceNew<'a>),
     ResourceDrop(CanonResourceDrop<'a>),
     ResourceRep(CanonResourceRep<'a>),
-    ThreadSpawn(CanonThreadSpawn<'a>),
+    ThreadSpawnRef(CanonThreadSpawnRef<'a>),
+    ThreadSpawnIndirect(CanonThreadSpawnIndirect<'a>),
     ThreadAvailableParallelism(CanonThreadAvailableParallelism),
     BackpressureSet,
     TaskReturn(CanonTaskReturn<'a>),
@@ -109,8 +110,10 @@ impl<'a> CoreFuncKind<'a> {
             Ok(CoreFuncKind::ResourceDrop(parser.parse()?))
         } else if l.peek::<kw::resource_rep>()? {
             Ok(CoreFuncKind::ResourceRep(parser.parse()?))
-        } else if l.peek::<kw::thread_spawn>()? {
-            Ok(CoreFuncKind::ThreadSpawn(parser.parse()?))
+        } else if l.peek::<kw::thread_spawn_ref>()? {
+            Ok(CoreFuncKind::ThreadSpawnRef(parser.parse()?))
+        } else if l.peek::<kw::thread_spawn_indirect>()? {
+            Ok(CoreFuncKind::ThreadSpawnIndirect(parser.parse()?))
         } else if l.peek::<kw::thread_available_parallelism>()? {
             Ok(CoreFuncKind::ThreadAvailableParallelism(parser.parse()?))
         } else if l.peek::<kw::backpressure_set>()? {
@@ -471,20 +474,40 @@ impl<'a> Parse<'a> for CanonResourceRep<'a> {
     }
 }
 
-/// Information relating to the `thread.spawn` intrinsic.
+/// Information relating to the `thread.spawn_ref` intrinsic.
 #[derive(Debug)]
-pub struct CanonThreadSpawn<'a> {
+pub struct CanonThreadSpawnRef<'a> {
     /// The function type that is being spawned.
     pub ty: Index<'a>,
 }
 
-impl<'a> Parse<'a> for CanonThreadSpawn<'a> {
+impl<'a> Parse<'a> for CanonThreadSpawnRef<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
-        parser.parse::<kw::thread_spawn>()?;
+        parser.parse::<kw::thread_spawn_ref>()?;
 
         Ok(Self {
             ty: parser.parse()?,
         })
+    }
+}
+
+/// Information relating to the `thread.spawn_indirect` intrinsic.
+///
+/// This should look quite similar to parsing of `CallIndirect`.
+#[derive(Debug)]
+pub struct CanonThreadSpawnIndirect<'a> {
+    /// The function type that is being spawned.
+    pub ty: Index<'a>,
+    /// The table that this spawn is going to be indexing.
+    pub table: CoreItemRef<'a, kw::table>,
+}
+
+impl<'a> Parse<'a> for CanonThreadSpawnIndirect<'a> {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.parse::<kw::thread_spawn_indirect>()?;
+        let ty = parser.parse()?;
+        let table = parser.parens(|p| p.parse())?;
+        Ok(Self { ty, table })
     }
 }
 

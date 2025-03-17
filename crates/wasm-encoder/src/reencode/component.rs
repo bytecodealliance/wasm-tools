@@ -953,9 +953,17 @@ pub mod component_utils {
                 let resource = reencoder.component_type_index(resource);
                 section.resource_rep(resource);
             }
-            wasmparser::CanonicalFunction::ThreadSpawn { func_ty_index } => {
+            wasmparser::CanonicalFunction::ThreadSpawnRef { func_ty_index } => {
                 let func_ty = reencoder.type_index(func_ty_index);
-                section.thread_spawn(func_ty);
+                section.thread_spawn_ref(func_ty);
+            }
+            wasmparser::CanonicalFunction::ThreadSpawnIndirect {
+                func_ty_index,
+                table_index,
+            } => {
+                let func_ty = reencoder.type_index(func_ty_index);
+                let table_index = reencoder.table_index(table_index);
+                section.thread_spawn_indirect(func_ty, table_index);
             }
             wasmparser::CanonicalFunction::ThreadAvailableParallelism => {
                 section.thread_available_parallelism();

@@ -987,9 +987,13 @@ impl ComponentState {
             CanonicalFunction::ResourceRep { resource } => {
                 self.resource_rep(resource, types, offset)
             }
-            CanonicalFunction::ThreadSpawn { func_ty_index } => {
-                self.thread_spawn(func_ty_index, types, offset, features)
+            CanonicalFunction::ThreadSpawnRef { func_ty_index } => {
+                self.thread_spawn_ref(func_ty_index, types, offset, features)
             }
+            CanonicalFunction::ThreadSpawnIndirect {
+                func_ty_index,
+                table_index,
+            } => self.thread_spawn_indirect(func_ty_index, table_index, types, offset, features),
             CanonicalFunction::ThreadAvailableParallelism => {
                 self.thread_available_parallelism(types, offset, features)
             }
@@ -1924,7 +1928,7 @@ impl ComponentState {
         bail!(offset, "type index {} is not a resource type", idx)
     }
 
-    fn thread_spawn(
+    fn thread_spawn_ref(
         &mut self,
         func_ty_index: u32,
         types: &mut TypeAlloc,
@@ -1934,11 +1938,76 @@ impl ComponentState {
         if !features.shared_everything_threads() {
             bail!(
                 offset,
-                "`thread.spawn` requires the shared-everything-threads proposal"
+                "`thread.spawn_ref` requires the shared-everything-threads proposal"
             )
         }
+        let core_type_id = self.validate_spawn_type(func_ty_index, types, offset)?;
 
-        // Validate the type accepted by `thread.spawn`.
+        // Insert the core function.
+        let packed_index = PackedIndex::from_id(core_type_id).ok_or_else(|| {
+            format_err!(offset, "implementation limit: too many types in `TypeList`")
+        })?;
+        let start_func_ref = RefType::concrete(true, packed_index);
+        let func_ty = FuncType::new([ValType::Ref(start_func_ref), ValType::I32], [ValType::I32]);
+        let core_ty = SubType::func(func_ty, true);
+        let id = types.intern_sub_type(core_ty, offset);
+        self.core_funcs.push(id);
+
+        Ok(())
+    }
+
+    fn thread_spawn_indirect(
+        &mut self,
+        func_ty_index: u32,
+        table_index: u32,
+        types: &mut TypeAlloc,
+        offset: usize,
+        features: &WasmFeatures,
+    ) -> Result<()> {
+        if !features.shared_everything_threads() {
+            bail!(
+                offset,
+                "`thread.spawn_indirect` requires the shared-everything-threads proposal"
+            )
+        }
+        let _ = self.validate_spawn_type(func_ty_index, types, offset)?;
+
+        // Check this much like `call_indirect` (see
+        // `OperatorValidatorTemp::check_call_indirect_ty`), but loosen the
+        // table type restrictions to just a `funcref`. See the component model
+        // for more details:
+        // https://github.com/WebAssembly/component-model/blob/6e08e283/design/mvp/CanonicalABI.md#-canon-threadspawn_indirect.
+        let table = self.table_at(table_index, offset)?;
+        // TODO: check that the table is shared once components allow shared
+        // tables.
+        let expected_ty = RefType::FUNCREF
+            .shared()
+            .expect("a funcref can always be shared");
+        if table.element_type != expected_ty {
+            bail!(offset, "expected a table of shared `funcref`");
+        }
+
+        // Insert the core function.
+        let func_ty = FuncType::new([ValType::I32, ValType::I32], [ValType::I32]);
+        let core_ty = SubType::func(func_ty, true);
+        let id = types.intern_sub_type(core_ty, offset);
+        self.core_funcs.push(id);
+
+        Ok(())
+    }
+
+    /// Validates the type of a `thread.spawn*` instruction.
+    ///
+    /// This is currently limited to shared functions with the signature `[i32]
+    /// -> []`. See component model [explanation] for more details.
+    ///
+    /// [explanation]: https://github.com/WebAssembly/component-model/blob/6e08e283/design/mvp/CanonicalABI.md#-canon-threadspawn_ref
+    fn validate_spawn_type(
+        &self,
+        func_ty_index: u32,
+        types: &TypeAlloc,
+        offset: usize,
+    ) -> Result<CoreTypeId> {
         let core_type_id = match self.core_type_at(func_ty_index, offset)? {
             ComponentCoreTypeId::Sub(c) => c,
             ComponentCoreTypeId::Module(_) => bail!(offset, "expected a core function type"),
@@ -1961,18 +2030,7 @@ impl ComponentState {
             }
             _ => bail!(offset, "spawn type must be a function"),
         }
-
-        // Insert the core function.
-        let packed_index = PackedIndex::from_id(core_type_id).ok_or_else(|| {
-            format_err!(offset, "implementation limit: too many types in `TypeList`")
-        })?;
-        let start_func_ref = RefType::concrete(true, packed_index);
-        let func_ty = FuncType::new([ValType::Ref(start_func_ref), ValType::I32], [ValType::I32]);
-        let core_ty = SubType::func(func_ty, true);
-        let id = types.intern_sub_type(core_ty, offset);
-        self.core_funcs.push(id);
-
-        Ok(())
+        Ok(core_type_id)
     }
 
     fn thread_available_parallelism(

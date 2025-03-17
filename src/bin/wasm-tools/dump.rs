@@ -419,7 +419,8 @@ impl<'a> Dump<'a> {
                             | CanonicalFunction::ResourceDrop { .. }
                             | CanonicalFunction::ResourceDropAsync { .. }
                             | CanonicalFunction::ResourceRep { .. }
-                            | CanonicalFunction::ThreadSpawn { .. }
+                            | CanonicalFunction::ThreadSpawnRef { .. }
+                            | CanonicalFunction::ThreadSpawnIndirect { .. }
                             | CanonicalFunction::ThreadAvailableParallelism
                             | CanonicalFunction::BackpressureSet
                             | CanonicalFunction::TaskReturn { .. }

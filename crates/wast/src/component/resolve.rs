@@ -387,8 +387,12 @@ impl<'a> Resolver<'a> {
                 CoreFuncKind::ResourceDrop(info) => {
                     self.resolve_ns(&mut info.ty, Ns::Type)?;
                 }
-                CoreFuncKind::ThreadSpawn(info) => {
+                CoreFuncKind::ThreadSpawnRef(info) => {
                     self.resolve_ns(&mut info.ty, Ns::CoreType)?;
+                }
+                CoreFuncKind::ThreadSpawnIndirect(info) => {
+                    self.resolve_ns(&mut info.ty, Ns::CoreType)?;
+                    self.core_item_ref(&mut info.table)?;
                 }
                 CoreFuncKind::ThreadAvailableParallelism(_)
                 | CoreFuncKind::BackpressureSet
@@ -1094,6 +1098,7 @@ component_item!(kw::module, CoreModule);
 
 core_item!(kw::func, CoreFunc);
 core_item!(kw::memory, CoreMemory);
+core_item!(kw::table, CoreTable);
 core_item!(kw::r#type, CoreType);
 core_item!(kw::r#instance, CoreInstance);
 

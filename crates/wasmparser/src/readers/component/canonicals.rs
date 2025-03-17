@@ -71,9 +71,17 @@ pub enum CanonicalFunction {
         resource: u32,
     },
     /// A function which spawns a new thread by invoking the shared function.
-    ThreadSpawn {
-        /// The index of the function to spawn.
+    ThreadSpawnRef {
+        /// The index of the function type to spawn.
         func_ty_index: u32,
+    },
+    /// A function which spawns a new thread by invoking the shared function
+    /// passed as an index into a `funcref` table.
+    ThreadSpawnIndirect {
+        /// The index of the function type to spawn.
+        func_ty_index: u32,
+        /// The index of the table to use for the indirect spawn.
+        table_index: u32,
     },
     /// A function which returns the number of threads that can be expected to
     /// execute concurrently
@@ -277,10 +285,6 @@ impl<'a> FromReader<'a> for CanonicalFunction {
             0x04 => CanonicalFunction::ResourceRep {
                 resource: reader.read()?,
             },
-            0x05 => CanonicalFunction::ThreadSpawn {
-                func_ty_index: reader.read()?,
-            },
-            0x06 => CanonicalFunction::ThreadAvailableParallelism,
             0x08 => CanonicalFunction::BackpressureSet,
             0x09 => CanonicalFunction::TaskReturn {
                 result: crate::read_resultlist(reader)?,
@@ -355,6 +359,14 @@ impl<'a> FromReader<'a> for CanonicalFunction {
             },
             0x22 => CanonicalFunction::WaitableSetDrop,
             0x23 => CanonicalFunction::WaitableJoin,
+            0x40 => CanonicalFunction::ThreadSpawnRef {
+                func_ty_index: reader.read()?,
+            },
+            0x41 => CanonicalFunction::ThreadSpawnIndirect {
+                func_ty_index: reader.read()?,
+                table_index: reader.read()?,
+            },
+            0x42 => CanonicalFunction::ThreadAvailableParallelism,
             x => return reader.invalid_leading_byte(x, "canonical function"),
         })
     }
