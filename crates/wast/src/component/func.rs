@@ -506,10 +506,7 @@ impl<'a> Parse<'a> for CanonThreadSpawnIndirect<'a> {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::thread_spawn_indirect>()?;
         let ty = parser.parse()?;
-        let table = parser.parens(|parser| {
-            let span = parser.parse::<kw::table>()?.0;
-            parse_trailing_item_ref(kw::table(span), parser)
-        })?;
+        let table = parser.parens(|p| p.parse())?;
         Ok(Self { ty, table })
     }
 }
