@@ -7,7 +7,10 @@ use crate::validator::types::{
     CoreTypeId, EntityType, SnapshotList, TypeAlloc, TypeData, TypeIdentifier, TypeInfo, TypeList,
     Types, TypesKind, TypesRef, TypesRefKind,
 };
-use crate::{BinaryReaderError, CanonicalOption, FuncType, PrimitiveValType, Result, ValType};
+use crate::{
+    BinaryReaderError, CanonicalOption, FuncType, MemoryType, PrimitiveValType, Result, TableType,
+    ValType,
+};
 use core::fmt;
 use core::ops::Index;
 use core::sync::atomic::{AtomicUsize, Ordering};
@@ -2499,6 +2502,21 @@ pub struct SubtypeCx<'a> {
     pub b: SubtypeArena<'a>,
 }
 
+macro_rules! limits_match {
+    ($a:expr, $b:expr) => {{
+        let a = $a;
+        let b = $b;
+        a.initial >= b.initial
+            && match b.maximum {
+                Some(b_max) => match a.maximum {
+                    Some(a_max) => a_max <= b_max,
+                    None => false,
+                },
+                None => true,
+            }
+    }};
+}
+
 impl<'a> SubtypeCx<'a> {
     /// Create a new instance with the specified type lists
     pub fn new_with_refs(a: TypesRef<'a>, b: TypesRef<'a>) -> SubtypeCx<'a> {
@@ -3019,55 +3037,14 @@ impl<'a> SubtypeCx<'a> {
     }
 
     pub(crate) fn entity_type(&self, a: &EntityType, b: &EntityType, offset: usize) -> Result<()> {
-        macro_rules! limits_match {
-            ($a:expr, $b:expr) => {{
-                let a = $a;
-                let b = $b;
-                a.initial >= b.initial
-                    && match b.maximum {
-                        Some(b_max) => match a.maximum {
-                            Some(a_max) => a_max <= b_max,
-                            None => false,
-                        },
-                        None => true,
-                    }
-            }};
-        }
-
         match (a, b) {
             (EntityType::Func(a), EntityType::Func(b)) => {
                 self.core_func_type(self.a[*a].unwrap_func(), self.b[*b].unwrap_func(), offset)
             }
             (EntityType::Func(_), b) => bail!(offset, "expected {}, found func", b.desc()),
-            (EntityType::Table(a), EntityType::Table(b)) => {
-                if a.element_type != b.element_type {
-                    bail!(
-                        offset,
-                        "expected table element type {}, found {}",
-                        b.element_type,
-                        a.element_type,
-                    )
-                }
-                if limits_match!(a, b) {
-                    Ok(())
-                } else {
-                    bail!(offset, "mismatch in table limits")
-                }
-            }
+            (EntityType::Table(a), EntityType::Table(b)) => Self::table_type(a, b, offset),
             (EntityType::Table(_), b) => bail!(offset, "expected {}, found table", b.desc()),
-            (EntityType::Memory(a), EntityType::Memory(b)) => {
-                if a.shared != b.shared {
-                    bail!(offset, "mismatch in the shared flag for memories")
-                }
-                if a.memory64 != b.memory64 {
-                    bail!(offset, "mismatch in index type used for memories")
-                }
-                if limits_match!(a, b) {
-                    Ok(())
-                } else {
-                    bail!(offset, "mismatch in memory limits")
-                }
-            }
+            (EntityType::Memory(a), EntityType::Memory(b)) => Self::memory_type(a, b, offset),
             (EntityType::Memory(_), b) => bail!(offset, "expected {}, found memory", b.desc()),
             (EntityType::Global(a), EntityType::Global(b)) => {
                 if a.mutable != b.mutable {
@@ -3089,6 +3066,39 @@ impl<'a> SubtypeCx<'a> {
                 self.core_func_type(self.a[*a].unwrap_func(), self.b[*b].unwrap_func(), offset)
             }
             (EntityType::Tag(_), b) => bail!(offset, "expected {}, found tag", b.desc()),
+        }
+    }
+
+    pub(crate) fn table_type(a: &TableType, b: &TableType, offset: usize) -> Result<()> {
+        if a.element_type != b.element_type {
+            bail!(
+                offset,
+                "expected table element type {}, found {}",
+                b.element_type,
+                a.element_type,
+            )
+        }
+        if a.shared != b.shared {
+            bail!(offset, "mismatch in the shared flag for tables")
+        }
+        if limits_match!(a, b) {
+            Ok(())
+        } else {
+            bail!(offset, "mismatch in table limits")
+        }
+    }
+
+    pub(crate) fn memory_type(a: &MemoryType, b: &MemoryType, offset: usize) -> Result<()> {
+        if a.shared != b.shared {
+            bail!(offset, "mismatch in the shared flag for memories")
+        }
+        if a.memory64 != b.memory64 {
+            bail!(offset, "mismatch in index type used for memories")
+        }
+        if limits_match!(a, b) {
+            Ok(())
+        } else {
+            bail!(offset, "mismatch in memory limits")
         }
     }
 
