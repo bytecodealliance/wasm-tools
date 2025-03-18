@@ -1833,7 +1833,7 @@ impl ComponentState {
             )
         }
 
-        self.memory_at(memory, offset)?;
+        self.cabi_memory_at(memory, offset)?;
 
         self.core_funcs
             .push(types.intern_func_type(FuncType::new([ValType::I32; 2], [ValType::I32]), offset));
@@ -1861,7 +1861,7 @@ impl ComponentState {
             )
         }
 
-        self.memory_at(memory, offset)?;
+        self.cabi_memory_at(memory, offset)?;
 
         self.core_funcs
             .push(types.intern_func_type(FuncType::new([ValType::I32; 2], [ValType::I32]), offset));
@@ -1978,14 +1978,24 @@ impl ComponentState {
         // for more details:
         // https://github.com/WebAssembly/component-model/blob/6e08e283/design/mvp/CanonicalABI.md#-canon-threadspawn_indirect.
         let table = self.table_at(table_index, offset)?;
-        // TODO: check that the table is shared once components allow shared
-        // tables.
-        let expected_ty = RefType::FUNCREF
-            .shared()
-            .expect("a funcref can always be shared");
-        if table.element_type != expected_ty {
-            bail!(offset, "expected a table of shared `funcref`");
-        }
+
+        SubtypeCx::table_type(
+            table,
+            &TableType {
+                initial: 0,
+                maximum: None,
+                table64: false,
+                shared: true,
+                element_type: RefType::FUNCREF
+                    .shared()
+                    .expect("a funcref can always be shared"),
+            },
+            offset,
+        )
+        .map_err(|mut e| {
+            e.add_context("table is not a 32-bit shared table of (ref null (shared func))".into());
+            e
+        })?;
 
         // Insert the core function.
         let func_ty = FuncType::new([ValType::I32, ValType::I32], [ValType::I32]);
@@ -2244,7 +2254,7 @@ impl ComponentState {
                 CanonicalOption::Memory(idx) => {
                     memory = match memory {
                         None => {
-                            self.memory_at(*idx, offset)?;
+                            self.cabi_memory_at(*idx, offset)?;
                             Some(*idx)
                         }
                         Some(_) => {
@@ -3330,20 +3340,6 @@ impl ComponentState {
                     offset,
                 )?;
                 push_module_export!(EntityType::Table, core_tables, "table");
-
-                let ty = self.core_tables.last().unwrap();
-                if ty.table64 {
-                    bail!(
-                        offset,
-                        "64-bit tables are not compatible with components yet"
-                    );
-                }
-                if ty.shared {
-                    bail!(
-                        offset,
-                        "shared tables are not compatible with components yet"
-                    );
-                }
             }
             ExternalKind::Memory => {
                 check_max(
@@ -3354,20 +3350,6 @@ impl ComponentState {
                     offset,
                 )?;
                 push_module_export!(EntityType::Memory, core_memories, "memory");
-
-                let ty = self.core_memories.last().unwrap();
-                if ty.memory64 {
-                    bail!(
-                        offset,
-                        "64-bit linear memories are not compatible with components yet"
-                    );
-                }
-                if ty.shared {
-                    bail!(
-                        offset,
-                        "shared linear memories are not compatible with components yet"
-                    );
-                }
             }
             ExternalKind::Global => {
                 check_max(
@@ -3974,6 +3956,30 @@ impl ComponentState {
             Some(t) => Ok(t),
             None => bail!(offset, "unknown memory {idx}: memory index out of bounds"),
         }
+    }
+
+    /// Validates that the linear memory at `idx` is valid to use as a canonical
+    /// ABI memory.
+    ///
+    /// At this time this requires that the memory is a plain 32-bit linear
+    /// memory. Notably this disallows shared memory and 64-bit linear memories.
+    fn cabi_memory_at(&self, idx: u32, offset: usize) -> Result<()> {
+        let ty = self.memory_at(idx, offset)?;
+        SubtypeCx::memory_type(
+            ty,
+            &MemoryType {
+                initial: 0,
+                maximum: None,
+                memory64: false,
+                shared: false,
+                page_size_log2: None,
+            },
+            offset,
+        )
+        .map_err(|mut e| {
+            e.add_context("canonical ABI memory is not a 32-bit linear memory".into());
+            e
+        })
     }
 
     /// Completes the translation of this component, performing final

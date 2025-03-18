@@ -2,18 +2,23 @@
   "source_filename": "tests/cli/component-model/shared-everything-threads/not-accepted.wast",
   "commands": [
     {
-      "type": "assert_invalid",
-      "line": 4,
+      "type": "module",
+      "line": 3,
       "filename": "not-accepted.0.wasm",
-      "module_type": "binary",
-      "text": "shared linear memories are not compatible with components yet"
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 13,
+      "filename": "not-accepted.1.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 13,
-      "filename": "not-accepted.1.wasm",
+      "line": 25,
+      "filename": "not-accepted.2.wasm",
       "module_type": "binary",
-      "text": "shared tables are not compatible with components yet"
+      "text": "canonical ABI memory is not a 32-bit linear memory"
     }
   ]
 }

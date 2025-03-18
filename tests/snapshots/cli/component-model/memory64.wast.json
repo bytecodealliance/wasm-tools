@@ -16,18 +16,23 @@
       "text": "mismatch in index type used for memories"
     },
     {
-      "type": "assert_invalid",
-      "line": 26,
+      "type": "module",
+      "line": 25,
       "filename": "memory64.2.wasm",
-      "module_type": "binary",
-      "text": "64-bit linear memories are not compatible with components yet"
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 35,
+      "filename": "memory64.3.wasm",
+      "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 35,
-      "filename": "memory64.3.wasm",
+      "line": 46,
+      "filename": "memory64.4.wasm",
       "module_type": "binary",
-      "text": "64-bit tables are not compatible with components yet"
+      "text": "canonical ABI memory is not a 32-bit linear memory"
     }
   ]
 }
