@@ -31,7 +31,7 @@
 ;; async lift; with callback
 (component
   (core module $m
-    (func (export "callback") (param i32 i32 i32 i32) (result i32) unreachable)
+    (func (export "callback") (param i32 i32 i32) (result i32) unreachable)
     (func (export "foo") (param i32) (result i32) unreachable)
   )
   (core instance $i (instantiate $m))
@@ -45,7 +45,7 @@
 (assert_invalid
   (component
     (core module $m
-      (func (export "callback") (param i32 i32 f32 i32) (result i32) unreachable)
+      (func (export "callback") (param i32 f32 i32) (result i32) unreachable)
       (func (export "foo") (param i32) (result i32) unreachable)
     )
     (core instance $i (instantiate $m))
@@ -61,7 +61,7 @@
 (assert_invalid
   (component
     (core module $m
-      (func (export "callback") (param i32 i32 i32 i32) (result i32) unreachable)
+      (func (export "callback") (param i32 i32 i32) (result i32) unreachable)
       (func (export "foo") (param i32) (result i32) unreachable)
       (func (export "post-return-foo") (param i32) unreachable)
     )
@@ -78,7 +78,7 @@
 (assert_invalid
   (component
     (core module $m
-      (func (export "callback") (param i32 i32 i32 i32) (result i32) unreachable)
+      (func (export "callback") (param i32 i32 i32) (result i32) unreachable)
       (func (export "foo") (param i32 i32) (result i32) unreachable)
     )
     (core instance $i (instantiate $m))
@@ -109,7 +109,7 @@
 (assert_invalid
   (component
     (core module $m
-      (func (export "callback") (param i32 i32 i32 i32) (result i32) unreachable)
+      (func (export "callback") (param i32 i32 i32) (result i32) unreachable)
       (func (export "foo") (param i32) (result i32) unreachable)
     )
     (core instance $i (instantiate $m))

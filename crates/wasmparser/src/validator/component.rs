@@ -2345,7 +2345,7 @@ impl ComponentState {
 
                             let ty = types[self.core_function_at(*idx, offset)?].unwrap_func();
 
-                            if ty.params() != [ValType::I32; 4] && ty.params() != [ValType::I32] {
+                            if ty.params() != [ValType::I32; 3] && ty.params() != [ValType::I32] {
                                 return Err(BinaryReaderError::new(
                                     "canonical option `callback` uses a core function with an incorrect signature",
                                     offset,
