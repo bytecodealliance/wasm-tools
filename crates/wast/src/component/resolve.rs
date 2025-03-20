@@ -841,7 +841,21 @@ impl<'a> Resolver<'a> {
                 target: AliasTarget::Outer {
                     outer: Index::Num(depth, span),
                     index: Index::Num(found, span),
-                    kind: ns.into(),
+                    kind: match ns {
+                        Ns::CoreModule => ComponentOuterAliasKind::CoreModule,
+                        Ns::CoreType => ComponentOuterAliasKind::CoreType,
+                        Ns::Type => ComponentOuterAliasKind::Type,
+                        Ns::Component => ComponentOuterAliasKind::Component,
+                        _ => {
+                            return Err(Error::new(
+                                span,
+                                format!(
+                                    "outer item `{}` is not a module, type, or component",
+                                    id.name(),
+                                ),
+                            ))
+                        }
+                    },
                 },
             };
             let local_index = self.current().register_alias(&alias)?;
@@ -1112,18 +1126,6 @@ impl From<Ns> for ComponentExportAliasKind {
             Ns::Component => Self::Component,
             Ns::Value => Self::Value,
             _ => unreachable!("not a component exportable namespace"),
-        }
-    }
-}
-
-impl From<Ns> for ComponentOuterAliasKind {
-    fn from(ns: Ns) -> Self {
-        match ns {
-            Ns::CoreModule => Self::CoreModule,
-            Ns::CoreType => Self::CoreType,
-            Ns::Type => Self::Type,
-            Ns::Component => Self::Component,
-            _ => unreachable!("not an outer alias namespace"),
         }
     }
 }

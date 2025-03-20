@@ -28,6 +28,13 @@
       "filename": "invalid.3.wat",
       "module_type": "text",
       "text": "outer component `nonexistent` not found"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 31,
+      "filename": "invalid.4.wat",
+      "module_type": "text",
+      "text": "outer item `x` is not a module, type, or component"
     }
   ]
 }

@@ -26,3 +26,9 @@
     "(alias outer $nonexistent $foo (type $foo))"
   )
   "outer component `nonexistent` not found")
+
+(assert_malformed
+  (component quote
+    "(import \"x\" (func $x))"
+    "(component (export \"x\" (func $x)))")
+  "outer item `x` is not a module, type, or component")
