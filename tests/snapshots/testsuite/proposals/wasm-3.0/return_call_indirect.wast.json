@@ -9,7 +9,7 @@
     },
     {
       "type": "assert_return",
-      "line": 213,
+      "line": 239,
       "action": {
         "type": "invoke",
         "field": "type-i32",
@@ -24,7 +24,7 @@
     },
     {
       "type": "assert_return",
-      "line": 214,
+      "line": 240,
       "action": {
         "type": "invoke",
         "field": "type-i64",
@@ -39,7 +39,7 @@
     },
     {
       "type": "assert_return",
-      "line": 215,
+      "line": 241,
       "action": {
         "type": "invoke",
         "field": "type-f32",
@@ -54,7 +54,7 @@
     },
     {
       "type": "assert_return",
-      "line": 216,
+      "line": 242,
       "action": {
         "type": "invoke",
         "field": "type-f64",
@@ -69,7 +69,7 @@
     },
     {
       "type": "assert_return",
-      "line": 218,
+      "line": 244,
       "action": {
         "type": "invoke",
         "field": "type-index",
@@ -84,7 +84,7 @@
     },
     {
       "type": "assert_return",
-      "line": 220,
+      "line": 246,
       "action": {
         "type": "invoke",
         "field": "type-first-i32",
@@ -99,7 +99,7 @@
     },
     {
       "type": "assert_return",
-      "line": 221,
+      "line": 247,
       "action": {
         "type": "invoke",
         "field": "type-first-i64",
@@ -114,7 +114,7 @@
     },
     {
       "type": "assert_return",
-      "line": 222,
+      "line": 248,
       "action": {
         "type": "invoke",
         "field": "type-first-f32",
@@ -129,7 +129,7 @@
     },
     {
       "type": "assert_return",
-      "line": 223,
+      "line": 249,
       "action": {
         "type": "invoke",
         "field": "type-first-f64",
@@ -144,7 +144,7 @@
     },
     {
       "type": "assert_return",
-      "line": 225,
+      "line": 251,
       "action": {
         "type": "invoke",
         "field": "type-second-i32",
@@ -159,7 +159,7 @@
     },
     {
       "type": "assert_return",
-      "line": 226,
+      "line": 252,
       "action": {
         "type": "invoke",
         "field": "type-second-i64",
@@ -174,7 +174,7 @@
     },
     {
       "type": "assert_return",
-      "line": 227,
+      "line": 253,
       "action": {
         "type": "invoke",
         "field": "type-second-f32",
@@ -189,7 +189,7 @@
     },
     {
       "type": "assert_return",
-      "line": 228,
+      "line": 254,
       "action": {
         "type": "invoke",
         "field": "type-second-f64",
@@ -204,7 +204,7 @@
     },
     {
       "type": "assert_return",
-      "line": 230,
+      "line": 256,
       "action": {
         "type": "invoke",
         "field": "dispatch",
@@ -228,7 +228,7 @@
     },
     {
       "type": "assert_return",
-      "line": 231,
+      "line": 257,
       "action": {
         "type": "invoke",
         "field": "dispatch",
@@ -252,7 +252,7 @@
     },
     {
       "type": "assert_return",
-      "line": 232,
+      "line": 258,
       "action": {
         "type": "invoke",
         "field": "dispatch",
@@ -276,7 +276,7 @@
     },
     {
       "type": "assert_return",
-      "line": 233,
+      "line": 259,
       "action": {
         "type": "invoke",
         "field": "dispatch",
@@ -300,7 +300,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 234,
+      "line": 260,
       "action": {
         "type": "invoke",
         "field": "dispatch",
@@ -319,7 +319,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 235,
+      "line": 261,
       "action": {
         "type": "invoke",
         "field": "dispatch",
@@ -338,14 +338,14 @@
     },
     {
       "type": "assert_trap",
-      "line": 236,
+      "line": 262,
       "action": {
         "type": "invoke",
         "field": "dispatch",
         "args": [
           {
             "type": "i32",
-            "value": "20"
+            "value": "22"
           },
           {
             "type": "i64",
@@ -357,7 +357,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 237,
+      "line": 263,
       "action": {
         "type": "invoke",
         "field": "dispatch",
@@ -376,7 +376,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 238,
+      "line": 264,
       "action": {
         "type": "invoke",
         "field": "dispatch",
@@ -395,7 +395,7 @@
     },
     {
       "type": "assert_return",
-      "line": 240,
+      "line": 266,
       "action": {
         "type": "invoke",
         "field": "dispatch-structural",
@@ -415,7 +415,7 @@
     },
     {
       "type": "assert_return",
-      "line": 241,
+      "line": 267,
       "action": {
         "type": "invoke",
         "field": "dispatch-structural",
@@ -435,7 +435,7 @@
     },
     {
       "type": "assert_return",
-      "line": 242,
+      "line": 268,
       "action": {
         "type": "invoke",
         "field": "dispatch-structural",
@@ -455,7 +455,7 @@
     },
     {
       "type": "assert_return",
-      "line": 243,
+      "line": 269,
       "action": {
         "type": "invoke",
         "field": "dispatch-structural",
@@ -475,7 +475,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 244,
+      "line": 270,
       "action": {
         "type": "invoke",
         "field": "dispatch-structural",
@@ -490,7 +490,7 @@
     },
     {
       "type": "assert_trap",
-      "line": 245,
+      "line": 271,
       "action": {
         "type": "invoke",
         "field": "dispatch-structural",
@@ -505,7 +505,7 @@
     },
     {
       "type": "assert_return",
-      "line": 247,
+      "line": 273,
       "action": {
         "type": "invoke",
         "field": "call-tab",
@@ -525,7 +525,7 @@
     },
     {
       "type": "assert_return",
-      "line": 248,
+      "line": 274,
       "action": {
         "type": "invoke",
         "field": "call-tab",
@@ -545,7 +545,7 @@
     },
     {
       "type": "assert_return",
-      "line": 249,
+      "line": 275,
       "action": {
         "type": "invoke",
         "field": "call-tab",
@@ -565,7 +565,7 @@
     },
     {
       "type": "assert_return",
-      "line": 251,
+      "line": 277,
       "action": {
         "type": "invoke",
         "field": "fac",
@@ -585,7 +585,7 @@
     },
     {
       "type": "assert_return",
-      "line": 252,
+      "line": 278,
       "action": {
         "type": "invoke",
         "field": "fac",
@@ -605,7 +605,7 @@
     },
     {
       "type": "assert_return",
-      "line": 253,
+      "line": 279,
       "action": {
         "type": "invoke",
         "field": "fac",
@@ -625,7 +625,7 @@
     },
     {
       "type": "assert_return",
-      "line": 254,
+      "line": 280,
       "action": {
         "type": "invoke",
         "field": "fac",
@@ -645,7 +645,7 @@
     },
     {
       "type": "assert_return",
-      "line": 256,
+      "line": 282,
       "action": {
         "type": "invoke",
         "field": "even",
@@ -665,7 +665,7 @@
     },
     {
       "type": "assert_return",
-      "line": 257,
+      "line": 283,
       "action": {
         "type": "invoke",
         "field": "even",
@@ -685,7 +685,7 @@
     },
     {
       "type": "assert_return",
-      "line": 258,
+      "line": 284,
       "action": {
         "type": "invoke",
         "field": "even",
@@ -705,7 +705,7 @@
     },
     {
       "type": "assert_return",
-      "line": 259,
+      "line": 285,
       "action": {
         "type": "invoke",
         "field": "even",
@@ -725,7 +725,7 @@
     },
     {
       "type": "assert_return",
-      "line": 260,
+      "line": 286,
       "action": {
         "type": "invoke",
         "field": "even",
@@ -745,7 +745,7 @@
     },
     {
       "type": "assert_return",
-      "line": 261,
+      "line": 287,
       "action": {
         "type": "invoke",
         "field": "even",
@@ -765,7 +765,7 @@
     },
     {
       "type": "assert_return",
-      "line": 262,
+      "line": 288,
       "action": {
         "type": "invoke",
         "field": "odd",
@@ -785,7 +785,7 @@
     },
     {
       "type": "assert_return",
-      "line": 263,
+      "line": 289,
       "action": {
         "type": "invoke",
         "field": "odd",
@@ -805,7 +805,7 @@
     },
     {
       "type": "assert_return",
-      "line": 264,
+      "line": 290,
       "action": {
         "type": "invoke",
         "field": "odd",
@@ -825,7 +825,7 @@
     },
     {
       "type": "assert_return",
-      "line": 265,
+      "line": 291,
       "action": {
         "type": "invoke",
         "field": "odd",
@@ -845,7 +845,7 @@
     },
     {
       "type": "assert_return",
-      "line": 266,
+      "line": 292,
       "action": {
         "type": "invoke",
         "field": "odd",
@@ -865,7 +865,7 @@
     },
     {
       "type": "assert_return",
-      "line": 267,
+      "line": 293,
       "action": {
         "type": "invoke",
         "field": "odd",
@@ -884,196 +884,250 @@
       ]
     },
     {
+      "type": "assert_return",
+      "line": 295,
+      "action": {
+        "type": "invoke",
+        "field": "call_tailprint",
+        "args": [
+          {
+            "type": "i32",
+            "value": "5"
+          },
+          {
+            "type": "f32",
+            "value": "1119223808"
+          }
+        ]
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_return",
+      "line": 296,
+      "action": {
+        "type": "invoke",
+        "field": "call_mpmr",
+        "args": [
+          {
+            "type": "f64",
+            "value": "4616414798036126925"
+          },
+          {
+            "type": "i64",
+            "value": "99"
+          }
+        ]
+      },
+      "expected": [
+        {
+          "type": "i32",
+          "value": "99"
+        },
+        {
+          "type": "f32",
+          "value": "1082549862"
+        }
+      ]
+    },
+    {
       "type": "assert_malformed",
-      "line": 273,
+      "line": 301,
       "filename": "return_call_indirect.1.wat",
       "module_type": "text",
       "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
-      "line": 285,
+      "line": 313,
       "filename": "return_call_indirect.2.wat",
       "module_type": "text",
       "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
-      "line": 297,
+      "line": 325,
       "filename": "return_call_indirect.3.wat",
       "module_type": "text",
       "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
-      "line": 309,
+      "line": 337,
       "filename": "return_call_indirect.4.wat",
       "module_type": "text",
       "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
-      "line": 321,
+      "line": 349,
       "filename": "return_call_indirect.5.wat",
       "module_type": "text",
       "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
-      "line": 333,
+      "line": 361,
       "filename": "return_call_indirect.6.wat",
       "module_type": "text",
       "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
-      "line": 345,
+      "line": 373,
       "filename": "return_call_indirect.7.wat",
       "module_type": "text",
       "text": "unexpected token"
     },
     {
       "type": "assert_malformed",
-      "line": 352,
+      "line": 380,
       "filename": "return_call_indirect.8.wat",
       "module_type": "text",
       "text": "inline function type"
     },
     {
       "type": "assert_malformed",
-      "line": 362,
+      "line": 390,
       "filename": "return_call_indirect.9.wat",
       "module_type": "text",
       "text": "inline function type"
     },
     {
       "type": "assert_malformed",
-      "line": 372,
+      "line": 400,
       "filename": "return_call_indirect.10.wat",
       "module_type": "text",
       "text": "inline function type"
     },
     {
       "type": "assert_malformed",
-      "line": 384,
+      "line": 412,
       "filename": "return_call_indirect.11.wat",
       "module_type": "text",
       "text": "inline function type"
     },
     {
       "type": "assert_invalid",
-      "line": 399,
+      "line": 427,
       "filename": "return_call_indirect.12.wasm",
       "module_type": "binary",
       "text": "unknown table"
     },
     {
       "type": "assert_invalid",
-      "line": 407,
+      "line": 435,
       "filename": "return_call_indirect.13.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 415,
+      "line": 443,
       "filename": "return_call_indirect.14.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 424,
+      "line": 452,
       "filename": "return_call_indirect.15.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 432,
+      "line": 460,
       "filename": "return_call_indirect.16.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "module",
-      "line": 440,
+      "line": 468,
       "filename": "return_call_indirect.17.wasm",
       "module_type": "binary"
     },
     {
       "type": "module",
-      "line": 446,
+      "line": 474,
       "filename": "return_call_indirect.18.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_invalid",
-      "line": 455,
+      "line": 483,
       "filename": "return_call_indirect.19.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 463,
+      "line": 491,
       "filename": "return_call_indirect.20.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 472,
+      "line": 500,
       "filename": "return_call_indirect.21.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 482,
+      "line": 510,
       "filename": "return_call_indirect.22.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 492,
+      "line": 520,
       "filename": "return_call_indirect.23.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 502,
+      "line": 530,
       "filename": "return_call_indirect.24.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 512,
+      "line": 540,
       "filename": "return_call_indirect.25.wasm",
       "module_type": "binary",
       "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 526,
+      "line": 553,
       "filename": "return_call_indirect.26.wasm",
       "module_type": "binary",
-      "text": "unknown type"
+      "text": "type mismatch"
     },
     {
       "type": "assert_invalid",
-      "line": 533,
+      "line": 564,
       "filename": "return_call_indirect.27.wasm",
       "module_type": "binary",
       "text": "unknown type"
     },
     {
       "type": "assert_invalid",
-      "line": 544,
+      "line": 571,
       "filename": "return_call_indirect.28.wasm",
+      "module_type": "binary",
+      "text": "unknown type"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 582,
+      "filename": "return_call_indirect.29.wasm",
       "module_type": "binary",
       "text": "unknown function 0"
     }

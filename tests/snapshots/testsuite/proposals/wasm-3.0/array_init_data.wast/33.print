@@ -1,6 +1,6 @@
 (module
-  (type $a32 (;0;) (array i32))
-  (type $a64 (;1;) (array i64))
+  (type $a32 (;0;) (array (mut i32)))
+  (type $a64 (;1;) (array (mut i64)))
   (type (;2;) (func))
   (export "f0" (func 0))
   (export "f1" (func 1))
@@ -15,76 +15,100 @@
   (export "g8" (func 10))
   (export "g9" (func 11))
   (func (;0;) (type 2)
+    i32.const 1
+    array.new_default $a32
+    i32.const 0
     i32.const 0
     i32.const 1
-    array.new_data $a32 $data0
-    drop
+    array.init_data $a32 $data0
   )
   (func (;1;) (type 2)
+    i32.const 1
+    array.new_default $a32
+    i32.const 0
     i32.const 0
     i32.const 1
-    array.new_data $a32 $data1
-    drop
+    array.init_data $a32 $data1
   )
   (func (;2;) (type 2)
+    i32.const 1
+    array.new_default $a32
+    i32.const 0
     i32.const 0
     i32.const 1
-    array.new_data $a32 $data2
-    drop
+    array.init_data $a32 $data2
   )
   (func (;3;) (type 2)
+    i32.const 1
+    array.new_default $a32
+    i32.const 0
     i32.const 0
     i32.const 1
-    array.new_data $a32 $data3
-    drop
+    array.init_data $a32 $data3
   )
   (func (;4;) (type 2)
+    i32.const 1
+    array.new_default $a32
+    i32.const 0
     i32.const 0
     i32.const 1
-    array.new_data $a32 $data4
-    drop
+    array.init_data $a32 $data4
   )
   (func (;5;) (type 2)
+    i32.const 1
+    array.new_default $a32
+    i32.const 0
     i32.const 6
     i32.const 1
-    array.new_data $a32 $data9
-    drop
+    array.init_data $a32 $data9
   )
   (func (;6;) (type 2)
+    i32.const 1
+    array.new_default $a64
+    i32.const 0
     i32.const 0
     i32.const 1
-    array.new_data $a64 $data0
-    drop
+    array.init_data $a64 $data0
   )
   (func (;7;) (type 2)
+    i32.const 1
+    array.new_default $a64
+    i32.const 0
     i32.const 0
     i32.const 1
-    array.new_data $a64 $data1
-    drop
+    array.init_data $a64 $data1
   )
   (func (;8;) (type 2)
+    i32.const 1
+    array.new_default $a64
+    i32.const 0
     i32.const 0
     i32.const 1
-    array.new_data $a64 $data4
-    drop
+    array.init_data $a64 $data4
   )
   (func (;9;) (type 2)
+    i32.const 1
+    array.new_default $a64
+    i32.const 0
     i32.const 0
     i32.const 1
-    array.new_data $a64 $data7
-    drop
+    array.init_data $a64 $data7
   )
   (func (;10;) (type 2)
+    i32.const 1
+    array.new_default $a64
+    i32.const 0
     i32.const 0
     i32.const 1
-    array.new_data $a64 $data9
-    drop
+    array.init_data $a64 $data9
   )
   (func (;11;) (type 2)
+    i32.const 1
+    array.new_default $a64
+    i32.const 0
     i32.const 2
     i32.const 1
-    array.new_data $a64 $data9
-    drop
+    array.init_data $a64 $data9
   )
   (data $data0 (;0;) "")
   (data $data1 (;1;) "1")

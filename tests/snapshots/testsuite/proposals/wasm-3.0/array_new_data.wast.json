@@ -177,13 +177,139 @@
     },
     {
       "type": "module",
-      "line": 24,
+      "line": 23,
       "filename": "array_new_data.1.wasm",
       "module_type": "binary"
     },
     {
+      "type": "assert_trap",
+      "line": 74,
+      "action": {
+        "type": "invoke",
+        "field": "f0",
+        "args": []
+      },
+      "text": "out of bounds memory access"
+    },
+    {
+      "type": "assert_trap",
+      "line": 75,
+      "action": {
+        "type": "invoke",
+        "field": "f1",
+        "args": []
+      },
+      "text": "out of bounds memory access"
+    },
+    {
+      "type": "assert_trap",
+      "line": 76,
+      "action": {
+        "type": "invoke",
+        "field": "f2",
+        "args": []
+      },
+      "text": "out of bounds memory access"
+    },
+    {
+      "type": "assert_trap",
+      "line": 77,
+      "action": {
+        "type": "invoke",
+        "field": "f3",
+        "args": []
+      },
+      "text": "out of bounds memory access"
+    },
+    {
       "type": "assert_return",
-      "line": 38,
+      "line": 78,
+      "action": {
+        "type": "invoke",
+        "field": "f4",
+        "args": []
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_trap",
+      "line": 79,
+      "action": {
+        "type": "invoke",
+        "field": "f9",
+        "args": []
+      },
+      "text": "out of bounds memory access"
+    },
+    {
+      "type": "assert_trap",
+      "line": 81,
+      "action": {
+        "type": "invoke",
+        "field": "g0",
+        "args": []
+      },
+      "text": "out of bounds memory access"
+    },
+    {
+      "type": "assert_trap",
+      "line": 82,
+      "action": {
+        "type": "invoke",
+        "field": "g1",
+        "args": []
+      },
+      "text": "out of bounds memory access"
+    },
+    {
+      "type": "assert_trap",
+      "line": 83,
+      "action": {
+        "type": "invoke",
+        "field": "g4",
+        "args": []
+      },
+      "text": "out of bounds memory access"
+    },
+    {
+      "type": "assert_trap",
+      "line": 84,
+      "action": {
+        "type": "invoke",
+        "field": "g7",
+        "args": []
+      },
+      "text": "out of bounds memory access"
+    },
+    {
+      "type": "assert_return",
+      "line": 85,
+      "action": {
+        "type": "invoke",
+        "field": "g8",
+        "args": []
+      },
+      "expected": []
+    },
+    {
+      "type": "assert_trap",
+      "line": 86,
+      "action": {
+        "type": "invoke",
+        "field": "g9",
+        "args": []
+      },
+      "text": "out of bounds memory access"
+    },
+    {
+      "type": "module",
+      "line": 89,
+      "filename": "array_new_data.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_return",
+      "line": 103,
       "action": {
         "type": "invoke",
         "field": "array-new-data-contents",
@@ -202,13 +328,13 @@
     },
     {
       "type": "module",
-      "line": 40,
-      "filename": "array_new_data.2.wasm",
+      "line": 105,
+      "filename": "array_new_data.3.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_return",
-      "line": 53,
+      "line": 118,
       "action": {
         "type": "invoke",
         "field": "array-new-data-little-endian",
@@ -223,13 +349,13 @@
     },
     {
       "type": "module",
-      "line": 55,
-      "filename": "array_new_data.3.wasm",
+      "line": 120,
+      "filename": "array_new_data.4.wasm",
       "module_type": "binary"
     },
     {
       "type": "assert_return",
-      "line": 68,
+      "line": 133,
       "action": {
         "type": "invoke",
         "field": "array-new-data-unaligned",
