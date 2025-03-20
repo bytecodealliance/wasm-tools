@@ -341,7 +341,7 @@ fn push_func_export(
                 },
             );
             wat.push_str(&format!(
-                "(func (export \"{name}\") (param i32 i32 i32 i32) (result i32) unreachable)\n"
+                "(func (export \"{name}\") (param i32 i32 i32) (result i32) unreachable)\n"
             ));
         }
         ManglingAndAbi::Legacy(LiftLowerAbi::AsyncStackful) => {}

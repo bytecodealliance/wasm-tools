@@ -1207,7 +1207,7 @@ impl ExportMap {
             if let Some((key, id, f)) = names.match_wit_export(suffix, resolve, world, exports) {
                 validate_func_sig(
                     full_name,
-                    &FuncType::new([ValType::I32; 4], [ValType::I32]),
+                    &FuncType::new([ValType::I32; 3], [ValType::I32]),
                     ty,
                 )?;
                 return Ok(Some(if id.is_some() {
