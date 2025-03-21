@@ -1,6 +1,6 @@
 ;; RUN: wast --assert default --snapshot tests/snapshots %
 
-(assert_invalid
+(assert_malformed
   (module binary
     "\00asm" "\01\00\00\00" ;; magic header
 
@@ -21,7 +21,7 @@
   )
   "operators remaining after end of function")
 
-(assert_invalid
+(assert_malformed
   (module binary
     "\00asm" "\01\00\00\00" ;; magic header
 
@@ -42,7 +42,7 @@
   )
   "operators remaining after end of function")
 
-(assert_invalid
+(assert_malformed
   (module binary
     "\00asm" "\01\00\00\00" ;; magic header
 
@@ -63,27 +63,27 @@
   )
   "operators remaining after end of function")
 
-(assert_invalid
-  (module
-    (func end unreachable))
+(assert_malformed
+  (module quote
+    "(func end unreachable)")
   "operators remaining after end of function")
 
-(assert_invalid
-  (module
-    (func end return))
+(assert_malformed
+  (module quote
+    "(func end return)")
   "operators remaining after end of function")
 
-(assert_invalid
-  (module
-    (func end br 0))
+(assert_malformed
+  (module quote
+    "(func end br 0)")
   "operators remaining after end of function")
 
-(assert_invalid
-  (module
-    (func end br 100000))
+(assert_malformed
+  (module quote
+    "(func end br 100000)")
   "operators remaining after end of function")
 
-(assert_invalid
-  (module
-    (func end br_table 0))
+(assert_malformed
+  (module quote
+    "(func end br_table 0)")
   "operators remaining after end of function")

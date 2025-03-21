@@ -2,7 +2,7 @@
   "source_filename": "tests/cli/component-model/wrong-order.wast",
   "commands": [
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 4,
       "filename": "wrong-order.0.wasm",
       "module_type": "binary",

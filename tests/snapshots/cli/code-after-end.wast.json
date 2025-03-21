@@ -2,52 +2,52 @@
   "source_filename": "tests/cli/code-after-end.wast",
   "commands": [
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 4,
-      "filename": "code-after-end.0.wasm",
-      "module_type": "binary",
+      "filename": "code-after-end.0.wat",
+      "module_type": "text",
       "text": "operators remaining after end of function"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 9,
-      "filename": "code-after-end.1.wasm",
-      "module_type": "binary",
+      "filename": "code-after-end.1.wat",
+      "module_type": "text",
       "text": "operators remaining after end of function"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 14,
-      "filename": "code-after-end.2.wasm",
-      "module_type": "binary",
+      "filename": "code-after-end.2.wat",
+      "module_type": "text",
       "text": "operators remaining after end of function"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 19,
-      "filename": "code-after-end.3.wasm",
-      "module_type": "binary",
+      "filename": "code-after-end.3.wat",
+      "module_type": "text",
       "text": "operators remaining after end of function"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 24,
-      "filename": "code-after-end.4.wasm",
-      "module_type": "binary",
+      "filename": "code-after-end.4.wat",
+      "module_type": "text",
       "text": "operators remaining after end of function"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 29,
-      "filename": "code-after-end.5.wasm",
-      "module_type": "binary",
+      "filename": "code-after-end.5.wat",
+      "module_type": "text",
       "text": "operators remaining after end of function"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 34,
-      "filename": "code-after-end.6.wasm",
-      "module_type": "binary",
+      "filename": "code-after-end.6.wat",
+      "module_type": "text",
       "text": "operators remaining after end of function"
     }
   ]

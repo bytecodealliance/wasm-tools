@@ -246,7 +246,7 @@
   )
 )
 
-(assert_invalid
+(assert_malformed
   (component quote
     "(core module $m (func (export \"\")))"
     "(core instance $i (instantiate $m))"
@@ -279,7 +279,7 @@
   )
   "not a function type")
 
-(assert_invalid
+(assert_malformed
   (component quote
     "(import \"a\" (func $f))"
     "(func (export \"foo\") (canon lift (core func $f)))"

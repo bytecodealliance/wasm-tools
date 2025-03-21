@@ -2,17 +2,17 @@
   "source_filename": "tests/cli/missing-features/shared-everything-threads-globals.wast",
   "commands": [
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 4,
-      "filename": "shared-everything-threads-globals.0.wasm",
-      "module_type": "binary",
+      "filename": "shared-everything-threads-globals.0.wat",
+      "module_type": "text",
       "text": "shared globals require the shared-everything-threads proposal"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 10,
-      "filename": "shared-everything-threads-globals.1.wasm",
-      "module_type": "binary",
+      "filename": "shared-everything-threads-globals.1.wat",
+      "module_type": "text",
       "text": "shared globals require the shared-everything-threads proposal"
     },
     {
