@@ -1,6 +1,5 @@
-;; RUN: wast --assert default --snapshot tests/snapshots % -f legacy-exceptions
+;; RUN: wast --assert default,no-test-folded --snapshot tests/snapshots % -f legacy-exceptions
 
-;; --enable-legacy-exceptions
 (module
   (type (;0;) (func))
   (func (;0;) (type 0)
