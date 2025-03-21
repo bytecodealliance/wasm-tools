@@ -1,4 +1,4 @@
-;; RUN: wast --assert default --snapshot tests/snapshots % -f legacy-exceptions
+;; RUN: wast --assert default,no-test-folded --snapshot tests/snapshots % -f legacy-exceptions
 
 ;; Test throw instruction.
 
