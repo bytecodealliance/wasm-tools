@@ -22,7 +22,7 @@ mod encode;
 /// Construct instances of this type with [the `Arbitrary`
 /// trait](https://docs.rs/arbitrary/*/arbitrary/trait.Arbitrary.html).
 ///
-/// [component]: https://github.com/WebAssembly/component-model/blob/ast-and-binary/design/MVP/Explainer.md
+/// [component]: https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md
 ///
 /// ## Configured Generated Components
 ///
