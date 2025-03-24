@@ -71,8 +71,8 @@ pub struct Opts {
     /// tests by default such as asserting that the text format round-trips
     /// where possible. Asserts can be listed here to perform extra checks when
     /// validating the `*.wast` input.
-    #[clap(long, short, value_parser = parse_asserts)]
-    assert: Vec<Vec<Assert>>,
+    #[clap(long, short, value_delimiter = ',')]
+    assert: Vec<Assert>,
 
     /// Directory to place snapshots in with `--assert snapshot-*` flags.
     #[clap(long)]
@@ -239,7 +239,7 @@ impl Opts {
     /// Tests whether `assert` is enabled.
     fn assert(&self, assert: Assert) -> bool {
         let mut enabled = false;
-        for &a in self.assert.iter().flat_map(|v| v) {
+        for &a in self.assert.iter() {
             match (a, assert) {
                 // if explicitly requested, enable
                 (a, b) if a == b => enabled = true,
@@ -552,7 +552,7 @@ impl Opts {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(clap::ValueEnum, Debug, Copy, Clone, PartialEq, Eq)]
 enum Assert {
     Default,
     Roundtrip,
@@ -562,24 +562,4 @@ enum Assert {
     SnapshotFolded,
     TestFolded,
     NoTestFolded,
-}
-
-fn parse_asserts(arg: &str) -> Result<Vec<Assert>> {
-    let mut ret = Vec::new();
-
-    for part in arg.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
-        match part {
-            "default" => ret.push(Assert::Default),
-            "roundtrip" => ret.push(Assert::Roundtrip),
-            "pretty-whitespace" => ret.push(Assert::PrettyWhitespace),
-            "snapshot-print" => ret.push(Assert::SnapshotPrint),
-            "snapshot-json" => ret.push(Assert::SnapshotJson),
-            "snapshot-folded" => ret.push(Assert::SnapshotFolded),
-            "test-folded" => ret.push(Assert::TestFolded),
-            "no-test-folded" => ret.push(Assert::NoTestFolded),
-            other => bail!("unknown assertion: {other}"),
-        }
-    }
-
-    Ok(ret)
 }
