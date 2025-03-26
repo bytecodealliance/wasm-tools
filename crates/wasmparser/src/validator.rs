@@ -1117,11 +1117,11 @@ impl Validator {
                 current.core_instances.reserve(count as usize);
                 Ok(())
             },
-            |components, types, _, instance, offset| {
+            |components, types, features, instance, offset| {
                 components
                     .last_mut()
                     .unwrap()
-                    .add_core_instance(instance, types, offset)
+                    .add_core_instance(instance, features, types, offset)
             },
         )
     }
