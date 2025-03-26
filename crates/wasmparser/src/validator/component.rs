@@ -309,6 +309,7 @@ impl ComponentState {
     pub fn add_core_instance(
         &mut self,
         instance: crate::Instance,
+        features: &WasmFeatures,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
@@ -317,7 +318,7 @@ impl ComponentState {
                 self.instantiate_core_module(module_index, args.into_vec(), types, offset)?
             }
             crate::Instance::FromExports(exports) => {
-                self.instantiate_core_exports(exports.into_vec(), types, offset)?
+                self.instantiate_core_exports(exports.into_vec(), features, types, offset)?
             }
         };
 
@@ -2126,6 +2127,7 @@ impl ComponentState {
                 instance_index,
                 kind,
                 name,
+                features,
                 types,
                 offset,
             ),
@@ -3215,6 +3217,7 @@ impl ComponentState {
     fn instantiate_core_exports(
         &mut self,
         exports: Vec<crate::Export>,
+        features: &WasmFeatures,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<ComponentCoreInstanceTypeId> {
@@ -3278,14 +3281,19 @@ impl ComponentState {
                         offset,
                     )?;
                 }
-                ExternalKind::Tag => insert_export(
-                    types,
-                    export.name,
-                    EntityType::Tag(self.core_function_at(export.index, offset)?),
-                    &mut inst_exports,
-                    &mut info,
-                    offset,
-                )?,
+                ExternalKind::Tag => {
+                    if !features.exceptions() {
+                        bail!(offset, "exceptions proposal not enabled");
+                    }
+                    insert_export(
+                        types,
+                        export.name,
+                        EntityType::Tag(self.tag_at(export.index, offset)?),
+                        &mut inst_exports,
+                        &mut info,
+                        offset,
+                    )?
+                }
             }
         }
 
@@ -3300,6 +3308,7 @@ impl ComponentState {
         instance_index: u32,
         kind: ExternalKind,
         name: &str,
+        features: &WasmFeatures,
         types: &TypeList,
         offset: usize,
     ) -> Result<()> {
@@ -3362,6 +3371,9 @@ impl ComponentState {
                 push_module_export!(EntityType::Global, core_globals, "global");
             }
             ExternalKind::Tag => {
+                if !features.exceptions() {
+                    bail!(offset, "exceptions proposal not enabled");
+                }
                 check_max(
                     self.core_tags.len(),
                     1,
@@ -3955,6 +3967,13 @@ impl ComponentState {
         match self.core_memories.get(idx as usize) {
             Some(t) => Ok(t),
             None => bail!(offset, "unknown memory {idx}: memory index out of bounds"),
+        }
+    }
+
+    fn tag_at(&self, idx: u32, offset: usize) -> Result<CoreTypeId> {
+        match self.core_tags.get(idx as usize) {
+            Some(t) => Ok(*t),
+            None => bail!(offset, "unknown tag {idx}: tag index out of bounds"),
         }
     }
 

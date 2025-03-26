@@ -57,6 +57,12 @@ impl ComponentNameSection {
         self.core_decls(ExportKind::Global as u8, names)
     }
 
+    /// Appends a decls name subsection to name core tags within the
+    /// component.
+    pub fn core_tags(&mut self, names: &NameMap) {
+        self.core_decls(ExportKind::Tag as u8, names)
+    }
+
     /// Appends a decls name subsection to name core types within the
     /// component.
     pub fn core_types(&mut self, names: &NameMap) {
