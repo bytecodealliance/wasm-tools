@@ -1,5 +1,7 @@
 use arbitrary::{Result, Unstructured};
 use std::path::Path;
+use wasm_encoder::reencode::{self, Reencode};
+use wasm_encoder::{ImportSection, Module};
 use wit_component::*;
 use wit_parser::{LiftLowerAbi, ManglingAndAbi, PackageId, Resolve};
 
@@ -47,6 +49,19 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
             world.name
         );
         let mut dummy = wit_component::dummy_module(&resolve, id, mangling);
+        if u.arbitrary()? {
+            let mut dst = Module::default();
+            let mut reencode = RemoveImports {
+                u,
+                removed_funcs: 0,
+            };
+            if reencode
+                .parse_core_module(&mut dst, Default::default(), &dummy)
+                .is_ok()
+            {
+                dummy = dst.finish();
+            }
+        }
         wit_component::embed_component_metadata(&mut dummy, &resolve, id, StringEncoding::UTF8)
             .unwrap();
         write_file("dummy.wasm", &dummy);
@@ -145,5 +160,31 @@ fn write_file(path: &str, contents: impl AsRef<[u8]>) {
         let path = path.with_extension("wat");
         log::debug!("writing file {}", path.display());
         std::fs::write(path, wasmprinter::print_bytes(&contents).unwrap()).unwrap();
+    }
+}
+
+struct RemoveImports<'a, 'b> {
+    u: &'a mut Unstructured<'b>,
+    removed_funcs: u32,
+}
+
+impl Reencode for RemoveImports<'_, '_> {
+    type Error = std::convert::Infallible;
+
+    fn function_index(&mut self, idx: u32) -> u32 {
+        idx - self.removed_funcs
+    }
+
+    fn parse_import(
+        &mut self,
+        imports: &mut ImportSection,
+        import: wasmparser::Import<'_>,
+    ) -> Result<(), reencode::Error<Self::Error>> {
+        if self.u.arbitrary().unwrap_or(false) {
+            self.removed_funcs += 1;
+            Ok(())
+        } else {
+            reencode::utils::parse_import(self, imports, import)
+        }
     }
 }

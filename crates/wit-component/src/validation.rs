@@ -398,30 +398,6 @@ pub enum Import {
 }
 
 impl ImportMap {
-    /// Returns whether the top-level world function `func` is imported.
-    pub fn uses_toplevel_func(&self, func: &str) -> bool {
-        self.imports().any(|(_, _, item)| match item {
-            Import::WorldFunc(_, name, _) => func == name,
-            _ => false,
-        })
-    }
-
-    /// Returns whether the interface function specified is imported.
-    pub fn uses_interface_func(&self, interface: InterfaceId, func: &str) -> bool {
-        self.imports().any(|(_, _, import)| match import {
-            Import::InterfaceFunc(_, id, name, _) => *id == interface && name == func,
-            _ => false,
-        })
-    }
-
-    /// Returns whether the specified resource's drop method is needed to import.
-    pub fn uses_imported_resource_drop(&self, resource: TypeId) -> bool {
-        self.imports().any(|(_, _, import)| match import {
-            Import::ImportedResourceDrop(_, _, id) => resource == *id,
-            _ => false,
-        })
-    }
-
     /// Returns the list of items that the adapter named `name` must export.
     pub fn required_from_adapter(&self, name: &str) -> IndexMap<String, FuncType> {
         let names = match self.names.get(name) {
