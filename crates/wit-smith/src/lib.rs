@@ -28,6 +28,9 @@ pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
                 if e.is::<InvalidTransitiveDependency>() {
                     return Err(arbitrary::Error::IncorrectFormat);
                 }
+                if e.to_string().contains("shadows previously") {
+                    return Err(arbitrary::Error::IncorrectFormat);
+                }
                 panic!("bad wit parse: {e:?}")
             }
         };
