@@ -454,6 +454,9 @@ impl<'a> EncodingState<'a> {
 
         let resolve = &self.info.encoder.metadata.resolve;
         let world = &resolve.worlds[self.info.encoder.metadata.world];
+
+        // FIXME: ideally this would use the liveness analysis from
+        // world-building to only encode live types, not all type in a world.
         for (_name, item) in world.imports.iter() {
             if let WorldItem::Type(ty) = item {
                 self.root_import_type_encoder(None)

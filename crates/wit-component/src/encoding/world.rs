@@ -350,31 +350,81 @@ impl<'a> ComponentWorld<'a> {
 
     fn add_live_imports(&self, world: WorldId, imports: &ImportMap, live: &mut LiveTypes) {
         let resolve = &self.encoder.metadata.resolve;
-        for (name, item) in resolve.worlds[world].imports.iter() {
-            let name = resolve.name_world_key(name);
-            match item {
-                WorldItem::Function(func) => {
-                    if !imports.uses_toplevel_func(name.as_str()) {
-                        continue;
-                    }
-                    log::trace!("add live function import `{name}`");
-                    live.add_func(resolve, func);
+        let world = &resolve.worlds[world];
+
+        // FIXME: ideally liveness information here would be plumbed through to
+        // encoding but that's not done at this time. Only liveness for each
+        // interface is plumbed so top-level world types are unconditionally
+        // encoded and therefore unconditionally live here. Once encoding is
+        // based on conditionally-live things then this should be removed.
+        for (_, item) in world.imports.iter() {
+            if let WorldItem::Type(id) = item {
+                live.add_type_id(resolve, *id);
+            }
+        }
+
+        for (_, _, import) in imports.imports() {
+            match import {
+                // WIT-level function imports need the associated WIT definition.
+                Import::WorldFunc(key, _, _) => {
+                    live.add_world_item(resolve, &world.imports[key]);
                 }
-                WorldItem::Interface { id, .. } => {
-                    log::trace!("add live interface import `{name}`");
-                    for (name, func) in resolve.interfaces[*id].functions.iter() {
-                        if imports.uses_interface_func(*id, name.as_str()) {
-                            log::trace!("add live func `{name}`");
-                            live.add_func(resolve, func);
-                        }
-                    }
-                    for (_name, ty) in resolve.interfaces[*id].types.iter() {
-                        if imports.uses_imported_resource_drop(*ty) {
-                            live.add_type_id(resolve, *ty);
-                        }
+                Import::InterfaceFunc(_, id, name, _) => {
+                    live.add_func(resolve, &resolve.interfaces[*id].functions[name]);
+                }
+
+                // Resource-related intrinsics will need the resource.
+                Import::ImportedResourceDrop(.., ty)
+                | Import::ExportedResourceDrop(_, ty)
+                | Import::ExportedResourceNew(_, ty)
+                | Import::ExportedResourceRep(_, ty) => live.add_type_id(resolve, *ty),
+
+                // Future/Stream related intrinsics need to refer to the type
+                // that the intrinsic is operating on.
+                Import::StreamNew(info)
+                | Import::StreamRead { info, async_: _ }
+                | Import::StreamWrite { info, async_: _ }
+                | Import::StreamCancelRead { info, async_: _ }
+                | Import::StreamCancelWrite { info, async_: _ }
+                | Import::StreamCloseReadable(info)
+                | Import::StreamCloseWritable(info)
+                | Import::FutureNew(info)
+                | Import::FutureRead { info, async_: _ }
+                | Import::FutureWrite { info, async_: _ }
+                | Import::FutureCancelRead { info, async_: _ }
+                | Import::FutureCancelWrite { info, async_: _ }
+                | Import::FutureCloseReadable(info)
+                | Import::FutureCloseWritable(info) => {
+                    live.add_type_id(resolve, info.ty);
+                }
+
+                // The `task.return` intrinsic needs to be able to refer to the
+                // type that is being returned.
+                Import::ExportedTaskReturn(.., ty) => {
+                    if let Some(ty) = ty {
+                        live.add_type(resolve, ty);
                     }
                 }
-                WorldItem::Type(id) => live.add_type_id(resolve, *id),
+
+                // Intrinsics that don't need to refer to WIT types can be
+                // skipped here.
+                Import::AdapterExport(_)
+                | Import::MainModuleMemory
+                | Import::MainModuleExport { .. }
+                | Import::Item(_)
+                | Import::ContextGet(_)
+                | Import::ContextSet(_)
+                | Import::BackpressureSet
+                | Import::WaitableSetNew
+                | Import::WaitableSetWait { .. }
+                | Import::WaitableSetPoll { .. }
+                | Import::WaitableSetDrop
+                | Import::WaitableJoin
+                | Import::Yield { .. }
+                | Import::SubtaskDrop
+                | Import::ErrorContextNew { .. }
+                | Import::ErrorContextDebugMessage { .. }
+                | Import::ErrorContextDrop => {}
             }
         }
     }
