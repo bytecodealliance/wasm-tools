@@ -3,7 +3,7 @@
 ;; stream.new
 (component
   (core module $m
-    (import "" "stream.new" (func $stream-new (result i32)))
+    (import "" "stream.new" (func $stream-new (param i32)))
   )
   (type $stream-type (stream u8))
   (core func $stream-new (canon stream.new $stream-type))
@@ -171,7 +171,7 @@
 ;; stream.close-readable
 (component
   (core module $m
-    (import "" "stream.close-readable" (func $stream-close-readable (param i32 i32)))
+    (import "" "stream.close-readable" (func $stream-close-readable (param i32)))
   )
   (type $stream-type (stream u8))
   (core func $stream-close-readable (canon stream.close-readable $stream-type))
@@ -194,7 +194,7 @@
 ;; stream.close-writable
 (component
   (core module $m
-    (import "" "stream.close-writable" (func $stream-close-writable (param i32 i32)))
+    (import "" "stream.close-writable" (func $stream-close-writable (param i32)))
   )
   (type $stream-type (stream u8))
   (core func $stream-close-writable (canon stream.close-writable $stream-type))

@@ -211,13 +211,13 @@ fn push_imported_future_and_stream_intrinsics(
             TypeDefKind::Stream(_) => {
                 wat.push_str(&format!(
                     r#"
-(import {module:?} "[stream-new-{i}]{name}" (func (result i32)))
+(import {module:?} "[stream-new-{i}]{name}" (func (param i32)))
 (import {module:?} "[stream-read-{i}]{name}" (func (param i32 i32 i32) (result i32)))
 (import {module:?} "[stream-write-{i}]{name}" (func (param i32 i32 i32) (result i32)))
 (import {module:?} "[stream-cancel-read-{i}]{name}" (func (param i32) (result i32)))
 (import {module:?} "[stream-cancel-write-{i}]{name}" (func (param i32) (result i32)))
-(import {module:?} "[stream-close-readable-{i}]{name}" (func (param i32 i32)))
-(import {module:?} "[stream-close-writable-{i}]{name}" (func (param i32 i32)))
+(import {module:?} "[stream-close-readable-{i}]{name}" (func (param i32)))
+(import {module:?} "[stream-close-writable-{i}]{name}" (func (param i32)))
 (import {module:?} "[async-lower][stream-read-{i}]{name}" (func (param i32 i32 i32) (result i32)))
 (import {module:?} "[async-lower][stream-write-{i}]{name}" (func (param i32 i32 i32) (result i32)))
 
