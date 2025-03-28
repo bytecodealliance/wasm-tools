@@ -1,4 +1,4 @@
-;; RUN: wast --features=-exceptions %
+;; RUN: wast --features=-exceptions --assert default --snapshot tests/snapshots %
 
 (assert_invalid
   (component

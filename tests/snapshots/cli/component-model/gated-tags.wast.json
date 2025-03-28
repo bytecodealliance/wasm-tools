@@ -1,0 +1,19 @@
+{
+  "source_filename": "tests/cli/component-model/gated-tags.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "gated-tags.0.wasm",
+      "module_type": "binary",
+      "text": "exceptions proposal not enabled"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 12,
+      "filename": "gated-tags.1.wasm",
+      "module_type": "binary",
+      "text": "exceptions proposal not enabled"
+    }
+  ]
+}

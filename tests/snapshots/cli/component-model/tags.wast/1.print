@@ -1,0 +1,9 @@
+(component
+  (core module $m (;0;)
+    (type (;0;) (func))
+    (tag (;0;) (type 0))
+    (export "" (tag 0))
+  )
+  (core instance $i (;0;) (instantiate $m))
+  (alias core export $i "" (core tag $t (;0;)))
+)

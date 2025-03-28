@@ -1,4 +1,4 @@
-;; RUN: wast %
+;; RUN: wast --assert default --snapshot tests/snapshots %
 
 (assert_invalid
   (component

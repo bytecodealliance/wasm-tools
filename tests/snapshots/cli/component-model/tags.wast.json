@@ -1,0 +1,31 @@
+{
+  "source_filename": "tests/cli/component-model/tags.wast",
+  "commands": [
+    {
+      "type": "assert_invalid",
+      "line": 4,
+      "filename": "tags.0.wasm",
+      "module_type": "binary",
+      "text": "export `` for core instance 0 is not a tag"
+    },
+    {
+      "type": "module",
+      "line": 11,
+      "filename": "tags.1.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "module",
+      "line": 17,
+      "filename": "tags.2.wasm",
+      "module_type": "binary"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 24,
+      "filename": "tags.3.wasm",
+      "module_type": "binary",
+      "text": "unknown tag 0"
+    }
+  ]
+}

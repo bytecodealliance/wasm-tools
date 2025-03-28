@@ -685,6 +685,7 @@ impl<'a> Dump<'a> {
             ComponentName::CoreTables(n) => self.print_name_map("core table", n)?,
             ComponentName::CoreGlobals(n) => self.print_name_map("core global", n)?,
             ComponentName::CoreMemories(n) => self.print_name_map("core memory", n)?,
+            ComponentName::CoreTags(n) => self.print_name_map("core tag", n)?,
             ComponentName::CoreInstances(n) => self.print_name_map("core instance", n)?,
             ComponentName::CoreModules(n) => self.print_name_map("core module", n)?,
             ComponentName::CoreTypes(n) => self.print_name_map("core type", n)?,

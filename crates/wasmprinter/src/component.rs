@@ -29,6 +29,7 @@ impl Printer<'_, '_> {
                 ComponentName::CoreGlobals(n) => {
                     name_map(&mut state.core.global_names, n, "core-global")?
                 }
+                ComponentName::CoreTags(n) => name_map(&mut state.core.tag_names, n, "core-tag")?,
                 ComponentName::CoreModules(n) => {
                     name_map(&mut state.core.module_names, n, "core-module")?
                 }

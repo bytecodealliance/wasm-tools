@@ -81,6 +81,7 @@ impl<'a> ComponentNames<'a> {
                 wasmparser::ComponentName::CoreGlobals(m) => section.core_globals(&name_map(&m)?),
                 wasmparser::ComponentName::CoreMemories(m) => section.core_memories(&name_map(&m)?),
                 wasmparser::ComponentName::CoreTables(m) => section.core_tables(&name_map(&m)?),
+                wasmparser::ComponentName::CoreTags(m) => section.core_tags(&name_map(&m)?),
                 wasmparser::ComponentName::CoreModules(m) => section.core_modules(&name_map(&m)?),
                 wasmparser::ComponentName::CoreInstances(m) => {
                     section.core_instances(&name_map(&m)?)
