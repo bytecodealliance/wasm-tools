@@ -192,7 +192,7 @@ fn push_imported_future_and_stream_intrinsics(
             TypeDefKind::Future(_) => {
                 wat.push_str(&format!(
                     r#"
-(import {module:?} "[future-new-{i}]{name}" (func (param i32)))
+(import {module:?} "[future-new-{i}]{name}" (func (result i64)))
 (import {module:?} "[future-read-{i}]{name}" (func (param i32 i32) (result i32)))
 (import {module:?} "[future-write-{i}]{name}" (func (param i32 i32) (result i32)))
 (import {module:?} "[future-cancel-read-{i}]{name}" (func (param i32) (result i32)))
@@ -211,7 +211,7 @@ fn push_imported_future_and_stream_intrinsics(
             TypeDefKind::Stream(_) => {
                 wat.push_str(&format!(
                     r#"
-(import {module:?} "[stream-new-{i}]{name}" (func (param i32)))
+(import {module:?} "[stream-new-{i}]{name}" (func (result i64)))
 (import {module:?} "[stream-read-{i}]{name}" (func (param i32 i32 i32) (result i32)))
 (import {module:?} "[stream-write-{i}]{name}" (func (param i32 i32 i32) (result i32)))
 (import {module:?} "[stream-cancel-read-{i}]{name}" (func (param i32) (result i32)))

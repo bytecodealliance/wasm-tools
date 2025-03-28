@@ -3,7 +3,7 @@
 ;; stream.new
 (component
   (core module $m
-    (import "" "stream.new" (func $stream-new (param i32)))
+    (import "" "stream.new" (func $stream-new (result i64)))
   )
   (type $stream-type (stream u8))
   (core func $stream-new (canon stream.new $stream-type))
