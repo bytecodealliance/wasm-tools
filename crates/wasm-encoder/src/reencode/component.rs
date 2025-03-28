@@ -1393,6 +1393,9 @@ pub mod component_utils {
             wasmparser::ComponentName::CoreTables(map) => {
                 names.core_tables(&name_map(map, |i| reencoder.table_index(i))?);
             }
+            wasmparser::ComponentName::CoreTags(map) => {
+                names.core_tags(&name_map(map, |i| reencoder.tag_index(i))?);
+            }
             wasmparser::ComponentName::CoreModules(map) => {
                 names.core_modules(&name_map(map, |i| reencoder.module_index(i))?);
             }
