@@ -1,6 +1,6 @@
 (component
   (core module $m (;0;)
-    (type (;0;) (func (param i32 i32)))
+    (type (;0;) (func (param i32)))
     (import "" "future.close-writable" (func $future-close-writable (;0;) (type 0)))
   )
   (type $future-type (;0;) (future u8))
