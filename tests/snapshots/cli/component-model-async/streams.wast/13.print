@@ -1,6 +1,6 @@
 (component
   (core module $m (;0;)
-    (type (;0;) (func (param i32 i32)))
+    (type (;0;) (func (param i32)))
     (import "" "stream.close-readable" (func $stream-close-readable (;0;) (type 0)))
   )
   (type $stream-type (;0;) (stream u8))

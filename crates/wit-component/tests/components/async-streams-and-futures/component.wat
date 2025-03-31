@@ -16,11 +16,12 @@
   (import "foo" (func (;0;) (type 4)))
   (core module (;0;)
     (type (;0;) (func (param i32 i32) (result i32)))
-    (type (;1;) (func (result i32)))
+    (type (;1;) (func (result i64)))
     (type (;2;) (func (param i32 i32 i32) (result i32)))
     (type (;3;) (func (param i32) (result i32)))
-    (type (;4;) (func (param i32 i32)))
-    (type (;5;) (func (param i32 i32 i32 i32) (result i32)))
+    (type (;4;) (func (param i32)))
+    (type (;5;) (func (param i32 i32)))
+    (type (;6;) (func (param i32 i32 i32 i32) (result i32)))
     (import "$root" "[async-lower]foo" (func (;0;) (type 0)))
     (import "foo:foo/bar" "[async-lower]foo" (func (;1;) (type 0)))
     (import "$root" "[stream-new-2]foo" (func (;2;) (type 1)))
@@ -112,13 +113,13 @@
     (export "[async-lift-stackful]foo:foo/bar#foo" (func 87))
     (export "memory" (memory 0))
     (export "cabi_realloc" (func 88))
-    (func (;86;) (type 4) (param i32 i32)
+    (func (;86;) (type 5) (param i32 i32)
       unreachable
     )
-    (func (;87;) (type 4) (param i32 i32)
+    (func (;87;) (type 5) (param i32 i32)
       unreachable
     )
-    (func (;88;) (type 5) (param i32 i32 i32 i32) (result i32)
+    (func (;88;) (type 6) (param i32 i32 i32 i32) (result i32)
       unreachable
     )
     (@producers

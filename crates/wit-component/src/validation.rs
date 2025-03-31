@@ -853,7 +853,7 @@ impl ImportMap {
             if async_ {
                 bail!("async `future.new` calls not supported");
             }
-            validate_func_sig(name, &FuncType::new([], [ValType::I32]), ty)?;
+            validate_func_sig(name, &FuncType::new([], [ValType::I64]), ty)?;
             Import::FutureNew(info)
         } else if let Some(info) = prefixed_payload("[future-write-") {
             validate_func_sig(name, &FuncType::new([ValType::I32; 2], [ValType::I32]), ty)?;
@@ -871,19 +871,19 @@ impl ImportMap {
             if async_ {
                 bail!("async `future.close-writable` calls not supported");
             }
-            validate_func_sig(name, &FuncType::new([ValType::I32; 2], []), ty)?;
+            validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
             Import::FutureCloseWritable(info)
         } else if let Some(info) = prefixed_payload("[future-close-readable-") {
             if async_ {
                 bail!("async `future.close-readable` calls not supported");
             }
-            validate_func_sig(name, &FuncType::new([ValType::I32; 2], []), ty)?;
+            validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
             Import::FutureCloseReadable(info)
         } else if let Some(info) = prefixed_payload("[stream-new-") {
             if async_ {
                 bail!("async `stream.new` calls not supported");
             }
-            validate_func_sig(name, &FuncType::new([], [ValType::I32]), ty)?;
+            validate_func_sig(name, &FuncType::new([], [ValType::I64]), ty)?;
             Import::StreamNew(info)
         } else if let Some(info) = prefixed_payload("[stream-write-") {
             validate_func_sig(name, &FuncType::new([ValType::I32; 3], [ValType::I32]), ty)?;
@@ -901,13 +901,13 @@ impl ImportMap {
             if async_ {
                 bail!("async `stream.close-writable` calls not supported");
             }
-            validate_func_sig(name, &FuncType::new([ValType::I32; 2], []), ty)?;
+            validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
             Import::StreamCloseWritable(info)
         } else if let Some(info) = prefixed_payload("[stream-close-readable-") {
             if async_ {
                 bail!("async `stream.close-readable` calls not supported");
             }
-            validate_func_sig(name, &FuncType::new([ValType::I32; 2], []), ty)?;
+            validate_func_sig(name, &FuncType::new([ValType::I32], []), ty)?;
             Import::StreamCloseReadable(info)
         } else {
             return Ok(None);
