@@ -3566,10 +3566,10 @@ impl ComponentState {
     ) -> Result<ComponentDefinedType> {
         match ty {
             crate::ComponentDefinedType::Primitive(ty) => {
-                if ty == crate::PrimitiveValType::ErrorContext && !features.cm_async() {
+                if ty == crate::PrimitiveValType::ErrorContext && !features.cm_error_context() {
                     bail!(
                         offset,
-                        "`error-context` requires the component model async feature"
+                        "`error-context` requires the component model error-context feature"
                     )
                 }
                 Ok(ComponentDefinedType::Primitive(ty))

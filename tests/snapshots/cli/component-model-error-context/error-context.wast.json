@@ -1,5 +1,5 @@
 {
-  "source_filename": "tests/cli/component-model-async/error-context.wast",
+  "source_filename": "tests/cli/component-model-error-context/error-context.wast",
   "commands": [
     {
       "type": "module",

@@ -1,4 +1,4 @@
-;; RUN: wast --assert default --snapshot tests/snapshots % -f cm-async,cm-async-builtins,cm-async-stackful
+;; RUN: wast --assert default --snapshot tests/snapshots % -f cm-async,cm-async-builtins,cm-async-stackful,cm-error-context
 
 ;; backpressure.set
 (component
