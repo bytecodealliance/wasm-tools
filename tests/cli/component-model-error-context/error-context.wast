@@ -1,4 +1,4 @@
-;; RUN: wast --assert default --snapshot tests/snapshots % -f cm-async
+;; RUN: wast --assert default --snapshot tests/snapshots % -f cm-error-context
 
 ;; error-context.new
 (component

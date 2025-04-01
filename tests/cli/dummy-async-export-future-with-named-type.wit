@@ -1,6 +1,6 @@
 // RUN: component embed % --dummy-names legacy --async-callback | \
 //        component new | \
-//        validate -f cm-async
+//        validate -f cm-async,cm-error-context
 
 package a:b;
 

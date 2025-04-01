@@ -248,6 +248,12 @@ define_wasm_features! {
         /// Corresponds to the 🚝 character in
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
         pub cm_async_builtins: CM_ASYNC_BUILTINS(1 << 29) = false;
+        /// Gates some intrinsics being marked with `error-context` in the component
+        /// model async proposal.
+        ///
+        /// Corresponds to the 📝 character in
+        /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
+        pub cm_error_context: CM_ERROR_CONTEXT(1 << 30) = false;
     }
 }
 
