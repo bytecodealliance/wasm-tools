@@ -1,0 +1,4 @@
+error: func 0 failed to validate
+
+Caused by:
+    0: operators remaining after end of function (at offset 0x23)

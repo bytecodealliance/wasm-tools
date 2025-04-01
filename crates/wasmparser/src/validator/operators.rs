@@ -931,6 +931,14 @@ where
     /// breaks interact with this block's type. Additionally the type signature
     /// of the block is specified by `ty`.
     fn push_ctrl(&mut self, kind: FrameKind, ty: BlockType) -> Result<()> {
+        // If the control stack is already empty then that means that the
+        // function has already ended and it's invalid to have operators.
+        // Prevent pushing more frames to the control stack and immediately
+        // return an error.
+        if self.control.is_empty() {
+            return Err(self.err_beyond_end(self.offset));
+        }
+
         // Push a new frame which has a snapshot of the height of the current
         // operand stack.
         let height = self.operands.len();
