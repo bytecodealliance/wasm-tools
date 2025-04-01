@@ -665,7 +665,7 @@ impl Validator {
             Encoding::Module => {
                 if num == WASM_MODULE_VERSION {
                     assert!(self.module.is_none());
-                    self.module = Some(ModuleState::default());
+                    self.module = Some(ModuleState::new(self.features));
                     State::Module
                 } else {
                     bail!(range.start, "unknown binary version: {num:#x}");
@@ -683,7 +683,7 @@ impl Validator {
                 #[cfg(feature = "component-model")]
                 if num == crate::WASM_COMPONENT_VERSION {
                     self.components
-                        .push(ComponentState::new(ComponentKind::Component));
+                        .push(ComponentState::new(ComponentKind::Component, self.features));
                     State::Component
                 } else if num < crate::WASM_COMPONENT_VERSION {
                     bail!(range.start, "unsupported component version: {num:#x}");
@@ -708,7 +708,7 @@ impl Validator {
             Order::Type,
             section,
             "type",
-            |state, _, _types, count, offset| {
+            |state, _types, count, offset| {
                 check_max(
                     state.module.types.len(),
                     count,
@@ -719,11 +719,11 @@ impl Validator {
                 state.module.assert_mut().types.reserve(count as usize);
                 Ok(())
             },
-            |state, features, types, rec_group, offset| {
+            |state, types, rec_group, offset| {
                 state
                     .module
                     .assert_mut()
-                    .add_types(rec_group, features, types, offset, true)?;
+                    .add_types(rec_group, types, offset, true)?;
                 Ok(())
             },
         )
@@ -737,7 +737,7 @@ impl Validator {
             Order::Import,
             section,
             "import",
-            |state, _, _, count, offset| {
+            |state, _, count, offset| {
                 check_max(
                     state.module.imports.len(),
                     count,
@@ -748,11 +748,8 @@ impl Validator {
                 state.module.assert_mut().imports.reserve(count as usize);
                 Ok(())
             },
-            |state, features, types, import, offset| {
-                state
-                    .module
-                    .assert_mut()
-                    .add_import(import, features, types, offset)
+            |state, types, import, offset| {
+                state.module.assert_mut().add_import(import, types, offset)
             },
         )
     }
@@ -765,7 +762,7 @@ impl Validator {
             Order::Function,
             section,
             "function",
-            |state, _, _, count, offset| {
+            |state, _, count, offset| {
                 check_max(
                     state.module.functions.len(),
                     count,
@@ -778,7 +775,7 @@ impl Validator {
                 state.expected_code_bodies = Some(count);
                 Ok(())
             },
-            |state, _, types, ty, offset| state.module.assert_mut().add_function(ty, types, offset),
+            |state, types, ty, offset| state.module.assert_mut().add_function(ty, types, offset),
         )
     }
 
@@ -786,23 +783,22 @@ impl Validator {
     ///
     /// This method should only be called when parsing a module.
     pub fn table_section(&mut self, section: &crate::TableSectionReader<'_>) -> Result<()> {
-        let features = self.features;
         self.process_module_section(
             Order::Table,
             section,
             "table",
-            |state, _, _, count, offset| {
+            |state, _, count, offset| {
                 check_max(
                     state.module.tables.len(),
                     count,
-                    state.module.max_tables(&features),
+                    state.module.max_tables(),
                     "tables",
                     offset,
                 )?;
                 state.module.assert_mut().tables.reserve(count as usize);
                 Ok(())
             },
-            |state, features, types, table, offset| state.add_table(table, features, types, offset),
+            |state, types, table, offset| state.add_table(table, types, offset),
         )
     }
 
@@ -814,20 +810,18 @@ impl Validator {
             Order::Memory,
             section,
             "memory",
-            |state, features, _, count, offset| {
+            |state, _, count, offset| {
                 check_max(
                     state.module.memories.len(),
                     count,
-                    state.module.max_memories(features),
+                    state.module.max_memories(),
                     "memories",
                     offset,
                 )?;
                 state.module.assert_mut().memories.reserve(count as usize);
                 Ok(())
             },
-            |state, features, _, ty, offset| {
-                state.module.assert_mut().add_memory(ty, features, offset)
-            },
+            |state, _, ty, offset| state.module.assert_mut().add_memory(ty, offset),
         )
     }
 
@@ -846,7 +840,7 @@ impl Validator {
             Order::Tag,
             section,
             "tag",
-            |state, _, _, count, offset| {
+            |state, _, count, offset| {
                 check_max(
                     state.module.tags.len(),
                     count,
@@ -857,12 +851,7 @@ impl Validator {
                 state.module.assert_mut().tags.reserve(count as usize);
                 Ok(())
             },
-            |state, features, types, ty, offset| {
-                state
-                    .module
-                    .assert_mut()
-                    .add_tag(ty, features, types, offset)
-            },
+            |state, types, ty, offset| state.module.assert_mut().add_tag(ty, types, offset),
         )
     }
 
@@ -874,7 +863,7 @@ impl Validator {
             Order::Global,
             section,
             "global",
-            |state, _, _, count, offset| {
+            |state, _, count, offset| {
                 check_max(
                     state.module.globals.len(),
                     count,
@@ -885,9 +874,7 @@ impl Validator {
                 state.module.assert_mut().globals.reserve(count as usize);
                 Ok(())
             },
-            |state, features, types, global, offset| {
-                state.add_global(global, features, types, offset)
-            },
+            |state, types, global, offset| state.add_global(global, types, offset),
         )
     }
 
@@ -899,7 +886,7 @@ impl Validator {
             Order::Export,
             section,
             "export",
-            |state, _, _, count, offset| {
+            |state, _, count, offset| {
                 check_max(
                     state.module.exports.len(),
                     count,
@@ -910,13 +897,10 @@ impl Validator {
                 state.module.assert_mut().exports.reserve(count as usize);
                 Ok(())
             },
-            |state, features, types, e, offset| {
+            |state, types, e, offset| {
                 let state = state.module.assert_mut();
                 let ty = state.export_to_entity_type(&e, offset)?;
-                state.add_export(
-                    e.name, ty, features, offset, false, /* checked above */
-                    types,
-                )
+                state.add_export(e.name, ty, offset, false /* checked above */, types)
             },
         )
     }
@@ -949,7 +933,7 @@ impl Validator {
             Order::Element,
             section,
             "element",
-            |state, _, _, count, offset| {
+            |state, _, count, offset| {
                 check_max(
                     state.module.element_types.len(),
                     count,
@@ -964,9 +948,7 @@ impl Validator {
                     .reserve(count as usize);
                 Ok(())
             },
-            |state, features, types, e, offset| {
-                state.add_element_segment(e, features, types, offset)
-            },
+            |state, types, e, offset| state.add_element_segment(e, types, offset),
         )
     }
 
@@ -1065,11 +1047,11 @@ impl Validator {
             Order::Data,
             section,
             "data",
-            |state, _, _, count, offset| {
+            |state, _, count, offset| {
                 state.data_segment_count = count;
                 check_max(0, count, MAX_WASM_DATA_SEGMENTS, "data segments", offset)
             },
-            |state, features, types, d, offset| state.add_data_segment(d, features, types, offset),
+            |state, types, d, offset| state.add_data_segment(d, types, offset),
         )
     }
 
@@ -1117,11 +1099,11 @@ impl Validator {
                 current.core_instances.reserve(count as usize);
                 Ok(())
             },
-            |components, types, features, instance, offset| {
+            |components, types, _features, instance, offset| {
                 components
                     .last_mut()
                     .unwrap()
-                    .add_core_instance(instance, features, types, offset)
+                    .add_core_instance(instance, types, offset)
             },
         )
     }
@@ -1140,9 +1122,9 @@ impl Validator {
                 current.core_types.reserve(count as usize);
                 Ok(())
             },
-            |components, types, features, ty, offset| {
+            |components, types, _features, ty, offset| {
                 ComponentState::add_core_type(
-                    components, ty, features, types, offset, false, /* checked above */
+                    components, ty, types, offset, false, /* checked above */
                 )
             },
         )
@@ -1195,11 +1177,11 @@ impl Validator {
                 current.instances.reserve(count as usize);
                 Ok(())
             },
-            |components, types, features, instance, offset| {
+            |components, types, _features, instance, offset| {
                 components
                     .last_mut()
                     .unwrap()
-                    .add_instance(instance, features, types, offset)
+                    .add_instance(instance, types, offset)
             },
         )
     }
@@ -1216,8 +1198,8 @@ impl Validator {
             section,
             "alias",
             |_, _, _, _| Ok(()), // maximums checked via `add_alias`
-            |components, types, features, alias, offset| -> Result<(), BinaryReaderError> {
-                ComponentState::add_alias(components, alias, features, types, offset)
+            |components, types, _features, alias, offset| -> Result<(), BinaryReaderError> {
+                ComponentState::add_alias(components, alias, types, offset)
             },
         )
     }
@@ -1239,9 +1221,9 @@ impl Validator {
                 current.types.reserve(count as usize);
                 Ok(())
             },
-            |components, types, features, ty, offset| {
+            |components, types, _features, ty, offset| {
                 ComponentState::add_type(
-                    components, ty, features, types, offset, false, /* checked above */
+                    components, ty, types, offset, false, /* checked above */
                 )
             },
         )
@@ -1270,9 +1252,9 @@ impl Validator {
                 current.funcs.reserve(count as usize);
                 Ok(())
             },
-            |components, types, features, func, offset| {
+            |components, types, _features, func, offset| {
                 let current = components.last_mut().unwrap();
-                current.canonical_function(func, types, offset, features)
+                current.canonical_function(func, types, offset)
             },
         )
     }
@@ -1292,7 +1274,6 @@ impl Validator {
             f.func_index,
             &f.arguments,
             f.results,
-            &self.features,
             &mut self.types,
             range.start,
         )
@@ -1310,11 +1291,11 @@ impl Validator {
             section,
             "import",
             |_, _, _, _| Ok(()), // add_import will check limits
-            |components, types, features, import, offset| {
+            |components, types, _features, import, offset| {
                 components
                     .last_mut()
                     .unwrap()
-                    .add_import(import, features, types, offset)
+                    .add_import(import, types, offset)
             },
         )
     }
@@ -1342,13 +1323,12 @@ impl Validator {
                 current.exports.reserve(count as usize);
                 Ok(())
             },
-            |components, types, features, export, offset| {
+            |components, types, _features, export, offset| {
                 let current = components.last_mut().unwrap();
-                let ty = current.export_to_entity_type(&export, features, types, offset)?;
+                let ty = current.export_to_entity_type(&export, types, offset)?;
                 current.add_export(
                     export.name,
                     ty,
-                    features,
                     types,
                     offset,
                     false, /* checked above */
@@ -1430,20 +1410,8 @@ impl Validator {
         order: Order,
         section: &SectionLimited<'a, T>,
         name: &str,
-        validate_section: impl FnOnce(
-            &mut ModuleState,
-            &WasmFeatures,
-            &mut TypeAlloc,
-            u32,
-            usize,
-        ) -> Result<()>,
-        mut validate_item: impl FnMut(
-            &mut ModuleState,
-            &WasmFeatures,
-            &mut TypeAlloc,
-            T,
-            usize,
-        ) -> Result<()>,
+        validate_section: impl FnOnce(&mut ModuleState, &mut TypeAlloc, u32, usize) -> Result<()>,
+        mut validate_item: impl FnMut(&mut ModuleState, &mut TypeAlloc, T, usize) -> Result<()>,
     ) -> Result<()>
     where
         T: FromReader<'a>,
@@ -1454,17 +1422,11 @@ impl Validator {
         let state = self.module.as_mut().unwrap();
         state.update_order(order, offset)?;
 
-        validate_section(
-            state,
-            &self.features,
-            &mut self.types,
-            section.count(),
-            offset,
-        )?;
+        validate_section(state, &mut self.types, section.count(), offset)?;
 
         for item in section.clone().into_iter_with_offsets() {
             let (offset, item) = item?;
-            validate_item(state, &self.features, &mut self.types, item, offset)?;
+            validate_item(state, &mut self.types, item, offset)?;
         }
 
         Ok(())

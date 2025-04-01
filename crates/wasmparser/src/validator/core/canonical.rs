@@ -78,13 +78,13 @@ pub(crate) trait InternRecGroup {
     fn add_type_id(&mut self, id: CoreTypeId);
     fn type_id_at(&self, idx: u32, offset: usize) -> Result<CoreTypeId>;
     fn types_len(&self) -> u32;
+    fn features(&self) -> &WasmFeatures;
 
     /// Canonicalize the rec group and return its id and whether it is a new group
     /// (we added its types to the `TypeAlloc`) or not (we deduplicated it with an
     /// existing canonical rec group).
     fn canonicalize_and_intern_rec_group(
         &mut self,
-        features: &WasmFeatures,
         types: &mut TypeAlloc,
         mut rec_group: RecGroup,
         offset: usize,
@@ -93,19 +93,17 @@ pub(crate) trait InternRecGroup {
         Self: Sized,
     {
         debug_assert!(rec_group.is_explicit_rec_group() || rec_group.types().len() == 1);
-        if rec_group.is_explicit_rec_group() && !features.gc() {
+        if rec_group.is_explicit_rec_group() && !self.features().gc() {
             bail!(
                 offset,
                 "rec group usage requires `gc` proposal to be enabled"
             );
         }
-        if features.needs_type_canonicalization() {
-            TypeCanonicalizer::new(self, offset)
-                .with_features(features)
-                .canonicalize_rec_group(&mut rec_group)?;
+        if self.features().needs_type_canonicalization() {
+            TypeCanonicalizer::new(self, offset).canonicalize_rec_group(&mut rec_group)?;
         }
-        let (is_new, rec_group_id) =
-            types.intern_canonical_rec_group(features.needs_type_canonicalization(), rec_group);
+        let (is_new, rec_group_id) = types
+            .intern_canonical_rec_group(self.features().needs_type_canonicalization(), rec_group);
         let range = &types[rec_group_id];
         let start = range.start.index();
         let end = range.end.index();
@@ -116,7 +114,7 @@ pub(crate) trait InternRecGroup {
             debug_assert!(types.get(id).is_some());
             self.add_type_id(id);
             if is_new {
-                self.check_subtype(rec_group_id, id, features, types, offset)?;
+                self.check_subtype(rec_group_id, id, types, offset)?;
             }
         }
 
@@ -127,16 +125,15 @@ pub(crate) trait InternRecGroup {
         &mut self,
         rec_group: RecGroupId,
         id: CoreTypeId,
-        features: &WasmFeatures,
         types: &mut TypeAlloc,
         offset: usize,
     ) -> Result<()> {
         let ty = &types[id];
-        if !features.gc() && (!ty.is_final || ty.supertype_idx.is_some()) {
+        if !self.features().gc() && (!ty.is_final || ty.supertype_idx.is_some()) {
             bail!(offset, "gc proposal must be enabled to use subtypes");
         }
 
-        self.check_composite_type(&ty.composite_type, features, &types, offset)?;
+        self.check_composite_type(&ty.composite_type, &types, offset)?;
 
         let depth = if let Some(supertype_index) = ty.supertype_idx {
             debug_assert!(supertype_index.is_canonical());
@@ -168,10 +165,10 @@ pub(crate) trait InternRecGroup {
     fn check_composite_type(
         &mut self,
         ty: &CompositeType,
-        features: &WasmFeatures,
         types: &TypeList,
         offset: usize,
     ) -> Result<()> {
+        let features = self.features();
         let check = |ty: &ValType, shared: bool| {
             features
                 .check_value_type(*ty)
@@ -305,7 +302,6 @@ enum CanonicalizationMode {
 
 pub(crate) struct TypeCanonicalizer<'a> {
     module: &'a dyn InternRecGroup,
-    features: Option<&'a WasmFeatures>,
     rec_group_start: u32,
     rec_group_len: u32,
     offset: usize,
@@ -323,7 +319,6 @@ impl<'a> TypeCanonicalizer<'a> {
 
         Self {
             module,
-            features: None,
             rec_group_start,
             rec_group_len,
             offset,
@@ -332,14 +327,8 @@ impl<'a> TypeCanonicalizer<'a> {
         }
     }
 
-    pub fn with_features(&mut self, features: &'a WasmFeatures) -> &mut Self {
-        debug_assert!(self.features.is_none());
-        self.features = Some(features);
-        self
-    }
-
     fn allow_gc(&self) -> bool {
-        self.features.map_or(true, |f| f.gc())
+        self.module.features().gc()
     }
 
     fn canonicalize_rec_group(&mut self, rec_group: &mut RecGroup) -> Result<()> {
