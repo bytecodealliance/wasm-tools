@@ -1736,10 +1736,10 @@ impl ComponentState {
         offset: usize,
         features: &WasmFeatures,
     ) -> Result<()> {
-        if !features.cm_async() {
+        if !features.cm_error_context() {
             bail!(
                 offset,
-                "`error-context.new` requires the component model async feature"
+                "`error-context.new` requires the component model error-context feature"
             )
         }
 
@@ -1760,10 +1760,10 @@ impl ComponentState {
         offset: usize,
         features: &WasmFeatures,
     ) -> Result<()> {
-        if !features.cm_async() {
+        if !features.cm_error_context() {
             bail!(
                 offset,
-                "`error-context.debug-message` requires the component model async feature"
+                "`error-context.debug-message` requires the component model error-context feature"
             )
         }
 
@@ -1783,10 +1783,10 @@ impl ComponentState {
         offset: usize,
         features: &WasmFeatures,
     ) -> Result<()> {
-        if !features.cm_async() {
+        if !features.cm_error_context() {
             bail!(
                 offset,
-                "`error-context.drop` requires the component model async feature"
+                "`error-context.drop` requires the component model error-context feature"
             )
         }
 
