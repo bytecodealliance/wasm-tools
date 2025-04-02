@@ -1,4 +1,4 @@
-;; RUN: wast % --assert default --snapshot tests/snapshots -f=-cm-fixed-size-list
+;; RUN: wast % --assert default --snapshot tests/snapshots
 
 (assert_invalid
   (component
