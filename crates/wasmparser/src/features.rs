@@ -256,6 +256,7 @@ define_wasm_features! {
         pub cm_error_context: CM_ERROR_CONTEXT(1 << 30) = false;
         /// Support for fixed size lists
         pub cm_fixed_size_list: COMPONENT_MODEL_FIXED_SIZE_LIST(1 << 31) = false;
+    }
 }
 
 impl WasmFeatures {
