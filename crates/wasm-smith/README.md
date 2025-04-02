@@ -2,7 +2,7 @@
 
 **A WebAssembly test case generator.**
 
-[![](https://docs.rs/wasm-smith/badge.svg)](https://docs.rs/wasm-smith/)
+[![](https://img.shields.io/docsrs/wasm-smith/latest)
 [![](https://img.shields.io/crates/v/wasm-smith.svg)](https://crates.io/crates/wasm-smith)
 [![](https://img.shields.io/crates/d/wasm-smith.svg)](https://crates.io/crates/wasm-smith)
 
