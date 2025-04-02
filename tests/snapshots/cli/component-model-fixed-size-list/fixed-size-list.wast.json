@@ -1,5 +1,5 @@
 {
-  "source_filename": "tests/local/component-model/component-model-fixed-size-list/fixed-size-list.wast",
+  "source_filename": "tests/cli/component-model/component-model-fixed-size-list/fixed-size-list.wast",
   "commands": [
     {
       "type": "module",
