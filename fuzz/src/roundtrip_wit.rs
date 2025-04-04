@@ -20,7 +20,7 @@ pub fn run(u: &mut Unstructured<'_>) -> Result<()> {
     roundtrip_through_printing("doc1", &resolve, pkg, &wasm);
 
     let (resolve2, pkg2) = match wit_component::decode(&wasm).unwrap() {
-        DecodedWasm::WitPackage(resolve, pkgs) => (resolve, pkgs),
+        DecodedWasm::WitPackage(res, pkgs) => (res, pkgs),
         DecodedWasm::Component(..) => unreachable!(),
     };
     resolve2.assert_valid();
