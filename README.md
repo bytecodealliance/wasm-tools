@@ -186,7 +186,7 @@ Currently implemented proposals in this repository that are stage 4+ are:
 * [x] [bulk-memory](https://github.com/WebAssembly/bulk-memory-operations)
 * [x] [component-model](https://github.com/WebAssembly/component-model) (note
   this is an exception, it's not stage4+ but is on-by-default)
-* [x] [exceptions](https://github.com/WebAssembly/exceptions)
+* [x] [exception-handling](https://github.com/WebAssembly/exception-handling)
 * [x] [extended-const](https://github.com/WebAssembly/extended-const)
 * [x] [extended-name-section](https://github.com/WebAssembly/extended-name-section)
   (note this is not phase 4 but `wast` does not have the concept of features)
