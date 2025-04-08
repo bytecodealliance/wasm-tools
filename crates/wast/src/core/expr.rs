@@ -2,7 +2,8 @@ use crate::annotation;
 use crate::core::*;
 use crate::encode::Encode;
 use crate::kw;
-use crate::parser::{Cursor, Parse, Parser, Result};
+use crate::lexer::{Lexer, Token, TokenKind};
+use crate::parser::{Parse, Parser, Result};
 use crate::token::*;
 use std::mem;
 
@@ -1486,7 +1487,7 @@ pub struct MemArg<'a> {
     ///
     /// This is not stored as a log, this is the actual alignment (e.g. 1, 2, 4,
     /// 8, etc).
-    pub align: u32,
+    pub align: u64,
     /// The offset, in bytes of this access.
     pub offset: u64,
     /// The memory index we're accessing
@@ -1494,12 +1495,8 @@ pub struct MemArg<'a> {
 }
 
 impl<'a> MemArg<'a> {
-    fn parse(parser: Parser<'a>, default_align: u32) -> Result<Self> {
-        fn parse_field<T>(
-            name: &str,
-            parser: Parser<'_>,
-            f: impl FnOnce(Cursor<'_>, &str, u32) -> Result<T>,
-        ) -> Result<Option<T>> {
+    fn parse(parser: Parser<'a>, default_align: u64) -> Result<Self> {
+        fn parse_field(name: &str, parser: Parser<'_>) -> Result<Option<u64>> {
             parser.step(|c| {
                 let (kw, rest) = match c.keyword()? {
                     Some(p) => p,
@@ -1513,33 +1510,32 @@ impl<'a> MemArg<'a> {
                     return Ok((None, c));
                 }
                 let num = &kw[1..];
-                let num = if let Some(stripped) = num.strip_prefix("0x") {
-                    f(c, stripped, 16)?
-                } else {
-                    f(c, num, 10)?
-                };
-
-                Ok((Some(num), rest))
-            })
-        }
-
-        fn parse_u32(name: &str, parser: Parser<'_>) -> Result<Option<u32>> {
-            parse_field(name, parser, |c, num, radix| {
-                u32::from_str_radix(num, radix).map_err(|_| c.error("i32 constant out of range"))
-            })
-        }
-
-        fn parse_u64(name: &str, parser: Parser<'_>) -> Result<Option<u64>> {
-            parse_field(name, parser, |c, num, radix| {
-                u64::from_str_radix(num, radix).map_err(|_| c.error("i64 constant out of range"))
+                let lexer = Lexer::new(num);
+                let mut pos = 0;
+                if let Ok(Some(
+                    token @ Token {
+                        kind: TokenKind::Integer(integer_kind),
+                        ..
+                    },
+                )) = lexer.parse(&mut pos)
+                {
+                    let int = token.integer(lexer.input(), integer_kind);
+                    let (s, base) = int.val();
+                    let value = u64::from_str_radix(s, base);
+                    return match value {
+                        Ok(n) => Ok((Some(n), rest)),
+                        Err(_) => Err(c.error("u64 constant out of range")),
+                    };
+                }
+                Err(c.error("expected u64 integer constant"))
             })
         }
 
         let memory = parser
             .parse::<Option<_>>()?
             .unwrap_or_else(|| Index::Num(0, parser.prev_span()));
-        let offset = parse_u64("offset", parser)?.unwrap_or(0);
-        let align = match parse_u32("align", parser)? {
+        let offset = parse_field("offset", parser)?.unwrap_or(0);
+        let align = match parse_field("align", parser)? {
             Some(n) if !n.is_power_of_two() => {
                 return Err(parser.error("alignment must be a power of two"))
             }
@@ -1564,7 +1560,7 @@ pub struct LoadOrStoreLane<'a> {
 }
 
 impl<'a> LoadOrStoreLane<'a> {
-    fn parse(parser: Parser<'a>, default_align: u32) -> Result<Self> {
+    fn parse(parser: Parser<'a>, default_align: u64) -> Result<Self> {
         // This is sort of funky. The first integer we see could be the lane
         // index, but it could also be the memory index. To determine what it is
         // then if we see a second integer we need to look further.
