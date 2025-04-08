@@ -114,8 +114,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
                 }
             }
         }
-        ops.finish(body.data_index_allowed().unwrap())?;
-        self.finish(ops.original_position())
+        ops.finish(body.data_index_allowed().unwrap())
     }
 
     /// Reads the local definitions from the given `BinaryReader`, often sourced
@@ -187,18 +186,6 @@ impl<T: WasmModuleResources> FuncValidator<T> {
         offset: usize,
     ) -> impl crate::VisitSimdOperator<'a, Output = Result<()>> + ModuleArity + 'this {
         self.validator.with_resources_simd(&self.resources, offset)
-    }
-
-    /// Function that must be called after the last opcode has been processed.
-    ///
-    /// This will validate that the function was properly terminated with the
-    /// `end` opcode. If this function is not called then the function will not
-    /// be properly validated.
-    ///
-    /// The `offset` provided to this function will be used as a position for an
-    /// error if validation fails.
-    pub fn finish(&mut self, offset: usize) -> Result<()> {
-        self.validator.finish(offset)
     }
 
     /// Returns the Wasm features enabled for this validator.

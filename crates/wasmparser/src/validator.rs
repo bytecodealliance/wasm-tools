@@ -16,8 +16,7 @@
 use crate::prelude::*;
 use crate::{
     limits::*, AbstractHeapType, BinaryReaderError, Encoding, FromReader, FunctionBody, HeapType,
-    Order, Parser, Payload, RefType, Result, SectionLimited, ValType, WasmFeatures,
-    WASM_MODULE_VERSION,
+    Parser, Payload, RefType, Result, SectionLimited, ValType, WasmFeatures, WASM_MODULE_VERSION,
 };
 use ::core::mem;
 use ::core::ops::Range;
@@ -581,10 +580,10 @@ impl Validator {
             ElementSection(s) => self.element_section(s)?,
             DataCountSection { count, range } => self.data_count_section(*count, range)?,
             CodeSectionStart {
-                count,
+                count: _,
                 range,
                 size: _,
-            } => self.code_section_start(*count, range)?,
+            } => self.code_section_start(range)?,
             CodeSectionEntry(body) => {
                 let func_validator = self.code_section_entry(body)?;
                 return Ok(ValidPayload::Func(func_validator, body.clone()));
@@ -706,7 +705,6 @@ impl Validator {
     /// Validates [`Payload::TypeSection`](crate::Payload).
     pub fn type_section(&mut self, section: &crate::TypeSectionReader<'_>) -> Result<()> {
         self.process_module_section(
-            Order::Type,
             section,
             "type",
             |state, _types, count, offset| {
@@ -735,7 +733,6 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn import_section(&mut self, section: &crate::ImportSectionReader<'_>) -> Result<()> {
         self.process_module_section(
-            Order::Import,
             section,
             "import",
             |state, _, count, offset| {
@@ -760,7 +757,6 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn function_section(&mut self, section: &crate::FunctionSectionReader<'_>) -> Result<()> {
         self.process_module_section(
-            Order::Function,
             section,
             "function",
             |state, _, count, offset| {
@@ -772,8 +768,6 @@ impl Validator {
                     offset,
                 )?;
                 state.module.assert_mut().functions.reserve(count as usize);
-                debug_assert!(state.expected_code_bodies.is_none());
-                state.expected_code_bodies = Some(count);
                 Ok(())
             },
             |state, types, ty, offset| state.module.assert_mut().add_function(ty, types, offset),
@@ -785,7 +779,6 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn table_section(&mut self, section: &crate::TableSectionReader<'_>) -> Result<()> {
         self.process_module_section(
-            Order::Table,
             section,
             "table",
             |state, _, count, offset| {
@@ -808,7 +801,6 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn memory_section(&mut self, section: &crate::MemorySectionReader<'_>) -> Result<()> {
         self.process_module_section(
-            Order::Memory,
             section,
             "memory",
             |state, _, count, offset| {
@@ -836,9 +828,7 @@ impl Validator {
                 section.range().start,
             ));
         }
-
         self.process_module_section(
-            Order::Tag,
             section,
             "tag",
             |state, _, count, offset| {
@@ -861,7 +851,6 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn global_section(&mut self, section: &crate::GlobalSectionReader<'_>) -> Result<()> {
         self.process_module_section(
-            Order::Global,
             section,
             "global",
             |state, _, count, offset| {
@@ -884,7 +873,6 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn export_section(&mut self, section: &crate::ExportSectionReader<'_>) -> Result<()> {
         self.process_module_section(
-            Order::Export,
             section,
             "export",
             |state, _, count, offset| {
@@ -913,7 +901,6 @@ impl Validator {
         let offset = range.start;
         self.state.ensure_module("start", offset)?;
         let state = self.module.as_mut().unwrap();
-        state.update_order(Order::Start, offset)?;
 
         let ty = state.module.get_func_type(func, &self.types, offset)?;
         if !ty.params().is_empty() || !ty.results().is_empty() {
@@ -931,7 +918,6 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn element_section(&mut self, section: &crate::ElementSectionReader<'_>) -> Result<()> {
         self.process_module_section(
-            Order::Element,
             section,
             "element",
             |state, _, count, offset| {
@@ -961,7 +947,6 @@ impl Validator {
         self.state.ensure_module("data count", offset)?;
 
         let state = self.module.as_mut().unwrap();
-        state.update_order(Order::DataCount, offset)?;
 
         if count > MAX_WASM_DATA_SEGMENTS as u32 {
             return Err(BinaryReaderError::new(
@@ -977,31 +962,11 @@ impl Validator {
     /// Validates [`Payload::CodeSectionStart`](crate::Payload).
     ///
     /// This method should only be called when parsing a module.
-    pub fn code_section_start(&mut self, count: u32, range: &Range<usize>) -> Result<()> {
+    pub fn code_section_start(&mut self, range: &Range<usize>) -> Result<()> {
         let offset = range.start;
         self.state.ensure_module("code", offset)?;
 
         let state = self.module.as_mut().unwrap();
-        state.update_order(Order::Code, offset)?;
-
-        match state.expected_code_bodies.take() {
-            Some(n) if n == count => {}
-            Some(_) => {
-                return Err(BinaryReaderError::new(
-                    "function and code section have inconsistent lengths",
-                    offset,
-                ));
-            }
-            // empty code sections are allowed even if the function section is
-            // missing
-            None if count == 0 => {}
-            None => {
-                return Err(BinaryReaderError::new(
-                    "code section without function section",
-                    offset,
-                ))
-            }
-        }
 
         // Take a snapshot of the types when we start the code section.
         state.module.assert_mut().snapshot = Some(Arc::new(self.types.commit()));
@@ -1031,7 +996,7 @@ impl Validator {
 
         let state = self.module.as_mut().unwrap();
 
-        let (index, ty) = state.next_code_index_and_type(offset)?;
+        let (index, ty) = state.next_code_index_and_type();
         Ok(FuncToValidate {
             index,
             ty,
@@ -1045,11 +1010,9 @@ impl Validator {
     /// This method should only be called when parsing a module.
     pub fn data_section(&mut self, section: &crate::DataSectionReader<'_>) -> Result<()> {
         self.process_module_section(
-            Order::Data,
             section,
             "data",
-            |state, _, count, offset| {
-                state.data_segment_count = count;
+            |_, _, count, offset| {
                 check_max(0, count, MAX_WASM_DATA_SEGMENTS, "data segments", offset)
             },
             |state, types, d, offset| state.add_data_segment(d, types, offset),
@@ -1360,7 +1323,6 @@ impl Validator {
             )),
             State::Module => {
                 let mut state = self.module.take().unwrap();
-                state.validate_end(offset)?;
 
                 // If there's a parent component, we'll add a module to the parent state
                 // and continue to validate the component
@@ -1408,7 +1370,6 @@ impl Validator {
 
     fn process_module_section<'a, T>(
         &mut self,
-        order: Order,
         section: &SectionLimited<'a, T>,
         name: &str,
         validate_section: impl FnOnce(&mut ModuleState, &mut TypeAlloc, u32, usize) -> Result<()>,
@@ -1421,7 +1382,6 @@ impl Validator {
         self.state.ensure_module(name, offset)?;
 
         let state = self.module.as_mut().unwrap();
-        state.update_order(order, offset)?;
 
         validate_section(state, &mut self.types, section.count(), offset)?;
 
@@ -1456,13 +1416,6 @@ impl Validator {
         T: FromReader<'a>,
     {
         let offset = section.range().start;
-
-        if !self.features.component_model() {
-            return Err(BinaryReaderError::new(
-                "component model feature is not enabled",
-                offset,
-            ));
-        }
 
         self.state.ensure_component(name, offset)?;
         validate_section(

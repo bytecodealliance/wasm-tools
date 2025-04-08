@@ -14,9 +14,9 @@ use super::{
 use crate::VisitSimdOperator;
 use crate::{
     limits::*, BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind,
-    FuncType, Global, GlobalType, HeapType, MemoryType, Order, RecGroup, RefType, Result, SubType,
-    Table, TableInit, TableType, TagType, TypeRef, UnpackedIndex, ValType, VisitOperator,
-    WasmFeatures, WasmModuleResources,
+    FuncType, Global, GlobalType, HeapType, MemoryType, RecGroup, RefType, Result, SubType, Table,
+    TableInit, TableType, TagType, TypeRef, UnpackedIndex, ValType, VisitOperator, WasmFeatures,
+    WasmModuleResources,
 };
 use crate::{prelude::*, CompositeInnerType};
 use alloc::sync::Arc;
@@ -30,19 +30,6 @@ pub(crate) struct ModuleState {
     /// mutated to we can clone it cheaply and hand it to sub-validators.
     pub module: arc::MaybeOwned<Module>,
 
-    /// Where we are, order-wise, in the wasm binary.
-    order: Order,
-
-    /// The number of data segments in the data section (if present).
-    pub data_segment_count: u32,
-
-    /// The number of functions we expect to be defined in the code section, or
-    /// basically the length of the function section if it was found. The next
-    /// index is where we are, in the code section index space, for the next
-    /// entry in the code section (used to figure out what type is next for the
-    /// function being validated).
-    pub expected_code_bodies: Option<u32>,
-
     const_expr_allocs: OperatorValidatorAllocations,
 
     /// When parsing the code section, represents the current index in the section.
@@ -53,64 +40,22 @@ impl ModuleState {
     pub fn new(features: WasmFeatures) -> ModuleState {
         ModuleState {
             module: arc::MaybeOwned::new(Module::new(features)),
-            order: Order::default(),
-            data_segment_count: 0,
-            expected_code_bodies: None,
             const_expr_allocs: OperatorValidatorAllocations::default(),
             code_section_index: None,
         }
     }
 
-    pub fn update_order(&mut self, order: Order, offset: usize) -> Result<()> {
-        if self.order >= order {
-            return Err(BinaryReaderError::new("section out of order", offset));
-        }
-
-        self.order = order;
-
-        Ok(())
-    }
-
-    pub fn validate_end(&self, offset: usize) -> Result<()> {
-        // Ensure that the data count section, if any, was correct.
-        if let Some(data_count) = self.module.data_count {
-            if data_count != self.data_segment_count {
-                return Err(BinaryReaderError::new(
-                    "data count and data section have inconsistent lengths",
-                    offset,
-                ));
-            }
-        }
-        // Ensure that the function section, if nonzero, was paired with a code
-        // section with the appropriate length.
-        if let Some(n) = self.expected_code_bodies {
-            if n > 0 {
-                return Err(BinaryReaderError::new(
-                    "function and code section have inconsistent lengths",
-                    offset,
-                ));
-            }
-        }
-
-        Ok(())
-    }
-
-    pub fn next_code_index_and_type(&mut self, offset: usize) -> Result<(u32, u32)> {
+    pub fn next_code_index_and_type(&mut self) -> (u32, u32) {
         let index = self
             .code_section_index
             .get_or_insert(self.module.num_imported_functions as usize);
 
-        if *index >= self.module.functions.len() {
-            return Err(BinaryReaderError::new(
-                "code section entry exceeds number of functions",
-                offset,
-            ));
-        }
+        assert!(*index < self.module.functions.len());
 
         let ty = self.module.functions[*index];
         *index += 1;
 
-        Ok(((*index - 1) as u32, ty))
+        ((*index - 1) as u32, ty)
     }
 
     pub fn add_global(
@@ -203,14 +148,7 @@ impl ModuleState {
 
                 self.check_const_expr(&offset_expr, table.index_type(), types)?;
             }
-            ElementKind::Passive | ElementKind::Declared => {
-                if !self.module.features.bulk_memory() {
-                    return Err(BinaryReaderError::new(
-                        "bulk memory must be enabled",
-                        offset,
-                    ));
-                }
-            }
+            ElementKind::Passive | ElementKind::Declared => {}
         }
 
         let validate_count = |count: u32| -> Result<(), BinaryReaderError> {
@@ -252,7 +190,6 @@ impl ModuleState {
     ) -> Result<()> {
         let mut validator = VisitConstOperator {
             offset: 0,
-            order: self.order,
             uninserted_funcref: false,
             ops: OperatorValidator::new_const_expr(
                 &self.module.features,
@@ -270,7 +207,6 @@ impl ModuleState {
             validator.offset = ops.original_position();
             ops.visit_operator(&mut validator)??;
         }
-        validator.ops.finish(ops.original_position())?;
 
         // See comment in `RefFunc` below for why this is an assert.
         assert!(!validator.uninserted_funcref);
@@ -284,7 +220,6 @@ impl ModuleState {
             uninserted_funcref: bool,
             ops: OperatorValidator,
             resources: OperatorValidatorResources<'a>,
-            order: Order,
         }
 
         impl VisitConstOperator<'_> {
@@ -371,7 +306,7 @@ impl ModuleState {
             // (aka a fuzz bug) if we somehow forget to emit an error somewhere
             // else.
             fn insert_ref_func(&mut self, index: u32) {
-                if self.order == Order::Data {
+                if self.resources.module.as_mut().is_none() {
                     self.uninserted_funcref = true;
                 } else {
                     self.resources
@@ -749,13 +684,6 @@ impl Module {
             self.check_ref_type(&mut ty.element_type, offset)?
         }
 
-        if ty.table64 && !self.features.memory64() {
-            return Err(BinaryReaderError::new(
-                "memory64 must be enabled for 64-bit tables",
-                offset,
-            ));
-        }
-
         self.check_limits(ty.initial, ty.maximum, offset)?;
         if ty.table64 && !self.features().memory64() {
             bail!(offset, "memory64 must be enabled for 64-bit tables");
@@ -775,23 +703,12 @@ impl Module {
                 return Err(BinaryReaderError::new(err, offset));
             }
         }
-
-        if ty.shared {
-            if !self.features.shared_everything_threads() {
-                return Err(BinaryReaderError::new(
-                    "shared tables require the shared-everything-threads proposal",
-                    offset,
-                ));
-            }
-
-            if !types.reftype_is_shared(ty.element_type) {
-                return Err(BinaryReaderError::new(
-                    "shared tables must have a shared element type",
-                    offset,
-                ));
-            }
+        if ty.shared && !types.reftype_is_shared(ty.element_type) {
+            return Err(BinaryReaderError::new(
+                "shared tables must have a shared element type",
+                offset,
+            ));
         }
-
         Ok(())
     }
 
@@ -803,13 +720,6 @@ impl Module {
         }
 
         let page_size = if let Some(page_size_log2) = ty.page_size_log2 {
-            if !self.features.custom_page_sizes() {
-                return Err(BinaryReaderError::new(
-                    "the custom page sizes proposal must be enabled to \
-                     customize a memory's page size",
-                    offset,
-                ));
-            }
             // Currently 2**0 and 2**16 are the only valid page sizes, but this
             // may be relaxed to allow any power of two in the future.
             if page_size_log2 != 0 && page_size_log2 != 16 {
@@ -841,19 +751,11 @@ impl Module {
                 return Err(BinaryReaderError::new(err, offset));
             }
         }
-        if ty.shared {
-            if !self.features.threads() {
-                return Err(BinaryReaderError::new(
-                    "threads must be enabled for shared memories",
-                    offset,
-                ));
-            }
-            if ty.maximum.is_none() {
-                return Err(BinaryReaderError::new(
-                    "shared memory must have maximum size",
-                    offset,
-                ));
-            }
+        if ty.shared && ty.maximum.is_none() {
+            return Err(BinaryReaderError::new(
+                "shared memory must have maximum size",
+                offset,
+            ));
         }
         Ok(())
     }
@@ -922,12 +824,6 @@ impl Module {
     }
 
     fn check_tag_type(&self, ty: &TagType, types: &TypeList, offset: usize) -> Result<()> {
-        if !self.features.exceptions() {
-            return Err(BinaryReaderError::new(
-                "exceptions proposal not enabled",
-                offset,
-            ));
-        }
         let ty = self.func_type_at(ty.func_type_idx, types, offset)?;
         if !ty.results().is_empty() && !self.features.stack_switching() {
             return Err(BinaryReaderError::new(
@@ -945,19 +841,11 @@ impl Module {
         offset: usize,
     ) -> Result<()> {
         self.check_value_type(&mut ty.content_type, offset)?;
-        if ty.shared {
-            if !self.features.shared_everything_threads() {
-                return Err(BinaryReaderError::new(
-                    "shared globals require the shared-everything-threads proposal",
-                    offset,
-                ));
-            }
-            if !types.valtype_is_shared(ty.content_type) {
-                return Err(BinaryReaderError::new(
-                    "shared globals must have a shared value type",
-                    offset,
-                ));
-            }
+        if ty.shared && !types.valtype_is_shared(ty.content_type) {
+            return Err(BinaryReaderError::new(
+                "shared globals must have a shared value type",
+                offset,
+            ));
         }
         Ok(())
     }
@@ -1288,7 +1176,7 @@ mod arc {
         }
 
         #[inline]
-        fn as_mut(&mut self) -> Option<&mut T> {
+        pub(crate) fn as_mut(&mut self) -> Option<&mut T> {
             match &mut self.inner {
                 Inner::Owned(x) => Some(x),
                 Inner::Shared(_) => None,
