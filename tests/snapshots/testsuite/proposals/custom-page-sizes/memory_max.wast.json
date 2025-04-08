@@ -16,15 +16,15 @@
       "text": "unknown import"
     },
     {
-      "type": "assert_malformed",
-      "line": 32,
-      "filename": "memory_max.2.wat",
-      "module_type": "text",
-      "text": "constant out of range"
+      "type": "assert_invalid",
+      "line": 29,
+      "filename": "memory_max.2.wasm",
+      "module_type": "binary",
+      "text": "memory size must be at most"
     },
     {
       "type": "assert_invalid",
-      "line": 37,
+      "line": 35,
       "filename": "memory_max.3.wasm",
       "module_type": "binary",
       "text": "memory size must be at most"
