@@ -31,30 +31,65 @@
     },
     {
       "type": "assert_malformed",
-      "line": 72,
-      "filename": "func.4.wat",
-      "module_type": "text",
+      "line": 73,
+      "filename": "func.4.wasm",
+      "module_type": "binary",
       "text": "operators remaining after end of function"
     },
     {
       "type": "assert_malformed",
-      "line": 77,
+      "line": 78,
       "filename": "func.5.wat",
       "module_type": "text",
       "text": "operators remaining after end of function"
     },
     {
       "type": "assert_malformed",
-      "line": 82,
-      "filename": "func.6.wat",
+      "line": 84,
+      "filename": "func.6.wasm",
+      "module_type": "binary",
+      "text": "operators remaining after end of function"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 89,
+      "filename": "func.7.wat",
       "module_type": "text",
       "text": "operators remaining after end of function"
     },
     {
       "type": "assert_malformed",
-      "line": 87,
-      "filename": "func.7.wat",
+      "line": 95,
+      "filename": "func.8.wasm",
+      "module_type": "binary",
+      "text": "operators remaining after end of function"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 100,
+      "filename": "func.9.wat",
       "module_type": "text",
+      "text": "operators remaining after end of function"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 106,
+      "filename": "func.10.wasm",
+      "module_type": "binary",
+      "text": "operators remaining after end of function"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 111,
+      "filename": "func.11.wat",
+      "module_type": "text",
+      "text": "operators remaining after end of function"
+    },
+    {
+      "type": "assert_malformed",
+      "line": 117,
+      "filename": "func.12.wasm",
+      "module_type": "binary",
       "text": "operators remaining after end of function"
     }
   ]
