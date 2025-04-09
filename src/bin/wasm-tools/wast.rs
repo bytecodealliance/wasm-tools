@@ -161,25 +161,10 @@ impl Opts {
             WastDirective::Module(mut module) | WastDirective::ModuleDefinition(mut module) => {
                 let actual = module.encode()?;
 
-                let test_roundtrip = match module {
-                    // Don't test the wasmprinter round trip since these bytes
-                    // may not be in their canonical form (didn't come from the
-                    // `wat` crate).
-                    QuoteWat::Wat(Wat::Module(Module {
-                        kind: ModuleKind::Binary(_),
-                        ..
-                    }))
-                    | QuoteWat::Wat(Wat::Component(Component {
-                        kind: ComponentKind::Binary(_),
-                        ..
-                    })) => false,
-                    _ => true,
-                };
-
                 let mut test_path = test.to_path_buf();
                 test_path.push(idx.to_string());
 
-                self.test_wasm(&test_path, &actual, test_roundtrip)
+                self.test_wasm(&test_path, &actual, expect_binary_roundtrip(&module))
                     .context("failed testing wasm binary produced by `wast`")?;
             }
 
@@ -285,52 +270,31 @@ impl Opts {
             WastDirective::AssertInvalid {
                 mut module,
                 message,
-                span,
+                span: _,
             } => {
-                // Similar to `assert_malformed`, there are some tests in
-                // upstream wasm which are specifically flagged as
-                // `assert_invalid` because the AST can be created for a test
-                // case but the binary itself shouldn't validate. Like with
-                // `assert_malformed`, though, wasmparser doesn't match the
-                // upstream specification 1:1 in all cases. This is a list of
-                // exceptions.
-                let permissive_error_messages = [
-                    // The typed-select instruction spec-wise takes a list of
-                    // types, but in our AST it takes exactly one type to avoid
-                    // heap allocation. That means that we catch
-                    // non-1-length-lists at parse time, not validation time.
-                    "invalid result arity",
-                ];
-                if self.assert(Assert::Permissive) && permissive_error_messages.contains(&message) {
-                    return self.test_wast_directive(
-                        test,
-                        WastDirective::AssertMalformed {
-                            span,
-                            module,
-                            message,
-                        },
-                        idx,
-                    );
-                }
-
-                let wasm = module.encode()?;
+                // ensure module parses successfully
+                let binary_wasm = module.encode()?;
                 let mut parser = wasmparser::Parser::new(0);
                 parser.set_features(self.features.features());
+                parse_binary_wasm(parser, &binary_wasm)?;
 
-                match self.test_wasm_valid(test, &wasm) {
+                // ensure module round-trips successfully (but don't snapshot it)
+                let mut test_path = test.to_path_buf();
+                test_path.push(idx.to_string());
+                self.test_wasm_roundtrip(
+                    &test_path,
+                    &binary_wasm,
+                    expect_binary_roundtrip(&module),
+                    false,
+                )?;
+
+                // now, ensure that module is invalid
+                match self.test_wasm_valid(test, &binary_wasm) {
                     Ok(_) => bail!(
                         "encoded and validated successfully but should have failed with: {}",
                         message,
                     ),
-                    Err(e) => {
-                        self.assert_error_matches(test, &format!("{e:?}"), message)?;
-                    }
-                }
-
-                // For `assert_invalid` all modules should also parse
-                // successfully, so double-check that here.
-                if let Err(e) = parse_binary_wasm(parser, &wasm) {
-                    bail!("failed to parse module when it should parse successfully: {e}");
+                    Err(e) => self.assert_error_matches(test, &format!("{e:?}"), message)?,
                 }
             }
 
@@ -375,7 +339,6 @@ impl Opts {
     }
 
     /// Tests that `error`, from the validator or parser, matches the expected error
-    /// `message`.
     fn assert_error_matches(&self, _test: &Path, error: &str, message: &str) -> Result<()> {
         if error.contains(message) || self.ignore_error_messages {
             return Ok(());
@@ -389,49 +352,92 @@ impl Opts {
 
     /// Performs tests about the wasm binary `contents` associated with `test`.
     ///
-    /// If `test_roundtrip` is `false` then it will always skip the roundtrip
-    /// tests.
-    fn test_wasm(&self, test: &Path, contents: &[u8], test_roundtrip: bool) -> Result<()> {
+    /// If `roundtrip_binary` is `false` then it will not try to compare the
+    /// original binary with the result of roundtripping through wasmprinter->wast.
+    fn test_wasm(&self, test: &Path, contents: &[u8], roundtrip_binary: bool) -> Result<()> {
         self.test_wasm_valid(test, contents)
             .context("wasm isn't valid")?;
+        self.test_wasm_roundtrip(test, contents, roundtrip_binary, true)
+            .context("wasm did not roundtrip")
+    }
 
+    fn test_wasm_roundtrip(
+        &self,
+        test: &Path,
+        contents: &[u8],
+        roundtrip_binary: bool,
+        enable_snapshot: bool,
+    ) -> Result<()> {
         // Test that we can print these bytes.
-        let string = wasmprinter::print_bytes(contents).context("failed to print wasm")?;
-        if self.assert(Assert::SnapshotPrint) {
-            self.snapshot("print", test, &string)
+        let text1 = wasmprinter::print_bytes(contents).context("failed to print wasm")?;
+        if enable_snapshot && self.assert(Assert::SnapshotPrint) {
+            self.snapshot("print", test, &text1)
                 .context("failed to validate the `print` snapshot")?;
         }
 
         // Test that we can print these bytes with instructions in folded form.
-        let mut folded_string = String::new();
+        let mut text1_folded = String::new();
         if self.assert(Assert::TestFolded) {
             let mut folding_printer = wasmprinter::Config::new();
             folding_printer.fold_instructions(true);
             folding_printer
-                .print(contents, &mut PrintFmtWrite(&mut folded_string))
+                .print(contents, &mut PrintFmtWrite(&mut text1_folded))
                 .context("failed to print wasm in folded form")?;
 
-            if self.assert(Assert::SnapshotFolded) {
-                self.snapshot("print-folded", test, &folded_string)
+            if enable_snapshot && self.assert(Assert::SnapshotFolded) {
+                self.snapshot("print-folded", test, &text1_folded)
                     .context("failed to validate the `print-folded` snapshot")?;
             }
         }
 
-        // If we can, convert the string back to bytes and assert it has the
-        // same binary representation.
-        if test_roundtrip && self.assert(Assert::Roundtrip) {
-            let binary2 =
-                wat::parse_str(&string).context("failed to parse `wat` from `wasmprinter`")?;
-            self.binary_compare(&binary2, contents)
-                .context("failed to compare original `wat` with roundtrip `wat`")?;
+        if self.assert(Assert::PrettyWhitespace) {
+            self.test_pretty_whitespace(&text1)?;
+            self.test_pretty_whitespace(&text1_folded)?;
+        }
 
-            if self.assert(Assert::TestFolded) {
-                let binary2f = wat::parse_str(&folded_string)
-                    .context("failed to parse folded `wat` from `wasmprinter`")?;
-                self.binary_compare(&binary2f, contents)
+        // Convert the text versions back to binary and compare to original
+        let binary2 = wat::parse_str(&text1).context("failed to parse `wat` from `wasmprinter`")?;
+        let text2 = wasmprinter::print_bytes(&binary2).context("failed to print wasm")?;
+        if roundtrip_binary {
+            self.binary_compare(&binary2, contents)
+                .context("failed to compare original binary with roundtrip through wasmparser->wasmprinter->wat")?;
+        }
+        if text1 != text2 {
+            anyhow::bail!(
+                "original print does not match roundtrip print\n{}",
+                pretty_assertions::StrComparison::new(&text1, &text2)
+            );
+        }
+        if self.assert(Assert::TestFolded) {
+            let binary2_from_folded = wat::parse_str(&text1_folded)
+                .context("failed to parse folded `wat` from `wasmprinter`")?;
+            let mut text2_folded = String::new();
+            let mut folding_printer = wasmprinter::Config::new();
+            folding_printer.fold_instructions(true);
+            folding_printer
+                .print(contents, &mut PrintFmtWrite(&mut text2_folded))
+                .context("failed to print wasm in folded form")?;
+            if roundtrip_binary {
+                self.binary_compare(&binary2_from_folded, contents)
                     .context("failed to compare original `wat` with roundtrip folded `wat`")?;
             }
+            let text3 =
+                wasmprinter::print_bytes(binary2_from_folded).context("failed to print wasm")?;
+            if text1_folded != text2_folded {
+                anyhow::bail!(
+                    "original folded print does not match roundtrip folded print\n{}",
+                    pretty_assertions::StrComparison::new(&text1_folded, &text2_folded)
+                );
+            }
+            if text1 != text3 {
+                anyhow::bail!(
+                    "original print does not match roundtrip folded->flat print\n{}",
+                    pretty_assertions::StrComparison::new(&text1, &text3)
+                );
+            }
+        }
 
+        if roundtrip_binary {
             if wasmparser::Parser::is_component(contents) {
                 let mut reencode = Default::default();
                 RoundtripReencoder
@@ -448,12 +454,6 @@ impl Opts {
                     .context("failed to compare reencoded module with original encoding")?;
             }
         }
-
-        if self.assert(Assert::PrettyWhitespace) {
-            self.test_pretty_whitespace(&string)?;
-            self.test_pretty_whitespace(&folded_string)?;
-        }
-
         Ok(())
     }
 
@@ -680,10 +680,26 @@ impl Opts {
     }
 }
 
+fn expect_binary_roundtrip(module: &QuoteWat) -> bool {
+    match module {
+        // Don't test that wasmprinter roundtrips an external binary as these bytes
+        // may not be in their canonical form (didn't come from the
+        // `wat` crate).
+        QuoteWat::Wat(Wat::Module(Module {
+            kind: ModuleKind::Binary(_),
+            ..
+        }))
+        | QuoteWat::Wat(Wat::Component(Component {
+            kind: ComponentKind::Binary(_),
+            ..
+        })) => false,
+        _ => true,
+    }
+}
+
 #[derive(clap::ValueEnum, Debug, Copy, Clone, PartialEq, Eq)]
 enum Assert {
     Default,
-    Roundtrip,
     PrettyWhitespace,
     SnapshotPrint,
     SnapshotJson,
