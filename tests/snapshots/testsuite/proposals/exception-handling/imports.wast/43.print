@@ -1,0 +1,4 @@
+(module
+  (type (;0;) (func (param f32)))
+  (import "test" "tag" (tag (;0;) (type 0) (param f32)))
+)

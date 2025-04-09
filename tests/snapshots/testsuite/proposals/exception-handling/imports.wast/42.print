@@ -1,0 +1,4 @@
+(module
+  (type (;0;) (func))
+  (import "test" "unknown" (tag (;0;) (type 0)))
+)

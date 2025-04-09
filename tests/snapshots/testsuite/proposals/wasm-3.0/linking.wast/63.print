@@ -1,0 +1,3 @@
+(module
+  (import "Mref_ex" "g-var-refnull" (global (;0;) (mut externref)))
+)

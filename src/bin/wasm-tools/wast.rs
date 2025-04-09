@@ -182,6 +182,16 @@ impl Opts {
                     .context("failed testing wasm binary produced by `wast`")?;
             }
 
+            WastDirective::AssertUnlinkable { mut module, .. } => {
+                let actual = module.encode()?;
+
+                let mut test_path = test.to_path_buf();
+                test_path.push(idx.to_string());
+
+                self.test_wasm(&test_path, &actual, true)
+                    .context("failed testing wasm binary produced by `wast`")?;
+            }
+
             WastDirective::AssertMalformed {
                 span: _,
                 mut module,
@@ -228,7 +238,6 @@ impl Opts {
             | WastDirective::AssertTrap { .. }
             | WastDirective::AssertReturn { .. }
             | WastDirective::AssertExhaustion { .. }
-            | WastDirective::AssertUnlinkable { .. }
             | WastDirective::AssertException { .. }
             | WastDirective::AssertSuspension { .. }
             | WastDirective::Wait { .. } => {}

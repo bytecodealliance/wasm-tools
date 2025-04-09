@@ -1,0 +1,3 @@
+(module
+  (import "spectest" "print_i32" (table (;0;) 10 funcref))
+)
