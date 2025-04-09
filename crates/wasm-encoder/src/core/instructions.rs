@@ -1353,6 +1353,13 @@ impl<'a> InstructionSink<'a> {
         self
     }
 
+    /// Encode [`Instruction::TypedSelect`] with multiple results (currently invalid).
+    pub fn typed_select_multi(&mut self, tys: &[ValType]) -> &mut Self {
+        self.sink.push(0x1c);
+        tys.encode(self.sink);
+        self
+    }
+
     /// Encode [`Instruction::RefNull`].
     pub fn ref_null(&mut self, ty: HeapType) -> &mut Self {
         self.sink.push(0xd0);
@@ -1846,7 +1853,6 @@ impl<'a> InstructionSink<'a> {
         self.sink.push(0xFD);
         0x54u32.encode(self.sink);
         memarg.encode(self.sink);
-        assert!(lane < 16);
         self.sink.push(lane);
         self
     }
@@ -1856,7 +1862,6 @@ impl<'a> InstructionSink<'a> {
         self.sink.push(0xFD);
         0x55u32.encode(self.sink);
         memarg.encode(self.sink);
-        assert!(lane < 8);
         self.sink.push(lane);
         self
     }
@@ -1866,7 +1871,6 @@ impl<'a> InstructionSink<'a> {
         self.sink.push(0xFD);
         0x56u32.encode(self.sink);
         memarg.encode(self.sink);
-        assert!(lane < 4);
         self.sink.push(lane);
         self
     }
@@ -1876,7 +1880,6 @@ impl<'a> InstructionSink<'a> {
         self.sink.push(0xFD);
         0x57u32.encode(self.sink);
         memarg.encode(self.sink);
-        assert!(lane < 2);
         self.sink.push(lane);
         self
     }
@@ -1886,7 +1889,6 @@ impl<'a> InstructionSink<'a> {
         self.sink.push(0xFD);
         0x58u32.encode(self.sink);
         memarg.encode(self.sink);
-        assert!(lane < 16);
         self.sink.push(lane);
         self
     }
@@ -1896,7 +1898,6 @@ impl<'a> InstructionSink<'a> {
         self.sink.push(0xFD);
         0x59u32.encode(self.sink);
         memarg.encode(self.sink);
-        assert!(lane < 8);
         self.sink.push(lane);
         self
     }
@@ -1906,7 +1907,6 @@ impl<'a> InstructionSink<'a> {
         self.sink.push(0xFD);
         0x5Au32.encode(self.sink);
         memarg.encode(self.sink);
-        assert!(lane < 4);
         self.sink.push(lane);
         self
     }
@@ -1916,7 +1916,6 @@ impl<'a> InstructionSink<'a> {
         self.sink.push(0xFD);
         0x5Bu32.encode(self.sink);
         memarg.encode(self.sink);
-        assert!(lane < 2);
         self.sink.push(lane);
         self
     }
@@ -1933,7 +1932,6 @@ impl<'a> InstructionSink<'a> {
     pub fn i8x16_shuffle(&mut self, lanes: [Lane; 16]) -> &mut Self {
         self.sink.push(0xFD);
         0x0Du32.encode(self.sink);
-        assert!(lanes.iter().all(|l: &u8| *l < 32));
         self.sink.extend(lanes.iter().copied());
         self
     }
@@ -1942,7 +1940,6 @@ impl<'a> InstructionSink<'a> {
     pub fn i8x16_extract_lane_s(&mut self, lane: Lane) -> &mut Self {
         self.sink.push(0xFD);
         0x15u32.encode(self.sink);
-        assert!(lane < 16);
         self.sink.push(lane);
         self
     }
@@ -1951,7 +1948,6 @@ impl<'a> InstructionSink<'a> {
     pub fn i8x16_extract_lane_u(&mut self, lane: Lane) -> &mut Self {
         self.sink.push(0xFD);
         0x16u32.encode(self.sink);
-        assert!(lane < 16);
         self.sink.push(lane);
         self
     }
@@ -1960,7 +1956,6 @@ impl<'a> InstructionSink<'a> {
     pub fn i8x16_replace_lane(&mut self, lane: Lane) -> &mut Self {
         self.sink.push(0xFD);
         0x17u32.encode(self.sink);
-        assert!(lane < 16);
         self.sink.push(lane);
         self
     }
@@ -1969,7 +1964,6 @@ impl<'a> InstructionSink<'a> {
     pub fn i16x8_extract_lane_s(&mut self, lane: Lane) -> &mut Self {
         self.sink.push(0xFD);
         0x18u32.encode(self.sink);
-        assert!(lane < 8);
         self.sink.push(lane);
         self
     }
@@ -1978,7 +1972,6 @@ impl<'a> InstructionSink<'a> {
     pub fn i16x8_extract_lane_u(&mut self, lane: Lane) -> &mut Self {
         self.sink.push(0xFD);
         0x19u32.encode(self.sink);
-        assert!(lane < 8);
         self.sink.push(lane);
         self
     }
@@ -1987,7 +1980,6 @@ impl<'a> InstructionSink<'a> {
     pub fn i16x8_replace_lane(&mut self, lane: Lane) -> &mut Self {
         self.sink.push(0xFD);
         0x1Au32.encode(self.sink);
-        assert!(lane < 8);
         self.sink.push(lane);
         self
     }
@@ -1996,7 +1988,6 @@ impl<'a> InstructionSink<'a> {
     pub fn i32x4_extract_lane(&mut self, lane: Lane) -> &mut Self {
         self.sink.push(0xFD);
         0x1Bu32.encode(self.sink);
-        assert!(lane < 4);
         self.sink.push(lane);
         self
     }
@@ -2005,7 +1996,6 @@ impl<'a> InstructionSink<'a> {
     pub fn i32x4_replace_lane(&mut self, lane: Lane) -> &mut Self {
         self.sink.push(0xFD);
         0x1Cu32.encode(self.sink);
-        assert!(lane < 4);
         self.sink.push(lane);
         self
     }
@@ -2014,7 +2004,6 @@ impl<'a> InstructionSink<'a> {
     pub fn i64x2_extract_lane(&mut self, lane: Lane) -> &mut Self {
         self.sink.push(0xFD);
         0x1Du32.encode(self.sink);
-        assert!(lane < 2);
         self.sink.push(lane);
         self
     }
@@ -2023,7 +2012,6 @@ impl<'a> InstructionSink<'a> {
     pub fn i64x2_replace_lane(&mut self, lane: Lane) -> &mut Self {
         self.sink.push(0xFD);
         0x1Eu32.encode(self.sink);
-        assert!(lane < 2);
         self.sink.push(lane);
         self
     }
@@ -2032,7 +2020,6 @@ impl<'a> InstructionSink<'a> {
     pub fn f32x4_extract_lane(&mut self, lane: Lane) -> &mut Self {
         self.sink.push(0xFD);
         0x1Fu32.encode(self.sink);
-        assert!(lane < 4);
         self.sink.push(lane);
         self
     }
@@ -2041,7 +2028,6 @@ impl<'a> InstructionSink<'a> {
     pub fn f32x4_replace_lane(&mut self, lane: Lane) -> &mut Self {
         self.sink.push(0xFD);
         0x20u32.encode(self.sink);
-        assert!(lane < 4);
         self.sink.push(lane);
         self
     }
@@ -2050,7 +2036,6 @@ impl<'a> InstructionSink<'a> {
     pub fn f64x2_extract_lane(&mut self, lane: Lane) -> &mut Self {
         self.sink.push(0xFD);
         0x21u32.encode(self.sink);
-        assert!(lane < 2);
         self.sink.push(lane);
         self
     }
@@ -2059,7 +2044,6 @@ impl<'a> InstructionSink<'a> {
     pub fn f64x2_replace_lane(&mut self, lane: Lane) -> &mut Self {
         self.sink.push(0xFD);
         0x22u32.encode(self.sink);
-        assert!(lane < 2);
         self.sink.push(lane);
         self
     }

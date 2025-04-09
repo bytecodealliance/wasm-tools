@@ -399,12 +399,12 @@ impl Printer<'_, '_> {
         Ok(())
     }
 
-    pub(crate) fn outer_state(states: &[State], count: u32) -> Result<&State> {
-        let count = count as usize;
-        if count >= states.len() {
-            bail!("invalid outer alias count of {}", count);
+    pub(crate) fn outer_state<'a>(states: &[State], count: u32) -> Result<&State> {
+        if count as usize >= states.len() {
+            bail!("invalid outer alias count {}", count);
         }
 
+        let count: usize = std::cmp::min(count as usize, states.len() - 1);
         Ok(&states[states.len() - count - 1])
     }
 
@@ -416,7 +416,14 @@ impl Printer<'_, '_> {
         index: u32,
     ) -> Result<()> {
         let state = states.last().unwrap();
-        let outer = Self::outer_state(states, count)?;
+        let default_state = State::new(Encoding::Component);
+        let outer = match Self::outer_state(states, count) {
+            Ok(o) => o,
+            Err(e) => {
+                write!(self.result, "(; {e} ;) ")?;
+                &default_state
+            }
+        };
         self.start_group("alias outer ")?;
         if let Some(name) = outer.name.as_ref() {
             name.write(self)?;
@@ -1328,7 +1335,14 @@ impl Printer<'_, '_> {
 
             ComponentAlias::Outer { kind, count, index } => {
                 let state = states.last().unwrap();
-                let outer = Self::outer_state(states, count)?;
+                let default_state = State::new(Encoding::Component);
+                let outer = match Self::outer_state(states, count) {
+                    Ok(o) => o,
+                    Err(e) => {
+                        write!(self.result, "(; {e} ;) ")?;
+                        &default_state
+                    }
+                };
                 self.start_group("alias outer ")?;
                 if let Some(name) = outer.name.as_ref() {
                     name.write(self)?;

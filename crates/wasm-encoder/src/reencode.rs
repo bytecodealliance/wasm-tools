@@ -17,6 +17,9 @@ mod component;
 #[cfg(feature = "component-model")]
 pub use self::component::*;
 
+#[cfg(feature = "wasmparser")]
+use alloc::vec::Vec;
+
 #[allow(missing_docs)] // FIXME
 pub trait Reencode {
     type Error;
@@ -226,6 +229,16 @@ pub trait Reencode {
         val_ty: wasmparser::ValType,
     ) -> Result<crate::ValType, Error<Self::Error>> {
         utils::val_type(self, val_ty)
+    }
+
+    fn val_types(
+        &mut self,
+        val_tys: Vec<wasmparser::ValType>,
+    ) -> Result<Vec<crate::ValType>, Error<Self::Error>> {
+        val_tys
+            .iter()
+            .map(|ty| utils::val_type(self, *ty))
+            .collect()
     }
 
     /// Parses the input `section` given from the `wasmparser` crate and
@@ -1558,6 +1571,7 @@ pub mod utils {
         arg: wasmparser::Operator<'a>,
     ) -> Result<crate::Instruction<'a>, Error<T::Error>> {
         use crate::Instruction;
+        use alloc::borrow::Cow;
 
         macro_rules! translate {
             ($( @$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
@@ -1606,6 +1620,7 @@ pub mod utils {
                 $arg.default(),
             ));
             (map $arg:ident ty) => (reencoder.val_type($arg)?);
+            (map $arg:ident tys) => (reencoder.val_types($arg)?);
             (map $arg:ident hty) => (reencoder.heap_type($arg)?);
             (map $arg:ident from_ref_type) => (reencoder.ref_type($arg)?);
             (map $arg:ident to_ref_type) => (reencoder.ref_type($arg)?);
@@ -1631,6 +1646,7 @@ pub mod utils {
             // wasm-encoder.
             (build $op:ident) => (Instruction::$op);
             (build BrTable $arg:ident) => (Instruction::BrTable($arg.0, $arg.1));
+            (build TypedSelectMulti $arg:ident) => (Instruction::TypedSelectMulti(Cow::from($arg)));
             (build I32Const $arg:ident) => (Instruction::I32Const($arg));
             (build I64Const $arg:ident) => (Instruction::I64Const($arg));
             (build F32Const $arg:ident) => (Instruction::F32Const(f32::from_bits($arg.bits())));

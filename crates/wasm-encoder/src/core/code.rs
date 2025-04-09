@@ -612,6 +612,7 @@ pub enum Instruction<'a> {
 
     // Reference types instructions.
     TypedSelect(ValType),
+    TypedSelectMulti(Cow<'a, [ValType]>),
     RefNull(HeapType),
     RefIsNull,
     RefFunc(u32),
@@ -1284,6 +1285,7 @@ impl Encode for Instruction<'_> {
             Instruction::Drop => sink.drop(),
             Instruction::Select => sink.select(),
             Instruction::TypedSelect(ty) => sink.typed_select(ty),
+            Instruction::TypedSelectMulti(ref tys) => sink.typed_select_multi(tys.as_ref()),
 
             Instruction::TryTable(ty, ref catches) => sink.try_table(ty, catches.iter().cloned()),
 

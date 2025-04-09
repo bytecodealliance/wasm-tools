@@ -853,7 +853,10 @@ macro_rules! define_visit_operator {
                         "{}"
                         $( $(, " ", stringify!($arg), ":{:?}")* )?
                     ),
-                    stringify!($visit).strip_prefix("visit_").unwrap(),
+                    match stringify!($visit).strip_prefix("visit_").unwrap() {
+			"typed_select_multi" => "typed_select",
+			other => other,
+		    },
                     $( $($arg,)* )?
                 ).unwrap();
             }
