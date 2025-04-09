@@ -1,6 +1,6 @@
 ;; RUN: wast --assert default --snapshot tests/snapshots %
 
-(assert_malformed
+(assert_invalid
   (module
     (type (func (result i32)))
     (func $main (result i32)

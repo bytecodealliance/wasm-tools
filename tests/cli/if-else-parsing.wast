@@ -15,29 +15,29 @@
     (if (i32.const 1) (i32.eqz) (then nop))
   )
 )
-(assert_invalid
+(assert_malformed
   (module quote
     "(func (if))"
   )
   "no `then`")
 
-(assert_invalid
+(assert_malformed
   (module quote
     "(func (if (else)))"
   )
   "no `then`")
 
-(assert_invalid
+(assert_malformed
   (module quote
     "(func (if nop (else)))"
   )
   "expected `(`")
-(assert_invalid
+(assert_malformed
   (module quote
     "(func (if (nop) (else)))"
   )
   "no `then`")
-(assert_invalid
+(assert_malformed
   (module quote
     "(func (if (nop) nop (then)))"
   )

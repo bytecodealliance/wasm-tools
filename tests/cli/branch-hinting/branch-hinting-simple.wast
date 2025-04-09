@@ -60,13 +60,13 @@
   )
 )
 
-(assert_invalid
+(assert_malformed
   (module quote "(@metadata.code.branch_hint)")
   "expected valid module field")
-(assert_invalid
+(assert_malformed
   (module quote "(func (@metadata.code.branch_hint))")
   "expected a string")
-(assert_invalid
+(assert_malformed
   (module quote "(func (@metadata.code.branch_hint \"a\"))")
   "invalid value for branch hint")
 

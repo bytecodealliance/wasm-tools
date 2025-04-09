@@ -67,14 +67,14 @@
       "text": "canonical option `realloc` is required"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 127,
       "filename": "func.10.wasm",
       "module_type": "binary",
       "text": "invalid leading byte (0x1) for number of results"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 138,
       "filename": "func.11.wasm",
       "module_type": "binary",

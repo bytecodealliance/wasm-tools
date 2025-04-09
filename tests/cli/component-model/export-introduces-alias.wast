@@ -28,7 +28,7 @@
   ))
 )
 
-(assert_invalid
+(assert_malformed
   (component quote
     "(type (instance"
       "(type $t u8)"

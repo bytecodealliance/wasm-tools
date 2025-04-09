@@ -20,7 +20,7 @@
       "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 32,
       "filename": "export-introduces-alias.3.wat",
       "module_type": "text",

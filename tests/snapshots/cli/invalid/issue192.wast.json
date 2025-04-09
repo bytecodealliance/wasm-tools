@@ -2,10 +2,10 @@
   "source_filename": "tests/cli/invalid/issue192.wast",
   "commands": [
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 4,
-      "filename": "issue192.0.wasm",
-      "module_type": "binary",
+      "filename": "issue192.0.wat",
+      "module_type": "text",
       "text": "control frames remain at end of function"
     }
   ]

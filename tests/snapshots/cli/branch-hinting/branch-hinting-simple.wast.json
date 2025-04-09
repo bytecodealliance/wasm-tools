@@ -20,21 +20,21 @@
       "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 64,
       "filename": "branch-hinting-simple.3.wat",
       "module_type": "text",
       "text": "expected valid module field"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 67,
       "filename": "branch-hinting-simple.4.wat",
       "module_type": "text",
       "text": "expected a string"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 70,
       "filename": "branch-hinting-simple.5.wat",
       "module_type": "text",

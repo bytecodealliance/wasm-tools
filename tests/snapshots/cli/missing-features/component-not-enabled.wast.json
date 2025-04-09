@@ -6,7 +6,7 @@
       "line": 4,
       "filename": "component-not-enabled.0.wasm",
       "module_type": "binary",
-      "text": "unknown binary version and encoding combination: 0xa and 0x1, note: encoded as a component but the WebAssembly component model feature is not enabled - enable the feature to allow component validation"
+      "text": "unknown binary version and encoding combination: 0xd and 0x1, note: encoded as a component but the WebAssembly component model feature is not enabled - enable the feature to allow component validation"
     }
   ]
 }

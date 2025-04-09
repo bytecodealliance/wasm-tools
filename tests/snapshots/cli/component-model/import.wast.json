@@ -57,17 +57,17 @@
       "text": "duplicate import name `:a`"
     },
     {
-      "type": "assert_malformed",
+      "type": "assert_invalid",
       "line": 73,
-      "filename": "import.8.wat",
-      "module_type": "text",
+      "filename": "import.8.wasm",
+      "module_type": "binary",
       "text": "import name `a` conflicts with previous name `a`"
     },
     {
-      "type": "assert_malformed",
+      "type": "assert_invalid",
       "line": 80,
-      "filename": "import.9.wat",
-      "module_type": "text",
+      "filename": "import.9.wasm",
+      "module_type": "binary",
       "text": "import name `a` conflicts with previous name `a`"
     },
     {

@@ -2,7 +2,7 @@
   "source_filename": "tests/cli/invalid/bad_br_table.wast",
   "commands": [
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 4,
       "filename": "bad_br_table.0.wasm",
       "module_type": "binary",

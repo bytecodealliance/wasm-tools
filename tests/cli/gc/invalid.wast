@@ -135,7 +135,7 @@
   )
   "array.new_data can only create arrays with numeric and vector elements")
 
-(assert_invalid
+(assert_malformed
   (module binary
     "\00asm" "\01\00\00\00"     ;; module header
 

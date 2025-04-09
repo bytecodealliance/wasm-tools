@@ -1,6 +1,6 @@
 ;; RUN: wast --assert default --snapshot tests/snapshots %
 
-(assert_invalid
+(assert_malformed
   (module binary
 
     "\00\61\73\6d" ;; header

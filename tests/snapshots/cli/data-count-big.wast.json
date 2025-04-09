@@ -2,7 +2,7 @@
   "source_filename": "tests/cli/data-count-big.wast",
   "commands": [
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 4,
       "filename": "data-count-big.0.wasm",
       "module_type": "binary",

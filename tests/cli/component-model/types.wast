@@ -120,7 +120,7 @@
   )
   "import name `a` conflicts with previous name `A`")
 
-(assert_invalid
+(assert_malformed
   (component quote
     "(component $c (core type $t (module (alias outer $c $t (type)))))"
   )
@@ -141,7 +141,7 @@
   ))
 )
 
-(assert_invalid
+(assert_malformed
   (component quote
     "(component $c (type $t (component (alias outer $c $t (type)))))"
   )
@@ -193,7 +193,7 @@
   )
   "export name `FOO-bar-BAZ` conflicts with previous name `foo-BAR-baz`")
 
-(assert_invalid
+(assert_malformed
   (component quote
     "(component $c (type $t (instance (alias outer $c $t (type)))))"
   )
