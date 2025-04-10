@@ -11,4 +11,4 @@
     ;; trailing bytes
     "\00"
   )
-  "type index out of bounds")
+  "section size mismatch: unexpected data at the end of the section")

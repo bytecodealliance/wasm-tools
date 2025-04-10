@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::str;
 use wasm_encoder::reencode::{Reencode, ReencodeComponent, RoundtripReencoder};
+use wasm_tools::parse_binary_wasm;
 use wasmprinter::PrintFmtWrite;
 use wast::component::{Component, ComponentKind};
 use wast::core::{Module, ModuleKind};
@@ -196,8 +197,50 @@ impl Opts {
                 span: _,
                 mut module,
                 message,
+            } => {
+                let result: Result<Vec<u8>> = module.encode().map_err(|e| e.into());
+                match result {
+                    Err(e) => {
+                        if self.error_matches(test, &format!("{e:?}"), message) {
+                            return Ok(());
+                        }
+                        bail!(
+                            "bad error: {e:?}\n\
+                             should have failed with: {message:?}\n\
+                             suppress this failure with `--ignore-error-messages`",
+                        );
+                    }
+                    Ok(bytes) => {
+                        let mut parser = wasmparser::Parser::new(0);
+                        parser.set_features(self.features.features());
+                        match parse_binary_wasm(parser, &bytes) {
+                            Err(e) => {
+                                if self.error_matches(test, &format!("{e:?}"), message) {
+                                    // make sure validator also rejects module (not necessarily with same error)
+
+                                    match self.test_wasm_valid(test, &bytes) {
+                                        Ok(_) => {
+                                            bail!("validator thought malformed example was valid")
+                                        }
+                                        Err(_) => return Ok(()),
+                                    }
+                                }
+                                bail!(
+                                    "bad error: {e:?}\n\
+                                     should have failed with: {message:?}\n\
+                                     suppress this failure with `--ignore-error-messages`",
+                                );
+                            }
+                            Ok(_) => (),
+                        }
+                        bail!(
+                            "encoded and parsed successfully but should have failed with: {message:?}",
+                        )
+                    }
+                }
             }
-            | WastDirective::AssertInvalid {
+
+            WastDirective::AssertInvalid {
                 mut module,
                 message,
                 span: _,

@@ -109,7 +109,7 @@ impl FromStr for GenerateDwarf {
 }
 
 impl InputArg {
-    pub fn parse_wasm(&self) -> Result<Vec<u8>> {
+    pub fn get_binary_wasm(&self) -> Result<Vec<u8>> {
         let mut parser = wat::Parser::new();
         match (self.generate_full_dwarf, self.generate_dwarf) {
             (false, Some(GenerateDwarf::Lines)) => {
@@ -160,7 +160,13 @@ pub enum Output<'a> {
 
 impl InputOutput {
     pub fn parse_input_wasm(&self) -> Result<Vec<u8>> {
-        self.input.parse_wasm()
+        let ret = self.get_input_wasm()?;
+        parse_binary_wasm(wasmparser::Parser::new(0), &ret)?;
+        Ok(ret)
+    }
+
+    pub fn get_input_wasm(&self) -> Result<Vec<u8>> {
+        self.input.get_binary_wasm()
     }
 
     pub fn output_wasm(&self, wasm: &[u8], wat: bool) -> Result<()> {
@@ -287,5 +293,65 @@ impl OutputArg {
                 }
             }
         }
+    }
+}
+
+pub fn parse_binary_wasm(parser: wasmparser::Parser, bytes: &[u8]) -> Result<()> {
+    for payload in parser.parse_all(&bytes) {
+        parse_payload(payload)?;
+    }
+    return Ok(());
+
+    fn parse_payload(
+        payload: Result<wasmparser::Payload, wasmparser::BinaryReaderError>,
+    ) -> Result<()> {
+        match payload? {
+            wasmparser::Payload::TypeSection(s) => parse_section(s)?,
+            wasmparser::Payload::ImportSection(s) => parse_section(s)?,
+            wasmparser::Payload::FunctionSection(s) => parse_section(s)?,
+            wasmparser::Payload::TableSection(s) => parse_section(s)?,
+            wasmparser::Payload::MemorySection(s) => parse_section(s)?,
+            wasmparser::Payload::TagSection(s) => parse_section(s)?,
+            wasmparser::Payload::GlobalSection(s) => parse_section(s)?,
+            wasmparser::Payload::ExportSection(s) => parse_section(s)?,
+            wasmparser::Payload::ElementSection(s) => parse_section(s)?,
+            wasmparser::Payload::DataSection(s) => parse_section(s)?,
+            wasmparser::Payload::CodeSectionEntry(body) => {
+                for item in body.get_locals_reader()? {
+                    let _ = item?;
+                }
+                let mut ops = body.get_operators_reader()?;
+                while !ops.eof() {
+                    ops.read()?;
+                }
+                ops.finish(body.data_index_allowed().unwrap())?;
+            }
+
+            wasmparser::Payload::InstanceSection(s) => parse_section(s)?,
+            wasmparser::Payload::CoreTypeSection(s) => parse_section(s)?,
+            wasmparser::Payload::ComponentInstanceSection(s) => parse_section(s)?,
+            wasmparser::Payload::ComponentAliasSection(s) => parse_section(s)?,
+            wasmparser::Payload::ComponentTypeSection(s) => parse_section(s)?,
+            wasmparser::Payload::ComponentCanonicalSection(s) => parse_section(s)?,
+            wasmparser::Payload::ComponentImportSection(s) => parse_section(s)?,
+            wasmparser::Payload::ComponentExportSection(s) => parse_section(s)?,
+
+            wasmparser::Payload::UnknownSection { id, .. } => {
+                bail!("malformed section id: {}", id)
+            }
+
+            _ => (),
+        }
+        Ok(())
+    }
+
+    fn parse_section<'a, T>(s: wasmparser::SectionLimited<'a, T>) -> Result<()>
+    where
+        T: wasmparser::FromReader<'a>,
+    {
+        for item in s {
+            let _ = item?;
+        }
+        Ok(())
     }
 }
