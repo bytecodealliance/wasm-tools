@@ -748,7 +748,18 @@ impl<'a> TypeReference<'a> for FunctionType<'a> {
         };
         let (params, results) = match cx.type_info.get(n as usize) {
             Some(TypeInfo::Func { params, results }) => (params, results),
-            _ => return Ok(()),
+            Some(_) => {
+                return Err(Error::new(
+                    idx.span(),
+                    format!("invalid type: not a function type"),
+                ))
+            }
+            _ => {
+                return Err(Error::new(
+                    idx.span(),
+                    format!("unknown type: type index out of bounds"),
+                ))
+            }
         };
 
         // Here we need to check that the inline type listed (ourselves) matches
