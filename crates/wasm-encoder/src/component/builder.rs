@@ -431,6 +431,12 @@ impl ComponentBuilder {
         inc(&mut self.core_funcs)
     }
 
+    /// Declares a new `subtask.cancel` intrinsic.
+    pub fn subtask_cancel(&mut self, async_: bool) -> u32 {
+        self.canonical_functions().subtask_cancel(async_);
+        inc(&mut self.core_funcs)
+    }
+
     /// Declares a new `stream.new` intrinsic.
     pub fn stream_new(&mut self, ty: u32) -> u32 {
         self.canonical_functions().stream_new(ty);

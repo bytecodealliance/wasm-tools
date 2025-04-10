@@ -398,6 +398,7 @@ impl<'a> Resolver<'a> {
                 | CoreFuncKind::BackpressureSet
                 | CoreFuncKind::Yield(_)
                 | CoreFuncKind::SubtaskDrop
+                | CoreFuncKind::SubtaskCancel(_)
                 | CoreFuncKind::ErrorContextDrop => {}
                 CoreFuncKind::TaskReturn(info) => {
                     if let Some(ty) = &mut info.result {

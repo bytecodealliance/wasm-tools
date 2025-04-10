@@ -246,6 +246,14 @@ impl CanonicalFunctionSection {
         self
     }
 
+    /// Defines a function to cancel an in-progress task.
+    pub fn subtask_cancel(&mut self, async_: bool) -> &mut Self {
+        self.bytes.push(0x24);
+        self.bytes.push(if async_ { 1 } else { 0 });
+        self.num_added += 1;
+        self
+    }
+
     /// Defines a function to create a new `stream` handle of the specified
     /// type.
     pub fn stream_new(&mut self, ty: u32) -> &mut Self {

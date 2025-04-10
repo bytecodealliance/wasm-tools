@@ -124,6 +124,18 @@
   "`subtask.drop` requires the component model async feature"
 )
 
+;; subtask.cancel
+(assert_invalid
+  (component
+    (core module $m
+      (import "" "subtask.cancel" (func $subtask-cancel (param i32)))
+    )
+    (core func $subtask-cancel (canon subtask.cancel))
+    (core instance $i (instantiate $m (with "" (instance (export "subtask.cancel" (func $subtask-cancel))))))
+  )
+  "`subtask.cancel` requires the component model async feature"
+)
+
 ;; stream.new
 (assert_invalid
   (component

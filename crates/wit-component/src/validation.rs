@@ -297,8 +297,13 @@ pub enum Import {
 
     /// A `canon subtask.drop` intrinsic.
     ///
-    /// This allows the guest to release its handle to an completed subtask.
+    /// This allows the guest to release its handle to a completed subtask.
     SubtaskDrop,
+
+    /// A `canon subtask.cancel` intrinsic.
+    ///
+    /// This allows the guest to cancel an in-progress subtask.
+    SubtaskCancel { async_: bool },
 
     /// A `canon stream.new` intrinsic.
     ///
@@ -599,6 +604,12 @@ impl ImportMap {
                 let expected = FuncType::new([ValType::I32], []);
                 validate_func_sig(name, &expected, ty)?;
                 return Ok(Import::SubtaskDrop);
+            }
+
+            if Some(name) == names.subtask_cancel() {
+                let expected = FuncType::new([ValType::I32], [ValType::I32]);
+                validate_func_sig(name, &expected, ty)?;
+                return Ok(Import::SubtaskCancel { async_ });
             }
 
             if let Some(encoding) = names.error_context_new(name) {
@@ -1406,6 +1417,7 @@ trait NameMangling {
     fn waitable_join(&self) -> Option<&str>;
     fn yield_(&self) -> Option<&str>;
     fn subtask_drop(&self) -> Option<&str>;
+    fn subtask_cancel(&self) -> Option<&str>;
     fn async_lift_callback_name<'a>(&self, s: &'a str) -> Option<&'a str>;
     fn async_lower_name<'a>(&self, s: &'a str) -> Option<&'a str>;
     fn async_lift_name<'a>(&self, s: &'a str) -> Option<&'a str>;
@@ -1498,6 +1510,9 @@ impl NameMangling for Standard {
         None
     }
     fn subtask_drop(&self) -> Option<&str> {
+        None
+    }
+    fn subtask_cancel(&self) -> Option<&str> {
         None
     }
     fn async_lift_callback_name<'a>(&self, s: &'a str) -> Option<&'a str> {
@@ -1692,6 +1707,9 @@ impl NameMangling for Legacy {
     }
     fn subtask_drop(&self) -> Option<&str> {
         Some("[subtask-drop]")
+    }
+    fn subtask_cancel(&self) -> Option<&str> {
+        Some("[subtask-cancel]")
     }
     fn async_lift_callback_name<'a>(&self, s: &'a str) -> Option<&'a str> {
         s.strip_prefix("[callback][async-lift]")

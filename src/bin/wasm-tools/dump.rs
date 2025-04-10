@@ -433,6 +433,7 @@ impl<'a> Dump<'a> {
                             | CanonicalFunction::WaitableJoin
                             | CanonicalFunction::Yield { .. }
                             | CanonicalFunction::SubtaskDrop
+                            | CanonicalFunction::SubtaskCancel { .. }
                             | CanonicalFunction::StreamNew { .. }
                             | CanonicalFunction::StreamRead { .. }
                             | CanonicalFunction::StreamWrite { .. }
