@@ -6,7 +6,7 @@
     (func table.init 0 100))
   "unknown elem segment")
 
-(assert_invalid
+(assert_malformed
   (module
     (func else))
-  "else found outside of an `if` block")
+  "`else` found outside `If` block")

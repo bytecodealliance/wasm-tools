@@ -16,7 +16,8 @@
 use crate::prelude::*;
 use crate::{
     limits::*, AbstractHeapType, BinaryReaderError, Encoding, FromReader, FunctionBody, HeapType,
-    Parser, Payload, RefType, Result, SectionLimited, ValType, WasmFeatures, WASM_MODULE_VERSION,
+    Order, Parser, Payload, RefType, Result, SectionLimited, ValType, WasmFeatures,
+    WASM_MODULE_VERSION,
 };
 use ::core::mem;
 use ::core::ops::Range;

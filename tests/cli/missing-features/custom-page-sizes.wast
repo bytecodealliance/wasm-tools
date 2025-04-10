@@ -1,6 +1,6 @@
 ;; RUN: wast --assert default --snapshot tests/snapshots % -f mvp
 
-(assert_malformed
+(assert_invalid
   (module
     (memory 0 (pagesize 1))
   )

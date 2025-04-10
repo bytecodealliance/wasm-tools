@@ -32,23 +32,32 @@ impl<'a> FromReader<'a> for MemoryType {
         let has_max = flags & 0b0001 != 0;
         let has_page_size = flags & 0b1000 != 0;
 
+        if shared && !reader.threads() {
+            // required by spec `binary.wast` test until wasm-3.0 is merged
+            bail!(pos, "threads must be enabled for shared memories");
+        }
+
         Ok(MemoryType {
             memory64,
             shared,
-            initial: if memory64 {
+            initial: if reader.memory64() {
                 reader.read_var_u64()?
             } else {
                 reader.read_var_u32()?.into()
             },
             maximum: if !has_max {
                 None
-            } else if memory64 {
+            } else if reader.memory64() {
                 Some(reader.read_var_u64()?)
             } else {
                 Some(reader.read_var_u32()?.into())
             },
             page_size_log2: if has_page_size {
-                Some(reader.read_var_u32()?)
+                let val = reader.read_var_u32()?;
+                if val >= 64 {
+                    bail!(pos, "invalid custom page size");
+                }
+                Some(val)
             } else {
                 None
             },

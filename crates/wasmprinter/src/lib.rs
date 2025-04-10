@@ -1291,9 +1291,7 @@ impl Printer<'_, '_> {
         state: &mut State,
         body: &FunctionBody<'_>,
     ) -> Result<()> {
-        let mut body = body.get_binary_reader();
-        let offset = body.original_position();
-        self.newline(offset)?;
+        self.newline(body.get_binary_reader().original_position())?;
         self.start_group("func ")?;
         let func_idx = state.core.funcs;
         self.print_name(&state.core.func_names, func_idx)?;
@@ -1319,7 +1317,7 @@ impl Printer<'_, '_> {
         if self.config.print_skeleton {
             self.result.write_str(" ...")?;
         } else {
-            self.print_func_body(state, func_idx, params, &mut body, &hints)?;
+            self.print_func_body(state, func_idx, params, &body, &hints)?;
         }
 
         self.end_group()?;
@@ -1332,17 +1330,18 @@ impl Printer<'_, '_> {
         state: &mut State,
         func_idx: u32,
         params: u32,
-        body: &mut BinaryReader<'_>,
+        body: &FunctionBody<'_>,
         branch_hints: &[(usize, BranchHint)],
     ) -> Result<()> {
         let mut first = true;
         let mut local_idx = 0;
         let mut locals = NamedLocalPrinter::new("local");
-        let func_start = body.original_position();
-        for _ in 0..body.read_var_u32()? {
-            let offset = body.original_position();
-            let cnt = body.read_var_u32()?;
-            let ty = body.read()?;
+        let mut reader = body.get_binary_reader();
+        let func_start = reader.original_position();
+        for _ in 0..reader.read_var_u32()? {
+            let offset = reader.original_position();
+            let cnt = reader.read_var_u32()?;
+            let ty = reader.read()?;
             if MAX_LOCALS
                 .checked_sub(local_idx)
                 .and_then(|s| s.checked_sub(cnt))
@@ -1371,11 +1370,23 @@ impl Printer<'_, '_> {
             let mut folded_printer = PrintOperatorFolded::new(self, state, &mut operator_state);
             folded_printer.set_offset(func_start);
             folded_printer.begin_function(func_idx)?;
-            Self::print_operators(body, branch_hints, func_start, &mut folded_printer)?;
+            Self::print_operators(
+                &mut reader,
+                body.data_index_allowed().unwrap(),
+                branch_hints,
+                func_start,
+                &mut folded_printer,
+            )?;
             folded_printer.finalize()?;
         } else {
             let mut flat_printer = PrintOperator::new(self, state, &mut operator_state);
-            Self::print_operators(body, branch_hints, func_start, &mut flat_printer)?;
+            Self::print_operators(
+                &mut reader,
+                body.data_index_allowed().unwrap(),
+                branch_hints,
+                func_start,
+                &mut flat_printer,
+            )?;
         }
 
         // If this was an invalid function body then the nesting may not
@@ -1385,7 +1396,7 @@ impl Printer<'_, '_> {
         // with the closing paren printed for the func.
         if self.nesting != nesting_start {
             self.nesting = nesting_start;
-            self.newline(body.original_position())?;
+            self.newline(reader.original_position())?;
         }
 
         Ok(())
@@ -1393,24 +1404,33 @@ impl Printer<'_, '_> {
 
     fn print_operators<'a, O: OpPrinter>(
         body: &mut BinaryReader<'a>,
+        data_index_allowed: bool,
         mut branch_hints: &[(usize, BranchHint)],
         func_start: usize,
         op_printer: &mut O,
     ) -> Result<()> {
-        while !body.is_end_then_eof() {
+        let mut ops = OperatorsReader::new(body.clone());
+        while !ops.eof() {
+            if ops.is_end_then_eof() {
+                ops.read()?; // final "end" opcode terminates instruction sequence
+                ops.finish(data_index_allowed)?;
+                return Ok(());
+            }
+
             // Branch hints are stored in increasing order of their body offset
             // so print them whenever their instruction comes up.
             if let Some(((hint_offset, hint), rest)) = branch_hints.split_first() {
-                if hint.func_offset == (body.original_position() - func_start) as u32 {
+                if hint.func_offset == (ops.original_position() - func_start) as u32 {
                     branch_hints = rest;
                     op_printer.branch_hint(*hint_offset, hint.taken)?;
                 }
             }
 
-            op_printer.set_offset(body.original_position());
-            op_printer.visit_operator(body)?;
+            op_printer.set_offset(ops.original_position());
+            op_printer.visit_operator(&mut ops)?;
         }
-        Ok(())
+        ops.finish(data_index_allowed)?; // for the error message
+        bail!("unexpected end of operators");
     }
 
     fn newline(&mut self, offset: usize) -> Result<()> {
@@ -1677,11 +1697,13 @@ impl Printer<'_, '_> {
         if fold {
             let mut folded_printer = PrintOperatorFolded::new(self, state, &mut operator_state);
             folded_printer.begin_const_expr();
-            Self::print_operators(&mut reader, &[], 0, &mut folded_printer)?;
+            Self::print_operators(&mut reader, true, &[], 0, &mut folded_printer)?;
+            // Use "true" (data_index_allowed) because although data indices can't appear
+            // in a const expression, this is a validation error (the instructions are non-const).
             folded_printer.finalize()?;
         } else {
             let mut op_printer = PrintOperator::new(self, state, &mut operator_state);
-            Self::print_operators(&mut reader, &[], 0, &mut op_printer)?;
+            Self::print_operators(&mut reader, true, &[], 0, &mut op_printer)?;
         }
 
         Ok(())

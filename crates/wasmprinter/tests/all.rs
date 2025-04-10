@@ -5,7 +5,7 @@ fn no_oom() {
     let mut s = String::new();
     s.push_str("(module\n");
     for _ in 0..20_000 {
-        s.push_str("(func if)\n");
+        s.push_str("(func i32.const 0 if i32.const 0 else i32.const 0 end)\n");
     }
     s.push(')');
     let bytes = wat::parse_str(&s).unwrap();

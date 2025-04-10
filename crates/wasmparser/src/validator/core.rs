@@ -14,36 +14,13 @@ use super::{
 use crate::VisitSimdOperator;
 use crate::{
     limits::*, BinaryReaderError, ConstExpr, Data, DataKind, Element, ElementKind, ExternalKind,
-    FuncType, Global, GlobalType, HeapType, MemoryType, RecGroup, RefType, Result, SubType, Table,
-    TableInit, TableType, TagType, TypeRef, UnpackedIndex, ValType, VisitOperator, WasmFeatures,
-    WasmModuleResources,
+    FuncType, Global, GlobalType, HeapType, MemoryType, Order, RecGroup, RefType, Result, SubType,
+    Table, TableInit, TableType, TagType, TypeRef, UnpackedIndex, ValType, VisitOperator,
+    WasmFeatures, WasmModuleResources,
 };
 use crate::{prelude::*, CompositeInnerType};
 use alloc::sync::Arc;
 use core::mem;
-
-// Section order for WebAssembly modules.
-//
-// Component sections are unordered and allow for duplicates,
-// so this isn't used for components.
-#[derive(Copy, Clone, Default, PartialOrd, Ord, PartialEq, Eq, Debug)]
-pub enum Order {
-    #[default]
-    Initial,
-    Type,
-    Import,
-    Function,
-    Table,
-    Memory,
-    Tag,
-    Global,
-    Export,
-    Start,
-    Element,
-    DataCount,
-    Code,
-    Data,
-}
 
 pub(crate) struct ModuleState {
     /// Internal state that is incrementally built-up for the module being
@@ -631,6 +608,9 @@ impl Module {
                 (self.memories.len(), self.max_memories(), "memories")
             }
             TypeRef::Tag(ty) => {
+                if !self.features().exceptions() {
+                    bail!(offset, "exceptions proposal not enabled");
+                }
                 self.tags.push(self.types[ty.func_type_idx as usize]);
                 (self.tags.len(), MAX_WASM_TAGS, "tags")
             }
@@ -777,6 +757,24 @@ impl Module {
         }
 
         self.check_limits(ty.initial, ty.maximum, offset)?;
+        if ty.table64 && !self.features().memory64() {
+            bail!(offset, "memory64 must be enabled for 64-bit tables");
+        }
+
+        let true_maximum = if ty.table64 {
+            u64::MAX
+        } else {
+            u32::MAX as u64
+        };
+        let err = format!("table size must be at most {true_maximum:#x} entries");
+        if ty.initial > true_maximum {
+            return Err(BinaryReaderError::new(err, offset));
+        }
+        if let Some(maximum) = ty.maximum {
+            if maximum > true_maximum {
+                return Err(BinaryReaderError::new(err, offset));
+            }
+        }
 
         if ty.shared {
             if !self.features.shared_everything_threads() {
@@ -799,7 +797,12 @@ impl Module {
 
     fn check_memory_type(&self, ty: &MemoryType, offset: usize) -> Result<()> {
         self.check_limits(ty.initial, ty.maximum, offset)?;
-        let (page_size, page_size_log2) = if let Some(page_size_log2) = ty.page_size_log2 {
+
+        if ty.memory64 && !self.features().memory64() {
+            bail!(offset, "memory64 must be enabled for 64-bit memories");
+        }
+
+        let page_size = if let Some(page_size_log2) = ty.page_size_log2 {
             if !self.features.custom_page_sizes() {
                 return Err(BinaryReaderError::new(
                     "the custom page sizes proposal must be enabled to \
@@ -815,33 +818,21 @@ impl Module {
             let page_size = 1_u64 << page_size_log2;
             debug_assert!(page_size.is_power_of_two());
             debug_assert!(page_size == DEFAULT_WASM_PAGE_SIZE || page_size == 1);
-            (page_size, page_size_log2)
+            if page_size != DEFAULT_WASM_PAGE_SIZE && !self.features().custom_page_sizes() {
+                return Err(BinaryReaderError::new("the custom page sizes proposal must be enabled to customize a memory's page size", offset));
+            }
+            page_size
         } else {
             let page_size_log2 = 16;
             debug_assert_eq!(DEFAULT_WASM_PAGE_SIZE, 1 << page_size_log2);
-            (DEFAULT_WASM_PAGE_SIZE, page_size_log2)
+            DEFAULT_WASM_PAGE_SIZE
         };
-        let (true_maximum, err) = if ty.memory64 {
-            if !self.features.memory64() {
-                return Err(BinaryReaderError::new(
-                    "memory64 must be enabled for 64-bit memories",
-                    offset,
-                ));
-            }
-            (
-                max_wasm_memory64_pages(page_size),
-                format!(
-                    "memory size must be at most 2**{} pages",
-                    64 - page_size_log2
-                ),
-            )
+        let true_maximum = if ty.memory64 {
+            max_wasm_memory64_pages(page_size)
         } else {
-            let max = max_wasm_memory32_pages(page_size);
-            (
-                max,
-                format!("memory size must be at most {max} pages (4GiB)"),
-            )
+            max_wasm_memory32_pages(page_size)
         };
+        let err = format!("memory size must be at most {true_maximum:#x} {page_size}-byte pages");
         if ty.initial > true_maximum {
             return Err(BinaryReaderError::new(err, offset));
         }
