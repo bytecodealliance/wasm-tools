@@ -444,6 +444,17 @@ impl Ord for ComponentNameKind<'_> {
                 Method(lhs) | AsyncMethod(lhs) | Static(lhs) | AsyncStatic(lhs),
                 Method(rhs) | AsyncMethod(rhs) | Static(rhs) | AsyncStatic(rhs),
             ) => lhs.cmp(rhs),
+
+            // `[..]l.l` is equivalent to `l` and `[async]l`.
+            (
+                Label(plain) | AsyncLabel(plain),
+                Method(method) | AsyncMethod(method) | Static(method) | AsyncStatic(method),
+            )
+            | (
+                Method(method) | AsyncMethod(method) | Static(method) | AsyncStatic(method),
+                Label(plain) | AsyncLabel(plain),
+            ) if *plain == method.resource() && *plain == method.method() => Ordering::Equal,
+
             (Interface(lhs), Interface(rhs)) => lhs.cmp(rhs),
             (Dependency(lhs), Dependency(rhs)) => lhs.cmp(rhs),
             (Url(lhs), Url(rhs)) => lhs.cmp(rhs),
@@ -476,10 +487,18 @@ impl Hash for ComponentNameKind<'_> {
         match self {
             Label(name) | AsyncLabel(name) => (0u8, name).hash(hasher),
             Constructor(name) => (1u8, name).hash(hasher),
-            // for hashing method == static
+
             Method(name) | Static(name) | AsyncMethod(name) | AsyncStatic(name) => {
-                (2u8, name).hash(hasher)
+                // `l.l` hashes the same as `l` since they're equal above,
+                // otherwise everything is hashed as `a.b` with a unique
+                // prefix.
+                if name.resource() == name.method() {
+                    (0u8, name.resource()).hash(hasher)
+                } else {
+                    (2u8, name).hash(hasher)
+                }
             }
+
             Interface(name) => (3u8, name).hash(hasher),
             Dependency(name) => (4u8, name).hash(hasher),
             Url(name) => (5u8, name).hash(hasher),
@@ -490,31 +509,7 @@ impl Hash for ComponentNameKind<'_> {
 
 impl PartialEq for ComponentNameKind<'_> {
     fn eq(&self, other: &ComponentNameKind<'_>) -> bool {
-        use ComponentNameKind::*;
-        match (self, other) {
-            (Label(a) | AsyncLabel(a), Label(b) | AsyncLabel(b)) => a == b,
-            (Label(_) | AsyncLabel(_), _) => false,
-            (Constructor(a), Constructor(b)) => a == b,
-            (Constructor(_), _) => false,
-
-            // method == static for the purposes of hashing so equate them here
-            // as well.
-            (
-                Method(a) | Static(a) | AsyncMethod(a) | AsyncStatic(a),
-                Method(b) | Static(b) | AsyncMethod(b) | AsyncStatic(b),
-            ) => a == b,
-
-            (Method(_) | Static(_) | AsyncMethod(_) | AsyncStatic(_), _) => false,
-
-            (Interface(a), Interface(b)) => a == b,
-            (Interface(_), _) => false,
-            (Dependency(a), Dependency(b)) => a == b,
-            (Dependency(_), _) => false,
-            (Url(a), Url(b)) => a == b,
-            (Url(_), _) => false,
-            (Hash(a), Hash(b)) => a == b,
-            (Hash(_), _) => false,
-        }
+        self.cmp(other) == Ordering::Equal
     }
 }
 
@@ -525,7 +520,7 @@ impl Eq for ComponentNameKind<'_> {}
 pub struct ResourceFunc<'a>(&'a str);
 
 impl<'a> ResourceFunc<'a> {
-    /// Returns the the underlying string as `a.b`
+    /// Returns the underlying string as `a.b`
     pub fn as_str(&self) -> &'a str {
         self.0
     }
@@ -534,6 +529,12 @@ impl<'a> ResourceFunc<'a> {
     pub fn resource(&self) -> &'a KebabStr {
         let dot = self.0.find('.').unwrap();
         KebabStr::new_unchecked(&self.0[..dot])
+    }
+
+    /// Returns the method name or the `b` in `a.b`
+    pub fn method(&self) -> &'a KebabStr {
+        let dot = self.0.find('.').unwrap();
+        KebabStr::new_unchecked(&self.0[dot + 1..])
     }
 }
 

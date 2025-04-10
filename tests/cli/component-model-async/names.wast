@@ -72,3 +72,17 @@
     (import "[async static]r.f" (func))
     (import "[static]r.f" (func)))
   "conflicts with previous name")
+
+(assert_invalid
+  (component
+    (import "a" (type $a (sub resource)))
+    (import "[async method]a.a" (func (param "self" (borrow $a))))
+  )
+  "import name `[async method]a.a` conflicts with previous name `a`")
+
+(assert_invalid
+  (component
+    (import "a" (type $a (sub resource)))
+    (import "[async static]a.a" (func))
+  )
+  "import name `[async static]a.a` conflicts with previous name `a`")
