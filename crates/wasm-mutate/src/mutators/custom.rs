@@ -253,4 +253,25 @@ mod tests {
             "#,
         )
     }
+
+    #[test]
+    fn test_reorder_custom_section2() {
+        crate::mutators::match_mutation(
+            r#"
+            (module
+                (func (export "x"))
+                (@custom "name2" "data")
+                (@custom "name3" "data")
+            )
+            "#,
+            ReorderCustomSectionMutator,
+            r#"
+            (module
+                (@custom "name3" "data")
+                (func (export "x"))
+                (@custom "name2" "data")
+            )
+            "#,
+        )
+    }
 }
