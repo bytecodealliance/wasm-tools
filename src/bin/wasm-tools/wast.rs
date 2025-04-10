@@ -194,10 +194,22 @@ impl Opts {
             }
 
             WastDirective::AssertMalformed {
-                span: _,
+                span,
                 mut module,
                 message,
             } => {
+                if self.assert(Assert::Permissive) && message == "data count section required" {
+                    return self.test_wast_directive(
+                        test,
+                        WastDirective::AssertInvalid {
+                            span,
+                            module,
+                            message,
+                        },
+                        idx,
+                    );
+                }
+
                 let result: Result<Vec<u8>> = module.encode().map_err(|e| e.into());
                 match result {
                     Err(e) => {
@@ -296,7 +308,9 @@ impl Opts {
                 // if explicitly requested, enable
                 (a, b) if a == b => enabled = true,
                 // default enables almost all assertions
-                (Assert::Default, b) if b != Assert::SnapshotFolded => enabled = true,
+                (Assert::Default, b) if b != Assert::SnapshotFolded && b != Assert::Permissive => {
+                    enabled = true
+                }
                 // NoTestFolded disables TestFolded
                 (Assert::NoTestFolded, Assert::TestFolded) => enabled = false,
                 _ => (),
@@ -614,4 +628,5 @@ enum Assert {
     SnapshotFolded,
     TestFolded,
     NoTestFolded,
+    Permissive,
 }

@@ -23,29 +23,12 @@ pub type CodeSectionReader<'a> = SectionLimited<'a, FunctionBody<'a>>;
 #[derive(Debug, Clone)]
 pub struct FunctionBody<'a> {
     reader: BinaryReader<'a>,
-    data_index_allowed: Option<bool>,
 }
 
 impl<'a> FunctionBody<'a> {
     /// Constructs a new `FunctionBody` for the given data and offset.
     pub fn new(reader: BinaryReader<'a>) -> Self {
-        Self {
-            reader,
-            data_index_allowed: None,
-        }
-    }
-
-    /// Set whether a data index can be parsed from the function body.
-    /// This is determined by the presence of a data count section in the module.
-    pub fn with_data_index_allowed(self, data_index_allowed: bool) -> Self {
-        let mut ret = self.clone();
-        ret.data_index_allowed = Some(data_index_allowed);
-        ret
-    }
-
-    /// Whether a data index can be parsed from the function body
-    pub fn data_index_allowed(&self) -> Option<bool> {
-        self.data_index_allowed
+        Self { reader }
     }
 
     /// Gets a binary reader for this function body.

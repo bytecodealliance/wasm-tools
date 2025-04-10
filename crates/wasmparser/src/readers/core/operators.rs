@@ -360,9 +360,10 @@ impl<'a> OperatorsReader<'a> {
 
     /// Function that must be called after the last opcode has been processed.
     ///
-    /// This function returns an error if there is extra data after the operators
-    /// or if a data index occurred without a data count section.
-    pub fn finish(&self, data_index_allowed: bool) -> Result<()> {
+    /// This function returns an error if there is extra data after the operators.
+    /// It does *not* check the binary format requirement that if the data count
+    /// section is absent, a data index may not occur in the code section.
+    pub fn finish(&self) -> Result<()> {
         self.ensure_stack_empty()?;
         if !self.eof() {
             bail!(
@@ -370,10 +371,7 @@ impl<'a> OperatorsReader<'a> {
                 "unexpected data at the end of operators"
             );
         }
-        match (data_index_allowed, self.data_index_occurred) {
-            (false, Some(pos)) => bail!(pos, "data count section required"),
-            _ => Ok(()),
-        }
+        Ok(())
     }
 
     fn ensure_stack_empty(&self) -> Result<()> {

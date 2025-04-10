@@ -1370,23 +1370,11 @@ impl Printer<'_, '_> {
             let mut folded_printer = PrintOperatorFolded::new(self, state, &mut operator_state);
             folded_printer.set_offset(func_start);
             folded_printer.begin_function(func_idx)?;
-            Self::print_operators(
-                &mut reader,
-                body.data_index_allowed().unwrap(),
-                branch_hints,
-                func_start,
-                &mut folded_printer,
-            )?;
+            Self::print_operators(&mut reader, branch_hints, func_start, &mut folded_printer)?;
             folded_printer.finalize()?;
         } else {
             let mut flat_printer = PrintOperator::new(self, state, &mut operator_state);
-            Self::print_operators(
-                &mut reader,
-                body.data_index_allowed().unwrap(),
-                branch_hints,
-                func_start,
-                &mut flat_printer,
-            )?;
+            Self::print_operators(&mut reader, branch_hints, func_start, &mut flat_printer)?;
         }
 
         // If this was an invalid function body then the nesting may not
@@ -1404,7 +1392,6 @@ impl Printer<'_, '_> {
 
     fn print_operators<'a, O: OpPrinter>(
         body: &mut BinaryReader<'a>,
-        data_index_allowed: bool,
         mut branch_hints: &[(usize, BranchHint)],
         func_start: usize,
         op_printer: &mut O,
@@ -1413,7 +1400,7 @@ impl Printer<'_, '_> {
         while !ops.eof() {
             if ops.is_end_then_eof() {
                 ops.read()?; // final "end" opcode terminates instruction sequence
-                ops.finish(data_index_allowed)?;
+                ops.finish()?;
                 return Ok(());
             }
 
@@ -1429,7 +1416,7 @@ impl Printer<'_, '_> {
             op_printer.set_offset(ops.original_position());
             op_printer.visit_operator(&mut ops)?;
         }
-        ops.finish(data_index_allowed)?; // for the error message
+        ops.finish()?; // for the error message
         bail!("unexpected end of operators");
     }
 
@@ -1697,13 +1684,11 @@ impl Printer<'_, '_> {
         if fold {
             let mut folded_printer = PrintOperatorFolded::new(self, state, &mut operator_state);
             folded_printer.begin_const_expr();
-            Self::print_operators(&mut reader, true, &[], 0, &mut folded_printer)?;
-            // Use "true" (data_index_allowed) because although data indices can't appear
-            // in a const expression, this is a validation error (the instructions are non-const).
+            Self::print_operators(&mut reader, &[], 0, &mut folded_printer)?;
             folded_printer.finalize()?;
         } else {
             let mut op_printer = PrintOperator::new(self, state, &mut operator_state);
-            Self::print_operators(&mut reader, true, &[], 0, &mut op_printer)?;
+            Self::print_operators(&mut reader, &[], 0, &mut op_printer)?;
         }
 
         Ok(())

@@ -324,7 +324,7 @@ pub fn parse_binary_wasm(parser: wasmparser::Parser, bytes: &[u8]) -> Result<()>
                 while !ops.eof() {
                     ops.read()?;
                 }
-                ops.finish(body.data_index_allowed().unwrap())?;
+                ops.finish()?;
             }
 
             wasmparser::Payload::InstanceSection(s) => parse_section(s)?,

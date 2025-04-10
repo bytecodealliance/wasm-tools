@@ -114,7 +114,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
                 }
             }
         }
-        ops.finish(body.data_index_allowed().unwrap())
+        ops.finish()
     }
 
     /// Reads the local definitions from the given `BinaryReader`, often sourced
@@ -167,7 +167,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     ///         let mut visitor = validator.visitor(operator_reader.original_position());
     ///         operator_reader.visit_operator(&mut visitor)??;
     ///     }
-    ///     operator_reader.finish(body.data_index_allowed().unwrap())
+    ///     operator_reader.finish()
     /// }
     /// ```
     pub fn visitor<'this, 'a: 'this>(

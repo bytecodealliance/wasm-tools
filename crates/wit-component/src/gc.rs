@@ -470,7 +470,7 @@ impl<'a> Module<'a> {
         while !ops.eof() {
             ops.visit_operator(self)?;
         }
-        ops.finish(true)?;
+        ops.finish()?;
         Ok(())
     }
 

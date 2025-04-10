@@ -1,4 +1,4 @@
-;; RUN: wast --assert default --snapshot tests/snapshots %
+;; RUN: wast --assert default,permissive --snapshot tests/snapshots %
 
 ;; https://github.com/WebAssembly/gc/issues/516
 

@@ -968,8 +968,7 @@ impl Parser {
             // the caller to iterate over the `FunctionBody` structure.
             State::FunctionBody { remaining, mut len } => {
                 let body = delimited(reader, &mut len, |r| {
-                    Ok(FunctionBody::new(r.read_reader()?)
-                        .with_data_index_allowed(self.counts.data_count.is_some()))
+                    Ok(FunctionBody::new(r.read_reader()?))
                 })?;
                 self.state = State::FunctionBody {
                     remaining: remaining - 1,
