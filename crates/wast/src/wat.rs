@@ -17,13 +17,6 @@ pub enum Wat<'a> {
 }
 
 impl Wat<'_> {
-    fn validate(&self, parser: Parser<'_>) -> Result<()> {
-        match self {
-            Wat::Module(m) => m.validate(parser),
-            Wat::Component(c) => c.validate(parser),
-        }
-    }
-
     /// Encodes this `Wat` to binary form. This calls either [`Module::encode`]
     /// or [`Component::encode`].
     pub fn encode(&mut self) -> std::result::Result<Vec<u8>, crate::Error> {
@@ -59,7 +52,6 @@ impl<'a> Parse<'a> for Wat<'a> {
                     kind: ModuleKind::Text(fields),
                 })
             };
-            wat.validate(parser)?;
             Ok(wat)
         })
     }

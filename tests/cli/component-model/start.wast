@@ -52,7 +52,7 @@
     "(start $f) "
     "(start $f) "
   )
-  "multiple start sections found")
+  "component cannot have more than one start function")
 
 (assert_malformed
   (component binary
