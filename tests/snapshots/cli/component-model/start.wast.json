@@ -46,7 +46,7 @@
       "line": 50,
       "filename": "start.6.wat",
       "module_type": "text",
-      "text": "multiple start sections found"
+      "text": "component cannot have more than one start function"
     },
     {
       "type": "assert_malformed",
