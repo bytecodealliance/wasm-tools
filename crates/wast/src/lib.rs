@@ -561,6 +561,7 @@ pub mod kw {
     custom_keyword!(task_return = "task.return");
     custom_keyword!(yield_ = "yield");
     custom_keyword!(subtask_drop = "subtask.drop");
+    custom_keyword!(subtask_cancel = "subtask.cancel");
     custom_keyword!(stream_new = "stream.new");
     custom_keyword!(stream_read = "stream.read");
     custom_keyword!(stream_write = "stream.write");

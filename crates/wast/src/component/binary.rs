@@ -396,6 +396,10 @@ impl<'a> Encoder<'a> {
                     self.core_func_names.push(name);
                     self.funcs.subtask_drop();
                 }
+                CoreFuncKind::SubtaskCancel(info) => {
+                    self.core_func_names.push(name);
+                    self.funcs.subtask_cancel(info.async_);
+                }
                 CoreFuncKind::StreamNew(info) => {
                     self.core_func_names.push(name);
                     self.funcs.stream_new(info.ty.into());

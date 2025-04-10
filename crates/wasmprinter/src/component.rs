@@ -953,6 +953,14 @@ impl Printer<'_, '_> {
                 CanonicalFunction::SubtaskDrop => {
                     self.print_intrinsic(state, "canon subtask.drop", &|_, _| Ok(()))?;
                 }
+                CanonicalFunction::SubtaskCancel { async_ } => {
+                    self.print_intrinsic(state, "canon subtask.cancel", &|me, _| {
+                        if async_ {
+                            me.print_type_keyword(" async")?;
+                        }
+                        Ok(())
+                    })?;
+                }
                 CanonicalFunction::StreamNew { ty } => {
                     self.print_intrinsic(state, "canon stream.new ", &|me, state| {
                         me.print_idx(&state.component.type_names, ty)

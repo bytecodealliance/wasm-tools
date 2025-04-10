@@ -422,6 +422,7 @@ impl<'a> ComponentWorld<'a> {
                 | Import::WaitableJoin
                 | Import::Yield { .. }
                 | Import::SubtaskDrop
+                | Import::SubtaskCancel { .. }
                 | Import::ErrorContextNew { .. }
                 | Import::ErrorContextDebugMessage { .. }
                 | Import::ErrorContextDrop => {}

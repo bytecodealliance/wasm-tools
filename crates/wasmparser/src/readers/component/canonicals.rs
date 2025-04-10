@@ -110,6 +110,12 @@ pub enum CanonicalFunction {
     },
     /// A function to drop a specified task which has completed.
     SubtaskDrop,
+    /// A function to cancel an in-progress task.
+    SubtaskCancel {
+        /// If `false`, block until cancellation completes rather than return
+        /// `BLOCKED`.
+        async_: bool,
+    },
     /// A function to create a new `stream` handle of the specified type.
     StreamNew {
         /// The `stream` type to instantiate.
@@ -359,6 +365,9 @@ impl<'a> FromReader<'a> for CanonicalFunction {
             },
             0x22 => CanonicalFunction::WaitableSetDrop,
             0x23 => CanonicalFunction::WaitableJoin,
+            0x24 => CanonicalFunction::SubtaskCancel {
+                async_: reader.read()?,
+            },
             0x40 => CanonicalFunction::ThreadSpawnRef {
                 func_ty_index: reader.read()?,
             },

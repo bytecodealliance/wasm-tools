@@ -212,6 +212,27 @@
   "type mismatch for export `subtask.drop` of module instantiation argument ``"
 )
 
+;; subtask.cancel
+(component
+  (core module $m
+    (import "" "subtask.cancel" (func $subtask-cancel (param i32) (result i32)))
+  )
+  (core func $subtask-cancel (canon subtask.cancel))
+  (core instance $i (instantiate $m (with "" (instance (export "subtask.cancel" (func $subtask-cancel))))))
+)
+
+;; subtask.cancel; incorrect type
+(assert_invalid
+  (component
+    (core module $m
+      (import "" "subtask.cancel" (func $subtask-cancel (param i32 i32) (result i32)))
+    )
+    (core func $subtask-cancel (canon subtask.cancel))
+    (core instance $i (instantiate $m (with "" (instance (export "subtask.cancel" (func $subtask-cancel))))))
+  )
+  "type mismatch for export `subtask.cancel` of module instantiation argument ``"
+)
+
 ;; context.{get,set}
 (component
   (core func $get0 (canon context.get i32 0))
@@ -290,6 +311,10 @@
   (canon task.return (core func))
   (core func (canon subtask.drop))
   (canon subtask.drop (core func))
+  (core func (canon subtask.cancel))
+  (canon subtask.cancel (core func))
+  (core func (canon subtask.cancel async))
+  (canon subtask.cancel async (core func))
 
   (core module $m
     (memory (export "m") 1)
