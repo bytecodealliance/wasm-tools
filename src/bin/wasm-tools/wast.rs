@@ -198,6 +198,30 @@ impl Opts {
                 mut module,
                 message,
             } => {
+                // For `assert_malformed` it means that either converting this
+                // test case to binary should fail, or that parsing the binary
+                // should fail. Currently there's no distinction as to which
+                // step should fail.
+                let bytes = match module.encode() {
+                    Ok(bytes) => bytes,
+                    Err(e) => {
+                        self.assert_error_matches(test, &e.to_string(), message)?;
+                        return Ok(());
+                    }
+                };
+                let mut parser = wasmparser::Parser::new(0);
+                parser.set_features(self.features.features());
+                if let Err(e) = parse_binary_wasm(parser, &bytes) {
+                    self.assert_error_matches(test, &format!("{e:?}"), message)?;
+
+                    // make sure validator also rejects module (not necessarily
+                    // with same error)
+                    if self.test_wasm_valid(test, &bytes).is_ok() {
+                        bail!("validator thought malformed example was valid")
+                    }
+                    return Ok(());
+                }
+
                 // The WebAssembly specification itself has a strict
                 // distinction between `assert_invalid` and `assert_malformed`
                 // where a "malformed" module is one that simply does not parse
@@ -255,72 +279,58 @@ impl Opts {
                     );
                 }
 
-                let result: Result<Vec<u8>> = module.encode().map_err(|e| e.into());
-                match result {
-                    Err(e) => {
-                        if self.error_matches(test, &format!("{e:?}"), message) {
-                            return Ok(());
-                        }
-                        bail!(
-                            "bad error: {e:?}\n\
-                             should have failed with: {message:?}\n\
-                             suppress this failure with `--ignore-error-messages`",
-                        );
-                    }
-                    Ok(bytes) => {
-                        let mut parser = wasmparser::Parser::new(0);
-                        parser.set_features(self.features.features());
-                        match parse_binary_wasm(parser, &bytes) {
-                            Err(e) => {
-                                if self.error_matches(test, &format!("{e:?}"), message) {
-                                    // make sure validator also rejects module (not necessarily with same error)
-
-                                    match self.test_wasm_valid(test, &bytes) {
-                                        Ok(_) => {
-                                            bail!("validator thought malformed example was valid")
-                                        }
-                                        Err(_) => return Ok(()),
-                                    }
-                                }
-                                bail!(
-                                    "bad error: {e:?}\n\
-                                     should have failed with: {message:?}\n\
-                                     suppress this failure with `--ignore-error-messages`",
-                                );
-                            }
-                            Ok(_) => (),
-                        }
-                        bail!(
-                            "encoded and parsed successfully but should have failed with: {message:?}",
-                        )
-                    }
-                }
+                bail!("encoded and parsed successfully but should have failed with: {message:?}",)
             }
 
             WastDirective::AssertInvalid {
                 mut module,
                 message,
-                span: _,
+                span,
             } => {
-                let result = module
-                    .encode()
-                    .map_err(|e| e.into())
-                    .and_then(|wasm| self.test_wasm_valid(test, &wasm));
-                match result {
+                // Similar to `assert_malformed`, there are some tests in
+                // upstream wasm which are specifically flagged as
+                // `assert_invalid` because the AST can be created for a test
+                // case but the binary itself shouldn't validate. Like with
+                // `assert_malformed`, though, wasmparser doesn't match the
+                // upstream specification 1:1 in all cases. This is a list of
+                // exceptions.
+                let permissive_error_messages = [
+                    // The typed-select instruction spec-wise takes a list of
+                    // types, but in our AST it takes exactly one type to avoid
+                    // heap allocation. That means that we catch
+                    // non-1-length-lists at parse time, not validation time.
+                    "invalid result arity",
+                ];
+                if self.assert(Assert::Permissive) && permissive_error_messages.contains(&message) {
+                    return self.test_wast_directive(
+                        test,
+                        WastDirective::AssertMalformed {
+                            span,
+                            module,
+                            message,
+                        },
+                        idx,
+                    );
+                }
+
+                let wasm = module.encode()?;
+                let mut parser = wasmparser::Parser::new(0);
+                parser.set_features(self.features.features());
+
+                match self.test_wasm_valid(test, &wasm) {
                     Ok(_) => bail!(
                         "encoded and validated successfully but should have failed with: {}",
                         message,
                     ),
                     Err(e) => {
-                        if self.error_matches(test, &format!("{e:?}"), message) {
-                            return Ok(());
-                        }
-                        bail!(
-                            "bad error: {e:?}\n\
-                            should have failed with: {message:?}\n\
-                            suppress this failure with `--ignore-error-messages`",
-                        );
+                        self.assert_error_matches(test, &format!("{e:?}"), message)?;
                     }
+                }
+
+                // For `assert_invalid` all modules should also parse
+                // successfully, so double-check that here.
+                if let Err(e) = parse_binary_wasm(parser, &wasm) {
+                    bail!("failed to parse module when it should parse successfully: {e}");
                 }
             }
 
@@ -364,10 +374,17 @@ impl Opts {
         enabled
     }
 
-    /// Returns whether `error`, from the validator, matches the expected error
+    /// Tests that `error`, from the validator or parser, matches the expected error
     /// `message`.
-    fn error_matches(&self, _test: &Path, error: &str, message: &str) -> bool {
-        error.contains(message) || self.ignore_error_messages
+    fn assert_error_matches(&self, _test: &Path, error: &str, message: &str) -> Result<()> {
+        if error.contains(message) || self.ignore_error_messages {
+            return Ok(());
+        }
+        bail!(
+            "bad error: {error}\n\
+             should have failed with: {message:?}\n\
+             suppress this failure with `--ignore-error-messages`",
+        );
     }
 
     /// Performs tests about the wasm binary `contents` associated with `test`.
