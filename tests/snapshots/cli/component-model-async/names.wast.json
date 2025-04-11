@@ -69,6 +69,20 @@
       "filename": "names.9.wasm",
       "module_type": "binary",
       "text": "conflicts with previous name"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 77,
+      "filename": "names.10.wasm",
+      "module_type": "binary",
+      "text": "import name `[async method]a.a` conflicts with previous name `a`"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 84,
+      "filename": "names.11.wasm",
+      "module_type": "binary",
+      "text": "import name `[async static]a.a` conflicts with previous name `a`"
     }
   ]
 }
