@@ -499,6 +499,14 @@ impl ModuleState {
                 $self.validate_gc("ref.i31")?;
                 $self.validator().visit_ref_i31()
             }};
+            (@visit $self:ident visit_extern_convert_any) => {{
+                $self.validate_gc("extern.convert_any")?;
+                $self.validator().visit_extern_convert_any()
+            }};
+            (@visit $self:ident visit_any_convert_extern) => {{
+                $self.validate_gc("any.convert_extern")?;
+                $self.validator().visit_any_convert_extern()
+            }};
             (@visit $self:ident visit_ref_i31_shared) => {{
                 $self.validate_shared_everything_threads("ref.i31_shared")?;
                 $self.validator().visit_ref_i31_shared()
