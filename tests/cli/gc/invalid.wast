@@ -1,4 +1,4 @@
-;; RUN: wast --assert default,permissive --snapshot tests/snapshots %
+;; RUN: wast --assert default --snapshot tests/snapshots %
 
 ;; https://github.com/WebAssembly/gc/issues/516
 
@@ -135,7 +135,7 @@
   )
   "array.new_data can only create arrays with numeric and vector elements")
 
-(assert_malformed
+(assert_invalid
   (module binary
     "\00asm" "\01\00\00\00"     ;; module header
 
