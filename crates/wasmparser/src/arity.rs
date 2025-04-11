@@ -14,8 +14,8 @@
  */
 
 use crate::{
-    BinaryReader, BinaryReaderError, BlockType, CompositeInnerType, ContType, FrameKind, FuncType,
-    Operator, RefType, Result, SubType,
+    BinaryReaderError, BlockType, CompositeInnerType, ContType, FrameKind, FuncType, Operator,
+    OperatorsReader, RefType, Result, SubType,
 };
 
 /// To compute the arity (param and result counts) of "variable-arity"
@@ -69,15 +69,12 @@ pub trait ModuleArity {
     }
 }
 
-impl BinaryReader<'_> {
+impl OperatorsReader<'_> {
     /// Read the next operator and compute its arity (param and result counts)
     pub fn operator_arity(&self, module: &impl ModuleArity) -> Result<(u32, u32)> {
-        self.clone()
-            .read_operator()?
-            .operator_arity(module)
-            .ok_or_else(|| {
-                BinaryReaderError::new("operator arity is unknown", self.original_position())
-            })
+        self.clone().read()?.operator_arity(module).ok_or_else(|| {
+            BinaryReaderError::new("operator arity is unknown", self.original_position())
+        })
     }
 }
 

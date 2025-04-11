@@ -127,12 +127,12 @@ env_logger = { workspace = true }
 log = { workspace = true }
 tempfile = "3.2.0"
 termcolor = { workspace = true }
+wasmparser = { workspace = true, features = ['std', 'component-model', 'simd'] }
 wat = { workspace = true, features = ['dwarf', 'component-model'] }
 
 # Dependencies of `validate`
 bitflags = { workspace = true, optional = true }
 rayon = { workspace = true, optional = true }
-wasmparser = { workspace = true, optional = true, features = ['std', 'component-model', 'simd'] }
 
 # Dependencies of `print`
 wasmprinter = { workspace = true, features = ['component-model'] }
@@ -191,6 +191,8 @@ pretty_assertions = { workspace = true }
 serde_json = "1.0"
 tempfile = "3.1"
 wast = { workspace = true }
+arbitrary = { workspace = true }
+wasm-smith = { workspace = true }
 
 [[test]]
 name = "cli"
@@ -221,7 +223,6 @@ default = [
 
 # Each subcommand is gated behind a feature and lists the dependencies it needs
 validate = [
-  'dep:wasmparser',
   'rayon',
   'dep:addr2line',
   'dep:gimli',
@@ -234,23 +235,22 @@ parse = []
 smith = ['wasm-smith', 'arbitrary', 'dep:serde', 'dep:serde_derive', 'dep:serde_json']
 shrink = ['wasm-shrink', 'is_executable']
 mutate = ['wasm-mutate']
-dump = ['dep:wasmparser']
-objdump = ['dep:wasmparser']
-strip = ['wasm-encoder', 'dep:wasmparser', 'regex']
-compose = ['wasm-compose', 'dep:wasmparser']
-demangle = ['rustc-demangle', 'cpp_demangle', 'dep:wasmparser', 'wasm-encoder']
+dump = []
+objdump = []
+strip = ['wasm-encoder', 'regex']
+compose = ['wasm-compose']
+demangle = ['rustc-demangle', 'cpp_demangle', 'wasm-encoder']
 component = [
   'wit-component',
   'wit-encoder',
   'wit-parser',
   'dep:wast',
   'wasm-encoder',
-  'dep:wasmparser',
   'dep:serde_json',
 ]
-metadata = ['dep:wasmparser', 'wasm-metadata', 'dep:serde_json']
+metadata = ['wasm-metadata', 'dep:serde_json']
 wit-smith = ['dep:wit-smith', 'arbitrary']
-addr2line = ['dep:addr2line', 'dep:gimli', 'dep:wasmparser']
+addr2line = ['dep:addr2line', 'dep:gimli']
 completion = ['dep:clap_complete']
 json-from-wast = ['dep:serde_derive', 'dep:serde_json', 'dep:wast', 'dep:serde']
 wast = [

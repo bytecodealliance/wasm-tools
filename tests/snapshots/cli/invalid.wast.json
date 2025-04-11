@@ -9,11 +9,11 @@
       "text": "unknown elem segment"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 10,
       "filename": "invalid.1.wasm",
       "module_type": "binary",
-      "text": "else found outside of an `if` block"
+      "text": "`else` found outside `If` block"
     }
   ]
 }

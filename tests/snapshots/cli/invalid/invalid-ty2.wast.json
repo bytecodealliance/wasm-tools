@@ -6,7 +6,7 @@
       "line": 4,
       "filename": "invalid-ty2.0.wat",
       "module_type": "text",
-      "text": "type index out of bounds"
+      "text": "control frames remain at end of function body or expression"
     },
     {
       "type": "assert_invalid",

@@ -4,7 +4,7 @@
   (module quote
     "(func block (type 2))"
   )
-  "type index out of bounds")
+  "control frames remain at end of function body or expression")
 
 (assert_invalid
   (module

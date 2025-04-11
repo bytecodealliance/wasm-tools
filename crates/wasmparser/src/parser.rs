@@ -42,6 +42,39 @@ pub enum Encoding {
     Component,
 }
 
+#[derive(Debug, Clone, Default)]
+struct ParserCounts {
+    function_entries: Option<u32>,
+    code_entries: Option<u32>,
+    data_entries: Option<u32>,
+    data_count: Option<u32>,
+    #[cfg(feature = "component-model")]
+    component_start_sections: bool,
+}
+
+// Section order for WebAssembly modules.
+//
+// Component sections are unordered and allow for duplicates,
+// so this isn't used for components.
+#[derive(Copy, Clone, Default, PartialOrd, Ord, PartialEq, Eq, Debug)]
+pub(crate) enum Order {
+    #[default]
+    Initial,
+    Type,
+    Import,
+    Function,
+    Table,
+    Memory,
+    Tag,
+    Global,
+    Export,
+    Start,
+    Element,
+    DataCount,
+    Code,
+    Data,
+}
+
 /// An incremental parser of a binary WebAssembly module or component.
 ///
 /// This type is intended to be used to incrementally parse a WebAssembly module
@@ -59,6 +92,8 @@ pub struct Parser {
     encoding: Encoding,
     #[cfg(feature = "features")]
     features: WasmFeatures,
+    counts: ParserCounts,
+    order: (Order, u64),
 }
 
 #[derive(Debug, Clone)]
@@ -373,6 +408,8 @@ impl Parser {
             encoding: Encoding::Module,
             #[cfg(feature = "features")]
             features: WasmFeatures::all(),
+            counts: ParserCounts::default(),
+            order: (Order::default(), offset),
         }
     }
 
@@ -627,6 +664,22 @@ impl Parser {
         }
     }
 
+    fn update_order(&mut self, order: Order, pos: usize) -> Result<()> {
+        let pos_u64 = usize_to_u64(pos);
+        if self.encoding == Encoding::Module {
+            match self.order {
+                (last_order, last_pos) if last_order >= order && last_pos < pos_u64 => {
+                    bail!(pos, "section out of order")
+                }
+                _ => (),
+            }
+        }
+
+        self.order = (order, pos_u64);
+
+        Ok(())
+    }
+
     fn parse_reader<'a>(
         &mut self,
         reader: &mut BinaryReader<'a>,
@@ -638,12 +691,12 @@ impl Parser {
             State::Header => {
                 let start = reader.original_position();
                 let header_version = reader.read_header_version()?;
-                self.encoding = match (header_version >> 16) as u16 {
-                    KIND_MODULE => Encoding::Module,
-                    KIND_COMPONENT => Encoding::Component,
+                let num = header_version as u16;
+                self.encoding = match (num, (header_version >> 16) as u16) {
+                    (WASM_MODULE_VERSION, KIND_MODULE) => Encoding::Module,
+                    (WASM_COMPONENT_VERSION, KIND_COMPONENT) => Encoding::Component,
                     _ => bail!(start + 4, "unknown binary version: {header_version:#10x}"),
                 };
-                let num = header_version as u16;
                 self.state = State::SectionStart;
                 Ok(Version {
                     num,
@@ -656,6 +709,8 @@ impl Parser {
                 // that means we reached the end of the data since it's
                 // just a bunch of sections concatenated after the header.
                 if eof && reader.bytes_remaining() == 0 {
+                    self.check_function_code_counts(reader.original_position())?;
+                    self.check_data_count(reader.original_position())?;
                     return Ok(Payload::End(reader.original_position()));
                 }
 
@@ -688,36 +743,53 @@ impl Parser {
 
                     // Module sections
                     (Encoding::Module, TYPE_SECTION) => {
+                        self.update_order(Order::Type, reader.original_position())?;
                         section(reader, len, TypeSectionReader::new, TypeSection)
                     }
                     (Encoding::Module, IMPORT_SECTION) => {
+                        self.update_order(Order::Import, reader.original_position())?;
                         section(reader, len, ImportSectionReader::new, ImportSection)
                     }
                     (Encoding::Module, FUNCTION_SECTION) => {
-                        section(reader, len, FunctionSectionReader::new, FunctionSection)
+                        self.update_order(Order::Function, reader.original_position())?;
+                        let s = section(reader, len, FunctionSectionReader::new, FunctionSection)?;
+                        match &s {
+                            FunctionSection(f) => self.counts.function_entries = Some(f.count()),
+                            _ => unreachable!(),
+                        }
+                        Ok(s)
                     }
                     (Encoding::Module, TABLE_SECTION) => {
+                        self.update_order(Order::Table, reader.original_position())?;
                         section(reader, len, TableSectionReader::new, TableSection)
                     }
                     (Encoding::Module, MEMORY_SECTION) => {
+                        self.update_order(Order::Memory, reader.original_position())?;
                         section(reader, len, MemorySectionReader::new, MemorySection)
                     }
                     (Encoding::Module, GLOBAL_SECTION) => {
+                        self.update_order(Order::Global, reader.original_position())?;
                         section(reader, len, GlobalSectionReader::new, GlobalSection)
                     }
                     (Encoding::Module, EXPORT_SECTION) => {
+                        self.update_order(Order::Export, reader.original_position())?;
                         section(reader, len, ExportSectionReader::new, ExportSection)
                     }
                     (Encoding::Module, START_SECTION) => {
+                        self.update_order(Order::Start, reader.original_position())?;
                         let (func, range) = single_item(reader, len, "start")?;
                         Ok(StartSection { func, range })
                     }
                     (Encoding::Module, ELEMENT_SECTION) => {
+                        self.update_order(Order::Element, reader.original_position())?;
                         section(reader, len, ElementSectionReader::new, ElementSection)
                     }
                     (Encoding::Module, CODE_SECTION) => {
+                        self.update_order(Order::Code, reader.original_position())?;
                         let start = reader.original_position();
                         let count = delimited(reader, &mut len, |r| r.read_var_u32())?;
+                        self.counts.code_entries = Some(count);
+                        self.check_function_code_counts(start)?;
                         let range = start..reader.original_position() + len as usize;
                         self.state = State::FunctionBody {
                             remaining: count,
@@ -730,13 +802,23 @@ impl Parser {
                         })
                     }
                     (Encoding::Module, DATA_SECTION) => {
-                        section(reader, len, DataSectionReader::new, DataSection)
+                        self.update_order(Order::Data, reader.original_position())?;
+                        let s = section(reader, len, DataSectionReader::new, DataSection)?;
+                        match &s {
+                            DataSection(d) => self.counts.data_entries = Some(d.count()),
+                            _ => unreachable!(),
+                        }
+                        self.check_data_count(reader.original_position())?;
+                        Ok(s)
                     }
                     (Encoding::Module, DATA_COUNT_SECTION) => {
+                        self.update_order(Order::DataCount, reader.original_position())?;
                         let (count, range) = single_item(reader, len, "data count")?;
+                        self.counts.data_count = Some(count);
                         Ok(DataCountSection { count, range })
                     }
                     (Encoding::Module, TAG_SECTION) => {
+                        self.update_order(Order::Tag, reader.original_position())?;
                         section(reader, len, TagSectionReader::new, TagSection)
                     }
 
@@ -810,6 +892,15 @@ impl Parser {
                     ),
                     #[cfg(feature = "component-model")]
                     (Encoding::Component, COMPONENT_START_SECTION) => {
+                        match self.counts.component_start_sections {
+                            false => self.counts.component_start_sections = true,
+                            true => {
+                                bail!(
+                                    reader.original_position(),
+                                    "component cannot have more than one start function"
+                                )
+                            }
+                        }
                         let (start, range) = single_item(reader, len, "component start")?;
                         Ok(ComponentStartSection { start, range })
                     }
@@ -1081,6 +1172,35 @@ impl Parser {
         self.offset += u64::from(skip);
         self.max_size -= u64::from(skip);
         self.state = State::SectionStart;
+    }
+
+    fn check_function_code_counts(&self, pos: usize) -> Result<()> {
+        match (self.counts.function_entries, self.counts.code_entries) {
+            (Some(n), Some(m)) if n != m => {
+                bail!(pos, "function and code section have inconsistent lengths")
+            }
+            (Some(n), None) if n > 0 => bail!(
+                pos,
+                "function section has non-zero count but code section is absent"
+            ),
+            (None, Some(m)) if m > 0 => bail!(
+                pos,
+                "function section is absent but code section has non-zero count"
+            ),
+            _ => Ok(()),
+        }
+    }
+
+    fn check_data_count(&self, pos: usize) -> Result<()> {
+        match (self.counts.data_count, self.counts.data_entries) {
+            (Some(n), Some(m)) if n != m => {
+                bail!(pos, "data count and data section have inconsistent lengths")
+            }
+            (Some(n), None) if n > 0 => {
+                bail!(pos, "data count is non-zero but data section is absent")
+            }
+            _ => Ok(()),
+        }
     }
 }
 
@@ -1594,6 +1714,13 @@ mod tests {
         );
         let mut p = parser_after_header();
         assert_matches!(
+            p.parse(&[3, 2, 1, 0], false),
+            Ok(Chunk::Parsed {
+                consumed: 4,
+                payload: Payload::FunctionSection { .. },
+            }),
+        );
+        assert_matches!(
             p.parse(&[10, 2, 1, 0], false),
             Ok(Chunk::Parsed {
                 consumed: 3,
@@ -1611,13 +1738,20 @@ mod tests {
             p.parse(&[], true),
             Ok(Chunk::Parsed {
                 consumed: 0,
-                payload: Payload::End(12),
+                payload: Payload::End(16),
             }),
         );
 
         // 1 byte section with 1 function can't read the function body because
         // the section is too small
         let mut p = parser_after_header();
+        assert_matches!(
+            p.parse(&[3, 2, 1, 0], false),
+            Ok(Chunk::Parsed {
+                consumed: 4,
+                payload: Payload::FunctionSection { .. },
+            }),
+        );
         assert_matches!(
             p.parse(&[10, 1, 1], false),
             Ok(Chunk::Parsed {
@@ -1632,6 +1766,13 @@ mod tests {
 
         // section with 2 functions but section is cut off
         let mut p = parser_after_header();
+        assert_matches!(
+            p.parse(&[3, 2, 2, 0], false),
+            Ok(Chunk::Parsed {
+                consumed: 4,
+                payload: Payload::FunctionSection { .. },
+            }),
+        );
         assert_matches!(
             p.parse(&[10, 2, 2], false),
             Ok(Chunk::Parsed {
@@ -1654,6 +1795,13 @@ mod tests {
 
         // trailing data is bad
         let mut p = parser_after_header();
+        assert_matches!(
+            p.parse(&[3, 2, 1, 0], false),
+            Ok(Chunk::Parsed {
+                consumed: 4,
+                payload: Payload::FunctionSection { .. },
+            }),
+        );
         assert_matches!(
             p.parse(&[10, 3, 1], false),
             Ok(Chunk::Parsed {

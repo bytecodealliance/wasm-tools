@@ -42,6 +42,12 @@ fn copy_test(src: &Path, dst: &Path) {
 
     let mut contents = format!(";; RUN: wast \\\n");
     contents.push_str(";;      --assert default \\\n");
+
+    // Allow certain assert_malformed tests to be interpreted as assert_invalid
+    if src.iter().any(|p| p == "binary.wast") || src.iter().any(|p| p == "global.wast") {
+        contents.push_str(";;      --assert permissive \\\n");
+    }
+
     contents.push_str(";;      --snapshot tests/snapshots \\\n");
 
     // This test specifically tests various forms of unicode which are

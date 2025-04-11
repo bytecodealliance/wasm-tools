@@ -16,12 +16,12 @@
   )
   "type mismatch"
 )
-(assert_invalid
+(assert_malformed
   (module
     (table 1 funcref)
     (elem (i32.const 0) funcref (if))
   )
-  "constant expression required"
+  "control frames remain"
 )
 (assert_malformed
   (module quote

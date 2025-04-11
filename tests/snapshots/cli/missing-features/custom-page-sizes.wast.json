@@ -2,9 +2,16 @@
   "source_filename": "tests/cli/missing-features/custom-page-sizes.wast",
   "commands": [
     {
-      "type": "assert_malformed",
+      "type": "assert_invalid",
       "line": 4,
       "filename": "custom-page-sizes.0.wasm",
+      "module_type": "binary",
+      "text": "the custom page sizes proposal must be enabled to customize a memory's page size"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 10,
+      "filename": "custom-page-sizes.1.wasm",
       "module_type": "binary",
       "text": "the custom page sizes proposal must be enabled to customize a memory's page size"
     }

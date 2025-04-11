@@ -48,8 +48,12 @@ impl<'a> FunctionBody<'a> {
     /// Gets the locals reader for this function body.
     pub fn get_locals_reader(&self) -> Result<LocalsReader<'a>> {
         let mut reader = self.reader.clone();
-        let count = reader.read_var_u32()?;
-        Ok(LocalsReader { reader, count })
+        let declaration_count = reader.read_var_u32()?;
+        Ok(LocalsReader {
+            reader,
+            declaration_count,
+            total_count: 0,
+        })
     }
 
     /// Gets the operators reader for this function body.
@@ -75,20 +79,21 @@ impl<'a> FunctionBody<'a> {
 impl<'a> FromReader<'a> for FunctionBody<'a> {
     fn from_reader(reader: &mut BinaryReader<'a>) -> Result<Self> {
         let reader = reader.read_reader()?;
-        Ok(FunctionBody { reader })
+        Ok(FunctionBody::new(reader))
     }
 }
 
 /// A reader for a function body's locals.
 pub struct LocalsReader<'a> {
     reader: BinaryReader<'a>,
-    count: u32,
+    declaration_count: u32,
+    total_count: u32,
 }
 
 impl<'a> LocalsReader<'a> {
-    /// Gets the count of locals in the function body.
+    /// Gets the count of locals declarations in the function body.
     pub fn get_count(&self) -> u32 {
-        self.count
+        self.declaration_count
     }
 
     /// Gets the original position of the reader.
@@ -99,6 +104,10 @@ impl<'a> LocalsReader<'a> {
     /// Reads an item from the reader.
     pub fn read(&mut self) -> Result<(u32, ValType)> {
         let count = self.reader.read()?;
+        match self.total_count.checked_add(count) {
+            Some(total) => self.total_count = total,
+            None => bail!(self.reader.original_position(), "too many locals"),
+        }
         let value_type = self.reader.read()?;
         Ok((count, value_type))
     }
@@ -108,7 +117,7 @@ impl<'a> IntoIterator for LocalsReader<'a> {
     type Item = Result<(u32, ValType)>;
     type IntoIter = LocalsIterator<'a>;
     fn into_iter(self) -> Self::IntoIter {
-        let count = self.count;
+        let count = self.declaration_count;
         LocalsIterator {
             reader: self,
             left: count,

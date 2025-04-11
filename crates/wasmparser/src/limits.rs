@@ -47,7 +47,7 @@ pub const DEFAULT_WASM_PAGE_SIZE: u64 = 1 << 16;
 pub fn max_wasm_memory32_pages(page_size: u64) -> u64 {
     assert!(page_size.is_power_of_two());
     assert!(page_size <= DEFAULT_WASM_PAGE_SIZE);
-    (1 << 32) / page_size
+    u32::try_from((1_u128 << 32) / u128::from(page_size)).unwrap_or(u32::MAX) as u64
 }
 
 pub fn max_wasm_memory64_pages(page_size: u64) -> u64 {
