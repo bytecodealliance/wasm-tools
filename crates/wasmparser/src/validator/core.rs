@@ -550,9 +550,6 @@ impl Module {
                 (self.memories.len(), self.max_memories(), "memories")
             }
             TypeRef::Tag(ty) => {
-                if !self.features().exceptions() {
-                    bail!(offset, "exceptions proposal not enabled");
-                }
                 self.tags.push(self.types[ty.func_type_idx as usize]);
                 (self.tags.len(), MAX_WASM_TAGS, "tags")
             }
@@ -840,6 +837,9 @@ impl Module {
     }
 
     fn check_tag_type(&self, ty: &TagType, types: &TypeList, offset: usize) -> Result<()> {
+        if !self.features().exceptions() {
+            bail!(offset, "exceptions proposal not enabled");
+        }
         let ty = self.func_type_at(ty.func_type_idx, types, offset)?;
         if !ty.results().is_empty() && !self.features.stack_switching() {
             return Err(BinaryReaderError::new(
