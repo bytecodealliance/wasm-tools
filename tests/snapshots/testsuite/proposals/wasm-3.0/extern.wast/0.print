@@ -8,6 +8,8 @@
   (type (;6;) (func (param i32) (result externref)))
   (type (;7;) (func (param i32) (result anyref)))
   (table (;0;) 10 anyref)
+  (global (;0;) externref ref.null any extern.convert_any)
+  (global (;1;) anyref ref.null extern any.convert_extern)
   (export "init" (func 1))
   (export "internalize" (func 2))
   (export "externalize" (func 3))
