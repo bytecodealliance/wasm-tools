@@ -32,11 +32,6 @@ impl<'a> FromReader<'a> for MemoryType {
         let has_max = flags & 0b0001 != 0;
         let has_page_size = flags & 0b1000 != 0;
 
-        if shared && !reader.threads() {
-            // required by spec `binary.wast` test until wasm-3.0 is merged
-            bail!(pos, "threads must be enabled for shared memories");
-        }
-
         Ok(MemoryType {
             memory64,
             shared,

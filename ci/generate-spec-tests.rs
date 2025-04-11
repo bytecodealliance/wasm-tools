@@ -44,7 +44,7 @@ fn copy_test(src: &Path, dst: &Path) {
     contents.push_str(";;      --assert default \\\n");
 
     // Allow certain assert_malformed tests to be interpreted as assert_invalid
-    if src.iter().any(|p| p == "binary.wast") {
+    if src.iter().any(|p| p == "binary.wast") || src.iter().any(|p| p == "global.wast") {
         contents.push_str(";;      --assert permissive \\\n");
     }
 

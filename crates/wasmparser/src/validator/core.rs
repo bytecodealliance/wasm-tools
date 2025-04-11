@@ -688,6 +688,12 @@ impl Module {
         if ty.table64 && !self.features().memory64() {
             bail!(offset, "memory64 must be enabled for 64-bit tables");
         }
+        if ty.shared && !self.features().shared_everything_threads() {
+            bail!(
+                offset,
+                "shared tables require the shared-everything-threads proposal"
+            );
+        }
 
         let true_maximum = if ty.table64 {
             u64::MAX
@@ -717,6 +723,9 @@ impl Module {
 
         if ty.memory64 && !self.features().memory64() {
             bail!(offset, "memory64 must be enabled for 64-bit memories");
+        }
+        if ty.shared && !self.features().threads() {
+            bail!(offset, "threads must be enabled for shared memories");
         }
 
         let page_size = if let Some(page_size_log2) = ty.page_size_log2 {
@@ -841,6 +850,12 @@ impl Module {
         offset: usize,
     ) -> Result<()> {
         self.check_value_type(&mut ty.content_type, offset)?;
+        if ty.shared && !self.features.shared_everything_threads() {
+            bail!(
+                offset,
+                "shared globals require the shared-everything-threads proposal"
+            );
+        }
         if ty.shared && !types.valtype_is_shared(ty.content_type) {
             return Err(BinaryReaderError::new(
                 "shared globals must have a shared value type",

@@ -198,7 +198,52 @@ impl Opts {
                 mut module,
                 message,
             } => {
-                if self.assert(Assert::Permissive) && message == "data count section required" {
+                // The WebAssembly specification itself has a strict
+                // distinction between `assert_invalid` and `assert_malformed`
+                // where a "malformed" module is one that simply does not parse
+                // while an "invalid" module is one that parses successfully
+                // but then fails validation. Effectively "malformed" can't be
+                // represented in the spec's form of the AST, while and
+                // "invalid" module has an AST but it's semantically invalid.
+                //
+                // Currently in wasmparser we do not match the specification
+                // 1:1 in this respect. It's seen as unnecessarily onerous to
+                // match the upstream AST 1:1 to ensure all errors are reported
+                // exactly at the same time. In a similar to manner to how we
+                // don't actually check error messages with upstream spec tests
+                // we handle this situation by asserting that the module still
+                // produces an error, somehow, but just not the exact same
+                // stage of the error.
+                //
+                // For this reason there's a few error messages here which are
+                // found in upstream spec tests which are "relaxed" to becoming
+                // `assert_invalid` instead of `assert_malformed`. That gets
+                // the tests "passing" and means we don't need to contort the
+                // implementations in this crate to exactly match upstream.
+                let permissive_error_messages = [
+                    // The WebAssembly specification says that the validation
+                    // of the data count section is a syntactic validation rule
+                    // and thus part of the binary format. This means that
+                    // an invalid data count is `assert_malformed`, not
+                    // `assert_invalid`, as it's considered invalid before
+                    // reaching the validator. Currently though `wasmparser`
+                    // does not respect this and instead detects the invalid
+                    // module during validation, not parsing. This is basically
+                    // due to the fact that wasmparser represents the AST
+                    // differently.
+                    "data count section required",
+                    // The upstream specification's tests have not been
+                    // adjusted for `shared-everything-threads` yet so some
+                    // flags which are valid with `shared-everything-threads`
+                    // are asserted as malformed. While we wait for upstream
+                    // tests to be adjusted to use a different flag bit in
+                    // their `assert_malformed` blocks this makes it easier to
+                    // implement validation in wasmparser. Effectively these
+                    // two error messages are swapped to `assert_invalid`.
+                    "malformed mutability",
+                    "integer too large",
+                ];
+                if self.assert(Assert::Permissive) && permissive_error_messages.contains(&message) {
                     return self.test_wast_directive(
                         test,
                         WastDirective::AssertInvalid {

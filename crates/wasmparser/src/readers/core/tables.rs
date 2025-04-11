@@ -75,14 +75,6 @@ impl<'a> FromReader<'a> for TableType {
         let shared = (flags & 0b010) != 0;
         let table64 = (flags & 0b100) != 0;
 
-        if shared && !reader.shared_everything_threads() {
-            // required by spec `binary.wast` test until wasm-3.0 is merged
-            bail!(
-                pos,
-                "shared tables require the shared-everything-threads proposal"
-            );
-        }
-
         Ok(TableType {
             element_type,
             table64,
