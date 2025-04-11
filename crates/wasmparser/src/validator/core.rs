@@ -148,7 +148,14 @@ impl ModuleState {
 
                 self.check_const_expr(&offset_expr, table.index_type(), types)?;
             }
-            ElementKind::Passive | ElementKind::Declared => {}
+            ElementKind::Passive | ElementKind::Declared => {
+                if !self.module.features.bulk_memory() {
+                    return Err(BinaryReaderError::new(
+                        "bulk memory must be enabled",
+                        offset,
+                    ));
+                }
+            }
         }
 
         let validate_count = |count: u32| -> Result<(), BinaryReaderError> {
