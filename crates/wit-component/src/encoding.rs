@@ -98,6 +98,9 @@ use types::{InstanceTypeEncoder, RootTypeEncoder, ValtypeEncoder};
 mod world;
 use world::{ComponentWorld, ImportedInterface, Lowering};
 
+mod dedupe;
+use dedupe::dedupe_imports;
+
 fn to_val_type(ty: &WasmType) -> ValType {
     match ty {
         WasmType::I32 => ValType::I32,
@@ -2671,11 +2674,12 @@ pub struct ComponentEncoder {
 impl ComponentEncoder {
     /// Set the core module to encode as a component.
     /// This method will also parse any component type information stored in custom sections
-    /// inside the module, and add them as the interface, imports, and exports.
+    /// inside the module and add them as the interface, imports, and exports.
     /// It will also add any producers information inside the component type information to the
     /// core module.
     pub fn module(mut self, module: &[u8]) -> Result<Self> {
-        let (wasm, metadata) = self.decode(module)?;
+        let module = dedupe_imports(module)?;
+        let (wasm, metadata) = self.decode(module.as_slice())?;
         let exports = self
             .merge_metadata(metadata)
             .context("failed merge WIT metadata for module with previous metadata")?;
