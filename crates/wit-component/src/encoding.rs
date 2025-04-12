@@ -98,6 +98,9 @@ use types::{InstanceTypeEncoder, RootTypeEncoder, ValtypeEncoder};
 mod world;
 use world::{ComponentWorld, ImportedInterface, Lowering};
 
+mod dedupe;
+use dedupe::dedupe_imports;
+
 fn to_val_type(ty: &WasmType) -> ValType {
     match ty {
         WasmType::I32 => ValType::I32,
@@ -2677,6 +2680,7 @@ pub struct ComponentEncoder {
     realloc_via_memory_grow: bool,
     merge_imports_based_on_semver: Option<bool>,
     pub(super) reject_legacy_names: bool,
+    deduplicate_imports: bool,
 }
 
 impl ComponentEncoder {
@@ -2686,7 +2690,12 @@ impl ComponentEncoder {
     /// It will also add any producers information inside the component type information to the
     /// core module.
     pub fn module(mut self, module: &[u8]) -> Result<Self> {
-        let (wasm, metadata) = self.decode(module)?;
+        let (wasm, metadata) = self.decode(module.as_ref())?;
+        let wasm = if self.deduplicate_imports {
+            dedupe_imports(wasm.as_ref())?
+        } else {
+            wasm
+        };
         let exports = self
             .merge_metadata(metadata)
             .context("failed merge WIT metadata for module with previous metadata")?;
@@ -2739,6 +2748,19 @@ impl ComponentEncoder {
     /// This is disabled by default.
     pub fn reject_legacy_names(mut self, reject: bool) -> Self {
         self.reject_legacy_names = reject;
+        self
+    }
+
+    /// Sets whether to remove duplicate function imports to support turning
+    /// otherwise-illegal core modules into components.
+    ///
+    /// While multiple imports of the same module/name pair are legal in core
+    /// modules, they are illegal in components.
+    ///
+    /// This is disabled by default due to the quiet stripping of possibly
+    /// invalidated custom sections.
+    pub fn deduplicate_imports(mut self, dedupe: bool) -> Self {
+        self.deduplicate_imports = dedupe;
         self
     }
 
