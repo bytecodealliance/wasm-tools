@@ -1,5 +1,6 @@
 (module
   (import "$root" "[backpressure-set]" (func (param i32)))
+  (import "[export]$root" "[task-cancel]" (func))
   (import "[export]$root" "[task-return]foo" (func (param i32 i32)))
   (import "[export]foo:foo/bar" "[task-return]foo" (func (param i32 i32)))
   (import "$root" "[waitable-set-new]" (func (result i32)))

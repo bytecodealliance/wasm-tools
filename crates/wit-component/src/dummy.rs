@@ -372,6 +372,7 @@ fn push_tys(dst: &mut String, desc: &str, params: &[WasmType]) {
 fn push_root_async_intrinsics(dst: &mut String) {
     dst.push_str(
         r#"
+(import "[export]$root" "[task-cancel]" (func))
 (import "$root" "[backpressure-set]" (func (param i32)))
 (import "$root" "[waitable-set-new]" (func (result i32)))
 (import "$root" "[waitable-set-wait]" (func (param i32 i32) (result i32)))
@@ -380,6 +381,7 @@ fn push_root_async_intrinsics(dst: &mut String) {
 (import "$root" "[waitable-join]" (func (param i32 i32)))
 (import "$root" "[yield]" (func))
 (import "$root" "[subtask-drop]" (func (param i32)))
+(import "$root" "[subtask-cancel]" (func (param i32) (result i32)))
 (import "$root" "[error-context-new-utf8]" (func (param i32 i32) (result i32)))
 (import "$root" "[error-context-new-utf16]" (func (param i32 i32) (result i32)))
 (import "$root" "[error-context-new-latin1+utf16]" (func (param i32 i32) (result i32)))

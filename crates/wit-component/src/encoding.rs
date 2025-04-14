@@ -1826,6 +1826,10 @@ impl<'a> EncodingState<'a> {
                 let index = self.component.context_set(*n);
                 Ok((ExportKind::Func, index))
             }
+            Import::ExportedTaskCancel => {
+                let index = self.component.task_cancel();
+                Ok((ExportKind::Func, index))
+            }
         }
     }
 
@@ -2188,6 +2192,7 @@ impl<'a> Shims<'a> {
                 | Import::ExportedResourceDrop(..)
                 | Import::ExportedResourceRep(..)
                 | Import::ExportedResourceNew(..)
+                | Import::ExportedTaskCancel
                 | Import::ErrorContextDrop
                 | Import::BackpressureSet
                 | Import::Yield { .. }

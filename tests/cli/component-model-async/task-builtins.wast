@@ -69,6 +69,15 @@
   (core func (canon task.return (result u32) (memory $i "m")))
 )
 
+;; task.cancel
+(component
+  (core module $m
+    (import "" "task.cancel" (func $task-cancel))
+  )
+  (core func $task-cancel (canon task.cancel))
+  (core instance $i (instantiate $m (with "" (instance (export "task.cancel" (func $task-cancel))))))
+)
+
 ;; waitable-set.new
 (component
   (core module $m (import "" "waitable-set.new" (func (result i32))))
@@ -309,6 +318,8 @@
   (canon backpressure.set (core func))
   (core func (canon task.return))
   (canon task.return (core func))
+  (core func (canon task.cancel))
+  (canon task.cancel (core func))
   (core func (canon subtask.drop))
   (canon subtask.drop (core func))
   (core func (canon subtask.cancel))

@@ -255,6 +255,11 @@ pub enum Import {
     /// well.
     ExportedTaskReturn(WorldKey, Option<InterfaceId>, String, Option<Type>),
 
+    /// A `canon task.cancel` intrinsic for an exported function.
+    ///
+    /// This allows an exported function to acknowledge a `CANCELLED` event.
+    ExportedTaskCancel,
+
     /// The `context.get` intrinsic for the nth slot of storage.
     ContextGet(u32),
     /// The `context.set` intrinsic for the nth slot of storage.
@@ -823,6 +828,14 @@ impl ImportMap {
                     func.name.clone(),
                     func.result,
                 )));
+            }
+            if Some(name) == names.task_cancel() {
+                if async_ {
+                    bail!("async `task.cancel` calls not supported");
+                }
+                let expected = FuncType::new([], []);
+                validate_func_sig(name, &expected, ty)?;
+                return Ok(Some(Import::ExportedTaskCancel));
             }
         }
 
@@ -1409,6 +1422,7 @@ trait NameMangling {
     fn resource_new_name<'a>(&self, s: &'a str) -> Option<&'a str>;
     fn resource_rep_name<'a>(&self, s: &'a str) -> Option<&'a str>;
     fn task_return_name<'a>(&self, s: &'a str) -> Option<&'a str>;
+    fn task_cancel(&self) -> Option<&str>;
     fn backpressure_set(&self) -> Option<&str>;
     fn waitable_set_new(&self) -> Option<&str>;
     fn waitable_set_wait(&self) -> Option<&str>;
@@ -1486,6 +1500,9 @@ impl NameMangling for Standard {
     }
     fn task_return_name<'a>(&self, s: &'a str) -> Option<&'a str> {
         _ = s;
+        None
+    }
+    fn task_cancel(&self) -> Option<&str> {
         None
     }
     fn backpressure_set(&self) -> Option<&str> {
@@ -1683,6 +1700,9 @@ impl NameMangling for Legacy {
     }
     fn task_return_name<'a>(&self, s: &'a str) -> Option<&'a str> {
         s.strip_prefix("[task-return]")
+    }
+    fn task_cancel(&self) -> Option<&str> {
+        Some("[task-cancel]")
     }
     fn backpressure_set(&self) -> Option<&str> {
         Some("[backpressure-set]")

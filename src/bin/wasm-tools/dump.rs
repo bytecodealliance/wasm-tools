@@ -424,6 +424,7 @@ impl<'a> Dump<'a> {
                             | CanonicalFunction::ThreadAvailableParallelism
                             | CanonicalFunction::BackpressureSet
                             | CanonicalFunction::TaskReturn { .. }
+                            | CanonicalFunction::TaskCancel
                             | CanonicalFunction::ContextGet { .. }
                             | CanonicalFunction::ContextSet { .. }
                             | CanonicalFunction::WaitableSetNew
