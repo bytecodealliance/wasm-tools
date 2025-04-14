@@ -559,6 +559,7 @@ pub mod kw {
     custom_keyword!(thread_available_parallelism = "thread.available_parallelism");
     custom_keyword!(backpressure_set = "backpressure.set");
     custom_keyword!(task_return = "task.return");
+    custom_keyword!(task_cancel = "task.cancel");
     custom_keyword!(yield_ = "yield");
     custom_keyword!(subtask_drop = "subtask.drop");
     custom_keyword!(subtask_cancel = "subtask.cancel");

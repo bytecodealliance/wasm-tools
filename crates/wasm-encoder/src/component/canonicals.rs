@@ -210,6 +210,13 @@ impl CanonicalFunctionSection {
         self
     }
 
+    /// Defines a function to acknowledge cancellation of the current task.
+    pub fn task_cancel(&mut self) -> &mut Self {
+        self.bytes.push(0x25);
+        self.num_added += 1;
+        self
+    }
+
     /// Defines a new `context.get` intrinsic of the ith slot.
     pub fn context_get(&mut self, i: u32) -> &mut Self {
         self.bytes.push(0x0a);

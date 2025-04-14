@@ -930,6 +930,9 @@ impl Printer<'_, '_> {
                         Ok(())
                     })?;
                 }
+                CanonicalFunction::TaskCancel => {
+                    self.print_intrinsic(state, "canon task.cancel", &|_, _| Ok(()))?;
+                }
                 CanonicalFunction::ContextGet(i) => {
                     self.print_intrinsic(state, "canon context.get", &|me, _state| {
                         write!(me.result, " i32 {i}")?;

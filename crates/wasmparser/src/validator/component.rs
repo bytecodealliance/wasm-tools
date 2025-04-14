@@ -965,6 +965,7 @@ impl ComponentState {
             CanonicalFunction::TaskReturn { result, options } => {
                 self.task_return(&result, &options, types, offset)
             }
+            CanonicalFunction::TaskCancel => self.task_cancel(types, offset),
             CanonicalFunction::ContextGet(i) => self.context_get(i, types, offset),
             CanonicalFunction::ContextSet(i) => self.context_set(i, types, offset),
             CanonicalFunction::Yield { async_ } => self.yield_(async_, types, offset),
@@ -1207,6 +1208,19 @@ impl ComponentState {
 
         self.core_funcs
             .push(types.intern_func_type(FuncType::new(info.params.iter(), []), offset));
+        Ok(())
+    }
+
+    fn task_cancel(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+        if !self.features.cm_async() {
+            bail!(
+                offset,
+                "`task.cancel` requires the component model async feature"
+            )
+        }
+
+        self.core_funcs
+            .push(types.intern_func_type(FuncType::new([], []), offset));
         Ok(())
     }
 

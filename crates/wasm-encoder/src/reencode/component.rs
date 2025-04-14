@@ -977,6 +977,9 @@ pub mod component_utils {
                     options.iter().map(|o| reencoder.canonical_option(*o)),
                 );
             }
+            wasmparser::CanonicalFunction::TaskCancel => {
+                section.task_cancel();
+            }
             wasmparser::CanonicalFunction::ContextGet(i) => {
                 section.context_get(i);
             }

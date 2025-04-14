@@ -54,6 +54,18 @@
   "`task.return` requires the component model async feature"
 )
 
+;; task.cancel
+(assert_invalid
+  (component
+    (core module $m
+      (import "" "task.cancel" (func $task-cancel))
+    )
+    (core func $task-cancel (canon task.cancel))
+    (core instance $i (instantiate $m (with "" (instance (export "task.cancel" (func $task-cancel))))))
+  )
+  "`task.cancel` requires the component model async feature"
+)
+
 ;; waitable-set.new
 (assert_invalid
   (component (core func (canon waitable-set.new)))

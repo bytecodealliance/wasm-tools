@@ -425,7 +425,8 @@ impl<'a> ComponentWorld<'a> {
                 | Import::SubtaskCancel { .. }
                 | Import::ErrorContextNew { .. }
                 | Import::ErrorContextDebugMessage { .. }
-                | Import::ErrorContextDrop => {}
+                | Import::ErrorContextDrop
+                | Import::ExportedTaskCancel => {}
             }
         }
     }

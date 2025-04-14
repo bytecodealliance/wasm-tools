@@ -98,6 +98,8 @@ pub enum CanonicalFunction {
         /// The canonical options for the function.
         options: Box<[CanonicalOption]>,
     },
+    /// A function to acknowledge cancellation of the current task.
+    TaskCancel,
     /// A `context.get` intrinsic for the `i`th slot of task-local storage.
     ContextGet(u32),
     /// A `context.set` intrinsic for the `i`th slot of task-local storage.
@@ -368,6 +370,7 @@ impl<'a> FromReader<'a> for CanonicalFunction {
             0x24 => CanonicalFunction::SubtaskCancel {
                 async_: reader.read()?,
             },
+            0x25 => CanonicalFunction::TaskCancel,
             0x40 => CanonicalFunction::ThreadSpawnRef {
                 func_ty_index: reader.read()?,
             },
