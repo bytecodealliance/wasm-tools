@@ -28,6 +28,12 @@ pub fn smith(config: &Config, u: &mut Unstructured<'_>) -> Result<Vec<u8>> {
                 if e.is::<InvalidTransitiveDependency>() {
                     return Err(arbitrary::Error::IncorrectFormat);
                 }
+                let full_err = format!("{e:?}");
+                // handle errors such as export name `[method]name.name`
+                // conflicts with previous name `name`
+                if full_err.contains("conflicts with previous name") {
+                    return Err(arbitrary::Error::IncorrectFormat);
+                }
                 panic!("bad wit parse: {e:?}")
             }
         };
