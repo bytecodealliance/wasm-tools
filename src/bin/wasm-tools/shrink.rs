@@ -41,7 +41,7 @@ impl Opts {
     }
 
     pub fn run(self) -> Result<()> {
-        let input = self.io.parse_input_wasm()?;
+        let input = self.io.get_input_wasm()?;
         let initial_size = input.len();
 
         // Prerequisites for the predicate.

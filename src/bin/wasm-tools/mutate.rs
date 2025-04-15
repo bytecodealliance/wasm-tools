@@ -54,7 +54,7 @@ impl Opts {
     }
 
     pub fn run(mut self) -> Result<()> {
-        let input_wasm = self.io.parse_input_wasm()?;
+        let input_wasm = self.io.get_input_wasm()?;
 
         // Currently `self.wasm_mutate` is typed as `'static` for the input wasm
         // due to how this subcommand is defined. To get the input wasm to live
