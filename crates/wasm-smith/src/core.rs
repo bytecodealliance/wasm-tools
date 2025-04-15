@@ -592,7 +592,24 @@ impl Module {
         list.push(index);
 
         if !ty.is_final {
-            self.can_subtype.push(index);
+            // Calculate the recursive depth of this type, and if it's beneath a
+            // threshold then allow future types to subtype this one. Otherwise
+            // this can no longer be subtyped so despite this not being final
+            // don't add it to the `can_subtype` list.
+            //
+            // Note that this limit is intentinally a bit less than the
+            // wasm-defined maximum of 63.
+            const MAX_SUBTYPING_DEPTH: u32 = 60;
+
+            let mut depth = 1;
+            let mut cur = ty.supertype;
+            while let Some(parent) = cur {
+                depth += 1;
+                cur = self.types[parent as usize].supertype;
+            }
+            if depth < MAX_SUBTYPING_DEPTH {
+                self.can_subtype.push(index);
+            }
         }
 
         self.types.push(ty);
