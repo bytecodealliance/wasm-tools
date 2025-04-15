@@ -44,6 +44,7 @@ wat = { workspace = true }
 libfuzzer-sys = { workspace = true }
 
 [features]
-_internal_cli = ["clap", "flagset/serde", "serde", "serde_derive", "wasmparser", "wat"]
+_internal_cli = ["clap", "serde", "dep:wasmparser", "dep:wat"]
 wasmparser = ['dep:wasmparser', 'wasm-encoder/wasmparser']
 component-model = ['wasm-encoder/component-model']
+serde = ['dep:serde', 'dep:serde_derive', 'flagset/serde', 'dep:wat']
