@@ -107,7 +107,7 @@
       "text": "array.new_data can only create arrays with numeric and vector elements"
     },
     {
-      "type": "assert_malformed",
+      "type": "assert_invalid",
       "line": 139,
       "filename": "invalid.15.wasm",
       "module_type": "binary",

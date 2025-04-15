@@ -958,7 +958,7 @@ impl TargetsOpts {
     fn run(self) -> Result<()> {
         let (resolve, pkg_id) = self.resolve.load()?;
         let world = resolve.select_world(pkg_id, self.world.as_deref())?;
-        let component_to_test = self.input.parse_wasm()?;
+        let component_to_test = self.input.get_binary_wasm()?;
 
         wit_component::targets(&resolve, world, &component_to_test)?;
 

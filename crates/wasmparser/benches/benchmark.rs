@@ -157,14 +157,14 @@ fn read_all_wasm(wasm: &[u8]) -> Result<()> {
                 }
             }
             CodeSectionEntry(body) => {
-                let mut reader = body.get_binary_reader();
-                for _ in 0..reader.read_var_u32()? {
-                    reader.read_var_u32()?;
-                    reader.read::<wasmparser::ValType>()?;
+                for item in body.get_locals_reader()? {
+                    let _ = item?;
                 }
-                while !reader.eof() {
-                    reader.visit_operator(&mut NopVisit)?;
+                let mut ops = body.get_operators_reader()?;
+                while !ops.eof() {
+                    ops.visit_operator(&mut NopVisit)?;
                 }
+                ops.finish()?;
             }
 
             // Component sections

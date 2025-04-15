@@ -465,10 +465,12 @@ impl<'a> Module<'a> {
         }));
     }
 
-    fn operators(&mut self, mut reader: BinaryReader<'a>) -> Result<()> {
-        while !reader.eof() {
-            reader.visit_operator(self)?;
+    fn operators(&mut self, reader: BinaryReader<'a>) -> Result<()> {
+        let mut ops = OperatorsReader::new(reader);
+        while !ops.eof() {
+            ops.visit_operator(self)?;
         }
+        ops.finish()?;
         Ok(())
     }
 

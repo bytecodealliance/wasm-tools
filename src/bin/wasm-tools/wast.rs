@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::str;
 use wasm_encoder::reencode::{Reencode, ReencodeComponent, RoundtripReencoder};
+use wasm_tools::parse_binary_wasm;
 use wasmprinter::PrintFmtWrite;
 use wast::component::{Component, ComponentKind};
 use wast::core::{Module, ModuleKind};
@@ -193,11 +194,110 @@ impl Opts {
             }
 
             WastDirective::AssertMalformed {
-                span: _,
+                span,
                 mut module,
                 message,
+            } => {
+                // The WebAssembly specification itself has a strict
+                // distinction between `assert_invalid` and `assert_malformed`
+                // where a "malformed" module is one that simply does not parse
+                // while an "invalid" module is one that parses successfully
+                // but then fails validation. Effectively "malformed" can't be
+                // represented in the spec's form of the AST, while and
+                // "invalid" module has an AST but it's semantically invalid.
+                //
+                // Currently in wasmparser we do not match the specification
+                // 1:1 in this respect. It's seen as unnecessarily onerous to
+                // match the upstream AST 1:1 to ensure all errors are reported
+                // exactly at the same time. In a similar to manner to how we
+                // don't actually check error messages with upstream spec tests
+                // we handle this situation by asserting that the module still
+                // produces an error, somehow, but just not the exact same
+                // stage of the error.
+                //
+                // For this reason there's a few error messages here which are
+                // found in upstream spec tests which are "relaxed" to becoming
+                // `assert_invalid` instead of `assert_malformed`. That gets
+                // the tests "passing" and means we don't need to contort the
+                // implementations in this crate to exactly match upstream.
+                let permissive_error_messages = [
+                    // The WebAssembly specification says that the validation
+                    // of the data count section is a syntactic validation rule
+                    // and thus part of the binary format. This means that
+                    // an invalid data count is `assert_malformed`, not
+                    // `assert_invalid`, as it's considered invalid before
+                    // reaching the validator. Currently though `wasmparser`
+                    // does not respect this and instead detects the invalid
+                    // module during validation, not parsing. This is basically
+                    // due to the fact that wasmparser represents the AST
+                    // differently.
+                    "data count section required",
+                    // The upstream specification's tests have not been
+                    // adjusted for `shared-everything-threads` yet so some
+                    // flags which are valid with `shared-everything-threads`
+                    // are asserted as malformed. While we wait for upstream
+                    // tests to be adjusted to use a different flag bit in
+                    // their `assert_malformed` blocks this makes it easier to
+                    // implement validation in wasmparser. Effectively these
+                    // two error messages are swapped to `assert_invalid`.
+                    "malformed mutability",
+                    "integer too large",
+                ];
+                if self.assert(Assert::Permissive) && permissive_error_messages.contains(&message) {
+                    return self.test_wast_directive(
+                        test,
+                        WastDirective::AssertInvalid {
+                            span,
+                            module,
+                            message,
+                        },
+                        idx,
+                    );
+                }
+
+                let result: Result<Vec<u8>> = module.encode().map_err(|e| e.into());
+                match result {
+                    Err(e) => {
+                        if self.error_matches(test, &format!("{e:?}"), message) {
+                            return Ok(());
+                        }
+                        bail!(
+                            "bad error: {e:?}\n\
+                             should have failed with: {message:?}\n\
+                             suppress this failure with `--ignore-error-messages`",
+                        );
+                    }
+                    Ok(bytes) => {
+                        let mut parser = wasmparser::Parser::new(0);
+                        parser.set_features(self.features.features());
+                        match parse_binary_wasm(parser, &bytes) {
+                            Err(e) => {
+                                if self.error_matches(test, &format!("{e:?}"), message) {
+                                    // make sure validator also rejects module (not necessarily with same error)
+
+                                    match self.test_wasm_valid(test, &bytes) {
+                                        Ok(_) => {
+                                            bail!("validator thought malformed example was valid")
+                                        }
+                                        Err(_) => return Ok(()),
+                                    }
+                                }
+                                bail!(
+                                    "bad error: {e:?}\n\
+                                     should have failed with: {message:?}\n\
+                                     suppress this failure with `--ignore-error-messages`",
+                                );
+                            }
+                            Ok(_) => (),
+                        }
+                        bail!(
+                            "encoded and parsed successfully but should have failed with: {message:?}",
+                        )
+                    }
+                }
             }
-            | WastDirective::AssertInvalid {
+
+            WastDirective::AssertInvalid {
                 mut module,
                 message,
                 span: _,
@@ -253,7 +353,9 @@ impl Opts {
                 // if explicitly requested, enable
                 (a, b) if a == b => enabled = true,
                 // default enables almost all assertions
-                (Assert::Default, b) if b != Assert::SnapshotFolded => enabled = true,
+                (Assert::Default, b) if b != Assert::SnapshotFolded && b != Assert::Permissive => {
+                    enabled = true
+                }
                 // NoTestFolded disables TestFolded
                 (Assert::NoTestFolded, Assert::TestFolded) => enabled = false,
                 _ => (),
@@ -571,4 +673,5 @@ enum Assert {
     SnapshotFolded,
     TestFolded,
     NoTestFolded,
+    Permissive,
 }
