@@ -363,7 +363,7 @@ impl<'a> InterfaceGenerator<'a> {
                     if is_resource {
                         if u.arbitrary()? {
                             typedef.push_str(" {\n");
-                            self.gen_resource_funcs(u, &mut typedef)?;
+                            self.gen_resource_funcs(&name, u, &mut typedef)?;
                             typedef.push_str("}");
                         } else {
                             typedef.push_str(";");
@@ -493,7 +493,7 @@ impl<'a> InterfaceGenerator<'a> {
                     if is_resource {
                         if u.arbitrary()? {
                             part.push_str(" {\n");
-                            self.gen_resource_funcs(u, &mut part)?;
+                            self.gen_resource_funcs(&name, u, &mut part)?;
                             part.push_str("}");
                         } else {
                             part.push_str(";");
@@ -522,7 +522,12 @@ impl<'a> InterfaceGenerator<'a> {
         Ok(ret)
     }
 
-    fn gen_resource_funcs(&mut self, u: &mut Unstructured<'_>, ret: &mut String) -> Result<()> {
+    fn gen_resource_funcs(
+        &mut self,
+        resource_name: &str,
+        u: &mut Unstructured<'_>,
+        ret: &mut String,
+    ) -> Result<()> {
         let mut parts = Vec::new();
 
         #[derive(Arbitrary)]
@@ -534,6 +539,7 @@ impl<'a> InterfaceGenerator<'a> {
 
         let mut has_constructor = false;
         let mut names = HashSet::new();
+        names.insert(resource_name.to_string());
         while parts.len() < self.config.max_resource_items && !u.is_empty() && u.arbitrary()? {
             match u.arbitrary()? {
                 Item::Constructor if has_constructor => {}
