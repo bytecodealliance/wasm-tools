@@ -260,6 +260,9 @@ pub(crate) struct SubType {
     pub(crate) is_final: bool,
     pub(crate) supertype: Option<u32>,
     pub(crate) composite_type: CompositeType,
+    /// How "deep" this subtype's supertype hierarchy is. The base case is 1 and
+    /// if `supertype` is present it's `1 + supertype.depth`.
+    depth: u32,
 }
 
 impl SubType {
@@ -591,7 +594,15 @@ impl Module {
         };
         list.push(index);
 
-        if !ty.is_final {
+        // Calculate the recursive depth of this type, and if it's beneath a
+        // threshold then allow future types to subtype this one. Otherwise this
+        // can no longer be subtyped so despite this not being final don't add
+        // it to the `can_subtype` list.
+        //
+        // Note that this limit is intentinally a bit less than the wasm-defined
+        // maximum of 63.
+        const MAX_SUBTYPING_DEPTH: u32 = 60;
+        if !ty.is_final && ty.depth < MAX_SUBTYPING_DEPTH {
             self.can_subtype.push(index);
         }
 
@@ -682,6 +693,7 @@ impl Module {
                 is_final: true,
                 supertype: None,
                 composite_type,
+                depth: 1,
             });
         }
 
@@ -692,6 +704,7 @@ impl Module {
                 is_final: u.arbitrary()?,
                 supertype: None,
                 composite_type: self.arbitrary_composite_type(u)?,
+                depth: 1,
             })
         }
     }
@@ -718,6 +731,7 @@ impl Module {
             is_final: u.arbitrary()?,
             supertype: Some(supertype),
             composite_type,
+            depth: 1 + self.types[supertype as usize].depth,
         })
     }
 
@@ -1364,6 +1378,7 @@ impl Module {
                         is_final: true,
                         supertype: None,
                         composite_type: CompositeType::new_func(Rc::clone(&func_type), shared),
+                        depth: 1,
                     });
                     new_index
                 }
@@ -1948,6 +1963,7 @@ impl Module {
                             let type_index = self.add_type(SubType {
                                 is_final: true,
                                 supertype: None,
+                                depth: 1,
                                 composite_type: CompositeType::new_func(
                                     Rc::clone(&new_type),
                                     subtype.composite_type.shared,
