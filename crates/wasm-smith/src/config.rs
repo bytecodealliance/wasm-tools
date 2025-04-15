@@ -188,6 +188,7 @@ macro_rules! define_config {
             }
         }
 
+        #[cfg(feature = "serde")]
         impl TryFrom<InternalOptionalConfig> for Config {
             type Error = anyhow::Error;
             fn try_from(config: InternalOptionalConfig) -> anyhow::Result<Config> {

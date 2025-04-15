@@ -68,7 +68,7 @@ pub use config::{Config, MemoryOffsetChoices};
 use std::{collections::HashSet, fmt::Write, str};
 use wasm_encoder::MemoryType;
 
-#[cfg(feature = "_internal_cli")]
+#[doc(hidden)]
 pub use config::InternalOptionalConfig;
 
 pub(crate) fn page_size(mem: &MemoryType) -> u32 {
