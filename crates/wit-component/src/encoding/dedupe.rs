@@ -41,7 +41,7 @@ impl Remappings {
     /// take into account the compacting-out of duplicate imports. The indices
     /// can then be looked up using `new_index_for()`.
     ///
-    /// Calling this twice replaces any previous state.
+    /// Calling this twice replaces any previous state iff it returns `Ok()`.
     pub fn imports<'a, T>(&'a mut self, import_section: T) -> Result<()>
     where
         T: IntoIterator<Item = Result<Import<'a>, BinaryReaderError>>,
@@ -169,11 +169,17 @@ pub fn dedupe_imports(module: &[u8]) -> Result<Vec<u8>> {
                 }
                 new_module.section(&new_section);
             }
+            Payload::StartSection { func: idx, .. } => {
+                let new_section = wasm_encoder::StartSection {
+                    function_index: remappings.new_index_for(idx),
+                };
+                new_module.section(&new_section);
+            }
             Payload::GlobalSection(_globals) => {}
             // TODO: Explicitly match each remaining variant so we don't get
             // quiet failures later on.
-            // TODO: Must rewrite: imports, globals (initializer expressions
-            // only), √ exports (funcs only), starts, elements (many cases),
+            // TODO: Must rewrite: √ imports, globals (initializer expressions
+            // only), √ exports (funcs only), √ starts, elements (many cases),
             // codes, datas (offset expression only).
             // TODO: Leave in producers and "target features" custom sections,
             // and strip the rest out, because they could be debug info or
