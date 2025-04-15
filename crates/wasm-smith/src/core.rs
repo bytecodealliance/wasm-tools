@@ -3000,7 +3000,10 @@ impl EntityType {
 /// assert!(kinds.contains(InstructionKind::Memory));
 /// ```
 #[derive(Clone, Copy, Debug, Default)]
-#[cfg_attr(feature = "serde_derive", derive(serde_derive::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde_derive::Deserialize, serde_derive::Serialize)
+)]
 pub struct InstructionKinds(pub(crate) FlagSet<InstructionKind>);
 
 impl InstructionKinds {

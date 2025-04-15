@@ -275,6 +275,7 @@ jobs:
       - run: cargo check --no-default-features -p wasm-smith --features component-model
       - run: cargo check --no-default-features -p wasm-smith --features wasmparser
       - run: cargo check --no-default-features -p wasm-smith --features wasmparser,component-model
+      - run: cargo check --no-default-features -p wasm-smith --features serde
       - run: cargo check --no-default-features -p wasm-metadata
       - run: cargo check --no-default-features -p wasm-metadata --features serde
       - run: cargo check --no-default-features -p wasm-metadata --features oci
