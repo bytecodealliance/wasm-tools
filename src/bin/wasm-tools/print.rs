@@ -45,7 +45,7 @@ impl Opts {
     }
 
     pub fn run(&self) -> Result<()> {
-        let wasm = self.io.parse_input_wasm()?;
+        let wasm = self.io.get_input_wasm()?;
 
         let mut config = wasmprinter::Config::new();
         config.print_offsets(self.print_offsets);

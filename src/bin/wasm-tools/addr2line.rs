@@ -44,7 +44,7 @@ impl Opts {
     }
 
     pub fn run(&self) -> Result<()> {
-        let wasm = self.io.parse_input_wasm()?;
+        let wasm = self.io.get_input_wasm()?;
 
         let mut modules = Addr2lineModules::parse(&wasm)
             .context("failed to parse input and read custom sections")?;
