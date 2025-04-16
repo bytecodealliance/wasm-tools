@@ -172,64 +172,78 @@
     },
     {
       "type": "assert_invalid",
-      "line": 269,
+      "line": 263,
       "filename": "task-builtins.26.wasm",
       "module_type": "binary",
       "text": "found:    [] -> [i32]"
     },
     {
       "type": "assert_invalid",
-      "line": 276,
+      "line": 270,
       "filename": "task-builtins.27.wasm",
       "module_type": "binary",
       "text": "found:    [i32] -> []"
     },
     {
       "type": "assert_invalid",
-      "line": 283,
+      "line": 277,
       "filename": "task-builtins.28.wasm",
       "module_type": "binary",
-      "text": "immediate larger than two: 100"
+      "text": "immediate must be zero: 1"
     },
     {
       "type": "assert_invalid",
-      "line": 287,
+      "line": 281,
       "filename": "task-builtins.29.wasm",
       "module_type": "binary",
-      "text": "immediate larger than two: 100"
+      "text": "immediate must be zero: 1"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 285,
+      "filename": "task-builtins.30.wasm",
+      "module_type": "binary",
+      "text": "immediate must be zero: 100"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 289,
+      "filename": "task-builtins.31.wasm",
+      "module_type": "binary",
+      "text": "immediate must be zero: 100"
     },
     {
       "type": "assert_malformed",
-      "line": 291,
-      "filename": "task-builtins.30.wat",
+      "line": 293,
+      "filename": "task-builtins.32.wat",
       "module_type": "text",
       "text": "expected keyword `i32`"
     },
     {
       "type": "assert_malformed",
-      "line": 295,
-      "filename": "task-builtins.31.wat",
+      "line": 297,
+      "filename": "task-builtins.33.wat",
       "module_type": "text",
       "text": "expected keyword `i32`"
     },
     {
       "type": "assert_malformed",
-      "line": 300,
-      "filename": "task-builtins.32.wasm",
+      "line": 302,
+      "filename": "task-builtins.34.wasm",
       "module_type": "binary",
       "text": "invalid leading byte (0x7e) for context.get"
     },
     {
       "type": "assert_malformed",
-      "line": 307,
-      "filename": "task-builtins.33.wasm",
+      "line": 309,
+      "filename": "task-builtins.35.wasm",
       "module_type": "binary",
       "text": "invalid leading byte (0x7e) for context.set"
     },
     {
       "type": "module",
-      "line": 316,
-      "filename": "task-builtins.34.wasm",
+      "line": 318,
+      "filename": "task-builtins.36.wasm",
       "module_type": "binary"
     }
   ]

@@ -1231,8 +1231,8 @@ impl ComponentState {
                 "`context.get` requires the component model async feature"
             )
         }
-        if i > 2 {
-            bail!(offset, "`context.get` immediate larger than two: {i}")
+        if i > 0 {
+            bail!(offset, "`context.get` immediate must be zero: {i}")
         }
 
         self.core_funcs
@@ -1247,8 +1247,8 @@ impl ComponentState {
                 "`context.set` requires the component model async feature"
             )
         }
-        if i > 2 {
-            bail!(offset, "`context.set` immediate larger than two: {i}")
+        if i > 0 {
+            bail!(offset, "`context.set` immediate must be zero: {i}")
         }
 
         self.core_funcs
