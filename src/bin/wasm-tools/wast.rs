@@ -214,8 +214,8 @@ impl Opts {
                 if let Err(e) = parse_binary_wasm(parser, &bytes) {
                     self.assert_error_matches(test, &format!("{e:?}"), message)?;
 
-                    // make sure validator also rejects module (not necessarily
-                    // with same error)
+                    // Make sure validator also rejects the module (not necessarily
+                    // with same error).
                     if self.test_wasm_valid(test, &bytes).is_ok() {
                         bail!("validator thought malformed example was valid")
                     }
