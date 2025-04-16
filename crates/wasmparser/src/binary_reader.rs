@@ -845,7 +845,7 @@ impl<'a> BinaryReader<'a> {
     ///
     /// # Errors
     ///
-    /// If `BinaryReader` has less bytes remaining than required to parse the `Operator`.
+    /// If `BinaryReader` has fewer bytes remaining than required to parse the `Operator`.
     ///
     /// # Examples
     ///
@@ -1571,7 +1571,7 @@ impl<'a> BinaryReader<'a> {
     ///
     /// # Errors
     ///
-    /// If `BinaryReader` has less bytes remaining than required to parse
+    /// If `BinaryReader` has fewer bytes remaining than required to parse
     /// the `Operator`.
     pub fn read_operator(&mut self) -> Result<Operator<'a>> {
         self.visit_operator(&mut OperatorFactory::new())
