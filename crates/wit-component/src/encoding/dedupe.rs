@@ -5,10 +5,10 @@
 //! goal is to make `wasm-tools component new` work, and the only imports that
 //! supports is functions from adapters.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, Error};
 use std::collections::hash_map::{Entry, HashMap};
-use wasm_encoder;
-use wasmparser::{BinaryReaderError, Encoding, ExternalKind, Import, Parser, Payload, TypeRef};
+use wasm_encoder::{self, reencode::Reencode};
+use wasmparser::{self, BinaryReaderError, Import, Parser, TypeRef};
 
 /// The module/name pair of a wasm import
 #[derive(Hash, Eq, PartialEq, Debug)]
@@ -41,8 +41,8 @@ impl Remappings {
     /// take into account the compacting-out of duplicate imports. The indices
     /// can then be looked up using `new_index_for()`.
     ///
-    /// Calling this twice replaces any previous state iff it returns `Ok()`.
-    pub fn imports<'a, T>(&'a mut self, import_section: T) -> Result<()>
+    /// Calling this twice replaces any previous state iff it returns `Ok`.
+    pub fn imports<'a, T>(&'a mut self, import_section: T) -> Result<(), BinaryReaderError>
     where
         T: IntoIterator<Item = Result<Import<'a>, BinaryReaderError>>,
     {
@@ -107,7 +107,7 @@ impl Remappings {
     }
 
     /// Returns whether the import with the given index has been eliminated and
-    /// redirected to a preceding one.
+    /// references to it redirected to a preceding one.
     fn is_duplicate(&self, import_idx: u32) -> bool {
         match self.dupes.get(import_idx as usize) {
             Some(b) => *b,
@@ -116,86 +116,74 @@ impl Remappings {
     }
 }
 
+/// No duplicate imports were found, so I have nothing to do.
+struct NoDuplicatesFound;
+
+struct DedupingReencoder {
+    remappings: Remappings,
+}
+
+impl DedupingReencoder {
+    fn new() -> Self {
+        Self {
+            remappings: Remappings::new(),
+        }
+    }
+}
+
+type DeduperError = wasm_encoder::reencode::Error<NoDuplicatesFound>;
+
+impl Reencode for DedupingReencoder {
+    type Error = NoDuplicatesFound;
+
+    // Fortunately, the import section comes before any section we need to
+    // modify. Thus, we don't have to decode the wasm twice.
+    fn parse_import_section(
+        &mut self,
+        imports: &mut wasm_encoder::ImportSection,
+        section: wasmparser::ImportSectionReader<'_>,
+    ) -> Result<(), wasm_encoder::reencode::Error<Self::Error>> {
+        self.remappings.imports(section.clone())?;
+
+        // If no duplicates, take the fast path out.
+        if self.remappings.is_empty() {
+            return Err(DeduperError::UserError(NoDuplicatesFound));
+        }
+
+        for (idx, import) in section.into_iter().enumerate() {
+            if !self.remappings.is_duplicate(idx as u32) {
+                self.parse_import(imports, import?)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn function_index(&mut self, func_idx: u32) -> u32 {
+        self.remappings.new_index_for(func_idx)
+    }
+
+    // TODO: Leave in producers and "target features" custom sections,
+    // and strip the rest out, because they could be debug info or
+    // otherwise dependent on the byte offests we're changing.
+    // https://calabro.io/dwarf/die
+}
+
 /// Given a core wasm module that may contain duplicate function imports
 /// (repeats of module/name pairs), returns an equivalent one without the
 /// duplicates, rewriting references to those functions elsewhere in the module
 /// to compensate.
-pub fn dedupe_imports(module: &[u8]) -> Result<Vec<u8>> {
+pub fn dedupe_imports(module: &[u8]) -> Result<Vec<u8>, Error> {
     let mut new_module = wasm_encoder::Module::new();
-    let mut remappings = Remappings::new();
-
-    for payload in Parser::new(0).parse_all(module) {
-        // Fortunately, the import section comes before any section we need to
-        // modify. Thus, we don't have to decode the wasm twice.
-        let payload = payload.context("decoding item in module")?;
-        match payload {
-            Payload::Version { encoding, .. } if encoding != Encoding::Module => {
-                bail!("decoding a component is not supported")
-            }
-            Payload::ExportSection(exports) => {
-                let mut new_section = wasm_encoder::ExportSection::new();
-                for export in exports {
-                    let export = export?;
-                    let index = match export.kind {
-                        ExternalKind::Func => remappings.new_index_for(export.index),
-                        _ => export.index,
-                    };
-                    new_section.export(export.name, export.kind.into(), index);
-                }
-
-                new_module.section(&new_section);
-                //info.section(SectionId::Export.into(), reader.range(), input_wasm);
-            }
-            Payload::ImportSection(imports) => {
-                remappings.imports(imports.clone())?;
-                if remappings.is_empty() {
-                    // No duplicates; take the fast path.
-                    return Ok(module.to_vec());
-                }
-
-                let mut new_section = wasm_encoder::ImportSection::new();
-                for (idx, import) in imports.into_iter().enumerate() {
-                    let import = import?;
-                    if !remappings.is_duplicate(idx as u32) {
-                        new_section.import(
-                            import.module,
-                            import.name,
-                            wasm_encoder::reencode::utils::entity_type(
-                                &mut wasm_encoder::reencode::RoundtripReencoder,
-                                import.ty,
-                            )?,
-                        );
-                    }
-                }
-                new_module.section(&new_section);
-            }
-            Payload::StartSection { func: idx, .. } => {
-                let new_section = wasm_encoder::StartSection {
-                    function_index: remappings.new_index_for(idx),
-                };
-                new_module.section(&new_section);
-            }
-            Payload::GlobalSection(_globals) => {}
-            // TODO: Explicitly match each remaining variant so we don't get
-            // quiet failures later on.
-            // TODO: Must rewrite: √ imports, globals (initializer expressions
-            // only), √ exports (funcs only), √ starts, elements (many cases),
-            // codes, datas (offset expression only).
-            // TODO: Leave in producers and "target features" custom sections,
-            // and strip the rest out, because they could be debug info or
-            // otherwise dependent on the byte offests we're changing.
-            // https://calabro.io/dwarf/die
-            _ => {
-                if let Some((id, range)) = payload.as_section() {
-                    new_module.section(&wasm_encoder::RawSection {
-                        id,
-                        data: &module[range],
-                    });
-                }
-            }
-        }
+    let result =
+        DedupingReencoder::new().parse_core_module(&mut new_module, Parser::new(0), module);
+    match result {
+        // Fast path: return module verbatim
+        Err(DeduperError::UserError(NoDuplicatesFound)) => Ok(module.to_vec()),
+        // Rewrite module
+        Ok(_) => Ok(new_module.finish()),
+        // TODO: Propagate more error detail:
+        _ => Err(anyhow!("Something went wrong with reencoding.")),
     }
-    Ok(new_module.finish())
 }
 
 #[cfg(test)]
@@ -228,7 +216,7 @@ mod test {
     }
 
     #[test]
-    fn remappings_populated_state() -> Result<()> {
+    fn remappings_populated_state() -> Result<(), BinaryReaderError> {
         // We test contiguous and discontiguous duplicates, singletons, and
         // indices outside the mapping table (which represent local, unimported
         // functions).
