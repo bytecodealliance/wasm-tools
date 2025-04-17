@@ -17,6 +17,13 @@ struct ImportPath {
     field: String,
 }
 
+/// Info which lets us quickly replace references to duplicate-imported
+/// functions with refs to the canonical ones once the duplicates have been
+/// removed
+///
+/// Default represents a state as if the import section were entirely absent
+/// from the module.
+#[derive(Default)]
 struct Remappings {
     /// Map of old func indices to new
     indices: Vec<u32>,
@@ -27,16 +34,6 @@ struct Remappings {
 }
 
 impl Remappings {
-    /// Return a fresh Remappings, initialized to a state as if the import
-    /// section were entirely absent.
-    pub fn new() -> Self {
-        Self {
-            indices: Vec::new(),
-            num_dupes: 0,
-            dupes: Vec::new(),
-        }
-    }
-
     /// Works out the mappings of a core module's func idxs to new ones that
     /// take into account the compacting-out of duplicate imports. The indices
     /// can then be looked up using `new_index_for()`.
@@ -119,16 +116,9 @@ impl Remappings {
 /// No duplicate imports were found, so I have nothing to do.
 struct NoDuplicatesFound;
 
+#[derive(Default)]
 struct DedupingReencoder {
     remappings: Remappings,
-}
-
-impl DedupingReencoder {
-    fn new() -> Self {
-        Self {
-            remappings: Remappings::new(),
-        }
-    }
 }
 
 type DeduperError = wasm_encoder::reencode::Error<NoDuplicatesFound>;
@@ -175,7 +165,7 @@ impl Reencode for DedupingReencoder {
 pub fn dedupe_imports(module: &[u8]) -> Result<Vec<u8>, Error> {
     let mut new_module = wasm_encoder::Module::new();
     let result =
-        DedupingReencoder::new().parse_core_module(&mut new_module, Parser::new(0), module);
+        DedupingReencoder::default().parse_core_module(&mut new_module, Parser::new(0), module);
     match result {
         // Fast path: return module verbatim
         Err(DeduperError::UserError(NoDuplicatesFound)) => Ok(module.to_vec()),
@@ -193,7 +183,7 @@ mod test {
 
     #[test]
     fn remappings_empty_state() {
-        let remappings = Remappings::new();
+        let remappings = Remappings::default();
         assert!(remappings.is_empty());
         assert!(
             !remappings.is_duplicate(0),
@@ -242,7 +232,7 @@ mod test {
             func("D", "d"),
             func("I", "i"),
         ];
-        let mut remappings = Remappings::new();
+        let mut remappings = Remappings::default();
         remappings.imports(imports)?;
         assert!(!remappings.is_empty());
         assert!(!remappings.is_duplicate(0));
