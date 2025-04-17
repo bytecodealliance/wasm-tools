@@ -1,0 +1,3 @@
+(module
+  (import "Mg" "glob" (global (;0;) (mut i32)))
+)

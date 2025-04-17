@@ -2,7 +2,7 @@
   "source_filename": "tests/cli/table-funcref.wast",
   "commands": [
     {
-      "type": "assert_malformed",
+      "type": "assert_invalid",
       "line": 4,
       "filename": "table-funcref.0.wasm",
       "module_type": "binary",

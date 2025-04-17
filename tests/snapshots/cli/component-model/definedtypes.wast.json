@@ -9,21 +9,21 @@
       "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 48,
       "filename": "definedtypes.1.wat",
       "module_type": "text",
       "text": "variant case cannot refine itself"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 55,
       "filename": "definedtypes.2.wat",
       "module_type": "text",
       "text": "unknown variant case"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 62,
       "filename": "definedtypes.3.wat",
       "module_type": "text",
@@ -44,7 +44,7 @@
       "text": "variant case can only refine a previously defined case"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 87,
       "filename": "definedtypes.6.wat",
       "module_type": "text",

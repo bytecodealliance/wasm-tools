@@ -980,6 +980,9 @@ pub mod component_utils {
                     options.iter().map(|o| reencoder.canonical_option(*o)),
                 );
             }
+            wasmparser::CanonicalFunction::TaskCancel => {
+                section.task_cancel();
+            }
             wasmparser::CanonicalFunction::ContextGet(i) => {
                 section.context_get(i);
             }
@@ -991,6 +994,9 @@ pub mod component_utils {
             }
             wasmparser::CanonicalFunction::SubtaskDrop => {
                 section.subtask_drop();
+            }
+            wasmparser::CanonicalFunction::SubtaskCancel { async_ } => {
+                section.subtask_cancel(async_);
             }
             wasmparser::CanonicalFunction::StreamNew { ty } => {
                 section.stream_new(reencoder.component_type_index(ty));

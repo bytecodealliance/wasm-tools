@@ -1,6 +1,6 @@
 [package]
 name = "wasm-tools"
-version = "1.228.0"
+version = "1.229.0"
 authors = ["The Wasmtime Project Developers"]
 edition.workspace = true
 description = "CLI tools for interoperating with WebAssembly files"
@@ -60,7 +60,7 @@ manual_strip = 'warn'
 [workspace.package]
 edition = '2021'
 license = "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT"
-version = "0.228.0"
+version = "0.229.0"
 # Current policy for wasm-tools is the same as Wasmtime which is that this
 # number can be no larger than the current stable release of Rust minus 2.
 #
@@ -103,20 +103,20 @@ termcolor = "1.2.0"
 url = "2.0.0"
 wasmtime = { version = "29.0.1", default-features = false, features = ['cranelift', 'component-model', 'runtime', 'gc-drc'] }
 
-wasm-compose = { version = "0.228.0", path = "crates/wasm-compose" }
-wasm-encoder = { version = "0.228.0", path = "crates/wasm-encoder", default-features = false }
-wasm-metadata = { version = "0.228.0", path = "crates/wasm-metadata", default-features = false }
-wasm-mutate = { version = "0.228.0", path = "crates/wasm-mutate" }
-wasm-shrink = { version = "0.228.0", path = "crates/wasm-shrink" }
-wasm-smith = { version = "0.228.0", path = "crates/wasm-smith" }
-wasmparser = { version = "0.228.0", path = "crates/wasmparser", default-features = false, features = ['simd'] }
-wasmprinter = { version = "0.228.0", path = "crates/wasmprinter", default-features = false }
-wast = { version = "228.0.0", path = "crates/wast", default-features = false }
-wat = { version = "1.228.0", path = "crates/wat", default-features = false }
-wit-component = { version = "0.228.0", path = "crates/wit-component" }
-wit-encoder = { version = "0.228.0", path = "crates/wit-encoder" }
-wit-parser = { version = "0.228.0", path = "crates/wit-parser" }
-wit-smith = { version = "0.228.0", path = "crates/wit-smith" }
+wasm-compose = { version = "0.229.0", path = "crates/wasm-compose" }
+wasm-encoder = { version = "0.229.0", path = "crates/wasm-encoder", default-features = false }
+wasm-metadata = { version = "0.229.0", path = "crates/wasm-metadata", default-features = false }
+wasm-mutate = { version = "0.229.0", path = "crates/wasm-mutate" }
+wasm-shrink = { version = "0.229.0", path = "crates/wasm-shrink" }
+wasm-smith = { version = "0.229.0", path = "crates/wasm-smith" }
+wasmparser = { version = "0.229.0", path = "crates/wasmparser", default-features = false, features = ['simd'] }
+wasmprinter = { version = "0.229.0", path = "crates/wasmprinter", default-features = false }
+wast = { version = "229.0.0", path = "crates/wast", default-features = false }
+wat = { version = "1.229.0", path = "crates/wat", default-features = false }
+wit-component = { version = "0.229.0", path = "crates/wit-component" }
+wit-encoder = { version = "0.229.0", path = "crates/wit-encoder" }
+wit-parser = { version = "0.229.0", path = "crates/wit-parser" }
+wit-smith = { version = "0.229.0", path = "crates/wit-smith" }
 
 [dependencies]
 anyhow = { workspace = true }
@@ -127,12 +127,12 @@ env_logger = { workspace = true }
 log = { workspace = true }
 tempfile = "3.2.0"
 termcolor = { workspace = true }
+wasmparser = { workspace = true, features = ['std', 'component-model', 'simd'] }
 wat = { workspace = true, features = ['dwarf', 'component-model'] }
 
 # Dependencies of `validate`
 bitflags = { workspace = true, optional = true }
 rayon = { workspace = true, optional = true }
-wasmparser = { workspace = true, optional = true, features = ['std', 'component-model', 'simd'] }
 
 # Dependencies of `print`
 wasmprinter = { workspace = true, features = ['component-model'] }
@@ -191,6 +191,8 @@ pretty_assertions = { workspace = true }
 serde_json = "1.0"
 tempfile = "3.1"
 wast = { workspace = true }
+arbitrary = { workspace = true }
+wasm-smith = { workspace = true }
 
 [[test]]
 name = "cli"
@@ -221,7 +223,6 @@ default = [
 
 # Each subcommand is gated behind a feature and lists the dependencies it needs
 validate = [
-  'dep:wasmparser',
   'rayon',
   'dep:addr2line',
   'dep:gimli',
@@ -234,23 +235,22 @@ parse = []
 smith = ['wasm-smith', 'arbitrary', 'dep:serde', 'dep:serde_derive', 'dep:serde_json']
 shrink = ['wasm-shrink', 'is_executable']
 mutate = ['wasm-mutate']
-dump = ['dep:wasmparser']
-objdump = ['dep:wasmparser']
-strip = ['wasm-encoder', 'dep:wasmparser', 'regex']
-compose = ['wasm-compose', 'dep:wasmparser']
-demangle = ['rustc-demangle', 'cpp_demangle', 'dep:wasmparser', 'wasm-encoder']
+dump = []
+objdump = []
+strip = ['wasm-encoder', 'regex']
+compose = ['wasm-compose']
+demangle = ['rustc-demangle', 'cpp_demangle', 'wasm-encoder']
 component = [
   'wit-component',
   'wit-encoder',
   'wit-parser',
   'dep:wast',
   'wasm-encoder',
-  'dep:wasmparser',
   'dep:serde_json',
 ]
-metadata = ['dep:wasmparser', 'wasm-metadata', 'dep:serde_json']
+metadata = ['wasm-metadata', 'dep:serde_json']
 wit-smith = ['dep:wit-smith', 'arbitrary']
-addr2line = ['dep:addr2line', 'dep:gimli', 'dep:wasmparser']
+addr2line = ['dep:addr2line', 'dep:gimli']
 completion = ['dep:clap_complete']
 json-from-wast = ['dep:serde_derive', 'dep:serde_json', 'dep:wast', 'dep:serde']
 wast = [

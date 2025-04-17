@@ -304,10 +304,16 @@ impl<'a> ModuleInfo<'a> {
         assert!(dest_idx < self.raw_sections.len());
         assert_ne!(src_idx, dest_idx);
         let mut sections = self.raw_sections.clone();
-        sections.swap(src_idx, dest_idx);
+        let to_move = sections.remove(src_idx);
         let mut module = wasm_encoder::Module::new();
-        for section in sections {
-            module.section(&section);
+        for (i, section) in sections.iter().enumerate() {
+            if i == dest_idx {
+                module.section(&to_move);
+            }
+            module.section(section);
+        }
+        if sections.len() == dest_idx {
+            module.section(&to_move);
         }
         module
     }

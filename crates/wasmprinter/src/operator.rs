@@ -3,8 +3,8 @@ use anyhow::{anyhow, bail, Result};
 use termcolor::{Ansi, NoColor};
 use wasmparser::VisitSimdOperator;
 use wasmparser::{
-    BinaryReader, BlockType, BrTable, Catch, CompositeInnerType, ContType, FrameKind, FuncType,
-    Handle, MemArg, ModuleArity, Operator, Ordering, RefType, ResumeTable, SubType, TryTable,
+    BlockType, BrTable, Catch, CompositeInnerType, ContType, FrameKind, FuncType, Handle, MemArg,
+    ModuleArity, Operator, OperatorsReader, Ordering, RefType, ResumeTable, SubType, TryTable,
     VisitOperator,
 };
 
@@ -1404,7 +1404,7 @@ impl<'a> VisitSimdOperator<'a> for PrintOperator<'_, '_, '_, '_> {
 pub trait OpPrinter {
     fn branch_hint(&mut self, offset: usize, taken: bool) -> Result<()>;
     fn set_offset(&mut self, offset: usize);
-    fn visit_operator(&mut self, reader: &mut BinaryReader<'_>) -> Result<()>;
+    fn visit_operator(&mut self, reader: &mut OperatorsReader<'_>) -> Result<()>;
 }
 
 impl OpPrinter for PrintOperator<'_, '_, '_, '_> {
@@ -1421,7 +1421,7 @@ impl OpPrinter for PrintOperator<'_, '_, '_, '_> {
         self.operator_state.op_offset = offset;
     }
 
-    fn visit_operator(&mut self, reader: &mut BinaryReader<'_>) -> Result<()> {
+    fn visit_operator(&mut self, reader: &mut OperatorsReader<'_>) -> Result<()> {
         reader.visit_operator(self)?
     }
 }
@@ -1444,8 +1444,8 @@ impl OpPrinter for PrintOperatorFolded<'_, '_, '_, '_> {
         self.operator_state.op_offset = offset;
     }
 
-    fn visit_operator(&mut self, reader: &mut BinaryReader<'_>) -> Result<()> {
-        let operator = reader.clone().read_operator()?;
+    fn visit_operator(&mut self, reader: &mut OperatorsReader<'_>) -> Result<()> {
+        let operator = reader.clone().read()?;
         let (params, results) = operator
             .operator_arity(self)
             .ok_or_else(|| anyhow::anyhow!("could not calculate operator arity"))?;

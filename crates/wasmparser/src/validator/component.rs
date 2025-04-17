@@ -965,10 +965,14 @@ impl ComponentState {
             CanonicalFunction::TaskReturn { result, options } => {
                 self.task_return(&result, &options, types, offset)
             }
+            CanonicalFunction::TaskCancel => self.task_cancel(types, offset),
             CanonicalFunction::ContextGet(i) => self.context_get(i, types, offset),
             CanonicalFunction::ContextSet(i) => self.context_set(i, types, offset),
             CanonicalFunction::Yield { async_ } => self.yield_(async_, types, offset),
             CanonicalFunction::SubtaskDrop => self.subtask_drop(types, offset),
+            CanonicalFunction::SubtaskCancel { async_ } => {
+                self.subtask_cancel(async_, types, offset)
+            }
             CanonicalFunction::StreamNew { ty } => self.stream_new(ty, types, offset),
             CanonicalFunction::StreamRead { ty, options } => {
                 self.stream_read(ty, &options, types, offset)
@@ -1207,6 +1211,19 @@ impl ComponentState {
         Ok(())
     }
 
+    fn task_cancel(&mut self, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+        if !self.features.cm_async() {
+            bail!(
+                offset,
+                "`task.cancel` requires the component model async feature"
+            )
+        }
+
+        self.core_funcs
+            .push(types.intern_func_type(FuncType::new([], []), offset));
+        Ok(())
+    }
+
     fn context_get(&mut self, i: u32, types: &mut TypeAlloc, offset: usize) -> Result<()> {
         if !self.features.cm_async() {
             bail!(
@@ -1214,8 +1231,8 @@ impl ComponentState {
                 "`context.get` requires the component model async feature"
             )
         }
-        if i > 2 {
-            bail!(offset, "`context.get` immediate larger than two: {i}")
+        if i > 0 {
+            bail!(offset, "`context.get` immediate must be zero: {i}")
         }
 
         self.core_funcs
@@ -1230,8 +1247,8 @@ impl ComponentState {
                 "`context.set` requires the component model async feature"
             )
         }
-        if i > 2 {
-            bail!(offset, "`context.set` immediate larger than two: {i}")
+        if i > 0 {
+            bail!(offset, "`context.set` immediate must be zero: {i}")
         }
 
         self.core_funcs
@@ -1265,6 +1282,25 @@ impl ComponentState {
 
         self.core_funcs
             .push(types.intern_func_type(FuncType::new([ValType::I32], []), offset));
+        Ok(())
+    }
+
+    fn subtask_cancel(&mut self, async_: bool, types: &mut TypeAlloc, offset: usize) -> Result<()> {
+        if !self.features.cm_async() {
+            bail!(
+                offset,
+                "`subtask.cancel` requires the component model async feature"
+            )
+        }
+        if async_ && !self.features.cm_async_builtins() {
+            bail!(
+                offset,
+                "async `subtask.cancel` requires the component model async builtins feature"
+            )
+        }
+
+        self.core_funcs
+            .push(types.intern_func_type(FuncType::new([ValType::I32], [ValType::I32]), offset));
         Ok(())
     }
 

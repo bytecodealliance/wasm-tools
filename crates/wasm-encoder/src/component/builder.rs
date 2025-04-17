@@ -407,6 +407,12 @@ impl ComponentBuilder {
         inc(&mut self.core_funcs)
     }
 
+    /// Declares a new `task.cancel` intrinsic.
+    pub fn task_cancel(&mut self) -> u32 {
+        self.canonical_functions().task_cancel();
+        inc(&mut self.core_funcs)
+    }
+
     /// Declares a new `context.get` intrinsic.
     pub fn context_get(&mut self, i: u32) -> u32 {
         self.canonical_functions().context_get(i);
@@ -428,6 +434,12 @@ impl ComponentBuilder {
     /// Declares a new `subtask.drop` intrinsic.
     pub fn subtask_drop(&mut self) -> u32 {
         self.canonical_functions().subtask_drop();
+        inc(&mut self.core_funcs)
+    }
+
+    /// Declares a new `subtask.cancel` intrinsic.
+    pub fn subtask_cancel(&mut self, async_: bool) -> u32 {
+        self.canonical_functions().subtask_cancel(async_);
         inc(&mut self.core_funcs)
     }
 

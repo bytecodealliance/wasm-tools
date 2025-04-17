@@ -1,14 +1,14 @@
 ;; RUN: wast --assert default --snapshot tests/snapshots % -f mvp
 
 (assert_invalid
-  (module
-    (global (shared i32) (i32.const 0))
+  (module quote
+    "(global (shared i32) (i32.const 0))"
   )
   "shared globals require the shared-everything-threads proposal")
 
 (assert_invalid
-  (module
-    (global (import "spectest" "global_i64") (shared mut i64))
+  (module quote
+    "(global (import \"spectest\" \"global_i64\") (shared mut i64))"
   )
   "shared globals require the shared-everything-threads proposal")
 

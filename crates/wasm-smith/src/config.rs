@@ -1,6 +1,7 @@
 //! Configuring the shape of generated Wasm modules.
 
 use crate::InstructionKinds;
+use anyhow::bail;
 use arbitrary::{Arbitrary, Result, Unstructured};
 
 macro_rules! define_config {
@@ -113,10 +114,11 @@ macro_rules! define_config {
             }
         }
 
-        #[cfg(feature = "_internal_cli")]
         #[doc(hidden)]
-        #[derive(Clone, Debug, Default, clap::Parser, serde_derive::Deserialize)]
-        #[serde(rename_all = "kebab-case", deny_unknown_fields)]
+        #[derive(Clone, Debug, Default)]
+        #[cfg_attr(feature = "clap", derive(clap::Parser))]
+        #[cfg_attr(feature = "serde", derive(serde_derive::Deserialize, serde_derive::Serialize))]
+        #[cfg_attr(feature = "serde", serde(rename_all = "kebab-case", deny_unknown_fields))]
         pub struct InternalOptionalConfig {
             /// The imports that may be used when generating the module.
             ///
@@ -173,7 +175,6 @@ macro_rules! define_config {
             )*
         }
 
-        #[cfg(feature = "_internal_cli")]
         impl InternalOptionalConfig {
             pub fn or(self, other: Self) -> Self {
                 Self {
@@ -187,7 +188,7 @@ macro_rules! define_config {
             }
         }
 
-        #[cfg(feature = "_internal_cli")]
+        #[cfg(feature = "serde")]
         impl TryFrom<InternalOptionalConfig> for Config {
             type Error = anyhow::Error;
             fn try_from(config: InternalOptionalConfig) -> anyhow::Result<Config> {
@@ -211,6 +212,23 @@ macro_rules! define_config {
                     $(
                         $field: config.$field.unwrap_or(default.$field),
                     )*
+                })
+            }
+        }
+
+        impl TryFrom<&Config> for InternalOptionalConfig {
+            type Error = anyhow::Error;
+            fn try_from(config: &Config) -> anyhow::Result<InternalOptionalConfig> {
+                if config.available_imports.is_some() {
+                    bail!("cannot serialize configuration with `available_imports`");
+                }
+                if config.exports.is_some() {
+                    bail!("cannot serialize configuration with `exports`");
+                }
+                Ok(InternalOptionalConfig {
+                    available_imports: None,
+                    exports: None,
+                    $( $field: Some(config.$field.clone()), )*
                 })
             }
         }
@@ -654,7 +672,10 @@ define_config! {
 ///
 /// The default is `(90, 9, 1)`.
 #[derive(Clone, Debug)]
-#[cfg_attr(feature = "serde_derive", derive(serde_derive::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde_derive::Deserialize, serde_derive::Serialize)
+)]
 pub struct MemoryOffsetChoices(pub u32, pub u32, pub u32);
 
 impl Default for MemoryOffsetChoices {
@@ -663,7 +684,6 @@ impl Default for MemoryOffsetChoices {
     }
 }
 
-#[cfg(feature = "_internal_cli")]
 impl std::str::FromStr for MemoryOffsetChoices {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -863,5 +883,35 @@ impl Config {
         features.set(WasmFeatures::WIDE_ARITHMETIC, self.wide_arithmetic_enabled);
 
         features
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for Config {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        use serde::de::Error;
+
+        match Config::try_from(InternalOptionalConfig::deserialize(deserializer)?) {
+            Ok(config) => Ok(config),
+            Err(e) => Err(D::Error::custom(e)),
+        }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for Config {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::Error;
+
+        match InternalOptionalConfig::try_from(self) {
+            Ok(result) => result.serialize(serializer),
+            Err(e) => Err(S::Error::custom(e)),
+        }
     }
 }

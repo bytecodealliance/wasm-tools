@@ -169,7 +169,7 @@ impl NewOpts {
 
     /// Executes the application.
     fn run(self) -> Result<()> {
-        let wasm = self.io.parse_input_wasm()?;
+        let wasm = self.io.get_input_wasm()?;
         let mut encoder = ComponentEncoder::default()
             .validate(!self.skip_validation)
             .reject_legacy_names(self.reject_legacy_names);
@@ -389,7 +389,7 @@ impl EmbedOpts {
                 },
             )
         } else {
-            self.io.parse_input_wasm()?
+            self.io.get_input_wasm()?
         };
 
         embed_component_metadata(
@@ -958,7 +958,7 @@ impl TargetsOpts {
     fn run(self) -> Result<()> {
         let (resolve, pkg_id) = self.resolve.load()?;
         let world = resolve.select_world(pkg_id, self.world.as_deref())?;
-        let component_to_test = self.input.parse_wasm()?;
+        let component_to_test = self.input.get_binary_wasm()?;
 
         wit_component::targets(&resolve, world, &component_to_test)?;
 
@@ -1046,7 +1046,7 @@ impl UnbundleOpts {
     }
 
     fn run(self) -> Result<()> {
-        let input = self.io.parse_input_wasm()?;
+        let input = self.io.get_input_wasm()?;
         if !wasmparser::Parser::is_component(&input) {
             return self.io.output_wasm(&input, self.wat);
         }

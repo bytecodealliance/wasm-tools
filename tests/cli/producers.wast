@@ -24,7 +24,7 @@
   (@producers (sdk "foo" "bar"))
 )
 
-(assert_invalid
+(assert_malformed
   (module quote "(@producers (foo))")
   "unexpected token")
 

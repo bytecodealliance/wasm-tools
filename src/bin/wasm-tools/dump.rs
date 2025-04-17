@@ -20,7 +20,7 @@ impl Opts {
     }
 
     pub fn run(&self) -> Result<()> {
-        let input = self.io.parse_input_wasm()?;
+        let input = self.io.get_input_wasm()?;
         let output = self.io.output_writer()?;
         let mut d = Dump::new(&input, output);
         d.run()?;
@@ -424,6 +424,7 @@ impl<'a> Dump<'a> {
                             | CanonicalFunction::ThreadAvailableParallelism
                             | CanonicalFunction::BackpressureSet
                             | CanonicalFunction::TaskReturn { .. }
+                            | CanonicalFunction::TaskCancel
                             | CanonicalFunction::ContextGet { .. }
                             | CanonicalFunction::ContextSet { .. }
                             | CanonicalFunction::WaitableSetNew
@@ -433,6 +434,7 @@ impl<'a> Dump<'a> {
                             | CanonicalFunction::WaitableJoin
                             | CanonicalFunction::Yield { .. }
                             | CanonicalFunction::SubtaskDrop
+                            | CanonicalFunction::SubtaskCancel { .. }
                             | CanonicalFunction::StreamNew { .. }
                             | CanonicalFunction::StreamRead { .. }
                             | CanonicalFunction::StreamWrite { .. }

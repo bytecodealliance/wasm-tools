@@ -14,8 +14,8 @@
  */
 
 use crate::{
-    BinaryReader, BinaryReaderError, ConstExpr, ExternalKind, FromReader, RefType, Result,
-    SectionLimited,
+    BinaryReader, BinaryReaderError, ConstExpr, ExternalKind, FromReader, OperatorsReader, RefType,
+    Result, SectionLimited,
 };
 use core::ops::Range;
 
@@ -122,7 +122,9 @@ impl<'a> FromReader<'a> for Element<'a> {
             let items_count = reader.read_var_u32()?;
             if exprs {
                 for _ in 0..items_count {
-                    reader.skip_const_expr()?;
+                    let mut ops = OperatorsReader::new(reader.clone());
+                    ops.skip_const_expr()?;
+                    *reader = ops.get_binary_reader();
                 }
             } else {
                 for _ in 0..items_count {

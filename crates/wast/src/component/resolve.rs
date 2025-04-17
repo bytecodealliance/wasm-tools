@@ -396,8 +396,10 @@ impl<'a> Resolver<'a> {
                 }
                 CoreFuncKind::ThreadAvailableParallelism(_)
                 | CoreFuncKind::BackpressureSet
+                | CoreFuncKind::TaskCancel
                 | CoreFuncKind::Yield(_)
                 | CoreFuncKind::SubtaskDrop
+                | CoreFuncKind::SubtaskCancel(_)
                 | CoreFuncKind::ErrorContextDrop => {}
                 CoreFuncKind::TaskReturn(info) => {
                     if let Some(ty) = &mut info.result {

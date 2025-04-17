@@ -1,0 +1,6 @@
+(module
+  (rec
+    (type $f2 (;0;) (func))
+  )
+  (import "M" "f" (func (;0;) (type $f2)))
+)

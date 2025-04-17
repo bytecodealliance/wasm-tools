@@ -109,3 +109,22 @@
   (instance (import "a:b/c"))
   (instance (import "a1:b1/c"))
 )
+
+(component
+  (import "a" (type $a (sub resource)))
+  (import "[constructor]a" (func (result (own $a))))
+)
+
+(assert_invalid
+  (component
+    (import "a" (type $a (sub resource)))
+    (import "[method]a.a" (func (param "self" (borrow $a))))
+  )
+  "import name `[method]a.a` conflicts with previous name `a`")
+
+(assert_invalid
+  (component
+    (import "a" (type $a (sub resource)))
+    (import "[static]a.a" (func))
+  )
+  "import name `[static]a.a` conflicts with previous name `a`")

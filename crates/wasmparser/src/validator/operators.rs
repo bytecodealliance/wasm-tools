@@ -52,10 +52,6 @@ pub(crate) struct OperatorValidator {
     /// The `operands` is the current type stack.
     operands: Vec<MaybeType>,
 
-    /// Offset of the `end` instruction which emptied the `control` stack, which
-    /// must be the end of the function.
-    end_which_emptied_control: Option<usize>,
-
     /// Whether validation is happening in a shared context.
     shared: bool,
 
@@ -347,7 +343,6 @@ impl OperatorValidator {
             popped_types_tmp,
             operands,
             control,
-            end_which_emptied_control: None,
             shared: false,
             #[cfg(debug_assertions)]
             pop_push_count: (0, 0),
@@ -510,28 +505,6 @@ impl OperatorValidator {
             inner: self,
             resources,
         })
-    }
-
-    pub fn finish(&mut self, offset: usize) -> Result<()> {
-        if self.control.last().is_some() {
-            bail!(
-                offset,
-                "control frames remain at end of function: END opcode expected"
-            );
-        }
-
-        // The `end` opcode is one byte which means that the `offset` here
-        // should point just beyond the `end` opcode which emptied the control
-        // stack. If not that means more instructions were present after the
-        // control stack was emptied.
-        if offset != self.end_which_emptied_control.unwrap() + 1 {
-            return Err(self.err_beyond_end(offset));
-        }
-        Ok(())
-    }
-
-    fn err_beyond_end(&self, offset: usize) -> BinaryReaderError {
-        format_err!(offset, "operators remaining after end of function")
     }
 
     pub fn into_allocations(mut self) -> OperatorValidatorAllocations {
@@ -717,10 +690,7 @@ where
         popped: Option<MaybeType>,
     ) -> Result<MaybeType> {
         self.operands.extend(popped);
-        let control = match self.control.last() {
-            Some(c) => c,
-            None => return Err(self.err_beyond_end(self.offset)),
-        };
+        let control = self.control.last().unwrap();
         let actual = if self.operands.len() == control.height && control.unreachable {
             MaybeType::Bottom
         } else {
@@ -914,10 +884,7 @@ where
     /// Flags the current control frame as unreachable, additionally truncating
     /// the currently active operand stack.
     fn unreachable(&mut self) -> Result<()> {
-        let control = match self.control.last_mut() {
-            Some(frame) => frame,
-            None => return Err(self.err_beyond_end(self.offset)),
-        };
+        let control = self.control.last_mut().unwrap();
         control.unreachable = true;
         let new_height = control.height;
         self.operands.truncate(new_height);
@@ -957,10 +924,7 @@ where
     fn pop_ctrl(&mut self) -> Result<Frame> {
         // Read the expected type and expected height of the operand stack the
         // end of the frame.
-        let frame = match self.control.last() {
-            Some(f) => f,
-            None => return Err(self.err_beyond_end(self.offset)),
-        };
+        let frame = self.control.last().unwrap();
         let ty = frame.block_type;
         let height = frame.height;
         let init_height = frame.init_height;
@@ -992,9 +956,7 @@ where
     /// Returns the type signature of the block that we're jumping to as well
     /// as the kind of block if the jump is valid. Otherwise returns an error.
     fn jump(&self, depth: u32) -> Result<(BlockType, FrameKind)> {
-        if self.control.is_empty() {
-            return Err(self.err_beyond_end(self.offset));
-        }
+        assert!(!self.control.is_empty());
         match (self.control.len() - 1).checked_sub(depth as usize) {
             Some(i) => {
                 let frame = &self.control[i];
@@ -1168,9 +1130,7 @@ where
     /// Validates a `return` instruction, popping types from the operand
     /// stack that the function needs.
     fn check_return(&mut self) -> Result<()> {
-        if self.control.is_empty() {
-            return Err(self.err_beyond_end(self.offset));
-        }
+        assert!(!self.control.is_empty());
         for ty in self.results(self.control[0].block_type)?.rev() {
             self.pop_operand(Some(ty))?;
         }
@@ -1181,9 +1141,7 @@ where
     /// Check that the given type has the same result types as the current
     /// function's results.
     fn check_func_type_same_results(&self, callee_ty: &FuncType) -> Result<()> {
-        if self.control.is_empty() {
-            return Err(self.err_beyond_end(self.offset));
-        }
+        assert!(!self.control.is_empty());
         let caller_rets = self.results(self.control[0].block_type)?;
         if callee_ty.results().len() != caller_rets.len()
             || !caller_rets
@@ -1964,10 +1922,8 @@ where
         for ty in self.results(frame.block_type)? {
             self.push_operand(ty)?;
         }
-
-        if self.control.is_empty() && self.end_which_emptied_control.is_none() {
+        if self.control.is_empty() {
             assert_ne!(self.offset, 0);
-            self.end_which_emptied_control = Some(self.offset);
         }
         Ok(())
     }

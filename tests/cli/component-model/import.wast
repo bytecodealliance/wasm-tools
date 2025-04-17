@@ -69,19 +69,19 @@
   )
   "duplicate import name `:a`")
 
-(assert_malformed
-  (component quote
-    "(import \"a\" (func))"
-    "(import \"a\" (func))"
+(assert_invalid
+  (component
+    (import "a" (func))
+    (import "a" (func))
   )
   "import name `a` conflicts with previous name `a`")
 
-(assert_malformed
-  (component quote
-    "(type (component"
-      "(import \"a\" (func))"
-      "(import \"a\" (func))"
-    "))"
+(assert_invalid
+  (component
+    (type (component
+      (import "a" (func))
+      (import "a" (func))
+    ))
   )
   "import name `a` conflicts with previous name `a`")
 

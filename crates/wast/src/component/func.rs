@@ -56,10 +56,12 @@ pub enum CoreFuncKind<'a> {
     ThreadAvailableParallelism(CanonThreadAvailableParallelism),
     BackpressureSet,
     TaskReturn(CanonTaskReturn<'a>),
+    TaskCancel,
     ContextGet(u32),
     ContextSet(u32),
     Yield(CanonYield),
     SubtaskDrop,
+    SubtaskCancel(CanonSubtaskCancel),
     StreamNew(CanonStreamNew<'a>),
     StreamRead(CanonStreamRead<'a>),
     StreamWrite(CanonStreamWrite<'a>),
@@ -121,6 +123,9 @@ impl<'a> CoreFuncKind<'a> {
             Ok(CoreFuncKind::BackpressureSet)
         } else if l.peek::<kw::task_return>()? {
             Ok(CoreFuncKind::TaskReturn(parser.parse()?))
+        } else if l.peek::<kw::task_cancel>()? {
+            parser.parse::<kw::task_cancel>()?;
+            Ok(CoreFuncKind::TaskCancel)
         } else if l.peek::<kw::context_get>()? {
             parser.parse::<kw::context_get>()?;
             parser.parse::<kw::i32>()?;
@@ -134,6 +139,8 @@ impl<'a> CoreFuncKind<'a> {
         } else if l.peek::<kw::subtask_drop>()? {
             parser.parse::<kw::subtask_drop>()?;
             Ok(CoreFuncKind::SubtaskDrop)
+        } else if l.peek::<kw::subtask_cancel>()? {
+            Ok(CoreFuncKind::SubtaskCancel(parser.parse()?))
         } else if l.peek::<kw::stream_new>()? {
             Ok(CoreFuncKind::StreamNew(parser.parse()?))
         } else if l.peek::<kw::stream_read>()? {
@@ -589,7 +596,7 @@ impl<'a> Parse<'a> for CanonWaitableSetPoll<'a> {
     }
 }
 
-/// Information relating to the `task.yield` intrinsic.
+/// Information relating to the `yield` intrinsic.
 #[derive(Debug)]
 pub struct CanonYield {
     /// If true, the component instance may be reentered during a call to this
@@ -600,6 +607,23 @@ pub struct CanonYield {
 impl<'a> Parse<'a> for CanonYield {
     fn parse(parser: Parser<'a>) -> Result<Self> {
         parser.parse::<kw::yield_>()?;
+        let async_ = parser.parse::<Option<kw::r#async>>()?.is_some();
+
+        Ok(Self { async_ })
+    }
+}
+
+/// Information relating to the `subtask.cancel` intrinsic.
+#[derive(Debug)]
+pub struct CanonSubtaskCancel {
+    /// If false, block until cancel is finished; otherwise return BLOCKED if
+    /// necessary.
+    pub async_: bool,
+}
+
+impl<'a> Parse<'a> for CanonSubtaskCancel {
+    fn parse(parser: Parser<'a>) -> Result<Self> {
+        parser.parse::<kw::subtask_cancel>()?;
         let async_ = parser.parse::<Option<kw::r#async>>()?.is_some();
 
         Ok(Self { async_ })

@@ -44,21 +44,21 @@
   (type $A22d (result $A9 (error $A10a)))
 )
 
-(assert_invalid
+(assert_malformed
   (component quote
     "(type $t (variant (case $x \"x\" string (refines $x))))"
   )
   "variant case cannot refine itself"
 )
 
-(assert_invalid
+(assert_malformed
   (component quote
     "(type $t (variant (case \"x\" (refines $y)) (case $y \"y\" string)))"
   )
   "unknown variant case"
 )
 
-(assert_invalid
+(assert_malformed
   (component quote
     "(type $t string)"
     "(type $v (variant (case \"x\" $t (refines $z))))"
@@ -83,7 +83,7 @@
   "variant case can only refine a previously defined case"
 )
 
-(assert_invalid
+(assert_malformed
   (component quote
     "(type $t string)"
     "(type $v (variant (case $x \"x\" $t) (case $x \"y\" $t)))"

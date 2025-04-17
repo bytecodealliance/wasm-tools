@@ -123,7 +123,7 @@
   "canonical option `realloc` is required"
 )
 
-(assert_invalid
+(assert_malformed
   (component binary
     "\00asm" "\0d\00\01\00"   ;; component header
     "\07\05"          ;; component type section, 5 bytes
@@ -134,7 +134,7 @@
   )
   "invalid leading byte (0x1) for number of results")
 
-(assert_invalid
+(assert_malformed
   (component binary
     "\00asm" "\0d\00\01\00"   ;; component header
     "\07\05"          ;; component type section, 5 bytes

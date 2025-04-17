@@ -42,21 +42,21 @@
       "module_type": "binary"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 50,
-      "filename": "start.6.wasm",
-      "module_type": "binary",
-      "text": "cannot have more than one start"
+      "filename": "start.6.wat",
+      "module_type": "text",
+      "text": "component cannot have more than one start function"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 58,
       "filename": "start.7.wasm",
       "module_type": "binary",
       "text": "start function results size is out of bounds"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 80,
       "filename": "start.8.wasm",
       "module_type": "binary",

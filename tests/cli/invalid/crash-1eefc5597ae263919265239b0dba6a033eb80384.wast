@@ -1,6 +1,6 @@
 ;; RUN: wast --assert default --snapshot tests/snapshots %
 
-(assert_invalid
+(assert_malformed
   (module binary
     "\00\61\73\6d" ;; header
     "\01\00\00\00" ;; version
@@ -11,4 +11,4 @@
     ;; trailing bytes
     "\00"
   )
-  "type index out of bounds")
+  "section size mismatch: unexpected data at the end of the section")

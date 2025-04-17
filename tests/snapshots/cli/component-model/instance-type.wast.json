@@ -53,7 +53,7 @@
       "text": "core type index 0 is not a module type"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 204,
       "filename": "instance-type.8.wat",
       "module_type": "text",

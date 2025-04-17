@@ -46,15 +46,15 @@
   (export "b" (value $a))
 )
 
-(assert_invalid
-  (component
-    (import "a" (func $f))
-    (start $f)
-    (start $f)
+(assert_malformed
+  (component quote
+    "(import \"a\" (func $f)) "
+    "(start $f) "
+    "(start $f) "
   )
-  "cannot have more than one start")
+  "component cannot have more than one start function")
 
-(assert_invalid
+(assert_malformed
   (component binary
     "\00asm" "\0d\00\01\00"   ;; component header
 
@@ -76,7 +76,7 @@
   )
   "start function results size is out of bounds")
 
-(assert_invalid
+(assert_malformed
   (component binary
     "\00asm" "\0d\00\01\00"   ;; component header
 

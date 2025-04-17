@@ -46,7 +46,8 @@ fn is_keyword(name: &str) -> bool {
         | "bool" | "string" | "tuple" | "list" | "option" | "result" | "use" | "type"
         | "resource" | "func" | "record" | "enum" | "flags" | "variant" | "static"
         | "interface" | "world" | "import" | "export" | "package" | "own" | "borrow" | "future"
-        | "stream" | "constructor" | "with" | "from" | "as" | "include" => true,
+        | "stream" | "constructor" | "with" | "from" | "as" | "include" | "error-context"
+        | "async" => true,
         _ => false,
     }
 }

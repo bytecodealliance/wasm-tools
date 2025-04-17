@@ -48,7 +48,7 @@ impl ShowOpts {
     }
 
     pub fn run(&self) -> Result<()> {
-        let input = self.io.parse_input_wasm()?;
+        let input = self.io.get_input_wasm()?;
         let mut output = self.io.output_writer()?;
 
         let payload = wasm_metadata::Payload::from_binary(&input)?;
@@ -82,7 +82,7 @@ impl AddOpts {
     }
 
     pub fn run(&self) -> Result<()> {
-        let input = self.io.parse_input_wasm()?;
+        let input = self.io.get_input_wasm()?;
 
         let output = self.add_metadata.to_wasm(&input)?;
 

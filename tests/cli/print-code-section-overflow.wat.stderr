@@ -1,1 +1,1 @@
-error: invalid code section size
+error: function section is absent but code section has non-zero count (at offset 0xa)

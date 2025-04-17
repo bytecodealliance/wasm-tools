@@ -2,9 +2,16 @@
   "source_filename": "tests/cli/invalid/invalid-ty2.wast",
   "commands": [
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 4,
-      "filename": "invalid-ty2.0.wasm",
+      "filename": "invalid-ty2.0.wat",
+      "module_type": "text",
+      "text": "control frames remain at end of function body or expression"
+    },
+    {
+      "type": "assert_invalid",
+      "line": 10,
+      "filename": "invalid-ty2.1.wasm",
       "module_type": "binary",
       "text": "type index out of bounds"
     }

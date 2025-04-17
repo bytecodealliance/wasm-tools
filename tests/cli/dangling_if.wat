@@ -1,4 +1,4 @@
-;; RUN: print % | parse -t
+;; FAIL: print %
 
 (module
     (func if)

@@ -161,7 +161,7 @@ pub(crate) fn encode(
     e.typed_section(&globals);
     e.typed_section(&exports);
     e.custom_sections(Before(Start));
-    if let Some(start) = start.get(0) {
+    for start in start {
         e.wasm.section(&wasm_encoder::StartSection {
             function_index: start.unwrap_u32(),
         });

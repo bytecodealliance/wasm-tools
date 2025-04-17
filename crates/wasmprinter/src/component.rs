@@ -946,6 +946,9 @@ impl Printer<'_, '_> {
                         Ok(())
                     })?;
                 }
+                CanonicalFunction::TaskCancel => {
+                    self.print_intrinsic(state, "canon task.cancel", &|_, _| Ok(()))?;
+                }
                 CanonicalFunction::ContextGet(i) => {
                     self.print_intrinsic(state, "canon context.get", &|me, _state| {
                         write!(me.result, " i32 {i}")?;
@@ -968,6 +971,14 @@ impl Printer<'_, '_> {
                 }
                 CanonicalFunction::SubtaskDrop => {
                     self.print_intrinsic(state, "canon subtask.drop", &|_, _| Ok(()))?;
+                }
+                CanonicalFunction::SubtaskCancel { async_ } => {
+                    self.print_intrinsic(state, "canon subtask.cancel", &|me, _| {
+                        if async_ {
+                            me.print_type_keyword(" async")?;
+                        }
+                        Ok(())
+                    })?;
                 }
                 CanonicalFunction::StreamNew { ty } => {
                     self.print_intrinsic(state, "canon stream.new ", &|me, state| {

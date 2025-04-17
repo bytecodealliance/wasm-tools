@@ -15,11 +15,11 @@
       "text": "type mismatch"
     },
     {
-      "type": "assert_invalid",
+      "type": "assert_malformed",
       "line": 20,
       "filename": "elem.2.wasm",
       "module_type": "binary",
-      "text": "constant expression required"
+      "text": "control frames remain"
     },
     {
       "type": "assert_malformed",

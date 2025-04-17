@@ -1,5 +1,5 @@
 use super::operators::{Frame, OperatorValidator, OperatorValidatorAllocations};
-use crate::{BinaryReader, Result, ValType, VisitOperator};
+use crate::{BinaryReader, OperatorsReader, Result, ValType, VisitOperator};
 use crate::{FunctionBody, ModuleArity, Operator, WasmFeatures, WasmModuleResources};
 
 /// Resources necessary to perform validation of a function.
@@ -84,24 +84,24 @@ impl<T: WasmModuleResources> FuncValidator<T> {
         {
             reader.set_features(self.validator.features);
         }
-        while !reader.eof() {
+        let mut ops = OperatorsReader::new(reader);
+        while !ops.eof() {
             // In a debug build, verify that the validator's pops and pushes to and from
             // the operand stack match the operator's arity.
             #[cfg(debug_assertions)]
             let (pop_push_snapshot, arity) = (
                 self.validator.pop_push_count,
-                reader
-                    .clone()
-                    .read_operator()?
-                    .operator_arity(&self.visitor(reader.original_position())),
+                ops.clone()
+                    .read()?
+                    .operator_arity(&self.visitor(ops.original_position())),
             );
 
-            reader.visit_operator(&mut self.visitor(reader.original_position()))??;
+            ops.visit_operator(&mut self.visitor(ops.original_position()))??;
 
             #[cfg(debug_assertions)]
             {
                 let (params, results) = arity.ok_or(format_err!(
-                    reader.original_position(),
+                    ops.original_position(),
                     "could not calculate operator arity"
                 ))?;
 
@@ -114,7 +114,7 @@ impl<T: WasmModuleResources> FuncValidator<T> {
                 }
             }
         }
-        self.finish(reader.original_position())
+        ops.finish()
     }
 
     /// Reads the local definitions from the given `BinaryReader`, often sourced
@@ -162,12 +162,12 @@ impl<T: WasmModuleResources> FuncValidator<T> {
     /// pub fn validate<R>(validator: &mut FuncValidator<R>, body: &FunctionBody<'_>) -> Result<()>
     /// where R: WasmModuleResources
     /// {
-    ///     let mut operator_reader = body.get_binary_reader();
+    ///     let mut operator_reader = body.get_operators_reader()?;
     ///     while !operator_reader.eof() {
     ///         let mut visitor = validator.visitor(operator_reader.original_position());
     ///         operator_reader.visit_operator(&mut visitor)??;
     ///     }
-    ///     validator.finish(operator_reader.original_position())
+    ///     operator_reader.finish()
     /// }
     /// ```
     pub fn visitor<'this, 'a: 'this>(
@@ -186,18 +186,6 @@ impl<T: WasmModuleResources> FuncValidator<T> {
         offset: usize,
     ) -> impl crate::VisitSimdOperator<'a, Output = Result<()>> + ModuleArity + 'this {
         self.validator.with_resources_simd(&self.resources, offset)
-    }
-
-    /// Function that must be called after the last opcode has been processed.
-    ///
-    /// This will validate that the function was properly terminated with the
-    /// `end` opcode. If this function is not called then the function will not
-    /// be properly validated.
-    ///
-    /// The `offset` provided to this function will be used as a position for an
-    /// error if validation fails.
-    pub fn finish(&mut self, offset: usize) -> Result<()> {
-        self.validator.finish(offset)
     }
 
     /// Returns the Wasm features enabled for this validator.

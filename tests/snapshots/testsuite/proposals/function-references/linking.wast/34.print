@@ -1,0 +1,3 @@
+(module
+  (import "Mref_ex" "g-const-extern" (global (;0;) funcref))
+)
