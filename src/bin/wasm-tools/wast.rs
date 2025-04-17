@@ -339,6 +339,7 @@ impl Opts {
     }
 
     /// Tests that `error`, from the validator or parser, matches the expected error
+    /// `message`.
     fn assert_error_matches(&self, _test: &Path, error: &str, message: &str) -> Result<()> {
         if error.contains(message) || self.ignore_error_messages {
             return Ok(());
