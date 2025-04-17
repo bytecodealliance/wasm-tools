@@ -320,6 +320,7 @@ impl TypeContents {
                 }
                 TypeDefKind::Enum(_) => Self::empty(),
                 TypeDefKind::List(t) => Self::for_type(resolve, t) | Self::LIST,
+                TypeDefKind::FixedSizeList(t, _elements) => Self::for_type(resolve, t),
                 TypeDefKind::Type(t) => Self::for_type(resolve, t),
                 TypeDefKind::Future(_) => Self::empty(),
                 TypeDefKind::Stream(_) => Self::empty(),
