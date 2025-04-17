@@ -1532,10 +1532,10 @@ impl Printer<'_, '_> {
         Ok(())
     }
 
-    // Note: in the text format, modules can use later-defined identifiers, but
-    // component definitions can only use previously-defined identifiers. In the binary format,
+    // Note: in the text format, modules can use identifiers that are defined anywhere, but
+    // components can only use previously-defined identifiers. In the binary format,
     // invalid components can make forward references to an index that appears in the name section;
-    // these will become malformed if printed.
+    // these can be printed but the output won't parse.
     fn print_idx<K>(&mut self, names: &NamingMap<u32, K>, idx: u32) -> Result<()>
     where
         K: NamingNamespace,
