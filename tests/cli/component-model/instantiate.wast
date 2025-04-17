@@ -389,7 +389,7 @@
   "function index out of bounds")
 
 (assert_invalid
-  (component (instance $i (export "" (instance 0))))
+  (component (instance (export "" (instance 0))))
   "index out of bounds")
 
 (assert_invalid
@@ -397,7 +397,7 @@
   "index out of bounds")
 
 (assert_invalid
-  (component (instance $i (export "" (instance 0))))
+  (component (instance (export "" (instance 0))))
   "index out of bounds")
 
 (assert_invalid

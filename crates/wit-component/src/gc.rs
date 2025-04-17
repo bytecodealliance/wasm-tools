@@ -441,6 +441,12 @@ impl<'a> Module<'a> {
         }
     }
 
+    fn valtys(&mut self, tys: &[ValType]) {
+        for i in tys {
+            self.valty(*i);
+        }
+    }
+
     fn refty(&mut self, ty: RefType) {
         self.heapty(ty.heap_type())
     }
@@ -961,6 +967,7 @@ macro_rules! define_visit {
     (mark_live $self:ident $arg:ident memarg) => {$self.memory($arg.memory);};
     (mark_live $self:ident $arg:ident blockty) => {$self.blockty($arg);};
     (mark_live $self:ident $arg:ident ty) => {$self.valty($arg)};
+    (mark_live $self:ident $arg:ident tys) => {$self.valtys(&$arg)};
     (mark_live $self:ident $arg:ident hty) => {$self.heapty($arg)};
     (mark_live $self:ident $arg:ident from_ref_type) => {$self.refty($arg);};
     (mark_live $self:ident $arg:ident to_ref_type) => {$self.refty($arg);};
