@@ -2048,11 +2048,9 @@ where
         self.push_operand(ty)?;
         Ok(())
     }
-    fn visit_typed_select_multi(&mut self, mut tys: Vec<ValType>) -> Self::Output {
-        if tys.len() != 1 {
-            bail!(self.offset, "invalid result arity");
-        }
-        self.visit_typed_select(tys.pop().unwrap())
+    fn visit_typed_select_multi(&mut self, tys: Vec<ValType>) -> Self::Output {
+        debug_assert!(tys.len() != 1);
+        bail!(self.offset, "invalid result arity");
     }
     fn visit_local_get(&mut self, local_index: u32) -> Self::Output {
         let ty = self.local(local_index)?;

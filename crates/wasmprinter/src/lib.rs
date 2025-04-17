@@ -157,6 +157,13 @@ struct State {
     #[cfg(feature = "component-model")]
     component: ComponentState,
     custom_section_place: Option<(&'static str, usize)>,
+    // `custom_section_place` stores the text representation of the location where
+    // a custom section should be serialized in the binary format.
+    // The tuple elements are a str (e.g. "after elem") and the line number
+    // where the custom section place was set. `update_custom_section_place` won't
+    // update the custom section place unless the line number changes; this prevents
+    // printing a place "after xxx" where the xxx section doesn't appear in the text format
+    // (e.g. because it was present but empty in the binary format).
 }
 
 impl State {
