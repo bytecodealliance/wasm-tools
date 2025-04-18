@@ -458,7 +458,7 @@ impl Opts {
         Ok(())
     }
 
-    /// Tests that `contents` is valid wasm binary with respect to to
+    /// Tests that `contents` is valid wasm binary with respect to
     /// `self.features`.
     fn test_wasm_valid(&self, _test: &Path, contents: &[u8]) -> Result<()> {
         let mut validator = wasmparser::Validator::new_with_features(self.features.features());
