@@ -2820,7 +2820,7 @@ impl ComponentState {
         //    component X" since in such a situation the type of all
         //    instantiations would be the same, which they aren't.
         //
-        //    This sort of subtelty comes up quite frequently for resources.
+        //    This sort of subtlety comes up quite frequently for resources.
         //    This file contains references to `imported_resources` and
         //    `defined_resources` for example which refer to the formal
         //    nature of components and their abstract variables. Specifically
