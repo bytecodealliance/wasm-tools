@@ -46,7 +46,7 @@ pub trait TypeIdentifier: core::fmt::Debug + Copy + Eq + Sized + 'static {
 
 /// A trait shared by all types within a `Types`.
 ///
-/// This is the data that can be retreived by indexing with the associated
+/// This is the data that can be retrieved by indexing with the associated
 /// [`TypeIdentifier`].
 pub trait TypeData: core::fmt::Debug {
     /// The identifier for this type data.
