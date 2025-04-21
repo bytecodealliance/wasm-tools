@@ -440,7 +440,7 @@ impl Validator {
             // they are using the same validation context, even after resetting.
             id: _,
 
-            // Don't mess with `types`, we specifically want to reuse canonicalizations.
+            // Don't mess with `types`, we specifically want to reuse canonicalization.
             types: _,
 
             // Also leave features as they are. While this is perhaps not
