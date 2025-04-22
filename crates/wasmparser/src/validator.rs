@@ -346,7 +346,7 @@ pub enum ValidPayload<'a> {
     /// This result indicates that the specified parser should be used instead
     /// of the currently-used parser until this returned one ends.
     Parser(Parser),
-    /// A function was found to be validate.
+    /// A function was found to be validated.
     Func(FuncToValidate<ValidatorResources>, FunctionBody<'a>),
     /// The end payload was validated and the types known to the validator
     /// are provided.
