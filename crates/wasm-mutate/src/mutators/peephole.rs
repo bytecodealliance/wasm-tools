@@ -352,7 +352,7 @@ impl PeepholeMutator {
                             .or(code_index);
 
                         // If the mutator is in this staeg, then it passes the can_mutate flter,
-                        // which checks for code section existance
+                        // which checks for code section existence
                         let insert_globals_before = insert_globals_before.unwrap();
                         let module = config.info().replace_multiple_sections(
                             move |index, _sectionid, module: &mut wasm_encoder::Module| {
@@ -374,7 +374,7 @@ impl PeepholeMutator {
                                     // conditional position writer
                                     return gidx == index;
                                 }
-                                // False to say the underlying encoder to write the prexisting
+                                // False to say the underlying encoder to write the preexisting
                                 // section
                                 false
                             },

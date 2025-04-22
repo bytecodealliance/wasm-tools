@@ -124,7 +124,7 @@ pub enum ImportInstance {
 /// `future` intrinsics as core module function imports refers to a specific
 /// `stream` or `future` type by naming an imported or exported component
 /// function which has that type as a parameter or return type (where the
-/// specific type is refered to using an ordinal numbering scheme).  Not only
+/// specific type is referred to using an ordinal numbering scheme).  Not only
 /// does this approach unambiguously indicate the type of interest, but it
 /// allows us to reuse the `realloc`, string encoding, memory, etc. used by that
 /// function when emitting intrinsic declarations.
@@ -317,13 +317,13 @@ pub enum Import {
 
     /// A `canon stream.read` intrinsic.
     ///
-    /// This allows the guest to read the next values (if any) from the specifed
+    /// This allows the guest to read the next values (if any) from the specified
     /// stream.
     StreamRead { async_: bool, info: PayloadInfo },
 
     /// A `canon stream.write` intrinsic.
     ///
-    /// This allows the guest to write one or more values to the specifed
+    /// This allows the guest to write one or more values to the specified
     /// stream.
     StreamWrite { async_: bool, info: PayloadInfo },
 
@@ -356,13 +356,13 @@ pub enum Import {
 
     /// A `canon future.read` intrinsic.
     ///
-    /// This allows the guest to read the value (if any) from the specifed
+    /// This allows the guest to read the value (if any) from the specified
     /// future.
     FutureRead { async_: bool, info: PayloadInfo },
 
     /// A `canon future.write` intrinsic.
     ///
-    /// This allows the guest to write a value to the specifed future.
+    /// This allows the guest to write a value to the specified future.
     FutureWrite { async_: bool, info: PayloadInfo },
 
     /// A `canon future.cancel-read` intrinsic.

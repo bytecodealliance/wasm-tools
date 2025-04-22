@@ -86,7 +86,7 @@ pub enum ErrorKind {
     #[error("There are not applicable mutations for the input Wasm module.")]
     NoMutationsApplicable,
 
-    /// Ran out of fuel before a mutation could be applied succesfully.
+    /// Ran out of fuel before a mutation could be applied successfully.
     #[error("Out of fuel")]
     OutOfFuel,
 
