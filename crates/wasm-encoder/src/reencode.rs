@@ -548,7 +548,7 @@ pub enum Error<E = Infallible> {
     InvalidCodeSectionSize,
     /// There was a section that does not belong into a core wasm module.
     UnexpectedNonCoreModuleSection,
-    /// There was a section that does not belong into a compoennt module.
+    /// There was a section that does not belong into a component module.
     UnexpectedNonComponentSection,
     /// A core type definition was found in a component that's not supported.
     UnsupportedCoreTypeInComponent,

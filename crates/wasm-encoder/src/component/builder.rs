@@ -134,7 +134,7 @@ impl ComponentBuilder {
     /// Instantiates a core wasm module at `module_index` with the `args`
     /// provided.
     ///
-    /// Returns the index of the core wasm instance crated.
+    /// Returns the index of the core wasm instance created.
     pub fn core_instantiate<'a, A>(&mut self, module_index: u32, args: A) -> u32
     where
         A: IntoIterator<Item = (&'a str, ModuleArg)>,
@@ -146,7 +146,7 @@ impl ComponentBuilder {
 
     /// Creates a new core wasm instance from the `exports` provided.
     ///
-    /// Returns the index of the core wasm instance crated.
+    /// Returns the index of the core wasm instance created.
     pub fn core_instantiate_exports<'a, E>(&mut self, exports: E) -> u32
     where
         E: IntoIterator<Item = (&'a str, ExportKind, u32)>,
@@ -159,7 +159,7 @@ impl ComponentBuilder {
     /// Creates a new aliased item where the core `instance` specified has its
     /// export `name` aliased out with the `kind` specified.
     ///
-    /// Returns the index of the item crated.
+    /// Returns the index of the item created.
     pub fn core_alias_export(&mut self, instance: u32, name: &str, kind: ExportKind) -> u32 {
         self.alias(Alias::CoreInstanceExport {
             instance,
