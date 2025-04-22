@@ -50,7 +50,7 @@ impl<'cfg, 'wasm> Reencode for InitTranslator<'cfg, 'wasm> {
         0
     }
 
-    /// Handle `global` initalizers and `elem`s with values of the `ElementItem::Expr` kind.
+    /// Handle `global` initializers and `elem`s with values of the `ElementItem::Expr` kind.
     ///
     /// This function will not be called for `elem` values of the `ElementItem::Func` kind.
     fn const_expr(&mut self, e: ConstExpr<'_>) -> ReencodeResult<wasm_encoder::ConstExpr> {
