@@ -1399,7 +1399,7 @@ impl Module {
                     if self.funcs.len() >= self.config.max_funcs {
                         continue;
                     } else if let Some((sig_idx, func_type)) = make_func_type(&self, *sig_idx) {
-                        let entity = EntityType::Func(sig_idx as u32, Rc::clone(&func_type));
+                        let entity = EntityType::Func(sig_idx, Rc::clone(&func_type));
                         if type_size_budget < entity.size() {
                             continue;
                         }
@@ -1444,7 +1444,7 @@ impl Module {
                 }
 
                 wasmparser::TypeRef::Memory(memory_ty) => {
-                    let memory_ty = MemoryType::try_from(*memory_ty).unwrap();
+                    let memory_ty = MemoryType::from(*memory_ty);
                     let entity = EntityType::Memory(memory_ty);
                     let type_size = entity.size();
                     if type_size_budget < type_size || !self.can_add_local_or_import_memory() {
@@ -1650,7 +1650,7 @@ impl Module {
         arbitrary_loop(
             u,
             self.config.min_tables as usize,
-            self.config.max_tables as usize,
+            self.config.max_tables,
             |u| {
                 if !self.can_add_local_or_import_table() {
                     return Ok(false);
@@ -1691,7 +1691,7 @@ impl Module {
         arbitrary_loop(
             u,
             self.config.min_memories as usize,
-            self.config.max_memories as usize,
+            self.config.max_memories,
             |u| {
                 if !self.can_add_local_or_import_memory() {
                     return Ok(false);
@@ -1920,30 +1920,22 @@ impl Module {
             let new_index = match exports_types
                 .entity_type_from_export(&export)
                 .unwrap_or_else(|| {
-                    panic!(
-                        "Unable to get type from export {:?} in `exports` Wasm",
-                        export,
-                    )
+                    panic!("Unable to get type from export {export:?} in `exports` Wasm",)
                 }) {
                 // For functions, add the type and a function with that type.
                 wasmparser::types::EntityType::Func(id) => {
                     let subtype = exports_types.get(id).unwrap_or_else(|| {
-                        panic!(
-                            "Unable to get subtype for function {:?} in `exports` Wasm",
-                            id
-                        )
+                        panic!("Unable to get subtype for function {id:?} in `exports` Wasm")
                     });
                     match &subtype.composite_type.inner {
                         wasmparser::CompositeInnerType::Func(func_type) => {
                             assert!(
                                 subtype.is_final,
-                                "Subtype {:?} from `exports` Wasm is not final",
-                                subtype
+                                "Subtype {subtype:?} from `exports` Wasm is not final"
                             );
                             assert!(
                                 subtype.supertype_idx.is_none(),
-                                "Subtype {:?} from `exports` Wasm has non-empty supertype",
-                                subtype
+                                "Subtype {subtype:?} from `exports` Wasm has non-empty supertype"
                             );
                             let new_type = Rc::new(FuncType {
                                 params: func_type
@@ -2085,7 +2077,7 @@ impl Module {
             return Ok(());
         }
 
-        let mut choices = Vec::with_capacity(self.funcs.len() as usize);
+        let mut choices = Vec::with_capacity(self.funcs.len());
 
         for (func_idx, ty) in self.funcs() {
             if ty.params.is_empty() && ty.results.is_empty() {
@@ -2799,7 +2791,7 @@ pub(crate) fn arbitrary_memtype(u: &mut Unstructured, config: &Config) -> Result
             // Can only fail when we have a custom page size of 1 byte and a
             // memory size of `2**64 == u64::MAX + 1`. In this case, just
             // saturate to `u64::MAX`.
-            .unwrap_or(u64::MAX as u64)
+            .unwrap_or(u64::MAX)
     } else {
         u32::try_from(config.max_memory32_bytes >> page_size_log2.unwrap_or(16))
             // Similar case as above, but while we could represent `2**32` in our
@@ -2946,18 +2938,18 @@ fn gradually_grow(u: &mut Unstructured, min: u64, max_inbounds: u64, max: u64) -
     ) -> f64 {
         assert!(!value.is_nan(), "{}", value);
         assert!(value.is_finite(), "{}", value);
-        assert!(in_low < in_high, "{} < {}", in_low, in_high);
-        assert!(out_low < out_high, "{} < {}", out_low, out_high);
-        assert!(value >= in_low, "{} >= {}", value, in_low);
-        assert!(value <= in_high, "{} <= {}", value, in_high);
+        assert!(in_low < in_high, "{in_low} < {in_high}");
+        assert!(out_low < out_high, "{out_low} < {out_high}");
+        assert!(value >= in_low, "{value} >= {in_low}");
+        assert!(value <= in_high, "{value} <= {in_high}");
 
         let dividend = out_high - out_low;
         let divisor = in_high - in_low;
         let slope = dividend / divisor;
         let result = out_low + (slope * (value - in_low));
 
-        assert!(result >= out_low, "{} >= {}", result, out_low);
-        assert!(result <= out_high, "{} <= {}", result, out_high);
+        assert!(result >= out_low, "{result} >= {out_low}");
+        assert!(result <= out_high, "{result} <= {out_high}");
         result
     }
 }
@@ -3111,7 +3103,7 @@ impl FromStr for InstructionKind {
             "memory_non_float" => Ok(InstructionKind::MemoryInt),
             "memory" => Ok(InstructionKind::Memory),
             "control" => Ok(InstructionKind::Control),
-            _ => Err(format!("unknown instruction kind: {}", s)),
+            _ => Err(format!("unknown instruction kind: {s}")),
         }
     }
 }

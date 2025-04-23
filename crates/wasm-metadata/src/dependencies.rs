@@ -74,7 +74,7 @@ impl Display for Dependencies {
         // encoded as utf8, even if we internally store it as [u8].
         // let data = String::from_utf8(self.0.data.to_vec()).unwrap();
         let data = serde_json::to_string(&self.version_info).unwrap();
-        write!(f, "{}", data)
+        write!(f, "{data}")
     }
 }
 

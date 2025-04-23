@@ -27,8 +27,7 @@ fn smoke_test_component() {
                 std::fs::write("component.wasm", &component).unwrap();
                 panic!(
                     "generated component should be valid; failing binary written \
-                     to `component.wasm`. Error: {}",
-                    e
+                     to `component.wasm`. Error: {e}"
                 );
             }
         }

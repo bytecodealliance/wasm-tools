@@ -175,7 +175,7 @@ fn write_summary_table_inner(
         // Makes sure we don't see a mix of <1% and 100% in the same table, unless
         // the item is actually 100% of the binary.
         100 if range.end != range_max => ">99%".to_string(),
-        usep => format!("{}%", usep),
+        usep => format!("{usep}%"),
     };
     let kind = match payload {
         Payload::Component { .. } => "component",

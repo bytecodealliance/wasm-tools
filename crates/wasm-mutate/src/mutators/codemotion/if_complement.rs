@@ -105,7 +105,7 @@ impl AstWriter for IfComplementWriter {
 }
 
 impl AstMutator for IfComplementMutator {
-    fn can_mutate<'a>(&self, _: &crate::WasmMutate, ast: &Ast) -> bool {
+    fn can_mutate(&self, _: &crate::WasmMutate, ast: &Ast) -> bool {
         ast.has_if()
     }
 

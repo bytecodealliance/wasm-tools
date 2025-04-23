@@ -130,13 +130,12 @@ pub fn expr2wasm(
 
                                 let r: i32 = config.rng().r#gen();
                                 insn.i32_const(r);
-                                insn.i32_const((Wrapping(*value as i32) - Wrapping(r)).0);
+                                insn.i32_const((Wrapping(*value) - Wrapping(r)).0);
                                 insn.i32_add();
                             }
                             _ => {
                                 return Err(Error::other(format!(
-                                    "The current eterm cannot be unfolded {:?}.\n expr {}",
-                                    child, expr
+                                    "The current eterm cannot be unfolded {child:?}.\n expr {expr}"
                                 )));
                             }
                         }
@@ -155,8 +154,7 @@ pub fn expr2wasm(
                             }
                             _ => {
                                 return Err(Error::other(format!(
-                                    "The current eterm cannot be unfolded {:?}.\n expr {}",
-                                    child, expr
+                                    "The current eterm cannot be unfolded {child:?}.\n expr {expr}"
                                 )))
                             }
                         }

@@ -143,7 +143,7 @@ impl RemoveItem<'_> {
     /// iterated over and translated with the `encode` callback. The `encode`
     /// callback is only called for items we're actually preserving in this
     /// module.
-    fn filter_out<'a, T>(
+    fn filter_out<T>(
         &mut self,
         section: impl IntoIterator<Item = wasmparser::Result<T>>,
         section_item: Item,

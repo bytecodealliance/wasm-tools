@@ -99,7 +99,7 @@ fn unwrap_wasm_mutate_result<T>(result: wasm_mutate::Result<T>) -> T {
                 ErrorKind::Unsupported(_) => 5,
                 ErrorKind::Other(_) => 6,
             };
-            eprintln!("{}", e);
+            eprintln!("{e}");
             std::process::exit(code);
         }
     }

@@ -127,7 +127,7 @@ impl Opts {
             .run(input, predicate)?;
 
         let wat = wasmprinter::print_bytes(&shrunken.output)
-            .unwrap_or_else(|e| format!("<error disassembling WAT: {}>", e));
+            .unwrap_or_else(|e| format!("<error disassembling WAT: {e}>"));
 
         println!(
             "\n\

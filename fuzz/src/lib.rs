@@ -97,7 +97,7 @@ pub fn log_wasm(wasm: &[u8], config: impl Debug) {
 
     log::debug!("writing test case to `{wasm_file}` ...");
     std::fs::write(&wasm_file, wasm).unwrap();
-    std::fs::write(&config_file, format!("{:#?}", config)).unwrap();
+    std::fs::write(&config_file, format!("{config:#?}")).unwrap();
     if let Ok(wat) = wasmprinter::print_bytes(wasm) {
         log::debug!("writing text format to `{wat_file}` ...");
         std::fs::write(&wat_file, wat).unwrap();

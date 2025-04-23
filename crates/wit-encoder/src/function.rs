@@ -35,7 +35,7 @@ impl Display for Params {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut peekable = self.items.iter().peekable();
         while let Some((name, type_)) = peekable.next() {
-            write!(f, "{}: {}", name, type_)?;
+            write!(f, "{name}: {type_}")?;
             if peekable.peek().is_some() {
                 write!(f, ", ")?;
             }

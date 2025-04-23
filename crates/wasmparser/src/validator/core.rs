@@ -239,10 +239,7 @@ impl ModuleState {
                     Ok(())
                 } else {
                     Err(BinaryReaderError::new(
-                        format!(
-                            "constant expression required: non-constant operator: {}",
-                            op
-                        ),
+                        format!("constant expression required: non-constant operator: {op}"),
                         self.offset,
                     ))
                 }
@@ -253,10 +250,7 @@ impl ModuleState {
                     Ok(())
                 } else {
                     Err(BinaryReaderError::new(
-                        format!(
-                            "constant expression required: non-constant operator: {}",
-                            op
-                        ),
+                        format!("constant expression required: non-constant operator: {op}"),
                         self.offset,
                     ))
                 }
@@ -267,10 +261,7 @@ impl ModuleState {
                     Ok(())
                 } else {
                     Err(BinaryReaderError::new(
-                        format!(
-                            "constant expression required: non-constant operator: {}",
-                            op
-                        ),
+                        format!("constant expression required: non-constant operator: {op}"),
                         self.offset,
                     ))
                 }

@@ -1434,7 +1434,7 @@ impl<'a> Lookahead1<'a> {
             }
             _ => {
                 let join = self.attempts.join(", ");
-                let message = format!("unexpected token, expected one of: {}", join);
+                let message = format!("unexpected token, expected one of: {join}");
                 self.parser.error(&message)
             }
         }

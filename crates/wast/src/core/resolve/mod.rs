@@ -38,7 +38,7 @@ pub fn resolve<'a>(fields: &mut Vec<ModuleField<'a>>) -> Result<Names<'a>, Error
         match field {
             ModuleField::Import(i) => {
                 if let Some(name) = last {
-                    return Err(Error::new(i.span, format!("import after {}", name)));
+                    return Err(Error::new(i.span, format!("import after {name}")));
                 }
             }
             ModuleField::Memory(_) => last = Some("memory"),

@@ -1233,7 +1233,7 @@ impl CodeBuilder<'_> {
         if module.config.multi_value_enabled {
             for (i, ty) in module.func_types() {
                 if self.types_on_stack(module, &ty.params) {
-                    options.push(Box::new(move |_| Ok(BlockType::FunctionType(i as u32))));
+                    options.push(Box::new(move |_| Ok(BlockType::FunctionType(i))));
                 }
             }
         }
@@ -1729,7 +1729,7 @@ fn try_table(
     let mut catches = Vec::new();
     if catch_options.len() > 0 {
         for _ in 0..u.int_in_range(0..=10)? {
-            catches.push(u.choose(&mut catch_options)?(u, builder)?);
+            catches.push(u.choose(&catch_options)?(u, builder)?);
         }
     }
 
@@ -2004,7 +2004,7 @@ fn call(
     let (func_idx, ty) = module.funcs().nth(candidates[i] as usize).unwrap();
     builder.pop_operands(module, &ty.params);
     builder.push_operands(&ty.results);
-    instructions.push(Instruction::Call(func_idx as u32));
+    instructions.push(Instruction::Call(func_idx));
     Ok(())
 }
 
@@ -2105,7 +2105,7 @@ fn call_indirect(
     builder.pop_operands(module, &ty.params);
     builder.push_operands(&ty.results);
     instructions.push(Instruction::CallIndirect {
-        type_index: *type_idx as u32,
+        type_index: { *type_idx },
         table_index: table,
     });
     Ok(())
@@ -2159,7 +2159,7 @@ fn return_call(
     let (func_idx, ty) = module.funcs().nth(candidates[i] as usize).unwrap();
     builder.pop_operands(module, &ty.params);
     builder.push_operands(&ty.results);
-    instructions.push(Instruction::ReturnCall(func_idx as u32));
+    instructions.push(Instruction::ReturnCall(func_idx));
     Ok(())
 }
 
@@ -2242,7 +2242,7 @@ fn return_call_indirect(
     builder.pop_operands(module, &ty.params);
     builder.push_operands(&ty.results);
     instructions.push(Instruction::ReturnCallIndirect {
-        type_index: *type_idx as u32,
+        type_index: { *type_idx },
         table_index: table,
     });
     Ok(())
@@ -2277,7 +2277,7 @@ fn throw(
     // Tags have no results, throwing cannot return
     assert!(tag_type.func_type.results.len() == 0);
     builder.pop_operands(module, &tag_type.func_type.params);
-    instructions.push(Instruction::Throw(tag_idx as u32));
+    instructions.push(Instruction::Throw(tag_idx));
     Ok(())
 }
 
@@ -5685,7 +5685,7 @@ fn table_get(
     let idx = *u.choose(candidates)?;
     let ty = module.tables[idx as usize].element_type;
     builder.push_operands(&[ty.into()]);
-    instructions.push(Instruction::TableGet(idx as u32));
+    instructions.push(Instruction::TableGet(idx));
     Ok(())
 }
 

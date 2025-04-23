@@ -113,7 +113,7 @@ fn get_func_and_global_exports(features: WasmFeatures, module: &[u8]) -> Vec<(St
                             ..
                         } = &sub_type.composite_type
                         else {
-                            panic!("Expected Func CompositeType, but found {:?}", sub_type);
+                            panic!("Expected Func CompositeType, but found {sub_type:?}");
                         };
                         exports
                             .push((export.name.to_string(), ExportType::Func(func_type.clone())));
@@ -122,7 +122,7 @@ fn get_func_and_global_exports(features: WasmFeatures, module: &[u8]) -> Vec<(St
                         exports.push((export.name.to_string(), ExportType::Global(global_type)))
                     }
                     other => {
-                        panic!("Unexpected entity type {:?}", other)
+                        panic!("Unexpected entity type {other:?}")
                     }
                 }
             }

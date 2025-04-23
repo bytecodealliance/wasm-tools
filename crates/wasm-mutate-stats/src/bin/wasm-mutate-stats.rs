@@ -38,8 +38,7 @@ fn parse_optimization_types(s: &str) -> Result<OptLevel, ParsingOptLevelError> {
         "O2" => Ok(OptLevel::Speed),
         "Os" => Ok(OptLevel::SpeedAndSize),
         _ => Err(ParsingOptLevelError::Parsing(format!(
-            "Invalid optimization type {}",
-            s
+            "Invalid optimization type {s}"
         ))),
     }
 }
@@ -207,7 +206,7 @@ impl State {
                         newfolder.display()
                     )
                 })?;
-                println!("Artifacts saved at {:?}", newfolder);
+                println!("Artifacts saved at {newfolder:?}");
                 Ok(newfolder)
             })
             .collect::<anyhow::Result<Vec<_>>>()?;
@@ -260,7 +259,7 @@ impl State {
                 format!("File name could not be retrieved for {}", name.display())
             })?;
 
-            println!("Input wasm \"{:?}\"", filename);
+            println!("Input wasm \"{filename:?}\"");
             let artifacts_folder = self
                 .get_parent_folders(name.clone())?
                 .join("artifacts")
@@ -358,7 +357,7 @@ impl State {
     ) -> anyhow::Result<()> {
         let mut hashes = HashMap::new();
         //let low_hashes = HashMap::new();
-        let objfolder = artifact_folder.join("obj").join(format!("{:?}", optlevel));
+        let objfolder = artifact_folder.join("obj").join(format!("{optlevel:?}"));
         let entries = std::fs::read_dir(&objfolder)
             .with_context(|| format!("failed to read dir {}", objfolder.display()))?;
 
@@ -393,7 +392,7 @@ impl State {
 
     fn compile_and_save(&self, worklist: &[PathBuf], artifact_folder: &Path) -> anyhow::Result<()> {
         for (_, config) in &self.engines {
-            let newfolder = artifact_folder.join("obj").join(format!("{:?}", config));
+            let newfolder = artifact_folder.join("obj").join(format!("{config:?}"));
             std::fs::create_dir_all(&newfolder).with_context(|| {
                 format!(
                     "Artifacts folder {} could not be created",
@@ -423,8 +422,8 @@ impl State {
 
                 let filename = artifact_folder
                     .join("obj")
-                    .join(format!("{:?}", optlevel))
-                    .join(format!("{}.obj", entryidx));
+                    .join(format!("{optlevel:?}"))
+                    .join(format!("{entryidx}.obj"));
                 std::fs::write(&filename, &obj)
                     .context("Aot file could be written to filesystem")?;
             }
@@ -456,7 +455,7 @@ impl State {
             while !finish_writing_wrap_clone.load(Relaxed) {
                 // pop from worklist
                 if let Some(wasm) = to_write_clone.lock().unwrap().pop() {
-                    let filename = artifact_folder_cp.join(format!("mutated.{}.wasm", counter));
+                    let filename = artifact_folder_cp.join(format!("mutated.{counter}.wasm"));
                     std::fs::write(filename, &wasm).context("Failed to write mutated wasm")?;
                     counter += 1;
                 }
@@ -464,7 +463,7 @@ impl State {
             eprintln!("Writing down pending mutated binaries!");
             // Then write pending wasms
             while let Some(wasm) = to_write_clone.lock().unwrap().pop() {
-                let filename = artifact_folder_cp.join(format!("mutated.{}.wasm", counter));
+                let filename = artifact_folder_cp.join(format!("mutated.{counter}.wasm"));
 
                 std::fs::write(filename, &wasm).context("Failed to write mutated wasm")?;
                 counter += 1;
@@ -493,12 +492,12 @@ impl State {
             let data_clone = wasm.clone();
             panic::set_hook(Box::new(move |panic_info| {
                 // invoke the default handler and exit the process
-                println!("Internal unhandled panic:\n{:?}!", panic_info);
+                println!("Internal unhandled panic:\n{panic_info:?}!");
                 // stop generator
                 finish_writing_wrap_clone2.store(true, SeqCst);
                 // report current crash
                 if let Err(e) = self_clone.save_crash(&data_clone, None, seed, &artifact_clone) {
-                    eprintln!("Failed to save crash: {}", e);
+                    eprintln!("Failed to save crash: {e}");
                 }
                 process::exit(1);
             }));
@@ -578,14 +577,14 @@ impl State {
             format!("Crash folder could not be created {}", newfolder.display())
         })?;
 
-        let newfile = newfolder.join(format!("{}.original.wasm", seed));
+        let newfile = newfolder.join(format!("{seed}.original.wasm"));
 
         std::fs::write(&newfile, wasm)?;
 
         // Saving the mutation if one
 
         if let Some(mutated) = mutated {
-            let newfile = newfolder.join(format!("{}.mutated.wasm", seed));
+            let newfile = newfolder.join(format!("{seed}.mutated.wasm"));
             std::fs::write(newfile, mutated)?;
         }
 

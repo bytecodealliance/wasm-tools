@@ -442,7 +442,7 @@ macro_rules! instructions {
         }
 
         impl Encode for Instruction<'_> {
-            #[allow(non_snake_case)]
+            #[allow(non_snake_case, unused_lifetimes)]
             fn encode(&self, v: &mut Vec<u8>) {
                 match self {
                     $(

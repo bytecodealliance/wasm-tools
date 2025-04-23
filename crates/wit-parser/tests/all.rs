@@ -27,7 +27,7 @@ fn main() {
         let trial = Trial::test(format!("{test:?}"), move || {
             Runner {}
                 .run(&test)
-                .context(format!("test {:?} failed", test))
+                .context(format!("test {test:?} failed"))
                 .map_err(|e| format!("{e:?}").into())
         });
         trials.push(trial);
@@ -87,7 +87,7 @@ impl Runner {
                             "some generic platform-agnostic error message",
                         );
                     }
-                    format!("{:#}", e)
+                    format!("{e:#}")
                 }
             }
         } else {
@@ -126,8 +126,7 @@ impl Runner {
             fs::write(&result_file, normalized)?;
         } else {
             let expected = fs::read_to_string(&result_file).context(format!(
-                "failed to read test expectation file {:?}\nthis can be fixed with BLESS=1",
-                result_file
+                "failed to read test expectation file {result_file:?}\nthis can be fixed with BLESS=1"
             ))?;
             let expected = normalize(&expected, extension);
             let result = normalize(&result, extension);

@@ -193,7 +193,7 @@ impl<'a> Parse<'a> for AbstractHeapType {
     }
 }
 
-impl<'a> Peek for AbstractHeapType {
+impl Peek for AbstractHeapType {
     fn peek(cursor: Cursor<'_>) -> Result<bool> {
         Ok(kw::func::peek(cursor)?
             || kw::r#extern::peek(cursor)?
