@@ -139,7 +139,7 @@ define_wasm_features! {
     /// has any associated constants. When `features` are disabled all values
     /// for proposals are fixed at compile time to their defaults.
     #[derive(Hash, Debug, Copy, Clone, Eq, PartialEq)]
-    pub struct WasmFeatures: u32 {
+    pub struct WasmFeatures: u64 {
         /// The WebAssembly `mutable-global` proposal.
         pub mutable_global: MUTABLE_GLOBAL(1) = true;
         /// The WebAssembly `saturating-float-to-int` proposal.
@@ -259,6 +259,11 @@ define_wasm_features! {
         /// Corresponds to the 🔧 character in
         /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
         pub cm_fixed_size_list: CM_FIXED_SIZE_LIST(1 << 31) = false;
+        /// Support for Wasm GC in the component model proposal.
+        ///
+        /// Corresponds to the 🛸 character in
+        /// <https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md>.
+        pub cm_gc: CM_GC(1 << 32) = false;
     }
 }
 
