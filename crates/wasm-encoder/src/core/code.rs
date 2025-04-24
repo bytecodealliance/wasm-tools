@@ -294,6 +294,76 @@ impl Encode for Function {
     }
 }
 
+/// An IEEE binary32 immediate floating point value, represented as a u32
+/// containing the bit pattern.
+///
+/// All bit patterns are allowed.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub struct Ieee32(pub(crate) u32);
+
+impl Ieee32 {
+    /// Gets the underlying bits of the 32-bit float.
+    pub fn bits(self) -> u32 {
+        self.0
+    }
+}
+
+impl From<f32> for Ieee32 {
+    fn from(value: f32) -> Self {
+        Ieee32 {
+            0: u32::from_le_bytes(value.to_le_bytes()),
+        }
+    }
+}
+
+impl From<Ieee32> for f32 {
+    fn from(bits: Ieee32) -> f32 {
+        f32::from_bits(bits.bits())
+    }
+}
+
+impl Encode for Ieee32 {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        let bits = self.bits();
+        sink.extend(bits.to_le_bytes())
+    }
+}
+
+/// An IEEE binary64 immediate floating point value, represented as a u64
+/// containing the bit pattern.
+///
+/// All bit patterns are allowed.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub struct Ieee64(pub(crate) u64);
+
+impl Ieee64 {
+    /// Gets the underlying bits of the 64-bit float.
+    pub fn bits(self) -> u64 {
+        self.0
+    }
+}
+
+impl From<f64> for Ieee64 {
+    fn from(value: f64) -> Self {
+        Ieee64 {
+            0: u64::from_le_bytes(value.to_le_bytes()),
+        }
+    }
+}
+
+impl From<Ieee64> for f64 {
+    fn from(bits: Ieee64) -> f64 {
+        f64::from_bits(bits.bits())
+    }
+}
+
+impl Encode for Ieee64 {
+    fn encode(&self, sink: &mut Vec<u8>) {
+        let bits = self.bits();
+        sink.extend(bits.to_le_bytes())
+    }
+}
+
 /// The immediate for a memory instruction.
 #[derive(Clone, Copy, Debug)]
 pub struct MemArg {
@@ -471,8 +541,8 @@ pub enum Instruction<'a> {
     // Numeric instructions.
     I32Const(i32),
     I64Const(i64),
-    F32Const(f32),
-    F64Const(f64),
+    F32Const(Ieee32),
+    F64Const(Ieee64),
     I32Eqz,
     I32Eq,
     I32Ne,
@@ -2202,12 +2272,12 @@ impl ConstExpr {
     }
 
     /// Create a constant expression containing a single `f32.const` instruction.
-    pub fn f32_const(value: f32) -> Self {
+    pub fn f32_const(value: Ieee32) -> Self {
         Self::new(|insn| insn.f32_const(value))
     }
 
     /// Create a constant expression containing a single `f64.const` instruction.
-    pub fn f64_const(value: f64) -> Self {
+    pub fn f64_const(value: Ieee64) -> Self {
         Self::new(|insn| insn.f64_const(value))
     }
 
@@ -2242,12 +2312,12 @@ impl ConstExpr {
     }
 
     /// Add a `f32.const` instruction to this constant expression.
-    pub fn with_f32_const(self, value: f32) -> Self {
+    pub fn with_f32_const(self, value: Ieee32) -> Self {
         self.with(|insn| insn.f32_const(value))
     }
 
     /// Add a `f64.const` instruction to this constant expression.
-    pub fn with_f64_const(self, value: f64) -> Self {
+    pub fn with_f64_const(self, value: Ieee64) -> Self {
         self.with(|insn| insn.f64_const(value))
     }
 

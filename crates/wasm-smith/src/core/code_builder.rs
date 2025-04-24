@@ -1379,8 +1379,8 @@ impl CodeBuilder<'_> {
         const CANON_64BIT_NAN: u64 =
             0b0111111111111000000000000000000000000000000000000000000000000000;
         ins.push(match ty {
-            Float::F32 => Instruction::F32Const(f32::from_bits(CANON_32BIT_NAN)),
-            Float::F64 => Instruction::F64Const(f64::from_bits(CANON_64BIT_NAN)),
+            Float::F32 => Instruction::F32Const(f32::from_bits(CANON_32BIT_NAN).into()),
+            Float::F64 => Instruction::F64Const(f64::from_bits(CANON_64BIT_NAN).into()),
             Float::F32x4 => {
                 let nan = CANON_32BIT_NAN as i128;
                 let nan = nan | (nan << 32) | (nan << 64) | (nan << 96);

@@ -316,10 +316,10 @@ impl PeepholeMutator {
                                             (ConstExpr::i64_const(0), ValType::I64)
                                         }
                                         PrimitiveTypeInfo::F32 => {
-                                            (ConstExpr::f32_const(0.0), ValType::F32)
+                                            (ConstExpr::f32_const(0.0.into()), ValType::F32)
                                         }
                                         PrimitiveTypeInfo::F64 => {
-                                            (ConstExpr::f64_const(0.0), ValType::F64)
+                                            (ConstExpr::f64_const(0.0.into()), ValType::F64)
                                         }
                                         PrimitiveTypeInfo::V128 => {
                                             (ConstExpr::v128_const(0), ValType::V128)

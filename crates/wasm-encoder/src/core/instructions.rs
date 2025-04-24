@@ -1,8 +1,8 @@
 #[allow(unused_imports)]
 use crate::Instruction;
 use crate::{
-    encode_vec, BlockType, Catch, Encode, Handle, HeapType, Lane, MemArg, Ordering, RefType,
-    ValType,
+    encode_vec, BlockType, Catch, Encode, Handle, HeapType, Ieee32, Ieee64, Lane, MemArg, Ordering,
+    RefType, ValType,
 };
 use alloc::vec::Vec;
 
@@ -505,17 +505,17 @@ impl<'a> InstructionSink<'a> {
     }
 
     /// Encode [`Instruction::F32Const`].
-    pub fn f32_const(&mut self, x: f32) -> &mut Self {
+    pub fn f32_const(&mut self, x: Ieee32) -> &mut Self {
         self.sink.push(0x43);
-        let x = x.to_bits();
+        let x = x.bits();
         self.sink.extend(x.to_le_bytes().iter().copied());
         self
     }
 
     /// Encode [`Instruction::F64Const`].
-    pub fn f64_const(&mut self, x: f64) -> &mut Self {
+    pub fn f64_const(&mut self, x: Ieee64) -> &mut Self {
         self.sink.push(0x44);
-        let x = x.to_bits();
+        let x = x.bits();
         self.sink.extend(x.to_le_bytes().iter().copied());
         self
     }

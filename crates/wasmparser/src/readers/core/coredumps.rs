@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use crate::{prelude::*, Ieee32, Ieee64};
 use crate::{BinaryReader, FromReader, Result};
 
 /// The data portion of a custom section representing a core dump. Per the
@@ -254,9 +254,9 @@ pub enum CoreDumpValue {
     /// An i64 value
     I64(i64),
     /// An f32 value
-    F32(f32),
+    F32(Ieee32),
     /// An f64 value
-    F64(f64),
+    F64(Ieee64),
 }
 
 impl<'a> FromReader<'a> for CoreDumpValue {
@@ -266,12 +266,8 @@ impl<'a> FromReader<'a> for CoreDumpValue {
             0x01 => Ok(CoreDumpValue::Missing),
             0x7F => Ok(CoreDumpValue::I32(reader.read_var_i32()?)),
             0x7E => Ok(CoreDumpValue::I64(reader.read_var_i64()?)),
-            0x7D => Ok(CoreDumpValue::F32(f32::from_bits(
-                reader.read_f32()?.bits(),
-            ))),
-            0x7C => Ok(CoreDumpValue::F64(f64::from_bits(
-                reader.read_f64()?.bits(),
-            ))),
+            0x7D => Ok(CoreDumpValue::F32(reader.read_f32()?)),
+            0x7C => Ok(CoreDumpValue::F64(reader.read_f64()?)),
             _ => bail!(pos, "invalid CoreDumpValue type"),
         }
     }

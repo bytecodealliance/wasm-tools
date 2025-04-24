@@ -402,8 +402,8 @@ fn dummy_value_inst<'a>(ty: ValType) -> Instruction<'a> {
     match ty {
         ValType::I32 => Instruction::I32Const(0),
         ValType::I64 => Instruction::I64Const(0),
-        ValType::F32 => Instruction::F32Const(0.0),
-        ValType::F64 => Instruction::F64Const(0.0),
+        ValType::F32 => Instruction::F32Const(0.0.into()),
+        ValType::F64 => Instruction::F64Const(0.0.into()),
         ValType::V128 => Instruction::V128Const(0),
         ValType::Ref(ty) => {
             assert!(ty.nullable);
@@ -466,14 +466,14 @@ fn min_input_const_for_trunc<'a>(inst: &Instruction) -> Instruction<'a> {
     // This is the minimum float value that is representable as as i32
     let min_f32_as_i32 = -2_147_483_500f32;
     match inst {
-        Instruction::I32TruncF32S => Instruction::F32Const(min_f32_as_i32),
-        Instruction::I32TruncF32U => Instruction::F32Const(0.0),
-        Instruction::I64TruncF32S => Instruction::F32Const(min_f32),
-        Instruction::I64TruncF32U => Instruction::F32Const(0.0),
-        Instruction::I32TruncF64S => Instruction::F64Const(i32::MIN as f64),
-        Instruction::I32TruncF64U => Instruction::F64Const(0.0),
-        Instruction::I64TruncF64S => Instruction::F64Const(min_f64),
-        Instruction::I64TruncF64U => Instruction::F64Const(0.0),
+        Instruction::I32TruncF32S => Instruction::F32Const(min_f32_as_i32.into()),
+        Instruction::I32TruncF32U => Instruction::F32Const(0.0.into()),
+        Instruction::I64TruncF32S => Instruction::F32Const(min_f32.into()),
+        Instruction::I64TruncF32U => Instruction::F32Const(0.0.into()),
+        Instruction::I32TruncF64S => Instruction::F64Const((i32::MIN as f64).into()),
+        Instruction::I32TruncF64U => Instruction::F64Const(0.0.into()),
+        Instruction::I64TruncF64S => Instruction::F64Const(min_f64.into()),
+        Instruction::I64TruncF64U => Instruction::F64Const(0.0.into()),
         _ => panic!("not a trunc instruction"),
     }
 }
@@ -487,16 +487,16 @@ fn max_input_const_for_trunc<'a>(inst: &Instruction) -> Instruction<'a> {
     let max_f32_as_i32 = 2_147_483_500f32;
     match inst {
         Instruction::I32TruncF32S | Instruction::I32TruncF32U => {
-            Instruction::F32Const(max_f32_as_i32)
+            Instruction::F32Const(max_f32_as_i32.into())
         }
         Instruction::I64TruncF32S | Instruction::I64TruncF32U => {
-            Instruction::F32Const(max_f32_as_i64)
+            Instruction::F32Const(max_f32_as_i64.into())
         }
         Instruction::I32TruncF64S | Instruction::I32TruncF64U => {
-            Instruction::F64Const(i32::MAX as f64)
+            Instruction::F64Const((i32::MAX as f64).into())
         }
         Instruction::I64TruncF64S | Instruction::I64TruncF64U => {
-            Instruction::F64Const(max_f64_as_i64)
+            Instruction::F64Const(max_f64_as_i64.into())
         }
         _ => panic!("not a trunc instruction"),
     }
@@ -624,16 +624,16 @@ fn flt_gt_inst<'a>(ty: ValType) -> Instruction<'a> {
 
 fn flt_inf_const_inst<'a>(ty: ValType) -> Instruction<'a> {
     match ty {
-        ValType::F32 => Instruction::F32Const(f32::INFINITY),
-        ValType::F64 => Instruction::F64Const(f64::INFINITY),
+        ValType::F32 => Instruction::F32Const(f32::INFINITY.into()),
+        ValType::F64 => Instruction::F64Const(f64::INFINITY.into()),
         _ => panic!("not a float type"),
     }
 }
 
 fn flt_neg_inf_const_inst<'a>(ty: ValType) -> Instruction<'a> {
     match ty {
-        ValType::F32 => Instruction::F32Const(f32::NEG_INFINITY),
-        ValType::F64 => Instruction::F64Const(f64::NEG_INFINITY),
+        ValType::F32 => Instruction::F32Const(f32::NEG_INFINITY.into()),
+        ValType::F64 => Instruction::F64Const(f64::NEG_INFINITY.into()),
         _ => panic!("not a float type"),
     }
 }
