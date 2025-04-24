@@ -491,7 +491,7 @@ pub struct IntoIter<K, V> {
     inner: detail::IntoIterImpl<K, V>,
 }
 
-impl<'a, K, V> Iterator for IntoIter<K, V> {
+impl<K, V> Iterator for IntoIter<K, V> {
     type Item = (K, V);
 
     #[inline]
@@ -505,14 +505,14 @@ impl<'a, K, V> Iterator for IntoIter<K, V> {
     }
 }
 
-impl<'a, K, V> ExactSizeIterator for IntoIter<K, V> {
+impl<K, V> ExactSizeIterator for IntoIter<K, V> {
     #[inline]
     fn len(&self) -> usize {
         self.inner.len()
     }
 }
 
-impl<'a, K, V> FusedIterator for IntoIter<K, V> {}
+impl<K, V> FusedIterator for IntoIter<K, V> {}
 
 /// An iterator over the keys of a [`IndexMap`].
 #[derive(Debug, Clone)]

@@ -32,9 +32,7 @@ fn under_10_percent() {
     let bad = state.instantiate_trap.load(SeqCst) + state.instantiate_oom.load(SeqCst);
     assert!(
         bad < total / 10,
-        "{} modules failed to instantiate out of {}, this failure rate is too high",
-        bad,
-        total
+        "{bad} modules failed to instantiate out of {total}, this failure rate is too high"
     );
 }
 
@@ -79,7 +77,7 @@ impl State {
                         data.resize(cur + extra, 0);
                         rng.fill_bytes(&mut data[cur..]);
                     }
-                    Err(e) => panic!("failed to generated module: {}", e),
+                    Err(e) => panic!("failed to generated module: {e}"),
                 }
             }
         }
@@ -163,7 +161,7 @@ impl State {
                 // panic.
                 } else {
                     std::fs::write("panic.wasm", &wasm).unwrap();
-                    panic!("unknown: {}", e);
+                    panic!("unknown: {e}");
                 }
             }
         }
@@ -179,7 +177,7 @@ impl State {
     /// Prints summary statistics of how many modules have been instantiated so
     /// far and how many of them have oom'd or trap'd.
     fn print(&self, total: usize) {
-        print!("total: {:8}", total);
+        print!("total: {total:8}");
         let stat = |name: &str, stat: &AtomicUsize| {
             let stat = stat.load(SeqCst);
             if stat > 0 {

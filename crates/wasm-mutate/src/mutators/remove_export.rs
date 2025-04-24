@@ -45,7 +45,7 @@ impl Mutator for RemoveExportMutator {
                     exports.export(export.name, ExportKind::Global, export.index);
                 }
                 _ => {
-                    panic!("Unknown export {:?}", export)
+                    panic!("Unknown export {export:?}")
                 }
             }
         }

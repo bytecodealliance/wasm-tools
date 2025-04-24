@@ -176,7 +176,7 @@ impl<'a> Iterator for BrTableTargets<'a> {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         let remaining = usize::try_from(self.remaining).unwrap_or_else(|error| {
-            panic!("could not convert remaining `u32` into `usize`: {}", error)
+            panic!("could not convert remaining `u32` into `usize`: {error}")
         });
         (remaining, Some(remaining))
     }
@@ -1630,7 +1630,7 @@ impl<'a> OperatorsReader<'a> {
             0 => Ok(Ordering::SeqCst),
             1 => Ok(Ordering::AcqRel),
             x => Err(BinaryReaderError::new(
-                &format!("invalid atomic consistency ordering {}", x),
+                &format!("invalid atomic consistency ordering {x}"),
                 self.original_position() - 1,
             )),
         }

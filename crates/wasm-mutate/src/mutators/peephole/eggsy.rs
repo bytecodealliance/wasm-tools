@@ -84,7 +84,7 @@ where
             .enumerate()
             .map(|(i, n)| (self.node_total_cost(n, costs), i))
             .min_by(|a, b| cmp(&a.0, &b.0))
-            .unwrap_or_else(|| panic!("Can't extract, eclass is empty: {:#?}", eclass));
+            .unwrap_or_else(|| panic!("Can't extract, eclass is empty: {eclass:#?}"));
         cost.map(|c| (c, node_idx))
     }
 

@@ -239,10 +239,7 @@ impl ModuleState {
                     Ok(())
                 } else {
                     Err(BinaryReaderError::new(
-                        format!(
-                            "constant expression required: non-constant operator: {}",
-                            op
-                        ),
+                        format!("constant expression required: non-constant operator: {op}"),
                         self.offset,
                     ))
                 }
@@ -253,10 +250,7 @@ impl ModuleState {
                     Ok(())
                 } else {
                     Err(BinaryReaderError::new(
-                        format!(
-                            "constant expression required: non-constant operator: {}",
-                            op
-                        ),
+                        format!("constant expression required: non-constant operator: {op}"),
                         self.offset,
                     ))
                 }
@@ -267,10 +261,7 @@ impl ModuleState {
                     Ok(())
                 } else {
                     Err(BinaryReaderError::new(
-                        format!(
-                            "constant expression required: non-constant operator: {}",
-                            op
-                        ),
+                        format!("constant expression required: non-constant operator: {op}"),
                         self.offset,
                     ))
                 }
@@ -332,6 +323,7 @@ impl ModuleState {
             }
         }
 
+        #[cfg_attr(not(feature = "simd"), allow(unused_macro_rules))]
         macro_rules! define_visit_operator {
             ($(@$proposal:ident $op:ident $({ $($arg:ident: $argty:ty),* })? => $visit:ident ($($ann:tt)*))*) => {
                 $(

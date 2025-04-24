@@ -149,7 +149,7 @@ impl WasmMutate<'_> {
                 Ok(Some(mutation)) => mutation.unwrap(),
                 Ok(None) => continue,
                 Err(e) if matches!(e.kind(), ErrorKind::NoMutationsApplicable) => continue,
-                Err(e) => panic!("mutation error: {}", e),
+                Err(e) => panic!("mutation error: {e}"),
             };
 
             let mutation_bytes = mutation.finish();
@@ -169,16 +169,12 @@ impl WasmMutate<'_> {
         match last_mutation {
             Some(mutation) => {
                 panic!(
-                    "after {} attempts the last mutation:\n{:?}\n\n\
-                     did not match the expected mutation\n{:?}",
-                    attempts, mutation, expected_text
+                    "after {attempts} attempts the last mutation:\n{mutation:?}\n\n\
+                     did not match the expected mutation\n{expected_text:?}"
                 );
             }
             None => {
-                panic!(
-                    "never found any applicable mutations after {} attempts",
-                    attempts
-                );
+                panic!("never found any applicable mutations after {attempts} attempts");
             }
         }
     }

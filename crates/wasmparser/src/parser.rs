@@ -1833,7 +1833,7 @@ mod tests {
                 consumed: 2,
                 payload: Payload::ModuleSection { parser, .. },
             }) => parser,
-            other => panic!("bad parse {:?}", other),
+            other => panic!("bad parse {other:?}"),
         };
 
         // Parse the header of the submodule with the sub-parser.
@@ -1884,7 +1884,7 @@ mod tests {
                 consumed: 2,
                 payload: Payload::ModuleSection { parser, .. },
             }) => parser,
-            other => panic!("bad parse {:?}", other),
+            other => panic!("bad parse {other:?}"),
         };
 
         // use 8 bytes to parse the header, leaving 2 remaining bytes in our

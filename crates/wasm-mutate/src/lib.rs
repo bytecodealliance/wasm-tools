@@ -334,5 +334,5 @@ pub(crate) fn validate(bytes: &[u8]) {
         drop(std::fs::write("test.wat", &text));
     }
 
-    panic!("wasm failed to validate: {} (written to test.wasm)", err);
+    panic!("wasm failed to validate: {err} (written to test.wasm)");
 }

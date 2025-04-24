@@ -148,7 +148,7 @@ impl Printer<'_, '_> {
             if let Some(refines) = case.refines {
                 self.result.write_str(" ")?;
                 self.start_group("refines ")?;
-                write!(&mut self.result, "{}", refines)?;
+                write!(&mut self.result, "{refines}")?;
                 self.end_group()?;
             }
             self.end_group()?;
@@ -399,7 +399,7 @@ impl Printer<'_, '_> {
         Ok(())
     }
 
-    pub(crate) fn outer_state<'a>(states: &[State], count: u32) -> Result<&State> {
+    pub(crate) fn outer_state(states: &[State], count: u32) -> Result<&State> {
         if count as usize >= states.len() {
             bail!("invalid outer alias count {}", count);
         }
@@ -578,7 +578,7 @@ impl Printer<'_, '_> {
             ComponentTypeRef::Module(idx) => {
                 self.start_group("core module ")?;
                 if index {
-                    self.print_name(&state.core.module_names, state.core.modules as u32)?;
+                    self.print_name(&state.core.module_names, state.core.modules)?;
                     self.result.write_str(" ")?;
                     state.core.modules += 1;
                 }
@@ -1323,7 +1323,7 @@ impl Printer<'_, '_> {
                     }
                     ExternalKind::Tag => {
                         self.start_group("core tag ")?;
-                        self.print_name(&state.core.tag_names, state.core.tags as u32)?;
+                        self.print_name(&state.core.tag_names, state.core.tags)?;
                         self.end_group()?;
                         debug_assert_eq!(state.core.tag_to_type.len(), state.core.tags as usize);
                         state.core.tags += 1;

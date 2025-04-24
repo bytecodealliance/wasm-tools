@@ -1546,10 +1546,7 @@ fn err_expected(
             span,
             format!("expected {}, found {}", expected, token.describe()),
         ),
-        None => Error::new(
-            tokens.eof_span(),
-            format!("expected {}, found eof", expected),
-        ),
+        None => Error::new(tokens.eof_span(), format!("expected {expected}, found eof")),
     }
 }
 

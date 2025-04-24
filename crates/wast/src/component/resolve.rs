@@ -327,7 +327,7 @@ impl<'a> Resolver<'a> {
         if depth as usize >= self.stack.len() {
             return Err(Error::new(
                 span,
-                format!("outer count of `{}` is too large", depth),
+                format!("outer count of `{depth}` is too large"),
             ));
         }
 

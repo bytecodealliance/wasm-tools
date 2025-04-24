@@ -1239,9 +1239,9 @@ impl Printer<'_, '_> {
         T: fmt::Display,
     {
         self.result.start_literal()?;
-        write!(self.result, "{}", initial)?;
+        write!(self.result, "{initial}")?;
         if let Some(max) = maximum {
-            write!(self.result, " {}", max)?;
+            write!(self.result, " {max}")?;
         }
         self.result.reset_color()?;
         Ok(())
@@ -1566,7 +1566,7 @@ impl Printer<'_, '_> {
         match state.core.local_names.index_to_name.get(&(func, idx)) {
             Some(name) => name.write_identifier(self)?,
             None if self.config.name_unnamed => write!(self.result, "$#local{idx}")?,
-            None => write!(self.result, "{}", idx)?,
+            None => write!(self.result, "{idx}")?,
         }
         self.result.reset_color()?;
         Ok(())
@@ -1577,7 +1577,7 @@ impl Printer<'_, '_> {
         match state.core.field_names.index_to_name.get(&(ty, idx)) {
             Some(name) => name.write_identifier(self)?,
             None if self.config.name_unnamed => write!(self.result, "$#field{idx}")?,
-            None => write!(self.result, "{}", idx)?,
+            None => write!(self.result, "{idx}")?,
         }
         self.result.reset_color()?;
         Ok(())
@@ -1932,7 +1932,7 @@ impl Printer<'_, '_> {
             ABSOLUTE = "absolute"
         }
         if !flags.is_empty() {
-            write!(self.result, " {:#x}", flags)?;
+            write!(self.result, " {flags:#x}")?;
         }
         Ok(())
     }

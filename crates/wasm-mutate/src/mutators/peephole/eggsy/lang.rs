@@ -1115,7 +1115,7 @@ impl FromStr for RefType {
         match s {
             "func" => Ok(RefType::Func),
             "extern" => Ok(RefType::Extern),
-            s => Err(format!("{} is not a valid reference type", s).into()),
+            s => Err(format!("{s} is not a valid reference type").into()),
         }
     }
 }
@@ -1274,7 +1274,7 @@ impl<const N: usize> Children for [Id; N] {
         if let Ok(result) = list.try_into() {
             Ok(result)
         } else {
-            Err(format!("expected {} child nodes", N))
+            Err(format!("expected {N} child nodes"))
         }
     }
     fn as_slice(&self) -> &[Id] {

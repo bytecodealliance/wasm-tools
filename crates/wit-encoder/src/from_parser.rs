@@ -522,7 +522,7 @@ impl<'a> Converter<'a> {
                                 .name
                                 .version
                                 .as_ref()
-                                .map(|version| format!("@{}", version))
+                                .map(|version| format!("@{version}"))
                                 .unwrap_or_else(|| "".to_string())
                         )),
                         None => Ident::new(name.clone()),

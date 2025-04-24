@@ -136,7 +136,7 @@ impl Opts {
                 err.set_text(contents);
             }
             s.push_str("\n\n--------------------------------\n\n");
-            s.push_str(&format!("{:?}", error));
+            s.push_str(&format!("{error:?}"));
         }
         bail!("{}", s)
     }
@@ -528,10 +528,10 @@ impl Opts {
             .zip(expected)
             .find(|((_, actual), expected)| actual != expected);
         let pos = match difference {
-            Some(((pos, _), _)) => format!("at byte {} ({0:#x})", pos),
+            Some(((pos, _), _)) => format!("at byte {pos} ({pos:#x})"),
             None => format!("by being too small"),
         };
-        let mut msg = format!("error: actual wasm differs {} from expected wasm\n", pos);
+        let mut msg = format!("error: actual wasm differs {pos} from expected wasm\n");
 
         if let Some(((pos, _), _)) = difference {
             msg.push_str(&format!("  {:4} |   {:#04x}\n", pos - 2, actual[pos - 2]));
@@ -568,8 +568,8 @@ impl Opts {
                     if differences == 0 {
                         msg.push_str("\n\n");
                     }
-                    msg.push_str(&format!("- {}\n", expected_state));
-                    msg.push_str(&format!("+ {}\n", actual_state));
+                    msg.push_str(&format!("- {expected_state}\n"));
+                    msg.push_str(&format!("+ {actual_state}\n"));
                     differences += 1;
                 }
             } else {
@@ -650,11 +650,10 @@ impl Opts {
         snapshot_name.push(kind);
         let snapshot_path = snapshot_dir.join(snapshot_name);
         if bless {
-            std::fs::create_dir_all(snapshot_path.parent().unwrap()).with_context(|| {
-                format!("could not create the snapshot dir {:?}", snapshot_path)
-            })?;
+            std::fs::create_dir_all(snapshot_path.parent().unwrap())
+                .with_context(|| format!("could not create the snapshot dir {snapshot_path:?}"))?;
             std::fs::write(&snapshot_path, contents).with_context(|| {
-                format!("could not write out the snapshot to {:?}", snapshot_path)
+                format!("could not write out the snapshot to {snapshot_path:?}")
             })?;
         } else {
             let snapshot = std::fs::read(snapshot_path)

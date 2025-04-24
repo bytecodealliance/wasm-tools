@@ -68,7 +68,7 @@ impl<'a> ModuleInfo<'a> {
         loop {
             let (payload, consumed) = match parser.parse(wasm, true)? {
                 Chunk::NeedMoreData(hint) => {
-                    panic!("Invalid Wasm module {:?}", hint);
+                    panic!("Invalid Wasm module {hint:?}");
                 }
                 Chunk::Parsed { consumed, payload } => (payload, consumed),
             };

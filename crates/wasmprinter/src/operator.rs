@@ -178,7 +178,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
             let depth = self.cur_depth();
             self.push_str(" ")?;
             self.result().start_comment()?;
-            write!(self.result(), ";; label = @{}", depth)?;
+            write!(self.result(), ";; label = @{depth}")?;
             self.result().reset_color()?;
         }
 
@@ -294,7 +294,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
     fn local_index(&mut self, idx: u32) -> Result<()> {
         self.push_str(" ")?;
         self.printer
-            .print_local_idx(self.state, self.state.core.funcs as u32, idx)
+            .print_local_idx(self.state, self.state.core.funcs, idx)
     }
 
     fn global_index(&mut self, idx: u32) -> Result<()> {
@@ -410,7 +410,7 @@ impl<'printer, 'state, 'a, 'b> PrintOperator<'printer, 'state, 'a, 'b> {
         }
         if memarg.align != memarg.max_align {
             let align = 1_u64 << memarg.align;
-            write!(self.result(), " align={}", align)?;
+            write!(self.result(), " align={align}")?;
         }
         Ok(())
     }
@@ -710,12 +710,6 @@ macro_rules! define_visit {
         $self.printer.print_field_idx($self.state, $ty, $field)?;
     );
     (payload $self:ident StructAtomicGetU $order:ident $ty:ident $field:ident) => (
-        $self.ordering($order)?;
-        $self.struct_type_index($ty)?;
-        $self.push_str(" ")?;
-        $self.printer.print_field_idx($self.state, $ty, $field)?;
-    );
-    (payload $self:ident StructAtomicSet $order:ident $ty:ident $field:ident) => (
         $self.ordering($order)?;
         $self.struct_type_index($ty)?;
         $self.push_str(" ")?;

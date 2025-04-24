@@ -99,7 +99,7 @@ impl<'a> Dump<'a> {
                     encoding,
                     range,
                 } => {
-                    write!(self.state, "version {} ({:?})", num, encoding)?;
+                    write!(self.state, "version {num} ({encoding:?})")?;
                     self.color_print(range.end)?;
                 }
                 Payload::TypeSection(s) => self.section(s, "type", |me, end, rec_group| {
@@ -130,7 +130,7 @@ impl<'a> Dump<'a> {
                             write!(me.state, "[global {}]", inc(&mut i.core_globals))?
                         }
                     }
-                    write!(me.state, " {:?}", imp)?;
+                    write!(me.state, " {imp:?}")?;
                     me.print(end)
                 })?,
                 Payload::FunctionSection(s) => {
@@ -153,7 +153,7 @@ impl<'a> Dump<'a> {
                     me.print(end)
                 })?,
                 Payload::ExportSection(s) => self.section(s, "export", |me, end, e| {
-                    write!(me.state, "export {:?}", e)?;
+                    write!(me.state, "export {e:?}")?;
                     me.print(end)
                 })?,
                 Payload::GlobalSection(s) => self.section(s, "global", |me, _end, g| {
@@ -164,13 +164,13 @@ impl<'a> Dump<'a> {
                 Payload::StartSection { func, range } => {
                     write!(self.state, "start section")?;
                     self.print(range.start)?;
-                    write!(self.state, "start function {}", func)?;
+                    write!(self.state, "start function {func}")?;
                     self.print(range.end)?;
                 }
                 Payload::DataCountSection { count, range } => {
                     write!(self.state, "data count section")?;
                     self.print(range.start)?;
-                    write!(self.state, "data count {}", count)?;
+                    write!(self.state, "data count {count}")?;
                     self.print(range.end)?;
                 }
                 Payload::ElementSection(s) => self.section(s, "element", |me, _end, i| {
@@ -181,19 +181,19 @@ impl<'a> Dump<'a> {
                     };
                     match i.kind {
                         ElementKind::Passive => {
-                            write!(me.state, " passive, {} items", item_count)?;
+                            write!(me.state, " passive, {item_count} items")?;
                         }
                         ElementKind::Active {
                             table_index,
                             offset_expr,
                         } => {
-                            write!(me.state, " table[{:?}]", table_index)?;
+                            write!(me.state, " table[{table_index:?}]")?;
                             me.print(offset_expr.get_binary_reader().original_position())?;
                             me.print_ops(offset_expr.get_operators_reader())?;
-                            write!(me.state, "{} items", item_count)?;
+                            write!(me.state, "{item_count} items")?;
                         }
                         ElementKind::Declared => {
-                            write!(me.state, " declared {} items", item_count)?;
+                            write!(me.state, " declared {item_count} items")?;
                         }
                     }
                     match i.items {
@@ -229,7 +229,7 @@ impl<'a> Dump<'a> {
                             memory_index,
                             offset_expr,
                         } => {
-                            write!(me.state, "data memory[{}]", memory_index)?;
+                            write!(me.state, "data memory[{memory_index}]")?;
                             me.print(offset_expr.get_binary_reader().original_position())?;
                             me.print_ops(offset_expr.get_operators_reader())?;
                         }
@@ -246,7 +246,7 @@ impl<'a> Dump<'a> {
                 Payload::CodeSectionStart { count, range, size } => {
                     write!(self.state, "code section")?;
                     self.color_print(range.start)?;
-                    write!(self.state, "{} count", count)?;
+                    write!(self.state, "{count} count")?;
                     self.print(range.end - size as usize)?;
                 }
 
@@ -263,7 +263,7 @@ impl<'a> Dump<'a> {
                     self.print(locals.original_position())?;
                     for _ in 0..locals.get_count() {
                         let (amt, ty) = locals.read()?;
-                        write!(self.state, "{} locals of type {:?}", amt, ty)?;
+                        write!(self.state, "{amt} locals of type {ty:?}")?;
                         self.print(locals.original_position())?;
                     }
                     self.print_ops(body.get_operators_reader()?)?;
@@ -374,7 +374,7 @@ impl<'a> Dump<'a> {
                             },
                         };
 
-                        write!(me.state, "alias [{} {}] {:?}", kind, num, a)?;
+                        write!(me.state, "alias [{kind} {num}] {a:?}")?;
                         me.print(end)
                     })?
                 }
@@ -463,7 +463,7 @@ impl<'a> Dump<'a> {
 
                 Payload::ComponentExportSection(s) => {
                     self.section(s, "component export", |me, end, e| {
-                        write!(me.state, "export {:?}", e)?;
+                        write!(me.state, "export {e:?}")?;
                         me.print(end)
                     })?
                 }
@@ -471,7 +471,7 @@ impl<'a> Dump<'a> {
                 Payload::ComponentStartSection { start, range } => {
                     write!(self.state, "start section")?;
                     self.print(range.start)?;
-                    write!(self.state, "{:?}", start)?;
+                    write!(self.state, "{start:?}")?;
                     self.print(range.end)?;
                 }
 
@@ -570,7 +570,7 @@ impl<'a> Dump<'a> {
                 }
                 other => match other.as_section() {
                     Some((id, range)) => {
-                        write!(self.state, "unknown section: {}", id)?;
+                        write!(self.state, "unknown section: {id}")?;
                         self.color_print(range.start)?;
                         self.print_byte_header()?;
                         for _ in 0..NBYTES {
@@ -591,7 +591,7 @@ impl<'a> Dump<'a> {
 
     fn print_name_map(&mut self, thing: &str, n: NameMap<'_>) -> Result<()> {
         self.section(n, &format!("{thing} name"), |me, end, naming| {
-            write!(me.state, "{:?}", naming)?;
+            write!(me.state, "{naming:?}")?;
             me.print(end)
         })
     }
@@ -652,7 +652,7 @@ impl<'a> Dump<'a> {
             Name::Module { name, name_range } => {
                 write!(self.state, "module name")?;
                 self.print(name_range.start)?;
-                write!(self.state, "{:?}", name)?;
+                write!(self.state, "{name:?}")?;
                 self.print(name_range.end)?;
             }
             Name::Function(n) => self.print_name_map("function", n)?,
@@ -667,7 +667,7 @@ impl<'a> Dump<'a> {
             Name::Field(n) => self.print_indirect_name_map("type", "field", n)?,
             Name::Tag(n) => self.print_name_map("tag", n)?,
             Name::Unknown { ty, range, .. } => {
-                write!(self.state, "unknown names: {}", ty)?;
+                write!(self.state, "unknown names: {ty}")?;
                 self.print(range.start)?;
                 self.print(end)?;
             }
@@ -680,7 +680,7 @@ impl<'a> Dump<'a> {
             ComponentName::Component { name, name_range } => {
                 write!(self.state, "component name")?;
                 self.print(name_range.start)?;
-                write!(self.state, "{:?}", name)?;
+                write!(self.state, "{name:?}")?;
                 self.print(name_range.end)?;
             }
             ComponentName::CoreFuncs(n) => self.print_name_map("core func", n)?,
@@ -697,7 +697,7 @@ impl<'a> Dump<'a> {
             ComponentName::Funcs(n) => self.print_name_map("func", n)?,
             ComponentName::Values(n) => self.print_name_map("value", n)?,
             ComponentName::Unknown { ty, range, .. } => {
-                write!(self.state, "unknown names: {}", ty)?;
+                write!(self.state, "unknown names: {ty}")?;
                 self.print(range.start)?;
                 self.print(end)?;
             }
@@ -724,7 +724,7 @@ impl<'a> Dump<'a> {
                 me.print(pos)
             }),
             Linking::Unknown { ty, range, .. } => {
-                write!(self.state, "unknown subsection: {}", ty)?;
+                write!(self.state, "unknown subsection: {ty}")?;
                 self.print(range.start)?;
                 self.print(end)
             }
@@ -740,7 +740,7 @@ impl<'a> Dump<'a> {
     where
         T: FromReader<'b>,
     {
-        write!(self.state, "{} section", name)?;
+        write!(self.state, "{name} section")?;
         self.color_print(iter.range().start)?;
         self.print_iter(iter, print)
     }
@@ -803,7 +803,7 @@ impl<'a> Dump<'a> {
             }
             for j in 0..NBYTES {
                 match chunk.get(j) {
-                    Some(b) => write!(self.dst, " {:02x}", b)?,
+                    Some(b) => write!(self.dst, " {b:02x}")?,
                     None => write!(self.dst, "   ")?,
                 }
             }

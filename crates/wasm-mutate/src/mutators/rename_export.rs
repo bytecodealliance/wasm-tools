@@ -81,7 +81,7 @@ impl Mutator for RenameExportMutator {
                     exports.export(new_name.as_str(), ExportKind::Global, export.index);
                 }
                 _ => {
-                    panic!("Unknown export {:?}", export)
+                    panic!("Unknown export {export:?}")
                 }
             }
         }

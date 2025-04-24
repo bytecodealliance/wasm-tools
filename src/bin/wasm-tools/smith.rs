@@ -108,7 +108,7 @@ impl Opts {
         let config = self.module_config.clone().or(json);
         let config = wasm_smith::Config::try_from(config)?;
         let mut module = Module::new(config, &mut u).unwrap_or_else(|e| {
-            eprintln!("error: failed to generate module: {}", e);
+            eprintln!("error: failed to generate module: {e}");
             process::exit(2);
         });
         if self.ensure_termination {

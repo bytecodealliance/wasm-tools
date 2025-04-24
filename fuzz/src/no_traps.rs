@@ -119,6 +119,6 @@ fn validate_module(wasm_bytes: &Vec<u8>) {
     // Validate the module or component and assert that it passes validation.
     let mut validator = wasmparser::Validator::new_with_features(WasmFeatures::all());
     if let Err(e) = validator.validate_all(wasm_bytes) {
-        panic!("Invalid module: {}", e);
+        panic!("Invalid module: {e}");
     }
 }

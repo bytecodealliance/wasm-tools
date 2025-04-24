@@ -51,7 +51,7 @@ fn smoke_test_imports_config() {
                         use AvailableImportKind as I;
                         let entry = imports_seen.get_mut(&(import.module, import.name));
                         match (entry, &import.ty) {
-                            (Some((true, _)), _) => panic!("duplicate import of {:?}", import),
+                            (Some((true, _)), _) => panic!("duplicate import of {import:?}"),
                             (Some((seen, I::Memory)), TypeRef::Memory(_)) => *seen = true,
                             (Some((seen, I::Global(t))), TypeRef::Global(gt))
                                 if *t == gt.content_type =>
@@ -77,11 +77,10 @@ fn smoke_test_imports_config() {
                             {
                                 *seen = true
                             }
-                            (Some((_, expected)), _) => panic!(
-                                "import {:?} type mismatch, expected: {:?}",
-                                import, expected
-                            ),
-                            (None, _) => panic!("import of an unknown entity: {:?}", import),
+                            (Some((_, expected)), _) => {
+                                panic!("import {import:?} type mismatch, expected: {expected:?}")
+                            }
+                            (None, _) => panic!("import of an unknown entity: {import:?}"),
                         }
                     }
                 }

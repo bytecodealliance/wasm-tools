@@ -588,14 +588,14 @@ impl std::error::Error for Error {}
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Unexpected(_, ch) => write!(f, "unexpected character {:?}", ch),
+            Error::Unexpected(_, ch) => write!(f, "unexpected character {ch:?}"),
             Error::UnterminatedComment(_) => write!(f, "unterminated block comment"),
             Error::Wanted {
                 expected, found, ..
-            } => write!(f, "expected {}, found {}", expected, found),
-            Error::InvalidCharInId(_, ch) => write!(f, "invalid character in identifier {:?}", ch),
+            } => write!(f, "expected {expected}, found {found}"),
+            Error::InvalidCharInId(_, ch) => write!(f, "invalid character in identifier {ch:?}"),
             Error::IdPartEmpty(_) => write!(f, "identifiers must have characters between '-'s"),
-            Error::InvalidEscape(_, ch) => write!(f, "invalid escape in string {:?}", ch),
+            Error::InvalidEscape(_, ch) => write!(f, "invalid escape in string {ch:?}"),
         }
     }
 }
